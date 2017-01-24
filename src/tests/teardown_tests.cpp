@@ -91,7 +91,7 @@ TEST_F(TeardownTest, Success)
         master.get()->pid,
         "teardown",
         createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-        "frameworkId=" + frameworkId.get().value());
+        "frameworkId=" + frameworkId->value());
 
     AWAIT_READY(response);
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
@@ -109,7 +109,7 @@ TEST_F(TeardownTest, Success)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
     AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
@@ -161,7 +161,7 @@ TEST_F(TeardownTest, BadCredentials)
       master.get()->pid,
       "teardown",
       createBasicAuthHeaders(badCredential),
-      "frameworkId=" + frameworkId.get().value());
+      "frameworkId=" + frameworkId->value());
 
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
@@ -204,7 +204,7 @@ TEST_F(TeardownTest, GoodACLs)
       master.get()->pid,
       "teardown",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      "frameworkId=" + frameworkId.get().value());
+      "frameworkId=" + frameworkId->value());
 
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
@@ -248,7 +248,7 @@ TEST_F(TeardownTest, GoodDeprecatedACLs)
       master.get()->pid,
       "teardown",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      "frameworkId=" + frameworkId.get().value());
+      "frameworkId=" + frameworkId->value());
 
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
@@ -290,7 +290,7 @@ TEST_F(TeardownTest, BadACLs)
       master.get()->pid,
       "teardown",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      "frameworkId=" + frameworkId.get().value());
+      "frameworkId=" + frameworkId->value());
 
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
@@ -354,7 +354,7 @@ TEST_F(TeardownTest, NoHeader)
       master.get()->pid,
       "teardown",
       None(),
-      "frameworkId=" + frameworkId.get().value());
+      "frameworkId=" + frameworkId->value());
 
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
@@ -364,7 +364,9 @@ TEST_F(TeardownTest, NoHeader)
 }
 
 
-TEST_F(TeardownTest, DisconnectedFrameworkAfterFailover)
+// This test checks that the teardown operation can be used on a
+// framework that has not re-registered after master failover.
+TEST_F(TeardownTest, RecoveredFrameworkAfterMasterFailover)
 {
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -384,8 +386,7 @@ TEST_F(TeardownTest, DisconnectedFrameworkAfterFailover)
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers));
 
   ASSERT_EQ(DRIVER_RUNNING, driver.start());
 
@@ -406,8 +407,8 @@ TEST_F(TeardownTest, DisconnectedFrameworkAfterFailover)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
   AWAIT_READY(statusUpdateAck);
 
@@ -429,13 +430,14 @@ TEST_F(TeardownTest, DisconnectedFrameworkAfterFailover)
 
   AWAIT_READY(slaveReregisteredMessage);
 
-  // Teardown the framework.
+  // Teardown the framework, which has not yet re-registered with the
+  // new master.
   {
     Future<Response> response = process::http::post(
         master.get()->pid,
         "teardown",
         createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-        "frameworkId=" + frameworkId.get().value());
+        "frameworkId=" + frameworkId->value());
 
     AWAIT_READY(response);
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
@@ -455,7 +457,7 @@ TEST_F(TeardownTest, DisconnectedFrameworkAfterFailover)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
     AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
@@ -472,12 +474,12 @@ TEST_F(TeardownTest, DisconnectedFrameworkAfterFailover)
 
     ASSERT_EQ(1u, completedFrameworks.values.size());
 
-    JSON::Object firstCompletedFramework =
+    JSON::Object completedFramework =
       completedFrameworks.values.front().as<JSON::Object>();
 
     EXPECT_EQ(
         frameworkId.get(),
-        firstCompletedFramework.values["id"].as<JSON::String>().value);
+        completedFramework.values["id"].as<JSON::String>().value);
   }
 
   driver.stop();
