@@ -361,7 +361,7 @@ public:
       const Duration&,
       const lambda::function<
           void(const FrameworkID&,
-               const hashmap<SlaveID, Resources>&)>&,
+               const hashmap<std::string, hashmap<SlaveID, Resources>>&)>&,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&,

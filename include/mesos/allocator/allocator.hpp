@@ -88,7 +88,8 @@ public:
       const Duration& allocationInterval,
       const lambda::function<
           void(const FrameworkID&,
-               const hashmap<SlaveID, Resources>&)>& offerCallback,
+               const hashmap<std::string, hashmap<SlaveID, Resources>>&)>&
+                   offerCallback,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
@@ -259,7 +260,8 @@ public:
    * (dynamic reservation and persistent volumes). The allocator may react
    * differently for certain offer operations. The allocator should use this
    * call to update bookkeeping information related to the framework. The
-   * `offeredResources` are the resources that the operations are applied to.
+   * `offeredResources` are the resources that the operations are applied to
+   * and must be allocated to a single role.
    */
   virtual void updateAllocation(
       const FrameworkID& frameworkId,
@@ -328,7 +330,13 @@ public:
    *
    * Used to update the set of available resources for a specific agent. This
    * method is invoked to inform the allocator about allocated resources that
-   * have been refused or are no longer in use.
+   * have been refused or are no longer in use. Allocated resources will have
+   * an `allocation_info.role` assigned and callers are expected to only call
+   * this with resources allocated to a single role.
+   *
+   * TODO(bmahler): We could allow resources allocated to multiple roles
+   * within a single call here, but filtering them in the same way does
+   * not seem desirable.
    */
   virtual void recoverResources(
       const FrameworkID& frameworkId,
@@ -340,6 +348,9 @@ public:
    * Suppresses offers.
    *
    * Informs the allocator to stop sending offers to the framework.
+   *
+   * TODO(bmahler): Take an optional role to allow frameworks with
+   * multiple roles to do fine-grained suppression.
    */
   virtual void suppressOffers(
       const FrameworkID& frameworkId) = 0;
@@ -347,6 +358,9 @@ public:
   /**
    * Revives offers for a framework. This is invoked by a framework when
    * it wishes to receive filtered resources or offers immediately.
+   *
+   * TODO(bmahler): Take an optional role to allow frameworks with
+   * multiple roles to do fine-grained revival.
    */
   virtual void reviveOffers(
       const FrameworkID& frameworkId) = 0;
