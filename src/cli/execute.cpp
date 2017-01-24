@@ -240,8 +240,8 @@ public:
 
     add(&Flags::framework_capabilities,
         "framework_capabilities",
-        "Comma separated list of optional framework capabilities to enable.\n"
-        "(the only valid value is currently 'GPU_RESOURCES')");
+        "Comma-separated list of optional framework capabilities to enable.\n"
+        "The TASK_KILLING_STATE capability is always enabled.");
 
     add(&Flags::containerizer,
         "containerizer",
@@ -937,8 +937,8 @@ int main(int argc, char** argv)
     environment = flags.environment.get();
   }
 
-  // Copy the package to HDFS if requested save it's location as a URI
-  // for passing to the command (in CommandInfo).
+  // Copy the package to HDFS, if requested. Save its location
+  // as a URI for passing to the command (in CommandInfo).
   Option<string> uri = None();
 
   if (flags.package.isSome()) {
@@ -1018,14 +1018,14 @@ int main(int argc, char** argv)
 
       if (!FrameworkInfo::Capability::Type_Parse(capability, &type)) {
         cerr << "Flags '--framework_capabilities'"
-                " specifes an unknown capability"
+                " specifies an unknown capability"
                 " '" << capability << "'" << endl;
         return EXIT_FAILURE;
       }
 
       if (type != FrameworkInfo::Capability::GPU_RESOURCES) {
         cerr << "Flags '--framework_capabilities'"
-                " specifes an unsupported capability"
+                " specifies an unsupported capability"
                 " '" << capability << "'" << endl;
         return EXIT_FAILURE;
       }
