@@ -7993,7 +7993,7 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     // its state. Note that we are being defensive here because this should not
     // happen unless there is a bug in the master code.
     if (!protobuf::isTerminalState(task->state())) {
-      if (task->state() != status.state()) {
+      if (status.state() != task->state()) {
         sendSubscribersUpdate = true;
       }
 
