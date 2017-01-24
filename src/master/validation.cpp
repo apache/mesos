@@ -788,14 +788,22 @@ Option<Error> validateTaskID(const TaskInfo& task)
 }
 
 
-// Validates that the TaskID does not collide with any existing tasks
-// for the framework.
+// Validates that the TaskID does not collide with the ID of a running
+// or unreachable task for this framework.
 Option<Error> validateUniqueTaskID(const TaskInfo& task, Framework* framework)
 {
   const TaskID& taskId = task.task_id();
 
   if (framework->tasks.contains(taskId)) {
     return Error("Task has duplicate ID: " + taskId.value());
+  }
+
+  // TODO(neilc): `unreachableTasks` is a fixed-size cache and is not
+  // preserved across master failover, so we cannot avoid all possible
+  // task ID collisions (MESOS-6785).
+  if (framework->unreachableTasks.contains(taskId)) {
+    return Error("Task reuses the ID of an unreachable task: " +
+                 taskId.value());
   }
 
   return None();

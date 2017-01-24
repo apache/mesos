@@ -40,6 +40,8 @@
 #include "master/master.hpp"
 #include "master/validation.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "slave/slave.hpp"
 
 #include "tests/containerizer.hpp"
@@ -54,9 +56,11 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
 
 using process::Clock;
 using process::Future;
+using process::Message;
 using process::Owned;
 using process::PID;
 
@@ -65,6 +69,7 @@ using std::vector;
 
 using testing::_;
 using testing::AtMost;
+using testing::Eq;
 using testing::Return;
 
 namespace mesos {
@@ -1426,6 +1431,144 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test checks that if a task is launched with the same task ID
+// as an unreachable task, the second task will be rejected. The
+// master does not store all unreachable task IDs so we cannot prevent
+// all task ID collisions, but we try to prevent the common case.
+TEST_F(TaskValidationTest, TaskReusesUnreachableTaskID)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Allow the master to PING the slave, but drop all PONG messages
+  // from the slave. Note that we don't match on the master / slave
+  // PIDs because it's actually the `SlaveObserver` process that sends
+  // the pings.
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  StandaloneMasterDetector detector1(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(&detector1);
+  ASSERT_SOME(slave1);
+
+  // Start a partition-aware scheduler.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  ASSERT_FALSE(offers1->empty());
+
+  Offer offer1 = offers1.get()[0];
+  TaskInfo task1 = createTask(offer1, "sleep 60");
+
+  Future<TaskStatus> runningStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&runningStatus));
+
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
+      slave1.get()->pid, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offer1.id(), {task1});
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task1.task_id(), runningStatus->task_id());
+
+  const SlaveID slaveId1 = runningStatus->slave_id();
+
+  AWAIT_READY(statusUpdateAck);
+
+  // Now, induce a partition of the slave by having the master
+  // timeout the slave.
+  Clock::pause();
+
+  Future<TaskStatus> unreachableStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&unreachableStatus));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  size_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+
+  AWAIT_READY(unreachableStatus);
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus->reason());
+  EXPECT_EQ(task1.task_id(), unreachableStatus->task_id());
+  EXPECT_EQ(slaveId1, unreachableStatus->slave_id());
+
+  AWAIT_READY(slaveLost);
+
+  // Start a second agent (the first agent remains partitioned).
+  StandaloneMasterDetector detector2(master.get()->pid);
+  slave::Flags agentFlags2 = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(&detector2, agentFlags2);
+  ASSERT_SOME(slave2);
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2));
+
+  Clock::advance(agentFlags2.registration_backoff_factor);
+  AWAIT_READY(offers2);
+  ASSERT_FALSE(offers2->empty());
+
+  // Attempt to launch a new task that reuses the ID of the first
+  // (unreachable) task. This should result in TASK_ERROR.
+
+  Offer offer2 = offers2.get()[0];
+  TaskInfo task2 = createTask(
+      offer2,
+      "sleep 60",
+      None(),
+      "test-task-2",
+      task1.task_id().value());
+
+  Future<TaskStatus> errorStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&errorStatus));
+
+  driver.launchTasks(offer2.id(), {task2});
+
+  AWAIT_READY(errorStatus);
+  EXPECT_EQ(TASK_ERROR, errorStatus->state());
+  EXPECT_EQ(task2.task_id(), errorStatus->task_id());
+
+  driver.stop();
+  driver.join();
+
+  Clock::resume();
 }
 
 
