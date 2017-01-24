@@ -1681,7 +1681,7 @@ enum TaskState {
   TASK_KILLED = 4;   // TERMINAL: The task was killed by the executor.
   TASK_ERROR = 7;    // TERMINAL: The task description contains an error.
 
-  // In Mesos 1.2, this will only be sent when the framework does NOT
+  // In Mesos 1.3, this will only be sent when the framework does NOT
   // opt-in to the PARTITION_AWARE capability.
   TASK_LOST = 5;     // TERMINAL: The task failed but can be rescheduled.
 
