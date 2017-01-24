@@ -244,7 +244,7 @@ struct FrameworkWriter
     writer->field("hostname", framework_->info.hostname());
 
     // For multi-role frameworks the `role` field will be unset.
-    // Note that we could set `roles` here both both cases, which
+    // Note that we could set `roles` here for both cases, which
     // would make tooling simpler (only need to look for `roles`).
     // However, we opted to just mirror the protobuf akin to how
     // generic protobuf -> JSON translation works.
