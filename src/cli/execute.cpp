@@ -241,7 +241,8 @@ public:
     add(&Flags::framework_capabilities,
         "framework_capabilities",
         "Comma-separated list of optional framework capabilities to enable.\n"
-        "The TASK_KILLING_STATE capability is always enabled.");
+        "TASK_KILLING_STATE is always enabled. PARTITION_AWARE is enabled\n"
+        "unless --no-partition-aware is specified.");
 
     add(&Flags::containerizer,
         "containerizer",
@@ -338,6 +339,11 @@ public:
         "The content type to use for scheduler protocol messages. 'json'\n"
         "and 'protobuf' are valid choices.",
         "protobuf");
+
+    add(&Flags::partition_aware,
+        "partition_aware",
+        "Enable partition-awareness for the framework.",
+        true);
   }
 
   string master;
@@ -366,6 +372,7 @@ public:
   Option<string> principal;
   Option<string> secret;
   string content_type;
+  bool partition_aware;
 };
 
 
@@ -1008,9 +1015,15 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  // We set the TASK_KILLING_STATE capability by default.
+  // Always enable the TASK_KILLING_STATE capability.
   vector<FrameworkInfo::Capability::Type> frameworkCapabilities =
     { FrameworkInfo::Capability::TASK_KILLING_STATE };
+
+  // Enable PARTITION_AWARE unless disabled by the user.
+  if (flags.partition_aware) {
+    frameworkCapabilities.push_back(
+        FrameworkInfo::Capability::PARTITION_AWARE);
+  }
 
   if (flags.framework_capabilities.isSome()) {
     foreach (const string& capability, flags.framework_capabilities.get()) {
