@@ -8414,30 +8414,6 @@ SlaveID Master::newSlaveId()
 }
 
 
-double Master::_slaves_active()
-{
-  double count = 0.0;
-  foreachvalue (Slave* slave, slaves.registered) {
-    if (slave->active) {
-      count++;
-    }
-  }
-  return count;
-}
-
-
-double Master::_slaves_inactive()
-{
-  double count = 0.0;
-  foreachvalue (Slave* slave, slaves.registered) {
-    if (!slave->active) {
-      count++;
-    }
-  }
-  return count;
-}
-
-
 double Master::_slaves_connected()
 {
   double count = 0.0;
@@ -8455,6 +8431,30 @@ double Master::_slaves_disconnected()
   double count = 0.0;
   foreachvalue (Slave* slave, slaves.registered) {
     if (!slave->connected) {
+      count++;
+    }
+  }
+  return count;
+}
+
+
+double Master::_slaves_active()
+{
+  double count = 0.0;
+  foreachvalue (Slave* slave, slaves.registered) {
+    if (slave->active) {
+      count++;
+    }
+  }
+  return count;
+}
+
+
+double Master::_slaves_inactive()
+{
+  double count = 0.0;
+  foreachvalue (Slave* slave, slaves.registered) {
+    if (!slave->active) {
       count++;
     }
   }
