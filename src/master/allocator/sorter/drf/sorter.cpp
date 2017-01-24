@@ -352,7 +352,8 @@ void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
 {
   if (!resources.empty()) {
     CHECK(total_.resources.contains(slaveId));
-    CHECK(total_.resources[slaveId].contains(resources));
+    CHECK(total_.resources[slaveId].contains(resources))
+      << total_.resources[slaveId] << " does not contain " << resources;
 
     total_.resources[slaveId] -= resources;
 
