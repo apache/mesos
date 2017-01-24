@@ -2005,8 +2005,6 @@ Future<bool> DockerContainerizerProcess::destroy(
     const ContainerID& containerId,
     bool killed)
 {
-  CHECK(!containerId.has_parent());
-
   if (!containers_.contains(containerId)) {
     // TODO(bmahler): Currently the agent does not log destroy
     // failures or unknown containers, so we log it here for now.
@@ -2015,6 +2013,17 @@ Future<bool> DockerContainerizerProcess::destroy(
 
     return false;
   }
+
+  // TODO(klueska): Ideally, we would do this check as the first thing
+  // we do after entering this function. However, the containerizer
+  // API currently requires callers of `launch()` to also call
+  // `destroy()` if the launch fails (MESOS-6214). As such, putting
+  // the check at the top of this function would cause the
+  // containerizer to crash if the launch failure was due to the
+  // container having its `parent` field set. Once we remove the
+  // requirement for `destroy()` to be called explicitly after launch
+  // failures, we should move this check to the top of this function.
+  CHECK(!containerId.has_parent());
 
   Container* container = containers_.at(containerId);
 
