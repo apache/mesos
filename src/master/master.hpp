@@ -907,6 +907,22 @@ private:
   bool isWhitelistedRole(const std::string& name);
 
   /**
+   * Indicates whether a task in the given state can safely be removed
+   * from the master's in-memory state. When a task becomes removable,
+   * it is erased from the master's primary task data structures; a
+   * limited number of such tasks are kept as a cache (see
+   * `framework.unreachableTasks` and `framework.completedTasks`).
+   */
+  static bool isRemovable(const TaskState& state)
+  {
+    if (state == TASK_UNREACHABLE) {
+      return true;
+    }
+
+    return protobuf::isTerminalState(state);
+  }
+
+  /**
    * Inner class used to namespace the handling of quota requests.
    *
    * It operates inside the Master actor. It is responsible for validating
@@ -2182,7 +2198,7 @@ struct Framework
 
     tasks[task->task_id()] = task;
 
-    if (!protobuf::isTerminalState(task->state())) {
+    if (!Master::isRemovable(task->state())) {
       totalUsedResources += task->resources();
       usedResources[task->slave_id()] += task->resources();
     }
@@ -2196,7 +2212,7 @@ struct Framework
   // functionally for all tasks is expensive, for now.
   void recoverResources(Task* task)
   {
-    CHECK(protobuf::isTerminalState(task->state()));
+    CHECK(Master::isRemovable(task->state()));
     CHECK(tasks.contains(task->task_id()))
       << "Unknown task " << task->task_id()
       << " of framework " << task->framework_id();
@@ -2253,7 +2269,7 @@ struct Framework
       << "Unknown task " << task->task_id()
       << " of framework " << task->framework_id();
 
-    if (!protobuf::isTerminalState(task->state())) {
+    if (!Master::isRemovable(task->state())) {
       totalUsedResources -= task->resources();
       usedResources[task->slave_id()] -= task->resources();
       if (usedResources[task->slave_id()].empty()) {

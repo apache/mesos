@@ -7969,12 +7969,11 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
   // task transitioned to a new state.
   bool sendSubscribersUpdate = false;
 
-  // Set 'terminated' to true if this is the first time the task
-  // transitioned to terminal state. Also set the latest state.
-  bool terminated;
+  // Set 'removable' to true if this is the first time the task
+  // transitioned to a removable state. Also set the latest state.
+  bool removable;
   if (latestState.isSome()) {
-    terminated = !protobuf::isTerminalState(task->state()) &&
-                 protobuf::isTerminalState(latestState.get());
+    removable = !isRemovable(task->state()) && isRemovable(latestState.get());
 
     // If the task has already transitioned to a terminal state,
     // do not update its state.
@@ -7986,8 +7985,7 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
       task->set_state(latestState.get());
     }
   } else {
-    terminated = !protobuf::isTerminalState(task->state()) &&
-                 protobuf::isTerminalState(status.state());
+    removable = !isRemovable(task->state()) && isRemovable(status.state());
 
     // If the task has already transitioned to a terminal state, do not update
     // its state. Note that we are being defensive here because this should not
@@ -8026,8 +8024,8 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
             << " (latest state: " << task->state()
             << ", status update state: " << status.state() << ")";
 
-  // Once the task becomes terminal, we recover the resources.
-  if (terminated) {
+  // Once the task becomes removable, recover the resources.
+  if (removable) {
     allocator->recoverResources(
         task->framework_id(),
         task->slave_id(),
@@ -8102,14 +8100,14 @@ void Master::removeTask(Task* task)
   Slave* slave = slaves.registered.get(task->slave_id());
   CHECK_NOTNULL(slave);
 
-  if (!protobuf::isTerminalState(task->state())) {
+  if (!isRemovable(task->state())) {
     LOG(WARNING) << "Removing task " << task->task_id()
                  << " with resources " << task->resources()
                  << " of framework " << task->framework_id()
                  << " on agent " << *slave
-                 << " in non-terminal state " << task->state();
+                 << " in non-removable state " << task->state();
 
-    // If the task is not terminal, then the resources have
+    // If the task is not removable, then the resources have
     // not yet been recovered.
     allocator->recoverResources(
         task->framework_id(),
@@ -8741,7 +8739,7 @@ void Slave::addTask(Task* task)
 
   tasks[frameworkId][taskId] = task;
 
-  if (!protobuf::isTerminalState(task->state())) {
+  if (!Master::isRemovable(task->state())) {
     usedResources[frameworkId] += task->resources();
   }
 
@@ -8760,7 +8758,7 @@ void Slave::recoverResources(Task* task)
   const TaskID& taskId = task->task_id();
   const FrameworkID& frameworkId = task->framework_id();
 
-  CHECK(protobuf::isTerminalState(task->state()));
+  CHECK(Master::isRemovable(task->state()));
   CHECK(tasks.at(frameworkId).contains(taskId))
     << "Unknown task " << taskId << " of framework " << frameworkId;
 
@@ -8779,7 +8777,7 @@ void Slave::removeTask(Task* task)
   CHECK(tasks.at(frameworkId).contains(taskId))
     << "Unknown task " << taskId << " of framework " << frameworkId;
 
-  if (!protobuf::isTerminalState(task->state())) {
+  if (!Master::isRemovable(task->state())) {
     usedResources[frameworkId] -= task->resources();
     if (usedResources[frameworkId].empty()) {
       usedResources.erase(frameworkId);
