@@ -131,11 +131,13 @@ struct Slave
 
   void addTask(Task* task);
 
-  // Notification of task termination, for resource accounting.
+  // Update slave to recover the resources that were previously
+  // being used by `task`.
+  //
   // TODO(bmahler): This is a hack for performance. We need to
   // maintain resource counters because computing task resources
   // functionally for all tasks is expensive, for now.
-  void taskTerminated(Task* task);
+  void recoverResources(Task* task);
 
   void removeTask(Task* task);
 
@@ -2186,11 +2188,13 @@ struct Framework
     }
   }
 
-  // Notification of task termination, for resource accounting.
+  // Update framework to recover the resources that were previously
+  // being used by `task`.
+  //
   // TODO(bmahler): This is a hack for performance. We need to
   // maintain resource counters because computing task resources
   // functionally for all tasks is expensive, for now.
-  void taskTerminated(Task* task)
+  void recoverResources(Task* task)
   {
     CHECK(protobuf::isTerminalState(task->state()));
     CHECK(tasks.contains(task->task_id()))

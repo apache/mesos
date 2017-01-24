@@ -8038,11 +8038,11 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     Slave* slave = slaves.registered.get(task->slave_id());
     CHECK_NOTNULL(slave);
 
-    slave->taskTerminated(task);
+    slave->recoverResources(task);
 
     Framework* framework = getFramework(task->framework_id());
     if (framework != nullptr) {
-      framework->taskTerminated(task);
+      framework->recoverResources(task);
     }
 
     switch (status.state()) {
@@ -8755,7 +8755,7 @@ void Slave::addTask(Task* task)
 }
 
 
-void Slave::taskTerminated(Task* task)
+void Slave::recoverResources(Task* task)
 {
   const TaskID& taskId = task->task_id();
   const FrameworkID& frameworkId = task->framework_id();
