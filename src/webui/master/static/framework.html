@@ -95,6 +95,28 @@
       </tbody>
     </table>
 
+    <table m-table table-content="framework.unreachable_tasks" title="Unreachable Tasks"
+      class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th data-key="id">ID</th>
+          <th data-key="name">Name</th>
+          <th data-key="start_time">Started</th>
+          <th data-key="agent_id">Agent ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="task in $data">
+          <td>{{task.id}}</td>
+          <td>{{task.name}}</td>
+          <td>
+            <m-timestamp value="{{task.start_time}}"></m-timestamp>
+          </td>
+          <td>{{task.slave_id}}</td>
+        </tr>
+      </tbody>
+    </table>
+
     <table m-table table-content="framework.completed_tasks" title="Completed Tasks"
       class="table table-striped table-bordered table-condensed">
       <thead>

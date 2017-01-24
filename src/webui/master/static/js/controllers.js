@@ -113,6 +113,7 @@
     $scope.offers = {};
     $scope.completed_frameworks = {};
     $scope.active_tasks = [];
+    $scope.unreachable_tasks = [];
     $scope.completed_tasks = [];
     $scope.orphan_tasks = [];
 
@@ -222,9 +223,11 @@
       // TODO(brenden): Remove this once
       // https://issues.apache.org/jira/browse/MESOS-527 is fixed.
       _.each(framework.tasks, setTaskMetadata);
+      _.each(framework.unreachable_tasks, setTaskMetadata);
       _.each(framework.completed_tasks, setTaskMetadata);
 
       $scope.active_tasks = $scope.active_tasks.concat(framework.tasks);
+      $scope.unreachable_tasks = $scope.unreachable_tasks.concat(framework.unreachable_tasks);
       $scope.completed_tasks =
         $scope.completed_tasks.concat(framework.completed_tasks);
     });
