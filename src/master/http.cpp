@@ -406,7 +406,7 @@ static void json(JSON::ObjectWriter* writer, const Summary<Framework>& summary)
   writer->field("capabilities", framework.info.capabilities());
   writer->field("hostname", framework.info.hostname());
   writer->field("webui_url", framework.info.webui_url());
-  writer->field("active", framework.active);
+  writer->field("active", framework.active());
   writer->field("connected", framework.connected());
   writer->field("recovered", framework.recovered());
 }
@@ -1412,7 +1412,7 @@ mesos::master::Response::GetFrameworks::Framework model(
 
   _framework.mutable_framework_info()->CopyFrom(framework.info);
 
-  _framework.set_active(framework.active);
+  _framework.set_active(framework.active());
   _framework.set_connected(framework.connected());
   _framework.set_recovered(framework.recovered());
 

@@ -2116,19 +2116,22 @@ struct Framework
 {
   enum State
   {
-    // Framework is currently connected. Note that frameworks must
-    // also be `active` to be eligible to receive offers.
-    CONNECTED,
+    // Framework has never connected to this master. This implies the
+    // master failed over and the framework has not yet re-registered,
+    // but some framework state has been recovered from re-registering
+    // agents that are running tasks for the framework.
+    RECOVERED,
 
     // Framework was previously connected to this master. A framework
     // becomes disconnected when there is a socket error.
     DISCONNECTED,
 
-    // Framework has never connected to this master. This implies the
-    // master failed over and the framework has not yet re-registered,
-    // but some framework state has been recovered from re-registering
-    // agents that are running tasks for the framework.
-    RECOVERED
+    // The framework is connected but not active.
+    INACTIVE,
+
+    // Framework is connected and eligible to receive offers. No
+    // offers will be made to frameworks that are not active.
+    ACTIVE
   };
 
   Framework(Master* const _master,
@@ -2140,8 +2143,7 @@ struct Framework
       info(_info),
       capabilities(_info.capabilities()),
       pid(_pid),
-      state(CONNECTED),
-      active(true),
+      state(ACTIVE),
       registeredTime(time),
       reregisteredTime(time),
       completedTasks(masterFlags.max_completed_tasks_per_framework),
@@ -2156,8 +2158,7 @@ struct Framework
       info(_info),
       capabilities(_info.capabilities()),
       http(_http),
-      state(CONNECTED),
-      active(true),
+      state(ACTIVE),
       registeredTime(time),
       reregisteredTime(time),
       completedTasks(masterFlags.max_completed_tasks_per_framework),
@@ -2170,7 +2171,6 @@ struct Framework
       info(_info),
       capabilities(_info.capabilities()),
       state(RECOVERED),
-      active(false),
       completedTasks(masterFlags.max_completed_tasks_per_framework),
       unreachableTasks(masterFlags.max_unreachable_tasks_per_framework) {}
 
@@ -2497,8 +2497,8 @@ struct Framework
     process::spawn(heartbeater.get().get());
   }
 
-  bool connected() const { return state == CONNECTED; }
-
+  bool active() const    { return state == ACTIVE; }
+  bool connected() const { return state == ACTIVE || state == INACTIVE; }
   bool recovered() const { return state == RECOVERED; }
 
   Master* const master;
@@ -2515,14 +2515,6 @@ struct Framework
   Option<process::UPID> pid;
 
   State state;
-
-  // Framework becomes deactivated when it is disconnected or
-  // the master receives a DeactivateFrameworkMessage.
-  // No offers will be made to a deactivated framework.
-  //
-  // TODO(neilc): Consider replacing this with an additional
-  // `state` enumeration value (MESOS-6719).
-  bool active;
 
   process::Time registeredTime;
   process::Time reregisteredTime;
