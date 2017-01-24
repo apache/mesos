@@ -5512,6 +5512,78 @@ void Master::_reregisterSlave(
   machineId.set_hostname(slaveInfo.hostname());
   machineId.set_ip(stringify(pid.address.ip));
 
+  // For easy lookup, first determine the set of FrameworkIDs on the
+  // re-registering agent that are partition-aware. We examine both
+  // the frameworks and the tasks running on the agent. The former is
+  // necessary because the master might have failed over and not know
+  // about a framework running on the agent; the latter is necessary
+  // because pre-1.0 Mesos agents don't supply a list of running
+  // frameworks on re-registration.
+  hashset<FrameworkID> partitionAwareFrameworks;
+
+  // TODO(neilc): Remove this loop when we remove compatibility with
+  // pre-1.0 Mesos agents.
+  foreach (const Task& task, tasks) {
+    Framework* framework = getFramework(task.framework_id());
+
+    if (framework == nullptr) {
+      continue;
+    }
+
+    if (protobuf::frameworkHasCapability(
+            framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      partitionAwareFrameworks.insert(framework->id());
+    }
+  }
+
+  foreach (const FrameworkInfo& framework, frameworks) {
+    if (protobuf::frameworkHasCapability(
+            framework, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      partitionAwareFrameworks.insert(framework.id());
+    }
+  }
+
+  // Check if this master was the one that removed the reregistering
+  // agent from the cluster originally. This is false if the master
+  // has failed over since the agent was removed, for example.
+  //
+  // TODO(neilc): Since `removed` is a cache, we might mistakenly
+  // think the master has failed over and neglect to shutdown
+  // non-partition-aware frameworks on reregistering agents.
+  bool slaveWasRemoved = slaves.removed.get(slaveInfo.id()).isSome();
+
+  // Decide how to handle the tasks running on the agent:
+  //
+  // (a) If the master has not failed over since the agent was marked
+  // unreachable, only partition-aware tasks are re-added to the
+  // master (those tasks were previously marked "unreachable", so they
+  // should be removed from that collection). Any non-partition-aware
+  // frameworks running on the agent are shutdown. We already marked
+  // such tasks "completed" when the agent was marked unreachable, so
+  // no further cleanup for non-partition-aware tasks is required.
+  //
+  // (b) If the master has failed over, all tasks are re-added to the
+  // master. The master shouldn't have any record of the tasks running
+  // on the agent, so no further cleanup is required.
+  vector<Task> tasks_;
+  foreach (const Task& task, tasks) {
+    const FrameworkID& frameworkId = task.framework_id();
+    Framework* framework = getFramework(frameworkId);
+
+    // Always re-add partition-aware tasks.
+    if (partitionAwareFrameworks.contains(frameworkId)) {
+      tasks_.push_back(task);
+
+      if (framework != nullptr) {
+        framework->unreachableTasks.erase(task.task_id());
+      }
+    } else if (!slaveWasRemoved) {
+      // Only re-add non-partition-aware tasks if the master has
+      // failed over since the agent was marked unreachable.
+      tasks_.push_back(task);
+    }
+  }
+
   Slave* slave = new Slave(
       this,
       slaveInfo,
@@ -5521,19 +5593,11 @@ void Master::_reregisterSlave(
       Clock::now(),
       checkpointedResources,
       executorInfos,
-      tasks);
+      tasks_);
 
   slave->reregisteredTime = Clock::now();
 
   ++metrics->slave_reregistrations;
-
-  // Check if this master was the one that removed the reregistering
-  // agent from the cluster originally. This is false if the master
-  // has failed over since the agent was removed, for example. Since
-  // `removed` is a cache, we might mistakenly think the master has
-  // failed over and neglect to remove non-partition-aware frameworks
-  // on reregistering agents, but that should be rare in practice.
-  bool slaveWasRemoved = slaves.removed.get(slave->id).isSome();
 
   slaves.removed.erase(slave->id);
   slaves.unreachable.erase(slave->id);
@@ -5562,8 +5626,7 @@ void Master::_reregisterSlave(
   // master has not failed over.
   if (slaveWasRemoved) {
     foreach (const FrameworkInfo& framework, frameworks) {
-      if (!protobuf::frameworkHasCapability(
-              framework, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      if (!partitionAwareFrameworks.contains(framework.id())) {
         LOG(INFO) << "Shutting down framework " << framework.id()
                   << " at reregistered agent " << *slave
                   << " because the framework is not partition-aware";
@@ -5572,10 +5635,9 @@ void Master::_reregisterSlave(
         message.mutable_framework_id()->MergeFrom(framework.id());
         send(slave->pid, message);
 
-        // Remove the framework's tasks from the master's in-memory state.
-        foreachvalue (Task* task, utils::copy(slave->tasks[framework.id()])) {
-          removeTask(task);
-        }
+        // The framework's tasks should not be stored in the master's
+        // in-memory state, because they were not re-added above.
+        CHECK(!slave->tasks.contains(framework.id()));
       }
     }
   }
@@ -5882,6 +5944,12 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
   // Lookup the task and see if we need to update anything locally.
   Task* task = slave->getTask(update.framework_id(), update.status().task_id());
   if (task == nullptr) {
+    // TODO(neilc): We might see status updates for non-partition
+    // aware tasks running on a partitioned agent that has
+    // re-registered with the master. The master marks such tasks
+    // completed when the agent partitions; it will shutdown the
+    // framework when the agent-reregisters, but we may see a number
+    // of status updates before the framework is shutdown.
     LOG(WARNING) << "Could not lookup task for status update " << update
                  << " from agent " << *slave;
     metrics->invalid_status_updates++;

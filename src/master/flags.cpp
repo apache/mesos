@@ -543,6 +543,11 @@ mesos::internal::master::Flags::Flags()
       "Maximum number of completed tasks per framework to store in memory.",
       DEFAULT_MAX_COMPLETED_TASKS_PER_FRAMEWORK);
 
+  add(&Flags::max_unreachable_tasks_per_framework,
+      "max_unreachable_tasks_per_framework",
+      "Maximum number of unreachable tasks per framework to store in memory.",
+      DEFAULT_MAX_UNREACHABLE_TASKS_PER_FRAMEWORK);
+
   add(&Flags::master_contender,
       "master_contender",
       "The symbol name of the master contender to use.\n"

@@ -2256,7 +2256,8 @@ struct Framework
       active(true),
       registeredTime(time),
       reregisteredTime(time),
-      completedTasks(masterFlags.max_completed_tasks_per_framework) {}
+      completedTasks(masterFlags.max_completed_tasks_per_framework),
+      unreachableTasks(masterFlags.max_unreachable_tasks_per_framework) {}
 
   Framework(Master* const _master,
             const Flags& masterFlags,
@@ -2271,7 +2272,8 @@ struct Framework
       active(true),
       registeredTime(time),
       reregisteredTime(time),
-      completedTasks(masterFlags.max_completed_tasks_per_framework) {}
+      completedTasks(masterFlags.max_completed_tasks_per_framework),
+      unreachableTasks(masterFlags.max_unreachable_tasks_per_framework) {}
 
   Framework(Master* const _master,
             const Flags& masterFlags,
@@ -2281,7 +2283,8 @@ struct Framework
       capabilities(_info.capabilities()),
       state(RECOVERED),
       active(false),
-      completedTasks(masterFlags.max_completed_tasks_per_framework) {}
+      completedTasks(masterFlags.max_completed_tasks_per_framework),
+      unreachableTasks(masterFlags.max_unreachable_tasks_per_framework) {}
 
   ~Framework()
   {
@@ -2361,6 +2364,15 @@ struct Framework
     completedTasks.push_back(process::Owned<Task>(new Task(task)));
   }
 
+  void addUnreachableTask(const Task& task)
+  {
+    CHECK(protobuf::frameworkHasCapability(
+              info, FrameworkInfo::Capability::PARTITION_AWARE));
+
+    // TODO(adam-mesos): Check if unreachable task already exists.
+    unreachableTasks.set(task.task_id(), process::Owned<Task>(new Task(task)));
+  }
+
   void removeTask(Task* task)
   {
     CHECK(tasks.contains(task->task_id()))
@@ -2375,7 +2387,11 @@ struct Framework
       }
     }
 
-    addCompletedTask(*task);
+    if (task->state() == TASK_UNREACHABLE) {
+      addUnreachableTask(*task);
+    } else {
+      addCompletedTask(*task);
+    }
 
     tasks.erase(task->task_id());
   }
@@ -2630,8 +2646,19 @@ struct Framework
 
   // Tasks launched by this framework that have reached a terminal
   // state and have had all their updates acknowledged. We only keep a
-  // fixed-size cache to avoid consuming too much memory.
+  // fixed-size cache to avoid consuming too much memory. We use
+  // boost::circular_buffer rather than BoundedHashMap because there
+  // can be multiple completed tasks with the same task ID.
+  //
+  // NOTE: When an agent is marked unreachable, non-partition-aware
+  // tasks are marked TASK_LOST and stored here; partition-aware tasks
+  // are marked TASK_UNREACHABLE and stored in `unreachableTasks`.
   boost::circular_buffer<process::Owned<Task>> completedTasks;
+
+  // Partition-aware tasks running on agents that have been marked
+  // unreachable. We only keep a fixed-size cache to avoid consuming
+  // too much memory.
+  BoundedHashMap<TaskID, process::Owned<Task>> unreachableTasks;
 
   hashset<Offer*> offers; // Active offers for framework.
 

@@ -87,6 +87,7 @@ public:
   Option<std::string> http_framework_authenticators;
   size_t max_completed_frameworks;
   size_t max_completed_tasks_per_framework;
+  size_t max_unreachable_tasks_per_framework;
   Option<std::string> master_contender;
   Option<std::string> master_detector;
   Duration registry_gc_interval;

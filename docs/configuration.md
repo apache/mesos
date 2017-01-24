@@ -708,11 +708,18 @@ Maximum number of completed frameworks to store in memory. (default: 50)
 </tr>
 <tr>
   <td>
-    --max_completed_tasks_per_framework
-=VALUE
+    --max_completed_tasks_per_framework=VALUE
   </td>
   <td>
 Maximum number of completed tasks per framework to store in memory. (default: 1000)
+  </td>
+</tr>
+<tr>
+  <td>
+    --max_unreachable_tasks_per_framework=VALUE
+  </td>
+  <td>
+Maximum number of unreachable tasks per framework to store in memory. (default: 1000)
   </td>
 </tr>
 <tr>

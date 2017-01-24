@@ -386,9 +386,19 @@ message Response {
     // to be launched.
     repeated Task pending_tasks = 1;
 
-    // Tasks that have been forwarded to the agent for launch. This includes
-    // tasks that are running and reached terminal state.
+    // Tasks that have been forwarded to the agent for launch. This
+    // includes tasks that are staging or running; it also includes
+    // tasks that have reached a terminal state but the terminal status
+    // update has not yet been acknowledged by the scheduler.
     repeated Task tasks = 2;
+
+    // Tasks that were running on agents that have become partitioned
+    // from the master. If/when the agent is no longer partitioned,
+    // tasks running on that agent will no longer be unreachable (they
+    // will either be running or completed). Note that the master only
+    // stores a limited number of unreachable tasks; information about
+    // unreachable tasks is also not preserved across master failover.
+    repeated Task unreachable_tasks = 5;
 
     // Tasks that have reached terminal state and have all their updates
     // acknowledged by the scheduler.

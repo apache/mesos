@@ -87,6 +87,10 @@ constexpr size_t DEFAULT_MAX_COMPLETED_FRAMEWORKS = 50;
 // to store in the cache.
 constexpr size_t DEFAULT_MAX_COMPLETED_TASKS_PER_FRAMEWORK = 1000;
 
+// Default maximum number of unreachable tasks per framework
+// to store in the cache.
+constexpr size_t DEFAULT_MAX_UNREACHABLE_TASKS_PER_FRAMEWORK = 1000;
+
 // Time interval to check for updated watchers list.
 constexpr Duration WHITELIST_WATCH_INTERVAL = Seconds(5);
 

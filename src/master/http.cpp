@@ -289,6 +289,17 @@ struct FullFrameworkWriter {
       }
     });
 
+    writer->field("unreachable_tasks", [this](JSON::ArrayWriter* writer) {
+      foreachvalue (const Owned<Task>& task, framework_->unreachableTasks) {
+        // Skip unauthorized tasks.
+        if (!approveViewTask(taskApprover_, *task.get(), framework_->info)) {
+          continue;
+        }
+
+        writer->element(*task.get());
+      }
+    });
+
     writer->field("completed_tasks", [this](JSON::ArrayWriter* writer) {
       foreach (const Owned<Task>& task, framework_->completedTasks) {
         // Skip unauthorized tasks.
@@ -2853,6 +2864,11 @@ public:
         slavesToFrameworks[task->slave_id()].insert(frameworkId);
       }
 
+      foreachvalue (const Owned<Task>& task, framework->unreachableTasks) {
+        frameworksToSlaves[frameworkId].insert(task->slave_id());
+        slavesToFrameworks[task->slave_id()].insert(frameworkId);
+      }
+
       foreach (const Owned<Task>& task, framework->completedTasks) {
         frameworksToSlaves[frameworkId].insert(task->slave_id());
         slavesToFrameworks[task->slave_id()].insert(frameworkId);
@@ -2969,6 +2985,11 @@ public:
         slaveTaskSummaries[task->slave_id()].count(*task);
       }
 
+      foreachvalue (const Owned<Task>& task, framework->unreachableTasks) {
+        frameworkTaskSummaries[frameworkId].count(*task.get());
+        slaveTaskSummaries[task->slave_id()].count(*task.get());
+      }
+
       foreach (const Owned<Task>& task, framework->completedTasks) {
         frameworkTaskSummaries[frameworkId].count(*task.get());
         slaveTaskSummaries[task->slave_id()].count(*task.get());
@@ -2989,6 +3010,7 @@ public:
     return iterator != slaveTaskSummaries.end() ?
       iterator->second : TaskStateSummary::EMPTY;
   }
+
 private:
   hashmap<FrameworkID, TaskStateSummary> frameworkTaskSummaries;
   hashmap<SlaveID, TaskStateSummary> slaveTaskSummaries;
@@ -3694,6 +3716,16 @@ Future<Response> Master::Http::tasks(
 
           tasks.push_back(task);
         }
+
+        foreachvalue (const Owned<Task>& task, framework->unreachableTasks) {
+          // Skip unauthorized tasks.
+          if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
+            continue;
+          }
+
+          tasks.push_back(task.get());
+        }
+
         foreach (const Owned<Task>& task, framework->completedTasks) {
           // Skip unauthorized tasks.
           if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
@@ -3830,6 +3862,16 @@ mesos::master::Response::GetTasks Master::Http::_getTasks(
       }
 
       getTasks.add_tasks()->CopyFrom(*task);
+    }
+
+    // Unreachable tasks.
+    foreachvalue (const Owned<Task>& task, framework->unreachableTasks) {
+      // Skip unauthorized tasks.
+      if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
+        continue;
+      }
+
+      getTasks.add_unreachable_tasks()->CopyFrom(*task);
     }
 
     // Completed tasks.
