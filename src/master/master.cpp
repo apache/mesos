@@ -5562,6 +5562,10 @@ void Master::_reregisterSlave(
   // such tasks "completed" when the agent was marked unreachable, so
   // no further cleanup for non-partition-aware tasks is required.
   //
+  // In addition, we also filter any tasks whose frameworks have
+  // completed. As in case (a), such frameworks will be shutdown and
+  // their tasks have already been marked "completed".
+  //
   // (b) If the master has failed over, all tasks are re-added to the
   // master. The master shouldn't have any record of the tasks running
   // on the agent, so no further cleanup is required.
@@ -5569,6 +5573,12 @@ void Master::_reregisterSlave(
   foreach (const Task& task, tasks) {
     const FrameworkID& frameworkId = task.framework_id();
     Framework* framework = getFramework(frameworkId);
+
+    // Don't re-add tasks whose framework has been shutdown at the
+    // master. Such frameworks will be shutdown on the agent below.
+    if (isCompletedFramework(task.framework_id())) {
+      continue;
+    }
 
     // Always re-add partition-aware tasks.
     if (partitionAwareFrameworks.contains(frameworkId)) {
@@ -5617,28 +5627,42 @@ void Master::_reregisterSlave(
   LOG(INFO) << "Re-registered agent " << *slave
             << " with " << slave->info.resources();
 
-  // Shutdown any frameworks running on the slave that don't have the
-  // PARTITION_AWARE capability, provided that this instance of the
-  // master previously added the slave to the `slaves.removed`
-  // collection. This matches the Mesos 1.0 "non-strict" semantics for
-  // frameworks that are not partition-aware: when a previously
-  // unreachable slave reregisters, its tasks are only shutdown if the
-  // master has not failed over.
-  if (slaveWasRemoved) {
-    foreach (const FrameworkInfo& framework, frameworks) {
-      if (!partitionAwareFrameworks.contains(framework.id())) {
-        LOG(INFO) << "Shutting down framework " << framework.id()
-                  << " at reregistered agent " << *slave
-                  << " because the framework is not partition-aware";
+  // Determine which frameworks on the slave to shutdown, if any. This
+  // happens in two cases:
+  //
+  // (1) If this master marked the slave unreachable (i.e., master has
+  // not failed over), we shutdown any non-partition-aware frameworks
+  // running on the slave. This matches the Mesos <= 1.0 "non-strict"
+  // registry semantics.
+  //
+  // (2) Any framework that is completed at the master but still
+  // running at the slave is shutdown. This can occur if the framework
+  // was removed when the slave was partitioned. NOTE: This is just a
+  // short-term hack because information about completed frameworks is
+  // lost when the master fails over. Also, we only store a limited
+  // number of completed frameworks. A proper fix likely involves
+  // storing framework information in the registry (MESOS-1719).
+  foreach (const FrameworkInfo& framework, frameworks) {
+    if (slaveWasRemoved && !partitionAwareFrameworks.contains(framework.id())) {
+      LOG(INFO) << "Shutting down framework " << framework.id()
+                << " at re-registered agent " << *slave
+                << " because the framework is not partition-aware";
 
-        ShutdownFrameworkMessage message;
-        message.mutable_framework_id()->MergeFrom(framework.id());
-        send(slave->pid, message);
+      ShutdownFrameworkMessage message;
+      message.mutable_framework_id()->MergeFrom(framework.id());
+      send(slave->pid, message);
 
-        // The framework's tasks should not be stored in the master's
-        // in-memory state, because they were not re-added above.
-        CHECK(!slave->tasks.contains(framework.id()));
-      }
+      // The framework's tasks should not be stored in the master's
+      // in-memory state, because they were not re-added filtered above.
+      CHECK(!slave->tasks.contains(framework.id()));
+    } else if (isCompletedFramework(framework.id())) {
+      LOG(INFO) << "Shutting down framework " << framework.id()
+                << " at re-registered agent " << *slave
+                << " because the framework has been shutdown at the master";
+
+      ShutdownFrameworkMessage message;
+      message.mutable_framework_id()->MergeFrom(framework.id());
+      send(slave->pid, message);
     }
   }
 
@@ -7479,7 +7503,8 @@ void Master::removeFramework(Framework* framework)
   // Remove the pending tasks from the framework.
   framework->pendingTasks.clear();
 
-  // Remove pointers to the framework's tasks in slaves.
+  // Remove pointers to the framework's tasks in slaves and mark those
+  // tasks as completed.
   foreachvalue (Task* task, utils::copy(framework->tasks)) {
     Slave* slave = slaves.registered.get(task->slave_id());
 
@@ -7497,7 +7522,15 @@ void Master::removeFramework(Framework* framework)
     // collect the possible finished status. We tolerate this,
     // because we expect that if the framework has been asked to shut
     // down, its user is not interested in results anymore.
+    //
     // TODO(alex): Consider a more descriptive state, e.g. TASK_ABANDONED.
+    //
+    // TODO(neilc): Marking the task KILLED before it has actually
+    // terminated is misleading. Instead, we should consider leaving
+    // the task in its current state at the master; if/when the agent
+    // shuts down the framework, we should arrange for a terminal
+    // status update to be delivered to the master and update the
+    // state of the task at that time (MESOS-6608).
     const StatusUpdate& update = protobuf::createStatusUpdate(
         task->framework_id(),
         task->slave_id(),
@@ -7513,6 +7546,38 @@ void Master::removeFramework(Framework* framework)
 
     updateTask(task, update);
     removeTask(task);
+  }
+
+  // Mark the framework's unreachable tasks as completed.
+  foreach (const TaskID& taskId, framework->unreachableTasks.keys()) {
+    const Owned<Task>& task = framework->unreachableTasks.at(taskId);
+
+    // TODO(neilc): Per comment above, using TASK_KILLED here is not
+    // ideal. It would be better to use TASK_UNREACHABLE here and only
+    // transition it to a terminal state when the agent re-registers
+    // and the task is shutdown (MESOS-6608).
+    const StatusUpdate& update = protobuf::createStatusUpdate(
+        task->framework_id(),
+        task->slave_id(),
+        task->task_id(),
+        TASK_KILLED,
+        TaskStatus::SOURCE_MASTER,
+        None(),
+        "Framework " + framework->id().value() + " removed",
+        TaskStatus::REASON_FRAMEWORK_REMOVED,
+        (task->has_executor_id()
+         ? Option<ExecutorID>(task->executor_id())
+         : None()));
+
+    updateTask(task.get(), update);
+
+    // We don't need to remove the task from the slave, because the
+    // task was removed when the agent was marked unreachable.
+    CHECK(!slaves.registered.contains(task->slave_id()));
+
+    // Move task from unreachable map to completed map.
+    framework->addCompletedTask(*task.get());
+    framework->unreachableTasks.erase(taskId);
   }
 
   // Remove the framework's offers (if they weren't removed before).

@@ -973,9 +973,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
 // This test causes a slave to be partitioned while it is running a
 // task for a PARTITION_AWARE framework. The scheduler is shutdown
-// before the partition heals. Right now, the task is left running as
-// an orphan; when MESOS-6602 is fixed, the task will be shutdown when
-// the agent re-registers.
+// before the partition heals; the task should be shutdown after the
+// agent re-registers.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
 {
   Clock::pause();
@@ -1039,10 +1038,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID slaveId = runningStatus.get().slave_id();
+  const SlaveID slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -1070,20 +1069,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
   Clock::advance(masterFlags.agent_ping_timeout);
   Clock::settle();
 
-  // Record the time at which we expect the master to have marked the
-  // agent as unhealthy. We then advance the clock -- this shouldn't
-  // do anything, but it ensures that the `unreachable_time` we check
-  // below is computed at the right time.
-  TimeInfo partitionTime = protobuf::getCurrentTime();
-
-  Clock::advance(Milliseconds(100));
-
   AWAIT_READY(unreachableStatus);
-  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
-  EXPECT_EQ(task.task_id(), unreachableStatus.get().task_id());
-  EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
-  EXPECT_EQ(partitionTime, unreachableStatus.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus->reason());
+  EXPECT_EQ(task.task_id(), unreachableStatus->task_id());
+  EXPECT_EQ(slaveId, unreachableStatus->slave_id());
+  EXPECT_TRUE(unreachableStatus->has_unreachable_time());
 
   AWAIT_READY(slaveLost);
 
@@ -1092,69 +1083,158 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
   driver.stop();
   driver.join();
 
-  // Cause the slave to re-register with the master.
+  // Before the agent re-registers, check how `task` is displayed by
+  // the master's "/state" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array unregisteredFrameworks =
+      parse->values["unregistered_frameworks"].as<JSON::Array>();
+
+    EXPECT_TRUE(unregisteredFrameworks.values.empty());
+
+    EXPECT_TRUE(parse->values["frameworks"].as<JSON::Array>().values.empty());
+    EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array completedFrameworks =
+      parse->values["completed_frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, completedFrameworks.values.size());
+
+    JSON::Object framework =
+      completedFrameworks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        frameworkId.get(),
+        framework.values["id"].as<JSON::String>().value);
+
+    EXPECT_TRUE(framework.values["tasks"].as<JSON::Array>().values.empty());
+    EXPECT_TRUE(
+        framework.values["unreachable_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array completedTasks =
+      framework.values["completed_tasks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, completedTasks.values.size());
+
+    JSON::Object completedTask =
+      completedTasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(),
+        completedTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_KILLED",
+        completedTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Cause the slave to re-register with the master; the master should
+  // send a `ShutdownFrameworkMessage` to the slave.
   Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
       SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
+
+  Future<ShutdownFrameworkMessage> shutdownFramework = FUTURE_PROTOBUF(
+      ShutdownFrameworkMessage(), master.get()->pid, slave.get()->pid);
 
   detector.appoint(master.get()->pid);
 
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregistered);
+  AWAIT_READY(shutdownFramework);
 
   Clock::resume();
 
-  // Check if `task` is still running by querying master's state endpoint.
-  Future<Response> response = process::http::get(
-      master.get()->pid,
-      "state",
-      None(),
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+  // After the agent re-registers, check how `task` is displayed by
+  // the master's "/state" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
-  ASSERT_SOME(parse);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
 
-  JSON::Array unregisteredFrameworks =
-    parse->values["unregistered_frameworks"].as<JSON::Array>();
+    JSON::Array unregisteredFrameworks =
+      parse->values["unregistered_frameworks"].as<JSON::Array>();
 
-  // TODO(neilc): When MESOS-6602 is fixed, this should be empty.
-  EXPECT_EQ(1u, unregisteredFrameworks.values.size());
+    EXPECT_TRUE(unregisteredFrameworks.values.empty());
 
-  EXPECT_TRUE(parse->values["frameworks"].as<JSON::Array>().values.empty());
-  EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+    EXPECT_TRUE(parse->values["frameworks"].as<JSON::Array>().values.empty());
+    EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
 
-  JSON::Array completedFrameworks =
-    parse->values["completed_frameworks"].as<JSON::Array>();
+    JSON::Array completedFrameworks =
+      parse->values["completed_frameworks"].as<JSON::Array>();
 
-  ASSERT_EQ(1u, completedFrameworks.values.size());
+    ASSERT_EQ(1u, completedFrameworks.values.size());
 
-  JSON::Object jsonFramework =
-    completedFrameworks.values.front().as<JSON::Object>();
+    JSON::Object framework =
+      completedFrameworks.values.front().as<JSON::Object>();
 
-  EXPECT_EQ(
-      frameworkId.get(),
-      jsonFramework.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        frameworkId.get(),
+        framework.values["id"].as<JSON::String>().value);
 
-  EXPECT_TRUE(jsonFramework.values["tasks"].as<JSON::Array>().values.empty());
-  EXPECT_TRUE(
-      jsonFramework.values["completed_tasks"].as<JSON::Array>().values.empty());
+    EXPECT_TRUE(framework.values["tasks"].as<JSON::Array>().values.empty());
+    EXPECT_TRUE(
+        framework.values["unreachable_tasks"].as<JSON::Array>().values.empty());
 
-  JSON::Array unreachableTasks =
-    jsonFramework.values["unreachable_tasks"].as<JSON::Array>();
+    JSON::Array completedTasks =
+      framework.values["completed_tasks"].as<JSON::Array>();
 
-  ASSERT_EQ(1u, unreachableTasks.values.size());
+    ASSERT_EQ(1u, completedTasks.values.size());
 
-  JSON::Object unreachableTask =
-    unreachableTasks.values.front().as<JSON::Object>();
+    JSON::Object completedTask =
+      completedTasks.values.front().as<JSON::Object>();
 
-  EXPECT_EQ(
-      task.task_id(),
-      unreachableTask.values["id"].as<JSON::String>().value);
-  EXPECT_EQ(
-      "TASK_UNREACHABLE",
-      unreachableTask.values["state"].as<JSON::String>().value);
+    EXPECT_EQ(
+        task.task_id(),
+        completedTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_KILLED",
+        completedTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Also check the master's "/tasks" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "tasks",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array tasks = parse->values["tasks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, tasks.values.size());
+
+    JSON::Object jsonTask = tasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(), jsonTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_KILLED",
+        jsonTask.values["state"].as<JSON::String>().value);
+  }
 }
 
 
