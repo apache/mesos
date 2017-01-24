@@ -501,21 +501,21 @@ protected:
           _task.mutable_resources()->CopyFrom(resources.get());
         } else {
           foreach (TaskInfo _task, taskGroup->tasks()) {
-              _task.mutable_agent_id()->MergeFrom(offer.agent_id());
+            _task.mutable_agent_id()->MergeFrom(offer.agent_id());
 
-              // Takes resources first from the specified role, then from '*'.
-              Try<Resources> flattened =
-                Resources(_task.resources()).flatten(frameworkInfo.role());
+            // Takes resources first from the specified role, then from '*'.
+            Try<Resources> flattened =
+              Resources(_task.resources()).flatten(frameworkInfo.role());
 
-              // `frameworkInfo.role()` must be valid as it's allowed to
-              // register.
-              CHECK_SOME(flattened);
-              Option<Resources> resources = offered.find(flattened.get());
+            // `frameworkInfo.role()` must be valid as it's allowed to
+            // register.
+            CHECK_SOME(flattened);
+            Option<Resources> resources = offered.find(flattened.get());
 
-              CHECK_SOME(resources);
+            CHECK_SOME(resources);
 
-              _task.mutable_resources()->CopyFrom(resources.get());
-              _taskGroup.add_tasks()->CopyFrom(_task);
+            _task.mutable_resources()->CopyFrom(resources.get());
+            _taskGroup.add_tasks()->CopyFrom(_task);
           }
        }
        Call call;
