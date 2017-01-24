@@ -165,7 +165,10 @@
           'TASK_FAILED',
           'TASK_FINISHED',
           'TASK_KILLED',
-          'TASK_LOST'
+          'TASK_LOST',
+          'TASK_DROPPED',
+          'TASK_GONE',
+          'TASK_GONE_BY_OPERATOR'
       ];
       return terminalStates.indexOf(taskState) > -1;
     };
