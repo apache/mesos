@@ -79,14 +79,11 @@ bool frameworkHasCapability(
 
 bool isTerminalState(const TaskState& state)
 {
-  // TODO(neilc): Revise/rename this function. LOST, UNREACHABLE, and
-  // GONE_BY_OPERATOR are not truly "terminal".
   return (state == TASK_FINISHED ||
           state == TASK_FAILED ||
           state == TASK_KILLED ||
           state == TASK_LOST ||
           state == TASK_ERROR ||
-          state == TASK_UNREACHABLE ||
           state == TASK_DROPPED ||
           state == TASK_GONE ||
           state == TASK_GONE_BY_OPERATOR);
