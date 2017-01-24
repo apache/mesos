@@ -66,7 +66,7 @@ message Call {
 
     GET_MASTER = 17;        // Retrieves the master's information.
 
-    SUBSCRIBE = 18;          // Subscribes the master to receive events.
+    SUBSCRIBE = 18;         // Subscribes the master to receive events.
 
     RESERVE_RESOURCES = 19;
     UNRESERVE_RESOURCES = 20;
@@ -84,7 +84,7 @@ message Call {
 
     GET_QUOTA = 28;
     SET_QUOTA = 29;          // See 'SetQuota' below.
-    REMOVE_QUOTA = 30;
+    REMOVE_QUOTA = 30;       // See 'RemoveQuota' below.
   }
 
   // Provides a snapshot of the current metrics tracked by the master.
