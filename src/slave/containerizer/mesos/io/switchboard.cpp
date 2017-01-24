@@ -695,7 +695,7 @@ Future<http::Connection> IOSwitchboard::connect(
       })
     .then(defer(self(), [=]() -> Future<http::Connection> {
       if (!infos.contains(containerId)) {
-        return Failure("Container has or is being destroyed");
+        return Failure("I/O switchboard has shutdown");
       }
 
       // TODO(jieyu): We might still get a connection refused error
@@ -758,8 +758,6 @@ Future<Nothing> IOSwitchboard::cleanup(
   Option<pid_t> pid = infos[containerId]->pid;
   Future<Option<int>> status = infos[containerId]->status;
 
-  infos.erase(containerId);
-
   // If we have a pid, then we attempt to send it a SIGTERM to have it
   // shutdown gracefully. This is best effort, as it's likely that the
   // switchboard has already shutdown in the common case.
@@ -794,6 +792,19 @@ Future<Nothing> IOSwitchboard::cleanup(
   // DISCARDED cases as well.
   return await(list<Future<Option<int>>>{status}).then(
       defer(self(), [this, containerId]() -> Future<Nothing> {
+        // We only remove the 'containerId from our info struct once
+        // we are sure that the I/O switchboard has shutdown. If we
+        // removed it any earlier, attempts to connect to the I/O
+        // switchboard would fail.
+        //
+        // NOTE: One caveat of this approach is that this lambda will
+        // be invoked multiple times if `cleanup()` is called multiple
+        // times before the first instance of it is triggered. This is
+        // OK for now because the logic below has no side effects. If
+        // the logic below gets more complicated, we may need to
+        // revisit this approach.
+        infos.erase(containerId);
+
         // Best effort removal of the unix domain socket file created for
         // this container's `IOSwitchboardServer`. If it hasn't been
         // checkpointed yet, or the socket file itself hasn't been created,
