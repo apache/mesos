@@ -370,6 +370,9 @@ Option<Error> validate(const mesos::executor::Call& call)
                      );
       }
 
+      // TODO(alexr): Validate `check_status` is present if
+      // the corresponding `TaskInfo.check` has been defined.
+
       if (status.has_check_status()) {
         Option<Error> validate =
           checks::validation::checkStatusInfo(status.check_status());
