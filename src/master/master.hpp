@@ -2371,9 +2371,8 @@ struct Framework
   // 'capabilities', and 'labels'.
   void updateFrameworkInfo(const FrameworkInfo& source)
   {
-    // TODO(jmlvanre): We can't check 'FrameworkInfo.id' yet because
-    // of MESOS-2559. Once this is fixed we can 'CHECK' that we only
-    // merge 'info' from the same framework 'id'.
+    // We only merge 'info' from the same framework 'id'.
+    CHECK_EQ(info.id(), source.id());
 
     // TODO(jmlvanre): Merge other fields as per design doc in
     // MESOS-703.
