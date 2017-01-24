@@ -275,9 +275,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
   EXPECT_EQ(1, stats.values["master/slave_removals"]);
   EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
 
-  // Check the master's "/state" endpoint. The "tasks" and
-  // "completed_tasks" fields should be empty; there should be a
-  // single unreachable task.
+  // Check the master's "/state" endpoint. There should be a single
+  // unreachable agent. The "tasks" and "completed_tasks" fields
+  // should be empty; there should be a single unreachable task.
   {
     Future<Response> response = process::http::get(
         master.get()->pid,
@@ -290,6 +290,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
+
+    EXPECT_EQ(0, parse->values["activated_slaves"].as<JSON::Number>());
+    EXPECT_EQ(0, parse->values["deactivated_slaves"].as<JSON::Number>());
+    EXPECT_EQ(1, parse->values["unreachable_slaves"].as<JSON::Number>());
 
     EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
 

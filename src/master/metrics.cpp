@@ -56,6 +56,9 @@ Metrics::Metrics(const Master& master)
     slaves_inactive(
         "master/slaves_inactive",
         defer(master, &Master::_slaves_inactive)),
+    slaves_unreachable(
+        "master/slaves_unreachable",
+        defer(master, &Master::_slaves_unreachable)),
     frameworks_connected(
         "master/frameworks_connected",
         defer(master, &Master::_frameworks_connected)),

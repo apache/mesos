@@ -48,6 +48,7 @@ struct Metrics
   process::metrics::Gauge slaves_disconnected;
   process::metrics::Gauge slaves_active;
   process::metrics::Gauge slaves_inactive;
+  process::metrics::Gauge slaves_unreachable;
 
   process::metrics::Gauge frameworks_connected;
   process::metrics::Gauge frameworks_disconnected;

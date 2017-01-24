@@ -1800,6 +1800,7 @@ private:
   double _slaves_disconnected();
   double _slaves_active();
   double _slaves_inactive();
+  double _slaves_unreachable();
 
   double _frameworks_connected();
   double _frameworks_disconnected();

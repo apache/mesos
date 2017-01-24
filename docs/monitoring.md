@@ -403,6 +403,15 @@ unhealthy or that they are not able to connect to the elected master.
   <td>Number of inactive agents</td>
   <td>Gauge</td>
 </tr>
+<tr>
+  <td>
+  <code>master/slaves_inactive</code>
+  </td>
+  <td>Number of unreachable agents. Unreachable agents are periodically
+      garbage collected from the registry, which will cause this value to
+      decrease.</td>
+  <td>Gauge</td>
+</tr>
 </table>
 
 #### Frameworks

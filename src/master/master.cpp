@@ -8462,6 +8462,12 @@ double Master::_slaves_inactive()
 }
 
 
+double Master::_slaves_unreachable()
+{
+  return slaves.unreachable.size();
+}
+
+
 double Master::_frameworks_connected()
 {
   double count = 0.0;

@@ -2642,6 +2642,7 @@ Future<Response> Master::Http::state(
         writer->field("hostname", master->info().hostname());
         writer->field("activated_slaves", master->_slaves_active());
         writer->field("deactivated_slaves", master->_slaves_inactive());
+        writer->field("unreachable_slaves", master->_slaves_unreachable());
 
         // TODO(haosdent): Deprecated this in favor of `leader_info` below.
         if (master->leader.isSome()) {
