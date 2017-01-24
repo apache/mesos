@@ -2981,7 +2981,7 @@ void Master::deactivateFramework(
     return;
   }
 
-  deactivate(framework);
+  deactivate(framework, true);
 }
 
 
@@ -3005,11 +3005,11 @@ void Master::disconnect(Framework* framework)
     framework->http.get().close();
   }
 
-  deactivate(framework);
+  deactivate(framework, true);
 }
 
 
-void Master::deactivate(Framework* framework)
+void Master::deactivate(Framework* framework, bool rescind)
 {
   CHECK_NOTNULL(framework);
 
@@ -3024,9 +3024,12 @@ void Master::deactivate(Framework* framework)
   // Remove the framework's offers.
   foreach (Offer* offer, utils::copy(framework->offers)) {
     allocator->recoverResources(
-        offer->framework_id(), offer->slave_id(), offer->resources(), None());
+        offer->framework_id(),
+        offer->slave_id(),
+        offer->resources(),
+        None());
 
-    removeOffer(offer, true); // Rescind.
+    removeOffer(offer, rescind);
   }
 
   // Remove the framework's inverse offers.
@@ -3039,7 +3042,7 @@ void Master::deactivate(Framework* framework)
             inverseOffer->unavailability()},
         None());
 
-    removeInverseOffer(inverseOffer, true); // Rescind.
+    removeInverseOffer(inverseOffer, rescind);
   }
 }
 
@@ -3076,7 +3079,10 @@ void Master::deactivate(Slave* slave)
   // Remove and rescind offers.
   foreach (Offer* offer, utils::copy(slave->offers)) {
     allocator->recoverResources(
-        offer->framework_id(), slave->id, offer->resources(), None());
+        offer->framework_id(),
+        slave->id,
+        offer->resources(),
+        None());
 
     removeOffer(offer, true); // Rescind!
   }
@@ -7484,11 +7490,15 @@ void Master::removeFramework(Framework* framework)
   LOG(INFO) << "Removing framework " << *framework;
 
   if (framework->active) {
-    // Tell the allocator to stop allocating resources to this framework.
-    // TODO(vinod): Consider setting  framework->active to false here
-    // or just calling 'deactivate(Framework*)'.
-    allocator->deactivateFramework(framework->id());
+    // Deactivate framework, but don't bother rescinding offers
+    // because the framework is being removed.
+    deactivate(framework, false);
   }
+
+  // The framework's offers should have been removed when the
+  // framework was deactivated.
+  CHECK(framework->offers.empty());
+  CHECK(framework->inverseOffers.empty());
 
   foreachvalue (Slave* slave, slaves.registered) {
     // Remove the pending tasks from the slave.
@@ -7578,30 +7588,6 @@ void Master::removeFramework(Framework* framework)
     // Move task from unreachable map to completed map.
     framework->addCompletedTask(*task.get());
     framework->unreachableTasks.erase(taskId);
-  }
-
-  // Remove the framework's offers (if they weren't removed before).
-  foreach (Offer* offer, utils::copy(framework->offers)) {
-    allocator->recoverResources(
-        offer->framework_id(),
-        offer->slave_id(),
-        offer->resources(),
-        None());
-
-    removeOffer(offer);
-  }
-
-  // Also remove the inverse offers.
-  foreach (InverseOffer* inverseOffer, utils::copy(framework->inverseOffers)) {
-    allocator->updateInverseOffer(
-        inverseOffer->slave_id(),
-        inverseOffer->framework_id(),
-        UnavailableResources{
-            inverseOffer->resources(),
-            inverseOffer->unavailability()},
-        None());
-
-    removeInverseOffer(inverseOffer);
   }
 
   // Remove the framework's executors for correct resource accounting.

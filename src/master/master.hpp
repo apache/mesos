@@ -586,7 +586,7 @@ protected:
   void removeFramework(Slave* slave, Framework* framework);
 
   void disconnect(Framework* framework);
-  void deactivate(Framework* framework);
+  void deactivate(Framework* framework, bool rescind);
 
   void disconnect(Slave* slave);
   void deactivate(Slave* slave);
