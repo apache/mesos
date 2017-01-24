@@ -8631,30 +8631,6 @@ static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo)
 }
 
 
-void Slave::addTask(Task* task)
-{
-  const TaskID& taskId = task->task_id();
-  const FrameworkID& frameworkId = task->framework_id();
-
-  CHECK(!tasks[frameworkId].contains(taskId))
-    << "Duplicate task " << taskId << " of framework " << frameworkId;
-
-  tasks[frameworkId][taskId] = task;
-
-  if (!protobuf::isTerminalState(task->state())) {
-    usedResources[frameworkId] += task->resources();
-  }
-
-  if (!master->subscribers.subscribed.empty()) {
-    master->subscribers.send(protobuf::master::event::createTaskAdded(*task));
-  }
-
-  LOG(INFO) << "Adding task " << taskId
-            << " with resources " << task->resources()
-            << " on agent " << *this;
-}
-
-
 void Master::Subscribers::send(const mesos::master::Event& event)
 {
   VLOG(1) << "Notifying all active subscribers about " << event.type() << " "
@@ -8691,6 +8667,215 @@ void Master::subscribe(const HttpConnection& http)
   subscribers.subscribed.put(
       http.streamId,
       Owned<Subscribers::Subscriber>(new Subscribers::Subscriber{http}));
+}
+
+
+Slave::Slave(
+    Master* const _master,
+    const SlaveInfo& _info,
+    const UPID& _pid,
+    const MachineID& _machineId,
+    const string& _version,
+    const Time& _registeredTime,
+    const Resources& _checkpointedResources,
+    const vector<ExecutorInfo> executorInfos,
+    const vector<Task> tasks)
+  : master(_master),
+    id(_info.id()),
+    info(_info),
+    machineId(_machineId),
+    pid(_pid),
+    version(_version),
+    registeredTime(_registeredTime),
+    connected(true),
+    active(true),
+    checkpointedResources(_checkpointedResources),
+    observer(nullptr),
+    capabilities(_info.capabilities())
+{
+  CHECK(_info.has_id());
+
+  Try<Resources> resources = applyCheckpointedResources(
+      info.resources(),
+      _checkpointedResources);
+
+  // NOTE: This should be validated during slave recovery.
+  CHECK_SOME(resources);
+  totalResources = resources.get();
+
+  foreach (const ExecutorInfo& executorInfo, executorInfos) {
+    CHECK(executorInfo.has_framework_id());
+    addExecutor(executorInfo.framework_id(), executorInfo);
+  }
+
+  foreach (const Task& task, tasks) {
+    addTask(new Task(task));
+  }
+}
+
+
+Slave::~Slave()
+{
+  if (reregistrationTimer.isSome()) {
+    process::Clock::cancel(reregistrationTimer.get());
+  }
+}
+
+
+Task* Slave::getTask(const FrameworkID& frameworkId, const TaskID& taskId)
+{
+  if (tasks.contains(frameworkId) && tasks[frameworkId].contains(taskId)) {
+    return tasks[frameworkId][taskId];
+  }
+  return nullptr;
+}
+
+
+void Slave::addTask(Task* task)
+{
+  const TaskID& taskId = task->task_id();
+  const FrameworkID& frameworkId = task->framework_id();
+
+  CHECK(!tasks[frameworkId].contains(taskId))
+    << "Duplicate task " << taskId << " of framework " << frameworkId;
+
+  tasks[frameworkId][taskId] = task;
+
+  if (!protobuf::isTerminalState(task->state())) {
+    usedResources[frameworkId] += task->resources();
+  }
+
+  if (!master->subscribers.subscribed.empty()) {
+    master->subscribers.send(protobuf::master::event::createTaskAdded(*task));
+  }
+
+  LOG(INFO) << "Adding task " << taskId
+            << " with resources " << task->resources()
+            << " on agent " << *this;
+}
+
+
+void Slave::taskTerminated(Task* task)
+{
+  const TaskID& taskId = task->task_id();
+  const FrameworkID& frameworkId = task->framework_id();
+
+  CHECK(protobuf::isTerminalState(task->state()));
+  CHECK(tasks.at(frameworkId).contains(taskId))
+    << "Unknown task " << taskId << " of framework " << frameworkId;
+
+  usedResources[frameworkId] -= task->resources();
+  if (usedResources[frameworkId].empty()) {
+    usedResources.erase(frameworkId);
+  }
+}
+
+
+void Slave::removeTask(Task* task)
+{
+  const TaskID& taskId = task->task_id();
+  const FrameworkID& frameworkId = task->framework_id();
+
+  CHECK(tasks.at(frameworkId).contains(taskId))
+    << "Unknown task " << taskId << " of framework " << frameworkId;
+
+  if (!protobuf::isTerminalState(task->state())) {
+    usedResources[frameworkId] -= task->resources();
+    if (usedResources[frameworkId].empty()) {
+      usedResources.erase(frameworkId);
+    }
+  }
+
+  tasks[frameworkId].erase(taskId);
+  if (tasks[frameworkId].empty()) {
+    tasks.erase(frameworkId);
+  }
+
+  killedTasks.remove(frameworkId, taskId);
+}
+
+
+void Slave::addOffer(Offer* offer)
+{
+  CHECK(!offers.contains(offer)) << "Duplicate offer " << offer->id();
+
+  offers.insert(offer);
+  offeredResources += offer->resources();
+}
+
+
+void Slave::removeOffer(Offer* offer)
+{
+  CHECK(offers.contains(offer)) << "Unknown offer " << offer->id();
+
+  offeredResources -= offer->resources();
+  offers.erase(offer);
+}
+
+
+void Slave::addInverseOffer(InverseOffer* inverseOffer)
+{
+  CHECK(!inverseOffers.contains(inverseOffer))
+    << "Duplicate inverse offer " << inverseOffer->id();
+
+  inverseOffers.insert(inverseOffer);
+}
+
+
+void Slave::removeInverseOffer(InverseOffer* inverseOffer)
+{
+  CHECK(inverseOffers.contains(inverseOffer))
+    << "Unknown inverse offer " << inverseOffer->id();
+
+  inverseOffers.erase(inverseOffer);
+}
+
+
+bool Slave::hasExecutor(const FrameworkID& frameworkId,
+                        const ExecutorID& executorId) const
+{
+  return executors.contains(frameworkId) &&
+    executors.get(frameworkId).get().contains(executorId);
+}
+
+
+void Slave::addExecutor(const FrameworkID& frameworkId,
+                        const ExecutorInfo& executorInfo)
+{
+  CHECK(!hasExecutor(frameworkId, executorInfo.executor_id()))
+    << "Duplicate executor '" << executorInfo.executor_id()
+    << "' of framework " << frameworkId;
+
+  executors[frameworkId][executorInfo.executor_id()] = executorInfo;
+  usedResources[frameworkId] += executorInfo.resources();
+}
+
+void Slave::removeExecutor(const FrameworkID& frameworkId,
+                           const ExecutorID& executorId)
+{
+  CHECK(hasExecutor(frameworkId, executorId))
+    << "Unknown executor '" << executorId << "' of framework " << frameworkId;
+
+  usedResources[frameworkId] -=
+    executors[frameworkId][executorId].resources();
+  if (usedResources[frameworkId].empty()) {
+    usedResources.erase(frameworkId);
+  }
+
+  executors[frameworkId].erase(executorId);
+  if (executors[frameworkId].empty()) {
+    executors.erase(frameworkId);
+  }
+}
+
+
+void Slave::apply(const Offer::Operation& operation)
+{
+  Try<Resources> resources = totalResources.apply(operation);
+  CHECK_SOME(resources);
+
+  totalResources = resources.get();
+  checkpointedResources = totalResources.filter(needCheckpointing);
 }
 
 } // namespace master {

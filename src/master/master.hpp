@@ -121,54 +121,13 @@ struct Slave
         const std::vector<ExecutorInfo> executorInfos =
           std::vector<ExecutorInfo>(),
         const std::vector<Task> tasks =
-          std::vector<Task>())
-    : master(_master),
-      id(_info.id()),
-      info(_info),
-      machineId(_machineId),
-      pid(_pid),
-      version(_version),
-      registeredTime(_registeredTime),
-      connected(true),
-      active(true),
-      checkpointedResources(_checkpointedResources),
-      observer(nullptr),
-      capabilities(_info.capabilities())
-  {
-    CHECK(_info.has_id());
+          std::vector<Task>());
 
-    Try<Resources> resources = applyCheckpointedResources(
-        info.resources(),
-        _checkpointedResources);
+  ~Slave();
 
-    // NOTE: This should be validated during slave recovery.
-    CHECK_SOME(resources);
-    totalResources = resources.get();
-
-    foreach (const ExecutorInfo& executorInfo, executorInfos) {
-      CHECK(executorInfo.has_framework_id());
-      addExecutor(executorInfo.framework_id(), executorInfo);
-    }
-
-    foreach (const Task& task, tasks) {
-      addTask(new Task(task));
-    }
-  }
-
-  ~Slave()
-  {
-    if (reregistrationTimer.isSome()) {
-      process::Clock::cancel(reregistrationTimer.get());
-    }
-  }
-
-  Task* getTask(const FrameworkID& frameworkId, const TaskID& taskId)
-  {
-    if (tasks.contains(frameworkId) && tasks[frameworkId].contains(taskId)) {
-      return tasks[frameworkId][taskId];
-    }
-    return nullptr;
-  }
+  Task* getTask(
+      const FrameworkID& frameworkId,
+      const TaskID& taskId);
 
   void addTask(Task* task);
 
@@ -176,120 +135,31 @@ struct Slave
   // TODO(bmahler): This is a hack for performance. We need to
   // maintain resource counters because computing task resources
   // functionally for all tasks is expensive, for now.
-  void taskTerminated(Task* task)
-  {
-    const TaskID& taskId = task->task_id();
-    const FrameworkID& frameworkId = task->framework_id();
+  void taskTerminated(Task* task);
 
-    CHECK(protobuf::isTerminalState(task->state()));
-    CHECK(tasks.at(frameworkId).contains(taskId))
-      << "Unknown task " << taskId << " of framework " << frameworkId;
+  void removeTask(Task* task);
 
-    usedResources[frameworkId] -= task->resources();
-    if (usedResources[frameworkId].empty()) {
-      usedResources.erase(frameworkId);
-    }
-  }
+  void addOffer(Offer* offer);
 
-  void removeTask(Task* task)
-  {
-    const TaskID& taskId = task->task_id();
-    const FrameworkID& frameworkId = task->framework_id();
+  void removeOffer(Offer* offer);
 
-    CHECK(tasks.at(frameworkId).contains(taskId))
-      << "Unknown task " << taskId << " of framework " << frameworkId;
+  void addInverseOffer(InverseOffer* inverseOffer);
 
-    if (!protobuf::isTerminalState(task->state())) {
-      usedResources[frameworkId] -= task->resources();
-      if (usedResources[frameworkId].empty()) {
-        usedResources.erase(frameworkId);
-      }
-    }
+  void removeInverseOffer(InverseOffer* inverseOffer);
 
-    tasks[frameworkId].erase(taskId);
-    if (tasks[frameworkId].empty()) {
-      tasks.erase(frameworkId);
-    }
+  bool hasExecutor(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId) const;
 
-    killedTasks.remove(frameworkId, taskId);
-  }
+  void addExecutor(
+      const FrameworkID& frameworkId,
+      const ExecutorInfo& executorInfo);
 
-  void addOffer(Offer* offer)
-  {
-    CHECK(!offers.contains(offer)) << "Duplicate offer " << offer->id();
+  void removeExecutor(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
 
-    offers.insert(offer);
-    offeredResources += offer->resources();
-  }
-
-  void removeOffer(Offer* offer)
-  {
-    CHECK(offers.contains(offer)) << "Unknown offer " << offer->id();
-
-    offeredResources -= offer->resources();
-    offers.erase(offer);
-  }
-
-  void addInverseOffer(InverseOffer* inverseOffer)
-  {
-    CHECK(!inverseOffers.contains(inverseOffer))
-      << "Duplicate inverse offer " << inverseOffer->id();
-
-    inverseOffers.insert(inverseOffer);
-  }
-
-  void removeInverseOffer(InverseOffer* inverseOffer)
-  {
-    CHECK(inverseOffers.contains(inverseOffer))
-      << "Unknown inverse offer " << inverseOffer->id();
-
-    inverseOffers.erase(inverseOffer);
-  }
-
-  bool hasExecutor(const FrameworkID& frameworkId,
-                   const ExecutorID& executorId) const
-  {
-    return executors.contains(frameworkId) &&
-      executors.get(frameworkId).get().contains(executorId);
-  }
-
-  void addExecutor(const FrameworkID& frameworkId,
-                   const ExecutorInfo& executorInfo)
-  {
-    CHECK(!hasExecutor(frameworkId, executorInfo.executor_id()))
-      << "Duplicate executor '" << executorInfo.executor_id()
-      << "' of framework " << frameworkId;
-
-    executors[frameworkId][executorInfo.executor_id()] = executorInfo;
-    usedResources[frameworkId] += executorInfo.resources();
-  }
-
-  void removeExecutor(const FrameworkID& frameworkId,
-                      const ExecutorID& executorId)
-  {
-    CHECK(hasExecutor(frameworkId, executorId))
-      << "Unknown executor '" << executorId << "' of framework " << frameworkId;
-
-    usedResources[frameworkId] -=
-      executors[frameworkId][executorId].resources();
-    if (usedResources[frameworkId].empty()) {
-      usedResources.erase(frameworkId);
-    }
-
-    executors[frameworkId].erase(executorId);
-    if (executors[frameworkId].empty()) {
-      executors.erase(frameworkId);
-    }
-  }
-
-  void apply(const Offer::Operation& operation)
-  {
-    Try<Resources> resources = totalResources.apply(operation);
-    CHECK_SOME(resources);
-
-    totalResources = resources.get();
-    checkpointedResources = totalResources.filter(needCheckpointing);
-  }
+  void apply(const Offer::Operation& operation);
 
   Master* const master;
   const SlaveID id;
