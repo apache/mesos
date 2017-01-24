@@ -83,6 +83,9 @@ Metrics::Metrics(const Master& master)
     tasks_running(
         "master/tasks_running",
         defer(master, &Master::_tasks_running)),
+    tasks_unreachable(
+        "master/tasks_unreachable",
+        defer(master, &Master::_tasks_unreachable)),
     tasks_killing(
         "master/tasks_killing",
         defer(master, &Master::_tasks_killing)),
@@ -98,8 +101,6 @@ Metrics::Metrics(const Master& master)
         "master/tasks_error"),
     tasks_dropped(
         "master/tasks_dropped"),
-    tasks_unreachable(
-        "master/tasks_unreachable"),
     tasks_gone(
         "master/tasks_gone"),
     tasks_gone_by_operator(

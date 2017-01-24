@@ -8119,9 +8119,6 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
       case TASK_ERROR:
         ++metrics->tasks_error;
         break;
-      case TASK_UNREACHABLE:
-        ++metrics->tasks_unreachable;
-        break;
       case TASK_DROPPED:
         ++metrics->tasks_dropped;
         break;
@@ -8135,6 +8132,7 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
       case TASK_STAGING:
       case TASK_RUNNING:
       case TASK_KILLING:
+      case TASK_UNREACHABLE:
         break;
       case TASK_UNKNOWN:
         // Should not happen.
@@ -8572,6 +8570,18 @@ double Master::_tasks_running()
         }
       }
     }
+  }
+
+  return count;
+}
+
+
+double Master::_tasks_unreachable()
+{
+  double count = 0.0;
+
+  foreachvalue (Framework* framework, frameworks.registered) {
+    count += framework->unreachableTasks.size();
   }
 
   return count;

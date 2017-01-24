@@ -1830,6 +1830,7 @@ private:
   double _tasks_staging();
   double _tasks_starting();
   double _tasks_running();
+  double _tasks_unreachable();
   double _tasks_killing();
 
   double _resources_total(const std::string& name);

@@ -267,13 +267,15 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
 
   AWAIT_READY(slaveLost);
 
-  JSON::Object stats = Metrics();
-  EXPECT_EQ(0, stats.values["master/tasks_lost"]);
-  EXPECT_EQ(1, stats.values["master/tasks_unreachable"]);
-  EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
-  EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
-  EXPECT_EQ(1, stats.values["master/slave_removals"]);
-  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  {
+    JSON::Object stats = Metrics();
+    EXPECT_EQ(0, stats.values["master/tasks_lost"]);
+    EXPECT_EQ(1, stats.values["master/tasks_unreachable"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  }
 
   // Check the master's "/state" endpoint. There should be a single
   // unreachable agent. The "tasks" and "completed_tasks" fields
@@ -506,6 +508,17 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
     EXPECT_EQ(1, framework.values["TASK_RUNNING"].as<JSON::Number>());
   }
 
+  {
+    JSON::Object stats = Metrics();
+    EXPECT_EQ(1, stats.values["master/tasks_running"]);
+    EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+    EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
+  }
+
   driver.stop();
   driver.join();
 }
@@ -621,14 +634,16 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
 
   AWAIT_READY(slaveLost);
 
-  JSON::Object stats = Metrics();
-  EXPECT_EQ(1, stats.values["master/tasks_lost"]);
-  EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
-  EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
-  EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
-  EXPECT_EQ(1, stats.values["master/slave_removals"]);
-  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
-  EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
+  {
+    JSON::Object stats = Metrics();
+    EXPECT_EQ(1, stats.values["master/tasks_lost"]);
+    EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+    EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
+  }
 
   // Check the master's "/state" endpoint. The "tasks" and
   // "unreachable_tasks" fields should be empty; there should be a
@@ -781,6 +796,18 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
     EXPECT_EQ(0, framework.values["TASK_RUNNING"].as<JSON::Number>());
     EXPECT_EQ(0, framework.values["TASK_UNREACHABLE"].as<JSON::Number>());
     EXPECT_EQ(1, framework.values["TASK_LOST"].as<JSON::Number>());
+  }
+
+  {
+    JSON::Object stats = Metrics();
+    EXPECT_EQ(1, stats.values["master/tasks_lost"]);
+    EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+    EXPECT_EQ(0, stats.values["master/tasks_killed"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+    EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
   }
 
   driver.stop();
@@ -1037,6 +1064,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
 
   Clock::resume();
+
+  {
+    JSON::Object stats = Metrics();
+    EXPECT_EQ(2, stats.values["master/tasks_running"]);
+    EXPECT_EQ(0, stats.values["master/tasks_lost"]);
+    EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+    EXPECT_EQ(0, stats.values["master/slave_removals"]);
+  }
 
   driver1.stop();
   driver1.join();
