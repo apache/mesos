@@ -133,6 +133,7 @@
 
     $scope.activated_agents = $scope.state.activated_slaves;
     $scope.deactivated_agents = $scope.state.deactivated_slaves;
+    $scope.unreachable_agents = $scope.state.unreachable_slaves;
 
     _.each($scope.state.slaves, function(agent) {
       $scope.agents[agent.id] = agent;
