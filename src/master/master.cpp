@@ -8722,10 +8722,10 @@ Slave::~Slave()
 }
 
 
-Task* Slave::getTask(const FrameworkID& frameworkId, const TaskID& taskId)
+Task* Slave::getTask(const FrameworkID& frameworkId, const TaskID& taskId) const
 {
-  if (tasks.contains(frameworkId) && tasks[frameworkId].contains(taskId)) {
-    return tasks[frameworkId][taskId];
+  if (tasks.contains(frameworkId) && tasks.at(frameworkId).contains(taskId)) {
+    return tasks.at(frameworkId).at(taskId);
   }
   return nullptr;
 }

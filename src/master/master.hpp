@@ -127,7 +127,7 @@ struct Slave
 
   Task* getTask(
       const FrameworkID& frameworkId,
-      const TaskID& taskId);
+      const TaskID& taskId) const;
 
   void addTask(Task* task);
 
