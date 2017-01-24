@@ -4314,6 +4314,107 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, Metrics)
        << " and " << frameworkCount << " frameworks" << endl;
 }
 
+
+// This test uses `reviveOffers` to add allocation-triggering events
+// to the allocator queue in order to measure the impact of allocation
+// batching (MESOS-6904).
+TEST_P(HierarchicalAllocator_BENCHMARK_Test, AllocatorBacklog)
+{
+  size_t agentCount = std::tr1::get<0>(GetParam());
+  size_t frameworkCount = std::tr1::get<1>(GetParam());
+
+  // Pause the clock because we want to manually drive the allocations.
+  Clock::pause();
+
+  cout << "Using " << agentCount << " agents and "
+       << frameworkCount << " frameworks" << endl;
+
+  master::Flags flags;
+  initialize(flags);
+
+  // 1. Add frameworks.
+  vector<FrameworkInfo> frameworks;
+  frameworks.reserve(frameworkCount);
+
+  for (size_t i = 0; i < frameworkCount; i++) {
+    frameworks.push_back(createFrameworkInfo("*"));
+  }
+
+  Stopwatch watch;
+  watch.start();
+
+  for (size_t i = 0; i < frameworkCount; i++) {
+    allocator->addFramework(frameworks.at(i).id(), frameworks.at(i), {}, true);
+  }
+
+  // Wait for all the `addFramework` operations to be processed.
+  Clock::settle();
+
+  watch.stop();
+
+  const string metric = "allocator/mesos/allocation_runs";
+
+  JSON::Object metrics = Metrics();
+  int runs1 = metrics.values[metric].as<JSON::Number>().as<int>();
+
+  cout << "Added " << frameworkCount << " frameworks in "
+       << watch.elapsed() << " with " << runs1
+       << " allocation runs" << endl;
+
+  // 2. Add agents.
+  vector<SlaveInfo> agents;
+  agents.reserve(agentCount);
+
+  const Resources agentResources = Resources::parse(
+      "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
+
+  for (size_t i = 0; i < agentCount; i++) {
+    agents.push_back(createSlaveInfo(agentResources));
+  }
+
+  watch.start();
+
+  for (size_t i = 0; i < agentCount; i++) {
+    allocator->addSlave(
+        agents.at(i).id(), agents.at(i), None(), agents.at(i).resources(), {});
+  }
+
+  // Wait for all the `addSlave` operations to be processed.
+  Clock::settle();
+
+  watch.stop();
+
+  metrics = Metrics();
+  ASSERT_EQ(1, metrics.values.count(metric));
+  int runs2 = metrics.values[metric].as<JSON::Number>().as<int>();
+
+  cout << "Added " << agentCount << " agents in "
+       << watch.elapsed() << " with " << runs2 - runs1
+       << " allocation runs" << endl;
+
+  watch.start();
+
+  // 3. Invoke a `reviveOffers` call for each framework to enqueue
+  // events. The allocator doesn't have more resources to allocate
+  // but still incurs the overhead of additional allocation runs.
+  for (size_t i = 0; i < frameworkCount; i++) {
+    allocator->reviveOffers(frameworks.at(i).id());
+  }
+
+  // Wait for all the `reviveOffers` operations to be processed.
+  Clock::settle();
+
+  watch.stop();
+
+  metrics = Metrics();
+  ASSERT_EQ(1, metrics.values.count(metric));
+  int runs3 = metrics.values[metric].as<JSON::Number>().as<int>();
+
+  cout << "Processed " << frameworkCount << " `reviveOffers` calls"
+       << " in " << watch.elapsed() << " with " << runs3 - runs2
+       << " allocation runs" << endl;
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
