@@ -16,13 +16,13 @@
   function pailer(host, path, window_title) {
     var url = '//' + host + '/files/read?path=' + path;
 
-    // The random id would be clean up once the pailer window loads the
-    // URL into its sessionStorage, so the possibility of collisions is
-    // acceptable here.
+    // The randomized `storageKey` is removed from `localStorage` once the
+    // pailer window loads the URL into its `sessionStorage`, therefore
+    // the probability of collisions is low and we do not use a uuid.
     var storageKey = Math.random().toString(36).substr(2, 8);
 
-    // Store the target URL in localStorage which would be used by the
-    // pailer window later.
+    // Store the target URL in `localStorage` which is
+    // accessed by the pailer window when opened.
     localStorage.setItem(storageKey, url);
 
     var pailer =

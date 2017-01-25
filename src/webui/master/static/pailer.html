@@ -43,10 +43,9 @@
 
       $(window).resize(resize);
 
-      // Set target URL in sessionStorage and clean it in localStorage.
+      // Set target URL in `sessionStorage` and clean it in `localStorage`.
       (function() {
-        // Avoid fetching target URL again if the navigation comes from
-        // reloading.
+        // Avoid fetching the target URL if reloading the pailer windoow.
         if (sessionStorage.getItem('isReloaded') !== 'true') {
           var storageKey = window.name;
           sessionStorage.setItem(storageKey, localStorage.getItem(storageKey));
