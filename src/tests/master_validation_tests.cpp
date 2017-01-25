@@ -1532,7 +1532,12 @@ TEST_F(TaskValidationTest, TaskReusesUnreachableTaskID)
 
   AWAIT_READY(slaveLost);
 
-  // Start a second agent (the first agent remains partitioned).
+  Clock::resume();
+
+  // Shutdown the first agent.
+  slave1->reset();
+
+  // Start a second agent.
   StandaloneMasterDetector detector2(master.get()->pid);
   slave::Flags agentFlags2 = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave2 = StartSlave(&detector2, agentFlags2);
@@ -1569,8 +1574,6 @@ TEST_F(TaskValidationTest, TaskReusesUnreachableTaskID)
 
   driver.stop();
   driver.join();
-
-  Clock::resume();
 }
 
 
