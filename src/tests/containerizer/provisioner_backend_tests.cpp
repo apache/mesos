@@ -255,6 +255,49 @@ TEST_F(AufsBackendTest, ROOT_AUFS_AufsBackend)
 
   EXPECT_FALSE(os::exists(rootfs));
 }
+
+
+// Test aufs backend for rootfs provisioning when an image has
+// many layers. This test is used to verify the fix for MESOS-6001.
+TEST_F(AufsBackendTest, ROOT_AUFS_AufsBackendWithManyLayers)
+{
+  // Create 64 image layers with more than 64 char length path to make
+  // sure total length of mount option exceeds the 4096 support limit.
+  const int imageCount = 64;
+  vector<string> layers;
+
+  for (int i = 0; i < imageCount; ++i) {
+    const string layer = path::join(
+        sandbox.get(),
+        strings::format("lower_%.59d", i).get());
+
+    const string dir = strings::format("dir%d", i).get();
+
+    ASSERT_SOME(os::mkdir(layer));
+    ASSERT_SOME(os::mkdir(path::join(layer, dir)));
+
+    layers.push_back(layer);
+  }
+
+  string rootfs = path::join(sandbox.get(), "rootfs");
+
+  hashmap<string, Owned<Backend>> backends = Backend::create(slave::Flags());
+  ASSERT_TRUE(backends.contains(AUFS_BACKEND));
+
+  AWAIT_READY(backends[AUFS_BACKEND]->provision(
+      layers,
+      rootfs,
+      sandbox.get()));
+
+  // Verify that all layers are available.
+  for (int i = 0; i < imageCount; ++i) {
+    EXPECT_TRUE(os::exists(path::join(
+        rootfs,
+        strings::format("dir%d", i).get())));
+  }
+
+  AWAIT_READY(backends[AUFS_BACKEND]->destroy(rootfs, sandbox.get()));
+}
 #endif // __linux__
 
 
