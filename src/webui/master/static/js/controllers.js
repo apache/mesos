@@ -275,10 +275,10 @@
   // Main controller that can be used to handle "global" events. E.g.,:
   //     $scope.$on('$afterRouteChange', function() { ...; });
   //
-  // In addition, the MainCntl encapsulates the "view", allowing the
+  // In addition, the MainCtrl encapsulates the "view", allowing the
   // active controller/view to easily access anything in scope (e.g.,
   // the state).
-  mesosApp.controller('MainCntl', [
+  mesosApp.controller('MainCtrl', [
       '$scope', '$http', '$location', '$timeout', '$modal',
       function($scope, $http, $location, $timeout, $modal) {
     $scope.doneLoading = true;
