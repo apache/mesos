@@ -257,7 +257,7 @@ protected:
       const FrameworkID& frameworkID,
       const SlaveID& slaveID);
 
-  bool allocatable(const Resources& resources);
+  static bool allocatable(const Resources& resources);
 
   bool initialized;
   bool paused;
