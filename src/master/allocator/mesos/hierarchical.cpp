@@ -781,7 +781,7 @@ Future<Nothing> HierarchicalAllocatorProcess::updateAvailable(
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
 
-  Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
+  Resources available = slaves[slaveId].available();
 
   // It's possible for this 'apply' to fail here because a call to
   // 'allocate' could have been enqueued by the allocator itself
@@ -1413,8 +1413,7 @@ void HierarchicalAllocatorProcess::allocate(
         // Since shared resources are offerable even when they are in use, we
         // make one copy of the shared resources available regardless of the
         // past allocations.
-        Resources available =
-          (slaves[slaveId].total - slaves[slaveId].allocated).nonShared();
+        Resources available = slaves[slaveId].available().nonShared();
 
         // Offer a shared resource only if it has not been offered in
         // this offer cycle to a framework.
@@ -1569,8 +1568,7 @@ void HierarchicalAllocatorProcess::allocate(
         // Since shared resources are offerable even when they are in use, we
         // make one copy of the shared resources available regardless of the
         // past allocations.
-        Resources available =
-          (slaves[slaveId].total - slaves[slaveId].allocated).nonShared();
+        Resources available = slaves[slaveId].available().nonShared();
 
         // Offer a shared resource only if it has not been offered in
         // this offer cycle to a framework.

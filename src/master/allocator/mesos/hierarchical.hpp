@@ -337,6 +337,10 @@ protected:
     //
     // Note that it's possible for the slave to be over-allocated!
     // In this case, allocated > total.
+    Resources available() const
+    {
+      return total - allocated;
+    }
 
     bool activated;  // Whether to offer resources.
 
