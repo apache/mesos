@@ -21,6 +21,7 @@
 
 #include <sys/mount.h>
 #include <sys/types.h>
+#include <sys/vfs.h>
 
 #include <string>
 #include <vector>
@@ -153,6 +154,11 @@ namespace fs {
 
 // Detect whether the given file system is supported by the kernel.
 Try<bool> supported(const std::string& fsname);
+
+
+// Returns a filesystem type id, given a directory.
+// http://man7.org/linux/man-pages/man2/fstatfs64.2.html
+Try<uint32_t> type(const std::string& path);
 
 
 // TODO(idownes): These different variations of mount information

@@ -52,6 +52,18 @@ TEST_F(FsTest, SupportedFS)
 }
 
 
+TEST_F(FsTest, Type)
+{
+  Try<string> fsType = os::shell("stat -fc%%t " + os::getcwd());
+  EXPECT_SOME(fsType);
+
+  Try<uint32_t> fsTypeId = numify<uint32_t>("0x" + strings::trim(fsType.get()));
+  ASSERT_SOME(fsTypeId);
+
+  EXPECT_SOME_EQ(fsTypeId.get(), fs::type(os::getcwd()));
+}
+
+
 TEST_F(FsTest, MountTableRead)
 {
   Try<MountTable> table = MountTable::read(_PATH_MOUNTED);

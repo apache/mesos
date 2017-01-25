@@ -89,6 +89,17 @@ Try<bool> supported(const string& fsname)
   return false;
 }
 
+
+Try<uint32_t> type(const string& path)
+{
+  struct statfs buf;
+  if (statfs(path.c_str(), &buf) < 0) {
+    return ErrnoError();
+  }
+  return (uint32_t) buf.f_type;
+}
+
+
 Try<MountInfoTable> MountInfoTable::read(
     const string& lines,
     bool hierarchicalSort)
