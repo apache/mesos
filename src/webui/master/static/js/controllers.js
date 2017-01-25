@@ -530,7 +530,7 @@
 
       // Set up polling for the monitor if this is the first update.
       if (!$top.started()) {
-        $top.start(host, $scope);
+        $top.start(host, id, $scope);
       }
 
       $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
@@ -624,7 +624,7 @@
 
       // Set up polling for the monitor if this is the first update.
       if (!$top.started()) {
-        $top.start(host, $scope);
+        $top.start(host, id, $scope);
       }
 
       $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
@@ -701,7 +701,7 @@
 
       // Set up polling for the monitor if this is the first update.
       if (!$top.started()) {
-        $top.start(host, $scope);
+        $top.start(host, id, $scope);
       }
 
       $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
