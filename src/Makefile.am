@@ -1579,16 +1579,15 @@ nobase_dist_pkgdata_DATA +=						\
   webui/master/static/js/angular-1.2.3.min.js				\
   webui/master/static/js/angular-route-1.2.3.js				\
   webui/master/static/js/angular-route-1.2.3.min.js			\
+  webui/master/static/js/clipboard-1.5.16.js				\
+  webui/master/static/js/clipboard-1.5.16.min.js			\
   webui/master/static/js/jquery-1.7.1.js				\
   webui/master/static/js/jquery-1.7.1.min.js				\
   webui/master/static/js/relative-date.js				\
   webui/master/static/js/ui-bootstrap-tpls-0.9.0.js			\
   webui/master/static/js/ui-bootstrap-tpls-0.9.0.min.js			\
   webui/master/static/js/underscore-1.4.3.js				\
-  webui/master/static/js/underscore-1.4.3.min.js			\
-  webui/master/static/js/zeroclipboard-1.1.7.js				\
-  webui/master/static/js/zeroclipboard-1.1.7.min.js			\
-  webui/master/static/obj/zeroclipboard-1.1.7.swf
+  webui/master/static/js/underscore-1.4.3.min.js
 
 # And the deploy related stuff.
 nodist_sbin_SCRIPTS +=							\

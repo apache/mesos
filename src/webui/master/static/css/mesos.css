@@ -101,20 +101,14 @@ time:hover {
   visibility: hidden;
 }
 
-.inline .zeroclipboard-is-hover,
-.table-condensed .zeroclipboard-is-hover,
-.flash dd:hover .btn-toggle,
-.flash td:hover .btn-toggle {
+dd:hover .btn-toggle,
+td:hover .btn-toggle {
   visibility: visible;
 }
 
-.zeroclipboard-is-hover {
+.clipboard-is-hover {
   background-color: #e6e6e6;
   background-position: 0 -15px;
-}
-
-.zeroclipboard-is-active {
-  background-image: none;
 }
 
 .badge-type {
