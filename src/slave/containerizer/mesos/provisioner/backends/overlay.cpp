@@ -127,8 +127,8 @@ Future<Nothing> OverlayBackendProcess::provision(
         rootfs + "': " + mkdir.error());
   }
 
-  const string scratchDirId = Path(rootfs).basename();
-  const string scratchDir = path::join(backendDir, "scratch", scratchDirId);
+  const string rootfsId = Path(rootfs).basename();
+  const string scratchDir = path::join(backendDir, "scratch", rootfsId);
   const string upperdir = path::join(scratchDir,  "upperdir");
   const string workdir = path::join(scratchDir, "workdir");
 
@@ -155,7 +155,7 @@ Future<Nothing> OverlayBackendProcess::provision(
   }
 
   const string tempDir = mktemp.get();
-  const string tempLink = path::join(backendDir, "links");
+  const string tempLink = path::join(scratchDir, "links");
 
   Try<Nothing> symlink = ::fs::symlink(tempDir, tempLink);
   if (symlink.isError()) {
@@ -265,7 +265,8 @@ Future<bool> OverlayBackendProcess::destroy(
       }
 
       // Clean up tempDir used for image layer links.
-      const string tempLink = path::join(backendDir, "links");
+      const string tempLink = path::join(
+          backendDir, "scratch", Path(rootfs).basename(), "links");
 
       if (!os::exists(tempLink)) {
         // TODO(zhitao): This should be converted into a failure after
