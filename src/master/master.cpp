@@ -2579,7 +2579,20 @@ void Master::_subscribe(
     // it may or may not currently be connected.
     LOG(INFO) << "Updating info for framework " << framework->id();
 
-    framework->updateFrameworkInfo(frameworkInfo);
+    Try<Nothing> updateFrameworkInfo =
+      framework->updateFrameworkInfo(frameworkInfo);
+
+    if (updateFrameworkInfo.isError()) {
+      LOG(INFO) << "Could not update FrameworkInfo of framework '"
+                << frameworkInfo.name() << "': " << updateFrameworkInfo.error();
+
+      FrameworkErrorMessage message;
+      message.set_message(updateFrameworkInfo.error());
+      http.send(message);
+      http.close();
+      return;
+    }
+
     allocator->updateFramework(framework->id(), framework->info);
 
     framework->reregisteredTime = Clock::now();
@@ -2588,7 +2601,19 @@ void Master::_subscribe(
     failoverFramework(framework, http);
   } else {
     // The framework has not yet re-registered after master failover.
-    activateRecoveredFramework(framework, frameworkInfo, None(), http);
+    Try<Nothing> activate =
+      activateRecoveredFramework(framework, frameworkInfo, None(), http);
+
+    if (activate.isError()) {
+      LOG(INFO) << "Could not update FrameworkInfo of framework '"
+                << frameworkInfo.name() << "': " << activate.error();
+
+      FrameworkErrorMessage message;
+      message.set_message(activate.error());
+      http.send(message);
+      http.close();
+      return;
+    }
   }
 
   // Broadcast the new framework pid to all the slaves. We have to
@@ -2862,7 +2887,19 @@ void Master::_subscribe(
     // re-registration.
     LOG(INFO) << "Updating info for framework " << framework->id();
 
-    framework->updateFrameworkInfo(frameworkInfo);
+    Try<Nothing> updateFrameworkInfo =
+      framework->updateFrameworkInfo(frameworkInfo);
+
+    if (updateFrameworkInfo.isError()) {
+      LOG(INFO) << "Could not update frameworkInfo of framework '" << *framework
+                << "': " << updateFrameworkInfo.error();
+
+      FrameworkErrorMessage message;
+      message.set_message(updateFrameworkInfo.error());
+      send(from, message);
+      return;
+    }
+
     allocator->updateFramework(framework->id(), framework->info);
 
     framework->reregisteredTime = Clock::now();
@@ -2926,7 +2963,18 @@ void Master::_subscribe(
     }
   } else {
     // The framework has not yet re-registered after master failover.
-    activateRecoveredFramework(framework, frameworkInfo, from, None());
+    Try<Nothing> activate =
+      activateRecoveredFramework(framework, frameworkInfo, from, None());
+
+    if (activate.isError()) {
+      LOG(INFO) << "Could not update FrameworkInfo of framework '"
+                << frameworkInfo.name() << "': " << activate.error();
+
+      FrameworkErrorMessage message;
+      message.set_message(activate.error());
+      send(from, message);
+      return;
+    }
   }
 
   // Broadcast the new framework pid to all the slaves. We have to
@@ -7270,7 +7318,7 @@ void Master::recoverFramework(const FrameworkInfo& info)
 }
 
 
-void Master::activateRecoveredFramework(
+Try<Nothing> Master::activateRecoveredFramework(
     Framework* framework,
     const FrameworkInfo& frameworkInfo,
     const Option<UPID>& pid,
@@ -7289,7 +7337,13 @@ void Master::activateRecoveredFramework(
   // The `FrameworkInfo` might have changed.
   LOG(INFO) << "Updating info for framework " << framework->id();
 
-  framework->updateFrameworkInfo(frameworkInfo);
+  Try<Nothing> updateFrameworkInfo =
+    framework->updateFrameworkInfo(frameworkInfo);
+
+  if (updateFrameworkInfo.isError()) {
+    return updateFrameworkInfo;
+  }
+
   allocator->updateFramework(framework->id(), framework->info);
 
   // Updating `registeredTime` here is debatable: ideally,
@@ -7350,6 +7404,8 @@ void Master::activateRecoveredFramework(
     // Start the heartbeat after sending SUBSCRIBED event.
     framework->heartbeat();
   }
+
+  return Nothing();
 }
 
 

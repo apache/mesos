@@ -59,8 +59,10 @@
 #include <stout/hashset.hpp>
 #include <stout/linkedhashmap.hpp>
 #include <stout/multihashmap.hpp>
+#include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/recordio.hpp>
+#include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
 #include "common/http.hpp"
@@ -561,7 +563,7 @@ protected:
   // activate it. This happens at most once after master failover, the
   // first time that the framework re-registers with the new master.
   // Exactly one of `newPid` or `http` must be provided.
-  void activateRecoveredFramework(
+  Try<Nothing> activateRecoveredFramework(
       Framework* framework,
       const FrameworkInfo& frameworkInfo,
       const Option<process::UPID>& pid,
@@ -2369,7 +2371,7 @@ struct Framework
   // Update fields in 'info' using those in 'source'. Currently this
   // only updates 'name', 'failover_timeout', 'hostname', 'webui_url',
   // 'capabilities', and 'labels'.
-  void updateFrameworkInfo(const FrameworkInfo& source)
+  Try<Nothing> updateFrameworkInfo(const FrameworkInfo& source)
   {
     // We only merge 'info' from the same framework 'id'.
     CHECK_EQ(info.id(), source.id());
@@ -2430,6 +2432,8 @@ struct Framework
     } else {
       info.clear_labels();
     }
+
+    return Nothing();
   }
 
   void updateConnection(const process::UPID& newPid)
