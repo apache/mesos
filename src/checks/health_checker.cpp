@@ -122,7 +122,7 @@ Try<Owned<HealthChecker>> HealthChecker::create(
     const HealthCheck& check,
     const string& launcherDir,
     const lambda::function<void(const TaskHealthStatus&)>& callback,
-    const TaskID& taskID,
+    const TaskID& taskId,
     Option<pid_t> taskPid,
     const vector<string>& namespaces)
 {
@@ -136,7 +136,7 @@ Try<Owned<HealthChecker>> HealthChecker::create(
       check,
       launcherDir,
       callback,
-      taskID,
+      taskId,
       taskPid,
       namespaces));
 
@@ -171,14 +171,14 @@ HealthCheckerProcess::HealthCheckerProcess(
     const HealthCheck& _check,
     const string& _launcherDir,
     const lambda::function<void(const TaskHealthStatus&)>& _callback,
-    const TaskID& _taskID,
+    const TaskID& _taskId,
     Option<pid_t> _taskPid,
     const vector<string>& _namespaces)
   : ProcessBase(process::ID::generate("health-checker")),
     check(_check),
     launcherDir(_launcherDir),
     healthUpdateCallback(_callback),
-    taskID(_taskID),
+    taskId(_taskId),
     taskPid(_taskPid),
     namespaces(_namespaces),
     consecutiveFailures(0),
@@ -241,7 +241,7 @@ void HealthCheckerProcess::failure(const string& message)
   taskHealthStatus.set_healthy(false);
   taskHealthStatus.set_consecutive_failures(consecutiveFailures);
   taskHealthStatus.set_kill_task(killTask);
-  taskHealthStatus.mutable_task_id()->CopyFrom(taskID);
+  taskHealthStatus.mutable_task_id()->CopyFrom(taskId);
 
   // We assume this is a local send, i.e. the health checker library
   // is not used in a binary external to the executor and hence can
@@ -264,7 +264,7 @@ void HealthCheckerProcess::success()
   if (initializing || consecutiveFailures > 0) {
     TaskHealthStatus taskHealthStatus;
     taskHealthStatus.set_healthy(true);
-    taskHealthStatus.mutable_task_id()->CopyFrom(taskID);
+    taskHealthStatus.mutable_task_id()->CopyFrom(taskId);
     healthUpdateCallback(taskHealthStatus);
     initializing = false;
   }

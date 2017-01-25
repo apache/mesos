@@ -55,7 +55,7 @@ public:
    * @param launcherDir A directory where Mesos helper binaries are located.
    * @param callback A callback HealthChecker uses to send health status
    *     updates to its owner (usually an executor).
-   * @param taskID The TaskID of the target task.
+   * @param taskId The TaskID of the target task.
    * @param taskPid The target task's pid used to enter the specified
    *     namespaces.
    * @param namespaces The namespaces to enter prior performing a single health
@@ -69,7 +69,7 @@ public:
       const HealthCheck& check,
       const std::string& launcherDir,
       const lambda::function<void(const TaskHealthStatus&)>& callback,
-      const TaskID& taskID,
+      const TaskID& taskId,
       Option<pid_t> taskPid,
       const std::vector<std::string>& namespaces);
 
@@ -94,7 +94,7 @@ public:
       const HealthCheck& _check,
       const std::string& _launcherDir,
       const lambda::function<void(const TaskHealthStatus&)>& _callback,
-      const TaskID& _taskID,
+      const TaskID& _taskId,
       Option<pid_t> _taskPid,
       const std::vector<std::string>& _namespaces);
 
@@ -142,7 +142,7 @@ private:
   const std::string launcherDir;
 
   const lambda::function<void(const TaskHealthStatus&)> healthUpdateCallback;
-  const TaskID taskID;
+  const TaskID taskId;
   const Option<pid_t> taskPid;
   const std::vector<std::string> namespaces;
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
