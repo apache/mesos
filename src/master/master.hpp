@@ -21,6 +21,7 @@
 
 #include <list>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -2379,6 +2380,46 @@ struct Framework
     // TODO(jmlvanre): Merge other fields as per design doc in
     // MESOS-703.
 
+    // We currently do not allow frameworks to add or remove roles. We
+    // do however allow frameworks to opt in and out of `MULTI_ROLE`
+    // capability, given that the `role` and `roles` field contain the
+    // same number of roles.
+    if (protobuf::frameworkHasCapability(
+            source, FrameworkInfo::Capability::MULTI_ROLE) ||
+        protobuf::frameworkHasCapability(
+            info, FrameworkInfo::Capability::MULTI_ROLE)) {
+      // Two `roles` sets are equivalent if they contain the same
+      // elements. A `role` `*` is not equivalent to an empty `roles`
+      // set, but to the set `{*}`. Since we might be dealing with a
+      // framework upgrading to `MULTI_ROLE` capability or dropping
+      // it, we need to examine either `role` or `roles` in order to
+      // determine the roles a framework is subscribed to.
+      const std::set<std::string> newRoles =
+        protobuf::frameworkHasCapability(
+            source, FrameworkInfo::Capability::MULTI_ROLE)
+          ? std::set<std::string>(
+                {source.roles().begin(), source.roles().end()})
+          : std::set<std::string>({source.role()});
+
+      const std::set<std::string> oldRoles =
+        protobuf::frameworkHasCapability(
+            info, FrameworkInfo::Capability::MULTI_ROLE)
+          ? std::set<std::string>({info.roles().begin(), info.roles().end()})
+          : std::set<std::string>({info.role()});
+
+      if (oldRoles != newRoles) {
+        return Error(
+            "Frameworks cannot change their roles: expected '" +
+            stringify(oldRoles) + "', but got '" + stringify(newRoles) + "'");
+      }
+    } else {
+      if (source.role() != info.role()) {
+        LOG(WARNING) << "Cannot update FrameworkInfo.role to '" << source.role()
+                     << "' for framework " << id() << ". Check MESOS-703";
+      }
+    }
+
+
     if (source.user() != info.user()) {
       LOG(WARNING) << "Cannot update FrameworkInfo.user to '" << source.user()
                    << "' for framework " << id() << ". Check MESOS-703";
@@ -2396,11 +2437,6 @@ struct Framework
       LOG(WARNING) << "Cannot update FrameworkInfo.checkpoint to '"
                    << stringify(source.checkpoint()) << "' for framework "
                    << id() << ". Check MESOS-703";
-    }
-
-    if (source.role() != info.role()) {
-      LOG(WARNING) << "Cannot update FrameworkInfo.role to '" << source.role()
-                   << "' for framework " << id() << ". Check MESOS-703";
     }
 
     if (source.has_hostname()) {
