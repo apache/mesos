@@ -100,6 +100,39 @@ Try<uint32_t> type(const string& path)
 }
 
 
+Try<string> typeName(uint32_t fsType)
+{
+  // `typeNames` maps a filesystem id to its filesystem type name.
+  hashmap<uint32_t, string> typeNames = {
+    {FS_TYPE_AUFS      , "aufs"},
+    {FS_TYPE_BTRFS     , "btrfs"},
+    {FS_TYPE_CRAMFS    , "cramfs"},
+    {FS_TYPE_ECRYPTFS  , "ecryptfs"},
+    {FS_TYPE_EXTFS     , "extfs"},
+    {FS_TYPE_F2FS      , "f2fs"},
+    {FS_TYPE_GPFS      , "gpfs"},
+    {FS_TYPE_JFFS2FS   , "jffs2fs"},
+    {FS_TYPE_JFS       , "jfs"},
+    {FS_TYPE_NFSFS     , "nfsfs"},
+    {FS_TYPE_RAMFS     , "ramfs"},
+    {FS_TYPE_REISERFS  , "reiserfs"},
+    {FS_TYPE_SMBFS     , "smbfs"},
+    {FS_TYPE_SQUASHFS  , "squashfs"},
+    {FS_TYPE_TMPFS     , "tmpfs"},
+    {FS_TYPE_VXFS      , "vxfs"},
+    {FS_TYPE_XFS       , "xfs"},
+    {FS_TYPE_ZFS       , "zfs"},
+    {FS_TYPE_OVERLAY   , "overlay"}
+  };
+
+  if (!typeNames.contains(fsType)) {
+    return Error("Unexpected filesystem type '" + stringify(fsType) + "'");
+  }
+
+  return typeNames[fsType];
+}
+
+
 Try<MountInfoTable> MountInfoTable::read(
     const string& lines,
     bool hierarchicalSort)
