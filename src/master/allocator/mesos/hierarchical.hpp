@@ -251,23 +251,23 @@ protected:
       InverseOfferFilter* inverseOfferFilter);
 
   // Returns the weight of the specified role name.
-  double roleWeight(const std::string& name);
+  double roleWeight(const std::string& name) const;
 
   // Checks whether the slave is whitelisted.
-  bool isWhitelisted(const SlaveID& slaveId);
+  bool isWhitelisted(const SlaveID& slaveId) const;
 
   // Returns true if there is a resource offer filter for this framework
   // on this slave.
   bool isFiltered(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      const Resources& resources);
+      const Resources& resources) const;
 
   // Returns true if there is an inverse offer filter for this framework
   // on this slave.
   bool isFiltered(
       const FrameworkID& frameworkID,
-      const SlaveID& slaveID);
+      const SlaveID& slaveID) const;
 
   static bool allocatable(const Resources& resources);
 
@@ -292,6 +292,8 @@ protected:
 
   struct Framework
   {
+    explicit Framework(const FrameworkInfo& frameworkInfo);
+
     std::string role;
 
     // Whether the framework suppresses offers.
