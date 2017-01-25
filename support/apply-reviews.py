@@ -116,7 +116,10 @@ def shell(command, dry_run):
 def apply_review():
   """Applies a review with a given ID locally."""
   # Make sure we don't leave the patch behind in case of failure.
-  atexit.register(lambda: os.remove('%s.patch' % patch_id()))
+  # We store the patch ID in a local variable to ensure the lambda
+  # captures the current patch ID.
+  patch = patch_id()
+  atexit.register(lambda: os.remove('%s.patch' % patch))
 
   fetch_patch()
   apply_patch()
