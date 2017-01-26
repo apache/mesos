@@ -46,7 +46,7 @@ layout: documentation
 
 * [Attributes and Resources](attributes-resources.md) for how to describe the agents that comprise a cluster.
 * [Fetcher Cache](fetcher.md) for how to configure the Mesos fetcher cache.
-* [Multiple Disks](multiple-disk.md) for how to to allow tasks to use multiple isolated disk resources.
+* [Multiple Disks](multiple-disk.md) for how to allow tasks to use multiple isolated disk resources.
 * [Networking](networking.md)
   * [Container Network Interface (CNI)](cni.md)
   * [Port Mapping Isolator](port-mapping-isolator.md)

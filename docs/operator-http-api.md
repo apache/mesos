@@ -3449,7 +3449,7 @@ of type CONTAINER_ID and contain the ContainerID of the container
 being attached to. Subsequent messages must be of type PROCESS_IO, but
 they may contain subtypes of either DATA or CONTROL. DATA messages
 must be of type STDIN and contain the actual data to stream to the
-STDIN of the container beinga attached to. Currently, the only valid
+STDIN of the container being attached to. Currently, the only valid
 CONTROL message sends a heartbeat to keep the connection alive. We may
 add more CONTROL messages in the future.
 
