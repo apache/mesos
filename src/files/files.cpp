@@ -375,35 +375,35 @@ Future<http::Response> FilesProcess::_browse(
   Option<string> jsonp = request.url.query.get("jsonp");
 
   return browse(requestedPath, principal)
-  .then([jsonp](const Try<list<FileInfo>, FilesError>& result)
-    -> Future<http::Response> {
-    if (result.isError()) {
-      const FilesError& error = result.error();
+    .then([jsonp](const Try<list<FileInfo>, FilesError>& result)
+      -> Future<http::Response> {
+      if (result.isError()) {
+        const FilesError& error = result.error();
 
-      switch (error.type) {
-        case FilesError::Type::INVALID:
-          return BadRequest(error.message);
+        switch (error.type) {
+          case FilesError::Type::INVALID:
+            return BadRequest(error.message);
 
-        case FilesError::Type::NOT_FOUND:
-          return NotFound(error.message);
+          case FilesError::Type::NOT_FOUND:
+            return NotFound(error.message);
 
-        case FilesError::Type::UNAUTHORIZED:
-          return Forbidden(error.message);
+          case FilesError::Type::UNAUTHORIZED:
+            return Forbidden(error.message);
 
-        case FilesError::Type::UNKNOWN:
-          return InternalServerError(error.message);
+          case FilesError::Type::UNKNOWN:
+            return InternalServerError(error.message);
+        }
+
+        UNREACHABLE();
       }
 
-      UNREACHABLE();
-    }
+      JSON::Array listing;
+      foreach (const FileInfo& fileInfo, result.get()) {
+        listing.values.push_back(model(fileInfo));
+      }
 
-    JSON::Array listing;
-    foreach (const FileInfo& fileInfo, result.get()) {
-      listing.values.push_back(model(fileInfo));
-    }
-
-    return OK(listing, jsonp);
-  });
+      return OK(listing, jsonp);
+    });
 }
 
 
