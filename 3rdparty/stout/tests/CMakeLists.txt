@@ -107,10 +107,13 @@ link_directories(${STOUT_TEST_LIB_DIRS})
 ###########################################################################
 add_executable(${STOUT_TESTS_TARGET} ${STOUT_TESTS_SRC})
 
-source_group("tests" FILES ${STOUT_ROOT_TESTS_SRC})
-source_group("tests\\os" FILES ${STOUT_OS_TESTS_SRC})
-
 GROUP_STOUT_HEADERS()
+
+GROUP_SOURCE(
+  "tests"
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+  "*.[ch]*")
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################

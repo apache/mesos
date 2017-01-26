@@ -27,6 +27,8 @@ if (NOT WIN32)
   find_package(Svn REQUIRED)
 endif (NOT WIN32)
 
+include(GroupSource)
+
 # SOURCE GROUPS. Allows IDEs to group header files for projects taking a
 # dependency on this package.
 ########################################################################
@@ -38,36 +40,11 @@ file(
   )
 
 macro(GROUP_STOUT_HEADERS)
-  source_group(
-    "Stout Headers"
-    REGULAR_EXPRESSION "${STOUT_INCLUDE_DIR}/stout/.*\\.hpp")
-  source_group(
-    "Stout Headers\\flags"
-    REGULAR_EXPRESSION "${STOUT_INCLUDE_DIR}/stout/flags/.*\\.hpp")
-  source_group(
-    "Stout Headers\\internal\\windows"
-    REGULAR_EXPRESSION "${STOUT_INCLUDE_DIR}/stout/internal/windows/.*\\.hpp")
-  source_group(
-    "Stout Headers\\os"
-    REGULAR_EXPRESSION "${STOUT_INCLUDE_DIR}/stout/os/.*\\.hpp")
-  source_group(
-    "Stout Headers\\os\\posix"
-    REGULAR_EXPRESSION "${STOUT_INCLUDE_DIR}/stout/os/posix/.*\\.hpp")
-  source_group(
-    "Stout Headers\\os\\raw"
-    REGULAR_EXPRESSION "${STOUT_INCLUDE_DIR}/stout/os/raw/.*\\.hpp")
-  source_group(
-    "Stout Headers\\os\\windows"
-    REGULAR_EXPRESSION "${STOUT_INCLUDE_DIR}/stout/os/windows/.*\\.hpp")
-  source_group(
-    "Stout Headers\\posix"
-    REGULAR_EXPRESSION "${STOUT_INCLUDE_DIR}/stout/posix/.*\\.hpp")
-  source_group(
-    "Stout Headers\\tests"
-    REGULAR_EXPRESSION "${STOUT_INCLUDE_DIR}/stout/tests/.*\\.hpp")
-  source_group(
-    "Stout Headers\\windows"
-    REGULAR_EXPRESSION "${STOUT_INCLUDE_DIR}/stout/windows/.*\\.hpp")
+  GROUP_SOURCE(
+    "Stout Public Headers"
+    "${STOUT_INCLUDE_DIR}/stout"
+    "${STOUT_INCLUDE_DIR}/stout"
+    "*.h*")
 endmacro(GROUP_STOUT_HEADERS)
 
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
