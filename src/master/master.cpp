@@ -3621,11 +3621,15 @@ void Master::accept(
     // TODO(jieyu): Add metrics for non launch operations.
   }
 
+  // TODO(bmahler): MULTI_ROLE: Validate that the accepted offers
+  // do not mix allocation roles, see MESOS-6637.
+
   // TODO(bmahler): We currently only support using multiple offers
   // for a single slave.
   Resources offeredResources;
   Option<SlaveID> slaveId = None();
   Option<Error> error = None();
+  Option<Resource::AllocationInfo> allocationInfo = None();
 
   if (accept.offer_ids().size() == 0) {
     error = Error("No offers specified");
@@ -3648,6 +3652,7 @@ void Master::accept(
               None());
         } else {
           slaveId = offer->slave_id();
+          allocationInfo = offer->allocation_info();
           offeredResources += offer->resources();
         }
 
@@ -3721,6 +3726,16 @@ void Master::accept(
     }
 
     return;
+  }
+
+  CHECK_SOME(allocationInfo);
+
+  // With the addition of the MULTI_ROLE capability, the resources
+  // within an offer now contain an `AllocationInfo`. We therefore
+  // inject the offer's allocation info into the operation's
+  // resources if the scheduler has not done so already.
+  foreach (Offer::Operation& operation, *accept.mutable_operations()) {
+    protobuf::adjustOfferOperation(&operation, allocationInfo.get());
   }
 
   CHECK_SOME(slaveId);
