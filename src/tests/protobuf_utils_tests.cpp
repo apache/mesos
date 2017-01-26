@@ -138,16 +138,17 @@ TEST(ProtobufUtilTest, FrameworkCapabilities)
 
 
 // This tests that Capabilities are correctly constructed
-// from given SlaveInfo Capabilities.
+// from given Agent Capabilities.
 TEST(ProtobufUtilTest, AgentCapabilities)
 {
   // TODO(jay_guo): consider applying the same test style in
   // FrameworkCapabilities when we have more capabilities in agent.
-  SlaveInfo slaveInfo;
-  slaveInfo.add_capabilities()->set_type(SlaveInfo::Capability::MULTI_ROLE);
+  RegisterSlaveMessage registerSlaveMessage;
+  registerSlaveMessage.add_agent_capabilities()->set_type(
+      SlaveInfo::Capability::MULTI_ROLE);
 
-  protobuf::slave::Capabilities capabilities =
-    protobuf::slave::Capabilities(slaveInfo.capabilities());
+  protobuf::slave::Capabilities capabilities(
+      registerSlaveMessage.agent_capabilities());
 
   ASSERT_TRUE(capabilities.multiRole);
 }
