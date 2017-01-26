@@ -427,6 +427,11 @@ message RegisterSlaveMessage {
   // version. If unset the agent is < 0.21.0.
   // TODO(bmahler): Do proper versioning: MESOS-986.
   optional string version = 2;
+
+  // This field allows an agent to advertise its set of
+  // capabilities (e.g., ability to launch tasks of 'multi-role'
+  // frameworks).
+  repeated SlaveInfo.Capability agent_capabilities = 4;
 }
 
 
@@ -458,6 +463,11 @@ message ReregisterSlaveMessage {
   // version. If unset the agent is < 0.21.0.
   // TODO(bmahler): Do proper versioning: MESOS-986.
   optional string version = 6;
+
+  // This field allows an agent to advertise its set of
+  // capabilities (e.g., ability to launch tasks of 'multi-role'
+  // frameworks).
+  repeated SlaveInfo.Capability agent_capabilities = 9;
 }
 
 

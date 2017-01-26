@@ -792,11 +792,6 @@ message SlaveInfo {
     // Enum fields should be optional, see: MESOS-4997.
     optional Type type = 1;
   }
-
-  // This field allows an agent to advertise its set of
-  // capabilities (e.g., ability to launch tasks of 'multi-role'
-  // frameworks).
-  repeated Capability capabilities = 9;
 }
 
 
