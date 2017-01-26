@@ -2409,33 +2409,34 @@ struct Framework
     // do however allow frameworks to opt in and out of `MULTI_ROLE`
     // capability, given that the `role` and `roles` field contain the
     // same number of roles.
-    if (protobuf::frameworkHasCapability(
-            source, FrameworkInfo::Capability::MULTI_ROLE) ||
-        protobuf::frameworkHasCapability(
-            info, FrameworkInfo::Capability::MULTI_ROLE)) {
+    if (capabilities.multiRole || protobuf::frameworkHasCapability(
+            source, FrameworkInfo::Capability::MULTI_ROLE)) {
       // Two `roles` sets are equivalent if they contain the same
       // elements. A `role` `*` is not equivalent to an empty `roles`
       // set, but to the set `{*}`. Since we might be dealing with a
       // framework upgrading to `MULTI_ROLE` capability or dropping
       // it, we need to examine either `role` or `roles` in order to
       // determine the roles a framework is subscribed to.
-      const std::set<std::string> newRoles =
-        protobuf::frameworkHasCapability(
-            source, FrameworkInfo::Capability::MULTI_ROLE)
-          ? std::set<std::string>(
-                {source.roles().begin(), source.roles().end()})
-          : std::set<std::string>({source.role()});
-
       const std::set<std::string> oldRoles =
-        protobuf::frameworkHasCapability(
-            info, FrameworkInfo::Capability::MULTI_ROLE)
-          ? std::set<std::string>({info.roles().begin(), info.roles().end()})
-          : std::set<std::string>({info.role()});
+        protobuf::framework::getRoles(info);
+      const std::set<std::string> newRoles =
+        protobuf::framework::getRoles(source);
 
       if (oldRoles != newRoles) {
         return Error(
             "Frameworks cannot change their roles: expected '" +
             stringify(oldRoles) + "', but got '" + stringify(newRoles) + "'");
+      }
+
+      info.clear_role();
+      info.clear_roles();
+
+      if (source.has_role()) {
+        info.set_role(source.role());
+      }
+
+      if (source.roles_size() > 0) {
+        info.mutable_roles()->CopyFrom(source.roles());
       }
     } else {
       if (source.role() != info.role()) {
@@ -2443,7 +2444,6 @@ struct Framework
                      << "' for framework " << id() << ". Check MESOS-703";
       }
     }
-
 
     if (source.user() != info.user()) {
       LOG(WARNING) << "Cannot update FrameworkInfo.user to '" << source.user()
@@ -2487,6 +2487,7 @@ struct Framework
     } else {
       info.clear_capabilities();
     }
+    capabilities = protobuf::framework::Capabilities(info.capabilities());
 
     if (source.has_labels()) {
       info.mutable_labels()->CopyFrom(source.labels());
