@@ -36,6 +36,7 @@
 
 #include "tests/allocator.hpp"
 #include "tests/mesos.hpp"
+#include "tests/resources_utils.hpp"
 #include "tests/utils.hpp"
 
 using std::string;
@@ -154,7 +155,8 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   Future<Nothing> recoverResources;
   EXPECT_CALL(allocator, recoverResources(_, _, _, _))
@@ -186,7 +188,8 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
   // resources that this framework is currently holding onto.
@@ -243,7 +246,8 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -264,7 +268,8 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -324,7 +329,8 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -345,7 +351,8 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -412,7 +419,8 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(available + offered));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(available + offered, frameworkInfo.role())));
 
   // Launch a task on the 'available' resources portion of the offer, which
   // recovers 'offered' resources portion.
@@ -446,7 +454,8 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(offered));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(offered, frameworkInfo.role())));
 
   // Kill the task running on 'available' resources to make it available.
   EXPECT_CALL(sched, statusUpdate(_, _));
@@ -461,7 +470,8 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   driver.killTask(taskInfo.task_id());
 
   AWAIT_READY(availableResources);
-  EXPECT_TRUE(availableResources.get().contains(available));
+  EXPECT_TRUE(availableResources.get().contains(
+      allocatedResources(available, frameworkInfo.role())));
 
   // At this point, we have 'available' resources in the allocator, and
   // 'offered' resources offered to the framework.
@@ -490,7 +500,8 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
   // resources that this framework is currently holding onto.
@@ -575,7 +586,8 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(available + offered));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(available + offered, frameworkInfo.role())));
 
   // Launch a task on the 'available' resources portion of the offer, which
   // recovers 'offered' resources portion.
@@ -609,7 +621,8 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(offered));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(offered, frameworkInfo.role())));
 
   // Kill the task running on 'available' resources to make it available.
   EXPECT_CALL(sched, statusUpdate(_, _));
@@ -624,7 +637,8 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   driver.killTask(taskInfo.task_id());
 
   AWAIT_READY(availableResources);
-  EXPECT_TRUE(availableResources.get().contains(available));
+  EXPECT_TRUE(availableResources.get().contains(
+      allocatedResources(available, frameworkInfo.role())));
 
   // At this point, we have 'available' resources in the allocator, and
   // 'offered' resources offered to the framework.
@@ -653,7 +667,8 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
   // resources that this framework is currently holding onto.
@@ -742,8 +757,10 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
   Offer offer = offers.get()[0];
 
   Resources offeredResources = Resources(offer.resources());
-  EXPECT_TRUE(offeredResources.contains(labeledResources1));
-  EXPECT_TRUE(offeredResources.contains(labeledResources2));
+  EXPECT_TRUE(offeredResources.contains(
+      allocatedResources(labeledResources1, frameworkInfo.role())));
+  EXPECT_TRUE(offeredResources.contains(
+      allocatedResources(labeledResources2, frameworkInfo.role())));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -766,10 +783,14 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
   offer = offers.get()[0];
 
   offeredResources = Resources(offer.resources());
-  EXPECT_FALSE(offeredResources.contains(totalSlaveResources));
-  EXPECT_TRUE(offeredResources.contains(unreserved));
-  EXPECT_FALSE(offeredResources.contains(labeledResources1));
-  EXPECT_TRUE(offeredResources.contains(labeledResources2));
+  EXPECT_FALSE(offeredResources.contains(
+      allocatedResources(totalSlaveResources, frameworkInfo.role())));
+  EXPECT_TRUE(offeredResources.contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
+  EXPECT_FALSE(offeredResources.contains(
+      allocatedResources(labeledResources1, frameworkInfo.role())));
+  EXPECT_TRUE(offeredResources.contains(
+      allocatedResources(labeledResources2, frameworkInfo.role())));
 
   // Now that the first labeled reservation has been unreserved,
   // attempting to unreserve it again should fail.
@@ -803,9 +824,12 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   offeredResources = Resources(offer.resources());
 
-  EXPECT_TRUE(offeredResources.contains(totalSlaveResources));
-  EXPECT_FALSE(offeredResources.contains(labeledResources1));
-  EXPECT_FALSE(offeredResources.contains(labeledResources2));
+  EXPECT_TRUE(offeredResources.contains(
+      allocatedResources(totalSlaveResources, frameworkInfo.role())));
+  EXPECT_FALSE(offeredResources.contains(
+      allocatedResources(labeledResources1, frameworkInfo.role())));
+  EXPECT_FALSE(offeredResources.contains(
+      allocatedResources(labeledResources2, frameworkInfo.role())));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
   // resources that this framework is currently holding onto.
@@ -1598,8 +1622,10 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
   Offer offer = offers.get()[0];
   Resources resources = Resources(offer.resources());
 
-  EXPECT_TRUE(resources.contains(dynamicallyReserved1));
-  EXPECT_TRUE(resources.contains(dynamicallyReserved2));
+  EXPECT_TRUE(resources.contains(
+      allocatedResources(dynamicallyReserved1, frameworkInfo.role())));
+  EXPECT_TRUE(resources.contains(
+      allocatedResources(dynamicallyReserved2, frameworkInfo.role())));
 
   driver.stop();
   driver.join();

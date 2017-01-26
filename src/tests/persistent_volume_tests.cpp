@@ -54,6 +54,7 @@
 #include "tests/environment.hpp"
 #include "tests/mesos.hpp"
 #include "tests/mock_slave.hpp"
+#include "tests/resources_utils.hpp"
 
 using namespace process;
 
@@ -373,8 +374,10 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
   offer = offers.get()[0];
 
   // Expect that the offer contains the persistent volumes we created.
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume1));
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume2));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume1, frameworkInfo.role())));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume2, frameworkInfo.role())));
 
   // Destroy `volume1`.
   driver.acceptOffers(
@@ -639,7 +642,8 @@ TEST_P(PersistentVolumeTest, MasterFailover)
 
   Offer offer2 = offers2.get()[0];
 
-  EXPECT_TRUE(Resources(offer2.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer2.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -864,7 +868,8 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   Future<CheckpointResourcesMessage> checkpointMessage =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
@@ -1119,7 +1124,8 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
 
   Offer offer2 = offers2.get()[0];
 
-  EXPECT_TRUE(Resources(offer2.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer2.resources()).contains(
+      allocatedResources(volume, frameworkInfo2.role())));
 
   // 4. framework1 kills the task which results in an offer to framework1
   //    with the shared volume. At this point, both frameworks will have
@@ -1141,7 +1147,8 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
 
   offer1 = offers1.get()[0];
 
-  EXPECT_TRUE(Resources(offer1.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer1.resources()).contains(
+      allocatedResources(volume, frameworkInfo1.role())));
 
   // 5. DESTROY the shared volume via framework2 which would result in
   //    framework1 being rescinded the offer.
@@ -1282,8 +1289,11 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
 
   // Verify the offer from the failed over master.
   EXPECT_TRUE(Resources(offer2.resources()).contains(
-      Resources::parse("cpus:1;mem:1024").get()));
-  EXPECT_TRUE(Resources(offer2.resources()).contains(volume));
+      allocatedResources(
+          Resources::parse("cpus:1;mem:1024").get(),
+          frameworkInfo.role())));
+  EXPECT_TRUE(Resources(offer2.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -1434,11 +1444,19 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
 
   offer = offers.get()[0];
 
+  // TODO(bmahler): This lambda is copied in several places
+  // in the code, consider how best to pull this out.
+  auto unallocated = [](const Resources& resources) {
+    Resources result = resources;
+    result.unallocate();
+    return result;
+  };
+
   // Check that the persistent volumes are offered back. The shared volume
   // is offered since it can be used in multiple tasks; the non-shared
   // volume is offered since there are no tasks using it.
-  EXPECT_TRUE(Resources(offer.resources()).contains(sharedVolume));
-  EXPECT_TRUE(Resources(offer.resources()).contains(nonSharedVolume));
+  EXPECT_TRUE(unallocated(offer.resources()).contains(sharedVolume));
+  EXPECT_TRUE(unallocated(offer.resources()).contains(nonSharedVolume));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -1459,8 +1477,8 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
 
   // Check that the shared persistent volume is in the offer, but the
   // non-shared volume is not in the offer.
-  EXPECT_TRUE(Resources(offer.resources()).contains(sharedVolume));
-  EXPECT_FALSE(Resources(offer.resources()).contains(nonSharedVolume));
+  EXPECT_TRUE(unallocated(offer.resources()).contains(sharedVolume));
+  EXPECT_FALSE(unallocated(offer.resources()).contains(nonSharedVolume));
 
   // We kill the long-lived task and wait for TASK_KILLED, so we can
   // DESTROY the persistent volume once the task terminates.
@@ -1586,7 +1604,15 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleIterations)
 
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume1));
+  // TODO(bmahler): This lambda is copied in several places
+  // in the code, consider how best to pull this out.
+  auto unallocated = [](const Resources& resources) {
+    Resources result = resources;
+    result.unallocate();
+    return result;
+  };
+
+  EXPECT_TRUE(unallocated(offer.resources()).contains(volume1));
 
   // 3. The framework CREATEs the 2nd shared volume, and LAUNCHes a task
   //    using this shared volume.
@@ -1622,8 +1648,8 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleIterations)
 
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume1));
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume2));
+  EXPECT_TRUE(unallocated(offer.resources()).contains(volume1));
+  EXPECT_TRUE(unallocated(offer.resources()).contains(volume2));
 
   driver.stop();
   driver.join();
@@ -1863,7 +1889,8 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
   offer = offers.get()[0];
 
   // Check that the persistent volume was created successfully.
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
   EXPECT_TRUE(os::exists(slave::paths::getPersistentVolumePath(
       slaveFlags.work_dir,
       volume)));
@@ -1894,7 +1921,8 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
   offer = offers.get()[0];
 
   // Check that the persistent volume is not in the offer.
-  EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -2011,7 +2039,8 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   offer = offers.get()[0];
 
   // Check that the persistent volume was successfully created.
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
   EXPECT_TRUE(os::exists(slave::paths::getPersistentVolumePath(
       slaveFlags.work_dir,
       volume)));
@@ -2040,7 +2069,8 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   offer = offers.get()[0];
 
   // Check that the persistent volume was not created
-  EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
   EXPECT_FALSE(
       Resources(checkpointResources2.get().resources()).contains(volume));
 
@@ -2159,7 +2189,8 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
     offer = offers.get()[0];
 
     // Check that the persistent volume is not contained in this offer.
-    EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+    EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo1.role())));
   }
 
   // Decline the offer and suppress so the second
@@ -2214,7 +2245,8 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   offer = offers.get()[0];
 
   // Check that the persistent volume is contained in this offer.
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo2.role())));
 
   // Decline and suppress offers to `driver2` so that
   // `driver1` can receive an offer.
@@ -2259,7 +2291,8 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   // TODO(greggomann): In addition to checking that the volume is contained in
   // the offer, we should also confirm that the Destroy operation failed for the
   // correct reason. See MESOS-5470.
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo1.role())));
 
   driver1.stop();
   driver1.join();
@@ -2378,7 +2411,8 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
     offer = offers.get()[0];
 
     // Check that the persistent volume is not contained in this offer.
-    EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+    EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo1.role())));
   }
 
   // Decline the offer and suppress so the second
@@ -2433,7 +2467,8 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   offer = offers.get()[0];
 
   // Check that the persistent volume is contained in this offer.
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo2.role())));
 
   // Decline and suppress offers to `driver2` so that
   // `driver1` can receive an offer.
@@ -2478,7 +2513,8 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   // TODO(greggomann): In addition to checking that the volume is contained in
   // the offer, we should also confirm that the Destroy operation failed for the
   // correct reason. See MESOS-5470.
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo1.role())));
 
   driver1.stop();
   driver1.join();

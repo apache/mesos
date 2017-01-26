@@ -26,6 +26,7 @@
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/resources_utils.hpp"
 
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
@@ -138,8 +139,10 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
-  EXPECT_FALSE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -154,8 +157,10 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
-  EXPECT_FALSE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   Resources volume = createPersistentVolume(
       Megabytes(64),
@@ -178,9 +183,12 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
-  EXPECT_FALSE(Resources(offer.resources()).contains(dynamicallyReserved));
-  EXPECT_FALSE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -240,7 +248,8 @@ TEST_F(RoleTest, ImplicitRoleStaticReservation)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(staticallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(staticallyReserved, frameworkInfo.role())));
 
   // Create a task to launch with the resources of `staticallyReserved`.
   TaskInfo taskInfo =

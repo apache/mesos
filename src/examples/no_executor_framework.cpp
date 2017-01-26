@@ -325,6 +325,20 @@ int main(int argc, char** argv)
                      " to enable authentication");
   }
 
+  FrameworkInfo framework;
+  framework.set_user(""); // Have Mesos fill in the current user.
+  framework.set_name("No Executor Framework");
+  framework.set_checkpoint(flags.checkpoint);
+
+  if (flags.task_revocable_resources.isSome()) {
+    framework.add_capabilities()->set_type(
+        FrameworkInfo::Capability::REVOCABLE_RESOURCES);
+  }
+
+  if (flags.principal.isSome()) {
+    framework.set_principal(flags.principal.get());
+  }
+
   Try<Resources> resources =
     Resources::parse(flags.task_resources);
 
@@ -352,21 +366,9 @@ int main(int argc, char** argv)
     }
   }
 
+  taskResources.allocate(framework.role());
+
   logging::initialize(argv[0], flags, true); // Catch signals.
-
-  FrameworkInfo framework;
-  framework.set_user(""); // Have Mesos fill in the current user.
-  framework.set_name("No Executor Framework");
-  framework.set_checkpoint(flags.checkpoint);
-
-  if (flags.task_revocable_resources.isSome()) {
-    framework.add_capabilities()->set_type(
-        FrameworkInfo::Capability::REVOCABLE_RESOURCES);
-  }
-
-  if (flags.principal.isSome()) {
-    framework.set_principal(flags.principal.get());
-  }
 
   NoExecutorScheduler scheduler(
       framework,

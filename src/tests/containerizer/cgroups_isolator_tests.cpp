@@ -28,6 +28,7 @@
 
 #include "tests/mesos.hpp"
 #include "tests/mock_slave.hpp"
+#include "tests/resources_utils.hpp"
 #include "tests/script.hpp"
 
 #include "tests/containerizer/docker_archive.hpp"
@@ -304,7 +305,8 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
   EXPECT_NE(0u, offers2.get().size());
-  EXPECT_EQ(cpus, Resources(offers2.get()[0].resources()));
+  EXPECT_EQ(allocatedResources(cpus, frameworkInfo.role()),
+            Resources(offers2.get()[0].resources()));
 
   TaskInfo task = createTask(
       offers2.get()[0].slave_id(),

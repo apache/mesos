@@ -50,6 +50,7 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 #include "tests/module.hpp"
+#include "tests/resources_utils.hpp"
 
 using google::protobuf::RepeatedPtrField;
 
@@ -817,7 +818,9 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   AWAIT_READY(resourceOffers);
 
   EXPECT_EQ(Resources(resourceOffers.get()[0].resources()),
-            Resources::parse(flags2.resources.get()).get());
+            allocatedResources(
+                Resources::parse(flags2.resources.get()).get(),
+                DEFAULT_FRAMEWORK_INFO.role()));
 
   // Shut everything down.
   EXPECT_CALL(allocator, recoverResources(_, _, _, _))
@@ -1604,8 +1607,9 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   vector<Owned<cluster::Slave>> slaves;
 
   // Register three agents with the same resources.
-  string agentResources = "cpus:2;gpus:0;mem:1024;"
-                          "disk:4096;ports:[31000-32000]";
+  const Resources agentResources = Resources::parse(
+      "cpus:2;gpus:0;mem:1024;disk:4096;ports:[31000-32000]").get();
+
   for (int i = 0; i < 3; i++) {
     Future<Nothing> addSlave;
     EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
@@ -1613,7 +1617,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
                       FutureSatisfy(&addSlave)));
 
     slave::Flags flags = this->CreateSlaveFlags();
-    flags.resources = agentResources;
+    flags.resources = stringify(agentResources);
 
     Try<Owned<cluster::Slave>> slave = this->StartSlave(detector.get(), flags);
     ASSERT_SOME(slave);
@@ -1656,7 +1660,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   ASSERT_EQ(3u, framework1offers1.get().size());
   for (int i = 0; i < 3; i++) {
     EXPECT_EQ(Resources(framework1offers1.get()[i].resources()),
-              Resources::parse(agentResources).get());
+              allocatedResources(agentResources, "role1"));
   }
 
   // Framework2 registers with 'role2' which also uses the default weight.
@@ -1718,15 +1722,29 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   // 'updateWeights' will rescind all outstanding offers and the rescinded
   // offer resources will only be available to the updated weights once
   // another allocation is invoked.
+  //
+  // TODO(bmahler): This lambda is copied in several places
+  // in the code, consider how best to pull this out.
+  auto unallocated = [](const Resources& resources) {
+    Resources result = resources;
+    result.unallocate();
+    return result;
+  };
+
   AWAIT_READY(recoverResources1);
-  EXPECT_EQ(recoverResources1.get(),
-            Resources::parse(agentResources).get());
+  EXPECT_EQ(agentResources, unallocated(recoverResources1.get()));
+
   AWAIT_READY(recoverResources2);
-  EXPECT_EQ(recoverResources2.get(),
-            Resources::parse(agentResources).get());
+  EXPECT_EQ(agentResources, unallocated(recoverResources2.get()));
+
   AWAIT_READY(recoverResources3);
-  EXPECT_EQ(recoverResources3.get(),
-            Resources::parse(agentResources).get());
+  EXPECT_EQ(agentResources, unallocated(recoverResources3.get()));
+
+  Resources totalRecovered =
+    recoverResources1.get() + recoverResources2.get() + recoverResources3.get();
+  totalRecovered.unallocate();
+
+  EXPECT_EQ(agentResources + agentResources + agentResources, totalRecovered);
 
   // Trigger a batch allocation to make sure all resources are
   // offered out again.
@@ -1743,7 +1761,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   AWAIT_READY(framework1offers2);
   ASSERT_EQ(1u, framework1offers2.get().size());
   EXPECT_EQ(Resources(framework1offers2.get()[0].resources()),
-            Resources::parse(agentResources).get());
+            allocatedResources(agentResources, "role1"));
 
   ASSERT_EQ(2u, framework2offers.size());
   for (int i = 0; i < 2; i++) {
@@ -1752,7 +1770,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
     // All offers for framework2 are enqueued by now.
     AWAIT_READY(offer);
     EXPECT_EQ(Resources(offer->resources()),
-              Resources::parse(agentResources).get());
+              allocatedResources(agentResources, "role2"));
   }
 
   driver1.stop();

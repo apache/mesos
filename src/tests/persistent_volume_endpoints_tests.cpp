@@ -38,6 +38,7 @@
 
 #include "tests/allocator.hpp"
 #include "tests/mesos.hpp"
+#include "tests/resources_utils.hpp"
 #include "tests/utils.hpp"
 
 using std::string;
@@ -169,7 +170,8 @@ TEST_F(PersistentVolumeEndpointsTest, StaticReservation)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   Future<OfferID> rescindedOfferId;
 
@@ -196,7 +198,8 @@ TEST_F(PersistentVolumeEndpointsTest, StaticReservation)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -262,7 +265,8 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   Future<OfferID> rescindedOfferId;
 
@@ -298,7 +302,8 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillOnce(FutureArg<1>(&rescindedOfferId));
@@ -379,7 +384,8 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservationRoleMismatch)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   ASSERT_NE(frameworkInfo.role(), "role2");
   Resources volume = createPersistentVolume(
@@ -896,7 +902,8 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   Future<OfferID> rescindedOfferId;
 
@@ -926,7 +933,8 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_FALSE(Resources(offer.resources()).contains(volume));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -1124,7 +1132,8 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   // The failed destruction attempt.
   Future<Response> destroyResponse = process::http::post(
@@ -1331,7 +1340,8 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   // The failed destruction attempt.
   Future<Response> destroyResponse = process::http::post(
@@ -1603,7 +1613,8 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   // Create a 1MB persistent volume.
   Resources volume = createPersistentVolume(
@@ -1627,7 +1638,8 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   Future<OfferID> rescindedOfferId;
 
@@ -1655,7 +1667,8 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillOnce(FutureArg<1>(&rescindedOfferId));
@@ -1681,7 +1694,8 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -1765,7 +1779,8 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   // We use the filter explicitly here so that the resources will not
   // be filtered for 5 seconds (the default).
@@ -1786,7 +1801,8 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -1800,7 +1816,8 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   ASSERT_EQ(1u, offers.get().size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -2018,7 +2035,8 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   ASSERT_EQ(1u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   Resources taskUnreserved = Resources::parse("cpus:1;mem:256").get();
   Resources taskResources = taskUnreserved.flatten(
@@ -2140,6 +2158,9 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
       R"~(
       [
         {
+          "allocation_info": {
+            "role": "role1"
+          },
           "name": "cpus",
           "reservation": {
             "principal": "test-principal"
@@ -2151,6 +2172,9 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
           "type": "SCALAR"
         },
         {
+          "allocation_info": {
+            "role": "role1"
+          },
           "name": "mem",
           "reservation": {
             "principal": "test-principal"
@@ -2169,6 +2193,9 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
       R"~(
       [
         {
+          "allocation_info": {
+            "role": "role1"
+          },
           "disk": {
             "persistence": {
               "id": "id1",
@@ -2190,6 +2217,9 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
           "type": "SCALAR"
         },
         {
+          "allocation_info": {
+            "role": "role1"
+          },
           "name": "mem",
           "reservation": {
             "principal": "test-principal"
@@ -2201,6 +2231,9 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
           "type": "SCALAR"
         },
         {
+          "allocation_info": {
+            "role": "role1"
+          },
           "name": "disk",
           "reservation": {
             "principal": "test-principal"
@@ -2212,6 +2245,9 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
           "type": "SCALAR"
         },
         {
+          "allocation_info": {
+            "role": "role1"
+          },
           "name": "cpus",
           "role": "*",
           "scalar": {
@@ -2220,6 +2256,9 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
           "type": "SCALAR"
         },
         {
+          "allocation_info": {
+            "role": "role1"
+          },
           "name": "mem",
           "role": "*",
           "scalar": {
@@ -2228,6 +2267,9 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
           "type": "SCALAR"
         },
         {
+          "allocation_info": {
+            "role": "role1"
+          },
           "name": "disk",
           "role": "*",
           "scalar": {
@@ -2236,6 +2278,9 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
           "type": "SCALAR"
         },
         {
+          "allocation_info": {
+            "role": "role1"
+          },
           "name": "ports",
           "ranges": {
             "range": [

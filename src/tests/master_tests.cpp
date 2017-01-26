@@ -70,6 +70,7 @@
 #include "tests/containerizer.hpp"
 #include "tests/limiter.hpp"
 #include "tests/mesos.hpp"
+#include "tests/resources_utils.hpp"
 #include "tests/utils.hpp"
 
 using mesos::internal::master::Master;
@@ -842,8 +843,9 @@ TEST_F(MasterTest, RecoverResources)
   ExecutorInfo executorInfo;
   executorInfo.MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  Resources executorResources =
-    Resources::parse("cpus:0.3;mem:200;ports:[5-8, 23-25]").get();
+  Resources executorResources = allocatedResources(
+      Resources::parse("cpus:0.3;mem:200;ports:[5-8, 23-25]").get(),
+      DEFAULT_FRAMEWORK_INFO.role());
   executorInfo.mutable_resources()->MergeFrom(executorResources);
 
   TaskID taskId;
@@ -924,8 +926,10 @@ TEST_F(MasterTest, RecoverResources)
 
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
+
   Resources slaveResources = Resources::parse(flags.resources.get()).get();
-  EXPECT_EQ(slaveResources, offers.get()[0].resources());
+  EXPECT_EQ(allocatedResources(slaveResources, DEFAULT_FRAMEWORK_INFO.role()),
+            offers.get()[0].resources());
 
   driver.stop();
   driver.join();
@@ -3371,7 +3375,9 @@ TEST_F(MasterTest, IgnoreEphemeralPortsResource)
 
   EXPECT_EQ(
       Resources(offers.get()[0].resources()),
-      Resources::parse(resourcesWithoutEphemeralPorts).get());
+      allocatedResources(
+          Resources::parse(resourcesWithoutEphemeralPorts).get(),
+          DEFAULT_FRAMEWORK_INFO.role()));
 
   driver.stop();
   driver.join();

@@ -85,16 +85,17 @@ public:
       cout << "Received offer " << offer.id() << " with " << offer.resources()
            << endl;
 
-      static const Resources TASK_RESOURCES = Resources::parse(
+      Resources taskResources = Resources::parse(
           "cpus:" + stringify(CPUS_PER_TASK) +
           ";mem:" + stringify(MEM_PER_TASK)).get();
+      taskResources.allocate(role);
 
       Resources remaining = offer.resources();
 
       // Launch tasks.
       vector<TaskInfo> tasks;
       while (tasksLaunched < totalTasks &&
-             remaining.flatten().contains(TASK_RESOURCES)) {
+             remaining.flatten().contains(taskResources)) {
         int taskId = tasksLaunched++;
 
         cout << "Launching task " << taskId << " using offer "
@@ -106,7 +107,7 @@ public:
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
         task.mutable_executor()->MergeFrom(executor);
 
-        Try<Resources> flattened = TASK_RESOURCES.flatten(role);
+        Try<Resources> flattened = taskResources.flatten(role);
         CHECK_SOME(flattened);
         Option<Resources> resources = remaining.find(flattened.get());
 

@@ -57,7 +57,12 @@ using std::vector;
 // reserved resources.
 static Resources SHARD_INITIAL_RESOURCES(const string& role)
 {
-  return Resources::parse("cpus:0.1;mem:32;disk:16", role).get();
+  Resources allocation =
+    Resources::parse("cpus:0.1;mem:32;disk:16", role).get();
+
+  allocation.allocate(role);
+
+  return allocation;
 }
 
 
@@ -79,6 +84,7 @@ static Resource SHARD_PERSISTENT_VOLUME(
 
   Resource resource = Resources::parse("disk", "8", role).get();
   resource.mutable_disk()->CopyFrom(info);
+  resource.mutable_allocation_info()->set_role(role);
 
   if (isShared) {
     resource.mutable_shared();

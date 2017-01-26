@@ -62,7 +62,14 @@ public:
   {
     reservationInfo.set_principal(principal);
 
-    Try<Resources> flattened = TASK_RESOURCES.flatten(role, reservationInfo);
+    taskResources = Resources::parse(
+        "cpus:" + stringify(CPUS_PER_TASK) +
+        ";mem:" + stringify(MEM_PER_TASK)).get();
+
+    taskResources.allocate(role);
+
+    // The task will run on reserved resources.
+    Try<Resources> flattened = taskResources.flatten(role, reservationInfo);
     CHECK_SOME(flattened);
     taskResources = flattened.get();
   }
@@ -111,13 +118,16 @@ public:
           // the task'll be dispatched when reserved resources are re-offered
           // to this framework.
           Resources resources = offer.resources();
-          Resources unreserved = resources.unreserved();
-          if (!unreserved.contains(TASK_RESOURCES)) {
+          Offer::Operation reserve = RESERVE(taskResources);
+
+          Try<Resources> apply = resources.apply(reserve);
+          if (apply.isError()) {
             LOG(INFO) << "Failed to reserve resources for task in offer "
-                      << stringify(offer.id());
+                      << stringify(offer.id()) << ": " << apply.error();
             break;
           }
-          driver->acceptOffers({offer.id()}, {RESERVE(taskResources)}, filters);
+
+          driver->acceptOffers({offer.id()}, {reserve}, filters);
           states[offer.slave_id()] = State::RESERVING;
           break;
         }
@@ -293,8 +303,6 @@ private:
   Resource::ReservationInfo reservationInfo;
   Resources taskResources;
 
-  static const Resources TASK_RESOURCES;
-
   Offer::Operation RESERVE(Resources resources)
   {
     Offer::Operation operation;
@@ -311,11 +319,6 @@ private:
     return operation;
   }
 };
-
-
-const Resources DynamicReservationScheduler::TASK_RESOURCES = Resources::parse(
-    "cpus:" + stringify(CPUS_PER_TASK) +
-    ";mem:" + stringify(MEM_PER_TASK)).get();
 
 
 class Flags : public virtual flags::FlagsBase

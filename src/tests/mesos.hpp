@@ -1558,14 +1558,15 @@ ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
   for (size_t i = 0; i < offers.size(); i++) {
     const Offer& offer = offers[i];
 
-    const Resources TASK_RESOURCES = Resources::parse(
+    Resources taskResources = Resources::parse(
         "cpus:" + stringify(cpus) + ";mem:" + stringify(mem)).get();
+    taskResources.allocate(role);
 
     int nextTaskId = 0;
     std::vector<TaskInfo> tasks;
     Resources remaining = offer.resources();
 
-    while (remaining.flatten().contains(TASK_RESOURCES) &&
+    while (remaining.flatten().contains(taskResources) &&
            launched < numTasks) {
       TaskInfo task;
       task.set_name("TestTask");
@@ -1574,7 +1575,7 @@ ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
       task.mutable_executor()->MergeFrom(executor);
 
       Option<Resources> resources =
-        remaining.find(TASK_RESOURCES.flatten(role).get());
+        remaining.find(taskResources.flatten(role).get());
 
       CHECK_SOME(resources);
 

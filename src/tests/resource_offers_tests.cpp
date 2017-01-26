@@ -262,7 +262,8 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
   EXPECT_TRUE(status.get().has_message());
   EXPECT_TRUE(strings::startsWith(
-        status.get().message(), "Task uses invalid resources"));
+        status.get().message(), "Task uses invalid resources"))
+    << status->message();
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(

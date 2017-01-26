@@ -50,6 +50,7 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 #include "tests/mock_slave.hpp"
+#include "tests/resources_utils.hpp"
 #include "tests/utils.hpp"
 
 using namespace process;
@@ -398,9 +399,13 @@ TEST_F(OversubscriptionTest, RevocableOffer)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Inject an estimation of oversubscribable cpu resources.
+  estimations.put(createRevocableResources("cpus", "2"));
+
   Resources taskResources = createRevocableResources("cpus", "1");
+  taskResources.allocate(framework.role());
+
   Resources executorResources = createRevocableResources("cpus", "1");
-  estimations.put(taskResources + executorResources);
+  executorResources.allocate(framework.role());
 
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
@@ -506,7 +511,8 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithIncreasedRevocable)
   EXPECT_EQ(1u, offers.size());
   Future<Offer> offer = offers.get();
   AWAIT_READY(offer);
-  EXPECT_EQ(resources1, Resources(offer->resources()));
+  EXPECT_EQ(allocatedResources(resources1, framework.role()),
+            Resources(offer->resources()));
 
   Future<OfferID> offerId;
   EXPECT_CALL(sched, offerRescinded(&driver, _))
@@ -543,7 +549,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithIncreasedRevocable)
   }
 
   // The offered resources should match the resource estimate.
-  EXPECT_EQ(resources2, resources3);
+  EXPECT_EQ(allocatedResources(resources2, framework.role()), resources3);
 
   driver.stop();
   driver.join();
@@ -619,7 +625,8 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithDecreasedRevocable)
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
   EXPECT_NE(0u, offers2->size());
-  EXPECT_EQ(resources1, Resources(offers2.get()[0].resources()));
+  EXPECT_EQ(allocatedResources(resources1, framework.role()),
+            Resources(offers2.get()[0].resources()));
 
   Future<OfferID> offerId;
   EXPECT_CALL(sched, offerRescinded(&driver, _))
@@ -649,7 +656,8 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithDecreasedRevocable)
   // The new offer should include the latest oversubscribed resources.
   AWAIT_READY(offers3);
   EXPECT_NE(0u, offers3->size());
-  EXPECT_EQ(resources2, Resources(offers3.get()[0].resources()));
+  EXPECT_EQ(allocatedResources(resources2, framework.role()),
+            Resources(offers3.get()[0].resources()));
 
   driver.stop();
   driver.join();
@@ -1274,13 +1282,12 @@ TEST_F(OversubscriptionTest, UpdateAllocatorOnSchedulerFailover)
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
     .WillOnce(FutureArg<1>(&offers2));
 
-  Resources taskResources = createRevocableResources("cpus", "1");
-  Resources executorResources = createRevocableResources("cpus", "1");
-  estimations.put(taskResources + executorResources);
+  Resources revocable = createRevocableResources("cpus", "2");
+  estimations.put(revocable);
 
   AWAIT_READY(offers2);
   EXPECT_NE(0u, offers2.get().size());
-  EXPECT_EQ(taskResources + executorResources,
+  EXPECT_EQ(allocatedResources(revocable, framework2.role()),
             Resources(offers2.get()[0].resources()));
 
   EXPECT_EQ(DRIVER_STOPPED, driver2.stop());
@@ -1347,16 +1354,14 @@ TEST_F(OversubscriptionTest, RemoveCapabilitiesOnSchedulerFailover)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Inject an estimation of oversubscribable cpu resources.
-  Resources taskResources = createRevocableResources("cpus", "1");
-  Resources executorResources = createRevocableResources("cpus", "1");
-  estimations.put(taskResources + executorResources);
+  Resources revocable = createRevocableResources("cpus", "2");
+  estimations.put(revocable);
 
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
   EXPECT_NE(0u, offers2.get().size());
-  EXPECT_EQ(
-      taskResources + executorResources,
-      Resources(offers2.get()[0].resources()));
+  EXPECT_EQ(allocatedResources(revocable, framework1.role()),
+            Resources(offers2.get()[0].resources()));
 
   // Reregister the framework with removal of revocable resources capability.
   FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;

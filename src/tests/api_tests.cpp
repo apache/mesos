@@ -57,6 +57,7 @@
 #include "tests/allocator.hpp"
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/resources_utils.hpp"
 
 #include "tests/containerizer/mock_containerizer.hpp"
 
@@ -894,8 +895,11 @@ TEST_P(MasterAPITest, GetRoles)
   ASSERT_EQ(2, v1Response->get_roles().roles().size());
   EXPECT_EQ("role1", v1Response->get_roles().roles(1).name());
   EXPECT_EQ(2.5, v1Response->get_roles().roles(1).weight());
-  ASSERT_EQ(v1::Resources::parse(slaveFlags.resources.get()).get(),
-            v1Response->get_roles().roles(1).resources());
+  ASSERT_EQ(
+      allocatedResources(
+          devolve(v1::Resources::parse(slaveFlags.resources.get()).get()),
+          "role1"),
+      devolve(v1Response->get_roles().roles(1).resources()));
 
   driver.stop();
   driver.join();
@@ -973,7 +977,8 @@ TEST_P(MasterAPITest, ReserveResources)
   ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -1006,7 +1011,8 @@ TEST_P(MasterAPITest, ReserveResources)
   ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -1083,7 +1089,8 @@ TEST_P(MasterAPITest, UnreserveResources)
   ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -1116,7 +1123,8 @@ TEST_P(MasterAPITest, UnreserveResources)
   offer = offers.get()[0];
 
   // Verifies if the resources are unreserved.
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -2022,7 +2030,8 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
   EXPECT_NE(0u, offers.get().size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
 
   Resources taskResources = Resources::parse(
       "disk:256",

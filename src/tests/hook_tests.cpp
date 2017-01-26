@@ -51,6 +51,7 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 #include "tests/mock_docker.hpp"
+#include "tests/resources_utils.hpp"
 
 using namespace mesos::modules;
 
@@ -1106,12 +1107,21 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   Resources resources = offers.get()[0].resources();
 
-  // The test hook sets "cpus" to 4.
-  EXPECT_EQ(4, resources.cpus().get());
+  // The test hook sets "cpus" to 4 and adds a resource named
+  // "foo" of type set with values "bar" and "baz".
+  //
+  // TODO(bmahler): Avoid the need for non-local reasoning here
+  // about the test hook. E.g. Expose the resources from the test
+  // hook and use them here.
+  const size_t TEST_HOOK_CPUS = 4;
+  const Resources TEST_HOOK_ADDITIONAL_RESOURCES =
+    Resources::parse("foo:{bar,baz}").get();
 
-  // The test hook adds a resource named "foo" of type set with values "bar"
-  // and "baz".
-  EXPECT_EQ(Resources::parse("foo:{bar,baz}").get(), resources.get("foo"));
+  EXPECT_EQ(TEST_HOOK_CPUS, resources.cpus().get());
+
+  const string allocationRole = DEFAULT_FRAMEWORK_INFO.role();
+  EXPECT_TRUE(resources.contains(
+      allocatedResources(TEST_HOOK_ADDITIONAL_RESOURCES, allocationRole)));
 
   // The test hook does not modify "mem", the default value must still be
   // present.

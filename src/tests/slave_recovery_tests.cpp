@@ -68,6 +68,7 @@
 #include "tests/containerizer.hpp"
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
+#include "tests/resources_utils.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos::internal::slave;
@@ -1849,13 +1850,15 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   Offer offer = offers.get()[0];
 
   Offer offer1 = offer;
-  offer1.mutable_resources()->CopyFrom(
-      Resources::parse("cpus:1;mem:512").get());
+  Resources resources1 = allocatedResources(
+      Resources::parse("cpus:1;mem:512").get(), frameworkInfo.role());
+  offer1.mutable_resources()->CopyFrom(resources1);
   tasks.push_back(createTask(offer1, "sleep 1000")); // Long-running task.
 
   Offer offer2 = offer;
-  offer2.mutable_resources()->CopyFrom(
-      Resources::parse("cpus:1;mem:512").get());
+  Resources resources2 = allocatedResources(
+      Resources::parse("cpus:1;mem:512").get(), frameworkInfo.role());
+  offer2.mutable_resources()->CopyFrom(resources2);
   tasks.push_back(createTask(offer2, "sleep 1000")); // Long-running task,
 
   ASSERT_TRUE(Resources(offer.resources()).contains(
