@@ -182,12 +182,18 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       << flags.work_dir << "': " << mkdir.error();
   }
 
+  // Use to propagate necessary flags to master and agent. Without
+  // this, the load call will spit out an error unless their
+  // corresponding environment variables explicitly set.
+  map<string, string> propagatedFlags;
+  propagatedFlags["work_dir"] = flags.work_dir;
+
   {
     master::Flags masterFlags;
-
-    Try<flags::Warnings> load = masterFlags.load("MESOS_");
-
-    masterFlags.work_dir = flags.work_dir;
+    Try<flags::Warnings> load = masterFlags.load(
+        propagatedFlags,
+        false,
+        "MESOS_");
 
     if (load.isError()) {
       EXIT(EXIT_FAILURE)
@@ -351,10 +357,10 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
   for (int i = 0; i < flags.num_slaves; i++) {
     slave::Flags slaveFlags;
-
-    Try<flags::Warnings> load = slaveFlags.load("MESOS_");
-
-    slaveFlags.work_dir = flags.work_dir;
+    Try<flags::Warnings> load = slaveFlags.load(
+        propagatedFlags,
+        false,
+        "MESOS_");
 
     if (load.isError()) {
       EXIT(EXIT_FAILURE)
