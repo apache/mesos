@@ -793,7 +793,8 @@ void Master::initialize()
       &Master::registerSlave,
       &RegisterSlaveMessage::slave,
       &RegisterSlaveMessage::checkpointed_resources,
-      &RegisterSlaveMessage::version);
+      &RegisterSlaveMessage::version,
+      &RegisterSlaveMessage::agent_capabilities);
 
   install<ReregisterSlaveMessage>(
       &Master::reregisterSlave,
@@ -803,7 +804,8 @@ void Master::initialize()
       &ReregisterSlaveMessage::tasks,
       &ReregisterSlaveMessage::frameworks,
       &ReregisterSlaveMessage::completed_frameworks,
-      &ReregisterSlaveMessage::version);
+      &ReregisterSlaveMessage::version,
+      &ReregisterSlaveMessage::agent_capabilities);
 
   install<UnregisterSlaveMessage>(
       &Master::unregisterSlave,
@@ -5199,7 +5201,8 @@ void Master::registerSlave(
     const UPID& from,
     const SlaveInfo& slaveInfo,
     const vector<Resource>& checkpointedResources,
-    const string& version)
+    const string& version,
+    const vector<SlaveInfo::Capability>& agentCapabilities)
 {
   ++metrics->messages_register_slave;
 
@@ -5213,7 +5216,8 @@ void Master::registerSlave(
                      from,
                      slaveInfo,
                      checkpointedResources,
-                     version));
+                     version,
+                     agentCapabilities));
     return;
   }
 
@@ -5306,6 +5310,7 @@ void Master::registerSlave(
                  from,
                  checkpointedResources,
                  version,
+                 agentCapabilities,
                  lambda::_1));
 }
 
@@ -5315,6 +5320,7 @@ void Master::_registerSlave(
     const UPID& pid,
     const vector<Resource>& checkpointedResources,
     const string& version,
+    const vector<SlaveInfo::Capability>& agentCapabilities,
     const Future<bool>& admit)
 {
   CHECK(slaves.registering.contains(pid));
@@ -5350,6 +5356,7 @@ void Master::_registerSlave(
       pid,
       machineId,
       version,
+      agentCapabilities,
       Clock::now(),
       checkpointedResources);
 
@@ -5380,7 +5387,8 @@ void Master::reregisterSlave(
     const vector<Task>& tasks,
     const vector<FrameworkInfo>& frameworks,
     const vector<Archive::Framework>& completedFrameworks,
-    const string& version)
+    const string& version,
+    const vector<SlaveInfo::Capability>& agentCapabilities)
 {
   ++metrics->messages_reregister_slave;
 
@@ -5398,7 +5406,8 @@ void Master::reregisterSlave(
                      tasks,
                      frameworks,
                      completedFrameworks,
-                     version));
+                     version,
+                     agentCapabilities));
     return;
   }
 
@@ -5475,10 +5484,11 @@ void Master::reregisterSlave(
     slave->pid = from;
     link(slave->pid);
 
-    // Update slave's version and re-registration timestamp after
-    // re-registering successfully.
+    // Update slave's version, re-registration timestamp and
+    // agent capabilities after re-registering successfully.
     slave->version = version;
     slave->reregisteredTime = Clock::now();
+    slave->capabilities = agentCapabilities;
 
     // Reconcile tasks between master and slave, and send the
     // `SlaveReregisteredMessage`.
@@ -5541,6 +5551,7 @@ void Master::reregisterSlave(
                  frameworks,
                  completedFrameworks,
                  version,
+                 agentCapabilities,
                  lambda::_1));
 }
 
@@ -5554,6 +5565,7 @@ void Master::_reregisterSlave(
     const vector<FrameworkInfo>& frameworks,
     const vector<Archive::Framework>& completedFrameworks,
     const string& version,
+    const vector<SlaveInfo::Capability>& agentCapabilities,
     const Future<bool>& readmit)
 {
   CHECK(slaves.reregistering.contains(slaveInfo.id()));
@@ -5667,6 +5679,7 @@ void Master::_reregisterSlave(
       pid,
       machineId,
       version,
+      agentCapabilities,
       Clock::now(),
       checkpointedResources,
       executorInfos,
@@ -8806,6 +8819,7 @@ Slave::Slave(
     const UPID& _pid,
     const MachineID& _machineId,
     const string& _version,
+    const vector<SlaveInfo::Capability>& _capabilites,
     const Time& _registeredTime,
     const Resources& _checkpointedResources,
     const vector<ExecutorInfo> executorInfos,
@@ -8816,12 +8830,12 @@ Slave::Slave(
     machineId(_machineId),
     pid(_pid),
     version(_version),
+    capabilities(_capabilites),
     registeredTime(_registeredTime),
     connected(true),
     active(true),
     checkpointedResources(_checkpointedResources),
-    observer(nullptr),
-    capabilities(_info.capabilities())
+    observer(nullptr)
 {
   CHECK(_info.has_id());
 

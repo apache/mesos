@@ -119,6 +119,7 @@ struct Slave
         const process::UPID& _pid,
         const MachineID& _machineId,
         const std::string& _version,
+        const std::vector<SlaveInfo::Capability>& _capabilites,
         const process::Time& _registeredTime,
         const Resources& _checkpointedResources,
         const std::vector<ExecutorInfo> executorInfos =
@@ -176,6 +177,9 @@ struct Slave
 
   // TODO(bmahler): Use stout's Version when it can parse labels, etc.
   std::string version;
+
+  // Agent capabilities.
+  protobuf::slave::Capabilities capabilities;
 
   process::Time registeredTime;
   Option<process::Time> reregisteredTime;
@@ -241,9 +245,6 @@ struct Slave
   Resources totalResources;
 
   SlaveObserver* observer;
-
-  // Agent capabilities.
-  protobuf::slave::Capabilities capabilities;
 
 private:
   Slave(const Slave&);              // No copying.
@@ -379,7 +380,8 @@ public:
       const process::UPID& from,
       const SlaveInfo& slaveInfo,
       const std::vector<Resource>& checkpointedResources,
-      const std::string& version);
+      const std::string& version,
+      const std::vector<SlaveInfo::Capability>& agentCapabilities);
 
   void reregisterSlave(
       const process::UPID& from,
@@ -389,7 +391,8 @@ public:
       const std::vector<Task>& tasks,
       const std::vector<FrameworkInfo>& frameworks,
       const std::vector<Archive::Framework>& completedFrameworks,
-      const std::string& version);
+      const std::string& version,
+      const std::vector<SlaveInfo::Capability>& agentCapabilities);
 
   void unregisterSlave(
       const process::UPID& from,
@@ -504,6 +507,7 @@ protected:
       const process::UPID& pid,
       const std::vector<Resource>& checkpointedResources,
       const std::string& version,
+      const std::vector<SlaveInfo::Capability>& agentCapabilities,
       const process::Future<bool>& admit);
 
   void _reregisterSlave(
@@ -515,6 +519,7 @@ protected:
       const std::vector<FrameworkInfo>& frameworks,
       const std::vector<Archive::Framework>& completedFrameworks,
       const std::string& version,
+      const std::vector<SlaveInfo::Capability>& agentCapabilities,
       const process::Future<bool>& readmit);
 
   void __reregisterSlave(
