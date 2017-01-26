@@ -5575,8 +5575,8 @@ void Master::_reregisterSlave(
     const SlaveInfo& slaveInfo,
     const UPID& pid,
     const vector<Resource>& checkpointedResources,
-    const vector<ExecutorInfo>& executorInfos,
-    const vector<Task>& tasks,
+    const vector<ExecutorInfo>& executorInfos_,
+    const vector<Task>& tasks_,
     const vector<FrameworkInfo>& frameworks,
     const vector<Archive::Framework>& completedFrameworks,
     const string& version,
@@ -5601,6 +5601,64 @@ void Master::_reregisterSlave(
   // Ensure we don't remove the slave for not re-registering after
   // we've recovered it from the registry.
   slaves.recovered.erase(slaveInfo.id());
+
+  // For agents without the MULTI_ROLE capability,
+  // we need to inject the allocation role inside
+  // the task and executor resources;
+  auto injectAllocationInfo = [](
+      RepeatedPtrField<Resource>* resources,
+      const FrameworkInfo& frameworkInfo)
+  {
+    set<string> roles = protobuf::framework::getRoles(frameworkInfo);
+
+    foreach (Resource& resource, *resources) {
+      if (!resource.has_allocation_info()) {
+        if (roles.size() != 1) {
+          LOG(FATAL) << "Missing 'Resource.AllocationInfo' for resources"
+                     << " allocated to MULTI_ROLE framework"
+                     << " '" << frameworkInfo.name() << "'";
+        }
+
+        resource.mutable_allocation_info()->set_role(*roles.begin());
+      }
+    }
+  };
+
+  protobuf::slave::Capabilities slaveCapabilities(agentCapabilities);
+  vector<Task> adjustedTasks;
+  vector<ExecutorInfo> adjustedExecutorInfos;
+
+  if (!slaveCapabilities.multiRole) {
+    hashmap<FrameworkID, FrameworkInfo> frameworks_;
+    foreach (const FrameworkInfo& framework, frameworks) {
+      frameworks_[framework.id()] = framework;
+    }
+
+    adjustedTasks = tasks_;
+    adjustedExecutorInfos = executorInfos_;
+
+    foreach (Task& task, adjustedTasks) {
+      CHECK(frameworks_.contains(task.framework_id()));
+
+      injectAllocationInfo(
+          task.mutable_resources(),
+          frameworks_.at(task.framework_id()));
+    }
+
+    foreach (ExecutorInfo& executor, adjustedExecutorInfos) {
+      CHECK(frameworks_.contains(executor.framework_id()));
+
+      injectAllocationInfo(
+          executor.mutable_resources(),
+          frameworks_.at(executor.framework_id()));
+    }
+  }
+
+  const vector<Task>& tasks =
+    slaveCapabilities.multiRole ? tasks_ : adjustedTasks;
+
+  const vector<ExecutorInfo>& executorInfos =
+    slaveCapabilities.multiRole ? executorInfos_ : adjustedExecutorInfos;
 
   MachineID machineId;
   machineId.set_hostname(slaveInfo.hostname());
@@ -5663,7 +5721,7 @@ void Master::_reregisterSlave(
   // (b) If the master has failed over, all tasks are re-added to the
   // master. The master shouldn't have any record of the tasks running
   // on the agent, so no further cleanup is required.
-  vector<Task> tasks_;
+  vector<Task> recoveredTasks;
   foreach (const Task& task, tasks) {
     const FrameworkID& frameworkId = task.framework_id();
     Framework* framework = getFramework(frameworkId);
@@ -5676,7 +5734,7 @@ void Master::_reregisterSlave(
 
     // Always re-add partition-aware tasks.
     if (partitionAwareFrameworks.contains(frameworkId)) {
-      tasks_.push_back(task);
+      recoveredTasks.push_back(task);
 
       if (framework != nullptr) {
         framework->unreachableTasks.erase(task.task_id());
@@ -5684,7 +5742,7 @@ void Master::_reregisterSlave(
     } else if (!slaveWasRemoved) {
       // Only re-add non-partition-aware tasks if the master has
       // failed over since the agent was marked unreachable.
-      tasks_.push_back(task);
+      recoveredTasks.push_back(task);
     }
   }
 
@@ -5698,7 +5756,7 @@ void Master::_reregisterSlave(
       Clock::now(),
       checkpointedResources,
       executorInfos,
-      tasks_);
+      recoveredTasks);
 
   slave->reregisteredTime = Clock::now();
 
@@ -8916,6 +8974,12 @@ void Slave::addTask(Task* task)
   CHECK(!tasks[frameworkId].contains(taskId))
     << "Duplicate task " << taskId << " of framework " << frameworkId;
 
+  // Verify that Resource.AllocationInfo is set,
+  // this should be guaranteed by the master.
+  foreach (const Resource& resource, task->resources()) {
+    CHECK(resource.has_allocation_info());
+  }
+
   tasks[frameworkId][taskId] = task;
 
   if (!Master::isRemovable(task->state())) {
@@ -9022,6 +9086,12 @@ void Slave::addExecutor(const FrameworkID& frameworkId,
   CHECK(!hasExecutor(frameworkId, executorInfo.executor_id()))
     << "Duplicate executor '" << executorInfo.executor_id()
     << "' of framework " << frameworkId;
+
+  // Verify that Resource.AllocationInfo is set,
+  // this should be guaranteed by the master.
+  foreach (const Resource& resource, executorInfo.resources()) {
+    CHECK(resource.has_allocation_info());
+  }
 
   executors[frameworkId][executorInfo.executor_id()] = executorInfo;
   usedResources[frameworkId] += executorInfo.resources();

@@ -2214,6 +2214,12 @@ struct Framework
       << "Duplicate task " << task->task_id()
       << " of framework " << task->framework_id();
 
+    // Verify that Resource.AllocationInfo is set,
+    // this should be guaranteed by the master.
+    foreach (const Resource& resource, task->resources()) {
+      CHECK(resource.has_allocation_info());
+    }
+
     tasks[task->task_id()] = task;
 
     if (!Master::isRemovable(task->state())) {
@@ -2354,6 +2360,12 @@ struct Framework
     CHECK(!hasExecutor(slaveId, executorInfo.executor_id()))
       << "Duplicate executor '" << executorInfo.executor_id()
       << "' on agent " << slaveId;
+
+    // Verify that Resource.AllocationInfo is set,
+    // this should be guaranteed by the master.
+    foreach (const Resource& resource, executorInfo.resources()) {
+      CHECK(resource.has_allocation_info());
+    }
 
     executors[slaveId][executorInfo.executor_id()] = executorInfo;
     totalUsedResources += executorInfo.resources();
