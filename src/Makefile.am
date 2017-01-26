@@ -2297,6 +2297,7 @@ mesos_tests_SOURCES =						\
   tests/containerizer/provisioner_backend_tests.cpp		\
   tests/containerizer/provisioner_docker_tests.cpp		\
   tests/containerizer/provisioner_paths_tests.cpp		\
+  tests/containerizer/rootfs.cpp                                \
   tests/containerizer/volume_image_isolator_tests.cpp		\
   tests/containerizer/volume_sandbox_path_isolator_tests.cpp
 

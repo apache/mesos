@@ -217,6 +217,7 @@ if (LINUX)
     containerizer/ns_tests.cpp
     containerizer/nvidia_gpu_isolator_tests.cpp
     containerizer/perf_tests.cpp
+    containerizer/rootfs.cpp
     containerizer/runtime_isolator_tests.cpp
     containerizer/sched_tests.cpp
     )
