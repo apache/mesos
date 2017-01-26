@@ -680,6 +680,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   AWAIT_READY(termination);
   EXPECT_SOME(termination.get());
 
+  // Even though the task is killed, the executor should exit gracefully.
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_EQ(0, termination.get()->status());
+
   ASSERT_FALSE(
     exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
 

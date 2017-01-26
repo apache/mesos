@@ -941,9 +941,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, CommitSuicideOnTaskFailure)
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo1);
 
-  Future<Nothing> executorFailure;
+  Future<v1::scheduler::Event::Failure> executorFailure;
   EXPECT_CALL(*scheduler, failure(_, _))
-    .WillOnce(FutureSatisfy(&executorFailure));
+    .WillOnce(FutureArg<1>(&executorFailure));
 
   {
     Call call;
@@ -992,6 +992,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, CommitSuicideOnTaskFailure)
   // The executor should commit suicide when the task exits with
   // a non-zero status code.
   AWAIT_READY(executorFailure);
+
+  // Even though the task failed, the executor should exit gracefully.
+  ASSERT_TRUE(executorFailure->has_status());
+  ASSERT_EQ(0, executorFailure->status());
 }
 
 } // namespace tests {
