@@ -57,7 +57,13 @@ public:
       allocatedRevocable += Resources(executor.allocated()).revocable();
     }
 
-    return totalRevocable - allocatedRevocable;
+    auto unallocated = [](const Resources& resources) {
+      Resources result = resources;
+      result.unallocate();
+      return result;
+    };
+
+    return totalRevocable - unallocated(allocatedRevocable);
   }
 
 protected:
