@@ -193,7 +193,13 @@ void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
       master->allocator->recoverResources(
           offer->framework_id(), offer->slave_id(), offer->resources(), None());
 
-      rescinded += offer->resources();
+      auto unallocated = [](const Resources& resources) {
+        Resources result = resources;
+        result.unallocate();
+        return result;
+      };
+
+      rescinded += unallocated(offer->resources());
       master->removeOffer(offer, true);
       agentVisited = true;
     }

@@ -1714,17 +1714,35 @@ Option<Error> validate(
     const hashmap<FrameworkID, Resources>& usedResources,
     const hashmap<FrameworkID, hashmap<TaskID, TaskInfo>>& pendingTasks)
 {
-  Option<Error> error = resource::validate(destroy.volumes());
+  // The operation can either contain allocated resources
+  // (in the case of a framework accepting offers), or
+  // unallocated resources (in the case of the operator
+  // endpoints). To ensure we can check for the presence
+  // of the volume in the resources in use by tasks and
+  // executors, we unallocate both the volume and the
+  // used resources before performing the contains check.
+  //
+  // TODO(bmahler): This lambda is copied in several places
+  // in the code, consider how best to pull this out.
+  auto unallocated = [](const Resources& resources) {
+    Resources result = resources;
+    result.unallocate();
+    return result;
+  };
+
+  Resources volumes = unallocated(destroy.volumes());
+
+  Option<Error> error = resource::validate(volumes);
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
   }
 
-  error = resource::validatePersistentVolume(destroy.volumes());
+  error = resource::validatePersistentVolume(volumes);
   if (error.isSome()) {
     return Error("Not a persistent volume: " + error.get().message);
   }
 
-  if (!checkpointedResources.contains(destroy.volumes())) {
+  if (!checkpointedResources.contains(volumes)) {
     return Error("Persistent volumes not found");
   }
 
@@ -1733,8 +1751,8 @@ Option<Error> validate(
   // it is not possible for a non-shared resource to appear in an offer
   // if it is already in use.
   foreachvalue (const Resources& resources, usedResources) {
-    foreach (const Resource& volume, destroy.volumes()) {
-      if (resources.contains(volume)) {
+    foreach (const Resource& volume, volumes) {
+      if (unallocated(resources).contains(volume)) {
         return Error("Persistent volumes in use");
       }
     }
@@ -1754,7 +1772,7 @@ Option<Error> validate(
       }
 
       foreach (const Resource& volume, destroy.volumes()) {
-        if (resources.contains(volume)) {
+        if (unallocated(resources).contains(volume)) {
           return Error("Persistent volume in pending tasks");
         }
       }
