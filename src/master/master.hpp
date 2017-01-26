@@ -201,6 +201,10 @@ struct Slave
   Option<process::Timer> reregistrationTimer;
 
   // Executors running on this slave.
+  //
+  // TODO(bmahler): Make this private to enforce that `addExecutor()`
+  // and `removeExecutor()` are used, and provide a const view into
+  // the executors.
   hashmap<FrameworkID, hashmap<ExecutorID, ExecutorInfo>> executors;
 
   // Tasks that have not yet been launched because they are currently
@@ -210,6 +214,10 @@ struct Slave
   hashmap<FrameworkID, hashmap<TaskID, TaskInfo>> pendingTasks;
 
   // Tasks present on this slave.
+  //
+  // TODO(bmahler): Make this private to enforce that `addTask()` and
+  // `removeTask()` are used, and provide a const view into the tasks.
+  //
   // TODO(bmahler): The task pointer ownership complexity arises from the fact
   // that we own the pointer here, but it's shared with the Framework struct.
   // We should find a way to eliminate this.
@@ -2570,6 +2578,8 @@ struct Framework
   // being authorized.
   hashmap<TaskID, TaskInfo> pendingTasks;
 
+  // TODO(bmahler): Make this private to enforce that `addTask()` and
+  // `removeTask()` are used, and provide a const view into the tasks.
   hashmap<TaskID, Task*> tasks;
 
   // Tasks launched by this framework that have reached a terminal
@@ -2592,6 +2602,9 @@ struct Framework
 
   hashset<InverseOffer*> inverseOffers; // Active inverse offers for framework.
 
+  // TODO(bmahler): Make this private to enforce that `addExecutor()`
+  // and `removeExecutor()` are used, and provide a const view into
+  // the executors.
   hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo>> executors;
 
   // NOTE: For the used and offered resources below, we keep the
