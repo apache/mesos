@@ -1205,10 +1205,10 @@ MESOS_LINUX_FILES +=									\
   slave/containerizer/mesos/provisioner/backends/overlay.hpp
 
 if ENABLE_XFS_DISK_ISOLATOR
-MESOS_LINUX_FILES +=                                                    \
-  slave/containerizer/mesos/isolators/xfs/utils.cpp                     \
-  slave/containerizer/mesos/isolators/xfs/utils.hpp                     \
-  slave/containerizer/mesos/isolators/xfs/disk.cpp                      \
+MESOS_LINUX_FILES +=							\
+  slave/containerizer/mesos/isolators/xfs/utils.cpp			\
+  slave/containerizer/mesos/isolators/xfs/utils.hpp			\
+  slave/containerizer/mesos/isolators/xfs/disk.cpp			\
   slave/containerizer/mesos/isolators/xfs/disk.hpp
 endif
 
