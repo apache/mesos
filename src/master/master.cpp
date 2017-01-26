@@ -7701,6 +7701,8 @@ void Master::removeFramework(Framework* framework)
       << "Unknown role '" << role << "'"
       << " of framework " << *framework;
 
+    CHECK(activeRoles.contains(role));
+
     activeRoles[role]->removeFramework(framework);
     if (activeRoles[role]->frameworks.empty()) {
       delete activeRoles[role];
