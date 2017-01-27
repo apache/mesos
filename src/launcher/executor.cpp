@@ -292,6 +292,9 @@ protected:
 
   void taskHealthUpdated(const TaskHealthStatus& healthStatus)
   {
+    CHECK_SOME(taskId);
+    CHECK_EQ(taskId.get(), healthStatus.task_id());
+
     // This prevents us from sending health updates after a terminal
     // status update, because we may receive an update from a health
     // check scheduled before the task has been reaped.
@@ -485,7 +488,7 @@ protected:
         namespaces.push_back("mnt");
       }
 
-      Try<Owned<checks::HealthChecker>> _checker =
+      Try<Owned<checks::HealthChecker>> _healthChecker =
         checks::HealthChecker::create(
             unacknowledgedTask->health_check(),
             launcherDir,
@@ -494,12 +497,12 @@ protected:
             pid,
             namespaces);
 
-      if (_checker.isError()) {
+      if (_healthChecker.isError()) {
         // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
         cerr << "Failed to create health checker: "
-             << _checker.error() << endl;
+             << _healthChecker.error() << endl;
       } else {
-        checker = _checker.get();
+        healthChecker = _healthChecker.get();
       }
     }
 
@@ -633,8 +636,8 @@ private:
       }
 
       // Stop health checking the task.
-      if (checker.get() != nullptr) {
-        checker->stop();
+      if (healthChecker.get() != nullptr) {
+        healthChecker->stop();
       }
 
       // Now perform signal escalation to begin killing the task.
@@ -673,8 +676,8 @@ private:
     terminated = true;
 
     // Stop health checking the task.
-    if (checker.get() != nullptr) {
-      checker->stop();
+    if (healthChecker.get() != nullptr) {
+      healthChecker->stop();
     }
 
     TaskState taskState;
@@ -883,7 +886,7 @@ private:
 
   Option<TaskStatus> lastTaskStatus;
 
-  Owned<checks::HealthChecker> checker;
+  Owned<checks::HealthChecker> healthChecker;
 };
 
 } // namespace internal {
