@@ -178,3 +178,44 @@ set(MESOS_LIBS_TARGET mesos-${MESOS_PACKAGE_VERSION}
 
 set(MESOS_PROTOBUF_TARGET mesos-protobufs
     CACHE STRING "Library of protobuf definitions used by Mesos")
+
+# MESOS SCRIPT CONFIGURATION.
+#############################
+if (NOT WIN32)
+  # Create build bin/ directory. We will place configured scripts here.
+  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin/tmp")
+
+  # Define the variables required to configure these scripts.
+  set(abs_top_srcdir "${CMAKE_SOURCE_DIR}")
+  set(abs_top_builddir "${CMAKE_BINARY_DIR}")
+  set(VERSION "${PACKAGE_VERSION}")
+
+  # Find all scripts to configure. The scripts are in the bin/ directory, and
+  # end with the `.in` suffix. For example `mesos.sh.in`.
+  file(GLOB_RECURSE BIN_FILES "${CMAKE_SOURCE_DIR}/bin/*.in")
+  foreach (BIN_FILE ${BIN_FILES})
+    # Strip the `.in` suffix off. This will be the script's name in the build
+    # bin/ directory. For example, `mesos.sh.in` -> `mesos.sh`.
+    string(REGEX MATCH "(.*).in$" MATCH ${BIN_FILE})
+    get_filename_component(OUTPUT_BIN_FILE "${CMAKE_MATCH_1}" NAME)
+
+    # Configure. Because CMake does not support configuring and setting
+    # permissions, we do this in a two-step process: we first configure the
+    # file, placing the configured file in a temporary directory, and then we
+    # "copy" the configured file to the build `bin` directory, setting the
+    # permissions as we go.
+    #
+    # NOTE: We use the `@ONLY` argument here to avoid trying to substitute
+    # the value of `${@}`, which we frequently use in the scripts.
+    configure_file(
+      ${BIN_FILE}
+      "${CMAKE_BINARY_DIR}/bin/tmp/${OUTPUT_BIN_FILE}"
+      @ONLY)
+
+    file(COPY "${CMAKE_BINARY_DIR}/bin/tmp/${OUTPUT_BIN_FILE}"
+      DESTINATION "${CMAKE_BINARY_DIR}/bin"
+      FILE_PERMISSIONS WORLD_EXECUTE OWNER_READ OWNER_WRITE)
+  endforeach (BIN_FILE)
+  file(REMOVE_RECURSE "${CMAKE_BINARY_DIR}/bin/tmp")
+endif (NOT WIN32)
