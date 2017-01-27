@@ -201,6 +201,14 @@
   jira_user: darroyo
   reviewboard_user: darroyo
 
+- name: Dmitry Zhuk
+  affiliations:
+    - {organization: Twitter}
+  emails:
+    - dzhuk@twitter.com
+  jira_user: dzhuk
+  reviewboard_user: dzhuk
+
 - name: Ezra Silvera
   affiliations:
     - {organization: IBM}
