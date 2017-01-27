@@ -374,6 +374,8 @@ message CheckInfo {
     HTTP = 2;
 
     // TODO(alexr): Consider supporting TCP checks and custom user checks.
+    // The latter should probably be paired with a `data` field and
+    // complemented by a `data` response in `CheckStatusInfo`.
   }
 
   // Describes a command check. If applicable, enters mount and/or network
