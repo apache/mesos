@@ -483,7 +483,7 @@ endif (WIN32)
 # INCLUDE DIRECTIVES FOR MESOS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).
 #########################################################################
-include_directories(${AGENT_INCLUDE_DIRS})
+include_directories(SYSTEM ${AGENT_INCLUDE_DIRS})
 
 # Generate all binaries in the same folder.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/src)
