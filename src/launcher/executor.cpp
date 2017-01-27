@@ -143,7 +143,8 @@ public:
       capabilities(_capabilities),
       frameworkId(_frameworkId),
       executorId(_executorId),
-      unacknowledgedTask(None())
+      unacknowledgedTask(None()),
+      lastTaskStatus(None())
   {
 #ifdef __WINDOWS__
     processHandle = INVALID_HANDLE_VALUE;
@@ -291,8 +292,11 @@ protected:
 
   void taskHealthUpdated(const TaskHealthStatus& healthStatus)
   {
-    // This check prevents us from sending `TASK_RUNNING` updates
-    // after the task has been transitioned to `TASK_KILLING`.
+    // This prevents us from sending health updates after a terminal
+    // status update, because we may receive an update from a health
+    // check scheduled before the task has been reaped.
+    //
+    // TODO(alexr): Consider sending health updates after TASK_KILLING.
     if (killed || terminated) {
       return;
     }
@@ -300,7 +304,20 @@ protected:
     cout << "Received task health update, healthy: "
          << stringify(healthStatus.healthy()) << endl;
 
-    update(healthStatus.task_id(), TASK_RUNNING, healthStatus.healthy());
+    // Use the previous task status to preserve all attached information.
+    CHECK_SOME(lastTaskStatus);
+    TaskStatus status = protobuf::createTaskStatus(
+        lastTaskStatus.get(),
+        UUID::random(),
+        Clock::now().secs(),
+        None(),
+        None(),
+        None(),
+        None(),
+        None(),
+        healthStatus.healthy());
+
+    forward(status);
 
     if (healthStatus.kill_task()) {
       killedByHealthCheck = true;
@@ -343,11 +360,13 @@ protected:
     CHECK_EQ(SUBSCRIBED, state);
 
     if (launched) {
-      update(
+      TaskStatus status = createTaskStatus(
           _task.task_id(),
           TASK_FAILED,
           None(),
           "Attempted to run multiple tasks using a \"command\" executor");
+
+      forward(status);
       return;
     }
 
@@ -488,8 +507,10 @@ protected:
     process::reap(pid)
       .onAny(defer(self(), &Self::reaped, pid, lambda::_1));
 
-    update(unacknowledgedTask->task_id(), TASK_RUNNING);
+    TaskStatus status =
+      createTaskStatus(unacknowledgedTask->task_id(), TASK_RUNNING);
 
+    forward(status);
     launched = true;
   }
 
@@ -607,7 +628,8 @@ private:
       if (protobuf::frameworkHasCapability(
               frameworkInfo.get(),
               FrameworkInfo::Capability::TASK_KILLING_STATE)) {
-        update(taskId.get(), TASK_KILLING);
+        TaskStatus status = createTaskStatus(taskId.get(), TASK_KILLING);
+        forward(status);
       }
 
       // Stop health checking the task.
@@ -692,11 +714,14 @@ private:
 
     CHECK_SOME(taskId);
 
-    if (killed && killedByHealthCheck) {
-      update(taskId.get(), taskState, false, message);
-    } else {
-      update(taskId.get(), taskState, None(), message);
-    }
+    TaskStatus status = createTaskStatus(
+        taskId.get(),
+        taskState,
+        None(),
+        message,
+        (killed && killedByHealthCheck) ? Option<bool>(false) : None());
+
+    forward(status);
 
     Option<string> value = os::getenv("MESOS_HTTP_COMMAND_EXECUTOR");
     if (value.isSome() && value.get() == "1") {
@@ -742,11 +767,14 @@ private:
     }
   }
 
-  void update(
+  // Use this helper to create a status update from scratch, i.e., without
+  // previously attached extra information like `data` or `check_status`.
+  TaskStatus createTaskStatus(
       const TaskID& _taskId,
       const TaskState& state,
-      const Option<bool>& healthy = None(),
-      const Option<string>& message = None())
+      const Option<TaskStatus::Reason>& reason = None(),
+      const Option<string>& message = None(),
+      const Option<bool>& healthy = None())
   {
     UUID uuid = UUID::random();
 
@@ -759,14 +787,23 @@ private:
     status.set_uuid(uuid.toBytes());
     status.set_timestamp(Clock::now().secs());
 
-    if (healthy.isSome()) {
-      status.set_healthy(healthy.get());
+    if (reason.isSome()) {
+      status.set_reason(reason.get());
     }
 
     if (message.isSome()) {
       status.set_message(message.get());
     }
 
+    if (healthy.isSome()) {
+      status.set_healthy(healthy.get());
+    }
+
+    return status;
+  }
+
+  void forward(const TaskStatus& status)
+  {
     Call call;
     call.set_type(Call::UPDATE);
 
@@ -776,7 +813,10 @@ private:
     call.mutable_update()->mutable_status()->CopyFrom(status);
 
     // Capture the status update.
-    unacknowledgedUpdates[uuid] = call.update();
+    unacknowledgedUpdates[UUID::fromBytes(status.uuid()).get()] = call.update();
+
+    // Overwrite the last task status.
+    lastTaskStatus = status;
 
     mesos->send(evolve(call));
   }
@@ -840,6 +880,8 @@ private:
   // `None` if there is either no task yet or no status
   // update acknowledgements have been received yet.
   Option<TaskInfo> unacknowledgedTask;
+
+  Option<TaskStatus> lastTaskStatus;
 
   Owned<checks::HealthChecker> checker;
 };
