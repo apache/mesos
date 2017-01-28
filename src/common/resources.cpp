@@ -582,9 +582,7 @@ Try<Resources> Resources::parse(
   // Try to parse as a JSON Array. Otherwise, parse as a text string.
   Try<JSON::Array> json = JSON::parse<JSON::Array>(text);
 
-  Try<vector<Resource>> resources = json.isSome() ?
-    Resources::fromJSON(json.get(), defaultRole) :
-    Resources::fromSimpleString(text, defaultRole);
+  Try<vector<Resource>> resources = Resources::fromString(text, defaultRole);
 
   if (resources.isError()) {
     return Error(resources.error());
@@ -689,6 +687,19 @@ Try<vector<Resource>> Resources::fromSimpleString(
   }
 
   return resources;
+}
+
+
+Try<vector<Resource>> Resources::fromString(
+    const string& text,
+    const string& defaultRole)
+{
+  // Try to parse as a JSON Array. Otherwise, parse as a text string.
+  Try<JSON::Array> json = JSON::parse<JSON::Array>(text);
+
+  return json.isSome() ?
+    Resources::fromJSON(json.get(), defaultRole) :
+    Resources::fromSimpleString(text, defaultRole);
 }
 
 

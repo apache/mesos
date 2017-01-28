@@ -2281,6 +2281,7 @@ mesos_tests_SOURCES =						\
   tests/common/type_utils_tests.cpp				\
   tests/containerizer/appc_spec_tests.cpp			\
   tests/containerizer/composing_containerizer_tests.cpp		\
+  tests/containerizer/containerizer_tests.cpp			\
   tests/containerizer/cpu_isolator_tests.cpp			\
   tests/containerizer/docker_containerizer_tests.cpp		\
   tests/containerizer/docker_spec_tests.cpp			\
