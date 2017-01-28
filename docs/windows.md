@@ -16,7 +16,7 @@ Mesos 1.0.0 introduced experimental support for Windows.
 1. Install the latest version of [Visual Studio Community 2015](https://www.visualstudio.com/post-download-vs?sku=community).
    Make sure to select the Common Tools for Visual C++ and the Windows 10 SDK.
    Start Visual Studio Community to complete the setup and configuration.
-2. Install [CMake 3.5.2 or later](https://cmake.org/files/v3.5/cmake-3.5.2-win32-x86.msi).
+2. Install [CMake 3.6.3 or later](https://cmake.org/files/v3.6/cmake-3.6.3-win32-x86.msi).
    Do not run CMake before finishing the Visual Studio Community setup.
 3. Install [Gnu Patch 2.5.9-7 or later](http://downloads.sourceforge.net/project/gnuwin32/patch/2.5.9-7/patch-2.5.9-7-setup.exe).
 4. If building from git, make sure you have Windows-style line endings.
