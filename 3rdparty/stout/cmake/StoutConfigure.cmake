@@ -71,9 +71,8 @@ endif (WIN32)
 # DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux).
 ###############################################################################
-set(STOUT_INCLUDE_DIRS
-  ${STOUT_INCLUDE_DIRS}
-  ${STOUT_INCLUDE_DIR}
+set(STOUT_3RDPARTY_INCLUDE_DIRS
+  ${STOUT_3RDPARTY_INCLUDE_DIRS}
   ${APR_INCLUDE_DIR}
   ${BOOST_INCLUDE_DIR}
   ${ELFIO_INCLUDE_DIR}
@@ -82,16 +81,20 @@ set(STOUT_INCLUDE_DIRS
   ${PICOJSON_INCLUDE_DIR}
   ${PROTOBUF_INCLUDE_DIR}
   ${SVN_INCLUDE_DIR}
-  src
   )
 
 if (WIN32)
-  set(STOUT_INCLUDE_DIRS
-    ${STOUT_INCLUDE_DIRS}
+  set(STOUT_3RDPARTY_INCLUDE_DIRS
+    ${STOUT_3RDPARTY_INCLUDE_DIRS}
     ${CURL_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIR}
     )
 endif (WIN32)
+
+set(STOUT_INCLUDE_DIRS
+  ${STOUT_INCLUDE_DIRS}
+  ${STOUT_INCLUDE_DIR}
+  )
 
 # DEFINE THIRD-PARTY LIB INSTALL DIRECTORIES. Used to tell the compiler
 # toolchain where to find our third party libs (e.g., -L/path/to/glog on

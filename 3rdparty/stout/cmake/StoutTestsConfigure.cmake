@@ -77,9 +77,9 @@ set(STOUT_TEST_DEPENDENCIES
 # DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux)..
 ###############################################################################
-set(STOUT_TEST_INCLUDE_DIRS
-  ${STOUT_TEST_INCLUDE_DIRS}
-  ${STOUT_INCLUDE_DIRS}
+set(STOUT_TEST_3RDPARTY_INCLUDE_DIRS
+  ${STOUT_TEST_3RDPARTY_INCLUDE_DIRS}
+  ${STOUT_3RDPARTY_INCLUDE_DIRS}
   ${GMOCK_INCLUDE_DIR}
   ${GTEST_INCLUDE_DIR}
   )

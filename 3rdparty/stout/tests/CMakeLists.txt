@@ -96,7 +96,8 @@ set(STOUT_TESTS_SRC
 # INCLUDE DIRECTIVES FOR STOUT TEST BINARY (generates, e.g., -I/path/to/thing
 # on Linux).
 #############################################################################
-include_directories(${STOUT_TEST_INCLUDE_DIRS})
+include_directories(SYSTEM ${STOUT_TEST_3RDPARTY_INCLUDE_DIRS})
+include_directories(${STOUT_INCLUDE_DIRS})
 
 # LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
 # Linux).
