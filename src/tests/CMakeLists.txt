@@ -225,6 +225,7 @@ endif (LINUX)
 
 # INCLUDE DIRECTIVES (generates, e.g., -I/path/to/thing on Linux).
 ##################################################################
+include_directories(SYSTEM ${MESOS_3RDPARTY_TESTS_INCLUDE_DIRS})
 include_directories(${MESOS_TESTS_INCLUDE_DIRS})
 
 # LINKING LIBRARIES (might generate, e.g., -L/path/to/thing on Linux).

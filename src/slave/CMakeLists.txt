@@ -28,6 +28,7 @@ add_subdirectory(resource_estimators)
 # INCLUDE DIRECTIVES FOR AGENT EXECUTABLE (generates, e.g., -I/path/to/thing
 # on Linux).
 ############################################################################
+include_directories(SYSTEM ${AGENT_3RDPARTY_INCLUDE_DIRS})
 include_directories(${AGENT_INCLUDE_DIRS})
 
 # LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on

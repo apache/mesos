@@ -483,6 +483,7 @@ endif (WIN32)
 # INCLUDE DIRECTIVES FOR MESOS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).
 #########################################################################
+include_directories(SYSTEM ${AGENT_3RDPARTY_INCLUDE_DIRS})
 include_directories(${AGENT_INCLUDE_DIRS})
 
 # Generate all binaries in the same folder.
