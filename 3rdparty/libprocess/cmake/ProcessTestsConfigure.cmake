@@ -36,11 +36,16 @@ set(PROCESS_TEST_DEPENDENCIES
 ###############################################################################
 set(PROCESS_TEST_INCLUDE_DIRS
   ${PROCESS_TEST_INCLUDE_DIRS}
-  ../   # includes, e.g., decoder.hpp
-  ${PROCESS_INCLUDE_DIRS}
+  ${PROCESS_3RDPARTY_INCLUDE_DIRS}
   ${GMOCK_INCLUDE_DIR}
   ${GTEST_INCLUDE_DIR}
   src
+  )
+
+set(PROCESS_TEST_INCLUDE_DIRS
+  ${PROCESS_TEST_INCLUDE_DIRS}
+  ${PROCESS_INCLUDE_DIRS}
+  ../   # includes, e.g., decoder.hpp
   )
 
 # DEFINE THIRD-PARTY LIB INSTALL DIRECTORIES. Used to tell the compiler

@@ -79,6 +79,7 @@ endif (ENABLE_LIBEVENT)
 # INCLUDE DIRECTIVES FOR PROCESS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).
 ###########################################################################
+include_directories(SYSTEM ${PROCESS_3RDPARTY_INCLUDE_DIRS})
 include_directories(${PROCESS_INCLUDE_DIRS})
 
 # LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
