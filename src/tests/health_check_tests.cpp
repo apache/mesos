@@ -354,6 +354,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTask)
 }
 
 
+#ifdef __linux__
 // This test creates a healthy task with a container image using mesos
 // containerizer and verifies that the healthy status is reported to the
 // scheduler and is reflected in the state endpoints of both the master
@@ -470,6 +471,7 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
   driver.stop();
   driver.join();
 }
+#endif // __linux__
 
 
 // This test creates a healthy task using the Docker executor and
