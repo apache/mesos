@@ -1526,7 +1526,7 @@ e.g., <code>APPC,DOCKER</code>.
   </td>
   <td>
 Strategy for provisioning container rootfs from images, e.g., <code>aufs</code>,
-<code>bind</code>, <code>copy</code>, <code>overlay</code>. (default: copy)
+<code>bind</code>, <code>copy</code>, <code>overlay</code>.
   </td>
 </tr>
 <tr>

@@ -34,18 +34,30 @@
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
+#ifdef __linux__
+#include "linux/fs.hpp"
+#endif
+
 #include "slave/paths.hpp"
 
+#include "slave/containerizer/mesos/provisioner/constants.hpp"
 #include "slave/containerizer/mesos/provisioner/backend.hpp"
 #include "slave/containerizer/mesos/provisioner/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 #include "slave/containerizer/mesos/provisioner/store.hpp"
 
-using namespace process;
-
 using std::list;
 using std::string;
 using std::vector;
+
+using process::Failure;
+using process::Future;
+using process::Owned;
+
+using mesos::internal::slave::AUFS_BACKEND;
+using mesos::internal::slave::BIND_BACKEND;
+using mesos::internal::slave::COPY_BACKEND;
+using mesos::internal::slave::OVERLAY_BACKEND;
 
 using mesos::slave::ContainerState;
 
@@ -53,9 +65,90 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+// Validate whether the backend is supported on the underlying
+// filesystem. Please see the following logic table for detail:
+// +---------+--------------+------------------------------------------+
+// | Backend | Suggested on | Disabled on                              |
+// +---------+--------------+------------------------------------------+
+// | aufs    | ext4 xfs     | btrfs aufs eCryptfs                      |
+// | overlay | ext4 xfs     | btrfs aufs overlay overlay2 zfs eCryptfs |
+// | bind    |              | N/A(`--sandbox_directory' must exist)    |
+// | copy    |              | N/A                                      |
+// +---------+--------------+------------------------------------------+
+static Try<Nothing> validateBackend(
+    const string& backend,
+    const string& directory)
+{
+  // Copy backend is supported on all underlying filesystems.
+  if (backend == COPY_BACKEND) {
+    return Nothing();
+  }
+
+#ifdef __linux__
+  // Bind backend is supported on all underlying filesystems.
+  if (backend == BIND_BACKEND) {
+    return Nothing();
+  }
+
+  Try<uint32_t> fsType = fs::type(directory);
+  if (fsType.isError()) {
+    return Error(
+      "Failed to get filesystem type id from directory '" +
+      directory + "': " + fsType.error());
+  }
+
+  Try<string> _fsTypeName = fs::typeName(fsType.get());
+
+  string fsTypeName = _fsTypeName.isSome()
+    ? _fsTypeName.get()
+    : stringify(fsType.get());
+
+  if (backend == OVERLAY_BACKEND) {
+    vector<uint32_t> exclusives = {
+      FS_TYPE_AUFS,
+      FS_TYPE_BTRFS,
+      FS_TYPE_ECRYPTFS,
+      FS_TYPE_ZFS,
+      FS_TYPE_OVERLAY
+    };
+
+    if (std::find(exclusives.begin(),
+                  exclusives.end(),
+                  fsType.get()) != exclusives.end()) {
+      return Error(
+          "Backend '" + stringify(OVERLAY_BACKEND) + "' is not supported "
+          "on the underlying filesystem '" + fsTypeName + "'");
+    }
+
+    return Nothing();
+  }
+
+  if (backend == AUFS_BACKEND) {
+    vector<uint32_t> exclusives = {
+      FS_TYPE_AUFS,
+      FS_TYPE_BTRFS,
+      FS_TYPE_ECRYPTFS
+    };
+
+    if (std::find(exclusives.begin(),
+                  exclusives.end(),
+                  fsType.get()) != exclusives.end()) {
+      return Error(
+          "Backend '" + stringify(AUFS_BACKEND) + "' is not supported "
+          "on the underlying filesystem '" + fsTypeName + "'");
+    }
+
+    return Nothing();
+  }
+#endif // __linux__
+
+  return Error("Validation not supported");
+}
+
+
 Try<Owned<Provisioner>> Provisioner::create(const Flags& flags)
 {
-  string _rootDir = slave::paths::getProvisionerDir(flags.work_dir);
+  const string _rootDir = slave::paths::getProvisionerDir(flags.work_dir);
 
   Try<Nothing> mkdir = os::mkdir(_rootDir);
   if (mkdir.isError()) {
@@ -83,16 +176,82 @@ Try<Owned<Provisioner>> Provisioner::create(const Flags& flags)
     return Error("No usable provisioner backend created");
   }
 
-  if (!backends.contains(flags.image_provisioner_backend)) {
-    return Error(
-        "The specified provisioner backend '" +
-        flags.image_provisioner_backend + "' is unsupported");
+  // Determine the default backend:
+  // 1) If the user specifies the backend, make sure it is supported
+  //    w.r.t. the underlying filesystem.
+  // 2) If the user does not specify the backend, pick the default
+  //    backend according to a pre-defined order, and make sure the
+  //    picked one is supported w.r.t. the underlying filesystem.
+  //
+  // TODO(jieyu): Only validating backends against provisioner dir is
+  // not sufficient. We need to validate against all the store dir as
+  // well. Consider introducing a default backend for each store.
+  Option<string> defaultBackend;
+
+  if (flags.image_provisioner_backend.isSome()) {
+    if (!backends.contains(flags.image_provisioner_backend.get())) {
+      return Error(
+          "The specified provisioner backend '" +
+          flags.image_provisioner_backend.get() +
+          "' is not supported: Not found");
+    }
+
+    Try<Nothing> supported = validateBackend(
+        flags.image_provisioner_backend.get(),
+        rootDir.get());
+
+    if (supported.isError()) {
+      return Error(
+          "The specified provisioner backend '" +
+          flags.image_provisioner_backend.get() +
+          "' is not supported: " + supported.error());
+    }
+
+    defaultBackend = flags.image_provisioner_backend.get();
+  } else {
+    // TODO(gilbert): Consider select the bind backend if it is a
+    // single layer image. Please note that a read-only filesystem
+    // (e.g., using the bind backend) requires the sandbox already
+    // exists.
+    //
+    // Choose a backend smartly if no backend is specified. The follow
+    // list is a priority list, meaning that we favor backends in the
+    // front of the list.
+    vector<string> backendNames = {
+#ifdef __linux
+      OVERLAY_BACKEND,
+      AUFS_BACKEND,
+#endif // __linux__
+      COPY_BACKEND
+    };
+
+    foreach (const string& backendName, backendNames) {
+      if (!backends.contains(backendName)) {
+        continue;
+      }
+
+      Try<Nothing> supported = validateBackend(backendName, rootDir.get());
+      if (supported.isError()) {
+        continue;
+      }
+
+      defaultBackend = backendName;
+      break;
+    }
+
+    if (defaultBackend.isNone()) {
+      return Error("Failed to find a default backend");
+    }
   }
+
+  CHECK_SOME(defaultBackend);
+
+  LOG(INFO) << "Using default backend '" << defaultBackend.get() << "'";
 
   return Owned<Provisioner>(new Provisioner(
       Owned<ProvisionerProcess>(new ProvisionerProcess(
-          flags,
           rootDir.get(),
+          defaultBackend.get(),
           stores.get(),
           backends))));
 }
@@ -146,13 +305,13 @@ Future<bool> Provisioner::destroy(const ContainerID& containerId) const
 
 
 ProvisionerProcess::ProvisionerProcess(
-    const Flags& _flags,
     const string& _rootDir,
+    const string& _defaultBackend,
     const hashmap<Image::Type, Owned<Store>>& _stores,
     const hashmap<string, Owned<Backend>>& _backends)
   : ProcessBase(process::ID::generate("mesos-provisioner")),
-    flags(_flags),
     rootDir(_rootDir),
+    defaultBackend(_defaultBackend),
     stores(_stores),
     backends(_backends) {}
 
@@ -265,20 +424,22 @@ Future<ProvisionInfo> ProvisionerProcess::provision(
   }
 
   // Get and then provision image layers from the store.
-  return stores.get(image.type()).get()->get(image)
-    .then(defer(self(), &Self::_provision, containerId, image, lambda::_1));
+  return stores.get(image.type()).get()->get(image, defaultBackend)
+    .then(defer(self(),
+                &Self::_provision,
+                containerId,
+                image,
+                defaultBackend,
+                lambda::_1));
 }
 
 
 Future<ProvisionInfo> ProvisionerProcess::_provision(
     const ContainerID& containerId,
     const Image& image,
+    const string& backend,
     const ImageInfo& imageInfo)
 {
-  // TODO(jieyu): Choose a backend smartly. For instance, if there is
-  // only one layer returned from the store, prefer to use bind
-  // backend because it's the simplest.
-  const string& backend = flags.image_provisioner_backend;
   CHECK(backends.contains(backend));
 
   string rootfsId = UUID::random().toString();
@@ -290,7 +451,8 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
       rootfsId);
 
   LOG(INFO) << "Provisioning image rootfs '" << rootfs
-            << "' for container " << containerId;
+            << "' for container " << containerId
+            << " using " << backend << " backend";
 
   // NOTE: It's likely that the container ID already exists in 'infos'
   // because one container might provision multiple images.

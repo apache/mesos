@@ -263,7 +263,7 @@ TEST_F(AppcStoreTest, Recover)
   Image image;
   image.mutable_appc()->CopyFrom(getTestImage());
 
-  Future<slave::ImageInfo> ImageInfo = store.get()->get(image);
+  Future<slave::ImageInfo> ImageInfo = store.get()->get(image, COPY_BACKEND);
   AWAIT_READY(ImageInfo);
 
   EXPECT_EQ(1u, ImageInfo.get().layers.size());
@@ -327,9 +327,9 @@ TEST_F(ProvisionerAppcTest, ROOT_Provision)
   ASSERT_SOME(rootfses);
 
   // Verify that the rootfs is successfully provisioned.
-  ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend));
-  ASSERT_EQ(1u, rootfses->get(flags.image_provisioner_backend)->size());
-  EXPECT_EQ(*rootfses->get(flags.image_provisioner_backend)->begin(),
+  ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend.get()));
+  ASSERT_EQ(1u, rootfses->get(flags.image_provisioner_backend.get())->size());
+  EXPECT_EQ(*rootfses->get(flags.image_provisioner_backend.get())->begin(),
             Path(provisionInfo.get().rootfs).basename());
 
   Future<bool> destroy = provisioner.get()->destroy(containerId);
@@ -395,9 +395,9 @@ TEST_F(ProvisionerAppcTest, ROOT_ProvisionNestedContainer)
   ASSERT_SOME(rootfses);
 
   // Verify that the rootfs is successfully provisioned.
-  ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend));
-  ASSERT_EQ(1u, rootfses->get(flags.image_provisioner_backend)->size());
-  EXPECT_EQ(*rootfses->get(flags.image_provisioner_backend)->begin(),
+  ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend.get()));
+  ASSERT_EQ(1u, rootfses->get(flags.image_provisioner_backend.get())->size());
+  EXPECT_EQ(*rootfses->get(flags.image_provisioner_backend.get())->begin(),
             Path(provisionInfo.get().rootfs).basename());
 
   // TODO(jieyu): Verify that 'containerDir' is nested under its
@@ -472,8 +472,8 @@ TEST_F(ProvisionerAppcTest, Recover)
   ASSERT_SOME(rootfses);
 
   // Verify that the rootfs is successfully provisioned.
-  ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend));
-  EXPECT_EQ(2u, rootfses->get(flags.image_provisioner_backend)->size());
+  ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend.get()));
+  EXPECT_EQ(2u, rootfses->get(flags.image_provisioner_backend.get())->size());
 
   Future<bool> destroy = provisioner.get()->destroy(containerId);
   AWAIT_READY(destroy);

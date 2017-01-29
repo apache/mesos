@@ -48,7 +48,7 @@ public:
   std::string launcher;
 
   Option<std::string> image_providers;
-  std::string image_provisioner_backend;
+  Option<std::string> image_provisioner_backend;
 
   std::string appc_simple_discovery_uri_prefix;
   std::string appc_store_dir;

@@ -42,7 +42,9 @@ public:
   // local cache.
   // TODO(xujyan): The store currently doesn't support images that
   // have dependencies and we should add it later.
-  virtual process::Future<ImageInfo> get(const Image& image);
+  virtual process::Future<ImageInfo> get(
+      const Image& image,
+      const std::string& backend);
 
 private:
   Store(process::Owned<StoreProcess> process);

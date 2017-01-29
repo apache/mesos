@@ -47,9 +47,9 @@ public:
     EXPECT_CALL(*this, recover())
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, get(_))
+    ON_CALL(*this, get(_, _))
       .WillByDefault(Invoke(this, &TestStore::unmocked_get));
-    EXPECT_CALL(*this, get(_))
+    EXPECT_CALL(*this, get(_, _))
       .WillRepeatedly(DoDefault());
   }
 
@@ -60,14 +60,17 @@ public:
   MOCK_METHOD1(
       get,
       process::Future<slave::ImageInfo>(
-          const Image& image));
+          const Image& image,
+          const std::string& backend));
 
   process::Future<Nothing> unmocked_recover()
   {
     return Nothing();
   }
 
-  process::Future<slave::ImageInfo> unmocked_get(const Image& image)
+  process::Future<slave::ImageInfo> unmocked_get(
+      const Image& image,
+      const std::string& backend)
   {
     if (!image.has_appc()) {
       return process::Failure("Expecting APPC image");
