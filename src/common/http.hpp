@@ -48,6 +48,19 @@ constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
 
 extern hashset<std::string> AUTHORIZABLE_ENDPOINTS;
 
+
+// Contains the media types corresponding to some of the "Content-*",
+// "Accept-*" and "Message-*" prefixed request headers in our internal
+// representation.
+struct RequestMediaTypes
+{
+  ContentType content; // 'Content-Type' header.
+  ContentType accept; // 'Accept' header.
+  Option<ContentType> messageContent; // 'Message-Content-Type' header.
+  Option<ContentType> messageAccept; // 'Message-Accept' header.
+};
+
+
 // Serializes a protobuf message for transmission
 // based on the HTTP content type.
 // NOTE: For streaming `contentType`, `message` would not
