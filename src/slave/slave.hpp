@@ -534,8 +534,7 @@ private:
     process::Future<process::http::Response> _api(
         const agent::Call& call,
         Option<process::Owned<recordio::Reader<agent::Call>>>&& reader,
-        ContentType contentTye,
-        ContentType acceptType,
+        const RequestMediaTypes& mediaTypes,
         const Option<std::string>& principal) const;
 
     // Make continuation for `statistics` `static` as it might
@@ -665,33 +664,28 @@ private:
 
     process::Future<process::http::Response> launchNestedContainerSession(
         const mesos::agent::Call& call,
-        ContentType contentType,
-        ContentType acceptType,
+        const RequestMediaTypes& mediaTypes,
         const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> attachContainerInput(
         const mesos::agent::Call& call,
         process::Owned<recordio::Reader<agent::Call>>&& decoder,
-        ContentType contentType,
-        ContentType acceptType,
+        const RequestMediaTypes& mediaTypes,
         const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> _attachContainerInput(
         const mesos::agent::Call& call,
         process::Owned<recordio::Reader<agent::Call>>&& decoder,
-        ContentType contentType,
-        ContentType acceptType) const;
+        const RequestMediaTypes& mediaTypes) const;
 
     process::Future<process::http::Response> attachContainerOutput(
         const mesos::agent::Call& call,
-        ContentType contentType,
-        ContentType acceptType,
+        const RequestMediaTypes& mediaTypes,
         const Option<std::string>& principal) const;
 
     process::Future<process::http::Response> _attachContainerOutput(
         const mesos::agent::Call& call,
-        ContentType contentType,
-        ContentType acceptType) const;
+        const RequestMediaTypes& mediaTypes) const;
 
     Slave* slave;
 

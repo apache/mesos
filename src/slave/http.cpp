@@ -348,15 +348,43 @@ Future<Response> Slave::Http::api(
     contentType = ContentType::JSON;
   } else if (contentType_.get() == APPLICATION_PROTOBUF) {
     contentType = ContentType::PROTOBUF;
-  } else if (contentType_.get() == APPLICATION_STREAMING_JSON) {
-    contentType = ContentType::STREAMING_JSON;
-  } else if (contentType_.get() == APPLICATION_STREAMING_PROTOBUF) {
-    contentType = ContentType::STREAMING_PROTOBUF;
+  } else if (contentType_.get() == APPLICATION_RECORDIO) {
+    contentType = ContentType::RECORDIO;
   } else {
     return UnsupportedMediaType(
         string("Expecting 'Content-Type' of ") +
-        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF + " or " +
-        APPLICATION_STREAMING_JSON + " or " + APPLICATION_STREAMING_PROTOBUF);
+        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF +
+        + " or " + APPLICATION_RECORDIO);
+  }
+
+  Option<ContentType> messageContentType;
+  Option<string> messageContentType_ =
+    request.headers.get(MESSAGE_CONTENT_TYPE);
+
+  if (streamingMediaType(contentType)) {
+    if (messageContentType_.isNone()) {
+      return BadRequest(
+          "Expecting '" + stringify(MESSAGE_CONTENT_TYPE) + "' to be" +
+          " set for streaming requests");
+    }
+
+    if (messageContentType_.get() == APPLICATION_JSON) {
+      messageContentType = Option<ContentType>(ContentType::JSON);
+    } else if (messageContentType_.get() == APPLICATION_PROTOBUF) {
+      messageContentType = Option<ContentType>(ContentType::PROTOBUF);
+    } else {
+      return UnsupportedMediaType(
+          string("Expecting '") + MESSAGE_CONTENT_TYPE + "' of " +
+          APPLICATION_JSON + " or " + APPLICATION_PROTOBUF);
+    }
+  } else {
+    // Validate that a client has not set the "Message-Content-Type"
+    // header for a non-streaming request.
+    if (messageContentType_.isSome()) {
+      return UnsupportedMediaType(
+          string("Expecting '") + MESSAGE_CONTENT_TYPE + "' to be not"
+          " set for non-streaming requests");
+    }
   }
 
   // This lambda deserializes a string into a valid `Call`
@@ -380,29 +408,60 @@ Future<Response> Slave::Http::api(
     return call;
   };
 
+  // For backwards compatibility, if a client does not specify an 'Accept'
+  // header, 'Content-Type' of the response is set to 'application/json'
+  // for streaming responses.
+  //
+  // TODO(anand): In v2 API, the default 'Content-Type' for streaming responses
+  // should be 'application/recordio'.
   ContentType acceptType;
   if (request.acceptsMediaType(APPLICATION_JSON)) {
     acceptType = ContentType::JSON;
   } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
     acceptType = ContentType::PROTOBUF;
-  } else if (request.acceptsMediaType(APPLICATION_STREAMING_JSON)) {
-    acceptType = ContentType::STREAMING_JSON;
-  } else if (request.acceptsMediaType(APPLICATION_STREAMING_PROTOBUF)) {
-    acceptType = ContentType::STREAMING_PROTOBUF;
+  } else if (request.acceptsMediaType(APPLICATION_RECORDIO)) {
+    acceptType = ContentType::RECORDIO;
   } else {
     return NotAcceptable(
         string("Expecting 'Accept' to allow ") +
         APPLICATION_JSON + " or " + APPLICATION_PROTOBUF + " or " +
-        APPLICATION_STREAMING_JSON + " or "  + APPLICATION_STREAMING_PROTOBUF);
+        APPLICATION_RECORDIO);
+  }
+
+  Option<ContentType> messageAcceptType;
+  if (streamingMediaType(acceptType)) {
+    if (request.acceptsMediaType(MESSAGE_ACCEPT, APPLICATION_JSON)) {
+      messageAcceptType = ContentType::JSON;
+    } else if (request.acceptsMediaType(MESSAGE_ACCEPT, APPLICATION_PROTOBUF)) {
+      messageAcceptType = ContentType::PROTOBUF;
+    } else {
+      return NotAcceptable(
+          string("Expecting '") + MESSAGE_ACCEPT + "' to allow " +
+          APPLICATION_JSON + " or " + APPLICATION_PROTOBUF);
+    }
+  } else {
+    // Validate that a client has not set the "Message-Accept"
+    // header for a non-streaming response.
+    if (request.headers.contains(MESSAGE_ACCEPT)) {
+      return NotAcceptable(
+          string("Expecting '") + MESSAGE_ACCEPT +
+          "' to be not set for non-streaming responses");
+    }
   }
 
   CHECK_EQ(Request::PIPE, request.type);
   CHECK_SOME(request.reader);
 
-  if (requestStreaming(contentType)) {
+  RequestMediaTypes mediaTypes {
+      contentType, acceptType, messageContentType, messageAcceptType};
+
+  if (streamingMediaType(contentType)) {
+    CHECK_SOME(mediaTypes.messageContent);
+
     Owned<Reader<mesos::agent::Call>> reader(new Reader<mesos::agent::Call>(
         Decoder<mesos::agent::Call>(lambda::bind(
-            deserializer, lambda::_1, contentType)), request.reader.get()));
+            deserializer, lambda::_1, mediaTypes.messageContent.get())),
+        request.reader.get()));
 
     return reader->read()
       .then(defer(
@@ -416,11 +475,7 @@ Future<Response> Slave::Http::api(
               return BadRequest(call.error());
             }
 
-            return _api(call.get(),
-                        std::move(reader),
-                        contentType,
-                        acceptType,
-                        principal);
+            return _api(call.get(), std::move(reader), mediaTypes, principal);
           }));
   } else {
     Pipe::Reader reader = request.reader.get();  // Remove const.
@@ -433,7 +488,7 @@ Future<Response> Slave::Http::api(
             if (call.isError()) {
               return BadRequest(call.error());
             }
-            return _api(call.get(), None(), contentType, acceptType, principal);
+            return _api(call.get(), None(), mediaTypes, principal);
           }));
   }
 }
@@ -442,23 +497,21 @@ Future<Response> Slave::Http::api(
 Future<Response> Slave::Http::_api(
     const agent::Call& call,
     Option<Owned<Reader<mesos::agent::Call>>>&& reader,
-    ContentType contentType,
-    ContentType acceptType,
+    const RequestMediaTypes& mediaTypes,
     const Option<string>& principal) const
 {
   // Validate that a client has not _accidentally_ sent us a
   // streaming request for a call type that does not support it.
-  if (requestStreaming(contentType) &&
+  if (streamingMediaType(mediaTypes.content) &&
       call.type() != mesos::agent::Call::ATTACH_CONTAINER_INPUT) {
     return UnsupportedMediaType(
-        "Streaming 'Content-Type' " + stringify(contentType) + " is not "
+        "Streaming 'Content-Type' " + stringify(mediaTypes.content) + " is not "
         "supported for " + stringify(call.type()) + " call");
-  } else if (!requestStreaming(contentType) &&
+  } else if (!streamingMediaType(mediaTypes.content) &&
              call.type() == mesos::agent::Call::ATTACH_CONTAINER_INPUT) {
     return UnsupportedMediaType(
-        string("Expecting 'Content-Type' of ") + APPLICATION_STREAMING_JSON +
-        " or " + APPLICATION_STREAMING_PROTOBUF + " for "  +
-        stringify(call.type()) + " call");
+        string("Expecting 'Content-Type' to be ") + APPLICATION_RECORDIO +
+        " for "  + stringify(call.type()) + " call");
   }
 
   LOG(INFO) << "Processing call " << call.type();
@@ -468,64 +521,63 @@ Future<Response> Slave::Http::_api(
       return NotImplemented();
 
     case agent::Call::GET_HEALTH:
-      return getHealth(call, acceptType, principal);
+      return getHealth(call, mediaTypes.accept, principal);
 
     case agent::Call::GET_FLAGS:
-      return getFlags(call, acceptType, principal);
+      return getFlags(call, mediaTypes.accept, principal);
 
     case agent::Call::GET_VERSION:
-      return getVersion(call, acceptType, principal);
+      return getVersion(call, mediaTypes.accept, principal);
 
     case agent::Call::GET_METRICS:
-      return getMetrics(call, acceptType, principal);
+      return getMetrics(call, mediaTypes.accept, principal);
 
     case agent::Call::GET_LOGGING_LEVEL:
-      return getLoggingLevel(call, acceptType, principal);
+      return getLoggingLevel(call, mediaTypes.accept, principal);
 
     case agent::Call::SET_LOGGING_LEVEL:
-      return setLoggingLevel(call, acceptType, principal);
+      return setLoggingLevel(call, mediaTypes.accept, principal);
 
     case agent::Call::LIST_FILES:
-      return listFiles(call, acceptType, principal);
+      return listFiles(call, mediaTypes.accept, principal);
 
     case agent::Call::READ_FILE:
-      return readFile(call, acceptType, principal);
+      return readFile(call, mediaTypes.accept, principal);
 
     case agent::Call::GET_STATE:
-      return getState(call, acceptType, principal);
+      return getState(call, mediaTypes.accept, principal);
 
     case agent::Call::GET_CONTAINERS:
-      return getContainers(call, acceptType, principal);
+      return getContainers(call, mediaTypes.accept, principal);
 
     case agent::Call::GET_FRAMEWORKS:
-      return getFrameworks(call, acceptType, principal);
+      return getFrameworks(call, mediaTypes.accept, principal);
 
     case agent::Call::GET_EXECUTORS:
-      return getExecutors(call, acceptType, principal);
+      return getExecutors(call, mediaTypes.accept, principal);
 
     case agent::Call::GET_TASKS:
-      return getTasks(call, acceptType, principal);
+      return getTasks(call, mediaTypes.accept, principal);
 
     case agent::Call::LAUNCH_NESTED_CONTAINER:
-      return launchNestedContainer(call, acceptType, principal);
+      return launchNestedContainer(call, mediaTypes.accept, principal);
 
     case agent::Call::WAIT_NESTED_CONTAINER:
-      return waitNestedContainer(call, acceptType, principal);
+      return waitNestedContainer(call, mediaTypes.accept, principal);
 
     case agent::Call::KILL_NESTED_CONTAINER:
-      return killNestedContainer(call, acceptType, principal);
+      return killNestedContainer(call, mediaTypes.accept, principal);
 
     case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION:
-      return launchNestedContainerSession(
-          call, contentType, acceptType, principal);
+      return launchNestedContainerSession(call, mediaTypes, principal);
 
     case mesos::agent::Call::ATTACH_CONTAINER_INPUT:
       CHECK_SOME(reader);
       return attachContainerInput(
-          call, std::move(reader).get(), contentType, acceptType, principal);
+          call, std::move(reader).get(), mediaTypes, principal);
 
     case mesos::agent::Call::ATTACH_CONTAINER_OUTPUT:
-      return attachContainerOutput(call, contentType, acceptType, principal);
+      return attachContainerOutput(call, mediaTypes, principal);
   }
 
   UNREACHABLE();
@@ -2386,8 +2438,7 @@ Future<Response> Slave::Http::killNestedContainer(
 Future<Response> Slave::Http::_attachContainerInput(
     const mesos::agent::Call& call,
     Owned<Reader<mesos::agent::Call>>&& decoder,
-    ContentType contentType,
-    ContentType acceptType) const
+    const RequestMediaTypes& mediaTypes) const
 {
   const ContainerID& containerId = call.attach_container_input().container_id();
 
@@ -2395,9 +2446,10 @@ Future<Response> Slave::Http::_attachContainerInput(
   Pipe::Reader reader = pipe.reader();
   Pipe::Writer writer = pipe.writer();
 
-  auto encoder = [contentType](const mesos::agent::Call& call) {
+  CHECK_SOME(mediaTypes.messageContent);
+  auto encoder = [mediaTypes](const mesos::agent::Call& call) {
     ::recordio::Encoder<mesos::agent::Call> encoder(lambda::bind(
-        serialize, contentType, lambda::_1));
+        serialize, mediaTypes.messageContent.get(), lambda::_1));
 
     return encoder.encode(call);
   };
@@ -2411,14 +2463,16 @@ Future<Response> Slave::Http::_attachContainerInput(
       std::move(decoder), encoder, writer);
 
   return slave->containerizer->attach(containerId)
-    .then([contentType, acceptType, reader, writer, transform](
+    .then([mediaTypes, reader, writer, transform](
         Connection connection) mutable {
       Request request;
       request.method = "POST";
       request.type = Request::PIPE;
       request.reader = reader;
-      request.headers = {{"Content-Type", stringify(contentType)},
-                         {"Accept", stringify(acceptType)}};
+      request.headers = {{"Content-Type", stringify(mediaTypes.content)},
+                         {MESSAGE_CONTENT_TYPE,
+                             stringify(mediaTypes.messageContent.get())},
+                         {"Accept", stringify(mediaTypes.accept)}};
 
       // See comments in `attachContainerOutput()` for the reasoning
       // behind these values.
@@ -2453,8 +2507,7 @@ Future<Response> Slave::Http::_attachContainerInput(
 Future<Response> Slave::Http::attachContainerInput(
     const mesos::agent::Call& call,
     Owned<Reader<mesos::agent::Call>>&& decoder,
-    ContentType contentType,
-    ContentType acceptType,
+    const RequestMediaTypes& mediaTypes,
     const Option<string>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::ATTACH_CONTAINER_INPUT, call.type());
@@ -2483,7 +2536,7 @@ Future<Response> Slave::Http::attachContainerInput(
   }
 
   return approver.then(defer(slave->self(),
-    [this, call, decoder, contentType, acceptType](
+    [this, call, decoder, mediaTypes](
         const Owned<ObjectApprover>& attachInputApprover) -> Future<Response> {
       const ContainerID& containerId =
         call.attach_container_input().container_id();
@@ -2512,7 +2565,7 @@ Future<Response> Slave::Http::attachContainerInput(
       Owned<Reader<mesos::agent::Call>> decoder_ = decoder;
 
       return _attachContainerInput(
-          call, std::move(decoder_), contentType, acceptType);
+          call, std::move(decoder_), mediaTypes);
   }));
 }
 
@@ -2545,8 +2598,7 @@ Future<Nothing> connect(Pipe::Reader reader, Pipe::Writer writer)
 
 Future<Response> Slave::Http::launchNestedContainerSession(
     const mesos::agent::Call& call,
-    ContentType contentType,
-    ContentType acceptType,
+    const RequestMediaTypes& mediaTypes,
     const Option<string>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION, call.type());
@@ -2578,7 +2630,7 @@ Future<Response> Slave::Http::launchNestedContainerSession(
             ? call.launch_nested_container_session().container()
             : Option<ContainerInfo>::none(),
           ContainerClass::DEBUG,
-          acceptType,
+          mediaTypes.accept,
           approver);
     }));
 
@@ -2609,7 +2661,7 @@ Future<Response> Slave::Http::launchNestedContainerSession(
       // Instead of directly returning the response of `attachContainerOutput`
       // to the client, we use a level of indirection to make sure the container
       // is destroyed when the client connection breaks.
-      return attachContainerOutput(call, contentType, acceptType, principal)
+      return attachContainerOutput(call, mediaTypes, principal)
         .then(defer(slave->self(),
                     [=](const Response& response) -> Future<Response> {
           if (response.status != OK().status) {
@@ -2620,7 +2672,7 @@ Future<Response> Slave::Http::launchNestedContainerSession(
           Pipe::Writer writer = pipe.writer();
 
           OK ok;
-          ok.headers["Content-Type"] = stringify(acceptType);
+          ok.headers = response.headers; // Reuse the headers from the response.
           ok.type = Response::PIPE;
           ok.reader = pipe.reader();
 
@@ -2681,19 +2733,27 @@ Future<Response> Slave::Http::launchNestedContainerSession(
 
 Future<Response> Slave::Http::_attachContainerOutput(
     const mesos::agent::Call& call,
-    ContentType contentType,
-    ContentType acceptType) const
+    const RequestMediaTypes& mediaTypes) const
 {
   const ContainerID& containerId =
     call.attach_container_output().container_id();
 
   return slave->containerizer->attach(containerId)
-    .then([call, contentType, acceptType](Connection connection)
+    .then([call, mediaTypes](Connection connection)
         -> Future<Response> {
       Request request;
       request.method = "POST";
-      request.headers = {{"Accept", stringify(acceptType)},
-                         {"Content-Type", stringify(contentType)}};
+      request.headers = {{"Accept", stringify(mediaTypes.accept)},
+                         {"Content-Type", stringify(mediaTypes.content)}};
+
+      // If a client sets the 'Accept' header expecting a streaming response,
+      // `messageAccept` would always be set and we use it as the value of
+      // 'Message-Accept' header.
+      if (streamingMediaType(mediaTypes.accept)) {
+        CHECK_SOME(mediaTypes.messageAccept);
+        request.headers[MESSAGE_ACCEPT] =
+          stringify(mediaTypes.messageAccept.get());
+      }
 
       // The 'HOST' header must be EMPTY for non Internet addresses.
       // TODO(vinod): Instead of setting domain to empty string (which results
@@ -2705,12 +2765,12 @@ Future<Response> Slave::Http::_attachContainerOutput(
       request.url.path = "/";
 
       request.type = Request::BODY;
-      request.body = serialize(contentType, call);
+      request.body = serialize(mediaTypes.content, call);
 
       // We capture `connection` here to ensure that it doesn't go
       // out of scope until the `onAny` handler on `transform` is executed.
       return connection.send(request, true)
-        .then([connection, acceptType](const Response& response)
+        .then([connection, mediaTypes](const Response& response)
             -> Future<Response> {
           if (response.status != OK().status) {
             return response;
@@ -2722,7 +2782,17 @@ Future<Response> Slave::Http::_attachContainerOutput(
           Pipe::Writer writer = pipe.writer();
 
           OK ok;
-          ok.headers["Content-Type"] = stringify(acceptType);
+          ok.headers = response.headers; // Reuse headers from response.
+
+          // If a client sets the 'Accept' header expecting a streaming
+          // response, `messageAccept` would always be set and we use it
+          // to deserialize/evolve messages in the streaming response.
+          ContentType messageContentType = mediaTypes.accept;
+          if (streamingMediaType(mediaTypes.accept)) {
+            CHECK_SOME(mediaTypes.messageAccept);
+            messageContentType = mediaTypes.messageAccept.get();
+          }
+
           ok.type = Response::PIPE;
           ok.reader = pipe.reader();
 
@@ -2731,14 +2801,14 @@ Future<Response> Slave::Http::_attachContainerOutput(
           Pipe::Reader reader = response.reader.get();
 
           auto deserializer = lambda::bind(
-              deserialize<ProcessIO>, acceptType, lambda::_1);
+              deserialize<ProcessIO>, messageContentType, lambda::_1);
 
           Owned<Reader<ProcessIO>> decoder(new Reader<ProcessIO>(
               Decoder<ProcessIO>(deserializer), reader));
 
-          auto encoder = [acceptType](const ProcessIO& processIO) {
+          auto encoder = [messageContentType](const ProcessIO& processIO) {
             ::recordio::Encoder<v1::agent::ProcessIO> encoder (lambda::bind(
-                serialize, acceptType, lambda::_1));
+                serialize, messageContentType, lambda::_1));
 
             return encoder.encode(evolve(processIO));
           };
@@ -2766,8 +2836,7 @@ Future<Response> Slave::Http::_attachContainerOutput(
 
 Future<Response> Slave::Http::attachContainerOutput(
     const mesos::agent::Call& call,
-    ContentType contentType,
-    ContentType acceptType,
+    const RequestMediaTypes& mediaTypes,
     const Option<string>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::ATTACH_CONTAINER_OUTPUT, call.type());
@@ -2788,7 +2857,7 @@ Future<Response> Slave::Http::attachContainerOutput(
   }
 
   return approver.then(defer(slave->self(),
-    [this, call, contentType, acceptType](
+    [this, call, mediaTypes](
         const Owned<ObjectApprover>& attachOutputApprover) -> Future<Response> {
       const ContainerID& containerId =
         call.attach_container_output().container_id();
@@ -2814,7 +2883,7 @@ Future<Response> Slave::Http::attachContainerOutput(
         return Forbidden();
       }
 
-      return _attachContainerOutput(call, contentType, acceptType);
+      return _attachContainerOutput(call, mediaTypes);
   }));
 }
 
