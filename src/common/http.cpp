@@ -116,7 +116,7 @@ string serialize(
 }
 
 
-bool requestStreaming(ContentType contentType)
+bool streamingMediaType(ContentType contentType)
 {
   switch(contentType) {
     case ContentType::PROTOBUF:
@@ -124,8 +124,7 @@ bool requestStreaming(ContentType contentType)
       return false;
     }
 
-    case ContentType::STREAMING_JSON:
-    case ContentType::STREAMING_PROTOBUF: {
+    case ContentType::RECORDIO: {
       return true;
     }
   }

@@ -89,8 +89,9 @@ Try<Message> deserialize(
 }
 
 
-// Returns true if the content type can be used for streaming requests.
-bool requestStreaming(ContentType contentType);
+// Returns true if the media type can be used for
+// streaming requests/responses.
+bool streamingMediaType(ContentType contentType);
 
 
 JSON::Object model(const Resources& resources);
