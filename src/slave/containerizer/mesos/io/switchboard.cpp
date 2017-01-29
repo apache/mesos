@@ -1294,14 +1294,10 @@ void IOSwitchboardServerProcess::acceptLoop()
 Future<http::Response> IOSwitchboardServerProcess::handler(
     const http::Request& request)
 {
-  if (request.method != "POST") {
-    return http::MethodNotAllowed({"POST"}, request.method);
-  }
+  CHECK_EQ("POST", request.method);
 
   Option<string> contentType_ = request.headers.get("Content-Type");
-  if (contentType_.isNone()) {
-    return http::BadRequest("Expecting 'Content-Type' to be present");
-  }
+  CHECK_SOME(contentType_);
 
   ContentType contentType;
   if (contentType_.get() == APPLICATION_JSON) {
@@ -1313,10 +1309,7 @@ Future<http::Response> IOSwitchboardServerProcess::handler(
   } else if (contentType_.get() == APPLICATION_STREAMING_PROTOBUF) {
     contentType = ContentType::STREAMING_PROTOBUF;
   } else {
-    return http::UnsupportedMediaType(
-        string("Expecting 'Content-Type' of ") +
-        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF + " or " +
-        APPLICATION_STREAMING_JSON + " or " + APPLICATION_STREAMING_PROTOBUF);
+    LOG(FATAL) << "Unexpected 'Content-Type' header: " << contentType_.get();
   }
 
   ContentType acceptType;
@@ -1329,10 +1322,10 @@ Future<http::Response> IOSwitchboardServerProcess::handler(
   } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
     acceptType = ContentType::PROTOBUF;
   } else {
-    return http::NotAcceptable(
-        string("Expecting 'Accept' to allow ") +
-        APPLICATION_JSON + " or " + APPLICATION_PROTOBUF + " or " +
-        APPLICATION_STREAMING_JSON + " or "  + APPLICATION_STREAMING_PROTOBUF);
+    Option<string> acceptType_ = request.headers.get("Accept");
+    CHECK_SOME(acceptType_);
+
+    LOG(FATAL) << "Unexpected 'Accept' header: " << acceptType_.get();
   }
 
   CHECK_EQ(http::Request::PIPE, request.type);
