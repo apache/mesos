@@ -290,17 +290,47 @@ Future<vector<string>> RegistryPullerProcess::__pull(
     const spec::v2::ImageManifest& manifest,
     const hashset<string>& blobSums)
 {
+  // Docker reads the layer ids from the disk:
+  // https://github.com/docker/docker/blob/v1.13.0/layer/filestore.go#L310
+  //
+  // So the layer ids should be unique and ordered alphabetically.
+  // Then, docker loads each layer depending on the layer's
+  // `parent-child` relationship:
+  // https://github.com/docker/docker/blob/v1.13.0/layer/layer_store.go#L90
+  //
+  // In the registry puller, the vector of layer ids are collected
+  // differently (not relying on finding the parent from the base
+  // layer). All the layer ids are queued using the returned manifest
+  // , and rely on the fact that the `v1Compatibility::id` from the
+  // manifest are pre-sorted based on the `parent-child` relationship.
+  //
+  // Some self-built images may contain duplicate layers (e.g., [a, a,
+  // b, b, b, c] from the manifest) which will cause failures for some
+  // backends (e.g., Aufs). We should filter the layer ids to make
+  // sure ids are unique.
+  hashset<string> uniqueIds;
   vector<string> layerIds;
   list<Future<Nothing>> futures;
 
+  // The order of `fslayers` should be [child, parent, ...].
+  //
+  // The content in the parent will be overwritten by the child if
+  // there is a conflict. Therefore, backends expect the following
+  // order: [parent, child, ...].
   for (int i = 0; i < manifest.fslayers_size(); i++) {
     CHECK(manifest.history(i).has_v1());
     const spec::v1::ImageManifest& v1 = manifest.history(i).v1();
     const string& blobSum = manifest.fslayers(i).blobsum();
 
+    // Skip duplicate layer ids.
+    if (uniqueIds.contains(v1.id())) {
+      continue;
+    }
+
     // NOTE: We put parent layer ids in front because that's what the
     // provisioner backends assume.
     layerIds.insert(layerIds.begin(), v1.id());
+    uniqueIds.insert(v1.id());
 
     // Skip if the layer is already in the store.
     if (os::exists(
