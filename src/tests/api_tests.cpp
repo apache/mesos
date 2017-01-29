@@ -4600,6 +4600,126 @@ TEST_F(AgentAPITest, AttachContainerInputValidation)
 }
 
 
+// This test verifies that any missing headers or unsupported media
+// types in the request result in a 4xx response.
+TEST_F(AgentAPITest, HeaderValidation)
+{
+  Clock::pause();
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  StandaloneMasterDetector detector;
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+
+  ASSERT_SOME(slave);
+
+  // Wait for the agent to finish recovery.
+  AWAIT_READY(__recover);
+  Clock::settle();
+
+  // Missing 'Message-Content-Type' header for a streaming request.
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
+
+    call.mutable_attach_container_input()->set_type(
+        v1::agent::Call::AttachContainerInput::CONTAINER_ID);
+
+    ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
+        serialize, ContentType::PROTOBUF, lambda::_1));
+
+    Future<http::Response> response = http::post(
+        slave.get()->pid,
+        "api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        encoder.encode(call),
+        stringify(ContentType::RECORDIO));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::BadRequest().status, response);
+  }
+
+  // Unsupported 'Message-Content-Type' media type for a streaming request.
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
+
+    call.mutable_attach_container_input()->set_type(
+        v1::agent::Call::AttachContainerInput::CONTAINER_ID);
+
+    ::recordio::Encoder<v1::agent::Call> encoder(lambda::bind(
+        serialize, ContentType::PROTOBUF, lambda::_1));
+
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers[MESSAGE_CONTENT_TYPE] = "unsupported/media-type";
+
+    Future<http::Response> response = http::post(
+        slave.get()->pid,
+        "api/v1",
+        headers,
+        encoder.encode(call),
+        stringify(ContentType::RECORDIO));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::UnsupportedMediaType().status,
+                                    response);
+  }
+
+  // Unsupported 'Message-Accept' media type for a streaming response.
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::ATTACH_CONTAINER_OUTPUT);
+
+    v1::ContainerID containerId;
+    containerId.set_value(UUID::random().toString());
+
+    call.mutable_attach_container_output()->mutable_container_id()
+      ->CopyFrom(containerId);
+
+    ContentType contentType = ContentType::PROTOBUF;
+
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(ContentType::RECORDIO);
+    headers[MESSAGE_ACCEPT] = "unsupported/media-type";
+
+    Future<http::Response> response = http::post(
+        slave.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::NotAcceptable().status, response);
+  }
+
+  // Setting 'Message-Content-Type' header for a non-streaming request.
+  {
+    v1::ContainerID containerId;
+    containerId.set_value(UUID::random().toString());
+
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::ATTACH_CONTAINER_OUTPUT);
+
+    call.mutable_attach_container_output()->mutable_container_id()
+      ->CopyFrom(containerId);
+
+    ContentType contentType = ContentType::PROTOBUF;
+
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers[MESSAGE_CONTENT_TYPE] = stringify(ContentType::PROTOBUF);
+
+    Future<http::Response> response = http::streaming::post(
+        slave.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::UnsupportedMediaType().status,
+                                    response);
+  }
+}
+
+
 // This test verifies that the default 'Accept' for the
 // Agent API endpoint is `APPLICATION_JSON`.
 TEST_P(AgentAPITest, DefaultAccept)
