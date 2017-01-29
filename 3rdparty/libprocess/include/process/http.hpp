@@ -477,10 +477,25 @@ struct Request
   bool acceptsEncoding(const std::string& encoding) const;
 
   /**
-   * Returns whether the media type is considered acceptable in the
-   * response. See RFC 2616, section 14.1 for the details.
+   * Returns whether the media type in the "Accept" header  is considered
+   * acceptable in the response. See RFC 2616, section 14.1 for the details.
    */
   bool acceptsMediaType(const std::string& mediaType) const;
+
+  /**
+   * Returns whether the media type in the `name` header is considered
+   * acceptable in the response. The media type should have similar
+   * semantics as the "Accept" header. See RFC 2616, section 14.1 for
+   * the details.
+   */
+  bool acceptsMediaType(
+      const std::string& name,
+      const std::string& mediaType) const;
+
+private:
+  bool _acceptsMediaType(
+      Option<std::string> name,
+      const std::string& mediaType) const;
 };
 
 

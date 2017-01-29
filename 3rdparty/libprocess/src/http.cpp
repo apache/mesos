@@ -333,24 +333,38 @@ bool Request::acceptsEncoding(const string& encoding) const
 
 bool Request::acceptsMediaType(const string& mediaType) const
 {
+  return _acceptsMediaType(headers.get("Accept"), mediaType);
+}
+
+
+bool Request::acceptsMediaType(
+    const string& name,
+    const string& mediaType) const
+{
+  return _acceptsMediaType(headers.get(name), mediaType);
+}
+
+
+bool Request::_acceptsMediaType(
+    Option<string> name,
+    const string& mediaType) const
+{
   vector<string> mediaTypes = strings::tokenize(mediaType, "/");
 
   if (mediaTypes.size() != 2) {
     return false;
   }
 
-  Option<string> accept = headers.get("Accept");
-
-  // If no Accept header field is present, then it is assumed
+  // If no header field is present, then it is assumed
   // that the client accepts all media types.
-  if (accept.isNone()) {
+  if (name.isNone()) {
     return true;
   }
 
   // Remove spaces and tabs for easier parsing.
-  accept = strings::remove(accept.get(), " ");
-  accept = strings::remove(accept.get(), "\t");
-  accept = strings::remove(accept.get(), "\n");
+  name = strings::remove(name.get(), " ");
+  name = strings::remove(name.get(), "\t");
+  name = strings::remove(name.get(), "\n");
 
   // First match 'type/subtype', then 'type/*', then '*/*'.
   vector<string> candidates;
@@ -359,7 +373,7 @@ bool Request::acceptsMediaType(const string& mediaType) const
   candidates.push_back("*/*");
 
   foreach (const string& candidate, candidates) {
-    foreach (const string& type, strings::tokenize(accept.get(), ",")) {
+    foreach (const string& type, strings::tokenize(name.get(), ",")) {
       vector<string> tokens = strings::tokenize(type, ";");
 
       if (tokens.empty()) {
