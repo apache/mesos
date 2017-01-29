@@ -25,12 +25,18 @@ const char APPLICATION_PROTOBUF[] = "application/x-protobuf";
 const char APPLICATION_JSON[] = "application/json";
 
 
-// The content-types used for streaming requests.
-//
-// TODO(anand): These need to be revisited before calling
-// out any features that use them as _stable_.
-const char APPLICATION_STREAMING_PROTOBUF[] = "application/x-protobuf+recordio";
-const char APPLICATION_STREAMING_JSON[] = "application/json+recordio";
+// The content-type used for streaming requests/responses.
+const char APPLICATION_RECORDIO[] = "application/recordio";
+
+
+// The header used by the client/server to specify the content-type
+// of messages in a streaming request/response.
+const char MESSAGE_CONTENT_TYPE[] = "Message-Content-Type";
+
+
+// The header used by the client to specify acceptable content-type
+// of messages in a streaming response.
+const char MESSAGE_ACCEPT[] = "Message-Accept";
 
 
 // Possible content-types that can be used for requests to the Mesos HTTP API.
@@ -38,8 +44,7 @@ enum class ContentType
 {
   PROTOBUF,
   JSON,
-  STREAMING_PROTOBUF,
-  STREAMING_JSON
+  RECORDIO
 };
 
 

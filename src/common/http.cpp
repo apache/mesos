@@ -73,11 +73,8 @@ ostream& operator<<(ostream& stream, ContentType contentType)
     case ContentType::JSON: {
       return stream << APPLICATION_JSON;
     }
-    case ContentType::STREAMING_PROTOBUF: {
-      return stream << APPLICATION_STREAMING_PROTOBUF;
-    }
-    case ContentType::STREAMING_JSON: {
-      return stream << APPLICATION_STREAMING_JSON;
+    case ContentType::RECORDIO: {
+      return stream << APPLICATION_RECORDIO;
     }
   }
 
@@ -103,14 +100,15 @@ string serialize(
     const google::protobuf::Message& message)
 {
   switch (contentType) {
-    case ContentType::PROTOBUF:
-    case ContentType::STREAMING_PROTOBUF: {
+    case ContentType::PROTOBUF: {
       return message.SerializeAsString();
     }
-    case ContentType::JSON:
-    case ContentType::STREAMING_JSON: {
+    case ContentType::JSON: {
       JSON::Object object = JSON::protobuf(message);
       return stringify(object);
+    }
+    case ContentType::RECORDIO: {
+      LOG(FATAL) << "Serializing a RecordIO stream is not supported";
     }
   }
 
