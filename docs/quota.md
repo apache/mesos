@@ -175,7 +175,7 @@ The operator will receive one of the following HTTP response codes:
 <a name="statusRequest"></a>
 ### Status
 
-The operator can query the configured quotas by sending a HTTP GET request
+The operator can query the configured quotas by sending an HTTP GET request
 to the `/quota` endpoint.
 
      $ curl -X GET http://<master-ip>:<port>/quota
