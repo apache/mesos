@@ -219,6 +219,76 @@ TEST(AgentCallValidationTest, KillNestedContainer)
   EXPECT_NONE(error);
 }
 
+
+TEST(AgentCallValidationTest, LaunchNestedContainerSession)
+{
+  // Missing `launch_nested_container_session`.
+  agent::Call call;
+  call.set_type(agent::Call::LAUNCH_NESTED_CONTAINER_SESSION);
+
+  Option<Error> error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  // `container_id` is not valid.
+  ContainerID badContainerId;
+  badContainerId.set_value("no spaces allowed");
+
+  agent::Call::LaunchNestedContainerSession* launch =
+    call.mutable_launch_nested_container_session();
+
+  launch->mutable_container_id()->CopyFrom(badContainerId);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  // Valid `container_id` but missing `container_id.parent`.
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  launch->mutable_container_id()->CopyFrom(containerId);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  // Valid `container_id.parent` but invalid `command.environment`. Currently,
+  // `Environment.Variable.Value` must be set, but this constraint will be
+  // removed in a future version.
+  ContainerID parentContainerId;
+  parentContainerId.set_value(UUID::random().toString());
+
+  launch->mutable_container_id()->mutable_parent()->CopyFrom(parentContainerId);
+  launch->mutable_command()->CopyFrom(createCommandInfo("exit 0"));
+
+  Environment::Variable* variable = launch
+    ->mutable_command()
+    ->mutable_environment()
+    ->mutable_variables()
+    ->Add();
+  variable->set_name("ENV_VAR_KEY");
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+  EXPECT_EQ(
+      "'launch_nested_container_session.command' is invalid: Environment "
+      "variable 'ENV_VAR_KEY' must have a value set",
+      error->message);
+
+  // Test the valid case.
+  variable->set_value("env_var_value");
+  error = validation::agent::call::validate(call);
+  EXPECT_NONE(error);
+
+  // Any number of parents is valid.
+  ContainerID grandparentContainerId;
+  grandparentContainerId.set_value(UUID::random().toString());
+
+  launch->mutable_container_id()->mutable_parent()->mutable_parent()->CopyFrom(
+      grandparentContainerId);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_NONE(error);
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
