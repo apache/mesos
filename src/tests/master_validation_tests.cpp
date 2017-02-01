@@ -860,6 +860,65 @@ TEST_F(TaskValidationTest, ExecutorUsesInvalidFrameworkID)
 }
 
 
+// Verifies that an environment variable in `ExecutorInfo.command.environment`
+// without a value will be correctly rejected. This constraint will be removed
+// in a future version.
+TEST_F(TaskValidationTest, ExecutorEnvironmentVariableWithoutValue)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Create an executor.
+  ExecutorInfo executor;
+  executor = DEFAULT_EXECUTOR_INFO;
+  Environment::Variable* variable =
+    executor.mutable_command()->mutable_environment()
+        ->mutable_variables()->Add();
+  variable->set_name("ENV_VAR_KEY");
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(LaunchTasks(executor, 1, 1, 16, "*"))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.start();
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(
+      "Executor's `CommandInfo` is invalid: "
+      "Environment variable 'ENV_VAR_KEY' must have a value set",
+      status->message());
+
+  // Make sure the task is not known to master anymore.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  driver.reconcileTasks({});
+
+  // We settle the clock here to ensure any updates sent by the master
+  // are received. There shouldn't be any updates in this case.
+  Clock::pause();
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+}
+
+
 // The master should fill in the `ExecutorInfo.framework_id`
 // if it is not set by the framework.
 TEST_F(TaskValidationTest, ExecutorMissingFrameworkID)
@@ -1804,6 +1863,59 @@ TEST_F(TaskValidationTest, KillPolicyGracePeriodIsNonNegative)
   driver.join();
 }
 
+
+// This test verifies that a task containing an environment variable
+// with no value will be rejected correctly. Note that this constraint
+// will be removed in a future version.
+TEST_F(TaskValidationTest, TaskEnvironmentVariableWithoutValue)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  // Create a task that contains a `CommandInfo.Environment` with an
+  // unset environment variable value.
+  TaskInfo task = createTask(offers.get()[0], "exit 0"); // Command task.
+  Environment::Variable* variable =
+    task.mutable_command()->mutable_environment()->mutable_variables()->Add();
+  variable->set_name("ENV_VAR_KEY");
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(
+      "Task's `CommandInfo` is invalid: "
+      "Environment variable 'ENV_VAR_KEY' must have a value set",
+      status->message());
+
+  driver.stop();
+  driver.join();
+}
+
 // TODO(jieyu): Add tests for checking duplicated persistence ID
 // against offered resources.
 
@@ -2536,6 +2648,219 @@ TEST_F(TaskGroupValidationTest, TaskUsesDifferentExecutor)
   EXPECT_EQ(task2.task_id(), task2Status->task_id());
   EXPECT_EQ(TASK_ERROR, task2Status->state());
   EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task2Status->reason());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Ensures that a task group which specifies an invalid environment in
+// `ExecutorInfo` will be correctly rejected. Currently,
+// `Environment.Variable.Value` must be set, but this constraint will be removed
+// in a future version.
+TEST_F(TaskGroupValidationTest, ExecutorEnvironmentVariableWithoutValue)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.mutable_id()->set_value("Test_Framework");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task1;
+  task1.set_name("1");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task1.mutable_resources()->MergeFrom(offers.get()[0].resources());
+
+  TaskInfo task2;
+  task2.set_name("2");
+  task2.mutable_task_id()->set_value("2");
+  task2.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task2.mutable_resources()->MergeFrom(offers.get()[0].resources());
+
+  Future<TaskStatus> task1Status;
+  Future<TaskStatus> task2Status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&task1Status))
+    .WillOnce(FutureArg<1>(&task2Status));
+
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::LAUNCH_GROUP);
+
+  ExecutorInfo executor(DEFAULT_EXECUTOR_INFO);
+  executor.mutable_framework_id()->CopyFrom(frameworkInfo.id());
+  Environment::Variable* variable =
+    executor.mutable_command()->mutable_environment()
+        ->mutable_variables()->Add();
+  variable->set_name("ENV_VAR_KEY");
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
+
+  Offer::Operation::LaunchGroup* launchGroup =
+    operation.mutable_launch_group();
+
+  launchGroup->mutable_executor()->CopyFrom(executor);
+  launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+  driver.acceptOffers({offers.get()[0].id()}, {operation});
+
+  AWAIT_READY(task1Status);
+  EXPECT_EQ(TASK_ERROR, task1Status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task1Status->reason());
+  EXPECT_EQ(
+      "Executor's `CommandInfo` is invalid: "
+      "Environment variable 'ENV_VAR_KEY' must have a value set",
+      task1Status->message());
+
+  AWAIT_READY(task2Status);
+  EXPECT_EQ(TASK_ERROR, task2Status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task2Status->reason());
+  EXPECT_EQ(
+      "Executor's `CommandInfo` is invalid: "
+      "Environment variable 'ENV_VAR_KEY' must have a value set",
+      task2Status->message());
+
+  // Make sure the tasks are not known to master anymore.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  driver.reconcileTasks({});
+
+  // We settle the clock here to ensure any updates sent by the master
+  // are received. There shouldn't be any updates in this case.
+  Clock::pause();
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Ensures that a task group which specifies an invalid environment in
+// `TaskGroupInfo` will be correctly rejected. Currently,
+// `Environment.Variable.Value` must be set, but this constraint will be removed
+// in a future version.
+TEST_F(TaskGroupValidationTest, TaskEnvironmentVariableWithoutValue)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.mutable_id()->set_value("Test_Framework");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  TaskInfo task1;
+  task1.set_name("1");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task1.mutable_resources()->MergeFrom(offers.get()[0].resources());
+
+  Environment::Variable* variable =
+    task1.mutable_command()->mutable_environment()
+        ->mutable_variables()->Add();
+  variable->set_name("ENV_VAR_KEY");
+
+  TaskInfo task2;
+  task2.set_name("2");
+  task2.mutable_task_id()->set_value("2");
+  task2.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task2.mutable_resources()->MergeFrom(offers.get()[0].resources());
+
+  Future<TaskStatus> task1Status;
+  Future<TaskStatus> task2Status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&task1Status))
+    .WillOnce(FutureArg<1>(&task2Status));
+
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::LAUNCH_GROUP);
+
+  ExecutorInfo executor(DEFAULT_EXECUTOR_INFO);
+  executor.mutable_framework_id()->CopyFrom(frameworkInfo.id());
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
+
+  Offer::Operation::LaunchGroup* launchGroup =
+    operation.mutable_launch_group();
+
+  launchGroup->mutable_executor()->CopyFrom(executor);
+  launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+  driver.acceptOffers({offers.get()[0].id()}, {operation});
+
+  AWAIT_READY(task1Status);
+  EXPECT_EQ(TASK_ERROR, task1Status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task1Status->reason());
+  EXPECT_EQ(
+      "Task '1' is invalid: Task's `CommandInfo` is invalid: Environment "
+      "variable 'ENV_VAR_KEY' must have a value set",
+      task1Status->message());
+
+  AWAIT_READY(task2Status);
+  EXPECT_EQ(TASK_ERROR, task2Status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task2Status->reason());
+  EXPECT_EQ(
+      "Task '1' is invalid: Task's `CommandInfo` is invalid: Environment "
+      "variable 'ENV_VAR_KEY' must have a value set",
+      task2Status->message());
+
+  // Allow status updates to arrive.
+  Clock::pause();
+  Clock::settle();
+
+  // Make sure the tasks are not known to master anymore.
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(0);
+
+  driver.reconcileTasks({});
+
+  // We settle the clock here to ensure any updates sent by the master
+  // are received. There shouldn't be any updates in this case.
+  Clock::pause();
+  Clock::settle();
 
   driver.stop();
   driver.join();

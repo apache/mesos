@@ -28,6 +28,8 @@
 #include "slave/slave.hpp"
 #include "slave/validation.hpp"
 
+#include "tests/mesos.hpp"
+
 namespace validation = mesos::internal::slave::validation;
 
 using mesos::internal::slave::Slave;
@@ -114,12 +116,31 @@ TEST(AgentCallValidationTest, LaunchNestedContainer)
   error = validation::agent::call::validate(call);
   EXPECT_SOME(error);
 
-  // Test the valid case.
+  // Valid `container_id.parent` but invalid `command.environment`. Currently,
+  // `Environment.Variable.Value` must be set, but this constraint will be
+  // removed in a future version.
   ContainerID parentContainerId;
   parentContainerId.set_value(UUID::random().toString());
 
   launch->mutable_container_id()->mutable_parent()->CopyFrom(parentContainerId);
+  launch->mutable_command()->CopyFrom(createCommandInfo("exit 0"));
 
+  Environment::Variable* variable = launch
+    ->mutable_command()
+    ->mutable_environment()
+    ->mutable_variables()
+    ->Add();
+  variable->set_name("ENV_VAR_KEY");
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+  EXPECT_EQ(
+      "'launch_nested_container.command' is invalid: Environment variable "
+      "'ENV_VAR_KEY' must have a value set",
+      error->message);
+
+  // Test the valid case.
+  variable->set_value("env_var_value");
   error = validation::agent::call::validate(call);
   EXPECT_NONE(error);
 

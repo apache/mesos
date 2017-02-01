@@ -81,6 +81,28 @@ TEST_F(CheckTest, CheckInfoValidation)
     EXPECT_EQ("Command check must contain 'shell command'", validate->message);
   }
 
+  // Command check must specify a command with a valid environment. Currently,
+  // `Environment.Variable.Value` must be set, but this constraint will be
+  // removed in a future version.
+  {
+    CheckInfo checkInfo;
+    checkInfo.set_type(CheckInfo::COMMAND);
+    checkInfo.mutable_command()->CopyFrom(CheckInfo::Command());
+    checkInfo.mutable_command()->mutable_command()->CopyFrom(
+        createCommandInfo("exit 0"));
+
+    Option<Error> validate = validation::checkInfo(checkInfo);
+    EXPECT_NONE(validate);
+
+    Environment::Variable* variable =
+      checkInfo.mutable_command()->mutable_command()->mutable_environment()
+          ->mutable_variables()->Add();
+    variable->set_name("ENV_VAR_KEY");
+
+    validate = validation::checkInfo(checkInfo);
+    EXPECT_SOME(validate);
+  }
+
   // HTTP check may specify a path starting with '/'.
   {
     CheckInfo checkInfo;
