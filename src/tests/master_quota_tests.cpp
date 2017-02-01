@@ -1034,6 +1034,61 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
 //   * Master fails simultaneously with multiple agents, rendering the cluster
 //     under quota (total quota sanity check).
 
+// Checks that quota is recovered correctly after master failover if
+// the expected size of the cluster is zero.
+TEST_F(MasterQuotaTest, RecoverQuotaEmptyCluster)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  const bool FORCE = true;
+
+  Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
+
+  // Set quota.
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(ROLE1, quotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response->body;
+  }
+
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+
+  // Restart the master; configured quota should be recovered from the registry.
+  master->reset();
+  master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  // Delete quota.
+  {
+    Future<Nothing> receivedRemoveRequest;
+    EXPECT_CALL(allocator, removeQuota(Eq(ROLE1)))
+      .WillOnce(DoAll(InvokeRemoveQuota(&allocator),
+                      FutureSatisfy(&receivedRemoveRequest)));
+
+    Future<Response> response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + ROLE1,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    // Quota request succeeds and reaches the allocator.
+    AWAIT_READY(receivedRemoveRequest);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response->body;
+  }
+}
+
 
 // These tests verify the authentication and authorization of quota requests.
 
