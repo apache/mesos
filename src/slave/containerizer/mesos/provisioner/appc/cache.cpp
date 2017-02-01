@@ -169,11 +169,7 @@ size_t Cache::KeyHasher::operator()(const Cache::Key& key) const
   size_t seed = 0;
 
   boost::hash_combine(seed, key.name);
-
-  foreachpair (const string& name, const string& value, key.labels) {
-    boost::hash_combine(seed, name);
-    boost::hash_combine(seed, value);
-  }
+  boost::hash_combine(seed, key.labels);
 
   return seed;
 }
