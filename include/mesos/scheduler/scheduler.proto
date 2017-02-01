@@ -337,7 +337,7 @@ message Call {
   // the master will send the latest status for each task currently
   // known.
   message Reconcile {
-   // TODO(vinod): Support arbitrary queries than just state of tasks.
+    // TODO(vinod): Support arbitrary queries than just state of tasks.
     message Task {
       required TaskID task_id = 1;
       optional SlaveID slave_id = 2;
