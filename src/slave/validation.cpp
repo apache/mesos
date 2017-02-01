@@ -170,6 +170,15 @@ Option<Error> validate(
                      " to be present");
       }
 
+      if (call.launch_nested_container().has_command()) {
+        error = common::validation::validateCommandInfo(
+            call.launch_nested_container().command());
+        if (error.isSome()) {
+          return Error("'launch_nested_container.command' is invalid"
+                       ": " + error->message);
+        }
+      }
+
       return None();
     }
 
@@ -237,6 +246,15 @@ Option<Error> validate(
         return Error(
             "Expecting 'launch_nested_container_session.container_id.parent'"
             " to be present");
+      }
+
+      if (call.launch_nested_container_session().has_command()) {
+        error = common::validation::validateCommandInfo(
+            call.launch_nested_container_session().command());
+        if (error.isSome()) {
+          return Error("'launch_nested_container_session.command' is invalid"
+                       ": " + error->message);
+        }
       }
 
       return None();

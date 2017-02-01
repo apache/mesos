@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <cctype>
 
+#include <stout/foreach.hpp>
+
 #include <stout/os/constants.hpp>
 
 using std::string;
@@ -75,6 +77,26 @@ Option<Error> validateSlaveID(const SlaveID& slaveId)
 Option<Error> validateFrameworkID(const FrameworkID& frameworkId)
 {
   return validateID(frameworkId.value());
+}
+
+
+// TODO(greggomann): Do more than just validate the `Environment`.
+Option<Error> validateCommandInfo(const CommandInfo& command)
+{
+  // In Mesos 1.2, the `Environment.Variable.Value` message was made
+  // optional, but it is currently required to be set for backward
+  // compatibility. This constraint will be removed in a future
+  // version.
+  foreach (const Environment::Variable& variable,
+           command.environment().variables()) {
+    if (!variable.has_value()) {
+      return Error(
+          "Environment variable '" + variable.name() +
+          "' must have a value set");
+    }
+  }
+
+  return None();
 }
 
 } // namespace validation {

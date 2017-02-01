@@ -50,6 +50,7 @@
 #include <stout/os/killtree.hpp>
 
 #include "common/status_utils.hpp"
+#include "common/validation.hpp"
 
 #ifdef __linux__
 #include "linux/ns.hpp"
@@ -680,6 +681,13 @@ Option<Error> healthCheck(const HealthCheck& check)
           (command.shell() ? "'shell command'" : "'executable path'");
 
         return Error("Command health check must contain " + commandType);
+      }
+
+      Option<Error> error =
+        common::validation::validateCommandInfo(command);
+      if (error.isSome()) {
+        return Error(
+            "Health check's `CommandInfo` is invalid: " + error->message);
       }
 
       break;

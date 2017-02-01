@@ -1897,7 +1897,10 @@ message Filters {
 message Environment {
   message Variable {
     required string name = 1;
-    required string value = 2;
+    // NOTE: The `value` field was made optional in Mesos 1.2 but it
+    // is currently enforced to be set. This constraint will be
+    // removed in a future version.
+    optional string value = 2;
   }
 
   repeated Variable variables = 1;

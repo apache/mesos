@@ -22,6 +22,8 @@
 
 #include <stout/strings.hpp>
 
+#include "common/validation.hpp"
+
 using std::string;
 
 namespace mesos {
@@ -49,6 +51,13 @@ Option<Error> checkInfo(const CheckInfo& checkInfo)
           (command.shell() ? "'shell command'" : "'executable path'");
 
         return Error("Command check must contain " + commandType);
+      }
+
+      Option<Error> error =
+        common::validation::validateCommandInfo(command);
+      if (error.isSome()) {
+        return Error(
+            "Check's `CommandInfo` is invalid: " + error->message);
       }
 
       // TODO(alexr): Make sure irrelevant fields, e.g., `uris` are not set.

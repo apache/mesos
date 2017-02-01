@@ -744,6 +744,21 @@ Option<Error> validateResources(const ExecutorInfo& executor)
 }
 
 
+// Validates the `CommandInfo` contained within an `ExecutorInfo`.
+Option<Error> validateCommandInfo(const ExecutorInfo& executor)
+{
+  if (executor.has_command()) {
+    Option<Error> error =
+      common::validation::validateCommandInfo(executor.command());
+    if (error.isSome()) {
+      return Error("Executor's `CommandInfo` is invalid: " + error->message);
+    }
+  }
+
+  return None();
+}
+
+
 Option<Error> validate(
     const ExecutorInfo& executor,
     Framework* framework,
@@ -759,7 +774,8 @@ Option<Error> validate(
     lambda::bind(internal::validateShutdownGracePeriod, executor),
     lambda::bind(internal::validateResources, executor),
     lambda::bind(
-        internal::validateCompatibleExecutorInfo, executor, framework, slave)
+        internal::validateCompatibleExecutorInfo, executor, framework, slave),
+    lambda::bind(internal::validateCommandInfo, executor)
   };
 
   foreach (const lambda::function<Option<Error>()>& validator, validators) {
@@ -919,6 +935,21 @@ Option<Error> validateTaskAndExecutorResources(const TaskInfo& task)
 }
 
 
+// Validates the `CommandInfo` contained within a `TaskInfo`.
+Option<Error> validateCommandInfo(const TaskInfo& task)
+{
+  if (task.has_command()) {
+    Option<Error> error =
+      common::validation::validateCommandInfo(task.command());
+    if (error.isSome()) {
+      return Error("Task's `CommandInfo` is invalid: " + error->message);
+    }
+  }
+
+  return None();
+}
+
+
 // Validates task specific fields except its executor (if it exists).
 Option<Error> validateTask(
     const TaskInfo& task,
@@ -937,10 +968,9 @@ Option<Error> validateTask(
     lambda::bind(internal::validateKillPolicy, task),
     lambda::bind(internal::validateCheck, task),
     lambda::bind(internal::validateHealthCheck, task),
-    lambda::bind(internal::validateResources, task)
+    lambda::bind(internal::validateResources, task),
+    lambda::bind(internal::validateCommandInfo, task)
   };
-
-  // TODO(jieyu): Add a validateCommandInfo function.
 
   foreach (const lambda::function<Option<Error>()>& validator, validators) {
     Option<Error> error = validator();
@@ -1245,6 +1275,16 @@ Option<Error> validateExecutor(
     return Error(
         "Total resources " + stringify(total) + " required by task group and"
         " its executor are more than available " + stringify(offered));
+  }
+
+  if (executor.has_command()) {
+    Option<Error> error =
+      common::validation::validateCommandInfo(executor.command());
+    if (error.isSome()) {
+      return Error(
+          "Executor '" + stringify(executor.executor_id()) + "'" +
+          "contains an invalid command: " + error->message);
+    }
   }
 
   return None();
