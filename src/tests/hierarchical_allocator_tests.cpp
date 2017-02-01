@@ -2776,6 +2776,9 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
   // framework's redundant REVIVE calls.
   allocator->reviveOffers(framework.id());
 
+  // Settle to ensure that the dispatched allocation is executed.
+  Clock::settle();
+
   // Nothing is allocated because of no additional resources.
   allocation = allocations.get();
   EXPECT_TRUE(allocation.isPending());
@@ -2923,13 +2926,20 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HierarchicalAllocatorTest, AllocationRunsMetric)
 
   SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
   allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
+
+  // Wait for the allocation triggered from `addSlave()` to complete.
+  // Otherwise `addFramework()` below may not trigger a new allocation
+  // because the allocator batches them.
+  Clock::settle();
+
   ++allocations; // Adding an agent triggers allocations.
 
   FrameworkInfo framework = createFrameworkInfo("role");
   allocator->addFramework(framework.id(), framework, {}, true);
-  ++allocations; // Adding a framework triggers allocations.
 
   Clock::settle();
+
+  ++allocations; // Adding a framework triggers allocations.
 
   expected.values = { {"allocator/mesos/allocation_runs", allocations} };
 
@@ -2981,10 +2991,16 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
   allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
 
+  // Due to the batching of allocation work, wait for the `allocate()`
+  // call and subsequent work triggered by `addSlave()` to complete.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
   FrameworkInfo framework = createFrameworkInfo("role1");
   allocator->addFramework(framework.id(), framework, {}, true);
 
-  // Wait for the allocation to complete.
+  // Wait for the allocation triggered by `addFramework()` to complete.
   AWAIT_READY(allocations.get());
 
   // Ensure the timer has been stopped so that
@@ -3326,6 +3342,15 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
   // framework running so far.
   FrameworkInfo framework1 = createFrameworkInfo("role1");
   allocator->addFramework(framework1.id(), framework1, {}, true);
+
+  // Wait for the allocation triggered from `addFramework(framework1)`
+  // to complete. Otherwise due to a race between `addFramework(framework2)`
+  // and the next allocation (because it's run asynchronously), framework2
+  // may or may not be allocated resources. For simplicity here we give
+  // all resources to framework1 as all we wanted to achieve in this step
+  // is to recover all resources to set up the allocator for the next batch
+  // allocation.
+  Clock::settle();
 
   // Framework2 registers with 'role2' which also uses the default weight.
   // It will not get any offers due to all resources having outstanding offers
@@ -3734,10 +3759,12 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
 
   watch.stop();
 
-  ASSERT_EQ(slaveCount, offerCallbacks.load());
+  cout << "Added " << slaveCount << " agents in " << watch.elapsed()
+       << "; performed " << offerCallbacks.load() << " allocations" << endl;
 
-  cout << "Added " << slaveCount << " agents"
-       << " in " << watch.elapsed() << endl;
+  // Reset `offerCallbacks` to 0 to record allocations
+  // for the `updateSlave` operations.
+  offerCallbacks = 0;
 
   // Oversubscribed resources on each slave.
   Resource oversubscribed = Resources::parse("cpus", "10", "*").get();
@@ -3754,9 +3781,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
 
   watch.stop();
 
-  ASSERT_EQ(slaveCount * 2, offerCallbacks.load());
-
-  cout << "Updated " << slaveCount << " agents in " << watch.elapsed() << endl;
+  cout << "Updated " << slaveCount << " agents" << " in " << watch.elapsed()
+       << " performing " << offerCallbacks.load() << " allocations" << endl;
 }
 
 
