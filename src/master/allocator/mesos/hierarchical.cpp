@@ -931,7 +931,7 @@ void HierarchicalAllocatorProcess::updateInverseOffer(
       .inverseOfferFilters[slaveId].insert(inverseOfferFilter);
 
     // We need to disambiguate the function call to pick the correct
-    // expire() overload.
+    // `expire()` overload.
     void (Self::*expireInverseOffer)(
              const FrameworkID&,
              const SlaveID&,
@@ -1055,21 +1055,25 @@ void HierarchicalAllocatorProcess::recoverResources(
     OfferFilter* offerFilter = new RefusedOfferFilter(resources);
     frameworks[frameworkId].offerFilters[slaveId].insert(offerFilter);
 
-    // We need to disambiguate the function call to pick the correct
-    // expire() overload.
-    void (Self::*expireOffer)(
-              const FrameworkID&,
-              const SlaveID&,
-              OfferFilter*) = &Self::expire;
-
     // Expire the filter after both an `allocationInterval` and the
     // `timeout` have elapsed. This ensures that the filter does not
     // expire before we perform the next allocation for this agent,
     // see MESOS-4302 for more information.
     //
+    // Because the next batched allocation goes through a dispatch
+    // after `allocationInterval`, we do the same for `expire()`
+    // (with a hepler `_expire()`) to achieve the above.
+    //
     // TODO(alexr): If we allocated upon resource recovery
     // (MESOS-3078), we would not need to increase the timeout here.
     timeout = std::max(allocationInterval, timeout.get());
+
+    // We need to disambiguate the function call to pick the correct
+    // `expire()` overload.
+    void (Self::*expireOffer)(
+              const FrameworkID&,
+              const SlaveID&,
+              OfferFilter*) = &Self::expire;
 
     delay(timeout.get(),
           self(),
@@ -1789,7 +1793,7 @@ void HierarchicalAllocatorProcess::deallocate()
 }
 
 
-void HierarchicalAllocatorProcess::expire(
+void HierarchicalAllocatorProcess::_expire(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     OfferFilter* offerFilter)
@@ -1809,6 +1813,20 @@ void HierarchicalAllocatorProcess::expire(
   }
 
   delete offerFilter;
+}
+
+
+void HierarchicalAllocatorProcess::expire(
+    const FrameworkID& frameworkId,
+    const SlaveID& slaveId,
+    OfferFilter* offerFilter)
+{
+  dispatch(
+      self(),
+      &Self::_expire,
+      frameworkId,
+      slaveId,
+      offerFilter);
 }
 
 

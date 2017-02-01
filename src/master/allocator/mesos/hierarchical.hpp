@@ -239,6 +239,11 @@ protected:
       const SlaveID& slaveId,
       OfferFilter* offerFilter);
 
+  void _expire(
+      const FrameworkID& frameworkId,
+      const SlaveID& slaveId,
+      OfferFilter* offerFilter);
+
   // Remove an inverse offer filter for the specified framework.
   void expire(
       const FrameworkID& frameworkId,
