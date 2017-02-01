@@ -34,6 +34,7 @@
 #include <process/gmock.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
+#include <process/queue.hpp>
 
 #include <stout/some.hpp>
 #include <stout/strings.hpp>
@@ -66,6 +67,7 @@ using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
+using process::Queue;
 
 using process::http::OK;
 using process::http::Response;
@@ -1670,12 +1672,16 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   EXPECT_CALL(sched2, registered(&driver2, _, _))
     .WillOnce(FutureSatisfy(&registered2));
 
-  Future<vector<Offer>> framework2offers;
+  Queue<Offer> framework2offers;
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
-    .WillOnce(FutureArg<1>(&framework2offers));
+    .WillRepeatedly(EnqueueOffers(&framework2offers));
 
   driver2.start();
   AWAIT_READY(registered2);
+
+  // Settle to make sure the dispatched allocation is executed before
+  // the weights are updated.
+  Clock::settle();
 
   // role1 share = 1 (cpus=6, mem=3072)
   //   framework1 share = 1
@@ -1722,8 +1728,12 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   EXPECT_EQ(recoverResources3.get(),
             Resources::parse(agentResources).get());
 
-  // Trigger a batch allocation.
+  // Trigger a batch allocation to make sure all resources are
+  // offered out again.
   Clock::advance(masterFlags.allocation_interval);
+
+  // Settle to make sure all offers are received.
+  Clock::settle();
 
   // role1 share = 0.33 (cpus=2, mem=1024)
   //   framework1 share = 1
@@ -1735,10 +1745,13 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   EXPECT_EQ(Resources(framework1offers2.get()[0].resources()),
             Resources::parse(agentResources).get());
 
-  AWAIT_READY(framework2offers);
-  ASSERT_EQ(2u, framework2offers.get().size());
+  ASSERT_EQ(2u, framework2offers.size());
   for (int i = 0; i < 2; i++) {
-    EXPECT_EQ(Resources(framework2offers.get()[i].resources()),
+    Future<Offer> offer = framework2offers.get();
+
+    // All offers for framework2 are enqueued by now.
+    AWAIT_READY(offer);
+    EXPECT_EQ(Resources(offer->resources()),
               Resources::parse(agentResources).get());
   }
 
