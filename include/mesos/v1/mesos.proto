@@ -414,8 +414,8 @@ message CheckInfo {
   optional Http http = 3;
 
   // Amount of time to wait to start checking the task after it
-  // transitions to `TASK_RUNNING` or `TASK_STATING` if the latter is
-  // used by the executor.
+  // transitions to `TASK_RUNNING` or `TASK_STARTING` if the latter
+  // is used by the executor.
   optional double delay_seconds = 4 [default = 15.0];
 
   // Interval between check attempts, i.e., amount of time to wait after
