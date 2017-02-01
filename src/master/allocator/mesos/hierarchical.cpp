@@ -24,8 +24,9 @@
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
-#include <process/event.hpp>
 #include <process/delay.hpp>
+#include <process/dispatch.hpp>
+#include <process/event.hpp>
 #include <process/id.hpp>
 #include <process/timeout.hpp>
 
@@ -501,6 +502,7 @@ void HierarchicalAllocatorProcess::removeSlave(
   quotaRoleSorter->remove(slaveId, slaves[slaveId].total.nonRevocable());
 
   slaves.erase(slaveId);
+  allocationCandidates.erase(slaveId);
 
   // Note that we DO NOT actually delete any filters associated with
   // this slave, that will occur when the delayed
@@ -1165,8 +1167,6 @@ void HierarchicalAllocatorProcess::setQuota(
   LOG(INFO) << "Set quota " << quota.info.guarantee() << " for role '" << role
             << "'";
 
-  // Trigger the allocation explicitly in order to promptly react to the
-  // operator's request.
   allocate();
 }
 
@@ -1190,8 +1190,6 @@ void HierarchicalAllocatorProcess::removeQuota(
 
   metrics.removeQuota(role);
 
-  // Trigger the allocation explicitly in order to promptly react to the
-  // operator's request.
   allocate();
 }
 
@@ -1223,9 +1221,8 @@ void HierarchicalAllocatorProcess::updateWeights(
     }
   }
 
-  // If at least one of the updated roles has registered frameworks,
-  // then trigger the allocation explicitly in order to promptly
-  // react to the operator's request.
+  // If at least one of the updated roles has registered
+  // frameworks, then trigger the allocation.
   if (rebalance) {
     allocate();
   }
@@ -1254,62 +1251,83 @@ void HierarchicalAllocatorProcess::resume()
 
 void HierarchicalAllocatorProcess::batch()
 {
-  allocate();
-  delay(allocationInterval, self(), &Self::batch);
+  auto pid = self();
+
+  allocate()
+    .onAny([pid, this]() {
+      delay(allocationInterval, pid, &Self::batch);
+    });
 }
 
 
-void HierarchicalAllocatorProcess::allocate()
+Future<Nothing> HierarchicalAllocatorProcess::allocate()
 {
-  if (paused) {
-    VLOG(1) << "Skipped allocation because the allocator is paused";
-
-    return;
-  }
-
-  Stopwatch stopwatch;
-  stopwatch.start();
-
-  metrics.allocation_run.start();
-
-  allocate(slaves.keys());
-
-  metrics.allocation_run.stop();
-
-  VLOG(1) << "Performed allocation for " << slaves.size() << " agents in "
-            << stopwatch.elapsed();
+  return allocate(slaves.keys());
 }
 
 
-void HierarchicalAllocatorProcess::allocate(
+Future<Nothing> HierarchicalAllocatorProcess::allocate(
     const SlaveID& slaveId)
 {
+  hashset<SlaveID> slaves({slaveId});
+  return allocate(slaves);
+}
+
+
+Future<Nothing> HierarchicalAllocatorProcess::allocate(
+    const hashset<SlaveID>& slaveIds)
+{
   if (paused) {
     VLOG(1) << "Skipped allocation because the allocator is paused";
 
-    return;
+    return Nothing();
   }
+
+  allocationCandidates |= slaveIds;
+
+  if (allocation.isNone() || !allocation->isPending()) {
+    allocation = dispatch(self(), &Self::_allocate);
+  }
+
+  return allocation.get();
+}
+
+
+Nothing HierarchicalAllocatorProcess::_allocate() {
+  if (paused) {
+    VLOG(1) << "Skipped allocation because the allocator is paused";
+
+    return Nothing();
+  }
+
+  ++metrics.allocation_runs;
 
   Stopwatch stopwatch;
   stopwatch.start();
   metrics.allocation_run.start();
 
-  hashset<SlaveID> slaves({slaveId});
-  allocate(slaves);
+  __allocate();
+
+  // NOTE: For now, we implement maintenance inverse offers within the
+  // allocator. We leverage the existing timer/cycle of offers to also do any
+  // "deallocation" (inverse offers) necessary to satisfy maintenance needs.
+  deallocate();
 
   metrics.allocation_run.stop();
 
-  VLOG(1) << "Performed allocation for agent " << slaveId << " in "
-          << stopwatch.elapsed();
+  VLOG(1) << "Performed allocation for " << allocationCandidates.size()
+          << " agents in " << stopwatch.elapsed();
+
+  // Clear the candidates on completion of the allocation run.
+  allocationCandidates.clear();
+
+  return Nothing();
 }
 
 
 // TODO(alexr): Consider factoring out the quota allocation logic.
-void HierarchicalAllocatorProcess::allocate(
-    const hashset<SlaveID>& slaveIds_)
+void HierarchicalAllocatorProcess::__allocate()
 {
-  ++metrics.allocation_runs;
-
   // Compute the offerable resources, per framework:
   //   (1) For reserved resources on the slave, allocate these to a
   //       framework having the corresponding role.
@@ -1317,16 +1335,16 @@ void HierarchicalAllocatorProcess::allocate(
   //       to a framework of any role.
   hashmap<FrameworkID, hashmap<SlaveID, Resources>> offerable;
 
-  // NOTE: This function can operate on a small subset of slaves, we have to
-  // make sure that we don't assume cluster knowledge when summing resources
-  // from that set.
+  // NOTE: This function can operate on a small subset of
+  // `allocationCandidates`, we have to make sure that we don't
+  // assume cluster knowledge when summing resources from that set.
 
   vector<SlaveID> slaveIds;
-  slaveIds.reserve(slaveIds_.size());
+  slaveIds.reserve(allocationCandidates.size());
 
   // Filter out non-whitelisted and deactivated slaves in order not to send
   // offers for them.
-  foreach (const SlaveID& slaveId, slaveIds_) {
+  foreach (const SlaveID& slaveId, allocationCandidates) {
     if (isWhitelisted(slaveId) && slaves[slaveId].activated) {
       slaveIds.push_back(slaveId);
     }
@@ -1679,16 +1697,10 @@ void HierarchicalAllocatorProcess::allocate(
       offerCallback(frameworkId, offerable[frameworkId]);
     }
   }
-
-  // NOTE: For now, we implement maintenance inverse offers within the
-  // allocator. We leverage the existing timer/cycle of offers to also do any
-  // "deallocation" (inverse offers) necessary to satisfy maintenance needs.
-  deallocate(slaveIds_);
 }
 
 
-void HierarchicalAllocatorProcess::deallocate(
-    const hashset<SlaveID>& slaveIds_)
+void HierarchicalAllocatorProcess::deallocate()
 {
   // If no frameworks are currently registered, no work to do.
   if (activeRoles.empty()) {
@@ -1712,7 +1724,7 @@ void HierarchicalAllocatorProcess::deallocate(
   // responded yet.
 
   foreachvalue (const Owned<Sorter>& frameworkSorter, frameworkSorters) {
-    foreach (const SlaveID& slaveId, slaveIds_) {
+    foreach (const SlaveID& slaveId, allocationCandidates) {
       CHECK(slaves.contains(slaveId));
 
       if (slaves[slaveId].maintenance.isSome()) {
