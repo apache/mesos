@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -50,6 +51,7 @@ using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
 
+using mesos::quota::QuotaInfo;
 using mesos::quota::QuotaRequest;
 using mesos::quota::QuotaStatus;
 
@@ -64,6 +66,7 @@ using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
 
+using std::map;
 using std::string;
 using std::vector;
 
@@ -1472,6 +1475,358 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequestsWithoutPrincipal)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
       << response->body;
+  }
+}
+
+
+// This test checks that quota can be successfully set, queried, and
+// removed on a child role.
+TEST_F(MasterQuotaTest, ChildRole)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  const bool FORCE = true;
+
+  const string PARENT_ROLE = "eng";
+  const string CHILD_ROLE = "eng/dev";
+
+  // Set quota for the parent role.
+  Resources parentQuotaResources = Resources::parse("cpus:2;mem:1024").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(PARENT_ROLE, parentQuotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response->body;
+  }
+
+  // Set quota for the child role.
+  Resources childQuotaResources = Resources::parse("cpus:1;mem:768").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(CHILD_ROLE, childQuotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response->body;
+  }
+
+  // Query the configured quota.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "quota",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response->body;
+
+    EXPECT_SOME_EQ(
+        "application/json",
+        response->headers.get("Content-Type"));
+
+    const Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+
+    ASSERT_SOME(parse);
+
+    // Convert JSON response to `QuotaStatus` protobuf.
+    const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
+    ASSERT_FALSE(status.isError());
+    ASSERT_EQ(2, status->infos().size());
+
+    // Don't assume that the quota for child and parent are returned
+    // in any particular order.
+    map<string, Resources> expected = {{PARENT_ROLE, parentQuotaResources},
+                                       {CHILD_ROLE, childQuotaResources}};
+
+    map<string, Resources> actual = {
+      {status->infos(0).role(), status->infos(0).guarantee()},
+      {status->infos(1).role(), status->infos(1).guarantee()}
+    };
+
+    EXPECT_EQ(expected, actual);
+  }
+
+  // Remove quota for the child role.
+  {
+    Future<Response> response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + CHILD_ROLE,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response->body;
+  }
+}
+
+
+// This test checks that attempting to set quota on a child role is
+// rejected if the child's parent does not have quota set.
+TEST_F(MasterQuotaTest, ChildRoleWithNoParentQuota)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  const bool FORCE = true;
+
+  const string CHILD_ROLE = "eng/dev";
+
+  // Set quota for the child role.
+  Resources childQuotaResources = Resources::parse("cpus:1;mem:768").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(CHILD_ROLE, childQuotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+      << response->body;
+  }
+}
+
+
+// This test checks that a request to set quota for a child role is
+// rejected if it exceeds the parent role's quota.
+TEST_F(MasterQuotaTest, ChildRoleExceedsParentQuota)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  const bool FORCE = true;
+
+  const string PARENT_ROLE = "eng";
+  const string CHILD_ROLE = "eng/dev";
+
+  // Set quota for the parent role.
+  Resources parentQuotaResources = Resources::parse("cpus:2;mem:768").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(PARENT_ROLE, parentQuotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response->body;
+  }
+
+  // Attempt to set quota for the child role. Because the child role's
+  // quota exceeds the parent role's quota, this should not succeed.
+  Resources childQuotaResources = Resources::parse("cpus:1;mem:1024").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(CHILD_ROLE, childQuotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+      << response->body;
+  }
+}
+
+
+// This test checks that a request to set quota for a child role is
+// rejected if it would result in the parent role's quota being
+// smaller than the sum of the quota of its children.
+TEST_F(MasterQuotaTest, ChildRoleSumExceedsParentQuota)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  const bool FORCE = true;
+
+  const string PARENT_ROLE = "eng";
+  const string CHILD_ROLE1 = "eng/dev";
+  const string CHILD_ROLE2 = "eng/prod";
+
+  // Set quota for the parent role.
+  Resources parentQuotaResources = Resources::parse("cpus:2;mem:768").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(PARENT_ROLE, parentQuotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response->body;
+  }
+
+  // Set quota for the first child role. This should succeed.
+  Resources childQuotaResources = Resources::parse("cpus:1;mem:512").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(CHILD_ROLE1, childQuotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response->body;
+  }
+
+  // Attempt to set quota for the second child role. This should fail,
+  // because the sum of the quotas of the children of PARENT_ROLE
+  // would now exceed the quota of PARENT_ROLE.
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(CHILD_ROLE2, childQuotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+      << response->body;
+  }
+}
+
+
+// This test checks that a request to delete quota for a parent role
+// is rejected since this would result in the child role's quota
+// exceeding the parent role's quota.
+TEST_F(MasterQuotaTest, ChildRoleDeleteParentQuota)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  const bool FORCE = true;
+
+  const string PARENT_ROLE = "eng";
+  const string CHILD_ROLE = "eng/dev";
+
+  // Set quota for the parent role.
+  Resources parentQuotaResources = Resources::parse("cpus:2;mem:1024").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(PARENT_ROLE, parentQuotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response->body;
+  }
+
+  // Set quota for the child role.
+  Resources childQuotaResources = Resources::parse("cpus:1;mem:512").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(CHILD_ROLE, childQuotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response->body;
+  }
+
+  // Attempt to remove the quota for the parent role. This should not
+  // succeed.
+  {
+    Future<Response> response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + PARENT_ROLE,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
+      << response->body;
+  }
+}
+
+
+// This test checks that the cluster capacity heuristic correctly
+// interprets quota set on hierarchical roles. Specifically, quota on
+// child roles should not be double-counted with the quota on the
+// child's parent role. In other words, the total quota'd resources in
+// the cluster is the sum of the quota on the top-level roles.
+TEST_F(MasterQuotaTest, ClusterCapacityWithNestedRoles)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  // Start an agent and wait until its resources are available.
+  Future<Resources> agentTotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<4>(&agentTotalResources)));
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(agentTotalResources);
+  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
+
+  const string PARENT_ROLE1 = "eng";
+  const string PARENT_ROLE2 = "sales";
+  const string CHILD_ROLE = "eng/dev";
+
+  // Set quota for the first parent role.
+  Resources parent1QuotaResources = Resources::parse("cpus:1;mem:768").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(PARENT_ROLE1, parent1QuotaResources));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response->body;
+  }
+
+  // Set quota for the child role. This should succeed, even though
+  // naively summing the parent and child quota would result in
+  // violating the cluster capacity heuristic.
+  Resources childQuotaResources = Resources::parse("cpus:1;mem:512").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(CHILD_ROLE, childQuotaResources));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response->body;
+  }
+
+  // Set quota for the second parent role. This should succeed, even
+  // though naively summing the quota of the subtree rooted at
+  // PARENT_ROLE1 would violate the cluster capacity check.
+  Resources parent2QuotaResources = Resources::parse("cpus:1;mem:256").get();
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(PARENT_ROLE2, parent2QuotaResources));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response->body;
   }
 }
 

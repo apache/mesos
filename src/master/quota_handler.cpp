@@ -16,6 +16,7 @@
 
 #include "master/master.hpp"
 
+#include <memory>
 #include <list>
 #include <vector>
 
@@ -63,11 +64,127 @@ using process::http::authentication::Principal;
 
 using std::list;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace mesos {
 namespace internal {
 namespace master {
+
+// Represents the tree of roles that have quota. The quota of a child
+// node is "contained" in the quota of its parent node. This has two
+// implications:
+//
+//   (1) The quota of a parent must be greater than or equal to the
+//       sum of the quota of its children.
+//
+//   (2) When computing the total resources guaranteed by quota, we
+//       don't want to double-count resource guarantees between a
+//       parent role and its children.
+class QuotaTree
+{
+public:
+  QuotaTree(const hashmap<string, Quota>& quotas)
+    : root(new Node(""))
+  {
+    foreachpair (const string& role, const Quota& quota, quotas) {
+      insert(role, quota);
+    }
+  }
+
+  void insert(const string& role, const Quota& quota)
+  {
+    // Create the path from root->leaf in the tree. Any missing nodes
+    // are created implicitly.
+    vector<string> components = strings::tokenize(role, "/");
+    CHECK(!components.empty());
+
+    Node* current = root.get();
+    foreach (const string& component, components) {
+      if (!current->children.contains(component)) {
+        current->children[component] = unique_ptr<Node>(new Node(component));
+      }
+
+      current = current->children.at(component).get();
+    }
+
+    // Update `current` with the guaranteed quota resources for this
+    // role. A path in the tree should be associated with at most one
+    // quota guarantee, so the current guarantee should be empty.
+    CHECK(current->quota.info.guarantee().empty());
+    current->quota = quota;
+  }
+
+  // Check whether the tree satisfies the "parent >= sum(children)"
+  // constraint described above.
+  Option<Error> validate() const
+  {
+    // Don't check the root node because it does not have quota set.
+    foreachvalue (const unique_ptr<Node>& child, root->children) {
+      Option<Error> error = child->validate();
+      if (error.isSome()) {
+        return error;
+      }
+    }
+
+    return None();
+  }
+
+  // Returns the total resources requested by all quotas in the
+  // tree. Since a role's quota must be greater than or equal to the
+  // sum of the quota of its children, we can just sum the quota of
+  // the top-level roles.
+  Resources total() const
+  {
+    Resources result;
+
+    // Don't include the root node because it does not have quota set.
+    foreachvalue (const unique_ptr<Node>& child, root->children) {
+      result += child->quota.info.guarantee();
+    }
+
+    return result;
+  }
+
+private:
+  struct Node
+  {
+    Node(const string& _name) : name(_name) {}
+
+    Option<Error> validate() const
+    {
+      foreachvalue (const unique_ptr<Node>& child, children) {
+        Option<Error> error = child->validate();
+        if (error.isSome()) {
+          return error;
+        }
+      }
+
+      Resources childResources;
+      foreachvalue (const unique_ptr<Node>& child, children) {
+        childResources += child->quota.info.guarantee();
+      }
+
+      Resources selfResources = quota.info.guarantee();
+
+      if (!selfResources.contains(childResources)) {
+        return Error("Invalid quota configuration. Parent role '" +
+                     name + "' with quota " + stringify(selfResources) +
+                     " does not contain the sum of its children's" +
+                     " resources (" + stringify(childResources) + ")");
+      }
+
+      return None();
+    }
+
+    const string name;
+    Quota quota;
+    hashmap<string, unique_ptr<Node>> children;
+  };
+
+  unique_ptr<Node> root;
+};
+
 
 Option<Error> Master::QuotaHandler::capacityHeuristic(
     const QuotaInfo& request) const
@@ -78,19 +195,21 @@ Option<Error> Master::QuotaHandler::capacityHeuristic(
   CHECK(master->isWhitelistedRole(request.role()));
   CHECK(!master->quotas.contains(request.role()));
 
-  // Calculate the total amount of resources requested by all quotas
-  // (including the request) in the cluster.
-  // NOTE: We have validated earlier that the quota for the role in the
-  // request does not exist, hence `master->quotas` is guaranteed not to
-  // contain the request role's quota yet.
-  // TODO(alexr): Relax this constraint once we allow updating quotas.
-  Resources totalQuota = request.guarantee();
-  foreachvalue (const Quota& quota, master->quotas) {
-    totalQuota += quota.info.guarantee();
-  }
+  hashmap<string, Quota> quotaMap = master->quotas;
+
+  // Check that adding the requested quota to the existing quotas does
+  // not violate the capacity heuristic.
+  quotaMap[request.role()] = Quota{request};
+
+  QuotaTree quotaTree(quotaMap);
+
+  CHECK_NONE(quotaTree.validate());
+
+  Resources totalQuota = quotaTree.total();
 
   // Determine whether the total quota, including the new request, does
   // not exceed the sum of non-static cluster resources.
+  //
   // NOTE: We do not necessarily calculate the full sum of non-static
   // cluster resources. We apply the early termination logic as it can
   // reduce the cost of the function significantly. This early exit does
@@ -354,11 +473,12 @@ Future<http::Response> Master::QuotaHandler::_set(
   QuotaInfo quotaInfo = create.get();
 
   // Check that the `QuotaInfo` is a valid quota request.
-  Option<Error> validateError = quota::validation::quotaInfo(quotaInfo);
-  if (validateError.isSome()) {
-    return BadRequest(
-        "Failed to validate set quota request: " +
-        validateError.get().message);
+  {
+    Option<Error> error = quota::validation::quotaInfo(quotaInfo);
+    if (error.isSome()) {
+      return BadRequest(
+          "Failed to validate set quota request: " + error->message);
+    }
   }
 
   // Check that the role is on the role whitelist, if it exists.
@@ -374,6 +494,22 @@ Future<http::Response> Master::QuotaHandler::_set(
     return BadRequest(
         "Failed to validate set quota request: Cannot set quota"
         " for role '" + quotaInfo.role() + "' which already has quota");
+  }
+
+  hashmap<string, Quota> quotaMap = master->quotas;
+
+  // Validate that adding this quota does not violate the hierarchical
+  // relationship between quotas.
+  quotaMap[quotaInfo.role()] = Quota{quotaInfo};
+
+  QuotaTree quotaTree(quotaMap);
+
+  {
+    Option<Error> error = quotaTree.validate();
+    if (error.isSome()) {
+      return BadRequest(
+          "Failed to validate set quota request: " + error->message);
+    }
   }
 
   // The force flag is used to overwrite the `capacityHeuristic` check.
@@ -466,31 +602,26 @@ Future<http::Response> Master::QuotaHandler::remove(
   // Check that the request type is DELETE which is guaranteed by the master.
   CHECK_EQ("DELETE", request.method);
 
-  // Extract role from url.
-  vector<string> tokens = strings::tokenize(request.url.path, "/");
-
-  // Check that there are exactly 3 parts: {master,quota,'role'}.
-  if (tokens.size() != 3u) {
-    return BadRequest(
-        "Failed to parse request path '" + request.url.path +
-        "': 3 tokens ('master', 'quota', 'role') required, found " +
-        stringify(tokens.size()) + " token(s)");
+  // Extract role from url. We expect the request path to have the
+  // format "/master/quota/role", where "role" is a role name. The
+  // role name itself may contain one or more slashes. Note that
+  // `strings::tokenize` returns the remainder of the string when the
+  // specified maximum number of tokens is reached.
+  vector<string> components = strings::tokenize(request.url.path, "/", 3u);
+  if (components.size() < 3u) {
+    return BadRequest("Failed to parse remove quota request for path '" +
+                      request.url.path + "': expected 3 tokens, found " +
+                      stringify(components.size()) + " tokens");
   }
 
-  // Check that "quota" is the second to last token.
-  if (tokens.end()[-2] != "quota") {
-    return BadRequest(
-        "Failed to parse request path '" + request.url.path +
-        "': Missing 'quota' endpoint");
-  }
-
-  const string& role = tokens.back();
+  CHECK_EQ(3u, components.size());
+  string role = components.back();
 
   // Check that the role is on the role whitelist, if it exists.
   if (!master->isWhitelistedRole(role)) {
     return BadRequest(
         "Failed to validate remove quota request for path '" +
-        request.url.path +"': Unknown role '" + role + "'");
+        request.url.path + "': Unknown role '" + role + "'");
   }
 
   // Check that we are removing an existing quota.
@@ -498,6 +629,21 @@ Future<http::Response> Master::QuotaHandler::remove(
     return BadRequest(
         "Failed to remove quota for path '" + request.url.path +
         "': Role '" + role + "' has no quota set");
+  }
+
+  hashmap<string, Quota> quotaMap = master->quotas;
+
+  // Validate that removing the quota for `role` does not violate the
+  // hierarchical relationship between quotas.
+  quotaMap.erase(role);
+
+  QuotaTree quotaTree(quotaMap);
+
+  Option<Error> error = quotaTree.validate();
+  if (error.isSome()) {
+    return BadRequest(
+        "Failed to remove quota for path '" + request.url.path +
+        "': " + error->message);
   }
 
   return _remove(role, principal);

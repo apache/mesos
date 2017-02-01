@@ -4297,6 +4297,93 @@ TEST_F(HierarchicalAllocatorTest, DisproportionateQuotaVsAllocation)
 }
 
 
+// This test checks that quota guarantees work correctly when a nested
+// role is created as a child of an existing role that has quota.
+TEST_F(HierarchicalAllocatorTest, NestedRoleQuota)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  const string PARENT_ROLE = "a/b";
+  const string CHILD_ROLE1 = "a/b/c";
+  const string CHILD_ROLE2 = "a/b/d";
+
+  // Create `framework1` and set quota for its role.
+  FrameworkInfo framework1 = createFrameworkInfo({PARENT_ROLE});
+  allocator->addFramework(framework1.id(), framework1, {}, true);
+
+  const Quota parentQuota = createQuota(PARENT_ROLE, "cpus:2;mem:1024");
+  allocator->setQuota(PARENT_ROLE, parentQuota);
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  // `framework1` will be offered all of `agent1`'s resources because
+  // it is the only framework in the only role with unsatisfied quota.
+  {
+    Allocation expected = Allocation(
+        framework1.id(),
+        {{PARENT_ROLE, {{agent1.id(), agent1.resources()}}}});
+
+    AWAIT_EXPECT_EQ(expected, allocations.get());
+  }
+
+  // `framework1` declines the resources on `agent1` for the duration
+  // of the test.
+  Filters longFilter;
+  longFilter.set_refuse_seconds(flags.allocation_interval.secs() * 10);
+
+  allocator->recoverResources(
+      framework1.id(),
+      agent1.id(),
+      allocatedResources(agent1.resources(), PARENT_ROLE),
+      longFilter);
+
+  // Register a framework in CHILD_ROLE1, which is a child role of
+  // PARENT_ROLE. In the current implementation, because CHILD_ROLE1
+  // does not itself have quota, it will not be offered any of
+  // PARENT_ROLE's quota'd resources. This behavior may change in the
+  // future (MESOS-7150).
+  FrameworkInfo framework2 = createFrameworkInfo({CHILD_ROLE1});
+  allocator->addFramework(framework2.id(), framework2, {}, true);
+
+  // Trigger a batch allocation for good measure; we do not expect
+  // either framework to be offered resources.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  Future<Allocation> allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+
+  // Register a framework in CHILD_ROLE2, which is a child role of
+  // PARENT_ROLE. Because CHILD_ROLE2 has quota, it will be offered
+  // resources.
+  FrameworkInfo framework3 = createFrameworkInfo({CHILD_ROLE2});
+  allocator->addFramework(framework3.id(), framework3, {}, true);
+
+  const Quota childQuota = createQuota(CHILD_ROLE2, "cpus:1;mem:512");
+  allocator->setQuota(CHILD_ROLE2, childQuota);
+
+  {
+    Allocation expected = Allocation(
+        framework3.id(),
+        {{CHILD_ROLE2, {{agent1.id(), agent1.resources()}}}});
+
+    AWAIT_EXPECT_EQ(expected, allocation);
+  }
+}
+
+
 class HierarchicalAllocatorTestWithParam
   : public HierarchicalAllocatorTestBase,
     public WithParamInterface<bool> {};
