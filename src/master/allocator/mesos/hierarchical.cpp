@@ -158,7 +158,7 @@ void HierarchicalAllocatorProcess::recover(
 {
   // Recovery should start before actual allocation starts.
   CHECK(initialized);
-  CHECK_EQ(0u, slaves.size());
+  CHECK(slaves.empty());
   CHECK_EQ(0, quotaRoleSorter->count());
   CHECK(_expectedAgentCount >= 0);
 
@@ -177,6 +177,11 @@ void HierarchicalAllocatorProcess::recover(
             << "nothing to recover";
 
     return;
+  }
+
+  // NOTE: `quotaRoleSorter` is updated implicitly in `setQuota()`.
+  foreachpair (const string& role, const Quota& quota, quotas) {
+    setQuota(role, quota);
   }
 
   // TODO(alexr): Consider exposing these constants.
@@ -204,11 +209,6 @@ void HierarchicalAllocatorProcess::recover(
 
   // Setup recovery timer.
   delay(ALLOCATION_HOLD_OFF_RECOVERY_TIMEOUT, self(), &Self::resume);
-
-  // NOTE: `quotaRoleSorter` is updated implicitly in `setQuota()`.
-  foreachpair (const string& role, const Quota& quota, quotas) {
-    setQuota(role, quota);
-  }
 
   LOG(INFO) << "Triggered allocator recovery: waiting for "
             << expectedAgentCount.get() << " agents to reconnect or "
