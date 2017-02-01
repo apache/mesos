@@ -146,18 +146,8 @@ bool Cache::Key::operator==(const Cache::Key& other) const
     return false;
   }
 
-  foreachpair (const string& name, const string& value, other.labels) {
-    map<string, string>::const_iterator itr = labels.find(name);
-    if ((itr == labels.end()) || (labels.at(name) != value)) {
-      return false;
-    }
-  }
-
-  foreachpair (const string& name, const string& value, labels) {
-    map<string, string>::const_iterator itr = other.labels.find(name);
-    if ((itr == other.labels.end()) || (other.labels.at(name) != value)) {
-      return false;
-    }
+  if (labels != other.labels) {
+    return false;
   }
 
   return true;
