@@ -256,12 +256,6 @@ struct Status
 };
 
 
-typedef hashmap<std::string,
-                std::string,
-                CaseInsensitiveHash,
-                CaseInsensitiveEqual> Headers;
-
-
 // Represents an asynchronous in-memory unbuffered Pipe, currently
 // used for streaming HTTP responses via chunked encoding. Note that
 // being an in-memory pipe means that this cannot be used across OS
@@ -419,6 +413,97 @@ private:
   };
 
   std::shared_ptr<Data> data;
+};
+
+
+namespace header {
+
+// https://tools.ietf.org/html/rfc2617.
+class WWWAuthenticate
+{
+public:
+  static constexpr const char* NAME = "WWW-Authenticate";
+
+  WWWAuthenticate(
+      const std::string& authScheme,
+      const hashmap<std::string, std::string>& authParam)
+    : authScheme_(authScheme),
+      authParam_(authParam) {}
+
+  static Try<WWWAuthenticate> create(const std::string& value);
+
+  std::string authScheme();
+  hashmap<std::string, std::string> authParam();
+
+private:
+  // According to RFC, HTTP/1.1 server may return multiple challenges
+  // with a 401 (Authenticate) response. Each challenage is in the
+  // format of 'auth-scheme 1*SP 1#auth-param' and each challenage may
+  // use a different auth-scheme.
+  // https://tools.ietf.org/html/rfc2617#section-4.6
+  //
+  // TODO(gilbert): We assume there is only one authenticate challenge.
+  // Multiple challenges should be supported as well.
+  std::string authScheme_;
+  hashmap<std::string, std::string> authParam_;
+};
+
+} // namespace header {
+
+
+class Headers
+{
+public:
+  typedef hashmap<
+      std::string,
+      std::string,
+      CaseInsensitiveHash,
+      CaseInsensitiveEqual> Type;
+
+  Headers() {}
+  Headers(const Type& _headers) : headers(_headers) {}
+
+  template <typename T>
+  Result<T> get() const
+  {
+    Option<std::string> value = get(T::NAME);
+    if (value.isNone()) {
+      return None();
+    }
+    Try<T> header = T::create(value.get());
+    if (header.isError()) {
+      return Error(header.error());
+    }
+    return header.get();
+  }
+
+  Headers& operator=(const Type& _headers);
+
+  std::string& operator[](const std::string& key);
+
+  void put(const std::string& key, const std::string& value);
+
+  Option<std::string> get(const std::string& key) const;
+
+  std::string& at(const std::string& key);
+
+  const std::string& at(const std::string& key) const;
+
+  bool contains(const std::string& key) const;
+
+  size_t size() const;
+
+  bool empty() const;
+
+  void clear();
+
+  typename Type::iterator begin() { return headers.begin(); }
+  typename Type::iterator end() { return headers.end(); }
+  typename Type::const_iterator begin() const { return headers.cbegin(); }
+  typename Type::const_iterator end() const { return headers.cend(); }
+
+private:
+  Type headers;
 };
 
 

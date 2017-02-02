@@ -597,6 +597,123 @@ Future<Nothing> Pipe::Writer::readerClosed() const
 }
 
 
+namespace header {
+
+Try<WWWAuthenticate> WWWAuthenticate::create(const string& value)
+{
+  // Set `maxTokens` as 2 since auth-param quoted string may
+  // contain space (e.g., "Basic realm="Registry Realm").
+  vector<string> tokens = strings::tokenize(value, " ", 2);
+  if (tokens.size() != 2) {
+    return Error("Unexpected WWW-Authenticate header format: '" + value + "'");
+  }
+
+  hashmap<string, string> authParam;
+  foreach (const string& token, strings::split(tokens[1], ",")) {
+    vector<string> split = strings::split(token, "=");
+    if (split.size() != 2) {
+      return Error(
+          "Unexpected auth-param format: '" +
+          token + "' in '" + tokens[1] + "'");
+    }
+
+    // Auth-param values can be a quoted-string or directive values.
+    // Please see section "3.2.2.4 Directive values and quoted-string":
+    // https://tools.ietf.org/html/rfc2617.
+    authParam[split[0]] = strings::trim(split[1], strings::ANY, "\"");
+  }
+
+  // The realm directive (case-insensitive) is required for all
+  // authentication schemes that issue a challenge.
+  if (!authParam.contains("realm")) {
+    return Error(
+        "Unexpected auth-param '" +
+        tokens[1] + "': 'realm' is not defined");
+  }
+
+  return WWWAuthenticate(tokens[0], authParam);
+}
+
+
+string WWWAuthenticate::authScheme()
+{
+  return authScheme_;
+}
+
+
+hashmap<string, string> WWWAuthenticate::authParam()
+{
+  return authParam_;
+}
+
+} // namespace header {
+
+
+Headers& Headers::operator=(const Headers::Type& _headers)
+{
+  headers = _headers;
+  return *this;
+}
+
+
+string& Headers::operator[](const string& key)
+{
+  return headers[key];
+}
+
+
+void Headers::put(const string& key, const string& value)
+{
+  headers.put(key, value);
+}
+
+
+Option<string> Headers::get(const string& key) const
+{
+  if (headers.contains(key)) {
+    return headers.at(key);
+  }
+
+  return None();
+}
+
+
+string& Headers::at(const string& key)
+{
+  return headers.at(key);
+}
+
+
+const string& Headers::at(const string& key) const
+{
+  return headers.at(key);
+}
+
+
+bool Headers::contains(const string& key) const
+{
+  return headers.contains(key);
+}
+
+
+size_t Headers::size() const
+{
+  return headers.size();
+}
+
+
+bool Headers::empty() const
+{
+  return headers.empty();
+}
+
+
+void Headers::clear()
+{
+  headers.clear();
+}
+
+
 OK::OK(const JSON::Value& value, const Option<string>& jsonp)
   : Response(Status::OK)
 {
