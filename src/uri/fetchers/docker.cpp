@@ -15,7 +15,6 @@
 // limitations under the License.
 
 #include <list>
-#include <sstream>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -49,7 +48,6 @@ namespace io = process::io;
 namespace spec = docker::spec;
 
 using std::list;
-using std::ostringstream;
 using std::set;
 using std::string;
 using std::tuple;
@@ -313,22 +311,22 @@ private:
   Future<Nothing> __fetch(
       const URI& uri,
       const string& directory,
-      const Option<string>& authToken,
+      const http::Headers& authHeaders,
       const http::Response& response);
 
   Future<Nothing> fetchBlob(
       const URI& uri,
       const string& directory,
-      const Option<string>& authToken);
+      const http::Headers& authHeaders);
 
   Future<Nothing> _fetchBlob(
       const URI& uri,
       const string& directory,
       const URI& blobUri);
 
-  Future<string> getAuthToken(const http::Response& response, const URI& uri);
-  http::Headers getAuthHeaderBasic(const Option<string>& credential);
-  http::Headers getAuthHeaderBearer(const Option<string>& authToken);
+  Future<http::Headers> getAuthHeader(
+      const URI& uri,
+      const http::Response& response);
 
   URI getManifestUri(const URI& uri);
   URI getBlobUri(const URI& uri);
@@ -418,6 +416,9 @@ Future<Nothing> DockerFetcherPluginProcess::fetch(
     const URI& uri,
     const string& directory)
 {
+  // TODO(gilbert): Convert the `uri` to ::docker::spec::ImageReference
+  // and pass it all the way down to avoid the complicated URI conversion
+  // and make the code more readable.
   if (schemes().count(uri.scheme()) == 0) {
     return Failure(
         "Docker fetcher plugin does not support "
@@ -440,7 +441,7 @@ Future<Nothing> DockerFetcherPluginProcess::fetch(
   }
 
   if (uri.scheme() == "docker-blob") {
-    return fetchBlob(uri, directory, None());
+    return fetchBlob(uri, directory, http::Headers());
   }
 
   URI manifestUri = getManifestUri(uri);
@@ -462,26 +463,27 @@ Future<Nothing> DockerFetcherPluginProcess::_fetch(
     const http::Response& response)
 {
   if (response.code == http::Status::UNAUTHORIZED) {
-    return getAuthToken(response, manifestUri)
-      .then(defer(self(), [=](const string& authToken) -> Future<Nothing> {
-        return curl(manifestUri, getAuthHeaderBearer(authToken))
+    return getAuthHeader(manifestUri, response)
+      .then(defer(self(), [=](
+          const http::Headers& authHeaders) -> Future<Nothing> {
+        return curl(manifestUri, authHeaders)
           .then(defer(self(),
                       &Self::__fetch,
                       uri,
                       directory,
-                      authToken,
+                      authHeaders,
                       lambda::_1));
       }));
   }
 
-  return __fetch(uri, directory, None(), response);
+  return __fetch(uri, directory, http::Headers(), response);
 }
 
 
 Future<Nothing> DockerFetcherPluginProcess::__fetch(
     const URI& uri,
     const string& directory,
-    const Option<string>& authToken,
+    const http::Headers& authHeaders,
     const http::Response& response)
 {
   if (response.code != http::Status::OK) {
@@ -543,7 +545,7 @@ Future<Nothing> DockerFetcherPluginProcess::__fetch(
     futures.push_back(fetchBlob(
         blob,
         directory,
-        authToken));
+        authHeaders));
   }
 
   return collect(futures)
@@ -554,20 +556,20 @@ Future<Nothing> DockerFetcherPluginProcess::__fetch(
 Future<Nothing> DockerFetcherPluginProcess::fetchBlob(
     const URI& uri,
     const string& directory,
-    const Option<string>& authToken)
+    const http::Headers& authHeaders)
 {
   URI blobUri = getBlobUri(uri);
 
-  return download(blobUri, directory, getAuthHeaderBearer(authToken))
+  return download(blobUri, directory, authHeaders)
     .then(defer(self(), [=](int code) -> Future<Nothing> {
       if (code == http::Status::OK) {
         return Nothing();
       }
 
-      // Note that if 'authToken' is specified, but we still get a
+      // Note that if 'authHeaders' is not empty, but we still get a
       // '401 Unauthorized' response, we return a Failure. This can
       // prevent us from entering an infinite loop.
-      if (code == http::Status::UNAUTHORIZED && authToken.isNone()) {
+      if (code == http::Status::UNAUTHORIZED && authHeaders.empty()) {
         return _fetchBlob(uri, directory, blobUri);
       }
 
@@ -597,7 +599,7 @@ Future<Nothing> DockerFetcherPluginProcess::_fetchBlob(
           "but get '" + response.status + "' instead");
       }
 
-      return getAuthToken(response, blobUri)
+      return getAuthHeader(blobUri, response)
         .then(defer(self(),
                     &Self::fetchBlob,
                     uri,
@@ -607,161 +609,7 @@ Future<Nothing> DockerFetcherPluginProcess::_fetchBlob(
 }
 
 
-// If a '401 Unauthorized' response is received, we expect a header
-// 'Www-Authenticate' containing the auth server information. This
-// function takes the '401 Unauthorized' response, extracts the auth
-// server information, and then contacts the auth server to get the
-// token. The token will then be placed in the subsequent HTTP
-// requests as a header.
-//
-// See details here:
-// https://docs.docker.com/registry/spec/auth/token/
-Future<string> DockerFetcherPluginProcess::getAuthToken(
-    const http::Response& response,
-    const URI& uri)
-{
-  // The expected HTTP response here is:
-  //
-  // HTTP/1.1 401 Unauthorized
-  // Www-Authenticate: Bearer realm="xxx",service="yyy",scope="zzz"
-  CHECK_EQ(response.code, http::Status::UNAUTHORIZED);
-
-  if (!response.headers.contains("WWW-Authenticate")) {
-    return Failure("WWW-Authorization header is not found");
-  }
-
-  const vector<string> tokens = strings::tokenize(
-      response.headers.at("WWW-Authenticate"), " ");
-
-  if (tokens.size() != 2) {
-    return Failure(
-        "Unexpected WWW-Authenticate header format: "
-        "'" + response.headers.at("WWW-Authenticate") + "'");
-  }
-
-  if (tokens[0] != "Bearer") {
-    return Failure("Not a Bearer authentication challenge");
-  }
-
-  // Map containing the 'realm', 'service' and 'scope' information.
-  hashmap<string, string> attributes;
-
-  foreach (const string& token, strings::tokenize(tokens[1], ",")) {
-    const vector<string> split = strings::split(token, "=");
-    if (split.size() != 2) {
-      return Failure("Unexpected attribute format: '" + token + "'");
-    }
-
-    attributes[split[0]] = strings::trim(split[1], strings::ANY, "\"");
-  }
-
-  if (!attributes.contains("realm")) {
-    return Failure("Missing 'realm' in WWW-Authenticate header");
-  }
-
-  if (!attributes.contains("service")) {
-    return Failure("Missing 'service' in WWW-Authenticate header");
-  }
-
-  if (!attributes.contains("scope")) {
-    return Failure("Missing 'scope' in WWW-Authenticate header");
-  }
-
-  ostringstream stream;
-
-  // TODO(jieyu): Currently, we don't expect the auth server to return
-  // a service or a scope that needs encoding.
-  string authServerUri =
-    attributes.at("realm") + "?" +
-    "service=" + attributes.at("service") + "&" +
-    "scope=" + attributes.at("scope");
-
-  Option<string> auth;
-
-  // TODO(gilbert): Ideally, this should be done after getting
-  // the '401 Unauthorized' response. Then, the workflow should
-  // be:
-  // 1. Send a requst to registry for pulling.
-  // 2. The registry returns '401 Unauthorized' HTTP response.
-  // 3. The registry client makes a request (without a Basic header)
-  //    to the authorization server for a Bearer token.
-  // 4. The authorization servicer returns an unacceptable
-  //    Bearer token.
-  // 5. Re-send a request to registry with the Bearer token attached.
-  // 6. The registry returns '401 Unauthorized' HTTP response.
-  // 7. The registry client makes a request (with a correct Basic
-  //    header attached) to the authorization server for a Bearer
-  //    token.
-  // 8. The authorization servicer returns a corrent Bearer token.
-  // 9. Re-send a request to registry with the right Bearer token
-  //    attached.
-  // 10. The registry authorizes the client, and the docker fetcher
-  //     starts pulling.
-  // The step 3 ~ 6 are exactly what this TODO describes.
-
-  // TODO(gilbert): Currrently, the docker fetcher plugin only
-  // supports Basic Authentication. From Docker 1.11, the docker
-  // engine supports both Basic authentication and OAuth2 for
-  // getting tokens. Ideally, we should support both in docker
-  // fetcher plugin.
-  foreachpair (const string& key, const spec::Config::Auth& value, auths) {
-    // Handle domains including 'docker.io' as a special case,
-    // because the url is set differently for different version
-    // of docker default registry, but all of them should depend
-    // on the same default namespace 'docker.io'. Please see:
-    // https://github.com/docker/docker/blob/master/registry/config.go#L34
-    const bool isDocker =
-      strings::contains(uri.host(), "docker.io") &&
-      strings::contains(key, "docker.io");
-
-    // NOTE: The host field of uri can be either domain or IP
-    // address, which is merged in docker registry puller.
-    const string registry = uri.has_port()
-      ? uri.host() + ":" + stringify(uri.port())
-      : uri.host();
-
-    // Should not use 'http::URL::parse()' here, since many
-    // registry domain recorded in docker config file does
-    // not start with 'https://' or 'http://'. They are pure
-    // domain only (e.g., 'quay.io', 'localhost:5000').
-    // Please see 'ResolveAuthConfig()' in:
-    // https://github.com/docker/docker/blob/master/registry/auth.go
-    if (isDocker || (registry == spec::parseAuthUrl(key))) {
-      if (value.has_auth()) {
-        auth = value.auth();
-        break;
-      }
-    }
-  }
-
-  return curl(authServerUri, getAuthHeaderBasic(auth))
-    .then([authServerUri](const http::Response& response) -> Future<string> {
-      if (response.code != http::Status::OK) {
-        return Failure(
-          "Unexpected HTTP response '" + response.status + "' "
-          "when trying to GET '" + authServerUri + "'");
-      }
-
-      CHECK_EQ(response.type, http::Response::BODY);
-
-      Try<JSON::Object> object = JSON::parse<JSON::Object>(response.body);
-      if (object.isError()) {
-        return Failure("Parsing the JSON object failed: " + object.error());
-      }
-
-      Result<JSON::String> token = object->find<JSON::String>("token");
-      if (token.isError()) {
-        return Failure("Finding token in JSON object failed: " + token.error());
-      } else if (token.isNone()) {
-        return Failure("Failed to find token in JSON object");
-      }
-
-      return token->value;
-    });
-}
-
-
-http::Headers DockerFetcherPluginProcess::getAuthHeaderBasic(
+static http::Headers getAuthHeaderBasic(
     const Option<string>& credential)
 {
   http::Headers headers;
@@ -777,7 +625,7 @@ http::Headers DockerFetcherPluginProcess::getAuthHeaderBasic(
 }
 
 
-http::Headers DockerFetcherPluginProcess::getAuthHeaderBearer(
+static http::Headers getAuthHeaderBearer(
     const Option<string>& authToken)
 {
   http::Headers headers;
@@ -787,6 +635,158 @@ http::Headers DockerFetcherPluginProcess::getAuthHeaderBearer(
   }
 
   return headers;
+}
+
+
+Future<http::Headers> DockerFetcherPluginProcess::getAuthHeader(
+    const URI& uri,
+    const http::Response& response)
+{
+  Result<http::header::WWWAuthenticate> header =
+    response.headers.get<http::header::WWWAuthenticate>();
+
+  if (header.isError()) {
+    return Failure(
+        "Failed to get WWW-Authenticate header: " + header.error());
+  } else if (header.isNone()) {
+    return Failure("Unexpected empty WWW-Authenticate header");
+  }
+
+  // According to RFC, auth scheme should be case insensitive.
+  const string authScheme = strings::upper(header->authScheme());
+
+  // If a '401 Unauthorized' response is received and the auth-scheme
+  // is 'Basic', we do basic authentication with the server directly.
+  if (authScheme == "BASIC") {
+    const string registry = uri.has_port()
+      ? uri.host() + ":" + stringify(uri.port())
+      : uri.host();
+
+    Option<string> auth;
+    foreachpair (const string& key, const spec::Config::Auth& value, auths) {
+      if (registry == spec::parseAuthUrl(key) && value.has_auth()) {
+        auth = value.auth();
+        break;
+      }
+    }
+
+    return getAuthHeaderBasic(auth);
+  }
+
+  // If a '401 Unauthorized' response is received and the auth-scheme
+  // is 'Bearer', we expect a header 'Www-Authenticate' containing the
+  // auth server information. We extract the auth server information
+  // from the auth-param, and then contacts the auth server to get the
+  // token. The token will then be placed in the subsequent HTTP
+  // requests as a header.
+  //
+  // See details here:
+  // https://docs.docker.com/registry/spec/auth/token/
+  if (authScheme == "BEARER") {
+    hashmap<string, string> authParam = header->authParam();
+
+    // `authParam` is supposed to contain the 'realm', 'service'
+    // and 'scope' information for bearer authentication.
+    if (!authParam.contains("realm")) {
+      return Failure("Missing 'realm' in WWW-Authenticate header");
+    }
+
+    if (!authParam.contains("service")) {
+      return Failure("Missing 'service' in WWW-Authenticate header");
+    }
+
+    if (!authParam.contains("scope")) {
+      return Failure("Missing 'scope' in WWW-Authenticate header");
+    }
+
+    // NOTE: The host field of uri can be either domain or IP
+    // address, which is merged in docker registry puller.
+    const string registry = uri.has_port()
+      ? uri.host() + ":" + stringify(uri.port())
+      : uri.host();
+
+    // TODO(gilbert): Ideally, this should be done after getting
+    // the '401 Unauthorized' response. Then, the workflow should
+    // be:
+    // 1. Send a requst to registry for pulling.
+    // 2. The registry returns '401 Unauthorized' HTTP response.
+    // 3. The registry client makes a request (without a Basic header)
+    //    to the authorization server for a Bearer token.
+    // 4. The authorization servicer returns an unacceptable
+    //    Bearer token.
+    // 5. Re-send a request to registry with the Bearer token attached.
+    // 6. The registry returns '401 Unauthorized' HTTP response.
+    // 7. The registry client makes a request (with a correct Basic
+    //    header attached) to the authorization server for a Bearer
+    //    token.
+    // 8. The authorization servicer returns a corrent Bearer token.
+    // 9. Re-send a request to registry with the right Bearer token
+    //    attached.
+    // 10. The registry authorizes the client, and the docker fetcher
+    //     starts pulling.
+    // The step 3 ~ 6 are exactly what this TODO describes.
+    Option<string> auth;
+
+    foreachpair (const string& key, const spec::Config::Auth& value, auths) {
+      // Handle domains including 'docker.io' as a special case,
+      // because the url is set differently for different version
+      // of docker default registry, but all of them should depend
+      // on the same default namespace 'docker.io'. Please see:
+      // https://github.com/docker/docker/blob/master/registry/config.go#L34
+      const bool isDocker =
+        strings::contains(uri.host(), "docker.io") &&
+        strings::contains(key, "docker.io");
+
+      // Should not use 'http::URL::parse()' here, since many
+      // registry domain recorded in docker config file does
+      // not start with 'https://' or 'http://'. They are pure
+      // domain only (e.g., 'quay.io', 'localhost:5000').
+      // Please see 'ResolveAuthConfig()' in:
+      // https://github.com/docker/docker/blob/master/registry/auth.go
+      if (isDocker || (registry == spec::parseAuthUrl(key))) {
+        if (value.has_auth()) {
+          auth = value.auth();
+          break;
+        }
+      }
+    }
+
+    // TODO(jieyu): Currently, we don't expect the auth server to return
+    // a service or a scope that needs encoding.
+    string authServerUri =
+      authParam.at("realm") + "?" +
+      "service=" + authParam.at("service") + "&" +
+      "scope=" + authParam.at("scope");
+
+    return curl(authServerUri, getAuthHeaderBasic(auth))
+      .then([authServerUri](
+          const http::Response& response) -> Future<http::Headers> {
+        if (response.code != http::Status::OK) {
+          return Failure(
+            "Unexpected HTTP response '" + response.status + "' "
+            "when trying to GET '" + authServerUri + "'");
+        }
+
+        CHECK_EQ(response.type, http::Response::BODY);
+
+        Try<JSON::Object> object = JSON::parse<JSON::Object>(response.body);
+        if (object.isError()) {
+          return Failure("Parsing the JSON object failed: " + object.error());
+        }
+
+        Result<JSON::String> token = object->find<JSON::String>("token");
+        if (token.isError()) {
+          return Failure(
+              "Finding token in JSON object failed: " + token.error());
+        } else if (token.isNone()) {
+          return Failure("Failed to find token in JSON object");
+        }
+
+        return getAuthHeaderBearer(token->value);
+      });
+  }
+
+  return Failure("Unsupported auth-scheme: " + authScheme);
 }
 
 
