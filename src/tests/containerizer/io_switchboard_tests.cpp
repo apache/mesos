@@ -525,7 +525,8 @@ TEST_F(IOSwitchboardServerTest, DISABLED_AttachInput)
   request.url.path = "/";
   request.keepAlive = true;
   request.headers["Accept"] = APPLICATION_JSON;
-  request.headers["Content-Type"] = APPLICATION_JSON;
+  request.headers["Content-Type"] = APPLICATION_RECORDIO;
+  request.headers[MESSAGE_CONTENT_TYPE] = APPLICATION_JSON;
 
   Try<unix::Address> address = unix::Address::create(socketPath);
   ASSERT_SOME(address);
