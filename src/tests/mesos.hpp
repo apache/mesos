@@ -919,11 +919,11 @@ template <typename TCredential>
 inline process::http::Headers createBasicAuthHeaders(
     const TCredential& credential)
 {
-  return process::http::Headers{{
+  return process::http::Headers({{
       "Authorization",
       "Basic " +
         base64::encode(credential.principal() + ":" + credential.secret())
-  }};
+  }});
 }
 
 
