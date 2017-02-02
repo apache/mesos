@@ -1443,6 +1443,58 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(HTTPTest, QueryEncodeDecode)
 }
 
 
+TEST_P(HTTPTest, Headers)
+{
+  http::Headers headers({
+    {"Content-Type", "application/json; charset=utf-8"},
+    {"Docker-Distribution-Api-Version", "registry/2.0"},
+    {"Www-Authenticate", "Basic realm=\"basic-realm\""},
+    {"Date", "Tue, 31 Jan 2017 13:48:24 GMT"}
+  });
+
+  EXPECT_EQ("application/json; charset=utf-8", headers["Content-Type"]);
+  EXPECT_EQ("registry/2.0", headers["Docker-Distribution-Api-Version"]);
+  EXPECT_EQ("Basic realm=\"basic-realm\"", headers["Www-Authenticate"]);
+  EXPECT_EQ("Tue, 31 Jan 2017 13:48:24 GMT", headers["Date"]);
+
+  EXPECT_SOME_EQ("application/json; charset=utf-8",
+                 headers.get("Content-Type"));
+
+  EXPECT_SOME_EQ("registry/2.0",
+                 headers.get("Docker-Distribution-Api-Version"));
+
+  EXPECT_SOME_EQ("Basic realm=\"basic-realm\"",
+                 headers.get("Www-Authenticate"));
+
+  EXPECT_SOME_EQ("Tue, 31 Jan 2017 13:48:24 GMT", headers.get("Date"));
+
+  EXPECT_EQ("application/json; charset=utf-8", headers.at("Content-Type"));
+  EXPECT_EQ("registry/2.0", headers.at("Docker-Distribution-Api-Version"));
+  EXPECT_EQ("Basic realm=\"basic-realm\"", headers.at("Www-Authenticate"));
+  EXPECT_EQ("Tue, 31 Jan 2017 13:48:24 GMT", headers.at("Date"));
+
+  EXPECT_TRUE(headers.contains("Content-Type"));
+  EXPECT_TRUE(headers.contains("Docker-Distribution-Api-Version"));
+  EXPECT_TRUE(headers.contains("Www-Authenticate"));
+  EXPECT_TRUE(headers.contains("Date"));
+  EXPECT_EQ(4u, headers.size());
+  EXPECT_FALSE(headers.empty());
+
+  headers.put("Date", "Wed, 1 Feb 2017 00:00:00 GMT");
+  headers.put("Content-Length", "87");
+
+  EXPECT_TRUE(headers.contains("Date"));
+  EXPECT_TRUE(headers.contains("Content-Length"));
+
+  EXPECT_EQ("Wed, 1 Feb 2017 00:00:00 GMT", headers["Date"]);
+  EXPECT_EQ("87", headers["Content-Length"]);
+
+  headers.clear();
+  EXPECT_EQ(0u, headers.size());
+  EXPECT_TRUE(headers.empty());
+}
+
+
 TEST_P(HTTPTest, CaseInsensitiveHeaders)
 {
   http::Request request;
@@ -1466,6 +1518,72 @@ TEST_P(HTTPTest, CaseInsensitiveHeaders)
   EXPECT_EQ("text/javascript", response.headers["content-type"]);
   EXPECT_EQ("text/javascript", response.headers["Content-Type"]);
   EXPECT_EQ("text/javascript", response.headers["CONTENT-TYPE"]);
+}
+
+
+TEST_P(HTTPTest, WWWAuthenticateHeader)
+{
+  http::Headers headers;
+  headers["Www-Authenticate"] = "Basic realm=\"basic-realm\"";
+
+  Result<http::header::WWWAuthenticate> header =
+    headers.get<http::header::WWWAuthenticate>();
+
+  ASSERT_SOME(header);
+
+  EXPECT_EQ("Basic", header->authScheme());
+  EXPECT_EQ(1u, header->authParam().size());
+  EXPECT_EQ("basic-realm", header->authParam()["realm"]);
+
+  headers.clear();
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_NONE(header);
+
+  headers["Www-Authenticate"] =
+    "Bearer realm=\"https://auth.docker.io/token\","
+    "service=\"registry.docker.io\","
+    "scope=\"repository:gilbertsong/inky:pull\"";
+
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  ASSERT_SOME(header);
+
+  EXPECT_EQ("Bearer", header->authScheme());
+  EXPECT_EQ(3u, header->authParam().size());
+  EXPECT_EQ("https://auth.docker.io/token", header->authParam()["realm"]);
+  EXPECT_EQ("registry.docker.io", header->authParam()["service"]);
+  EXPECT_EQ("repository:gilbertsong/inky:pull", header->authParam()["scope"]);
+
+  headers["Www-Authenticate"] = "";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
+
+  headers["Www-Authenticate"] = " ";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
+
+  headers["Www-Authenticate"] = "Digest";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
+
+  headers["Www-Authenticate"] = "Digest =";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
+
+  headers["Www-Authenticate"] = "Digest ,,";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
+
+  headers["Www-Authenticate"] = "Digest uri=\"/dir/index.html\",qop=auth";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
 }
 
 
