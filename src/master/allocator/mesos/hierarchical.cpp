@@ -1259,11 +1259,12 @@ void HierarchicalAllocatorProcess::resume()
 
 void HierarchicalAllocatorProcess::batch()
 {
-  auto pid = self();
+  process::PID<HierarchicalAllocatorProcess> pid = self();
+  Duration _allocationInterval = allocationInterval;
 
   allocate()
-    .onAny([pid, this]() {
-      delay(allocationInterval, pid, &Self::batch);
+    .onAny([_allocationInterval, pid]() {
+      delay(_allocationInterval, pid, &HierarchicalAllocatorProcess::batch);
     });
 }
 
