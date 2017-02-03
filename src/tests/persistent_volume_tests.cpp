@@ -1011,6 +1011,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
   driver.join();
 }
 
+
 // This test verifies that pending offers with shared persistent volumes
 // are rescinded when the volumes are destroyed.
 TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
@@ -1286,6 +1287,349 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test verifies that DESTROY of non-shared persistent volume succeeds
+// when a shared persistent volume is in use. This is to catch any
+// regression to MESOS-6444.
+TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
+{
+  // Manipulate the clock manually in order to
+  // control the timing of the offer cycle.
+  Clock::pause();
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::SHARED_RESOURCES);
+
+  // Create a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a slave. Resources are being statically reserved because persistent
+  // volume creation requires reserved resources.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = getSlaveResources();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create a scheduler/framework.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Expect an offer from the slave.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  Resource sharedVolume = createPersistentVolume(
+      getDiskResource(Megabytes(2048), 1),
+      "id1",
+      "path1",
+      None(),
+      frameworkInfo.principal(),
+      true); // Shared.
+
+  Resource nonSharedVolume = createPersistentVolume(
+      getDiskResource(Megabytes(2048), 2),
+      "id2",
+      "path2",
+      None(),
+      frameworkInfo.principal());
+
+  // Create a long-lived task using a shared volume.
+  Resources taskResources1 = Resources::parse(
+      "cpus:1;mem:128").get() + sharedVolume;
+
+  TaskInfo task1 = createTask(
+      offer.slave_id(),
+      taskResources1,
+      "sleep 1000");
+
+  // Create a short-lived task using a non-shared volume.
+  Resources taskResources2 = Resources::parse(
+      "cpus:1;mem:256").get() + nonSharedVolume;
+
+  TaskInfo task2 = createTask(
+      offer.slave_id(),
+      taskResources2,
+      "exit 0");
+
+  const hashset<TaskID> tasks{task1.task_id(), task2.task_id()};
+
+  // Expect an offer containing the persistent volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // We should receive a TASK_RUNNING each of the 2 tasks. We track task
+  // termination by a TASK_FINISHED for the short-lived task.
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  Future<TaskStatus> status3;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2))
+    .WillOnce(FutureArg<1>(&status3));
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(sharedVolume),
+       CREATE(nonSharedVolume),
+       LAUNCH({task1, task2})},
+      filters);
+
+  // Wait for TASK_RUNNING for both the tasks, and TASK_FINISHED for
+  // the short-lived task.
+  AWAIT_READY(status1);
+  AWAIT_READY(status2);
+  AWAIT_READY(status3);
+
+  hashset<TaskID> tasksRunning;
+  hashset<TaskID> tasksFinished;
+  vector<Future<TaskStatus>> statuses{status1, status2, status3};
+
+  foreach (const Future<TaskStatus>& status, statuses) {
+    if (status.get().state() == TASK_RUNNING) {
+      tasksRunning.insert(status.get().task_id());
+    } else {
+      tasksFinished.insert(status.get().task_id());
+    }
+  }
+
+  ASSERT_EQ(tasks, tasksRunning);
+  EXPECT_EQ(1u, tasksFinished.size());
+  EXPECT_EQ(task2.task_id(), *(tasksFinished.begin()));
+
+  // Advance the clock to generate an offer.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  // Await the offer containing the persistent volume.
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the persistent volumes are offered back. The shared volume
+  // is offered since it can be used in multiple tasks; the non-shared
+  // volume is offered since there are no tasks using it.
+  EXPECT_TRUE(Resources(offer.resources()).contains(sharedVolume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(nonSharedVolume));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Destroy the non-shared persistent volume since no task is using it.
+  driver.acceptOffers(
+      {offer.id()},
+      {DESTROY(nonSharedVolume)},
+      filters);
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the shared persistent volume is in the offer, but the
+  // non-shared volume is not in the offer.
+  EXPECT_TRUE(Resources(offer.resources()).contains(sharedVolume));
+  EXPECT_FALSE(Resources(offer.resources()).contains(nonSharedVolume));
+
+  // We kill the long-lived task and wait for TASK_KILLED, so we can
+  // DESTROY the persistent volume once the task terminates.
+  Future<TaskStatus> status4;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status4));
+
+  driver.killTask(task1.task_id());
+
+  AWAIT_READY(status4);
+  EXPECT_EQ(task1.task_id(), status4.get().task_id());
+  EXPECT_EQ(TASK_KILLED, status4.get().state());
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Destroy the shared persistent volume.
+  driver.acceptOffers(
+      {offer.id()},
+      {DESTROY(sharedVolume)},
+      filters);
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::resume();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  offer = offers.get()[0];
+
+  // Check that the persistent volumes are not in the offer.
+  EXPECT_FALSE(Resources(offer.resources()).contains(sharedVolume));
+  EXPECT_FALSE(Resources(offer.resources()).contains(nonSharedVolume));
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that multiple iterations of CREATE and LAUNCH
+// for the same framework is successfully handled in different
+// ACCEPT calls.
+TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleIterations)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  slaveFlags.resources = getSlaveResources();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // 1. Create framework so that all resources are offered to this framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::SHARED_RESOURCES);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  // 2. The framework CREATEs the 1st shared volume, and LAUNCHes a task
+  //    which uses this shared volume.
+  Resource volume1 = createPersistentVolume(
+      getDiskResource(Megabytes(2048), 1),
+      "id1",
+      "path1",
+      None(),
+      frameworkInfo.principal(),
+      true); // Shared volume.
+
+  TaskInfo task1 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get() + volume1,
+      "sleep 1000");
+
+  // Expect an offer containing the persistent volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // We use a filter of 0 seconds so the resources will be available
+  // in the next allocation cycle.
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(volume1),
+       LAUNCH({task1})},
+      filters);
+
+  // Advance the clock to generate an offer from the recovered resources.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume1));
+
+  // 3. The framework CREATEs the 2nd shared volume, and LAUNCHes a task
+  //    using this shared volume.
+  Resource volume2 = createPersistentVolume(
+      getDiskResource(Megabytes(2048), 2),
+      "id2",
+      "path2",
+      None(),
+      frameworkInfo.principal(),
+      true); // Shared volume.
+
+  TaskInfo task2 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get() + volume2,
+      "sleep 1000");
+
+  // Expect an offer containing the persistent volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(volume2),
+       LAUNCH({task2})},
+      filters);
+
+  // Advance the clock to generate an offer from the recovered resources.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume1));
+  EXPECT_TRUE(Resources(offer.resources()).contains(volume2));
+
+  driver.stop();
+  driver.join();
+
+  // Resume the clock so the terminating task and executor can be reaped.
+  Clock::resume();
 }
 
 

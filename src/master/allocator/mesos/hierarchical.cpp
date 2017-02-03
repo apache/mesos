@@ -719,20 +719,14 @@ void HierarchicalAllocatorProcess::updateAllocation(
     // resources in the allocator and each of the sorters. The available
     // resource quantities remain unchanged.
 
-    // Update the per-slave allocation.
-    Try<Resources> updatedSlaveAllocation = slave.allocated.apply(operation);
-
-    CHECK_SOME(updatedSlaveAllocation);
-
-    slave.allocated = updatedSlaveAllocation.get();
-
-    // Update the total resources.
+    // Update the total resources in the allocator and the role and
+    // quota sorters.
     Try<Resources> updatedTotal = slave.total.apply(operation);
     CHECK_SOME(updatedTotal);
 
-    slave.total = updatedTotal.get();
+    updateSlaveTotal(slaveId, updatedTotal.get());
 
-    // Update the total and allocated resources in each sorter.
+    // Update the total resources in the framework sorter.
     Resources frameworkAllocation =
       frameworkSorter->allocation(frameworkId.value(), slaveId);
 
@@ -741,35 +735,31 @@ void HierarchicalAllocatorProcess::updateAllocation(
 
     CHECK_SOME(updatedFrameworkAllocation);
 
-    // Update the total and allocated resources in the framework sorter
-    // for the current role.
     frameworkSorter->remove(slaveId, frameworkAllocation);
     frameworkSorter->add(slaveId, updatedFrameworkAllocation.get());
 
+    // Update the per-slave allocation.
+    Try<Resources> updatedSlaveAllocation = slave.allocated.apply(operation);
+    CHECK_SOME(updatedSlaveAllocation);
+
+    slave.allocated = updatedSlaveAllocation.get();
+
+    // Update the allocation in the framework sorter.
     frameworkSorter->update(
         frameworkId.value(),
         slaveId,
         frameworkAllocation,
         updatedFrameworkAllocation.get());
 
-    // Update the total and allocated resources in the role sorter.
-    roleSorter->remove(slaveId, frameworkAllocation);
-    roleSorter->add(slaveId, updatedFrameworkAllocation.get());
-
+    // Update the allocation in the role sorter.
     roleSorter->update(
         framework.role,
         slaveId,
         frameworkAllocation,
         updatedFrameworkAllocation.get());
 
-    // Update the total and allocated resources in the quota role
-    // sorter. Note that we always update the quota role sorter's total
-    // resources; we only update its allocated resources if this role
-    // has quota set.
-    quotaRoleSorter->remove(slaveId, frameworkAllocation.nonRevocable());
-    quotaRoleSorter->add(
-        slaveId, updatedFrameworkAllocation.get().nonRevocable());
-
+    // Update the allocated resources in the quota sorter. We only update
+    // the allocated resources if this role has quota set.
     if (quotas.contains(framework.role)) {
       // See comment at `quotaRoleSorter` declaration regarding non-revocable.
       quotaRoleSorter->update(
@@ -818,17 +808,8 @@ Future<Nothing> HierarchicalAllocatorProcess::updateAvailable(
   Try<Resources> updatedTotal = slave.total.apply(operations);
   CHECK_SOME(updatedTotal);
 
-  const Resources oldTotal = slave.total;
-  slave.total = updatedTotal.get();
-
-  // Now, update the total resources in the role sorters by removing
-  // the previous resources at this slave and adding the new resources.
-  roleSorter->remove(slaveId, oldTotal);
-  roleSorter->add(slaveId, updatedTotal.get());
-
-  // See comment at `quotaRoleSorter` declaration regarding non-revocable.
-  quotaRoleSorter->remove(slaveId, oldTotal.nonRevocable());
-  quotaRoleSorter->add(slaveId, updatedTotal.get().nonRevocable());
+  // Update the total resources in the allocator and role and quota sorters.
+  updateSlaveTotal(slaveId, updatedTotal.get());
 
   return Nothing();
 }
@@ -2053,6 +2034,31 @@ double HierarchicalAllocatorProcess::_offer_filters_active(
   }
 
   return result;
+}
+
+
+void HierarchicalAllocatorProcess::updateSlaveTotal(
+    const SlaveID& slaveId,
+    const Resources& total)
+{
+  CHECK(slaves.contains(slaveId));
+
+  Slave& slave = slaves.at(slaveId);
+
+  const Resources oldTotal = slave.total;
+  slave.total = total;
+
+  // Currently `roleSorter` and `quotaRoleSorter`, being the root-level
+  // sorters, maintain all of `slaves[slaveId].total` (or the `nonRevocable()`
+  // portion in the case of `quotaRoleSorter`) in their own totals (which
+  // don't get updated in the allocation runs or during recovery of allocated
+  // resources). So, we update them using the resources in `slave.total`.
+  roleSorter->remove(slaveId, oldTotal);
+  roleSorter->add(slaveId, total);
+
+  // See comment at `quotaRoleSorter` declaration regarding non-revocable.
+  quotaRoleSorter->remove(slaveId, oldTotal.nonRevocable());
+  quotaRoleSorter->add(slaveId, total.nonRevocable());
 }
 
 } // namespace internal {
