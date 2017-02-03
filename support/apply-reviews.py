@@ -118,8 +118,8 @@ def apply_review():
   # Make sure we don't leave the patch behind in case of failure.
   # We store the patch ID in a local variable to ensure the lambda
   # captures the current patch ID.
-  patch = patch_id()
-  atexit.register(lambda: os.remove('%s.patch' % patch))
+  patch_file = '%s.patch' % patch_id()
+  atexit.register(lambda: os.path.exists(patch_file) and os.remove(patch_file))
 
   fetch_patch()
   apply_patch()
@@ -185,6 +185,9 @@ def apply_patch():
   cmd = 'git apply --index {review_id}.patch'\
         .format(review_id=patch_id())
 
+  if options['3way']:
+    cmd += ' --3way'
+
   if platform.system() == 'Windows':
     # NOTE: Depending on the Git settings, there may or may not be
     # carriage returns in files and in the downloaded patch.
@@ -210,7 +213,7 @@ def commit_patch():
 
   # NOTE: Windows does not support multi-line commit messages via the shell.
   message_file = '%s.message' % patch_id()
-  atexit.register(lambda: os.remove(message_file))
+  atexit.register(lambda: os.path.exists(message_file) and os.remove(message_file))
 
   with open(message_file, 'w') as message:
     message.write(data['message'])
@@ -319,6 +322,11 @@ def parse_options():
                       action='store_true',
                       help='Recursively apply parent review chain.')
 
+  parser.add_argument('-3', '--3way',
+                      dest='three_way',
+                      action='store_true',
+                      help='Use 3 way merge in git apply.')
+
   # Add -g and -r and make them mutually exclusive.
   group = parser.add_mutually_exclusive_group(required=True)
   group.add_argument('-g', '--github',
@@ -335,6 +343,7 @@ def parse_options():
   options['no_amend'] = args.no_amend
   options['github'] = args.github
   options['chain'] = args.chain
+  options['3way'] = args.three_way
 
 
 def reviewboard():
