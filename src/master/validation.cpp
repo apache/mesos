@@ -629,6 +629,20 @@ Option<Error> validateType(const ExecutorInfo& executor)
         return Error(
             "'ExecutorInfo.command' must not be set for 'DEFAULT' executor");
       }
+
+      if (executor.has_container()) {
+        if (executor.container().type() != ContainerInfo::MESOS) {
+          return Error(
+              "'ExecutorInfo.container.type' must be 'MESOS' for "
+              "'DEFAULT' executor");
+        }
+
+        if (executor.container().mesos().has_image()) {
+          return Error(
+              "'ExecutorInfo.container.mesos.image' must not be set for "
+              "'DEFAULT' executor");
+        }
+      }
       break;
 
     case ExecutorInfo::CUSTOM:

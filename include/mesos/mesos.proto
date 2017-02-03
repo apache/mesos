@@ -652,6 +652,9 @@ message ExecutorInfo {
     //
     // 2) Default executor only accepts a *single* `LAUNCH` or `LAUNCH_GROUP`
     //    offer operation.
+    //
+    // 3) If `container` is set, `container.type` must be `MESOS`
+    //    and `container.mesos.image` must not be set.
     DEFAULT = 1;
 
     // For frameworks that need custom functionality to run tasks, a `CUSTOM`

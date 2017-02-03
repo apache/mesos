@@ -1987,6 +1987,37 @@ TEST_F(ExecutorValidationTest, ExecutorType)
         error->message,
         "'ExecutorInfo.command' must not be set for 'DEFAULT' executor"));
   }
+
+  {
+    // 'DEFAULT' executor with `ContainerInfo` must be a Mesos container.
+    executorInfo.set_type(ExecutorInfo::DEFAULT);
+    executorInfo.clear_command();
+    executorInfo.mutable_container()->set_type(ContainerInfo::DOCKER);
+
+    Option<Error> error = ::executor::internal::validateType(executorInfo);
+
+    EXPECT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "'ExecutorInfo.container.type' must be 'MESOS' for "
+        "'DEFAULT' executor"));
+  }
+
+  {
+    // 'DEFAULT' executor with `ContainerInfo` may not have a container image.
+    executorInfo.set_type(ExecutorInfo::DEFAULT);
+    executorInfo.clear_command();
+    executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
+    executorInfo.mutable_container()->mutable_mesos()->mutable_image();
+
+    Option<Error> error = ::executor::internal::validateType(executorInfo);
+
+    EXPECT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "'ExecutorInfo.container.mesos.image' must not be set for "
+        "'DEFAULT' executor"));
+  }
 }
 
 
@@ -2265,14 +2296,14 @@ TEST_F(TaskGroupValidationTest, ExecutorUsesDockerContainerInfo)
   EXPECT_EQ(TASK_ERROR, task1Status->state());
   EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task1Status->reason());
   EXPECT_EQ(
-      "Docker ContainerInfo is not supported on the executor",
+      "'ExecutorInfo.container.type' must be 'MESOS' for 'DEFAULT' executor",
       task1Status->message());
 
   AWAIT_READY(task2Status);
   EXPECT_EQ(TASK_ERROR, task2Status->state());
   EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task2Status->reason());
   EXPECT_EQ(
-      "Docker ContainerInfo is not supported on the executor",
+      "'ExecutorInfo.container.type' must be 'MESOS' for 'DEFAULT' executor",
       task2Status->message());
 
   // Make sure the task is not known to master anymore.
