@@ -1466,7 +1466,7 @@ TEST_P(MasterAPITest, SubscribeAgentEvents)
 
 // This test verifies that recovered but yet to reregister agents are returned
 // in `recovered_agents` field of `GetAgents` response.
-TEST_P(MasterAPITest, GetRecoveredAgents)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry = "replicated_log";
