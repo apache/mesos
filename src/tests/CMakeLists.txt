@@ -203,6 +203,7 @@ if (LINUX)
   set(MESOS_TESTS_SRC
     ${MESOS_TESTS_SRC}
     ldcache_tests.cpp
+    ldd_tests.cpp
     containerizer/capabilities_tests.cpp
     containerizer/cgroups_isolator_tests.cpp
     containerizer/cgroups_tests.cpp

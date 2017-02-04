@@ -2334,6 +2334,7 @@ mesos_tests_DEPENDENCIES =					\
 if OS_LINUX
 mesos_tests_SOURCES +=						\
   tests/ldcache_tests.cpp					\
+  tests/ldd_tests.cpp						\
   tests/containerizer/linux_capabilities_isolator_tests.cpp	\
   tests/containerizer/capabilities_tests.cpp			\
   tests/containerizer/capabilities_test_helper.cpp		\
