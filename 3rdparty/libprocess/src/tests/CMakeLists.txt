@@ -19,7 +19,7 @@
 set(PROCESS_TESTS_SRC
   ${PROCESS_TESTS_SRC}
   main.cpp
-  address_tests.cpp
+  after_tests.cpp
   collect_tests.cpp
   decoder_tests.cpp
   encoder_tests.cpp
