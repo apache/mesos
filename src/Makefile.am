@@ -1124,6 +1124,7 @@ MESOS_LINUX_FILES =									\
   linux/cgroups.cpp									\
   linux/fs.cpp										\
   linux/ldcache.cpp									\
+  linux/ldd.cpp										\
   linux/perf.cpp									\
   linux/systemd.cpp									\
   slave/containerizer/mesos/linux_launcher.cpp						\
@@ -1164,6 +1165,7 @@ MESOS_LINUX_FILES +=									\
   linux/cgroups.hpp									\
   linux/fs.hpp										\
   linux/ldcache.hpp									\
+  linux/ldd.hpp										\
   linux/ns.hpp										\
   linux/perf.hpp									\
   linux/sched.hpp									\
