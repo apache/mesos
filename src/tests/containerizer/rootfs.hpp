@@ -17,6 +17,10 @@
 #ifndef __TEST_ROOTFS_HPP__
 #define __TEST_ROOTFS_HPP__
 
+#ifndef __linux__
+#error "tests/containerizer/rootfs.hpp is only available on Linux systems"
+#endif
+
 #include <string>
 
 #include <process/owned.hpp>
@@ -32,14 +36,20 @@ class Rootfs {
 public:
   virtual ~Rootfs();
 
-  // Add a host directory or file to the root filesystem. Note that
-  // the host directory or file needs to be an absolute path.
+  // Add a host path to the root filesystem. If the given
+  // host path is a symlink, both the link target and the
+  // link itself will be copied into the root.
   Try<Nothing> add(const std::string& path);
 
   const std::string root;
 
 protected:
   Rootfs(const std::string& _root) : root(_root) {}
+
+private:
+  Try<Nothing> copyPath(
+      const std::string& source,
+      const std::string& destination);
 };
 
 
