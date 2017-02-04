@@ -182,13 +182,8 @@ protected:
 // stored in the proper locations accessible to the Docker provisioner.
 TEST_F(ProvisionerDockerLocalStoreTest, LocalStoreTestWithTar)
 {
-  const string archivesDir = path::join(os::getcwd(), "images");
-  const string image = path::join(archivesDir, "abc");
-  ASSERT_SOME(os::mkdir(archivesDir));
-  ASSERT_SOME(os::mkdir(image));
-
   slave::Flags flags;
-  flags.docker_registry = archivesDir;
+  flags.docker_registry = path::join(os::getcwd(), "images");
   flags.docker_store_dir = path::join(os::getcwd(), "store");
   flags.image_provisioner_backend = COPY_BACKEND;
 
@@ -275,13 +270,8 @@ public:
 // when multiple requests for the same image is in flight.
 TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
 {
-  const string archivesDir = path::join(os::getcwd(), "images");
-  const string image = path::join(archivesDir, "abc:latest");
-  ASSERT_SOME(os::mkdir(archivesDir));
-  ASSERT_SOME(os::mkdir(image));
-
   slave::Flags flags;
-  flags.docker_registry = "file://" + archivesDir;
+  flags.docker_registry = path::join(os::getcwd(), "images");
   flags.docker_store_dir = path::join(os::getcwd(), "store");
 
   MockPuller* puller = new MockPuller();
