@@ -47,7 +47,9 @@
 
 #include "tests/mesos.hpp"
 
+#ifdef __linux__
 #include "tests/containerizer/rootfs.hpp"
+#endif
 
 namespace http = process::http;
 namespace paths = mesos::internal::slave::appc::paths;
