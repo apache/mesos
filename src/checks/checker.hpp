@@ -17,14 +17,67 @@
 #ifndef __CHECKER_HPP__
 #define __CHECKER_HPP__
 
+#include <string>
+#include <vector>
+
 #include <mesos/mesos.hpp>
 
+#include <process/owned.hpp>
+
 #include <stout/error.hpp>
+#include <stout/lambda.hpp>
 #include <stout/option.hpp>
+#include <stout/try.hpp>
 
 namespace mesos {
 namespace internal {
 namespace checks {
+
+// Forward declarations.
+class CheckerProcess;
+
+class Checker
+{
+public:
+  /**
+   * Attempts to create a `Checker` object. In case of success, checking
+   * starts immediately after initialization.
+   *
+   * @param check The protobuf message definition of a check.
+   * @param callback A callback `Checker` uses to send check status updates
+   *     to its owner (usually an executor).
+   * @param taskId The TaskID of the target task.
+   * @param taskPid The target task's pid used to enter the specified
+   *     namespaces.
+   * @param namespaces The namespaces to enter prior to performing the check.
+   * @return A `Checker` object or an error if `create` fails.
+   *
+   * @todo A better approach would be to return a stream of updates, e.g.,
+   * `process::Stream<CheckStatusInfo>` rather than invoking a callback.
+   */
+  static Try<process::Owned<Checker>> create(
+      const CheckInfo& checkInfo,
+      const lambda::function<void(const CheckStatusInfo&)>& callback,
+      const TaskID& taskId,
+      const Option<pid_t>& taskPid,
+      const std::vector<std::string>& namespaces);
+
+  ~Checker();
+
+  // Not copyable, not assignable.
+  Checker(const Checker&) = delete;
+  Checker& operator=(const Checker&) = delete;
+
+  /**
+   * Immediately stops checking. Any in-flight checks are dropped.
+   */
+  void stop();
+
+private:
+  explicit Checker(process::Owned<CheckerProcess> process);
+
+  process::Owned<CheckerProcess> process;
+};
 
 namespace validation {
 

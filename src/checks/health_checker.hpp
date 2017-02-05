@@ -64,6 +64,9 @@ public:
    *
    * @todo A better approach would be to return a stream of updates, e.g.,
    * `process::Stream<TaskHealthStatus>` rather than invoking a callback.
+   *
+   * @todo Consider leveraging `checks::Checker` for checking functionality.
+   * This class will then focus on interpreting and acting on the result.
    */
   static Try<process::Owned<HealthChecker>> create(
       const HealthCheck& check,
