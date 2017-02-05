@@ -222,6 +222,12 @@ Isolator modules enable experimenting with specialized isolation and monitoring
 capabilities. Examples of these could be 3rdparty resource isolation mechanisms
 for GPGPU hardware, networking, etc.
 
+If a custom isolator module needs to checkpoint state to disk, it should do this
+on its own; Mesos does not provide public helpers to checkpoint module state.
+The standard location for such stored state is:
+
+    <runtime_dir>/isolators/<name_of_isolator>/
+
 ### Master Contender and Detector
 
 Contender and Detector modules enable developers to implement custom leader
