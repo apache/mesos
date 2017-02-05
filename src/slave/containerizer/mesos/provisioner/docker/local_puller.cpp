@@ -51,8 +51,9 @@ namespace docker {
 class LocalPullerProcess : public Process<LocalPullerProcess>
 {
 public:
-  LocalPullerProcess(const string& _archivesDir)
+  LocalPullerProcess(const string& _storeDir, const string& _archivesDir)
     : ProcessBase(process::ID::generate("docker-provisioner-local-puller")),
+      storeDir(_storeDir),
       archivesDir(_archivesDir) {}
 
   ~LocalPullerProcess() {}
@@ -82,6 +83,7 @@ private:
       const string& layerId,
       const string& backend);
 
+  const string storeDir;
   const string archivesDir;
 };
 
@@ -97,7 +99,7 @@ Try<Owned<Puller>> LocalPuller::create(const Flags& flags)
           << flags.docker_registry << "'";
 
   Owned<LocalPullerProcess> process(
-      new LocalPullerProcess(flags.docker_registry));
+      new LocalPullerProcess(flags.docker_store_dir, flags.docker_registry));
 
   return Owned<Puller>(new LocalPuller(process));
 }
@@ -282,6 +284,15 @@ Future<Nothing> LocalPullerProcess::extractLayers(
 {
   list<Future<Nothing>> futures;
   foreach (const string& layerId, layerIds) {
+    // Check if the layer is already in the store. If yes, skip the
+    // unnecessary extracting.
+    if (os::exists(paths::getImageLayerRootfsPath(
+            storeDir,
+            layerId,
+            backend))) {
+      continue;
+    }
+
     futures.push_back(extractLayer(directory, layerId, backend));
   }
 
