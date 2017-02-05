@@ -1767,6 +1767,17 @@ supported by the cgroups/cpu isolator. (default: true)
 </tr>
 <tr>
   <td>
+    --runtime_dir
+  </td>
+  <td>
+Path of the agent runtime directory. This is where runtime data
+is stored by an agent that it needs to persist across crashes (but
+not across reboots). This directory will be cleared on reboot.
+(Example: <code>/var/run/mesos</code>)
+  </td>
+</tr>
+<tr>
+  <td>
     --sandbox_directory=VALUE
   </td>
   <td>
