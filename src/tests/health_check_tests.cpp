@@ -37,7 +37,9 @@
 #include "tests/mock_docker.hpp"
 #include "tests/utils.hpp"
 
+#ifdef __linux__
 #include "tests/containerizer/docker_archive.hpp"
+#endif // __linux__
 
 namespace http = process::http;
 

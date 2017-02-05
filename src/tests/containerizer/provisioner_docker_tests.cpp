@@ -44,7 +44,9 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
+#ifdef __linux__
 #include "tests/containerizer/docker_archive.hpp"
+#endif // __linux__
 
 namespace master = mesos::internal::master;
 namespace paths = mesos::internal::slave::docker::paths;
