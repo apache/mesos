@@ -1478,6 +1478,8 @@ void HierarchicalAllocatorProcess::__allocate()
     foreach (const string& role, quotaRoleSorter->sort()) {
       CHECK(quotas.contains(role));
 
+      const Quota& quota = quotas.at(role);
+
       // If there are no active frameworks in this role, we do not
       // need to do any allocations for this role.
       if (!activeRoles.contains(role)) {
@@ -1488,14 +1490,30 @@ void HierarchicalAllocatorProcess::__allocate()
       // value omits role, reservation, and persistence info.
       Resources roleConsumedResources = getQuotaRoleAllocatedResources(role);
 
-      // If quota for the role is satisfied, we do not need to do any further
-      // allocations for this role, at least at this stage.
+      // If quota for the role is satisfied, we do not need to do
+      // any further allocations for this role, at least at this
+      // stage. More precisely, we stop allocating if at least
+      // one of the resource guarantees is met. This technique
+      // prevents gaming of the quota allocation, see MESOS-6432.
+      //
+      // Longer term, we could ideally allocate what remains
+      // unsatisfied to allow an existing container to scale
+      // vertically, or to allow the launching of a container
+      // with best-effort cpus/mem/disk/etc.
       //
       // TODO(alexr): Skipping satisfied roles is pessimistic. Better
       // alternatives are:
       //   * A custom sorter that is aware of quotas and sorts accordingly.
       //   * Removing satisfied roles from the sorter.
-      if (roleConsumedResources.contains(quotas[role].info.guarantee())) {
+      bool someGuaranteesReached = false;
+      foreach (const Resource& guarantee, quota.info.guarantee()) {
+        if (roleConsumedResources.contains(guarantee)) {
+          someGuaranteesReached = true;
+          break;
+        }
+      }
+
+      if (someGuaranteesReached) {
         continue;
       }
 

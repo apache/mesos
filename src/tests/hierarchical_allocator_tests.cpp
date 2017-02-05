@@ -3649,6 +3649,78 @@ TEST_F(HierarchicalAllocatorTest, ReviveOffers)
 }
 
 
+// This tests the behavior of quota when the allocation and
+// quota are disproportionate. The current approach (see MESOS-6432)
+// is to stop allocation quota once one of the resource
+// guarantees is reached. We test the following example:
+//
+//        Quota: cpus:4;mem:1024
+//   Allocation: cpus:2;mem:1024
+//
+// Here no more allocation occurs to the role since the memory
+// guarantee is reached. Longer term, we could offer the
+// unsatisfied cpus to allow an existing container to scale
+// vertically, or to allow the launching of a container with
+// best-effort memory/disk, etc.
+TEST_F(HierarchicalAllocatorTest, DisproportionateQuotaVsAllocation)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  const string QUOTA_ROLE{"quota-role"};
+  const string NO_QUOTA_ROLE{"no-quota-role"};
+
+  // Since resource allocation is coarse-grained, we use a quota such
+  // that mem can be satisfied from a single agent, but cpus requires
+  // multiple agents.
+  const string agentResources = "cpus:2;mem:1024";
+  const string quotaResources = "cpus:4;mem:1024";
+
+  Quota quota = createQuota(QUOTA_ROLE, quotaResources);
+  allocator->setQuota(QUOTA_ROLE, quota);
+
+  // Register two frameworks where on is using a role with quota.
+  FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
+  FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
+  allocator->addFramework(framework1.id(), framework1, {}, true);
+  allocator->addFramework(framework2.id(), framework2, {}, true);
+
+  // Register an agent. This triggers an allocation of all of the
+  // agent's resources to partially satisfy QUOTA_ROLE's quota. After
+  // the allocation QUOTA_ROLE's quota for mem will be satisfied while
+  // still being below the set quota for cpus. With that QUOTA_ROLE
+  // will not receive more resources since we currently do not
+  // have an ability to offer out only the cpus.
+  SlaveInfo agent1 = createSlaveInfo(agentResources);
+  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), {});
+
+  Allocation expected = Allocation(
+      framework1.id(),
+      {{framework1.role(), {{agent1.id(), agent1.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Register a second agent. Since QUOTA_ROLE has reached one
+  // of its quota guarantees and quota currently acts as an upper
+  // limit, no further resources are allocated for quota.
+  // In addition, we "hold back" the resources of the second
+  // agent in order to ensure that the quota could be satisfied
+  // should the first framework decide to consume proportionally
+  // to its quota (e.g. cpus:2;mem:512 on each agent).
+  SlaveInfo agent2 = createSlaveInfo(agentResources);
+  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), {});
+
+  Clock::settle();
+
+  Future<Allocation> allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+}
+
+
 class HierarchicalAllocatorTestWithParam
   : public HierarchicalAllocatorTestBase,
     public WithParamInterface<bool> {};
