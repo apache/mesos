@@ -651,7 +651,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& offeredResources,
-    const vector<Offer::Operation>& operations_)
+    const vector<Offer::Operation>& operations)
 {
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
@@ -678,10 +678,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
   // by the operations.
   Resources _offeredResources = offeredResources;
 
-  // Take a non-const copy to perform the adjustment below.
-  vector<Offer::Operation> operations = operations_;
-
-  foreach (Offer::Operation& operation, operations) {
+  foreach (const Offer::Operation& operation, operations) {
     // The operations should have been normalized by the master via
     // `protobuf::adjustOfferOperation()`.
     //
