@@ -234,23 +234,25 @@ void DRFSorter::update(
 }
 
 
-const hashmap<SlaveID, Resources>& DRFSorter::allocation(const string& name)
+const hashmap<SlaveID, Resources>& DRFSorter::allocation(
+    const string& name) const
 {
   CHECK(contains(name));
 
-  return allocations[name].resources;
+  return allocations.at(name).resources;
 }
 
 
-const Resources& DRFSorter::allocationScalarQuantities(const string& name)
+const Resources& DRFSorter::allocationScalarQuantities(
+    const string& name) const
 {
   CHECK(contains(name));
 
-  return allocations[name].scalarQuantities;
+  return allocations.at(name).scalarQuantities;
 }
 
 
-hashmap<string, Resources> DRFSorter::allocation(const SlaveID& slaveId)
+hashmap<string, Resources> DRFSorter::allocation(const SlaveID& slaveId) const
 {
   // TODO(jmlvanre): We can index the allocation by slaveId to make this faster.
   // It is a tradeoff between speed vs. memory. For now we use existing data
@@ -270,12 +272,14 @@ hashmap<string, Resources> DRFSorter::allocation(const SlaveID& slaveId)
 }
 
 
-Resources DRFSorter::allocation(const string& name, const SlaveID& slaveId)
+Resources DRFSorter::allocation(
+    const string& name,
+    const SlaveID& slaveId) const
 {
   CHECK(contains(name));
 
-  if (allocations[name].resources.contains(slaveId)) {
-    return allocations[name].resources[slaveId];
+  if (allocations.at(name).resources.contains(slaveId)) {
+    return allocations.at(name).resources.at(slaveId);
   }
 
   return Resources();
@@ -294,8 +298,8 @@ void DRFSorter::unallocated(
     const Resources& resources)
 {
   CHECK(contains(name));
-  CHECK(allocations[name].resources.contains(slaveId));
-  CHECK(allocations[name].resources[slaveId].contains(resources));
+  CHECK(allocations.at(name).resources.contains(slaveId));
+  CHECK(allocations.at(name).resources.at(slaveId).contains(resources));
 
   allocations[name].resources[slaveId] -= resources;
 
@@ -427,7 +431,7 @@ bool DRFSorter::contains(const string& name) const
 }
 
 
-int DRFSorter::count()
+int DRFSorter::count() const
 {
   return allocations.size();
 }
