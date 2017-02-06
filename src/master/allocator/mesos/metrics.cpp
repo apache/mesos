@@ -14,17 +14,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <mesos/quota/quota.hpp>
-
-#include <process/metrics/metrics.hpp>
-
-#include <stout/strings.hpp>
-
-#include "master/allocator/mesos/hierarchical.hpp"
 #include "master/allocator/mesos/metrics.hpp"
 
+#include <string>
+
+#include <mesos/quota/quota.hpp>
+
+#include <process/metrics/gauge.hpp>
+#include <process/metrics/metrics.hpp>
+
+#include <stout/hashmap.hpp>
+
+#include "master/allocator/mesos/hierarchical.hpp"
+
 using std::string;
-using std::vector;
 
 using process::metrics::Gauge;
 

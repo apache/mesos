@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <algorithm>
+#include "master/allocator/sorter/drf/sorter.hpp"
+
 #include <set>
 #include <string>
 #include <vector>
@@ -27,11 +28,8 @@
 
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/option.hpp>
-
-#include "logging/logging.hpp"
-
-#include "master/allocator/sorter/drf/sorter.hpp"
 
 using std::set;
 using std::string;

@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/quota/quota.hpp>
+
 #include <process/metrics/counter.hpp>
 #include <process/metrics/gauge.hpp>
 #include <process/metrics/timer.hpp>
