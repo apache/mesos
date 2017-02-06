@@ -697,7 +697,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
 
 // This tests the parse function of roles.
-TEST(RolesTest, Parsing)
+TEST_F(RoleTest, Parsing)
 {
   vector<string> v = {"abc", "edf", "hgi"};
 
@@ -720,7 +720,7 @@ TEST(RolesTest, Parsing)
 // This tests the validate functions of roles. Keep in mind that
 // roles::validate returns Option<Error>, so it will return None() when
 // validation succeeds, or Error() when validation fails.
-TEST(RolesTest, Validate)
+TEST_F(RoleTest, Validate)
 {
   EXPECT_NONE(roles::validate("foo"));
   EXPECT_NONE(roles::validate("123"));
