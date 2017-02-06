@@ -98,12 +98,11 @@ protected:
           "cpus:2;gpus:0;mem:1024;disk:1024;ports:[31000-32000]").get()));
   }
 
-  // Sets up the master flags with two roles and a short allocation interval.
+  // Returns master flags configured with a short allocation interval.
   virtual master::Flags CreateMasterFlags()
   {
     master::Flags flags = MesosTest::CreateMasterFlags();
     flags.allocation_interval = Milliseconds(50);
-    flags.roles = strings::join(",", ROLE1, ROLE2);
     return flags;
   }
 
@@ -152,7 +151,6 @@ protected:
 // while irrelevant fields are not present.
 
 // TODO(alexr): Tests to implement:
-//   * Implicit roles are used in the master.
 //   * Role is absent.
 //   * Role is an empty string.
 //   * Role is '*'?
@@ -162,11 +160,15 @@ protected:
 // using an explicitly configured list of role names.
 TEST_F(MasterQuotaTest, SetForNonExistentRole)
 {
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.roles = strings::join(",", ROLE1, ROLE2);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  // We do not need an agent since a request should be rejected before we
-  // start looking at available resources.
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  const bool FORCE = true;
 
   Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
@@ -175,7 +177,7 @@ TEST_F(MasterQuotaTest, SetForNonExistentRole)
       master.get()->pid,
       "quota",
       createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      createRequestBody("non-existent-role", quotaResources));
+      createRequestBody("non-existent-role", quotaResources, FORCE));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
     << response.get().body;
