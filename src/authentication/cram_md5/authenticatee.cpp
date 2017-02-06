@@ -130,7 +130,7 @@ public:
 
     // NOTE: Some SASL mechanisms do not allow/enable "proxying",
     // i.e., authorization. Therefore, some mechanisms send _only_ the
-    // authoriation name rather than both the user (authentication
+    // authorization name rather than both the user (authentication
     // name) and authorization name. Thus, for now, we assume
     // authorization is handled out of band. Consider the
     // SASL_NEED_PROXY flag if we want to reconsider this in the

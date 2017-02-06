@@ -182,7 +182,7 @@ TEST_F(MasterQuotaTest, SetForNonExistentRole)
 }
 
 
-// Quota requests with invalid structure should return a '400 Bad Request'.
+// Quota requests with invalid structure should return '400 Bad Request'.
 TEST_F(MasterQuotaTest, InvalidSetRequest)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -264,8 +264,8 @@ TEST_F(MasterQuotaTest, InvalidSetRequest)
 }
 
 
-// Checks that a quota set request is not satisfied if any invalid field is
-// set or provided data are not supported.
+// Checks that a quota set request is not satisfied if an invalid
+// field is set or provided data are not supported.
 TEST_F(MasterQuotaTest, SetRequestWithInvalidData)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -356,8 +356,8 @@ TEST_F(MasterQuotaTest, SetRequestWithInvalidData)
 }
 
 
-// Updating an exiting quota via POST to the '/master/quota endpoint' should
-// return a '400 BadRequest'.
+// Updating an existing quota via POST to the '/master/quota' endpoint should
+// return '400 BadRequest'.
 TEST_F(MasterQuotaTest, SetExistingQuota)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -395,8 +395,8 @@ TEST_F(MasterQuotaTest, SetExistingQuota)
 }
 
 
-// Tests whether we can remove a quota from the '/master/quota endpoint' via a
-// DELETE request against /quota.
+// Tests whether we can remove a quota from the '/master/quota'
+// endpoint via a DELETE request against /quota.
 TEST_F(MasterQuotaTest, RemoveSingleQuota)
 {
   TestAllocator<> allocator;
@@ -418,7 +418,7 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
   };
 
   // Ensure that we can't remove quota for a role that is unknown to
-  // the master when using explicitly configured list of role names.
+  // the master when using an explicitly configured list of role names.
   {
     Future<Response> response = removeQuota("quota/" + UNKNOWN_ROLE);
 
@@ -1187,7 +1187,7 @@ TEST_F(MasterQuotaTest, UnauthenticatedQuotaRequest)
       << response.get().body;
   }
 
-  // The absense of credentials leads to authentication failure as well.
+  // The absence of credentials leads to authentication failure as well.
   {
     Future<Response> response = process::http::post(
         master.get()->pid,
@@ -1291,7 +1291,7 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequests)
     EXPECT_EQ(quotaResources, quota.get().info.guarantee());
   }
 
-  // Try to get the previously requested quota using a princilal that is
+  // Try to get the previously requested quota using a principal that is
   // not authorized to see it. This will result in empty information
   // returned.
   {
@@ -1622,7 +1622,7 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequestsWithoutPrincipal)
       << response.get().body;
   }
 
-  // Get the previously requested quota without providing authoriation
+  // Get the previously requested quota without providing authorization
   // headers.
   {
     Future<Response> response = process::http::get(

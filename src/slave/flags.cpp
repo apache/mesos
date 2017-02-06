@@ -526,7 +526,7 @@ mesos::internal::slave::Flags::Flags()
       "To set capabilities the agent should have the `SETPCAP` capability.\n"
       "\n"
       "This flag is effective iff `capabilities` isolation is enabled.\n"
-      "When `capabilities` isolation is enabled, the absense of this flag\n"
+      "When `capabilities` isolation is enabled, the absence of this flag\n"
       "would imply that the operator would allow ALL capabilities.\n"
       "\n"
       "Example:\n"

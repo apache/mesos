@@ -225,7 +225,7 @@ static Try<string> download(
   }
 
   // 1. Try to fetch using a local copy.
-  // We regard as local: "file://" or the absense of any URI scheme.
+  // We regard as local: "file://" or the absence of any URI scheme.
   Result<string> sourcePath =
     Fetcher::uriToLocalPath(sourceUri, frameworksHome);
 

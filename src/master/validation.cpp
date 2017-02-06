@@ -1624,7 +1624,7 @@ Option<Error> validate(const Offer::Operation::Unreserve& unreserve)
   // NOTE: We don't check that 'FrameworkInfo.principal' matches
   // 'Resource.ReservationInfo.principal' here because the authorization
   // depends on the "unreserve" ACL which specifies which 'principal' can
-  // unreserve which 'principal's resources. In the absense of an ACL, we allow
+  // unreserve which 'principal's resources. In the absence of an ACL, we allow
   // any 'principal' to unreserve any other 'principal's resources.
 
   foreach (const Resource& resource, unreserve.resources()) {
