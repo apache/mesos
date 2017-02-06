@@ -178,9 +178,8 @@ void DRFSorter::allocated(
     allocations[name].totals[resource.name()] += resource.scalar();
   }
 
-  // If the total resources have changed, we're going to
-  // recalculate all the shares, so don't bother just
-  // updating this client.
+  // If the total resources have changed, we're going to recalculate
+  // all the shares, so don't bother just updating this client.
   if (!dirty) {
     update(name);
   }
@@ -388,10 +387,7 @@ vector<string> DRFSorter::sort()
   if (dirty) {
     set<Client, DRFComparator> temp;
 
-    set<Client, DRFComparator>::iterator it;
-    for (it = clients.begin(); it != clients.end(); it++) {
-      Client client(*it);
-
+    foreach (Client client, clients) {
       // Update the 'share' to get proper sorting.
       client.share = calculateShare(client.name);
 
@@ -408,9 +404,8 @@ vector<string> DRFSorter::sort()
   vector<string> result;
   result.reserve(clients.size());
 
-  set<Client, DRFComparator>::iterator it;
-  for (it = clients.begin(); it != clients.end(); it++) {
-    result.push_back((*it).name);
+  foreach (const Client& client, clients) {
+    result.push_back(client.name);
   }
 
   return result;
@@ -482,7 +477,7 @@ set<Client, DRFComparator>::iterator DRFSorter::find(const string& name)
 {
   set<Client, DRFComparator>::iterator it;
   for (it = clients.begin(); it != clients.end(); it++) {
-    if (name == (*it).name) {
+    if (name == it->name) {
       break;
     }
   }
