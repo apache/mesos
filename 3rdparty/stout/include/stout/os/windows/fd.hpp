@@ -93,13 +93,13 @@ public:
 
   int crt() const
   {
-    CHECK_EQ(FD_CRT, type());
+    CHECK((type() == FD_CRT) || (type() == FD_HANDLE));
     return crt_;
   }
 
   operator HANDLE() const
   {
-    CHECK_EQ(FD_HANDLE, type());
+    CHECK((type() == FD_CRT) || (type() == FD_HANDLE));
     return handle_;
   }
 
