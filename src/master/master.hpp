@@ -1739,9 +1739,9 @@ private:
       ~Subscriber()
       {
         // TODO(anand): Refactor `HttpConnection` to being a RAII class instead.
-        // It is possible that a caller might accidentally nvoke `close()` after
-        // passing ownership to the `Subscriber` object. See MESOS-5843 for more
-        // details.
+        // It is possible that a caller might accidentally invoke `close()`
+        // after passing ownership to the `Subscriber` object. See MESOS-5843
+        // for more details.
         http.close();
       }
 
