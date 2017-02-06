@@ -471,6 +471,20 @@
 
   mesosApp.controller('OffersCtrl', function() {});
 
+  mesosApp.controller('MaintenanceCtrl', function($scope, $http) {
+    // TODO(haosdent): Send requests to the leading master directly
+    // once `leadingMasterURL` is public.
+    $http.jsonp('/master/maintenance/schedule?jsonp=JSON_CALLBACK')
+      .success(function(response) {
+        $scope.maintenance = response;
+      })
+      .error(function() {
+        if ($scope.isErrorModalOpen === false) {
+          popupErrorModal();
+        }
+      });
+  });
+
   mesosApp.controller('FrameworkCtrl', function($scope, $routeParams) {
     var update = function() {
       if ($routeParams.id in $scope.completed_frameworks) {

@@ -6,12 +6,6 @@
       $routeProvider
         .when('/',
           {templateUrl: 'static/home.html', controller: 'HomeCtrl'})
-        .when('/frameworks',
-          {templateUrl: 'static/frameworks.html', controller: 'FrameworksCtrl'})
-        .when('/frameworks/:id',
-          {templateUrl: 'static/framework.html', controller: 'FrameworkCtrl'})
-        .when('/offers',
-          {templateUrl: 'static/offers.html', controller: 'OffersCtrl'})
         .when('/agents',
           {templateUrl: 'static/agents.html', controller: 'AgentsCtrl'})
         .when('/agents/:agent_id',
@@ -20,6 +14,14 @@
           {templateUrl: 'static/agent_framework.html', controller: 'AgentFrameworkCtrl'})
         .when('/agents/:agent_id/frameworks/:framework_id/executors/:executor_id',
           {templateUrl: 'static/agent_executor.html', controller: 'AgentExecutorCtrl'})
+        .when('/frameworks',
+          {templateUrl: 'static/frameworks.html', controller: 'FrameworksCtrl'})
+        .when('/frameworks/:id',
+          {templateUrl: 'static/framework.html', controller: 'FrameworkCtrl'})
+        .when('/maintenance',
+          {templateUrl: 'static/maintenance.html', controller: 'MaintenanceCtrl'})
+        .when('/offers',
+          {templateUrl: 'static/offers.html', controller: 'OffersCtrl'})
 
         // TODO(tomxing): Remove the following '/slaves/*' paths once the
         // slave->agent rename is complete(MESOS-3779).
@@ -88,7 +90,7 @@
       return function(date) {
         var i = parseInt(date, 10);
         if (_.isNaN(i)) { return '' };
-        return $filter('date')(i, 'yyyy-MM-ddTH:mm:ssZ');
+        return $filter('date')(i, 'yyyy-MM-ddTHH:mm:ssZ');
       };
     })
     .filter('relativeDate', function() {
@@ -256,6 +258,11 @@
 
           var setSorting = function(el) {
             var key = el.attr('data-key');
+
+            // Prevent sorting when 'data-key' is undefined.
+            if (!key) {
+              return;
+            }
 
             if (scope.columnKey === key) {
               scope.sortOrder = !scope.sortOrder;
