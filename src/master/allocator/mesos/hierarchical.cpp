@@ -466,6 +466,7 @@ void HierarchicalAllocatorProcess::addSlave(
       // framework's role.
       CHECK(roleSorter->contains(role));
       CHECK(frameworkSorters.contains(role));
+      CHECK(frameworkSorters.at(role)->contains(frameworkId.value()));
 
       roleSorter->allocated(role, slaveId, allocated);
       frameworkSorters.at(role)->add(slaveId, allocated);

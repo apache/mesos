@@ -99,6 +99,8 @@ void DRFSorter::update(const string& name, double weight)
 
 void DRFSorter::remove(const string& name)
 {
+  CHECK(contains(name));
+
   set<Client, DRFComparator>::iterator it = find(name);
 
   if (it != clients.end()) {
@@ -128,6 +130,8 @@ void DRFSorter::activate(const string& name)
 
 void DRFSorter::deactivate(const string& name)
 {
+  CHECK(contains(name));
+
   set<Client, DRFComparator>::iterator it = find(name);
 
   if (it != clients.end()) {
@@ -145,9 +149,15 @@ void DRFSorter::allocated(
     const SlaveID& slaveId,
     const Resources& resources)
 {
+  CHECK(contains(name));
+
   set<Client, DRFComparator>::iterator it = find(name);
 
-  if (it != clients.end()) { // TODO(benh): This should really be a CHECK.
+  // The allocator might notify us about an allocation that has been
+  // made to an inactive sorter client. For example, this happens when
+  // an agent re-registers that is running tasks for a framework that
+  // has not yet re-registered.
+  if (it != clients.end()) {
     // TODO(benh): Refactor 'update' to be able to reuse it here.
     Client client(*it);
 
@@ -283,9 +293,10 @@ void DRFSorter::unallocated(
     const SlaveID& slaveId,
     const Resources& resources)
 {
+  CHECK(contains(name));
   CHECK(allocations[name].resources.contains(slaveId));
-
   CHECK(allocations[name].resources[slaveId].contains(resources));
+
   allocations[name].resources[slaveId] -= resources;
 
   // Remove shared resources from the allocated quantities when there
