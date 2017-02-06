@@ -4450,7 +4450,7 @@ void Master::_accept(
         }
 
         // Note that we do not fill in the `ExecutorInfo.framework_id`
-        // since we do not have to support backwards compatiblity like
+        // since we do not have to support backwards compatibility like
         // in the `Launch` operation case.
 
         // TODO(bmahler): Consider injecting some default (cpus, mem, disk)
