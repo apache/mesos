@@ -132,7 +132,7 @@ public:
 private:
   // Recalculates the share for the client and moves
   // it in 'clients' accordingly.
-  void update(const std::string& name);
+  void updateShare(const std::string& name);
 
   // Returns the dominant resource share for the client.
   double calculateShare(const std::string& name) const;

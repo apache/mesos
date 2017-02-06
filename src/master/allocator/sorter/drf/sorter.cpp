@@ -92,7 +92,7 @@ void DRFSorter::update(const string& name, double weight)
   // recalculate all the shares, so don't bother just
   // updating this client.
   if (!dirty) {
-    update(name);
+    updateShare(name);
   }
 }
 
@@ -158,7 +158,7 @@ void DRFSorter::allocated(
   // an agent re-registers that is running tasks for a framework that
   // has not yet re-registered.
   if (it != clients.end()) {
-    // TODO(benh): Refactor 'update' to be able to reuse it here.
+    // TODO(benh): Refactor 'updateShare' to be able to reuse it here.
     Client client(*it);
 
     // Update the 'allocations' to reflect the allocator decision.
@@ -189,7 +189,7 @@ void DRFSorter::allocated(
   // If the total resources have changed, we're going to recalculate
   // all the shares, so don't bother just updating this client.
   if (!dirty) {
-    update(name);
+    updateShare(name);
   }
 }
 
@@ -325,7 +325,7 @@ void DRFSorter::unallocated(
   }
 
   if (!dirty) {
-    update(name);
+    updateShare(name);
   }
 }
 
@@ -437,7 +437,7 @@ int DRFSorter::count() const
 }
 
 
-void DRFSorter::update(const string& name)
+void DRFSorter::updateShare(const string& name)
 {
   set<Client, DRFComparator>::iterator it = find(name);
 
