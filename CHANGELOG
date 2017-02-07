@@ -37,6 +37,7 @@ All Issues:
   * [MESOS-6571] - Add "--task" flag to mesos-execute.
   * [MESOS-6597] - Include v1 Operator API protos in generated JAR and python packages.
   * [MESOS-6621] - SSL downgrade path will CHECK-fail when using both temporary and persistent sockets.
+  * [MESOS-6624] - Master WebUI does not work on Firefox 45.
   * [MESOS-6676] - Always re-link with scheduler during re-registration.
   * [MESOS-6848] - The default executor does not exit if a single task pod fails.
   * [MESOS-6852] - Nested container's launch command is not set correctly in docker/runtime isolator.
