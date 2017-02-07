@@ -488,6 +488,12 @@ ostream& operator<<(ostream& stream, const ContainerInfo& containerInfo)
 }
 
 
+ostream& operator<<(ostream& stream, const Environment& environment)
+{
+  return stream << JSON::protobuf(environment);
+}
+
+
 ostream& operator<<(ostream& stream, const ExecutorID& executorId)
 {
   return stream << executorId.value();
