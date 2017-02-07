@@ -68,7 +68,7 @@ public:
   // IMPORTANT: The `HANDLE` here is expected to be file handles. Specifically,
   //            `HANDLE`s returned by file API such as `CreateFile`. There are
   //            APIs that return `HANDLE`s with different error values, and
-  //            thereofre must be handled accordingly. For example, a thread API
+  //            therefore must be handled accordingly. For example, a thread API
   //            such as `CreateThread` returns `NULL` as the error value, rather
   //            than `INVALID_HANDLE_VALUE`.
   // TODO(mpark): Consider adding a second parameter which tells us what the
@@ -109,7 +109,7 @@ public:
     return socket_;
   }
 
-  // On Winodws, libevent's `evutil_socket_t` is set to `intptr_t`.
+  // On Windows, libevent's `evutil_socket_t` is set to `intptr_t`.
   operator intptr_t() const
   {
     CHECK_EQ(FD_SOCKET, type());
@@ -169,7 +169,7 @@ inline std::ostream& operator<<(std::ostream& stream, const WindowsFD& fd)
 inline bool operator<(const WindowsFD& left, const WindowsFD& right)
 {
   // In general, when compared against a `WindowsFD` in the `FD_CRT`, we map
-  // `INVALD_HANDLE_VALUE` and `INVALID_SOCKET` to `-1` before performing the
+  // `INVALID_HANDLE_VALUE` and `INVALID_SOCKET` to `-1` before performing the
   // comparison. The check for `< 0` followed by cast to `HANDLE` or `SOCKET` is
   // due to the fact that `HANDLE` and `SOCKET` are both unsigned.
   switch (left.type()) {
@@ -318,7 +318,7 @@ inline bool operator>=(const WindowsFD& left, int right)
 inline bool operator==(const WindowsFD& left, const WindowsFD& right)
 {
   // In general, when compared against a `WindowsFD` in the `FD_CRT`, we map
-  // `INVALD_HANDLE_VALUE` and `INVALID_SOCKET` to `-1` before performing the
+  // `INVALID_HANDLE_VALUE` and `INVALID_SOCKET` to `-1` before performing the
   // comparison. The check for `< 0` followed by cast to `HANDLE` or `SOCKET` is
   // due to the fact that `HANDLE` and `SOCKET` are both unsigned.
   switch (left.type()) {
