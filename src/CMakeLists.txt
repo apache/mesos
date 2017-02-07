@@ -37,6 +37,7 @@ PROTOC_TO_INCLUDE_DIR(MASTER           mesos/master/master)
 PROTOC_TO_INCLUDE_DIR(MESOS            mesos/mesos)
 PROTOC_TO_INCLUDE_DIR(MODULE           mesos/module/module)
 PROTOC_TO_INCLUDE_DIR(OVERSUBSCRIPTION mesos/slave/oversubscription)
+PROTOC_TO_INCLUDE_DIR(OCI_SPEC         mesos/oci/spec)
 PROTOC_TO_INCLUDE_DIR(QUOTA            mesos/quota/quota)
 PROTOC_TO_INCLUDE_DIR(SCHEDULER        mesos/scheduler/scheduler)
 PROTOC_TO_INCLUDE_DIR(STATE            mesos/state/state)
@@ -77,6 +78,7 @@ set(PUBLIC_PROTOBUF_SRC
   ${MASTER_PROTO_CC}
   ${MESOS_PROTO_CC}
   ${MODULE_PROTO_CC}
+  ${OCI_SPEC_PROTO_CC}
   ${OVERSUBSCRIPTION_PROTO_CC}
   ${QUOTA_PROTO_CC}
   ${SCHEDULER_PROTO_CC}
@@ -365,6 +367,10 @@ set(MODULE_SRC
   module/manager.cpp
   )
 
+set(OCI_SRC
+  oci/spec.cpp
+  )
+
 set(POSIX_SRC
   posix/rlimits.cpp
   )
@@ -452,6 +458,7 @@ set(MESOS_SRC
   ${MASTER_SRC}
   ${MESSAGES_SRC}
   ${MODULE_SRC}
+  ${OCI_SRC}
   ${SCHEDULER_SRC}
   ${STATE_SRC}
   ${URI_SRC}

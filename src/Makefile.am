@@ -893,6 +893,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/detector/zookeeper.cpp						\
   messages/messages.cpp							\
   module/manager.cpp							\
+  oci/spec.cpp								\
   posix/rlimits.cpp							\
   sched/sched.cpp							\
   scheduler/scheduler.cpp						\

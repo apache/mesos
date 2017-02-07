@@ -24,7 +24,29 @@ namespace spec {
 namespace image {
 namespace v1 {
 
-// TODO(qianzhang): Add methods to parse OCI image spec
+// Constant strings for OCI image media types:
+// https://github.com/opencontainers/image-spec/blob/master/media-types.md
+constexpr char MEDIA_TYPE_MANIFEST_LIST[] =
+    "application/vnd.oci.image.manifest.list.v1+json";
+
+constexpr char MEDIA_TYPE_MANIFEST[] =
+    "application/vnd.oci.image.manifest.v1+json";
+
+constexpr char MEDIA_TYPE_CONFIG[] =
+    "application/vnd.oci.image.config.v1+json";
+
+constexpr char MEDIA_TYPE_LAYER[] =
+    "application/vnd.oci.image.layer.v1.tar+gzip";
+
+constexpr char MEDIA_TYPE_NONDIST_LAYER[] =
+    "application/vnd.oci.image.layer.nondistributable.v1.tar+gzip";
+
+/**
+ * Returns the OCI v1 descriptor, image manifest list, image manifest
+ * and image configuration from the given string.
+ */
+template <typename T>
+Try<T> parse(const std::string& s);
 
 } // namespace v1 {
 } // namespace image {
