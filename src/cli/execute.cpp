@@ -475,7 +475,9 @@ protected:
     CHECK_EQ(SUBSCRIBED, state);
 
     foreach (const Offer& offer, offers) {
+      // Strip the allocation from the offer since we use a single role.
       Resources offered = offer.resources();
+      offered.unallocate();
 
       Resources requiredResources;
 
