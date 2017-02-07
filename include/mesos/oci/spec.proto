@@ -1,0 +1,156 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package oci.spec.image.v1;
+
+/**
+ * Protobuf for the OCI content descriptor JSON schema:
+ * https://github.com/opencontainers/image-spec/blob/master/descriptor.md
+ */
+message Descriptor {
+  // Media types identify their referenced resources, see more details in:
+  // https://github.com/opencontainers/image-spec/blob/master/media-types.md
+  required string mediaType = 1;
+  required string digest = 2;
+  required int64 size = 3;
+  repeated string urls = 4;
+}
+
+
+message Platform {
+  required string architecture = 1;
+  required string os = 2;
+
+  // NOTE: The actual field names in OCI spec are 'os.version' and 'os.features',
+  // but we can not use them in protobuf message since "." is not allowed in
+  // field name, so these two fields will be handled manually during parsing.
+  optional string os_version = 3;
+  repeated string os_features = 4;
+  optional string variant = 5;
+  repeated string features = 6;
+}
+
+
+message ManifestDescriptor {
+  required string mediaType = 1;
+  required string digest = 2;
+  required int64 size = 3;
+  required Platform platform = 4;
+  repeated string urls = 5;
+}
+
+
+/**
+ * Protobuf for the string-string map field entry.
+ */
+message Label {
+  required string key = 1;
+  required string value = 2;
+}
+
+
+/**
+ * Protobuf for the OCI image manifest list JSON schema:
+ * https://github.com/opencontainers/image-spec/blob/master/manifest-list.md
+ *
+ * The OCI MIME type of this message is:
+ *   application/vnd.oci.image.manifest.list.v1+json
+ */
+message ManifestList {
+  required int64 schemaVersion = 1;
+  repeated ManifestDescriptor manifests = 2;
+
+  // NOTE: We cannot use 'annotations' here because otherwise,
+  // json->protobuf parsing will fail. 'Annotations' is manually
+  // set during parsing.
+  repeated Label Annotations = 3;
+}
+
+
+/**
+ * Protobuf for the OCI image manifest JSON schema:
+ * https://github.com/opencontainers/image-spec/blob/master/manifest.md
+ *
+ * The OCI MIME type of this message is:
+ *   application/vnd.oci.image.manifest.v1+json
+ */
+message Manifest {
+  required int64 schemaVersion = 1;
+  required Descriptor config = 2;
+  repeated Descriptor layers = 3;
+
+  // NOTE: We cannot use 'annotations' here because otherwise,
+  // json->protobuf parsing will fail. 'Annotations' is manually
+  // set during parsing.
+  repeated Label Annotations = 4;
+}
+
+
+/**
+ * Protobuf for the OCI image configuration JSON schema:
+ * https://github.com/opencontainers/image-spec/blob/master/config.md
+ *
+ * The OCI MIME type of this message is:
+ *   application/vnd.oci.image.config.v1+json
+ */
+message Configuration {
+  required string architecture = 1;
+  required string os = 2;
+
+  message Rootfs {
+    required string type = 1;
+    repeated string diff_ids = 2;
+  }
+
+  required Rootfs rootfs = 3;
+  optional string created = 4;
+  optional string author = 5;
+
+  message Config {
+    optional string User = 1;
+
+    // NOTE: We cannot use 'ExposedPorts' here because otherwise,
+    // json->protobuf parsing will fail. 'exposedPorts' is manually
+    // set during parsing.
+    repeated string exposedPorts = 2;
+    repeated string Env = 3;
+    repeated string Entrypoint = 4;
+    repeated string Cmd = 5;
+
+    // NOTE: We cannot use 'Volumes' here because otherwise,
+    // json->protobuf parsing will fail. 'volumes' is manually
+    // set during parsing.
+    repeated string volumes = 6;
+    optional string WorkingDir = 7;
+
+    // NOTE: We cannot use 'Labels' here because otherwise,
+    // json->protobuf parsing will fail. 'labels' is manually
+    // set during parsing.
+    repeated Label labels = 8;
+  }
+
+  optional Config config = 6;
+
+  message History {
+    optional string created = 1;
+    optional string author = 2;
+    optional string created_by = 3;
+    optional string comment = 4;
+    optional bool empty_layer = 5;
+  }
+
+  repeated History history = 7;
+}

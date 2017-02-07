@@ -240,6 +240,7 @@ MAINTENANCE_PROTO = $(top_srcdir)/include/mesos/maintenance/maintenance.proto
 MASTER_PROTO = $(top_srcdir)/include/mesos/master/master.proto
 MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 MODULE_PROTO = $(top_srcdir)/include/mesos/module/module.proto
+OCI_SPEC_PROTO = $(top_srcdir)/include/mesos/oci/spec.proto
 QUOTA_PROTO = $(top_srcdir)/include/mesos/quota/quota.proto
 SCHEDULER_PROTO = $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 STATE_PROTO = $(top_srcdir)/include/mesos/state/state.proto
@@ -288,6 +289,8 @@ CXX_PROTOS =								\
   ../include/mesos/module/hook.pb.h					\
   ../include/mesos/module/module.pb.cc					\
   ../include/mesos/module/module.pb.h					\
+  ../include/mesos/oci/spec.pb.cc					\
+  ../include/mesos/oci/spec.pb.h					\
   ../include/mesos/quota/quota.pb.cc					\
   ../include/mesos/quota/quota.pb.h					\
   ../include/mesos/scheduler/scheduler.pb.cc				\
@@ -655,6 +658,15 @@ module_HEADERS =							\
 nodist_module_HEADERS =							\
   ../include/mesos/module/hook.pb.h					\
   ../include/mesos/module/module.pb.h
+
+ocidir = $(pkgincludedir)/oci
+
+oci_HEADERS =								\
+  $(top_srcdir)/include/mesos/oci/spec.hpp				\
+  $(top_srcdir)/include/mesos/oci/spec.proto
+
+nodist_oci_HEADERS =							\
+  ../include/mesos/oci/spec.pb.h
 
 quotadir = $(pkgincludedir)/quota
 
@@ -1386,6 +1398,7 @@ libmesos_la_SOURCES =							\
   $(MASTER_PROTO)							\
   $(MESOS_PROTO)							\
   $(MODULE_PROTO)							\
+  $(OCI_SPEC_PROTO)							\
   $(OVERSUBSCRIPTION_PROTO)						\
   $(QUOTA_PROTO)							\
   $(SCHEDULER_PROTO)							\
