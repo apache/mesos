@@ -190,6 +190,7 @@ if (NOT WIN32)
     containerizer/memory_isolator_tests.cpp
     containerizer/mesos_containerizer_paths_tests.cpp
     containerizer/mesos_containerizer_tests.cpp
+    containerizer/oci_spec_tests.cpp
     containerizer/posix_rlimits_isolator_tests.cpp
     containerizer/provisioner_appc_tests.cpp
     containerizer/provisioner_backend_tests.cpp
