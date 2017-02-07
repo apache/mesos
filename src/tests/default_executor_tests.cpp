@@ -284,10 +284,9 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_CALL(*scheduler, subscribed(_, _))
     .WillOnce(FutureArg<1>(&subscribed));
 
-  Future<v1::scheduler::Event::Offers> offers;
+  Future<v1::scheduler::Event::Offers> offers1;
   EXPECT_CALL(*scheduler, offers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&offers1));
 
   EXPECT_CALL(*scheduler, heartbeat(_))
     .WillRepeatedly(Return()); // Ignore heartbeats.
@@ -308,8 +307,13 @@ TEST_P(DefaultExecutorTest, KillTask)
   // Update `executorInfo` with the subscribed `frameworkId`.
   executorInfo.mutable_framework_id()->CopyFrom(devolve(frameworkId));
 
-  AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  AWAIT_READY(offers1);
+  EXPECT_NE(0, offers1->offers().size());
+
+  Future<v1::scheduler::Event::Offers> offers2;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());
 
   Future<v1::scheduler::Event::Update> runningUpdate1;
   Future<v1::scheduler::Event::Update> runningUpdate2;
@@ -317,8 +321,8 @@ TEST_P(DefaultExecutorTest, KillTask)
     .WillOnce(FutureArg<1>(&runningUpdate1))
     .WillOnce(FutureArg<1>(&runningUpdate2));
 
-  const v1::Offer& offer = offers->offers(0);
-  const SlaveID slaveId = devolve(offer.agent_id());
+  const v1::Offer& offer1 = offers1->offers(0);
+  const SlaveID slaveId = devolve(offer1.agent_id());
 
   v1::TaskInfo taskInfo1 =
     evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
@@ -326,11 +330,11 @@ TEST_P(DefaultExecutorTest, KillTask)
   v1::TaskInfo taskInfo2 =
     evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
 
-  v1::TaskGroupInfo taskGroup;
-  taskGroup.add_tasks()->CopyFrom(taskInfo1);
-  taskGroup.add_tasks()->CopyFrom(taskInfo2);
+  v1::TaskGroupInfo taskGroup1;
+  taskGroup1.add_tasks()->CopyFrom(taskInfo1);
+  taskGroup1.add_tasks()->CopyFrom(taskInfo2);
 
-  const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
+  const hashset<v1::TaskID> tasks1{taskInfo1.task_id(), taskInfo2.task_id()};
 
   {
     Call call;
@@ -338,16 +342,20 @@ TEST_P(DefaultExecutorTest, KillTask)
     call.set_type(Call::ACCEPT);
 
     Call::Accept* accept = call.mutable_accept();
-    accept->add_offer_ids()->CopyFrom(offer.id());
+    accept->add_offer_ids()->CopyFrom(offer1.id());
 
     v1::Offer::Operation* operation = accept->add_operations();
     operation->set_type(v1::Offer::Operation::LAUNCH_GROUP);
+
+    // Set a 0s filter to immediately get another offer to launch
+    // the second task group.
+    accept->mutable_filters()->set_refuse_seconds(0);
 
     v1::Offer::Operation::LaunchGroup* launchGroup =
       operation->mutable_launch_group();
 
     launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
-    launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+    launchGroup->mutable_task_group()->CopyFrom(taskGroup1);
 
     mesos.send(call);
   }
@@ -358,13 +366,52 @@ TEST_P(DefaultExecutorTest, KillTask)
   AWAIT_READY(runningUpdate2);
   ASSERT_EQ(TASK_RUNNING, runningUpdate2->status().state());
 
-  // When running a task, TASK_RUNNING updates for the tasks in a task
-  // group can be received in any order.
+  // When running a task, TASK_RUNNING updates for the tasks in a
+  // task group can be received in any order.
   const hashset<v1::TaskID> tasksRunning{
     runningUpdate1->status().task_id(),
     runningUpdate2->status().task_id()};
 
-  ASSERT_EQ(tasks, tasksRunning);
+  ASSERT_EQ(tasks1, tasksRunning);
+
+  AWAIT_READY(offers2);
+
+  const v1::Offer& offer2 = offers2->offers(0);
+
+  Future<v1::scheduler::Event::Update> runningUpdate3;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&runningUpdate3));
+
+  v1::TaskInfo taskInfo3 =
+    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
+
+  v1::TaskGroupInfo taskGroup2;
+  taskGroup2.add_tasks()->CopyFrom(taskInfo3);
+
+  // Launch the second task group.
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer2.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH_GROUP);
+
+    v1::Offer::Operation::LaunchGroup* launchGroup =
+      operation->mutable_launch_group();
+
+    launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
+    launchGroup->mutable_task_group()->CopyFrom(taskGroup2);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(runningUpdate3);
+  ASSERT_EQ(TASK_RUNNING, runningUpdate3->status().state());
+  ASSERT_EQ(taskInfo3.task_id(), runningUpdate3->status().task_id());
 
   // Acknowledge the TASK_RUNNING updates to receive the next updates.
 
@@ -378,7 +425,7 @@ TEST_P(DefaultExecutorTest, KillTask)
     acknowledge->mutable_task_id()->CopyFrom(
         runningUpdate1->status().task_id());
 
-    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer1.agent_id());
     acknowledge->set_uuid(runningUpdate1->status().uuid());
 
     mesos.send(call);
@@ -394,8 +441,24 @@ TEST_P(DefaultExecutorTest, KillTask)
     acknowledge->mutable_task_id()->CopyFrom(
         runningUpdate2->status().task_id());
 
-    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer1.agent_id());
     acknowledge->set_uuid(runningUpdate2->status().uuid());
+
+    mesos.send(call);
+  }
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACKNOWLEDGE);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+
+    acknowledge->mutable_task_id()->CopyFrom(
+        runningUpdate3->status().task_id());
+
+    acknowledge->mutable_agent_id()->CopyFrom(offer2.agent_id());
+    acknowledge->set_uuid(runningUpdate3->status().uuid());
 
     mesos.send(call);
   }
@@ -410,7 +473,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_CALL(*scheduler, failure(_, _))
     .WillOnce(FutureArg<1>(&executorFailure));
 
-  // Now kill one task in the task group.
+  // Now kill a task in the first task group.
   {
     Call call;
     call.mutable_framework_id()->CopyFrom(frameworkId);
@@ -422,7 +485,7 @@ TEST_P(DefaultExecutorTest, KillTask)
     mesos.send(call);
   }
 
-  // All the tasks in the task group should be killed.
+  // All the tasks in the first task group should be killed.
 
   AWAIT_READY(killedUpdate1);
   ASSERT_EQ(TASK_KILLED, killedUpdate1->status().state());
@@ -436,7 +499,31 @@ TEST_P(DefaultExecutorTest, KillTask)
     killedUpdate1->status().task_id(),
     killedUpdate2->status().task_id()};
 
-  ASSERT_EQ(tasks, tasksKilled);
+  ASSERT_EQ(tasks1, tasksKilled);
+
+  // The executor should still be alive after the first task
+  // group has been killed.
+  ASSERT_TRUE(executorFailure.isPending());
+
+  Future<v1::scheduler::Event::Update> killedUpdate3;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&killedUpdate3));
+
+  // Now kill the only task present in the second task group.
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::KILL);
+
+    Call::Kill* kill = call.mutable_kill();
+    kill->mutable_task_id()->CopyFrom(taskInfo3.task_id());
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(killedUpdate3);
+  ASSERT_EQ(TASK_KILLED, killedUpdate3->status().state());
+  ASSERT_EQ(taskInfo3.task_id(), killedUpdate3->status().task_id());
 
   // The executor should commit suicide after all the tasks have been
   // killed.

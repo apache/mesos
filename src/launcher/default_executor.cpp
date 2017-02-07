@@ -95,6 +95,9 @@ private:
 
     // Set to true if the child container is in the process of being killed.
     bool killing;
+
+    // Set to true if the task group is in the process of being killed.
+    bool killingTaskGroup;
   };
 
 public:
@@ -164,7 +167,7 @@ public:
         // had launched the child containers. We can resume waiting on the
         // child containers again.
         if (launched) {
-          wait();
+          wait(containers.keys());
         }
 
         break;
@@ -267,20 +270,6 @@ protected:
   void launchGroup(const TaskGroupInfo& taskGroup)
   {
     CHECK_EQ(SUBSCRIBED, state);
-
-    if (launched) {
-      LOG(WARNING) << "Ignoring the launch operation since a task group "
-                   << "has been already launched";
-
-      foreach (const TaskInfo& task, taskGroup.tasks()) {
-        update(
-            task.task_id(),
-            TASK_FAILED,
-            "Attempted to run multiple task groups using a "
-            "\"default\" executor");
-      }
-      return;
-    }
 
     launched = true;
 
@@ -411,7 +400,7 @@ protected:
 
       tasks[taskId] = task;
       containers[taskId] = Owned<Container>(
-          new Container {containerId, taskId, taskGroup, None(), false});
+          new Container {containerId, taskId, taskGroup, None(), false, false});
 
       if (task.has_health_check()) {
         // TODO(anand): Add support for command health checks.
@@ -469,32 +458,41 @@ protected:
       update(task.task_id(), TASK_RUNNING);
     }
 
+    auto taskIds = [&taskGroup]() {
+      list<TaskID> taskIds_;
+      foreach (const TaskInfo& task, taskGroup.tasks()) {
+        taskIds_.push_back(task.task_id());
+      }
+      return taskIds_;
+    };
 
     LOG(INFO)
       << "Successfully launched tasks "
-      << stringify(containers.keys()) << " in child containers "
+      << stringify(taskIds()) << " in child containers "
       << stringify(containerIds);
 
-    wait();
+    wait(taskIds());
   }
 
-  void wait()
+  void wait(const list<TaskID>& taskIds)
   {
     CHECK_EQ(SUBSCRIBED, state);
     CHECK(launched);
     CHECK_SOME(connectionId);
 
     list<Future<Connection>> connections;
-    for (size_t i = 0; i < containers.size(); i++) {
+    for (size_t i = 0; i < taskIds.size(); i++) {
       connections.push_back(process::http::connect(agent));
     }
 
     process::collect(connections)
-      .onAny(defer(self(), &Self::_wait, lambda::_1, connectionId.get()));
+      .onAny(defer(
+          self(), &Self::_wait, lambda::_1, taskIds, connectionId.get()));
   }
 
   void _wait(
       const Future<list<Connection>>& _connections,
+      const list<TaskID>& taskIds,
       const UUID& _connectionId)
   {
     // It is possible that the agent process failed in the interim.
@@ -518,8 +516,8 @@ protected:
 
     list<Connection> connections = _connections.get();
 
-    CHECK_EQ(containers.size(), connections.size());
-    foreachkey (const TaskID& taskId, containers) {
+    CHECK_EQ(taskIds.size(), connections.size());
+    foreach (const TaskID& taskId, taskIds) {
       __wait(connectionId.get(), connections.front(), taskId);
       connections.pop_front();
     }
@@ -687,15 +685,43 @@ protected:
       return;
     }
 
+    // Ignore if this task group is already in the process of being killed.
+    if (container->killingTaskGroup) {
+      return;
+    }
+
     // The default restart policy for a task group is to kill all the
     // remaining child containers if one of them terminated with a
     // non-zero exit code.
     if (taskState == TASK_FAILED || taskState == TASK_KILLED) {
-      // Kill all the other active containers.
-      //
-      // TODO(anand): Invoke `kill()` once per active container
-      // instead of directly invoking `shutdown()`.
-      shutdown();
+      // Needed for logging.
+      auto taskIds = [container]() {
+        list<TaskID> taskIds_;
+        foreach (const TaskInfo& task, container->taskGroup.tasks()) {
+          taskIds_.push_back(task.task_id());
+        }
+        return taskIds_;
+      };
+
+      // Kill all the other active containers
+      // belonging to this task group.
+      LOG(INFO) << "Killing task group containing tasks "
+                << stringify(taskIds());
+
+      container->killingTaskGroup = true;
+      foreach (const TaskInfo& task, container->taskGroup.tasks()) {
+        const TaskID& taskId = task.task_id();
+        if (taskId == container->taskId) {
+          continue;
+        }
+
+        CHECK(containers.contains(taskId));
+        Owned<Container> container_ = containers.at(taskId);
+
+        container_->killingTaskGroup = true;
+
+        kill(container_);
+      }
     }
   }
 
@@ -878,15 +904,12 @@ private:
       status.set_healthy(healthy.get());
     }
 
-    // Fill the container ID associated with this task. It might be
-    // possible that we don't have an active container associated with
-    // the task (e.g., when the scheduler tried to launch multiple task groups).
-    if (containers.contains(taskId)) {
-      const Owned<Container>& container = containers.at(taskId);
+    // Fill the container ID associated with this task.
+    CHECK(containers.contains(taskId));
+    const Owned<Container>& container = containers.at(taskId);
 
-      ContainerStatus* containerStatus = status.mutable_container_status();
-      containerStatus->mutable_container_id()->CopyFrom(container->containerId);
-    }
+    ContainerStatus* containerStatus = status.mutable_container_status();
+    containerStatus->mutable_container_id()->CopyFrom(container->containerId);
 
     Call call;
     call.set_type(Call::UPDATE);
