@@ -92,6 +92,9 @@ private:
     // that a container is active but a connection for sending the
     // `WAIT_NESTED_CONTAINER` call has not been established yet.
     Option<Connection> waiting;
+
+    // Set to true if the child container is in the process of being killed.
+    bool killing;
   };
 
 public:
@@ -408,7 +411,7 @@ protected:
 
       tasks[taskId] = task;
       containers[taskId] = Owned<Container>(
-          new Container {containerId, taskId, taskGroup, None()});
+          new Container {containerId, taskId, taskGroup, None(), false});
 
       if (task.has_health_check()) {
         // TODO(anand): Add support for command health checks.
@@ -649,7 +652,7 @@ protected:
 
       if (WSUCCEEDED(status.get())) {
         taskState = TASK_FINISHED;
-      } else if (shuttingDown) {
+      } else if (container->killing) {
         // Send TASK_KILLED if the task was killed as a result of
         // `killTask()` or `shutdown()`.
         taskState = TASK_KILLED;
@@ -687,7 +690,7 @@ protected:
     // The default restart policy for a task group is to kill all the
     // remaining child containers if one of them terminated with a
     // non-zero exit code.
-    if (taskState == TASK_FAILED) {
+    if (taskState == TASK_FAILED || taskState == TASK_KILLED) {
       // Kill all the other active containers.
       //
       // TODO(anand): Invoke `kill()` once per active container
@@ -730,14 +733,21 @@ protected:
 
     CHECK_EQ(SUBSCRIBED, state);
 
-    list<Future<Nothing>> killing;
-    foreachkey (const TaskID& taskId, containers) {
-      killing.push_back(kill(taskId));
+    list<Future<Nothing>> killResponses;
+    foreachvalue (const Owned<Container>& container, containers) {
+      // It is possible that we received a `killTask()` request
+      // from the scheduler before and are waiting on the `waited()`
+      // callback to be invoked for the child container.
+      if (container->killing) {
+        continue;
+      }
+
+      killResponses.push_back(kill(container));
     }
 
     // It is possible that the agent process can fail while we are
     // killing child containers. We fail fast if this happens.
-    collect(killing)
+    collect(killResponses)
       .onAny(defer(
           self(),
           [this](const Future<list<Nothing>>& future) {
@@ -767,12 +777,12 @@ protected:
     terminate(self());
   }
 
-  Future<Nothing> kill(const TaskID& taskId)
+  Future<Nothing> kill(Owned<Container> container)
   {
     CHECK_EQ(SUBSCRIBED, state);
-    CHECK(containers.contains(taskId));
 
-    const Owned<Container>& container = containers.at(taskId);
+    CHECK(!container->killing);
+    container->killing = true;
 
     LOG(INFO) << "Killing child container " << container->containerId;
 
@@ -810,7 +820,14 @@ protected:
       return;
     }
 
-    shutdown();
+    const Owned<Container>& container = containers.at(taskId);
+    if (container->killing) {
+      LOG(WARNING) << "Ignoring kill for task '" << taskId
+                   << "' as it is in the process of getting killed";
+      return;
+    }
+
+    kill(container);
   }
 
   void taskHealthUpdated(const TaskHealthStatus& healthStatus)

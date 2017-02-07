@@ -406,6 +406,10 @@ TEST_P(DefaultExecutorTest, KillTask)
     .WillOnce(FutureArg<1>(&killedUpdate1))
     .WillOnce(FutureArg<1>(&killedUpdate2));
 
+  Future<v1::scheduler::Event::Failure> executorFailure;
+  EXPECT_CALL(*scheduler, failure(_, _))
+    .WillOnce(FutureArg<1>(&executorFailure));
+
   // Now kill one task in the task group.
   {
     Call call;
@@ -433,6 +437,14 @@ TEST_P(DefaultExecutorTest, KillTask)
     killedUpdate2->status().task_id()};
 
   ASSERT_EQ(tasks, tasksKilled);
+
+  // The executor should commit suicide after all the tasks have been
+  // killed.
+  AWAIT_READY(executorFailure);
+
+  // Even though the tasks were killed, the executor should exit gracefully.
+  ASSERT_TRUE(executorFailure->has_status());
+  ASSERT_EQ(0, executorFailure->status());
 }
 
 
