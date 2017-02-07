@@ -46,7 +46,9 @@ Option<Error> validateDigest(const string& digest)
 Option<Error> validate(const ManifestList& manifestList)
 {
   if (manifestList.schemaversion() != 2) {
-    return Error("Incorrect 'schemaVersion': " + manifestList.schemaversion());
+    return Error(
+        "Incorrect 'schemaVersion': " +
+        stringify(manifestList.schemaversion()));
   }
 
   foreach (const ManifestDescriptor& manifest, manifestList.manifests()) {
@@ -69,7 +71,9 @@ Option<Error> validate(const ManifestList& manifestList)
 Option<Error> validate(const Manifest& manifest)
 {
   if (manifest.schemaversion() != 2) {
-    return Error("Incorrect 'schemaVersion': " + manifest.schemaversion());
+    return Error(
+        "Incorrect 'schemaVersion': " +
+        stringify(manifest.schemaversion()));
   }
 
   const Descriptor& config = manifest.config();
