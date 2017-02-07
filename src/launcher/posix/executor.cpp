@@ -37,6 +37,8 @@ using std::endl;
 using std::string;
 using std::vector;
 
+using mesos::Environment;
+
 using mesos::internal::slave::MESOS_CONTAINERIZER;
 using mesos::internal::slave::MesosContainerizerLaunch;
 
@@ -48,6 +50,7 @@ namespace internal {
 pid_t launchTaskPosix(
     const CommandInfo& command,
     const string& launcherDir,
+    const Environment& environment,
     const Option<string>& user,
     const Option<string>& rootfs,
     const Option<string>& sandboxDirectory,
@@ -100,6 +103,8 @@ pid_t launchTaskPosix(
       }
     }
   }
+
+  launchInfo.mutable_environment()->CopyFrom(environment);
 
   if (user.isSome()) {
     launchInfo.set_user(user.get());

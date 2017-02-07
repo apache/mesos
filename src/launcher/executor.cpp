@@ -58,6 +58,7 @@
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
 
+#include <stout/os/environment.hpp>
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
 
@@ -95,6 +96,8 @@ using process::Subprocess;
 using process::Time;
 using process::Timer;
 
+using mesos::Environment;
+
 using mesos::executor::Call;
 using mesos::executor::Event;
 
@@ -115,6 +118,7 @@ public:
       const Option<string>& _workingDirectory,
       const Option<string>& _user,
       const Option<string>& _taskCommand,
+      const Option<Environment>& _taskEnvironment,
       const Option<CapabilityInfo>& _capabilities,
       const FrameworkID& _frameworkId,
       const ExecutorID& _executorId,
@@ -135,6 +139,7 @@ public:
       workingDirectory(_workingDirectory),
       user(_user),
       taskCommand(_taskCommand),
+      taskEnvironment(_taskEnvironment),
       capabilities(_capabilities),
       frameworkId(_frameworkId),
       executorId(_executorId),
@@ -388,12 +393,38 @@ protected:
         << "' is not specified!";
     }
 
+    // Determine the environment for the command to be launched.
+    // The priority of the environment should be:
+    //  1) User specified environment in CommandInfo.
+    //  2) Environment returned by isolators (`taskEnvironment`).
+    //  3) Environment passed from agent (`os::environment`).
+    //
+    // TODO(josephw): Windows tasks will inherit the environment
+    // from the executor for now. Change this if a Windows isolator
+    // ever uses the `--task_environment` flag.
+    Environment launchEnvironment;
+
+    foreachpair (const string& name, const string& value, os::environment()) {
+      Environment::Variable* variable = launchEnvironment.add_variables();
+      variable->set_name(name);
+      variable->set_value(value);
+    }
+
+    if (taskEnvironment.isSome()) {
+      launchEnvironment.MergeFrom(taskEnvironment.get());
+    }
+
+    if (command.has_environment()) {
+      launchEnvironment.MergeFrom(command.environment());
+    }
+
     cout << "Starting task " << task->task_id() << endl;
 
 #ifndef __WINDOWS__
     pid = launchTaskPosix(
         command,
         launcherDir,
+        launchEnvironment,
         user,
         rootfs,
         sandboxDirectory,
@@ -791,6 +822,7 @@ private:
   Option<string> workingDirectory;
   Option<string> user;
   Option<string> taskCommand;
+  Option<Environment> taskEnvironment;
   Option<CapabilityInfo> capabilities;
   const FrameworkID frameworkId;
   const ExecutorID executorId;
@@ -833,6 +865,12 @@ public:
         "If specified, this is the overrided command for launching the\n"
         "task (instead of the command from TaskInfo).");
 
+    add(&Flags::task_environment,
+        "task_environment",
+        "If specified, this is a JSON-ified `Environment` protobuf that\n"
+        "should be added to the executor's environment before launching\n"
+        "the task.");
+
     add(&Flags::capabilities,
         "capabilities",
         "Capabilities the command can use.");
@@ -851,6 +889,7 @@ public:
   Option<string> working_directory;
   Option<string> user;
   Option<string> task_command;
+  Option<Environment> task_environment;
   Option<mesos::CapabilityInfo> capabilities;
   string launcher_dir;
 };
@@ -923,6 +962,7 @@ int main(int argc, char** argv)
           flags.working_directory,
           flags.user,
           flags.task_command,
+          flags.task_environment,
           flags.capabilities,
           frameworkId,
           executorId,
