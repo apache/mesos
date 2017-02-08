@@ -2187,6 +2187,7 @@ TEST_F(ExecutorValidationTest, ExecutorID)
     EXPECT_SOME(::executor::internal::validateExecutorID(executorInfo));
   }
 
+  // This is currently allowed.
   {
     ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
     executorInfo.mutable_executor_id()->set_value("ab c");
@@ -2197,6 +2198,29 @@ TEST_F(ExecutorValidationTest, ExecutorID)
   {
     ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
     executorInfo.mutable_executor_id()->set_value("ab/c");
+
+    EXPECT_SOME(::executor::internal::validateExecutorID(executorInfo));
+  }
+
+  // Containing a dot is allowed.
+  {
+    ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+    executorInfo.mutable_executor_id()->set_value("a.b");
+
+    EXPECT_NONE(::executor::internal::validateExecutorID(executorInfo));
+  }
+
+  // Being only a dot is not allowed.
+  {
+    ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+    executorInfo.mutable_executor_id()->set_value(".");
+
+    EXPECT_SOME(::executor::internal::validateExecutorID(executorInfo));
+  }
+
+  {
+    ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+    executorInfo.mutable_executor_id()->set_value("..");
 
     EXPECT_SOME(::executor::internal::validateExecutorID(executorInfo));
   }

@@ -33,7 +33,16 @@ namespace validation {
 
 Option<Error> validateID(const string& id)
 {
-  // Rules:
+  if (id.empty()) {
+    return Error("ID must not be empty");
+  }
+
+  // The ID cannot be exactly these special path components.
+  if (id == "." || id == "..") {
+    return Error("'" + id + "' is disallowed");
+  }
+
+  // Rules on invalid characters in the ID:
   // - Control charaters are obviously not allowed.
   // - Slashes are disallowed as IDs are likely mapped to directories in Mesos.
   auto invalidCharacter = [](char c) {
@@ -41,10 +50,6 @@ Option<Error> validateID(const string& id)
            c == os::POSIX_PATH_SEPARATOR ||
            c == os::WINDOWS_PATH_SEPARATOR;
   };
-
-  if (id.empty()) {
-    return Error("ID must be non-empty");
-  }
 
   if (std::any_of(id.begin(), id.end(), invalidCharacter)) {
     return Error("'" + id + "' contains invalid characters");

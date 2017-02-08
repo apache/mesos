@@ -63,12 +63,22 @@ TEST(AgentValidationTest, ContainerID)
   EXPECT_SOME(error);
 
   // No spaces.
-  containerId.set_value(" ");
+  containerId.set_value("redis backup");
   error = validation::container::validateContainerId(containerId);
   EXPECT_SOME(error);
 
   // No periods.
+  containerId.set_value("redis.backup");
+  error = validation::container::validateContainerId(containerId);
+  EXPECT_SOME(error);
+
+  // Cannot be '.'.
   containerId.set_value(".");
+  error = validation::container::validateContainerId(containerId);
+  EXPECT_SOME(error);
+
+  // Cannot be '..'.
+  containerId.set_value("..");
   error = validation::container::validateContainerId(containerId);
   EXPECT_SOME(error);
 
