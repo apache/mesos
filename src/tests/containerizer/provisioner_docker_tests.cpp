@@ -238,6 +238,39 @@ TEST_F(ProvisionerDockerLocalStoreTest, MetadataManagerInitialization)
 }
 
 
+// This test verifies that the layer that is missing from the store
+// will be pulled.
+TEST_F(ProvisionerDockerLocalStoreTest, MissingLayer)
+{
+  slave::Flags flags;
+  flags.docker_registry = path::join(os::getcwd(), "images");
+  flags.docker_store_dir = path::join(os::getcwd(), "store");
+  flags.image_provisioner_backend = COPY_BACKEND;
+
+  Try<Owned<slave::Store>> store = Store::create(flags);
+  ASSERT_SOME(store);
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("abc");
+
+  Future<slave::ImageInfo> imageInfo = store.get()->get(
+      image, flags.image_provisioner_backend.get());
+
+  AWAIT_READY(imageInfo);
+  verifyLocalDockerImage(flags, imageInfo->layers);
+
+  // Remove one of the layers from the store.
+  ASSERT_SOME(os::rmdir(paths::getImageLayerRootfsPath(
+      flags.docker_store_dir, "456", flags.image_provisioner_backend.get())));
+
+  // Pull the image again to get the missing layer.
+  imageInfo = store.get()->get(image, flags.image_provisioner_backend.get());
+  AWAIT_READY(imageInfo);
+  verifyLocalDockerImage(flags, imageInfo->layers);
+}
+
+
 class MockPuller : public Puller
 {
 public:
