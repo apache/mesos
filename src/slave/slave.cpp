@@ -6418,6 +6418,13 @@ Executor* Framework::launchExecutor(
     const ExecutorInfo& executorInfo,
     const Option<TaskInfo>& taskInfo)
 {
+  // Verify that Resource.AllocationInfo is set, if coming
+  // from a MULTI_ROLE master this will be set, otherwise
+  // the agent will inject it when receiving the executor.
+  foreach (const Resource& resource, executorInfo.resources()) {
+    CHECK(resource.has_allocation_info());
+  }
+
   // Generate an ID for the executor's container.
   // TODO(idownes) This should be done by the containerizer but we
   // need the ContainerID to create the executor's directory. Fix
@@ -6663,6 +6670,12 @@ void Framework::recoverExecutor(const ExecutorState& state)
     return;
   }
 
+  // Verify that Resource.AllocationInfo is set, this should
+  // be injected by the agent when recovering.
+  foreach (const Resource& resource, state.info->resources()) {
+    CHECK(resource.has_allocation_info());
+  }
+
   // We are only interested in the latest run of the executor!
   // So, we GC all the old runs.
   // NOTE: We don't schedule the top level executor work and meta
@@ -6849,6 +6862,13 @@ Task* Executor::addTask(const TaskInfo& task)
   CHECK(!launchedTasks.contains(task.task_id()))
     << "Duplicate task " << task.task_id();
 
+  // Verify that Resource.AllocationInfo is set, if coming
+  // from a MULTI_ROLE master this will be set, otherwise
+  // the agent will inject it when receiving the task.
+  foreach (const Resource& resource, task.resources()) {
+    CHECK(resource.has_allocation_info());
+  }
+
   Task* t = new Task(protobuf::createTask(task, TASK_STAGING, frameworkId));
 
   launchedTasks[task.task_id()] = t;
@@ -6916,6 +6936,12 @@ void Executor::recoverTask(const TaskState& state)
     LOG(WARNING) << "Skipping recovery of task " << state.id
                  << " because its info cannot be recovered";
     return;
+  }
+
+  // Verify that Resource.AllocationInfo is set, the agent
+  // should inject it during recovery.
+  foreach (const Resource& resource, state.info->resources()) {
+    CHECK(resource.has_allocation_info());
   }
 
   launchedTasks[state.id] = new Task(state.info.get());
