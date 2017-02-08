@@ -292,7 +292,7 @@ protected:
       LOG(ERROR)
         << "Unable to establish connection with the agent: "
         << (connection.isFailed() ? connection.failure() : "discarded");
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -301,7 +301,7 @@ protected:
     if (state == DISCONNECTED || state == CONNECTED) {
       LOG(ERROR) << "Unable to complete the launch operation "
                  << "as the executor is in state " << state;
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -365,7 +365,7 @@ protected:
       LOG(ERROR) << "Unable to receive a response from the agent for "
                  << "the LAUNCH_NESTED_CONTAINER call: "
                  << (responses.isFailed() ? responses.failure() : "discarded");
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -376,7 +376,7 @@ protected:
       if (response.code != process::http::Status::OK) {
         LOG(ERROR) << "Received '" << response.status << "' ("
                    << response.body << ") while launching child container";
-        __shutdown();
+        _shutdown();
         return;
       }
     }
@@ -386,7 +386,7 @@ protected:
     if (state == DISCONNECTED || state == CONNECTED) {
       LOG(ERROR) << "Unable to complete the operation of launching child "
                  << "containers as the executor is in state " << state;
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -421,7 +421,7 @@ protected:
           // TODO(anand): Should we send a TASK_FAILED instead?
           LOG(ERROR) << "Failed to create health checker: "
                      << _checker.error();
-          __shutdown();
+          _shutdown();
           return;
         }
 
@@ -508,7 +508,7 @@ protected:
       LOG(ERROR)
         << "Unable to establish connection with the agent: "
         << (_connections.isFailed() ? _connections.failure() : "discarded");
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -619,7 +619,7 @@ protected:
       LOG(ERROR) << "Received '" << response->status << "' ("
                  << response->body << ") waiting on child container "
                  << container->containerId << " of task '" << taskId << "'";
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -678,7 +678,7 @@ protected:
 
     // Shutdown the executor if all the active child containers have terminated.
     if (containers.empty()) {
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -746,7 +746,7 @@ protected:
     checkers.clear();
 
     if (!launched) {
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -756,7 +756,7 @@ protected:
     // This could also happen when the executor is connected but the agent
     // asked it to shutdown because it didn't subscribe in time.
     if (state == CONNECTED || state == DISCONNECTED) {
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -789,11 +789,11 @@ protected:
           << "child containers: "
           << (future.isFailed() ? future.failure() : "discarded");
 
-        __shutdown();
+        _shutdown();
       }));
   }
 
-  void __shutdown()
+  void _shutdown()
   {
     const Duration duration = Seconds(1);
 
