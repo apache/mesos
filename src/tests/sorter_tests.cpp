@@ -210,6 +210,64 @@ TEST(SorterTest, WDRFSorterUpdateWeight)
 }
 
 
+// Check that the sorter uses the total number of allocations made to
+// a client as a tiebreaker when the two clients have the same share.
+TEST(SorterTest, CountAllocations)
+{
+  DRFSorter sorter;
+
+  SlaveID slaveId;
+  slaveId.set_value("agentId");
+
+  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
+
+  sorter.add(slaveId, totalResources);
+
+  sorter.add("a");
+  sorter.add("b");
+  sorter.add("c");
+  sorter.add("d");
+  sorter.add("e");
+
+  // Everyone is allocated the same resources; "c" gets three distinct
+  // allocations, "d" gets two, and all other clients get one.
+  sorter.allocated("a", slaveId, Resources::parse("cpus:3;mem:3").get());
+  sorter.allocated("b", slaveId, Resources::parse("cpus:3;mem:3").get());
+  sorter.allocated("c", slaveId, Resources::parse("cpus:1;mem:1").get());
+  sorter.allocated("c", slaveId, Resources::parse("cpus:1;mem:1").get());
+  sorter.allocated("c", slaveId, Resources::parse("cpus:1;mem:1").get());
+  sorter.allocated("d", slaveId, Resources::parse("cpus:2;mem:2").get());
+  sorter.allocated("d", slaveId, Resources::parse("cpus:1;mem:1").get());
+  sorter.allocated("e", slaveId, Resources::parse("cpus:3;mem:3").get());
+
+  EXPECT_EQ(vector<string>({"a", "b", "e", "d", "c"}), sorter.sort());
+
+  // Check that unallocating and re-allocating to a client does not
+  // reset the allocation count.
+  sorter.unallocated("c", slaveId, Resources::parse("cpus:3;mem:3").get());
+
+  EXPECT_EQ(vector<string>({"c", "a", "b", "e", "d"}), sorter.sort());
+
+  sorter.allocated("c", slaveId, Resources::parse("cpus:3;mem:3").get());
+
+  EXPECT_EQ(vector<string>({"a", "b", "e", "d", "c"}), sorter.sort());
+
+  // Deactivating and then re-activating a client currently resets the
+  // allocation count to zero.
+  //
+  // TODO(neilc): Consider changing this behavior.
+  sorter.deactivate("c");
+  sorter.activate("c");
+
+  EXPECT_EQ(vector<string>({"c", "a", "b", "e", "d"}), sorter.sort());
+
+  sorter.unallocated("c", slaveId, Resources::parse("cpus:3;mem:3").get());
+  sorter.allocated("c", slaveId, Resources::parse("cpus:3;mem:3").get());
+
+  EXPECT_EQ(vector<string>({"a", "b", "c", "e", "d"}), sorter.sort());
+}
+
+
 // Some resources are split across multiple resource objects (e.g.
 // persistent volumes). This test ensures that the shares for these
 // are accounted correctly.
