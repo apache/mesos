@@ -94,7 +94,7 @@ static const string DEFAULT_DOMAIN = "127.0.0.1";
 // general solution for entring namespace in child processes, see MESOS-6184.
 pid_t cloneWithSetns(
     const lambda::function<int()>& func,
-    Option<pid_t> taskPid,
+    const Option<pid_t>& taskPid,
     const vector<string>& namespaces)
 {
   return process::defaultClone([=]() -> int {
@@ -124,7 +124,7 @@ Try<Owned<HealthChecker>> HealthChecker::create(
     const string& launcherDir,
     const lambda::function<void(const TaskHealthStatus&)>& callback,
     const TaskID& taskId,
-    Option<pid_t> taskPid,
+    const Option<pid_t>& taskPid,
     const vector<string>& namespaces)
 {
   // Validate the 'HealthCheck' protobuf.
@@ -173,7 +173,7 @@ HealthCheckerProcess::HealthCheckerProcess(
     const string& _launcherDir,
     const lambda::function<void(const TaskHealthStatus&)>& _callback,
     const TaskID& _taskId,
-    Option<pid_t> _taskPid,
+    const Option<pid_t>& _taskPid,
     const vector<string>& _namespaces)
   : ProcessBase(process::ID::generate("health-checker")),
     check(_check),

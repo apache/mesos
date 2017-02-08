@@ -70,7 +70,7 @@ public:
       const std::string& launcherDir,
       const lambda::function<void(const TaskHealthStatus&)>& callback,
       const TaskID& taskId,
-      Option<pid_t> taskPid,
+      const Option<pid_t>& taskPid,
       const std::vector<std::string>& namespaces);
 
   ~HealthChecker();
@@ -95,7 +95,7 @@ public:
       const std::string& _launcherDir,
       const lambda::function<void(const TaskHealthStatus&)>& _callback,
       const TaskID& _taskId,
-      Option<pid_t> _taskPid,
+      const Option<pid_t>& _taskPid,
       const std::vector<std::string>& _namespaces);
 
   virtual ~HealthCheckerProcess() {}
