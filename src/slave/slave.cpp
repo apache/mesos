@@ -1561,13 +1561,55 @@ void Slave::runTask(
 
 void Slave::run(
     const FrameworkInfo& frameworkInfo,
-    const ExecutorInfo& executorInfo,
+    ExecutorInfo executorInfo,
     Option<TaskInfo> task,
     Option<TaskGroupInfo> taskGroup,
     const UPID& pid)
 {
   CHECK_NE(task.isSome(), taskGroup.isSome())
     << "Either task or task group should be set but not both";
+
+  auto injectAllocationInfo = [](
+      RepeatedPtrField<Resource>* resources,
+      const FrameworkInfo& frameworkInfo) {
+    set<string> roles = protobuf::framework::getRoles(frameworkInfo);
+
+    foreach (Resource& resource, *resources) {
+      if (!resource.has_allocation_info()) {
+        if (roles.size() != 1) {
+          LOG(FATAL) << "Missing 'Resource.AllocationInfo' for resources"
+                     << " allocated to MULTI_ROLE framework"
+                     << " '" << frameworkInfo.name() << "'";
+        }
+
+        resource.mutable_allocation_info()->set_role(*roles.begin());
+      }
+    }
+  };
+
+  injectAllocationInfo(executorInfo.mutable_resources(), frameworkInfo);
+
+  if (task.isSome()) {
+    injectAllocationInfo(task->mutable_resources(), frameworkInfo);
+
+    if (task->has_executor()) {
+      injectAllocationInfo(
+          task->mutable_executor()->mutable_resources(),
+          frameworkInfo);
+    }
+  }
+
+  if (taskGroup.isSome()) {
+    foreach (TaskInfo& task, *taskGroup->mutable_tasks()) {
+      injectAllocationInfo(task.mutable_resources(), frameworkInfo);
+
+      if (task.has_executor()) {
+        injectAllocationInfo(
+            task.mutable_executor()->mutable_resources(),
+            frameworkInfo);
+      }
+    }
+  }
 
   vector<TaskInfo> tasks;
   if (task.isSome()) {
@@ -4548,15 +4590,33 @@ ExecutorInfo Slave::getExecutorInfo(
 
   // Add an allowance for the command executor. This does lead to a
   // small overcommit of resources.
+  //
   // TODO(vinod): If a task is using revocable resources, mark the
   // corresponding executor resource (e.g., cpus) to be also
   // revocable. Currently, it is OK because the containerizer is
   // given task + executor resources on task launch resulting in
   // the container being correctly marked as revocable.
-  executor.mutable_resources()->MergeFrom(
-      Resources::parse(
-        "cpus:" + stringify(DEFAULT_EXECUTOR_CPUS) + ";" +
-        "mem:" + stringify(DEFAULT_EXECUTOR_MEM.megabytes())).get());
+  Resources executorOverhead = Resources::parse(
+      "cpus:" + stringify(DEFAULT_EXECUTOR_CPUS) + ";" +
+      "mem:" + stringify(DEFAULT_EXECUTOR_MEM.megabytes())).get();
+
+  // Inject the task's allocation role into the executor's resources.
+  Option<string> role = None();
+  foreach (const Resource& resource, task.resources()) {
+    CHECK(resource.has_allocation_info());
+
+    if (role.isNone()) {
+      role = resource.allocation_info().role();
+    }
+
+    CHECK_EQ(role.get(), resource.allocation_info().role());
+  }
+
+  CHECK_SOME(role);
+
+  executorOverhead.allocate(role.get());
+
+  executor.mutable_resources()->CopyFrom(executorOverhead);
 
   return executor;
 }

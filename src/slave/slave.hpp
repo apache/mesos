@@ -143,7 +143,7 @@ public:
 
   void run(
       const FrameworkInfo& frameworkInfo,
-      const ExecutorInfo& executorInfo,
+      ExecutorInfo executorInfo,
       Option<TaskInfo> task,
       Option<TaskGroupInfo> taskGroup,
       const process::UPID& pid);

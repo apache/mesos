@@ -776,13 +776,15 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfo)
   frameworkInfo.mutable_id()->CopyFrom(frameworkId);
 
   // Launch a task with the command executor.
+  Resources taskResources = Resources::parse("cpus:0.1;mem:32").get();
+  taskResources.allocate(frameworkInfo.role());
+
   TaskInfo task;
   task.set_name("task");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->set_value(
       "20141010-221431-251662764-60288-32120-0001");
-  task.mutable_resources()->MergeFrom(
-      Resources::parse("cpus:0.1;mem:32").get());
+  task.mutable_resources()->MergeFrom(taskResources);
 
   CommandInfo command;
   command.set_shell(false);
@@ -828,15 +830,21 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfoForTaskWithContainer)
 
   MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
 
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.mutable_id()->set_value(
+      "20141010-221431-251662764-60288-12345-0000");
+
   // Launch a task with the command executor and ContainerInfo with
   // NetworkInfo.
+  Resources taskResources = Resources::parse("cpus:0.1;mem:32").get();
+  taskResources.allocate(frameworkInfo.role());
+
   TaskInfo task;
   task.set_name("task");
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->set_value(
       "20141010-221431-251662764-60288-12345-0001");
-  task.mutable_resources()->MergeFrom(
-      Resources::parse("cpus:0.1;mem:32").get());
+  task.mutable_resources()->MergeFrom(taskResources);
 
   CommandInfo command;
   command.set_shell(false);
@@ -853,9 +861,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfoForTaskWithContainer)
   network->add_ip_addresses()->set_ip_address("4.3.2.1");
   network->add_groups("public");
 
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.mutable_id()->set_value(
-      "20141010-221431-251662764-60288-12345-0000");
   const ExecutorInfo& executor = slave.getExecutorInfo(frameworkInfo, task);
 
   // Now assert that the executor has both the command and ContainerInfo
@@ -902,6 +907,13 @@ TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   StandaloneMasterDetector detector;
   MockSlave slave(flags, &detector, containerizer.get());
 
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.mutable_id()->set_value(
+      "20141010-221431-251662764-60288-12345-0000");
+
+  Resources taskResources = Resources::parse("cpus:0.1;mem:32").get();
+  taskResources.allocate(frameworkInfo.role());
+
   // Launch a task with the command executor and ContainerInfo with
   // NetworkInfo.
   TaskInfo task;
@@ -909,8 +921,7 @@ TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   task.mutable_task_id()->set_value("1");
   task.mutable_slave_id()->set_value(
       "20141010-221431-251662764-60288-12345-0001");
-  task.mutable_resources()->MergeFrom(
-      Resources::parse("cpus:0.1;mem:32").get());
+  task.mutable_resources()->MergeFrom(taskResources);
 
   CommandInfo command;
   command.set_shell(false);
@@ -930,9 +941,6 @@ TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   network->add_ip_addresses()->set_ip_address("4.3.2.1");
   network->add_groups("public");
 
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.mutable_id()->set_value(
-      "20141010-221431-251662764-60288-12345-0000");
   const ExecutorInfo& executor = slave.getExecutorInfo(frameworkInfo, task);
 
   Try<string> sandbox = environment->mkdtemp();
