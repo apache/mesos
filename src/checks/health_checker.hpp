@@ -58,7 +58,7 @@ public:
    * @param taskId The TaskID of the target task.
    * @param taskPid The target task's pid used to enter the specified
    *     namespaces.
-   * @param namespaces The namespaces to enter prior performing a single health
+   * @param namespaces The namespaces to enter prior to performing the health
    *     check.
    * @return A `HealthChecker` object or an error if `create` fails.
    *
