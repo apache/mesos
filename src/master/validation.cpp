@@ -1469,6 +1469,39 @@ Option<Error> validateFramework(
 }
 
 
+// Validate that all offers in one operation must be
+// allocated to the same role.
+Option<Error> validateAllocationRole(
+    const RepeatedPtrField<OfferID>& offerIds,
+    Master* master)
+{
+  Option<string> role;
+  foreach (const OfferID& offerId, offerIds) {
+    Offer* offer = getOffer(master, offerId);
+    if (offer == nullptr) {
+      return Error("Offer " + stringify(offerId) + " is no longer valid");
+    }
+
+    CHECK(offer->has_allocation_info());
+
+    string _role = offer->allocation_info().role();
+    if (role.isNone()) {
+      role = _role;
+      continue;
+    }
+
+    if (_role != role.get()) {
+      return Error(
+          "Aggregated offers must be allocated to the same role. Offer " +
+          stringify(offerId) + " uses role '" + _role + " but another"
+          " is using role '" + role.get());
+    }
+  }
+
+  return None();
+}
+
+
 // Validates that all offers belong to the same valid slave.
 Option<Error> validateSlave(
     const RepeatedPtrField<OfferID>& offerIds,
@@ -1524,6 +1557,7 @@ Option<Error> validate(
     lambda::bind(validateUniqueOfferID, offerIds),
     lambda::bind(validateOfferIds, offerIds, master),
     lambda::bind(validateFramework, offerIds, master, framework),
+    lambda::bind(validateAllocationRole, offerIds, master),
     lambda::bind(validateSlave, offerIds, master)
   };
 

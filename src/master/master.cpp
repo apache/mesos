@@ -3621,9 +3621,6 @@ void Master::accept(
     // TODO(jieyu): Add metrics for non launch operations.
   }
 
-  // TODO(bmahler): MULTI_ROLE: Validate that the accepted offers
-  // do not mix allocation roles, see MESOS-6637.
-
   // TODO(bmahler): We currently only support using multiple offers
   // for a single slave.
   Resources offeredResources;
