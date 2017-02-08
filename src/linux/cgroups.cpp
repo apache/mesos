@@ -395,7 +395,7 @@ static Try<Nothing> write(
   // NOTE: cgroups convention does not append a endln!
   // Recent kernels will cause operations to fail if 'endl' is
   // appended to the control file.
-  file << value;
+  file << value << std::flush;
 
   if (file.fail()) {
     // TODO(jieyu): Does ofstream actually set errno?

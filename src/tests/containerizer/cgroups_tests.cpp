@@ -471,6 +471,8 @@ TEST_F(CgroupsAnyHierarchyTest, ROOT_CGROUPS_Write)
       cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "invalid", "invalid"));
 
   ASSERT_SOME(cgroups::create(hierarchy, TEST_CGROUPS_ROOT));
+  EXPECT_ERROR(
+      cgroups::write(hierarchy, TEST_CGROUPS_ROOT, "cpu.shares", "invalid"));
 
   pid_t pid = ::fork();
   ASSERT_NE(-1, pid);
