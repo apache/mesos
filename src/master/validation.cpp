@@ -1376,7 +1376,7 @@ Try<SlaveID> getSlaveId(Master* master, const OfferID& offerId)
     return inverseOffer->slave_id();
   }
 
-  return Error("Offer id no longer valid");
+  return Error("Offer " + stringify(offerId) + " is no longer valid");
 }
 
 
@@ -1393,7 +1393,7 @@ Try<FrameworkID> getFrameworkId(Master* master, const OfferID& offerId)
     return inverseOffer->framework_id();
   }
 
-  return Error("Offer id no longer valid");
+  return Error("Offer " + stringify(offerId) + " is no longer valid");
 }
 
 
