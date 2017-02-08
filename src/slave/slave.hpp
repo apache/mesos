@@ -988,6 +988,10 @@ struct Executor
   Resources resources;
 
   // Tasks can be found in one of the following four data structures:
+  //
+  // TODO(bmahler): Make these private to enforce that the task
+  // lifecycle helper functions are not being bypassed, and provide
+  // public views into them.
 
   // Not yet launched tasks. This also includes tasks from `queuedTaskGroups`.
   LinkedHashMap<TaskID, TaskInfo> queuedTasks;
@@ -1071,6 +1075,13 @@ struct Framework
   // not have a 'pid', in which case executor messages are
   // sent through the master.
   Option<process::UPID> pid;
+
+  // Executors can be found in one of the following
+  // data structures:
+  //
+  // TODO(bmahler): Make these private to enforce that
+  // the executors lifecycle helper functions are not
+  // being bypassed, and provide public views into them.
 
   // Executors with pending tasks.
   hashmap<ExecutorID, hashmap<TaskID, TaskInfo>> pending;
