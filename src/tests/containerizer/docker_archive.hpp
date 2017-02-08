@@ -150,8 +150,8 @@ public:
             "architecture": "amd64",
             "os": "linux"
         })~",
-        entrypoint,
-        cmd).get()).get();
+        cmd,
+        entrypoint).get()).get();
 
     write = os::write(
         path::join(layerPath, "json"),
