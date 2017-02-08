@@ -5290,8 +5290,6 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
   // also must do this for MULTI_ROLE frameworks since they
   // may have tasks that were present before the framework
   // upgraded into MULTI_ROLE.
-  //
-  // TODO(bmahler): When can the `info` fields be None?
   auto injectAllocationInfo = [](
       RepeatedPtrField<Resource>* resources,
       const FrameworkInfo& frameworkInfo) {
