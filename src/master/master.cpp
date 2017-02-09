@@ -2310,7 +2310,7 @@ void Master::receive(
       break;
 
     case scheduler::Call::REVIVE:
-      revive(framework);
+      revive(framework, call.revive());
       break;
 
     case scheduler::Call::KILL:
@@ -4828,11 +4828,18 @@ void Master::reviveOffers(
     return;
   }
 
-  revive(framework);
+  scheduler::Call::Revive call;
+  if (!role.empty()) {
+    call.set_role(role);
+  }
+
+  revive(framework, call);
 }
 
 
-void Master::revive(Framework* framework)
+void Master::revive(
+    Framework* framework,
+    const scheduler::Call::Revive& revive)
 {
   CHECK_NOTNULL(framework);
 

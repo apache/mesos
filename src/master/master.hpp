@@ -870,7 +870,9 @@ private:
       Framework* framework,
       const scheduler::Call::DeclineInverseOffers& decline);
 
-  void revive(Framework* framework);
+  void revive(
+      Framework* framework,
+      const scheduler::Call::Revive& revive);
 
   void kill(
       Framework* framework,

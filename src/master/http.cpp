@@ -914,7 +914,7 @@ Future<Response> Master::Http::scheduler(
       return Accepted();
 
     case scheduler::Call::REVIVE:
-      master->revive(framework);
+      master->revive(framework, call.revive());
       return Accepted();
 
     case scheduler::Call::SUPPRESS:
