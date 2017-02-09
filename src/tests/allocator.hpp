@@ -180,7 +180,7 @@ ACTION_P(InvokeSuppressOffers, allocator)
 
 ACTION_P(InvokeReviveOffers, allocator)
 {
-  allocator->real->reviveOffers(arg0);
+  allocator->real->reviveOffers(arg0, arg1);
 }
 
 
@@ -334,9 +334,9 @@ public:
     EXPECT_CALL(*this, suppressOffers(_, _))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, reviveOffers(_))
+    ON_CALL(*this, reviveOffers(_, _))
       .WillByDefault(InvokeReviveOffers(this));
-    EXPECT_CALL(*this, reviveOffers(_))
+    EXPECT_CALL(*this, reviveOffers(_, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, setQuota(_, _))
@@ -454,8 +454,9 @@ public:
       const FrameworkID&,
       const Option<std::string>&));
 
-  MOCK_METHOD1(reviveOffers, void(
-      const FrameworkID&));
+  MOCK_METHOD2(reviveOffers, void(
+      const FrameworkID&,
+      const Option<std::string>&));
 
   MOCK_METHOD2(setQuota, void(
       const std::string&,

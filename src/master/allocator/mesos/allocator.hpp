@@ -147,7 +147,8 @@ public:
       const Option<std::string>& role);
 
   void reviveOffers(
-      const FrameworkID& frameworkId);
+      const FrameworkID& frameworkId,
+      const Option<std::string>& role);
 
   void setQuota(
       const std::string& role,
@@ -281,7 +282,8 @@ public:
       const Option<std::string>& role) = 0;
 
   virtual void reviveOffers(
-      const FrameworkID& frameworkId) = 0;
+      const FrameworkID& frameworkId,
+      const Option<std::string>& role) = 0;
 
   virtual void setQuota(
       const std::string& role,
@@ -618,12 +620,14 @@ inline void MesosAllocator<AllocatorProcess>::suppressOffers(
 
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::reviveOffers(
-    const FrameworkID& frameworkId)
+    const FrameworkID& frameworkId,
+    const Option<std::string>& role)
 {
   process::dispatch(
       process,
       &MesosAllocatorProcess::reviveOffers,
-      frameworkId);
+      frameworkId,
+      role);
 }
 
 

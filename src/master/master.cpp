@@ -4847,7 +4847,36 @@ void Master::revive(
 
   ++metrics->messages_revive_offers;
 
-  allocator->reviveOffers(framework->id());
+  const Option<string> role =
+    revive.has_role() ? Option<string>(revive.role()) : None();
+
+  // Validate role if it is set. We need to make sure the role is valid
+  // and also one of the framework roles.
+  if (role.isSome()) {
+    Option<Error> roleError = roles::validate(role.get());
+    if (roleError.isSome()) {
+      LOG(WARNING) << "REVIVE call message with invalid role: "
+                   <<  roleError.get().message;
+
+      return;
+    }
+
+    // TODO(gyliu513): Store the roles set within the Framework struct, so
+    // that we don't have to keep re-computing it.
+    const set<string> roles = protobuf::framework::getRoles(framework->info);
+    if (roles.count(role.get()) == 0) {
+      // TODO(gyliu513): Consider adding a `drop` overload to avoid
+      // custom logging here.
+      LOG(WARNING)
+        << "Ignoring REVIVE call message for framework " << *framework
+        << " with role " << role.get() << " because it does not exist in"
+        << " framework roles";
+
+      return;
+    }
+  }
+
+  allocator->reviveOffers(framework->id(), role);
 }
 
 

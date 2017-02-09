@@ -2866,7 +2866,7 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
 
   // Here the revival is totally unnecessary but we should tolerate the
   // framework's redundant REVIVE calls.
-  allocator->reviveOffers(framework.id());
+  allocator->reviveOffers(framework.id(), None());
 
   // Settle to ensure that the dispatched allocation is executed.
   Clock::settle();
@@ -2891,7 +2891,7 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
   EXPECT_TRUE(allocation.isPending());
 
   // Revive again and this time it should work.
-  allocator->reviveOffers(framework.id());
+  allocator->reviveOffers(framework.id(), None());
 
   // Framework will be offered all of agent's resources again after
   // reviving offers.
@@ -3641,7 +3641,7 @@ TEST_F(HierarchicalAllocatorTest, ReviveOffers)
   Future<Allocation> allocation = allocations.get();
   EXPECT_TRUE(allocation.isPending());
 
-  allocator->reviveOffers(framework.id());
+  allocator->reviveOffers(framework.id(), None());
 
   // Framework will be offered all of agent's resources again
   // after reviving offers.
@@ -4585,7 +4585,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AllocatorBacklog)
   // events. The allocator doesn't have more resources to allocate
   // but still incurs the overhead of additional allocation runs.
   for (size_t i = 0; i < frameworkCount; i++) {
-    allocator->reviveOffers(frameworks.at(i).id());
+    allocator->reviveOffers(frameworks.at(i).id(), None());
   }
 
   // Wait for all the `reviveOffers` operations to be processed.

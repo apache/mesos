@@ -191,9 +191,9 @@ public:
       const FrameworkID& frameworkId,
       const Option<std::string>& role);
 
-  // TODO(bmahler): Update to take optional Revive.role.
   void reviveOffers(
-      const FrameworkID& frameworkId);
+      const FrameworkID& frameworkId,
+      const Option<std::string>& role);
 
   void setQuota(
       const std::string& role,
