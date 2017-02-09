@@ -82,6 +82,17 @@ Try<hashset<string>> ldd(
         return Error("'" + dependency + "' is not in the ld.so cache");
       }
 
+      // If this ELF object has an interpreter (e.g. ld-linux-x86-64.so.2),
+      // inspect that too. We need both to be able to run an executable program.
+      // NOTE: The same object may be specified as a dependency too but on some
+      // systems (e.g. Ubuntu), the exact path of the two can differ even though
+      // they link to the the same file (see MESOS-7060). We however need the
+      // exact path specified in the interpreter section to run the executable.
+      Result<string> interpreter = elf->get_interpreter();
+      if (interpreter.isSome()) {
+        candidates.push_back(interpreter.get());
+      }
+
       candidates.push_back(entry->path);
     }
 
