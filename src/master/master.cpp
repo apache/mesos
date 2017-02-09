@@ -2344,7 +2344,7 @@ void Master::receive(
       break;
 
     case scheduler::Call::SUPPRESS:
-      suppress(framework);
+      suppress(framework, call.suppress());
       break;
 
     case scheduler::Call::UNKNOWN:
@@ -3211,7 +3211,9 @@ void Master::request(
 }
 
 
-void Master::suppress(Framework* framework)
+void Master::suppress(
+    Framework* framework,
+    const scheduler::Call::Suppress& suppress)
 {
   CHECK_NOTNULL(framework);
 

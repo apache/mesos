@@ -895,7 +895,9 @@ private:
       Framework* framework,
       const scheduler::Call::Request& request);
 
-  void suppress(Framework* framework);
+  void suppress(
+      Framework* framework,
+      const scheduler::Call::Suppress& suppress);
 
   bool elected() const
   {

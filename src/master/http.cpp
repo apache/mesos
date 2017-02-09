@@ -918,7 +918,7 @@ Future<Response> Master::Http::scheduler(
       return Accepted();
 
     case scheduler::Call::SUPPRESS:
-      master->suppress(framework);
+      master->suppress(framework, call.suppress());
       return Accepted();
 
     case scheduler::Call::KILL:
