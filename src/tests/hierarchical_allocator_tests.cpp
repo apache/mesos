@@ -2813,7 +2813,7 @@ TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
       None());
 
   // Suppress offers and disconnect framework.
-  allocator->suppressOffers(framework.id());
+  allocator->suppressOffers(framework.id(), None());
   allocator->deactivateFramework(framework.id());
 
   // Advance the clock and trigger a background allocation cycle.
@@ -2881,7 +2881,7 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
       allocatedResources(agent.resources(), "role1"),
       None());
 
-  allocator->suppressOffers(framework.id());
+  allocator->suppressOffers(framework.id(), None());
 
   // Advance the clock and trigger a background allocation cycle.
   Clock::advance(flags.allocation_interval);
@@ -4401,7 +4401,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, SuppressOffers)
     // 'frameworkCount % allocationsCount' of frameworks not suppressed. For
     // the purposes of the benchmark this is not an issue.
     for (size_t j = 0; j < frameworkCount / allocationsCount; ++j) {
-      allocator->suppressOffers(frameworks[suppressCount].id());
+      allocator->suppressOffers(frameworks[suppressCount].id(), None());
       ++suppressCount;
     }
 

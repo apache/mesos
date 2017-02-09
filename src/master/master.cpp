@@ -3221,7 +3221,38 @@ void Master::suppress(
 
   ++metrics->messages_suppress_offers;
 
-  allocator->suppressOffers(framework->id());
+  const Option<string> role =
+    suppress.has_role() ? Option<string>(suppress.role()) : None();
+
+  // Validate role if it is set. We need to make sure the role is valid
+  // and also one of the framework roles.
+  if (role.isSome()) {
+    // There maybe cases that the framework developer set an invalid role
+    // when constructing `scheduler::Call::Suppress`.
+    Option<Error> roleError = roles::validate(role.get());
+    if (roleError.isSome()) {
+      LOG(WARNING) << "SUPPRESS call message with invalid role: "
+                   <<  roleError.get().message;
+
+      return;
+    }
+
+    // TODO(gyliu513): Store the roles set within the Framework struct, so
+    // that we don't have to keep re-computing it.
+    const set<string> roles = protobuf::framework::getRoles(framework->info);
+    if (roles.count(role.get()) == 0) {
+      // TODO(gyliu513): Consider adding a `drop` overload to avoid
+      // customlogging here.
+      LOG(WARNING)
+        << "Ignoring SUPPRESS call message for framework " << *framework
+        << " with role " << role.get() << " because it is not one of the"
+        << " framework's subscribed roles";
+
+      return;
+    }
+  }
+
+  allocator->suppressOffers(framework->id(), role);
 }
 
 

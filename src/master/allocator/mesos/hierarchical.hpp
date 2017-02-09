@@ -187,9 +187,9 @@ public:
       const Resources& resources,
       const Option<Filters>& filters);
 
-  // TODO(bmahler): Update to take optional Suppress.role.
   void suppressOffers(
-      const FrameworkID& frameworkId);
+      const FrameworkID& frameworkId,
+      const Option<std::string>& role);
 
   // TODO(bmahler): Update to take optional Revive.role.
   void reviveOffers(

@@ -143,7 +143,8 @@ public:
       const Option<Filters>& filters);
 
   void suppressOffers(
-      const FrameworkID& frameworkId);
+      const FrameworkID& frameworkId,
+      const Option<std::string>& role);
 
   void reviveOffers(
       const FrameworkID& frameworkId);
@@ -276,7 +277,8 @@ public:
       const Option<Filters>& filters) = 0;
 
   virtual void suppressOffers(
-      const FrameworkID& frameworkId) = 0;
+      const FrameworkID& frameworkId,
+      const Option<std::string>& role) = 0;
 
   virtual void reviveOffers(
       const FrameworkID& frameworkId) = 0;
@@ -603,12 +605,14 @@ inline void MesosAllocator<AllocatorProcess>::recoverResources(
 
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::suppressOffers(
-    const FrameworkID& frameworkId)
+    const FrameworkID& frameworkId,
+    const Option<std::string>& role)
 {
   process::dispatch(
       process,
       &MesosAllocatorProcess::suppressOffers,
-      frameworkId);
+      frameworkId,
+      role);
 }
 
 
