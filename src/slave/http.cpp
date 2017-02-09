@@ -243,6 +243,10 @@ struct FrameworkWriter
     writer->field("checkpoint", framework_->info.checkpoint());
     writer->field("hostname", framework_->info.hostname());
 
+    if (framework_->info.has_principal()) {
+      writer->field("principal", framework_->info.principal());
+    }
+
     // For multi-role frameworks the `role` field will be unset.
     // Note that we could set `roles` here for both cases, which
     // would make tooling simpler (only need to look for `roles`).
