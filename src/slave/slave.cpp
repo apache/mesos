@@ -5295,17 +5295,15 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
       const FrameworkInfo& frameworkInfo) {
     set<string> roles = protobuf::framework::getRoles(frameworkInfo);
 
-    for (int i = 0; i < resources->size(); ++i) {
-      Resource* resource = resources->Mutable(i);
-
-      if (!resource->has_allocation_info()) {
+    foreach (Resource& resource, *resources) {
+      if (!resource.has_allocation_info()) {
         if (roles.size() != 1) {
           LOG(FATAL) << "Missing 'Resource.AllocationInfo' for resources"
                      << " allocated to MULTI_ROLE framework"
                      << " '" << frameworkInfo.name() << "'";
         }
 
-        resource->mutable_allocation_info()->set_role(*roles.begin());
+        resource.mutable_allocation_info()->set_role(*roles.begin());
       }
     }
   };
