@@ -4023,7 +4023,7 @@ void Master::_accept(
 
         // Make sure this reserve operation is valid.
         Option<Error> error = validation::operation::validate(
-            operation.reserve(), principal, framework->info.role());
+            operation.reserve(), principal, framework->info);
 
         if (error.isSome()) {
           drop(framework, operation, error.get().message);

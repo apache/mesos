@@ -16,6 +16,7 @@
 
 #include "master/validation.hpp"
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -39,6 +40,7 @@
 
 #include "master/master.hpp"
 
+using std::set;
 using std::string;
 using std::vector;
 
@@ -1605,14 +1607,8 @@ namespace operation {
 Option<Error> validate(
     const Offer::Operation::Reserve& reserve,
     const Option<string>& principal,
-    const Option<string>& frameworkRole)
+    const Option<FrameworkInfo>& frameworkInfo)
 {
-  if (frameworkRole.isSome() && frameworkRole.get() == "*") {
-    return Error(
-        "A reserve operation was attempted by a framework with role"
-        " '*', but frameworks with that role cannot reserve resources");
-  }
-
   Option<Error> error = resource::validate(reserve.resources());
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
@@ -1641,11 +1637,16 @@ Option<Error> validate(
       }
     }
 
-    if (frameworkRole.isSome() && resource.role() != frameworkRole.get()) {
-      return Error(
-          "A reserve operation was attempted for a resource with role"
-          " '" + resource.role() + "', but the framework can only reserve"
-          " resources with role '" + frameworkRole.get() + "'");
+    if (frameworkInfo.isSome()) {
+      set<string> frameworkRoles =
+        protobuf::framework::getRoles(frameworkInfo.get());
+
+      if (frameworkRoles.count(resource.role()) == 0) {
+        return Error(
+            "A reserve operation was attempted for a resource with role"
+            " '" + resource.role() + "', but the framework can only reserve"
+            " resources with roles '" + stringify(frameworkRoles) + "'");
+      }
     }
 
     // NOTE: This check would be covered by 'contains' since there

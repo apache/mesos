@@ -229,7 +229,7 @@ namespace operation {
 Option<Error> validate(
     const Offer::Operation::Reserve& reserve,
     const Option<std::string>& principal,
-    const Option<std::string>& role);
+    const Option<FrameworkInfo>& frameworkInfo);
 
 
 // Validates the UNRESERVE operation.

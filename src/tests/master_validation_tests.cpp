@@ -250,8 +250,11 @@ TEST_F(ReserveOperationValidationTest, MatchingRole)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_role("frameworkRole");
+
   Option<Error> error =
-    operation::validate(reserve, "principal", "frameworkRole");
+    operation::validate(reserve, "principal", frameworkInfo);
 
   EXPECT_SOME(error);
 }
@@ -269,7 +272,11 @@ TEST_F(ReserveOperationValidationTest, DisallowStarRoleFrameworks)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  Option<Error> error = operation::validate(reserve, "principal", "*");
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_role("*");
+
+  Option<Error> error =
+    operation::validate(reserve, "principal", frameworkInfo);
 
   EXPECT_SOME(error);
 }
@@ -287,8 +294,11 @@ TEST_F(ReserveOperationValidationTest, DisallowReserveForStarRole)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_role("frameworkRole");
+
   Option<Error> error =
-    operation::validate(reserve, "principal", "frameworkRole");
+    operation::validate(reserve, "principal", frameworkInfo);
 
   EXPECT_SOME(error);
 }
@@ -304,9 +314,13 @@ TEST_F(ReserveOperationValidationTest, MatchingPrincipal)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  Option<Error> error = operation::validate(reserve, "principal", "role");
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_role("role");
 
-  EXPECT_NONE(error);
+  Option<Error> error =
+    operation::validate(reserve, "principal", frameworkInfo);
+
+  EXPECT_NONE(error) << error->message;
 }
 
 
@@ -321,7 +335,11 @@ TEST_F(ReserveOperationValidationTest, NonMatchingPrincipal)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  Option<Error> error = operation::validate(reserve, "principal1", "role");
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_role("role");
+
+  Option<Error> error =
+    operation::validate(reserve, "principal1", frameworkInfo);
 
   EXPECT_SOME(error);
 }
@@ -339,7 +357,11 @@ TEST_F(ReserveOperationValidationTest, ReservationInfoMissingPrincipal)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(resource);
 
-  Option<Error> error = operation::validate(reserve, "principal", "role");
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_role("role");
+
+  Option<Error> error =
+    operation::validate(reserve, "principal", frameworkInfo);
 
   EXPECT_SOME(error);
 }
@@ -354,7 +376,11 @@ TEST_F(ReserveOperationValidationTest, StaticReservation)
   Offer::Operation::Reserve reserve;
   reserve.add_resources()->CopyFrom(staticallyReserved);
 
-  Option<Error> error = operation::validate(reserve, "principal", "role");
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_role("role");
+
+  Option<Error> error =
+    operation::validate(reserve, "principal", frameworkInfo);
 
   EXPECT_SOME(error);
 }
@@ -374,7 +400,11 @@ TEST_F(ReserveOperationValidationTest, NoPersistentVolumes)
   reserve.add_resources()->CopyFrom(reserved);
   reserve.add_resources()->CopyFrom(volume);
 
-  Option<Error> error = operation::validate(reserve, "principal", "role");
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_role("role");
+
+  Option<Error> error =
+    operation::validate(reserve, "principal", frameworkInfo);
 
   EXPECT_SOME(error);
 }
