@@ -57,6 +57,14 @@ class SharedHandle : public std::shared_ptr<void>
                 "Expected `HANDLE` to be of type `void*`.");
 
 public:
+  // We delete the default constructor so that the callsite is forced to make
+  // an explicit decision about what the empty `HANDLE` value should be, as it
+  // is not the same for all `HANDLE` types.  For example, `OpenProcess`
+  // returns a `nullptr` for an invalid handle, but `CreateFile` returns an
+  // `INVALID_HANDLE_VALUE` instead. This inconsistency is inherent in the
+  // Windows API.
+  SharedHandle() = delete;
+
   template <typename Deleter>
   SharedHandle(HANDLE handle, Deleter deleter)
       : std::shared_ptr<void>(handle, deleter) {}
