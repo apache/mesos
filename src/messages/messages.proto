@@ -266,13 +266,18 @@ message RescindInverseOfferMessage {
 
 
 /**
- * Removes all filters previously set by the scheduler.
+ * Removes filters for the specified role. If a role is not provided, then
+ * this is equivalent to passing all of the framework's subscribed roles.
  *
  * Used by the pre-Event/Call Mesos scheduler driver.
  * See scheduler::Call::Revive.
+ *
+ * NOTE: There is no optional `role` field in V0 API as we will eventually
+ * move to V1 API.
  */
 message ReviveOffersMessage {
   required FrameworkID framework_id = 1;
+  optional string role = 2;
 }
 
 

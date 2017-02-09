@@ -768,7 +768,8 @@ void Master::initialize()
 
   install<ReviveOffersMessage>(
       &Master::reviveOffers,
-      &ReviveOffersMessage::framework_id);
+      &ReviveOffersMessage::framework_id,
+      &ReviveOffersMessage::role);
 
   install<KillTaskMessage>(
       &Master::killTask,
@@ -3242,7 +3243,7 @@ void Master::suppress(
     const set<string> roles = protobuf::framework::getRoles(framework->info);
     if (roles.count(role.get()) == 0) {
       // TODO(gyliu513): Consider adding a `drop` overload to avoid
-      // customlogging here.
+      // custom logging here.
       LOG(WARNING)
         << "Ignoring SUPPRESS call message for framework " << *framework
         << " with role " << role.get() << " because it is not one of the"
@@ -4806,7 +4807,10 @@ void Master::declineInverseOffers(
 }
 
 
-void Master::reviveOffers(const UPID& from, const FrameworkID& frameworkId)
+void Master::reviveOffers(
+    const UPID& from,
+    const FrameworkID& frameworkId,
+    const string& role)
 {
   Framework* framework = getFramework(frameworkId);
 
