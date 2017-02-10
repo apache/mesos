@@ -354,10 +354,10 @@ int main(int argc, char** argv)
   }
 #endif // __linux__
 
-  Fetcher fetcher;
+  Fetcher* fetcher = new Fetcher();
 
   Try<Containerizer*> containerizer =
-    Containerizer::create(flags, false, &fetcher);
+    Containerizer::create(flags, false, fetcher);
 
   if (containerizer.isError()) {
     EXIT(EXIT_FAILURE)
@@ -408,9 +408,9 @@ int main(int argc, char** argv)
         createAuthorizationCallbacks(authorizer_.get()));
   }
 
-  Files files(READONLY_HTTP_AUTHENTICATION_REALM, authorizer_);
-  GarbageCollector gc;
-  StatusUpdateManager statusUpdateManager(flags);
+  Files* files = new Files(READONLY_HTTP_AUTHENTICATION_REALM, authorizer_);
+  GarbageCollector* gc = new GarbageCollector();
+  StatusUpdateManager* statusUpdateManager = new StatusUpdateManager(flags);
 
   Try<ResourceEstimator*> resourceEstimator =
     ResourceEstimator::create(flags.resource_estimator);
@@ -435,9 +435,9 @@ int main(int argc, char** argv)
       flags,
       detector,
       containerizer.get(),
-      &files,
-      &gc,
-      &statusUpdateManager,
+      files,
+      gc,
+      statusUpdateManager,
       resourceEstimator.get(),
       qosController.get(),
       authorizer_);
@@ -447,17 +447,25 @@ int main(int argc, char** argv)
 
   delete slave;
 
+  delete qosController.get();
+
   delete resourceEstimator.get();
 
-  delete qosController.get();
+  delete statusUpdateManager;
+
+  delete gc;
+
+  delete files;
+
+  if (authorizer_.isSome()) {
+    delete authorizer_.get();
+  }
 
   delete detector;
 
   delete containerizer.get();
 
-  if (authorizer_.isSome()) {
-    delete authorizer_.get();
-  }
+  delete fetcher;
 
   // NOTE: We need to finalize libprocess, on Windows especially,
   // as any binary that uses the networking stack on Windows must
