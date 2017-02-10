@@ -46,6 +46,7 @@
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/resources_utils.hpp"
 
 #include "master/detector/standalone.hpp"
 
@@ -248,7 +249,8 @@ TEST_F(ReserveOperationValidationTest, MatchingRole)
   resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
 
   Offer::Operation::Reserve reserve;
-  reserve.add_resources()->CopyFrom(resource);
+  reserve.mutable_resources()->CopyFrom(
+      allocatedResources(resource, resource.role()));
 
   FrameworkInfo frameworkInfo;
   frameworkInfo.set_role("frameworkRole");
@@ -312,7 +314,8 @@ TEST_F(ReserveOperationValidationTest, MatchingPrincipal)
   resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
 
   Offer::Operation::Reserve reserve;
-  reserve.add_resources()->CopyFrom(resource);
+  reserve.mutable_resources()->CopyFrom(
+      allocatedResources(resource, resource.role()));
 
   FrameworkInfo frameworkInfo;
   frameworkInfo.set_role("role");
@@ -397,8 +400,12 @@ TEST_F(ReserveOperationValidationTest, NoPersistentVolumes)
   volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
 
   Offer::Operation::Reserve reserve;
-  reserve.add_resources()->CopyFrom(reserved);
-  reserve.add_resources()->CopyFrom(volume);
+
+  reserve.mutable_resources()->CopyFrom(
+      allocatedResources(reserved, reserved.role()));
+
+  reserve.mutable_resources()->MergeFrom(
+      allocatedResources(volume, volume.role()));
 
   FrameworkInfo frameworkInfo;
   frameworkInfo.set_role("role");
