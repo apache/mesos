@@ -283,7 +283,7 @@ public:
                     if [ $? -eq 0 ]; then
                       exit 0
                     fi
-                    COUNTER=$[COUNTER+1]
+                    ((COUNTER++))
                     sleep 1
                   done
                   exit 1
