@@ -18,7 +18,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.61])
-AC_INIT([mesos], [1.2.0])
+AC_INIT([mesos], [1.3.0])
 
 # Have autoconf setup some variables related to the system.
 AC_CANONICAL_HOST
