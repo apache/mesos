@@ -2234,6 +2234,47 @@ void Master::drop(
              << ": " << message;
 }
 
+void Master::drop(
+    Framework* framework,
+    const scheduler::Call& call,
+    const std::string& message)
+{
+    CHECK_NOTNULL(framework);
+
+    // TODO(gyliu513): Increment a metric.
+
+    // TODO(gyliu513): Update all `drop` logging to `WARNING`.
+    LOG(ERROR) << "Dropping " << call.type() << " call"
+               << " from framework " << *framework
+               << ": " << message;
+}
+
+
+void Master::drop(
+    Framework* framework,
+    const scheduler::Call::Suppress& suppress,
+    const string& message)
+{
+  scheduler::Call call;
+  call.set_type(scheduler::Call::SUPPRESS);
+  call.mutable_suppress()->CopyFrom(suppress);
+
+  drop(framework, call, message);
+}
+
+
+void Master::drop(
+    Framework* framework,
+    const scheduler::Call::Revive& revive,
+    const string& message)
+{
+  scheduler::Call call;
+  call.set_type(scheduler::Call::REVIVE);
+  call.mutable_revive()->CopyFrom(revive);
+
+  drop(framework, call, message);
+}
+
 
 void Master::receive(
     const UPID& from,
@@ -3232,19 +3273,18 @@ void Master::suppress(
     // when constructing `scheduler::Call::Suppress`.
     Option<Error> roleError = roles::validate(role.get());
     if (roleError.isSome()) {
-      LOG(WARNING) << "SUPPRESS call message with invalid role: "
-                   <<  roleError.get().message;
+      drop(framework,
+           suppress,
+           "suppression role is invalid: " + roleError->message);
 
       return;
     }
 
     if (framework->roles.count(role.get()) == 0) {
-      // TODO(gyliu513): Consider adding a `drop` overload to avoid
-      // custom logging here.
-      LOG(WARNING)
-        << "Ignoring SUPPRESS call message for framework " << *framework
-        << " with role " << role.get() << " because it is not one of the"
-        << " framework's subscribed roles";
+      drop(framework,
+           suppress,
+           "suppression role " + role.get() + " is not one"
+           " of the frameworks's subscribed roles");
 
       return;
     }
@@ -4852,19 +4892,18 @@ void Master::revive(
   if (role.isSome()) {
     Option<Error> roleError = roles::validate(role.get());
     if (roleError.isSome()) {
-      LOG(WARNING) << "REVIVE call message with invalid role: "
-                   <<  roleError.get().message;
+      drop(framework,
+           revive,
+           "revive role is invalid: " + roleError->message);
 
       return;
     }
 
     if (framework->roles.count(role.get()) == 0) {
-      // TODO(gyliu513): Consider adding a `drop` overload to avoid
-      // custom logging here.
-      LOG(WARNING)
-        << "Ignoring REVIVE call message for framework " << *framework
-        << " with role " << role.get() << " because it does not exist in"
-        << " framework roles";
+      drop(framework,
+           revive,
+           "revive role " + role.get() + " is not one"
+           " of the frameworks's subscribed roles");
 
       return;
     }

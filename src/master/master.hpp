@@ -817,6 +817,21 @@ private:
       const Offer::Operation& operation,
       const std::string& message);
 
+  void drop(
+      Framework* framework,
+      const scheduler::Call& call,
+      const std::string& message);
+
+  void drop(
+      Framework* framework,
+      const scheduler::Call::Suppress& suppress,
+      const std::string& message);
+
+  void drop(
+      Framework* framework,
+      const scheduler::Call::Revive& revive,
+      const std::string& message);
+
   // Call handlers.
   void receive(
       const process::UPID& from,
