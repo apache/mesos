@@ -2210,9 +2210,9 @@ void Master::drop(
 {
   // TODO(bmahler): Increment a metric.
 
-  LOG(ERROR) << "Dropping " << call.type() << " call"
-             << " from framework " << call.framework_id()
-             << " at " << from << ": " << message;
+  LOG(WARNING) << "Dropping " << call.type() << " call"
+               << " from framework " << call.framework_id()
+               << " at " << from << ": " << message;
 }
 
 
@@ -2229,9 +2229,9 @@ void Master::drop(
   // operation is dropped. The framework will find out that the
   // operation was dropped through subsequent offers.
 
-  LOG(ERROR) << "Dropping " << Offer::Operation::Type_Name(operation.type())
-             << " offer operation from framework " << *framework
-             << ": " << message;
+  LOG(WARNING) << "Dropping " << Offer::Operation::Type_Name(operation.type())
+               << " offer operation from framework " << *framework
+               << ": " << message;
 }
 
 void Master::drop(
@@ -2243,10 +2243,9 @@ void Master::drop(
 
     // TODO(gyliu513): Increment a metric.
 
-    // TODO(gyliu513): Update all `drop` logging to `WARNING`.
-    LOG(ERROR) << "Dropping " << call.type() << " call"
-               << " from framework " << *framework
-               << ": " << message;
+    LOG(WARNING) << "Dropping " << call.type() << " call"
+                 << " from framework " << *framework
+                 << ": " << message;
 }
 
 
@@ -3914,7 +3913,7 @@ void Master::accept(
 
       case Offer::Operation::UNKNOWN: {
         // TODO(vinod): Send an error event to the scheduler?
-        LOG(ERROR) << "Ignoring unknown offer operation";
+        LOG(WARNING) << "Ignoring unknown offer operation";
         break;
       }
     }
@@ -4675,7 +4674,7 @@ void Master::_accept(
       }
 
       case Offer::Operation::UNKNOWN: {
-        LOG(ERROR) << "Ignoring unknown offer operation";
+        LOG(WARNING) << "Ignoring unknown offer operation";
         break;
       }
     }
@@ -5151,7 +5150,7 @@ void Master::acknowledge(
       // Dropping the acknowledgement is safe because the slave will
       // retry the update, at which point the master will set the
       // status update state.
-      LOG(ERROR)
+      LOG(WARNING)
         << "Ignoring status update acknowledgement " << uuid
         << " for task " << taskId << " of framework " << *framework
         << " to agent " << *slave << " because the update was not"
@@ -5457,10 +5456,10 @@ void Master::_registerSlave(
     // master ID, which is a randomly generated UUID. In this situation,
     // we ignore the registration attempt. The slave will eventually try
     // to register again and be assigned a new slave ID.
-    LOG(ERROR) << "Agent " << slaveInfo.id() << " at " << pid
-               << " (" << slaveInfo.hostname() << ") was assigned"
-               << " an agent ID that already appears in the registry;"
-               << " ignoring registration attempt";
+    LOG(WARNING) << "Agent " << slaveInfo.id() << " at " << pid
+                 << " (" << slaveInfo.hostname() << ") was assigned"
+                 << " an agent ID that already appears in the registry;"
+                 << " ignoring registration attempt";
     return;
   }
 
