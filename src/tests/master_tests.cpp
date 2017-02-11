@@ -6325,6 +6325,72 @@ TEST_F(MasterTest, AgentRestartNoReregisterRateLimit)
   driver.join();
 }
 
+
+// This test ensures that a multi-role framework can receive offers
+// for different roles it subscribes with. We start two slaves and
+// launch one multi-role framework with two roles. The framework should
+// receive two offers, one for each slave, allocated to different roles.
+TEST_F(MasterTest, MultiRoleFrameworkReceivesOffers)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  slave::Flags flags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave1 =
+    StartSlave(detector.get(), &containerizer, flags);
+  ASSERT_SOME(slave1);
+
+  Try<Owned<cluster::Slave>> slave2 =
+    StartSlave(detector.get(), &containerizer, flags);
+  ASSERT_SOME(slave2);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.add_roles("role1");
+  framework.add_roles("role2");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // Scheduler should receive two offers, one for each role.
+  Future<vector<Offer>> offers1;
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1->size());
+  EXPECT_TRUE(offers1.get()[0].has_allocation_info());
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2->size());
+  EXPECT_TRUE(offers2.get()[0].has_allocation_info());
+
+  // 1st and 2nd offers should have different roles.
+  EXPECT_NE(
+      offers1.get()[0].allocation_info().role(),
+      offers2.get()[0].allocation_info().role());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
