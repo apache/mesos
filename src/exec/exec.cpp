@@ -284,7 +284,12 @@ protected:
 
     // Update the slave link.
     slave = from;
-    link(slave);
+
+    // We force a reconnect here to avoid sending on a stale "half-open"
+    // socket. We do not detect a disconnection in some cases when the
+    // connection is terminated by a netfilter module e.g., iptables
+    // running on the agent (see MESOS-5332).
+    link(slave, RemoteConnection::RECONNECT);
 
     // Re-register with slave.
     ReregisterExecutorMessage message;
