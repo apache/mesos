@@ -3238,10 +3238,7 @@ void Master::suppress(
       return;
     }
 
-    // TODO(gyliu513): Store the roles set within the Framework struct, so
-    // that we don't have to keep re-computing it.
-    const set<string> roles = protobuf::framework::getRoles(framework->info);
-    if (roles.count(role.get()) == 0) {
+    if (framework->roles.count(role.get()) == 0) {
       // TODO(gyliu513): Consider adding a `drop` overload to avoid
       // custom logging here.
       LOG(WARNING)
@@ -4861,10 +4858,7 @@ void Master::revive(
       return;
     }
 
-    // TODO(gyliu513): Store the roles set within the Framework struct, so
-    // that we don't have to keep re-computing it.
-    const set<string> roles = protobuf::framework::getRoles(framework->info);
-    if (roles.count(role.get()) == 0) {
+    if (framework->roles.count(role.get()) == 0) {
       // TODO(gyliu513): Consider adding a `drop` overload to avoid
       // custom logging here.
       LOG(WARNING)
