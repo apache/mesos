@@ -4619,9 +4619,11 @@ TEST_F(SlaveTest, HTTPSchedulerLiveUpgrade)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
   ASSERT_SOME(slave);
 
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -4644,11 +4646,15 @@ TEST_F(SlaveTest, HTTPSchedulerLiveUpgrade)
   AWAIT_READY(frameworkId);
   AWAIT_READY(launchTask);
 
+  // Set the `FrameworkID` in `FrameworkInfo`.
+  frameworkInfo.mutable_id()->CopyFrom(frameworkId.get());
+
   // Now spoof a live upgrade of the framework by updating
   // the framework information to have an empty pid.
   UpdateFrameworkMessage updateFrameworkMessage;
   updateFrameworkMessage.mutable_framework_id()->CopyFrom(frameworkId.get());
   updateFrameworkMessage.set_pid("");
+  updateFrameworkMessage.mutable_framework_info()->CopyFrom(frameworkInfo);
 
   process::post(master.get()->pid, slave.get()->pid, updateFrameworkMessage);
 

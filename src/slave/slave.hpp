@@ -187,7 +187,8 @@ public:
 
   void updateFramework(
       const FrameworkID& frameworkId,
-      const process::UPID& pid);
+      const process::UPID& pid,
+      const FrameworkInfo& frameworkInfo);
 
   void checkpointResources(const std::vector<Resource>& checkpointedResources);
 
@@ -1065,7 +1066,7 @@ struct Framework
   // the 'Slave' class.
   Slave* slave;
 
-  const FrameworkInfo info;
+  FrameworkInfo info;
 
   protobuf::framework::Capabilities capabilities;
 

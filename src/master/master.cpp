@@ -2676,12 +2676,13 @@ void Master::_subscribe(
   // it currently isn't running any tasks.
   foreachvalue (Slave* slave, slaves.registered) {
     UpdateFrameworkMessage message;
-    message.mutable_framework_id()->MergeFrom(frameworkInfo.id());
+    message.mutable_framework_id()->CopyFrom(frameworkInfo.id());
 
     // TODO(anand): We set 'pid' to UPID() for http frameworks
     // as 'pid' was made optional in 0.24.0. In 0.25.0, we
     // no longer have to set pid here for http frameworks.
     message.set_pid(UPID());
+    message.mutable_framework_info()->CopyFrom(frameworkInfo);
     send(slave->pid, message);
   }
 }
@@ -3038,8 +3039,9 @@ void Master::_subscribe(
   // it currently isn't running any tasks.
   foreachvalue (Slave* slave, slaves.registered) {
     UpdateFrameworkMessage message;
-    message.mutable_framework_id()->MergeFrom(frameworkInfo.id());
+    message.mutable_framework_id()->CopyFrom(frameworkInfo.id());
     message.set_pid(from);
+    message.mutable_framework_info()->CopyFrom(frameworkInfo);
     send(slave->pid, message);
   }
 }
@@ -5961,12 +5963,13 @@ void Master::__reregisterSlave(
     // re-registering slaves.
     if (framework != nullptr && framework->connected()) {
       UpdateFrameworkMessage message;
-      message.mutable_framework_id()->MergeFrom(framework->id());
+      message.mutable_framework_id()->CopyFrom(framework->id());
 
       // TODO(anand): We set 'pid' to UPID() for http frameworks
       // as 'pid' was made optional in 0.24.0. In 0.25.0, we
       // no longer have to set pid here for http frameworks.
       message.set_pid(framework->pid.getOrElse(UPID()));
+      message.mutable_framework_info()->CopyFrom(framework->info);
 
       send(slave->pid, message);
     }

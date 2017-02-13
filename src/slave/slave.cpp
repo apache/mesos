@@ -616,7 +616,8 @@ void Slave::initialize()
   install<UpdateFrameworkMessage>(
       &Slave::updateFramework,
       &UpdateFrameworkMessage::framework_id,
-      &UpdateFrameworkMessage::pid);
+      &UpdateFrameworkMessage::pid,
+      &UpdateFrameworkMessage::framework_info);
 
   install<CheckpointResourcesMessage>(
       &Slave::checkpointResources,
@@ -2799,7 +2800,8 @@ void Slave::schedulerMessage(
 
 void Slave::updateFramework(
     const FrameworkID& frameworkId,
-    const UPID& pid)
+    const UPID& pid,
+    const FrameworkInfo& frameworkInfo)
 {
   CHECK(state == RECOVERING || state == DISCONNECTED ||
         state == RUNNING || state == TERMINATING)
@@ -2814,18 +2816,23 @@ void Slave::updateFramework(
 
   Framework* framework = getFramework(frameworkId);
   if (framework == nullptr) {
-    LOG(WARNING) << "Ignoring updating pid for framework " << frameworkId
+    LOG(WARNING) << "Ignoring info update for framework " << frameworkId
                  << " because it does not exist";
     return;
   }
 
   switch (framework->state) {
     case Framework::TERMINATING:
-      LOG(WARNING) << "Ignoring updating pid for framework " << frameworkId
+      LOG(WARNING) << "Ignoring info update for framework " << frameworkId
                    << " because it is terminating";
       break;
     case Framework::RUNNING: {
-      LOG(INFO) << "Updating framework " << frameworkId << " pid to " << pid;
+      LOG(INFO) << "Updating info for framework " << frameworkId
+                << (pid != UPID() ? "with pid updated to " + stringify(pid)
+                                  : "");
+
+      framework->info.CopyFrom(frameworkInfo);
+      framework->capabilities = frameworkInfo.capabilities();
 
       if (pid == UPID()) {
         framework->pid = None();
@@ -2834,18 +2841,7 @@ void Slave::updateFramework(
       }
 
       if (framework->info.checkpoint()) {
-        // Checkpoint the framework pid, note that when the 'pid'
-        // is None, we checkpoint a default UPID() because
-        // 0.23.x slaves consider a missing pid file to be an
-        // error.
-        const string path = paths::getFrameworkPidPath(
-            metaDir, info.id(), frameworkId);
-
-        VLOG(1) << "Checkpointing framework pid"
-                << " '" << framework->pid.getOrElse(UPID()) << "'"
-                << " to '" << path << "'";
-
-        CHECK_SOME(state::checkpoint(path, framework->pid.getOrElse(UPID())));
+        framework->checkpointFramework();
       }
 
       // Inform status update manager to immediately resend any pending

@@ -1976,9 +1976,17 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 
   Future<Nothing> updateFramework = FUTURE_DISPATCH(_, &Slave::updateFramework);
 
+  // Set the `FrameworkID` in `FrameworkInfo`.
+  frameworkInfo.mutable_id()->CopyFrom(frameworkId);
+
   // Simulate a 'UpdateFrameworkMessage' to ensure framework pid is
   // not being checkpointed.
-  process::dispatch(slave.get()->pid, &Slave::updateFramework, frameworkId, "");
+  process::dispatch(
+      slave.get()->pid,
+      &Slave::updateFramework,
+      frameworkId,
+      "",
+      frameworkInfo);
 
   AWAIT_READY(updateFramework);
 
