@@ -568,6 +568,9 @@ message UpdateFrameworkMessage {
 
   // See the comment on RunTaskMessage.pid.
   optional string pid = 2;
+
+  // Updated framework info.
+  optional FrameworkInfo framework_info = 3;
 }
 
 
