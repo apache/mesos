@@ -411,7 +411,10 @@ public:
   virtual void __recover(const process::Future<Nothing>& future);
 
   // Helper to recover a framework from the specified state.
-  void recoverFramework(const state::FrameworkState& state);
+  void recoverFramework(
+      const state::FrameworkState& state,
+      const hashset<ExecutorID>& executorsToRecheckpoint,
+      const hashmap<ExecutorID, hashset<TaskID>>& tasksToRecheckpoint);
 
   // Removes and garbage collects the executor.
   void removeExecutor(Framework* framework, Executor* executor);
@@ -890,7 +893,10 @@ struct Executor
   void completeTask(const TaskID& taskId);
   void checkpointExecutor();
   void checkpointTask(const TaskInfo& task);
-  void recoverTask(const state::TaskState& state);
+  void checkpointTask(const Task& task);
+
+  void recoverTask(const state::TaskState& state, bool recheckpointTask);
+
   Try<Nothing> updateTaskState(const TaskStatus& status);
 
   // Returns true if there are any queued/launched/terminated tasks.
@@ -1050,7 +1056,12 @@ struct Framework
   void destroyExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const ExecutorID& executorId) const;
   Executor* getExecutor(const TaskID& taskId) const;
-  void recoverExecutor(const state::ExecutorState& state);
+
+  void recoverExecutor(
+      const state::ExecutorState& state,
+      bool recheckpointExecutor,
+      const hashset<TaskID>& tasksToRecheckpoint);
+
   void checkpointFramework() const;
 
   const FrameworkID id() const { return info.id(); }
