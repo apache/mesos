@@ -4397,10 +4397,10 @@ void Slave::exited(const UPID& pid)
 }
 
 
-Framework* Slave::getFramework(const FrameworkID& frameworkId)
+Framework* Slave::getFramework(const FrameworkID& frameworkId) const
 {
   if (frameworks.count(frameworkId) > 0) {
-    return frameworks[frameworkId];
+    return frameworks.at(frameworkId);
   }
 
   return nullptr;
@@ -4409,7 +4409,7 @@ Framework* Slave::getFramework(const FrameworkID& frameworkId)
 
 Executor* Slave::getExecutor(
     const FrameworkID& frameworkId,
-    const ExecutorID& executorId)
+    const ExecutorID& executorId) const
 {
   Framework* framework = getFramework(frameworkId);
   if (framework != nullptr) {
@@ -4422,7 +4422,7 @@ Executor* Slave::getExecutor(
 
 ExecutorInfo Slave::getExecutorInfo(
     const FrameworkInfo& frameworkInfo,
-    const TaskInfo& task)
+    const TaskInfo& task) const
 {
   CHECK_NE(task.has_executor(), task.has_command())
     << "Task " << task.task_id()
@@ -6603,17 +6603,17 @@ void Framework::destroyExecutor(const ExecutorID& executorId)
 }
 
 
-Executor* Framework::getExecutor(const ExecutorID& executorId)
+Executor* Framework::getExecutor(const ExecutorID& executorId) const
 {
   if (executors.contains(executorId)) {
-    return executors[executorId];
+    return executors.at(executorId);
   }
 
   return nullptr;
 }
 
 
-Executor* Framework::getExecutor(const TaskID& taskId)
+Executor* Framework::getExecutor(const TaskID& taskId) const
 {
   foreachvalue (Executor* executor, executors) {
     if (executor->queuedTasks.contains(taskId) ||

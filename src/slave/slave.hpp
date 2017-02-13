@@ -361,11 +361,11 @@ public:
   void authenticate();
 
   // Helper routines to lookup a framework/executor.
-  Framework* getFramework(const FrameworkID& frameworkId);
+  Framework* getFramework(const FrameworkID& frameworkId) const;
 
   Executor* getExecutor(
       const FrameworkID& frameworkId,
-      const ExecutorID& executorId);
+      const ExecutorID& executorId) const;
 
   Executor* getExecutor(const ContainerID& containerId) const;
 
@@ -373,7 +373,7 @@ public:
   // constructing one if the task has a CommandInfo).
   ExecutorInfo getExecutorInfo(
       const FrameworkInfo& frameworkInfo,
-      const TaskInfo& task);
+      const TaskInfo& task) const;
 
   // Shuts down the executor if it did not register yet.
   void registerExecutorTimeout(
@@ -1047,8 +1047,8 @@ struct Framework
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& taskInfo);
   void destroyExecutor(const ExecutorID& executorId);
-  Executor* getExecutor(const ExecutorID& executorId);
-  Executor* getExecutor(const TaskID& taskId);
+  Executor* getExecutor(const ExecutorID& executorId) const;
+  Executor* getExecutor(const TaskID& taskId) const;
   void recoverExecutor(const state::ExecutorState& state);
   void checkpointFramework() const;
 
