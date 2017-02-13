@@ -935,7 +935,7 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
 
 
 // This test verifies that the io switchboard isolator recovers properly.
-TEST_F(IOSwitchboardTest, RecoverThenKillSwitchboardContainerDestroyed)
+TEST_F(IOSwitchboardTest, DISABLED_RecoverThenKillSwitchboardContainerDestroyed)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
