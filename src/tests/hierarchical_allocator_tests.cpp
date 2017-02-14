@@ -3666,6 +3666,63 @@ TEST_F(HierarchicalAllocatorTest, ReviveOffers)
 }
 
 
+// This test checks that if a multi-role framework declines resources
+// for one role with a long filter, it will be offered filtered resources
+// again to another role with some suppress and revive logic.
+TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffersWithMultiRole)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  // Register a framework with role1 and role2, suppress offer for
+  // role1, then role2 in this framework will be offered all of agent's
+  // resources since it is the only active role in the framework.
+  FrameworkInfo framework = createFrameworkInfo({"role1", "role2"});
+
+  allocator->addFramework(framework.id(), framework, {}, true);
+  allocator->suppressOffers(framework.id(), "role1");
+
+  // Total cluster resources will become cpus=2, mem=1024.
+  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
+
+  Allocation expected = Allocation(
+      framework.id(),
+      {{"role2", {{agent.id(), agent.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  Filters filter1day;
+  filter1day.set_refuse_seconds(Days(1).secs());
+  allocator->recoverResources(
+      framework.id(),
+      agent.id(),
+      allocatedResources(agent.resources(), "role2"),
+      filter1day);
+
+  // Advance the clock to trigger a batch allocation.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  Future<Allocation> allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+
+  // Revive offers for role1, after which the agent's resources
+  // should be offered to it.
+  allocator->reviveOffers(framework.id(), "role1");
+
+  expected = Allocation(
+      framework.id(),
+      {{"role1", {{agent.id(), agent.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocation);
+}
+
+
 // This tests the behavior of quota when the allocation and
 // quota are disproportionate. The current approach (see MESOS-6432)
 // is to stop allocation quota once one of the resource
