@@ -26,6 +26,12 @@ constexpr char PATH_SEPARATOR = POSIX_PATH_SEPARATOR;
 constexpr char PATH_SEPARATOR = WINDOWS_PATH_SEPARATOR;
 #endif // __WINDOWS__
 
+#ifndef __WINDOWS__
+constexpr char DEV_NULL[] = "/dev/null";
+#else
+constexpr char DEV_NULL[] = "NUL";
+#endif // __WINDOWS__
+
 } // namespace os {
 
 #endif // __STOUT_OS_CONSTANTS_HPP__
