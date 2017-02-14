@@ -2061,9 +2061,9 @@ quotas for container sandbox directories. Valid project IDs range from
 </table>
 
 
-## Mesos Build Configuration Options
+## Mesos Autotools Build Configuration Options
 
-###The configure script has the following flags for optional features:
+### Autotools `configure` script options
 
 <table class="table table-striped">
   <thead>
@@ -2300,7 +2300,7 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
 </table>
 
-### The configure script has the following flags for optional packages:
+### Autotools `configure` script optional package flags
 
 <table class="table table-striped">
   <thead>
@@ -2521,7 +2521,7 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
 </table>
 
-### Some influential environment variables for configure script:
+### Environment variables which affect the Autotools `configure` script
 
 Use these variables to override the choices made by `configure` or to help
 it to find libraries and programs with nonstandard names/locations.
