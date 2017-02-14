@@ -352,7 +352,7 @@ Future<Nothing> HealthCheckerProcess::commandHealthCheck()
 
     external = subprocess(
         command.value(),
-        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH(os::DEV_NULL),
         Subprocess::FD(STDERR_FILENO),
         Subprocess::FD(STDERR_FILENO),
         environment,
@@ -370,7 +370,7 @@ Future<Nothing> HealthCheckerProcess::commandHealthCheck()
     external = subprocess(
         command.value(),
         argv,
-        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH(os::DEV_NULL),
         Subprocess::FD(STDERR_FILENO),
         Subprocess::FD(STDERR_FILENO),
         nullptr,
@@ -438,7 +438,7 @@ Future<Nothing> HealthCheckerProcess::httpHealthCheck()
     "-L",                 // Follows HTTP 3xx redirects.
     "-k",                 // Ignores SSL validation when scheme is https.
     "-w", "%{http_code}", // Displays HTTP response code on stdout.
-    "-o", "/dev/null",    // Ignores output.
+    "-o", os::DEV_NULL,   // Ignores output.
     url
   };
 
@@ -447,7 +447,7 @@ Future<Nothing> HealthCheckerProcess::httpHealthCheck()
   Try<Subprocess> s = subprocess(
       HTTP_CHECK_COMMAND,
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       nullptr,
@@ -573,7 +573,7 @@ Future<Nothing> HealthCheckerProcess::tcpHealthCheck()
   Try<Subprocess> s = subprocess(
       tcpConnectPath,
       tcpConnectArguments,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       nullptr,

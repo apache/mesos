@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO(alexr): Enable this on Windows once it is supported.
-if (NOT WIN32)
-
 # THE MESOS TCP CONNECT SOURCE.
 ###############################
 set(MESOS_TCP_CONNECT_SRC
@@ -46,5 +43,3 @@ target_link_libraries(${MESOS_TCP_CONNECT} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
 ####################################################################
 add_dependencies(${MESOS_TARGET} ${MESOS_TCP_CONNECT})
 add_dependencies(${MESOS_TCP_CONNECT} ${MESOS_LIBS_TARGET})
-
-endif (NOT WIN32)
