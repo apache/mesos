@@ -306,6 +306,8 @@ message Response {
 
       repeated Resource allocated_resources = 8;
       repeated Resource offered_resources = 9;
+
+      repeated AgentInfo.Capability capabilities = 10;
     }
 
     // Registered agents.

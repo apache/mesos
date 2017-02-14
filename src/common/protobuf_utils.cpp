@@ -651,6 +651,9 @@ mesos::master::Response::GetAgents::Agent createAgentResponse(
     agent.add_offered_resources()->CopyFrom(resource);
   }
 
+  agent.mutable_capabilities()->CopyFrom(
+      slave.capabilities.toRepeatedPtrField());
+
   return agent;
 }
 

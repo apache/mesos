@@ -127,9 +127,18 @@ using std::vector;
 namespace mesos {
 
 static void json(
-    JSON::StringWriter* writer, const FrameworkInfo::Capability& capability)
+    JSON::StringWriter* writer,
+    const FrameworkInfo::Capability& capability)
 {
   writer->append(FrameworkInfo::Capability::Type_Name(capability.type()));
+}
+
+
+static void json(
+    JSON::StringWriter* writer,
+    const SlaveInfo::Capability& capability)
+{
+  writer->append(SlaveInfo::Capability::Type_Name(capability.type()));
 }
 
 
@@ -377,6 +386,7 @@ static void json(JSON::ObjectWriter* writer, const Summary<Slave>& summary)
 
   writer->field("active", slave.active);
   writer->field("version", slave.version);
+  writer->field("capabilities", slave.capabilities.toRepeatedPtrField());
 }
 
 

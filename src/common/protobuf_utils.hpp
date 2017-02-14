@@ -159,6 +159,17 @@ struct Capabilities
 
   // See mesos.proto for the meaning of agent capabilities.
   bool multiRole = false;
+
+  google::protobuf::RepeatedPtrField<SlaveInfo::Capability>
+  toRepeatedPtrField() const
+  {
+    google::protobuf::RepeatedPtrField<SlaveInfo::Capability> result;
+    if (multiRole) {
+      result.Add()->set_type(SlaveInfo::Capability::MULTI_ROLE);
+    }
+
+    return result;
+  }
 };
 
 

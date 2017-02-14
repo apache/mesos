@@ -4055,6 +4055,49 @@ TEST_F(MasterTest, StateSummaryEndpoint)
 }
 
 
+// This ensures that agent capabilities are included in
+// the response of master's /state endpoint.
+TEST_F(MasterTest, StateEndpointAgentCapabilities)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  Future<Response> response = process::http::get(
+      master.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Array> slaveArray = parse->find<JSON::Array>("slaves");
+  ASSERT_SOME(slaveArray);
+  EXPECT_EQ(1u, slaveArray->values.size());
+
+  JSON::Object slaveInfo = slaveArray->values[0].as<JSON::Object>();
+
+  ASSERT_EQ(1u, slaveInfo.values.count("capabilities"));
+  JSON::Value slaveCapabilities = slaveInfo.values.at("capabilities");
+
+  // Agents should always have MULTI_ROLE capability in current implementation.
+  Try<JSON::Value> expectedCapabilities = JSON::parse("[\"MULTI_ROLE\"]");
+  ASSERT_SOME(expectedCapabilities);
+  EXPECT_TRUE(slaveCapabilities.contains(expectedCapabilities.get()));
+}
+
+
 // This test verifies that recovered but yet to reregister agents are returned
 // in `recovered_slaves` field of `/state` and `/slaves` endpoints.
 TEST_F(MasterTest, RecoveredSlaves)
