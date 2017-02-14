@@ -29,22 +29,40 @@ extern char** environ;
 #endif
 
 
-// NOTE: the `os::raw` namespace contains a family of simple wrapper functions
-// for getting environment data from either Windows or Unix machines. For
-// example, `os::raw::environment` returns an "unstructured" `char**` that
-// contains the raw environment variables of the executing process. Accessing
-// "structured" version of this function, `os::environment`, returns a
-// `map<string, string>` instead. This family of functions exists in the
-// `os::raw` namespace because of the unstructured nature of their return
-// values.
+// NOTE: The raw environment functions have been removed from the Windows API
+// because the CRT `environ` macro should never be used:
+//   (1) The CRT APIs (like `environ`) are extremely old and essentially
+//       unmaintained; it is virtually always preferable to use the equivalent
+//       Win32 APIs (such as `GetEnvironmentStrings`).
+//   (2) `environ` is not at all compatible with the Win32 APIs; if you
+//       `SetEnvironmentVariable`, it will not appear in `environ`.
+//   (3) The CRT APIs implemented around `environ` (i.e., `setenv`, `getenv`)
+//       have significant differences from almost all POSIX implementations.
+//       For example, calling `setenv` with a blank string as the value will
+//       delete the environment variable on Windows, but not on POSIX.
+//   (4) It is ungainly to implement the `char**` return using the Win32 APIs;
+//       since `GetEnvironmentStrings` returns a completely different type,
+//       we'd have to allocate a char** environment statically, or manage
+//       allocation semantics of the `char**` differently across Unix and
+//       Windows.
 //
-// WARNING: these functions are called `environment` and not `environ` because
-// on Windows, `environ` is a macro, and not an `extern char**` as it is in the
-// POSIX standard. The existance of this macro on Windows makes it impossible
-// to use a function called `os::environ`.
+// NOTE: the `os::raw` namespace contains a family of simple wrapper functions
+// for getting environment data from Unix machines. For example,
+// `os::raw::environment` returns an "unstructured" `char**` that contains the
+// raw environment variables of the executing process. Accessing "structured"
+// version of this function, `os::environment`, returns a `map<string, string>`
+// instead. This family of functions exists in the `os::raw` namespace because
+// of the unstructured nature of their return values.
+//
+// NOTE: These functions were originally called `environment` and not `environ`
+// because on Windows, `environ` is a macro, and not an `extern char**` as it
+// is in the POSIX standard. The existance of this macro on Windows makes it
+// impossible to use a function called `os::environ`.
 namespace os {
 namespace raw {
 
+// NOTE: It is important this remain disabled on Windows. See first note above.
+#ifndef __WINDOWS__
 inline char** environment()
 {
   // Accessing the list of environment variables is platform-specific.
@@ -61,9 +79,12 @@ inline char** environment()
   return environ;
 #endif
 }
+#endif // __WINDOWS__
 
 
 // Returns the address of os::environment().
+// NOTE: It is important this remain disabled on Windows. See first note above.
+#ifndef __WINDOWS__
 inline char*** environmentp()
 {
   // Accessing the list of environment variables is platform-specific.
@@ -80,6 +101,7 @@ inline char*** environmentp()
   return &environ;
 #endif
 }
+#endif // __WINDOWS__
 
 
 // Represents the environment variable list expected by 'exec'

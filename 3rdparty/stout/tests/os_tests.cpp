@@ -71,10 +71,8 @@ using std::vector;
 class OsTest : public TemporaryDirectoryTest {};
 
 
-// TODO(hausdorff): Enable this test on Windows. Currently setting an
-// environment variable to the blank string will cause the environment variable
-// to be deleted on Windows. See MESOS-5880.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Environment)
+#ifndef __WINDOWS__
+TEST_F(OsTest, Environment)
 {
   // Make sure the environment has some entries with '=' in the value.
   os::setenv("SOME_SPECIAL_FLAG", "--flag=foobar");
@@ -94,6 +92,36 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Environment)
     EXPECT_TRUE(environment.contains(key));
     EXPECT_EQ(value, environment[key]);
   }
+}
+#endif // __WINDOWS__
+
+
+TEST_F(OsTest, TrivialEnvironment)
+{
+  // NOTE: Regression test that ensures Windows can get and set an environment
+  // variable. This is easy to break: Windows maintains two non-compatible ways
+  // to get and set environment variables: the CRT way (using `environ`,
+  // `setenv`, and `getenv`), and the Win32 way (using `GetEnvironmentStrings`,
+  // `SetEnvironmentVariable`, and `GetEnvironmentVariable`). This test makes
+  // sure that we consistently back the Stout environment variable APIs with
+  // with one or the other; a mix won't work.
+  const string key = "test_key1";
+  const string value = "value";
+  os::setenv(key, value);
+
+  hashmap<string, string> environment = os::environment();
+  ASSERT_TRUE(environment.count(key) != 0);
+  ASSERT_EQ(value, environment[key]);
+
+  // NOTE: Regression test that ensures we can set an environment variable to
+  // be an empty string. On Windows, this is only possible with the Win32 APIs:
+  // the CRT `environ` macro will simply delete the variable if it is passed an
+  // empty string as a value.
+  os::setenv(key, "", true);
+
+  environment = os::environment();
+  ASSERT_TRUE(environment.count(key) != 0);
+  ASSERT_EQ("", environment[key]);
 }
 
 
