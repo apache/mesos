@@ -2158,7 +2158,8 @@ Future<bool> Master::authorizeFramework(
   }
 
   LOG(INFO) << "Authorizing framework principal '" << frameworkInfo.principal()
-            << "' to receive offers for role '" << frameworkInfo.role() << "'";
+            << "' to receive offers for roles '"
+            << stringify(protobuf::framework::getRoles(frameworkInfo)) << "'";
 
   authorization::Request request;
   request.set_action(authorization::REGISTER_FRAMEWORK);
@@ -2168,7 +2169,19 @@ Future<bool> Master::authorizeFramework(
   }
 
   request.mutable_object()->mutable_framework_info()->CopyFrom(frameworkInfo);
-  request.mutable_object()->set_value(frameworkInfo.role());
+
+  // For non-`MULTI_ROLE` frameworks, also propagate its single role
+  // via the request's `value` field. This is purely for backwards
+  // compatibility as the `value` field is deprecated. Note that this
+  // means that authorizers relying on the deprecated field will see
+  // an empty string in `value` for for `MULTI_ROLE` frameworks.
+  //
+  // TODO(bbannier): Remove this at the end of `value`'s deprecation
+  // cycle, see MESOS-7073.
+  if (!protobuf::frameworkHasCapability(
+          frameworkInfo, FrameworkInfo::Capability::MULTI_ROLE)) {
+    request.mutable_object()->set_value(frameworkInfo.role());
+  }
 
   return authorizer.get()->authorized(request);
 }
@@ -2558,8 +2571,9 @@ void Master::_subscribe(
     authorizationError =
       Error("Authorization failure: " + authorized.failure());
   } else if (!authorized.get()) {
-    authorizationError =
-      Error("Not authorized to use role '" + frameworkInfo.role() + "'");
+    authorizationError = Error(
+        "Not authorized to use roles '" +
+        stringify(protobuf::framework::getRoles(frameworkInfo)) + "'");
   }
 
   if (authorizationError.isSome()) {
@@ -2821,8 +2835,9 @@ void Master::_subscribe(
     authorizationError =
       Error("Authorization failure: " + authorized.failure());
   } else if (!authorized.get()) {
-    authorizationError =
-      Error("Not authorized to use role '" + frameworkInfo.role() + "'");
+    authorizationError = Error(
+        "Not authorized to use roles '" +
+        stringify(protobuf::framework::getRoles(frameworkInfo)) + "'");
   }
 
   if (authorizationError.isSome()) {

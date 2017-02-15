@@ -37,8 +37,9 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
-#include "common/parse.hpp"
 #include "common/http.hpp"
+#include "common/parse.hpp"
+#include "common/protobuf_utils.hpp"
 
 using process::dispatch;
 using process::Failure;
@@ -234,8 +235,16 @@ public:
         case authorization::REGISTER_FRAMEWORK: {
           aclObject.set_type(mesos::ACL::Entity::SOME);
           if (object->framework_info) {
-            aclObject.add_values(object->framework_info->role());
+            foreach (
+                const string& role,
+                protobuf::framework::getRoles(*object->framework_info)) {
+              aclObject.add_values(role);
+            }
           } else if (object->value) {
+            // We also update the deprecated `value` field to support custom
+            // authorizers not yet modified to examine `framework_info`.
+            //
+            // TODO(bbannier): Clean up use of `value` here, see MESOS-7091.
             aclObject.add_values(*(object->value));
           } else {
             aclObject.set_type(mesos::ACL::Entity::ANY);
