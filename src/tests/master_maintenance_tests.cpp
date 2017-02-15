@@ -72,9 +72,11 @@ using mesos::v1::scheduler::Mesos;
 
 using process::Clock;
 using process::Future;
+using process::Message;
 using process::Owned;
 using process::PID;
 using process::Time;
+using process::UPID;
 
 using process::http::BadRequest;
 using process::http::OK;
@@ -90,6 +92,7 @@ using std::vector;
 
 using testing::AtMost;
 using testing::DoAll;
+using testing::Eq;
 using testing::Not;
 
 namespace mesos {
@@ -1832,6 +1835,60 @@ TEST_F(MasterMaintenanceTest, EndpointsBadAuthentication)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
   }
+}
+
+
+// This test verifies that the Mesos master does not crash while
+// processing an invalid inverse offer (See MESOS-7119).
+TEST_F(MasterMaintenanceTest, AcceptInvalidInverseOffer)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<Message> frameworkRegisteredMessage =
+    FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()), _, _);
+
+  driver.start();
+
+  AWAIT_READY(frameworkRegisteredMessage);
+  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+
+  FrameworkRegisteredMessage message;
+  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage.get().body));
+
+  FrameworkID frameworkId = message.framework_id();
+
+  Future<mesos::scheduler::Call> acceptInverseOffersCall = FUTURE_CALL(
+      mesos::scheduler::Call(),
+      mesos::scheduler::Call::ACCEPT_INVERSE_OFFERS,
+      _,
+      _);
+
+  {
+    mesos::scheduler::Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(mesos::scheduler::Call::ACCEPT_INVERSE_OFFERS);
+
+    mesos::scheduler::Call::AcceptInverseOffers* accept =
+      call.mutable_accept_inverse_offers();
+
+    accept->add_inverse_offer_ids()->set_value("invalid-inverse-offer");
+
+    process::post(frameworkPid, master.get()->pid, call);
+  }
+
+  AWAIT_READY(acceptInverseOffersCall);
+
+  driver.stop();
+  driver.join();
 }
 
 } // namespace tests {

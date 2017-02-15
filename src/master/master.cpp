@@ -4721,27 +4721,26 @@ void Master::acceptInverseOffers(
 {
   CHECK_NOTNULL(framework);
 
-  Option<Error> error = None();
+  Option<Error> error;
 
   if (accept.inverse_offer_ids().size() == 0) {
     error = Error("No inverse offers specified");
   } else {
+    LOG(INFO) << "Processing ACCEPT_INVERSE_OFFERS call for inverse offers: "
+              << accept.inverse_offer_ids() << " for framework " << *framework;
+
     // Validate the inverse offers.
     error = validation::offer::validateInverseOffers(
         accept.inverse_offer_ids(),
         this,
         framework);
 
-    Option<SlaveID> slaveId;
-
     // Update each inverse offer in the allocator with the accept and
     // filter.
+    // TODO(anand): Notify the framework if some of the offers were invalid.
     foreach (const OfferID& offerId, accept.inverse_offer_ids()) {
       InverseOffer* inverseOffer = getInverseOffer(offerId);
       if (inverseOffer != nullptr) {
-        CHECK(inverseOffer->has_slave_id());
-        slaveId = inverseOffer->slave_id();
-
         mesos::allocator::InverseOfferStatus status;
         status.set_status(mesos::allocator::InverseOfferStatus::ACCEPT);
         status.mutable_framework_id()->CopyFrom(inverseOffer->framework_id());
@@ -4765,15 +4764,6 @@ void Master::acceptInverseOffers(
       LOG(WARNING) << "Ignoring accept of inverse offer " << offerId
                    << " since it is no longer valid";
     }
-
-    CHECK_SOME(slaveId);
-    Slave* slave = slaves.registered.get(slaveId.get());
-    CHECK_NOTNULL(slave);
-
-    LOG(INFO)
-        << "Processing ACCEPT_INVERSE_OFFERS call for inverse offers: "
-        << accept.inverse_offer_ids() << " on slave " << *slave
-        << " for framework " << *framework;
   }
 
   if (error.isSome()) {
