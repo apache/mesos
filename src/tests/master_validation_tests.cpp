@@ -3507,6 +3507,11 @@ TEST_F(FrameworkInfoValidationTest, RejectRoleChangeWithMultiRoleMasterFailover)
     EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
     EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
 
+    // Since we launched a task, stopping the driver will cause the
+    // task and its executor to be shutdown.
+    EXPECT_CALL(exec, shutdown(_))
+      .Times(AtMost(1));
+
     driver.stop();
     driver.join();
   }
