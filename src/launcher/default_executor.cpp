@@ -679,6 +679,7 @@ protected:
     // Shutdown the executor if all the active child containers have terminated.
     if (containers.empty()) {
       __shutdown();
+      return;
     }
 
     // Ignore if the executor is already in the process of shutting down.
@@ -712,13 +713,14 @@ protected:
       container->killingTaskGroup = true;
       foreach (const TaskInfo& task, container->taskGroup.tasks()) {
         const TaskID& taskId = task.task_id();
-        if (taskId == container->taskId) {
+
+        // Ignore if it's the same task that triggered this callback or
+        // if the task is no longer active.
+        if (taskId == container->taskId || !containers.contains(taskId)) {
           continue;
         }
 
-        CHECK(containers.contains(taskId));
         Owned<Container> container_ = containers.at(taskId);
-
         container_->killingTaskGroup = true;
 
         kill(container_);
