@@ -175,7 +175,14 @@ Try<T> deserialize(const std::string& value)
   T t;
   (void) static_cast<google::protobuf::Message*>(&t);
 
-  google::protobuf::io::ArrayInputStream stream(value.data(), value.size());
+  // Verify that the size of `value` fits into `ArrayInputStream`'s
+  // constructor. The maximum size of a proto2 message is 64 MB, so it is
+  // unlikely that we will hit this limit, but since an arbitrary string can be
+  // passed in, we include this check to be safe.
+  CHECK_LE(value.size(), std::numeric_limits<int>::max());
+  google::protobuf::io::ArrayInputStream stream(
+      value.data(),
+      static_cast<int>(value.size()));
   if (!t.ParseFromZeroCopyStream(&stream)) {
     return Error("Failed to deserialize " + t.GetDescriptor()->full_name());
   }
@@ -274,8 +281,15 @@ struct Read
     // must outlive the creation of ArrayInputStream.
     const std::string& data = result.get();
 
+    // Verify that the size of `data` fits into `ArrayInputStream`'s
+    // constructor. The maximum size of a proto2 message is 64 MB, so it is
+    // unlikely that we will hit this limit, but since an arbitrary string can
+    // be passed in, we include this check to be safe.
+    CHECK_LE(data.size(), std::numeric_limits<int>::max());
     T message;
-    google::protobuf::io::ArrayInputStream stream(data.data(), data.size());
+    google::protobuf::io::ArrayInputStream stream(
+        data.data(),
+        static_cast<int>(data.size()));
 
     if (!message.ParseFromZeroCopyStream(&stream)) {
       if (undoFailed) {

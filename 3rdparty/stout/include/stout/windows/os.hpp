@@ -51,10 +51,16 @@ inline Try<OSVERSIONINFOEX> os_version()
 {
   OSVERSIONINFOEX os_version;
   os_version.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+#pragma warning(push)
+#pragma warning(disable : 4996)
+  // Disable compiler warning asking us to use the Unicode version of
+  // `GetVersionEx`, because Mesos currently does not support Unicode. See
+  // MESOS-6817.
   if (!::GetVersionEx(reinterpret_cast<LPOSVERSIONINFO>(&os_version))) {
     return WindowsError(
         "os::internal::os_version: Call to `GetVersionEx` failed");
   }
+#pragma warning(pop)
 
   return os_version;
 }
@@ -459,9 +465,15 @@ inline Try<Version> release()
 {
   OSVERSIONINFOEX os_version;
   os_version.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+#pragma warning(push)
+#pragma warning(disable : 4996)
+  // Disable compiler warning asking us to use the Unicode version of
+  // `GetVersionEx`, because Mesos currently does not support Unicode. See
+  // MESOS-6817.
   if (!::GetVersionEx(reinterpret_cast<LPOSVERSIONINFO>(&os_version))) {
     return WindowsError("os::release: Call to `GetVersionEx` failed");
   }
+#pragma warning(pop)
 
   return Version(os_version.dwMajorVersion, os_version.dwMinorVersion, 0);
 }

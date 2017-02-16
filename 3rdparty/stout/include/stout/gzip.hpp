@@ -123,7 +123,7 @@ public:
   {
     stream.next_in =
       const_cast<Bytef*>(reinterpret_cast<const Bytef*>(compressed.data()));
-    stream.avail_in = compressed.length();
+    stream.avail_in = static_cast<uInt>(compressed.length());
 
     // Build up the decompressed result.
     Bytef buffer[GZIP_BUFFER_SIZE];
@@ -189,7 +189,7 @@ inline Try<std::string> compress(
   z_stream_s stream;
   stream.next_in =
     const_cast<Bytef*>(reinterpret_cast<const Bytef*>(decompressed.data()));
-  stream.avail_in = decompressed.length();
+  stream.avail_in = static_cast<uInt>(decompressed.length());
   stream.zalloc = Z_NULL;
   stream.zfree = Z_NULL;
   stream.opaque = Z_NULL;

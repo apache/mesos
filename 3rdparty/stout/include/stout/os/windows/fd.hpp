@@ -185,8 +185,13 @@ inline bool operator<(const WindowsFD& left, const WindowsFD& right)
           if (left.crt() < 0) {
             return true;
           }
+#pragma warning(push)
+#pragma warning(disable : 4312)
+          // Disable `int`-to-`HANDLE` compiler warning. This is safe to do,
+          // see comment above.
           return reinterpret_cast<HANDLE>(left.crt()) <
                  static_cast<HANDLE>(right);
+#pragma warning(pop)
         }
         case WindowsFD::FD_SOCKET: {
           if (static_cast<SOCKET>(right) == INVALID_SOCKET) {
@@ -208,8 +213,13 @@ inline bool operator<(const WindowsFD& left, const WindowsFD& right)
           if (right.crt() < 0) {
             return false;
           }
+#pragma warning(push)
+#pragma warning(disable : 4312)
+          // Disable `int`-to-`HANDLE` compiler warning. This is safe to do,
+          // see comment above.
           return static_cast<HANDLE>(left) <
                  reinterpret_cast<HANDLE>(right.crt());
+#pragma warning(pop)
         }
         case WindowsFD::FD_HANDLE: {
           return static_cast<HANDLE>(left) < static_cast<HANDLE>(right);
@@ -334,8 +344,13 @@ inline bool operator==(const WindowsFD& left, const WindowsFD& right)
           if (left.crt() < 0) {
             return false;
           }
+#pragma warning(push)
+#pragma warning(disable : 4312)
+          // Disable `int`-to-`HANDLE` compiler warning. This is safe to do,
+          // see comment above.
           return reinterpret_cast<HANDLE>(left.crt()) ==
                  static_cast<HANDLE>(right);
+#pragma warning(pop)
         }
         case WindowsFD::FD_SOCKET: {
           if (static_cast<SOCKET>(right) == INVALID_SOCKET) {
@@ -357,8 +372,13 @@ inline bool operator==(const WindowsFD& left, const WindowsFD& right)
           if (right.crt() < 0) {
             return false;
           }
+#pragma warning(push)
+#pragma warning(disable : 4312)
+          // Disable `int`-to-`HANDLE` compiler warning. This is safe to do,
+          // see comment above.
           return static_cast<HANDLE>(left) ==
                  reinterpret_cast<HANDLE>(right.crt());
+#pragma warning(pop)
         }
         case WindowsFD::FD_HANDLE: {
           return static_cast<HANDLE>(left) == static_cast<HANDLE>(right);

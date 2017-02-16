@@ -36,11 +36,17 @@ inline Try<WindowsFD> dup(const WindowsFD& fd)
       return result;
     }
     case WindowsFD::FD_SOCKET: {
+#pragma warning(push)
+#pragma warning(disable : 4996)
+      // Disable compiler warning asking us to use the Unicode version of
+      // `WSASocket` and `WSADuplicateSocket`, because Mesos currently does not
+      // support Unicode. See MESOS-6817.
       WSAPROTOCOL_INFO protInfo;
       if (::WSADuplicateSocket(fd, GetCurrentProcessId(), &protInfo) !=
           INVALID_SOCKET) {
         return WSASocket(0, 0, 0, &protInfo, 0, 0);
       };
+#pragma warning(pop)
       return SocketError();
     }
   }
