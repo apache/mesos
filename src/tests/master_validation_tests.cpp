@@ -259,12 +259,22 @@ TEST_F(ReserveOperationValidationTest, MatchingRole)
     operation::validate(reserve, "principal", frameworkInfo);
 
   EXPECT_SOME(error);
+
+  // Now verify with a MULTI_ROLE framework.
+  frameworkInfo.clear_role();
+  frameworkInfo.add_roles("role1");
+  frameworkInfo.add_roles("role2");
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
+
+  error = operation::validate(reserve, "principal", frameworkInfo);
+
+  EXPECT_SOME(error);
 }
 
 
-// This test verifies that validation fails if the framework role is
-// "*" even if the resource role matches.
-TEST_F(ReserveOperationValidationTest, DisallowStarRoleFrameworks)
+// This test verifies that validation fails if reserving to the "*" role.
+TEST_F(ReserveOperationValidationTest, DisallowReservingToStar)
 {
   // The role "*" matches, but is invalid since frameworks with
   // "*" role cannot reserve resources.
@@ -281,26 +291,15 @@ TEST_F(ReserveOperationValidationTest, DisallowStarRoleFrameworks)
     operation::validate(reserve, "principal", frameworkInfo);
 
   EXPECT_SOME(error);
-}
 
+  // Now verify with a MULTI_ROLE framework.
+  frameworkInfo.clear_role();
+  frameworkInfo.add_roles("role");
+  frameworkInfo.add_roles("*");
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
 
-// This test verifies that validation fails if the framework attempts
-// to reserve a resource with the role "*".
-TEST_F(ReserveOperationValidationTest, DisallowReserveForStarRole)
-{
-  // Principal "principal" reserving for "*".
-  Resource resource = Resources::parse("cpus", "8", "*").get();
-  resource.mutable_reservation()->CopyFrom(
-      createReservationInfo("principal"));
-
-  Offer::Operation::Reserve reserve;
-  reserve.add_resources()->CopyFrom(resource);
-
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.set_role("frameworkRole");
-
-  Option<Error> error =
-    operation::validate(reserve, "principal", frameworkInfo);
+  error = operation::validate(reserve, "principal", frameworkInfo);
 
   EXPECT_SOME(error);
 }
@@ -414,6 +413,58 @@ TEST_F(ReserveOperationValidationTest, NoPersistentVolumes)
     operation::validate(reserve, "principal", frameworkInfo);
 
   EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if a resource is reserved
+// for a role different from the one it was allocated to.
+TEST_F(ReserveOperationValidationTest, MismatchedAllocation)
+{
+  Resource resource = Resources::parse("cpus", "8", "role1").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Offer::Operation::Reserve reserve;
+  reserve.mutable_resources()->CopyFrom(
+      allocatedResources(resource, "role2"));
+
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.add_roles("role1");
+  frameworkInfo.add_roles("role2");
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
+
+  Option<Error> error =
+    operation::validate(reserve, "principal", frameworkInfo);
+
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "A reserve operation was attempted for a resource with role "
+          "'role1', but the resource was allocated to role 'role2'"));
+}
+
+
+// This test verifies that validation fails if an allocated resource
+// is used in the operator HTTP API.
+TEST_F(ReserveOperationValidationTest, UnexpectedAllocatedResource)
+{
+  Resource resource = Resources::parse("cpus", "8", "role").get();
+  resource.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Offer::Operation::Reserve reserve;
+  reserve.mutable_resources()->CopyFrom(allocatedResources(resource, "role"));
+
+  // HTTP-API style invocations do not pass a `FrameworkInfo`.
+  Option<Error> error = operation::validate(reserve, "principal", None());
+
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "A reserve operation was attempted with an allocated resource,"
+          " but the operator API only allows reservations to be made"
+          " to unallocated resources"));
 }
 
 

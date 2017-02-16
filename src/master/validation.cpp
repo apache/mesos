@@ -1609,9 +1609,15 @@ Option<Error> validate(
     const Option<string>& principal,
     const Option<FrameworkInfo>& frameworkInfo)
 {
+  // NOTE: this ensures the reservation is not being made to the "*" role.
   Option<Error> error = resource::validate(reserve.resources());
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
+  }
+
+  Option<hashset<string>> frameworkRoles;
+  if (frameworkInfo.isSome()) {
+    frameworkRoles = protobuf::framework::getRoles(frameworkInfo.get());
   }
 
   foreach (const Resource& resource, reserve.resources()) {
@@ -1637,15 +1643,51 @@ Option<Error> validate(
       }
     }
 
-    if (frameworkInfo.isSome()) {
-      set<string> frameworkRoles =
-        protobuf::framework::getRoles(frameworkInfo.get());
+    if (frameworkRoles.isSome()) {
+      // If information on the framework was passed we are dealing
+      // with a request over the framework API. In this case we expect
+      // that the reserved resources where allocated to the role, and
+      // that the allocation role and reservation role match the role
+      // of the framework.
+      if (!resource.allocation_info().has_role()) {
+        return Error(
+            "A reserve operation was attempted on unallocated resource"
+            " " + stringify(resource) + ", but frameworks can only"
+            " perform reservations on allocated resources");
+      }
 
-      if (frameworkRoles.count(resource.role()) == 0) {
+      if (resource.allocation_info().role() != resource.role()) {
         return Error(
             "A reserve operation was attempted for a resource with role"
-            " '" + resource.role() + "', but the framework can only reserve"
-            " resources with roles '" + stringify(frameworkRoles) + "'");
+            " '" + resource.role() + "', but the resource was allocated"
+            " to role '" + resource.allocation_info().role() + "'");
+      }
+
+      if (!frameworkRoles->contains(resource.allocation_info().role())) {
+        return Error(
+            "A reserve operation was attempted for a resource allocated"
+            " to role '" + resource.role() + "', but the framework only"
+            " has roles '" + stringify(frameworkRoles.get()) + "'");
+      }
+
+      if (!frameworkRoles->contains(resource.role())) {
+        return Error(
+            "A reserve operation was attempted for a resource with role"
+            " '" + resource.role() + "', but the framework can only"
+            " reserve resources with roles"
+            " '" + stringify(frameworkRoles.get()) + "'");
+      }
+    } else {
+      // If no `FrameworkInfo` was passed we are dealing with a
+      // request via the operator HTTP API. In this case we expect
+      // that the reserved resources have no `AllocationInfo` set
+      // because operators can only reserve from the unallocated
+      // resources.
+      if (resource.has_allocation_info()) {
+        return Error(
+            "A reserve operation was attempted with an allocated resource,"
+            " but the operator API only allows reservations to be made to"
+            " unallocated resources");
       }
     }
 
