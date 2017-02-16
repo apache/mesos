@@ -16,6 +16,8 @@
 
 // TODO(arojas): Consider removing this file from the public interface.
 
+syntax = "proto2";
+
 package mesos;
 
 option java_package = "org.apache.mesos";
