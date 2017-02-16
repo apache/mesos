@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <time.h>
 
+#include <limits>
 #include <map>
 #include <sstream>
 
@@ -244,7 +245,14 @@ class FileEncoder : public Encoder
 {
 public:
   FileEncoder(int_fd _fd, size_t _size)
-    : fd(_fd), size(_size), index(0) {}
+    : fd(_fd), size(static_cast<off_t>(_size)), index(0)
+  {
+    // NOTE: For files, we expect the size to be derived from `stat`-ing
+    // the file.  The `struct stat` returns the size in `off_t` form,
+    // meaning that it is a programmer error to construct the `FileEncoder`
+    // with a size greater the max value of `off_t`.
+    CHECK_LE(_size, std::numeric_limits<off_t>::max());
+  }
 
   virtual ~FileEncoder()
   {
@@ -268,7 +276,7 @@ public:
   virtual void backup(size_t length)
   {
     if (index >= static_cast<off_t>(length)) {
-      index -= length;
+      index -= static_cast<off_t>(length);
     }
   }
 

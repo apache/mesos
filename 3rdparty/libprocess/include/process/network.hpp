@@ -47,7 +47,8 @@ inline Try<Nothing> bind(int_fd s, const Address& address)
 {
   sockaddr_storage storage = address;
 
-  if (net::bind(s, (sockaddr*) &storage, address.size()) < 0) {
+  const socklen_t address_size = static_cast<socklen_t>(address.size());
+  if (net::bind(s, (sockaddr*) &storage, address_size) < 0) {
     return ErrnoError("Failed to bind on " + stringify(address));
   }
 
@@ -60,7 +61,8 @@ inline Try<Nothing, SocketError> connect(int_fd s, const Address& address)
 {
   sockaddr_storage storage = address;
 
-  if (net::connect(s, (sockaddr*) &storage, address.size()) < 0) {
+  const socklen_t address_size = static_cast<socklen_t>(address.size());
+  if (net::connect(s, (sockaddr*) &storage, address_size) < 0) {
     return SocketError("Failed to connect to " + stringify(address));
   }
 
