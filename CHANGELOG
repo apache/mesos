@@ -1,16 +1,45 @@
-Release Notes - Mesos - Version 1.2.0 (WIP)
+Release Notes - Mesos - Version 1.2.0
 -------------------------------------------
+This release contains the following new features:
+
+  * [MESOS-5931] - **Experimental** Support auto backend in Mesos Containerizer,
+    prefering overlayfs then aufs. Please note that the bind backend needs to be
+    specified explicitly through the agent flag '--image_provisioner_backend'
+    since it requires the sandbox already existed.
+
+  * [MESOS-6402] - **Experimental** Add rlimit support to Mesos containerizer.
+    The isolator adds support for setting POSIX resource limits (rlimits) for
+    containers launched using the Mesos containerizer. POSIX rlimits can be used
+    to control the resources a process can consume. See `docs/posix_rlimits.md`
+    for details.
+
+  * [MESOS-6419] - **Experimental** Teardown unregistered frameworks. The master
+    now treats recovered frameworks very similarly to frameworks that are registered
+    but currently disconnected. For example, recovered frameworks will be reported
+    via the normal "frameworks" key when querying HTTP endpoints. This means there
+    is no longer a concept of "orphan tasks": if the master knows about a task, the
+    task will be running under a framework. Similarly, "teardown" operations on
+    recovered frameworks will now work correctly.
+
+  * [MESOS-6460] - **Experimental** Container Attach and Exec. This feature adds
+    new Agent APIs for attaching a remote client to the stdin, stdout, and stderr
+    of a running Mesos task, as well as an API for launching new processes inside
+    the same container as a running Mesos task and attaching to its stdin, stdout,
+    and stderr. At a high level, these APIs mimic functionality similar to docker
+    attach and docker exec. The primary motivation for such functionality is to
+    enable users to debug their running Mesos tasks.
+
+  * [MESOS-6758] - **Experimental** Support 'Basic' auth docker private registry
+    on Mesos Containerizer. Until now, the mesos containerizer always assumed
+    Bearer auth, but we now also support basic auth for private registries. Please
+    note that the AWS ECS uses Basic authorization but it does not work yet due to
+    the redirect issue MESOS-5172.
+
+Deprecations:
+  * [MESOS-6650] - Remove slavePreLaunchDockerEnvironmentDecorator and slavePreLaunchDockerHook.
 
 Additional API Changes:
-  * [MESOS-6675] - Changed the allocator API to support adding inactive
-    frameworks. Custom allocator implementations will need to be updated.
-
-  * [MESOS-6419] - When a framework re-registers after master failover,
-    it is only allowed to change certain fields in its FrameworkInfo.
-    For example, changing "failover_timeout" is allowed, but changing
-    "role" is not. In previous Mesos releases, the same restrictions on
-    changes to FrameworkInfo were only enforced after framework
-    failover, not master failover.
+  * [MESOS-3601] - Formalize all headers and metadata for HTTP API Event Stream
 
   * [MESOS-6286] - If an agent restarts but fails to complete recovery
     within `agent_reregister_timeout`, the master will now mark the
@@ -21,6 +50,387 @@ Additional API Changes:
     agent's work directory contains a large number of completed tasks),
     the master might now mark an agent unreachable that would previously
     have been able to eventually recover successfully.
+
+  * [MESOS-6419] - When a framework re-registers after master failover,
+    it is only allowed to change certain fields in its FrameworkInfo.
+    For example, changing "failover_timeout" is allowed, but changing
+    "role" is not. In previous Mesos releases, the same restrictions on
+    changes to FrameworkInfo were only enforced after framework
+    failover, not master failover.
+
+  * [MESOS-6670] - Authz for Agent v1 operator API
+
+  * [MESOS-6675] - Changed the allocator API to support adding inactive
+    frameworks. Custom allocator implementations will need to be updated.
+
+  * [MESOS-6865] - Remove the constraint of being only able to launch
+    2-level nested containers on Agent API.
+
+Unresolved Critical Issues:
+  * [MESOS-1625] - Extra trailing CRLF being sent after the HTTP body in libprocess
+  * [MESOS-1718] - Command executor can overcommit the agent.
+  * [MESOS-2554] - Slave flaps when using --slave_subsystems that are not used for isolation.
+  * [MESOS-2774] - SIGSEGV received during process::MessageEncoder::encode()
+  * [MESOS-2842] - Update FrameworkInfo.principal on framework re-registration
+  * [MESOS-3533] - Unable to find and run URIs files
+  * [MESOS-3747] - HTTP Scheduler API no longer allows FrameworkInfo.user to be empty string
+  * [MESOS-3794] - Master should not store arbitrarily sized data in ExecutorInfo.
+  * [MESOS-4259] - mesos HA can't delete the the redundant container on failure slave node.
+  * [MESOS-4297] - Executor does not shutdown when framework teardown.
+  * [MESOS-4642] - Mesos Agent Json API can dump binary data from log files out as invalid JSON.
+  * [MESOS-4996] - 'containerizer->update' will always fail after killing a docker container.
+  * [MESOS-5352] - Docker volume isolator cleanup can be blocked by first cleanup failure.
+  * [MESOS-5396] - After failover, master does not remove agents with same UPID.
+  * [MESOS-5849] - Agent sandboxes on Windows surpass the 260 character path length limit
+  * [MESOS-5859] - Some tasks are always in staged state.
+  * [MESOS-5989] - Libevent SSL Socket downgrade code accesses uninitialized memory / assumes single peek is sufficient.
+  * [MESOS-6327] - Large docker images causes container launch failures: Too many levels of symbolic links.
+  * [MESOS-6356] - ASF CI has interleaved logging.
+  * [MESOS-6615] - Running mesos-slave in the docker that leave many zombie process
+  * [MESOS-6623] - Re-enable tests impacted by request streaming support
+  * [MESOS-6632] - ContainerLogger might leak FD if container launch fails.
+  * [MESOS-6780] - ContentType/AgentAPIStreamingTest.AttachContainerInput test fails reliably
+  * [MESOS-6784] - IOSwitchboardTest.KillSwitchboardContainerDestroyed is flaky
+  * [MESOS-6804] - Running 'tty' inside a debug container that has a tty reports "Not a tty"
+  * [MESOS-6815] - Enable glog stack traces when we call things like `ABORT` on Windows
+  * [MESOS-6843] - Fetcher should not assume stdout/stderr in the sandbox.
+  * [MESOS-6913] - AgentAPIStreamingTest.AttachInputToNestedContainerSession fails on Mac OS.
+  * [MESOS-6974] - DefaultExecutorTest.CommitSuicideOnTaskFailure test is flaky.
+  * [MESOS-6986] - abort in DRFSorter::add
+  * [MESOS-7017] - HTTP API responses can crash the master.
+  * [MESOS-7050] - IOSwitchboard FDs leaked when containerizer launch fails -- leads to deadlock
+  * [MESOS-7099] - Quota can be exceeded due to coarse-grained offer technique.
+
+Feature Graduations:
+  * None
+
+All Experimental Features:
+  * [MESOS-2449] - Support group of tasks (Pod) constructs and API in Mesos.
+  * [MESOS-2533] - Support HTTP checks in Mesos.
+  * [MESOS-3094] - Mesos on Windows.
+  * [MESOS-3421] - Support sharing of resources across task instances.
+  * [MESOS-3567] - Support TCP checks in Mesos.
+  * [MESOS-4312] - Porting Mesos on Power (ppc64le).
+  * [MESOS-4355] - Implement isolator for Docker volume.
+  * [MESOS-4641] - Support Container Network Interface (CNI).
+  * [MESOS-4791] - Operator API v1.
+  * [MESOS-4828] - XFS disk quota isolator.
+  * [MESOS-5275] - Add capabilities support for mesos containerizer.
+  * [MESOS-5344] - Partition-aware Mesos frameworks.
+  * [MESOS-5788] - Added JAVA API adapter for seamless transition to new scheduler API.
+  * [MESOS-5931] - **NEW** Support auto backend in Mesos Containerizer.
+  * [MESOS-6014] - Added port mapping CNI plugin.
+  * [MESOS-6077] - Added a default (task group) executor.
+  * [MESOS-6402] - **NEW** rlimit support for Mesos containerizer
+  * [MESOS-6419] - **NEW** Teardown unregistered frameworks
+  * [MESOS-6460] - **NEW** Container Attach/Exec
+  * [MESOS-6758] - **NEW** Support docker registry that requires basic auth.
+
+All Issues:
+
+** Bug
+    * [MESOS-1802] - HealthCheckTest.HealthStatusChange is flaky on jenkins.
+    * [MESOS-2537] - AC_ARG_ENABLED checks are broken
+    * [MESOS-2723] - The mesos-execute tool does not support zk:// master URLs
+    * [MESOS-3335] - FlagsBase copy-ctor leads to dangling pointer.
+    * [MESOS-3932] - Silence Boost compiler warnings with CMake
+    * [MESOS-4601] - Don't dump stack trace on failure to bind()
+    * [MESOS-4695] - SlaveTest.StateEndpoint is flaky
+    * [MESOS-4973] - Duplicates in 'unregistered_frameworks' in /state
+    * [MESOS-4975] - mesos::internal::master::Slave::tasks can grow unboundedly
+    * [MESOS-5218] - Fetcher should not chown the entire sandbox.
+    * [MESOS-5303] - Add capabilities support for mesos execute cli.
+    * [MESOS-5662] - Call parent class `SetUpTestCase` function in our test fixtures.
+    * [MESOS-5821] - Clean up the thousands of compiler warnings on MSVC
+    * [MESOS-5835] - Audit `PATCH_CMD`; make sure all patches are being applied on Windows.
+    * [MESOS-5856] - Logrotate ContainerLogger module does not rotate logs when run as root with `--switch_user`.
+    * [MESOS-5879] - cgroups/net_cls isolator causing agent recovery issues
+    * [MESOS-5963] - HealthChecker should not decide when to kill tasks and when to stop performing health checks.
+    * [MESOS-6001] - Aufs backend cannot support the image with numerous layers.
+    * [MESOS-6002] - The whiteout file cannot be removed correctly using aufs backend.
+    * [MESOS-6010] - Docker registry puller shows decode error "No response decoded".
+    * [MESOS-6119] - TCP health checks are not portable.
+    * [MESOS-6142] - Frameworks may RESERVE for an arbitrary role.
+    * [MESOS-6206] - Change reconciliation to return results for in-progress removals and reregistrations
+    * [MESOS-6286] - Master does not remove an agent if it is responsive but not registered
+    * [MESOS-6288] - The default executor should maintain launcher_dir.
+    * [MESOS-6293] - HealthCheckTest.HealthyTaskViaHTTPWithoutType fails on some distros.
+    * [MESOS-6316] - CREATE of shared volumes should not be allowed by frameworks not opted in to the capability.
+    * [MESOS-6320] - Implement clang-tidy check to catch incorrect flags hierarchies
+    * [MESOS-6349] - JSON Generation breaks if other locale than C is used.
+    * [MESOS-6360] - The handling of whiteout files in provisioner is not correct.
+    * [MESOS-6380] - mesos-local failed to start without sudo
+    * [MESOS-6388] - Report new PARTITION_AWARE task statuses in HTTP endpoints
+    * [MESOS-6389] - Update webui for PARTITION_AWARE changes
+    * [MESOS-6409] - mesos-ps - Invalid header value
+    * [MESOS-6414] - cgroups isolator cleanup failed when the hierarchy is cleanup by docker daemon
+    * [MESOS-6419] - The 'master/teardown' endpoint should support tearing down 'unregistered_frameworks'.
+    * [MESOS-6420] - Mesos Agent leaking sockets when port mapping network isolator is ON
+    * [MESOS-6432] - Roles with quota assigned can "game" the system to receive excessive resources.
+    * [MESOS-6444] - Ensure single copy of shared count of total resources in role sorter.
+    * [MESOS-6446] - WebUI redirect doesn't work with stats from /metric/snapshot
+    * [MESOS-6448] - Show the leading master hostname in the webUI.
+    * [MESOS-6452] - Compile error in strerror.h on OSX
+    * [MESOS-6455] - DefaultExecutorTests fail when running on hosts without docker.
+    * [MESOS-6459] - PosixRLimitsIsolatorTest.TaskExceedingLimit fails on OS X
+    * [MESOS-6461] - Duplicate framework ids in /master/frameworks endpoint 'unregistered_frameworks'.
+    * [MESOS-6478] - "filesystem/linux" isolator leaks (phantom) mounts in `mount` output
+    * [MESOS-6483] - Check failure when a 1.1 master marking a 0.28 agent as unreachable
+    * [MESOS-6484] - Memory leak in `Future<T>::after()`
+    * [MESOS-6501] - Add a test for duplicate framework ids in "unregistered_frameworks"
+    * [MESOS-6504] - Use 'geteuid()' for the root privileges check.
+    * [MESOS-6508] - monitor/statistics error in webui when launch mesos via mesos-local
+    * [MESOS-6516] - Parallel test running does not respect GTEST_FILTER
+    * [MESOS-6519] - MasterTest.OrphanTasksMultipleAgents
+    * [MESOS-6520] - Make errno an explicit argument for ErrnoError.
+    * [MESOS-6526] - `mesos-containerizer launch --environment` exposes executor env vars in `ps`.
+    * [MESOS-6527] - Memory leak in the libprocess request decoder.
+    * [MESOS-6544] - MasterMaintenanceTest.InverseOffersFilters is flaky.
+    * [MESOS-6545] - TestContainerizer is not thread-safe.
+    * [MESOS-6566] - The Docker executor should not leak task env variables in the Docker command cmd line.
+    * [MESOS-6569] - MesosContainerizer/DefaultExecutorTest.KillTask/0 failing on ASF CI
+    * [MESOS-6576] - DefaultExecutorTest.KillTaskGroupOnTaskFailure sometimes fails in CI
+    * [MESOS-6588] - LinuxRootfs misses required files
+    * [MESOS-6597] - Include v1 Operator API protos in generated JAR and python packages.
+    * [MESOS-6598] - Broken Link Framework Development Page
+    * [MESOS-6602] - Shutdown completed frameworks when unreachable agent re-registers
+    * [MESOS-6604] - Uninitialized member ObjectApprover::weight_info.
+    * [MESOS-6606] - Reject optimized builds with libcxx before 3.9
+    * [MESOS-6618] - Some tests use hardcoded port numbers.
+    * [MESOS-6619] - Improve task management for unreachable tasks
+    * [MESOS-6621] - SSL downgrade path will CHECK-fail when using both temporary and persistent sockets
+    * [MESOS-6624] - Master WebUI does not work on Firefox 45
+    * [MESOS-6625] - Expose container id in ContainerStatus in DockerContainerizer.
+    * [MESOS-6640] - mesos-local doesn't hande --work_dir correctly.
+    * [MESOS-6646] - StreamingRequestDecoder incompletely initializes its http_parser_settings
+    * [MESOS-6647] - Cyclic header dependency between libprocess' defer.hpp and executor.hpp
+    * [MESOS-6652] - Perf version not correctly parsed on Fedora 24 (and probably others)
+    * [MESOS-6653] - Overlayfs backend may fail to mount the rootfs if both container image and image volume are specified.
+    * [MESOS-6654] - Duplicate image layer ids may make the backend failed to mount rootfs.
+    * [MESOS-6658] - Mesos tests generated with cmake build fail to unload libraries properly
+    * [MESOS-6665] - io::redirect might cause stack overflow.
+    * [MESOS-6666] - HttpServeTest.Discard failed on OSX sierra
+    * [MESOS-6672] - Class DynamicLibrary's default copy constructor can lead to inconsistent state
+    * [MESOS-6676] - Always re-link with scheduler during re-registration.
+    * [MESOS-6677] - Error in Windows agent's Flags::runtime_dir CLI
+    * [MESOS-6684] - Update addFramework/removeFramework to handle multi-role frameworks
+    * [MESOS-6685] - Update Role::Resources to correctly account for multi-role frameworks
+    * [MESOS-6688] - IOSwitchboard should recover spawned server pid on agent restarts
+    * [MESOS-6689] - Remove of unix domain socket path in IOSwitchboard::cleanup
+    * [MESOS-6700] - Port `http_tests.cpp`
+    * [MESOS-6701] - Port `recordio_tests.cpp`
+    * [MESOS-6704] - Port `executor_http_api_tests.cpp`
+    * [MESOS-6707] - Port `gc_tests.cpp`
+    * [MESOS-6710] - Port `http_authentication_tests.cpp`
+    * [MESOS-6711] - Port `values_tests.cpp`
+    * [MESOS-6716] - Port `uri_tests.cpp`
+    * [MESOS-6717] - Add Windows support to agent test harness
+    * [MESOS-6718] - Should destroy DEBUG containers on agent recovery.
+    * [MESOS-6722] - Agent tries to use POSIX paths for the variable data runtime directory.
+    * [MESOS-6725] - The style of `.navbar-text` is inconsistent with the style of texts on the left side
+    * [MESOS-6726] - IOSwitchboardServerFlags adds flags for non-optional fields w/o providing a default value
+    * [MESOS-6736] - CMake's `CURRENT_CMAKE_BUILD_DIR` does not escape '\'
+    * [MESOS-6737] - The agent should synchronize with the IOSwitchboard to determine when it is ready to accept incoming connections.
+    * [MESOS-6739] - Authorize v1 GET_CONTAINERS call
+    * [MESOS-6740] - Authorize v1 GET_FLAGS call
+    * [MESOS-6741] - Authorize v1 SET_LOGGING_LEVEL call
+    * [MESOS-6744] - DefaultExecutorTest.KillTaskGroupOnTaskFailure is flaky
+    * [MESOS-6745] - MesosContainerizer/DefaultExecutorTest.KillTask/0 is flaky
+    * [MESOS-6746] - IOSwitchboard doesn't properly flush data on ATTACH_CONTAINER_OUTPUT
+    * [MESOS-6747] - ContainerLogger runnable must not inherit the slave environment.
+    * [MESOS-6748] - I/O switchboard should inherit agent environment variables.
+    * [MESOS-6750] - Metrics on the Agent view of the Mesos web UI flickers between empty and non-empty states
+    * [MESOS-6756] - I/O switchboard should deal with the case when reaping of the server failed.
+    * [MESOS-6757] - Consider using CMake to configure test scripts in the `bin/` diretory
+    * [MESOS-6761] - Implement `os::user` on Windows
+    * [MESOS-6767] - Reached unreachable statement at <path>/mesos/src/slave/containerizer/mesos/launch.cpp:766
+    * [MESOS-6772] - Stop building `mesos-agent` twice.
+    * [MESOS-6775] - The 'http::connect(address)' always uses the DEFAULT_KIND() of socket even if SSL is undesired.
+    * [MESOS-6781] - Mesos containerizer overrides environment variables passed to the executor incorrectly.
+    * [MESOS-6788] - Avoid stack overflow when handling streaming responses in API handlers
+    * [MESOS-6789] - SSL socket's 'shutdown()' method is broken
+    * [MESOS-6793] - CniIsolatorTest.ROOT_EnvironmentLibprocessIP fails on systems using dash as sh
+    * [MESOS-6795] - Listening socket might get closed while the accept is still in flight.
+    * [MESOS-6802] - SSL socket can lose bytes in the case of EOF
+    * [MESOS-6803] - Agent authentication does not have an initial `delay`
+    * [MESOS-6805] - Check unreachable task cache for task ID collisions on launch
+    * [MESOS-6811] - IOSwitchboardServerTest.SendHeartbeat and IOSwitchboardServerTest.ReceiveHeartbeat broken on OS X
+    * [MESOS-6813] - IOSwitchboardServerTest.AttachOutput has stack overflow issue.
+    * [MESOS-6820] - FaultToleranceTest.FrameworkReregister is flaky.
+    * [MESOS-6824] - mesos-this-capture clang-tidy check has false positives
+    * [MESOS-6826] - OsTest.User fails on recent Arch Linux.
+    * [MESOS-6829] - Mesos fails to compile when using FORTIFY_SOURCE without optimizations
+    * [MESOS-6830] - Mesos fails to link with gold when providing -pie without -fPIC
+    * [MESOS-6837] - FaultToleranceTest.FrameworkReregister is flaky
+    * [MESOS-6839] - It is currently impossible to kill a task in the Windows executor
+    * [MESOS-6848] - The default executor does not exit if a single task pod fails.
+    * [MESOS-6852] - Nested container's launch command is not set correctly in docker/runtime isolator.
+    * [MESOS-6860] - Some tests use CHECK instead of ASSERT
+    * [MESOS-6862] - Replace os::system usages to reduce the risk of command injection.
+    * [MESOS-6864] - Container Exec should be possible with tasks belonging to a task group
+    * [MESOS-6866] - Mesos agent not checking IDs before using them as part of the paths
+    * [MESOS-6870] - Port `default_executor_tests.cpp`
+    * [MESOS-6871] - Scheme parsing is incorrect in libprocess URL::parse().
+    * [MESOS-6895] - Loop uses dependent nested names for friend declaration which isn't supported by recent clang
+    * [MESOS-6900] - Add test for framework upgrading to multi-role capability.
+    * [MESOS-6904] - Perform batching of allocations to reduce allocator queue backlogging.
+    * [MESOS-6908] - Zero health check timeout is interpreted literally.
+    * [MESOS-6911] - SlaveRecoveryTest/0.RegisterDisconnectedSlave test is flaky
+    * [MESOS-6912] - IOSwitchboardServerTest.AttachInput fails consistently on Mac OS.
+    * [MESOS-6917] - Segfault when the executor sets an invalid UUID  when sending a status update.
+    * [MESOS-6920] - Validate the UUID in Master::statusUpdate.
+    * [MESOS-6922] - SlaveRecoveryTest/0.RecoverTerminatedExecutor is flaky
+    * [MESOS-6937] - ContentType/MasterAPITest.ReserveResources/1 fails during Writer close
+    * [MESOS-6946] - Make wait status checks consistent.
+    * [MESOS-6948] - AgentAPITest.LaunchNestedContainerSession is flaky
+    * [MESOS-6954] - Running LAUNCH_NESTED_CONTAINER with a docker container id as parent crashes the agent
+    * [MESOS-6962] - Navbar overlays breadcrumbs in WebUI on narrow screens
+    * [MESOS-6963] - The logo doesn't fit in mobile WebUI
+    * [MESOS-6966] - master/tasks_unreachable metric never decremented
+    * [MESOS-6969] - Use clipboard.js for copy/paste webui functionality
+    * [MESOS-6983] - TaskValidationTest.TaskReusesUnreachableTaskID is flaky
+    * [MESOS-6989] - Docker executor segfaults in ~MesosExecutorDriver()
+    * [MESOS-6991] - Change `Environment.Variable.Value` from required to optional
+    * [MESOS-7008] - Quota not recovered from registry in empty cluster.
+    * [MESOS-7020] - cgroups::internal::write can incorrectly report success
+    * [MESOS-7027] - CommandExecutor ENV overwritten by Docker Image ENV in Unified Containerizer
+    * [MESOS-7036] - Rate limiter deadlocks during IO Switchboard-related tests
+    * [MESOS-7057] - Consider using the relink functionality of libprocess in the executor driver.
+    * [MESOS-7059] - Unnecessary mkdirs in ProvisionerDockerLocalStoreTest.*
+    * [MESOS-7060] - Tests depends on DockerArchive and LinuxRootfs failed.
+    * [MESOS-7075] - mesos-execute rejects all offers
+    * [MESOS-7077] - Check failed: resource.has_allocation_info().
+    * [MESOS-7102] - Crash when sending a SIGUSR1 signal to the agent.
+    * [MESOS-7119] - Mesos master crash while accepting inverse offer.
+    * [MESOS-7129] - Default executor exits with a stack trace in a few scenarios.
+    * [MESOS-7133] - mesos-fetcher fails with openssl-related output.
+    * [MESOS-7137] - Custom executors cannot use any reserved resources.
+    * [MESOS-7152] - The agent may be flapping after the machine reboots due to provisioner recover.
+    * [MESOS-7153] - The new http::Headers abstraction may break some modules.
+
+** Documentation
+    * [MESOS-5597] - Document Mesos "health check" feature.
+    * [MESOS-6335] - Add user doc for task group tasks
+    * [MESOS-6411] - Add documentation for CNI port-mapper plugin.
+    * [MESOS-6806] - Update the addition, deletion and modification logic of CNI configuration files.
+    * [MESOS-7154] - Document provisioner auto backend support.
+
+** Epic
+    * [MESOS-3820] - Test-only libprocess reinitialization
+    * [MESOS-4641] - Support Container Network Interface (CNI).
+    * [MESOS-4766] - Improve allocator performance.
+    * [MESOS-6402] - Add rlimit support to Mesos containerizer
+    * [MESOS-6460] - Mesos Support for Container Attach and Container Exec
+    * [MESOS-6670] - Authz for Agent v1 operator API
+
+** Improvement
+    * [MESOS-3601] - Formalize all headers and metadata for HTTP API Event Stream
+    * [MESOS-5792] - Add mesos tests to CMake (make check)
+    * [MESOS-5900] - Support Unix domain socket connections in libprocess
+    * [MESOS-5931] - Support auto backend in Unified Containerizer.
+    * [MESOS-5992] - Complete the list of API Calls on the Operator HTTP API Doc
+    * [MESOS-6177] - Return unregistered agents recovered from registrar in `GetAgents` and/or `/state.json`
+    * [MESOS-6229] - Default to using hardened compilation flags
+    * [MESOS-6296] - Default executor should be able to launch multiple task groups
+    * [MESOS-6305] - Add authorization support for nested container calls
+    * [MESOS-6309] - Mesos-specific targets appear in libprocess' cmake config.
+    * [MESOS-6329] - Send TASK_DROPPED for task launch errors
+    * [MESOS-6330] - Send TASK_UNKNOWN during explicit reconciliation
+    * [MESOS-6331] - Don't send TASK_LOST when accepting offers in a disconnected scheduler
+    * [MESOS-6332] - Don't send TASK_LOST in the agent
+    * [MESOS-6339] - Support docker registry that requires basic auth.
+    * [MESOS-6361] - Enable partition-awareness in mesos-execute
+    * [MESOS-6369] - Add a column for FrameworkID when displaying tasks in the WebUI
+    * [MESOS-6395] - HealthChecker sends updates to executor via libprocess messaging.
+    * [MESOS-6396] - Hooks should allow sandbox dependent environment variables.
+    * [MESOS-6397] - Simplify the comparison logic for `ExecutorInfo`.
+    * [MESOS-6399] - Allowed to pass extra envs when launch development scripts.
+    * [MESOS-6401] - Authorizer interface should behave more uniform
+    * [MESOS-6407] - Move DEFAULT_v1_xxx macros to the v1 namespace.
+    * [MESOS-6426] - Add rlimit support to Mesos containerizer
+    * [MESOS-6427] - Add documentation for rlimit support of Mesos containerizer
+    * [MESOS-6443] - Display maintenance information in the webui.
+    * [MESOS-6530] - Add support for incremental gzip decompression.
+    * [MESOS-6556] - Hostname support for the network/cni isolator.
+    * [MESOS-6557] - IPC namespace isolator
+    * [MESOS-6562] - Use JSON content type in mesos-execute.
+    * [MESOS-6567] - Actively Scan for CNI Configurations
+    * [MESOS-6571] - Add "--task" flag to mesos-execute
+    * [MESOS-6626] - Support `foreachpair` for LinkedHashMap
+    * [MESOS-6639] - Update 'io::redirect()' to take an optional vector of callback hooks.
+    * [MESOS-6648] - MesosContainerizer launch helper should take ContainerLaunchInfo.
+    * [MESOS-6650] - Remove slavePreLaunchDockerEnvironmentDecorator and slavePreLaunchDockerHook.
+    * [MESOS-6675] - Change allocator API to support adding inactive frameworks
+    * [MESOS-6719] - Unify "active" and "state"/"connected" fields in Master::Framework
+    * [MESOS-6758] - Support 'Basic' auth docker private registry on Unified Containerizer.
+    * [MESOS-6763] - Add heartbeats to both input/output connections in IOSwitchboard
+    * [MESOS-6821] - Override of automatic resources should be by exact match not substring
+    * [MESOS-6865] - Remove the constraint of being only able to launch 2 level nested containers on Agent API
+    * [MESOS-6936] - Add support for media types needed for streaming request/responses.
+    * [MESOS-6947] - Fix pailer XSS vulnerability
+    * [MESOS-7045] - Skip already stored layers in local Docker puller
+    * [MESOS-7051] - Introduce a new http::Headers abstraction.
+    * [MESOS-7071] - Agent State Lacks Framework Principal
+
+** Story
+    * [MESOS-3505] - Support specifying Docker image by Image ID.
+    * [MESOS-3753] - Test the HTTP Scheduler library with SSL enabled
+
+** Task
+    * [MESOS-3398] - Revisit MAXHOSTNAMELEN implementation in Windows
+    * [MESOS-3697] - Add `make tests` target to CMake build system.
+    * [MESOS-3843] - Audit `src/CMakelists.txt` to make sure we're compiling everything we need to build the agent binary.
+    * [MESOS-3910] - Libprocess: Implement cleanup of the SocketManager in process::finalize
+    * [MESOS-3934] - Libprocess: Unify the initialization of the MetricsProcess and ReaperProcess
+    * [MESOS-4119] - Add support for enabling --3way to apply-reviews.py.
+    * [MESOS-5826] - Streamline building of example frameworks
+    * [MESOS-5966] - Add libprocess HTTP tests with SSL support
+    * [MESOS-6040] - Add a CMake build for `mesos-port-mapper`
+    * [MESOS-6185] - Improve test coverage for shared persistent volumes.
+    * [MESOS-6214] - Containerizers assume caller will call 'destroy' if 'launch' fails.
+    * [MESOS-6278] - Add test cases for the HTTP health checks.
+    * [MESOS-6279] - Add test cases for the TCP health check.
+    * [MESOS-6366] - Design doc for executor authentication
+    * [MESOS-6376] - Add documentation for capabilities support of the mesos containerizer
+    * [MESOS-6403] - Draft design doc for rlimit support for Mesos containerizer
+    * [MESOS-6431] - Add support for port-mapping in `mesos-execute`
+    * [MESOS-6462] - Design Doc: Mesos Support for Container Attach and Container Exec
+    * [MESOS-6463] - Build a prototype for remote pty support
+    * [MESOS-6464] - Add fine grained control of which namespaces a nested container should inherit (or not).
+    * [MESOS-6465] - Add a task_id -> container_id mapping in state.json
+    * [MESOS-6466] - Add support for streaming HTTP requests in Mesos
+    * [MESOS-6467] - Build a Container I/O Switchboard
+    * [MESOS-6470] - Support TTY in IOSwitchboard.
+    * [MESOS-6471] - Build support for LAUNCH_NESTED_CONTAINER_SESSION call into the Agent API in Mesos
+    * [MESOS-6472] - Build support for ATTACH_CONTAINER_INPUT into the Agent API in Mesos
+    * [MESOS-6473] - Build support for ATTACH_CONTAINER_OUTPUT into the Agent API in Mesos
+    * [MESOS-6474] - Add fine-grained ACLs for authorization with the new debugging APIs
+    * [MESOS-6475] - Mesos Container Attach/Exec Unit Tests
+    * [MESOS-6476] - Build a Mock HTTP Server that implements the new Debugging API calls
+    * [MESOS-6477] - Build a standalone python client for connecting to our Mock HTTP Server that implements the new Debug APIs
+    * [MESOS-6493] - Add test cases for the HTTPS health checks.
+    * [MESOS-6525] - Add API protos for managing debug containers
+    * [MESOS-6528] - Container status of a task in a pod is not correct.
+    * [MESOS-6543] - Add special case for entering the "mount" namespace of a parent container
+    * [MESOS-6546] - Update the Containerizer to handle attachInput and attachOutput calls.
+    * [MESOS-6547] - Update the mesos containerizer to launch per-container I/O switchboards
+    * [MESOS-6553] - Update `MesosContainerizerProcess::_launch()` to pass `ContainerLaunchInfo` to launcher->fork()`
+    * [MESOS-6594] - Add `Containerizer::attach()` API call
+    * [MESOS-6628] - Add a FrameworkInfo.roles field along with a MULTI_ROLE capability.
+    * [MESOS-6629] - Add master validation of FrameworkInfo.roles.
+    * [MESOS-6631] - Disallow frameworks from modifying FrameworkInfo.roles.
+    * [MESOS-6633] - Introduce Resource.AllocationInfo.
+    * [MESOS-6634] - Add Resource.AllocationInfo in Offer to indicate a single role per offer.
+    * [MESOS-6638] - Update Suppress and Revive to be per-role.
+    * [MESOS-6651] - Make IOSwitchboard an isolator.
+    * [MESOS-6663] - Container should be destroyed if IOSwitchboard server terminates unexpectedly.
+    * [MESOS-6664] - Force cleanup of IOSwitchboard server if it does not terminate after the container terminates.
+    * [MESOS-6749] - Update master and agent endpoints to expose FrameworkInfo.roles.
+    * [MESOS-6764] - Add a grace period for terminating the I/O switchboard server.
+    * [MESOS-6958] - Support linux filesystem type detection.
+    * [MESOS-6970] - Display allocation info when printing Resources.
+    * [MESOS-7062] - Add a test for a MULTI_ROLE framework receiving offers for each of its roles.
+
 
 Release Notes - Mesos - Version 1.1.1 (WIP)
 -------------------------------------------
