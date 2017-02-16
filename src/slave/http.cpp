@@ -1738,13 +1738,13 @@ agent::Response::GetState Slave::Http::_getState(
   agent::Response::GetState getState;
 
   getState.mutable_get_tasks()->CopyFrom(
-    _getTasks(frameworksApprover, tasksApprover, executorsApprover));
+      _getTasks(frameworksApprover, tasksApprover, executorsApprover));
 
   getState.mutable_get_executors()->CopyFrom(
-    _getExecutors(frameworksApprover, executorsApprover));
+      _getExecutors(frameworksApprover, executorsApprover));
 
   getState.mutable_get_frameworks()->CopyFrom(
-    _getFrameworks(frameworksApprover));
+      _getFrameworks(frameworksApprover));
 
   return getState;
 }

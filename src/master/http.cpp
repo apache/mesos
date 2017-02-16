@@ -670,11 +670,9 @@ Future<Response> Master::Http::subscribe(
     executorsApprover = master->authorizer.get()->getObjectApprover(
         subject, authorization::VIEW_EXECUTOR);
   } else {
-    frameworksApprover = Owned<ObjectApprover>(
-      new AcceptingObjectApprover());
+    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    executorsApprover = Owned<ObjectApprover>(
-      new AcceptingObjectApprover());
+    executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
   }
 
   return collect(frameworksApprover, tasksApprover, executorsApprover)
@@ -702,9 +700,9 @@ Future<Response> Master::Http::subscribe(
       mesos::master::Event event;
       event.set_type(mesos::master::Event::SUBSCRIBED);
       event.mutable_subscribed()->mutable_get_state()->CopyFrom(
-        _getState(frameworksApprover,
-                  tasksApprover,
-                  executorsApprover));
+          _getState(frameworksApprover,
+                    tasksApprover,
+                    executorsApprover));
 
       http.send<mesos::master::Event, v1::master::Event>(event);
 
@@ -1726,13 +1724,13 @@ mesos::master::Response::GetState Master::Http::_getState(
   mesos::master::Response::GetState getState;
 
   getState.mutable_get_tasks()->CopyFrom(
-    _getTasks(frameworksApprover, tasksApprover));
+      _getTasks(frameworksApprover, tasksApprover));
 
   getState.mutable_get_executors()->CopyFrom(
-    _getExecutors(frameworksApprover, executorsApprover));
+      _getExecutors(frameworksApprover, executorsApprover));
 
   getState.mutable_get_frameworks()->CopyFrom(
-    _getFrameworks(frameworksApprover));
+      _getFrameworks(frameworksApprover));
 
   getState.mutable_get_agents()->CopyFrom(_getAgents());
 
@@ -3442,7 +3440,7 @@ Future<Response> Master::Http::getRoles(
         response.mutable_get_roles();
 
       foreach (const string& name, filteredRoles) {
-           mesos::Role role;
+        mesos::Role role;
 
         if (master->weights.contains(name)) {
           role.set_weight(master->weights[name]);
