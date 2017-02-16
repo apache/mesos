@@ -1405,6 +1405,19 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     environment["PATH"] = os::host_default_path();
   }
 
+#ifdef __WINDOWS__
+  // TODO(dpravat): (MESOS-6816) We should allow system environment variables to
+  // be overwritten if they are specified by the framework.  This might cause
+  // applications to not work, but upon overriding system defaults, it becomes
+  // the overidder's problem.
+  Option<std::map<string, string>> systemEnvironment =
+    process::internal::getSystemEnvironment();
+  foreachpair(const string& key, const string& value,
+    systemEnvironment.get()) {
+    environment[key] = value;
+  }
+#endif // __WINDOWS__
+
   vector<string> argv;
   argv.push_back(MESOS_DOCKER_EXECUTOR);
 
