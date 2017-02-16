@@ -98,6 +98,14 @@ constexpr Bytes DEFAULT_EXECUTOR_MEM = Megabytes(32);
 constexpr uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER = 1024;
 #endif
 
+// Default UNIX socket (Linux) or Named Pipe (Windows) resource that provides
+// CLI access to the Docker daemon.
+#ifdef __WINDOWS__
+constexpr char DEFAULT_DOCKER_HOST_RESOURCE[] = "//./pipe/docker_engine";
+#else
+constexpr char DEFAULT_DOCKER_HOST_RESOURCE[] = "/var/run/docker.sock";
+#endif // __WINDOWS__
+
 // Default duration that docker containers will be removed after exit.
 constexpr Duration DOCKER_REMOVE_DELAY = Hours(6);
 

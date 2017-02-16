@@ -38,6 +38,17 @@
 #include "mesos/resources.hpp"
 
 
+// OS-specific default prefix to be used for the DOCKER_HOST environment
+// variable. Note that on Linux, the default prefix is the only prefix
+// available; only Windows supports multiple prefixes.
+// TODO(hausdorff): Add support for the Windows `tcp://` prefix as well.
+#ifdef __WINDOWS__
+constexpr char DEFAULT_DOCKER_HOST_PREFIX[] = "npipe://";
+#else
+constexpr char DEFAULT_DOCKER_HOST_PREFIX[] = "unix://";
+#endif // __WINDOWS__
+
+
 // Abstraction for working with Docker (modeled on CLI).
 //
 // TODO(benh): Make futures returned by functions be discardable.
@@ -212,7 +223,7 @@ protected:
          const std::string& _socket,
          const Option<JSON::Object>& _config)
        : path(_path),
-         socket("unix://" + _socket),
+         socket(DEFAULT_DOCKER_HOST_PREFIX + _socket),
          config(_config) {}
 
 private:

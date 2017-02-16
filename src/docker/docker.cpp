@@ -104,9 +104,18 @@ Try<Owned<Docker>> Docker::create(
     bool validate,
     const Option<JSON::Object>& config)
 {
+#ifndef __WINDOWS__
+  // TODO(hausdorff): Currently, `path::absolute` does not handle all the edge
+  // cases of Windows. Revisit this when MESOS-3442 is resolved.
+  //
+  // NOTE: When we do come back and fix this bug, it is also worth noting that
+  // on Windows an empty value of `socket` is frequently used to connect to the
+  // Docker host (i.e., the user wants to connect 'npipes://', with an empty
+  // socket path). A full solution should accommodate this.
   if (!path::absolute(socket)) {
     return Error("Invalid Docker socket path: " + socket);
   }
+#endif // __WINDOWS__
 
   Owned<Docker> docker(new Docker(path, socket, config));
   if (!validate) {

@@ -37,6 +37,7 @@
 #include <stout/hashset.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/uuid.hpp>
 
 #include <stout/os/killtree.hpp>
@@ -91,7 +92,7 @@ const string DOCKER_NAME_SEPERATOR = ".";
 
 
 // Declared in header, see explanation there.
-const string DOCKER_SYMLINK_DIRECTORY = "docker/links";
+const string DOCKER_SYMLINK_DIRECTORY = path::join("docker", "links");
 
 
 #ifdef __WINDOWS__

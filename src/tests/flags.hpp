@@ -26,9 +26,14 @@
 #include <stout/os.hpp>
 
 #include "common/parse.hpp"
+
 #include "logging/logging.hpp"
+
 #include "master/constants.hpp"
+
 #include "messages/messages.hpp"
+
+#include "slave/constants.hpp"
 
 namespace mesos {
 namespace internal {
@@ -77,11 +82,12 @@ public:
 
     add(&Flags::docker_socket,
         "docker_socket",
-        "The UNIX socket path to be mounted into the\n"
-        "docker executor container to provide docker\n"
-        "CLI access to the docker daemon. This must be the\n"
-        "path used by the agent's docker image.\n",
-        "/var/run/docker.sock");
+        "Resource used by the agent and the executor to provice CLI access\n"
+        "to the Docker daemon. On Unix, this is typically a path to a\n"
+        "socket, such as '/var/run/docker.sock'. On Windows this must be a\n"
+        "named pipe, such as '//./pipe/docker_engine'. NOTE: This must be\n"
+        "the path used by the Docker image used to run the agent.\n",
+        slave::DEFAULT_DOCKER_HOST_RESOURCE);
 
     // This help message for --modules flag is the same for
     // {master,slave,sched,tests}/flags.[ch]pp and should always be kept in
