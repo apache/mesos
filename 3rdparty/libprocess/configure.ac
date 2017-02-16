@@ -1018,6 +1018,37 @@ you can get away without it by doing --disable-zlib.
 fi
 
 
+# Once all CXXFLAGS are completely assembled, make sure the we are not
+# affected by libcxx undefined behavior,
+# https://llvm.org/bugs/show_bug.cgi?id=28469.
+AC_MSG_CHECKING([C++ standard library for undefined behaviour with selected optimization level])
+AC_LANG_PUSH([C++])
+AC_RUN_IFELSE([
+  AC_LANG_SOURCE([[
+    #include <functional>
+    #include <map>
+
+    struct F {
+      std::map<int, std::function<void()>> m;
+      F() { m[42] = []() {}; }
+    };
+
+    int main() {
+      F f;
+      f = F{};
+    }
+  ]])],
+  [
+    AC_MSG_RESULT([no])
+  ], [
+    AC_MSG_RESULT([yes])
+    AC_MSG_ERROR([libprocess cannot be built with optimizations against this version of libcxx (MESOS-5745).
+                  Consider building without optimizations, or changing the used C++ standard library.])
+  ]
+)
+AC_LANG_POP([C++])
+
+
 # Also pass the flags to 3rdparty libraries.
 CONFIGURE_ARGS="$CONFIGURE_ARGS CXXFLAGS='$CXXFLAGS'"
 
