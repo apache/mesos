@@ -8,7 +8,7 @@ layout: documentation
 ## Organizations using Mesos
 
 * [Airbnb](http://www.airbnb.com)
-* [Allegro](http://allegrotech.io)
+* [Allegro](http://allegro.pl)
 * [Altocloud](http://www.altocloud.com/)
 * [Apple](http://www.apple.com)
 * [Artirix](http://www.artirix.com)
