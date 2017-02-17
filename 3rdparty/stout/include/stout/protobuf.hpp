@@ -179,7 +179,7 @@ Try<T> deserialize(const std::string& value)
   // constructor. The maximum size of a proto2 message is 64 MB, so it is
   // unlikely that we will hit this limit, but since an arbitrary string can be
   // passed in, we include this check to be safe.
-  CHECK_LE(value.size(), std::numeric_limits<int>::max());
+  CHECK_LE(value.size(), static_cast<size_t>(std::numeric_limits<int>::max()));
   google::protobuf::io::ArrayInputStream stream(
       value.data(),
       static_cast<int>(value.size()));
@@ -285,7 +285,7 @@ struct Read
     // constructor. The maximum size of a proto2 message is 64 MB, so it is
     // unlikely that we will hit this limit, but since an arbitrary string can
     // be passed in, we include this check to be safe.
-    CHECK_LE(data.size(), std::numeric_limits<int>::max());
+    CHECK_LE(data.size(), static_cast<size_t>(std::numeric_limits<int>::max()));
     T message;
     google::protobuf::io::ArrayInputStream stream(
         data.data(),
