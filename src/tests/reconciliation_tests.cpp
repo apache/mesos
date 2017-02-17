@@ -878,8 +878,7 @@ TEST_F(ReconciliationTest, PendingTask)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))

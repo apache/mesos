@@ -495,8 +495,7 @@ TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   // Intercept offers sent to the scheduler.
   Future<vector<Offer>> normalOffers;
@@ -587,16 +586,14 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   // Launch a task.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -1161,8 +1158,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   // Just work with a single offer to simplify the rest of the test.
   v1::Offer offer = offers->offers(0);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -1374,14 +1370,12 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
 
   TestContainerizer containerizer(execs);
 
-  EXPECT_CALL(exec1, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec1, registered(_, _, _, _));
 
   EXPECT_CALL(exec1, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-  EXPECT_CALL(exec2, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec2, registered(_, _, _, _));
 
   EXPECT_CALL(exec2, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));

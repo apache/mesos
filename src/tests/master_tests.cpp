@@ -143,8 +143,7 @@ TEST_F(MasterTest, TaskRunning)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -179,8 +178,7 @@ TEST_F(MasterTest, TaskRunning)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -235,8 +233,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -256,8 +253,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   task.mutable_resources()->MergeFrom(offer.resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -344,8 +340,7 @@ TEST_F(MasterTest, KillTask)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -367,8 +362,7 @@ TEST_F(MasterTest, KillTask)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -419,8 +413,7 @@ TEST_F(MasterTest, KillUnknownTask)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -442,8 +435,7 @@ TEST_F(MasterTest, KillUnknownTask)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -524,8 +516,7 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   // Start a task.
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -753,8 +744,7 @@ TEST_F(MasterTest, StatusUpdateAck)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -773,8 +763,7 @@ TEST_F(MasterTest, StatusUpdateAck)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -828,8 +817,7 @@ TEST_F(MasterTest, RecoverResources)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -860,8 +848,7 @@ TEST_F(MasterTest, RecoverResources)
   task.mutable_resources()->MergeFrom(taskResources);
   task.mutable_executor()->MergeFrom(executorInfo);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -952,8 +939,7 @@ TEST_F(MasterTest, FrameworkMessage)
   MesosSchedulerDriver schedDriver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&schedDriver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&schedDriver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&schedDriver, _))
@@ -1040,8 +1026,7 @@ TEST_F(MasterTest, MultipleExecutors)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1073,16 +1058,14 @@ TEST_F(MasterTest, MultipleExecutors)
   tasks.push_back(task1);
   tasks.push_back(task2);
 
-  EXPECT_CALL(exec1, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec1, registered(_, _, _, _));
 
   Future<TaskInfo> exec1Task;
   EXPECT_CALL(exec1, launchTask(_, _))
     .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
                     FutureArg<1>(&exec1Task)));
 
-  EXPECT_CALL(exec2, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec2, registered(_, _, _, _));
 
   Future<TaskInfo> exec2Task;
   EXPECT_CALL(exec2, launchTask(_, _))
@@ -1166,8 +1149,7 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(&sched, &detector);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<Nothing> resourceOffers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1262,8 +1244,7 @@ TEST_F(WhitelistTest, WhitelistSlave)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1325,8 +1306,7 @@ TEST_F(MasterTest, MasterLost)
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(&sched, &detector);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return()); // Ignore offers.
@@ -2683,8 +2663,7 @@ TEST_F(MasterZooKeeperTest, LostZooKeeperCluster)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, stringify(url.get()), DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return()); // Ignore offers.
@@ -2817,8 +2796,7 @@ TEST_F(MasterTest, RecoveredFramework)
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 64, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -2868,8 +2846,7 @@ TEST_F(MasterTest, RecoveredFramework)
 
   EXPECT_TRUE(parse1->values["orphan_tasks"].as<JSON::Array>().values.empty());
 
-  EXPECT_CALL(sched, disconnected(&driver))
-    .Times(1);
+  EXPECT_CALL(sched, disconnected(&driver));
 
   // Stop the master.
   PID<Master> originalPid = master.get()->pid;
@@ -3266,8 +3243,7 @@ TEST_F(MasterTest, TasksEndpoint)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -3286,8 +3262,7 @@ TEST_F(MasterTest, TasksEndpoint)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -3970,8 +3945,7 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -3993,8 +3967,7 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -4261,8 +4234,7 @@ TEST_F(MasterTest, ExecutorLabels)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -4288,8 +4260,7 @@ TEST_F(MasterTest, ExecutorLabels)
   labels->add_labels()->CopyFrom(createLabel("key2", "value2"));
   labels->add_labels()->CopyFrom(createLabel("key1", "value3"));
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -4355,8 +4326,7 @@ TEST_F(MasterTest, TaskLabels)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -4382,8 +4352,7 @@ TEST_F(MasterTest, TaskLabels)
   labels->add_labels()->CopyFrom(createLabel("bar", "baz"));
   labels->add_labels()->CopyFrom(createLabel("bar", "qux"));
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -4461,8 +4430,7 @@ TEST_F(MasterTest, TaskStatusLabels)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -4564,8 +4532,7 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -5904,8 +5871,7 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
 
   // Simulate master failover. We leave the scheduler without a master
   // so it does not attempt to re-register yet.
-  EXPECT_CALL(sched, disconnected(&driver))
-    .Times(1);
+  EXPECT_CALL(sched, disconnected(&driver));
 
   schedDetector.appoint(None());
   slaveDetector.appoint(None());

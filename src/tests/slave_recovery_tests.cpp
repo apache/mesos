@@ -3785,8 +3785,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   // Launch a long running task in the first slave.
   TaskInfo task1 = createTask(offers1.get()[0], "sleep 1000");
 
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .Times(1);
+  EXPECT_CALL(sched, statusUpdate(_, _));
 
   Future<Nothing> _statusUpdateAcknowledgement1 =
     FUTURE_DISPATCH(slave1.get()->pid, &Slave::_statusUpdateAcknowledgement);
@@ -3826,8 +3825,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   // Launch a long running task in each slave.
   TaskInfo task2 = createTask(offers2.get()[0], "sleep 1000");
 
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .Times(1);
+  EXPECT_CALL(sched, statusUpdate(_, _));
 
   Future<Nothing> _statusUpdateAcknowledgement2 =
     FUTURE_DISPATCH(slave2.get()->pid, &Slave::_statusUpdateAcknowledgement);

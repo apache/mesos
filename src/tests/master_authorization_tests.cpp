@@ -122,8 +122,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedTask)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -143,8 +142,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedTask)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(executor);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -196,8 +194,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -372,8 +369,7 @@ TEST_F(MasterAuthorizationTest, KillTask)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -586,8 +582,7 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedLost)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -692,8 +687,7 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedDropped)
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -794,8 +788,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemoved)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -924,8 +917,7 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
   TaskInfo task2 = createTask(
       offers2.get()[0], executor2.command().value(), executor2.executor_id());
 
-  EXPECT_CALL(exec2, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec2, registered(_, _, _, _));
 
   EXPECT_CALL(exec2, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -942,8 +934,7 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
   AWAIT_READY(status2);
   ASSERT_EQ(TASK_RUNNING, status2.get().state());
 
-  EXPECT_CALL(exec1, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec1, registered(_, _, _, _));
 
   EXPECT_CALL(exec1, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));

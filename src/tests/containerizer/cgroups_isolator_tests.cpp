@@ -137,8 +137,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -277,8 +276,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -379,8 +377,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -480,8 +477,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PidsAndTids)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -889,8 +885,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_Sample)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))

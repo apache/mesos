@@ -128,8 +128,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(StatusUpdateManagerTest, CheckpointStatusUpdate)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -206,8 +205,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(_, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(_, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
@@ -219,8 +217,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));

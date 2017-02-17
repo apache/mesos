@@ -207,8 +207,7 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(_, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(_, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))

@@ -124,8 +124,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, NoRateLimiting)
   MesosSchedulerDriver* driver = new MesosSchedulerDriver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(driver, _, _));
 
   // Grab the stuff we need to replay the subscribe call.
   Future<mesos::scheduler::Call> subscribeCall = FUTURE_CALL(
@@ -218,8 +217,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, RateLimitingEnabled)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   // Grab the stuff we need to replay the subscribe call.
   Future<mesos::scheduler::Call> subscribeCall = FUTURE_CALL(
@@ -364,8 +362,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, DifferentPrincipalFrameworks)
   MesosSchedulerDriver* driver1 =
     new MesosSchedulerDriver(&sched1, frameworkInfo1, master.get()->pid);
 
-  EXPECT_CALL(sched1, registered(driver1, _, _))
-    .Times(1);
+  EXPECT_CALL(sched1, registered(driver1, _, _));
 
   // Grab the stuff we need to replay the subscribe call for sched1.
   Future<mesos::scheduler::Call> subscribeCall1 = FUTURE_CALL(
@@ -388,8 +385,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, DifferentPrincipalFrameworks)
   MockScheduler sched2;
   MesosSchedulerDriver driver2(&sched2, frameworkInfo2, master.get()->pid);
 
-  EXPECT_CALL(sched2, registered(&driver2, _, _))
-    .Times(1);
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
 
   // Grab the stuff we need to replay the subscribe call for sched2.
   Future<mesos::scheduler::Call> subscribeCall2 = FUTURE_CALL(
@@ -591,8 +587,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, SamePrincipalFrameworks)
   MesosSchedulerDriver* driver1 = new MesosSchedulerDriver(
       &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched1, registered(driver1, _, _))
-    .Times(1);
+  EXPECT_CALL(sched1, registered(driver1, _, _));
 
   // Grab the stuff we need to replay the subscribe call for sched1.
   Future<mesos::scheduler::Call> subscribeCall1 = FUTURE_CALL(
@@ -615,8 +610,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, SamePrincipalFrameworks)
   MesosSchedulerDriver driver2(
       &sched2, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched2, registered(&driver2, _, _))
-    .Times(1);
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
 
   // Grab the stuff we need to replay the subscribe call for sched2.
   Future<mesos::scheduler::Call> subscribeCall2 = FUTURE_CALL(
@@ -815,8 +809,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, SchedulerFailover)
       &sched2, framework2, master.get()->pid, DEFAULT_CREDENTIAL);
 
   // Scheduler driver ignores duplicate FrameworkRegisteredMessages.
-  EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
-    .Times(1);
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _));
 
   Future<Nothing> sched1Error;
   EXPECT_CALL(sched1, error(&driver1, "Framework failed over"))
@@ -934,8 +927,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, CapacityReached)
   MesosSchedulerDriver* driver = new MesosSchedulerDriver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(driver, _, _));
 
   // Grab the stuff we need to replay the subscribe call.
   Future<mesos::scheduler::Call> subscribeCall = FUTURE_CALL(

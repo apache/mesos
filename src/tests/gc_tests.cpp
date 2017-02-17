@@ -290,8 +290,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(_, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(_, _, _));
 
   Resources resources = Resources::parse(flags.resources.get()).get();
   double cpus = resources.get<Value::Scalar>("cpus").get().value();
@@ -306,8 +305,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   EXPECT_CALL(sched, offerRescinded(_, _))
     .WillRepeatedly(Return());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -536,8 +534,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   EXPECT_CALL(sched, offerRescinded(_, _))
     .WillRepeatedly(Return());
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -641,8 +638,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));

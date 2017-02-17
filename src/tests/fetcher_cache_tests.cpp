@@ -209,8 +209,7 @@ void FetcherCacheTest::SetUp()
   driver.reset(new MesosSchedulerDriver(
     &scheduler, frameworkInfo, master->pid, DEFAULT_CREDENTIAL));
 
-  EXPECT_CALL(scheduler, registered(driver.get(), _, _))
-    .Times(1);
+  EXPECT_CALL(scheduler, registered(driver.get(), _, _));
 
   // This installs a temporary reaction to resourceOffers calls, which
   // must be in place BEFORE starting the scheduler driver. This

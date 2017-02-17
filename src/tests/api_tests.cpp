@@ -3642,8 +3642,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, NestedContainerLaunch)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -3654,8 +3653,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, NestedContainerLaunch)
   EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(FutureSatisfy(&executorRegistered));
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .Times(1);
+  EXPECT_CALL(exec, launchTask(_, _));
 
   driver.start();
 

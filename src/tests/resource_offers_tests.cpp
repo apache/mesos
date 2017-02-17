@@ -84,8 +84,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -120,8 +119,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
   MesosSchedulerDriver driver1(
       &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched1, registered(&driver1, _, _))
-    .Times(1);
+  EXPECT_CALL(sched1, registered(&driver1, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -139,8 +137,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
   MesosSchedulerDriver driver2(
       &sched2, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched2, registered(&driver2, _, _))
-    .Times(1);
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
 
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -167,8 +164,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   MesosSchedulerDriver driver1(
       &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched1, registered(&driver1, _, _))
-    .Times(1);
+  EXPECT_CALL(sched1, registered(&driver1, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -186,8 +182,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   MesosSchedulerDriver driver2(
       &sched2, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched2, registered(&driver2, _, _))
-    .Times(1);
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
 
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -218,8 +213,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   MesosSchedulerDriver driver1(
       &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched1, registered(&driver1, _, _))
-    .Times(1);
+  EXPECT_CALL(sched1, registered(&driver1, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -269,8 +263,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   MesosSchedulerDriver driver2(
       &sched2, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched2, registered(&driver2, _, _))
-    .Times(1);
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
 
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
     .WillOnce(FutureArg<1>(&offers))
@@ -292,8 +285,7 @@ TEST_F(ResourceOffersTest, Request)
 {
   TestAllocator<master::allocator::HierarchicalDRFAllocator> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _))
-    .Times(1);
+  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
 
   Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
@@ -302,8 +294,7 @@ TEST_F(ResourceOffersTest, Request)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))

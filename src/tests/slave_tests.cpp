@@ -3016,8 +3016,8 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
 
   SlaveID slaveId = offers.get()[0].slave_id();
 
-  EXPECT_CALL(sched, offerRescinded(&driver, _))
-    .Times(1); // Expect a single offer to be rescinded.
+  // Expect a single offer to be rescinded.
+  EXPECT_CALL(sched, offerRescinded(&driver, _));
 
   Future<Nothing> slaveLost;
   EXPECT_CALL(sched, slaveLost(&driver, _))

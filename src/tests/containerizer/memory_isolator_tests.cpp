@@ -96,8 +96,7 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))

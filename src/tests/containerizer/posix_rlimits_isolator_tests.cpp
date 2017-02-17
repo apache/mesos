@@ -72,8 +72,7 @@ TEST_F(PosixRLimitsIsolatorTest, InvalidLimits)
       DEFAULT_FRAMEWORK_INFO,
       master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(_, _, _))
-      .Times(1);
+  EXPECT_CALL(sched, registered(_, _, _));
 
   Future<vector<Offer>> offers;
 
@@ -141,8 +140,7 @@ TEST_F(PosixRLimitsIsolatorTest, UnsetLimits) {
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(_, _, _))
-      .Times(1);
+  EXPECT_CALL(sched, registered(_, _, _));
 
   Future<vector<Offer>> offers;
 
@@ -222,8 +220,7 @@ TEST_F(PosixRLimitsIsolatorTest, BothSoftAndHardLimitSet)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(_, _, _))
-      .Times(1);
+  EXPECT_CALL(sched, registered(_, _, _));
 
   Future<vector<Offer>> offers;
 
@@ -290,8 +287,7 @@ TEST_F(PosixRLimitsIsolatorTest, TaskExceedingLimit)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(_, _, _))
-      .Times(1);
+  EXPECT_CALL(sched, registered(_, _, _));
 
   Future<vector<Offer>> offers;
 
