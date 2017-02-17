@@ -132,11 +132,9 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Spawn)
 
   SpawnProcess process;
 
-  EXPECT_CALL(process, initialize())
-    .Times(1);
+  EXPECT_CALL(process, initialize());
 
-  EXPECT_CALL(process, finalize())
-    .Times(1);
+  EXPECT_CALL(process, finalize());
 
   PID<SpawnProcess> pid = spawn(process);
 
@@ -167,8 +165,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Dispatch)
 
   DispatchProcess process;
 
-  EXPECT_CALL(process, func0())
-    .Times(1);
+  EXPECT_CALL(process, func0());
 
   EXPECT_CALL(process, func1(_))
     .WillOnce(ReturnArg<0>());
@@ -204,8 +201,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Defer1)
 
   DispatchProcess process;
 
-  EXPECT_CALL(process, func0())
-    .Times(1);
+  EXPECT_CALL(process, func0());
 
   EXPECT_CALL(process, func1(_))
     .WillOnce(ReturnArg<0>());
@@ -482,8 +478,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Inheritance)
   EXPECT_CALL(process, func())
     .Times(2);
 
-  EXPECT_CALL(process, foo())
-    .Times(1);
+  EXPECT_CALL(process, foo());
 
   PID<DerivedProcess> pid1 = spawn(&process);
 
@@ -1236,11 +1231,9 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Listener)
 
   MultipleListenerProcess process;
 
-  EXPECT_CALL(process, event1())
-    .Times(1);
+  EXPECT_CALL(process, event1());
 
-  EXPECT_CALL(process, event2())
-    .Times(1);
+  EXPECT_CALL(process, event2());
 
   spawn(process);
 
