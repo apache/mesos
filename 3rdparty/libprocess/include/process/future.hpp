@@ -396,9 +396,20 @@ private:
   }
 
 public:
+  // NOTE: There are two bugs we're dealing with here.
+  //   (1) GCC bug where the explicit use of `this->` is required in the
+  //       trailing return type: gcc.gnu.org/bugzilla/show_bug.cgi?id=57543
+  //   (2) VS 2017 RC bug where the explicit use of `this->` is disallowed.
+  //
+  // Since VS 2015 and 2017 RC both implement C++14's deduced return type for
+  // functions, we simply choose to use that on Windows.
+  //
+  // TODO(mpark): Remove the trailing return type once we get to C++14.
   template <typename F>
   auto then(F&& f) const
+#ifndef __WINDOWS__
     -> decltype(this->then(std::forward<F>(f), Prefer()))
+#endif // __WINDOWS__
   {
     return then(std::forward<F>(f), Prefer());
   }
