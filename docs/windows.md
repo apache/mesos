@@ -43,11 +43,13 @@ Following are the instructions for stock Windows 10 and Windows Server 2012 or n
     # Generate the solution and build.
     $ .\support\windows-build.bat
 
-    # After generating the Visual Studio solution you can use the IDE to open
-    # the project and skip the next step. In this case it is recommended to set
-    # `PreferredToolArchitecture` environment variable to `x64`.
+    # Set the `PreferredToolArchitecture` environment variable to `x64`.
     # NOTE: `PreferredToolArchitecture` can be set system-wide via Control Panel.
-    $ msbuild Mesos.sln /p:PreferredToolArchitecture=x64
+    $ SET PreferredToolArchitecture=x64
+
+    # After generating the Visual Studio solution you can use the IDE to open
+    # the project and skip this step.
+    $ msbuild Mesos.sln /m
 
     # mesos-agent.exe can be found in the <repository>\build\src folder.
     $ cd src

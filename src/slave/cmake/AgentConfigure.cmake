@@ -45,6 +45,10 @@ set(AGENT_DEPENDENCIES
   make_bin_src_dir
   )
 
+if (WIN32)
+  set(AGENT_DEPENDENCIES ${AGENT_DEPENDENCIES} ${ENSURE_TOOL_ARCH})
+endif (WIN32)
+
 # Define third-party include directories. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux).
 ###############################################################################

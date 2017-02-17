@@ -52,9 +52,11 @@ REM because the path to GNU Patch is not the default.
 cmake .. -G "Visual Studio 14 2015 Win64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 %OTHER_CMAKE_OPTIONS%
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-REM NOTE: We pass in the build option `/p:PreferredToolArchitecture=x64`
-REM to force Visual Studio to use the native toolchain, which is (infinitely?)
-REM faster than the default cross-compiler.
+REM NOTE: We set the environment variable `PreferredToolArchitecture`
+REM to work around some known issues in Visual Studio's linking step.
+REM Without this variable set, MSVC may take hours/days to link
+REM and may sometimes erroneously fail to find the library to link against.
+SET PreferredToolArchitecture=x64
 
 REM NOTE: The build option `/m` tells Visual Studio to build projects in
 REM parallel if possible.
@@ -63,21 +65,21 @@ REM NOTE: Specifying a build "target" is done via the build option `/t`.
 REM Multiple targets can be specified with semi-comma separation.
 
 REM Build and run the stout tests.
-msbuild Mesos.sln /p:PreferredToolArchitecture=x64 /m /t:stout-tests
+msbuild Mesos.sln /m /t:stout-tests
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 "3rdparty/stout/tests/Debug/stout-tests.exe"
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM Build and run the libprocess tests.
-msbuild Mesos.sln /p:PreferredToolArchitecture=x64 /m /t:libprocess-tests
+msbuild Mesos.sln /m /t:libprocess-tests
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 "3rdparty/libprocess/src/tests/Debug/libprocess-tests.exe"
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM Build everything else.
-msbuild Mesos.sln /p:PreferredToolArchitecture=x64 /m
+msbuild Mesos.sln /m
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM Due to how Mesos uses and creates symlinks, the next test suite
