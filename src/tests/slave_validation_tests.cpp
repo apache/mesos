@@ -32,6 +32,8 @@
 
 namespace validation = mesos::internal::slave::validation;
 
+using mesos::internal::common::validation::validateSecret;
+
 using mesos::internal::slave::Slave;
 
 namespace mesos {
@@ -83,6 +85,65 @@ TEST(AgentValidationTest, ContainerID)
   containerId.mutable_parent()->set_value("redis");
   error = validation::container::validateContainerId(containerId);
   EXPECT_NONE(error);
+}
+
+
+// Tests that the common validation code for the
+// `Secret` message works as expected.
+TEST(AgentValidationTest, Secret)
+{
+  // Test a secret of VALUE type.
+  {
+    Secret secret;
+    secret.set_type(Secret::VALUE);
+
+    Option<Error> error = validateSecret(secret);
+    EXPECT_SOME(error);
+    EXPECT_EQ(
+        "Secret of type VALUE must have the 'value' field set",
+        error->message);
+
+    secret.mutable_value()->set_data("SECRET_VALUE");
+    secret.mutable_reference()->set_name("SECRET_NAME");
+
+    error = validateSecret(secret);
+    EXPECT_SOME(error);
+    EXPECT_EQ(
+        "Secret of type VALUE must not have the 'reference' field set",
+        error->message);
+
+    // Test the valid case.
+    secret.clear_reference();
+    error = validateSecret(secret);
+    EXPECT_NONE(error);
+  }
+
+  // Test a secret of REFERENCE type.
+  {
+    Secret secret;
+    secret.set_type(Secret::REFERENCE);
+
+    Option<Error> error = validateSecret(secret);
+    EXPECT_SOME(error);
+    EXPECT_EQ(
+        "Secret of type REFERENCE must have the 'reference' field set",
+        error->message);
+
+    secret.mutable_reference()->set_name("SECRET_NAME");
+    secret.mutable_value()->set_data("SECRET_VALUE");
+
+    error = validateSecret(secret);
+    EXPECT_SOME(error);
+    EXPECT_EQ(
+        "Secret 'SECRET_NAME' of type REFERENCE "
+        "must not have the 'value' field set",
+        error->message);
+
+    // Test the valid case.
+    secret.clear_value();
+    error = validateSecret(secret);
+    EXPECT_NONE(error);
+  }
 }
 
 

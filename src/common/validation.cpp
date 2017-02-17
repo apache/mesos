@@ -20,6 +20,7 @@
 #include <cctype>
 
 #include <stout/foreach.hpp>
+#include <stout/unreachable.hpp>
 
 #include <stout/os/constants.hpp>
 
@@ -77,6 +78,43 @@ Option<Error> validateSlaveID(const SlaveID& slaveId)
 Option<Error> validateFrameworkID(const FrameworkID& frameworkId)
 {
   return validateID(frameworkId.value());
+}
+
+
+Option<Error> validateSecret(const Secret& secret)
+{
+  switch (secret.type()) {
+    case Secret::REFERENCE:
+      if (!secret.has_reference()) {
+        return Error(
+            "Secret of type REFERENCE must have the 'reference' field set");
+      }
+
+      if (secret.has_value()) {
+        return Error(
+            "Secret '" + secret.reference().name() + "' of type REFERENCE "
+            "must not have the 'value' field set");
+      }
+      break;
+
+    case Secret::VALUE:
+      if (!secret.has_value()) {
+        return Error("Secret of type VALUE must have the 'value' field set");
+      }
+
+      if (secret.has_reference()) {
+        return Error(
+            "Secret of type VALUE must not have the 'reference' field set");
+      }
+      break;
+
+    case Secret::UNKNOWN:
+      break;
+
+    UNREACHABLE();
+  }
+
+  return None();
 }
 
 

@@ -41,6 +41,8 @@ Option<Error> validateSlaveID(const SlaveID& slaveId);
 
 Option<Error> validateFrameworkID(const FrameworkID& frameworkId);
 
+Option<Error> validateSecret(const Secret& secret);
+
 Option<Error> validateCommandInfo(const CommandInfo& command);
 
 } // namespace validation {
