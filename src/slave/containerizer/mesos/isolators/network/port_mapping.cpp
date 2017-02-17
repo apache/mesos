@@ -1587,35 +1587,44 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   Option<Bytes> egressRateLimitPerContainer;
   if (flags.egress_rate_limit_per_container.isSome()) {
     // Read host physical link speed from /sys/class/net/eth0/speed.
-    // This value is in MBits/s.
-    Try<string> value =
-      os::read(path::join("/sys/class/net", eth0.get(), "speed"));
+    // This value is in MBits/s. Some distribution does not support
+    // reading speed (depending on the driver). If that's the case,
+    // simply print warnings.
+    const string eth0SpeedPath =
+      path::join("/sys/class/net", eth0.get(), "speed");
 
-    if (value.isError()) {
-      return Error(
-          "Failed to read " +
-          path::join("/sys/class/net", eth0.get(), "speed") +
-          ": " + value.error());
-    }
+    if (!os::exists(eth0SpeedPath)) {
+      LOG(WARNING) << "Cannot determine link speed of " << eth0.get()
+                   << ": '" << eth0SpeedPath << "' does not exist";
+    } else {
+      Try<string> value = os::read(eth0SpeedPath);
+      if (value.isError()) {
+        return Error(
+            "Failed to read '" + eth0SpeedPath + "'"
+            ": " + value.error());
+      } else {
+        Try<uint64_t> hostLinkSpeed =
+          numify<uint64_t>(strings::trim(value.get()));
 
-    Try<uint64_t> hostLinkSpeed = numify<uint64_t>(strings::trim(value.get()));
-    CHECK_SOME(hostLinkSpeed);
+        CHECK_SOME(hostLinkSpeed);
 
-    // It could be possible that the nic driver doesn't support
-    // reporting physical link speed. In that case, report error.
-    if (hostLinkSpeed.get() == 0xFFFFFFFF) {
-      return Error(
-          "Network Isolator failed to determine link speed for " + eth0.get());
-    }
-
-    // Convert host link speed to Bytes/s for comparason.
-    if (hostLinkSpeed.get() * 1000000 / 8 <
-        flags.egress_rate_limit_per_container.get().bytes()) {
-      return Error(
-          "The given egress traffic limit for containers " +
-          stringify(flags.egress_rate_limit_per_container.get().bytes()) +
-          " Bytes/s is greater than the host link speed " +
-          stringify(hostLinkSpeed.get() * 1000000 / 8) + " Bytes/s");
+        // It could be possible that the nic driver doesn't support
+        // reporting physical link speed. In that case, report error.
+        if (hostLinkSpeed.get() == 0xFFFFFFFF) {
+          LOG(WARNING) << "Link speed reporting is not supported for '"
+                       << eth0.get() + "'";
+        } else {
+          // Convert host link speed to Bytes/s for comparason.
+          if (hostLinkSpeed.get() * 1000000 / 8 <
+              flags.egress_rate_limit_per_container.get().bytes()) {
+            return Error(
+                "The given egress traffic limit for containers " +
+                stringify(flags.egress_rate_limit_per_container.get().bytes()) +
+                " Bytes/s is greater than the host link speed " +
+                stringify(hostLinkSpeed.get() * 1000000 / 8) + " Bytes/s");
+          }
+        }
+      }
     }
 
     if (flags.egress_rate_limit_per_container.get() != Bytes(0)) {
