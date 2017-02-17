@@ -81,9 +81,8 @@ TEST_F(CheckTest, CheckInfoValidation)
     EXPECT_EQ("Command check must contain 'shell command'", validate->message);
   }
 
-  // Command check must specify a command with a valid environment. Currently,
-  // `Environment.Variable.Value` must be set, but this constraint will be
-  // removed in a future version.
+  // Command check must specify a command with a valid environment.
+  // Environment variable's `value` field must be set in this case.
   {
     CheckInfo checkInfo;
     checkInfo.set_type(CheckInfo::COMMAND);

@@ -43,6 +43,8 @@ Option<Error> validateFrameworkID(const FrameworkID& frameworkId);
 
 Option<Error> validateSecret(const Secret& secret);
 
+Option<Error> validateEnvironment(const Environment& environment);
+
 Option<Error> validateCommandInfo(const CommandInfo& command);
 
 } // namespace validation {

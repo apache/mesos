@@ -1018,10 +1018,11 @@ TEST_F(TaskValidationTest, ExecutorUsesInvalidFrameworkID)
 }
 
 
-// Verifies that an environment variable in `ExecutorInfo.command.environment`
-// without a value will be correctly rejected. This constraint will be removed
-// in a future version.
-TEST_F(TaskValidationTest, ExecutorEnvironmentVariableWithoutValue)
+// Verifies that an invalid `ExecutorInfo.command.environment` will be rejected.
+// This test ensures that the common validation code is being executed;
+// comprehensive tests for the `Environment` message can be found in the agent
+// validation tests.
+TEST_F(TaskValidationTest, ExecutorEnvironmentInvalid)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1036,7 +1037,6 @@ TEST_F(TaskValidationTest, ExecutorEnvironmentVariableWithoutValue)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  // Create an executor.
   ExecutorInfo executor;
   executor = DEFAULT_EXECUTOR_INFO;
   Environment::Variable* variable =
@@ -1057,8 +1057,8 @@ TEST_F(TaskValidationTest, ExecutorEnvironmentVariableWithoutValue)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(
-      "Executor's `CommandInfo` is invalid: "
-      "Environment variable 'ENV_VAR_KEY' must have a value set",
+      "Executor's `CommandInfo` is invalid: Environment variable 'ENV_VAR_KEY' "
+      "of type 'VALUE' must have a value set",
       status->message());
 
   // Make sure the task is not known to master anymore.
@@ -2022,10 +2022,11 @@ TEST_F(TaskValidationTest, KillPolicyGracePeriodIsNonNegative)
 }
 
 
-// This test verifies that a task containing an environment variable
-// with no value will be rejected correctly. Note that this constraint
-// will be removed in a future version.
-TEST_F(TaskValidationTest, TaskEnvironmentVariableWithoutValue)
+// Verifies that an invalid `TaskInfo.command.environment` will be rejected.
+// This test ensures that the common validation code is being executed;
+// comprehensive tests for the `Environment` message can be found in the agent
+// validation tests.
+TEST_F(TaskValidationTest, TaskEnvironmentInvalid)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -2066,8 +2067,8 @@ TEST_F(TaskValidationTest, TaskEnvironmentVariableWithoutValue)
   AWAIT_READY(status);
   EXPECT_EQ(TASK_ERROR, status.get().state());
   EXPECT_EQ(
-      "Task's `CommandInfo` is invalid: "
-      "Environment variable 'ENV_VAR_KEY' must have a value set",
+      "Task's `CommandInfo` is invalid: Environment variable 'ENV_VAR_KEY' "
+      "of type 'VALUE' must have a value set",
       status->message());
 
   driver.stop();
@@ -2843,11 +2844,11 @@ TEST_F(TaskGroupValidationTest, TaskUsesDifferentExecutor)
 }
 
 
-// Ensures that a task group which specifies an invalid environment in
-// `ExecutorInfo` will be correctly rejected. Currently,
-// `Environment.Variable.Value` must be set, but this constraint will be removed
-// in a future version.
-TEST_F(TaskGroupValidationTest, ExecutorEnvironmentVariableWithoutValue)
+// Verifies that a task group which specifies an invalid environment in
+// `ExecutorInfo` will be rejected. This test ensures that the common validation
+// code is being executed; comprehensive tests for the `Environment` message can
+// be found in the agent validation tests.
+TEST_F(TaskGroupValidationTest, ExecutorEnvironmentInvalid)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -2919,16 +2920,16 @@ TEST_F(TaskGroupValidationTest, ExecutorEnvironmentVariableWithoutValue)
   EXPECT_EQ(TASK_ERROR, task1Status->state());
   EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task1Status->reason());
   EXPECT_EQ(
-      "Executor's `CommandInfo` is invalid: "
-      "Environment variable 'ENV_VAR_KEY' must have a value set",
+      "Executor's `CommandInfo` is invalid: Environment variable 'ENV_VAR_KEY' "
+      "of type 'VALUE' must have a value set",
       task1Status->message());
 
   AWAIT_READY(task2Status);
   EXPECT_EQ(TASK_ERROR, task2Status->state());
   EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task2Status->reason());
   EXPECT_EQ(
-      "Executor's `CommandInfo` is invalid: "
-      "Environment variable 'ENV_VAR_KEY' must have a value set",
+      "Executor's `CommandInfo` is invalid: Environment variable 'ENV_VAR_KEY' "
+      "of type 'VALUE' must have a value set",
       task2Status->message());
 
   // Make sure the tasks are not known to master anymore.
@@ -2947,11 +2948,11 @@ TEST_F(TaskGroupValidationTest, ExecutorEnvironmentVariableWithoutValue)
 }
 
 
-// Ensures that a task group which specifies an invalid environment in
-// `TaskGroupInfo` will be correctly rejected. Currently,
-// `Environment.Variable.Value` must be set, but this constraint will be removed
-// in a future version.
-TEST_F(TaskGroupValidationTest, TaskEnvironmentVariableWithoutValue)
+// Verifies that a task group which specifies an invalid environment in
+// `TaskGroupInfo` will be rejected. This test ensures that the common
+// validation code is being executed; comprehensive tests for the `Environment`
+// message can be found in the agent validation tests.
+TEST_F(TaskGroupValidationTest, TaskEnvironmentInvalid)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -3025,7 +3026,7 @@ TEST_F(TaskGroupValidationTest, TaskEnvironmentVariableWithoutValue)
   EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task1Status->reason());
   EXPECT_EQ(
       "Task '1' is invalid: Task's `CommandInfo` is invalid: Environment "
-      "variable 'ENV_VAR_KEY' must have a value set",
+      "variable 'ENV_VAR_KEY' of type 'VALUE' must have a value set",
       task1Status->message());
 
   AWAIT_READY(task2Status);
@@ -3033,7 +3034,7 @@ TEST_F(TaskGroupValidationTest, TaskEnvironmentVariableWithoutValue)
   EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task2Status->reason());
   EXPECT_EQ(
       "Task '1' is invalid: Task's `CommandInfo` is invalid: Environment "
-      "variable 'ENV_VAR_KEY' must have a value set",
+      "variable 'ENV_VAR_KEY' of type 'VALUE' must have a value set",
       task2Status->message());
 
   // Allow status updates to arrive.

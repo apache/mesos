@@ -1897,15 +1897,29 @@ message Filters {
 /**
 * Describes a collection of environment variables. This is used with
 * CommandInfo in order to set environment variables before running a
-* command.
+* command. The contents of each variable may be specified as a string
+* or a Secret; only one of `value` and `secret` must be set.
 */
 message Environment {
   message Variable {
     required string name = 1;
-    // NOTE: The `value` field was made optional in Mesos 1.2 but it
-    // is currently enforced to be set. This constraint will be
-    // removed in a future version.
+
+    enum Type {
+      UNKNOWN = 0;
+      VALUE = 1;
+      SECRET = 2;
+    }
+
+    // In Mesos 1.2, the `Environment.variables.value` message was made
+    // optional. The default type for `Environment.variables.type` is now VALUE,
+    // which requires `value` to be set, maintaining backward compatibility.
+    //
+    // TODO(greggomann): The default can be removed in Mesos 2.1 (MESOS-7134).
+    optional Type type = 3 [default = VALUE];
+
+    // Only one of `value` and `secret` must be set.
     optional string value = 2;
+    optional Secret secret = 4;
   }
 
   repeated Variable variables = 1;

@@ -231,8 +231,7 @@ TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
   }
 
   // Command health check must specify a command with a valid environment.
-  // Currently, `Environment.Variable.Value` must be set, but this constraint
-  // will be removed in a future version.
+  // Environment variable's `value` field must be set in this case.
   {
     HealthCheck healthCheckProto;
     healthCheckProto.set_type(HealthCheck::COMMAND);

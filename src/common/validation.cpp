@@ -118,23 +118,72 @@ Option<Error> validateSecret(const Secret& secret)
 }
 
 
-// TODO(greggomann): Do more than just validate the `Environment`.
-Option<Error> validateCommandInfo(const CommandInfo& command)
+Option<Error> validateEnvironment(const Environment& environment)
 {
-  // In Mesos 1.2, the `Environment.Variable.Value` message was made
-  // optional, but it is currently required to be set for backward
-  // compatibility. This constraint will be removed in a future
-  // version.
-  foreach (const Environment::Variable& variable,
-           command.environment().variables()) {
-    if (!variable.has_value()) {
-      return Error(
-          "Environment variable '" + variable.name() +
-          "' must have a value set");
+  foreach (const Environment::Variable& variable, environment.variables()) {
+    switch (variable.type()) {
+      case Environment::Variable::SECRET: {
+        if (!variable.has_secret()) {
+          return Error(
+              "Environment variable '" + variable.name() +
+              "' of type 'SECRET' must have a secret set");
+        }
+
+        if (variable.has_value()) {
+          return Error(
+              "Environment variable '" + variable.name() +
+              "' of type 'SECRET' must not have a value set");
+        }
+
+        Option<Error> error = validateSecret(variable.secret());
+        if (error.isSome()) {
+          return Error(
+              "Environment variable '" + variable.name() + "' specifies an "
+              "invalid secret: " + error->message);
+        }
+
+        if (variable.secret().value().data().find('\0') != string::npos) {
+            return Error(
+                "Environment variable '" + variable.name() + "' specifies a "
+                "secret containing null bytes, which is not allowed in the "
+                "environment");
+        }
+        break;
+      }
+
+      // NOTE: If new variable types are added in the future and an upgraded
+      // client/master sends a new type to an older master/agent, the older
+      // master/agent will see VALUE instead of the new type, since VALUE is set
+      // as the default type in the protobuf definition.
+      case Environment::Variable::VALUE:
+        if (!variable.has_value()) {
+          return Error(
+              "Environment variable '" + variable.name() +
+              "' of type 'VALUE' must have a value set");
+        }
+
+        if (variable.has_secret()) {
+          return Error(
+              "Environment variable '" + variable.name() +
+              "' of type 'VALUE' must not have a secret set");
+        }
+        break;
+
+      case Environment::Variable::UNKNOWN:
+          return Error("Environment variable of type 'UNKNOWN' is not allowed");
+
+      UNREACHABLE();
     }
   }
 
   return None();
+}
+
+
+// TODO(greggomann): Do more than just validate the `Environment`.
+Option<Error> validateCommandInfo(const CommandInfo& command)
+{
+  return validateEnvironment(command.environment());
 }
 
 } // namespace validation {
