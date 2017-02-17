@@ -1904,6 +1904,12 @@ void Slave::_run(
     return;
   }
 
+  auto unallocated = [](const Resources& resources) {
+    Resources result = resources;
+    result.unallocate();
+    return result;
+  };
+
   // NOTE: If the task/task group or executor uses resources that are
   // checkpointed on the slave (e.g. persistent volumes), we should
   // already know about it. If the slave doesn't know about them (e.g.
@@ -1913,12 +1919,6 @@ void Slave::_run(
   // out of order.
   bool kill = false;
   foreach (const TaskInfo& _task, tasks) {
-    auto unallocated = [](const Resources& resources) {
-      Resources result = resources;
-      result.unallocate();
-      return result;
-    };
-
     // We must unallocate the resources to check whether they are
     // contained in the unallocated total checkpointed resources.
     Resources checkpointedTaskResources =
@@ -1971,8 +1971,11 @@ void Slave::_run(
   }
 
   CHECK_EQ(kill, false);
+
+  // Refer to the comment above when looping across tasks on
+  // why we need to unallocate resources.
   Resources checkpointedExecutorResources =
-    Resources(executorInfo.resources()).filter(needCheckpointing);
+    unallocated(executorInfo.resources()).filter(needCheckpointing);
 
   foreach (const Resource& resource, checkpointedExecutorResources) {
     if (!checkpointedResources.contains(resource)) {
