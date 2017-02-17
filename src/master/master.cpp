@@ -4007,7 +4007,7 @@ void Master::_accept(
 
         const TaskStatus::Reason reason =
             slave == nullptr ? TaskStatus::REASON_SLAVE_REMOVED
-                          : TaskStatus::REASON_SLAVE_DISCONNECTED;
+                             : TaskStatus::REASON_SLAVE_DISCONNECTED;
         const StatusUpdate& update = protobuf::createStatusUpdate(
             framework->id(),
             task.slave_id(),
