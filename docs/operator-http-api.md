@@ -296,12 +296,12 @@ Content-Type: application/json
 Accept: application/json
 
 {
+  "type": "GET_METRICS",
   "get_metrics": {
     "timeout": {
       "nanoseconds": 5000000000
     }
-  },
-  "type": "GET_METRICS"
+  }
 }
 
 
@@ -2333,7 +2333,7 @@ SUBSCRIBE Request (JSON):
 
 POST /api/v1  HTTP/1.1
 
-Host: agenthost:5051
+Host: masterhost:5050
 Content-Type: application/json
 Accept: application/json
 
@@ -2997,8 +2997,7 @@ Content-Type: application/json
 
 ### GET_FRAMEWORKS
 
-This call retrieves information about all the frameworks known to the agent at the current
-time.
+This call retrieves information about all the frameworks known to the agent.
 
 ```
 GET_FRAMEWORKS HTTP Request (JSON):
@@ -3046,8 +3045,7 @@ Content-Type: application/json
 
 ### GET_EXECUTORS
 
-This call retrieves information about all the executors known to the agent at the
-current time.
+This call retrieves information about all the executors known to the agent.
 
 ```
 GET_EXECUTORS HTTP Request (JSON):
@@ -3131,7 +3129,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-
+ “type”: "GET_TASKS"
 }
 
 
