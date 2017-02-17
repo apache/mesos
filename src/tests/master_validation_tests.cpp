@@ -121,7 +121,10 @@ TEST_F(ResourceValidationTest, RevocableDynamicReservation)
 
   Option<Error> error = resource::validate(CreateResources(resource));
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message, "cannot be created from revocable resources"));
 }
 
 
@@ -132,7 +135,9 @@ TEST_F(ResourceValidationTest, InvalidRoleReservationPair)
 
   Option<Error> error = resource::validate(CreateResources(resource));
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(error->message, "cannot be dynamically reserved"));
 }
 
 
@@ -154,7 +159,11 @@ TEST_F(ResourceValidationTest, UnreservedDiskInfo)
 
   Option<Error> error = resource::validate(CreateResources(volume));
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "Persistent volumes cannot be created from unreserved resources"));
 }
 
 
@@ -165,7 +174,12 @@ TEST_F(ResourceValidationTest, InvalidPersistenceID)
 
   Option<Error> error = resource::validate(CreateResources(volume));
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "Invalid persistence ID for persistent volume: 'id1/' contains "
+          "invalid characters"));
 }
 
 
@@ -176,7 +190,11 @@ TEST_F(ResourceValidationTest, PersistentVolumeWithoutVolumeInfo)
 
   Option<Error> error = resource::validate(CreateResources(volume));
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "Expecting 'volume' to be set for persistent volume"));
 }
 
 
@@ -188,7 +206,11 @@ TEST_F(ResourceValidationTest, PersistentVolumeWithHostPath)
 
   Option<Error> error = resource::validate(CreateResources(volume));
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "Expecting 'host_path' to be unset for persistent volume"));
 }
 
 
@@ -199,7 +221,9 @@ TEST_F(ResourceValidationTest, NonPersistentVolume)
 
   Option<Error> error = resource::validate(CreateResources(volume));
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(error->message, "Non-persistent volume not supported"));
 }
 
 
@@ -211,7 +235,11 @@ TEST_F(ResourceValidationTest, RevocablePersistentVolume)
 
   Option<Error> error = resource::validate(CreateResources(volume));
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "Persistent volumes cannot be created from revocable resources"));
 }
 
 
@@ -222,7 +250,10 @@ TEST_F(ResourceValidationTest, UnshareableResource)
 
   Option<Error> error = resource::validate(CreateResources(volume));
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message, "Only persistent volumes can be shared"));
 }
 
 
@@ -258,7 +289,13 @@ TEST_F(ReserveOperationValidationTest, MatchingRole)
   Option<Error> error =
     operation::validate(reserve, "principal", frameworkInfo);
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "A reserve operation was attempted for a resource allocated "
+          "to role 'resourceRole', but the framework only has roles "
+          "'{ frameworkRole }'"));
 
   // Now verify with a MULTI_ROLE framework.
   frameworkInfo.clear_role();
@@ -269,7 +306,15 @@ TEST_F(ReserveOperationValidationTest, MatchingRole)
 
   error = operation::validate(reserve, "principal", frameworkInfo);
 
-  EXPECT_SOME(error);
+  // We expect an error due to the framework not having the role of the reserved
+  // resource. We only check part of the error message here as internally the
+  // list of the framework's roles does not have a particular order.
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "A reserve operation was attempted for a resource allocated to "
+          "role 'resourceRole', but the framework only has roles "));
 }
 
 
@@ -290,7 +335,13 @@ TEST_F(ReserveOperationValidationTest, DisallowReservingToStar)
   Option<Error> error =
     operation::validate(reserve, "principal", frameworkInfo);
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "Invalid resources: Invalid resources: Resource 'cpus(*, "
+          "principal):8' is invalid: Invalid reservation: role \"*\" cannot be "
+          "dynamically reserved"));
 
   // Now verify with a MULTI_ROLE framework.
   frameworkInfo.clear_role();
@@ -301,7 +352,12 @@ TEST_F(ReserveOperationValidationTest, DisallowReservingToStar)
 
   error = operation::validate(reserve, "principal", frameworkInfo);
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "Resource 'cpus(*, principal):8' is invalid: Invalid reservation: "
+          "role \"*\" cannot be dynamically reserved"));
 }
 
 
@@ -343,7 +399,13 @@ TEST_F(ReserveOperationValidationTest, NonMatchingPrincipal)
   Option<Error> error =
     operation::validate(reserve, "principal1", frameworkInfo);
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "A reserve operation was attempted by principal 'principal1', but "
+          "there is a reserved resource in the request with principal "
+          "'principal2' set in `ReservationInfo`"));
 }
 
 
@@ -365,7 +427,13 @@ TEST_F(ReserveOperationValidationTest, ReservationInfoMissingPrincipal)
   Option<Error> error =
     operation::validate(reserve, "principal", frameworkInfo);
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "A reserve operation was attempted by principal 'principal', but "
+          "there is a reserved resource in the request with no principal set "
+          "in `ReservationInfo`"));
 }
 
 
@@ -384,7 +452,8 @@ TEST_F(ReserveOperationValidationTest, StaticReservation)
   Option<Error> error =
     operation::validate(reserve, "principal", frameworkInfo);
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(error->message, "is not dynamically reserved"));
 }
 
 
@@ -412,7 +481,8 @@ TEST_F(ReserveOperationValidationTest, NoPersistentVolumes)
   Option<Error> error =
     operation::validate(reserve, "principal", frameworkInfo);
 
-  EXPECT_SOME(error);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(error->message, "is not dynamically reserved"));
 }
 
 
