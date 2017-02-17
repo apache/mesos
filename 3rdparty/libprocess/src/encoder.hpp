@@ -251,7 +251,7 @@ public:
     // the file.  The `struct stat` returns the size in `off_t` form,
     // meaning that it is a programmer error to construct the `FileEncoder`
     // with a size greater the max value of `off_t`.
-    CHECK_LE(_size, std::numeric_limits<off_t>::max());
+    CHECK_LE(_size, static_cast<size_t>(std::numeric_limits<off_t>::max()));
   }
 
   virtual ~FileEncoder()
