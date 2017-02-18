@@ -125,6 +125,13 @@ add_dependencies(${MESOS_PROTOBUF_TARGET} ${PROTOBUF_TARGET})
 
 target_link_libraries(${MESOS_PROTOBUF_TARGET} ${PROTOBUF_LFLAG})
 
+if (WIN32)
+  # Disable all compiler warnings on Protocol Buffers source.
+  set_target_properties(
+    ${MESOS_PROTOBUF_TARGET}
+    PROPERTIES COMPILE_FLAGS "/w")
+endif (WIN32)
+
 
 # Configure Mesos files.
 ########################
