@@ -154,13 +154,7 @@ public:
 
     CHECK(task.container().type() == ContainerInfo::DOCKER);
 
-    // We're adding task and executor resources to launch docker since
-    // the DockerContainerizer updates the container cgroup limits
-    // directly and it expects it to be the sum of both task and
-    // executor resources. This does leave to a bit of unaccounted
-    // resources for running this executor, but we are assuming
-    // this is just a very small amount of overcommit.
-    run = docker->run(
+    Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
         task.container(),
         task.command(),
         containerName,
@@ -168,7 +162,30 @@ public:
         mappedDirectory,
         task.resources() + task.executor().resources(),
         taskEnvironment,
-        None(), // No extra devices.
+        None() // No extra devices.
+    );
+
+    if (runOptions.isError()) {
+      TaskStatus status;
+      status.mutable_task_id()->CopyFrom(task.task_id());
+      status.set_state(TASK_FAILED);
+      status.set_message(
+        "Failed to create docker run options: " + runOptions.error());
+
+      driver->sendStatusUpdate(status);
+
+      _stop();
+      return;
+    }
+
+    // We're adding task and executor resources to launch docker since
+    // the DockerContainerizer updates the container cgroup limits
+    // directly and it expects it to be the sum of both task and
+    // executor resources. This does leave to a bit of unaccounted
+    // resources for running this executor, but we are assuming
+    // this is just a very small amount of overcommit.
+    run = docker->run(
+        runOptions.get(),
         Subprocess::FD(STDOUT_FILENO),
         Subprocess::FD(STDERR_FILENO));
 
@@ -454,6 +471,11 @@ private:
     CHECK_SOME(driver);
     driver.get()->sendStatusUpdate(taskStatus);
 
+    _stop();
+  }
+
+  void _stop()
+  {
     // A hack for now ... but we need to wait until the status update
     // is sent to the slave before we shut ourselves down.
     // TODO(tnachen): Remove this hack and also the same hack in the

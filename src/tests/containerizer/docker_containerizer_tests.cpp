@@ -1186,7 +1186,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
   CommandInfo commandInfo;
   commandInfo.set_value("sleep 1000");
 
-  docker->run(
+  Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
       containerInfo,
       commandInfo,
       container1,
@@ -1194,14 +1194,21 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
       flags.sandbox_directory,
       resources);
 
-  Future<Option<int>> orphanRun =
-    docker->run(
-        containerInfo,
-        commandInfo,
-        container2,
-        flags.work_dir,
-        flags.sandbox_directory,
-        resources);
+  ASSERT_SOME(runOptions);
+
+  docker->run(runOptions.get());
+
+  Try<Docker::RunOptions> orphanOptions = Docker::RunOptions::create(
+      containerInfo,
+      commandInfo,
+      container2,
+      flags.work_dir,
+      flags.sandbox_directory,
+      resources);
+
+  ASSERT_SOME(orphanOptions);
+
+  Future<Option<int>> orphanRun = docker->run(orphanOptions.get());
 
   ASSERT_TRUE(
     exists(docker, slaveId, containerId, ContainerState::RUNNING));
@@ -1319,7 +1326,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
   CommandInfo commandInfo;
   commandInfo.set_value("sleep 1000");
 
-  docker->run(
+  Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
       containerInfo,
       commandInfo,
       container1,
@@ -1327,14 +1334,21 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
       flags.sandbox_directory,
       resources);
 
-  Future<Option<int>> orphanRun =
-    docker->run(
-        containerInfo,
-        commandInfo,
-        container2,
-        flags.work_dir,
-        flags.sandbox_directory,
-        resources);
+  ASSERT_SOME(runOptions);
+
+  docker->run(runOptions.get());
+
+  Try<Docker::RunOptions> orphanOptions = Docker::RunOptions::create(
+      containerInfo,
+      commandInfo,
+      container2,
+      flags.work_dir,
+      flags.sandbox_directory,
+      resources);
+
+  ASSERT_SOME(orphanOptions);
+
+  Future<Option<int>> orphanRun = docker->run(orphanOptions.get());
 
   ASSERT_TRUE(
     exists(docker, slaveId, containerId, ContainerState::RUNNING));
@@ -1501,14 +1515,15 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverMalformedUUID)
   CommandInfo commandInfo;
   commandInfo.set_value("sleep 1000");
 
-  Future<Option<int>> run =
-    docker->run(
-        containerInfo,
-        commandInfo,
-        container,
-        flags.work_dir,
-        flags.sandbox_directory,
-        resources);
+  Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
+      containerInfo,
+      commandInfo,
+      container,
+      flags.work_dir,
+      flags.sandbox_directory,
+      resources);
+
+  Future<Option<int>> run = docker->run(runOptions.get());
 
   ASSERT_TRUE(
     exists(docker, slaveId, containerId, ContainerState::RUNNING));
@@ -3802,7 +3817,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
                            Invoke((MockDocker*) docker.get(),
                                   &MockDocker::_inspect)));
 
-  EXPECT_CALL(*mockDocker, run(_, _, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*mockDocker, run(_, _, _))
     .WillOnce(Return(Failure("Run failed")));
 
   Owned<MasterDetector> detector = master.get()->createDetector();

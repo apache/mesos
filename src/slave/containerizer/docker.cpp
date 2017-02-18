@@ -1322,10 +1322,7 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
         self(),
         [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
           -> Future<Docker::Container> {
-    // Start the executor in a Docker container.
-    // This executor could either be a custom executor specified by an
-    // ExecutorInfo, or the docker executor.
-    Future<Option<int>> run = docker->run(
+    Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
         container->container,
         container->command,
         containerName,
@@ -1333,7 +1330,18 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
         flags.sandbox_directory,
         container->resources,
         container->environment,
-        None(), // No extra devices.
+        None() // No extra devices.
+    );
+
+    if (runOptions.isError()) {
+      return Failure(runOptions.error());
+    }
+
+    // Start the executor in a Docker container.
+    // This executor could either be a custom executor specified by an
+    // ExecutorInfo, or the docker executor.
+    Future<Option<int>> run = docker->run(
+        runOptions.get(),
         subprocessInfo.out,
         subprocessInfo.err);
 
