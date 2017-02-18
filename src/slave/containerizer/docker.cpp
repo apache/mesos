@@ -253,6 +253,10 @@ docker::Flags dockerFlags(
     dockerFlags.task_environment = string(jsonify(taskEnvironment.get()));
   }
 
+#ifdef __linux__
+  dockerFlags.cgroups_enable_cfs = flags.cgroups_enable_cfs,
+#endif
+
   // TODO(alexr): Remove this after the deprecation cycle (started in 1.0).
   dockerFlags.stop_timeout = flags.docker_stop_timeout;
 
@@ -1329,6 +1333,11 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
         container->directory,
         flags.sandbox_directory,
         container->resources,
+#ifdef __linux__
+        flags.cgroups_enable_cfs,
+#else
+        false,
+#endif
         container->environment,
         None() // No extra devices.
     );

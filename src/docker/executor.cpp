@@ -86,7 +86,8 @@ public:
       const string& mappedDirectory,
       const Duration& shutdownGracePeriod,
       const string& launcherDir,
-      const map<string, string>& taskEnvironment)
+      const map<string, string>& taskEnvironment,
+      bool cgroupsEnableCfs)
     : ProcessBase(ID::generate("docker-executor")),
       killed(false),
       killedByHealthCheck(false),
@@ -98,6 +99,7 @@ public:
       mappedDirectory(mappedDirectory),
       shutdownGracePeriod(shutdownGracePeriod),
       taskEnvironment(taskEnvironment),
+      cgroupsEnableCfs(cgroupsEnableCfs),
       stop(Nothing()),
       inspect(Nothing()) {}
 
@@ -161,6 +163,7 @@ public:
         sandboxDirectory,
         mappedDirectory,
         task.resources() + task.executor().resources(),
+        cgroupsEnableCfs,
         taskEnvironment,
         None() // No extra devices.
     );
@@ -579,6 +582,7 @@ private:
   string mappedDirectory;
   Duration shutdownGracePeriod;
   map<string, string> taskEnvironment;
+  bool cgroupsEnableCfs;
 
   Option<KillPolicy> killPolicy;
   Option<Future<Option<int>>> run;
@@ -603,7 +607,8 @@ public:
       const string& mappedDirectory,
       const Duration& shutdownGracePeriod,
       const string& launcherDir,
-      const map<string, string>& taskEnvironment)
+      const map<string, string>& taskEnvironment,
+      bool cgroupsEnableCfs)
   {
     process = Owned<DockerExecutorProcess>(new DockerExecutorProcess(
         docker,
@@ -612,7 +617,8 @@ public:
         mappedDirectory,
         shutdownGracePeriod,
         launcherDir,
-        taskEnvironment));
+        taskEnvironment,
+        cgroupsEnableCfs));
 
     spawn(process.get());
   }
@@ -826,7 +832,8 @@ int main(int argc, char** argv)
           flags.mapped_directory.get(),
           shutdownGracePeriod,
           flags.launcher_dir.get(),
-          taskEnvironment));
+          taskEnvironment,
+          flags.cgroups_enable_cfs));
 
   Owned<mesos::MesosExecutorDriver> driver(
       new mesos::MesosExecutorDriver(executor.get()));

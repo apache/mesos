@@ -502,6 +502,7 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
     const string& sandboxDirectory,
     const string& mappedDirectory,
     const Option<Resources>& resources,
+    bool enableCfsQuota,
     const Option<map<string, string>>& env,
     const Option<vector<Device>>& devices)
 {
@@ -520,6 +521,13 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
     if (cpus.isSome()) {
       options.cpuShares =
         std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
+
+      if (enableCfsQuota) {
+        const Duration quota =
+          std::max(CPU_CFS_PERIOD * cpus.get(), MIN_CPU_CFS_QUOTA);
+
+        options.cpuQuota = quota.us();
+      }
     }
 
     Option<Bytes> mem = resources.get().mem();
@@ -784,6 +792,11 @@ Future<Option<int>> Docker::run(
   if (options.cpuShares.isSome()) {
     argv.push_back("--cpu-shares");
     argv.push_back(stringify(options.cpuShares.get()));
+  }
+
+  if (options.cpuQuota.isSome()) {
+    argv.push_back("--cpu-quota");
+    argv.push_back(stringify(options.cpuQuota.get()));
   }
 
   if (options.memory.isSome()) {

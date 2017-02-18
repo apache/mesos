@@ -161,6 +161,7 @@ public:
         const std::string& sandboxDirectory,
         const std::string& mappedDirectory,
         const Option<mesos::Resources>& resources = None(),
+        bool enableCfsQuota = false,
         const Option<std::map<std::string, std::string>>& env = None(),
         const Option<std::vector<Device>>& devices = None());
 
@@ -169,6 +170,9 @@ public:
 
     // "--cpu-shares" option.
     Option<uint64_t> cpuShares;
+
+    // "--cpu-quota" option.
+    Option<uint64_t> cpuQuota;
 
     // "--memory" option.
     Option<Bytes> memory;
