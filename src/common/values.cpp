@@ -73,7 +73,8 @@ ostream& operator<<(ostream& stream, const Value::Scalar& scalar)
 {
   // Output the scalar's full significant digits and save the old
   // precision.
-  long precision = stream.precision(std::numeric_limits<double>::digits10);
+  std::streamsize precision =
+    stream.precision(std::numeric_limits<double>::digits10);
 
   // We discard any additional precision (of the fractional part)
   // from scalar resources before writing them to an ostream. This
@@ -609,12 +610,11 @@ Try<Value> parse(const string& text)
       for (size_t i = 0; i < tokens.size(); i += 2) {
         Value::Range* range = ranges->add_range();
 
-        int j = i;
-        Try<uint64_t> begin = numify<uint64_t>(tokens[j++]);
-        Try<uint64_t> end = numify<uint64_t>(tokens[j++]);
+        Try<uint64_t> begin = numify<uint64_t>(tokens[i]);
+        Try<uint64_t> end = numify<uint64_t>(tokens[i + 1]);
         if (begin.isError() || end.isError()) {
           return Error(
-              "Expecting non-negative integers in '" + tokens[j - 1] + "'");
+              "Expecting non-negative integers in '" + tokens[i] + "'");
         }
 
         range->set_begin(begin.get());
