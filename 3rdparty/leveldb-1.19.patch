@@ -1,3 +1,16 @@
+diff --git a/Makefile b/Makefile
+index 07a5a1e..089da7c 100644
+--- a/Makefile
++++ b/Makefile
+@@ -138,7 +138,7 @@ $(SHARED_OUTDIR)/$(SHARED_LIB3): $(SHARED_LIBOBJECTS)
+ 
+ endif  # PLATFORM_SHARED_EXT
+ 
+-all: $(SHARED_LIBS) $(SHARED_PROGRAMS) $(STATIC_OUTDIR)/libleveldb.a $(STATIC_OUTDIR)/libmemenv.a $(STATIC_PROGRAMS)
++all: $(STATIC_OUTDIR)/libleveldb.a
+ 
+ check: $(STATIC_PROGRAMS)
+ 	for t in $(notdir $(TESTS)); do echo "***** Running $$t"; $(STATIC_OUTDIR)/$$t || exit 1; done
 diff --git a/build_detect_platform b/build_detect_platform
 index bb76c4f..c403e91 100755
 --- a/build_detect_platform
