@@ -31,7 +31,7 @@ def _create_module(module_name):
     ext_common_dir = os.path.join(
         'src', 'python', 'native_common')
 
-    leveldb = os.path.join('3rdparty', 'leveldb-1.4')
+    leveldb = os.path.join('3rdparty', 'leveldb-1.19')
     zookeeper = os.path.join('3rdparty', 'zookeeper-3.4.8', 'src', 'c')
     libprocess = os.path.join('3rdparty', 'libprocess')
 
@@ -74,7 +74,7 @@ def _create_module(module_name):
     # For leveldb, we need to check for the presence of libleveldb.a, since
     # it is possible to disable leveldb inside mesos.
     libglog = os.path.join(abs_top_builddir, glog, '.libs', 'libglog.a')
-    libleveldb = os.path.join(abs_top_builddir, leveldb, 'libleveldb.a')
+    libleveldb = os.path.join(abs_top_builddir, leveldb, 'out-static', 'libleveldb.a')
     libzookeeper = os.path.join(
         abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a')
     libprotobuf = os.path.join(

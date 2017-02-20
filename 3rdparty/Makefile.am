@@ -296,11 +296,11 @@ BUILT_SOURCES += $(nodist_libgmock_la_SOURCES)
 if WITH_BUNDLED_LEVELDB
 # TODO(charles): Figure out PIC options in our configure.ac or create
 # a configure.ac for leveldb.
-$(LEVELDB)/libleveldb.a: $(LEVELDB)-stamp
+$(LEVELDB)/out-static/libleveldb.a: $(LEVELDB)-stamp
 	cd $(LEVELDB) && \
 	  $(MAKE) $(AM_MAKEFLAGS) CC="$(CC)" CXX="$(CXX)" OPT="$(CXXFLAGS) -fPIC"
 
-ALL_LOCAL += $(LEVELDB)/libleveldb.a
+ALL_LOCAL += $(LEVELDB)/out-static/libleveldb.a
 endif
 
 if WITH_BUNDLED_ZOOKEEPER

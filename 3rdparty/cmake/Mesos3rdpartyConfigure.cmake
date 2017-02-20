@@ -47,7 +47,7 @@ endif (NOT WIN32)
 # Convenience variables for "lflags", the symbols we pass to CMake to generate
 # things like `-L/path/to/glog` or `-lglog`.
 if (NOT WIN32)
-  set(LEVELDB_LFLAG   ${LEVELDB_ROOT}/libleveldb.a)
+  set(LEVELDB_LFLAG   ${LEVELDB_ROOT}/out-static/libleveldb.a)
   set(ZOOKEEPER_LFLAG ${ZOOKEEPER_LIB}/lib/libzookeeper_mt.a)
 else (NOT WIN32)
   set(ZOOKEEPER_LFLAG zookeeper)

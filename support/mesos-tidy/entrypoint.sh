@@ -45,7 +45,7 @@ cmake --build 3rdparty --target http_parser-2.6.2 -- -j $(nproc)
 cmake --build 3rdparty --target libev-4.22 -- -j $(nproc) || true
 cmake --build 3rdparty --target libevent-2.1.5-beta -- -j $(nproc) || true
 
-cmake --build 3rdparty --target leveldb-1.4 -- -j $(nproc)
+cmake --build 3rdparty --target leveldb-1.19 -- -j $(nproc)
 cmake --build 3rdparty --target nvml-352.79 -- -j $(nproc)
 cmake --build 3rdparty --target picojson-1.3.0 -- -j $(nproc)
 cmake --build 3rdparty --target protobuf-2.6.1 -- -j $(nproc)

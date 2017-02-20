@@ -171,7 +171,7 @@ MESOS_CPPFLAGS += -I../$(LEVELDB)/include
 # the installed libmesos.la file to include leveldb in
 # 'dependency_libs' (via '-L../3rdparty/leveldb -lleveldb').
 
-LIB_LEVELDB = ../$(LEVELDB)/libleveldb.a
+LIB_LEVELDB = ../$(LEVELDB)/out-static/libleveldb.a
 else
 LIB_LEVELDB = -lleveldb
 LDADD += -lleveldb
