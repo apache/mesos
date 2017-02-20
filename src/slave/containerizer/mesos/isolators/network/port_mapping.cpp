@@ -1599,9 +1599,12 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     } else {
       Try<string> value = os::read(eth0SpeedPath);
       if (value.isError()) {
-        return Error(
-            "Failed to read '" + eth0SpeedPath + "'"
-            ": " + value.error());
+        // NOTE: Even if the speed file exists, the read might fail if
+        // the driver does not support reading the speed. Therefore,
+        // we print a warning here, instead of failing.
+        LOG(WARNING) << "Cannot determine link speed of " << eth0.get()
+                     << ": Failed to read '" << eth0SpeedPath
+                     << "': " << value.error();
       } else {
         Try<uint64_t> hostLinkSpeed =
           numify<uint64_t>(strings::trim(value.get()));
