@@ -19,6 +19,8 @@
 
 #include <stdint.h>
 
+#include <mesos/mesos.hpp>
+
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 
@@ -148,6 +150,9 @@ Duration DEFAULT_MASTER_PING_TIMEOUT();
 
 // Name of the executable for default executor.
 constexpr char MESOS_DEFAULT_EXECUTOR[] = "mesos-default-executor";
+
+constexpr SlaveInfo::Capability::Type MESOS_AGENT_CAPABILITIES[] =
+  {SlaveInfo::Capability::MULTI_ROLE};
 
 } // namespace slave {
 } // namespace internal {

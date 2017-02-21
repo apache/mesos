@@ -1388,8 +1388,11 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     // Registering for the first time.
     RegisterSlaveMessage message;
     message.set_version(MESOS_VERSION);
-    message.add_agent_capabilities()->set_type(
-        SlaveInfo::Capability::MULTI_ROLE);
+
+    foreach (const SlaveInfo::Capability::Type& capability,
+             MESOS_AGENT_CAPABILITIES) {
+      message.add_agent_capabilities()->set_type(capability);
+    }
 
     message.mutable_slave()->CopyFrom(info);
 
@@ -1401,8 +1404,11 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     // Re-registering, so send tasks running.
     ReregisterSlaveMessage message;
     message.set_version(MESOS_VERSION);
-    message.add_agent_capabilities()->set_type(
-        SlaveInfo::Capability::MULTI_ROLE);
+
+    foreach (const SlaveInfo::Capability::Type& capability,
+             MESOS_AGENT_CAPABILITIES) {
+      message.add_agent_capabilities()->set_type(capability);
+    }
 
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources);
