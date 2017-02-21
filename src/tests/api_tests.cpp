@@ -4126,6 +4126,109 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, LaunchNestedContainerSession)
 }
 
 
+// This tests verifies that unauthorized principals are unable to
+// launch nested container sessions.
+TEST_P(AgentAPITest, LaunchNestedContainerSessionUnauthorized)
+{
+  ContentType contentType = GetParam();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> mesosContainerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(mesosContainerizer);
+
+  Owned<slave::Containerizer> containerizer(mesosContainerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  {
+    // Default principal is not allowed to launch nested container sessions.
+    mesos::ACL::LaunchNestedContainerSessionUnderParentWithUser* acl =
+      flags.acls.get()
+        .add_launch_nested_container_sessions_under_parent_with_user();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status->state());
+
+  // Attempt to launch a nested container which does nothing.
+
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+  ASSERT_EQ(1u, containerIds->size());
+
+  v1::ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  containerId.mutable_parent()->set_value(containerIds->begin()->value());
+
+  string command = "sleep 1000";
+
+  v1::agent::Call call;
+  call.set_type(v1::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION);
+
+  call.mutable_launch_nested_container_session()->mutable_container_id()
+    ->CopyFrom(containerId);
+
+  call.mutable_launch_nested_container_session()->mutable_command()->set_value(
+      command);
+
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  Future<http::Response> response = http::streaming::post(
+    slave.get()->pid,
+    "api/v1",
+    headers,
+    serialize(contentType, call),
+    stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Forbidden().status, response);
+
+  containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+  EXPECT_EQ(1u, containerIds->size());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test verifies that launching a nested container session with `TTYInfo`
 // results in stdout and stderr being streamed to the client as stdout.
 TEST_P_TEMP_DISABLED_ON_WINDOWS(
