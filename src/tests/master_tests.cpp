@@ -1882,6 +1882,192 @@ TEST_F(MasterTest, LaunchDuplicateOfferDropped)
 }
 
 
+// This test ensures that a multi-role framework cannot launch tasks with
+// offers allocated to different roles of that framework in a single
+// launchTasks call. We follow similar pattern in LaunchCombinedOfferTest.
+//
+// We launch a cluster with one master and one slave, and a framework
+// with two roles. Firstly, total resources will be offered to one of
+// the roles (we don't assume that it is deterministic as to which of
+// the two roles are chosen first). We launch a task using half of the
+// total resources. The other half will be returned to master and offered
+// to the other role, since it has a lower share (0). Then we kill the
+// task, half of resources will be offered to first role again, since
+// the first has a lower share (0). At this point, two offers with
+// different roles are outstanding and we can combine them in one
+// `launchTasks` call. A non-partition-aware framework should
+// receive TASK_LOST.
+//
+// TODO(jay_guo): Add tests for other operations as well.
+TEST_F(MasterTest, LaunchDifferentRoleLost)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  // The CPU granularity is 1.0 which means that we need slaves
+  // with at least 2 cpus for a combined offer.
+  Resources halfSlave = Resources::parse("cpus:1;mem:512").get();
+  Resources fullSlave = halfSlave + halfSlave;
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, flags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.clear_role();
+  framework.add_roles("role1");
+  framework.add_roles("role2");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // Get 1st offer and use half of the resources.
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  driver.start();
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers1);
+  EXPECT_NE(0u, offers1->size());
+  Resources resources1(offers1.get()[0].resources());
+  EXPECT_EQ(2, resources1.cpus().get());
+  EXPECT_EQ(Megabytes(1024), resources1.mem().get());
+
+  TaskInfo task1;
+  task1.set_name("");
+  task1.mutable_task_id()->set_value("1");
+  task1.mutable_slave_id()->MergeFrom(offers1.get()[0].slave_id());
+  task1.mutable_resources()->MergeFrom(halfSlave);
+  task1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1));
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2));
+
+  // We want to be receive an offer for the remainder immediately.
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  driver.launchTasks(offers1.get()[0].id(), {task1}, filters);
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+
+  // Advance the clock and trigger a batch allocation.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  // Await 2nd offer.
+  AWAIT_READY(offers2);
+  EXPECT_NE(0u, offers2->size());
+  ASSERT_TRUE(offers2.get()[0].has_allocation_info());
+
+  Resources resources2(offers2.get()[0].resources());
+  EXPECT_EQ(1, resources2.cpus().get());
+  EXPECT_EQ(Megabytes(512), resources2.mem().get());
+
+  Future<TaskStatus> status2;
+  EXPECT_CALL(exec, killTask(_, _))
+    .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  Future<vector<Offer>> offers3;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers3))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // Kill 1st task.
+  TaskID taskId1 = task1.task_id();
+  driver.killTask(taskId1);
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_KILLED, status2.get().state());
+
+  // Advance the clock and trigger a batch allocation.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  // Await 3rd offer - 2nd and 3rd offer to same slave are now ready.
+  AWAIT_READY(offers3);
+  EXPECT_NE(0u, offers3->size());
+  ASSERT_TRUE(offers3.get()[0].has_allocation_info());
+  Resources resources3(offers3.get()[0].resources());
+  EXPECT_EQ(1, resources3.cpus().get());
+  EXPECT_EQ(Megabytes(512), resources3.mem().get());
+
+  // 2nd and 3rd offer should be allocated to different roles.
+  ASSERT_NE(
+      offers2.get()[0].allocation_info().role(),
+      offers3.get()[0].allocation_info().role());
+
+  TaskInfo task2;
+  task2.set_name("");
+  task2.mutable_task_id()->set_value("2");
+  task2.mutable_slave_id()->MergeFrom(offers2.get()[0].slave_id());
+  task2.mutable_resources()->MergeFrom(fullSlave);
+  task2.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  Future<TaskStatus> status3;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status3));
+
+  vector<OfferID> combinedOffers;
+  combinedOffers.push_back(offers2.get()[0].id());
+  combinedOffers.push_back(offers3.get()[0].id());
+
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
+
+  driver.launchTasks(combinedOffers, {task2});
+
+  Clock::settle();
+
+  AWAIT_READY(status3);
+  EXPECT_EQ(TASK_LOST, status3.get().state());
+  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status3.get().reason());
+
+  // The resources of the invalid offers should be recovered.
+  AWAIT_READY(recoverResources);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+}
+
+
 // TODO(vinod): These tests only verify that the master metrics exist
 // but we need tests that verify that these metrics are updated.
 TEST_F(MasterTest, MetricsInMetricsEndpoint)
