@@ -48,6 +48,11 @@ run into any issues, file them with the library maintainers.*
   <td>Go</td>
 </tr>
 <tr>
+  <td><a href="https://github.com/ondrej-smola/mesos-go-http">
+  mesos-go-http</a></td>
+  <td>Go</td>
+</tr>
+<tr>
   <td><a href="https://github.com/nokia/mesos-scala-api">
   mesos-scala-api</a></td>
   <td>Scala</td>
