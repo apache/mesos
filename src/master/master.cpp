@@ -1720,8 +1720,8 @@ Future<Nothing> Master::_recover(const Registry& registry)
     // for weights, so the `--weights` flag can be deprecated and this check
     // can eventually be removed.
     if (!weights.empty()) {
-      LOG(WARNING) << "Ignoring the --weights flag '" << flags.weights.get()
-                   << "', and recovering the weights from registry.";
+      LOG(WARNING) << "Ignoring --weights flag '" << flags.weights.get()
+                   << "' and recovering the weights from registry";
 
       // Before recovering weights from the registry, the allocator was already
       // initialized with `--weights`, so here we need to reset (to 1.0)
@@ -1734,8 +1734,6 @@ Future<Nothing> Master::_recover(const Registry& registry)
           weightInfos.push_back(weightInfo);
         }
       }
-      // Clear weights specified by `--weights` flag.
-      weights.clear();
     }
 
     // Recover `weights` with `registry_weights`.

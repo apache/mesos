@@ -57,7 +57,7 @@ Future<http::Response> Master::WeightsHandler::get(
     const http::Request& request,
     const Option<string>& principal) const
 {
-  VLOG(1) << "Handling get weights request.";
+  VLOG(1) << "Handling get weights request";
 
   // Check that the request type is GET which is guaranteed by the master.
   CHECK_EQ("GET", request.method);
