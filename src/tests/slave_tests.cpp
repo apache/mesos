@@ -1525,6 +1525,15 @@ TEST_F(SlaveTest, StateEndpoint)
   EXPECT_EQ(stringify(slave.get()->pid), state.values["pid"]);
   EXPECT_EQ(agentFlags.hostname.get(), state.values["hostname"]);
 
+  ASSERT_TRUE(state.values["capabilities"].is<JSON::Array>());
+  EXPECT_FALSE(state.values["capabilities"].as<JSON::Array>().values.empty());
+  JSON::Value slaveCapabilities = state.values.at("capabilities");
+
+  // Agents should always have MULTI_ROLE capability in current implementation.
+  Try<JSON::Value> expectedCapabilities = JSON::parse("[\"MULTI_ROLE\"]");
+  ASSERT_SOME(expectedCapabilities);
+  EXPECT_TRUE(slaveCapabilities.contains(expectedCapabilities.get()));
+
   Try<Resources> resources = Resources::parse(
       agentFlags.resources.get(), agentFlags.default_role);
 

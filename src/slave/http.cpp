@@ -138,6 +138,13 @@ static void json(JSON::ObjectWriter* writer, const TaskInfo& task)
   }
 }
 
+static void json(
+    JSON::StringWriter* writer,
+    const SlaveInfo::Capability::Type& capability)
+{
+  writer->append(SlaveInfo::Capability::Type_Name(capability));
+}
+
 namespace internal {
 namespace slave {
 
@@ -1222,6 +1229,7 @@ Future<Response> Slave::Http::state(
         writer->field("id", slave->info.id().value());
         writer->field("pid", string(slave->self()));
         writer->field("hostname", slave->info.hostname());
+        writer->field("capabilities", MESOS_AGENT_CAPABILITIES);
 
         const Resources& totalResources = slave->totalResources;
 
