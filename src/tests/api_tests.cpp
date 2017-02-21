@@ -4643,6 +4643,136 @@ TEST_F(AgentAPITest, AttachContainerInputFailure)
 }
 
 
+// Verifies that unauthorized users are not able to attach to a
+// nested container input.
+TEST_P(AgentAPITest, AttachContainerInputAuthorization)
+{
+  ContentType contentType = GetParam();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  {
+    mesos::ACL::AttachContainerInput* acl =
+      flags.acls.get().add_attach_containers_input();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status->state());
+
+  // Launch a nested container session which runs a shell.
+
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+  ASSERT_EQ(1u, containerIds->size());
+
+  v1::ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  containerId.mutable_parent()->set_value(containerIds->begin()->value());
+
+  {
+    string command = "sh";
+
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION);
+
+    call.mutable_launch_nested_container_session()->mutable_container_id()
+        ->CopyFrom(containerId);
+
+    call.mutable_launch_nested_container_session()
+        ->mutable_command()->set_value(command);
+
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    Future<http::Response> response = http::streaming::post(
+      slave.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, call),
+      stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
+
+  // Attempt to attach to the container session's input.
+
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::ATTACH_CONTAINER_INPUT);
+
+    call.mutable_attach_container_input()
+        ->set_type(v1::agent::Call::AttachContainerInput::CONTAINER_ID);
+
+    call.mutable_attach_container_input()->mutable_container_id()
+        ->CopyFrom(containerId);
+
+    ContentType contentType = ContentType::RECORDIO;
+    ContentType messageContentType = ContentType::PROTOBUF;
+
+    ::recordio::Encoder<v1::agent::Call> encoder(
+        lambda::bind(serialize, messageContentType, lambda::_1));
+
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers[MESSAGE_CONTENT_TYPE] = stringify(messageContentType);
+
+    Future<http::Response> response = http::post(
+      slave.get()->pid,
+      "api/v1",
+      headers,
+      encoder.encode(call),
+      stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Forbidden().status, response);
+  }
+
+  driver.stop();
+  driver.join();
+}
+
+
 TEST_F(AgentAPITest, AttachContainerInputValidation)
 {
   Clock::pause();
