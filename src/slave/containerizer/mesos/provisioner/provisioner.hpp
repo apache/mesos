@@ -134,7 +134,11 @@ private:
       const Image& image,
       const ImageInfo& imageInfo);
 
-  process::Future<bool> _destroy(const ContainerID& containerId);
+  process::Future<bool> _destroy(
+      const ContainerID& containerId,
+      const std::list<process::Future<bool>>& destroys);
+
+  process::Future<bool> __destroy(const ContainerID& containerId);
 
   const Flags flags;
 
@@ -152,6 +156,11 @@ private:
   {
     // Mappings: backend -> {rootfsId, ...}
     hashmap<std::string, hashset<std::string>> rootfses;
+
+    process::Promise<bool> termination;
+
+    // The container status in provisioner.
+    bool destroying = false;
   };
 
   hashmap<ContainerID, process::Owned<Info>> infos;
