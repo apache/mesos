@@ -1513,6 +1513,18 @@ production yet. (default: false)
 </tr>
 <tr>
   <td>
+    --http_heartbeat_interval=VALUE
+  </td>
+  <td>
+This flag sets a heartbeat interval (e.g. '5secs', '10mins') for
+messages to be sent over persistent connections made against
+the agent HTTP API. Currently, this only applies to the
+<code>LAUNCH_NESTED_CONTAINER_SESSION</code> and <code>ATTACH_CONTAINER_OUTPUT</code> calls.
+(default: 30secs)
+  </td>
+</tr>
+<tr>
+  <td>
     --image_providers=VALUE
   </td>
   <td>
