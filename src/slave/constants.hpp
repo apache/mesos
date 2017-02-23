@@ -18,6 +18,7 @@
 #define __SLAVE_CONSTANTS_HPP__
 
 #include <stdint.h>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
@@ -151,8 +152,7 @@ Duration DEFAULT_MASTER_PING_TIMEOUT();
 // Name of the executable for default executor.
 constexpr char MESOS_DEFAULT_EXECUTOR[] = "mesos-default-executor";
 
-constexpr SlaveInfo::Capability::Type MESOS_AGENT_CAPABILITIES[] =
-  {SlaveInfo::Capability::MULTI_ROLE};
+std::vector<SlaveInfo::Capability> AGENT_CAPABILITIES();
 
 } // namespace slave {
 } // namespace internal {
