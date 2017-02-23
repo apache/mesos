@@ -33,6 +33,7 @@
 #endif
 
 #include "slave/containerizer/mesos/provisioner/constants.hpp"
+#include "slave/containerizer/mesos/provisioner/paths.hpp"
 
 #include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
@@ -66,6 +67,7 @@ using master::Master;
 using mesos::internal::slave::AUFS_BACKEND;
 using mesos::internal::slave::COPY_BACKEND;
 using mesos::internal::slave::OVERLAY_BACKEND;
+using mesos::internal::slave::Provisioner;
 
 using mesos::master::detector::MasterDetector;
 
@@ -863,6 +865,50 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_ImageDigest)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test simulate the case that after the agent reboots the
+// container runtime directory is gone while the provisioner
+// directory still survives. The recursive `provisioner::destroy()`
+// can make sure that a child container is always cleaned up
+// before its parent container.
+TEST_F(ProvisionerDockerPullerTest, ROOT_RecoverNestedOnReboot)
+{
+  const string directory = path::join(os::getcwd(), "archives");
+
+  Future<Nothing> testImage = DockerArchive::create(directory, "alpine");
+  AWAIT_READY(testImage);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.image_providers = "docker";
+
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(UUID::random().toString());
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  AWAIT_READY(provisioner.get()->provision(nestedContainerId, image));
+
+  // Passing an empty hashset to `provisioner::recover()` to
+  // simulate the agent reboot scenario.
+  AWAIT_READY(provisioner.get()->recover({}));
+
+  const string containerDir = slave::provisioner::paths::getContainerDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId);
+
+  EXPECT_FALSE(os::exists(containerDir));
 }
 
 #endif
