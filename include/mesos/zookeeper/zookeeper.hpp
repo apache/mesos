@@ -28,6 +28,13 @@
 
 #include <zookeeper.h>
 
+#ifdef __WINDOWS__
+// NOTE: We need to undefine this macro to prevent it from bleeding
+// into our code and thereby break compilation of our namespaced ACLs.
+// This macro is defined in zookeeper/src/c/include/winconfig.h.
+#undef ACL
+#endif // __WINDOWS__
+
 #include <string>
 #include <vector>
 

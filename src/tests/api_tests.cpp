@@ -4128,7 +4128,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, LaunchNestedContainerSession)
 
 // This tests verifies that unauthorized principals are unable to
 // launch nested container sessions.
-TEST_P(AgentAPITest, LaunchNestedContainerSessionUnauthorized)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    AgentAPITest,
+    LaunchNestedContainerSessionUnauthorized)
 {
   ContentType contentType = GetParam();
 
@@ -4645,7 +4647,9 @@ TEST_F(AgentAPITest, AttachContainerInputFailure)
 
 // Verifies that unauthorized users are not able to attach to a
 // nested container input.
-TEST_P(AgentAPITest, AttachContainerInputAuthorization)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    AgentAPITest,
+    AttachContainerInputAuthorization)
 {
   ContentType contentType = GetParam();
 
