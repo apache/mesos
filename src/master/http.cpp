@@ -266,12 +266,19 @@ struct FullFrameworkWriter {
           writer->field("framework_id", framework_->id().value());
 
           writer->field(
-            "executor_id",
-            taskInfo.executor().executor_id().value());
+              "executor_id",
+              taskInfo.executor().executor_id().value());
 
           writer->field("slave_id", taskInfo.slave_id().value());
           writer->field("state", TaskState_Name(TASK_STAGING));
           writer->field("resources", Resources(taskInfo.resources()));
+
+          // Tasks are not allowed to mix resources allocated to
+          // different roles, see MESOS-6636.
+          writer->field(
+              "role",
+              taskInfo.resources().begin()->allocation_info().role());
+
           writer->field("statuses", std::initializer_list<TaskStatus>{});
 
           if (taskInfo.has_labels()) {

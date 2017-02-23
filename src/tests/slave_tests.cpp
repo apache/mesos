@@ -1581,6 +1581,9 @@ TEST_F(SlaveTest, StateEndpoint)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
+  Resources executorResources = Resources::parse("cpus:0.1;mem:32").get();
+  executorResources.allocate("*");
+
   TaskID taskId;
   taskId.set_value("1");
 
@@ -1588,8 +1591,11 @@ TEST_F(SlaveTest, StateEndpoint)
   task.set_name("");
   task.mutable_task_id()->MergeFrom(taskId);
   task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_resources()->MergeFrom(
+      Resources(offers.get()[0].resources()) - executorResources);
+
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  task.mutable_executor()->mutable_resources()->CopyFrom(executorResources);
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -1638,6 +1644,11 @@ TEST_F(SlaveTest, StateEndpoint)
 
   EXPECT_EQ("default", executor.values["id"]);
   EXPECT_EQ("", executor.values["source"]);
+  EXPECT_EQ("*", executor.values["role"]);
+  EXPECT_EQ(
+      model(Resources(task.resources()) +
+            Resources(task.executor().resources())),
+      executor.values["resources"]);
 
   Result<JSON::Array> tasks = executor.find<JSON::Array>("tasks");
   ASSERT_SOME(tasks);
@@ -1648,7 +1659,8 @@ TEST_F(SlaveTest, StateEndpoint)
   EXPECT_EQ("", taskJSON.values["name"]);
   EXPECT_EQ(taskId.value(), taskJSON.values["id"]);
   EXPECT_EQ("TASK_RUNNING", taskJSON.values["state"]);
-  EXPECT_EQ(model(resources.get()), taskJSON.values["resources"]);
+  EXPECT_EQ("*", taskJSON.values["role"]);
+  EXPECT_EQ(model(task.resources()), taskJSON.values["resources"]);
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

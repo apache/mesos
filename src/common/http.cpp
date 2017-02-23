@@ -559,6 +559,15 @@ void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo)
   writer->field("command", executorInfo.command());
   writer->field("resources", Resources(executorInfo.resources()));
 
+  // Resources may be empty for command executors.
+  if (!executorInfo.resources().empty()) {
+    // Executors are not allowed to mix resources allocated to
+    // different roles, see MESOS-6636.
+    writer->field(
+        "role",
+        executorInfo.resources().begin()->allocation_info().role());
+  }
+
   if (executorInfo.has_labels()) {
     writer->field("labels", executorInfo.labels());
   }
@@ -641,6 +650,11 @@ void json(JSON::ObjectWriter* writer, const Task& task)
   writer->field("slave_id", task.slave_id().value());
   writer->field("state", TaskState_Name(task.state()));
   writer->field("resources", Resources(task.resources()));
+
+  // Tasks are not allowed to mix resources allocated to
+  // different roles, see MESOS-6636.
+  writer->field("role", task.resources().begin()->allocation_info().role());
+
   writer->field("statuses", task.statuses());
 
   if (task.has_user()) {
