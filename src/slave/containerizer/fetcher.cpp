@@ -22,8 +22,10 @@
 #include <process/dispatch.hpp>
 #include <process/owned.hpp>
 
+#include <stout/hashset.hpp>
 #include <stout/net.hpp>
 #include <stout/path.hpp>
+#include <stout/strings.hpp>
 #ifdef __WINDOWS__
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
@@ -44,6 +46,8 @@ using std::shared_ptr;
 using std::string;
 using std::transform;
 using std::vector;
+
+using strings::startsWith;
 
 using mesos::fetcher::FetcherInfo;
 
@@ -822,12 +826,27 @@ Future<Nothing> FetcherProcess::run(
 
   // We pass arguments to the fetcher program by means of an
   // environment variable.
-  map<string, string> environment = os::environment();
+  // For assuring that we pass on variables that may be consumed by
+  // the mesos-fetcher, we whitelist them before masking out any
+  // unwanted agent->fetcher environment spillover.
+  // TODO(tillt): Consider using the `mesos::internal::logging::Flags`
+  // to determine the whitelist.
+  const hashset<string> whitelist = {
+    "MESOS_EXTERNAL_LOG_FILE",
+    "MESOS_INITIALIZE_DRIVER_LOGGING",
+    "MESOS_LOG_DIR",
+    "MESOS_LOGBUFSECS",
+    "MESOS_LOGGING_LEVEL",
+    "MESOS_QUIET"
+  };
 
-  // The libprocess port is explicitly removed because this will conflict
-  // with the already-running agent.
-  environment.erase("LIBPROCESS_PORT");
-  environment.erase("LIBPROCESS_ADVERTISE_PORT");
+  map<string, string> environment;
+  foreachpair (const string& key, const string& value, os::environment()) {
+    if (whitelist.contains(strings::upper(key)) ||
+        (!startsWith(key, "LIBPROCESS_") && !startsWith(key, "MESOS_"))) {
+      environment.emplace(key, value);
+    }
+  }
 
   environment["MESOS_FETCHER_INFO"] = stringify(JSON::protobuf(info));
 
