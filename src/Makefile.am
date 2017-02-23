@@ -2286,6 +2286,7 @@ mesos_tests_SOURCES =						\
   tests/state_tests.cpp						\
   tests/status_update_manager_tests.cpp				\
   tests/teardown_tests.cpp					\
+  tests/upgrade_tests.cpp					\
   tests/uri_tests.cpp						\
   tests/uri_fetcher_tests.cpp					\
   tests/utils.cpp						\

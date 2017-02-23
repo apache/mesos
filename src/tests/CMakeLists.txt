@@ -170,6 +170,7 @@ if (NOT WIN32)
     slave_recovery_tests.cpp
     state_tests.cpp
     teardown_tests.cpp
+    upgrade_tests.cpp
     )
 
   set(MESOS_TESTS_SRC
