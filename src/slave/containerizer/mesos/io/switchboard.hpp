@@ -75,8 +75,9 @@ public:
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId);
 
+  // Connect to the `IOSwitchboard` associated with `containerId`.
   process::Future<process::http::Connection> connect(
-      const ContainerID& containerId);
+      const ContainerID& containerId) const;
 
   // Helper function that returns `true` if `IOSwitchboardServer`
   // needs to be enabled for the given `ContainerConfig`. It must
@@ -105,6 +106,9 @@ private:
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig,
       const mesos::slave::ContainerLogger::SubprocessInfo& loggerInfo);
+
+  process::Future<process::http::Connection> _connect(
+      const ContainerID& containerId) const;
 
 #ifndef __WINDOWS__
   void reaped(
