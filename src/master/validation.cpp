@@ -604,10 +604,9 @@ Option<Error> validateAllocatedToSingleRole(const Resources& resources)
     }
 
     if (_role != role.get()) {
-      return Error(
-          "The resources have multiple allocation roles ('" + _role +
-          "' and '" + role.get() + "') but only one allocation role" +
-          " is allowed");
+      return Error("The resources have multiple allocation roles"
+                   " ('" + _role + "' and '" + role.get() + "')"
+                   " but only one allocation role is allowed");
     }
   }
 
