@@ -643,7 +643,7 @@ Future<http::Headers> DockerFetcherPluginProcess::getAuthHeader(
     const http::Response& response)
 {
   Result<http::header::WWWAuthenticate> header =
-    response.headers.get<http::header::WWWAuthenticate>();
+    response.headers.header<http::header::WWWAuthenticate>();
 
   if (header.isError()) {
     return Failure(
