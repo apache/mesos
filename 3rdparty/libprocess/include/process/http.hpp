@@ -482,7 +482,7 @@ public:
           CaseInsensitiveEqual>(list) {}
 
   template <typename T>
-  Result<T> header() const
+  Result<T> get() const
   {
     Option<std::string> value = get(T::NAME);
     if (value.isNone()) {
@@ -493,6 +493,15 @@ public:
       return Error(header.error());
     }
     return header.get();
+  }
+
+  Option<std::string> get(const std::string& key) const
+  {
+    return hashmap<
+        std::string,
+        std::string,
+        CaseInsensitiveHash,
+        CaseInsensitiveEqual>::get(key);
   }
 };
 
