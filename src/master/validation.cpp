@@ -948,6 +948,11 @@ Option<Error> validateResources(const TaskInfo& task)
     return Error("Task uses duplicate persistence ID: " + error->message);
   }
 
+  error = resource::validateAllocatedToSingleRole(resources);
+  if (error.isSome()) {
+    return Error("Invalid task resources: " + error->message);
+  }
+
   error = resource::validateRevocableAndNonRevocableResources(resources);
   if (error.isSome()) {
     return Error("Task mixes revocable and non-revocable resources: " +

@@ -1801,6 +1801,7 @@ TEST_F(TaskValidationTest, TaskUsesRevocableResources)
   cpus.set_name("cpus");
   cpus.set_type(Value::SCALAR);
   cpus.mutable_scalar()->set_value(2);
+  cpus.mutable_allocation_info()->set_role("role");
 
   // A task with only non-revocable cpus is valid.
   task.add_resources()->CopyFrom(cpus);
@@ -1829,6 +1830,43 @@ TEST_F(TaskValidationTest, TaskUsesRevocableResources)
   error = task::internal::validateResources(task);
 
   EXPECT_SOME(error);
+}
+
+
+TEST_F(TaskValidationTest, TaskInfoAllocatedResources)
+{
+  // Validation should pass if the task has resources
+  // allocated to a single role.
+  {
+    TaskInfo task;
+    Resources resources = Resources::parse("cpus:1;mem:1").get();
+    task.mutable_resources()->CopyFrom(allocatedResources(resources, "role"));
+
+    EXPECT_NONE(::task::internal::validateResources(task));
+  }
+
+  // Validation should fail if the task has unallocated resources.
+  {
+    TaskInfo task;
+    Resources resources = Resources::parse("cpus:1;mem:1").get();
+    task.mutable_resources()->CopyFrom(resources);
+
+    EXPECT_SOME(::task::internal::validateResources(task));
+  }
+
+  // Validation should fail if the task has resources
+  // allocated to multiple roles.
+  {
+    TaskInfo task;
+    Resources resources1 = Resources::parse("cpus:1").get();
+    Resources resources2 = Resources::parse("mem:1").get();
+
+    task.mutable_resources()->CopyFrom(
+        allocatedResources(resources1, "role1") +
+        allocatedResources(resources2, "role2"));
+
+    EXPECT_SOME(::task::internal::validateResources(task));
+  }
 }
 
 
