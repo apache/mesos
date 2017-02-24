@@ -124,6 +124,9 @@ Option<Error> validateExecutorID(const ExecutorInfo& executor);
 // Validates that fields are properly set depending on the type of the executor.
 Option<Error> validateType(const ExecutorInfo& executor);
 
+// Validates resources of the executor.
+Option<Error> validateResources(const ExecutorInfo& executor);
+
 } // namespace internal {
 } // namespace executor {
 

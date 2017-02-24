@@ -2227,6 +2227,56 @@ TEST_F(ExecutorValidationTest, ExecutorID)
 }
 
 
+TEST_F(ExecutorValidationTest, ExecutorInfoAllocatedResources)
+{
+  // Validation should pass if the executor has no resources.
+  {
+    ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+
+    EXPECT_NONE(::executor::internal::validateResources(executorInfo));
+  }
+
+  // Validation should pass if the executor has resources
+  // allocated to a single role.
+  {
+    ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+
+    EXPECT_NONE(::executor::internal::validateResources(executorInfo));
+
+    Resources resources = Resources::parse("cpus:1;mem:128").get();
+    executorInfo.mutable_resources()->CopyFrom(
+        allocatedResources(resources, "role"));
+
+    EXPECT_NONE(::executor::internal::validateResources(executorInfo));
+  }
+
+  // Validation should fail if the executor has unallocated resources.
+  {
+    ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+
+    Resources resources = Resources::parse("cpus:1;mem:128").get();
+    executorInfo.mutable_resources()->CopyFrom(resources);
+
+    EXPECT_SOME(::executor::internal::validateResources(executorInfo));
+  }
+
+  // Validation should fail if the executor has resources
+  // allocated to multiple role.
+  {
+    ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+
+    Resources resources1 = Resources::parse("cpus:1").get();
+    Resources resources2 = Resources::parse("mem:1").get();
+
+    executorInfo.mutable_resources()->CopyFrom(
+        allocatedResources(resources1, "role1") +
+        allocatedResources(resources2, "role2"));
+
+    EXPECT_SOME(::executor::internal::validateResources(executorInfo));
+  }
+}
+
+
 class TaskGroupValidationTest : public MesosTest {};
 
 

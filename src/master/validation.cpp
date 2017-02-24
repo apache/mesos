@@ -584,6 +584,37 @@ Option<Error> validatePersistentVolume(
 }
 
 
+// Validates that all the given resources are allocated to same role.
+Option<Error> validateAllocatedToSingleRole(const Resources& resources)
+{
+  Option<string> role;
+
+  foreach (const Resource& resource, resources) {
+    // Note that the master normalizes `Offer::Operation` resources
+    // to have allocation info set, so we can validate it here.
+    if (!resource.allocation_info().has_role()) {
+      return Error("The resources are not allocated to a role");
+    }
+
+    string _role = resource.allocation_info().role();
+
+    if (role.isNone()) {
+      role = _role;
+      continue;
+    }
+
+    if (_role != role.get()) {
+      return Error(
+          "The resources have multiple allocation roles ('" + _role +
+          "' and '" + role.get() + "') but only one allocation role" +
+          " is allowed");
+    }
+  }
+
+  return None();
+}
+
+
 Option<Error> validate(const RepeatedPtrField<Resource>& resources)
 {
   Option<Error> error = Resources::validate(resources);
@@ -748,6 +779,11 @@ Option<Error> validateResources(const ExecutorInfo& executor)
   if (error.isSome()) {
     return Error(
         "Executor uses duplicate persistence ID: " + error->message);
+  }
+
+  error = resource::validateAllocatedToSingleRole(resources);
+  if (error.isSome()) {
+    return Error("Invalid executor resources: " + error->message);
   }
 
   error = resource::validateRevocableAndNonRevocableResources(resources);
