@@ -107,15 +107,15 @@ TEST_P(DefaultExecutorTest, TaskRunning)
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
-  Resources resources =
-    Resources::parse("cpus:0.1;mem:32;disk:32").get();
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
-  ExecutorInfo executorInfo;
-  executorInfo.set_type(ExecutorInfo::DEFAULT);
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
 
-  executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   // Disable AuthN on the agent.
@@ -154,7 +154,7 @@ TEST_P(DefaultExecutorTest, TaskRunning)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(evolve(frameworkInfo));
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
 
     mesos.send(call);
   }
@@ -164,7 +164,7 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   // Update `executorInfo` with the subscribed `frameworkId`.
-  executorInfo.mutable_framework_id()->CopyFrom(devolve(frameworkId));
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
@@ -174,10 +174,10 @@ TEST_P(DefaultExecutorTest, TaskRunning)
     .WillOnce(FutureArg<1>(&update));
 
   const v1::Offer& offer = offers->offers(0);
-  const SlaveID slaveId = devolve(offer.agent_id());
+  const v1::AgentID agentId = offer.agent_id();
 
   v1::TaskInfo taskInfo =
-    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
+    v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
 
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo);
@@ -196,7 +196,7 @@ TEST_P(DefaultExecutorTest, TaskRunning)
     v1::Offer::Operation::LaunchGroup* launchGroup =
       operation->mutable_launch_group();
 
-    launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
+    launchGroup->mutable_executor()->CopyFrom(executorInfo);
     launchGroup->mutable_task_group()->CopyFrom(taskGroup);
 
     mesos.send(call);
@@ -212,9 +212,9 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   EXPECT_TRUE(os::exists(path::join(
       slave::paths::getExecutorLatestRunPath(
           flags.work_dir,
-          slaveId,
+          devolve(agentId),
           devolve(frameworkId),
-          executorInfo.executor_id()),
+          devolve(executorInfo.executor_id())),
       "tasks",
       taskInfo.task_id().value())));
 
@@ -234,7 +234,7 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   JSON::Object state = parse.get();
 
   EXPECT_SOME_EQ(
-      JSON::String(ExecutorInfo::Type_Name(executorInfo.type())),
+      JSON::String(v1::ExecutorInfo::Type_Name(executorInfo.type())),
       state.find<JSON::String>("frameworks[0].executors[0].type"));
 }
 
@@ -249,15 +249,15 @@ TEST_P(DefaultExecutorTest, KillTask)
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
-  Resources resources =
-    Resources::parse("cpus:0.1;mem:32;disk:32").get();
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
-  ExecutorInfo executorInfo;
-  executorInfo.set_type(ExecutorInfo::DEFAULT);
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
 
-  executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   // Disable AuthN on the agent.
@@ -295,7 +295,7 @@ TEST_P(DefaultExecutorTest, KillTask)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(evolve(frameworkInfo));
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
 
     mesos.send(call);
   }
@@ -305,7 +305,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   // Update `executorInfo` with the subscribed `frameworkId`.
-  executorInfo.mutable_framework_id()->CopyFrom(devolve(frameworkId));
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers1);
   EXPECT_NE(0, offers1->offers().size());
@@ -322,13 +322,13 @@ TEST_P(DefaultExecutorTest, KillTask)
     .WillOnce(FutureArg<1>(&runningUpdate2));
 
   const v1::Offer& offer1 = offers1->offers(0);
-  const SlaveID slaveId = devolve(offer1.agent_id());
+  const v1::AgentID agentId = offer1.agent_id();
 
   v1::TaskInfo taskInfo1 =
-    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
+    v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
 
   v1::TaskInfo taskInfo2 =
-    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
+    v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
 
   v1::TaskGroupInfo taskGroup1;
   taskGroup1.add_tasks()->CopyFrom(taskInfo1);
@@ -354,7 +354,7 @@ TEST_P(DefaultExecutorTest, KillTask)
     v1::Offer::Operation::LaunchGroup* launchGroup =
       operation->mutable_launch_group();
 
-    launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
+    launchGroup->mutable_executor()->CopyFrom(executorInfo);
     launchGroup->mutable_task_group()->CopyFrom(taskGroup1);
 
     mesos.send(call);
@@ -383,7 +383,7 @@ TEST_P(DefaultExecutorTest, KillTask)
     .WillOnce(FutureArg<1>(&runningUpdate3));
 
   v1::TaskInfo taskInfo3 =
-    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
+    v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
 
   v1::TaskGroupInfo taskGroup2;
   taskGroup2.add_tasks()->CopyFrom(taskInfo3);
@@ -403,7 +403,7 @@ TEST_P(DefaultExecutorTest, KillTask)
     v1::Offer::Operation::LaunchGroup* launchGroup =
       operation->mutable_launch_group();
 
-    launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
+    launchGroup->mutable_executor()->CopyFrom(executorInfo);
     launchGroup->mutable_task_group()->CopyFrom(taskGroup2);
 
     mesos.send(call);
@@ -545,15 +545,15 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
-  Resources resources =
-    Resources::parse("cpus:0.1;mem:32;disk:32").get();
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
-  ExecutorInfo executorInfo;
-  executorInfo.set_type(ExecutorInfo::DEFAULT);
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
 
-  executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   // Disable AuthN on the agent.
@@ -591,7 +591,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(evolve(frameworkInfo));
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
 
     mesos.send(call);
   }
@@ -601,7 +601,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   // Update `executorInfo` with the subscribed `frameworkId`.
-  executorInfo.mutable_framework_id()->CopyFrom(devolve(frameworkId));
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
@@ -613,14 +613,13 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
     .WillOnce(FutureArg<1>(&runningUpdate2));
 
   const v1::Offer& offer = offers->offers(0);
-  const SlaveID slaveId = devolve(offer.agent_id());
+  const v1::AgentID agentId = offer.agent_id();
 
   // The first task exits with a non-zero status code.
-  v1::TaskInfo taskInfo1 =
-    evolve(createTask(slaveId, resources, "exit 1"));
+  v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "exit 1");
 
   v1::TaskInfo taskInfo2 =
-    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
+    v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
 
   const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
 
@@ -642,7 +641,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
     v1::Offer::Operation::LaunchGroup* launchGroup =
       operation->mutable_launch_group();
 
-    launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
+    launchGroup->mutable_executor()->CopyFrom(executorInfo);
     launchGroup->mutable_task_group()->CopyFrom(taskGroup);
 
     mesos.send(call);
@@ -732,15 +731,15 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
-  Resources resources =
-    Resources::parse("cpus:0.1;mem:32;disk:32").get();
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
-  ExecutorInfo executorInfo;
-  executorInfo.set_type(ExecutorInfo::DEFAULT);
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
 
-  executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   // Disable AuthN on the agent.
@@ -779,7 +778,7 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(evolve(frameworkInfo));
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
 
     mesos.send(call);
   }
@@ -789,7 +788,7 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   // Update `executorInfo` with the subscribed `frameworkId`.
-  executorInfo.mutable_framework_id()->CopyFrom(devolve(frameworkId));
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
@@ -799,12 +798,12 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
     .WillOnce(FutureArg<1>(&update));
 
   const v1::Offer& offer = offers->offers(0);
-  const SlaveID slaveId = devolve(offer.agent_id());
+  const v1::AgentID agentId = offer.agent_id();
 
   v1::TaskInfo taskInfo =
-    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
+    v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
 
-  taskInfo.mutable_executor()->CopyFrom(evolve(executorInfo));
+  taskInfo.mutable_executor()->CopyFrom(executorInfo);
 
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo);
@@ -823,7 +822,7 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
     v1::Offer::Operation::LaunchGroup* launchGroup =
       operation->mutable_launch_group();
 
-    launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
+    launchGroup->mutable_executor()->CopyFrom(executorInfo);
     launchGroup->mutable_task_group()->CopyFrom(taskGroup);
 
     mesos.send(call);
@@ -962,15 +961,15 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, CommitSuicideOnTaskFailure)
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
-  Resources resources =
-    Resources::parse("cpus:0.1;mem:32;disk:32").get();
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
-  ExecutorInfo executorInfo;
-  executorInfo.set_type(ExecutorInfo::DEFAULT);
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
 
-  executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   // Disable AuthN on the agent.
@@ -1008,7 +1007,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, CommitSuicideOnTaskFailure)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(evolve(frameworkInfo));
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
 
     mesos.send(call);
   }
@@ -1018,7 +1017,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, CommitSuicideOnTaskFailure)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   // Update `executorInfo` with the subscribed `frameworkId`.
-  executorInfo.mutable_framework_id()->CopyFrom(devolve(frameworkId));
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
@@ -1030,11 +1029,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, CommitSuicideOnTaskFailure)
     .WillOnce(FutureArg<1>(&failedUpdate));
 
   const v1::Offer& offer = offers->offers(0);
-  const SlaveID slaveId = devolve(offer.agent_id());
+  const v1::AgentID agentId = offer.agent_id();
 
   // The task exits with a non-zero status code.
-  v1::TaskInfo taskInfo1 =
-    evolve(createTask(slaveId, resources, "exit 1"));
+  v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "exit 1");
 
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo1);
@@ -1057,7 +1055,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, CommitSuicideOnTaskFailure)
     v1::Offer::Operation::LaunchGroup* launchGroup =
       operation->mutable_launch_group();
 
-    launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
+    launchGroup->mutable_executor()->CopyFrom(executorInfo);
     launchGroup->mutable_task_group()->CopyFrom(taskGroup);
 
     mesos.send(call);
@@ -1107,15 +1105,15 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
-  Resources resources =
-    Resources::parse("cpus:0.1;mem:32;disk:32").get();
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
-  ExecutorInfo executorInfo;
-  executorInfo.set_type(ExecutorInfo::DEFAULT);
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
 
-  executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   // Disable AuthN on the agent.
@@ -1153,7 +1151,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(evolve(frameworkInfo));
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
 
     mesos.send(call);
   }
@@ -1163,7 +1161,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   // Update `executorInfo` with the subscribed `frameworkId`.
-  executorInfo.mutable_framework_id()->CopyFrom(devolve(frameworkId));
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
@@ -1179,16 +1177,15 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
     .WillOnce(FutureArg<1>(&executorFailure));
 
   const v1::Offer& offer = offers->offers(0);
-  const SlaveID slaveId = devolve(offer.agent_id());
+  const v1::AgentID agentId = offer.agent_id();
 
   // The first task finishes successfully while the second
   // task is explicitly killed later.
 
-  v1::TaskInfo taskInfo1 =
-    evolve(createTask(slaveId, resources, "exit 0"));
+  v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "exit 0");
 
   v1::TaskInfo taskInfo2 =
-    evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
+    v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
 
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo1);
@@ -1210,7 +1207,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
     v1::Offer::Operation::LaunchGroup* launchGroup =
       operation->mutable_launch_group();
 
-    launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
+    launchGroup->mutable_executor()->CopyFrom(executorInfo);
     launchGroup->mutable_task_group()->CopyFrom(taskGroup);
 
     mesos.send(call);
@@ -1309,7 +1306,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
 // launched using reserved resources.
 TEST_P(DefaultExecutorTest, ReservedResources)
 {
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_role("role");
 
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -1317,17 +1314,17 @@ TEST_P(DefaultExecutorTest, ReservedResources)
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
-  Resources unreserved =
-    Resources::parse("cpus:0.1;mem:32;disk:32").get();
+  v1::Resources unreserved =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
 
-  Resources reserved = unreserved.flatten(
+  v1::Resources reserved = unreserved.flatten(
       frameworkInfo.role(),
-      createReservationInfo(frameworkInfo.principal())).get();
+      v1::createReservationInfo(frameworkInfo.principal())).get();
 
-  ExecutorInfo executorInfo;
-  executorInfo.set_type(ExecutorInfo::DEFAULT);
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
 
-  executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
   executorInfo.mutable_resources()->CopyFrom(reserved);
 
   // Disable AuthN on the agent.
@@ -1364,7 +1361,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
     Call call;
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(evolve(frameworkInfo));
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
 
     mesos.send(call);
   }
@@ -1374,7 +1371,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   // Update `executorInfo` with the subscribed `frameworkId`.
-  executorInfo.mutable_framework_id()->CopyFrom(devolve(frameworkId));
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
@@ -1384,11 +1381,11 @@ TEST_P(DefaultExecutorTest, ReservedResources)
     .WillOnce(FutureArg<1>(&runningUpdate));
 
   const v1::Offer& offer = offers->offers(0);
-  const SlaveID slaveId = devolve(offer.agent_id());
+  const v1::AgentID agentId = offer.agent_id();
 
   // Launch the task using unreserved resources.
   v1::TaskInfo taskInfo =
-    evolve(createTask(slaveId, unreserved, SLEEP_COMMAND(1000)));
+    v1::createTask(agentId, unreserved, SLEEP_COMMAND(1000));
 
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo);
@@ -1401,7 +1398,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
     Call::Accept* accept = call.mutable_accept();
     accept->add_offer_ids()->CopyFrom(offer.id());
 
-    accept->add_operations()->CopyFrom(v1::RESERVE(evolve(reserved)));
+    accept->add_operations()->CopyFrom(v1::RESERVE(reserved));
 
     v1::Offer::Operation* operation = accept->add_operations();
     operation->set_type(v1::Offer::Operation::LAUNCH_GROUP);
@@ -1409,7 +1406,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
     v1::Offer::Operation::LaunchGroup* launchGroup =
       operation->mutable_launch_group();
 
-    launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
+    launchGroup->mutable_executor()->CopyFrom(executorInfo);
     launchGroup->mutable_task_group()->CopyFrom(taskGroup);
 
     mesos.send(call);
