@@ -305,6 +305,7 @@ All Issues:
     * [MESOS-7129] - Default executor exits with a stack trace in a few scenarios.
     * [MESOS-7133] - mesos-fetcher fails with openssl-related output.
     * [MESOS-7137] - Custom executors cannot use any reserved resources.
+    * [MESOS-7144] - Wrap IOSwitchboard.connect() in a dispatch
     * [MESOS-7152] - The agent may be flapping after the machine reboots due to provisioner recover.
     * [MESOS-7153] - The new http::Headers abstraction may break some modules.
 
