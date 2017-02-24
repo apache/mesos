@@ -4032,8 +4032,22 @@ TEST_F(MasterTest, StateEndpoint)
 // currently; add more to this test.
 TEST_F(MasterTest, StateEndpointFrameworkInfo)
 {
+  Clock::pause();
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), agentFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::advance(agentFlags.authentication_backoff_factor);
+  AWAIT_READY(slaveRegisteredMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_webui_url("http://localhost:8080/");
@@ -4057,9 +4071,14 @@ TEST_F(MasterTest, StateEndpointFrameworkInfo)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureSatisfy(&registered));
 
+  Future<Nothing> resourceOffers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&resourceOffers));
+
   driver.start();
 
   AWAIT_READY(registered);
+  AWAIT_READY(resourceOffers);
 
   Future<Response> response = process::http::get(
       master.get()->pid,
@@ -4104,6 +4123,19 @@ TEST_F(MasterTest, StateEndpointFrameworkInfo)
   }
 
   EXPECT_EQ(capabilities, actual);
+
+  EXPECT_EQ(1u, framework.values.count("offers"));
+  EXPECT_TRUE(framework.values.at("offers").is<JSON::Array>());
+  EXPECT_EQ(1u, framework.values.at("offers").as<JSON::Array>().values.size());
+
+  JSON::Object offer = framework.values.at("offers")
+    .as<JSON::Array>().values[0].as<JSON::Object>();
+
+  JSON::Object allocationInfo;
+  allocationInfo.values["role"] = frameworkInfo.role();
+
+  EXPECT_EQ(1u, offer.values.count("allocation_info"));
+  EXPECT_EQ(allocationInfo, offer.values.at("allocation_info"));
 
   driver.stop();
   driver.join();

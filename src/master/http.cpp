@@ -146,6 +146,7 @@ static void json(JSON::ObjectWriter* writer, const Offer& offer)
 {
   writer->field("id", offer.id().value());
   writer->field("framework_id", offer.framework_id().value());
+  writer->field("allocation_info", JSON::Protobuf(offer.allocation_info()));
   writer->field("slave_id", offer.slave_id().value());
   writer->field("resources", Resources(offer.resources()));
 }
