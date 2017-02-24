@@ -746,6 +746,7 @@ TEST_F(CreateOperationValidationTest, SharedVolumeBasedOnCapability)
 {
   Resource volume = createDiskResource(
       "128", "role1", "1", "path1", None(), true); // Shared.
+  volume.mutable_allocation_info()->set_role("role1");
 
   Offer::Operation::Create create;
   create.add_volumes()->CopyFrom(volume);
@@ -859,6 +860,37 @@ TEST_F(CreateOperationValidationTest, InsufficientDiskResource)
 
   driver.stop();
   driver.join();
+}
+
+
+TEST_F(CreateOperationValidationTest, MixedAllocationRole)
+{
+  Resource volume1 = Resources::parse("disk", "128", "role1").get();
+  volume1.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+  Resource volume2 = Resources::parse("disk", "256", "role2").get();
+  volume2.mutable_disk()->CopyFrom(createDiskInfo("id2", "path2"));
+
+  Offer::Operation::Create create;
+  create.mutable_volumes()->CopyFrom(
+      allocatedResources(volume1, "role1") +
+      allocatedResources(volume2, "role2"));
+
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.add_roles("role1");
+  frameworkInfo.add_roles("role2");
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
+
+  Option<Error> error = operation::validate(
+      create, Resources(), None(), frameworkInfo);
+
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "Invalid volume resources: The resources have multiple allocation"
+          " roles ('role2' and 'role1') but only one allocation role is"
+          " allowed"));
 }
 
 
