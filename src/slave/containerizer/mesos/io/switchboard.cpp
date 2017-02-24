@@ -659,7 +659,16 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
 
 
 Future<http::Connection> IOSwitchboard::connect(
-    const ContainerID& containerId)
+    const ContainerID& containerId) const
+{
+  return dispatch(self(), [this, containerId]() {
+    return _connect(containerId);
+  });
+}
+
+
+Future<http::Connection> IOSwitchboard::_connect(
+    const ContainerID& containerId) const
 {
 #ifdef __WINDOWS__
   return Failure("Not supported on Windows");
