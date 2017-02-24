@@ -451,20 +451,38 @@ private:
 } // namespace header {
 
 
-class Headers
+class Headers : public hashmap<
+    std::string,
+    std::string,
+    CaseInsensitiveHash,
+    CaseInsensitiveEqual>
 {
 public:
-  typedef hashmap<
-      std::string,
-      std::string,
-      CaseInsensitiveHash,
-      CaseInsensitiveEqual> Type;
-
   Headers() {}
-  Headers(const Type& _headers) : headers(_headers) {}
+
+  Headers(const std::map<std::string, std::string>& map)
+    : hashmap<
+          std::string,
+          std::string,
+          CaseInsensitiveHash,
+          CaseInsensitiveEqual>(map) {}
+
+  Headers(std::map<std::string, std::string>&& map)
+    : hashmap<
+          std::string,
+          std::string,
+          CaseInsensitiveHash,
+          CaseInsensitiveEqual>(map) {}
+
+  Headers(std::initializer_list<std::pair<std::string, std::string>> list)
+     : hashmap<
+          std::string,
+          std::string,
+          CaseInsensitiveHash,
+          CaseInsensitiveEqual>(list) {}
 
   template <typename T>
-  Result<T> get() const
+  Result<T> header() const
   {
     Option<std::string> value = get(T::NAME);
     if (value.isNone()) {
@@ -476,34 +494,6 @@ public:
     }
     return header.get();
   }
-
-  Headers& operator=(const Type& _headers);
-
-  std::string& operator[](const std::string& key);
-
-  void put(const std::string& key, const std::string& value);
-
-  Option<std::string> get(const std::string& key) const;
-
-  std::string& at(const std::string& key);
-
-  const std::string& at(const std::string& key) const;
-
-  bool contains(const std::string& key) const;
-
-  size_t size() const;
-
-  bool empty() const;
-
-  void clear();
-
-  typename Type::iterator begin() { return headers.begin(); }
-  typename Type::iterator end() { return headers.end(); }
-  typename Type::const_iterator begin() const { return headers.cbegin(); }
-  typename Type::const_iterator end() const { return headers.cend(); }
-
-private:
-  Type headers;
 };
 
 

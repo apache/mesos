@@ -1527,7 +1527,7 @@ TEST_P(HTTPTest, WWWAuthenticateHeader)
   headers["Www-Authenticate"] = "Basic realm=\"basic-realm\"";
 
   Result<http::header::WWWAuthenticate> header =
-    headers.get<http::header::WWWAuthenticate>();
+    headers.header<http::header::WWWAuthenticate>();
 
   ASSERT_SOME(header);
 
@@ -1536,7 +1536,7 @@ TEST_P(HTTPTest, WWWAuthenticateHeader)
   EXPECT_EQ("basic-realm", header->authParam()["realm"]);
 
   headers.clear();
-  header = headers.get<http::header::WWWAuthenticate>();
+  header = headers.header<http::header::WWWAuthenticate>();
 
   EXPECT_NONE(header);
 
@@ -1545,7 +1545,7 @@ TEST_P(HTTPTest, WWWAuthenticateHeader)
     "service=\"registry.docker.io\","
     "scope=\"repository:gilbertsong/inky:pull\"";
 
-  header = headers.get<http::header::WWWAuthenticate>();
+  header = headers.header<http::header::WWWAuthenticate>();
 
   ASSERT_SOME(header);
 
@@ -1556,32 +1556,32 @@ TEST_P(HTTPTest, WWWAuthenticateHeader)
   EXPECT_EQ("repository:gilbertsong/inky:pull", header->authParam()["scope"]);
 
   headers["Www-Authenticate"] = "";
-  header = headers.get<http::header::WWWAuthenticate>();
+  header = headers.header<http::header::WWWAuthenticate>();
 
   EXPECT_ERROR(header);
 
   headers["Www-Authenticate"] = " ";
-  header = headers.get<http::header::WWWAuthenticate>();
+  header = headers.header<http::header::WWWAuthenticate>();
 
   EXPECT_ERROR(header);
 
   headers["Www-Authenticate"] = "Digest";
-  header = headers.get<http::header::WWWAuthenticate>();
+  header = headers.header<http::header::WWWAuthenticate>();
 
   EXPECT_ERROR(header);
 
   headers["Www-Authenticate"] = "Digest =";
-  header = headers.get<http::header::WWWAuthenticate>();
+  header = headers.header<http::header::WWWAuthenticate>();
 
   EXPECT_ERROR(header);
 
   headers["Www-Authenticate"] = "Digest ,,";
-  header = headers.get<http::header::WWWAuthenticate>();
+  header = headers.header<http::header::WWWAuthenticate>();
 
   EXPECT_ERROR(header);
 
   headers["Www-Authenticate"] = "Digest uri=\"/dir/index.html\",qop=auth";
-  header = headers.get<http::header::WWWAuthenticate>();
+  header = headers.header<http::header::WWWAuthenticate>();
 
   EXPECT_ERROR(header);
 }
