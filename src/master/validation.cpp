@@ -1742,6 +1742,16 @@ Option<Error> validate(
     }
   }
 
+  if (frameworkInfo.isSome()) {
+    // If the operation is being applied by a framework, we also
+    // ensure that across all the resources, they are allocated
+    // to a single role.
+    error = resource::validateAllocatedToSingleRole(reserve.resources());
+    if (error.isSome()) {
+      return Error("Invalid reservation resources: " + error->message);
+    }
+  }
+
   return None();
 }
 

@@ -538,6 +538,37 @@ TEST_F(ReserveOperationValidationTest, UnexpectedAllocatedResource)
 }
 
 
+TEST_F(ReserveOperationValidationTest, MixedAllocationRoles)
+{
+  Resource resource1 = Resources::parse("cpus", "8", "role1").get();
+  resource1.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+  Resource resource2 = Resources::parse("mem", "8", "role2").get();
+  resource2.mutable_reservation()->CopyFrom(createReservationInfo("principal"));
+
+  Offer::Operation::Reserve reserve;
+  reserve.mutable_resources()->CopyFrom(
+      allocatedResources(resource1, "role1") +
+      allocatedResources(resource2, "role2"));
+
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.add_roles("role1");
+  frameworkInfo.add_roles("role2");
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
+
+  Option<Error> error =
+    operation::validate(reserve, "principal", frameworkInfo);
+
+  ASSERT_SOME(error);
+  EXPECT_TRUE(
+      strings::contains(
+          error->message,
+          "Invalid reservation resources: The resources have multiple"
+          " allocation roles ('role2' and 'role1') but only one allocation"
+          " role is allowed"));
+}
+
+
 class UnreserveOperationValidationTest : public MesosTest {};
 
 
