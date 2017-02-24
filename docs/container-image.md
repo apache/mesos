@@ -286,7 +286,7 @@ is `/tmp/mesos/store/appc`.
 
 A provisioner backend takes a set of filesystem layers and stacks them
 into a root filesystem. Currently, we support the following backends:
-copy`, `bind`, `overlay` and `aufs`. Mesos will validate if the
+`copy`, `bind`, `overlay` and `aufs`. Mesos will validate if the
 selected backend works with the underlying filesystem (the filesystem
 used by the image store `--docker_store_dir` or `--appc_store_dir`)
 using the following logic table:
