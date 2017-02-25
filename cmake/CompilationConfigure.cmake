@@ -51,8 +51,7 @@ if (WIN32)
     ${ENSURE_TOOL_ARCH} ALL
     COMMAND
       IF NOT "%PreferredToolArchitecture%" == "x64" (
-        echo "ERROR: Environment variable'PreferredToolArchitecture'
-          must be set to 'x64', see MESOS-6720 for details" 1>&2 && EXIT 1
+        echo "ERROR: Environment variable 'PreferredToolArchitecture' must be set to 'x64', see MESOS-6720 for details" 1>&2 && EXIT 1
       )
     )
 endif (WIN32)
