@@ -3233,3 +3233,127 @@ Content-Type: application/json
 }
 
 ```
+
+### LAUNCH_NESTED_CONTAINER
+
+This call launches a nested container. Any authorized entity,
+including the executor itself, its tasks, or the operator can use this
+API to launch a nested container.
+
+```
+LAUNCH_NESTED_CONTAINER HTTP Request (JSON):
+
+POST /api/v1  HTTP/1.1
+
+Host: agenthost:5051
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "LAUNCH_NESTED_CONTAINER",
+  "launch_nested_container": {
+    "container_id": {
+      "parent": {
+        "parent": {
+          "value": "27d44d12-ce9e-455f-9282-f580d8b56cad"
+        },
+        "value": "f5015d94-8093-477d-9551-9452acfad495"
+      },
+      "value": "3192b9d1-db71-4699-ae25-e28dfbf42de1"
+    },
+    "command": {
+      "environment": {
+        "variables": [
+          {
+            "name": "ENV_VAR_KEY",
+            "type": "VALUE",
+            "value": "env_var_value"
+          }
+        ]
+      },
+      "shell": true,
+      "value": "exit 0"
+    }
+  }
+}
+
+LAUNCH_NESTED_CONTAINER HTTP Response (JSON):
+
+HTTP/1.1 200 OK
+
+```
+
+### WAIT_NESTED_CONTAINER
+
+This call waits for a nested container to terminate or exit. Any
+authorized entity, including the executor itself, its tasks, or the
+operator can use this API to wait on a nested container.
+
+```
+WAIT_NESTED_CONTAINER HTTP Request (JSON):
+
+POST /api/v1  HTTP/1.1
+
+Host: agenthost:5051
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "WAIT_NESTED_CONTAINER",
+  "wait_nested_container": {
+    "container_id": {
+      "parent": {
+        "value": "6643b4be-583a-4dc3-bf23-a1ffb26dd452"
+      },
+      "value": "3192b9d1-db71-4699-ae25-e28dfbf42de1"
+    }
+  }
+}
+
+WAIT_NESTED_CONTAINER HTTP Response (JSON):
+
+HTTP/1.1 200 OK
+
+Content-Type: application/json
+
+{
+  "type": "WAIT_NESTED_CONTAINER",
+  "wait_nested_container": {
+    "exit_status": 0
+  }
+}
+
+```
+
+### KILL_NESTED_CONTAINER
+
+This call initiates the destruction of a nested container. Any
+authorized entity, including the executor itself, its tasks, or the
+operator can use this API to kill a nested container.
+
+```
+KILL_NESTED_CONTAINER HTTP Request (JSON):
+
+POST /api/v1  HTTP/1.1
+
+Host: agenthost:5051
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "KILL_NESTED_CONTAINER",
+  "kill_nested_container": {
+    "container_id": {
+      "parent": {
+        "value": "62d15977-acd4-4167-ae08-2e3738dc3ad6"
+      },
+      "value": "3192b9d1-db71-4699-ae25-e28dfbf42de1"
+    }
+  }
+}
+
+KILL_NESTED_CONTAINER HTTP Response (JSON):
+
+HTTP/1.1 200 OK
+
+```
