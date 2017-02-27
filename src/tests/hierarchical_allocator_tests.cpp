@@ -1725,7 +1725,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateAvailableFail)
 
 // This test ensures that when oversubscribed resources are updated
 // subsequent allocations properly account for that.
-TEST_F(HierarchicalAllocatorTest, UpdateSlave)
+TEST_F(HierarchicalAllocatorTest, UpdateSlaveOversubscribedResources)
 {
   // Pause clock to disable batch allocation.
   Clock::pause();
@@ -1786,6 +1786,53 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlave)
 
   Future<Allocation> allocation = allocations.get();
   EXPECT_TRUE(allocation.isPending());
+}
+
+
+// This test ensures that when agent capabilities are updated
+// subsequent allocations properly account for that.
+TEST_F(HierarchicalAllocatorTest, UpdateSlaveCapabilities)
+{
+  // Pause clock to disable batch allocation.
+  Clock::pause();
+
+  initialize();
+
+  SlaveInfo agent = createSlaveInfo("cpus:1;mem:1;disk:1");
+  allocator->addSlave(
+      agent.id(),
+      agent,
+      {},
+      None(),
+      agent.resources(),
+      {});
+
+  // Add a MULTI_ROLE framework. We explicitly check the capability here
+  // in case `createFrameworkInfo` helper changes in the future.
+  FrameworkInfo framework = createFrameworkInfo({"role1"});
+  EXPECT_EQ(1u, framework.capabilities_size());
+  EXPECT_EQ(FrameworkInfo::Capability::MULTI_ROLE,
+            framework.capabilities().begin()->type());
+  allocator->addFramework(framework.id(), framework, {}, true);
+
+  // Initially, we do not expect any allocation since non-MULTI_ROLE agent
+  // should not be allocated to MULTI_ROLE framework.
+  Clock::settle();
+
+  Future<Allocation> allocation = allocations.get();
+  ASSERT_TRUE(allocation.isPending());
+
+  // Update the agent to be MULTI_ROLE capable.
+  allocator->updateSlave(agent.id(), None(), AGENT_CAPABILITIES());
+
+  Clock::settle();
+
+  // Resources of agent should be allocated to framework now.
+  Allocation expected = Allocation(
+      framework.id(),
+      {{"role1", {{agent.id(), agent.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocation);
 }
 
 

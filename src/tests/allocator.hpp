@@ -99,7 +99,7 @@ ACTION_P(InvokeRemoveSlave, allocator)
 
 ACTION_P(InvokeUpdateSlave, allocator)
 {
-  allocator->real->updateSlave(arg0, arg1);
+  allocator->real->updateSlave(arg0, arg1, arg2);
 }
 
 
@@ -274,9 +274,9 @@ public:
     EXPECT_CALL(*this, removeSlave(_))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, updateSlave(_, _))
+    ON_CALL(*this, updateSlave(_, _, _))
       .WillByDefault(InvokeUpdateSlave(this));
-    EXPECT_CALL(*this, updateSlave(_, _))
+    EXPECT_CALL(*this, updateSlave(_, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, activateSlave(_))
@@ -402,9 +402,10 @@ public:
   MOCK_METHOD1(removeSlave, void(
       const SlaveID&));
 
-  MOCK_METHOD2(updateSlave, void(
+  MOCK_METHOD3(updateSlave, void(
       const SlaveID&,
-      const Resources&));
+      const Option<Resources>&,
+      const Option<std::vector<SlaveInfo::Capability>>&));
 
   MOCK_METHOD1(activateSlave, void(
       const SlaveID&));

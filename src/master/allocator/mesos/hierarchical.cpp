@@ -554,46 +554,72 @@ void HierarchicalAllocatorProcess::removeSlave(
 
 void HierarchicalAllocatorProcess::updateSlave(
     const SlaveID& slaveId,
-    const Resources& oversubscribed)
+    const Option<Resources>& oversubscribed,
+    const Option<vector<SlaveInfo::Capability>>& capabilities)
 {
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
 
-  // Check that all the oversubscribed resources are revocable.
-  CHECK_EQ(oversubscribed, oversubscribed.revocable());
-
   Slave& slave = slaves.at(slaveId);
 
-  const Resources oldRevocable = slave.total.revocable();
+  bool updated = false;
 
-  // Update the total resources.
-  //
-  // Reset the total resources to include the non-revocable resources,
-  // plus the new estimate of oversubscribed resources.
-  //
-  // NOTE: All modifications to revocable resources in the allocator for
-  // `slaveId` are lost.
-  //
-  // TODO(alexr): Update this math once the source of revocable resources
-  // is extended beyond oversubscription.
-  slave.total = slave.total.nonRevocable() + oversubscribed;
+  // Update agent capabilities.
+  if (capabilities.isSome()) {
+    protobuf::slave::Capabilities newCapabilities(capabilities.get());
+    protobuf::slave::Capabilities oldCapabilities(slave.capabilities);
 
-  // Update the total resources in the `roleSorter` by removing the
-  // previous oversubscribed resources and adding the new
-  // oversubscription estimate.
-  roleSorter->remove(slaveId, oldRevocable);
-  roleSorter->add(slaveId, oversubscribed);
+    slave.capabilities = newCapabilities;
 
-  // NOTE: We do not need to update `quotaRoleSorter` because this
-  // function only changes the revocable resources on the slave, but
-  // the quota role sorter only manages non-revocable resources.
+    if (newCapabilities != oldCapabilities) {
+      updated = true;
 
-  LOG(INFO) << "Agent " << slaveId << " (" << slave.hostname << ")"
-            << " updated with oversubscribed resources " << oversubscribed
-            << " (total: " << slave.total
-            << ", allocated: " << slave.allocated << ")";
+      LOG(INFO) << "Agent " << slaveId << " (" << slave.hostname << ")"
+                << " updated with capabilities " << slave.capabilities;
+    }
+  }
 
-  allocate(slaveId);
+  if (oversubscribed.isSome()) {
+    // Check that all the oversubscribed resources are revocable.
+    CHECK_EQ(oversubscribed.get(), oversubscribed->revocable());
+
+    const Resources oldRevocable = slave.total.revocable();
+
+    if (oldRevocable != oversubscribed.get()) {
+      // Update the total resources.
+      //
+      // Reset the total resources to include the non-revocable resources,
+      // plus the new estimate of oversubscribed resources.
+      //
+      // NOTE: All modifications to revocable resources in the allocator for
+      // `slaveId` are lost.
+      //
+      // TODO(alexr): Update this math once the source of revocable resources
+      // is extended beyond oversubscription.
+      slave.total = slave.total.nonRevocable() + oversubscribed.get();
+
+      // Update the total resources in the `roleSorter` by removing the
+      // previous oversubscribed resources and adding the new
+      // oversubscription estimate.
+      roleSorter->remove(slaveId, oldRevocable);
+      roleSorter->add(slaveId, oversubscribed.get());
+
+      updated = true;
+
+      // NOTE: We do not need to update `quotaRoleSorter` because this
+      // function only changes the revocable resources on the slave, but
+      // the quota role sorter only manages non-revocable resources.
+
+      LOG(INFO) << "Agent " << slaveId << " (" << slave.hostname << ")"
+                << " updated with oversubscribed resources "
+                << oversubscribed.get() << " (total: " << slave.total
+                << ", allocated: " << slave.allocated << ")";
+    }
+  }
+
+  if (updated) {
+    allocate(slaveId);
+  }
 }
 
 
