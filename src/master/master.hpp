@@ -793,9 +793,9 @@ protected:
 
   bool isCompletedFramework(const FrameworkID& frameworkId);
 
-  Framework* getFramework(const FrameworkID& frameworkId);
-  Offer* getOffer(const OfferID& offerId);
-  InverseOffer* getInverseOffer(const OfferID& inverseOfferId);
+  Framework* getFramework(const FrameworkID& frameworkId) const;
+  Offer* getOffer(const OfferID& offerId) const;
+  InverseOffer* getInverseOffer(const OfferID& inverseOfferId) const;
 
   FrameworkID newFrameworkId();
   OfferID newOfferId();
@@ -940,7 +940,7 @@ private:
    * role whitelist. When using implicit roles, any role is allowed
    * (and access control is done via ACLs).
    */
-  bool isWhitelistedRole(const std::string& name);
+  bool isWhitelistedRole(const std::string& name) const;
 
   /**
    * Indicates whether a task in the given state can safely be removed

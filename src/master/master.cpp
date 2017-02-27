@@ -3306,7 +3306,7 @@ void Master::suppress(
 }
 
 
-bool Master::isWhitelistedRole(const string& name)
+bool Master::isWhitelistedRole(const string& name) const
 {
   if (roleWhitelist.isNone()) {
     return true;
@@ -8624,26 +8624,27 @@ bool Master::isCompletedFramework(const FrameworkID& frameworkId)
 
 
 // TODO(bmahler): Consider killing this.
-Framework* Master::getFramework(const FrameworkID& frameworkId)
+Framework* Master::getFramework(const FrameworkID& frameworkId) const
 {
   return frameworks.registered.contains(frameworkId)
-    ? frameworks.registered[frameworkId]
-    : nullptr;
+           ? frameworks.registered.at(frameworkId)
+           : nullptr;
 }
 
 
 // TODO(bmahler): Consider killing this.
-Offer* Master::getOffer(const OfferID& offerId)
+Offer* Master::getOffer(const OfferID& offerId) const
 {
-  return offers.contains(offerId) ? offers[offerId] : nullptr;
+  return offers.contains(offerId) ? offers.at(offerId) : nullptr;
 }
 
 
 // TODO(bmahler): Consider killing this.
-InverseOffer* Master::getInverseOffer(const OfferID& inverseOfferId)
+InverseOffer* Master::getInverseOffer(const OfferID& inverseOfferId) const
 {
-  return inverseOffers.contains(inverseOfferId) ?
-    inverseOffers[inverseOfferId] : nullptr;
+  return inverseOffers.contains(inverseOfferId)
+           ? inverseOffers.at(inverseOfferId)
+           : nullptr;
 }
 
 
