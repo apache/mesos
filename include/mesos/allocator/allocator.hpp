@@ -176,6 +176,7 @@ public:
    * @param slaveId ID of the agent to be added or re-added.
    * @param slaveInfo Detailed info of the agent. The slaveInfo resources
    *     correspond directly to the static --resources flag value on the agent.
+   * @param capabilities Capabilities of the agent.
    * @param total The `total` resources are passed explicitly because it
    *     includes resources that are dynamically "checkpointed" on the agent
    *     (e.g. persistent volumes, dynamic reservations, etc).
@@ -186,6 +187,7 @@ public:
   virtual void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const std::vector<SlaveInfo::Capability>& capabilities,
       const Option<Unavailability>& unavailability,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used) = 0;

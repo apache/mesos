@@ -87,7 +87,7 @@ ACTION_P(InvokeUpdateFramework, allocator)
 
 ACTION_P(InvokeAddSlave, allocator)
 {
-  allocator->real->addSlave(arg0, arg1, arg2, arg3, arg4);
+  allocator->real->addSlave(arg0, arg1, arg2, arg3, arg4, arg5);
 }
 
 
@@ -264,9 +264,9 @@ public:
     EXPECT_CALL(*this, updateFramework(_, _))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, addSlave(_, _, _, _, _))
+    ON_CALL(*this, addSlave(_, _, _, _, _, _))
       .WillByDefault(InvokeAddSlave(this));
-    EXPECT_CALL(*this, addSlave(_, _, _, _, _))
+    EXPECT_CALL(*this, addSlave(_, _, _, _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, removeSlave(_))
@@ -391,9 +391,10 @@ public:
       const FrameworkID&,
       const FrameworkInfo&));
 
-  MOCK_METHOD5(addSlave, void(
+  MOCK_METHOD6(addSlave, void(
       const SlaveID&,
       const SlaveInfo&,
+      const std::vector<SlaveInfo::Capability>&,
       const Option<Unavailability>&,
       const Resources&,
       const hashmap<FrameworkID, Resources>&));

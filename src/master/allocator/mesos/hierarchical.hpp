@@ -131,6 +131,7 @@ public:
   void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const std::vector<SlaveInfo::Capability>& capabilities,
       const Option<Unavailability>& unavailability,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used);
@@ -374,6 +375,8 @@ protected:
     bool activated;  // Whether to offer resources.
 
     std::string hostname;
+
+    protobuf::slave::Capabilities capabilities;
 
     // Represents a scheduled unavailability due to maintenance for a specific
     // slave, and the responses from frameworks as to whether they will be able

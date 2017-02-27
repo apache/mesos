@@ -438,6 +438,7 @@ void HierarchicalAllocatorProcess::updateFramework(
 void HierarchicalAllocatorProcess::addSlave(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
+    const vector<SlaveInfo::Capability>& capabilities,
     const Option<Unavailability>& unavailability,
     const Resources& total,
     const hashmap<FrameworkID, Resources>& used)
@@ -488,6 +489,7 @@ void HierarchicalAllocatorProcess::addSlave(
   slave.allocated = Resources::sum(used);
   slave.activated = true;
   slave.hostname = slaveInfo.hostname();
+  slave.capabilities = protobuf::slave::Capabilities(capabilities);
 
   // NOTE: We currently implement maintenance in the allocator to be able to
   // leverage state and features such as the FrameworkSorter and OfferFilter.

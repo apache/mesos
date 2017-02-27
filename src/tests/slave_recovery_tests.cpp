@@ -3115,7 +3115,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Fetcher fetcher;
 

@@ -578,9 +578,9 @@ TEST_F(MasterQuotaTest, InsufficientResourcesSingleAgent)
 
   // Start an agent and wait until its resources are available.
   Future<Resources> agentTotalResources;
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                    FutureArg<3>(&agentTotalResources)));
+                    FutureArg<4>(&agentTotalResources)));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
@@ -640,9 +640,9 @@ TEST_F(MasterQuotaTest, InsufficientResourcesMultipleAgents)
 
   // Start one agent and wait until its resources are available.
   Future<Resources> agent1TotalResources;
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                    FutureArg<3>(&agent1TotalResources)));
+                    FutureArg<4>(&agent1TotalResources)));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get());
@@ -653,9 +653,9 @@ TEST_F(MasterQuotaTest, InsufficientResourcesMultipleAgents)
 
   // Start another agent and wait until its resources are available.
   Future<Resources> agent2TotalResources;
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                    FutureArg<3>(&agent2TotalResources)));
+                    FutureArg<4>(&agent2TotalResources)));
 
   Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get());
   ASSERT_SOME(slave2);
@@ -717,9 +717,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
 
   // Start an agent and wait until its resources are available.
   Future<Resources> agentTotalResources;
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                    FutureArg<3>(&agentTotalResources)));
+                    FutureArg<4>(&agentTotalResources)));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
@@ -767,9 +767,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
 
   // Start one agent and wait until its resources are available.
   Future<Resources> agent1TotalResources;
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                    FutureArg<3>(&agent1TotalResources)));
+                    FutureArg<4>(&agent1TotalResources)));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get());
@@ -780,9 +780,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
 
   // Start another agent and wait until its resources are available.
   Future<Resources> agent2TotalResources;
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                    FutureArg<3>(&agent2TotalResources)));
+                    FutureArg<4>(&agent2TotalResources)));
 
   Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get());
   ASSERT_SOME(slave2);
@@ -836,9 +836,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
 
   // Start one agent and wait until its resources are available.
   Future<Resources> agent1TotalResources;
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                    FutureArg<3>(&agent1TotalResources)));
+                    FutureArg<4>(&agent1TotalResources)));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get());
@@ -849,9 +849,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
 
   // Start another agent and wait until its resources are available.
   Future<Resources> agent2TotalResources;
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                    FutureArg<3>(&agent2TotalResources)));
+                    FutureArg<4>(&agent2TotalResources)));
 
   Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get());
   ASSERT_SOME(slave2);
@@ -861,9 +861,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
 
   // Start one more agent and wait until its resources are available.
   Future<Resources> agent3TotalResources;
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                    FutureArg<3>(&agent3TotalResources)));
+                    FutureArg<4>(&agent3TotalResources)));
 
   Try<Owned<cluster::Slave>> slave3 = StartSlave(detector.get());
   ASSERT_SOME(slave3);
