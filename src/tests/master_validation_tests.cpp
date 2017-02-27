@@ -3474,9 +3474,9 @@ TEST_F(FrameworkInfoValidationTest, UpgradeToMultiRole)
 }
 
 
-// This tests verifies that when a multi-role capable framework
-// downgrades to remove multi-role capabilities, illegal attempts to
-// change the roles the framework is subscribed to are caught.
+// This tests verifies that a multi-role capable framework is able
+// to downgrade to remove multi-role capabilities and change roles
+// the framework is subscribed to.
 TEST_F(FrameworkInfoValidationTest, DowngradeFromMultipleRoles)
 {
   Clock::pause();
@@ -3515,40 +3515,37 @@ TEST_F(FrameworkInfoValidationTest, DowngradeFromMultipleRoles)
 
   frameworkInfo.mutable_id()->CopyFrom(frameworkId.get());
 
-  // Downgrade `frameworkInfo` to remove multi-role capability, and
-  // migrate from `roles` to `role` field. This illegally changes the
-  // number of roles the framework is subscribed to.
+  // Downgrade `frameworkInfo` to remove `MULTI_ROLE` capability, and
+  // migrate from `roles` to `role` field.
   ASSERT_EQ(2u, frameworkInfo.roles_size());
   frameworkInfo.set_role(frameworkInfo.roles(0));
   frameworkInfo.clear_roles();
   ASSERT_EQ(1u, frameworkInfo.capabilities_size());
   frameworkInfo.clear_capabilities();
 
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+  {
+    MockScheduler sched;
+    MesosSchedulerDriver driver(
+        &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  Future<string> error;
-  EXPECT_CALL(sched, error(&driver, _))
-    .WillOnce(FutureArg<1>(&error));
+    Future<Nothing> registered;
+    EXPECT_CALL(sched, registered(&driver, _, _))
+      .WillOnce(FutureSatisfy(&registered));
 
-  driver.start();
+    driver.start();
 
-  Clock::settle();
+    Clock::settle();
 
-  AWAIT_EXPECT_EQ(
-      "Frameworks cannot change their roles: "
-      "expected '{ role1, role2 }', but got '{ role1 }'",
-      error);
+    AWAIT_READY(registered);
 
-  driver.stop();
-  driver.join();
+    driver.stop();
+    driver.join();
+  }
 }
 
 
-// This test verifies that a multi-role framework cannot change its
-// roles on failover.
-TEST_F(FrameworkInfoValidationTest, RejectRoleChangeWithMultiRole)
+// This test verifies that a multi-role framework can change roles on failover.
+TEST_F(FrameworkInfoValidationTest, RoleChangeWithMultiRole)
 {
   Clock::pause();
 
@@ -3588,35 +3585,32 @@ TEST_F(FrameworkInfoValidationTest, RejectRoleChangeWithMultiRole)
   frameworkInfo.mutable_id()->CopyFrom(frameworkId.get());
   frameworkInfo.add_roles("role2");
 
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+  {
+    MockScheduler sched;
+    MesosSchedulerDriver driver(
+        &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  Future<string> error;
-  EXPECT_CALL(sched, error(&driver, _))
-    .WillOnce(FutureArg<1>(&error));
+    Future<Nothing> registered;
+    EXPECT_CALL(sched, registered(&driver, _, _))
+      .WillOnce(FutureSatisfy(&registered));
 
-  driver.start();
+    driver.start();
 
-  Clock::settle();
+    Clock::settle();
 
-  AWAIT_EXPECT_EQ(
-      "Frameworks cannot change their roles: "
-      "expected '{ role1 }', but got '{ role1, role2 }'",
-      error);
+    AWAIT_READY(registered);
 
-  driver.stop();
-  driver.join();
+    driver.stop();
+    driver.join();
+  }
 }
 
 
-// This test checks that frameworks cannot change their `role` during
-// master failover. The scenario tested here sets up a one-agent
-// cluster with a single framework. On failover the master would
-// first learn about the framework from the agent, and then from the
-// framework. We require the information from the agent and the
-// framework to be consistent.
-TEST_F(FrameworkInfoValidationTest, RejectRoleChangeWithMultiRoleMasterFailover)
+// This test checks that frameworks can change their `role` during master
+// failover. The scenario tested here sets up a one-agent cluster with
+// a single framework. On failover the master would first learn about
+// the framework from the agent, and then from the framework.
+TEST_F(FrameworkInfoValidationTest, RoleChangeWithMultiRoleMasterFailover)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -3706,33 +3700,30 @@ TEST_F(FrameworkInfoValidationTest, RejectRoleChangeWithMultiRoleMasterFailover)
 
   AWAIT_READY(slaveReregisteredMessage);
 
-  // Change the `roles` of the framework in an illegal way (upgrade to
-  // `MULTI_ROLE` where `roles` is not identical to `role`). We do
-  // not simply change `role` here as this currently would not trigger
-  // an error, but would only be logged to the master's log.
+  // Upgrade `frameworkInfo` to add `MULTI_ROLE` capability, and
+  // migrate from `role1` to `role2`.
   frameworkInfo.mutable_id()->CopyFrom(frameworkId.get());
   frameworkInfo.add_roles("role2");
   frameworkInfo.clear_role();
   frameworkInfo.add_capabilities()->set_type(
       FrameworkInfo::Capability::MULTI_ROLE);
 
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+  {
+    MockScheduler sched;
+    MesosSchedulerDriver driver(
+        &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  Future<string> error;
-  EXPECT_CALL(sched, error(&driver, _))
-    .WillOnce(FutureArg<1>(&error));
+    Future<Nothing> registered;
+    EXPECT_CALL(sched, registered(&driver, _, _))
+      .WillOnce(FutureSatisfy(&registered));
 
-  driver.start();
+    driver.start();
 
-  AWAIT_EXPECT_EQ(
-      "Frameworks cannot change their roles: "
-      "expected '{ role1 }', but got '{ role2 }'",
-      error);
+    AWAIT_READY(registered);
 
-  driver.stop();
-  driver.join();
+    driver.stop();
+    driver.join();
+  }
 }
 
 } // namespace tests {
