@@ -2025,6 +2025,19 @@ bool HierarchicalAllocatorProcess::isFiltered(
   CHECK(slaves.contains(slaveId));
 
   const Framework& framework = frameworks.at(frameworkId);
+  const Slave& slave = slaves.at(slaveId);
+
+  // Prevent offers from non-MULTI_ROLE agents to be allocated
+  // to MULTI_ROLE frameworks.
+  if (framework.capabilities.multiRole &&
+      !slave.capabilities.multiRole) {
+    LOG(WARNING)
+      << "Implicitly filtering agent " << slaveId << " from framework"
+      << frameworkId << " because the framework is MULTI_ROLE capable"
+      << " but the agent is not";
+
+    return true;
+  }
 
   // Since this is a performance-sensitive piece of code,
   // we use find to avoid the doing any redundant lookups.

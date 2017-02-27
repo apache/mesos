@@ -4137,6 +4137,36 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffersWithMultiRole)
 }
 
 
+// This test ensures that resources from non-MULTI_ROLE should not be
+// allocated to MULTI_ROLE framework.
+TEST_F(HierarchicalAllocatorTest, DontOfferOldAgentToMultiRoleFramework)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  FrameworkInfo framework = createFrameworkInfo(
+      {"foo"},
+      {FrameworkInfo::Capability::MULTI_ROLE});
+
+  allocator->addFramework(framework.id(), framework, {}, true);
+
+  // Total cluster resources will become cpus=2, mem=1024.
+  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(agent.id(), agent, {}, None(), agent.resources(), {});
+
+  // Advance the clock to trigger a batch allocation.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  Future<Allocation> allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+}
+
+
 // This tests the behavior of quota when the allocation and
 // quota are disproportionate. The current approach (see MESOS-6432)
 // is to stop allocation quota once one of the resource
