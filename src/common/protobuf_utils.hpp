@@ -139,6 +139,8 @@ ContainerID getRootContainerId(const ContainerID& containerId);
 
 namespace slave {
 
+// TODO(bmahler): Store the repeated field within this so that we
+// don't drop unknown capabilities.
 struct Capabilities
 {
   Capabilities() = default;
@@ -256,6 +258,8 @@ mesos::master::Event createAgentRemoved(const SlaveID& slaveId);
 
 namespace framework {
 
+// TODO(bmahler): Store the repeated field within this so that we
+// don't drop unknown capabilities.
 struct Capabilities
 {
   Capabilities() = default;
