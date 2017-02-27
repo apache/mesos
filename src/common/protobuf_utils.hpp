@@ -18,6 +18,7 @@
 #define __PROTOBUF_UTILS_HPP__
 
 #include <initializer_list>
+#include <ostream>
 #include <set>
 #include <string>
 
@@ -155,6 +156,8 @@ struct Capabilities
         case SlaveInfo::Capability::MULTI_ROLE:
           multiRole = true;
           break;
+        // If adding another case here be sure to update the
+        // equality operator.
       }
     }
   }
@@ -173,6 +176,11 @@ struct Capabilities
     return result;
   }
 };
+
+
+bool operator==(const Capabilities& left, const Capabilities& right);
+bool operator!=(const Capabilities& left, const Capabilities& right);
+std::ostream& operator<<(std::ostream& stream, const Capabilities& c);
 
 
 mesos::slave::ContainerLimitation createContainerLimitation(

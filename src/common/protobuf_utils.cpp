@@ -22,6 +22,8 @@
 #include <pwd.h>
 #endif // __WINDOWS__
 
+#include <ostream>
+
 #include <mesos/slave/isolator.hpp>
 
 #include <mesos/type_utils.hpp>
@@ -48,6 +50,7 @@
 
 #include "messages/messages.hpp"
 
+using std::ostream;
 using std::set;
 using std::string;
 
@@ -492,6 +495,33 @@ ContainerID getRootContainerId(const ContainerID& containerId)
 }
 
 namespace slave {
+
+bool operator==(const Capabilities& left, const Capabilities& right)
+{
+  // TODO(bmahler): Use reflection-based equality to avoid breaking
+  // as new capabilities are added. Note that it needs to be set-based
+  // equality.
+  return left.multiRole == right.multiRole;
+}
+
+
+bool operator!=(const Capabilities& left, const Capabilities& right)
+{
+  return !(left == right);
+}
+
+
+ostream& operator<<(ostream& stream, const Capabilities& c)
+{
+  set<string> names;
+
+  foreach (const SlaveInfo::Capability& capability, c.toRepeatedPtrField()) {
+    names.insert(SlaveInfo::Capability::Type_Name(capability.type()));
+  }
+
+  return stream << stringify(names);
+}
+
 
 ContainerLimitation createContainerLimitation(
     const Resources& resources,
