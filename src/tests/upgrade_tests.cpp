@@ -258,6 +258,136 @@ TEST_F(UpgradeTest, ReregisterOldAgentWithMultiRoleMaster)
   driver.join();
 }
 
+
+// Checks that resources of an agent will be offered to MULTI_ROLE
+// frameworks after being upgraded to support MULTI_ROLE. We first
+// strip MULTI_ROLE capability in `registerSlaveMessage` to spoof an
+// old agent. Then we simulate a master detection event to trigger
+// agent re-registration. After 'upgrade', resources of the agent
+// should be offered to MULTI_ROLE frameworks.
+TEST_F(UpgradeTest, UpgradeSlaveIntoMultiRole)
+{
+  Clock::pause();
+
+  // Start a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a StandaloneMasterDetector to enable the agent to trigger
+  // re-registration later.
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  // Start a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Drop subsequent `ReregisterSlaveMessage`s to prevent a race condition
+  // where an unspoofed retry reaches master before the spoofed one.
+  DROP_PROTOBUFS(RegisterSlaveMessage(), slave.get()->pid, master.get()->pid);
+
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    DROP_PROTOBUF(
+        RegisterSlaveMessage(),
+        slave.get()->pid,
+        master.get()->pid);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(
+        SlaveRegisteredMessage(),
+        master.get()->pid,
+        slave.get()->pid);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  EXPECT_EQ(1u, registerSlaveMessage->agent_capabilities_size());
+  EXPECT_EQ(
+      SlaveInfo::Capability::MULTI_ROLE,
+      registerSlaveMessage->agent_capabilities(0).type());
+
+  // Strip MULTI_ROLE capability.
+  RegisterSlaveMessage strippedRegisterSlaveMessage =
+    registerSlaveMessage.get();
+  strippedRegisterSlaveMessage.clear_agent_capabilities();
+
+  // Prevent this from being dropped per the DROP_PROTOBUFS above.
+  FUTURE_PROTOBUF(
+      RegisterSlaveMessage(),
+      slave.get()->pid,
+      master.get()->pid);
+
+  process::post(
+      slave.get()->pid,
+      master.get()->pid,
+      strippedRegisterSlaveMessage);
+
+  Clock::settle();
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.clear_role();
+  frameworkInfo.add_roles("foo");
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  Clock::settle();
+
+  AWAIT_READY(registered);
+
+  // We don't expect scheduler to receive any offer because agent is not
+  // MULTI_ROLE capable.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .Times(0);
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  // Simulate a new master detected event on the agent,
+  // so that the agent will do a re-registration.
+  detector.appoint(None());
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  detector.appoint(master.get()->pid);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  // We should be able to receive offers after
+  // agent capabilities being udpated.
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
