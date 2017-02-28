@@ -34,6 +34,11 @@ package mesos.internal;
  * passing it from the agent to the framework that spawned the task.
  *
  * See protobuf::createStatusUpdate.
+ *
+ * A task status update may be used for guaranteed delivery of some
+ * task-related information, e.g., task's health update. Such information
+ * may be shadowed by subsequent task status updates, that do not preserve
+ * fields of the previously sent message.
  */
 message StatusUpdate {
   required FrameworkID framework_id = 1;
