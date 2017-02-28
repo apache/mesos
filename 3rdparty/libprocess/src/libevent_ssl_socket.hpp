@@ -37,17 +37,17 @@ public:
 
   LibeventSSLSocketImpl(int _s);
 
-  virtual ~LibeventSSLSocketImpl();
+  ~LibeventSSLSocketImpl() override;
 
   // Implement 'SocketImpl' interface.
-  virtual Future<Nothing> connect(const Address& address);
-  virtual Future<size_t> recv(char* data, size_t size);
+  Future<Nothing> connect(const Address& address) override;
+  Future<size_t> recv(char* data, size_t size) override;
   // Send does not currently support discard. See implementation.
-  virtual Future<size_t> send(const char* data, size_t size);
-  virtual Future<size_t> sendfile(int_fd fd, off_t offset, size_t size);
-  virtual Try<Nothing> listen(int backlog);
-  virtual Future<std::shared_ptr<SocketImpl>> accept();
-  virtual SocketImpl::Kind kind() const { return SocketImpl::Kind::SSL; }
+  Future<size_t> send(const char* data, size_t size) override;
+  Future<size_t> sendfile(int_fd fd, off_t offset, size_t size) override;
+  Try<Nothing> listen(int backlog) override;
+  Future<std::shared_ptr<SocketImpl>> accept() override;
+  SocketImpl::Kind kind() const override { return SocketImpl::Kind::SSL; }
 
   // Shuts down the socket.
   //
@@ -56,7 +56,7 @@ public:
   // do not have a concept of read/write-only shutdown. If either end
   // of the socket is closed, then the futures of any outstanding read
   // requests will be completed (possibly as failures).
-  virtual Try<Nothing> shutdown(int how) override;
+  Try<Nothing> shutdown(int how) override;
 
   // We need a post-initializer because 'shared_from_this()' is not
   // valid until the constructor has finished.
