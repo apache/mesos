@@ -67,7 +67,7 @@ link_directories(${PROCESS_TEST_LIB_DIRS})
 
 # THE PROCESS TEST EXECUTABLE (generates, e.g., libprocess-tests, etc., on Linux).
 ###############################################################################
-add_executable(${PROCESS_TESTS_TARGET} ${PROCESS_TESTS_SRC})
+add_executable(${PROCESS_TESTS_TARGET} EXCLUDE_FROM_ALL ${PROCESS_TESTS_SRC})
 
 GROUP_STOUT_HEADERS()
 GROUP_PROCESS_HEADERS()
@@ -88,7 +88,7 @@ add_dependencies(${PROCESS_TESTS_TARGET} ${PROCESS_TEST_DEPENDENCIES})
 
 # ADDITIONAL EXECUTABLE(s).
 ###########################
-add_executable(test-linkee test_linkee.cpp)
+add_executable(test-linkee EXCLUDE_FROM_ALL test_linkee.cpp)
 target_link_libraries(test-linkee ${PROCESS_TEST_LIBS})
 add_dependencies(${PROCESS_TESTS_TARGET} test-linkee)
 
