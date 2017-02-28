@@ -158,11 +158,9 @@ else
 	    CONFIGURATION="$CONFIGURATION $element=1"
 	done
 
-	# MESOS-5433: `distcheck` is not currently supported by our CMake scripts.
-	# MESOS-5624: In source build is not yet supported.
-	# Also, we run `make` in addition to `make check` because the latter only
-	# compiles stout and libprocess sources and tests.
-	append_dockerfile "CMD ./bootstrap && mkdir build && cd build && cmake $CONFIGURATION .. && make -j6 check && make -j6"
+	# MESOS-5433: `distcheck` is not supported.
+	# MESOS-5624: In source build is not supported.
+	append_dockerfile "CMD mkdir build && cd build && cmake $CONFIGURATION .. && make -j6 check"
 	;;
       *)
 	echo "Unknown build tool $BUILDTOOL"
