@@ -42,6 +42,27 @@ the CMake build system.
   </tr>
   <tr>
     <td>
+      -DCPACK_BINARY_(BUNDLE|DEB|DRAGNDROP|IFW|NSIS|OSXX11|PACKAGEMAKER|RPM|STGZ|TBZ2|TGZ|TXZ)
+    </td>
+    <td>
+      This modifies the 'package' target to generate binary package of
+      the specified format.  A binary package contains everything that
+      would be installed via CMake's 'install' target.
+      [default=OFF]
+    </td>
+  </tr>
+  <tr>
+    <td>
+      -DCPACK_SOURCE_(TBZ2|TXZ|TZ|ZIP)
+    </td>
+    <td>
+      This modifies the 'package_source' target to generate a package of the
+      sources required to build and test Mesos, in the specified format.
+      [default=OFF]
+    </td>
+  </tr>
+  <tr>
+    <td>
       -DENABLE_LIBEVENT
     </td>
     <td>
