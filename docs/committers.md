@@ -271,6 +271,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>gyliu513</td>
       <td>gyliu@apache.org</td>
     </tr>
+    <tr>
+      <td>+8</td>
+      <td>Kevin Klues</td>
+      <td>Mesosphere</td>
+      <td>klueska</td>
+      <td>klueska@apache.org</td>
+    </tr>
   </tbody>
 </table>
 
