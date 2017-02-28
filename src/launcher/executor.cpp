@@ -39,8 +39,8 @@
 #include <process/io.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
-#include <process/subprocess.hpp>
 #include <process/reap.hpp>
+#include <process/subprocess.hpp>
 #include <process/time.hpp>
 #include <process/timer.hpp>
 
