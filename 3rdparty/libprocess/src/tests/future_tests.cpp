@@ -269,6 +269,8 @@ TEST(FutureTest, After3)
   EXPECT_SOME(weak_future.get());
 
   {
+    Clock::pause();
+
     // The original future disappears here. After this call the
     // original future goes out of scope and should not be reachable
     // anymore.
@@ -277,6 +279,9 @@ TEST(FutureTest, After3)
         f.discard();
         return Nothing();
       });
+
+    Clock::advance(Milliseconds(1));
+    Clock::settle();
 
     AWAIT_READY(future);
   }
