@@ -200,22 +200,30 @@ Future<Version> version()
 
   return output
     .then([](const string& output) -> Future<Version> {
-      string trimmed = strings::remove(
-          strings::trim(output), "perf version ", strings::PREFIX);
-
-      // `perf` may have a version like "4.8.16.300.fc25.x86_64.ge69a".
-      // We really only care about the first 3 components, which show
-      // the software release of the perf package.
-      vector<string> components = strings::split(trimmed, ".");
-      if (components.size() > 3) {
-        components.resize(3);
-        trimmed = strings::join(".", components);
-      }
-
-      // Trim off the leading 'perf version ' text to convert.
-      return Version::parse(trimmed);
+      return parseVersion(output);
     });
 };
+
+
+// Since there is a lot of variety in perf(1) version strings
+// across distributions, we parse just the first 2 version
+// components, which is enough of a version number to implement
+// perf::supported().
+Try<Version> parseVersion(const string& output)
+{
+  // Trim off the leading 'perf version ' text to convert.
+  string trimmed = strings::remove(
+      strings::trim(output), "perf version ", strings::PREFIX);
+
+  vector<string> components = strings::split(trimmed, ".");
+
+  // perf(1) always has a version with least 2 components.
+  if (components.size() > 2) {
+    components.resize(2);
+  }
+
+  return Version::parse(strings::join(".", components));
+}
 
 
 bool supported(const Version& version)
