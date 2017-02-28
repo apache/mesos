@@ -211,6 +211,12 @@ public:
       case Event::ACKNOWLEDGED: {
         const UUID uuid = UUID::fromBytes(event.acknowledged().uuid()).get();
 
+        if (!unacknowledgedUpdates.contains(uuid)) {
+          LOG(WARNING) << "Received acknowledgement " << uuid
+                       << " for unknown status update";
+          return;
+        }
+
         // Terminate if we receive the ACK for the terminal status update.
         // NOTE: The executor receives an ACK iff it uses the HTTP library.
         // No ACK will be received if V0ToV1Adapter is used.
