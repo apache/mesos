@@ -375,11 +375,9 @@ protected:
       return;
     }
 
-    // Capture the task.
+    // Capture `TaskInfo` and `TaskID` of the task.
     CHECK(taskData.isNone());
     taskData = TaskData(task);
-
-    // Capture the TaskID.
     taskId = task.task_id();
 
     // Capture the kill policy.
@@ -406,8 +404,7 @@ protected:
     } else if (task.has_command()) {
       command = task.command();
     } else {
-      LOG(FATAL) << "Expecting task '" << taskData.taskInfo->task_id()
-                 << "' to have a command";
+      LOG(FATAL) << "Expecting task '" << taskId.get() << "' to have a command";
     }
 
     // TODO(jieyu): For now, we just fail the executor if the task's
@@ -417,12 +414,10 @@ protected:
     // correct solution is to perform this validation at master side.
     if (command.shell()) {
       CHECK(command.has_value())
-        << "Shell command of task '" << taskData.taskInfo->task_id()
-        << "' is not specified!";
+        << "Shell command of task '" << taskId.get() << "' is not specified";
     } else {
       CHECK(command.has_value())
-        << "Executable of task '" << taskData.taskInfo->task_id()
-        << "' is not specified!";
+        << "Executable of task '" << taskId.get() << "' is not specified";
     }
 
     // Determine the environment for the command to be launched.
@@ -450,7 +445,7 @@ protected:
       launchEnvironment.MergeFrom(command.environment());
     }
 
-    cout << "Starting task " << taskData.taskInfo->task_id() << endl;
+    cout << "Starting task " << taskId.get() << endl;
 
 #ifndef __WINDOWS__
     pid = launchTaskPosix(
@@ -496,7 +491,7 @@ protected:
             task.health_check(),
             launcherDir,
             defer(self(), &Self::taskHealthUpdated, lambda::_1),
-            taskData.taskInfo->task_id(),
+            taskId.get(),
             pid,
             namespaces);
 
@@ -513,8 +508,7 @@ protected:
     process::reap(pid)
       .onAny(defer(self(), &Self::reaped, pid, lambda::_1));
 
-    TaskStatus status =
-      createTaskStatus(taskData.taskInfo->task_id(), TASK_RUNNING);
+    TaskStatus status = createTaskStatus(taskId.get(), TASK_RUNNING);
 
     forward(status);
     launched = true;
