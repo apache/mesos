@@ -25,6 +25,7 @@
 
 #include <process/future.hpp>
 #include <process/subprocess.hpp>
+#include <process/shared.hpp>
 
 #include <stout/try.hpp>
 #include <stout/nothing.hpp>
@@ -80,25 +81,19 @@ public:
 
       static IO PATH(const std::string& path)
       {
-        return IO(Type::PATH, None(), path);
+        return IO(Type::PATH, path);
       }
 
-      static IO FD(int_fd fd)
+      static IO FD(int_fd fd, bool closeOnDestruction = true)
       {
-        return IO(Type::FD, fd, None());
+        return IO(Type::FD, fd, closeOnDestruction);
       }
 
       operator process::Subprocess::IO () const
       {
         switch (type_) {
           case Type::FD:
-            // NOTE: The FD is not duplicated and will be closed (as
-            // seen by the agent process) when the container is
-            // spawned.  This shifts the burden of FD-lifecycle
-            // management into the Containerizer.
-            return process::Subprocess::FD(
-                fd_.get(),
-                process::Subprocess::IO::OWNED);
+            return process::Subprocess::FD(*fd_->get());
           case Type::PATH:
             return process::Subprocess::PATH(path_.get());
           default:
@@ -106,20 +101,46 @@ public:
         }
       }
 
-      Type type() const { return type_; }
-      Option<int_fd> fd() const { return fd_; }
-      Option<std::string> path() const { return path_; }
-
     private:
-      IO(Type _type,
-         const Option<int_fd>& _fd,
-         const Option<std::string>& _path)
+      // A simple abstraction to wrap an FD and (optionally) close it
+      // on destruction. We know that we never copy instances of this
+      // class once they are instantiated, so it's OK to call
+      // `close()` in the destructor since only one reference will
+      // ever exist to it.
+      class FDWrapper
+      {
+      public:
+        FDWrapper(int_fd _fd, bool _closeOnDestruction)
+          : fd(_fd), closeOnDestruction(_closeOnDestruction) {}
+
+        ~FDWrapper() {
+          CHECK(fd >= 0);
+          if (closeOnDestruction) {
+            close(fd);
+          }
+        }
+
+        operator int_fd() const { return fd; }
+
+      private:
+        FDWrapper(const FDWrapper& fd) = delete;
+
+        int_fd fd;
+        bool closeOnDestruction;
+      };
+
+      IO(Type _type, int_fd _fd, bool closeOnDestruction)
         : type_(_type),
-          fd_(_fd),
+          fd_(new FDWrapper(_fd, closeOnDestruction)),
+          path_(None()) {}
+
+      IO(Type _type, const std::string& _path)
+        : type_(_type),
+          fd_(None()),
           path_(_path) {}
 
       Type type_;
-      Option<int_fd> fd_;
+      Option<process::Shared<FDWrapper>> fd_;
       Option<std::string> path_;
     };
 
@@ -127,18 +148,18 @@ public:
      * How to redirect the stdin of the executable.
      * See `process::Subprocess::IO`.
      */
-    IO in = IO::FD(STDIN_FILENO);
+    IO in = IO::FD(STDIN_FILENO, false);
 
     /**
      * How to redirect the stdout of the executable.
      * See `process::Subprocess::IO`.
      */
-    IO out = IO::FD(STDOUT_FILENO);
+    IO out = IO::FD(STDOUT_FILENO, false);
 
     /**
      * Similar to `out`, except this describes how to redirect stderr.
      */
-    IO err = IO::FD(STDERR_FILENO);
+    IO err = IO::FD(STDERR_FILENO, false);
   };
 
   /**
