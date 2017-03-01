@@ -23,6 +23,15 @@
 
 #include "common/build.hpp"
 
+// NOTE: On CMake, instead of defining `BUILD_DATE|TIME|USER` as
+// compiler flags, we instead emit a header file with the definitions.
+// This facilitates incremental builds as the compiler flags will
+// no longer change with every invocation of the build.
+// TODO(josephw): After deprecating autotools, remove this guard.
+#ifdef USE_CMAKE_BUILD_CONFIG
+#include "common/build_config.hpp"
+#endif // USE_CMAKE_BUILD_CONFIG
+
 namespace mesos {
 namespace internal {
 namespace build {

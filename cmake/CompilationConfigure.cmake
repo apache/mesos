@@ -286,14 +286,27 @@ set(MESOS_CPPFLAGS
   -DPKGDATADIR="${DATA_INSTALL_PREFIX}"
   )
 
-# Add build information to Mesos flags.
+# Calculate some build information.
 string(TIMESTAMP BUILD_DATE "%Y-%m-%d %H:%M:%S UTC" UTC)
-string(TIMESTAMP BUILD_TIME "%s" UTC)
 if (WIN32)
+  string(TIMESTAMP BUILD_TIME "%s" UTC)
   set(BUILD_USER "$ENV{USERNAME}")
 else (WIN32)
+  execute_process(
+    COMMAND date +%s
+    OUTPUT_VARIABLE BUILD_TIME
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
   set(BUILD_USER "$ENV{USER}")
 endif (WIN32)
+
+# Emit the BUILD_DATE, BUILD_TIME, and BUILD_USER variables into a file.
+# This will be updated each time `cmake` is run.
+configure_file(
+  "${CMAKE_SOURCE_DIR}/src/common/build_config.hpp.in"
+  "${CMAKE_BINARY_DIR}/src/common/build_config.hpp"
+  @ONLY
+  )
 
 # TODO(hausdorff): (MESOS-5902) Populate this value when we integrate Java
 # support.
@@ -305,9 +318,7 @@ set(BUILD_JAVA_JVM_LIBRARY "")
 set(MESOS_CPPFLAGS
   ${MESOS_CPPFLAGS}
   -DUSE_STATIC_LIB
-  -DBUILD_DATE="${BUILD_DATE}"
-  -DBUILD_TIME="${BUILD_TIME}"
-  -DBUILD_USER="${BUILD_USER}"
+  -DUSE_CMAKE_BUILD_CONFIG
   -DBUILD_JAVA_JVM_LIBRARY="${BUILD_JAVA_JVM_LIBRARY}"
   )
 
