@@ -254,7 +254,7 @@ Option<bool> getTaskHealth(const Task& task)
     // each state, and appends later statuses at the end. Thus the last
     // status is either a terminal state (where health is irrelevant),
     // or the latest TASK_RUNNING status.
-    TaskStatus lastStatus = task.statuses(task.statuses_size() - 1);
+    const TaskStatus& lastStatus = task.statuses(task.statuses_size() - 1);
     if (lastStatus.has_healthy()) {
       healthy = lastStatus.healthy();
     }
@@ -271,7 +271,7 @@ Option<CheckStatusInfo> getTaskCheckStatus(const Task& task)
     // each state, and appends later statuses at the end. Thus the last
     // status is either a terminal state (where check is irrelevant),
     // or the latest TASK_RUNNING status.
-    TaskStatus lastStatus = task.statuses(task.statuses_size() - 1);
+    const TaskStatus& lastStatus = task.statuses(task.statuses_size() - 1);
     if (lastStatus.has_check_status()) {
       checkStatus = lastStatus.check_status();
     }

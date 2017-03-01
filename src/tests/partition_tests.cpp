@@ -230,7 +230,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
   EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
   EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
 
-  const SlaveID slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus.get().slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -587,7 +587,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
   EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
   EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
 
-  const SlaveID slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus.get().slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -889,7 +889,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_EQ(TASK_RUNNING, runningStatus1.get().state());
   EXPECT_EQ(task1.task_id(), runningStatus1.get().task_id());
 
-  const SlaveID slaveId = runningStatus1.get().slave_id();
+  const SlaveID& slaveId = runningStatus1.get().slave_id();
 
   AWAIT_READY(statusUpdateAck1);
 
@@ -1151,7 +1151,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
   EXPECT_EQ(TASK_RUNNING, runningStatus->state());
   EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID slaveId = runningStatus->slave_id();
+  const SlaveID& slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -1419,7 +1419,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, DisconnectedFramework)
   EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
   EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
 
-  const SlaveID slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus.get().slave_id();
 
   AWAIT_READY(statusUpdateAck1);
 
@@ -1588,7 +1588,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, SpuriousSlaveReregistration)
   EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
   EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
 
-  const SlaveID slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus.get().slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -1664,7 +1664,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveStatusUpdates)
 
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  const SlaveID& slaveId = slaveRegisteredMessage.get().slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1955,8 +1955,8 @@ TEST_F(PartitionTest, TaskCompletedOnPartitionedAgent)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  Offer offer = offers->at(0);
-  SlaveID slaveId = offer.slave_id();
+  const Offer& offer = offers->at(0);
+  const SlaveID& slaveId = offer.slave_id();
 
   ExecutorDriver* execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
@@ -2192,8 +2192,8 @@ TEST_F(PartitionTest, PartitionAwareTaskCompletedOnPartitionedAgent)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  Offer offer = offers->at(0);
-  SlaveID slaveId = offer.slave_id();
+  const Offer& offer = offers->at(0);
+  const SlaveID& slaveId = offer.slave_id();
 
   ExecutorDriver* execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))

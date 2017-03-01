@@ -1773,9 +1773,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
   AWAIT_READY(offers);
   ASSERT_NE(0u, offers.get().size());
 
-  Offer offer = offers.get()[0];
-
-  SlaveID slaveId = offer.slave_id();
+  const Offer& offer = offers.get()[0];
 
   Resource volume = createPersistentVolume(
     Megabytes(64),
@@ -1938,7 +1936,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
   AWAIT_READY(offers);
   ASSERT_NE(0u, offers.get().size());
 
-  Offer offer = offers.get()[0];
+  const Offer& offer = offers.get()[0];
 
   Resource volume = createPersistentVolume(
     Megabytes(64),
@@ -2240,8 +2238,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   ASSERT_NE(0u, offers.get().size());
 
   const Offer& offer = offers.get()[0];
-
-  SlaveID slaveId = offer.slave_id();
 
   TaskInfo task;
   task.set_name("");
@@ -2648,8 +2644,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 
   const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
-
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
@@ -2726,7 +2720,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   AWAIT_READY(status);
   ASSERT_EQ(TASK_RUNNING, status.get().state());
 
-  ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
+  ASSERT_TRUE(exists(docker, offer.slave_id(), containerId.get()));
 
   Future<Option<ContainerTermination>> termination =
     dockerContainerizer->wait(containerId.get());
@@ -2985,8 +2979,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
 
   const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
-
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
@@ -3041,7 +3033,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
   ASSERT_TRUE(
-    exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
+    exists(docker,
+           offer.slave_id(),
+           containerId.get(),
+           ContainerState::RUNNING));
 
   string uuid = UUID::random().toString();
 
@@ -3133,8 +3128,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
 
   const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
-
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("test:colon");
@@ -3172,7 +3165,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
 
-  ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
+  ASSERT_TRUE(exists(docker, offer.slave_id(), containerId.get()));
 
   Future<Option<ContainerTermination>> termination =
     dockerContainerizer.wait(containerId.get());
@@ -4136,8 +4129,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
 
   const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
-
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
@@ -4178,7 +4169,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
 
   // Find cgroups cpu hierarchy of the container and verifies
   // quota is set.
-  string name = containerName(slaveId, containerId.get());
+  string name = containerName(offer.slave_id(), containerId.get());
   Future<Docker::Container> inspect = docker->inspect(name);
   AWAIT_READY(inspect);
 

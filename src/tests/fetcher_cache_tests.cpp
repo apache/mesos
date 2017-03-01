@@ -390,7 +390,7 @@ static Future<list<Nothing>> awaitFinished(
 // given queue, which later on shall be queried by awaitFinished().
 ACTION_P(PushTaskStatus, taskStatusQueue)
 {
-  TaskStatus taskStatus = arg1;
+  const TaskStatus& taskStatus = arg1;
 
   // Input parameters of ACTION_P are const. We make a mutable copy
   // so that we can use put().
@@ -479,7 +479,7 @@ ACTION_TEMPLATE(PushIndexedTaskStatus,
                 HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_1_VALUE_PARAMS(tasks))
 {
-  TaskStatus taskStatus = ::std::tr1::get<k>(args);
+  const TaskStatus& taskStatus = ::std::tr1::get<k>(args);
   Try<int> taskId = numify<int>(taskStatus.task_id().value());
   ASSERT_SOME(taskId);
   Queue<TaskStatus> queue = (tasks)[taskId.get()].statusQueue;

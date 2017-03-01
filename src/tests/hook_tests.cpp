@@ -892,8 +892,6 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
 
   const Offer& offer = offers.get()[0];
 
-  SlaveID slaveId = offer.slave_id();
-
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");

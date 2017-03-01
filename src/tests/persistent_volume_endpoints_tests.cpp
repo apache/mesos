@@ -1911,8 +1911,8 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   for (size_t i = 0; i < offers.get().size(); i++) {
-    Offer offer = offers.get()[i];
-    SlaveID offeredSlaveId = offer.slave_id();
+    const Offer& offer = offers.get()[i];
+    const SlaveID& offeredSlaveId = offer.slave_id();
 
     ASSERT_TRUE(offeredSlaveId == slave1Id.get() ||
                 offeredSlaveId == slave2Id.get());

@@ -891,7 +891,7 @@ TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
   EXPECT_FALSE(offers.get().empty());
 
   const Offer& offer = offers.get()[0];
-  SlaveID slaveId = offer.slave_id();
+  const SlaveID& slaveId = offer.slave_id();
 
   // The busy mount point goes before the regular file in GC's
   // directory traversal due to their names. This makes sure that

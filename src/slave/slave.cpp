@@ -6483,7 +6483,7 @@ Executor* Framework::launchExecutor(
             << " with resources " << executorInfo.resources()
             << " in work directory '" << directory << "'";
 
-  ExecutorID executorId = executorInfo.executor_id();
+  const ExecutorID& executorId = executorInfo.executor_id();
   FrameworkID frameworkId = id();
 
   const PID<Slave> slavePid = slave->self();
@@ -6800,8 +6800,6 @@ void Framework::recoverExecutor(const ExecutorState& state)
     // Move the executor to 'completedExecutors'.
     destroyExecutor(executor->id);
   }
-
-  return;
 }
 
 
