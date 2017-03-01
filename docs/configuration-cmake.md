@@ -71,6 +71,14 @@ the CMake build system.
   </tr>
   <tr>
     <td>
+      -DENABLE_SSL
+    </td>
+    <td>
+      Build libprocess with SSL support. [default=FALSE]
+    </td>
+  </tr>
+  <tr>
+    <td>
       -DHAS_AUTHENTICATION
     </td>
     <td>

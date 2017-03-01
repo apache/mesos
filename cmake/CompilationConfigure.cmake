@@ -70,6 +70,11 @@ option(
   FALSE)
 
 option(
+  ENABLE_SSL
+  "Build libprocess with SSL support"
+  FALSE)
+
+option(
   HAS_AUTHENTICATION
   "Build Mesos against authentication libraries"
   TRUE)
@@ -114,6 +119,12 @@ if (WIN32 AND (NOT ENABLE_LIBEVENT))
     "loop used by Mesos.  To opt into using libevent, pass "
     "`-DENABLE_LIBEVENT=1` as an argument when you run CMake.")
 endif (WIN32 AND (NOT ENABLE_LIBEVENT))
+
+if (ENABLE_SSL AND (NOT ENABLE_LIBEVENT))
+  message(
+    FATAL_ERROR
+    "'ENABLE_SSL' currently requires 'ENABLE_LIBEVENT'.")
+endif (ENABLE_SSL AND (NOT ENABLE_LIBEVENT))
 
 
 # SYSTEM CHECKS.
@@ -285,6 +296,13 @@ set(MESOS_CPPFLAGS
   -DVERSION="${PACKAGE_VERSION}"
   -DPKGDATADIR="${DATA_INSTALL_PREFIX}"
   )
+
+if (ENABLE_SSL)
+  set(MESOS_CPPFLAGS
+    ${MESOS_CPPFLAGS}
+    -DUSE_SSL_SOCKET=1
+    )
+endif (ENABLE_SSL)
 
 # Calculate some build information.
 string(TIMESTAMP BUILD_DATE "%Y-%m-%d %H:%M:%S UTC" UTC)
