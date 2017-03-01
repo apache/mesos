@@ -45,7 +45,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-using SubprocessInfo = ContainerLogger::SubprocessInfo;
+using ContainerIO = ContainerLogger::ContainerIO;
 
 
 class SandboxContainerLoggerProcess :
@@ -55,17 +55,17 @@ public:
   SandboxContainerLoggerProcess()
     : ProcessBase(process::ID::generate("sandbox-logger")) {}
 
-  process::Future<ContainerLogger::SubprocessInfo> prepare(
+  process::Future<ContainerLogger::ContainerIO> prepare(
       const ExecutorInfo& executorInfo,
       const std::string& sandboxDirectory,
       const Option<std::string>& user)
   {
-    ContainerLogger::SubprocessInfo info;
+    ContainerIO io;
 
-    info.out = SubprocessInfo::IO::PATH(path::join(sandboxDirectory, "stdout"));
-    info.err = SubprocessInfo::IO::PATH(path::join(sandboxDirectory, "stderr"));
+    io.out = ContainerIO::IO::PATH(path::join(sandboxDirectory, "stdout"));
+    io.err = ContainerIO::IO::PATH(path::join(sandboxDirectory, "stderr"));
 
-    return info;
+    return io;
   }
 };
 
@@ -90,7 +90,7 @@ Try<Nothing> SandboxContainerLogger::initialize()
 }
 
 
-Future<ContainerLogger::SubprocessInfo>
+Future<ContainerLogger::ContainerIO>
 SandboxContainerLogger::prepare(
     const ExecutorInfo& executorInfo,
     const std::string& sandboxDirectory,

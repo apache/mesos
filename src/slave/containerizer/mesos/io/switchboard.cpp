@@ -290,7 +290,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::prepare(
 Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig,
-    const ContainerLogger::SubprocessInfo& loggerInfo)
+    const ContainerLogger::ContainerIO& loggerIO)
 {
   // On windows, we do not yet support running an io switchboard
   // server, so we must error out if it is required.
@@ -310,31 +310,31 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     ContainerIO* out = launchInfo.mutable_out();
     ContainerIO* err = launchInfo.mutable_err();
 
-    switch (loggerInfo.out.type()) {
+    switch (loggerIO.out.type()) {
 #ifndef __WINDOWS__
-      case ContainerLogger::SubprocessInfo::IO::Type::FD:
+      case ContainerLogger::ContainerIO::IO::Type::FD:
         out->set_type(ContainerIO::FD);
-        out->set_fd(loggerInfo.out.fd().get());
+        out->set_fd(loggerIO.out.fd().get());
         break;
 #endif
-      case ContainerLogger::SubprocessInfo::IO::Type::PATH:
+      case ContainerLogger::ContainerIO::IO::Type::PATH:
         out->set_type(ContainerIO::PATH);
-        out->set_path(loggerInfo.out.path().get());
+        out->set_path(loggerIO.out.path().get());
         break;
       default:
         UNREACHABLE();
     }
 
-    switch (loggerInfo.err.type()) {
+    switch (loggerIO.err.type()) {
 #ifndef __WINDOWS__
-      case ContainerLogger::SubprocessInfo::IO::Type::FD:
+      case ContainerLogger::ContainerIO::IO::Type::FD:
         err->set_type(ContainerIO::FD);
-        err->set_fd(loggerInfo.err.fd().get());
+        err->set_fd(loggerIO.err.fd().get());
         break;
 #endif
-      case ContainerLogger::SubprocessInfo::IO::Type::PATH:
+      case ContainerLogger::ContainerIO::IO::Type::PATH:
         err->set_type(ContainerIO::PATH);
-        err->set_path(loggerInfo.err.path().get());
+        err->set_path(loggerIO.err.path().get());
         break;
       default:
         UNREACHABLE();
@@ -588,8 +588,8 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
       path::join(flags.launcher_dir, IOSwitchboardServer::NAME),
       {IOSwitchboardServer::NAME},
       Subprocess::PATH("/dev/null"),
-      loggerInfo.out,
-      loggerInfo.err,
+      loggerIO.out,
+      loggerIO.err,
       &switchboardFlags,
       environment,
       None(),

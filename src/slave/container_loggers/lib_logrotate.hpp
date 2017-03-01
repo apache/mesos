@@ -195,7 +195,7 @@ public:
   // This is a noop.  The logrotate container logger has nothing to initialize.
   virtual Try<Nothing> initialize();
 
-  virtual process::Future<mesos::slave::ContainerLogger::SubprocessInfo>
+  virtual process::Future<mesos::slave::ContainerLogger::ContainerIO>
   prepare(
       const ExecutorInfo& executorInfo,
       const std::string& sandboxDirectory,

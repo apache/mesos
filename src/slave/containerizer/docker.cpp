@@ -1324,7 +1324,7 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
       container->user)
     .then(defer(
         self(),
-        [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
+        [=](const ContainerLogger::ContainerIO& containerIO)
           -> Future<Docker::Container> {
     Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
         container->container,
@@ -1351,8 +1351,8 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
     // ExecutorInfo, or the docker executor.
     Future<Option<int>> run = docker->run(
         runOptions.get(),
-        subprocessInfo.out,
-        subprocessInfo.err);
+        containerIO.out,
+        containerIO.err);
 
     // It's possible that 'run' terminates before we're able to
     // obtain an 'inspect' result. It's also possible that 'run'
@@ -1463,7 +1463,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     }))
     .then(defer(
         self(),
-        [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
+        [=](const ContainerLogger::ContainerIO& containerIO)
           -> Future<pid_t> {
     // NOTE: The child process will be blocked until all hooks have been
     // executed.
@@ -1513,8 +1513,8 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
         path::join(flags.launcher_dir, MESOS_DOCKER_EXECUTOR),
         argv,
         Subprocess::PIPE(),
-        subprocessInfo.out,
-        subprocessInfo.err,
+        containerIO.out,
+        containerIO.err,
         &launchFlags,
         environment,
         None(),

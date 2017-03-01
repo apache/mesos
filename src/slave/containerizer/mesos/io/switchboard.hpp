@@ -105,7 +105,7 @@ private:
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig,
-      const mesos::slave::ContainerLogger::SubprocessInfo& loggerInfo);
+      const mesos::slave::ContainerLogger::ContainerIO& loggerIO);
 
   process::Future<process::http::Connection> _connect(
       const ContainerID& containerId) const;
