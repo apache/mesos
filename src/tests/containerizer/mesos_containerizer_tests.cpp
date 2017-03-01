@@ -682,12 +682,12 @@ TEST_F(MesosContainerizerExecuteTest, ROOT_SandboxFileOwnership)
 
   // Verify that stdout is owned by the task user.
   struct stat s;
-  std::string stdoutPath = path::join(sandbox, "stdout");
+  string stdoutPath = path::join(sandbox, "stdout");
   EXPECT_EQ(0, ::stat(stdoutPath.c_str(), &s));
   EXPECT_EQ(uid.get(), s.st_uid);
 
   // Verify that stderr is owned by the task user.
-  std::string stderrPath = path::join(sandbox, "stderr");
+  string stderrPath = path::join(sandbox, "stderr");
   EXPECT_EQ(0, ::stat(stderrPath.c_str(), &s));
   EXPECT_EQ(uid.get(), s.st_uid);
 

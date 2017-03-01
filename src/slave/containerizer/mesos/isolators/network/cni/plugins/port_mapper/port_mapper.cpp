@@ -491,7 +491,7 @@ Try<Option<string>, PluginError> PortMapper::execute()
 
 Result<spec::NetworkInfo> PortMapper::delegate(const string& command)
 {
-  map<std::string, std::string> environment;
+  map<string, string> environment;
 
   environment["CNI_COMMAND"] = command;
   environment["CNI_IFNAME"] = cniIfName;

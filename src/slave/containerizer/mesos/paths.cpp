@@ -160,7 +160,7 @@ string getContainerIOSwitchboardPidPath(
 
 
 Result<pid_t> getContainerIOSwitchboardPid(
-    const std::string& runtimeDir,
+    const string& runtimeDir,
     const ContainerID& containerId)
 {
   const string path = getContainerIOSwitchboardPidPath(
@@ -230,8 +230,8 @@ Result<unix::Address> getContainerIOSwitchboardAddress(
 #endif // __WINDOWS__
 
 
-std::string getContainerForceDestroyOnRecoveryPath(
-    const std::string& runtimeDir,
+string getContainerForceDestroyOnRecoveryPath(
+    const string& runtimeDir,
     const ContainerID& containerId)
 {
   return path::join(
@@ -241,7 +241,7 @@ std::string getContainerForceDestroyOnRecoveryPath(
 
 
 bool getContainerForceDestroyOnRecovery(
-    const std::string& runtimeDir,
+    const string& runtimeDir,
     const ContainerID& containerId)
 {
   const string path = getContainerForceDestroyOnRecoveryPath(

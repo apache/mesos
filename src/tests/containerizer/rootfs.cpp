@@ -125,7 +125,7 @@ Try<process::Owned<Rootfs>> LinuxRootfs::create(const string& root)
     return Error("Failed to parse ld.so cache: " + cache.error());
   }
 
-  const std::vector<string> programs = {
+  const vector<string> programs = {
     "/bin/echo",
     "/bin/ls",
     "/bin/ping",
@@ -156,7 +156,7 @@ Try<process::Owned<Rootfs>> LinuxRootfs::create(const string& root)
     }
   }
 
-  const std::vector<string> directories = {
+  const vector<string> directories = {
     "/proc",
     "/sys",
     "/dev",

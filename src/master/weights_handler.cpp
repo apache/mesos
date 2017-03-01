@@ -342,7 +342,7 @@ Future<bool> Master::WeightsHandler::authorizeUpdateWeights(
   }
 
   return await(authorizations)
-      .then([](const std::list<Future<bool>>& authorizations)
+      .then([](const list<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
         foreach (const Future<bool>& authorization, authorizations) {

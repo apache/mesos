@@ -448,8 +448,8 @@ Future<Nothing> NetClsSubsystem::cleanup(
 
 
 Result<NetClsHandle> NetClsSubsystem::recoverHandle(
-    const std::string& hierarchy,
-    const std::string& cgroup)
+    const string& hierarchy,
+    const string& cgroup)
 {
   Try<uint32_t> classid = cgroups::net_cls::classid(hierarchy, cgroup);
   if (classid.isError()) {

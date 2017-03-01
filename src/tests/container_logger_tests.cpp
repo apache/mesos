@@ -434,7 +434,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_CustomRotateOptions)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers.get().size());
 
-  const std::string customConfig = "some-custom-logrotate-option";
+  const string customConfig = "some-custom-logrotate-option";
 
   TaskInfo task = createTask(offers.get()[0], "exit 0");
 
@@ -479,7 +479,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_CustomRotateOptions)
   string stdoutPath = path::join(sandboxDirectory, "stdout.logrotate.conf");
   ASSERT_TRUE(os::exists(stdoutPath));
 
-  Try<std::string> stdoutConfig = os::read(stdoutPath);
+  Try<string> stdoutConfig = os::read(stdoutPath);
   ASSERT_SOME(stdoutConfig);
 
   ASSERT_TRUE(strings::contains(stdoutConfig.get(), customConfig));

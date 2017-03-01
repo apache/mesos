@@ -216,12 +216,12 @@ mesos::internal::slave::Flags::Flags()
       "not across reboots). This directory will be cleared on reboot.\n"
       "(Example: `/var/run/mesos`)",
       []() -> string {
-        Try<std::string> var = os::var();
+        Try<string> var = os::var();
         if (var.isSome()) {
 #ifdef __WINDOWS__
-          const std::string prefix(var.get());
+          const string prefix(var.get());
 #else
-          const std::string prefix(path::join(var.get(), "run"));
+          const string prefix(path::join(var.get(), "run"));
 #endif // __WINDOWS__
 
           // We check for access on the prefix because the remainder
