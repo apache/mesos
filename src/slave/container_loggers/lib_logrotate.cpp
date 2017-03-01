@@ -24,6 +24,7 @@
 #include <mesos/module/container_logger.hpp>
 
 #include <mesos/slave/container_logger.hpp>
+#include <mesos/slave/containerizer.hpp>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -54,13 +55,11 @@ using namespace mesos;
 using namespace process;
 
 using mesos::slave::ContainerLogger;
+using mesos::slave::ContainerIO;
 
 namespace mesos {
 namespace internal {
 namespace logger {
-
-using ContainerIO = ContainerLogger::ContainerIO;
-
 
 class LogrotateContainerLoggerProcess :
   public Process<LogrotateContainerLoggerProcess>

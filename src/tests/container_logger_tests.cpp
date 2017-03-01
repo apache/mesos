@@ -21,6 +21,7 @@
 #include <gmock/gmock.h>
 
 #include <mesos/slave/container_logger.hpp>
+#include <mesos/slave/containerizer.hpp>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
@@ -115,7 +116,7 @@ public:
 
     // All output is redirected to STDOUT_FILENO and STDERR_FILENO.
     EXPECT_CALL(*this, prepare(_, _, _))
-      .WillRepeatedly(Return(mesos::slave::ContainerLogger::ContainerIO()));
+      .WillRepeatedly(Return(mesos::slave::ContainerIO()));
   }
 
   virtual ~MockContainerLogger() {}
@@ -124,7 +125,7 @@ public:
 
   MOCK_METHOD3(
       prepare,
-      Future<mesos::slave::ContainerLogger::ContainerIO>(
+      Future<mesos::slave::ContainerIO>(
           const ExecutorInfo&, const string&, const Option<string>&));
 };
 
