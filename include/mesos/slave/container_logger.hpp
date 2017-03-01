@@ -55,7 +55,7 @@ public:
    * A collection of `process::subprocess` arguments which the container logger
    * can influence.  See `ContainerLogger::prepare`.
    */
-  struct SubprocessInfo
+  struct ContainerIO
   {
     /**
      * Describes how the container logger redirects I/O for stdout/stderr.
@@ -127,12 +127,12 @@ public:
      * How to redirect the stdout of the executable.
      * See `process::Subprocess::IO`.
      */
-    IO out = SubprocessInfo::IO::FD(STDOUT_FILENO);
+    IO out = IO::FD(STDOUT_FILENO);
 
     /**
      * Similar to `out`, except this describes how to redirect stderr.
      */
-    IO err = SubprocessInfo::IO::FD(STDERR_FILENO);
+    IO err = IO::FD(STDERR_FILENO);
   };
 
   /**
@@ -162,10 +162,10 @@ public:
    *
    * The container logger is given some of the arguments which the containerizer
    * will use to launch a container.  The container logger should return a
-   * `SubprocessInfo` which tells the containerizer how to handle the stdout
-   * and stderr of the subprocess.  The container logger can modify the fields
-   * within the `SubprocessInfo` as much as necessary, with some exceptions;
-   * see the struct `SubprocessInfo` above.
+   * `ContainerIO` which tells the containerizer how to handle the stdout
+   * and stderr of the container.  The container logger can modify the fields
+   * within the `ContainerIO` as much as necessary, with some exceptions;
+   * see the struct `ContainerIO` above.
    *
    * NOTE: The container logger should not lose stdout/stderr if the agent
    * fails over.  Additionally, if the container logger is stateful, the logger
@@ -178,7 +178,7 @@ public:
    *     executor's sandbox, such as persistent state between agent failovers.
    *     NOTE: All files in the sandbox are exposed via the `/files` endpoint.
    */
-  virtual process::Future<SubprocessInfo> prepare(
+  virtual process::Future<ContainerIO> prepare(
       const ExecutorInfo& executorInfo,
       const std::string& sandboxDirectory,
       const Option<std::string>& user) = 0;

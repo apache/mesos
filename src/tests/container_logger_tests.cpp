@@ -115,7 +115,7 @@ public:
 
     // All output is redirected to STDOUT_FILENO and STDERR_FILENO.
     EXPECT_CALL(*this, prepare(_, _, _))
-      .WillRepeatedly(Return(mesos::slave::ContainerLogger::SubprocessInfo()));
+      .WillRepeatedly(Return(mesos::slave::ContainerLogger::ContainerIO()));
   }
 
   virtual ~MockContainerLogger() {}
@@ -124,7 +124,7 @@ public:
 
   MOCK_METHOD3(
       prepare,
-      Future<mesos::slave::ContainerLogger::SubprocessInfo>(
+      Future<mesos::slave::ContainerLogger::ContainerIO>(
           const ExecutorInfo&, const string&, const Option<string>&));
 };
 
