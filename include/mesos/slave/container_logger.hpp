@@ -124,6 +124,12 @@ public:
     };
 
     /**
+     * How to redirect the stdin of the executable.
+     * See `process::Subprocess::IO`.
+     */
+    IO in = IO::FD(STDIN_FILENO);
+
+    /**
      * How to redirect the stdout of the executable.
      * See `process::Subprocess::IO`.
      */
