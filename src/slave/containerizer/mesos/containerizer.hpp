@@ -235,7 +235,7 @@ private:
 
   process::Future<bool> _launch(
       const ContainerID& containerId,
-      const Option<mesos::slave::ContainerLogger::ContainerIO>& containerIO,
+      const Option<mesos::slave::ContainerIO>& containerIO,
       const std::map<std::string, std::string>& environment,
       const SlaveID& slaveId,
       bool checkpoint);

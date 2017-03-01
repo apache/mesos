@@ -21,6 +21,7 @@
 #include <vector>
 
 #include <mesos/slave/container_logger.hpp>
+#include <mesos/slave/containerizer.hpp>
 
 #include <process/check.hpp>
 #include <process/collect.hpp>
@@ -71,6 +72,7 @@ using std::string;
 using std::vector;
 
 using mesos::slave::ContainerLogger;
+using mesos::slave::ContainerIO;
 using mesos::slave::ContainerTermination;
 
 using mesos::internal::slave::state::SlaveState;
@@ -1319,7 +1321,7 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
       container->user)
     .then(defer(
         self(),
-        [=](const ContainerLogger::ContainerIO& containerIO)
+        [=](const ContainerIO& containerIO)
           -> Future<Docker::Container> {
     // Start the executor in a Docker container.
     // This executor could either be a custom executor specified by an
@@ -1432,7 +1434,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     }))
     .then(defer(
         self(),
-        [=](const ContainerLogger::ContainerIO& containerIO)
+        [=](const ContainerIO& containerIO)
           -> Future<pid_t> {
     // NOTE: The child process will be blocked until all hooks have been
     // executed.

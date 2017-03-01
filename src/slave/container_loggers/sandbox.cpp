@@ -21,6 +21,7 @@
 #include <mesos/mesos.hpp>
 
 #include <mesos/slave/container_logger.hpp>
+#include <mesos/slave/containerizer.hpp>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -40,13 +41,11 @@
 using namespace process;
 
 using mesos::slave::ContainerLogger;
+using mesos::slave::ContainerIO;
 
 namespace mesos {
 namespace internal {
 namespace slave {
-
-using ContainerIO = ContainerLogger::ContainerIO;
-
 
 class SandboxContainerLoggerProcess :
   public Process<SandboxContainerLoggerProcess>
@@ -55,7 +54,7 @@ public:
   SandboxContainerLoggerProcess()
     : ProcessBase(process::ID::generate("sandbox-logger")) {}
 
-  process::Future<ContainerLogger::ContainerIO> prepare(
+  process::Future<ContainerIO> prepare(
       const ExecutorInfo& executorInfo,
       const std::string& sandboxDirectory,
       const Option<std::string>& user)
@@ -90,8 +89,7 @@ Try<Nothing> SandboxContainerLogger::initialize()
 }
 
 
-Future<ContainerLogger::ContainerIO>
-SandboxContainerLogger::prepare(
+Future<ContainerIO> SandboxContainerLogger::prepare(
     const ExecutorInfo& executorInfo,
     const std::string& sandboxDirectory,
     const Option<std::string>& user)

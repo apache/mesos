@@ -104,6 +104,7 @@ using mesos::slave::ContainerClass;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerLogger;
+using mesos::slave::ContainerIO;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -263,7 +264,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::prepare(
 {
   // In local mode, the container will inherit agent's stdio.
   if (local) {
-    containerIOs[containerId] = ContainerLogger::ContainerIO();
+    containerIOs[containerId] = ContainerIO();
     return None();
   }
 
@@ -290,7 +291,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::prepare(
 Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig,
-    const ContainerLogger::ContainerIO& loggerIO)
+    const ContainerIO& loggerIO)
 {
   // On windows, we do not yet support running an io switchboard
   // server, so we must error out if it is required.
@@ -327,7 +328,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   // at the bottom of this function. We declare it here so we can
   // populate it throughout this function and only store it back to
   // the hashmap once we know this function has succeeded.
-  ContainerLogger::ContainerIO containerIO;
+  ContainerIO containerIO;
 
   // Manually construct pipes instead of using `Subprocess::PIPE`
   // so that the ownership of the FDs is properly represented. The
@@ -417,7 +418,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     stdoutFromFd = master;
     stderrFromFd = master;
 
-    containerIO.in = ContainerLogger::ContainerIO::IO::FD(slave.get());
+    containerIO.in = ContainerIO::IO::FD(slave.get());
     containerIO.out = containerIO.in;
     containerIO.err = containerIO.in;
 
@@ -460,9 +461,9 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     stdoutFromFd = outfds[0];
     stderrFromFd = errfds[0];
 
-    containerIO.in = ContainerLogger::ContainerIO::IO::FD(infds[0]);
-    containerIO.out = ContainerLogger::ContainerIO::IO::FD(outfds[1]);
-    containerIO.err = ContainerLogger::ContainerIO::IO::FD(errfds[1]);
+    containerIO.in = ContainerIO::IO::FD(infds[0]);
+    containerIO.out = ContainerIO::IO::FD(outfds[1]);
+    containerIO.err = ContainerIO::IO::FD(errfds[1]);
   }
 
   // Make sure all file descriptors opened have CLOEXEC set.
@@ -689,7 +690,7 @@ Future<http::Connection> IOSwitchboard::_connect(
 }
 
 
-Future<Option<ContainerLogger::ContainerIO>> IOSwitchboard::extractContainerIO(
+Future<Option<ContainerIO>> IOSwitchboard::extractContainerIO(
     const ContainerID& containerId)
 {
   return dispatch(self(), [this, containerId]() {
@@ -698,14 +699,14 @@ Future<Option<ContainerLogger::ContainerIO>> IOSwitchboard::extractContainerIO(
 }
 
 
-Future<Option<ContainerLogger::ContainerIO>> IOSwitchboard::_extractContainerIO(
+Future<Option<ContainerIO>> IOSwitchboard::_extractContainerIO(
     const ContainerID& containerId)
 {
   if (!containerIOs.contains(containerId)) {
     return None();
   }
 
-  ContainerLogger::ContainerIO containerIO = containerIOs[containerId];
+  ContainerIO containerIO = containerIOs[containerId];
   containerIOs.erase(containerId);
 
   return containerIO;

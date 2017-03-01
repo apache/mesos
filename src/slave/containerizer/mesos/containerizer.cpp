@@ -132,6 +132,7 @@ using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerLogger;
+using mesos::slave::ContainerIO;
 using mesos::slave::ContainerState;
 using mesos::slave::ContainerTermination;
 using mesos::slave::Isolator;
@@ -1250,7 +1251,7 @@ Future<Nothing> MesosContainerizerProcess::fetch(
 
 Future<bool> MesosContainerizerProcess::_launch(
     const ContainerID& containerId,
-    const Option<ContainerLogger::ContainerIO>& containerIO,
+    const Option<ContainerIO>& containerIO,
     const map<string, string>& environment,
     const SlaveID& slaveId,
     bool checkpoint)

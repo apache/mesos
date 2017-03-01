@@ -20,6 +20,7 @@
 #include <stdio.h>
 
 #include <mesos/slave/container_logger.hpp>
+#include <mesos/slave/containerizer.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/flags.hpp>
@@ -195,8 +196,7 @@ public:
   // This is a noop.  The logrotate container logger has nothing to initialize.
   virtual Try<Nothing> initialize();
 
-  virtual process::Future<mesos::slave::ContainerLogger::ContainerIO>
-  prepare(
+  virtual process::Future<mesos::slave::ContainerIO> prepare(
       const ExecutorInfo& executorInfo,
       const std::string& sandboxDirectory,
       const Option<std::string>& user);
