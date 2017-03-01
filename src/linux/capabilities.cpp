@@ -20,6 +20,7 @@
 
 #include <sys/prctl.h>
 
+#include <set>
 #include <string>
 
 #include <stout/numify.hpp>
@@ -32,7 +33,6 @@
 using std::hex;
 using std::ostream;
 using std::string;
-using std::vector;
 
 // We declare two functions provided in the libcap headers here to
 // prevent introduction of that build-time dependency.

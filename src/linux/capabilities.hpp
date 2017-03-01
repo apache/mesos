@@ -18,8 +18,6 @@
 #define __LINUX_CAPABILITIES_HPP__
 
 #include <set>
-#include <string>
-#include <vector>
 
 #include <stout/flags.hpp>
 #include <stout/nothing.hpp>
@@ -126,7 +124,7 @@ public:
    * Factory method to create Capabilities object.
    *
    * @return `Capabilities` on success;
-   *          Error on falure. Failure conditions could be:
+   *          Error on failure. Failure conditions could be:
    *           - Error getting system information (e.g, version).
    *           - Unsupported linux kernel capabilities version.
    *           - Maximum capability supported by kernel exceeds the
