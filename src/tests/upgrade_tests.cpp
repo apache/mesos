@@ -142,6 +142,9 @@ TEST_F(UpgradeTest, ReregisterOldAgentWithMultiRoleMaster)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
@@ -149,17 +152,14 @@ TEST_F(UpgradeTest, ReregisterOldAgentWithMultiRoleMaster)
   master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  // Simulate a new master detected event on the agent,
-  // so that the agent will do a re-registration.
-  detector.appoint(master.get()->pid);
-
   // Cause the scheduler to re-register with the master.
   Future<Nothing> disconnected;
   EXPECT_CALL(sched, disconnected(&driver))
     .WillOnce(FutureSatisfy(&disconnected));
 
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
+  // Simulate a new master detected event on the agent,
+  // so that the agent will do a re-registration.
+  detector.appoint(master.get()->pid);
 
   Clock::settle();
   AWAIT_READY(disconnected);

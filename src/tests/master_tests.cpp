@@ -6527,22 +6527,17 @@ TEST_F(MasterTest, AgentRestartNoReregisterRateLimit)
 // receive two offers, one for each slave, allocated to different roles.
 TEST_F(MasterTest, MultiRoleFrameworkReceivesOffers)
 {
-  Try<Owned<cluster::Master>> master = StartMaster();
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestContainerizer containerizer(&exec);
-
-  slave::Flags flags = CreateSlaveFlags();
-  Try<Owned<cluster::Slave>> slave1 =
-    StartSlave(detector.get(), &containerizer, flags);
+  // Start first agent.
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get());
   ASSERT_SOME(slave1);
-
-  Try<Owned<cluster::Slave>> slave2 =
-    StartSlave(detector.get(), &containerizer, flags);
-  ASSERT_SOME(slave2);
 
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
   framework.add_roles("role1");
@@ -6558,27 +6553,41 @@ TEST_F(MasterTest, MultiRoleFrameworkReceivesOffers)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .WillOnce(FutureSatisfy(&registered));
 
-  // Scheduler should receive two offers, one for each role.
-  Future<vector<Offer>> offers1;
-  Future<vector<Offer>> offers2;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers1))
-    .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
   driver.start();
 
+  Clock::settle();
+
   AWAIT_READY(registered);
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
 
   AWAIT_READY(offers1);
   EXPECT_NE(0u, offers1->size());
   EXPECT_TRUE(offers1.get()[0].has_allocation_info());
+
+  // Start second agent.
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get());
+  ASSERT_SOME(slave2);
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers2));
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
   AWAIT_READY(offers2);
   EXPECT_NE(0u, offers2->size());
   EXPECT_TRUE(offers2.get()[0].has_allocation_info());
 
-  // 1st and 2nd offers should have different roles.
-  EXPECT_NE(
+  // We cannot deterministically expect roles for each offer, however we
+  // could assert that 1st and 2nd offers should have different roles.
+  ASSERT_NE(
       offers1.get()[0].allocation_info().role(),
       offers2.get()[0].allocation_info().role());
 
@@ -6663,8 +6672,6 @@ TEST_F(MasterTest, MultiRoleSchedulerUpgrade)
   // Scheduler1 should get an error due to failover.
   EXPECT_CALL(sched1, error(&driver1, "Framework failed over"));
 
-  EXPECT_CALL(exec, shutdown(_));
-
   driver2.start();
 
   AWAIT_READY(registered2);
@@ -6681,6 +6688,9 @@ TEST_F(MasterTest, MultiRoleSchedulerUpgrade)
 
   AWAIT_READY(status2);
   EXPECT_EQ(TASK_RUNNING, status2->state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver2.stop();
   driver2.join();
