@@ -16,7 +16,8 @@ The Mesos codebase follows the [Google C++ Style Guide](https://google.github.io
 ## Naming
 
 ### Variable Names
-* We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for variable names (Google uses snake_case, and their class member variables have trailing underscores).
+* We use [lowerCamelCase](https://en.wikipedia.org/wiki/Camel_case) for variable names in Mesos application code (Google uses snake_case, and their class member variables have trailing underscores).
+* We use [snake_case](https://en.wikipedia.org/wiki/Snake_case) for variable names in the libprocess and stout libraries.
 * We prepend constructor and function arguments with a leading underscore to avoid ambiguity and / or shadowing:
 
 ~~~{.cpp}
@@ -40,10 +41,14 @@ void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
 ~~~
 
 ### Constant Names
-* We use [SCREAMING_SNAKE_CASE](http://en.wikipedia.org/wiki/Letter_case#Special_case_styles) for constant names (Google uses a `k` followed by mixed case, e.g. `kDaysInAWeek`).
+* We use [SCREAMING_SNAKE_CASE](http://en.wikipedia.org/wiki/Letter_case#Special_case_styles) for constant names in Mesos, libprocess, and stout (Google uses a `k` followed by mixed case, e.g. `kDaysInAWeek`).
 
 ### Function Names
-* We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for function names (Google uses mixed case for regular functions; and their accessors and mutators match the name of the variable).
+* We use [lowerCamelCase](https://en.wikipedia.org/wiki/Camel_case) for function names in Mesos application code (Google uses mixed case for regular functions; and their accessors and mutators match the name of the variable).
+* We use [snake_case](https://en.wikipedia.org/wiki/Snake_case) for function names in the libprocess and stout libraries.
+
+### Class Names
+* We use [UpperCamelCase](https://en.wikipedia.org/wiki/Camel_case) for class and struct names in Mesos, libprocess, and stout.
 
 ## Strings
 * Strings used in log and error messages should end without a period.
