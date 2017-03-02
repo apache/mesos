@@ -23,6 +23,12 @@
       <dl class="inline clearfix">
         <dt>Name:</dt><dd>{{framework.name}}</dd>
         <dt>Master:</dt><dd>{{state.master_hostname}}</dd>
+        <!-- TODO(bmahler): Consider having a break between each role
+             in order to increase readability. Also, this doesn't
+             display well when there are a lot of roles (e.g. a large
+             organization with a lot of teams & services, using roles
+             like /engineering/frontend/webserver, etc). -->
+        <dt>Roles:</dt><dd>{{framework.roles.toString()}}</dd>
       </dl>
 
       <dl class="inline clearfix">
@@ -83,6 +89,7 @@
           <th data-key="id">ID</th>
           <th data-key="name">Name</th>
           <th data-key="source">Source</th>
+          <th data-key="role">Role</th>
           <th data-key="tasks.length">Active Tasks</th>
           <th data-key="queued_tasks.length">Queued Tasks</th>
           <th data-key="resources.cpus">CPUs (Used / Allocated)</th>
@@ -101,6 +108,7 @@
           </td>
           <td>{{executor.name}}</td>
           <td>{{executor.source}}</td>
+          <td>{{executor.role}}</td>
           <td>{{executor.tasks.length | number}}</td>
           <td>{{executor.queued_tasks.length | number}}</td>
           <td>{{monitor.frameworks[framework.id].executors[executor.id].statistics.cpus_total_usage | number}} /
@@ -128,6 +136,7 @@
           <th data-key="id">ID</th>
           <th data-key="name">Name</th>
           <th data-key="source">Source</th>
+          <th data-key="role">Role</th>
           <th data-key="sandbox">Sandbox</th>
         </tr>
       </thead>
@@ -140,6 +149,7 @@
           </td>
           <td>{{completed_executor.name}}</td>
           <td>{{completed_executor.source}}</td>
+          <td>{{completed_executor.role}}</td>
           <td>
             <a href="{{'#/agents/' + agent_id + '/browse?path=' +
                        encodeURIComponent(completed_executor.directory)}}">

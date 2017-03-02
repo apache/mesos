@@ -578,11 +578,21 @@
           _.each($scope.state.frameworks, function(framework) {
             $scope.agent.frameworks[framework.id] = framework;
             computeFrameworkStats(framework);
+
+            // Fill in the `roles` field for non-MULTI_ROLE schedulers.
+            if (framework.role) {
+              framework.roles = [framework.role];
+            }
           });
 
           _.each($scope.state.completed_frameworks, function(framework) {
             $scope.agent.completed_frameworks[framework.id] = framework;
             computeFrameworkStats(framework);
+
+            // Fill in the `roles` field for non-MULTI_ROLE schedulers.
+            if (framework.role) {
+              framework.roles = [framework.role];
+            }
           });
 
           $('#agent').show();
@@ -662,6 +672,11 @@
             return;
           }
 
+          // Fill in the `roles` field for non-MULTI_ROLE schedulers.
+          if ($scope.framework.role) {
+            $scope.framework.roles = [$scope.framework.role];
+          }
+
           // Compute the framework stats.
           $scope.framework.num_tasks = 0;
           $scope.framework.cpus = 0;
@@ -675,6 +690,11 @@
             $scope.framework.gpus += executor.resources.gpus;
             $scope.framework.mem += executor.resources.mem;
             $scope.framework.disk += executor.resources.disk;
+
+            // If 'role' is not present in executor, we are talking
+            // to a non-MULTI_ROLE capable agent. This means that we
+            // can use the 'role' of the framework.
+            executor.role = executor.role || $scope.framework.role;
           });
 
           $('#agent').show();
@@ -752,6 +772,23 @@
             $scope.alert_message = 'No executor found with ID: ' + $routeParams.executor_id;
             $('#alert').show();
             return;
+          }
+
+          // If 'role' is not present in the task, we are talking
+          // to a non-MULTI_ROLE capable agent. This means that we
+          // can use the 'role' of the framework.
+          if (!("role" in $scope.executor)) {
+            $scope.executor.role = $scope.framework.role;
+
+            function setRole(tasks) {
+              _.each(tasks, function(task) {
+                task.role = $scope.framework.role;
+              });
+            }
+
+            setRole($scope.executor.tasks);
+            setRole($scope.executor.queued_tasks);
+            setRole($scope.executor.completed_tasks);
           }
 
           setTaskSandbox($scope.executor);
