@@ -14,111 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-###############################################################
-# IMPORTANT NOTE: Much of this file is taken almost-directly from the
-#                 FindApr.cmake file in this project. This file is itself taken
-#                 from an external source; see comments for details.
+include(FindPackageHelper)
 
-# This module helps to find the Subversion packages.
-#
-# USAGE: to use this module, add the following line to your CMake project:
-#   find_package(Svn)
-#
-# To make linking to Subversion simple, this module defines:
-#   * SVN_FOUND       (if false, linking build will fail)
-#   * SVN_INCLUDE_DIR (defineswhere to find svn_client.h, etc.)
-#   * SVN_LIBS   (binaries for SVN and friends)
-#
-# Also defined, but not for general use are:
-#   * SVN_LIB (where to find the APR library)
-
-# CONFIGURE OUR SEARCH. Specify what we're looking for, and which directories
-# we're going to look through to find them.
-#############################################################################
-if (SVN_FOUND)
-  return()
-endif (SVN_FOUND)
-
-unset(SVN_LIB)
-unset(SVN_INCLUDE_DIR)
-unset(SVN_LIBS)
-
-set(POSSIBLE_SVN_INCLUDE_DIRECTORIES
-  ${POSSIBLE_SVN_INCLUDE_DIRECTORIES}
-  /usr/local/include/subversion-1
+set(POSSIBLE_SVN_INCLUDE_DIRS
   /usr/include/subversion-1
+  /usr/local/include/subversion-1
   )
 
-set(SVN_LIB_NAMES
-  ${SVN_LIB_NAMES}
-  svn_delta-1
-  svn_diff-1
-  svn_subr-1
-   )
-
-
-set(POSSIBLE_SVN_LIB_DIRECTORIES
-  ${POSSIBLE_SVN_LIB_DIRECTORIES}
+set(POSSIBLE_SVN_LIB_DIRS
   /usr/lib
   /usr/local/lib
   )
 
-# SEARCH FOR SVN LIBRARIES.
-###########################
-find_path(SVN_INCLUDE_DIR svn_client.h ${POSSIBLE_SVN_INCLUDE_DIRECTORIES})
-
-# Did we find the include directory?
-string(
-  COMPARE NOTEQUAL
-  "SVN_INCLUDE_DIR-NOTFOUND"
-  ${SVN_INCLUDE_DIR} # Value set to `SVN_INCLUDE_DIR-NOTFOUND` if not found.
-  SVN_INCLUDE_DIR_FOUND
+set(SVN_LIBRARY_NAMES
+  svn_delta-1
+  svn_diff-1
+  svn_subr-1
   )
 
-foreach (LIB_NAME ${SVN_LIB_NAMES})
-  find_library(
-    ${LIB_NAME}_PATH
-    NAMES ${LIB_NAME}
-    PATHS ${POSSIBLE_SVN_LIB_DIRECTORIES}
-    )
-
-  # Did we find the library?
-  string(
-    COMPARE NOTEQUAL
-    "${LIB_NAME}_PATH-NOTFOUND"
-    ${${LIB_NAME}_PATH} # Value set to ${${LIB_NAME}_PATH}-NOTFOUND if not found.
-    ${LIB_NAME}_PATH_FOUND
-    )
-
-  if ("${${LIB_NAME}_PATH_FOUND}")
-    message(STATUS "Found SVN lib: ${${LIB_NAME}_PATH}")
-    list(APPEND SVN_LIBS ${${LIB_NAME}_PATH})
-  else ("${${LIB_NAME}_PATH_FOUND}")
-    message(FATAL_ERROR "Could not find SVN library ${${LIB_NAME}_PATH}")
-  endif ("${${LIB_NAME}_PATH_FOUND}")
-endforeach (LIB_NAME ${SVN_LIB_NAMES})
-
-list(LENGTH SVN_LIB_NAMES NUM_REQD_LIBS)
-list(LENGTH SVN_LIBS NUM_FOUND_LIBS)
-
-# Results.
-if ((NUM_FOUND_LIBS AND (NUM_REQD_LIBS EQUAL NUM_FOUND_LIBS)) AND
-    SVN_INCLUDE_DIR_FOUND)
-  if (NOT Svn_FIND_QUIETLY)
-    message(STATUS "Found SVN: ${SVN_LIBS}")
-  endif(NOT Svn_FIND_QUIETLY)
-else ((NUM_FOUND_LIBS AND (NUM_REQD_LIBS EQUAL NUM_FOUND_LIBS)) AND
-      SVN_INCLUDE_DIR_FOUND)
-  if (Svn_FIND_REQUIRED)
-    message(FATAL_ERROR "Could not find SVN library")
-  endif (Svn_FIND_REQUIRED)
-endif ((NUM_FOUND_LIBS AND (NUM_REQD_LIBS EQUAL NUM_FOUND_LIBS)) AND
-       SVN_INCLUDE_DIR_FOUND)
-
-set(SVN_FOUND 1)
-
-# Export variables.
-mark_as_advanced(
-  SVN_LIB
-  SVN_INCLUDE_DIR
-  )
+FIND_PACKAGE_HELPER(SVN svn_client.h)
