@@ -177,6 +177,11 @@
     _.each($scope.state.frameworks, function(framework) {
       $scope.frameworks[framework.id] = framework;
 
+      // Fill in the `roles` field for non-MULTI_ROLE schedulers.
+      if (framework.role) {
+        framework.roles = [framework.role];
+      }
+
       _.each(framework.offers, function(offer) {
         $scope.offers[offer.id] = offer;
         $scope.offered_cpus += offer.resources.cpus;
@@ -234,6 +239,11 @@
 
     _.each($scope.state.completed_frameworks, function(framework) {
       $scope.completed_frameworks[framework.id] = framework;
+
+      // Fill in the `roles` field for non-MULTI_ROLE schedulers.
+      if (framework.role) {
+        framework.roles = [framework.role];
+      }
 
       _.each(framework.completed_tasks, setTaskMetadata);
     });

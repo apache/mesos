@@ -13,7 +13,7 @@
       <th data-key="hostname">Host</th>
       <th data-key="user">User</th>
       <th data-key="name">Name</th>
-      <th data-key="role">Role</th>
+      <th data-key="roles">Roles</th>
       <th data-key="principal">Principal</th>
       <th data-key="tasks.length">Active Tasks</th>
       <th data-key="used_resources.cpus">CPUs</th>
@@ -44,7 +44,11 @@
       </td>
       <td>{{framework.user}}</td>
       <td>{{framework.name}}</td>
-      <td>{{framework.role}}</td>
+      <!-- TODO(bmahler): This doesn't display well when there are a lot
+           of roles (e.g. a large organization with a lot of teams &
+           services, using roles like /engineering/frontend/webserver, etc).
+           Figure out a way to display this without bloating the table. -->
+      <td>{{framework.roles.toString()}}</td>
       <td>{{framework.principal}}</td>
       <td>{{framework.tasks.length}}</td>
       <td>{{framework.used_resources.cpus | number}}</td>
@@ -71,7 +75,7 @@
     <th data-key="hostname">Host</th>
     <th data-key="user">User</th>
     <th data-key="name">Name</th>
-    <th data-key="role">Role</th>
+    <th data-key="roles">Roles</th>
     <th data-key="principal">Principal</th>
     <th data-key="tasks.length">Active Tasks</th>
     <th data-key="used_resources.cpus">CPUs</th>
@@ -102,7 +106,11 @@
     </td>
     <td>{{framework.user}}</td>
     <td>{{framework.name}}</td>
-    <td>{{framework.role}}</td>
+    <!-- TODO(bmahler): This doesn't display well when there are a lot
+         of roles (e.g. a large organization with a lot of teams &
+         services, using roles like /engineering/frontend/webserver, etc).
+         Figure out a way to display this without bloating the table. -->
+    <td>{{framework.roles.toString()}}</td>
     <td>{{framework.principal}}</td>
     <td>{{framework.tasks.length}}</td>
     <td>{{framework.used_resources.cpus | number}}</td>
@@ -129,7 +137,7 @@
       <th data-key="hostname">Host</th>
       <th data-key="user">User</th>
       <th data-key="name">Name</th>
-      <th data-key="role">Role</th>
+      <th data-key="roles">Roles</th>
       <th data-key="principal">Principal</th>
       <th data-key="registered_time">Registered</th>
       <th data-key="unregistered_time">Unregistered</th>
@@ -151,7 +159,11 @@
       <td>{{framework.hostname}}</td>
       <td>{{framework.user}}</td>
       <td>{{framework.name}}</td>
-      <td>{{framework.role}}</td>
+      <!-- TODO(bmahler): This doesn't display well when there are a lot
+           of roles (e.g. a large organization with a lot of teams &
+           services, using roles like /engineering/frontend/webserver, etc).
+           Figure out a way to display this without bloating the table. -->
+      <td>{{framework.roles.toString()}}</td>
       <td>{{framework.principal}}</td>
       <td>
         <m-timestamp value="{{framework.registered_time * 1000}}"></m-timestamp>

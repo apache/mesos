@@ -23,8 +23,13 @@
         <dd ng-show="framework.webui_url"><a href="{{framework.webui_url}}">{{framework.webui_url}}</a></dd>
         <dt>User:</dt>
         <dd>{{framework.user}}</dd>
-        <dt>Role:</dt>
-        <dd>{{framework.role}}</dd>
+        <!-- TODO(bmahler): Consider having a break between each role
+             in order to increase readability. Also, this doesn't
+             display well when there are a lot of roles (e.g. a large
+             organization with a lot of teams & services, using roles
+             like /engineering/frontend/webserver, etc). -->
+        <dt>Roles:</dt>
+        <dd>{{framework.roles.toString()}}</dd>
         <dt>Principal:</dt>
         <dd>{{framework.principal}}</dd>
         <dt>Registered:</dt>
@@ -57,6 +62,7 @@
         <tr>
           <th data-key="id">ID</th>
           <th data-key="name">Name</th>
+          <th data-key="role">Role</th>
           <th data-key="state">State</th>
           <th data-key="start_time">Started</th>
           <th data-key="host">Host</th>
@@ -71,6 +77,7 @@
             </a>
           </td>
           <td>{{task.name}}</td>
+          <td>{{task.role}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
             <m-timestamp value="{{task.start_time}}"></m-timestamp>
@@ -101,6 +108,7 @@
         <tr>
           <th data-key="id">ID</th>
           <th data-key="name">Name</th>
+          <th data-key="role">Role</th>
           <th data-key="start_time">Started</th>
           <th data-key="agent_id">Agent ID</th>
         </tr>
@@ -109,6 +117,7 @@
         <tr ng-repeat="task in $data">
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
+          <td>{{task.role}}</td>
           <td>
             <m-timestamp value="{{task.start_time}}"></m-timestamp>
           </td>
@@ -123,6 +132,7 @@
         <tr>
           <th data-key="id">ID</th>
           <th data-key="name">Name</th>
+          <th data-key="role">Role</th>
           <th data-key="state">State</th>
           <th data-key="start_time">Started</th>
           <th data-key="finish_time">Stopped</th>
@@ -134,6 +144,7 @@
         <tr ng-repeat="task in $data">
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
+          <td>{{task.role}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
             <m-timestamp value="{{task.start_time}}"></m-timestamp>
