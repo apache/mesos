@@ -2172,7 +2172,7 @@ Future<bool> Master::authorizeFramework(
   // via the request's `value` field. This is purely for backwards
   // compatibility as the `value` field is deprecated. Note that this
   // means that authorizers relying on the deprecated field will see
-  // an empty string in `value` for for `MULTI_ROLE` frameworks.
+  // an empty string in `value` for `MULTI_ROLE` frameworks.
   //
   // TODO(bbannier): Remove this at the end of `value`'s deprecation
   // cycle, see MESOS-7073.
