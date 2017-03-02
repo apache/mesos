@@ -15,7 +15,7 @@
 # limitations under the License.
 
 ###############################################################
-# This file exports variables needed ot link to third-party libs. These are
+# This file exports variables needed to link to third-party libs. These are
 # used throughout the Mesos project.
 #
 # This includes things like:
@@ -39,6 +39,10 @@
 # with things like which header files you need to include to link to third
 # party libraries, and where in the directory tree you need to look to get the
 # actual libraries.
+
+if (ENABLE_SSL)
+  find_package(OpenSSL REQUIRED)
+endif (ENABLE_SSL)
 
 set(PROCESS_PACKAGE_VERSION 0.0.1)
 set(PROCESS_PACKAGE_SOVERSION 0)
@@ -110,6 +114,13 @@ elseif (ENABLE_LIBEVENT)
     )
 endif (NOT ENABLE_LIBEVENT)
 
+if (ENABLE_SSL)
+  set(PROCESS_3RDPARTY_INCLUDE_DIRS
+    ${PROCESS_3RDPARTY_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIR}
+    )
+endif (ENABLE_SSL)
+
 if (HAS_GPERFTOOLS)
   set(PROCESS_3RDPARTY_INCLUDE_DIRS ${PROCESS_3RDPARTY_INCLUDE_DIRS} ${GPERFTOOLS_INCLUDE_DIR})
 endif (HAS_GPERFTOOLS)
@@ -167,6 +178,13 @@ if (NOT ENABLE_LIBEVENT)
 elseif (ENABLE_LIBEVENT)
   set(PROCESS_LIBS ${PROCESS_LIBS} ${LIBEVENT_LFLAG})
 endif (NOT ENABLE_LIBEVENT)
+
+if (ENABLE_SSL)
+  set(PROCESS_LIBS
+    ${PROCESS_LIBS}
+    ${OPENSSL_LIBRARIES}
+    )
+endif (ENABLE_SSL)
 
 if (NOT WIN32)
   find_package(ZLIB REQUIRED)

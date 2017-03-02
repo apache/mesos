@@ -66,7 +66,8 @@ if (ENABLE_LIBEVENT)
     ${PROCESS_SRC}
     libevent.hpp
     libevent.cpp
-    libevent_poll.cpp)
+    libevent_poll.cpp
+    )
 else (ENABLE_LIBEVENT)
   set(PROCESS_SRC
     ${PROCESS_SRC}
@@ -75,6 +76,21 @@ else (ENABLE_LIBEVENT)
     libev_poll.cpp
     )
 endif (ENABLE_LIBEVENT)
+
+if (ENABLE_SSL)
+  set(PROCESS_SRC
+    ${PROCESS_SRC}
+    openssl.cpp
+    ssl/utilities.cpp
+    )
+
+  if (ENABLE_LIBEVENT)
+    set(PROCESS_SRC
+      ${PROCESS_SRC}
+      libevent_ssl_socket.cpp
+      )
+  endif (ENABLE_LIBEVENT)
+endif (ENABLE_SSL)
 
 # INCLUDE DIRECTIVES FOR PROCESS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).
