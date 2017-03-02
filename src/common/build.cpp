@@ -38,7 +38,13 @@ namespace build {
 
 const std::string DATE = BUILD_DATE;
 const double TIME = atof(BUILD_TIME);
+
+#ifdef BUILD_USER
 const std::string USER = BUILD_USER;
+#else
+const std::string USER = "";
+#endif
+
 const std::string FLAGS = BUILD_FLAGS;
 const std::string JAVA_JVM_LIBRARY = BUILD_JAVA_JVM_LIBRARY;
 
