@@ -165,6 +165,7 @@
           <th data-key="framework_id">Framework ID</th>
           <th data-key="id">Task ID</th>
           <th data-key="name">Task Name</th>
+          <th data-key="role">Role</th>
           <th data-key="state">State</th>
           <th data-key="start_time" data-sort>Started</th>
           <th data-key="host">Host</th>
@@ -187,6 +188,7 @@
             </a>
           </td>
           <td>{{task.name}}</td>
+          <td>{{task.role}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
             <m-timestamp value="{{task.start_time}}"></m-timestamp>
@@ -218,6 +220,7 @@
           <th data-key="framework_id">Framework ID</th>
           <th data-key="id">Task ID</th>
           <th data-key="name">Task Name</th>
+          <th data-key="role">Role</th>
           <th data-key="start_time" data-sort>Started</th>
           <th data-key="agent_id">Agent ID</th>
         </tr>
@@ -234,6 +237,7 @@
           </td>
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
+          <td>{{task.role}}</td>
           <td>
             <m-timestamp value="{{task.start_time}}"></m-timestamp>
           </td>
@@ -249,6 +253,7 @@
           <th data-key="framework_id">Framework ID</th>
           <th data-key="id">Task ID</th>
           <th data-key="name">Task Name</th>
+          <th data-key="role">Role</th>
           <th data-key="state">State</th>
           <th data-key="start_time" data-sort>Started</th>
           <th data-key="finish_time">Stopped</th>
@@ -264,6 +269,7 @@
           <td>{{task.framework_id}}</td>
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
+          <td>{{task.role}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
             <m-timestamp value="{{task.start_time}}"></m-timestamp>
@@ -299,6 +305,7 @@
           <th data-key="framework_id">Framework ID</th>
           <th data-key="id">Task ID</th>
           <th data-key="name">Task Name</th>
+          <th data-key="role">Role</th>
           <th data-key="state">State</th>
           <th data-key="start_time" data-sort>Started</th>
           <th data-key="finish_time">Stopped</th>
@@ -314,6 +321,7 @@
           <td>{{task.framework_id}}</td>
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
+          <td>{{task.role}}</td>
           <td>{{task.state | truncateMesosState}}</td>
           <td>
             <m-timestamp value="{{task.start_time}}"></m-timestamp>
