@@ -71,10 +71,15 @@ function(GROUP_SOURCE GROUP_NAME ROOT_DIRECTORY RELATIVE_TO SOURCE_PATTERN)
     # Get relative directory of source file, use to generate a source group
     # that resembles the directory tree.
     get_filename_component(SOURCE_FILE_REALPATH ${SOURCE_FILE} REALPATH)
-    file(RELATIVE_PATH SOURCE_FILE_RELATIVE ${RELATIVE_TO}
-         ${SOURCE_FILE_REALPATH})
-    get_filename_component(SOURCE_DIRECTORY_RELATIVE ${SOURCE_FILE_RELATIVE}
-                           DIRECTORY)
+
+    file(RELATIVE_PATH SOURCE_FILE_RELATIVE
+      ${RELATIVE_TO} ${SOURCE_FILE_REALPATH})
+
+    get_filename_component(
+      SOURCE_DIRECTORY_RELATIVE
+      ${SOURCE_FILE_RELATIVE}
+      PATH)
+
     set(SOURCE_GROUP "${GROUP_NAME}\\${SOURCE_DIRECTORY_RELATIVE}")
 
     # This is necessary because source group names require '\' rather than '/'
@@ -91,7 +96,8 @@ function(GROUP_SOURCE GROUP_NAME ROOT_DIRECTORY RELATIVE_TO SOURCE_PATTERN)
     get_filename_component(
       SOURCE_DIRECTORY
       "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE_FILE}"
-      DIRECTORY)
+      PATH)
+
     file(
       GLOB
       SOURCE_GROUP_FILES
