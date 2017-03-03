@@ -5958,18 +5958,15 @@ void Master::__reregisterSlave(
 
   foreach (const FrameworkID& frameworkId, ids) {
     Framework* framework = getFramework(frameworkId);
-
-    // We don't need to send the PIDs of disconnected frameworks to
-    // re-registering slaves.
-    if (framework != nullptr && framework->connected()) {
+    if (framework != nullptr) {
       UpdateFrameworkMessage message;
       message.mutable_framework_id()->CopyFrom(framework->id());
+      message.mutable_framework_info()->CopyFrom(framework->info);
 
       // TODO(anand): We set 'pid' to UPID() for http frameworks
       // as 'pid' was made optional in 0.24.0. In 0.25.0, we
       // no longer have to set pid here for http frameworks.
       message.set_pid(framework->pid.getOrElse(UPID()));
-      message.mutable_framework_info()->CopyFrom(framework->info);
 
       send(slave->pid, message);
     }
