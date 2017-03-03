@@ -883,6 +883,8 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_RecoverNestedOnReboot)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "docker/runtime,filesystem/linux";
   flags.image_providers = "docker";
+  flags.docker_registry = directory;
+  flags.docker_store_dir = path::join(os::getcwd(), "store");
 
   Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
   ASSERT_SOME(provisioner);
