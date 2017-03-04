@@ -2248,7 +2248,7 @@ void Master::drop(
 void Master::drop(
     Framework* framework,
     const scheduler::Call& call,
-    const std::string& message)
+    const string& message)
 {
     CHECK_NOTNULL(framework);
 
