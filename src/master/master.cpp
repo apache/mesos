@@ -5168,7 +5168,7 @@ void Master::acknowledge(
     if (protobuf::isTerminalState(task->status_update_state()) &&
         UUID::fromBytes(task->status_update_uuid()).get() == uuid) {
       removeTask(task);
-     }
+    }
   }
 
   StatusUpdateAcknowledgementMessage message;
