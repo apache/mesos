@@ -242,20 +242,7 @@ void HierarchicalAllocatorProcess::addFramework(
   const Framework& framework = frameworks.at(frameworkId);
 
   foreach (const string& role, framework.roles) {
-    // If this is the first framework to register as this role,
-    // initialize state as necessary.
-    if (!activeRoles.contains(role)) {
-      activeRoles[role] = 1;
-      roleSorter->add(role, roleWeight(role));
-      frameworkSorters.insert({role, Owned<Sorter>(frameworkSorterFactory())});
-      frameworkSorters.at(role)->initialize(fairnessExcludeResourceNames);
-      metrics.addRole(role);
-    } else {
-      activeRoles[role]++;
-    }
-
-    CHECK(!frameworkSorters.at(role)->contains(frameworkId.value()));
-    frameworkSorters.at(role)->add(frameworkId.value());
+    trackFrameworkUnderRole(frameworkId, role);
   }
 
   // TODO(bmahler): Validate that the reserved resources have the
@@ -326,31 +313,7 @@ void HierarchicalAllocatorProcess::removeFramework(
       }
     }
 
-    frameworkSorters.at(role)->remove(frameworkId.value());
-  }
-
-  foreach (const string& role, framework.roles) {
-    CHECK(activeRoles.contains(role));
-
-    // If this is the last framework that was registered for this role,
-    // cleanup associated state. This is not necessary for correctness
-    // (roles with no registered frameworks will not be offered any
-    // resources), but since many different role names might be used
-    // over time, we want to avoid leaking resources for no-longer-used
-    // role names. Note that we don't remove the role from
-    // `quotaRoleSorter` if it exists there, since roles with a quota
-    // set still influence allocation even if they don't have any
-    // registered frameworks.
-    activeRoles[role]--;
-    if (activeRoles[role] == 0) {
-      activeRoles.erase(role);
-      roleSorter->remove(role);
-
-      CHECK(frameworkSorters.contains(role));
-      frameworkSorters.erase(role);
-
-      metrics.removeRole(role);
-    }
+    untrackFrameworkUnderRole(frameworkId, role);
   }
 
   // Do not delete the filters contained in this
@@ -424,14 +387,55 @@ void HierarchicalAllocatorProcess::updateFramework(
   CHECK(frameworks.contains(frameworkId));
 
   Framework& framework = frameworks.at(frameworkId);
+
+  set<string> oldRoles = framework.roles;
   set<string> newRoles = protobuf::framework::getRoles(frameworkInfo);
 
-  // TODO(bmahler): Allow frameworks to update their roles, see MESOS-6627.
-  CHECK(framework.roles == newRoles)
-    << "Expected: " << stringify(framework.roles)
-    << " vs Actual: " << stringify(newRoles);
+  const set<string> removedRoles = [&]() {
+    set<string> result = oldRoles;
+    foreach (const string& role, newRoles) {
+      result.erase(role);
+    }
+    return result;
+  }();
 
-  framework.capabilities = Capabilities(frameworkInfo.capabilities());
+  foreach (const string& role, removedRoles) {
+    CHECK(frameworkSorters.contains(role));
+    frameworkSorters.at(role)->deactivate(frameworkId.value());
+
+    // Stop tracking the framework under this role if there are
+    // no longer any resources allocated to it.
+    if (frameworkSorters.at(role)->allocation(frameworkId.value()).empty()) {
+      untrackFrameworkUnderRole(frameworkId, role);
+    }
+
+    if (framework.offerFilters.contains(role)) {
+      framework.offerFilters.erase(role);
+    }
+  }
+
+  const set<string> addedRoles = [&]() {
+    set<string> result = newRoles;
+    foreach (const string& role, oldRoles) {
+      result.erase(role);
+    }
+    return result;
+  }();
+
+  foreach (const string& role, addedRoles) {
+    // NOTE: It's possible that we're already tracking this framework
+    // under the role because a framework can unsubscribe from a role
+    // while it still has resources allocated to the role.
+    if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
+      trackFrameworkUnderRole(frameworkId, role);
+    }
+
+    CHECK(frameworkSorters.contains(role));
+    frameworkSorters.at(role)->activate(frameworkId.value());
+  }
+
+  framework.roles = newRoles;
+  framework.capabilities = frameworkInfo.capabilities();
 }
 
 
@@ -463,6 +467,13 @@ void HierarchicalAllocatorProcess::addSlave(
     foreachpair (const string& role,
                  const Resources& allocated,
                  used_.allocations()) {
+      // The framework has resources allocated to this role but it may
+      // or may not be subscribed to the role. Either way, we need to
+      // track the framework under the role.
+      if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
+        trackFrameworkUnderRole(frameworkId, role);
+      }
+
       // TODO(bmahler): Validate that the reserved resources have the
       // framework's role.
       CHECK(roleSorter->contains(role));
@@ -1076,6 +1087,13 @@ void HierarchicalAllocatorProcess::recoverResources(
         quotaRoleSorter->unallocated(
             role, slaveId, resources.nonRevocable());
       }
+
+      // Stop tracking the framework under this role if it's no longer
+      // subscribed and no longer has resources allocated to the role.
+      if (frameworks.at(frameworkId).roles.count(role) == 0 &&
+          frameworkSorter->allocation(frameworkId.value()).empty()) {
+        untrackFrameworkUnderRole(frameworkId, role);
+      }
     }
   }
 
@@ -1500,7 +1518,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
       // If there are no active frameworks in this role, we do not
       // need to do any allocations for this role.
-      if (!activeRoles.contains(role)) {
+      if (!roles.contains(role)) {
         continue;
       }
 
@@ -1649,7 +1667,7 @@ void HierarchicalAllocatorProcess::__allocate()
   // argument to the `allocate()` call) so that frameworks in roles without
   // quota are not unnecessarily deprived of resources.
   Resources remainingClusterResources = roleSorter->totalScalarQuantities();
-  foreachkey (const string& role, activeRoles) {
+  foreachkey (const string& role, roles) {
     remainingClusterResources -= roleSorter->allocationScalarQuantities(role);
   }
 
@@ -1848,7 +1866,7 @@ void HierarchicalAllocatorProcess::__allocate()
 void HierarchicalAllocatorProcess::deallocate()
 {
   // If no frameworks are currently registered, no work to do.
-  if (activeRoles.empty()) {
+  if (roles.empty()) {
     return;
   }
   CHECK(!frameworkSorters.empty());
@@ -2185,6 +2203,78 @@ double HierarchicalAllocatorProcess::_offer_filters_active(
   }
 
   return result;
+}
+
+
+bool HierarchicalAllocatorProcess::isFrameworkTrackedUnderRole(
+    const FrameworkID& frameworkId,
+    const std::string& role) const
+{
+  return roles.contains(role) &&
+         roles.at(role).contains(frameworkId);
+}
+
+
+void HierarchicalAllocatorProcess::trackFrameworkUnderRole(
+    const FrameworkID& frameworkId,
+    const string& role)
+{
+  CHECK(initialized);
+
+  // If this is the first framework to subscribe to this role, or have
+  // resources allocated to this role, initialize state as necessary.
+  if (!roles.contains(role)) {
+    roles[role] = {};
+    CHECK(!roleSorter->contains(role));
+    roleSorter->add(role, roleWeight(role));
+
+    CHECK(!frameworkSorters.contains(role));
+    frameworkSorters.insert({role, Owned<Sorter>(frameworkSorterFactory())});
+    frameworkSorters.at(role)->initialize(fairnessExcludeResourceNames);
+    metrics.addRole(role);
+  }
+
+  CHECK(!roles.at(role).contains(frameworkId));
+  roles.at(role).insert(frameworkId);
+
+  CHECK(!frameworkSorters.at(role)->contains(frameworkId.value()));
+  frameworkSorters.at(role)->add(frameworkId.value());
+}
+
+
+void HierarchicalAllocatorProcess::untrackFrameworkUnderRole(
+    const FrameworkID& frameworkId,
+    const string& role)
+{
+  CHECK(initialized);
+
+  CHECK(roles.contains(role));
+  CHECK(roles.at(role).contains(frameworkId));
+  CHECK(frameworkSorters.contains(role));
+  CHECK(frameworkSorters.at(role)->contains(frameworkId.value()));
+
+  roles.at(role).erase(frameworkId);
+  frameworkSorters.at(role)->remove(frameworkId.value());
+
+  // If no more frameworks are subscribed to this role or have resources
+  // allocated to this role, cleanup associated state. This is not necessary
+  // for correctness (roles with no registered frameworks will not be offered
+  // any resources), but since many different role names might be used over
+  // time, we want to avoid leaking resources for no-longer-used role names.
+  // Note that we don't remove the role from `quotaRoleSorter` if it exists
+  // there, since roles with a quota set still influence allocation even if
+  // they don't have any registered frameworks.
+
+  if (roles.at(role).empty()) {
+    CHECK_EQ(frameworkSorters.at(role)->count(), 0);
+
+    roles.erase(role);
+    roleSorter->remove(role);
+
+    frameworkSorters.erase(role);
+
+    metrics.removeRole(role);
+  }
 }
 
 
