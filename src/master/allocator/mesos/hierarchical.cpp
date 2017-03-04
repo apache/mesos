@@ -456,7 +456,7 @@ void HierarchicalAllocatorProcess::addSlave(
   foreachpair (const FrameworkID& frameworkId,
                const Resources& used_,
                used) {
-    if (!frameworks.contains(frameworkId) ) {
+    if (!frameworks.contains(frameworkId)) {
       continue;
     }
 
