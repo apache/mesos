@@ -3411,15 +3411,14 @@ Future<vector<string>> Master::Http::_roles(
         const hashset<string>& whitelist = master->roleWhitelist.get();
         roleList.insert(whitelist.begin(), whitelist.end());
       } else {
-        roleList.insert(
-            master->activeRoles.keys().begin(),
-            master->activeRoles.keys().end());
-        roleList.insert(
-            master->weights.keys().begin(),
-            master->weights.keys().end());
-        roleList.insert(
-            master->quotas.keys().begin(),
-            master->quotas.keys().end());
+        hashset<string> roles = master->activeRoles.keys();
+        roleList.insert(roles.begin(), roles.end());
+
+        hashset<string> weights = master->weights.keys();
+        roleList.insert(weights.begin(), weights.end());
+
+        hashset<string> quotas = master->quotas.keys();
+        roleList.insert(quotas.begin(), quotas.end());
       }
 
       vector<string> filteredRoleList;
