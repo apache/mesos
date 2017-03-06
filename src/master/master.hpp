@@ -680,7 +680,7 @@ protected:
    */
   process::Future<bool> authorizeReserveResources(
       const Offer::Operation::Reserve& reserve,
-      const Option<std::string>& principal);
+      const Option<process::http::authentication::Principal>& principal);
 
   /**
    * Authorizes an `UNRESERVE` offer operation.
@@ -701,7 +701,7 @@ protected:
    */
   process::Future<bool> authorizeUnreserveResources(
       const Offer::Operation::Unreserve& unreserve,
-      const Option<std::string>& principal);
+      const Option<process::http::authentication::Principal>& principal);
 
   /**
    * Authorizes a `CREATE` offer operation.
@@ -722,7 +722,7 @@ protected:
    */
   process::Future<bool> authorizeCreateVolume(
       const Offer::Operation::Create& create,
-      const Option<std::string>& principal);
+      const Option<process::http::authentication::Principal>& principal);
 
   /**
    * Authorizes a `DESTROY` offer operation.
@@ -743,7 +743,7 @@ protected:
    */
   process::Future<bool> authorizeDestroyVolume(
       const Offer::Operation::Destroy& destroy,
-      const Option<std::string>& principal);
+      const Option<process::http::authentication::Principal>& principal);
 
   // Add the task and its executor (if not already running) to the
   // framework and slave. Returns the resources consumed as a result,
@@ -931,7 +931,7 @@ private:
       const process::Future<bool>& registrarResult);
 
   process::Future<bool> authorizeLogAccess(
-      const Option<std::string>& principal);
+      const Option<process::http::authentication::Principal>& principal);
 
   /**
    * Returns whether the given role is on the whitelist.
@@ -976,28 +976,33 @@ private:
     // Returns a list of set quotas.
     process::Future<process::http::Response> status(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> status(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> set(
         const mesos::master::Call& call,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> set(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> remove(
         const mesos::master::Call& call,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> remove(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
   private:
     // Heuristically tries to determine whether a quota request could
@@ -1045,7 +1050,7 @@ private:
     void rescindOffers(const mesos::quota::QuotaInfo& request) const;
 
     process::Future<bool> authorizeGetQuota(
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         const mesos::quota::QuotaInfo& quotaInfo) const;
 
     // TODO(mpark): The following functions `authorizeSetQuota` and
@@ -1053,19 +1058,21 @@ private:
     // the end of deprecation cycle which started with 1.0.
 
     process::Future<bool> authorizeSetQuota(
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         const mesos::quota::QuotaInfo& quotaInfo) const;
 
     process::Future<bool> authorizeRemoveQuota(
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         const mesos::quota::QuotaInfo& quotaInfo) const;
 
     process::Future<mesos::quota::QuotaStatus> _status(
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> _set(
         const mesos::quota::QuotaRequest& quotaRequest,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> __set(
         const mesos::quota::QuotaInfo& quotaInfo,
@@ -1073,7 +1080,8 @@ private:
 
     process::Future<process::http::Response> _remove(
         const std::string& role,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> __remove(
         const std::string& role) const;
@@ -1101,29 +1109,31 @@ private:
 
     process::Future<process::http::Response> get(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> get(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> update(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> update(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
   private:
     process::Future<bool> authorizeGetWeight(
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         const WeightInfo& weight) const;
 
     process::Future<bool> authorizeUpdateWeights(
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         const std::vector<std::string>& roles) const;
 
     process::Future<std::vector<WeightInfo>> _filterWeights(
@@ -1131,10 +1141,11 @@ private:
         const std::list<bool>& roleAuthorizations) const;
 
     process::Future<std::vector<WeightInfo>> _getWeights(
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response>_updateWeights(
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         const google::protobuf::RepeatedPtrField<WeightInfo>& weightInfos)
             const;
 
@@ -1164,32 +1175,38 @@ private:
     // /api/v1
     process::Future<process::http::Response> api(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /api/v1/scheduler
     process::Future<process::http::Response> scheduler(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/create-volumes
     process::Future<process::http::Response> createVolumes(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/destroy-volumes
     process::Future<process::http::Response> destroyVolumes(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/flags
     process::Future<process::http::Response> flags(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/frameworks
     process::Future<process::http::Response> frameworks(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/health
     process::Future<process::http::Response> health(
@@ -1202,72 +1219,86 @@ private:
     // /master/reserve
     process::Future<process::http::Response> reserve(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/roles
     process::Future<process::http::Response> roles(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/teardown
     process::Future<process::http::Response> teardown(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/slaves
     process::Future<process::http::Response> slaves(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/state
     process::Future<process::http::Response> state(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/state-summary
     process::Future<process::http::Response> stateSummary(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/tasks
     process::Future<process::http::Response> tasks(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/maintenance/schedule
     process::Future<process::http::Response> maintenanceSchedule(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/maintenance/status
     process::Future<process::http::Response> maintenanceStatus(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/machine/down
     process::Future<process::http::Response> machineDown(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/machine/up
     process::Future<process::http::Response> machineUp(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/unreserve
     process::Future<process::http::Response> unreserve(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/quota
     process::Future<process::http::Response> quota(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /master/weights
     process::Future<process::http::Response> weights(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     static std::string API_HELP();
     static std::string SCHEDULER_HELP();
@@ -1298,13 +1329,15 @@ private:
     class FlagsError; // Forward declaration.
 
     process::Future<Try<JSON::Object, FlagsError>> _flags(
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<std::vector<const Task*>> _tasks(
         const size_t limit,
         const size_t offset,
         const std::string& order,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> _teardown(
         const FrameworkID& id) const;
@@ -1326,22 +1359,26 @@ private:
     process::Future<process::http::Response> _reserve(
         const SlaveID& slaveId,
         const Resources& resources,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> _unreserve(
         const SlaveID& slaveId,
         const Resources& resources,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> _createVolumes(
         const SlaveID& slaveId,
         const google::protobuf::RepeatedPtrField<Resource>& volumes,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> _destroyVolumes(
         const SlaveID& slaveId,
         const google::protobuf::RepeatedPtrField<Resource>& volumes,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     /**
      * Continuation for operations: /reserve, /unreserve,
@@ -1368,90 +1405,91 @@ private:
         const Offer::Operation& operation) const;
 
     process::Future<std::vector<std::string>> _roles(
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // Master API handlers.
 
     process::Future<process::http::Response> getAgents(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     mesos::master::Response::GetAgents _getAgents() const;
 
     process::Future<process::http::Response> getFlags(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getHealth(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getVersion(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getRoles(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getMetrics(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getLoggingLevel(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> setLoggingLevel(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> listFiles(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getMaster(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> updateMaintenanceSchedule(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getMaintenanceSchedule(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getMaintenanceStatus(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> startMaintenance(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> stopMaintenance(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getTasks(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     mesos::master::Response::GetTasks _getTasks(
@@ -1460,27 +1498,27 @@ private:
 
     process::Future<process::http::Response> createVolumes(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> destroyVolumes(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> reserveResources(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> unreserveResources(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> getFrameworks(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     mesos::master::Response::GetFrameworks _getFrameworks(
@@ -1488,7 +1526,7 @@ private:
 
     process::Future<process::http::Response> getExecutors(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     mesos::master::Response::GetExecutors _getExecutors(
@@ -1497,7 +1535,7 @@ private:
 
     process::Future<process::http::Response> getState(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     mesos::master::Response::GetState _getState(
@@ -1507,12 +1545,12 @@ private:
 
     process::Future<process::http::Response> subscribe(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     process::Future<process::http::Response> readFile(
         const mesos::master::Call& call,
-        const Option<std::string>& principal,
+        const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
     Master* master;

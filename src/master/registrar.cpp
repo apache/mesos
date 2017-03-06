@@ -65,6 +65,8 @@ using process::TLDR;
 
 using process::http::OK;
 
+using process::http::authentication::Principal;
+
 using process::metrics::Gauge;
 using process::metrics::Timer;
 
@@ -120,7 +122,7 @@ private:
   // /registrar(N)/registry
   Future<Response> registry(
       const Request& request,
-      const Option<string>& /* principal */);
+      const Option<Principal>&);
   static string registryHelp();
 
   // The 'Recover' operation adds the latest MasterInfo.
@@ -256,7 +258,7 @@ void fail(deque<Owned<Operation>>* operations, const string& message)
 
 Future<Response> RegistrarProcess::registry(
     const Request& request,
-    const Option<string>& /* principal */)
+    const Option<Principal>&)
 {
   JSON::Object result;
 
