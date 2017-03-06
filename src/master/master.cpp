@@ -5326,6 +5326,24 @@ void Master::registerSlave(
     return;
   }
 
+  // Ignore registration attempts by agents running old Mesos versions.
+  // We expect that the agent's version is in SemVer format; if the
+  // version cannot be parsed, the registration attempt is ignored.
+  Try<Version> parsedVersion = Version::parse(version);
+
+  if (parsedVersion.isError()) {
+    LOG(WARNING) << "Failed to parse version '" << version << "'"
+                 << " of agent at " << from << ": " << parsedVersion.error()
+                 << "; ignoring agent registration attempt";
+    return;
+  } else if (parsedVersion.get() < MINIMUM_AGENT_VERSION) {
+    LOG(WARNING) << "Ignoring registration attempt from old agent at "
+                 << from << ": agent version is " << parsedVersion.get()
+                 << ", minimum supported agent version is "
+                 << MINIMUM_AGENT_VERSION;
+    return;
+  }
+
   // Check if this slave is already registered (because it retries).
   if (slaves.registered.contains(from)) {
     Slave* slave = slaves.registered.get(from);
@@ -5513,6 +5531,24 @@ void Master::reregisterSlave(
     ShutdownMessage message;
     message.set_message("Machine is `DOWN`");
     send(from, message);
+    return;
+  }
+
+  // Ignore re-registration attempts by agents running old Mesos versions.
+  // We expect that the agent's version is in SemVer format; if the
+  // version cannot be parsed, the re-registration attempt is ignored.
+  Try<Version> parsedVersion = Version::parse(version);
+
+  if (parsedVersion.isError()) {
+    LOG(WARNING) << "Failed to parse version '" << version << "'"
+                 << " of agent at " << from << ": " << parsedVersion.error()
+                 << "; ignoring agent re-registration attempt";
+    return;
+  } else if (parsedVersion.get() < MINIMUM_AGENT_VERSION) {
+    LOG(WARNING) << "Ignoring re-registration attempt from old agent at "
+                 << from << ": agent version is " << parsedVersion.get()
+                 << ", minimum supported agent version is "
+                 << MINIMUM_AGENT_VERSION;
     return;
   }
 
