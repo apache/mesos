@@ -1476,7 +1476,7 @@ inline mesos::v1::Parameters parameterize(Args&&... args)
 inline mesos::v1::scheduler::Call createCallAccept(
     const mesos::v1::FrameworkID& frameworkId,
     const mesos::v1::Offer& offer,
-    const mesos::v1::Offer::Operation& operation)
+    const std::vector<mesos::v1::Offer::Operation>& operations)
 {
   mesos::v1::scheduler::Call call;
   call.set_type(mesos::v1::scheduler::Call::ACCEPT);
@@ -1484,7 +1484,10 @@ inline mesos::v1::scheduler::Call createCallAccept(
 
   mesos::v1::scheduler::Call::Accept* accept = call.mutable_accept();
   accept->add_offer_ids()->CopyFrom(offer.id());
-  accept->add_operations()->CopyFrom(operation);
+
+  foreach (const mesos::v1::Offer::Operation& operation, operations) {
+    accept->add_operations()->CopyFrom(operation);
+  }
 
   return call;
 }

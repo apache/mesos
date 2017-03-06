@@ -924,12 +924,11 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
             frameworkId,
             offer.agent_id())));
 
-  mesos.send(v1::createCallAccept(
-      frameworkId,
-      offer,
-      v1::LAUNCH_GROUP(
-          executorInfo,
-          v1::createTaskGroupInfo({task1, task2}))));
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({task1, task2}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
 
   AWAIT_READY(updateRunning1);
   AWAIT_READY(updateRunning2);

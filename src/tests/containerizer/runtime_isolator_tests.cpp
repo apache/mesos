@@ -408,12 +408,11 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_INTERNET_CURL_NestedSimpleCommand)
                         frameworkId,
                         offer.agent_id())));
 
-  mesos.send(v1::createCallAccept(
-      frameworkId,
-      offer,
-      v1::LAUNCH_GROUP(
-          executorInfo,
-          v1::createTaskGroupInfo({taskInfo}))));
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
 
   AWAIT_READY(updateRunning);
   ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
@@ -528,12 +527,11 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultCmdLocalPuller)
                         frameworkId,
                         offer.agent_id())));
 
-  mesos.send(v1::createCallAccept(
-      frameworkId,
-      offer,
-      v1::LAUNCH_GROUP(
-          executorInfo,
-          v1::createTaskGroupInfo({taskInfo}))));
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
 
   AWAIT_READY(updateRunning);
   ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
@@ -649,12 +647,11 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultEntryptLocalPuller)
                         frameworkId,
                         offer.agent_id())));
 
-  mesos.send(v1::createCallAccept(
-      frameworkId,
-      offer,
-      v1::LAUNCH_GROUP(
-          executorInfo,
-          v1::createTaskGroupInfo({taskInfo}))));
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
 
   AWAIT_READY(updateRunning);
   ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
