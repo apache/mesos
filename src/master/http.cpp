@@ -3470,7 +3470,7 @@ Future<Response> Master::Http::roles(
 
           Option<Role*> role = None();
           if (master->roles.contains(name)) {
-            role = master->roles[name];
+            role = master->roles.at(name);
           }
 
           array.values.push_back(model(name, weight, role));
@@ -3563,7 +3563,7 @@ Future<Response> Master::Http::getRoles(
         }
 
         if (master->roles.contains(name)) {
-          Role* role_ = master->roles[name];
+          Role* role_ = master->roles.at(name);
 
           role.mutable_resources()->CopyFrom(role_->resources());
 

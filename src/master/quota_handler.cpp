@@ -136,7 +136,7 @@ void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
 
   int frameworksInRole = 0;
   if (master->roles.contains(role)) {
-    Role* roleState = master->roles[role];
+    Role* roleState = master->roles.at(role);
     foreachvalue (const Framework* framework, roleState->frameworks) {
       if (framework->active()) {
         ++frameworksInRole;
@@ -508,7 +508,7 @@ Future<http::Response> Master::QuotaHandler::_remove(
     const string& role,
     const Option<Principal>& principal) const
 {
-  return authorizeRemoveQuota(principal, master->quotas[role].info)
+  return authorizeRemoveQuota(principal, master->quotas.at(role).info)
     .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
       return !authorized ? Forbidden() : __remove(role);
     }));
