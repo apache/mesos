@@ -112,8 +112,6 @@ using process::http::TemporaryRedirect;
 using process::http::UnsupportedMediaType;
 using process::http::URL;
 
-using process::metrics::internal::MetricsProcess;
-
 using std::copy_if;
 using std::list;
 using std::map;
