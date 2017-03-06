@@ -26,11 +26,14 @@ option java_outer_classname = "Protos";
 
 
 // A `Subject` is the entity which desires to execute an `Action` on
-// an `Object`. A `Subject` has a number of optional fields (currently
-// only a `value`).
+// an `Object`. A `Subject` has a number of optional fields:
+//   `value` : String which identifies the subject, i.e., a principal.
+//   `claims`: Key-value pairs associated with the subject.
+//
 // NOTE: A `Subject` should always come with at least one set field.
 message Subject {
   optional string value = 1;
+  optional Labels claims = 2;
 }
 
 

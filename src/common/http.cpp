@@ -58,6 +58,8 @@ using process::Failure;
 using process::Owned;
 
 using process::http::authentication::Authenticator;
+using process::http::authentication::Principal;
+
 using process::http::authorization::AuthorizationCallbacks;
 
 using mesos::http::authentication::BasicAuthenticatorFactory;
@@ -717,19 +719,44 @@ static void json(JSON::StringWriter* writer, const Value::Text& text)
   writer->append(text.value());
 }
 
+namespace authorization {
+
+const Option<authorization::Subject> createSubject(
+    const Option<Principal>& principal)
+{
+  if (principal.isSome()) {
+    authorization::Subject subject;
+
+    if (principal->value.isSome()) {
+      subject.set_value(principal->value.get());
+    }
+
+    foreachpair (const string& key, const string& value, principal->claims) {
+      Label* claim = subject.mutable_claims()->mutable_labels()->Add();
+      claim->set_key(key);
+      claim->set_value(value);
+    }
+
+    return subject;
+  }
+
+  return None();
+}
+
+} // namespace authorization {
 
 const AuthorizationCallbacks createAuthorizationCallbacks(
     Authorizer* authorizer)
 {
   typedef lambda::function<process::Future<bool>(
       const process::http::Request& httpRequest,
-      const Option<string>& principal)> Callback;
+      const Option<Principal>& principal)> Callback;
 
   AuthorizationCallbacks callbacks;
 
   Callback getEndpoint = [authorizer](
       const process::http::Request& httpRequest,
-      const Option<string>& principal) -> process::Future<bool> {
+      const Option<Principal>& principal) -> process::Future<bool> {
         const string path = httpRequest.url.path;
 
         if (!internal::AUTHORIZABLE_ENDPOINTS.contains(path)) {
@@ -740,14 +767,16 @@ const AuthorizationCallbacks createAuthorizationCallbacks(
         authorization::Request authRequest;
         authRequest.set_action(mesos::authorization::GET_ENDPOINT_WITH_PATH);
 
-        if (principal.isSome()) {
-          authRequest.mutable_subject()->set_value(principal.get());
+        Option<authorization::Subject> subject =
+          authorization::createSubject(principal);
+        if (subject.isSome()) {
+          authRequest.mutable_subject()->CopyFrom(subject.get());
         }
 
         authRequest.mutable_object()->set_value(path);
 
         LOG(INFO) << "Authorizing principal '"
-                  << (principal.isSome() ? principal.get() : "ANY")
+                  << (principal.isSome() ? stringify(principal.get()) : "ANY")
                   << "' to GET the endpoint '" << path << "'";
 
         return authorizer->authorized(authRequest);
@@ -855,7 +884,7 @@ process::Future<bool> authorizeEndpoint(
     const string& endpoint,
     const string& method,
     const Option<Authorizer*>& authorizer,
-    const Option<string>& principal)
+    const Option<Principal>& principal)
 {
   if (authorizer.isNone()) {
     return true;
@@ -876,14 +905,16 @@ process::Future<bool> authorizeEndpoint(
         "Endpoint '" + endpoint + "' is not an authorizable endpoint.");
   }
 
-  if (principal.isSome()) {
-    request.mutable_subject()->set_value(principal.get());
+  Option<authorization::Subject> subject =
+    authorization::createSubject(principal);
+  if (subject.isSome()) {
+    request.mutable_subject()->CopyFrom(subject.get());
   }
 
   request.mutable_object()->set_value(endpoint);
 
   LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? principal.get() : "ANY")
+            << (principal.isSome() ? stringify(principal.get()) : "ANY")
             << "' to " <<  method
             << " the '" << endpoint << "' endpoint";
 
