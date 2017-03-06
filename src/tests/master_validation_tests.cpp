@@ -403,9 +403,9 @@ TEST_F(ReserveOperationValidationTest, NonMatchingPrincipal)
   EXPECT_TRUE(
       strings::contains(
           error->message,
-          "A reserve operation was attempted by principal 'principal1', but "
-          "there is a reserved resource in the request with principal "
-          "'principal2' set in `ReservationInfo`"));
+          "A reserve operation was attempted by authenticated principal "
+          "'principal1', which does not match a reserved resource in the "
+          "request with principal 'principal2'"));
 }
 
 
@@ -432,8 +432,7 @@ TEST_F(ReserveOperationValidationTest, ReservationInfoMissingPrincipal)
       strings::contains(
           error->message,
           "A reserve operation was attempted by principal 'principal', but "
-          "there is a reserved resource in the request with no principal set "
-          "in `ReservationInfo`"));
+          "there is a reserved resource in the request with no principal set"));
 }
 
 

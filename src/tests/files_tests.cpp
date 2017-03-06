@@ -52,6 +52,8 @@ using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
 
+using process::http::authentication::Principal;
+
 using std::string;
 
 using mesos::http::authentication::BasicAuthenticatorFactory;
@@ -110,7 +112,7 @@ TEST_F(FilesTest, AttachTest)
   AWAIT_EXPECT_READY(files.attach("file", "myname"));       // Re-attach.
   AWAIT_EXPECT_FAILED(files.attach("missing", "somename")); // Missing file.
 
-  auto authorization = [](const Option<string>&) { return true; };
+  auto authorization = [](const Option<Principal>&) { return true; };
 
   // Attach with required authorization.
   AWAIT_EXPECT_READY(files.attach("file", "myname", authorization));
@@ -183,7 +185,7 @@ TEST_F(FilesTest, ReadTest)
 
   // Test reads with authorization enabled.
   bool authorized = true;
-  auto authorization = [&authorized](const Option<string>&) {
+  auto authorization = [&authorized](const Option<Principal>&) {
     return authorized;
   };
 
@@ -373,7 +375,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FilesTest, BrowseTest)
   files.detach("one");
 
   bool authorized = true;
-  auto authorization = [&authorized](const Option<string>&) {
+  auto authorization = [&authorized](const Option<Principal>&) {
     return authorized;
   };
 
@@ -463,7 +465,7 @@ TEST_F(FilesTest, DownloadTest)
 
   // Test downloads with authorization enabled.
   bool authorized = true;
-  auto authorization = [&authorized](const Option<string>&) {
+  auto authorization = [&authorized](const Option<Principal>&) {
     return authorized;
   };
 
