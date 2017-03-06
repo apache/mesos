@@ -97,8 +97,19 @@ Future<Option<AuthenticationResult>> AuthenticatorManagerProcess::authenticate(
         (authentication.forbidden.isSome()    ? 1 : 0);
 
       if (count != 1) {
-        return Failure("Expecting one of 'principal', 'unauthorized',"
-                       " or 'forbidden' to be set");
+        return Failure(
+            "HTTP authenticators must return only one of an authenticated "
+            "principal, an Unauthorized response, or a Forbidden response");
+      }
+
+      if (authentication.principal.isSome()) {
+        // Validate that at least one of `value` and `claims` is set.
+        if (authentication.principal->value.isNone() &&
+            authentication.principal->claims.empty()) {
+          return Failure(
+              "In the principal returned by an HTTP authenticator, at least one"
+              " of 'value' and 'claims' must be set");
+        }
       }
 
       return authentication;

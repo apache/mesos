@@ -13,6 +13,7 @@
 #ifndef __PROCESS_AUTHENTICATOR_HPP__
 #define __PROCESS_AUTHENTICATOR_HPP__
 
+#include <iosfwd>
 #include <string>
 
 #include <process/future.hpp>
@@ -26,6 +27,48 @@ namespace http {
 namespace authentication {
 
 class BasicAuthenticatorProcess;
+
+/**
+ * Contains information associated with an authenticated principal.
+ *
+ * At least one of the following two members should be set:
+ *   `value` : Optional string which is used to identify this principal.
+ *   `claims`: Map containing key-value pairs associated with this principal.
+ */
+struct Principal
+{
+  Principal() = delete;
+
+  Principal(const Option<std::string>& _value)
+    : value(_value) {}
+
+  Principal(
+      const Option<std::string>& _value,
+      const std::map<std::string, std::string>& _claims)
+    : value(_value), claims(_claims) {}
+
+  bool operator==(const Principal& that) const
+  {
+    return this->value == that.value && this->claims == that.claims;
+  }
+
+  bool operator==(const std::string& that) const
+  {
+    return this->value == that;
+  }
+
+  bool operator!=(const std::string& that) const
+  {
+    return !(*this == that);
+  }
+
+  Option<std::string> value;
+  std::map<std::string, std::string> claims;
+};
+
+
+std::ostream& operator<<(std::ostream& stream, const Principal& principal);
+
 
 /**
  * Represents the result of authenticating a request.
@@ -44,7 +87,7 @@ class BasicAuthenticatorProcess;
  */
 struct AuthenticationResult
 {
-  Option<std::string> principal;
+  Option<Principal> principal;
   Option<Unauthorized> unauthorized;
   Option<Forbidden> forbidden;
 };

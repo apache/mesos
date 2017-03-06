@@ -126,6 +126,7 @@ using process::http::Response;
 using process::http::ServiceUnavailable;
 
 using process::http::authentication::Authenticator;
+using process::http::authentication::Principal;
 using process::http::authentication::AuthenticationResult;
 using process::http::authentication::AuthenticatorManager;
 
@@ -3831,7 +3832,7 @@ Future<Response> ProcessBase::_visit(
     .then(defer(self(), [this, endpoint, request, name](
         const Option<AuthenticationResult>& authentication)
           -> Future<Response> {
-      Option<string> principal = None();
+      Option<Principal> principal = None();
 
       // If authentication failed, we do not continue with authorization.
       if (authentication.isSome()) {
@@ -3843,6 +3844,7 @@ Future<Response> ProcessBase::_visit(
           return authentication->forbidden.get();
         }
 
+        CHECK_SOME(authentication->principal);
         principal = authentication->principal;
       }
 

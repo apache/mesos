@@ -20,6 +20,7 @@
 #include <vector>
 
 #include <process/address.hpp>
+#include <process/authenticator.hpp>
 #include <process/clock.hpp>
 #include <process/event.hpp>
 #include <process/filter.hpp>
@@ -296,22 +297,28 @@ protected:
 
   /**
    * Any function which takes a `process::http::Request` and an
-   * `Option<std::string>` principal and returns a
-   * `process::http::Response`.
+   * `Option<Principal>` and returns a `process::http::Response`.
+   * This type is meant to be used for the endpoint handlers of
+   * authenticated HTTP endpoints.
    *
-   * If the authentication principal string is set, the realm
-   * requires authentication and authentication succeeded. If
-   * it is not set, the realm does not require authentication.
+   * If the handler is called and the principal is set,
+   * this implies two things:
+   *   1) The realm that the handler's endpoint is installed into
+   *      requires authentication.
+   *   2) The HTTP request has been successfully authenticated.
+   *
+   * If the principal is not set, then the endpoint's
+   * realm does not require authentication.
    *
    * The default visit implementation for HTTP events invokes
    * installed HTTP handlers.
    *
    * @see process::ProcessBase::route
    */
-  // TODO(arojas): Consider introducing an `authentication::Principal` type.
   typedef lambda::function<Future<http::Response>(
-      const http::Request&, const Option<std::string>&)>
-      AuthenticatedHttpRequestHandler;
+      const http::Request&,
+      const Option<http::authentication::Principal>&)>
+          AuthenticatedHttpRequestHandler;
 
   // TODO(arojas): Consider introducing an `authentication::Realm` type.
   void route(
@@ -331,7 +338,7 @@ protected:
       const Option<std::string>& help,
       Future<http::Response> (T::*method)(
           const http::Request&,
-          const Option<std::string>&),
+          const Option<http::authentication::Principal>&),
       const RouteOptions& options = RouteOptions())
   {
     // Note that we use dynamic_cast here so a process can use

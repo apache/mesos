@@ -64,6 +64,8 @@ namespace authentication {
 
 class Authenticator;
 
+struct Principal;
+
 /**
  * Sets (or overwrites) the authenticator for the realm.
  *
@@ -97,7 +99,7 @@ namespace authorization {
 typedef hashmap<std::string,
                 lambda::function<process::Future<bool>(
                     const Request,
-                    const Option<std::string> principal)>>
+                    const Option<authentication::Principal>)>>
   AuthorizationCallbacks;
 
 
