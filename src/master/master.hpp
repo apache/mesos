@@ -2455,13 +2455,13 @@ struct Framework
 
   const FrameworkID id() const { return info.id(); }
 
-  // Update fields in 'info' using those in 'source'. Currently this
+  // Update fields in 'info' using those in 'newInfo'. Currently this
   // only updates 'name', 'failover_timeout', 'hostname', 'webui_url',
   // 'capabilities', and 'labels'.
-  Try<Nothing> updateFrameworkInfo(const FrameworkInfo& source)
+  Try<Nothing> updateFrameworkInfo(const FrameworkInfo& newInfo)
   {
     // We only merge 'info' from the same framework 'id'.
-    CHECK_EQ(info.id(), source.id());
+    CHECK_EQ(info.id(), newInfo.id());
 
     // TODO(jmlvanre): Merge other fields as per design doc in
     // MESOS-703.
@@ -2471,7 +2471,7 @@ struct Framework
     // capability, given that the `role` and `roles` field contain the
     // same number of roles.
     if (capabilities.multiRole || protobuf::frameworkHasCapability(
-            source, FrameworkInfo::Capability::MULTI_ROLE)) {
+            newInfo, FrameworkInfo::Capability::MULTI_ROLE)) {
       // Two `roles` sets are equivalent if they contain the same
       // elements. A `role` `*` is not equivalent to an empty `roles`
       // set, but to the set `{*}`. Since we might be dealing with a
@@ -2479,7 +2479,7 @@ struct Framework
       // it, we need to examine either `role` or `roles` in order to
       // determine the roles a framework is subscribed to.
       const std::set<std::string> newRoles =
-        protobuf::framework::getRoles(source);
+        protobuf::framework::getRoles(newInfo);
 
       if (roles != newRoles) {
         return Error(
@@ -2490,66 +2490,67 @@ struct Framework
       info.clear_role();
       info.clear_roles();
 
-      if (source.has_role()) {
-        info.set_role(source.role());
+      if (newInfo.has_role()) {
+        info.set_role(newInfo.role());
       }
 
-      if (source.roles_size() > 0) {
-        info.mutable_roles()->CopyFrom(source.roles());
+      if (newInfo.roles_size() > 0) {
+        info.mutable_roles()->CopyFrom(newInfo.roles());
       }
     } else {
-      if (source.role() != info.role()) {
-        LOG(WARNING) << "Cannot update FrameworkInfo.role to '" << source.role()
-                     << "' for framework " << id() << ". Check MESOS-703";
+      if (newInfo.role() != info.role()) {
+        LOG(WARNING) << "Cannot update FrameworkInfo.role to '"
+                     << newInfo.role() << "' for framework " << id()
+                     << ". Check MESOS-703";
       }
     }
 
-    if (source.user() != info.user()) {
-      LOG(WARNING) << "Cannot update FrameworkInfo.user to '" << source.user()
+    if (newInfo.user() != info.user()) {
+      LOG(WARNING) << "Cannot update FrameworkInfo.user to '" << newInfo.user()
                    << "' for framework " << id() << ". Check MESOS-703";
     }
 
-    info.set_name(source.name());
+    info.set_name(newInfo.name());
 
-    if (source.has_failover_timeout()) {
-      info.set_failover_timeout(source.failover_timeout());
+    if (newInfo.has_failover_timeout()) {
+      info.set_failover_timeout(newInfo.failover_timeout());
     } else {
       info.clear_failover_timeout();
     }
 
-    if (source.checkpoint() != info.checkpoint()) {
+    if (newInfo.checkpoint() != info.checkpoint()) {
       LOG(WARNING) << "Cannot update FrameworkInfo.checkpoint to '"
-                   << stringify(source.checkpoint()) << "' for framework "
+                   << stringify(newInfo.checkpoint()) << "' for framework "
                    << id() << ". Check MESOS-703";
     }
 
-    if (source.has_hostname()) {
-      info.set_hostname(source.hostname());
+    if (newInfo.has_hostname()) {
+      info.set_hostname(newInfo.hostname());
     } else {
       info.clear_hostname();
     }
 
-    if (source.principal() != info.principal()) {
+    if (newInfo.principal() != info.principal()) {
       LOG(WARNING) << "Cannot update FrameworkInfo.principal to '"
-                   << source.principal() << "' for framework " << id()
+                   << newInfo.principal() << "' for framework " << id()
                    << ". Check MESOS-703";
     }
 
-    if (source.has_webui_url()) {
-      info.set_webui_url(source.webui_url());
+    if (newInfo.has_webui_url()) {
+      info.set_webui_url(newInfo.webui_url());
     } else {
       info.clear_webui_url();
     }
 
-    if (source.capabilities_size() > 0) {
-      info.mutable_capabilities()->CopyFrom(source.capabilities());
+    if (newInfo.capabilities_size() > 0) {
+      info.mutable_capabilities()->CopyFrom(newInfo.capabilities());
     } else {
       info.clear_capabilities();
     }
     capabilities = protobuf::framework::Capabilities(info.capabilities());
 
-    if (source.has_labels()) {
-      info.mutable_labels()->CopyFrom(source.labels());
+    if (newInfo.has_labels()) {
+      info.mutable_labels()->CopyFrom(newInfo.labels());
     } else {
       info.clear_labels();
     }
