@@ -26,6 +26,8 @@
 
 #include <mesos/master/master.hpp>
 
+#include <process/authenticator.hpp>
+
 #include <stout/error.hpp>
 #include <stout/option.hpp>
 
@@ -47,7 +49,7 @@ namespace call {
 // TODO(bmahler): Add unit tests.
 Option<Error> validate(
     const mesos::master::Call& call,
-    const Option<std::string>& principal = None());
+    const Option<process::http::authentication::Principal>& principal = None());
 
 } // namespace call {
 } // namespace master {
@@ -97,7 +99,7 @@ namespace call {
 // TODO(bmahler): Add unit tests.
 Option<Error> validate(
     const mesos::scheduler::Call& call,
-    const Option<std::string>& principal = None());
+    const Option<process::http::authentication::Principal>& principal = None());
 
 } // namespace call {
 } // namespace scheduler {
@@ -231,7 +233,7 @@ namespace operation {
 // Validates the RESERVE operation.
 Option<Error> validate(
     const Offer::Operation::Reserve& reserve,
-    const Option<std::string>& principal,
+    const Option<process::http::authentication::Principal>& principal,
     const Option<FrameworkInfo>& frameworkInfo);
 
 
@@ -248,7 +250,7 @@ Option<Error> validate(const Offer::Operation::Unreserve& unreserve);
 Option<Error> validate(
     const Offer::Operation::Create& create,
     const Resources& checkpointedResources,
-    const Option<std::string>& principal,
+    const Option<process::http::authentication::Principal>& principal,
     const Option<FrameworkInfo>& frameworkInfo = None());
 
 

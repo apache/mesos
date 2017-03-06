@@ -25,6 +25,8 @@
 #include <mesos/roles.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <process/authenticator.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -39,6 +41,8 @@
 #include "common/validation.hpp"
 
 #include "master/master.hpp"
+
+using process::http::authentication::Principal;
 
 using std::set;
 using std::string;
@@ -55,7 +59,7 @@ namespace call {
 
 Option<Error> validate(
     const mesos::master::Call& call,
-    const Option<string>& principal)
+    const Option<Principal>& principal)
 {
   if (!call.IsInitialized()) {
     return Error("Not initialized: " + call.InitializationErrorString());
@@ -309,7 +313,7 @@ namespace call {
 
 Option<Error> validate(
     const mesos::scheduler::Call& call,
-    const Option<string>& principal)
+    const Option<Principal>& principal)
 {
   if (!call.IsInitialized()) {
     return Error("Not initialized: " + call.InitializationErrorString());
@@ -333,10 +337,15 @@ Option<Error> validate(
     if (principal.isSome() &&
         frameworkInfo.has_principal() &&
         principal != frameworkInfo.principal()) {
+      // We assume that `principal->value.isSome()` is true. The master's HTTP
+      // handlers enforce this constraint, and V0 authenticators will only
+      // return principals of that form.
+      CHECK_SOME(principal->value);
+
       return Error(
-          "Authenticated principal '" + principal.get() + "' does not "
-          "match principal '" + frameworkInfo.principal() + "' set in "
-          "`FrameworkInfo`");
+          "Authenticated principal '" + stringify(principal.get()) +
+          "' does not match principal '" + frameworkInfo.principal() +
+          "' set in `FrameworkInfo`");
     }
 
     return None();
@@ -1646,7 +1655,7 @@ namespace operation {
 
 Option<Error> validate(
     const Offer::Operation::Reserve& reserve,
-    const Option<string>& principal,
+    const Option<Principal>& principal,
     const Option<FrameworkInfo>& frameworkInfo)
 {
   // NOTE: this ensures the reservation is not being made to the "*" role.
@@ -1667,19 +1676,24 @@ Option<Error> validate(
     }
 
     if (principal.isSome()) {
+      // We assume that `principal->value.isSome()` is true. The master's HTTP
+      // handlers enforce this constraint, and V0 authenticators will only
+      // return principals of that form.
+      CHECK_SOME(principal->value);
+
       if (!resource.reservation().has_principal()) {
         return Error(
             "A reserve operation was attempted by principal '" +
-            principal.get() + "', but there is a reserved resource in the"
-            " request with no principal set in `ReservationInfo`");
+            stringify(principal.get()) + "', but there is a "
+            "reserved resource in the request with no principal set");
       }
 
-      if (resource.reservation().principal() != principal.get()) {
+      if (principal != resource.reservation().principal()) {
         return Error(
-            "A reserve operation was attempted by principal '" +
-            principal.get() + "', but there is a reserved resource in the"
-            " request with principal '" + resource.reservation().principal() +
-            "' set in `ReservationInfo`");
+            "A reserve operation was attempted by authenticated principal '" +
+            stringify(principal.get()) + "', which does not match a "
+            "reserved resource in the request with principal '" +
+            resource.reservation().principal() + "'");
       }
     }
 
@@ -1790,7 +1804,7 @@ Option<Error> validate(const Offer::Operation::Unreserve& unreserve)
 Option<Error> validate(
     const Offer::Operation::Create& create,
     const Resources& checkpointedResources,
-    const Option<string>& principal,
+    const Option<Principal>& principal,
     const Option<FrameworkInfo>& frameworkInfo)
 {
   Option<Error> error = resource::validate(create.volumes());
@@ -1826,21 +1840,27 @@ Option<Error> validate(
     }
 
     // Ensure that the provided principals match. If `principal` is `None`,
-    // we allow `volume.disk().persistence().principal()` to take any value.
+    // we allow `volume.disk.persistence.principal` to take any value.
     if (principal.isSome()) {
+      // We assume that `principal->value.isSome()` is true. The master's HTTP
+      // handlers enforce this constraint, and V0 authenticators will only
+      // return principals of that form.
+      CHECK_SOME(principal->value);
+
       if (!volume.disk().persistence().has_principal()) {
         return Error(
-            "Create volume operation has been attempted by principal '" +
-            principal.get() + "', but there is a volume in the operation with "
-            "no principal set in 'DiskInfo.Persistence'");
+            "Create volume operation attempted by principal '" +
+            stringify(principal.get()) + "', but there is a volume in the "
+            "operation with no principal set in 'disk.persistence'");
       }
 
-      if (volume.disk().persistence().principal() != principal.get()) {
+      if (principal != volume.disk().persistence().principal()) {
         return Error(
-            "Create volume operation has been attempted by principal '" +
-            principal.get() + "', but there is a volume in the operation with "
-            "principal '" + volume.disk().persistence().principal() +
-            "' set in 'DiskInfo.Persistence'");
+            "Create volume operation attempted by authenticated principal '" +
+            stringify(principal.get()) + "', which does not match "
+            "a volume in the operation with principal '" +
+            volume.disk().persistence().principal() +
+            "' set in 'disk.persistence'");
       }
     }
   }
