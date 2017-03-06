@@ -388,6 +388,107 @@ TEST_F(UpgradeTest, UpgradeSlaveIntoMultiRole)
   driver.join();
 }
 
+
+// This test ensures that scheduler can upgrade to MULTI_ROLE
+// without affecting tasks that were previously running.
+TEST_F(UpgradeTest, MultiRoleSchedulerUpgrade)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> agent = StartSlave(&detector, &containerizer);
+  ASSERT_SOME(agent);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("foo");
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver1.start();
+
+  AWAIT_READY(frameworkId);
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("foo");
+  task.mutable_slave_id()->CopyFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->CopyFrom(offers.get()[0].resources());
+  task.mutable_executor()->CopyFrom(DEFAULT_EXECUTOR_INFO);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched1, statusUpdate(&driver1, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver1.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status->state());
+  EXPECT_TRUE(status->has_executor_id());
+  EXPECT_EQ(exec.id, status->executor_id());
+
+  frameworkInfo.mutable_id()->CopyFrom(frameworkId.get());
+  frameworkInfo.add_roles(frameworkInfo.role());
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
+  frameworkInfo.clear_role();
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered2;
+  EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
+    .WillOnce(FutureSatisfy(&registered2));
+
+  // Scheduler1 should get an error due to failover.
+  EXPECT_CALL(sched1, error(&driver1, "Framework failed over"));
+
+  driver2.start();
+
+  AWAIT_READY(registered2);
+
+  driver1.stop();
+  driver1.join();
+
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched2, statusUpdate(&driver2, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  // Trigger explicit reconciliation.
+  driver2.reconcileTasks({status.get()});
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2->state());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver2.stop();
+  driver2.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
