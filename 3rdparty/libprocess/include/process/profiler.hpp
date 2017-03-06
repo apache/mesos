@@ -67,14 +67,14 @@ private:
   // Starts the profiler. There are no request parameters.
   Future<http::Response> start(
       const http::Request& request,
-      const Option<std::string>& /* principal */);
+      const Option<http::authentication::Principal>&);
 
   // Stops the profiler. There are no request parameters.
   // This returns the profile output, it will also remain present
   // in the working directory.
   Future<http::Response> stop(
       const http::Request& request,
-      const Option<std::string>& /* principal */);
+      const Option<http::authentication::Principal>&);
 
   // The authentication realm that the profiler's HTTP endpoints will be
   // installed into.

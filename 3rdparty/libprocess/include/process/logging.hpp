@@ -58,7 +58,7 @@ protected:
 private:
   Future<http::Response> toggle(
       const http::Request& request,
-      const Option<std::string>& /* principal */);
+      const Option<http::authentication::Principal>&);
 
   void set(int v)
   {

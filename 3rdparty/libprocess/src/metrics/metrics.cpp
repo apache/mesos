@@ -175,7 +175,7 @@ Future<hashmap<string, double>> MetricsProcess::snapshot(
 
 Future<http::Response> MetricsProcess::_snapshot(
     const http::Request& request,
-    const Option<string>& /* principal */)
+    const Option<http::authentication::Principal>&)
 {
   // Parse the 'timeout' parameter.
   Option<Duration> timeout;
