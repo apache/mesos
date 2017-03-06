@@ -45,6 +45,7 @@
 
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
+#include <stout/version.hpp>
 
 #include "common/build.hpp"
 #include "common/http.hpp"
@@ -265,6 +266,16 @@ int main(int argc, char** argv)
   if (load.isError()) {
     cerr << flags.usage(load.error()) << endl;
     return EXIT_FAILURE;
+  }
+
+  // Check that agent's version has the expected format (SemVer).
+  {
+    Try<Version> version = Version::parse(MESOS_VERSION);
+    if (version.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Failed to parse Mesos version '" << MESOS_VERSION << "': "
+        << version.error();
+    }
   }
 
   if (flags.master.isNone() && flags.master_detector.isNone()) {
