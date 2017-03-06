@@ -664,9 +664,10 @@ Future<Response> Master::Http::subscribe(
   Future<Owned<ObjectApprover>> tasksApprover;
   Future<Owned<ObjectApprover>> executorsApprover;
   if (master->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = master->authorizer.get()->getObjectApprover(
@@ -1314,9 +1315,10 @@ Future<Response> Master::Http::frameworks(
   Future<Owned<ObjectApprover>> executorsApprover;
 
   if (master->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = master->authorizer.get()->getObjectApprover(
@@ -1478,9 +1480,10 @@ Future<Response> Master::Http::getFrameworks(
   Future<Owned<ObjectApprover>> frameworksApprover;
 
   if (master->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = master->authorizer.get()->getObjectApprover(
@@ -1544,9 +1547,10 @@ Future<Response> Master::Http::getExecutors(
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> executorsApprover;
   if (master->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = master->authorizer.get()->getObjectApprover(
@@ -1675,9 +1679,10 @@ Future<Response> Master::Http::getState(
   Future<Owned<ObjectApprover>> tasksApprover;
   Future<Owned<ObjectApprover>> executorsApprover;
   if (master->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = master->authorizer.get()->getObjectApprover(
@@ -2582,9 +2587,10 @@ Future<Response> Master::Http::state(
   Future<Owned<ObjectApprover>> flagsApprover;
 
   if (master->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = master->authorizer.get()->getObjectApprover(
@@ -3071,9 +3077,10 @@ Future<Response> Master::Http::stateSummary(
   Future<Owned<ObjectApprover>> frameworksApprover;
 
   if (master->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = master->authorizer.get()->getObjectApprover(
@@ -3280,9 +3287,10 @@ Future<vector<string>> Master::Http::_roles(
   Future<Owned<ObjectApprover>> rolesApprover;
 
   if (master->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     rolesApprover = master->authorizer.get()->getObjectApprover(
@@ -3681,9 +3689,10 @@ Future<Response> Master::Http::tasks(
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> tasksApprover;
   if (master->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = master->authorizer.get()->getObjectApprover(
@@ -3795,9 +3804,10 @@ Future<Response> Master::Http::getTasks(
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> tasksApprover;
   if (master->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = master->authorizer.get()->getObjectApprover(

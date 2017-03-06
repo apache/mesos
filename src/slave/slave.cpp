@@ -6181,10 +6181,10 @@ Future<bool> Slave::authorizeSandboxAccess(
   }
 
   // Set authorization subject.
-  authorization::Subject subject;
-
+  Option<authorization::Subject> subject;
   if (principal.isSome()) {
-    subject.set_value(principal.get());
+    subject = authorization::Subject();
+    subject->set_value(principal.get());
   }
 
   Future<Owned<ObjectApprover>> sandboxApprover =

@@ -836,9 +836,10 @@ Future<Response> Slave::Http::getFlags(
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     approver = slave->authorizer.get()->getObjectApprover(
@@ -976,9 +977,10 @@ Future<Response> Slave::Http::setLoggingLevel(
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     approver = slave->authorizer.get()->getObjectApprover(
@@ -1172,9 +1174,10 @@ Future<Response> Slave::Http::state(
   Future<Owned<ObjectApprover>> flagsApprover;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = slave->authorizer.get()->getObjectApprover(
@@ -1355,9 +1358,10 @@ Future<Response> Slave::Http::getFrameworks(
   Future<Owned<ObjectApprover>> frameworksApprover;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = slave->authorizer.get()->getObjectApprover(
@@ -1421,9 +1425,10 @@ Future<Response> Slave::Http::getExecutors(
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> executorsApprover;
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = slave->authorizer.get()->getObjectApprover(
@@ -1526,9 +1531,10 @@ Future<Response> Slave::Http::getTasks(
   Future<Owned<ObjectApprover>> tasksApprover;
   Future<Owned<ObjectApprover>> executorsApprover;
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = slave->authorizer.get()->getObjectApprover(
@@ -1707,9 +1713,10 @@ Future<Response> Slave::Http::getState(
   Future<Owned<ObjectApprover>> tasksApprover;
   Future<Owned<ObjectApprover>> executorsApprover;
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     frameworksApprover = slave->authorizer.get()->getObjectApprover(
@@ -1963,9 +1970,10 @@ Future<Response> Slave::Http::getContainers(
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     approver = slave->authorizer.get()->getObjectApprover(
@@ -2005,9 +2013,10 @@ Future<Response> Slave::Http::_containers(
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     approver = slave->authorizer.get()->getObjectApprover(
@@ -2223,9 +2232,10 @@ Future<Response> Slave::Http::launchNestedContainer(
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     approver = slave->authorizer.get()->getObjectApprover(
@@ -2331,9 +2341,10 @@ Future<Response> Slave::Http::waitNestedContainer(
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     approver = slave->authorizer.get()->getObjectApprover(
@@ -2408,9 +2419,10 @@ Future<Response> Slave::Http::killNestedContainer(
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     approver = slave->authorizer.get()->getObjectApprover(
@@ -2549,9 +2561,10 @@ Future<Response> Slave::Http::attachContainerInput(
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     approver = slave->authorizer.get()->getObjectApprover(
@@ -2635,9 +2648,10 @@ Future<Response> Slave::Http::launchNestedContainerSession(
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     approver = slave->authorizer.get()->getObjectApprover(
@@ -2870,9 +2884,10 @@ Future<Response> Slave::Http::attachContainerOutput(
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
-    authorization::Subject subject;
+    Option<authorization::Subject> subject;
     if (principal.isSome()) {
-      subject.set_value(principal.get());
+      subject = authorization::Subject();
+      subject->set_value(principal.get());
     }
 
     approver = slave->authorizer.get()->getObjectApprover(
