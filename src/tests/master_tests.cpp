@@ -7012,6 +7012,92 @@ TEST_F(MasterTest, MultiRoleSchedulerUnsubscribeFromRole)
   driver2.join();
 }
 
+
+// Check that the master does not allow old Mesos agents to register.
+// We do this by intercepting the agent's `RegisterSlaveMessage` and
+// then re-sending it with a tweaked version number.
+TEST_F(MasterTest, IgnoreOldAgentRegistration)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    DROP_PROTOBUF(RegisterSlaveMessage(), _, _);
+
+  Clock::pause();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  RegisterSlaveMessage message = registerSlaveMessage.get();
+  message.set_version("0.28.1-rc1");
+
+  // The master should ignore the agent's registration attempt. Hence,
+  // we do not expect the master to try to update the registry.
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .Times(0);
+
+  process::post(slave.get()->pid, master.get()->pid, message);
+
+  // Settle the clock to retire in-flight messages.
+  Clock::settle();
+}
+
+
+// Check that the master does not allow old Mesos agents to re-register.
+// We do this by intercepting the agent's `ReregisterSlaveMessage` and
+// then re-sending it with a tweaked version number.
+TEST_F(MasterTest, IgnoreOldAgentReregistration)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Intercept the agent's `ReregisterSlaveMessage`.
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    DROP_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  Clock::pause();
+
+  // Simulate a new master detected event on the slave,
+  // so that the slave will attempt to re-register.
+  detector.appoint(master.get()->pid);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(reregisterSlaveMessage);
+
+  ReregisterSlaveMessage message = reregisterSlaveMessage.get();
+  message.set_version("0.28.1-rc1");
+
+  // The master should ignore the agent's re-registration attempt, so
+  // we do not expect the master to try to update the registry.
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .Times(0);
+
+  process::post(slave.get()->pid, master.get()->pid, message);
+
+  // Settle the clock to retire in-flight messages.
+  Clock::settle();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

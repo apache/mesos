@@ -21,6 +21,7 @@
 
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
+#include <stout/version.hpp>
 
 namespace mesos {
 namespace internal {
@@ -144,6 +145,9 @@ constexpr char READWRITE_HTTP_AUTHENTICATION_REALM[] =
 // Name of the default authentication realm for HTTP frameworks.
 constexpr char DEFAULT_HTTP_FRAMEWORK_AUTHENTICATION_REALM[] =
   "mesos-master-scheduler";
+
+// Agents older than this version are not allowed to register.
+const Version MINIMUM_AGENT_VERSION = Version(1, 0, 0);
 
 } // namespace master {
 } // namespace internal {

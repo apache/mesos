@@ -5505,6 +5505,24 @@ void Master::_registerSlave(
     return;
   }
 
+  // Ignore registration attempts by agents running old Mesos versions.
+  // We expect that the agent's version is in SemVer format; if the
+  // version cannot be parsed, the registration attempt is ignored.
+  Try<Version> parsedVersion = Version::parse(version);
+
+  if (parsedVersion.isError()) {
+    LOG(WARNING) << "Failed to parse version '" << version << "'"
+                 << " of agent at " << pid << ": " << parsedVersion.error()
+                 << "; ignoring agent registration attempt";
+    return;
+  } else if (parsedVersion.get() < MINIMUM_AGENT_VERSION) {
+    LOG(WARNING) << "Ignoring registration attempt from old agent at "
+                 << pid << ": agent version is " << parsedVersion.get()
+                 << ", minimum supported agent version is "
+                 << MINIMUM_AGENT_VERSION;
+    return;
+  }
+
   // Check if this slave is already registered (because it retries).
   if (Slave* slave = slaves.registered.get(pid)) {
     if (!slave->connected) {
@@ -5772,6 +5790,24 @@ void Master::_reregisterSlave(
     send(pid, message);
 
     slaves.reregistering.erase(slaveInfo.id());
+    return;
+  }
+
+  // Ignore re-registration attempts by agents running old Mesos versions.
+  // We expect that the agent's version is in SemVer format; if the
+  // version cannot be parsed, the re-registration attempt is ignored.
+  Try<Version> parsedVersion = Version::parse(version);
+
+  if (parsedVersion.isError()) {
+    LOG(WARNING) << "Failed to parse version '" << version << "'"
+                 << " of agent at " << pid << ": " << parsedVersion.error()
+                 << "; ignoring agent re-registration attempt";
+    return;
+  } else if (parsedVersion.get() < MINIMUM_AGENT_VERSION) {
+    LOG(WARNING) << "Ignoring re-registration attempt from old agent at "
+                 << pid << ": agent version is " << parsedVersion.get()
+                 << ", minimum supported agent version is "
+                 << MINIMUM_AGENT_VERSION;
     return;
   }
 
