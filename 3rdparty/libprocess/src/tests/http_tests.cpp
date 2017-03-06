@@ -1858,6 +1858,31 @@ TEST_F(HttpAuthenticationTest, Authenticated)
 }
 
 
+// Tests that if an authenticator returns an invalid principal, the request
+// will not succeed.
+TEST_F(HttpAuthenticationTest, InvalidPrincipal)
+{
+  MockAuthenticator* authenticator = new MockAuthenticator();
+  setAuthenticator("realm", Owned<Authenticator>(authenticator));
+
+  Http http;
+
+  // This principal is invalid because it has neither `value` nor `claims` set.
+  AuthenticationResult authentication;
+  authentication.principal = Principal(None(), {});
+
+  EXPECT_CALL((*authenticator), authenticate(_))
+    .WillOnce(Return(authentication));
+
+  // Note that we don't bother pretending to specify a valid
+  // 'Authorization' header since we force authentication success.
+  Future<http::Response> response =
+    http::get(http.process->self(), "authenticated");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::InternalServerError().status, response);
+}
+
+
 // Tests that HTTP pipelining is respected even when
 // authentications are satisfied out-of-order.
 TEST_F(HttpAuthenticationTest, Pipelining)
