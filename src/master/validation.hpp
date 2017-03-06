@@ -234,7 +234,7 @@ namespace operation {
 Option<Error> validate(
     const Offer::Operation::Reserve& reserve,
     const Option<process::http::authentication::Principal>& principal,
-    const Option<FrameworkInfo>& frameworkInfo);
+    const Option<FrameworkInfo>& frameworkInfo = None());
 
 
 // Validates the UNRESERVE operation.
