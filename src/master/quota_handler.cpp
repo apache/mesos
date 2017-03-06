@@ -135,8 +135,8 @@ void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
   CHECK(master->isWhitelistedRole(role));
 
   int frameworksInRole = 0;
-  if (master->activeRoles.contains(role)) {
-    Role* roleState = master->activeRoles[role];
+  if (master->roles.contains(role)) {
+    Role* roleState = master->roles[role];
     foreachvalue (const Framework* framework, roleState->frameworks) {
       if (framework->active()) {
         ++frameworksInRole;

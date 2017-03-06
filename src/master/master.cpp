@@ -1196,10 +1196,10 @@ void Master::finalize()
     future.discard();
   }
 
-  foreachvalue (Role* role, activeRoles) {
+  foreachvalue (Role* role, roles) {
     delete role;
   }
-  activeRoles.clear();
+  roles.clear();
 
   // NOTE: This is necessary during tests because we don't want the
   // timer to fire in a different test and invoke the callback.
@@ -7463,10 +7463,10 @@ void Master::addFramework(Framework* framework)
       << "Unknown role '" << role << "'"
       << " of framework " << *framework;
 
-    if (!activeRoles.contains(role)) {
-      activeRoles[role] = new Role(role);
+    if (!roles.contains(role)) {
+      roles[role] = new Role(role);
     }
-    activeRoles.at(role)->addFramework(framework);
+    roles.at(role)->addFramework(framework);
   };
 
   if (framework->capabilities.multiRole) {
@@ -7902,12 +7902,12 @@ void Master::removeFramework(Framework* framework)
       << "Unknown role '" << role << "'"
       << " of framework " << *framework;
 
-    CHECK(activeRoles.contains(role));
+    CHECK(roles.contains(role));
 
-    activeRoles[role]->removeFramework(framework);
-    if (activeRoles[role]->frameworks.empty()) {
-      delete activeRoles[role];
-      activeRoles.erase(role);
+    roles[role]->removeFramework(framework);
+    if (roles[role]->frameworks.empty()) {
+      delete roles[role];
+      roles.erase(role);
     }
   };
 

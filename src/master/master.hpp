@@ -1821,7 +1821,7 @@ private:
   hashmap<OfferID, process::Timer> inverseOfferTimers;
 
   // Roles with > 0 frameworks currently registered.
-  hashmap<std::string, Role*> activeRoles;
+  hashmap<std::string, Role*> roles;
 
   // Configured role whitelist if using the (deprecated) "explicit
   // roles" feature. If this is `None`, any role is allowed.

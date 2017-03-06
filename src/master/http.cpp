@@ -3411,7 +3411,7 @@ Future<vector<string>> Master::Http::_roles(
         const hashset<string>& whitelist = master->roleWhitelist.get();
         roleList.insert(whitelist.begin(), whitelist.end());
       } else {
-        hashset<string> roles = master->activeRoles.keys();
+        hashset<string> roles = master->roles.keys();
         roleList.insert(roles.begin(), roles.end());
 
         hashset<string> weights = master->weights.keys();
@@ -3469,8 +3469,8 @@ Future<Response> Master::Http::roles(
           }
 
           Option<Role*> role = None();
-          if (master->activeRoles.contains(name)) {
-            role = master->activeRoles[name];
+          if (master->roles.contains(name)) {
+            role = master->roles[name];
           }
 
           array.values.push_back(model(name, weight, role));
@@ -3562,8 +3562,8 @@ Future<Response> Master::Http::getRoles(
           role.set_weight(1.0);
         }
 
-        if (master->activeRoles.contains(name)) {
-          Role* role_ = master->activeRoles[name];
+        if (master->roles.contains(name)) {
+          Role* role_ = master->roles[name];
 
           role.mutable_resources()->CopyFrom(role_->resources());
 

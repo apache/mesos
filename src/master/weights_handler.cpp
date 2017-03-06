@@ -294,7 +294,7 @@ void Master::WeightsHandler::rescindOffers(
 
     // Rescind all outstanding offers if at least one of the
     // updated roles has a registered frameworks.
-    if (master->activeRoles.contains(role)) {
+    if (master->roles.contains(role)) {
       rescind = true;
       break;
     }
