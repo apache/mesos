@@ -60,6 +60,7 @@ namespace unix = process::network::unix;
 using authentication::Authenticator;
 using authentication::AuthenticationResult;
 using authentication::BasicAuthenticator;
+using authentication::Principal;
 
 using process::Failure;
 using process::Future;
@@ -114,7 +115,7 @@ public:
 
   MOCK_METHOD2(
       authenticated,
-      Future<http::Response>(const http::Request&, const Option<string>&));
+      Future<http::Response>(const http::Request&, const Option<Principal>&));
 
 protected:
   virtual void initialize()
@@ -1772,7 +1773,7 @@ TEST_F(HttpAuthenticationTest, NoAuthenticator)
 {
   Http http;
 
-  EXPECT_CALL(*http.process, authenticated(_, Option<string>::none()))
+  EXPECT_CALL(*http.process, authenticated(_, Option<Principal>::none()))
     .WillOnce(Return(http::OK()));
 
   Future<http::Response> response =
@@ -1840,12 +1841,12 @@ TEST_F(HttpAuthenticationTest, Authenticated)
   Http http;
 
   AuthenticationResult authentication;
-  authentication.principal = "principal";
+  authentication.principal = Principal("principal");
 
   EXPECT_CALL((*authenticator), authenticate(_))
     .WillOnce(Return(authentication));
 
-  EXPECT_CALL(*http.process, authenticated(_, Option<string>("principal")))
+  EXPECT_CALL(*http.process, authenticated(_, Option<Principal>("principal")))
     .WillOnce(Return(http::OK()));
 
   // Note that we don't bother pretending to specify a valid
@@ -1875,8 +1876,8 @@ TEST_F(HttpAuthenticationTest, Pipelining)
     .WillOnce(Return(promise1.future()))
     .WillOnce(Return(promise2.future()));
 
-  Future<Option<string>> principal1;
-  Future<Option<string>> principal2;
+  Future<Option<Principal>> principal1;
+  Future<Option<Principal>> principal2;
   EXPECT_CALL(*http.process, authenticated(_, _))
     .WillOnce(DoAll(FutureArg<1>(&principal1), Return(http::OK("1"))))
     .WillOnce(DoAll(FutureArg<1>(&principal2), Return(http::OK("2"))));
@@ -1902,13 +1903,13 @@ TEST_F(HttpAuthenticationTest, Pipelining)
   Future<http::Response> response1 = connection.send(request);
   Future<http::Response> response2 = connection.send(request);
 
-  AuthenticationResult authentiation2;
-  authentiation2.principal = "principal2";
-  promise2.set(authentiation2);
+  AuthenticationResult authentication2;
+  authentication2.principal = Principal("principal2");
+  promise2.set(authentication2);
 
-  AuthenticationResult authentiation1;
-  authentiation1.principal = "princpal1";
-  promise1.set(authentiation1);
+  AuthenticationResult authentication1;
+  authentication1.principal = Principal("principal1");
+  promise1.set(authentication1);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response1);
   EXPECT_EQ("1", response1->body);
@@ -1916,8 +1917,8 @@ TEST_F(HttpAuthenticationTest, Pipelining)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response2);
   EXPECT_EQ("2", response2->body);
 
-  AWAIT_EXPECT_EQ(authentiation1.principal, principal1);
-  AWAIT_EXPECT_EQ(authentiation2.principal, principal2);
+  AWAIT_EXPECT_EQ(authentication1.principal, principal1);
+  AWAIT_EXPECT_EQ(authentication2.principal, principal2);
 }
 
 
@@ -1970,7 +1971,7 @@ TEST_F(HttpAuthenticationTest, Basic)
 
   // Right credentials provided.
   {
-    EXPECT_CALL(*http.process, authenticated(_, Option<string>("user")))
+    EXPECT_CALL(*http.process, authenticated(_, Option<Principal>("user")))
       .WillOnce(Return(http::OK()));
 
     http::Headers headers;
