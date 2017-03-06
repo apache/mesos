@@ -207,7 +207,8 @@ inline Try<PROCESS_INFORMATION> createChildProcess(
       &processInfo);           // PROCESS_INFORMATION pointer.
 
   if (!createProcessResult) {
-    return WindowsError("createChildProcess: failed to call 'CreateProcess'");
+    return WindowsError(
+        "Failed to call CreateProcess on command '" + command + "'");
   }
 
   // Run the parent hooks.
@@ -218,10 +219,6 @@ inline Try<PROCESS_INFORMATION> createChildProcess(
     // If the hook callback fails, we shouldn't proceed with the
     // execution and hence the child process should be killed.
     if (parentSetup.isError()) {
-      LOG(WARNING)
-        << "Failed to execute Subprocess::ParentHook in parent for child '"
-        << pid << "': " << parentSetup.error();
-
       // Attempt to kill the process. Since it is still in suspended state, we
       // do not need to kill any descendents. We also can't use `os::kill_job`
       // because this process is not in a Job Object unless one of the parent
@@ -229,15 +226,15 @@ inline Try<PROCESS_INFORMATION> createChildProcess(
       ::TerminateProcess(processInfo.hProcess, 1);
 
       return Error(
-          "Failed to execute Subprocess::ParentHook in parent for child '" +
-          stringify(pid) + "': " + parentSetup.error());
+          "Failed to execute Parent Hook in child '" + stringify(pid) +
+          "' with command '" + command + "': " + parentSetup.error());
     }
   }
 
   // Start child process.
   if (::ResumeThread(processInfo.hThread) == -1) {
-    return WindowsError("process::createChildProcess: Could not spawn child "
-                        "process");
+    return WindowsError(
+        "Failed to resume child process with command '" + command + "'");
   }
 
   return processInfo;

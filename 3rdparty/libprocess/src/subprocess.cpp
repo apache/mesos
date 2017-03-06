@@ -411,7 +411,7 @@ Try<Subprocess> subprocess(
     if (processInformation.isError()) {
       process::internal::close(stdinfds, stdoutfds, stderrfds);
       return Error(
-          "Could not launch child process" + processInformation.error());
+          "Could not launch child process: " + processInformation.error());
     }
 
     if (processInformation.get().dwProcessId == -1) {
