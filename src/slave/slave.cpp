@@ -103,6 +103,8 @@
 
 using google::protobuf::RepeatedPtrField;
 
+using mesos::authorization::createSubject;
+
 using mesos::executor::Call;
 
 using mesos::master::detector::MasterDetector;
@@ -130,6 +132,8 @@ using process::Owned;
 using process::PID;
 using process::Time;
 using process::UPID;
+
+using process::http::authentication::Principal;
 
 #ifdef __WINDOWS__
 constexpr char MESOS_EXECUTOR[] = "mesos-executor.exe";
@@ -672,7 +676,7 @@ void Slave::initialize()
         READWRITE_HTTP_AUTHENTICATION_REALM,
         Http::API_HELP(),
         [this](const process::http::Request& request,
-               const Option<string>& principal) {
+               const Option<Principal>& principal) {
           Http::log(request);
           return http.api(request, principal);
         },
@@ -691,7 +695,7 @@ void Slave::initialize()
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
         [this](const process::http::Request& request,
-               const Option<string>& principal) {
+               const Option<Principal>& principal) {
           Http::log(request);
           return http.state(request, principal);
         });
@@ -699,7 +703,7 @@ void Slave::initialize()
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
         [this](const process::http::Request& request,
-               const Option<string>& principal) {
+               const Option<Principal>& principal) {
           Http::log(request);
           return http.state(request, principal);
         });
@@ -707,7 +711,7 @@ void Slave::initialize()
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::FLAGS_HELP(),
         [this](const process::http::Request& request,
-               const Option<string>& principal) {
+               const Option<Principal>& principal) {
           Http::log(request);
           return http.flags(request, principal);
         });
@@ -720,7 +724,7 @@ void Slave::initialize()
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::STATISTICS_HELP(),
         [this](const process::http::Request& request,
-               const Option<string>& principal) {
+               const Option<Principal>& principal) {
           return http.statistics(request, principal);
         });
   // TODO(ijimenez): Remove this endpoint at the end of the
@@ -729,20 +733,20 @@ void Slave::initialize()
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::STATISTICS_HELP(),
         [this](const process::http::Request& request,
-               const Option<string>& principal) {
+               const Option<Principal>& principal) {
           return http.statistics(request, principal);
         });
   route("/containers",
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::CONTAINERS_HELP(),
         [this](const process::http::Request& request,
-               const Option<string>& principal) {
+               const Option<Principal>& principal) {
           return http.containers(request, principal);
         });
 
   const PID<Slave> slavePid = self();
 
-  auto authorize = [slavePid](const Option<string>& principal) {
+  auto authorize = [slavePid](const Option<Principal>& principal) {
     return dispatch(
         slavePid,
         &Slave::authorizeLogAccess,
@@ -6154,7 +6158,7 @@ double Slave::_executor_directory_max_allowed_age_secs()
 }
 
 
-Future<bool> Slave::authorizeLogAccess(const Option<string>& principal)
+Future<bool> Slave::authorizeLogAccess(const Option<Principal>& principal)
 {
   if (authorizer.isNone()) {
     return true;
@@ -6163,8 +6167,9 @@ Future<bool> Slave::authorizeLogAccess(const Option<string>& principal)
   authorization::Request request;
   request.set_action(authorization::ACCESS_MESOS_LOG);
 
-  if (principal.isSome()) {
-    request.mutable_subject()->set_value(principal.get());
+  Option<authorization::Subject> subject = createSubject(principal);
+  if (subject.isSome()) {
+    request.mutable_subject()->CopyFrom(subject.get());
   }
 
   return authorizer.get()->authorized(request);
@@ -6172,7 +6177,7 @@ Future<bool> Slave::authorizeLogAccess(const Option<string>& principal)
 
 
 Future<bool> Slave::authorizeSandboxAccess(
-    const Option<string>& principal,
+    const Option<Principal>& principal,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId)
 {
@@ -6181,11 +6186,7 @@ Future<bool> Slave::authorizeSandboxAccess(
   }
 
   // Set authorization subject.
-  Option<authorization::Subject> subject;
-  if (principal.isSome()) {
-    subject = authorization::Subject();
-    subject->set_value(principal.get());
-  }
+  Option<authorization::Subject> subject = createSubject(principal);
 
   Future<Owned<ObjectApprover>> sandboxApprover =
     authorizer.get()->getObjectApprover(subject, authorization::ACCESS_SANDBOX);
@@ -6506,7 +6507,7 @@ Executor* Framework::launchExecutor(
   const PID<Slave> slavePid = slave->self();
 
   auto authorize =
-    [slavePid, executorId, frameworkId](const Option<string>& principal) {
+    [slavePid, executorId, frameworkId](const Option<Principal>& principal) {
       return dispatch(
           slavePid,
           &Slave::authorizeSandboxAccess,
@@ -6773,7 +6774,7 @@ void Framework::recoverExecutor(
   const PID<Slave> slavePid = slave->self();
 
   auto authorize =
-    [slavePid, executorId, frameworkId](const Option<string>& principal) {
+    [slavePid, executorId, frameworkId](const Option<Principal>& principal) {
       return dispatch(
           slavePid,
           &Slave::authorizeSandboxAccess,

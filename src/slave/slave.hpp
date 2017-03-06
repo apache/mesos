@@ -466,10 +466,10 @@ private:
       const Resources& newCheckpointedResources);
 
   process::Future<bool> authorizeLogAccess(
-      const Option<std::string>& principal);
+      const Option<process::http::authentication::Principal>& principal);
 
   process::Future<bool> authorizeSandboxAccess(
-      const Option<std::string>& principal,
+      const Option<process::http::authentication::Principal>& principal,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
@@ -489,7 +489,8 @@ private:
     // /api/v1
     process::Future<process::http::Response> api(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /api/v1/executor
     process::Future<process::http::Response> executor(
@@ -498,7 +499,8 @@ private:
     // /slave/flags
     process::Future<process::http::Response> flags(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /slave/health
     process::Future<process::http::Response> health(
@@ -507,18 +509,21 @@ private:
     // /slave/state
     process::Future<process::http::Response> state(
         const process::http::Request& request,
-        const Option<std::string>& /* principal */) const;
+        const Option<process::http::authentication::Principal>&)
+            const;
 
     // /slave/monitor/statistics
     // /slave/monitor/statistics.json
     process::Future<process::http::Response> statistics(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /slave/containers
     process::Future<process::http::Response> containers(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     static std::string API_HELP();
     static std::string EXECUTOR_HELP();
@@ -539,7 +544,8 @@ private:
         const agent::Call& call,
         Option<process::Owned<recordio::Reader<agent::Call>>>&& reader,
         const RequestMediaTypes& mediaTypes,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // Make continuation for `statistics` `static` as it might
     // execute when the invoking `Http` is already destructed.
@@ -550,7 +556,8 @@ private:
     // Continuation for `/containers` endpoint
     process::Future<process::http::Response> _containers(
         const process::http::Request& request,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // Helper function to collect containers status and resource statistics.
     process::Future<JSON::Array> __containers(
@@ -564,52 +571,62 @@ private:
     process::Future<process::http::Response> getFlags(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> getHealth(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> getVersion(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> getMetrics(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> getLoggingLevel(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> setLoggingLevel(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> listFiles(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> getContainers(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> readFile(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> getFrameworks(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     mesos::agent::Response::GetFrameworks _getFrameworks(
         const process::Owned<ObjectApprover>& frameworksApprover) const;
@@ -617,7 +634,8 @@ private:
     process::Future<process::http::Response> getExecutors(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     mesos::agent::Response::GetExecutors _getExecutors(
         const process::Owned<ObjectApprover>& frameworksApprover,
@@ -626,7 +644,8 @@ private:
     process::Future<process::http::Response> getTasks(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     mesos::agent::Response::GetTasks _getTasks(
         const process::Owned<ObjectApprover>& frameworksApprover,
@@ -636,7 +655,8 @@ private:
     process::Future<process::http::Response> getState(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     mesos::agent::Response::GetState _getState(
         const process::Owned<ObjectApprover>& frameworksApprover,
@@ -646,7 +666,8 @@ private:
     process::Future<process::http::Response> launchNestedContainer(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> _launchNestedContainer(
         const ContainerID& containerId,
@@ -659,23 +680,27 @@ private:
     process::Future<process::http::Response> waitNestedContainer(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> killNestedContainer(
         const mesos::agent::Call& call,
         ContentType acceptType,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> launchNestedContainerSession(
         const mesos::agent::Call& call,
         const RequestMediaTypes& mediaTypes,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> attachContainerInput(
         const mesos::agent::Call& call,
         process::Owned<recordio::Reader<agent::Call>>&& decoder,
         const RequestMediaTypes& mediaTypes,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> _attachContainerInput(
         const mesos::agent::Call& call,
@@ -685,7 +710,8 @@ private:
     process::Future<process::http::Response> attachContainerOutput(
         const mesos::agent::Call& call,
         const RequestMediaTypes& mediaTypes,
-        const Option<std::string>& principal) const;
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     process::Future<process::http::Response> _attachContainerOutput(
         const mesos::agent::Call& call,
