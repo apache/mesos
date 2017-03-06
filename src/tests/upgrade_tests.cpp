@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <vector>
@@ -59,10 +60,12 @@ using process::Message;
 using process::Owned;
 using process::PID;
 using process::Promise;
+using process::UPID;
 
 using process::http::OK;
 using process::http::Response;
 
+using std::initializer_list;
 using std::vector;
 
 using testing::_;
@@ -462,12 +465,52 @@ TEST_F(UpgradeTest, MultiRoleSchedulerUpgrade)
   EXPECT_CALL(sched2, registered(&driver2, frameworkId.get(), _))
     .WillOnce(FutureSatisfy(&registered2));
 
+  Future<UpdateFrameworkMessage> updateFrameworkMessage =
+    FUTURE_PROTOBUF(UpdateFrameworkMessage(), _, _);
+
   // Scheduler1 should get an error due to failover.
   EXPECT_CALL(sched1, error(&driver1, "Framework failed over"));
 
   driver2.start();
 
   AWAIT_READY(registered2);
+
+  // Wait for the agent to get the updated framework info.
+  AWAIT_READY(updateFrameworkMessage);
+
+  // Check that the framework has been updated to use `roles` rather than `role`
+  // in both the master and the agent.
+  initializer_list<UPID> pids = { master.get()->pid, agent.get()->pid };
+  foreach (const UPID& pid, pids) {
+    Future<Response> response = process::http::get(
+        pid, "state", None(), createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Value result = parse.get();
+
+    JSON::Object unexpected = {
+      {
+        "frameworks",
+        JSON::Array { JSON::Object { { "role", "foo" } } }
+      }
+    };
+
+    EXPECT_TRUE(!result.contains(unexpected));
+
+    JSON::Object expected = {
+      {
+        "frameworks",
+        JSON::Array { JSON::Object { { "roles", JSON::Array { "foo" } } } }
+      }
+    };
+
+    EXPECT_TRUE(result.contains(expected));
+  }
 
   driver1.stop();
   driver1.join();
