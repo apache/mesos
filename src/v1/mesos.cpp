@@ -509,6 +509,12 @@ ostream& operator<<(ostream& stream, const vector<TaskID>& taskIds)
 }
 
 
+ostream& operator<<(ostream& stream, const CheckInfo::Type& type)
+{
+  return stream << CheckInfo::Type_Name(type);
+}
+
+
 ostream& operator<<(
     ostream& stream,
     const FrameworkInfo::Capability& capability)

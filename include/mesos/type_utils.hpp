@@ -304,6 +304,9 @@ std::ostream& operator<<(
     const std::vector<TaskID>& taskIds);
 
 
+std::ostream& operator<<(std::ostream& stream, const CheckInfo::Type& type);
+
+
 std::ostream& operator<<(
     std::ostream& stream,
     const FrameworkInfo::Capability& capability);
