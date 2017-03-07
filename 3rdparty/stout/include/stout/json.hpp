@@ -152,6 +152,11 @@ private:
 
 struct Object
 {
+  Object() = default;
+
+  Object(std::initializer_list<std::pair<const std::string, Value>> values_)
+    : values(values_) {}
+
   // Returns the JSON value (specified by the type) given a "path"
   // into the structure, for example:
   //
@@ -187,6 +192,9 @@ struct Object
 
 struct Array
 {
+  Array() = default;
+  Array(std::initializer_list<Value> values_) : values(values_) {}
+
   std::vector<Value> values;
 };
 
