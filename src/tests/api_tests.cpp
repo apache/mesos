@@ -3284,6 +3284,39 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetTasks)
 }
 
 
+TEST_P(AgentAPITest, GetAgent)
+{
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.hostname = "host";
+
+  StandaloneMasterDetector detector;
+  Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector, flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(__recover);
+
+  // Wait until the agent has finished recovery.
+  Clock::pause();
+  Clock::settle();
+
+  v1::agent::Call v1Call;
+  v1Call.set_type(v1::agent::Call::GET_AGENT);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::agent::Response> v1Response =
+    post(slave.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response.get().IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_AGENT, v1Response.get().type());
+  ASSERT_EQ(flags.hostname,
+            v1Response->get_agent().agent_info().hostname());
+}
+
+
 TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
 {
   Try<Owned<cluster::Master>> master = StartMaster();

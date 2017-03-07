@@ -150,6 +150,9 @@ Option<Error> validate(
     case mesos::agent::Call::GET_TASKS:
       return None();
 
+    case mesos::agent::Call::GET_AGENT:
+      return None();
+
     case mesos::agent::Call::LAUNCH_NESTED_CONTAINER: {
       if (!call.has_launch_nested_container()) {
         return Error("Expecting 'launch_nested_container' to be present");

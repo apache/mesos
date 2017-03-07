@@ -652,6 +652,12 @@ private:
         const process::Owned<ObjectApprover>& tasksApprover,
         const process::Owned<ObjectApprover>& executorsApprover) const;
 
+    process::Future<process::http::Response> getAgent(
+        const mesos::agent::Call& call,
+        ContentType acceptType,
+        const Option<process::http::authentication::Principal>&
+            principal) const;
+
     process::Future<process::http::Response> getState(
         const mesos::agent::Call& call,
         ContentType acceptType,

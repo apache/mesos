@@ -587,6 +587,9 @@ Future<Response> Slave::Http::_api(
     case agent::Call::GET_TASKS:
       return getTasks(call, mediaTypes.accept, principal);
 
+    case agent::Call::GET_AGENT:
+      return getAgent(call, mediaTypes.accept, principal);
+
     case agent::Call::LAUNCH_NESTED_CONTAINER:
       return launchNestedContainer(call, mediaTypes.accept, principal);
 
@@ -1678,6 +1681,23 @@ agent::Response::GetTasks Slave::Http::_getTasks(
   }
 
   return getTasks;
+}
+
+
+Future<Response> Slave::Http::getAgent(
+    const agent::Call& call,
+    ContentType acceptType,
+    const Option<Principal>& principal) const
+{
+  CHECK_EQ(agent::Call::GET_AGENT, call.type());
+
+  agent::Response response;
+  response.set_type(agent::Response::GET_AGENT);
+
+  response.mutable_get_agent()->mutable_slave_info()->CopyFrom(slave->info);
+
+  return OK(serialize(acceptType, evolve(response)),
+            stringify(acceptType));
 }
 
 
