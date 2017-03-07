@@ -646,11 +646,10 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
 {
   MesosTest::SetUp();
 
-  subsystems.insert("cpu");
-  subsystems.insert("cpuacct");
-  subsystems.insert("memory");
-  subsystems.insert("freezer");
-  subsystems.insert("perf_event");
+  Try<std::set<string>> supportedSubsystems = cgroups::subsystems();
+  ASSERT_SOME(supportedSubsystems);
+
+  subsystems = supportedSubsystems.get();
 
   Result<string> user = os::user();
   EXPECT_SOME(user);
