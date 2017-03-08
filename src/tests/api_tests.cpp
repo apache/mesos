@@ -763,7 +763,7 @@ TEST_P(MasterAPITest, SetLoggingLevel)
       headers,
       serialize(contentType, v1Call),
       stringify(contentType))
-    .then([contentType](const http::Response& response) -> Future<Nothing> {
+    .then([](const http::Response& response) -> Future<Nothing> {
       if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
@@ -1165,7 +1165,7 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
       headers,
       serialize(contentType, v1UpdateScheduleCall),
       stringify(contentType))
-    .then([contentType](const http::Response& response) -> Future<Nothing> {
+    .then([](const http::Response& response) -> Future<Nothing> {
       if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
@@ -1231,7 +1231,7 @@ TEST_P(MasterAPITest, GetMaintenanceStatus)
       headers,
       serialize(contentType, v1UpdateScheduleCall),
       stringify(contentType))
-    .then([contentType](const http::Response& response) -> Future<Nothing> {
+    .then([](const http::Response& response) -> Future<Nothing> {
       if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
@@ -1303,7 +1303,7 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
       headers,
       serialize(contentType, v1UpdateScheduleCall),
       stringify(contentType))
-    .then([contentType](const http::Response& response) -> Future<Nothing> {
+    .then([](const http::Response& response) -> Future<Nothing> {
       if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
@@ -1325,7 +1325,7 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
       headers,
       serialize(contentType, v1StartMaintenanceCall),
       stringify(contentType))
-    .then([contentType](const http::Response& response) -> Future<Nothing> {
+    .then([](const http::Response& response) -> Future<Nothing> {
       if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
@@ -1347,7 +1347,7 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
       headers,
       serialize(contentType, v1StopMaintenanceCall),
       stringify(contentType))
-    .then([contentType](const http::Response& response) -> Future<Nothing> {
+    .then([](const http::Response& response) -> Future<Nothing> {
       if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
@@ -2000,7 +2000,7 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
       headers,
       serialize(contentType, v1CreateVolumesCall),
       stringify(contentType))
-    .then([contentType](const http::Response& response) -> Future<Nothing> {
+    .then([](const http::Response& response) -> Future<Nothing> {
       if (response.status != http::Accepted().status) {
         return Failure("Unexpected response status " + response.status);
       }
@@ -2072,7 +2072,7 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
       headers,
       serialize(contentType, v1DestroyVolumesCall),
       stringify(contentType))
-    .then([contentType](const http::Response& response) -> Future<Nothing> {
+    .then([](const http::Response& response) -> Future<Nothing> {
       if (response.status != http::Accepted().status) {
         return Failure("Unexpected response status " + response.status);
       }
@@ -2152,7 +2152,7 @@ TEST_P(MasterAPITest, UpdateWeights)
       headers,
       serialize(contentType, updateCall),
       stringify(contentType))
-    .then([contentType](const http::Response& response) -> Future<Nothing> {
+    .then([](const http::Response& response) -> Future<Nothing> {
       if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }
@@ -2591,7 +2591,7 @@ TEST_P(AgentAPITest, SetLoggingLevel)
       headers,
       serialize(contentType, v1Call),
       stringify(contentType))
-    .then([contentType](const http::Response& response) -> Future<Nothing> {
+    .then([](const http::Response& response) -> Future<Nothing> {
       if (response.status != http::OK().status) {
         return Failure("Unexpected response status " + response.status);
       }

@@ -2853,7 +2853,7 @@ Future<Response> Master::Http::state(
         //
         // TODO(neilc): Remove this once we break compatibility with
         // pre-1.0 agents.
-        writer->field("orphan_tasks", [this, &tasksApprover](
+        writer->field("orphan_tasks", [this](
             JSON::ArrayWriter* writer) {
           foreachvalue (const Slave* slave, master->slaves.registered) {
             typedef hashmap<TaskID, Task*> TaskMap;

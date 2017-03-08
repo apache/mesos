@@ -194,7 +194,7 @@ TEST_F(MasterQuotaTest, InvalidSetRequest)
   // we start looking at available resources.
 
   // Wrap the `http::post` into a lambda for readability of the test.
-  auto postQuota = [this, &master](const string& request) {
+  auto postQuota = [&master](const string& request) {
     return process::http::post(
         master.get()->pid,
         "quota",
@@ -412,7 +412,7 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
   const bool FORCE = true;
 
   // Wrap the `http::requestDelete` into a lambda for readability of the test.
-  auto removeQuota = [this, &master](const string& path) {
+  auto removeQuota = [&master](const string& path) {
     return process::http::requestDelete(
         master.get()->pid,
         path,
