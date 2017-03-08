@@ -100,8 +100,6 @@ message ContainerID {
  */
 message TimeInfo {
   required int64 nanoseconds = 1;
-
-  // TODO(josephw): Add time zone information, if necessary.
 }
 
 
