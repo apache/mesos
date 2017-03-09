@@ -4462,10 +4462,6 @@ ExecutorInfo Slave::getExecutorInfo(
     // task. For this reason, we need to strip the image in
     // `executor.container.mesos`.
     container->mutable_mesos()->clear_image();
-
-    // We need to set the executor user as root as it needs to
-    // perform chroot (even when switch_user is set to false).
-    executor.mutable_command()->set_user("root");
   }
 
   // Prepare an executor name which includes information on the
@@ -4544,11 +4540,7 @@ ExecutorInfo Slave::getExecutorInfo(
         gracePeriod.ns());
   }
 
-  // We skip setting the user for the command executor that has
-  // a rootfs image since we need root permissions to chroot.
-  // We assume command executor will change to the correct user
-  // later on.
-  if (!hasRootfs && task.command().has_user()) {
+  if (task.command().has_user()) {
     executor.mutable_command()->set_user(task.command().user());
   }
 
