@@ -2627,7 +2627,7 @@ TEST_F(SlaveTest, ContainerUpdatedBeforeTaskReachesExecutor)
   EXPECT_CALL(sched, registered(_, _, _));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, "1", "128", "*"))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 128, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // This is used to determine which of the following finishes first:
@@ -2685,7 +2685,7 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
   EXPECT_CALL(sched, registered(_, _, _));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, "1", "128", "*"))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 128, "*"))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // The executor may not receive the ExecutorRegisteredMessage if the
