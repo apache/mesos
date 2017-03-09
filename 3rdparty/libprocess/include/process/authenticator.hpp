@@ -31,7 +31,7 @@ class BasicAuthenticatorProcess;
 /**
  * Contains information associated with an authenticated principal.
  *
- * At least one of the following two members should be set:
+ * At least one of the following two members must be set:
  *   `value` : Optional string which is used to identify this principal.
  *   `claims`: Map containing key-value pairs associated with this principal.
  */
