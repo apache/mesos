@@ -1449,6 +1449,15 @@ Future<bool> MesosContainerizerProcess::_launch(
     launchInfo.set_user(container->config.user());
   }
 
+  // TODO(gilbert): Remove this once we no longer support command
+  // task in favor of default executor.
+  if (container->config.has_task_info() &&
+      container->config.has_rootfs()) {
+    // We need to set the executor user as root as it needs to
+    // perform chroot (even when switch_user is set to false).
+    launchInfo.set_user("root");
+  }
+
   // Use a pipe to block the child until it's been isolated.
   // The `pipes` array is captured later in a lambda.
   Try<std::array<int_fd, 2>> pipes_ = os::pipe();
