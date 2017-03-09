@@ -335,6 +335,41 @@ protected:
         launch->mutable_container()->CopyFrom(task.container());
       }
 
+      // Currently, it is not possible to specify resources for nested
+      // containers (i.e., all resources are merged in the top level
+      // executor container). This means that any disk resources used by
+      // the task are mounted on the top level container. As a workaround,
+      // we set up the volume mapping allowing child containers to share
+      // the volumes from their parent containers sandbox.
+      foreach (const Resource& resource, task.resources()) {
+        // Ignore if there are no disk resources or if the
+        // disk resources did not specify a volume mapping.
+        if (!resource.has_disk() || !resource.disk().has_volume()) {
+          continue;
+        }
+
+        // Set `ContainerInfo.type` to 'MESOS' if the task did
+        // not specify a container.
+        if (!task.has_container()) {
+          launch->mutable_container()->set_type(ContainerInfo::MESOS);
+        }
+
+        const Volume& executorVolume = resource.disk().volume();
+
+        Volume* taskVolume = launch->mutable_container()->add_volumes();
+        taskVolume->set_mode(executorVolume.mode());
+        taskVolume->set_container_path(executorVolume.container_path());
+
+        Volume::Source* source = taskVolume->mutable_source();
+        source->set_type(Volume::Source::SANDBOX_PATH);
+
+        Volume::Source::SandboxPath* sandboxPath =
+          source->mutable_sandbox_path();
+
+        sandboxPath->set_type(Volume::Source::SandboxPath::PARENT);
+        sandboxPath->set_path(executorVolume.container_path());
+      }
+
       responses.push_back(post(connection.get(), call));
     }
 
