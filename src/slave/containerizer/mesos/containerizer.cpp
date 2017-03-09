@@ -1011,13 +1011,6 @@ Future<bool> MesosContainerizerProcess::launch(
     if (taskInfo->has_container()) {
       ContainerInfo* containerInfo = containerConfig.mutable_container_info();
       containerInfo->CopyFrom(taskInfo->container());
-
-      if (taskInfo->container().mesos().has_image()) {
-        // For command tasks, we need to set the command executor user
-        // as root as it needs to perform chroot (even when
-        // switch_user is set to false).
-        containerConfig.mutable_command_info()->set_user("root");
-      }
     }
   } else {
     // Other cases.
