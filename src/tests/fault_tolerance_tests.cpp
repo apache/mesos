@@ -785,6 +785,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 }
 
 
+// This test ensures framework re-registers with master after failover.
+// Previous offers are rescinded and re-offered to the framework after
+// re-registration.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
 {
   // NOTE: We do not use `StartMaster()` because we need to access flags later.
@@ -795,9 +798,15 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
 
   StandaloneMasterDetector slaveDetector(master.get()->pid);
 
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
   slave::Flags agentFlags = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave = StartSlave(&slaveDetector, agentFlags);
   ASSERT_SOME(slave);
+
+  // Wait for slave registration.
+  AWAIT_READY(slaveRegisteredMessage);
 
   // Create a detector for the scheduler driver because we want the
   // spurious leading master change to be known by the scheduler
@@ -806,7 +815,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(&sched, &schedDetector);
 
-  EXPECT_CALL(sched, registered(&driver, _, _));
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
 
   Future<Nothing> resourceOffers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -818,14 +829,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
 
   driver.start();
 
-  // Trigger authentication, registration, and offers to the agent.
-  // Once we advance the clock, taking `Clock::now` gives us the
-  // precise registration time.
-  Clock::advance(agentFlags.authentication_backoff_factor);
-  Clock::advance(agentFlags.registration_backoff_factor);
-  Clock::advance(masterFlags.allocation_interval);
+  AWAIT_READY(registered);
 
+  // Take `Clock::now` as precise registration time.
   process::Time registerTime = Clock::now();
+
+  // Advance the clock and trigger a batch allocation.
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(resourceOffers);
 
