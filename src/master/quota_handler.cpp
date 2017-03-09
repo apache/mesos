@@ -290,7 +290,7 @@ Future<QuotaStatus> Master::QuotaHandler::_status(
         if (authorized) {
           status.add_infos()->CopyFrom(*quotaInfoIt);
         }
-      ++quotaInfoIt;
+        ++quotaInfoIt;
       }
 
       return status;
