@@ -23,10 +23,12 @@
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
+#include <stout/try.hpp>
+
+#include <stout/os/constants.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/strerror.hpp>
 #include <stout/os/write.hpp>
-#include <stout/try.hpp>
 
 using std::string;
 using std::vector;
@@ -344,7 +346,7 @@ Future<Nothing> redirect(
 
   if (to.isNone()) {
     // Open up /dev/null that we can splice into.
-    Try<int_fd> open = os::open("/dev/null", O_WRONLY | O_CLOEXEC);
+    Try<int_fd> open = os::open(os::DEV_NULL, O_WRONLY | O_CLOEXEC);
 
     if (open.isError()) {
       return Failure("Failed to open /dev/null for writing: " + open.error());
