@@ -838,7 +838,9 @@ Option<Error> Resources::validate(const RepeatedPtrField<Resource>& resources)
 bool Resources::isEmpty(const Resource& resource)
 {
   if (resource.type() == Value::SCALAR) {
-    return resource.scalar().value() == 0;
+    Value::Scalar zero;
+    zero.set_value(0);
+    return resource.scalar() == zero;
   } else if (resource.type() == Value::RANGES) {
     return resource.ranges().range_size() == 0;
   } else if (resource.type() == Value::SET) {

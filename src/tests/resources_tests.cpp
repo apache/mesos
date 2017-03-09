@@ -1701,6 +1701,19 @@ TEST(ResourcesTest, PrecisionRounding)
 }
 
 
+TEST(ResourcesTest, PrecisionVerySmallValue)
+{
+  Resources r1 = Resources::parse("cpus:2;mem:1024").get();
+  Resources r2 = Resources::parse("cpus:0.00001;mem:1").get();
+
+  Resources r3 = r1 - (r1 - r2);
+  EXPECT_TRUE(r3.contains(r2));
+
+  Resources r4 = Resources::parse("cpus:0;mem:1").get();
+  EXPECT_EQ(r2, r4);
+}
+
+
 TEST(ReservedResourcesTest, Validation)
 {
   // Unreserved.
@@ -3231,6 +3244,37 @@ TEST_P(Resources_Contains_BENCHMARK_Test, Contains)
        << abbreviate(stringify(superset), 50)
        << " contains subset resources " << abbreviate(stringify(subset), 50)
        << endl;
+}
+
+
+class Resources_Parse_BENCHMARK_Test
+  : public MesosTest,
+    public ::testing::WithParamInterface<size_t> {};
+
+
+INSTANTIATE_TEST_CASE_P(
+    Resources_Parse,
+    Resources_Parse_BENCHMARK_Test,
+    ::testing::Values(1000U, 10000U, 50000U));
+
+
+TEST_P(Resources_Parse_BENCHMARK_Test, Parse)
+{
+  const size_t iterationCount = GetParam();
+  const size_t resourcesCount = 100;
+
+  vector<string> rawResources;
+
+  for (size_t i = 0; i < resourcesCount; i++) {
+    rawResources.push_back("res" + stringify(i) + ":" + stringify(i));
+  }
+
+  string inputString = strings::join(";", rawResources);
+
+  for (size_t i = 0; i < iterationCount; i++) {
+    Try<Resources> resource = Resources::parse(inputString);
+    EXPECT_SOME(resource);
+  }
 }
 
 } // namespace tests {
