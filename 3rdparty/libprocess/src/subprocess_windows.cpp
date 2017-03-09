@@ -106,17 +106,30 @@ static Try<HANDLE> getHandleFromFileDescriptor(
 }
 
 
+// Creates a file for a subprocess's stdin, stdout, or stderr.
+//
+// NOTE: For portability, Libprocess implements POSIX-style semantics for these
+// files, and make no assumptions about who has access to them. For example, we
+// do not enforce a process-level write lock on stdin, and we do not enforce a
+// similar read lock from stdout.
+//
 // TODO(hausdorff): Rethink name here, write a comment about this function.
 static Try<HANDLE> createIoPath(const string& path, DWORD accessFlags)
 {
-  // The `TRUE` in the last field makes this duplicate handle inheritable.
+  // Per function comment, the flags `FILE_SHARE_READ`, `FILE_SHARE_WRITE`, and
+  // `OPEN_ALWAYS` are all important. The former two make sure we do not
+  // acquire a process-level lock on reading/writing the file, and the last one
+  // ensures that we open the file if it exists, and create it if it does not.
+  // Note that we specify both `FILE_SHARE_READ` and `FILE_SHARE_WRITE` because
+  // the documentation is not clear about whether `FILE_SHARE_WRITE` also
+  // ensures we don't take a read lock out.
   SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
   const HANDLE handle = ::CreateFile(
       path.c_str(),
       accessFlags,
-      FILE_SHARE_READ,
+      FILE_SHARE_READ | FILE_SHARE_WRITE,
       &sa,
-      CREATE_NEW,
+      OPEN_ALWAYS,
       FILE_ATTRIBUTE_NORMAL,
       nullptr);
 
