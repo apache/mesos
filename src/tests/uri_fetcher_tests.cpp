@@ -385,9 +385,6 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_InvokeFetchByName)
 class CopyFetcherPluginTest : public TemporaryDirectoryTest {};
 
 
-// TODO(hausdorff): Enable this test on Windows. `/dev/null` does not exist on
-// Windows, causing this to fail.
-#ifndef __WINDOWS__
 // Tests CopyFetcher plugin for fetching a valid file.
 TEST_F(CopyFetcherPluginTest, FetchExistingFile)
 {
@@ -409,7 +406,6 @@ TEST_F(CopyFetcherPluginTest, FetchExistingFile)
   // Validate the fetched file's content.
   EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
 }
-#endif // __WINDOWS__
 
 
 // Negative test case that tests CopyFetcher plugin for a non-exiting file.

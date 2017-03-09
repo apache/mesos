@@ -49,6 +49,7 @@
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/realpath.hpp>
 #include <stout/os/stat.hpp>
@@ -3091,7 +3092,7 @@ Future<Nothing> PortMappingIsolatorProcess::update(
   Try<Subprocess> s = subprocess(
       path::join(flags.launcher_dir, "mesos-network-helper"),
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
       &update.flags);
@@ -3217,7 +3218,7 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
   Try<Subprocess> s = subprocess(
       path::join(flags.launcher_dir, "mesos-network-helper"),
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::FD(STDERR_FILENO),
       &statistics.flags);

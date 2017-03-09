@@ -28,6 +28,8 @@
 #include <stout/protobuf.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/constants.hpp>
+
 #include <mesos/mesos.hpp>
 
 #include <mesos/fetcher/fetcher.hpp>
@@ -98,7 +100,7 @@ static Try<bool> extract(
   Try<Subprocess> extractProcess = subprocess(
       command[0],
       command,
-      in.getOrElse(Subprocess::PATH("/dev/null")),
+      in.getOrElse(Subprocess::PATH(os::DEV_NULL)),
       out.getOrElse(Subprocess::FD(STDOUT_FILENO)),
       Subprocess::FD(STDERR_FILENO));
 

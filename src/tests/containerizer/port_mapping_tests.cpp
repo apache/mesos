@@ -34,6 +34,7 @@
 #include <stout/net.hpp>
 #include <stout/stopwatch.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/stat.hpp>
 #include <stout/os/exists.hpp>
 
@@ -379,7 +380,7 @@ protected:
     Try<Subprocess> s = subprocess(
         path::join(flags.launcher_dir, "mesos-network-helper"),
         argv,
-        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH(os::DEV_NULL),
         Subprocess::PIPE(),
         Subprocess::FD(STDERR_FILENO),
         &statistics.flags);
@@ -1511,7 +1512,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
   // neither 'ports' nor 'ephemeral_ports', which makes it a good port
   // to use on the host.
   ostringstream command1;
-  command1 << "nc -l localhost " << invalidPort << " > /dev/null";
+  command1 << "nc -l localhost " << invalidPort << " > " << os::DEV_NULL;
   Try<Subprocess> s = subprocess(command1.str().c_str());
   ASSERT_SOME(s);
 
@@ -1675,7 +1676,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
   // connections to the localhost IP are filtered out when retrieving
   // the RTT information inside containers.
   ostringstream command1;
-  command1 << "nc -l " << hostIP << " " << invalidPort << " > /dev/null";
+  command1 << "nc -l " << hostIP << " " << invalidPort << " > " << os::DEV_NULL;
   Try<Subprocess> s = subprocess(command1.str().c_str());
   ASSERT_SOME(s);
 

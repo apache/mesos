@@ -47,6 +47,7 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/killtree.hpp>
 
 #include "common/status_utils.hpp"

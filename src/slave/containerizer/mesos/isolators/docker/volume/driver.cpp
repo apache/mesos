@@ -22,6 +22,7 @@
 
 #include <stout/stringify.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/killtree.hpp>
 
 #include "common/status_utils.hpp"
@@ -85,7 +86,7 @@ Future<string> DriverClient::mount(
   Try<Subprocess> s = subprocess(
       dvdcli,
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       nullptr,
@@ -169,7 +170,7 @@ Future<Nothing> DriverClient::unmount(
   Try<Subprocess> s = subprocess(
       dvdcli,
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       nullptr,

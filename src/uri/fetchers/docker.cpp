@@ -31,6 +31,7 @@
 #include <stout/option.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/mkdir.hpp>
 #include <stout/os/write.hpp>
 
@@ -114,7 +115,7 @@ static Future<http::Response> curl(
   Try<Subprocess> s = subprocess(
       "curl",
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -232,7 +233,7 @@ static Future<int> download(
   Try<Subprocess> s = subprocess(
       "curl",
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 

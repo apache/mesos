@@ -39,6 +39,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/environment.hpp>
 #include <stout/os/fcntl.hpp>
 #include <stout/os/killtree.hpp>
@@ -189,7 +190,7 @@ public:
         path::join(flags.launcher_dir, mesos::internal::logger::rotate::NAME),
         {mesos::internal::logger::rotate::NAME},
         Subprocess::FD(outfds.read, Subprocess::IO::OWNED),
-        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH(os::DEV_NULL),
         Subprocess::FD(STDERR_FILENO),
         &outFlags,
         environment,
@@ -236,7 +237,7 @@ public:
         path::join(flags.launcher_dir, mesos::internal::logger::rotate::NAME),
         {mesos::internal::logger::rotate::NAME},
         Subprocess::FD(errfds.read, Subprocess::IO::OWNED),
-        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH(os::DEV_NULL),
         Subprocess::FD(STDERR_FILENO),
         &errFlags,
         environment,

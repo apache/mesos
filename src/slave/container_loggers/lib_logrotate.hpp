@@ -26,6 +26,7 @@
 #include <stout/flags.hpp>
 #include <stout/option.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/pagesize.hpp>
 #include <stout/os/shell.hpp>
@@ -148,7 +149,7 @@ struct Flags : public virtual LoggerFlags
           // Check if `logrotate` exists via the help command.
           // TODO(josephw): Consider a more comprehensive check.
           Try<std::string> helpCommand =
-            os::shell(value + " --help > /dev/null");
+            os::shell(value + " --help > " + os::DEV_NULL);
 
           if (helpCommand.isError()) {
             return Error(

@@ -30,6 +30,8 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/constants.hpp>
+
 #include "common/protobuf_utils.hpp"
 
 #include "linux/fs.hpp"
@@ -1036,8 +1038,8 @@ Future<Nothing> NetworkCniIsolatorProcess::__isolate(
   Try<Subprocess> s = subprocess(
       path::join(flags.launcher_dir, "mesos-containerizer"),
       argv,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       &setup.flags);
 

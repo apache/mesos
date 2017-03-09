@@ -29,6 +29,8 @@
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 
+#include <stout/os/constants.hpp>
+
 #include "common/status_utils.hpp"
 
 #include "slave/containerizer/mesos/provisioner/backends/copy.hpp"
@@ -233,8 +235,8 @@ Future<Nothing> CopyBackendProcess::_provision(
   Try<Subprocess> s = subprocess(
       "cp",
       args,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE());
 
   if (s.isError()) {
@@ -280,7 +282,7 @@ Future<bool> CopyBackendProcess::destroy(const string& rootfs)
   Try<Subprocess> s = subprocess(
       "rm",
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO));
 

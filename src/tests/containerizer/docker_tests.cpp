@@ -29,6 +29,8 @@
 #include <stout/option.hpp>
 #include <stout/gtest.hpp>
 
+#include <stout/os/constants.hpp>
+
 #include "docker/docker.hpp"
 
 #include "mesos/resources.hpp"
@@ -446,9 +448,9 @@ TEST_F(DockerTest, ROOT_DOCKER_CancelPull)
 
   Try<Subprocess> s = process::subprocess(
       tests::flags.docker + " rmi lingmann/1gb",
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"));
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PATH(os::DEV_NULL));
 
   ASSERT_SOME(s);
 

@@ -46,6 +46,8 @@
 #include <stout/path.hpp>
 #include <stout/recordio.hpp>
 
+#include <stout/os/constants.hpp>
+
 #ifndef __WINDOWS__
 #include <stout/posix/os.hpp>
 #endif // __WINDOWS__
@@ -552,7 +554,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   Try<Subprocess> child = subprocess(
       path::join(flags.launcher_dir, IOSwitchboardServer::NAME),
       {IOSwitchboardServer::NAME},
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       loggerIO.out,
       loggerIO.err,
       &switchboardFlags,

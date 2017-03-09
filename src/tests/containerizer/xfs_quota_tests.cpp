@@ -32,6 +32,8 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/constants.hpp>
+
 #include "linux/fs.hpp"
 
 #include "master/master.hpp"
@@ -107,7 +109,7 @@ public:
     // Attach the loop to a backing file.
     Try<Subprocess> losetup = subprocess(
         "losetup " + loop.get() + " " + devPath,
-        Subprocess::PATH("/dev/null"));
+        Subprocess::PATH(os::DEV_NULL));
 
     ASSERT_SOME(losetup);
     AWAIT_READY(losetup->status());
@@ -120,7 +122,7 @@ public:
     // should be good enough for tests.
     Try<Subprocess> mkfs = subprocess(
         "mkfs.xfs -f " + loopDevice.get(),
-        Subprocess::PATH("/dev/null"));
+        Subprocess::PATH(os::DEV_NULL));
 
     ASSERT_SOME(mkfs);
     AWAIT_READY(mkfs->status());
@@ -150,7 +152,7 @@ public:
     if (loopDevice.isSome()) {
       Try<Subprocess> cmdProcess = subprocess(
           "losetup -d " + loopDevice.get(),
-          Subprocess::PATH("/dev/null"));
+          Subprocess::PATH(os::DEV_NULL));
 
       if (cmdProcess.isSome()) {
         cmdProcess->status().await(Seconds(15));

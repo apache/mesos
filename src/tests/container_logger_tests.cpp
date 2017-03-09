@@ -35,6 +35,7 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/killtree.hpp>
 #include <stout/os/mkdir.hpp>
@@ -560,7 +561,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
   // the same FDs (integers) opened by the container logger.
   vector<int> fds;
   for (int i = 0; i < 50; i++) {
-    Try<int> fd = os::open("/dev/null", O_RDONLY);
+    Try<int> fd = os::open(os::DEV_NULL, O_RDONLY);
     ASSERT_SOME(fd);
 
     fds.push_back(fd.get());

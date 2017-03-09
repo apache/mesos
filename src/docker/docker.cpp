@@ -27,6 +27,7 @@
 #include <stout/strings.hpp>
 #include <stout/stringify.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/killtree.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/write.hpp>
@@ -156,7 +157,7 @@ Future<Version> Docker::version() const
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -942,7 +943,7 @@ Future<Option<int>> Docker::run(
   Try<Subprocess> s = subprocess(
       path,
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       _stdout,
       _stderr,
       nullptr);
@@ -992,8 +993,8 @@ Future<Nothing> Docker::stop(
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE());
 
   if (s.isError()) {
@@ -1040,8 +1041,8 @@ Future<Nothing> Docker::kill(
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE());
 
   if (s.isError()) {
@@ -1065,8 +1066,8 @@ Future<Nothing> Docker::rm(
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE());
 
   if (s.isError()) {
@@ -1104,7 +1105,7 @@ void Docker::_inspect(
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -1223,7 +1224,7 @@ Future<list<Docker::Container>> Docker::ps(
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -1392,7 +1393,7 @@ Future<Docker::Image> Docker::pull(
   Try<Subprocess> s = subprocess(
       path,
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       nullptr);
@@ -1528,7 +1529,7 @@ Future<Docker::Image> Docker::__pull(
   Try<Subprocess> s_ = subprocess(
       path,
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       nullptr,

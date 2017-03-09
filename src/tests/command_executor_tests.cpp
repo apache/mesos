@@ -32,6 +32,8 @@
 
 #include <stout/gtest.hpp>
 
+#include <stout/os/constants.hpp>
+
 #include "master/master.hpp"
 
 #include "master/detector/standalone.hpp"
@@ -280,7 +282,8 @@ TEST_P(CommandExecutorTest, NoTransitionFromKillingToRunning)
 
   HealthCheck healthCheck;
   healthCheck.set_type(HealthCheck::COMMAND);
-  healthCheck.mutable_command()->set_value("ls " + tmpPath + " >/dev/null");
+  healthCheck.mutable_command()->set_value(
+      "ls " + tmpPath + " > " + os::DEV_NULL);
   healthCheck.set_delay_seconds(0);
   healthCheck.set_grace_period_seconds(0);
   healthCheck.set_interval_seconds(0);

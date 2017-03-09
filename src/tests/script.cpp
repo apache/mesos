@@ -27,6 +27,8 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/constants.hpp>
+
 #include "common/status_utils.hpp"
 
 #include "mesos/mesos.hpp"
@@ -93,8 +95,8 @@ void execute(const string& script)
 
     // Redirect output to /dev/null unless the test is verbose.
     if (!flags.verbose) {
-      if (freopen("/dev/null", "w", stdout) == nullptr ||
-          freopen("/dev/null", "w", stderr) == nullptr) {
+      if (freopen(os::DEV_NULL, "w", stdout) == nullptr ||
+          freopen(os::DEV_NULL, "w", stderr) == nullptr) {
         std::cerr << "Failed to redirect stdout/stderr to /dev/null:"
                   << os::strerror(errno) << std::endl;
         abort();

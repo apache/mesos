@@ -49,6 +49,7 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/pagesize.hpp>
 
 #include "linux/cgroups.hpp"
@@ -1372,7 +1373,7 @@ TEST_F(CgroupsAnyHierarchyDevicesTest, ROOT_CGROUPS_Devices)
   EXPECT_TRUE(whitelist->empty());
 
   // Verify that we can't open /dev/null.
-  Try<int_fd> fd = os::open("/dev/null", O_RDWR);
+  Try<int_fd> fd = os::open(os::DEV_NULL, O_RDWR);
   EXPECT_ERROR(fd);
 
   // Add /dev/null to the list of allowed devices.
@@ -1397,7 +1398,7 @@ TEST_F(CgroupsAnyHierarchyDevicesTest, ROOT_CGROUPS_Devices)
   EXPECT_EQ(entry.get(), whitelist.get()[0]);
 
   // Verify that we can now open and write to /dev/null.
-  fd = os::open("/dev/null", O_WRONLY);
+  fd = os::open(os::DEV_NULL, O_WRONLY);
   ASSERT_SOME(fd);
 
   Try<Nothing> write = os::write(fd.get(), "nonsense");

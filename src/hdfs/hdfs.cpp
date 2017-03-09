@@ -31,6 +31,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/shell.hpp>
 
@@ -143,7 +144,7 @@ Future<bool> HDFS::exists(const string& path)
   Try<Subprocess> s = subprocess(
       hadoop,
       {"hadoop", "fs", "-test", "-e", normalize(path)},
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -182,7 +183,7 @@ Future<Bytes> HDFS::du(const string& _path)
   Try<Subprocess> s = subprocess(
       hadoop,
       {"hadoop", "fs", "-du", path},
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -235,7 +236,7 @@ Future<Nothing> HDFS::rm(const string& path)
   Try<Subprocess> s = subprocess(
       hadoop,
       {"hadoop", "fs", "-rm", normalize(path)},
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -271,7 +272,7 @@ Future<Nothing> HDFS::copyFromLocal(const string& from, const string& to)
   Try<Subprocess> s = subprocess(
       hadoop,
       {"hadoop", "fs", "-copyFromLocal", from, normalize(to)},
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -303,7 +304,7 @@ Future<Nothing> HDFS::copyToLocal(const string& from, const string& to)
   Try<Subprocess> s = subprocess(
       hadoop,
       {"hadoop", "fs", "-copyToLocal", normalize(from), to},
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
