@@ -868,6 +868,91 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_ImageDigest)
 }
 
 
+// This test verifies that if a container image is specified, the
+// command runs as the specified user 'nobody' and the sandbox of
+// the command task is writtable by the specified user. It also
+// verifies that stdout/stderr are owned by the specified user.
+TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_CommandTaskUser)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.image_providers = "docker";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  Result<uid_t> uid = os::getuid("nobody");
+  ASSERT_SOME(uid);
+
+  CommandInfo command;
+  command.set_user("nobody");
+  command.set_value(strings::format(
+      "#!/bin/sh\n"
+      "touch $MESOS_SANDBOX/file\n"
+      "FILE_UID=`stat -c %%u $MESOS_SANDBOX/file`\n"
+      "test $FILE_UID = %d\n"
+      "STDOUT_UID=`stat -c %%u $MESOS_SANDBOX/stdout`\n"
+      "test $STDOUT_UID = %d\n"
+      "STDERR_UID=`stat -c %%u $MESOS_SANDBOX/stderr`\n"
+      "test $STDERR_UID = %d\n",
+      uid.get(), uid.get(), uid.get()).get());
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      command);
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(task.task_id(), statusFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test simulate the case that after the agent reboots the
 // container runtime directory is gone while the provisioner
 // directory still survives. The recursive `provisioner::destroy()`
