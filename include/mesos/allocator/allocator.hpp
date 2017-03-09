@@ -81,8 +81,6 @@ public:
    *     to the frameworks.
    * @param inverseOfferCallback A callback the allocator uses to send reclaim
    *     allocations from the frameworks.
-   * @param weights Configured per-role weights. Any roles that do not
-   *     appear in this map will be assigned the default weight of 1.
    */
   virtual void initialize(
       const Duration& allocationInterval,
@@ -94,7 +92,6 @@ public:
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
         inverseOfferCallback,
-      const hashmap<std::string, double>& weights,
       const Option<std::set<std::string>>&
         fairnessExcludeResourceNames = None()) = 0;
 
@@ -415,8 +412,9 @@ public:
       const std::string& role) = 0;
 
   /**
-   * Updates the weight of each provided role.
-   * Subsequent allocation calculations will use these updated weights.
+   * Updates the weight associated with one or more roles. If a role
+   * was previously configured to have a weight and that role is
+   * omitted from this list, it keeps its old weight.
    */
   virtual void updateWeights(
       const std::vector<WeightInfo>& weightInfos) = 0;

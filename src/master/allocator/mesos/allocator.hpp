@@ -56,7 +56,6 @@ public:
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
         inverseOfferCallback,
-      const hashmap<std::string, double>& weights,
       const Option<std::set<std::string>>&
         fairnessExcludeResourceNames = None());
 
@@ -193,7 +192,6 @@ public:
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
         inverseOfferCallback,
-      const hashmap<std::string, double>& weights,
       const Option<std::set<std::string>>&
         fairnessExcludeResourceNames = None()) = 0;
 
@@ -339,7 +337,6 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
         void(const FrameworkID&,
               const hashmap<SlaveID, UnavailableResources>&)>&
       inverseOfferCallback,
-    const hashmap<std::string, double>& weights,
     const Option<std::set<std::string>>& fairnessExcludeResourceNames)
 {
   process::dispatch(
@@ -348,7 +345,6 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
       allocationInterval,
       offerCallback,
       inverseOfferCallback,
-      weights,
       fairnessExcludeResourceNames);
 }
 

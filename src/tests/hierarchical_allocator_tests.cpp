@@ -180,7 +180,6 @@ protected:
         flags.allocation_interval,
         offerCallback.get(),
         inverseOfferCallback.get(),
-        {},
         flags.fair_sharing_excluded_resource_names);
   }
 
