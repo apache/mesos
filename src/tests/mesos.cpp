@@ -759,6 +759,10 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
             Clock::resume();
           }
 
+          // Since we are tearing down the tests, kill any processes
+          // that might remain. Any remaining zombie processes will
+          // not prevent the destroy from succeeding.
+          EXPECT_SOME(cgroups::kill(hierarchy, cgroup, SIGKILL));
           AWAIT_READY(cgroups::destroy(hierarchy, cgroup));
 
           if (paused) {
