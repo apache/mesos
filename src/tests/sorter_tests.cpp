@@ -438,10 +438,7 @@ TEST(SorterTest, UpdateTotal)
   sorter.allocated(
       "b", slaveId, Resources::parse("cpus:1;mem:2").get());
 
-  vector<string> sorted = sorter.sort();
-  ASSERT_EQ(2u, sorted.size());
-  EXPECT_EQ("b", sorted.front());
-  EXPECT_EQ("a", sorted.back());
+  EXPECT_EQ(vector<string>({"b", "a"}), sorter.sort());
 
   // Update the total resources by removing the previous total and
   // adding back the new total.
@@ -450,10 +447,7 @@ TEST(SorterTest, UpdateTotal)
 
   // Now the dominant share of "a" is 0.1 (mem) and "b" is 0.2 (mem),
   // which should change the sort order.
-  sorted = sorter.sort();
-  ASSERT_EQ(2u, sorted.size());
-  EXPECT_EQ("a", sorted.front());
-  EXPECT_EQ("b", sorted.back());
+  EXPECT_EQ(vector<string>({"a", "b"}), sorter.sort());
 }
 
 
@@ -483,10 +477,7 @@ TEST(SorterTest, MultipleSlavesUpdateTotal)
   sorter.allocated(
       "b", slaveB, Resources::parse("cpus:1;mem:3").get());
 
-  vector<string> sorted = sorter.sort();
-  ASSERT_EQ(2u, sorted.size());
-  EXPECT_EQ("b", sorted.front());
-  EXPECT_EQ("a", sorted.back());
+  EXPECT_EQ(vector<string>({"b", "a"}), sorter.sort());
 
   // Update the total resources of slaveA by removing the previous
   // total and adding the new total.
@@ -495,10 +486,7 @@ TEST(SorterTest, MultipleSlavesUpdateTotal)
 
   // Now the dominant share of "a" is 0.02 (cpus) and "b" is 0.03
   // (mem), which should change the sort order.
-  sorted = sorter.sort();
-  ASSERT_EQ(2u, sorted.size());
-  EXPECT_EQ("a", sorted.front());
-  EXPECT_EQ("b", sorted.back());
+  EXPECT_EQ(vector<string>({"a", "b"}), sorter.sort());
 }
 
 
@@ -533,16 +521,12 @@ TEST(SorterTest, RevocableResources)
   sorter.allocated("b", slaveId, b);
 
   // Check that the allocations are correct.
-  ASSERT_EQ(a, sorter.allocation("a", slaveId));
-  ASSERT_EQ(b, sorter.allocation("b", slaveId));
+  EXPECT_EQ(a, sorter.allocation("a", slaveId));
+  EXPECT_EQ(b, sorter.allocation("b", slaveId));
 
   // Check that the sort is correct.
-  vector<string> sorted = sorter.sort();
-  ASSERT_EQ(2u, sorted.size());
-  EXPECT_EQ("a", sorted.front());
-  EXPECT_EQ("b", sorted.back());
+  EXPECT_EQ(vector<string>({"a", "b"}), sorter.sort());
 }
-
 
 
 // This test verifies that shared resources are properly accounted for in
