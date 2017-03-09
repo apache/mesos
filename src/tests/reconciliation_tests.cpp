@@ -14,9 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdint.h>
-#include <unistd.h>
-
 #include <vector>
 
 #include <gmock/gmock.h>

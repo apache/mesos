@@ -14,9 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdarg.h>
-#include <stdint.h>
-
 #include <iostream>
 #include <string>
 #include <vector>

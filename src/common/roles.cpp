@@ -16,10 +16,15 @@
 
 #include <mesos/roles.hpp>
 
-#include <stout/foreach.hpp>
-#include <stout/strings.hpp>
+#include <vector>
+#include <string>
 
-using std::initializer_list;
+#include <stout/error.hpp>
+#include <stout/foreach.hpp>
+#include <stout/option.hpp>
+#include <stout/strings.hpp>
+#include <stout/try.hpp>
+
 using std::string;
 using std::vector;
 
