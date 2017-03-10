@@ -42,6 +42,7 @@
 
 #include "slave/containerizer/fetcher.hpp"
 #include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/isolators/xfs/disk.hpp"
 #include "slave/containerizer/mesos/isolators/xfs/utils.hpp"
 
 #include "tests/environment.hpp"
@@ -64,6 +65,7 @@ using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::Slave;
+using mesos::internal::slave::XfsDiskIsolatorProcess;
 
 using mesos::master::detector::MasterDetector;
 
@@ -79,9 +81,12 @@ static QuotaInfo makeQuotaInfo(
 }
 
 
-class ROOT_XFS_QuotaTest : public MesosTest
+class ROOT_XFS_TestBase : public MesosTest
 {
 public:
+  explicit ROOT_XFS_TestBase(const string& _xfsOptions)
+    : xfsOptions(_xfsOptions) {}
+
   virtual void SetUp()
   {
     MesosTest::SetUp();
@@ -126,7 +131,7 @@ public:
         mntPath,
         "xfs",
         0, // Flags.
-        "prjquota"));
+        xfsOptions));
     mountPoint = mntPath;
 
     ASSERT_SOME(os::chdir(mountPoint.get()))
@@ -206,8 +211,36 @@ public:
     return string("/dev/loop") + stringify(devno);
   }
 
+  string xfsOptions;
   Option<string> loopDevice; // The loop device we attached.
   Option<string> mountPoint; // XFS filesystem mountpoint.
+};
+
+
+// ROOT_XFS_QuotaTest is our standard fixture that sets up a
+// XFS filesystem on loopback with project quotas enabled.
+class ROOT_XFS_QuotaTest : public ROOT_XFS_TestBase
+{
+public:
+  ROOT_XFS_QuotaTest() : ROOT_XFS_TestBase("prjquota") {}
+};
+
+
+// ROOT_XFS_NoQuota sets up an XFS filesystem on loopback
+// with no quotas enabled.
+class ROOT_XFS_NoQuota : public ROOT_XFS_TestBase
+{
+public:
+  ROOT_XFS_NoQuota() : ROOT_XFS_TestBase("noquota") {}
+};
+
+
+// ROOT_XFS_NoProjectQuota sets up an XFS filesystem on loopback
+// with all the quota types except project quotas enabled.
+class ROOT_XFS_NoProjectQuota : public ROOT_XFS_TestBase
+{
+public:
+  ROOT_XFS_NoProjectQuota() : ROOT_XFS_TestBase("usrquota,grpquota") {}
 };
 
 
@@ -876,6 +909,30 @@ TEST_F(ROOT_XFS_QuotaTest, IsolatorFlags)
   flags = CreateSlaveFlags();
   flags.xfs_project_range = "100";
   ASSERT_ERROR(StartSlave(detector.get(), flags));
+}
+
+
+// Verify that we correctly detect when quotas are not enabled at all.
+TEST_F(ROOT_XFS_NoQuota, CheckQuotaEnabled)
+{
+  EXPECT_SOME_EQ(false, xfs::isQuotaEnabled(mountPoint.get()));
+  EXPECT_ERROR(XfsDiskIsolatorProcess::create(CreateSlaveFlags()));
+}
+
+
+// Verify that we correctly detect when quotas are enabled but project
+// quotas are not enabled.
+TEST_F(ROOT_XFS_NoProjectQuota, CheckQuotaEnabled)
+{
+  EXPECT_SOME_EQ(false, xfs::isQuotaEnabled(mountPoint.get()));
+  EXPECT_ERROR(XfsDiskIsolatorProcess::create(CreateSlaveFlags()));
+}
+
+
+// Verify that we correctly detect that project quotas are enabled.
+TEST_F(ROOT_XFS_QuotaTest, CheckQuotaEnabled)
+{
+  EXPECT_SOME_EQ(true, xfs::isQuotaEnabled(mountPoint.get()));
 }
 
 } // namespace tests {

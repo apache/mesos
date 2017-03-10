@@ -1789,7 +1789,7 @@ The XFS disk isolator is only supported on Linux.
 
   # Check for build dependencies for the XFS disk isolator. We only
   # enable this if all the needed headers and libraries are present.
-  AC_CHECK_HEADERS([xfs/xfs.h xfs/xqm.h linux/quota.h sys/quota.h],
+  AC_CHECK_HEADERS([xfs/xfs.h linux/dqblk_xfs.h linux/quota.h sys/quota.h],
                    [], [AC_MSG_ERROR([missing XFS quota headers
 -------------------------------------------------------------------
 Please install the Linux kernel headers and xfsprogs development

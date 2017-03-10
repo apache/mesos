@@ -46,7 +46,13 @@ inline bool operator==(const QuotaInfo& left, const QuotaInfo& right)
 Option<Error> validateProjectIds(const IntervalSet<prid_t>& projectRange);
 
 
-bool pathIsXfs(const std::string& path);
+bool isPathXfs(const std::string& path);
+
+
+// Test whether XFS project quotas are enabled on the filesystem at the
+// given path. This does not imply that quotas are being enforced, just
+// that they are enabled.
+Try<bool> isQuotaEnabled(const std::string& path);
 
 
 Result<QuotaInfo> getProjectQuota(
