@@ -342,7 +342,7 @@ public:
     switch (c) {
       case '"' : *stream_ << "\\\""; break;
       case '\\': *stream_ << "\\\\"; break;
-      case '/' : *stream_ <<  "\\/"; break;
+      case '/' : *stream_ << "\\/"; break;
       case '\b': *stream_ << "\\b"; break;
       case '\f': *stream_ << "\\f"; break;
       case '\n': *stream_ << "\\n"; break;
