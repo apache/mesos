@@ -10,12 +10,6 @@ This release contains the following new features:
     resource allocation, or implement multi-user resource allocation in
     the framework.
 
-  * [MESOS-6627] - Support for frameworks to modify the role(s) they are
-    subscribed to. This is essential to supporting "multi-user" frameworks
-    (see MESOS-1763) in that roles are expected to come and go over time
-    (e.g. new employees join, new teams are formed, employees leave, teams
-    are disbanded, etc).
-
   * [MESOS-6365] - Authentication and authorization support for HTTP executors.
     A new `--authenticate_http_executors` agent flag enables required
     authentication on the HTTP executor API. A new `--executor_secret_key` flag
@@ -29,11 +23,26 @@ This release contains the following new features:
     container. See 'docs/authorization.md' for more information on these
     implicit authorization rules.
 
+  * [MESOS-6375] - **Experimental** Support for hierarchical roles. A
+    role can now have one or more "child" roles. This makes it easier to
+    use roles to represent the hierarchical structure commonly found in
+    organizations. Support for hierarchical roles is experimental:
+    currently, quota cannot be set on a nested (child) role, and the
+    behavior of resource reservations for role hierarchies is expected
+    to change (presently, making a reservation to a role reserves the
+    resource for that exact role; in a future Mesos release, this will
+    instead reserve the resource for the sub-tree rooted at the role).
+
+  * [MESOS-6627] - Support for frameworks to modify the role(s) they are
+    subscribed to. This is essential to supporting "multi-user" frameworks
+    (see MESOS-1763) in that roles are expected to come and go over time
+    (e.g. new employees join, new teams are formed, employees leave, teams
+    are disbanded, etc).
+
 Deprecations:
   * [MESOS-7259] - Remove deprecated ACLs `SetQuota` and `RemoveQuota`
     This change is only applicable to the local authorizer since internally
     these acls were being translated to the `UPDATE_QUOTA` action.
-
 
 
 Release Notes - Mesos - Version 1.2.1 (WIP)
