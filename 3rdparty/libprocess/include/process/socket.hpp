@@ -395,7 +395,7 @@ public:
   };
 
   // TODO(benh): Replace the default to Shutdown::READ_WRITE or remove
-  // all together since it's unclear what the defauilt should be.
+  // all together since it's unclear what the default should be.
   Try<Nothing> shutdown(Shutdown shutdown = Shutdown::READ)
   {
     int how = [&]() {
