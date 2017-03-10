@@ -392,6 +392,10 @@ public:
           aclObject.set_type(mesos::ACL::Entity::ANY);
 
           break;
+        case authorization::REGISTER_AGENT:
+          aclObject.set_type(mesos::ACL::Entity::ANY);
+
+          break;
         case authorization::CREATE_VOLUME:
         case authorization::GET_QUOTA:
         case authorization::RESERVE_RESOURCES:
@@ -654,6 +658,7 @@ public:
         case authorization::VIEW_FRAMEWORK:
         case authorization::VIEW_TASK:
         case authorization::WAIT_NESTED_CONTAINER:
+        case authorization::REGISTER_AGENT:
         case authorization::UNKNOWN:
           UNREACHABLE();
       }
@@ -859,6 +864,7 @@ public:
       case authorization::VIEW_TASK:
       case authorization::WAIT_NESTED_CONTAINER:
       case authorization::REMOVE_NESTED_CONTAINER:
+      case authorization::REGISTER_AGENT:
         UNREACHABLE();
     }
 
@@ -1016,6 +1022,7 @@ public:
       case authorization::VIEW_TASK:
       case authorization::WAIT_NESTED_CONTAINER:
       case authorization::REMOVE_NESTED_CONTAINER:
+      case authorization::REGISTER_AGENT:
       case authorization::UNKNOWN: {
         Result<vector<GenericACL>> genericACLs =
           createGenericACLs(action, acls);
@@ -1231,6 +1238,16 @@ private:
         }
 
         return acls_;
+      case authorization::REGISTER_AGENT:
+        foreach (const ACL::RegisterAgent& acl, acls.register_agents()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.agent();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
       case authorization::REGISTER_FRAMEWORK:
       case authorization::CREATE_VOLUME:
       case authorization::RESERVE_RESOURCES:
@@ -1316,6 +1333,13 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
           return Error("Path: '" + path + "' is not an authorizable path");
         }
       }
+    }
+  }
+
+  foreach (const ACL::RegisterAgent& acl, acls.register_agents()) {
+    if (acl.agent().type() == ACL::Entity::SOME) {
+      return Error(
+          "acls.register_agents.agent type must be either NONE or ANY");
     }
   }
 

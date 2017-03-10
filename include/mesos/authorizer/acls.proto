@@ -343,6 +343,16 @@ message ACL {
     // access.
     required Entity level = 2;
   }
+
+  // Which principals are authorized to register (and re-register) as agents.
+  message RegisterAgent {
+    // Subjects: Agent principals.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity agent = 2;
+  }
 }
 
 
@@ -407,4 +417,5 @@ message ACLs {
   repeated ACL.ViewContainer view_containers = 31;
   repeated ACL.SetLogLevel set_log_level = 32;
   repeated ACL.RemoveNestedContainer remove_nested_containers = 33;
+  repeated ACL.RegisterAgent register_agents = 34;
 }

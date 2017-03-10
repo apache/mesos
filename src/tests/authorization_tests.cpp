@@ -4889,6 +4889,60 @@ TYPED_TEST(AuthorizationTest, GetQuota)
   }
 }
 
+
+TYPED_TEST(AuthorizationTest, RegisterAgent)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal can register as an agent.
+    mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_agent()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can register as an agent.
+    mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_agent()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    // "foo" is in the "whitelist".
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_AGENT);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // "bar" is not in the "whitelist".
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_AGENT);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // Test that no authorizer is created with invalid ACLs.
+    ACLs invalid;
+
+    mesos::ACL::RegisterAgent* acl = invalid.add_register_agents();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_agent()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

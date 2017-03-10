@@ -193,6 +193,10 @@ enum Action {
   // This action will set objects of type `ExecutorInfo`, `FrameworkInfo`, and
   // `ContainerID`.
   REMOVE_NESTED_CONTAINER = 27;
+
+  // This action will not fill in any object fields, since a principal is
+  // either allowed to register as an agent or is unauthorized.
+  REGISTER_AGENT = 28;
 }
 
 
