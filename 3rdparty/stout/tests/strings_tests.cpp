@@ -435,23 +435,27 @@ TEST(StringsTest, SplitNWithMultipleDelims)
 
 TEST(StringsTest, Pairs)
 {
-  map<string, vector<string>> pairs = strings::pairs("one=1,two=2", ",", "=");
-  ASSERT_EQ(2u, pairs.size());
-  ASSERT_EQ(1u, pairs.count("one"));
-  ASSERT_EQ(1u, pairs["one"].size());
-  EXPECT_EQ("1", pairs["one"].front());
-  ASSERT_EQ(1u, pairs.count("two"));
-  ASSERT_EQ(1u, pairs["two"].size());
-  EXPECT_EQ("2", pairs["two"].front());
+  {
+    map<string, vector<string>> pairs = strings::pairs("one=1,two=2", ",", "=");
+    map<string, vector<string>> expected = {
+      {"one", {"1"}},
+      {"two", {"2"}}
+    };
 
-  pairs = strings::pairs("foo=1;bar=2;baz;foo=3;bam=1=2", ";&", "=");
-  ASSERT_EQ(2u, pairs.size());
-  ASSERT_EQ(1u, pairs.count("foo"));
-  ASSERT_EQ(2u, pairs["foo"].size());
-  ASSERT_EQ("1", pairs["foo"].front());
-  ASSERT_EQ("3", pairs["foo"].back());
-  ASSERT_EQ(1u, pairs.count("bar"));
-  ASSERT_EQ("2", pairs["bar"].front());
+    EXPECT_EQ(expected, pairs);
+  }
+
+  {
+    map<string, vector<string>> pairs = strings::pairs(
+        "foo=1;bar=2;baz;foo=3;bam=1=2", ";&", "=");
+
+    map<string, vector<string>> expected = {
+      {"foo", {"1", "3"}},
+      {"bar", {"2"}}
+    };
+
+    EXPECT_EQ(expected, pairs);
+  }
 }
 
 
@@ -460,10 +464,14 @@ TEST(StringsTest, Join)
   EXPECT_EQ("a/b", strings::join("/", "a", "b"));
   EXPECT_EQ("a/b/c", strings::join("/", "a", "b", "c"));
   EXPECT_EQ("a\nb\nc\nd", strings::join("\n", "a", "b", "c", "d"));
+  EXPECT_EQ("a//b///d", strings::join("/", "a", "", "b", "", "", "d"));
+
   std::stringstream ss;
   EXPECT_EQ("a, b, c", strings::join(ss, ", ", "a", "b", "c").str());
+
   const string gnarly("gnarly");
   EXPECT_EQ("a/gnarly/c", strings::join("/", "a", gnarly, "c"));
+
   const bool is_true = true;
   const std::set<int32_t> my_set {1, 2, 3};
   EXPECT_EQ(
