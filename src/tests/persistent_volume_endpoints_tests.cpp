@@ -971,7 +971,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateACLMultipleRoles)
   // creation of a persistent volume.
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources =
-    "cpus:1;mem:512;disk(" + AUTHORIZED_ROLE_1 +"):1024;disk(" +
+    "cpus:1;mem:512;disk(" + AUTHORIZED_ROLE_1 + "):1024;disk(" +
     AUTHORIZED_ROLE_2 + "):1024";
 
   Future<SlaveID> slaveId;
@@ -1185,7 +1185,7 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateACLMultipleRoles)
   // creation of a persistent volume.
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources =
-    "cpus:1;mem:512;disk(" + AUTHORIZED_ROLE +"):1024;disk(" +
+    "cpus:1;mem:512;disk(" + AUTHORIZED_ROLE + "):1024;disk(" +
     UNAUTHORIZED_ROLE + "):1024";
 
   Future<SlaveID> slaveId;

@@ -521,7 +521,7 @@ Future<Response> Slave::Http::_api(
              call.type() == mesos::agent::Call::ATTACH_CONTAINER_INPUT) {
     return UnsupportedMediaType(
         string("Expecting 'Content-Type' to be ") + APPLICATION_RECORDIO +
-        " for "  + stringify(call.type()) + " call");
+        " for " + stringify(call.type()) + " call");
   }
 
   LOG(INFO) << "Processing call " << call.type();

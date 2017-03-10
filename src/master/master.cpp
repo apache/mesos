@@ -6113,7 +6113,7 @@ void Master::updateSlave(
   Slave* slave = CHECK_NOTNULL(slaves.registered.get(slaveId));
 
   LOG(INFO) << "Received update of agent " << *slave << " with total"
-            << " oversubscribed resources " <<  oversubscribedResources;
+            << " oversubscribed resources " << oversubscribedResources;
 
   // NOTE: We must *first* update the agent's resources before we
   // recover the resources. If we recovered the resources first,

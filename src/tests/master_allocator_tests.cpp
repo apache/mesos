@@ -129,7 +129,7 @@ public:
 
   virtual void DescribeNegationTo(::std::ostream* os) const
   {
-    *os << "does not contain " << cpus << " cpus and "  << mem << " mem";
+    *os << "does not contain " << cpus << " cpus and " << mem << " mem";
   }
 
 private:

@@ -555,7 +555,7 @@ Try<Nothing> copyDeviceNode(const string& source, const string& target)
 
   Try<Nothing> mknod = os::mknod(target, mode.get(), dev.get());
   if (mknod.isError()) {
-    return Error("Failed to create device:" +  mknod.error());
+    return Error("Failed to create device:" + mknod.error());
   }
 
   Try<Nothing> chmod = os::chmod(target, mode.get());

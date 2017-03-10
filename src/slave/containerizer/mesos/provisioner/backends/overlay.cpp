@@ -272,7 +272,7 @@ Future<bool> OverlayBackendProcess::destroy(
         // TODO(zhitao): This should be converted into a failure after
         // deprecation cycle started by 1.1.0.
         VLOG(1) << "Cannot find symlink to temporary directory '" << tempLink
-                <<"' for image links";
+                << "' for image links";
 
         return true;
       }

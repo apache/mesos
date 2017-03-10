@@ -191,7 +191,7 @@ Future<string> sha512(const Path& input)
       vector<string> tokens = strings::tokenize(output, " ");
       if (tokens.size() < 2) {
         return Failure(
-            "Failed to parse '" + output + "' from '" + cmd +  "' command");
+            "Failed to parse '" + output + "' from '" + cmd + "' command");
       }
 
       // TODO(jojy): Check the size of tokens[0].

@@ -935,7 +935,7 @@ process::Future<bool> authorizeEndpoint(
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to " <<  method
+            << "' to " << method
             << " the '" << endpoint << "' endpoint";
 
   return authorizer.get()->authorized(request);

@@ -1727,7 +1727,7 @@ Try<JSON::Object> NetworkCniIsolatorProcess::getNetworkConfigJSON(
   if (_networkConfigs.isError()) {
       return Error(
           "Encountered error while loading CNI config during "
-          "a cache-miss for CNI network '" + network +"': " +
+          "a cache-miss for CNI network '" + network + "': " +
           _networkConfigs.error());
   }
 

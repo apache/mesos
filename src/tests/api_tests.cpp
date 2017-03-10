@@ -4114,7 +4114,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, LaunchNestedContainerSession)
 
   string output = "output";
   string error = "error";
-  string command = "printf "  + output + " && printf " + error + " 1>&2";
+  string command = "printf " + output + " && printf " + error + " 1>&2";
 
   v1::agent::Call call;
   call.set_type(v1::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION);
@@ -4331,7 +4331,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   string output = "output";
   string error = "error";
-  string command = "printf "  + output + " && printf " + error + " 1>&2";
+  string command = "printf " + output + " && printf " + error + " 1>&2";
 
   v1::agent::Call call;
   call.set_type(v1::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION);

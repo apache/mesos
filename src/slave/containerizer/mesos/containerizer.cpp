@@ -1596,7 +1596,7 @@ Future<bool> MesosContainerizerProcess::_launch(
         containerId);
 
     LOG(INFO) << "Checkpointing container's forked pid " << pid
-              << " to '" << path <<  "'";
+              << " to '" << path << "'";
 
     Try<Nothing> checkpointed =
       slave::state::checkpoint(path, stringify(pid));
@@ -2354,7 +2354,7 @@ void MesosContainerizerProcess::______destroy(
       path::join(runtimePath, containerizer::paths::TERMINATION_FILE);
 
     LOG(INFO) << "Checkpointing termination state to nested container's"
-              << " runtime directory '" << terminationPath <<  "'";
+              << " runtime directory '" << terminationPath << "'";
 
     Try<Nothing> checkpointed =
       slave::state::checkpoint(terminationPath, termination);

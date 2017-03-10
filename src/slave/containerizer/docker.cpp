@@ -768,7 +768,7 @@ Try<Nothing> DockerContainerizerProcess::checkpoint(
           container->executor.executor_id(),
           containerId);
 
-    LOG(INFO) << "Checkpointing pid " << pid << " to '" << path <<  "'";
+    LOG(INFO) << "Checkpointing pid " << pid << " to '" << path << "'";
 
     return slave::state::checkpoint(path, stringify(pid));
   }

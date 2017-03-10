@@ -1534,7 +1534,7 @@ Future<Docker::Image> Docker::___pull(
   Option<int> status = s.status().get();
 
   if (!status.isSome()) {
-    return Failure("No status found from '" +  cmd + "'");
+    return Failure("No status found from '" + cmd + "'");
   } else if (status.get() != 0) {
     return io::read(s.err().get())
       .then(lambda::bind(&failure<Image>, cmd, status.get(), lambda::_1));
