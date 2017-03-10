@@ -67,7 +67,7 @@ void DRFSorter::initialize(
 }
 
 
-void DRFSorter::add(const string& name, double weight)
+void DRFSorter::add(const string& name)
 {
   CHECK(!contains(name));
 
@@ -75,24 +75,9 @@ void DRFSorter::add(const string& name, double weight)
   clients.insert(client);
 
   allocations[name] = Allocation();
-  weights[name] = weight;
 
   if (metrics.isSome()) {
     metrics->add(name);
-  }
-}
-
-
-void DRFSorter::update(const string& name, double weight)
-{
-  CHECK(weights.contains(name));
-  weights[name] = weight;
-
-  // If the total resources have changed, we're going to
-  // recalculate all the shares, so don't bother just
-  // updating this client.
-  if (!dirty) {
-    updateShare(name);
   }
 }
 
@@ -108,7 +93,6 @@ void DRFSorter::remove(const string& name)
   }
 
   allocations.erase(name);
-  weights.erase(name);
 
   if (metrics.isSome()) {
     metrics->remove(name);
@@ -141,6 +125,16 @@ void DRFSorter::deactivate(const string& name)
     // framework disconnecting and reconnecting.
     clients.erase(it);
   }
+}
+
+
+void DRFSorter::updateWeight(const string& name, double weight)
+{
+  weights[name] = weight;
+
+  // It would be possible to avoid dirtying the tree here (in some
+  // cases), but it doesn't seem worth the complexity.
+  dirty = true;
 }
 
 
@@ -482,7 +476,19 @@ double DRFSorter::calculateShare(const string& name) const
     }
   }
 
-  return share / weights.at(name);
+  return share / clientWeight(name);
+}
+
+
+double DRFSorter::clientWeight(const string& name) const
+{
+  Option<double> weight = weights.get(name);
+
+  if (weight.isNone()) {
+    return 1.0;
+  }
+
+  return weight.get();
 }
 
 

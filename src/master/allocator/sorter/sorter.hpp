@@ -58,11 +58,7 @@ public:
 
   // Adds a client to allocate resources to. A client
   // may be a user or a framework.
-  virtual void add(const std::string& client, double weight = 1) = 0;
-
-  // Updates the weight of a client. The client must have previously
-  // be added to the sorter, but it may currently be inactive.
-  virtual void update(const std::string& client, double weight) = 0;
+  virtual void add(const std::string& client) = 0;
 
   // Removes a client.
   virtual void remove(const std::string& client) = 0;
@@ -74,6 +70,14 @@ public:
   // Removes a client from the sort, so it won't get allocated to.
   // It is a no-op if the client is already not in the sort.
   virtual void deactivate(const std::string& client) = 0;
+
+  // Updates the weight of a client name. The sorter will store this
+  // weight regardless of whether a client with this name has been
+  // added. If a client's weight is not changed, the default weight
+  // (1.0) is used. This interface does not support unsetting
+  // previously set weights; instead, a weight should be reset to the
+  // default value.
+  virtual void updateWeight(const std::string& client, double weight) = 0;
 
   // Specify that resources have been allocated to the given client.
   virtual void allocated(

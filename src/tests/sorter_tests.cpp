@@ -138,7 +138,8 @@ TEST(SorterTest, WDRFSorter)
 
   sorter.allocated("a", slaveId, Resources::parse("cpus:5;mem:5").get());
 
-  sorter.add("b", 2);
+  sorter.add("b");
+  sorter.updateWeight("b", 2);
   sorter.allocated("b", slaveId, Resources::parse("cpus:6;mem:6").get());
 
   // shares: a = .05, b = .03
@@ -150,7 +151,8 @@ TEST(SorterTest, WDRFSorter)
   // shares: a = .05, b = .03, c = .04
   EXPECT_EQ(vector<string>({"b", "c", "a"}), sorter.sort());
 
-  sorter.add("d", 10);
+  sorter.add("d");
+  sorter.updateWeight("d", 10);
   sorter.allocated("d", slaveId, Resources::parse("cpus:10;mem:20").get());
 
   // shares: a = .05, b = .03, c = .04, d = .02
@@ -165,7 +167,8 @@ TEST(SorterTest, WDRFSorter)
   // shares: a = .05, c = .04, d = .045
   EXPECT_EQ(vector<string>({"c", "d", "a"}), sorter.sort());
 
-  sorter.add("e", .1);
+  sorter.add("e");
+  sorter.updateWeight("e", 0.1);
   sorter.allocated("e", slaveId, Resources::parse("cpus:1;mem:1").get());
 
   // shares: a = .05, c = .04, d = .045, e = .1
@@ -197,8 +200,8 @@ TEST(SorterTest, WDRFSorterUpdateWeight)
   // shares: a = .05, b = .06
   EXPECT_EQ(vector<string>({"a", "b"}), sorter.sort());
 
-  // Increase b's  weight to flip the sort order.
-  sorter.update("b", 2);
+  // Increase b's weight to flip the sort order.
+  sorter.updateWeight("b", 2);
 
   // shares: a = .05, b = .03
   EXPECT_EQ(vector<string>({"b", "a"}), sorter.sort());

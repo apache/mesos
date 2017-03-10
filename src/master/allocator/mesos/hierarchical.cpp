@@ -1276,7 +1276,7 @@ void HierarchicalAllocatorProcess::setQuota(
   // Persist quota in memory and add the role into the corresponding
   // allocation group.
   quotas[role] = quota;
-  quotaRoleSorter->add(role, roleWeight(role));
+  quotaRoleSorter->add(role);
 
   // Copy allocation information for the quota'ed role.
   if (roleSorter->contains(role)) {
@@ -1336,18 +1336,11 @@ void HierarchicalAllocatorProcess::updateWeights(
 {
   CHECK(initialized);
 
-  // Update the weight for each specified role.
   foreach (const WeightInfo& weightInfo, weightInfos) {
     CHECK(weightInfo.has_role());
-    weights[weightInfo.role()] = weightInfo.weight();
 
-    if (quotas.contains(weightInfo.role())) {
-      quotaRoleSorter->update(weightInfo.role(), weightInfo.weight());
-    }
-
-    if (roleSorter->contains(weightInfo.role())) {
-      roleSorter->update(weightInfo.role(), weightInfo.weight());
-    }
+    quotaRoleSorter->updateWeight(weightInfo.role(), weightInfo.weight());
+    roleSorter->updateWeight(weightInfo.role(), weightInfo.weight());
   }
 
   // NOTE: Since weight changes do not result in rebalancing of
@@ -2047,16 +2040,6 @@ void HierarchicalAllocatorProcess::expire(
 }
 
 
-double HierarchicalAllocatorProcess::roleWeight(const string& name) const
-{
-  if (weights.contains(name)) {
-    return weights.at(name);
-  } else {
-    return 1.0; // Default weight.
-  }
-}
-
-
 bool HierarchicalAllocatorProcess::isWhitelisted(
     const SlaveID& slaveId) const
 {
@@ -2235,7 +2218,7 @@ void HierarchicalAllocatorProcess::trackFrameworkUnderRole(
   if (!roles.contains(role)) {
     roles[role] = {};
     CHECK(!roleSorter->contains(role));
-    roleSorter->add(role, roleWeight(role));
+    roleSorter->add(role);
 
     CHECK(!frameworkSorters.contains(role));
     frameworkSorters.insert({role, Owned<Sorter>(frameworkSorterFactory())});

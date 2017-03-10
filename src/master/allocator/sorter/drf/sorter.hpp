@@ -78,15 +78,15 @@ public:
   virtual void initialize(
       const Option<std::set<std::string>>& fairnessExcludeResourceNames);
 
-  virtual void add(const std::string& name, double weight = 1);
-
-  virtual void update(const std::string& name, double weight);
+  virtual void add(const std::string& name);
 
   virtual void remove(const std::string& name);
 
   virtual void activate(const std::string& name);
 
   virtual void deactivate(const std::string& name);
+
+  virtual void updateWeight(const std::string& name, double weight);
 
   virtual void allocated(
       const std::string& name,
@@ -139,6 +139,10 @@ private:
 
   // Resources (by name) that will be excluded from fair sharing.
   Option<std::set<std::string>> fairnessExcludeResourceNames;
+
+  // Returns the weight associated with the given path. If no weight
+  // has been configured, the default weight (1.0) is returned.
+  double clientWeight(const std::string& name) const;
 
   // Returns an iterator to the specified client, if
   // it exists in this Sorter.

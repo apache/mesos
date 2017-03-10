@@ -256,9 +256,6 @@ protected:
       const SlaveID& slaveId,
       InverseOfferFilter* inverseOfferFilter);
 
-  // Returns the weight of the specified role name.
-  double roleWeight(const std::string& name) const;
-
   // Checks whether the slave is whitelisted.
   bool isWhitelisted(const SlaveID& slaveId) const;
 
@@ -431,10 +428,6 @@ protected:
   // the role, and/or when there are resources allocated to the role
   // (e.g. some tasks and/or executors are consuming resources under the role).
   hashmap<std::string, hashset<FrameworkID>> roles;
-
-  // Configured weight for each role, if any; if a role does not
-  // appear here, it has the default weight of 1.
-  hashmap<std::string, double> weights;
 
   // Configured quota for each role, if any. Setting quota for a role
   // changes the order that the role's frameworks are offered
