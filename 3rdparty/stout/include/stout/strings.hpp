@@ -129,23 +129,29 @@ inline std::string replace(
 }
 
 
-// Tokenizes the string using the delimiters.
-// Empty tokens will not be included in the result.
-// Optionally, maximum number of tokens to be returned
-// can be specified.
+// Tokenizes the string using the delimiters. Empty tokens will not be
+// included in the result.
+//
+// Optionally, the maximum number of tokens to be returned can be
+// specified. If the maximum number of tokens is reached, the last
+// token returned contains the remainder of the input string.
 inline std::vector<std::string> tokenize(
     const std::string& s,
     const std::string& delims,
     const Option<size_t>& maxTokens = None())
 {
-  size_t offset = 0;
-  std::vector<std::string> tokens;
+  if (maxTokens.isSome() && maxTokens.get() == 0) {
+    return {};
+  }
 
-  while (maxTokens.isNone() || maxTokens.get() > 0) {
+  std::vector<std::string> tokens;
+  size_t offset = 0;
+
+  while (true) {
     size_t nonDelim = s.find_first_not_of(delims, offset);
 
     if (nonDelim == std::string::npos) {
-      break; // Nothing left
+      break; // Nothing left.
     }
 
     size_t delim = s.find_first_of(delims, nonDelim);
@@ -166,21 +172,27 @@ inline std::vector<std::string> tokenize(
 }
 
 
-// Splits the string using the provided delimiters.
-// The string is split each time at the first character
-// that matches any of the characters specified in delims.
-// Empty tokens are allowed in the result.
-// Optionally, maximum number of tokens to be returned
-// can be specified.
+// Splits the string using the provided delimiters. The string is
+// split each time at the first character that matches any of the
+// characters specified in delims.  Empty tokens are allowed in the
+// result.
+//
+// Optionally, the maximum number of tokens to be returned can be
+// specified. If the maximum number of tokens is reached, the last
+// token returned contains the remainder of the input string.
 inline std::vector<std::string> split(
     const std::string& s,
     const std::string& delims,
     const Option<size_t>& maxTokens = None())
 {
-  size_t offset = 0;
-  std::vector<std::string> tokens;
+  if (maxTokens.isSome() && maxTokens.get() == 0) {
+    return {};
+  }
 
-  while (maxTokens.isNone() || maxTokens.get() > 0) {
+  std::vector<std::string> tokens;
+  size_t offset = 0;
+
+  while (true) {
     size_t next = s.find_first_of(delims, offset);
 
     // Finish splitting if this is the last token,
