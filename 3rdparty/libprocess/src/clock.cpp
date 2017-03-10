@@ -378,7 +378,7 @@ void Clock::advance(const Duration& duration)
       *clock::advanced += duration;
       *clock::current += duration;
 
-      VLOG(2) << "Clock advanced ("  << duration << ") to " << *clock::current;
+      VLOG(2) << "Clock advanced (" << duration << ") to " << *clock::current;
 
       // Schedule another "tick" if necessary. Only "ticks" that
       // fire immediately will be scheduled here, since the clock

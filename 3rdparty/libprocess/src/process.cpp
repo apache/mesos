@@ -2735,7 +2735,7 @@ long ProcessManager::init_threads()
     if (number.isSome() && number.get() > 0L && number.get() <= maxval) {
       VLOG(1) << "Overriding default number of worker threads "
               << num_worker_threads << ", using the value "
-              <<  env_var << "=" << number.get() << " instead";
+              << env_var << "=" << number.get() << " instead";
       num_worker_threads = number.get();
     } else {
       LOG(WARNING) << "Ignoring invalid value " << value.get()

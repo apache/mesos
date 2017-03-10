@@ -239,7 +239,7 @@ Future<http::Response> Help::help(const http::Request& request)
     document += "## `/" + id.get() + "` ##\n";
     foreachkey (const string& name, helps[id.get()]) {
       const string path = getUsagePath(id.get(), name);
-      document += "> [/" +  path + "][" + path + "]\n";
+      document += "> [/" + path + "][" + path + "]\n";
       references += "[" + path + "]: " + path + "\n";
     }
   } else {                       // http://ip:port/help/id/name
