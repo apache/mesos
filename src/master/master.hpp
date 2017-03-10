@@ -514,12 +514,34 @@ protected:
   void _registerSlave(
       const SlaveInfo& slaveInfo,
       const process::UPID& pid,
+      const Option<std::string>& principal,
+      const std::vector<Resource>& checkpointedResources,
+      const std::string& version,
+      const std::vector<SlaveInfo::Capability>& agentCapabilities,
+      const process::Future<bool>& authorized);
+
+  void __registerSlave(
+      const SlaveInfo& slaveInfo,
+      const process::UPID& pid,
       const std::vector<Resource>& checkpointedResources,
       const std::string& version,
       const std::vector<SlaveInfo::Capability>& agentCapabilities,
       const process::Future<bool>& admit);
 
   void _reregisterSlave(
+      const SlaveInfo& slaveInfo,
+      const process::UPID& pid,
+      const Option<std::string>& principal,
+      const std::vector<Resource>& checkpointedResources,
+      const std::vector<ExecutorInfo>& executorInfos,
+      const std::vector<Task>& tasks,
+      const std::vector<FrameworkInfo>& frameworks,
+      const std::vector<Archive::Framework>& completedFrameworks,
+      const std::string& version,
+      const std::vector<SlaveInfo::Capability>& agentCapabilities,
+      const process::Future<bool>& authorized);
+
+  void __reregisterSlave(
       const SlaveInfo& slaveInfo,
       const process::UPID& pid,
       const std::vector<Resource>& checkpointedResources,
@@ -531,7 +553,7 @@ protected:
       const std::vector<SlaveInfo::Capability>& agentCapabilities,
       const process::Future<bool>& readmit);
 
-  void __reregisterSlave(
+  void ___reregisterSlave(
       Slave* slave,
       const std::vector<Task>& tasks,
       const std::vector<FrameworkInfo>& frameworks);
@@ -658,6 +680,9 @@ protected:
   // Returns failure for transient authorization failures.
   process::Future<bool> authorizeFramework(
       const FrameworkInfo& frameworkInfo);
+
+  // Returns whether the principal is authorized to (re-)register an agent.
+  process::Future<bool> authorizeSlave(const Option<std::string>& principal);
 
   // Returns whether the task is authorized.
   // Returns failure for transient authorization failures.
@@ -1623,14 +1648,16 @@ private:
     // failover. Slaves are removed from this collection when they
     // either re-register with the master or are marked unreachable
     // because they do not re-register before `recoveredTimer` fires.
+    // We must not answer questions related to these slaves (e.g.,
+    // during task reconciliation) until we determine their fate
+    // because their are in this transitioning state.
     hashmap<SlaveID, SlaveInfo> recovered;
 
-    // Slaves that are in the process of registering.
+    // Agents that are in the process of (re-)registering. They are
+    // maintained here while the (re-)registration is in progress and
+    // possibly pending in the authorizer or the registrar in order
+    // to help deduplicate (re-)registration requests.
     hashset<process::UPID> registering;
-
-    // Only those slaves that are re-registering for the first time
-    // with this master. We must not answer questions related to
-    // these slaves until the registrar determines their fate.
     hashset<SlaveID> reregistering;
 
     // Registered slaves are indexed by SlaveID and UPID. Note that

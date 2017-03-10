@@ -47,6 +47,7 @@
 
 #include "messages/messages.hpp"
 
+#include "slave/constants.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/containerizer.hpp"
@@ -67,6 +68,7 @@ using mesos::master::detector::StandaloneMasterDetector;
 
 using process::Clock;
 using process::Future;
+using process::Message;
 using process::Owned;
 using process::PID;
 using process::Promise;
@@ -82,6 +84,7 @@ using testing::_;
 using testing::An;
 using testing::AtMost;
 using testing::DoAll;
+using testing::Eq;
 using testing::Return;
 
 namespace mesos {
@@ -2321,6 +2324,165 @@ TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
 
   driver.stop();
   driver.join();
+}
+
+
+TEST_F(MasterAuthorizationTest, AuthorizedToRegisterAndReregisterAgent)
+{
+  // Set up ACLs so that the agent can (re)register.
+  ACLs acls;
+  mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
+  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  acl->mutable_agent()->set_type(ACL::Entity::ANY);
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<Message> slaveRegisteredMessage =
+    FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Simulate a recovered agent and verify that it is allowed to reregister.
+  slave->reset();
+
+  Future<Message> slaveReregisteredMessage =
+    FUTURE_MESSAGE(Eq(SlaveReregisteredMessage().GetTypeName()), _, _);
+
+  slave = StartSlave(detector.get(), slaveFlags);
+
+  AWAIT_READY(slaveReregisteredMessage);
+}
+
+
+// This test verifies that the agent is shut down by the master if
+// it is not authorized to register.
+TEST_F(MasterAuthorizationTest, UnauthorizedToRegisterAgent)
+{
+  // Set up ACLs that disallows the agent's principal to register.
+  ACLs acls;
+  mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
+  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  acl->mutable_agent()->set_type(ACL::Entity::NONE);
+
+  master::Flags flags = CreateMasterFlags();
+  flags.acls = acls;
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Future<Message> shutdownMessage  =
+    FUTURE_MESSAGE(Eq(ShutdownMessage ().GetTypeName()), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(shutdownMessage);
+}
+
+
+// This test verifies that an agent authorized to register can be
+// unauthorized to re-register due to master ACL change (after failover).
+TEST_F(MasterAuthorizationTest, UnauthorizedToReregisterAgent)
+{
+  // Set up ACLs so that the agent can register.
+  ACLs acls;
+  mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
+  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+  acl->mutable_agent()->set_type(ACL::Entity::ANY);
+
+  master::Flags flags = CreateMasterFlags();
+  flags.acls = acls;
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  Future<Message> slaveRegisteredMessage =
+    FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Master fails over.
+  master->reset();
+
+  // The new master doesn't allow this agent principal to re-register.
+  acl->mutable_agent()->set_type(ACL::Entity::NONE);
+  flags.acls = acls;
+
+  Future<Message> shutdownMessage =
+    FUTURE_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _);
+
+  master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  detector.appoint(master.get()->pid);
+
+  AWAIT_READY(shutdownMessage);
+}
+
+
+// This test verifies that duplicate agent registration attempts are
+// ignored when the ongoing registration is pending in the authorizer.
+TEST_F(MasterAuthorizationTest, RetryRegisterAgent)
+{
+  // Use a paused clock to control agent registration retries.
+  Clock::pause();
+
+  MockAuthorizer authorizer;
+  Try<Owned<cluster::Master>> master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  // Return a pending future from authorizer.
+  Future<Nothing> authorize;
+  Promise<bool> promise;
+
+  // Expect the authorizer to be called only once, i.e.,
+  // the retry is ignored.
+  EXPECT_CALL(authorizer, authorized(_))
+    .WillOnce(DoAll(FutureSatisfy(&authorize),
+                    Return(promise.future())));
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  // Trigger the first registration attempt (with authentication).
+  Clock::advance(slave::DEFAULT_REGISTRATION_BACKOFF_FACTOR);
+
+  // Wait until the authorization is in progress.
+  AWAIT_READY(authorize);
+
+  // Advance to trigger the second registration attempt.
+  Clock::advance(slave::REGISTER_RETRY_INTERVAL_MAX);
+
+  // Settle to make sure the second registration attempt is received
+  // by the master. We can verify that it's ignored if the EXPECT_CALL
+  // above doesn't oversaturate.
+  Clock::settle();
+
+  Future<Message> slaveRegisteredMessage =
+    FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+
+  // Now authorize the agent and verify it's registered.
+  promise.set(true);
+
+  AWAIT_READY(slaveRegisteredMessage);
 }
 
 } // namespace tests {
