@@ -228,6 +228,44 @@ void DRFSorter::update(
 }
 
 
+void DRFSorter::unallocated(
+    const string& name,
+    const SlaveID& slaveId,
+    const Resources& resources)
+{
+  CHECK(contains(name));
+  CHECK(allocations.at(name).resources.contains(slaveId));
+  CHECK(allocations.at(name).resources.at(slaveId).contains(resources));
+
+  allocations[name].resources[slaveId] -= resources;
+
+  // Remove shared resources from the allocated quantities when there
+  // are no instances of same resources left in the allocation.
+  const Resources absentShared = resources.shared()
+    .filter([this, name, slaveId](const Resource& resource) {
+      return !allocations[name].resources[slaveId].contains(resource);
+    });
+
+  const Resources scalarQuantities =
+    (resources.nonShared() + absentShared).createStrippedScalarQuantity();
+
+  foreach (const Resource& resource, scalarQuantities) {
+    allocations[name].totals[resource.name()] -= resource.scalar();
+  }
+
+  CHECK(allocations[name].scalarQuantities.contains(scalarQuantities));
+  allocations[name].scalarQuantities -= scalarQuantities;
+
+  if (allocations[name].resources[slaveId].empty()) {
+    allocations[name].resources.erase(slaveId);
+  }
+
+  if (!dirty) {
+    updateShare(name);
+  }
+}
+
+
 const hashmap<SlaveID, Resources>& DRFSorter::allocation(
     const string& name) const
 {
@@ -283,44 +321,6 @@ Resources DRFSorter::allocation(
 const Resources& DRFSorter::totalScalarQuantities() const
 {
   return total_.scalarQuantities;
-}
-
-
-void DRFSorter::unallocated(
-    const string& name,
-    const SlaveID& slaveId,
-    const Resources& resources)
-{
-  CHECK(contains(name));
-  CHECK(allocations.at(name).resources.contains(slaveId));
-  CHECK(allocations.at(name).resources.at(slaveId).contains(resources));
-
-  allocations[name].resources[slaveId] -= resources;
-
-  // Remove shared resources from the allocated quantities when there
-  // are no instances of same resources left in the allocation.
-  const Resources absentShared = resources.shared()
-    .filter([this, name, slaveId](const Resource& resource) {
-      return !allocations[name].resources[slaveId].contains(resource);
-    });
-
-  const Resources scalarQuantities =
-    (resources.nonShared() + absentShared).createStrippedScalarQuantity();
-
-  foreach (const Resource& resource, scalarQuantities) {
-    allocations[name].totals[resource.name()] -= resource.scalar();
-  }
-
-  CHECK(allocations[name].scalarQuantities.contains(scalarQuantities));
-  allocations[name].scalarQuantities -= scalarQuantities;
-
-  if (allocations[name].resources[slaveId].empty()) {
-    allocations[name].resources.erase(slaveId);
-  }
-
-  if (!dirty) {
-    updateShare(name);
-  }
 }
 
 
