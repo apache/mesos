@@ -170,6 +170,9 @@ enum Action {
   // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
   WAIT_NESTED_CONTAINER = 21;
 
+  // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
+  REMOVE_NESTED_CONTAINER = 27;
+
   // This action will always set the `ExecutorInfo`, `FrameworkInfo` fields
   // and optionally a `CommandInfo` if available.
   LAUNCH_NESTED_CONTAINER_SESSION = 22;

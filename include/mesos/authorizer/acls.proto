@@ -359,6 +359,17 @@ message ACL {
     required Entity users = 2;
   }
 
+  // Which principals are authorized to remove a nested container under a top
+  // level container whose executor was launched with the given user.
+  message RemoveNestedContainer {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: The list of operating system users (e.g., linux users) whose
+    // nested containers can be removed.
+    required Entity users = 2;
+  }
+
   // Which principals are authorized to change the log level of the
   // master/agent.
   message SetLogLevel {
@@ -426,6 +437,7 @@ message ACLs {
       launch_nested_containers_under_parent_with_user = 24;
   repeated ACL.KillNestedContainer kill_nested_containers = 25;
   repeated ACL.WaitNestedContainer wait_nested_containers = 26;
+  repeated ACL.RemoveNestedContainer remove_nested_containers = 33;
   repeated ACL.LaunchNestedContainerSessionAsUser
       launch_nested_container_sessions_as_user = 27;
   repeated ACL.LaunchNestedContainerSessionUnderParentWithUser
