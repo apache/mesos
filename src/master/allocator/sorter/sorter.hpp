@@ -71,13 +71,14 @@ public:
   // It is a no-op if the client is already not in the sort.
   virtual void deactivate(const std::string& client) = 0;
 
-  // Updates the weight of a client name. The sorter will store this
-  // weight regardless of whether a client with this name has been
-  // added. If a client's weight is not changed, the default weight
-  // (1.0) is used. This interface does not support unsetting
-  // previously set weights; instead, a weight should be reset to the
-  // default value.
-  virtual void updateWeight(const std::string& client, double weight) = 0;
+  // Updates the weight of a client path. This changes the sorter's
+  // behavior for all clients in the subtree identified by this path
+  // (both clients currently in the sorter and any clients that may be
+  // added later). If a client's weight is not explicitly set, the
+  // default weight of 1.0 is used. This interface does not support
+  // unsetting previously set weights; instead, the weight should be
+  // reset to the default value.
+  virtual void updateWeight(const std::string& path, double weight) = 0;
 
   // Specify that resources have been allocated to the given client.
   virtual void allocated(

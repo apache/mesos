@@ -1780,6 +1780,158 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
 }
 #endif // __WINDOWS__
 
+
+// Checks that accepting offers and launching tasks works as expected
+// with nested roles.
+TYPED_TEST(MasterAllocatorTest, NestedRoles)
+{
+  Clock::pause();
+
+  TestAllocator<TypeParam> allocator;
+
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  master::Flags masterFlags = this->CreateMasterFlags();
+  Try<Owned<cluster::Master>> master =
+    this->StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
+
+  MockExecutor exec1(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer1(&exec1);
+
+  slave::Flags slaveFlags1 = this->CreateSlaveFlags();
+  slaveFlags1.resources = Some("cpus:2;mem:1024");
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave1 =
+    this->StartSlave(detector.get(), &containerizer1, slaveFlags1);
+  ASSERT_SOME(slave1);
+
+  // Advance clock to force agent to register.
+  Clock::advance(slaveFlags1.authentication_backoff_factor);
+  Clock::advance(slaveFlags1.registration_backoff_factor);
+
+  // Register a framework in the "a/b" role and launch a single task,
+  // consuming all the resources on `slave1`.
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo1.set_role("a/b");
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
+
+  EXPECT_CALL(sched1, registered(_, _, _));
+
+  EXPECT_CALL(sched1, resourceOffers(&driver1, OfferEq(2, 1024)))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 2, 1024, "a/b"));
+
+  EXPECT_CALL(exec1, registered(_, _, _, _));
+
+  EXPECT_CALL(exec1, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> runningStatus1;
+  EXPECT_CALL(sched1, statusUpdate(&driver1, _))
+    .WillOnce(FutureArg<1>(&runningStatus1));
+
+  driver1.start();
+
+  AWAIT_READY(runningStatus1);
+  EXPECT_EQ(TASK_RUNNING, runningStatus1->state());
+
+  // Register a framework in the "a/c" role. It should not get any
+  // offers, because there are no unused resources.
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo2.set_role("a/c");
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
+
+  Future<Nothing> framework2Registered;
+  EXPECT_CALL(sched2, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&framework2Registered));
+
+  driver2.start();
+
+  AWAIT_READY(framework2Registered);
+
+  // Register a framework in the "b/x" role. It should not get any
+  // offers, because there are no unused resources.
+  FrameworkInfo frameworkInfo3 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo3.set_role("b/x");
+
+  MockScheduler sched3;
+  MesosSchedulerDriver driver3(
+      &sched3, frameworkInfo3, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
+
+  Future<Nothing> framework3Registered;
+  EXPECT_CALL(sched3, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&framework3Registered));
+
+  driver3.start();
+
+  AWAIT_READY(framework3Registered);
+
+  // Start a second agent. The resources on this agent should be
+  // offered to `sched3`, because the "b" role subtree is below its
+  // fair-share.
+  MockExecutor exec2(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer2(&exec2);
+
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
+
+  EXPECT_CALL(sched3, resourceOffers(&driver3, OfferEq(1, 512)))
+    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "b/x"));
+
+  EXPECT_CALL(exec2, registered(_, _, _, _));
+
+  EXPECT_CALL(exec2, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> runningStatus2;
+  EXPECT_CALL(sched3, statusUpdate(&driver3, _))
+    .WillOnce(FutureArg<1>(&runningStatus2));
+
+  slave::Flags slaveFlags2 = this->CreateSlaveFlags();
+  slaveFlags2.resources = Some("cpus:1;mem:512");
+
+  Try<Owned<cluster::Slave>> slave2 =
+    this->StartSlave(detector.get(), &containerizer2, slaveFlags2);
+  ASSERT_SOME(slave2);
+
+  // Advance clock to force agent to register.
+  Clock::advance(slaveFlags2.authentication_backoff_factor);
+  Clock::advance(slaveFlags2.registration_backoff_factor);
+
+  AWAIT_READY(runningStatus2);
+  EXPECT_EQ(TASK_RUNNING, runningStatus2->state());
+
+  EXPECT_CALL(exec1, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(exec2, shutdown(_))
+    .Times(AtMost(1));
+
+  driver1.stop();
+  driver1.join();
+
+  driver2.stop();
+  driver2.join();
+
+  driver3.stop();
+  driver3.join();
+}
+
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
