@@ -62,6 +62,7 @@ message Call {
     LAUNCH_NESTED_CONTAINER = 14;  // See 'LaunchNestedContainer' below.
     WAIT_NESTED_CONTAINER = 15;    // See 'WaitNestedContainer' below.
     KILL_NESTED_CONTAINER = 16;    // See 'KillNestedContainer' below.
+    REMOVE_NESTED_CONTAINER = 21;  // See 'RemoveNestedContainer' below.
 
     // See 'LaunchNestedContainerSession' below.
     LAUNCH_NESTED_CONTAINER_SESSION = 17;
@@ -125,6 +126,12 @@ message Call {
     required ContainerID container_id = 1;
   }
 
+  // Removes a nested container and its artifacts (runtime and sandbox
+  // directories).
+  message RemoveNestedContainer {
+    required ContainerID container_id = 1;
+  }
+
   // Launches a nested container within an executor's tree of containers.
   // The differences between this call and `LaunchNestedContainer` are:
   // 1) The container's life-cycle is tied to the lifetime of the
@@ -174,6 +181,7 @@ message Call {
   optional LaunchNestedContainer launch_nested_container = 6;
   optional WaitNestedContainer wait_nested_container = 7;
   optional KillNestedContainer kill_nested_container = 8;
+  optional RemoveNestedContainer remove_nested_container = 12;
   optional LaunchNestedContainerSession launch_nested_container_session = 9;
   optional AttachContainerInput attach_container_input = 10;
   optional AttachContainerOutput attach_container_output = 11;
