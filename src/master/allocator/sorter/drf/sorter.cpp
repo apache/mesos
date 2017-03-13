@@ -87,10 +87,8 @@ void DRFSorter::remove(const string& name)
   CHECK(contains(name));
 
   set<Client, DRFComparator>::iterator it = find(name);
-
-  if (it != clients.end()) {
-    clients.erase(it);
-  }
+  CHECK(it != clients.end());
+  clients.erase(it);
 
   allocations.erase(name);
 
@@ -105,8 +103,13 @@ void DRFSorter::activate(const string& name)
   CHECK(contains(name));
 
   set<Client, DRFComparator>::iterator it = find(name);
-  if (it == clients.end()) {
-    Client client(name, calculateShare(name), 0);
+  CHECK(it != clients.end());
+
+  if (!it->active) {
+    Client client(*it);
+    client.active = true;
+
+    clients.erase(it);
     clients.insert(client);
   }
 }
@@ -117,13 +120,14 @@ void DRFSorter::deactivate(const string& name)
   CHECK(contains(name));
 
   set<Client, DRFComparator>::iterator it = find(name);
+  CHECK(it != clients.end());
 
-  if (it != clients.end()) {
-    // TODO(benh): Removing the client is an unfortunate strategy
-    // because we lose information such as the number of allocations
-    // for this client which means the fairness can be gamed by a
-    // framework disconnecting and reconnecting.
+  if (it->active) {
+    Client client(*it);
+    client.active = false;
+
     clients.erase(it);
+    clients.insert(client);
   }
 }
 
@@ -145,14 +149,14 @@ void DRFSorter::allocated(
 {
   CHECK(contains(name));
 
-  set<Client, DRFComparator>::iterator it = find(name);
+  // Update the number of allocations that have been made to this
+  // client. Note that the client might currently be inactive.
+  //
+  // TODO(benh): Refactor 'updateShare' to be able to reuse it here.
+  {
+    set<Client, DRFComparator>::iterator it = find(name);
+    CHECK(it != clients.end());
 
-  // The allocator might notify us about an allocation that has been
-  // made to an inactive sorter client. For example, this happens when
-  // an agent re-registers that is running tasks for a framework that
-  // has not yet re-registered.
-  if (it != clients.end()) {
-    // TODO(benh): Refactor 'updateShare' to be able to reuse it here.
     Client client(*it);
 
     // Update the 'allocations' to reflect the allocator decision.
@@ -409,10 +413,11 @@ vector<string> DRFSorter::sort()
   }
 
   vector<string> result;
-  result.reserve(clients.size());
 
   foreach (const Client& client, clients) {
-    result.push_back(client.name);
+    if (client.active) {
+      result.push_back(client.name);
+    }
   }
 
   return result;
@@ -434,17 +439,16 @@ int DRFSorter::count() const
 void DRFSorter::updateShare(const string& name)
 {
   set<Client, DRFComparator>::iterator it = find(name);
+  CHECK(it != clients.end());
 
-  if (it != clients.end()) {
-    Client client(*it);
+  Client client(*it);
 
-    // Update the 'share' to get proper sorting.
-    client.share = calculateShare(client.name);
+  // Update the 'share' to get proper sorting.
+  client.share = calculateShare(client.name);
 
-    // Remove and reinsert it to update the ordering appropriately.
-    clients.erase(it);
-    clients.insert(client);
-  }
+  // Remove and reinsert it to update the ordering appropriately.
+  clients.erase(it);
+  clients.insert(client);
 }
 
 

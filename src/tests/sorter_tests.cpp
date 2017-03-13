@@ -227,8 +227,9 @@ TEST(SorterTest, CountAllocations)
   sorter.add("d");
   sorter.add("e");
 
-  // Everyone is allocated the same resources; "c" gets three distinct
-  // allocations, "d" gets two, and all other clients get one.
+  // Everyone is allocated the same amount of resources; "c" gets
+  // three distinct allocations, "d" gets two, and all other clients
+  // get one.
   sorter.allocated("a", slaveId, Resources::parse("cpus:3;mem:3").get());
   sorter.allocated("b", slaveId, Resources::parse("cpus:3;mem:3").get());
   sorter.allocated("c", slaveId, Resources::parse("cpus:1;mem:1").get());
@@ -238,6 +239,7 @@ TEST(SorterTest, CountAllocations)
   sorter.allocated("d", slaveId, Resources::parse("cpus:1;mem:1").get());
   sorter.allocated("e", slaveId, Resources::parse("cpus:3;mem:3").get());
 
+  // Allocation count: {a,b,e} = 1, {d} = 2, {c} = 3.
   EXPECT_EQ(vector<string>({"a", "b", "e", "d", "c"}), sorter.sort());
 
   // Check that unallocating and re-allocating to a client does not
@@ -248,21 +250,37 @@ TEST(SorterTest, CountAllocations)
 
   sorter.allocated("c", slaveId, Resources::parse("cpus:3;mem:3").get());
 
+  // Allocation count: {a,b,e} = 1, {d} = 2, {c} = 4.
   EXPECT_EQ(vector<string>({"a", "b", "e", "d", "c"}), sorter.sort());
 
-  // Deactivating and then re-activating a client currently resets the
-  // allocation count to zero.
-  //
-  // TODO(neilc): Consider changing this behavior.
+  // Check that deactivating and then re-activating a client does not
+  // reset the allocation count.
   sorter.deactivate("c");
   sorter.activate("c");
 
-  EXPECT_EQ(vector<string>({"c", "a", "b", "e", "d"}), sorter.sort());
+  // Allocation count: {a,b,e} = 1, {d} = 2, {c} = 4.
+  EXPECT_EQ(vector<string>({"a", "b", "e", "d", "c"}), sorter.sort());
 
   sorter.unallocated("c", slaveId, Resources::parse("cpus:3;mem:3").get());
   sorter.allocated("c", slaveId, Resources::parse("cpus:3;mem:3").get());
 
-  EXPECT_EQ(vector<string>({"a", "b", "c", "e", "d"}), sorter.sort());
+  // Allocation count: {a,b,e} = 1, {d} = 2, {c} = 5.
+  EXPECT_EQ(vector<string>({"a", "b", "e", "d", "c"}), sorter.sort());
+
+  // Check that allocations to an inactive client increase the
+  // allocation count.
+  sorter.deactivate("a");
+
+  sorter.unallocated("a", slaveId, Resources::parse("cpus:1;mem:3").get());
+  sorter.allocated("a", slaveId, Resources::parse("cpus:1;mem:3").get());
+
+  // Allocation count: {b,e} = 1, {d} = 2, {c} = 5.
+  EXPECT_EQ(vector<string>({"b", "e", "d", "c"}), sorter.sort());
+
+  sorter.activate("a");
+
+  // Allocation count: {b,e} = 1, {a,d} = 2, {c} = 5.
+  EXPECT_EQ(vector<string>({"b", "e", "a", "d", "c"}), sorter.sort());
 }
 
 

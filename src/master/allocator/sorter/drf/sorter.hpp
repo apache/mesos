@@ -41,10 +41,11 @@ namespace allocator {
 struct Client
 {
   Client(const std::string& _name, double _share, uint64_t _allocations)
-    : name(_name), share(_share), allocations(_allocations) {}
+    : name(_name), share(_share), active(true), allocations(_allocations) {}
 
   std::string name;
   double share;
+  bool active;
 
   // We store the number of times this client has been chosen for
   // allocation so that we can fairly share the resources across
@@ -151,7 +152,7 @@ private:
   // If true, sort() will recalculate all shares.
   bool dirty = false;
 
-  // The set of active clients (names and shares), sorted by share.
+  // The set of clients, sorted by share.
   std::set<Client, DRFComparator> clients;
 
   // Maps client names to the weights that should be applied to their shares.
@@ -211,9 +212,10 @@ private:
     hashmap<std::string, Value::Scalar> totals;
   };
 
-  // Maps client names to the resources they have been allocated. Note
-  // that `allocations` might contain entries for deactivated clients
-  // not currently in `clients`.
+  // Maps client names to the resources they have been allocated.
+  //
+  // TODO(neilc): It would be cleaner to store a client's allocation
+  // in the `Client` struct instead.
   hashmap<std::string, Allocation> allocations;
 
   // Metrics are optionally exposed by the sorter.
