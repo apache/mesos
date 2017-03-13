@@ -130,6 +130,13 @@ set(MESOS_TESTS_SRC
   zookeeper_url_tests.cpp
   )
 
+if (ENABLE_SSL)
+  set(MESOS_TESTS_SRC
+    ${MESOS_TESTS_SRC}
+    secret_generator_tests.cpp
+    )
+endif (ENABLE_SSL)
+
 set(MESOS_TESTS_SRC
   ${MESOS_TESTS_SRC}
   common/http_tests.cpp

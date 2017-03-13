@@ -221,6 +221,13 @@ if (NOT WIN32)
     )
 endif (NOT WIN32)
 
+if (ENABLE_SSL)
+  set(AUTHENTICATION_SRC
+    ${AUTHENTICATION_SRC}
+    authentication/executor/jwt_secret_generator.cpp
+    )
+endif (ENABLE_SSL)
+
 set(AUTHORIZER_SRC
   authorizer/acls.cpp
   authorizer/authorizer.cpp
