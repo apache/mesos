@@ -33,6 +33,9 @@
 #include <process/http.hpp>
 #include <process/id.hpp>
 #include <process/io.hpp>
+#ifdef USE_SSL_SOCKET
+#include <process/jwt.hpp>
+#endif // USE_SSL_SOCKET
 #include <process/owned.hpp>
 #include <process/socket.hpp>
 
@@ -60,6 +63,11 @@ namespace unix = process::network::unix;
 using authentication::Authenticator;
 using authentication::AuthenticationResult;
 using authentication::BasicAuthenticator;
+#ifdef USE_SSL_SOCKET
+using authentication::JWT;
+using authentication::JWTAuthenticator;
+using authentication::JWTError;
+#endif // USE_SSL_SOCKET
 using authentication::Principal;
 
 using process::Failure;
@@ -2009,6 +2017,85 @@ TEST_F(HttpAuthenticationTest, Basic)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   }
 }
+
+
+#ifdef USE_SSL_SOCKET
+// Tests the "JWT" authenticator.
+TEST_F(HttpAuthenticationTest, JWT)
+{
+  Http http;
+
+  Owned<Authenticator> authenticator(new JWTAuthenticator("realm", "secret"));
+
+  AWAIT_READY(setAuthenticator("realm", authenticator));
+
+  // No 'Authorization' header provided.
+  {
+    Future<http::Response> response = http::get(*http.process, "authenticated");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Unauthorized({}).status, response);
+  }
+
+  // Invalid 'Authorization' header provided.
+  {
+    http::Headers headers;
+    headers["Authorization"] = "Basic " + base64::encode("user:password");
+
+    Future<http::Response> response =
+      http::get(http.process->self(), "authenticated", None(), headers);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Unauthorized({}).status, response);
+  }
+
+  // Invalid token provided.
+  {
+    JSON::Object payload;
+    payload.values["sub"] = "user";
+
+    Try<JWT, JWTError> jwt = JWT::create(payload, "a different secret");
+
+    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
+    // once MESOS-7220 is resolved.
+    EXPECT_TRUE(jwt.isSome());
+
+    http::Headers headers;
+    headers["Authorization"] = "Bearer " + stringify(jwt.get());
+
+    Future<http::Response> response =
+      http::get(http.process->self(), "authenticated", None(), headers);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Unauthorized({}).status, response);
+  }
+
+  // Valid token provided.
+  {
+    Principal principal(Option<string>::none());
+    principal.claims["foo"] = "1234";
+    principal.claims["sub"] = "user";
+
+    EXPECT_CALL(*http.process, authenticated(_, Option<Principal>(principal)))
+      .WillOnce(Return(http::OK()));
+
+    JSON::Object payload;
+    payload.values["foo"] = 1234;
+    payload.values["sub"] = "user";
+
+    Try<JWT, JWTError> jwt = JWT::create(payload, "secret");
+
+    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
+    // once MESOS-7220 is resolved.
+    EXPECT_TRUE(jwt.isSome());
+
+    http::Headers headers;
+    headers["Authorization"] = "Bearer " + stringify(jwt.get());
+
+    Future<http::Response> response =
+      http::get(http.process->self(), "authenticated", None(), headers);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
+}
+#endif // USE_SSL_SOCKET
 
 
 class HttpServeTest : public TemporaryDirectoryTest {};

@@ -182,6 +182,7 @@ libprocess_la_SOURCES =		\
 if ENABLE_SSL
 libprocess_la_SOURCES +=	\
     src/jwt.cpp			\
+    src/jwt_authenticator.cpp	\
     src/libevent_ssl_socket.cpp	\
     src/libevent_ssl_socket.hpp	\
     src/openssl.cpp		\
