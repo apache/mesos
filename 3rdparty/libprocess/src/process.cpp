@@ -3861,7 +3861,7 @@ Future<Response> ProcessBase::_visit(
 
         // Sequence the authorization future to ensure the handlers
         // are invoked in the same order that requests arrive.
-          authorization = handlers.httpSequence->add<bool>(
+        authorization = handlers.httpSequence->add<bool>(
             [authorization]() { return authorization; });
       } else {
         authorization = handlers.httpSequence->add<bool>(
