@@ -599,6 +599,9 @@ Future<Response> Slave::Http::_api(
     case mesos::agent::Call::KILL_NESTED_CONTAINER:
       return killNestedContainer(call, mediaTypes.accept, principal);
 
+    case mesos::agent::Call::REMOVE_NESTED_CONTAINER:
+      return removeNestedContainer(call, mediaTypes.accept, principal);
+
     case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION:
       return launchNestedContainerSession(call, mediaTypes, principal);
 
@@ -2444,6 +2447,67 @@ Future<Response> Slave::Http::killNestedContainer(
           }
           return OK();
         });
+    }));
+}
+
+
+Future<Response> Slave::Http::removeNestedContainer(
+    const mesos::agent::Call& call,
+    ContentType acceptType,
+    const Option<Principal>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::REMOVE_NESTED_CONTAINER, call.type());
+  CHECK(call.has_remove_nested_container());
+
+  Future<Owned<ObjectApprover>> approver;
+
+  if (slave->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::REMOVE_NESTED_CONTAINER);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver.then(defer(slave->self(),
+    [this, call](const Owned<ObjectApprover>& removeApprover)
+        -> Future<Response> {
+      const ContainerID& containerId =
+        call.remove_nested_container().container_id();
+
+      Executor* executor = slave->getExecutor(containerId);
+      if (executor == nullptr) {
+        return OK();
+      }
+
+      Framework* framework = slave->getFramework(executor->frameworkId);
+      CHECK_NOTNULL(framework);
+
+      ObjectApprover::Object object;
+      object.executor_info = &(executor->info);
+      object.framework_info = &(framework->info);
+
+      Try<bool> approved = removeApprover.get()->approved(object);
+
+      if (approved.isError()) {
+        return Failure(approved.error());
+      } else if (!approved.get()) {
+        return Forbidden();
+      }
+
+      Future<Nothing> remove = slave->containerizer->remove(containerId);
+
+      return remove.then(
+          [containerId](const Future<Nothing>& result) -> Response {
+            if (result.isFailed()) {
+              LOG(ERROR) << "Failed to remove nested container " << containerId
+                         << ": " << result.failure();
+              return InternalServerError(result.failure());
+            }
+
+            return OK();
+          });
     }));
 }
 

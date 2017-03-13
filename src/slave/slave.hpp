@@ -695,6 +695,12 @@ private:
         const Option<process::http::authentication::Principal>&
             principal) const;
 
+    process::Future<process::http::Response> removeNestedContainer(
+        const mesos::agent::Call& call,
+        ContentType acceptType,
+        const Option<process::http::authentication::Principal>&
+            principal) const;
+
     process::Future<process::http::Response> launchNestedContainerSession(
         const mesos::agent::Call& call,
         const RequestMediaTypes& mediaTypes,

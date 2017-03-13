@@ -355,6 +355,7 @@ public:
         }
         case authorization::ATTACH_CONTAINER_INPUT:
         case authorization::ATTACH_CONTAINER_OUTPUT:
+        case authorization::REMOVE_NESTED_CONTAINER:
         case authorization::KILL_NESTED_CONTAINER:
         case authorization::WAIT_NESTED_CONTAINER: {
           aclObject.set_type(mesos::ACL::Entity::ANY);
@@ -991,6 +992,19 @@ private:
       case authorization::WAIT_NESTED_CONTAINER: {
         foreach (const ACL::WaitNestedContainer& acl,
             acls.wait_nested_containers()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.users();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+        break;
+      }
+      case authorization::REMOVE_NESTED_CONTAINER: {
+        foreach (const ACL::RemoveNestedContainer& acl,
+            acls.remove_nested_containers()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.users();

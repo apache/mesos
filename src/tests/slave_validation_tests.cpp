@@ -397,6 +397,39 @@ TEST(AgentCallValidationTest, KillNestedContainer)
 }
 
 
+TEST(AgentCallValidationTest, RemoveNestedContainer)
+{
+  // Missing `remove_nested_container`.
+  agent::Call call;
+  call.set_type(agent::Call::REMOVE_NESTED_CONTAINER);
+
+  Option<Error> error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  // Expecting a `container_id.parent`.
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  agent::Call::RemoveNestedContainer* removeNestedContainer =
+    call.mutable_remove_nested_container();
+
+  removeNestedContainer->mutable_container_id()->CopyFrom(containerId);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  // Test the valid case.
+  ContainerID parentContainerId;
+  parentContainerId.set_value(UUID::random().toString());
+
+  removeNestedContainer->mutable_container_id()->mutable_parent()->CopyFrom(
+      containerId);
+
+  error = validation::agent::call::validate(call);
+  EXPECT_NONE(error);
+}
+
+
 TEST(AgentCallValidationTest, LaunchNestedContainerSession)
 {
   // Missing `launch_nested_container_session`.
