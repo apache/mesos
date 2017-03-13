@@ -211,11 +211,53 @@ Future<Nothing> MemorySubsystem::update(
         ": " + currentLimit.error());
   }
 
-  // Determine whether to set the hard limit. We only update the hard
-  // limit if this is the first time or when we're raising the
+  bool limitSwap = flags.cgroups_limit_swap;
+
+  auto setLimitInBytes = [=]() -> Try<Nothing> {
+    Try<Nothing> write = cgroups::memory::limit_in_bytes(
+        hierarchy,
+        cgroup,
+        limit);
+
+    if (write.isError()) {
+      return Error(
+          "Failed to set 'memory.limit_in_bytes'"
+          ": " + write.error());
+    }
+
+    LOG(INFO) << "Updated 'memory.limit_in_bytes' to " << limit
+              << " for container " << containerId;
+
+    return Nothing();
+  };
+
+  auto setMemswLimitInBytes = [=]() -> Try<Nothing> {
+    if (limitSwap) {
+      Try<bool> write = cgroups::memory::memsw_limit_in_bytes(
+          hierarchy,
+          cgroup,
+          limit);
+
+      if (write.isError()) {
+        return Error(
+            "Failed to set 'memory.memsw.limit_in_bytes'"
+            ": " + write.error());
+      }
+
+      LOG(INFO) << "Updated 'memory.memsw.limit_in_bytes' to " << limit
+                << " for container " << containerId;
+    }
+
+    return Nothing();
+  };
+
+  vector<lambda::function<Try<Nothing>(void)>> setFunctions;
+
+  // Now, determine whether to set the hard limit. We only update the
+  // hard limit if this is the first time or when we're raising the
   // existing limit, then we can update the hard limit safely.
   // Otherwise, if we need to decrease 'memory.limit_in_bytes' we may
-  // induce an OOM if too much memory is in use.  As a result, we only
+  // induce an OOM if too much memory is in use. As a result, we only
   // update the soft limit when the memory reservation is being
   // reduced. This is probably okay if the machine has available
   // resources.
@@ -224,47 +266,33 @@ Future<Nothing> MemorySubsystem::update(
   // discrepancy between usage and soft limit and introduces a "manual
   // oom" if necessary.
   //
-  // If this is the first time, 'memory.limit_in_bytes' is the inital
-  // value which may be one of following possible values:
+  // If this is the first time, 'memory.limit_in_bytes' is unlimited
+  // which may be one of following possible values:
   //   * LONG_MAX (Linux Kernel Version < 3.12)
   //   * ULONG_MAX (3.12 <= Linux Kernel Version < 3.19)
   //   * LONG_MAX / pageSize * pageSize (Linux Kernel Version >= 3.19)
-  // Thus, if 'currentLimit' is greater or equals to 'initialLimit'
-  // below, we know it's the first time.
   static const size_t pageSize = os::pagesize();
-  Bytes initialLimit(static_cast<uint64_t>(LONG_MAX / pageSize * pageSize));
+  Bytes unlimited(static_cast<uint64_t>(LONG_MAX / pageSize * pageSize));
 
-  if (currentLimit.get() >= initialLimit || limit > currentLimit.get()) {
-    // We always set limit_in_bytes first and optionally set
-    // memsw.limit_in_bytes if `cgroups_limit_swap` is true.
-    Try<Nothing> write = cgroups::memory::limit_in_bytes(
-        hierarchy,
-        cgroup,
-        limit);
+  // NOTE: It's required by the Linux kernel that
+  // 'memory.limit_in_bytes' should be less than or equal to
+  // 'memory.memsw.limit_in_bytes'. Otherwise, the kernel will fail
+  // the cgroup write with EINVAL. As a result, the order of setting
+  // these two control files is important. See MESOS-7237 for details.
+  if (currentLimit.get() >= unlimited) {
+    // This is the first time memory limit is being set. So
+    // effectively we are reducing the memory limits because of which
+    // we need to set the 'memory.limit_in_bytes' before setting
+    // 'memory.memsw.limit_in_bytes'
+    setFunctions = {setLimitInBytes, setMemswLimitInBytes};
+  } else if (limit > currentLimit.get()) {
+    setFunctions = {setMemswLimitInBytes, setLimitInBytes};
+  }
 
-    if (write.isError()) {
-      return Failure(
-          "Failed to set 'memory.limit_in_bytes'"
-          ": " + write.error());
-    }
-
-    LOG(INFO) << "Updated 'memory.limit_in_bytes' to " << limit
-              << " for container " << containerId;
-
-    if (flags.cgroups_limit_swap) {
-      Try<bool> write = cgroups::memory::memsw_limit_in_bytes(
-          hierarchy,
-          cgroup,
-          limit);
-
-      if (write.isError()) {
-        return Failure(
-            "Failed to set 'memory.memsw.limit_in_bytes'"
-            ": " + write.error());
-      }
-
-      LOG(INFO) << "Updated 'memory.memsw.limit_in_bytes' to " << limit
-                << " for container " << containerId;
+  foreach (const auto& setFunction, setFunctions) {
+    Try<Nothing> result = setFunction();
+    if (result.isError()) {
+      return Failure(result.error());
     }
   }
 
