@@ -3574,3 +3574,37 @@ Message-Content-Type: application/json
 ...
 
 ```
+
+### REMOVE_NESTED_CONTAINER
+
+This call triggers the removal of a nested container and its artifacts
+(e.g., the sandbox and runtime directories). This call can only be made
+against containers that have already terminated, and whose parent
+container has not been destroyed. Any authorized entity, including the
+executor itself, its tasks, or the operator can use this API call.
+
+```
+REMOVE_NESTED_CONTAINER HTTP Request (JSON):
+
+POST /api/v1  HTTP/1.1
+
+Host: agenthost:5051
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "REMOVE_NESTED_CONTAINER",
+  "remove_nested_container": {
+    "container_id": {
+      "parent": {
+        "value": "6643b4be-583a-4dc3-bf23-a1ffb26dd452"
+      },
+      "value": "3192b9d1-db71-4699-ae25-e28dfbf42de1"
+    }
+  }
+}
+
+REMOVE_NESTED_CONTAINER HTTP Response (JSON):
+
+HTTP/1.1 200 OK
+```
