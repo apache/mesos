@@ -186,7 +186,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   AWAIT_READY(registered);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test");
@@ -206,7 +206,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Retrieve endpoint with the user allowed to view the framework.
   {
@@ -217,9 +217,9 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object state = parse.get();
@@ -249,9 +249,9 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object state = parse.get();
@@ -320,7 +320,7 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response.get().body;
+        << response->body;
 
     response = http::get(
         agent.get()->pid,
@@ -329,9 +329,9 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response.get().body;
+        << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
     JSON::Object state = parse.get();
 
@@ -349,7 +349,7 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-        << response.get().body;
+        << response->body;
 
     response = http::get(
         agent.get()->pid,
@@ -358,9 +358,9 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response.get().body;
+        << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
     JSON::Object state = parse.get();
 
@@ -426,18 +426,18 @@ TEST_P(SlaveEndpointTest, AuthorizedRequest)
   AWAIT_READY(request);
 
   const string principal = DEFAULT_CREDENTIAL.principal();
-  EXPECT_EQ(principal, request.get().subject().value());
+  EXPECT_EQ(principal, request->subject().value());
 
   // TODO(bbannier): Once agent endpoint handlers use more than just
   // `GET_ENDPOINT_WITH_PATH` we should factor out the request method
   // and expected authorization action and parameterize
   // `SlaveEndpointTest` on that as well in addition to the endpoint.
-  EXPECT_EQ(authorization::GET_ENDPOINT_WITH_PATH, request.get().action());
+  EXPECT_EQ(authorization::GET_ENDPOINT_WITH_PATH, request->action());
 
-  EXPECT_EQ("/" + endpoint, request.get().object().value());
+  EXPECT_EQ("/" + endpoint, request->object().value());
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 }
 
 
@@ -472,7 +472,7 @@ TEST_P(SlaveEndpointTest, UnauthorizedRequest)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-    << response.get().body;
+    << response->body;
 }
 
 
@@ -503,7 +503,7 @@ TEST_P(SlaveEndpointTest, NoAuthorizer)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 }
 
 } // namespace tests {

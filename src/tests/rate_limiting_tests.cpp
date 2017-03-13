@@ -138,7 +138,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, NoRateLimiting)
   AWAIT_READY(subscribeCall);
   AWAIT_READY(frameworkRegisteredMessage);
 
-  const process::UPID schedulerPid = frameworkRegisteredMessage.get().to;
+  const process::UPID schedulerPid = frameworkRegisteredMessage->to;
 
   // Send a duplicate subscribe call. Master sends
   // FrameworkRegisteredMessage back after processing it.
@@ -231,7 +231,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, RateLimitingEnabled)
   AWAIT_READY(subscribeCall);
   AWAIT_READY(frameworkRegisteredMessage);
 
-  const process::UPID schedulerPid = frameworkRegisteredMessage.get().to;
+  const process::UPID schedulerPid = frameworkRegisteredMessage->to;
 
   // Keep sending duplicate subscribe call. Master sends
   // FrameworkRegisteredMessage back after processing each of them.
@@ -376,7 +376,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, DifferentPrincipalFrameworks)
   AWAIT_READY(subscribeCall1);
   AWAIT_READY(frameworkRegisteredMessage1);
 
-  const process::UPID sched1Pid = frameworkRegisteredMessage1.get().to;
+  const process::UPID sched1Pid = frameworkRegisteredMessage1->to;
 
   // 1.2. Create the second framework.
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
@@ -399,7 +399,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, DifferentPrincipalFrameworks)
   AWAIT_READY(subscribeCall2);
   AWAIT_READY(frameworkRegisteredMessage2);
 
-  const process::UPID sched2Pid = frameworkRegisteredMessage2.get().to;
+  const process::UPID sched2Pid = frameworkRegisteredMessage2->to;
 
   // 2. Send duplicate subscribe call from the two schedulers to
   // Master.
@@ -601,7 +601,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, SamePrincipalFrameworks)
   AWAIT_READY(subscribeCall1);
   AWAIT_READY(frameworkRegisteredMessage1);
 
-  const process::UPID sched1Pid = frameworkRegisteredMessage1.get().to;
+  const process::UPID sched1Pid = frameworkRegisteredMessage1->to;
 
   // 1.2. Create the second framework.
 
@@ -624,7 +624,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, SamePrincipalFrameworks)
   AWAIT_READY(subscribeCall2);
   AWAIT_READY(frameworkRegisteredMessage2);
 
-  const process::UPID sched2Pid = frameworkRegisteredMessage2.get().to;
+  const process::UPID sched2Pid = frameworkRegisteredMessage2->to;
 
   // Message counters added after both frameworks are registered.
   {
@@ -758,7 +758,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, SchedulerFailover)
     AWAIT_READY(frameworkRegisteredMessage);
     AWAIT_READY(frameworkId);
 
-    const process::UPID schedulerPid = frameworkRegisteredMessage.get().to;
+    const process::UPID schedulerPid = frameworkRegisteredMessage->to;
 
     // Send a duplicate subscribe call. Master replies with a
     // duplicate FrameworkRegisteredMessage.
@@ -828,7 +828,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, SchedulerFailover)
   AWAIT_READY(sched1Error);
   AWAIT_READY(frameworkRegisteredMessage);
 
-  const process::UPID schedulerPid = frameworkRegisteredMessage.get().to;
+  const process::UPID schedulerPid = frameworkRegisteredMessage->to;
 
   Future<process::Message> duplicateFrameworkRegisteredMessage =
     FUTURE_MESSAGE(Eq(FrameworkRegisteredMessage().GetTypeName()),
@@ -941,7 +941,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RateLimitingTest, CapacityReached)
   AWAIT_READY(subscribeCall);
   AWAIT_READY(frameworkRegisteredMessage);
 
-  const process::UPID schedulerPid = frameworkRegisteredMessage.get().to;
+  const process::UPID schedulerPid = frameworkRegisteredMessage->to;
 
   // Keep sending duplicate subscribe calls. Master sends
   // FrameworkRegisteredMessage back after processing each of them.

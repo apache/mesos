@@ -114,8 +114,8 @@ public:
         echo "  }"
         echo "}"
         )~",
-        hostIPNetwork.get().address(),
-        hostIPNetwork.get().prefix(),
+        hostIPNetwork->address(),
+        hostIPNetwork->prefix(),
         nameServer.get()).get());
 
     ASSERT_SOME(write);
@@ -301,9 +301,9 @@ TEST_F(CniIsolatorTest, ROOT_VerifyCheckpointedInfo)
 
   Future<hashset<ContainerID>> containers = containerizer.get()->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   // Check if the CNI related information is checkpointed successfully.
   const string containerDir =
@@ -342,7 +342,7 @@ TEST_F(CniIsolatorTest, ROOT_VerifyCheckpointedInfo)
   driver.killTask(task.task_id());
 
   AWAIT_READY(statusKilled);
-  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
 
   AWAIT_READY(gcSchedule);
 

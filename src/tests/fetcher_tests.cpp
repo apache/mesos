@@ -569,9 +569,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, NoExtractNotExecutable)
   Try<os::Permissions> permissions = os::permissions(basename);
 
   ASSERT_SOME(permissions);
-  EXPECT_FALSE(permissions.get().owner.x);
-  EXPECT_FALSE(permissions.get().group.x);
-  EXPECT_FALSE(permissions.get().others.x);
+  EXPECT_FALSE(permissions->owner.x);
+  EXPECT_FALSE(permissions->group.x);
+  EXPECT_FALSE(permissions->others.x);
 }
 
 
@@ -609,9 +609,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, NoExtractExecutable)
   Try<os::Permissions> permissions = os::permissions(basename);
 
   ASSERT_SOME(permissions);
-  EXPECT_TRUE(permissions.get().owner.x);
-  EXPECT_TRUE(permissions.get().group.x);
-  EXPECT_TRUE(permissions.get().others.x);
+  EXPECT_TRUE(permissions->owner.x);
+  EXPECT_TRUE(permissions->group.x);
+  EXPECT_TRUE(permissions->others.x);
 }
 
 
@@ -662,9 +662,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, ExtractNotExecutable)
   Try<os::Permissions> permissions = os::permissions(path.get());
 
   ASSERT_SOME(permissions);
-  EXPECT_FALSE(permissions.get().owner.x);
-  EXPECT_FALSE(permissions.get().group.x);
-  EXPECT_FALSE(permissions.get().others.x);
+  EXPECT_FALSE(permissions->owner.x);
+  EXPECT_FALSE(permissions->group.x);
+  EXPECT_FALSE(permissions->others.x);
 }
 
 

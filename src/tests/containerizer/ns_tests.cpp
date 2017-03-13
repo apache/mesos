@@ -98,7 +98,7 @@ TEST(NsTest, ROOT_setns)
   ASSERT_SOME(s);
 
   // The child should exit 0.
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 
 

@@ -571,7 +571,7 @@ TEST_F(NestedMesosContainerizerTest,
 
   Future<hashset<ContainerID>> containers = containerizer.get()->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(2u, containers.get().size());
+  EXPECT_EQ(2u, containers->size());
 
   Future<Option<ContainerTermination>> wait =
     containerizer->wait(nestedContainerId);

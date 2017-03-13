@@ -585,22 +585,22 @@ TEST_F(FilesTest, AuthenticationTest)
 
   Future<Response> response = process::http::get(upid, "browse");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
-  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+  EXPECT_EQ(response->headers.at("WWW-Authenticate"),
             expectedAuthorizationHeader);
 
   response = process::http::get(upid, "read");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
-  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+  EXPECT_EQ(response->headers.at("WWW-Authenticate"),
             expectedAuthorizationHeader);
 
   response = process::http::get(upid, "download");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
-  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+  EXPECT_EQ(response->headers.at("WWW-Authenticate"),
             expectedAuthorizationHeader);
 
   response = process::http::get(upid, "debug");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
-  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+  EXPECT_EQ(response->headers.at("WWW-Authenticate"),
             expectedAuthorizationHeader);
 }
 

@@ -310,25 +310,25 @@ TEST_P(CommandExecutorTest, NoTransitionFromKillingToRunning)
   driver.launchTasks(offers->front().id(), tasks);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   driver.killTask(task.task_id());
 
   AWAIT_READY(statusKilling);
   EXPECT_EQ(TASK_KILLING, statusKilling->state());
-  EXPECT_FALSE(statusKilling.get().has_healthy());
+  EXPECT_FALSE(statusKilling->has_healthy());
 
   // Remove the temporary file, so that the health check fails.
   os::rm(tmpPath);
 
   AWAIT_READY(statusKilled);
   EXPECT_EQ(TASK_KILLED, statusKilled->state());
-  EXPECT_FALSE(statusKilled.get().has_healthy());
+  EXPECT_FALSE(statusKilled->has_healthy());
 
   driver.stop();
   driver.join();
@@ -408,8 +408,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HTTPCommandExecutorTest, TerminateWithACK)
   // The executor should self terminate with 0 as exit status once
   // it gets the ACK for the terminal status update from agent.
   AWAIT_READY(termination);
-  ASSERT_TRUE(termination.get().isReady());
-  EXPECT_EQ(0, termination.get().get().get().status());
+  ASSERT_TRUE(termination->isReady());
+  EXPECT_EQ(0, termination->get()->status());
 
   driver.stop();
   driver.join();

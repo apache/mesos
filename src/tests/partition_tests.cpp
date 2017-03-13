@@ -211,7 +211,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
   Clock::advance(agentFlags.registration_backoff_factor);
   Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -227,10 +227,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID& slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -260,10 +260,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
   Clock::advance(masterFlags.agent_ping_timeout);
 
   AWAIT_READY(unreachableStatus);
-  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
-  EXPECT_EQ(task.task_id(), unreachableStatus.get().task_id());
-  EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus->reason());
+  EXPECT_EQ(task.task_id(), unreachableStatus->task_id());
+  EXPECT_EQ(slaveId, unreachableStatus->slave_id());
 
   AWAIT_READY(slaveLost);
 
@@ -407,8 +407,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
   driver.reconcileTasks({status});
 
   AWAIT_READY(reconcileUpdate);
-  EXPECT_EQ(TASK_RUNNING, reconcileUpdate.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate.get().reason());
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
 
   Clock::resume();
 
@@ -568,7 +568,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
   Clock::advance(agentFlags.registration_backoff_factor);
   Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -584,10 +584,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID& slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -626,11 +626,11 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
   // The scheduler should see TASK_LOST because it is not
   // PARTITION_AWARE.
   AWAIT_READY(lostStatus);
-  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
-  EXPECT_EQ(task.task_id(), lostStatus.get().task_id());
-  EXPECT_EQ(slaveId, lostStatus.get().slave_id());
-  EXPECT_EQ(partitionTime, lostStatus.get().unreachable_time());
+  EXPECT_EQ(TASK_LOST, lostStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus->reason());
+  EXPECT_EQ(task.task_id(), lostStatus->task_id());
+  EXPECT_EQ(slaveId, lostStatus->slave_id());
+  EXPECT_EQ(partitionTime, lostStatus->unreachable_time());
 
   AWAIT_READY(slaveLost);
 
@@ -720,9 +720,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
   driver.reconcileTasks({status});
 
   AWAIT_READY(reconcileUpdate);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate.get().reason());
-  EXPECT_FALSE(reconcileUpdate.get().has_unreachable_time());
+  EXPECT_EQ(TASK_LOST, reconcileUpdate->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
+  EXPECT_FALSE(reconcileUpdate->has_unreachable_time());
 
   Clock::resume();
 
@@ -864,7 +864,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -886,10 +886,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver1.launchTasks(offer.id(), {task1});
 
   AWAIT_READY(runningStatus1);
-  EXPECT_EQ(TASK_RUNNING, runningStatus1.get().state());
-  EXPECT_EQ(task1.task_id(), runningStatus1.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus1->state());
+  EXPECT_EQ(task1.task_id(), runningStatus1->task_id());
 
-  const SlaveID& slaveId = runningStatus1.get().slave_id();
+  const SlaveID& slaveId = runningStatus1->slave_id();
 
   AWAIT_READY(statusUpdateAck1);
 
@@ -910,7 +910,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver2.start();
 
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -929,9 +929,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver2.launchTasks(offer.id(), {task2});
 
   AWAIT_READY(runningStatus2);
-  EXPECT_EQ(TASK_RUNNING, runningStatus2.get().state());
-  EXPECT_EQ(task2.task_id(), runningStatus2.get().task_id());
-  EXPECT_EQ(slaveId, runningStatus2.get().slave_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus2->state());
+  EXPECT_EQ(task2.task_id(), runningStatus2->task_id());
+  EXPECT_EQ(slaveId, runningStatus2->slave_id());
 
   AWAIT_READY(statusUpdateAck2);
 
@@ -979,19 +979,19 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   // `sched1` should see TASK_LOST.
   AWAIT_READY(lostStatus);
-  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
-  EXPECT_EQ(task1.task_id(), lostStatus.get().task_id());
-  EXPECT_EQ(slaveId, lostStatus.get().slave_id());
-  EXPECT_EQ(partitionTime, lostStatus.get().unreachable_time());
+  EXPECT_EQ(TASK_LOST, lostStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus->reason());
+  EXPECT_EQ(task1.task_id(), lostStatus->task_id());
+  EXPECT_EQ(slaveId, lostStatus->slave_id());
+  EXPECT_EQ(partitionTime, lostStatus->unreachable_time());
 
   // `sched2` should see TASK_UNREACHABLE.
   AWAIT_READY(unreachableStatus);
-  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
-  EXPECT_EQ(task2.task_id(), unreachableStatus.get().task_id());
-  EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
-  EXPECT_EQ(partitionTime, unreachableStatus.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus->reason());
+  EXPECT_EQ(task2.task_id(), unreachableStatus->task_id());
+  EXPECT_EQ(slaveId, unreachableStatus->slave_id());
+  EXPECT_EQ(partitionTime, unreachableStatus->unreachable_time());
 
   // The master should notify both schedulers that the slave was lost.
   AWAIT_READY(slaveLost1);
@@ -1046,8 +1046,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver1.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_RUNNING, reconcileUpdate1.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate1->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
 
   TaskStatus status2;
   status2.mutable_task_id()->CopyFrom(task2.task_id());
@@ -1061,8 +1061,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver2.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_RUNNING, reconcileUpdate2.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate2->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
 
   Clock::resume();
 
@@ -1131,7 +1131,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
   Clock::advance(agentFlags.registration_backoff_factor);
   Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -1400,7 +1400,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, DisconnectedFramework)
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers1);
 
-  ASSERT_FALSE(offers1.get().empty());
+  ASSERT_FALSE(offers1->empty());
   Offer offer = offers1.get()[0];
 
   // Launch `task` using `sched1`.
@@ -1416,10 +1416,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, DisconnectedFramework)
   driver1.launchTasks(offer.id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID& slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck1);
 
@@ -1504,10 +1504,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, DisconnectedFramework)
     driver2.reconcileTasks({status});
 
     AWAIT_READY(reconcileUpdate);
-    EXPECT_EQ(TASK_LOST, reconcileUpdate.get().state());
+    EXPECT_EQ(TASK_LOST, reconcileUpdate->state());
     EXPECT_EQ(TaskStatus::REASON_RECONCILIATION,
-              reconcileUpdate.get().reason());
-    EXPECT_TRUE(reconcileUpdate.get().has_unreachable_time());
+              reconcileUpdate->reason());
+    EXPECT_TRUE(reconcileUpdate->has_unreachable_time());
 
     Clock::resume();
 
@@ -1568,7 +1568,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, SpuriousSlaveReregistration)
   Clock::advance(agentFlags.registration_backoff_factor);
   Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -1585,10 +1585,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, SpuriousSlaveReregistration)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID& slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -1619,8 +1619,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, SpuriousSlaveReregistration)
   driver.reconcileTasks({status});
 
   AWAIT_READY(reconcileUpdate);
-  EXPECT_EQ(TASK_RUNNING, reconcileUpdate.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate.get().reason());
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
 
   driver.stop();
   driver.join();
@@ -1664,7 +1664,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveStatusUpdates)
 
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage);
-  const SlaveID& slaveId = slaveRegisteredMessage.get().slave_id();
+  const SlaveID& slaveId = slaveRegisteredMessage->slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1830,7 +1830,7 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   // Launch a task. This allows us to have the slave send an
   // ExitedExecutorMessage.
@@ -1874,8 +1874,8 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 
   // The master will notify the framework of the lost task.
   AWAIT_READY(lostStatus);
-  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
+  EXPECT_EQ(TASK_LOST, lostStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus->reason());
 
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
@@ -2424,7 +2424,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
 
   Clock::advance(agentFlags1.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage1);
-  const SlaveID slaveId1 = slaveRegisteredMessage1.get().slave_id();
+  const SlaveID slaveId1 = slaveRegisteredMessage1->slave_id();
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.add_capabilities()->set_type(
@@ -2497,7 +2497,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
 
   Clock::advance(agentFlags2.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage2);
-  const SlaveID slaveId2 = slaveRegisteredMessage2.get().slave_id();
+  const SlaveID slaveId2 = slaveRegisteredMessage2->slave_id();
 
   Future<Nothing> slaveLost2;
   EXPECT_CALL(sched, slaveLost(&driver, _))
@@ -2551,9 +2551,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
-  EXPECT_EQ(partitionTime1, reconcileUpdate1.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
+  EXPECT_EQ(partitionTime1, reconcileUpdate1->unreachable_time());
 
   // Advance the clock to cause GC to be performed.
   Clock::advance(masterFlags.registry_gc_interval);
@@ -2574,9 +2574,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
-  EXPECT_FALSE(reconcileUpdate2.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
+  EXPECT_FALSE(reconcileUpdate2->has_unreachable_time());
 
   // Do explicit reconciliation for a random task ID on the second
   // partitioned slave. Because the agent is still in the unreachable
@@ -2593,9 +2593,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   driver.reconcileTasks({status3});
 
   AWAIT_READY(reconcileUpdate3);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate3.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3.get().reason());
-  EXPECT_EQ(partitionTime2, reconcileUpdate3.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate3->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3->reason());
+  EXPECT_EQ(partitionTime2, reconcileUpdate3->unreachable_time());
 
   JSON::Object stats = Metrics();
   EXPECT_EQ(2, stats.values["master/slave_unreachable_scheduled"]);
@@ -2702,9 +2702,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCountManySlaves)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
-  EXPECT_EQ(unreachableTime, reconcileUpdate1.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
+  EXPECT_EQ(unreachableTime, reconcileUpdate1->unreachable_time());
 
   TaskStatus status2;
   status2.mutable_task_id()->set_value(UUID::random().toString());
@@ -2718,9 +2718,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCountManySlaves)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
-  EXPECT_FALSE(reconcileUpdate2.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
+  EXPECT_FALSE(reconcileUpdate2->has_unreachable_time());
 
   driver.stop();
   driver.join();
@@ -2780,7 +2780,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   // Advance clock to trigger agent registration.
   Clock::advance(agentFlags1.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage1);
-  const SlaveID slaveId1 = slaveRegisteredMessage1.get().slave_id();
+  const SlaveID slaveId1 = slaveRegisteredMessage1->slave_id();
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.add_capabilities()->set_type(
@@ -2860,7 +2860,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   // Advance clock to trigger agent registration.
   Clock::advance(agentFlags2.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage2);
-  const SlaveID slaveId2 = slaveRegisteredMessage2.get().slave_id();
+  const SlaveID slaveId2 = slaveRegisteredMessage2->slave_id();
 
   Future<Nothing> slaveLost2;
   EXPECT_CALL(sched, slaveLost(&driver, _))
@@ -2915,9 +2915,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
-  EXPECT_EQ(partitionTime1, reconcileUpdate1.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
+  EXPECT_EQ(partitionTime1, reconcileUpdate1->unreachable_time());
 
   TaskStatus status2;
   status2.mutable_task_id()->set_value(UUID::random().toString());
@@ -2931,9 +2931,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate2.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
-  EXPECT_EQ(partitionTime2, reconcileUpdate2.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate2->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
+  EXPECT_EQ(partitionTime2, reconcileUpdate2->unreachable_time());
 
   // Advance the clock to cause GC to be performed.
   Clock::advance(Minutes(15));
@@ -2954,9 +2954,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status3});
 
   AWAIT_READY(reconcileUpdate3);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate3.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3.get().reason());
-  EXPECT_FALSE(reconcileUpdate3.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate3->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3->reason());
+  EXPECT_FALSE(reconcileUpdate3->has_unreachable_time());
 
   TaskStatus status4;
   status4.mutable_task_id()->set_value(UUID::random().toString());
@@ -2970,9 +2970,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status4});
 
   AWAIT_READY(reconcileUpdate4);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate4.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate4.get().reason());
-  EXPECT_EQ(partitionTime2, reconcileUpdate4.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate4->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate4->reason());
+  EXPECT_EQ(partitionTime2, reconcileUpdate4->unreachable_time());
 
   // Advance the clock to cause GC to be performed.
   Clock::advance(Minutes(15));
@@ -2993,9 +2993,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status5});
 
   AWAIT_READY(reconcileUpdate5);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate5.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate5.get().reason());
-  EXPECT_FALSE(reconcileUpdate5.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate5->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate5->reason());
+  EXPECT_FALSE(reconcileUpdate5->has_unreachable_time());
 
   driver.stop();
   driver.join();
@@ -3041,7 +3041,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   // Wait for the slave to register and get the slave id.
   Clock::advance(agentFlags1.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage1);
-  SlaveID slaveId1 = slaveRegisteredMessage1.get().slave_id();
+  SlaveID slaveId1 = slaveRegisteredMessage1->slave_id();
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.add_capabilities()->set_type(
@@ -3100,7 +3100,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   // Wait for the slave to register and get the slave id.
   Clock::advance(agentFlags2.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage2);
-  SlaveID slaveId2 = slaveRegisteredMessage2.get().slave_id();
+  SlaveID slaveId2 = slaveRegisteredMessage2->slave_id();
 
   // Induce a partition of the slave.
   size_t pings2 = 0;
@@ -3141,7 +3141,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   // Wait for the slave to register and get the slave id.
   Clock::advance(agentFlags3.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage3);
-  SlaveID slaveId3 = slaveRegisteredMessage3.get().slave_id();
+  SlaveID slaveId3 = slaveRegisteredMessage3->slave_id();
 
   // Induce a partition of the slave.
   size_t pings3 = 0;
@@ -3186,7 +3186,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   EXPECT_NE(
       nullptr,
       dynamic_cast<master::MarkSlaveReachable*>(
-          markReachable.get().get()));
+          markReachable->get()));
 
   // Trigger GC. Because GC has been configured to preserve a single
   // unreachable slave (the slave marked unreachable most recently),
@@ -3205,7 +3205,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   EXPECT_NE(
       nullptr,
       dynamic_cast<master::PruneUnreachable*>(
-          pruneUnreachable.get().get()));
+          pruneUnreachable->get()));
 
   // Apply the registry operation to mark the slave reachable, then
   // pass the result back to the master to allow it to continue. We
@@ -3247,9 +3247,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate1.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
-  EXPECT_FALSE(reconcileUpdate1.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate1->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
+  EXPECT_FALSE(reconcileUpdate1->has_unreachable_time());
 
   TaskStatus status2;
   status2.mutable_task_id()->set_value(UUID::random().toString());
@@ -3263,9 +3263,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
-  EXPECT_FALSE(reconcileUpdate2.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
+  EXPECT_FALSE(reconcileUpdate2->has_unreachable_time());
 
   TaskStatus status3;
   status3.mutable_task_id()->set_value(UUID::random().toString());
@@ -3279,9 +3279,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   driver.reconcileTasks({status3});
 
   AWAIT_READY(reconcileUpdate3);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate3.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3.get().reason());
-  EXPECT_TRUE(reconcileUpdate3.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate3->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3->reason());
+  EXPECT_TRUE(reconcileUpdate3->has_unreachable_time());
 
   driver.stop();
   driver.join();
@@ -3369,7 +3369,7 @@ TEST_F(PartitionTest, FailHealthChecksTwice)
   EXPECT_NE(
       nullptr,
       dynamic_cast<master::MarkSlaveUnreachable*>(
-          markUnreachable.get().get()));
+          markUnreachable->get()));
 
   // Cause the slave to fail another health check. This is possible
   // because we don't shutdown the SlaveObserver until we have marked
@@ -3504,7 +3504,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToScheduler)
 
   // Simulate framework disconnection. This should result in an error message.
   ASSERT_TRUE(process::inject::exited(
-      frameworkRegisteredMessage.get().to, master.get()->pid));
+      frameworkRegisteredMessage->to, master.get()->pid));
 
   AWAIT_READY(error);
 

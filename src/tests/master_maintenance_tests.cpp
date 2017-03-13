@@ -186,18 +186,18 @@ TEST_F(MasterMaintenanceTest, UpdateSchedule)
 
   // Check that the schedule was saved.
   Try<JSON::Object> masterSchedule_ =
-    JSON::parse<JSON::Object>(response.get().body);
+    JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(masterSchedule_);
   Try<mesos::maintenance::Schedule> masterSchedule =
     ::protobuf::parse<mesos::maintenance::Schedule>(masterSchedule_.get());
 
   ASSERT_SOME(masterSchedule);
-  ASSERT_EQ(1, masterSchedule.get().windows().size());
-  ASSERT_EQ(1, masterSchedule.get().windows(0).machine_ids().size());
+  ASSERT_EQ(1, masterSchedule->windows().size());
+  ASSERT_EQ(1, masterSchedule->windows(0).machine_ids().size());
   ASSERT_EQ(
       "Machine1",
-      masterSchedule.get().windows(0).machine_ids(0).hostname());
+      masterSchedule->windows(0).machine_ids(0).hostname());
 
   // Try to replace with an invalid schedule with an empty window.
   schedule = createSchedule(
@@ -515,7 +515,7 @@ TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
 
   // Wait for some normal offers.
   AWAIT_READY(normalOffers);
-  EXPECT_NE(0u, normalOffers.get().size());
+  EXPECT_NE(0u, normalOffers->size());
 
   // Check that unavailability is not set.
   foreach (const Offer& offer, normalOffers.get()) {
@@ -550,7 +550,7 @@ TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
 
   // Wait for some offers.
   AWAIT_READY(unavailabilityOffers);
-  EXPECT_NE(0u, unavailabilityOffers.get().size());
+  EXPECT_NE(0u, unavailabilityOffers->size());
 
   // Check that each offer has an unavailability.
   foreach (const Offer& offer, unavailabilityOffers.get()) {
@@ -615,7 +615,7 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
 
   // Wait till the task is running to schedule the maintenance.
   AWAIT_READY(startStatus);
-  EXPECT_EQ(TASK_RUNNING, startStatus.get().state());
+  EXPECT_EQ(TASK_RUNNING, startStatus->state());
 
   // Schedule this slave for maintenance.
   MachineID machine;
@@ -669,9 +669,9 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
   // Verify that we received a TASK_LOST.
   AWAIT_READY(lostStatus);
 
-  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_MASTER, lostStatus.get().source());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
+  EXPECT_EQ(TASK_LOST, lostStatus->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, lostStatus->source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus->reason());
 
   // Verify that the framework received the slave lost message.
   AWAIT_READY(slaveLost);
@@ -889,15 +889,15 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
 
   // Check that only one maintenance window remains.
   Try<JSON::Object> masterSchedule_ =
-    JSON::parse<JSON::Object>(response.get().body);
+    JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(masterSchedule_);
   Try<mesos::maintenance::Schedule> masterSchedule =
     ::protobuf::parse<mesos::maintenance::Schedule>(masterSchedule_.get());
 
   ASSERT_SOME(masterSchedule);
-  ASSERT_EQ(1, masterSchedule.get().windows().size());
-  ASSERT_EQ(2, masterSchedule.get().windows(0).machine_ids().size());
+  ASSERT_EQ(1, masterSchedule->windows().size());
+  ASSERT_EQ(2, masterSchedule->windows(0).machine_ids().size());
 
   // Down the other machines.
   machines = createMachineList({machine1, machine2});
@@ -928,14 +928,14 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Check that the schedule is empty.
-  masterSchedule_ = JSON::parse<JSON::Object>(response.get().body);
+  masterSchedule_ = JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(masterSchedule_);
   masterSchedule =
     ::protobuf::parse<mesos::maintenance::Schedule>(masterSchedule_.get());
 
   ASSERT_SOME(masterSchedule);
-  ASSERT_EQ(0, masterSchedule.get().windows().size());
+  ASSERT_EQ(0, masterSchedule->windows().size());
 }
 
 
@@ -969,15 +969,15 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
 
   // Check that both machines are draining.
   Try<JSON::Object> statuses_ =
-    JSON::parse<JSON::Object>(response.get().body);
+    JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(statuses_);
   Try<maintenance::ClusterStatus> statuses =
     ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
 
   ASSERT_SOME(statuses);
-  ASSERT_EQ(2, statuses.get().draining_machines().size());
-  ASSERT_EQ(0, statuses.get().down_machines().size());
+  ASSERT_EQ(2, statuses->draining_machines().size());
+  ASSERT_EQ(0, statuses->down_machines().size());
 
   // Deactivate machine1.
   JSON::Array machines = createMachineList({machine1});
@@ -999,15 +999,15 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Check one machine is deactivated.
-  statuses_ = JSON::parse<JSON::Object>(response.get().body);
+  statuses_ = JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(statuses_);
   statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
 
   ASSERT_SOME(statuses);
-  ASSERT_EQ(1, statuses.get().draining_machines().size());
-  ASSERT_EQ(1, statuses.get().down_machines().size());
-  ASSERT_EQ("Machine1", statuses.get().down_machines(0).hostname());
+  ASSERT_EQ(1, statuses->draining_machines().size());
+  ASSERT_EQ(1, statuses->down_machines().size());
+  ASSERT_EQ("Machine1", statuses->down_machines(0).hostname());
 
   // Reactivate machine1.
   machines = createMachineList({machine1});
@@ -1029,15 +1029,15 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Check that only one machine remains.
-  statuses_ = JSON::parse<JSON::Object>(response.get().body);
+  statuses_ = JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(statuses_);
   statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
 
   ASSERT_SOME(statuses);
-  ASSERT_EQ(1, statuses.get().draining_machines().size());
-  ASSERT_EQ(0, statuses.get().down_machines().size());
-  ASSERT_EQ("0.0.0.2", statuses.get().draining_machines(0).id().ip());
+  ASSERT_EQ(1, statuses->draining_machines().size());
+  ASSERT_EQ(0, statuses->down_machines().size());
+  ASSERT_EQ("0.0.0.2", statuses->draining_machines(0).id().ip());
 }
 
 
@@ -1089,18 +1089,18 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  Try<JSON::Object> statuses_ = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> statuses_ = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(statuses_);
   Try<maintenance::ClusterStatus> statuses =
     ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
 
   ASSERT_SOME(statuses);
-  ASSERT_EQ(0, statuses.get().down_machines().size());
-  ASSERT_EQ(1, statuses.get().draining_machines().size());
+  ASSERT_EQ(0, statuses->down_machines().size());
+  ASSERT_EQ(1, statuses->draining_machines().size());
   ASSERT_EQ(
       maintenanceHostname,
-      statuses.get().draining_machines(0).id().hostname());
-  ASSERT_EQ(0, statuses.get().draining_machines(0).statuses().size());
+      statuses->draining_machines(0).id().hostname());
+  ASSERT_EQ(0, statuses->draining_machines(0).statuses().size());
 
   // Now start a framework.
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
@@ -1261,25 +1261,25 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  statuses_ = JSON::parse<JSON::Object>(response.get().body);
+  statuses_ = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(statuses_);
   statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
 
   ASSERT_SOME(statuses);
-  ASSERT_EQ(0, statuses.get().down_machines().size());
-  ASSERT_EQ(1, statuses.get().draining_machines().size());
+  ASSERT_EQ(0, statuses->down_machines().size());
+  ASSERT_EQ(1, statuses->draining_machines().size());
   ASSERT_EQ(
       maintenanceHostname,
-      statuses.get().draining_machines(0).id().hostname());
+      statuses->draining_machines(0).id().hostname());
 
-  ASSERT_EQ(1, statuses.get().draining_machines(0).statuses().size());
+  ASSERT_EQ(1, statuses->draining_machines(0).statuses().size());
   ASSERT_EQ(
       mesos::allocator::InverseOfferStatus::DECLINE,
-      statuses.get().draining_machines(0).statuses(0).status());
+      statuses->draining_machines(0).statuses(0).status());
 
   ASSERT_EQ(
       id,
-      evolve(statuses.get().draining_machines(0).statuses(0).framework_id()));
+      evolve(statuses->draining_machines(0).statuses(0).framework_id()));
 
   updateInverseOffer =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::updateInverseOffer);
@@ -1325,25 +1325,25 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  statuses_ = JSON::parse<JSON::Object>(response.get().body);
+  statuses_ = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(statuses_);
   statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
 
   ASSERT_SOME(statuses);
-  ASSERT_EQ(0, statuses.get().down_machines().size());
-  ASSERT_EQ(1, statuses.get().draining_machines().size());
+  ASSERT_EQ(0, statuses->down_machines().size());
+  ASSERT_EQ(1, statuses->draining_machines().size());
   ASSERT_EQ(
       maintenanceHostname,
-      statuses.get().draining_machines(0).id().hostname());
+      statuses->draining_machines(0).id().hostname());
 
-  ASSERT_EQ(1, statuses.get().draining_machines(0).statuses().size());
+  ASSERT_EQ(1, statuses->draining_machines(0).statuses().size());
   ASSERT_EQ(
       mesos::allocator::InverseOfferStatus::ACCEPT,
-      statuses.get().draining_machines(0).statuses(0).status());
+      statuses->draining_machines(0).statuses(0).status());
 
   ASSERT_EQ(
       id,
-      evolve(statuses.get().draining_machines(0).statuses(0).framework_id()));
+      evolve(statuses->draining_machines(0).statuses(0).framework_id()));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1853,10 +1853,10 @@ TEST_F(MasterMaintenanceTest, AcceptInvalidInverseOffer)
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid = frameworkRegisteredMessage->to;
 
   FrameworkRegisteredMessage message;
-  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage.get().body));
+  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage->body));
 
   FrameworkID frameworkId = message.framework_id();
 

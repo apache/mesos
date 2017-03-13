@@ -357,7 +357,7 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
 
   Future<v1::executor::Mesos*> executorLib;
   EXPECT_CALL(*executor, connected(_))
@@ -434,7 +434,7 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
 
   Future<v1::executor::Mesos*> executorLib;
   EXPECT_CALL(*executor, connected(_))
@@ -815,7 +815,7 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
 
   Future<Message> registerExecutorMessage =
     DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
@@ -853,9 +853,9 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(contentTypeString, "Content-Type", response);
 
-  ASSERT_EQ(Response::PIPE, response.get().type);
+  ASSERT_EQ(Response::PIPE, response->type);
 
-  Option<Pipe::Reader> reader = response.get().reader;
+  Option<Pipe::Reader> reader = response->reader;
   ASSERT_SOME(reader);
 
   auto deserializer =
@@ -870,12 +870,12 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
   ASSERT_SOME(event.get());
 
   // Check event type is subscribed and if the ExecutorID matches.
-  ASSERT_EQ(Event::SUBSCRIBED, event.get().get().type());
-  ASSERT_EQ(event.get().get().subscribed().executor_info().executor_id(),
+  ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
+  ASSERT_EQ(event->get().subscribed().executor_info().executor_id(),
             call.executor_id());
-  ASSERT_TRUE(event.get().get().subscribed().has_container_id());
+  ASSERT_TRUE(event->get().subscribed().has_container_id());
 
-  reader.get().close();
+  reader->close();
 
   driver.stop();
   driver.join();

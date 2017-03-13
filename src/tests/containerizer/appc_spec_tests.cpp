@@ -84,7 +84,7 @@ TEST_F(AppcSpecTest, ValidateImageManifest)
   ASSERT_SOME(imageManifest);
 
   // Check app object.
-  ASSERT_TRUE(imageManifest.get().has_app());
+  ASSERT_TRUE(imageManifest->has_app());
   ASSERT_TRUE(imageManifest->app().has_workingdirectory());
   EXPECT_EQ(imageManifest->app().workingdirectory(), "/opt/work");
   ASSERT_EQ(1, imageManifest->app().environment_size());
@@ -221,7 +221,7 @@ TEST_F(AppcSpecTest, ValidateImageManifestWithNullExec)
   ASSERT_SOME(imageManifest);
 
   // Check app object.
-  ASSERT_TRUE(imageManifest.get().has_app());
+  ASSERT_TRUE(imageManifest->has_app());
   EXPECT_FALSE(imageManifest->app().has_workingdirectory());
   EXPECT_EQ(0, imageManifest->app().environment_size());
   EXPECT_EQ(0, imageManifest->app().exec_size());

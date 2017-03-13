@@ -149,7 +149,7 @@ TEST_F(UpgradeTest, ReregisterOldAgentWithMultiRoleMaster)
     .Times(AtMost(1));
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   master->reset();
   master = StartMaster(masterFlags);

@@ -110,7 +110,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Success)
   EXPECT_SOME(authenticator.get()->initialize(credentials));
 
   Future<Option<string>> principal =
-    authenticator.get()->authenticate(message.get().from);
+    authenticator.get()->authenticate(message->from);
 
   AWAIT_TRUE(client);
   AWAIT_READY(principal);
@@ -155,7 +155,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Failed1)
   EXPECT_SOME(authenticator.get()->initialize(credentials));
 
   Future<Option<string>> server =
-    authenticator.get()->authenticate(message.get().from);
+    authenticator.get()->authenticate(message->from);
 
   AWAIT_FALSE(client);
   AWAIT_READY(server);
@@ -200,7 +200,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Failed2)
   EXPECT_SOME(authenticator.get()->initialize(credentials));
 
   Future<Option<string>> server =
-    authenticator.get()->authenticate(message.get().from);
+    authenticator.get()->authenticate(message->from);
 
   AWAIT_FALSE(client);
   AWAIT_READY(server);
@@ -252,7 +252,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, AuthenticatorDestructionRace)
     DROP_PROTOBUF(AuthenticationStepMessage(), _, _);
 
   Future<Option<string>> principal =
-    authenticator.get()->authenticate(message.get().from);
+    authenticator.get()->authenticate(message->from);
 
   AWAIT_READY(authenticationStepMessage);
 

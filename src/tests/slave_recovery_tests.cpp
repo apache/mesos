@@ -211,10 +211,10 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 
   // Capture the framework pid.
   AWAIT_READY(subscribeMessage);
-  UPID frameworkPid = subscribeMessage.get().from;
+  UPID frameworkPid = subscribeMessage->from;
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   SlaveID slaveId = offers.get()[0].slave_id();
 
@@ -243,13 +243,13 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   AWAIT_READY(registerExecutorMessage);
 
   RegisterExecutorMessage registerExecutor;
-  registerExecutor.ParseFromString(registerExecutorMessage.get().body);
+  registerExecutor.ParseFromString(registerExecutorMessage->body);
   ExecutorID executorId = registerExecutor.executor_id();
-  UPID libprocessPid = registerExecutorMessage.get().from;
+  UPID libprocessPid = registerExecutorMessage->from;
 
   // Capture the update.
   AWAIT_READY(update);
-  EXPECT_EQ(TASK_RUNNING, update.get().update().status().state());
+  EXPECT_EQ(TASK_RUNNING, update->update().status().state());
 
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(_ack);
@@ -259,9 +259,9 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
       paths::getMetaRootDir(flags.work_dir), true);
 
   ASSERT_SOME(recover);
-  ASSERT_SOME(recover.get().slave);
+  ASSERT_SOME(recover->slave);
 
-  slave::state::SlaveState state = recover.get().slave.get();
+  slave::state::SlaveState state = recover->slave.get();
 
   // Check slave id.
   ASSERT_EQ(slaveId, state.id);
@@ -321,7 +321,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
         .updates.size());
 
   ASSERT_EQ(
-      update.get().update().uuid(),
+      update->update().uuid(),
       state
         .frameworks[frameworkId]
         .executors[executorId]
@@ -329,7 +329,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
         .tasks[task.task_id()]
         .updates.front().uuid());
 
-  const UUID uuid = UUID::fromBytes(ack.get().acknowledge().uuid()).get();
+  const UUID uuid = UUID::fromBytes(ack->acknowledge().uuid()).get();
   ASSERT_TRUE(state
                 .frameworks[frameworkId]
                 .executors[executorId]
@@ -385,7 +385,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
@@ -420,7 +420,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   ASSERT_SOME(slave);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   driver.stop();
   driver.join();
@@ -472,7 +472,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_ReconnectHTTPExecutor)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task with the HTTP based command executor.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
@@ -506,12 +506,12 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_ReconnectHTTPExecutor)
   // Ensure that the executor subscribes again.
   AWAIT_READY(subscribeCall);
 
-  EXPECT_EQ(1, subscribeCall.get().subscribe().unacknowledged_updates().size());
-  EXPECT_EQ(1, subscribeCall.get().subscribe().unacknowledged_tasks().size());
+  EXPECT_EQ(1, subscribeCall->subscribe().unacknowledged_updates().size());
+  EXPECT_EQ(1, subscribeCall->subscribe().unacknowledged_tasks().size());
 
   // Scheduler should receive the recovered update.
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   driver.stop();
   driver.join();
@@ -754,7 +754,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
@@ -796,7 +796,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 
   // Scheduler should receive the recovered update.
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   driver.stop();
   driver.join();
@@ -847,7 +847,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoverUnregisteredHTTPExecutor)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -959,7 +959,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -1072,7 +1072,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTaskUnregisteredExecutor)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -1182,7 +1182,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -1210,11 +1210,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
     slave::state::recover(slave::paths::getMetaRootDir(flags.work_dir), true);
 
   ASSERT_SOME(state);
-  ASSERT_SOME(state.get().slave);
-  ASSERT_TRUE(state.get().slave.get().frameworks.contains(frameworkId.get()));
+  ASSERT_SOME(state->slave);
+  ASSERT_TRUE(state->slave->frameworks.contains(frameworkId.get()));
 
   slave::state::FrameworkState frameworkState =
-    state.get().slave.get().frameworks.get(frameworkId.get()).get();
+    state->slave->frameworks.get(frameworkId.get()).get();
 
   ASSERT_EQ(1u, frameworkState.executors.size());
 
@@ -1323,7 +1323,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -1339,7 +1339,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   // Capture the executor pid.
   AWAIT_READY(registerExecutor);
-  UPID executorPid = registerExecutor.get().from;
+  UPID executorPid = registerExecutor->from;
 
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(ack);
@@ -1454,7 +1454,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
@@ -1498,7 +1498,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
 
   // Scheduler should receive the TASK_FAILED update.
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_FAILED, status.get().state());
+  EXPECT_EQ(TASK_FAILED, status->state());
 
   driver.stop();
   driver.join();
@@ -1546,7 +1546,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "exit 0");
 
@@ -1640,7 +1640,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task with the HTTP based command executor.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
@@ -1692,9 +1692,9 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
   // Scheduler should receive the TASK_LOST update.
   AWAIT_READY(status);
 
-  EXPECT_EQ(TASK_LOST, status.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status.get().source());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status.get().reason());
+  EXPECT_EQ(TASK_LOST, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status->source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status->reason());
 
   driver.stop();
   driver.join();
@@ -1741,7 +1741,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
@@ -1794,9 +1794,9 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   // Scheduler should receive the TASK_LOST update.
   AWAIT_READY(status);
 
-  EXPECT_EQ(TASK_LOST, status.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status.get().source());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status.get().reason());
+  EXPECT_EQ(TASK_LOST, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status->source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status->reason());
 
   driver.stop();
   driver.join();
@@ -1842,7 +1842,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch 2 tasks from this offer.
   vector<TaskInfo> tasks;
@@ -1887,14 +1887,14 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 
   // Scheduler should receive the TASK_LOST updates.
   AWAIT_READY(status1);
-  EXPECT_EQ(TASK_LOST, status1.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status1.get().source());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_DISCONNECTED, status1.get().reason());
+  EXPECT_EQ(TASK_LOST, status1->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status1->source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_DISCONNECTED, status1->reason());
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_LOST, status2.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status2.get().source());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_DISCONNECTED, status2.get().reason());
+  EXPECT_EQ(TASK_LOST, status2->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status2->source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_DISCONNECTED, status2->reason());
 
   driver.stop();
   driver.join();
@@ -1957,7 +1957,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
@@ -2052,7 +2052,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_KillTaskWithHTTPExecutor)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -2103,7 +2103,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_KillTaskWithHTTPExecutor)
 
   // Wait for TASK_KILLED update.
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_KILLED, status.get().state());
+  EXPECT_EQ(TASK_KILLED, status->state());
 
   Clock::pause();
 
@@ -2167,7 +2167,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -2224,7 +2224,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   // Wait for TASK_KILLED update.
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_KILLED, status.get().state());
+  EXPECT_EQ(TASK_KILLED, status->state());
 
   Clock::pause();
 
@@ -2286,7 +2286,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -2308,9 +2308,9 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   AWAIT_READY(registerExecutorMessage);
 
   RegisterExecutorMessage registerExecutor;
-  registerExecutor.ParseFromString(registerExecutorMessage.get().body);
+  registerExecutor.ParseFromString(registerExecutorMessage->body);
   ExecutorID executorId = registerExecutor.executor_id();
-  UPID executorPid = registerExecutorMessage.get().from;
+  UPID executorPid = registerExecutorMessage->from;
 
   // Wait for TASK_RUNNING update.
   AWAIT_READY(runningStatus);
@@ -2319,9 +2319,9 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   Future<hashset<ContainerID>> containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *containers.get().begin();
+  ContainerID containerId = *containers->begin();
 
   slave.get()->terminate();
 
@@ -2370,7 +2370,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
 
   AWAIT_READY(slaveRegistered);
 
-  SlaveID slaveId2 = slaveRegistered.get().slave_id();
+  SlaveID slaveId2 = slaveRegistered->slave_id();
 
   EXPECT_NE(slaveId1, slaveId2);
 
@@ -2433,7 +2433,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -2570,7 +2570,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   AWAIT_READY(offers1);
 
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -2586,7 +2586,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   // Capture the executor pid.
   AWAIT_READY(registerExecutor);
-  UPID executorPid = registerExecutor.get().from;
+  UPID executorPid = registerExecutor->from;
 
   AWAIT_READY(statusUpdate1); // Wait for TASK_RUNNING update.
 
@@ -2635,7 +2635,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   // Ensure that the slave registered with a new id.
   AWAIT_READY(offers3);
 
-  EXPECT_NE(0u, offers3.get().size());
+  EXPECT_NE(0u, offers3->size());
   // Make sure all slave resources are reoffered.
   EXPECT_EQ(Resources(offers1.get()[0].resources()),
             Resources(offers3.get()[0].resources()));
@@ -2688,7 +2688,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
 
   AWAIT_READY(offers);
 
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
@@ -2699,7 +2699,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -2731,9 +2731,9 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
   // The master should send a TASK_LOST and slaveLost.
   AWAIT_READY(status2);
 
-  EXPECT_EQ(TASK_LOST, status2.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status2.get().source());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status2.get().reason());
+  EXPECT_EQ(TASK_LOST, status2->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status2->source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status2->reason());
 
   AWAIT_READY(slaveLost);
 
@@ -2913,7 +2913,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -2957,7 +2957,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 
   // Scheduler should get a TASK_KILLED message.
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_KILLED, status.get().state());
+  EXPECT_EQ(TASK_KILLED, status->state());
 
   // Make sure all slave resources are reoffered.
   AWAIT_READY(offers2);
@@ -3014,7 +3014,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Capture the framework id.
   FrameworkID frameworkId = offers.get()[0].framework_id();
@@ -3160,7 +3160,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   // Start a task on the slave so that the master has knowledge of it.
   // We'll ensure the slave does not have this task when it
@@ -3194,11 +3194,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
     slave::state::recover(slave::paths::getMetaRootDir(flags.work_dir), true);
 
   ASSERT_SOME(state);
-  ASSERT_SOME(state.get().slave);
-  ASSERT_TRUE(state.get().slave.get().frameworks.contains(frameworkId.get()));
+  ASSERT_SOME(state->slave);
+  ASSERT_TRUE(state->slave->frameworks.contains(frameworkId.get()));
 
   slave::state::FrameworkState frameworkState =
-    state.get().slave.get().frameworks.get(frameworkId.get()).get();
+    state->slave->frameworks.get(frameworkId.get()).get();
 
   ASSERT_EQ(1u, frameworkState.executors.size());
 
@@ -3251,10 +3251,10 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   // Wait for TASK_DROPPED update.
   AWAIT_READY(status);
 
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_DROPPED, status.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, status.get().reason());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_DROPPED, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, status->reason());
 
   Clock::pause();
 
@@ -3325,7 +3325,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   // Create a long running task.
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
@@ -3406,7 +3406,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 
   // Wait for TASK_KILLED update.
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_KILLED, status.get().state());
+  EXPECT_EQ(TASK_KILLED, status->state());
 
   Clock::pause();
 
@@ -3477,7 +3477,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
 
   AWAIT_READY(frameworkRegisteredMessage);
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task = createTask(offers1.get()[0], "sleep 1000");
 
@@ -3557,7 +3557,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
 
   // Wait for TASK_KILLED update.
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_KILLED, status.get().state());
+  EXPECT_EQ(TASK_KILLED, status->state());
 
   // Make sure all slave resources are reoffered.
   AWAIT_READY(offers2);
@@ -3612,7 +3612,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   driver1.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   // Use part of the resources in the offer so that the rest can be
   // offered to framework 2.
@@ -3651,7 +3651,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   driver2.start();
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers2->size());
 
   // Framework 2 launches a task.
   TaskInfo task2 = createTask(offers2.get()[0], "sleep 1000");
@@ -3720,14 +3720,14 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 
   // Wait for TASK_KILLED update.
   AWAIT_READY(status1);
-  EXPECT_EQ(TASK_KILLED, status1.get().state());
+  EXPECT_EQ(TASK_KILLED, status1->state());
 
   // Kill task 2.
   driver2.killTask(task2.task_id());
 
   // Wait for TASK_KILLED update.
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_KILLED, status2.get().state());
+  EXPECT_EQ(TASK_KILLED, status2->state());
 
   AWAIT_READY(executorTerminated1);
   AWAIT_READY(executorTerminated2);
@@ -3904,10 +3904,10 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   driver.killTask(task2.task_id());
 
   AWAIT_READY(status1);
-  EXPECT_EQ(TASK_KILLED, status1.get().state());
+  EXPECT_EQ(TASK_KILLED, status1->state());
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_KILLED, status2.get().state());
+  EXPECT_EQ(TASK_KILLED, status2->state());
 
   AWAIT_READY(executorTerminated1);
   AWAIT_READY(executorTerminated2);
@@ -3955,7 +3955,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
@@ -4057,7 +4057,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
@@ -4089,16 +4089,16 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   Future<ResourceStatistics> usage = containerizer->usage(containerId);
   AWAIT_READY(usage);
 
   // Check the resource limits are set.
-  EXPECT_TRUE(usage.get().has_cpus_limit());
-  EXPECT_TRUE(usage.get().has_mem_limit_bytes());
+  EXPECT_TRUE(usage->has_cpus_limit());
+  EXPECT_TRUE(usage->has_mem_limit_bytes());
 
   Future<Option<ContainerTermination>> wait =
     containerizer->wait(containerId);
@@ -4163,7 +4163,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   SlaveID slaveId = offers1.get()[0].slave_id();
 
@@ -4180,9 +4180,9 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   // Stop the slave.
   slave.get()->terminate();
@@ -4203,7 +4203,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   ASSERT_SOME(slave);
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers2->size());
 
   // Set up to wait on the container's termination.
   Future<Option<ContainerTermination>> termination =
@@ -4268,7 +4268,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   SlaveID slaveId = offers1.get()[0].slave_id();
 
@@ -4285,9 +4285,9 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   // Stop the slave.
   slave.get()->terminate();
@@ -4309,7 +4309,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   ASSERT_SOME(slave);
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers2->size());
 
   // Set up to wait on the container's termination.
   Future<Option<ContainerTermination>> termination =

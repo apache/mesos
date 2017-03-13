@@ -219,10 +219,10 @@ Try<process::Owned<Master>> Master::start(
       master->log.reset(new mesos::log::Log(
           flags.quorum.get(),
           path::join(flags.work_dir.get(), "replicated_log"),
-          zookeeperUrl.get().servers,
+          zookeeperUrl->servers,
           flags.zk_session_timeout,
-          path::join(zookeeperUrl.get().path, "log_replicas"),
-          zookeeperUrl.get().authentication,
+          path::join(zookeeperUrl->path, "log_replicas"),
+          zookeeperUrl->authentication,
           flags.log_auto_initialize));
     } else {
       master->log.reset(new mesos::log::Log(
@@ -573,7 +573,7 @@ Slave::~Slave()
     containers = containerizer->containers();
     AWAIT_READY(containers);
 
-    ASSERT_TRUE(containers.get().empty())
+    ASSERT_TRUE(containers->empty())
       << "Failed to destroy containers: " << stringify(containers.get());
   }();
 

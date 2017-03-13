@@ -94,12 +94,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
-  EXPECT_GE(10u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
+  EXPECT_GE(10u, offers->size());
 
   Resources resources(offers.get()[0].resources());
-  EXPECT_EQ(2, resources.get<Value::Scalar>("cpus").get().value());
-  EXPECT_EQ(1024, resources.get<Value::Scalar>("mem").get().value());
+  EXPECT_EQ(2, resources.get<Value::Scalar>("cpus")->value());
+  EXPECT_EQ(1024, resources.get<Value::Scalar>("mem")->value());
 
   driver.stop();
   driver.join();
@@ -128,7 +128,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
   driver1.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   driver1.stop();
   driver1.join();
@@ -173,7 +173,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   driver1.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   vector<TaskInfo> tasks; // Use nothing!
   driver1.launchTasks(offers.get()[0].id(), tasks);
@@ -223,7 +223,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   driver1.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -251,12 +251,12 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   driver1.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_ERROR, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
-  EXPECT_TRUE(status.get().has_message());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_ERROR, status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status->reason());
+  EXPECT_TRUE(status->has_message());
   EXPECT_TRUE(strings::startsWith(
-        status.get().message(), "Task uses invalid resources"))
+        status->message(), "Task uses invalid resources"))
     << status->message();
 
   MockScheduler sched2;
@@ -316,8 +316,8 @@ TEST_F(ResourceOffersTest, Request)
   driver.requestResources(sent);
 
   AWAIT_READY(received);
-  EXPECT_EQ(sent.size(), received.get().size());
-  EXPECT_NE(0u, received.get().size());
+  EXPECT_EQ(sent.size(), received->size());
+  EXPECT_NE(0u, received->size());
   EXPECT_EQ(request.slave_id(), received.get()[0].slave_id());
 
   driver.stop();

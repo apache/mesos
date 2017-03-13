@@ -98,10 +98,10 @@ TEST_F(SchedulerDriverEventTest, Subscribed)
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid = frameworkRegisteredMessage->to;
 
   FrameworkRegisteredMessage message;
-  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage.get().body));
+  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage->body));
 
   FrameworkID frameworkId = message.framework_id();
   frameworkInfo.mutable_id()->CopyFrom(frameworkId);
@@ -149,10 +149,10 @@ TEST_F(SchedulerDriverEventTest, SubscribedDisconnection)
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid = frameworkRegisteredMessage->to;
 
   FrameworkRegisteredMessage message;
-  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage.get().body));
+  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage->body));
 
   FrameworkID frameworkId = message.framework_id();
   frameworkInfo.mutable_id()->CopyFrom(frameworkId);
@@ -218,10 +218,10 @@ TEST_F(SchedulerDriverEventTest, SubscribedMasterFailover)
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid = frameworkRegisteredMessage->to;
 
   FrameworkRegisteredMessage message;
-  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage.get().body));
+  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage->body));
 
   FrameworkID frameworkId = message.framework_id();
   frameworkInfo.mutable_id()->CopyFrom(frameworkId);
@@ -293,10 +293,10 @@ TEST_F(SchedulerDriverEventTest, SubscribedSchedulerFailover)
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid = frameworkRegisteredMessage->to;
 
   FrameworkRegisteredMessage message;
-  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage.get().body));
+  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage->body));
 
   FrameworkID frameworkId = message.framework_id();
   frameworkInfo.mutable_id()->CopyFrom(frameworkId);
@@ -326,7 +326,7 @@ TEST_F(SchedulerDriverEventTest, SubscribedSchedulerFailover)
   driver2.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid2 = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid2 = frameworkRegisteredMessage->to;
 
   Future<Nothing> registered2;
   EXPECT_CALL(sched2, registered(&driver2, frameworkId, _))
@@ -361,7 +361,7 @@ TEST_F(SchedulerDriverEventTest, Offers)
   schedDriver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid = frameworkRegisteredMessage->to;
 
   // Start a slave and capture the offers.
   Future<ResourceOffersMessage> resourceOffersMessage =
@@ -378,7 +378,7 @@ TEST_F(SchedulerDriverEventTest, Offers)
   AWAIT_READY(resourceOffersMessage);
 
   google::protobuf::RepeatedPtrField<Offer> offers =
-    resourceOffersMessage.get().offers();
+    resourceOffersMessage->offers();
 
   ASSERT_EQ(1, offers.size());
 
@@ -415,7 +415,7 @@ TEST_F(SchedulerDriverEventTest, Offers)
   schedDriver.launchTasks(offers.Get(0).id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // This message should skip the master!
   Future<FrameworkToExecutorMessage> frameworkToExecutorMessage =
@@ -460,7 +460,7 @@ TEST_F(SchedulerDriverEventTest, Rescind)
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid = frameworkRegisteredMessage->to;
 
   Event event;
   event.set_type(Event::RESCIND);
@@ -497,10 +497,10 @@ TEST_F(SchedulerDriverEventTest, Update)
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid = frameworkRegisteredMessage->to;
 
   FrameworkRegisteredMessage message;
-  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage.get().body));
+  ASSERT_TRUE(message.ParseFromString(frameworkRegisteredMessage->body));
 
   FrameworkID frameworkId = message.framework_id();
 
@@ -572,7 +572,7 @@ TEST_F(SchedulerDriverEventTest, Message)
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid = frameworkRegisteredMessage->to;
 
   Event event;
   event.set_type(Event::MESSAGE);
@@ -615,7 +615,7 @@ TEST_F(SchedulerDriverEventTest, Failure)
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid = frameworkRegisteredMessage->to;
 
   // Send a failure for an executor, which should trigger executorLost callback.
   SlaveID slaveId;
@@ -673,7 +673,7 @@ TEST_F(SchedulerDriverEventTest, Error)
   driver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  UPID frameworkPid = frameworkRegisteredMessage.get().to;
+  UPID frameworkPid = frameworkRegisteredMessage->to;
 
   Event event;
   event.set_type(Event::ERROR);

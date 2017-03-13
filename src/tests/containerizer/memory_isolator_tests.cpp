@@ -106,7 +106,7 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 120");
 
@@ -117,20 +117,20 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   Future<ResourceStatistics> usage = containerizer->usage(containerId);
   AWAIT_READY(usage);
 
   // TODO(jieyu): Consider using a program that predictably increases
   // RSS so that we can set more meaningful expectation here.
-  EXPECT_LT(0u, usage.get().mem_rss_bytes());
+  EXPECT_LT(0u, usage->mem_rss_bytes());
 
   driver.stop();
   driver.join();

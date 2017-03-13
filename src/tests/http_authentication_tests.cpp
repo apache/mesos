@@ -100,7 +100,7 @@ static Parameters createBasicAuthenticatorParameters(
     Parameter* parameter = parameters.add_parameter();
     parameter->set_key("credentials");
     parameter->set_value(
-        stringify(JSON::protobuf(credentials.get().credentials())));
+        stringify(JSON::protobuf(credentials->credentials())));
   }
 
   return parameters;

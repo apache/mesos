@@ -83,30 +83,30 @@ TEST_F(RoutingTest, PortRange)
 
   ports = ip::PortRange::fromBeginEnd(4, 7);
   ASSERT_SOME(ports);
-  EXPECT_EQ(4u, ports.get().begin());
-  EXPECT_EQ(7u, ports.get().end());
-  EXPECT_EQ(0xfffc, ports.get().mask());
+  EXPECT_EQ(4u, ports->begin());
+  EXPECT_EQ(7u, ports->end());
+  EXPECT_EQ(0xfffc, ports->mask());
   EXPECT_EQ("[4,7]", stringify(ports.get()));
 
   ports = ip::PortRange::fromBeginEnd(10, 10);
   ASSERT_SOME(ports);
-  EXPECT_EQ(10u, ports.get().begin());
-  EXPECT_EQ(10u, ports.get().end());
-  EXPECT_EQ(0xffff, ports.get().mask());
+  EXPECT_EQ(10u, ports->begin());
+  EXPECT_EQ(10u, ports->end());
+  EXPECT_EQ(0xffff, ports->mask());
   EXPECT_EQ("[10,10]", stringify(ports.get()));
 
   ports = ip::PortRange::fromBeginMask(20, 0xffff);
   ASSERT_SOME(ports);
-  EXPECT_EQ(20u, ports.get().begin());
-  EXPECT_EQ(20u, ports.get().end());
-  EXPECT_EQ(0xffff, ports.get().mask());
+  EXPECT_EQ(20u, ports->begin());
+  EXPECT_EQ(20u, ports->end());
+  EXPECT_EQ(0xffff, ports->mask());
   EXPECT_EQ("[20,20]", stringify(ports.get()));
 
   ports = ip::PortRange::fromBeginMask(1024, 0xfff8);
   ASSERT_SOME(ports);
-  EXPECT_EQ(1024u, ports.get().begin());
-  EXPECT_EQ(1031u, ports.get().end());
-  EXPECT_EQ(0xfff8, ports.get().mask());
+  EXPECT_EQ(1024u, ports->begin());
+  EXPECT_EQ(1031u, ports->end());
+  EXPECT_EQ(0xfff8, ports->mask());
   EXPECT_EQ("[1024,1031]", stringify(ports.get()));
 }
 
@@ -145,10 +145,10 @@ TEST_F(RoutingTest, LinkStatistics)
     Result<hashmap<string, uint64_t>> statistics = link::statistics(link);
 
     ASSERT_SOME(statistics);
-    EXPECT_TRUE(statistics.get().contains("rx_packets"));
-    EXPECT_TRUE(statistics.get().contains("rx_bytes"));
-    EXPECT_TRUE(statistics.get().contains("tx_packets"));
-    EXPECT_TRUE(statistics.get().contains("tx_bytes"));
+    EXPECT_TRUE(statistics->contains("rx_packets"));
+    EXPECT_TRUE(statistics->contains("rx_bytes"));
+    EXPECT_TRUE(statistics->contains("tx_packets"));
+    EXPECT_TRUE(statistics->contains("tx_bytes"));
   }
 
   EXPECT_NONE(link::statistics("not-exist"));
@@ -447,15 +447,15 @@ TEST_F(RoutingVethTest, ROOT_IngressQdisc)
   // Interfaces which exist return at least the core statisitcs.
   Result<hashmap<string, uint64_t>> stats = ingress::statistics(TEST_VETH_LINK);
   ASSERT_SOME(stats);
-  EXPECT_TRUE(stats.get().contains(statistics::PACKETS));
-  EXPECT_TRUE(stats.get().contains(statistics::BYTES));
-  EXPECT_TRUE(stats.get().contains(statistics::RATE_BPS));
-  EXPECT_TRUE(stats.get().contains(statistics::RATE_PPS));
-  EXPECT_TRUE(stats.get().contains(statistics::QLEN));
-  EXPECT_TRUE(stats.get().contains(statistics::BACKLOG));
-  EXPECT_TRUE(stats.get().contains(statistics::DROPS));
-  EXPECT_TRUE(stats.get().contains(statistics::REQUEUES));
-  EXPECT_TRUE(stats.get().contains(statistics::OVERLIMITS));
+  EXPECT_TRUE(stats->contains(statistics::PACKETS));
+  EXPECT_TRUE(stats->contains(statistics::BYTES));
+  EXPECT_TRUE(stats->contains(statistics::RATE_BPS));
+  EXPECT_TRUE(stats->contains(statistics::RATE_PPS));
+  EXPECT_TRUE(stats->contains(statistics::QLEN));
+  EXPECT_TRUE(stats->contains(statistics::BACKLOG));
+  EXPECT_TRUE(stats->contains(statistics::DROPS));
+  EXPECT_TRUE(stats->contains(statistics::REQUEUES));
+  EXPECT_TRUE(stats->contains(statistics::OVERLIMITS));
 
   // Interface without qdisc returns no data.
   EXPECT_NONE(ingress::statistics(TEST_PEER_LINK));
@@ -515,15 +515,15 @@ TEST_F(RoutingVethTest, ROOT_HTBQdisc)
   Result<hashmap<string, uint64_t>> stats =
       htb::statistics(TEST_VETH_LINK, EGRESS_ROOT);
   ASSERT_SOME(stats);
-  EXPECT_TRUE(stats.get().contains(statistics::PACKETS));
-  EXPECT_TRUE(stats.get().contains(statistics::BYTES));
-  EXPECT_TRUE(stats.get().contains(statistics::RATE_BPS));
-  EXPECT_TRUE(stats.get().contains(statistics::RATE_PPS));
-  EXPECT_TRUE(stats.get().contains(statistics::QLEN));
-  EXPECT_TRUE(stats.get().contains(statistics::BACKLOG));
-  EXPECT_TRUE(stats.get().contains(statistics::DROPS));
-  EXPECT_TRUE(stats.get().contains(statistics::REQUEUES));
-  EXPECT_TRUE(stats.get().contains(statistics::OVERLIMITS));
+  EXPECT_TRUE(stats->contains(statistics::PACKETS));
+  EXPECT_TRUE(stats->contains(statistics::BYTES));
+  EXPECT_TRUE(stats->contains(statistics::RATE_BPS));
+  EXPECT_TRUE(stats->contains(statistics::RATE_PPS));
+  EXPECT_TRUE(stats->contains(statistics::QLEN));
+  EXPECT_TRUE(stats->contains(statistics::BACKLOG));
+  EXPECT_TRUE(stats->contains(statistics::DROPS));
+  EXPECT_TRUE(stats->contains(statistics::REQUEUES));
+  EXPECT_TRUE(stats->contains(statistics::OVERLIMITS));
 
   // Interface without htb qdisc returns no data.
   EXPECT_NONE(htb::statistics(TEST_PEER_LINK, EGRESS_ROOT));
@@ -599,15 +599,15 @@ TEST_F(RoutingVethTest, ROOT_FqCodeQdisc)
   Result<hashmap<string, uint64_t>> stats =
       fq_codel::statistics(TEST_VETH_LINK, EGRESS_ROOT);
   ASSERT_SOME(stats);
-  EXPECT_TRUE(stats.get().contains(statistics::PACKETS));
-  EXPECT_TRUE(stats.get().contains(statistics::BYTES));
-  EXPECT_TRUE(stats.get().contains(statistics::RATE_BPS));
-  EXPECT_TRUE(stats.get().contains(statistics::RATE_PPS));
-  EXPECT_TRUE(stats.get().contains(statistics::QLEN));
-  EXPECT_TRUE(stats.get().contains(statistics::BACKLOG));
-  EXPECT_TRUE(stats.get().contains(statistics::DROPS));
-  EXPECT_TRUE(stats.get().contains(statistics::REQUEUES));
-  EXPECT_TRUE(stats.get().contains(statistics::OVERLIMITS));
+  EXPECT_TRUE(stats->contains(statistics::PACKETS));
+  EXPECT_TRUE(stats->contains(statistics::BYTES));
+  EXPECT_TRUE(stats->contains(statistics::RATE_BPS));
+  EXPECT_TRUE(stats->contains(statistics::RATE_PPS));
+  EXPECT_TRUE(stats->contains(statistics::QLEN));
+  EXPECT_TRUE(stats->contains(statistics::BACKLOG));
+  EXPECT_TRUE(stats->contains(statistics::DROPS));
+  EXPECT_TRUE(stats->contains(statistics::REQUEUES));
+  EXPECT_TRUE(stats->contains(statistics::OVERLIMITS));
 
   // Interface without fq_codel qdisc returns no data.
   EXPECT_NONE(fq_codel::statistics(TEST_PEER_LINK, EGRESS_ROOT));
@@ -863,8 +863,8 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterCreate)
     icmp::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
-  ASSERT_EQ(1u, classifiers.get().size());
-  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP);
+  ASSERT_EQ(1u, classifiers->size());
+  EXPECT_SOME_EQ(ip, classifiers->front().destinationIP);
 }
 
 
@@ -931,9 +931,9 @@ TEST_F(RoutingVethTest, ROOT_ICMPFilterCreateMultiple)
     icmp::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
-  ASSERT_EQ(2u, classifiers.get().size());
-  EXPECT_SOME_EQ(ip1, classifiers.get().front().destinationIP);
-  EXPECT_SOME_EQ(ip2, classifiers.get().back().destinationIP);
+  ASSERT_EQ(2u, classifiers->size());
+  EXPECT_SOME_EQ(ip1, classifiers->front().destinationIP);
+  EXPECT_SOME_EQ(ip2, classifiers->back().destinationIP);
 }
 
 
@@ -1071,17 +1071,17 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreate)
     ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
-  ASSERT_EQ(1u, classifiers.get().size());
-  EXPECT_SOME_EQ(mac.get(), classifiers.get().front().destinationMAC);
-  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP);
+  ASSERT_EQ(1u, classifiers->size());
+  EXPECT_SOME_EQ(mac.get(), classifiers->front().destinationMAC);
+  EXPECT_SOME_EQ(ip, classifiers->front().destinationIP);
 
   EXPECT_SOME_EQ(
       sourcePorts.get(),
-      classifiers.get().front().sourcePorts);
+      classifiers->front().sourcePorts);
 
   EXPECT_SOME_EQ(
       destinationPorts.get(),
-      classifiers.get().front().destinationPorts);
+      classifiers->front().destinationPorts);
 }
 
 
@@ -1112,11 +1112,11 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreate2)
     ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
-  ASSERT_EQ(1u, classifiers.get().size());
-  EXPECT_NONE(classifiers.get().front().destinationMAC);
-  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP);
-  EXPECT_NONE(classifiers.get().front().sourcePorts);
-  EXPECT_NONE(classifiers.get().front().destinationPorts);
+  ASSERT_EQ(1u, classifiers->size());
+  EXPECT_NONE(classifiers->front().destinationMAC);
+  EXPECT_SOME_EQ(ip, classifiers->front().destinationIP);
+  EXPECT_NONE(classifiers->front().sourcePorts);
+  EXPECT_NONE(classifiers->front().destinationPorts);
 }
 
 
@@ -1235,29 +1235,29 @@ TEST_F(RoutingVethTest, ROOT_IPFilterCreateMultiple)
     ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
-  ASSERT_EQ(2u, classifiers.get().size());
+  ASSERT_EQ(2u, classifiers->size());
 
-  EXPECT_SOME_EQ(mac.get(), classifiers.get().front().destinationMAC);
-  EXPECT_SOME_EQ(ip, classifiers.get().front().destinationIP);
+  EXPECT_SOME_EQ(mac.get(), classifiers->front().destinationMAC);
+  EXPECT_SOME_EQ(ip, classifiers->front().destinationIP);
 
   EXPECT_SOME_EQ(
       sourcePorts1.get(),
-      classifiers.get().front().sourcePorts);
+      classifiers->front().sourcePorts);
 
   EXPECT_SOME_EQ(
       destinationPorts1.get(),
-      classifiers.get().front().destinationPorts);
+      classifiers->front().destinationPorts);
 
-  EXPECT_SOME_EQ(mac.get(), classifiers.get().back().destinationMAC);
-  EXPECT_SOME_EQ(ip, classifiers.get().back().destinationIP);
+  EXPECT_SOME_EQ(mac.get(), classifiers->back().destinationMAC);
+  EXPECT_SOME_EQ(ip, classifiers->back().destinationIP);
 
   EXPECT_SOME_EQ(
       sourcePorts2.get(),
-      classifiers.get().back().sourcePorts);
+      classifiers->back().sourcePorts);
 
   EXPECT_SOME_EQ(
       destinationPorts2.get(),
-      classifiers.get().back().destinationPorts);
+      classifiers->back().destinationPorts);
 }
 
 
@@ -1333,7 +1333,7 @@ TEST_F(RoutingVethTest, ROOT_IPFilterRemove)
     ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
-  EXPECT_EQ(0u, classifiers.get().size());
+  EXPECT_EQ(0u, classifiers->size());
 }
 
 

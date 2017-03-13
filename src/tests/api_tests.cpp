@@ -171,12 +171,12 @@ TEST_P(MasterAPITest, GetAgents)
     post(master.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response.get().type());
-  ASSERT_EQ(v1Response.get().get_agents().agents_size(), 1);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
+  ASSERT_EQ(v1Response->get_agents().agents_size(), 1);
 
   const v1::master::Response::GetAgents::Agent& v1Agent =
-      v1Response.get().get_agents().agents(0);
+      v1Response->get_agents().agents(0);
 
   ASSERT_EQ("host", v1Agent.agent_info().hostname());
   ASSERT_EQ(agent.get()->pid, v1Agent.pid());
@@ -200,8 +200,8 @@ TEST_P(MasterAPITest, GetFlags)
     post(master.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::master::Response::GET_FLAGS, v1Response.get().type());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_FLAGS, v1Response->type());
 }
 
 
@@ -233,11 +233,11 @@ TEST_P(MasterAPITest, GetFrameworks)
       post(master.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::master::Response::GET_FRAMEWORKS, v1Response.get().type());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_FRAMEWORKS, v1Response->type());
 
   v1::master::Response::GetFrameworks frameworks =
-      v1Response.get().get_frameworks();
+      v1Response->get_frameworks();
 
   ASSERT_EQ(1, frameworks.frameworks_size());
   ASSERT_EQ("default", frameworks.frameworks(0).framework_info().name());
@@ -266,9 +266,9 @@ TEST_P(MasterAPITest, GetHealth)
     post(master.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::master::Response::GET_HEALTH, v1Response.get().type());
-  ASSERT_TRUE(v1Response.get().get_health().healthy());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_HEALTH, v1Response->type());
+  ASSERT_TRUE(v1Response->get_health().healthy());
 }
 
 
@@ -286,11 +286,11 @@ TEST_P(MasterAPITest, GetVersion)
     post(master.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::master::Response::GET_VERSION, v1Response.get().type());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_VERSION, v1Response->type());
 
   ASSERT_EQ(MESOS_VERSION,
-            v1Response.get().get_version().version_info().version());
+            v1Response->get_version().version_info().version());
 }
 
 
@@ -312,13 +312,13 @@ TEST_P(MasterAPITest, GetMetrics)
     post(master.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::master::Response::GET_METRICS, v1Response.get().type());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_METRICS, v1Response->type());
 
   hashmap<string, double> metrics;
 
   foreach (const v1::Metric& metric,
-           v1Response.get().get_metrics().metrics()) {
+           v1Response->get_metrics().metrics()) {
     ASSERT_TRUE(metric.has_value());
     metrics[metric.name()] = metric.value();
   }
@@ -346,7 +346,7 @@ TEST_P(MasterAPITest, GetExecutors)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -362,7 +362,7 @@ TEST_P(MasterAPITest, GetExecutors)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test");
@@ -383,9 +383,9 @@ TEST_P(MasterAPITest, GetExecutors)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
-  EXPECT_TRUE(status.get().has_executor_id());
-  EXPECT_EQ(exec.id, status.get().executor_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
+  EXPECT_TRUE(status->has_executor_id());
+  EXPECT_EQ(exec.id, status->executor_id());
 
   v1::master::Call v1Call;
   v1Call.set_type(v1::master::Call::GET_EXECUTORS);
@@ -396,15 +396,15 @@ TEST_P(MasterAPITest, GetExecutors)
     post(master.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::master::Response::GET_EXECUTORS, v1Response.get().type());
-  ASSERT_EQ(1, v1Response.get().get_executors().executors_size());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_EXECUTORS, v1Response->type());
+  ASSERT_EQ(1, v1Response->get_executors().executors_size());
 
   ASSERT_EQ(evolve(slaveId),
-            v1Response.get().get_executors().executors(0).agent_id());
+            v1Response->get_executors().executors(0).agent_id());
 
   v1::ExecutorInfo executorInfo =
-    v1Response.get().get_executors().executors(0).executor_info();
+    v1Response->get_executors().executors(0).executor_info();
 
   ASSERT_EQ(evolve(exec.id), executorInfo.executor_id());
 
@@ -449,7 +449,7 @@ TEST_P(MasterAPITest, GetState)
 
   driver.start();
 
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   ContentType contentType = GetParam();
 
@@ -494,7 +494,7 @@ TEST_P(MasterAPITest, GetState)
   AWAIT_READY(execDriver);
   AWAIT_READY(status);
 
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   AWAIT_READY(acknowledgement);
 
@@ -529,7 +529,7 @@ TEST_P(MasterAPITest, GetState)
   execDriver.get()->sendStatusUpdate(status3);
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_FINISHED, status2.get().state());
+  EXPECT_EQ(TASK_FINISHED, status2->state());
 
   AWAIT_READY(acknowledgement);
 
@@ -569,13 +569,13 @@ TEST_P(MasterAPITest, GetTasksNoRunningTask)
     post(master.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response.get().type());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response->type());
 
-  ASSERT_EQ(0, v1Response.get().get_tasks().pending_tasks().size());
-  ASSERT_EQ(0, v1Response.get().get_tasks().tasks().size());
-  ASSERT_EQ(0, v1Response.get().get_tasks().completed_tasks().size());
-  ASSERT_EQ(0, v1Response.get().get_tasks().orphan_tasks().size());
+  ASSERT_EQ(0, v1Response->get_tasks().pending_tasks().size());
+  ASSERT_EQ(0, v1Response->get_tasks().tasks().size());
+  ASSERT_EQ(0, v1Response->get_tasks().completed_tasks().size());
+  ASSERT_EQ(0, v1Response->get_tasks().orphan_tasks().size());
 }
 
 
@@ -607,7 +607,7 @@ TEST_P(MasterAPITest, GetTasks)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test");
@@ -638,9 +638,9 @@ TEST_P(MasterAPITest, GetTasks)
   AWAIT_READY(execDriver);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
-  EXPECT_TRUE(status.get().has_executor_id());
-  EXPECT_EQ(exec.id, status.get().executor_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
+  EXPECT_TRUE(status->has_executor_id());
+  EXPECT_EQ(exec.id, status->executor_id());
 
   AWAIT_READY(acknowledgement);
 
@@ -654,13 +654,13 @@ TEST_P(MasterAPITest, GetTasks)
       post(master.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response.get().type());
-    ASSERT_EQ(1, v1Response.get().get_tasks().tasks().size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response->type());
+    ASSERT_EQ(1, v1Response->get_tasks().tasks().size());
     ASSERT_EQ(v1::TaskState::TASK_RUNNING,
-              v1Response.get().get_tasks().tasks(0).state());
-    ASSERT_EQ("test", v1Response.get().get_tasks().tasks(0).name());
-    ASSERT_EQ("1", v1Response.get().get_tasks().tasks(0).task_id().value());
+              v1Response->get_tasks().tasks(0).state());
+    ASSERT_EQ("test", v1Response->get_tasks().tasks(0).name());
+    ASSERT_EQ("1", v1Response->get_tasks().tasks(0).task_id().value());
   }
 
   acknowledgement = FUTURE_PROTOBUF(
@@ -680,7 +680,7 @@ TEST_P(MasterAPITest, GetTasks)
   execDriver.get()->sendStatusUpdate(status3);
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_FINISHED, status2.get().state());
+  EXPECT_EQ(TASK_FINISHED, status2->state());
 
   AWAIT_READY(acknowledgement);
 
@@ -689,16 +689,16 @@ TEST_P(MasterAPITest, GetTasks)
       post(master.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response.get().type());
-    ASSERT_EQ(0, v1Response.get().get_tasks().tasks().size());
-    ASSERT_EQ(1, v1Response.get().get_tasks().completed_tasks().size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_TASKS, v1Response->type());
+    ASSERT_EQ(0, v1Response->get_tasks().tasks().size());
+    ASSERT_EQ(1, v1Response->get_tasks().completed_tasks().size());
     ASSERT_EQ(v1::TaskState::TASK_FINISHED,
-              v1Response.get().get_tasks().completed_tasks(0).state());
-    ASSERT_EQ("test", v1Response.get().get_tasks().completed_tasks(0).name());
+              v1Response->get_tasks().completed_tasks(0).state());
+    ASSERT_EQ("test", v1Response->get_tasks().completed_tasks(0).name());
     ASSERT_EQ(
         "1",
-        v1Response.get().get_tasks().completed_tasks(0).task_id().value());
+        v1Response->get_tasks().completed_tasks(0).task_id().value());
   }
 
   EXPECT_CALL(exec, shutdown(_))
@@ -723,11 +723,11 @@ TEST_P(MasterAPITest, GetLoggingLevel)
     post(master.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::master::Response::GET_LOGGING_LEVEL, v1Response.get().type());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_LOGGING_LEVEL, v1Response->type());
   ASSERT_LE(0, FLAGS_v);
   ASSERT_EQ(
-      v1Response.get().get_logging_level().level(),
+      v1Response->get_logging_level().level(),
       static_cast<uint32_t>(FLAGS_v));
 }
 
@@ -814,10 +814,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, ListFiles)
     post(master.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::master::Response::LIST_FILES, v1Response.get().type());
-  ASSERT_EQ(3, v1Response.get().list_files().file_infos().size());
-  ASSERT_EQ(evolve(file), v1Response.get().list_files().file_infos(2));
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::LIST_FILES, v1Response->type());
+  ASSERT_EQ(3, v1Response->list_files().file_infos().size());
+  ASSERT_EQ(evolve(file), v1Response->list_files().file_infos(2));
 }
 
 
@@ -1182,14 +1182,14 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
     post(master.get()->pid, v1GetScheduleCall, contentType);
 
   AWAIT_READY(v1GetScheduleResponse);
-  ASSERT_TRUE(v1GetScheduleResponse.get().IsInitialized());
+  ASSERT_TRUE(v1GetScheduleResponse->IsInitialized());
   ASSERT_EQ(
       v1::master::Response::GET_MAINTENANCE_SCHEDULE,
-      v1GetScheduleResponse.get().type());
+      v1GetScheduleResponse->type());
 
   // Verify maintenance schedule matches the expectation.
   v1::maintenance::Schedule respSchedule =
-    v1GetScheduleResponse.get().get_maintenance_schedule().schedule();
+    v1GetScheduleResponse->get_maintenance_schedule().schedule();
   ASSERT_EQ(1, respSchedule.windows().size());
   ASSERT_EQ(2, respSchedule.windows(0).machine_ids().size());
   ASSERT_EQ("Machine1", respSchedule.windows(0).machine_ids(0).hostname());
@@ -1248,14 +1248,14 @@ TEST_P(MasterAPITest, GetMaintenanceStatus)
     post(master.get()->pid, v1GetStatusCall, contentType);
 
   AWAIT_READY(v1GetStatusResponse);
-  ASSERT_TRUE(v1GetStatusResponse.get().IsInitialized());
+  ASSERT_TRUE(v1GetStatusResponse->IsInitialized());
   ASSERT_EQ(
       v1::master::Response::GET_MAINTENANCE_STATUS,
-      v1GetStatusResponse.get().type());
+      v1GetStatusResponse->type());
 
   // Verify maintenance status matches the expectation.
   v1::maintenance::ClusterStatus status =
-    v1GetStatusResponse.get().get_maintenance_status().status();
+    v1GetStatusResponse->get_maintenance_status().status();
   ASSERT_EQ(2, status.draining_machines().size());
   ASSERT_EQ(0, status.down_machines().size());
 }
@@ -1364,14 +1364,14 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
     post(master.get()->pid, v1GetScheduleCall, contentType);
 
   AWAIT_READY(v1GetScheduleResponse);
-  ASSERT_TRUE(v1GetScheduleResponse.get().IsInitialized());
+  ASSERT_TRUE(v1GetScheduleResponse->IsInitialized());
   ASSERT_EQ(
       v1::master::Response::GET_MAINTENANCE_SCHEDULE,
-      v1GetScheduleResponse.get().type());
+      v1GetScheduleResponse->type());
 
   // Check that only one maintenance window remains.
   v1::maintenance::Schedule respSchedule =
-    v1GetScheduleResponse.get().get_maintenance_schedule().schedule();
+    v1GetScheduleResponse->get_maintenance_schedule().schedule();
   ASSERT_EQ(1, respSchedule.windows().size());
   ASSERT_EQ(2, respSchedule.windows(0).machine_ids().size());
   ASSERT_EQ("Machine1", respSchedule.windows(0).machine_ids(0).hostname());
@@ -1404,7 +1404,7 @@ TEST_P(MasterAPITest, SubscribeAgentEvents)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
-  ASSERT_EQ(http::Response::PIPE, response.get().type);
+  ASSERT_EQ(http::Response::PIPE, response->type);
   ASSERT_SOME(response->reader);
 
   http::Pipe::Reader reader = response->reader.get();
@@ -1418,9 +1418,9 @@ TEST_P(MasterAPITest, SubscribeAgentEvents)
   Future<Result<v1::master::Event>> event = decoder.read();
   AWAIT_READY(event);
 
-  EXPECT_EQ(v1::master::Event::SUBSCRIBED, event.get().get().type());
+  EXPECT_EQ(v1::master::Event::SUBSCRIBED, event->get().type());
   const v1::master::Response::GetState& getState =
-      event.get().get().subscribed().get_state();
+      event->get().subscribed().get_state();
 
   EXPECT_EQ(0u, getState.get_frameworks().frameworks_size());
   EXPECT_EQ(0u, getState.get_agents().agents_size());
@@ -1443,13 +1443,13 @@ TEST_P(MasterAPITest, SubscribeAgentEvents)
   event = decoder.read();
   AWAIT_READY(event);
 
-  SlaveID agentID = agentRegisteredMessage.get().slave_id();
+  SlaveID agentID = agentRegisteredMessage->slave_id();
 
   {
-    ASSERT_EQ(v1::master::Event::AGENT_ADDED, event.get().get().type());
+    ASSERT_EQ(v1::master::Event::AGENT_ADDED, event->get().type());
 
     const v1::master::Response::GetAgents::Agent& agent =
-      event.get().get().agent_added().agent();
+      event->get().agent_added().agent();
 
     ASSERT_EQ("host", agent.agent_info().hostname());
     ASSERT_EQ(evolve(agentID), agent.agent_info().id());
@@ -1466,8 +1466,8 @@ TEST_P(MasterAPITest, SubscribeAgentEvents)
   AWAIT_READY(event);
 
   {
-    ASSERT_EQ(v1::master::Event::AGENT_REMOVED, event.get().get().type());
-    ASSERT_EQ(evolve(agentID), event.get().get().agent_removed().agent_id());
+    ASSERT_EQ(v1::master::Event::AGENT_REMOVED, event->get().type());
+    ASSERT_EQ(evolve(agentID), event->get().agent_removed().agent_id());
   }
 }
 
@@ -1494,7 +1494,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  v1::AgentID agentId = evolve(slaveRegisteredMessage.get().slave_id());
+  v1::AgentID agentId = evolve(slaveRegisteredMessage->slave_id());
 
   // Ensure that the agent is present in `GetAgent.agents` while
   // `GetAgents.recovered_agents` is empty.
@@ -1508,12 +1508,12 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
       post(master.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response.get().type());
-    ASSERT_EQ(1, v1Response.get().get_agents().agents_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
+    ASSERT_EQ(1, v1Response->get_agents().agents_size());
     ASSERT_EQ(agentId,
-              v1Response.get().get_agents().agents(0).agent_info().id());
-    ASSERT_EQ(0, v1Response.get().get_agents().recovered_agents_size());
+              v1Response->get_agents().agents(0).agent_info().id());
+    ASSERT_EQ(0, v1Response->get_agents().recovered_agents_size());
   }
 
   // Stop the slave while the master is down.
@@ -1537,11 +1537,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
       post(master.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response.get().type());
-    ASSERT_EQ(0u, v1Response.get().get_agents().agents_size());
-    ASSERT_EQ(1u, v1Response.get().get_agents().recovered_agents_size());
-    ASSERT_EQ(agentId, v1Response.get().get_agents().recovered_agents(0).id());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
+    ASSERT_EQ(0u, v1Response->get_agents().agents_size());
+    ASSERT_EQ(1u, v1Response->get_agents().recovered_agents_size());
+    ASSERT_EQ(agentId, v1Response->get_agents().recovered_agents(0).id());
   }
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
@@ -1566,10 +1566,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
       post(master.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response.get().type());
-    ASSERT_EQ(1u, v1Response.get().get_agents().agents_size());
-    ASSERT_EQ(0u, v1Response.get().get_agents().recovered_agents_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
+    ASSERT_EQ(1u, v1Response->get_agents().agents_size());
+    ASSERT_EQ(0u, v1Response->get_agents().recovered_agents_size());
   }
 }
 
@@ -1653,7 +1653,7 @@ TEST_P(MasterAPITest, Subscribe)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
-  ASSERT_EQ(http::Response::PIPE, response.get().type);
+  ASSERT_EQ(http::Response::PIPE, response->type);
   ASSERT_SOME(response->reader);
 
   http::Pipe::Reader reader = response->reader.get();
@@ -1667,9 +1667,9 @@ TEST_P(MasterAPITest, Subscribe)
   Future<Result<v1::master::Event>> event = decoder.read();
   AWAIT_READY(event);
 
-  EXPECT_EQ(v1::master::Event::SUBSCRIBED, event.get().get().type());
+  EXPECT_EQ(v1::master::Event::SUBSCRIBED, event->get().type());
   const v1::master::Response::GetState& getState =
-      event.get().get().subscribed().get_state();
+      event->get().subscribed().get_state();
 
   EXPECT_EQ(1u, getState.get_frameworks().frameworks_size());
   EXPECT_EQ(1u, getState.get_agents().agents_size());
@@ -1718,21 +1718,21 @@ TEST_P(MasterAPITest, Subscribe)
   AWAIT_READY(event);
   AWAIT_READY(update);
 
-  ASSERT_EQ(v1::master::Event::TASK_ADDED, event.get().get().type());
+  ASSERT_EQ(v1::master::Event::TASK_ADDED, event->get().type());
   ASSERT_EQ(evolve(task.task_id()),
-            event.get().get().task_added().task().task_id());
+            event->get().task_added().task().task_id());
 
   event = decoder.read();
 
   AWAIT_READY(event);
 
-  ASSERT_EQ(v1::master::Event::TASK_UPDATED, event.get().get().type());
+  ASSERT_EQ(v1::master::Event::TASK_UPDATED, event->get().type());
   ASSERT_EQ(v1::TASK_RUNNING,
-            event.get().get().task_updated().state());
+            event->get().task_updated().state());
   ASSERT_EQ(v1::TASK_RUNNING,
-            event.get().get().task_updated().status().state());
+            event->get().task_updated().status().state());
   ASSERT_EQ(evolve(task.task_id()),
-            event.get().get().task_updated().status().task_id());
+            event->get().task_updated().status().task_id());
 
   event = decoder.read();
 
@@ -1969,7 +1969,7 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
   // Create the persistent volume.
   v1::master::Call v1CreateVolumesCall;
@@ -2027,7 +2027,7 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -2055,7 +2055,7 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
   driver.acceptOffers({offer.id()}, {LAUNCH({taskInfo})});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_FINISHED, status.get().state());
+  EXPECT_EQ(TASK_FINISHED, status->state());
 
   // Destroy the persistent volume.
   v1::master::Call v1DestroyVolumesCall;
@@ -2200,11 +2200,11 @@ TEST_P(MasterAPITest, ReadFile)
 
     AWAIT_READY(v1Response);
 
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::master::Response::READ_FILE, v1Response.get().type());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
-    ASSERT_EQ("od", v1Response.get().read_file().data());
-    ASSERT_EQ(4, v1Response.get().read_file().size());
+    ASSERT_EQ("od", v1Response->read_file().data());
+    ASSERT_EQ(4, v1Response->read_file().size());
   }
 
   // Read the file with `offset >= size`. This should return the size of file
@@ -2223,11 +2223,11 @@ TEST_P(MasterAPITest, ReadFile)
 
     AWAIT_READY(v1Response);
 
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::master::Response::READ_FILE, v1Response.get().type());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
-    ASSERT_EQ("", v1Response.get().read_file().data());
-    ASSERT_EQ(4, v1Response.get().read_file().size());
+    ASSERT_EQ("", v1Response->read_file().data());
+    ASSERT_EQ(4, v1Response->read_file().size());
   }
 
   // Read the file without length being set and `offset=0`. This should read
@@ -2245,11 +2245,11 @@ TEST_P(MasterAPITest, ReadFile)
 
     AWAIT_READY(v1Response);
 
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::master::Response::READ_FILE, v1Response.get().type());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
-    ASSERT_EQ("body", v1Response.get().read_file().data());
-    ASSERT_EQ(4, v1Response.get().read_file().size());
+    ASSERT_EQ("body", v1Response->read_file().data());
+    ASSERT_EQ(4, v1Response->read_file().size());
   }
 
   // Read the file with `length > size - offset`. This should return the
@@ -2268,11 +2268,11 @@ TEST_P(MasterAPITest, ReadFile)
 
     AWAIT_READY(v1Response);
 
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::master::Response::READ_FILE, v1Response.get().type());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
-    ASSERT_EQ("ody", v1Response.get().read_file().data());
-    ASSERT_EQ(4, v1Response.get().read_file().size());
+    ASSERT_EQ("ody", v1Response->read_file().data());
+    ASSERT_EQ(4, v1Response->read_file().size());
   }
 }
 
@@ -2411,8 +2411,8 @@ TEST_P(AgentAPITest, GetFlags)
     post(slave.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::agent::Response::GET_FLAGS, v1Response.get().type());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_FLAGS, v1Response->type());
 }
 
 
@@ -2439,9 +2439,9 @@ TEST_P(AgentAPITest, GetHealth)
     post(slave.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::agent::Response::GET_HEALTH, v1Response.get().type());
-  ASSERT_TRUE(v1Response.get().get_health().healthy());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_HEALTH, v1Response->type());
+  ASSERT_TRUE(v1Response->get_health().healthy());
 }
 
 
@@ -2468,11 +2468,11 @@ TEST_P(AgentAPITest, GetVersion)
     post(slave.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::agent::Response::GET_VERSION, v1Response.get().type());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_VERSION, v1Response->type());
 
   ASSERT_EQ(MESOS_VERSION,
-            v1Response.get().get_version().version_info().version());
+            v1Response->get_version().version_info().version());
 }
 
 
@@ -2503,13 +2503,13 @@ TEST_P(AgentAPITest, GetMetrics)
     post(slave.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::agent::Response::GET_METRICS, v1Response.get().type());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_METRICS, v1Response->type());
 
   hashmap<string, double> metrics;
 
   foreach (const v1::Metric& metric,
-           v1Response.get().get_metrics().metrics()) {
+           v1Response->get_metrics().metrics()) {
     ASSERT_TRUE(metric.has_value());
     metrics[metric.name()] = metric.value();
   }
@@ -2542,11 +2542,11 @@ TEST_P(AgentAPITest, GetLoggingLevel)
     post(slave.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::agent::Response::GET_LOGGING_LEVEL, v1Response.get().type());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_LOGGING_LEVEL, v1Response->type());
   ASSERT_LE(0, FLAGS_v);
   ASSERT_EQ(
-      v1Response.get().get_logging_level().level(),
+      v1Response->get_logging_level().level(),
       static_cast<uint32_t>(FLAGS_v));
 }
 
@@ -2651,10 +2651,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, ListFiles)
     post(slave.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::agent::Response::LIST_FILES, v1Response.get().type());
-  ASSERT_EQ(3, v1Response.get().list_files().file_infos().size());
-  ASSERT_EQ(evolve(file), v1Response.get().list_files().file_infos(2));
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::LIST_FILES, v1Response->type());
+  ASSERT_EQ(3, v1Response->list_files().file_infos().size());
+  ASSERT_EQ(evolve(file), v1Response->list_files().file_infos(2));
 }
 
 
@@ -2718,7 +2718,7 @@ TEST_P(AgentAPITest, GetContainers)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2746,15 +2746,15 @@ TEST_P(AgentAPITest, GetContainers)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_CONTAINERS, v1Response.get().type());
-    ASSERT_EQ(0, v1Response.get().get_containers().containers_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_CONTAINERS, v1Response->type());
+    ASSERT_EQ(0, v1Response->get_containers().containers_size());
   }
 
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   ResourceStatistics statistics;
   statistics.set_mem_limit_bytes(2048);
@@ -2781,11 +2781,11 @@ TEST_P(AgentAPITest, GetContainers)
     post(slave.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::agent::Response::GET_CONTAINERS, v1Response.get().type());
-  ASSERT_EQ(1, v1Response.get().get_containers().containers_size());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_CONTAINERS, v1Response->type());
+  ASSERT_EQ(1, v1Response->get_containers().containers_size());
   ASSERT_EQ("192.168.1.20",
-            v1Response.get().get_containers().containers(0).container_status()
+            v1Response->get_containers().containers(0).container_status()
               .network_infos(0).ip_addresses(0).ip_address());
 
   EXPECT_CALL(exec, shutdown(_))
@@ -2833,11 +2833,11 @@ TEST_P(AgentAPITest, ReadFile)
 
     AWAIT_READY(v1Response);
 
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response.get().type());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
-    ASSERT_EQ("od", v1Response.get().read_file().data());
-    ASSERT_EQ(4, v1Response.get().read_file().size());
+    ASSERT_EQ("od", v1Response->read_file().data());
+    ASSERT_EQ(4, v1Response->read_file().size());
   }
 
   // Read the file with `offset >= size`. This should return the size of file
@@ -2856,11 +2856,11 @@ TEST_P(AgentAPITest, ReadFile)
 
     AWAIT_READY(v1Response);
 
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response.get().type());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
-    ASSERT_EQ("", v1Response.get().read_file().data());
-    ASSERT_EQ(4, v1Response.get().read_file().size());
+    ASSERT_EQ("", v1Response->read_file().data());
+    ASSERT_EQ(4, v1Response->read_file().size());
   }
 
   // Read the file without length being set and `offset=0`. This should read
@@ -2878,11 +2878,11 @@ TEST_P(AgentAPITest, ReadFile)
 
     AWAIT_READY(v1Response);
 
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response.get().type());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
-    ASSERT_EQ("body", v1Response.get().read_file().data());
-    ASSERT_EQ(4, v1Response.get().read_file().size());
+    ASSERT_EQ("body", v1Response->read_file().data());
+    ASSERT_EQ(4, v1Response->read_file().size());
   }
 
   // Read the file with `length > size - offset`. This should return the
@@ -2901,11 +2901,11 @@ TEST_P(AgentAPITest, ReadFile)
 
     AWAIT_READY(v1Response);
 
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response.get().type());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
-    ASSERT_EQ("ody", v1Response.get().read_file().data());
-    ASSERT_EQ(4, v1Response.get().read_file().size());
+    ASSERT_EQ("ody", v1Response->read_file().data());
+    ASSERT_EQ(4, v1Response->read_file().size());
   }
 }
 
@@ -2970,7 +2970,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetFrameworks)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
   const Offer& offer = offers.get()[0];
 
   TaskInfo task;
@@ -2998,10 +2998,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetFrameworks)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_FRAMEWORKS, v1Response.get().type());
-    ASSERT_EQ(0, v1Response.get().get_frameworks().frameworks_size());
-    ASSERT_EQ(0, v1Response.get().get_frameworks().completed_frameworks_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_FRAMEWORKS, v1Response->type());
+    ASSERT_EQ(0, v1Response->get_frameworks().frameworks_size());
+    ASSERT_EQ(0, v1Response->get_frameworks().completed_frameworks_size());
   }
 
   driver.launchTasks(offer.id(), {task});
@@ -3018,10 +3018,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetFrameworks)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_FRAMEWORKS, v1Response.get().type());
-    ASSERT_EQ(1, v1Response.get().get_frameworks().frameworks_size());
-    ASSERT_EQ(0, v1Response.get().get_frameworks().completed_frameworks_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_FRAMEWORKS, v1Response->type());
+    ASSERT_EQ(1, v1Response->get_frameworks().frameworks_size());
+    ASSERT_EQ(0, v1Response->get_frameworks().completed_frameworks_size());
   }
 
   // Make sure the executor terminated.
@@ -3043,10 +3043,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetFrameworks)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_FRAMEWORKS, v1Response.get().type());
-    ASSERT_EQ(0, v1Response.get().get_frameworks().frameworks_size());
-    ASSERT_EQ(1, v1Response.get().get_frameworks().completed_frameworks_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_FRAMEWORKS, v1Response->type());
+    ASSERT_EQ(0, v1Response->get_frameworks().frameworks_size());
+    ASSERT_EQ(1, v1Response->get_frameworks().completed_frameworks_size());
   }
 }
 
@@ -3073,7 +3073,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetExecutors)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
   const Offer& offer = offers.get()[0];
 
   TaskInfo task;
@@ -3101,10 +3101,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetExecutors)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_EXECUTORS, v1Response.get().type());
-    ASSERT_EQ(0, v1Response.get().get_executors().executors_size());
-    ASSERT_EQ(0, v1Response.get().get_executors().completed_executors_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_EXECUTORS, v1Response->type());
+    ASSERT_EQ(0, v1Response->get_executors().executors_size());
+    ASSERT_EQ(0, v1Response->get_executors().completed_executors_size());
   }
 
   driver.launchTasks(offer.id(), {task});
@@ -3121,10 +3121,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetExecutors)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_EXECUTORS, v1Response.get().type());
-    ASSERT_EQ(1, v1Response.get().get_executors().executors_size());
-    ASSERT_EQ(0, v1Response.get().get_executors().completed_executors_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_EXECUTORS, v1Response->type());
+    ASSERT_EQ(1, v1Response->get_executors().executors_size());
+    ASSERT_EQ(0, v1Response->get_executors().completed_executors_size());
   }
 
   // Make sure the executor terminated.
@@ -3150,10 +3150,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetExecutors)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_EXECUTORS, v1Response.get().type());
-    ASSERT_EQ(0, v1Response.get().get_executors().executors_size());
-    ASSERT_EQ(1, v1Response.get().get_executors().completed_executors_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_EXECUTORS, v1Response->type());
+    ASSERT_EQ(0, v1Response->get_executors().executors_size());
+    ASSERT_EQ(1, v1Response->get_executors().completed_executors_size());
   }
 }
 
@@ -3180,7 +3180,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetTasks)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
   const Offer& offer = offers.get()[0];
 
   TaskInfo task;
@@ -3208,13 +3208,13 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetTasks)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_TASKS, v1Response.get().type());
-    ASSERT_EQ(0, v1Response.get().get_tasks().pending_tasks_size());
-    ASSERT_EQ(0, v1Response.get().get_tasks().queued_tasks_size());
-    ASSERT_EQ(0, v1Response.get().get_tasks().launched_tasks_size());
-    ASSERT_EQ(0, v1Response.get().get_tasks().terminated_tasks_size());
-    ASSERT_EQ(0, v1Response.get().get_tasks().completed_tasks_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_TASKS, v1Response->type());
+    ASSERT_EQ(0, v1Response->get_tasks().pending_tasks_size());
+    ASSERT_EQ(0, v1Response->get_tasks().queued_tasks_size());
+    ASSERT_EQ(0, v1Response->get_tasks().launched_tasks_size());
+    ASSERT_EQ(0, v1Response->get_tasks().terminated_tasks_size());
+    ASSERT_EQ(0, v1Response->get_tasks().completed_tasks_size());
   }
 
   driver.launchTasks(offer.id(), {task});
@@ -3231,13 +3231,13 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetTasks)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_TASKS, v1Response.get().type());
-    ASSERT_EQ(0, v1Response.get().get_tasks().pending_tasks_size());
-    ASSERT_EQ(0, v1Response.get().get_tasks().queued_tasks_size());
-    ASSERT_EQ(1, v1Response.get().get_tasks().launched_tasks_size());
-    ASSERT_EQ(0, v1Response.get().get_tasks().terminated_tasks_size());
-    ASSERT_EQ(0, v1Response.get().get_tasks().completed_tasks_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_TASKS, v1Response->type());
+    ASSERT_EQ(0, v1Response->get_tasks().pending_tasks_size());
+    ASSERT_EQ(0, v1Response->get_tasks().queued_tasks_size());
+    ASSERT_EQ(1, v1Response->get_tasks().launched_tasks_size());
+    ASSERT_EQ(0, v1Response->get_tasks().terminated_tasks_size());
+    ASSERT_EQ(0, v1Response->get_tasks().completed_tasks_size());
   }
 
   Clock::pause();
@@ -3270,13 +3270,13 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetTasks)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_TASKS, v1Response.get().type());
-    ASSERT_EQ(0, v1Response.get().get_tasks().pending_tasks_size());
-    ASSERT_EQ(0, v1Response.get().get_tasks().queued_tasks_size());
-    ASSERT_EQ(0, v1Response.get().get_tasks().launched_tasks_size());
-    ASSERT_EQ(0, v1Response.get().get_tasks().terminated_tasks_size());
-    ASSERT_EQ(1, v1Response.get().get_tasks().completed_tasks_size());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_TASKS, v1Response->type());
+    ASSERT_EQ(0, v1Response->get_tasks().pending_tasks_size());
+    ASSERT_EQ(0, v1Response->get_tasks().queued_tasks_size());
+    ASSERT_EQ(0, v1Response->get_tasks().launched_tasks_size());
+    ASSERT_EQ(0, v1Response->get_tasks().terminated_tasks_size());
+    ASSERT_EQ(1, v1Response->get_tasks().completed_tasks_size());
   }
 
   driver.stop();
@@ -3310,8 +3310,8 @@ TEST_P(AgentAPITest, GetAgent)
     post(slave.get()->pid, v1Call, contentType);
 
   AWAIT_READY(v1Response);
-  ASSERT_TRUE(v1Response.get().IsInitialized());
-  ASSERT_EQ(v1::agent::Response::GET_AGENT, v1Response.get().type());
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_AGENT, v1Response->type());
   ASSERT_EQ(flags.hostname,
             v1Response->get_agent().agent_info().hostname());
 }
@@ -3339,7 +3339,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
   const Offer& offer = offers.get()[0];
 
   TaskInfo task;
@@ -3368,8 +3368,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_STATE, v1Response.get().type());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_STATE, v1Response->type());
 
     const v1::agent::Response::GetState& getState = v1Response->get_state();
     ASSERT_EQ(0u, getState.get_frameworks().frameworks_size());
@@ -3392,8 +3392,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_STATE, v1Response.get().type());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_STATE, v1Response->type());
 
     const v1::agent::Response::GetState& getState = v1Response->get_state();
     ASSERT_EQ(1u, getState.get_frameworks().frameworks_size());
@@ -3447,8 +3447,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
       post(slave.get()->pid, v1Call, contentType);
 
     AWAIT_READY(v1Response);
-    ASSERT_TRUE(v1Response.get().IsInitialized());
-    ASSERT_EQ(v1::agent::Response::GET_STATE, v1Response.get().type());
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_STATE, v1Response->type());
 
     const v1::agent::Response::GetState& getState = v1Response->get_state();
     ASSERT_EQ(0u, getState.get_frameworks().frameworks_size());
@@ -4088,7 +4088,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, LaunchNestedContainerSession)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -4209,7 +4209,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -4305,7 +4305,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -4422,7 +4422,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -4533,7 +4533,7 @@ TEST_P(AgentAPITest, AttachContainerOutputFailure)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -4617,7 +4617,7 @@ TEST_F(AgentAPITest, AttachContainerInputFailure)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -4692,7 +4692,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   slave::Flags flags = CreateSlaveFlags();
   {
     mesos::ACL::AttachContainerInput* acl =
-      flags.acls.get().add_attach_containers_input();
+      flags.acls->add_attach_containers_input();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
     acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
   }
@@ -4726,7 +4726,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))

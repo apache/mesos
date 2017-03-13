@@ -157,9 +157,9 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
   EXPECT_TRUE(found);
 
   // Test some fields of the container.
-  EXPECT_NE("", inspect.get().id);
-  EXPECT_EQ("/" + containerName, inspect.get().name);
-  EXPECT_SOME(inspect.get().pid);
+  EXPECT_NE("", inspect->id);
+  EXPECT_EQ("/" + containerName, inspect->name);
+  EXPECT_SOME(inspect->pid);
 
   // Stop the container.
   Future<Nothing> stop = docker->stop(containerName);
@@ -192,9 +192,9 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
   inspect = docker->inspect(containerName);
   AWAIT_READY(inspect);
 
-  EXPECT_NE("", inspect.get().id);
-  EXPECT_EQ("/" + containerName, inspect.get().name);
-  EXPECT_NONE(inspect.get().pid);
+  EXPECT_NE("", inspect->id);
+  EXPECT_EQ("/" + containerName, inspect->name);
+  EXPECT_NONE(inspect->pid);
 
   // Remove the container.
   Future<Nothing> rm = docker->rm(containerName);
@@ -452,7 +452,7 @@ TEST_F(DockerTest, ROOT_DOCKER_CancelPull)
 
   ASSERT_SOME(s);
 
-  AWAIT_READY_FOR(s.get().status(), Seconds(30));
+  AWAIT_READY_FOR(s->status(), Seconds(30));
 
   Owned<Docker> docker = Docker::create(
       tests::flags.docker,
@@ -761,17 +761,17 @@ TEST_F(DockerImageTest, ParseInspectonImage)
   Try<Docker::Image> image = Docker::Image::create(json.get());
   ASSERT_SOME(image);
 
-  EXPECT_EQ("./bin/start", image.get().entrypoint.get().front());
-  EXPECT_EQ("C.UTF-8", image.get().environment.get().at("LANG"));
-  EXPECT_EQ("8u66", image.get().environment.get().at("JAVA_VERSION"));
+  EXPECT_EQ("./bin/start", image->entrypoint->front());
+  EXPECT_EQ("C.UTF-8", image->environment->at("LANG"));
+  EXPECT_EQ("8u66", image->environment->at("JAVA_VERSION"));
   EXPECT_EQ("8u66-b01-1~bpo8+1",
-            image.get().environment.get().at("JAVA_DEBIAN_VERSION"));
+            image->environment->at("JAVA_DEBIAN_VERSION"));
   EXPECT_EQ("--driver-java-options=-Xms1024M "
             "--driver-java-options=-Xmx4096M "
             "--driver-java-options=-Dlog4j.logLevel=info",
-            image.get().environment.get().at("SPARK_OPTS"));
+            image->environment->at("SPARK_OPTS"));
   EXPECT_EQ("20140324",
-            image.get().environment.get().at("CA_CERTIFICATES_JAVA_VERSION"));
+            image->environment->at("CA_CERTIFICATES_JAVA_VERSION"));
 }
 
 

@@ -81,7 +81,7 @@ TEST_F(ProtobufIOTest, Basic)
       break;
     }
 
-    EXPECT_EQ(read.get().value(), stringify(reads++));
+    EXPECT_EQ(read->value(), stringify(reads++));
   }
 
   // Ensure we've hit the end of the file without reading a partial
@@ -122,7 +122,7 @@ TEST_F(ProtobufIOTest, Append)
       break;
     }
 
-    EXPECT_EQ(read.get().value(), stringify(reads++));
+    EXPECT_EQ(read->value(), stringify(reads++));
   }
 
   // Ensure we've hit the end of the file without reading a partial

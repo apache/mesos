@@ -164,7 +164,7 @@ void execute(const string& script)
     os::setenv("MESOS_ACLS", "file://" + aclsPath);
 
     // Now execute the script.
-    execl(path.get().c_str(), path.get().c_str(), (char*) nullptr);
+    execl(path->c_str(), path->c_str(), (char*) nullptr);
 
     std::cerr << "Failed to execute '" << script << "': "
               << os::strerror(errno) << std::endl;

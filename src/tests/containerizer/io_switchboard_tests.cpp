@@ -329,8 +329,8 @@ TEST_F(IOSwitchboardServerTest, AttachOutput)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
-  ASSERT_EQ(http::Response::PIPE, response.get().type);
-  ASSERT_SOME(response.get().reader);
+  ASSERT_EQ(http::Response::PIPE, response->type);
+  ASSERT_SOME(response->reader);
 
   Future<tuple<string, string>> received =
     getProcessIOData(response->reader.get());
@@ -416,9 +416,9 @@ TEST_F(IOSwitchboardServerTest, SendHeartbeat)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
-  ASSERT_EQ(http::Response::PIPE, response.get().type);
+  ASSERT_EQ(http::Response::PIPE, response->type);
 
-  Option<http::Pipe::Reader> reader = response.get().reader;
+  Option<http::Pipe::Reader> reader = response->reader;
   ASSERT_SOME(reader);
 
   auto deserializer = [](const string& body) {
@@ -441,7 +441,7 @@ TEST_F(IOSwitchboardServerTest, SendHeartbeat)
     // Expect for the message to have been received by now.
     ASSERT_SOME(_message.get());
 
-    agent::ProcessIO message = _message.get().get();
+    agent::ProcessIO message = _message->get();
 
     EXPECT_EQ(agent::ProcessIO::CONTROL, message.type());
 
@@ -986,7 +986,7 @@ TEST_F(IOSwitchboardTest, DISABLED_RecoverThenKillSwitchboardContainerDestroyed)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task with tty to start the switchboard server.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
@@ -1036,7 +1036,7 @@ TEST_F(IOSwitchboardTest, DISABLED_RecoverThenKillSwitchboardContainerDestroyed)
   // Kill the io switchboard for the task.
   Future<hashset<ContainerID>> containers = containerizer.get()->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
   Result<pid_t> pid = paths::getContainerIOSwitchboardPid(
         flags.runtime_dir, *containers->begin());
@@ -1109,7 +1109,7 @@ TEST_F(IOSwitchboardTest, ContainerAttachAfterSlaveRestart)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -1152,7 +1152,7 @@ TEST_F(IOSwitchboardTest, ContainerAttachAfterSlaveRestart)
 
   Future<hashset<ContainerID>> containers = containerizer.get()->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
   ContainerID containerId;
   containerId.set_value(containers->begin()->value());

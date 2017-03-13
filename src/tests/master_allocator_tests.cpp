@@ -1392,7 +1392,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
     AWAIT_READY(status);
 
-    EXPECT_EQ(TASK_RUNNING, status.get().state());
+    EXPECT_EQ(TASK_RUNNING, status->state());
 
     // Make sure the slave handles status update acknowledgement so
     // that it doesn't try to retry the update after master failover.
@@ -1515,7 +1515,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
     AWAIT_READY(status);
 
-    EXPECT_EQ(TASK_RUNNING, status.get().state());
+    EXPECT_EQ(TASK_RUNNING, status->state());
 
     // Make sure the slave handles status update acknowledgement so
     // that it doesn't try to retry the update after master failover.
@@ -1657,7 +1657,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   AWAIT_READY(registered1);
   AWAIT_READY(framework1offers1);
 
-  ASSERT_EQ(3u, framework1offers1.get().size());
+  ASSERT_EQ(3u, framework1offers1->size());
   for (int i = 0; i < 3; i++) {
     EXPECT_EQ(Resources(framework1offers1.get()[i].resources()),
               allocatedResources(agentResources, "role1"));
@@ -1717,7 +1717,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   // 'updateWeights' will rescind all outstanding offers and the rescinded
   // offer resources will only be available to the updated weights once
@@ -1759,7 +1759,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   //   framework2 share = 1
 
   AWAIT_READY(framework1offers2);
-  ASSERT_EQ(1u, framework1offers2.get().size());
+  ASSERT_EQ(1u, framework1offers2->size());
   EXPECT_EQ(Resources(framework1offers2.get()[0].resources()),
             allocatedResources(agentResources, "role1"));
 

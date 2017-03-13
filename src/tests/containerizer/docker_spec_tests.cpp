@@ -381,77 +381,77 @@ TEST_F(DockerSpecTest, ParseV1ImageManifest)
 
   EXPECT_EQ(
       "7f652467f9e6d1b3bf51172868b9b0c2fa1c711b112f4e987029b1624dd6295f",
-      manifest.get().container());
+      manifest->container());
 
   EXPECT_EQ(
       "cfa753dfea5e68a24366dfba16e6edf573daa447abf65bc11619c1a98a3aff54",
-      manifest.get().parent());
+      manifest->parent());
 
   EXPECT_EQ(
       "./bin/start",
-      manifest.get().container_config().entrypoint(0));
+      manifest->container_config().entrypoint(0));
 
   EXPECT_EQ(
       "LANG=C.UTF-8",
-      manifest.get().container_config().env(0));
+      manifest->container_config().env(0));
 
   EXPECT_EQ(
       "JAVA_VERSION=8u66",
-      manifest.get().container_config().env(1));
+      manifest->container_config().env(1));
 
   EXPECT_EQ(
       "JAVA_DEBIAN_VERSION=8u66-b01-1~bpo8+1",
-      manifest.get().container_config().env(2));
+      manifest->container_config().env(2));
 
   EXPECT_EQ(
       "CA_CERTIFICATES_JAVA_VERSION=20140324",
-      manifest.get().container_config().env(3));
+      manifest->container_config().env(3));
 
-  EXPECT_EQ("/bin/sh", manifest.get().container_config().cmd(0));
-  EXPECT_EQ("-c", manifest.get().container_config().cmd(1));
+  EXPECT_EQ("/bin/sh", manifest->container_config().cmd(0));
+  EXPECT_EQ("-c", manifest->container_config().cmd(1));
 
   EXPECT_EQ(
       "#(nop) CMD [\"sh\"]",
-      manifest.get().container_config().cmd(2));
+      manifest->container_config().cmd(2));
 
   EXPECT_EQ(
       "com.nvidia.caffe.version",
-      manifest.get().container_config().labels(0).key());
+      manifest->container_config().labels(0).key());
 
   EXPECT_EQ(
       "0.14",
-      manifest.get().container_config().labels(0).value());
+      manifest->container_config().labels(0).value());
 
   EXPECT_EQ(
       "com.nvidia.digits.version",
-      manifest.get().container_config().labels(1).key());
+      manifest->container_config().labels(1).key());
 
   EXPECT_EQ(
       "3.0",
-      manifest.get().container_config().labels(1).value());
+      manifest->container_config().labels(1).value());
 
-  EXPECT_EQ("sh", manifest.get().config().cmd(0));
+  EXPECT_EQ("sh", manifest->config().cmd(0));
 
   EXPECT_EQ(
       "com.nvidia.cuda.version",
-      manifest.get().config().labels(0).key());
+      manifest->config().labels(0).key());
 
   EXPECT_EQ(
       "7.5",
-      manifest.get().config().labels(0).value());
+      manifest->config().labels(0).value());
 
   EXPECT_EQ(
       "com.nvidia.volumes.needed",
-      manifest.get().config().labels(1).key());
+      manifest->config().labels(1).key());
 
   EXPECT_EQ(
       "nvidia_driver",
-      manifest.get().config().labels(1).value());
+      manifest->config().labels(1).value());
 
-  EXPECT_EQ("1.8.2", manifest.get().docker_version());
-  EXPECT_EQ("amd64", manifest.get().architecture());
-  EXPECT_EQ("linux", manifest.get().os());
-  EXPECT_EQ(0u, manifest.get().size());
+  EXPECT_EQ("1.8.2", manifest->docker_version());
+  EXPECT_EQ("amd64", manifest->architecture());
+  EXPECT_EQ("linux", manifest->os());
+  EXPECT_EQ(0u, manifest->size());
 }
 
 
@@ -507,43 +507,43 @@ TEST_F(DockerSpecTest, ParseV2ImageManifest)
   Try<spec::v2::ImageManifest> manifest = spec::v2::parse(json.get());
   ASSERT_SOME(manifest);
 
-  EXPECT_EQ("dmcgowan/test-image", manifest.get().name());
-  EXPECT_EQ("latest", manifest.get().tag());
-  EXPECT_EQ("amd64", manifest.get().architecture());
+  EXPECT_EQ("dmcgowan/test-image", manifest->name());
+  EXPECT_EQ("latest", manifest->tag());
+  EXPECT_EQ("amd64", manifest->architecture());
 
   EXPECT_EQ(
       "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // NOLINT(whitespace/line_length)
-      manifest.get().fslayers(0).blobsum());
+      manifest->fslayers(0).blobsum());
 
   EXPECT_EQ(
       "sha256:cea0d2071b01b0a79aa4a05ea56ab6fdf3fafa03369d9f4eea8d46ea33c43e5f", // NOLINT(whitespace/line_length)
-      manifest.get().fslayers(1).blobsum());
+      manifest->fslayers(1).blobsum());
 
   EXPECT_EQ(
       "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // NOLINT(whitespace/line_length)
-      manifest.get().fslayers(2).blobsum());
+      manifest->fslayers(2).blobsum());
 
   EXPECT_EQ(
       "sha256:2a7812e636235448785062100bb9103096aa6655a8f6bb9ac9b13fe8290f66df", // NOLINT(whitespace/line_length)
-      manifest.get().fslayers(3).blobsum());
+      manifest->fslayers(3).blobsum());
 
   EXPECT_EQ(
       "2ce2e90b0bc7224de3db1f0d646fe8e2c4dd37f1793928287f6074bc451a57ea",
-      manifest.get().history(1).v1().id());
+      manifest->history(1).v1().id());
 
   EXPECT_EQ(
       "cf2616975b4a3cba083ca99bc3f0bf25f5f528c3c52be1596b30f60b0b1c37ff",
-      manifest.get().history(2).v1().parent());
+      manifest->history(2).v1().parent());
 
-  EXPECT_EQ(1u, manifest.get().schemaversion());
+  EXPECT_EQ(1u, manifest->schemaversion());
 
   EXPECT_EQ(
       "LYRA:YAG2:QQKS:376F:QQXY:3UNK:SXH7:K6ES:Y5AU:XUN5:ZLVY:KBYL",
-      manifest.get().signatures(0).header().jwk().kid());
+      manifest->signatures(0).header().jwk().kid());
 
   EXPECT_EQ(
       "m3bgdBXZYRQ4ssAbrgj8Kjl7GNgrKQvmCSY-00yzQosKi-8UBrIRrn3Iu5alj82B6u_jNrkGCjEx3TxrfT1rig", // NOLINT(whitespace/line_length)
-      manifest.get().signatures(0).signature());
+      manifest->signatures(0).signature());
 }
 
 

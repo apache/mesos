@@ -152,7 +152,7 @@ public:
       std::cerr
         << "-------------------------------------------------------------\n"
         << "The 'CFS_' tests cannot be run because:\n"
-        << cfsError.get().message << "\n"
+        << cfsError->message << "\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }
@@ -191,7 +191,7 @@ public:
         << std::endl;
 
       error = hierarchies.error();
-    } else if (!hierarchies.get().empty()) {
+    } else if (!hierarchies->empty()) {
       std::cerr
         << "-------------------------------------------------------------\n"
         << "We cannot run any cgroups tests that require mounting\n"
@@ -304,7 +304,7 @@ public:
       std::cerr
         << "-------------------------------------------------------------\n"
         << "We cannot run any Docker tests because:\n"
-        << dockerError.get().message << "\n"
+        << dockerError->message << "\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }
@@ -511,7 +511,7 @@ public:
       std::cerr
         << "-------------------------------------------------------------\n"
         << "We cannot run any " << fsname << " tests because:\n"
-        << fsSupportError.get().message << "\n"
+        << fsSupportError->message << "\n"
         << "-------------------------------------------------------------\n";
     }
   }
@@ -586,7 +586,7 @@ public:
     if (perfError.isSome()) {
       std::cerr
         << "-------------------------------------------------------------\n"
-        << perfError.get().message << "\n"
+        << perfError->message << "\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }
@@ -832,7 +832,7 @@ void Environment::TearDown()
   // that we can identify leaked processes more precisely.
   Try<os::ProcessTree> pstree = os::pstree(0);
 
-  if (pstree.isSome() && !pstree.get().children.empty()) {
+  if (pstree.isSome() && !pstree->children.empty()) {
     FAIL() << "Tests completed with child processes remaining:\n"
            << pstree.get();
   }

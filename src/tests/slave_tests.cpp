@@ -156,7 +156,7 @@ TEST_F(SlaveTest, Shutdown)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_EQ(1u, offers.get().size());
+  EXPECT_EQ(1u, offers->size());
 
   Future<Nothing> offerRescinded;
   EXPECT_CALL(sched, offerRescinded(&driver, offers.get()[0].id()))
@@ -342,7 +342,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ShutdownUnregisteredExecutor)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task with the command executor.
   TaskInfo task;
@@ -458,7 +458,7 @@ TEST_F(SlaveTest, ExecutorTimeoutCausedBySlowFetch)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task with the command executor.
   // The task uses a URI that needs to be fetched by the HDFS client
@@ -557,7 +557,7 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -643,7 +643,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithArguments)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task with the command executor.
   TaskInfo task;
@@ -672,12 +672,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithArguments)
   // Scheduler should first receive TASK_RUNNING followed by the
   // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning->source());
 
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished->source());
 
   driver.stop();
   driver.join();
@@ -1010,7 +1010,7 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task with the command executor.
   TaskInfo task;
@@ -1046,12 +1046,12 @@ TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
   // Scheduler should first receive TASK_RUNNING followed by the
   // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning->source());
 
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished->source());
 
   driver.stop();
   driver.join();
@@ -1114,7 +1114,7 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // HACK: Launch a prepare task as root to prepare the binaries.
   // This task creates the lt-mesos-executor binary in the build dir.
@@ -1153,12 +1153,12 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   // Scheduler should first receive TASK_RUNNING followed by the
   // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning->source());
 
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished->source());
 
   // Start to launch a task with different user.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1166,7 +1166,7 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task with the command executor.
   TaskInfo task;
@@ -1194,12 +1194,12 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   // Scheduler should first receive TASK_RUNNING followed by the
   // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning.get().source());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning->source());
 
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished->source());
 
   driver.stop();
   driver.join();
@@ -1239,10 +1239,10 @@ TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
   schedDriver.start();
 
   AWAIT_READY(frameworkRegisteredMessage);
-  const UPID schedulerPid = frameworkRegisteredMessage.get().to;
+  const UPID schedulerPid = frameworkRegisteredMessage->to;
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
 
@@ -1271,7 +1271,7 @@ TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
   schedDriver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(update);
-  EXPECT_EQ(TASK_RUNNING, update.get().state());
+  EXPECT_EQ(TASK_RUNNING, update->state());
 
   AWAIT_READY(acknowledgementMessage);
 
@@ -1402,7 +1402,7 @@ TEST_F(SlaveTest, MetricsSlaveLaunchErrors)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
   const Offer offer = offers.get()[0];
 
   // Verify that we start with no launch failures.
@@ -1429,7 +1429,7 @@ TEST_F(SlaveTest, MetricsSlaveLaunchErrors)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(failureUpdate);
-  ASSERT_EQ(TASK_FAILED, failureUpdate.get().state());
+  ASSERT_EQ(TASK_FAILED, failureUpdate->state());
 
   // After failure injection, metrics should report a single failure.
   snapshot = Metrics();
@@ -1479,7 +1479,7 @@ TEST_F(SlaveTest, StateEndpoint)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(parse);
 
@@ -1579,7 +1579,7 @@ TEST_F(SlaveTest, StateEndpoint)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Resources executorResources = Resources::parse("cpus:0.1;mem:32").get();
   executorResources.allocate("*");
@@ -1609,7 +1609,7 @@ TEST_F(SlaveTest, StateEndpoint)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   response = process::http::get(
       slave.get()->pid,
@@ -1620,7 +1620,7 @@ TEST_F(SlaveTest, StateEndpoint)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  parse = JSON::parse<JSON::Object>(response.get().body);
+  parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   state = parse.get();
@@ -1652,9 +1652,9 @@ TEST_F(SlaveTest, StateEndpoint)
 
   Result<JSON::Array> tasks = executor.find<JSON::Array>("tasks");
   ASSERT_SOME(tasks);
-  EXPECT_EQ(1u, tasks.get().values.size());
+  EXPECT_EQ(1u, tasks->values.size());
 
-  JSON::Object taskJSON = tasks.get().values[0].as<JSON::Object>();
+  JSON::Object taskJSON = tasks->values[0].as<JSON::Object>();
   EXPECT_EQ("default", taskJSON.values["executor_id"]);
   EXPECT_EQ("", taskJSON.values["name"]);
   EXPECT_EQ(taskId.value(), taskJSON.values["id"]);
@@ -1720,7 +1720,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Need this expectation here because `TestContainerizer` doesn't do recovery
   // and hence sets `MESOS_RECOVERY_TIMEOUT` as '0s' causing the executor driver
@@ -1905,7 +1905,7 @@ TEST_F(SlaveTest, StatisticsEndpointMissingStatistics)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -1925,7 +1925,7 @@ TEST_F(SlaveTest, StatisticsEndpointMissingStatistics)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Set up the containerizer so the next usage() will fail.
   EXPECT_CALL(containerizer, usage(_))
@@ -2011,7 +2011,7 @@ TEST_F(SlaveTest, StatisticsEndpointRunningExecutor)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -2028,8 +2028,8 @@ TEST_F(SlaveTest, StatisticsEndpointRunningExecutor)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Hit the statistics endpoint and expect the response contains the
   // resource statistics for the running container.
@@ -2044,7 +2044,7 @@ TEST_F(SlaveTest, StatisticsEndpointRunningExecutor)
 
   // Verify that the statistics in the response contains the proper
   // resource limits for the container.
-  Try<JSON::Value> value = JSON::parse(response.get().body);
+  Try<JSON::Value> value = JSON::parse(response->body);
   ASSERT_SOME(value);
 
   Try<JSON::Value> expected = JSON::parse(strings::format(
@@ -2058,7 +2058,7 @@ TEST_F(SlaveTest, StatisticsEndpointRunningExecutor)
       (Megabytes(32) + slave::DEFAULT_EXECUTOR_MEM).bytes()).get());
 
   ASSERT_SOME(expected);
-  EXPECT_TRUE(value.get().contains(expected.get()));
+  EXPECT_TRUE(value->contains(expected.get()));
 
   driver.stop();
   driver.join();
@@ -2089,7 +2089,7 @@ TEST_F(SlaveTest, StatisticsEndpointAuthentication)
           statisticsEndpoint);
 
       AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
-          << response.get().body;
+          << response->body;
     }
 
     // Incorrectly authenticated requests are rejected.
@@ -2105,7 +2105,7 @@ TEST_F(SlaveTest, StatisticsEndpointAuthentication)
           createBasicAuthHeaders(badCredential));
 
       AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
-          << response.get().body;
+          << response->body;
     }
 
     // Correctly authenticated requests succeed.
@@ -2117,7 +2117,7 @@ TEST_F(SlaveTest, StatisticsEndpointAuthentication)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
       AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-          << response.get().body;
+          << response->body;
     }
   }
 }
@@ -2178,7 +2178,7 @@ TEST_F(SlaveTest, ContainersEndpoint)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2198,7 +2198,7 @@ TEST_F(SlaveTest, ContainersEndpoint)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   ResourceStatistics statistics;
   statistics.set_mem_limit_bytes(2048);
@@ -2236,7 +2236,7 @@ TEST_F(SlaveTest, ContainersEndpoint)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Value> value = JSON::parse(response.get().body);
+  Try<JSON::Value> value = JSON::parse(response->body);
   ASSERT_SOME(value);
 
   Try<JSON::Value> expected = JSON::parse(
@@ -2260,7 +2260,7 @@ TEST_F(SlaveTest, ContainersEndpoint)
       "}]");
 
   ASSERT_SOME(expected);
-  EXPECT_TRUE(value.get().contains(expected.get()));
+  EXPECT_TRUE(value->contains(expected.get()));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -2328,7 +2328,7 @@ TEST_F(SlaveTest, DISABLED_TerminatingSlaveDoesNotReregister)
   driver.start();
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Pause the clock here so that after detecting a new master,
   // the slave will not send multiple reregister messages
@@ -2416,7 +2416,7 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFailsWithLost)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
   Offer offer = offers.get()[0];
 
   // Start two tasks.
@@ -2448,10 +2448,10 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFailsWithLost)
   driver.launchTasks(offer.id(), tasks);
 
   AWAIT_READY(status1);
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+  EXPECT_EQ(TASK_RUNNING, status2->state());
 
   // Set up the containerizer so the next update() will fail.
   EXPECT_CALL(containerizer, update(_, _))
@@ -2470,8 +2470,8 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFailsWithLost)
   driver.killTask(tasks[0].task_id());
 
   AWAIT_READY(status3);
-  EXPECT_EQ(TASK_KILLED, status3.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status3.get().source());
+  EXPECT_EQ(TASK_KILLED, status3->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status3->source());
 
   AWAIT_READY(status4);
   EXPECT_EQ(TASK_LOST, status4->state());
@@ -2529,7 +2529,7 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFailsWithGone)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
   Offer offer = offers.get()[0];
 
   // Start two tasks.
@@ -2561,10 +2561,10 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFailsWithGone)
   driver.launchTasks(offer.id(), tasks);
 
   AWAIT_READY(status1);
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+  EXPECT_EQ(TASK_RUNNING, status2->state());
 
   // Set up the containerizer so the next update() will fail.
   EXPECT_CALL(containerizer, update(_, _))
@@ -2583,8 +2583,8 @@ TEST_F(SlaveTest, TerminalTaskContainerizerUpdateFailsWithGone)
   driver.killTask(tasks[0].task_id());
 
   AWAIT_READY(status3);
-  EXPECT_EQ(TASK_KILLED, status3.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status3.get().source());
+  EXPECT_EQ(TASK_KILLED, status3->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status3->source());
 
   AWAIT_READY(status4);
   EXPECT_EQ(TASK_GONE, status4->state());
@@ -2651,7 +2651,7 @@ TEST_F(SlaveTest, ContainerUpdatedBeforeTaskReachesExecutor)
   driver.start();
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -2744,8 +2744,8 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_TRUE(slaveRegisteredMessage.get().has_connection());
-  MasterSlaveConnection connection = slaveRegisteredMessage.get().connection();
+  ASSERT_TRUE(slaveRegisteredMessage->has_connection());
+  MasterSlaveConnection connection = slaveRegisteredMessage->connection();
   EXPECT_EQ(totalTimeout, Seconds(connection.total_ping_timeout_seconds()));
 
   // Ensure the slave processes the registration message and schedules
@@ -3159,7 +3159,7 @@ TEST_F(SlaveTest, UnreachableThenUnregisterRace)
   EXPECT_NE(
       nullptr,
       dynamic_cast<master::MarkSlaveUnreachable*>(
-          markUnreachable.get().get()));
+          markUnreachable->get()));
 
   // Cause the slave to shutdown gracefully.  This should result in
   // the slave sending `UnregisterSlaveMessage` to the master.
@@ -3236,7 +3236,7 @@ TEST_F(SlaveTest, UnregisterThenUnreachableRace)
   // master. Waiting for resource offers should accomplish both.
   AWAIT_READY(resourceOffers);
 
-  ASSERT_EQ(1u, resourceOffers.get().size());
+  ASSERT_EQ(1u, resourceOffers->size());
   SlaveID slaveId = resourceOffers.get()[0].slave_id();
 
   Clock::pause();
@@ -3264,7 +3264,7 @@ TEST_F(SlaveTest, UnregisterThenUnreachableRace)
   AWAIT_READY(removeSlave);
   EXPECT_NE(
       nullptr,
-      dynamic_cast<master::RemoveSlave*>(removeSlave.get().get()));
+      dynamic_cast<master::RemoveSlave*>(removeSlave->get()));
 
   // Next, cause the slave to fail health checks; master will attempt
   // to mark it unreachable.
@@ -3350,7 +3350,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -3420,7 +3420,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   AWAIT_READY(removeFramework);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_KILLED, status.get().state());
+  EXPECT_EQ(TASK_KILLED, status->state());
 
   driver.stop();
   driver.join();
@@ -3461,7 +3461,7 @@ TEST_F(SlaveTest, KillTaskUnregisteredExecutor)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -3735,7 +3735,7 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
 
   // Now send TASK_FINISHED update.
   TaskStatus finishedStatus;
-  finishedStatus = statusUpdateMessage.get().update().status();
+  finishedStatus = statusUpdateMessage->update().status();
   finishedStatus.set_state(TASK_FINISHED);
   execDriver->sendStatusUpdate(finishedStatus);
 
@@ -3760,18 +3760,18 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(reregisterSlaveMessage);
 
-  ASSERT_EQ(1, reregisterSlaveMessage.get().tasks_size());
+  ASSERT_EQ(1, reregisterSlaveMessage->tasks_size());
 
   // The latest state of the task should be TASK_FINISHED.
-  ASSERT_EQ(TASK_FINISHED, reregisterSlaveMessage.get().tasks(0).state());
+  ASSERT_EQ(TASK_FINISHED, reregisterSlaveMessage->tasks(0).state());
 
   // The status update state of the task should be TASK_RUNNING.
   ASSERT_EQ(TASK_RUNNING,
-            reregisterSlaveMessage.get().tasks(0).status_update_state());
+            reregisterSlaveMessage->tasks(0).status_update_state());
 
   // The status update uuid should match the TASK_RUNNING's uuid.
-  ASSERT_EQ(statusUpdateMessage.get().update().uuid(),
-            reregisterSlaveMessage.get().tasks(0).status_update_uuid());
+  ASSERT_EQ(statusUpdateMessage->update().uuid(),
+            reregisterSlaveMessage->tasks(0).status_update_uuid());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -3812,7 +3812,7 @@ TEST_F(SlaveTest, ContainerizerUsageFailure)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -3832,7 +3832,7 @@ TEST_F(SlaveTest, ContainerizerUsageFailure)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Set up the containerizer so the next usage() will fail.
   EXPECT_CALL(containerizer, usage(_))
@@ -3843,8 +3843,8 @@ TEST_F(SlaveTest, ContainerizerUsageFailure)
   Future<ResourceUsage> usage = slave.usage();
 
   AWAIT_READY(usage);
-  ASSERT_EQ(1, usage.get().executors_size());
-  EXPECT_FALSE(usage.get().executors(0).has_statistics());
+  ASSERT_EQ(1, usage->executors_size());
+  EXPECT_FALSE(usage->executors(0).has_statistics());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -3890,7 +3890,7 @@ TEST_F(SlaveTest, DiscoveryInfoAndPorts)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(
       offers.get()[0],
@@ -3939,10 +3939,10 @@ TEST_F(SlaveTest, DiscoveryInfoAndPorts)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  Result<JSON::Object> discoveryResult = parse.get().find<JSON::Object>(
+  Result<JSON::Object> discoveryResult = parse->find<JSON::Object>(
       "frameworks[0].executors[0].tasks[0].discovery");
   EXPECT_SOME(discoveryResult);
 
@@ -4091,7 +4091,7 @@ TEST_F(SlaveTest, TaskLabels)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -4125,7 +4125,7 @@ TEST_F(SlaveTest, TaskLabels)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   AWAIT_READY(update);
 
@@ -4139,10 +4139,10 @@ TEST_F(SlaveTest, TaskLabels)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  Result<JSON::Array> find = parse.get().find<JSON::Array>(
+  Result<JSON::Array> find = parse->find<JSON::Array>(
       "frameworks[0].executors[0].tasks[0].labels");
   EXPECT_SOME(find);
 
@@ -4195,7 +4195,7 @@ TEST_F(SlaveTest, TaskStatusLabels)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(
       offers.get()[0],
@@ -4220,7 +4220,7 @@ TEST_F(SlaveTest, TaskStatusLabels)
 
   // Now send TASK_RUNNING update.
   TaskStatus runningStatus;
-  runningStatus.mutable_task_id()->MergeFrom(execTask.get().task_id());
+  runningStatus.mutable_task_id()->MergeFrom(execTask->task_id());
   runningStatus.set_state(TASK_RUNNING);
 
   // Add three labels to the task (two of which share the same key).
@@ -4244,10 +4244,10 @@ TEST_F(SlaveTest, TaskStatusLabels)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  Result<JSON::Array> find = parse.get().find<JSON::Array>(
+  Result<JSON::Array> find = parse->find<JSON::Array>(
       "frameworks[0].executors[0].tasks[0].statuses[0].labels");
   EXPECT_SOME(find);
 
@@ -4300,7 +4300,7 @@ TEST_F(SlaveTest, TaskStatusContainerStatus)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(
       offers.get()[0],
@@ -4324,12 +4324,12 @@ TEST_F(SlaveTest, TaskStatusContainerStatus)
 
   // Validate that the Slave has passed in its IP address in
   // TaskStatus.container_status.network_infos[0].ip_address.
-  EXPECT_TRUE(status.get().has_container_status());
-  EXPECT_EQ(1, status.get().container_status().network_infos().size());
-  EXPECT_EQ(1, status.get().container_status().network_infos(0).ip_addresses().size()); // NOLINT(whitespace/line_length)
+  EXPECT_TRUE(status->has_container_status());
+  EXPECT_EQ(1, status->container_status().network_infos().size());
+  EXPECT_EQ(1, status->container_status().network_infos(0).ip_addresses().size()); // NOLINT(whitespace/line_length)
 
   NetworkInfo::IPAddress ipAddress =
-    status.get().container_status().network_infos(0).ip_addresses(0);
+    status->container_status().network_infos(0).ip_addresses(0);
 
   ASSERT_TRUE(ipAddress.has_ip_address());
   EXPECT_EQ(slaveIPAddress, ipAddress.ip_address());
@@ -4344,14 +4344,14 @@ TEST_F(SlaveTest, TaskStatusContainerStatus)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   // Validate that the IP address passed in by the Slave is available at the
   // state endpoint.
   ASSERT_SOME_EQ(
       slaveIPAddress,
-      parse.get().find<JSON::String>(
+      parse->find<JSON::String>(
           "frameworks[0].executors[0].tasks[0].statuses[0]"
           ".container_status.network_infos[0]"
           ".ip_addresses[0].ip_address"));
@@ -4398,7 +4398,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorEnvironmentVariables)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task with the command executor.
   TaskInfo task;
@@ -4425,10 +4425,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorEnvironmentVariables)
   // Scheduler should first receive TASK_RUNNING followed by the
   // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   driver.stop();
   driver.join();
@@ -4463,7 +4463,7 @@ TEST_F(SlaveTest, TotalSlaveResourcesIncludedInUsage)
   AWAIT_READY(usage);
 
   // Total resources should match the resources from flag.resources.
-  EXPECT_EQ(Resources(usage.get().total()),
+  EXPECT_EQ(Resources(usage->total()),
             Resources::parse(flags.resources.get()).get());
 
   terminate(slave);
@@ -4515,7 +4515,7 @@ TEST_F(SlaveTest, CheckpointedResourcesIncludedInUsage)
 
   AWAIT_READY(usage);
 
-  Resources usageTotalResources(usage.get().total());
+  Resources usageTotalResources(usage->total());
 
   // Reported total field should contain persistent volumes and dynamic
   // reservations.
@@ -4736,7 +4736,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, HTTPSchedulerSlaveRestart)
     FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   SlaveID slaveId = offers.get()[0].slave_id();
 
@@ -4765,12 +4765,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, HTTPSchedulerSlaveRestart)
   AWAIT_READY(registerExecutorMessage);
 
   RegisterExecutorMessage registerExecutor;
-  registerExecutor.ParseFromString(registerExecutorMessage.get().body);
+  registerExecutor.ParseFromString(registerExecutorMessage->body);
   ExecutorID executorId = registerExecutor.executor_id();
-  UPID executorPid = registerExecutorMessage.get().from;
+  UPID executorPid = registerExecutorMessage->from;
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Restart the slave.
   slave.get()->terminate();

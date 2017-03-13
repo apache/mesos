@@ -293,8 +293,8 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   EXPECT_CALL(sched, registered(_, _, _));
 
   Resources resources = Resources::parse(flags.resources.get()).get();
-  double cpus = resources.get<Value::Scalar>("cpus").get().value();
-  double mem = resources.get<Value::Scalar>("mem").get().value();
+  double cpus = resources.get<Value::Scalar>("cpus")->value();
+  double mem = resources.get<Value::Scalar>("mem")->value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
@@ -317,7 +317,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   driver.start();
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Make sure directory exists. Need to do this AFTER getting a
   // status update for a task because the directory won't get created
@@ -325,7 +325,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
   // SlaveRegisteredMessage.
   const string& slaveDir = slave::paths::getSlavePath(
       flags.work_dir,
-      slaveRegisteredMessage.get().slave_id());
+      slaveRegisteredMessage->slave_id());
 
   ASSERT_TRUE(os::exists(slaveDir));
 
@@ -391,7 +391,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -403,8 +403,8 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
     .WillOnce(SaveArg<1>(&frameworkId));
 
   Resources resources = Resources::parse(flags.resources.get()).get();
-  double cpus = resources.get<Value::Scalar>("cpus").get().value();
-  double mem = resources.get<Value::Scalar>("mem").get().value();
+  double cpus = resources.get<Value::Scalar>("cpus")->value();
+  double mem = resources.get<Value::Scalar>("mem")->value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
@@ -440,7 +440,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
 
   AWAIT_READY(status);
 
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
@@ -511,7 +511,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -522,8 +522,8 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
     .WillOnce(FutureArg<1>(&frameworkId));
 
   Resources resources = Resources::parse(flags.resources.get()).get();
-  double cpus = resources.get<Value::Scalar>("cpus").get().value();
-  double mem = resources.get<Value::Scalar>("mem").get().value();
+  double cpus = resources.get<Value::Scalar>("cpus")->value();
+  double mem = resources.get<Value::Scalar>("mem")->value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
@@ -548,7 +548,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   const string& executorDir = slave::paths::getExecutorPath(
       flags.work_dir, slaveId, frameworkId.get(), DEFAULT_EXECUTOR_ID);
@@ -620,7 +620,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -631,8 +631,8 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
     .WillOnce(FutureArg<1>(&frameworkId));
 
   Resources resources = Resources::parse(flags.resources.get()).get();
-  double cpus = resources.get<Value::Scalar>("cpus").get().value();
-  double mem = resources.get<Value::Scalar>("mem").get().value();
+  double cpus = resources.get<Value::Scalar>("cpus")->value();
+  double mem = resources.get<Value::Scalar>("mem")->value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, cpus, mem, "*"))
@@ -652,7 +652,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   const string& executorDir = slave::paths::getExecutorPath(
       flags.work_dir, slaveId, frameworkId.get(), DEFAULT_EXECUTOR_ID);
@@ -762,8 +762,8 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
     .WillOnce(FutureArg<1>(&frameworkId));
 
   Resources resources = Resources::parse(flags.resources.get()).get();
-  double cpus = resources.get<Value::Scalar>("cpus").get().value();
-  double mem = resources.get<Value::Scalar>("mem").get().value();
+  double cpus = resources.get<Value::Scalar>("cpus")->value();
+  double mem = resources.get<Value::Scalar>("mem")->value();
 
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(LaunchTasks(executor1, 1, cpus, mem, "*"));
@@ -783,7 +783,7 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
 
   AWAIT_READY(status);
 
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // TODO(benh/vinod): Would've been great to match the dispatch
   // against arguments here.
@@ -888,7 +888,7 @@ TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
 
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
   const SlaveID& slaveId = offer.slave_id();
@@ -921,8 +921,8 @@ TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status1);
-  EXPECT_EQ(task.task_id(), status1.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(task.task_id(), status1->task_id());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   ExecutorID executorId;
   executorId.set_value("test-task123");
@@ -947,8 +947,8 @@ TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
   ASSERT_TRUE(os::exists(path::join(sandbox, regularFile)));
 
   AWAIT_READY(status2);
-  ASSERT_EQ(task.task_id(), status2.get().task_id());
-  EXPECT_EQ(TASK_FINISHED, status2.get().state());
+  ASSERT_EQ(task.task_id(), status2->task_id());
+  EXPECT_EQ(TASK_FINISHED, status2->state());
 
   AWAIT_READY(schedule);
 

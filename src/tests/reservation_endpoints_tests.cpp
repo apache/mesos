@@ -152,7 +152,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -185,7 +185,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -243,7 +243,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -265,7 +265,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -326,7 +326,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -348,7 +348,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -416,7 +416,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   // Expect to receive 'available + offered' resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -451,7 +451,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -470,7 +470,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   driver.killTask(taskInfo.task_id());
 
   AWAIT_READY(availableResources);
-  EXPECT_TRUE(availableResources.get().contains(
+  EXPECT_TRUE(availableResources->contains(
       allocatedResources(available, frameworkInfo.role())));
 
   // At this point, we have 'available' resources in the allocator, and
@@ -497,7 +497,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -583,7 +583,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   // Expect to receive 'available + offered' resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -618,7 +618,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -637,7 +637,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   driver.killTask(taskInfo.task_id());
 
   AWAIT_READY(availableResources);
-  EXPECT_TRUE(availableResources.get().contains(
+  EXPECT_TRUE(availableResources->contains(
       allocatedResources(available, frameworkInfo.role())));
 
   // At this point, we have 'available' resources in the allocator, and
@@ -664,7 +664,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -753,7 +753,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   Resources offeredResources = Resources(offer.resources());
@@ -779,7 +779,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   offeredResources = Resources(offer.resources());
@@ -819,7 +819,7 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   offeredResources = Resources(offer.resources());
@@ -1412,7 +1412,7 @@ TEST_F(ReservationEndpointsTest, NoResources)
   ASSERT_SOME(slave);
 
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
-  string body = "slaveId=" + slaveId.get().value();
+  string body = "slaveId=" + slaveId->value();
 
   Future<Response> response =
     process::http::post(master.get()->pid, "reserve", headers, body);
@@ -1618,7 +1618,7 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
   Resources resources = Resources(offer.resources());
 
@@ -1693,9 +1693,9 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   JSON::Object state = parse.get();

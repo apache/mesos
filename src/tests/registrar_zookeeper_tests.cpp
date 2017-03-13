@@ -85,7 +85,7 @@ TEST_F(RegistrarZooKeeperTest, TaskRunning)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "dummy", DEFAULT_EXECUTOR_ID);
 
@@ -107,7 +107,7 @@ TEST_F(RegistrarZooKeeperTest, TaskRunning)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   AWAIT_READY(resourcesUpdated);
 

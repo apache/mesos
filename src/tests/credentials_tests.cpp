@@ -65,7 +65,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlave)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 
@@ -110,7 +110,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlaveText)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 
@@ -163,7 +163,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlaveJSON)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 } // namespace tests {

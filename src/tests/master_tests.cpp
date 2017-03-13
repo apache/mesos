@@ -153,7 +153,7 @@ TEST_F(MasterTest, TaskRunning)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Ensure the hostname and url are set correctly.
   EXPECT_EQ(
@@ -196,9 +196,9 @@ TEST_F(MasterTest, TaskRunning)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
-  EXPECT_TRUE(status.get().has_executor_id());
-  EXPECT_EQ(exec.id, status.get().executor_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
+  EXPECT_TRUE(status->has_executor_id());
+  EXPECT_EQ(exec.id, status->executor_id());
 
   AWAIT_READY(update);
 
@@ -243,7 +243,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
   Offer offer = offers.get()[0];
 
   TaskInfo task;
@@ -271,7 +271,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   AWAIT_READY(update);
 
@@ -313,11 +313,11 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   // These checks are not essential for the test, but may help
   // understand what went wrong.
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   // Make sure the task landed in completed and marked as killed.
-  Result<JSON::String> state = parse.get().find<JSON::String>(
+  Result<JSON::String> state = parse->find<JSON::String>(
       "completed_frameworks[0].completed_tasks[0].state");
 
   ASSERT_SOME_EQ(JSON::String("TASK_KILLED"), state);
@@ -350,7 +350,7 @@ TEST_F(MasterTest, KillTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskID taskId;
   taskId.set_value("1");
@@ -374,7 +374,7 @@ TEST_F(MasterTest, KillTask)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   EXPECT_CALL(exec, killTask(_, _))
     .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
@@ -385,7 +385,7 @@ TEST_F(MasterTest, KillTask)
   driver.killTask(taskId);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_KILLED, status.get().state());
+  EXPECT_EQ(TASK_KILLED, status->state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -423,7 +423,7 @@ TEST_F(MasterTest, KillUnknownTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskID taskId;
   taskId.set_value("1");
@@ -447,7 +447,7 @@ TEST_F(MasterTest, KillUnknownTask)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
@@ -459,9 +459,9 @@ TEST_F(MasterTest, KillUnknownTask)
 
   AWAIT_READY(status);
 
-  EXPECT_EQ(TASK_LOST, status.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status.get().source());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, status.get().reason());
+  EXPECT_EQ(TASK_LOST, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status->source());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, status->reason());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -511,7 +511,7 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Start a task.
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
@@ -528,7 +528,7 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -573,7 +573,7 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   AWAIT_READY(reregister);
   EXPECT_NE(
       nullptr,
-      dynamic_cast<master::MarkSlaveReachable*>(reregister.get().get()));
+      dynamic_cast<master::MarkSlaveReachable*>(reregister->get()));
 
   // As Master::killTask isn't doing anything, we shouldn't get a status update.
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -665,7 +665,7 @@ TEST_F(MasterTest, EndpointsForHalfRemovedSlave)
   AWAIT_READY(unreachable);
   EXPECT_NE(
       nullptr,
-      dynamic_cast<master::MarkSlaveUnreachable*>(unreachable.get().get()));
+      dynamic_cast<master::MarkSlaveUnreachable*>(unreachable->get()));
 
   // Settle the clock for the sake of paranoia.
   Clock::settle();
@@ -689,10 +689,10 @@ TEST_F(MasterTest, EndpointsForHalfRemovedSlave)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response1);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response1);
 
-  Try<JSON::Object> parse1 = JSON::parse<JSON::Object>(response1.get().body);
-  Result<JSON::Array> array1 = parse1.get().find<JSON::Array>("slaves");
+  Try<JSON::Object> parse1 = JSON::parse<JSON::Object>(response1->body);
+  Result<JSON::Array> array1 = parse1->find<JSON::Array>("slaves");
   ASSERT_SOME(array1);
-  EXPECT_EQ(1u, array1.get().values.size());
+  EXPECT_EQ(1u, array1->values.size());
 
   // Allow the registry operation to return success. Note that we
   // don't actually update the registry here, since the test doesn't
@@ -719,10 +719,10 @@ TEST_F(MasterTest, EndpointsForHalfRemovedSlave)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response2);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response2);
 
-  Try<JSON::Object> parse2 = JSON::parse<JSON::Object>(response2.get().body);
-  Result<JSON::Array> array2 = parse2.get().find<JSON::Array>("slaves");
+  Try<JSON::Object> parse2 = JSON::parse<JSON::Object>(response2->body);
+  Result<JSON::Array> array2 = parse2->find<JSON::Array>("slaves");
   ASSERT_SOME(array2);
-  EXPECT_EQ(0u, array2.get().values.size());
+  EXPECT_EQ(0u, array2->values.size());
 
   Clock::resume();
 }
@@ -754,7 +754,7 @@ TEST_F(MasterTest, StatusUpdateAck)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -781,7 +781,7 @@ TEST_F(MasterTest, StatusUpdateAck)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Ensure the slave gets a status update ACK.
   AWAIT_READY(acknowledgement);
@@ -826,7 +826,7 @@ TEST_F(MasterTest, RecoverResources)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   ExecutorInfo executorInfo;
   executorInfo.MergeFrom(DEFAULT_EXECUTOR_INFO);
@@ -860,7 +860,7 @@ TEST_F(MasterTest, RecoverResources)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   EXPECT_CALL(exec, killTask(_, _))
     .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
@@ -875,12 +875,12 @@ TEST_F(MasterTest, RecoverResources)
   driver.killTask(taskId);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_KILLED, status.get().state());
+  EXPECT_EQ(TASK_KILLED, status->state());
 
   driver.reviveOffers(); // Don't wait till the next allocation.
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Offer offer = offers.get()[0];
   EXPECT_EQ(taskResources, offer.resources());
@@ -912,7 +912,7 @@ TEST_F(MasterTest, RecoverResources)
   // the allocator tests for inspiration.
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Resources slaveResources = Resources::parse(flags.resources.get()).get();
   EXPECT_EQ(allocatedResources(slaveResources, DEFAULT_FRAMEWORK_INFO.role()),
@@ -949,7 +949,7 @@ TEST_F(MasterTest, FrameworkMessage)
   schedDriver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -972,7 +972,7 @@ TEST_F(MasterTest, FrameworkMessage)
   schedDriver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<string> execData;
   EXPECT_CALL(exec, frameworkMessage(_, _))
@@ -1036,7 +1036,7 @@ TEST_F(MasterTest, MultipleExecutors)
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   TaskInfo task1;
   task1.set_name("");
@@ -1080,16 +1080,16 @@ TEST_F(MasterTest, MultipleExecutors)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(exec1Task);
-  EXPECT_EQ(task1.task_id(), exec1Task.get().task_id());
+  EXPECT_EQ(task1.task_id(), exec1Task->task_id());
 
   AWAIT_READY(exec2Task);
-  EXPECT_EQ(task2.task_id(), exec2Task.get().task_id());
+  EXPECT_EQ(task2.task_id(), exec2Task->task_id());
 
   AWAIT_READY(status1);
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+  EXPECT_EQ(TASK_RUNNING, status2->state());
 
   EXPECT_CALL(exec1, shutdown(_))
     .Times(AtMost(1));
@@ -1125,10 +1125,10 @@ TEST_F(MasterTest, MasterInfo)
   driver.start();
 
   AWAIT_READY(masterInfo);
-  EXPECT_EQ(master.get()->pid.address.port, masterInfo.get().port());
+  EXPECT_EQ(master.get()->pid.address.port, masterInfo->port());
   EXPECT_EQ(
       master.get()->pid.address.ip,
-      net::IP(ntohl(masterInfo.get().ip())));
+      net::IP(ntohl(masterInfo->ip())));
 
   driver.stop();
   driver.join();
@@ -1183,12 +1183,12 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   AWAIT_READY(disconnected);
 
   AWAIT_READY(masterInfo);
-  EXPECT_EQ(master.get()->pid.address.port, masterInfo.get().port());
+  EXPECT_EQ(master.get()->pid.address.port, masterInfo->port());
   EXPECT_EQ(
       master.get()->pid.address.ip,
-      net::IP(ntohl(masterInfo.get().ip())));
+      net::IP(ntohl(masterInfo->ip())));
 
-  EXPECT_EQ(MESOS_VERSION, masterInfo.get().version());
+  EXPECT_EQ(MESOS_VERSION, masterInfo->version());
 
   // Advance the clock and trigger a batch allocation.
   Clock::pause();
@@ -1375,7 +1375,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
   Resources resources1(offers1.get()[0].resources());
   EXPECT_EQ(2, resources1.cpus().get());
   EXPECT_EQ(Megabytes(1024), resources1.mem().get());
@@ -1407,7 +1407,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   driver.launchTasks(offers1.get()[0].id(), {task1}, filters);
 
   AWAIT_READY(status1);
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   // Advance the clock and trigger a batch allocation.
   Clock::pause();
@@ -1416,7 +1416,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
 
   // Await 2nd offer.
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers2->size());
 
   Resources resources2(offers2.get()[0].resources());
   EXPECT_EQ(1, resources2.cpus().get());
@@ -1439,7 +1439,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   driver.killTask(taskId1);
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_KILLED, status2.get().state());
+  EXPECT_EQ(TASK_KILLED, status2->state());
 
   // Advance the clock and trigger a batch allocation.
   Clock::pause();
@@ -1448,7 +1448,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
 
   // Await 3rd offer - 2nd and 3rd offer to same slave are now ready.
   AWAIT_READY(offers3);
-  EXPECT_NE(0u, offers3.get().size());
+  EXPECT_NE(0u, offers3->size());
   Resources resources3(offers3.get()[0].resources());
   EXPECT_EQ(1, resources3.cpus().get());
   EXPECT_EQ(Megabytes(512), resources3.mem().get());
@@ -1474,7 +1474,7 @@ TEST_F(MasterTest, LaunchCombinedOfferTest)
   driver.launchTasks(combinedOffers, {task2});
 
   AWAIT_READY(status3);
-  EXPECT_EQ(TASK_RUNNING, status3.get().state());
+  EXPECT_EQ(TASK_RUNNING, status3->state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1521,7 +1521,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesLost)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
   Resources resources1(offers1.get()[0].resources());
   EXPECT_EQ(2, resources1.cpus().get());
   EXPECT_EQ(Megabytes(1024), resources1.mem().get());
@@ -1541,7 +1541,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesLost)
   ASSERT_SOME(slave2);
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers2->size());
   Resources resources2(offers1.get()[0].resources());
   EXPECT_EQ(2, resources2.cpus().get());
   EXPECT_EQ(Megabytes(1024), resources2.mem().get());
@@ -1567,8 +1567,8 @@ TEST_F(MasterTest, LaunchAcrossSlavesLost)
   driver.launchTasks(combinedOffers, {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_LOST, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status.get().reason());
+  EXPECT_EQ(TASK_LOST, status->state());
+  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status->reason());
 
   // The resources of the invalid offers should be recovered.
   AWAIT_READY(recoverResources);
@@ -1630,7 +1630,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesDropped)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
   Resources resources1(offers1.get()[0].resources());
   EXPECT_EQ(2, resources1.cpus().get());
   EXPECT_EQ(Megabytes(1024), resources1.mem().get());
@@ -1650,7 +1650,7 @@ TEST_F(MasterTest, LaunchAcrossSlavesDropped)
   ASSERT_SOME(slave2);
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers2->size());
   Resources resources2(offers1.get()[0].resources());
   EXPECT_EQ(2, resources2.cpus().get());
   EXPECT_EQ(Megabytes(1024), resources2.mem().get());
@@ -1676,8 +1676,8 @@ TEST_F(MasterTest, LaunchAcrossSlavesDropped)
   driver.launchTasks(combinedOffers, {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_DROPPED, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status.get().reason());
+  EXPECT_EQ(TASK_DROPPED, status->state());
+  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status->reason());
 
   // The resources of the invalid offers should be recovered.
   AWAIT_READY(recoverResources);
@@ -1741,7 +1741,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferLost)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
   Resources resources(offers.get()[0].resources());
   EXPECT_EQ(2, resources.cpus().get());
   EXPECT_EQ(Megabytes(1024), resources.mem().get());
@@ -1768,8 +1768,8 @@ TEST_F(MasterTest, LaunchDuplicateOfferLost)
   driver.launchTasks(combinedOffers, {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_LOST, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status.get().reason());
+  EXPECT_EQ(TASK_LOST, status->state());
+  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status->reason());
 
   // The resources of the invalid offers should be recovered.
   AWAIT_READY(recoverResources);
@@ -1833,7 +1833,7 @@ TEST_F(MasterTest, LaunchDuplicateOfferDropped)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
   Resources resources(offers.get()[0].resources());
   EXPECT_EQ(2, resources.cpus().get());
   EXPECT_EQ(Megabytes(1024), resources.mem().get());
@@ -1860,8 +1860,8 @@ TEST_F(MasterTest, LaunchDuplicateOfferDropped)
   driver.launchTasks(combinedOffers, {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_DROPPED, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status.get().reason());
+  EXPECT_EQ(TASK_DROPPED, status->state());
+  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status->reason());
 
   // The resources of the invalid offers should be recovered.
   AWAIT_READY(recoverResources);
@@ -1980,7 +1980,7 @@ TEST_F(MasterTest, LaunchDifferentRoleLost)
   driver.launchTasks(offers1.get()[0].id(), {task1}, filters);
 
   AWAIT_READY(status1);
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   // Advance the clock and trigger a batch allocation.
   Clock::settle();
@@ -2012,7 +2012,7 @@ TEST_F(MasterTest, LaunchDifferentRoleLost)
   driver.killTask(taskId1);
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_KILLED, status2.get().state());
+  EXPECT_EQ(TASK_KILLED, status2->state());
 
   // Advance the clock and trigger a batch allocation.
   Clock::settle();
@@ -2054,8 +2054,8 @@ TEST_F(MasterTest, LaunchDifferentRoleLost)
   Clock::settle();
 
   AWAIT_READY(status3);
-  EXPECT_EQ(TASK_LOST, status3.get().state());
-  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status3.get().reason());
+  EXPECT_EQ(TASK_LOST, status3->state());
+  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, status3->reason());
 
   // The resources of the invalid offers should be recovered.
   AWAIT_READY(recoverResources);
@@ -2202,7 +2202,7 @@ TEST_F(MasterTest, SlavesEndpointWithoutSlaves)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  const Try<JSON::Value> parse = JSON::parse(response.get().body);
+  const Try<JSON::Value> parse = JSON::parse(response->body);
   ASSERT_SOME(parse);
 
   Try<JSON::Value> expected = JSON::parse(
@@ -2257,14 +2257,14 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
   const Try<JSON::Object> parse =
-    JSON::parse<JSON::Object>(response.get().body);
+    JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(parse);
 
   // Check that there are two elements in the array.
-  Result<JSON::Array> array = parse.get().find<JSON::Array>("slaves");
+  Result<JSON::Array> array = parse->find<JSON::Array>("slaves");
   ASSERT_SOME(array);
-  EXPECT_EQ(2u, array.get().values.size());
+  EXPECT_EQ(2u, array->values.size());
 }
 
 
@@ -2393,7 +2393,7 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 100");
 
@@ -2407,10 +2407,10 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID slaveId = runningStatus.get().slave_id();
+  const SlaveID slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -2463,9 +2463,9 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
   driver.reconcileTasks({status});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate1.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
-  EXPECT_EQ(unreachableTime, reconcileUpdate1.get().unreachable_time());
+  EXPECT_EQ(TASK_LOST, reconcileUpdate1->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
+  EXPECT_EQ(unreachableTime, reconcileUpdate1->unreachable_time());
 
   // Cause the slave to re-register with the master.
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
@@ -2486,8 +2486,8 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
   driver.reconcileTasks({status});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_RUNNING, reconcileUpdate2.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate2->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
 
   Clock::resume();
 
@@ -2812,7 +2812,7 @@ TEST_F(MasterTest, RecoveredSlaveReregisterThenUnreachableRace)
   EXPECT_NE(
       nullptr,
       dynamic_cast<master::MarkSlaveReachable*>(
-          reregister.get().get()));
+          reregister->get()));
 
   // Advance the clock to cause the agent reregister timeout to
   // expire. Because slave reregistration has already started, we do
@@ -2925,7 +2925,7 @@ TEST_F(MasterZooKeeperTest, MasterInfoAddress)
   driver.start();
   AWAIT_READY(masterInfo);
 
-  const Address& address = masterInfo.get().address();
+  const Address& address = masterInfo->address();
   EXPECT_EQ(stringify(master.get()->pid.address.ip), address.ip());
   EXPECT_EQ(master.get()->pid.address.port, address.port());
 
@@ -2994,7 +2994,7 @@ TEST_F(MasterTest, RecoveredFramework)
   driver.start();
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Get the master's state.
   Future<Response> response1 = process::http::get(
@@ -3006,7 +3006,7 @@ TEST_F(MasterTest, RecoveredFramework)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response1);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response1);
 
-  Try<JSON::Object> parse1 = JSON::parse<JSON::Object>(response1.get().body);
+  Try<JSON::Object> parse1 = JSON::parse<JSON::Object>(response1->body);
   ASSERT_SOME(parse1);
 
   JSON::Array frameworks1 = parse1->values["frameworks"].as<JSON::Array>();
@@ -3077,7 +3077,7 @@ TEST_F(MasterTest, RecoveredFramework)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response2);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response2);
 
-  Try<JSON::Object> parse2 = JSON::parse<JSON::Object>(response2.get().body);
+  Try<JSON::Object> parse2 = JSON::parse<JSON::Object>(response2->body);
   ASSERT_SOME(parse2);
 
   // Check that there is a single recovered framework, a single active
@@ -3126,7 +3126,7 @@ TEST_F(MasterTest, RecoveredFramework)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response3);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response3);
 
-  Try<JSON::Object> parse3 = JSON::parse<JSON::Object>(response3.get().body);
+  Try<JSON::Object> parse3 = JSON::parse<JSON::Object>(response3->body);
   ASSERT_SOME(parse3);
 
   // The framework should no longer be listed as recovered.
@@ -3200,7 +3200,7 @@ TEST_F(MasterTest, OrphanTasksMultipleAgents)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task1 =
     createTask(offers1.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
@@ -3217,7 +3217,7 @@ TEST_F(MasterTest, OrphanTasksMultipleAgents)
   driver.launchTasks(offers1.get()[0].id(), {task1});
 
   AWAIT_READY(status1);
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   // Start the second slave and launch a task.
 
@@ -3235,7 +3235,7 @@ TEST_F(MasterTest, OrphanTasksMultipleAgents)
   ASSERT_SOME(slave2);
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers2->size());
 
   TaskInfo task2 =
     createTask(offers2.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
@@ -3253,7 +3253,7 @@ TEST_F(MasterTest, OrphanTasksMultipleAgents)
   driver.launchTasks(offers2.get()[0].id(), {task2});
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+  EXPECT_EQ(TASK_RUNNING, status2->state());
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, slave1.get()->pid);
@@ -3400,7 +3400,7 @@ TEST_F(MasterTest, UnregisteredFrameworksAfterTearDown)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   JSON::Object state = parse.get();
@@ -3439,7 +3439,7 @@ TEST_F(MasterTest, TasksEndpoint)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test");
@@ -3460,9 +3460,9 @@ TEST_F(MasterTest, TasksEndpoint)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
-  EXPECT_TRUE(status.get().has_executor_id());
-  EXPECT_EQ(exec.id, status.get().executor_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
+  EXPECT_TRUE(status->has_executor_id());
+  EXPECT_EQ(exec.id, status->executor_id());
 
   Future<Response> response = process::http::get(
       master.get()->pid,
@@ -3473,7 +3473,7 @@ TEST_F(MasterTest, TasksEndpoint)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Value> value = JSON::parse<JSON::Value>(response.get().body);
+  Try<JSON::Value> value = JSON::parse<JSON::Value>(response->body);
   ASSERT_SOME(value);
 
   Try<JSON::Value> expected = JSON::parse(
@@ -3489,7 +3489,7 @@ TEST_F(MasterTest, TasksEndpoint)
 
   ASSERT_SOME(expected);
 
-  EXPECT_TRUE(value.get().contains(expected.get()));
+  EXPECT_TRUE(value->contains(expected.get()));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -3532,7 +3532,7 @@ TEST_F(MasterTest, IgnoreEphemeralPortsResource)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_EQ(1u, offers.get().size());
+  EXPECT_EQ(1u, offers->size());
 
   EXPECT_EQ(
       Resources(offers.get()[0].resources()),
@@ -3576,9 +3576,9 @@ TEST_F(MasterTest, MaxExecutorsPerSlave)
   driver.start();
 
   AWAIT_READY(masterInfo);
-  EXPECT_EQ(master.get()->pid.address.port, masterInfo.get().port());
+  EXPECT_EQ(master.get()->pid.address.port, masterInfo->port());
   EXPECT_EQ(
-      master.get()->pid.address.ip, net::IP(ntohl(masterInfo.get().ip())));
+      master.get()->pid.address.ip, net::IP(ntohl(masterInfo->ip())));
 
   driver.stop();
   driver.join();
@@ -3625,7 +3625,7 @@ TEST_F(MasterTest, OfferTimeout)
 
   AWAIT_READY(registered);
   AWAIT_READY(offers1);
-  ASSERT_EQ(1u, offers1.get().size());
+  ASSERT_EQ(1u, offers1->size());
 
   // Now advance the clock, we need to resume it afterwards to
   // allow the allocator to make a new allocation decision.
@@ -3645,7 +3645,7 @@ TEST_F(MasterTest, OfferTimeout)
   // Expect that the resources are re-offered to the framework after
   // the rescind.
   AWAIT_READY(offers2);
-  ASSERT_EQ(1u, offers2.get().size());
+  ASSERT_EQ(1u, offers2->size());
 
   EXPECT_EQ(offers1.get()[0].resources(), offers2.get()[0].resources());
 
@@ -3699,7 +3699,7 @@ TEST_F(MasterTest, OfferNotRescindedOnceUsed)
   AWAIT_READY(registered);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Now advance to the offer timeout, we need to settle the clock to
   // ensure that the offer rescind timeout would be processed
@@ -3832,8 +3832,8 @@ TEST_F(MasterTest, UnacknowledgedTerminalTask)
 
   AWAIT_READY(offers2);
 
-  EXPECT_FALSE(offers1.get().empty());
-  EXPECT_FALSE(offers2.get().empty());
+  EXPECT_FALSE(offers1->empty());
+  EXPECT_FALSE(offers2->empty());
 
   // Ensure we get all of the resources back.
   EXPECT_EQ(offers1.get()[0].resources(), offers2.get()[0].resources());
@@ -3903,7 +3903,7 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
 
   // Now send TASK_FINISHED update.
   TaskStatus finishedStatus;
-  finishedStatus = statusUpdateMessage.get().update().status();
+  finishedStatus = statusUpdateMessage->update().status();
   finishedStatus.set_state(TASK_FINISHED);
   execDriver->sendStatusUpdate(finishedStatus);
 
@@ -3952,7 +3952,7 @@ TEST_F(MasterTest, StateEndpoint)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   JSON::Object state = parse.get();
@@ -4173,7 +4173,7 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskID taskId;
   taskId.set_value("1");
@@ -4197,7 +4197,7 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   EXPECT_CALL(exec, killTask(_, _))
     .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
@@ -4208,7 +4208,7 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   driver.killTask(taskId);
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_KILLED, status.get().state());
+  EXPECT_EQ(TASK_KILLED, status->state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -4222,7 +4222,7 @@ TEST_F(MasterTest, StateSummaryEndpoint)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   JSON::Object state = parse.get();
@@ -4311,7 +4311,7 @@ TEST_F(MasterTest, RecoveredSlaves)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  SlaveID slaveID = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveID = slaveRegisteredMessage->slave_id();
 
   // Stop the slave while the master is down.
   master->reset();
@@ -4337,17 +4337,17 @@ TEST_F(MasterTest, RecoveredSlaves)
     AWAIT_EXPECT_RESPONSE_HEADER_EQ(
         APPLICATION_JSON, "Content-Type", response);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
 
-    Result<JSON::Array> array1 = parse.get().find<JSON::Array>("slaves");
+    Result<JSON::Array> array1 = parse->find<JSON::Array>("slaves");
     ASSERT_SOME(array1);
-    EXPECT_EQ(0u, array1.get().values.size());
+    EXPECT_EQ(0u, array1->values.size());
 
     Result<JSON::Array> array2 =
-      parse.get().find<JSON::Array>("recovered_slaves");
+      parse->find<JSON::Array>("recovered_slaves");
 
     ASSERT_SOME(array2);
-    EXPECT_EQ(1u, array2.get().values.size());
+    EXPECT_EQ(1u, array2->values.size());
   }
 
   {
@@ -4361,17 +4361,17 @@ TEST_F(MasterTest, RecoveredSlaves)
     AWAIT_EXPECT_RESPONSE_HEADER_EQ(
         APPLICATION_JSON, "Content-Type", response);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
 
-    Result<JSON::Array> array1 = parse.get().find<JSON::Array>("slaves");
+    Result<JSON::Array> array1 = parse->find<JSON::Array>("slaves");
     ASSERT_SOME(array1);
-    EXPECT_EQ(0u, array1.get().values.size());
+    EXPECT_EQ(0u, array1->values.size());
 
     Result<JSON::Array> array2 =
-      parse.get().find<JSON::Array>("recovered_slaves");
+      parse->find<JSON::Array>("recovered_slaves");
 
     ASSERT_SOME(array2);
-    EXPECT_EQ(1u, array2.get().values.size());
+    EXPECT_EQ(1u, array2->values.size());
   }
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
@@ -4399,15 +4399,15 @@ TEST_F(MasterTest, RecoveredSlaves)
     AWAIT_EXPECT_RESPONSE_HEADER_EQ(
         APPLICATION_JSON, "Content-Type", response1);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response1.get().body);
-    Result<JSON::Array> array1 = parse.get().find<JSON::Array>("slaves");
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response1->body);
+    Result<JSON::Array> array1 = parse->find<JSON::Array>("slaves");
     ASSERT_SOME(array1);
-    EXPECT_EQ(1u, array1.get().values.size());
+    EXPECT_EQ(1u, array1->values.size());
 
     Result<JSON::Array> array2 =
-      parse.get().find<JSON::Array>("recovered_slaves");
+      parse->find<JSON::Array>("recovered_slaves");
     ASSERT_SOME(array2);
-    EXPECT_EQ(0u, array2.get().values.size());
+    EXPECT_EQ(0u, array2->values.size());
   }
 
   {
@@ -4421,15 +4421,15 @@ TEST_F(MasterTest, RecoveredSlaves)
     AWAIT_EXPECT_RESPONSE_HEADER_EQ(
         APPLICATION_JSON, "Content-Type", response1);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response1.get().body);
-    Result<JSON::Array> array1 = parse.get().find<JSON::Array>("slaves");
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response1->body);
+    Result<JSON::Array> array1 = parse->find<JSON::Array>("slaves");
     ASSERT_SOME(array1);
-    EXPECT_EQ(1u, array1.get().values.size());
+    EXPECT_EQ(1u, array1->values.size());
 
     Result<JSON::Array> array2 =
-      parse.get().find<JSON::Array>("recovered_slaves");
+      parse->find<JSON::Array>("recovered_slaves");
     ASSERT_SOME(array2);
-    EXPECT_EQ(0u, array2.get().values.size());
+    EXPECT_EQ(0u, array2->values.size());
   }
 }
 
@@ -4462,7 +4462,7 @@ TEST_F(MasterTest, ExecutorLabels)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -4490,7 +4490,7 @@ TEST_F(MasterTest, ExecutorLabels)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Verify label key and value in the master's state endpoint.
   Future<Response> response = process::http::get(
@@ -4554,7 +4554,7 @@ TEST_F(MasterTest, TaskLabels)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -4588,7 +4588,7 @@ TEST_F(MasterTest, TaskLabels)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   AWAIT_READY(update);
 
@@ -4602,10 +4602,10 @@ TEST_F(MasterTest, TaskLabels)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  Result<JSON::Array> find = parse.get().find<JSON::Array>(
+  Result<JSON::Array> find = parse->find<JSON::Array>(
       "frameworks[0].tasks[0].labels");
   EXPECT_SOME(find);
 
@@ -4658,7 +4658,7 @@ TEST_F(MasterTest, TaskStatusLabels)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
 
@@ -4680,7 +4680,7 @@ TEST_F(MasterTest, TaskStatusLabels)
 
   // Now send TASK_RUNNING update.
   TaskStatus runningStatus;
-  runningStatus.mutable_task_id()->MergeFrom(execTask.get().task_id());
+  runningStatus.mutable_task_id()->MergeFrom(execTask->task_id());
   runningStatus.set_state(TASK_RUNNING);
 
   // Add three labels to the task (two of which share the same key).
@@ -4704,10 +4704,10 @@ TEST_F(MasterTest, TaskStatusLabels)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  Result<JSON::Array> find = parse.get().find<JSON::Array>(
+  Result<JSON::Array> find = parse->find<JSON::Array>(
       "frameworks[0].tasks[0].statuses[0].labels");
   EXPECT_SOME(find);
 
@@ -4760,7 +4760,7 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 100", DEFAULT_EXECUTOR_ID);
 
@@ -4804,14 +4804,14 @@ TEST_F(MasterTest, TaskStatusContainerStatus)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   // Validate that the IP address passed in by the Slave is available at the
   // state endpoint.
   ASSERT_SOME_EQ(
       slaveIPAddress,
-      parse.get().find<JSON::String>(
+      parse->find<JSON::String>(
           "frameworks[0].tasks[0].statuses[0]"
           ".container_status.network_infos[0]"
           ".ip_addresses[0].ip_address"));
@@ -4898,10 +4898,10 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  Result<JSON::Boolean> status = parse.get().find<JSON::Boolean>(
+  Result<JSON::Boolean> status = parse->find<JSON::Boolean>(
       "slaves[0].active");
 
   ASSERT_SOME_EQ(JSON::Boolean(true), status);
@@ -4911,7 +4911,7 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
 
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected.
-  process::inject::exited(slaveRegisteredMessage.get().to, master.get()->pid);
+  process::inject::exited(slaveRegisteredMessage->to, master.get()->pid);
 
   // Wait until master deactivates the slave.
   AWAIT_READY(deactivateSlave);
@@ -4925,10 +4925,10 @@ TEST_F(MasterTest, SlaveActiveEndpoint)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  parse = JSON::parse<JSON::Object>(response.get().body);
+  parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  status = parse.get().find<JSON::Boolean>("slaves[0].active");
+  status = parse->find<JSON::Boolean>("slaves[0].active");
 
   ASSERT_SOME_EQ(JSON::Boolean(false), status);
 }
@@ -4962,7 +4962,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("testtask");
@@ -5014,7 +5014,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   AWAIT_READY(update);
 
@@ -5028,44 +5028,44 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  Result<JSON::String> taskName = parse.get().find<JSON::String>(
+  Result<JSON::String> taskName = parse->find<JSON::String>(
       "frameworks[0].tasks[0].name");
   EXPECT_SOME(taskName);
   ASSERT_EQ("testtask", taskName.get());
 
   // Verify basic content for discovery info.
-  Result<JSON::String> visibility = parse.get().find<JSON::String>(
+  Result<JSON::String> visibility = parse->find<JSON::String>(
       "frameworks[0].tasks[0].discovery.visibility");
   EXPECT_SOME(visibility);
   DiscoveryInfo::Visibility visibility_value;
-  DiscoveryInfo::Visibility_Parse(visibility.get().value, &visibility_value);
+  DiscoveryInfo::Visibility_Parse(visibility->value, &visibility_value);
   ASSERT_EQ(DiscoveryInfo::EXTERNAL, visibility_value);
 
-  Result<JSON::String> discoveryName = parse.get().find<JSON::String>(
+  Result<JSON::String> discoveryName = parse->find<JSON::String>(
       "frameworks[0].tasks[0].discovery.name");
   EXPECT_SOME(discoveryName);
   ASSERT_EQ("mytask", discoveryName.get());
 
-  Result<JSON::String> environment = parse.get().find<JSON::String>(
+  Result<JSON::String> environment = parse->find<JSON::String>(
       "frameworks[0].tasks[0].discovery.environment");
   EXPECT_SOME(environment);
   ASSERT_EQ("mytest", environment.get());
 
-  Result<JSON::String> location = parse.get().find<JSON::String>(
+  Result<JSON::String> location = parse->find<JSON::String>(
       "frameworks[0].tasks[0].discovery.location");
   EXPECT_SOME(location);
   ASSERT_EQ("mylocation", location.get());
 
-  Result<JSON::String> version = parse.get().find<JSON::String>(
+  Result<JSON::String> version = parse->find<JSON::String>(
       "frameworks[0].tasks[0].discovery.version");
   EXPECT_SOME(version);
   ASSERT_EQ("v0.1.1", version.get());
 
   // Verify content of two named ports.
-  Result<JSON::Array> find1 = parse.get().find<JSON::Array>(
+  Result<JSON::Array> find1 = parse->find<JSON::Array>(
       "frameworks[0].tasks[0].discovery.ports.ports");
   EXPECT_SOME(find1);
 
@@ -5094,7 +5094,7 @@ TEST_F(MasterTest, TaskDiscoveryInfo)
   EXPECT_EQ(expected.get(), portsArray.values[1]);
 
   // Verify content of two labels.
-  Result<JSON::Array> find2 = parse.get().find<JSON::Array>(
+  Result<JSON::Array> find2 = parse->find<JSON::Array>(
       "frameworks[0].tasks[0].discovery.labels.labels");
   EXPECT_SOME(find2);
 
@@ -5162,7 +5162,7 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   TaskInfo task1;
   task1.set_name("");
@@ -5186,7 +5186,7 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   driver.launchTasks(offers1.get()[0].id(), {task1});
 
   AWAIT_READY(status1);
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   // Fail over master.
   master->reset();
@@ -5203,7 +5203,7 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   detector.appoint(master.get()->pid);
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers2->size());
 
   // The second task is a just a copy of the first task (using the
   // same executor and resources). We have to set a new task id.
@@ -5219,7 +5219,7 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   driver.launchTasks(offers2.get()[0].id(), {task2});
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+  EXPECT_EQ(TASK_RUNNING, status2->state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -5310,10 +5310,10 @@ TEST_F(MasterTest, FrameworkInfoLabels)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  Result<JSON::Array> labelsObject = parse.get().find<JSON::Array>(
+  Result<JSON::Array> labelsObject = parse->find<JSON::Array>(
       "frameworks[0].labels");
   EXPECT_SOME(labelsObject);
 
@@ -5384,7 +5384,7 @@ TEST_F(MasterTest, FrameworksEndpointWithoutFrameworks)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   JSON::Object frameworks = parse.get();
@@ -5434,12 +5434,12 @@ TEST_F(MasterTest, FrameworksEndpointOneFramework)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  Result<JSON::Array> array = parse.get().find<JSON::Array>("frameworks");
+  Result<JSON::Array> array = parse->find<JSON::Array>("frameworks");
   ASSERT_SOME(array);
-  EXPECT_EQ(1u, array.get().values.size());
+  EXPECT_EQ(1u, array->values.size());
 
   driver.stop();
   driver.join();
@@ -5883,7 +5883,7 @@ TEST_F(MasterTest, DISABLED_RecoverResourcesOrphanedTask)
 
   AWAIT_READY(subscribed);
 
-  v1::FrameworkID frameworkId = subscribed.get().framework_id();
+  v1::FrameworkID frameworkId = subscribed->framework_id();
 
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
@@ -6019,7 +6019,7 @@ TEST_F(MasterTest, DISABLED_RecoverResourcesOrphanedTask)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     v1::master::Response::GetTasks tasks = deserialize<v1::master::Response>(
-        contentType, response->body).get().get_tasks();
+        contentType, response->body)->get_tasks();
 
     ASSERT_TRUE(tasks.IsInitialized());
     ASSERT_EQ(1, tasks.tasks().size());
@@ -6082,8 +6082,8 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
   AWAIT_READY(statusUpdateAck);
 
@@ -6118,7 +6118,7 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
     AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
@@ -6176,7 +6176,7 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
     AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();

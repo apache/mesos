@@ -72,7 +72,7 @@ TEST_F(FsTest, MountTableRead)
 
   Option<MountTable::Entry> root = None();
   Option<MountTable::Entry> proc = None();
-  foreach (const MountTable::Entry& entry, table.get().entries) {
+  foreach (const MountTable::Entry& entry, table->entries) {
     if (entry.dir == "/") {
       root = entry;
     } else if (entry.dir == "/proc") {
@@ -82,7 +82,7 @@ TEST_F(FsTest, MountTableRead)
 
   EXPECT_SOME(root);
   ASSERT_SOME(proc);
-  EXPECT_EQ("proc", proc.get().type);
+  EXPECT_EQ("proc", proc->type);
 }
 
 
@@ -93,14 +93,14 @@ TEST_F(FsTest, MountTableHasOption)
   ASSERT_SOME(table);
 
   Option<MountTable::Entry> proc = None();
-  foreach (const MountTable::Entry& entry, table.get().entries) {
+  foreach (const MountTable::Entry& entry, table->entries) {
     if (entry.dir == "/proc") {
       proc = entry;
     }
   }
 
   ASSERT_SOME(proc);
-  EXPECT_TRUE(proc.get().hasOption(MNTOPT_RW));
+  EXPECT_TRUE(proc->hasOption(MNTOPT_RW));
 }
 
 
@@ -112,16 +112,16 @@ TEST_F(FsTest, MountInfoTableParse)
   Try<MountInfoTable::Entry> entry = MountInfoTable::Entry::parse(privateMount);
 
   ASSERT_SOME(entry);
-  EXPECT_EQ(19, entry.get().id);
-  EXPECT_EQ(1, entry.get().parent);
-  EXPECT_EQ(makedev(8, 1), entry.get().devno);
-  EXPECT_EQ("/", entry.get().root);
-  EXPECT_EQ("/", entry.get().target);
-  EXPECT_EQ("rw,relatime", entry.get().vfsOptions);
-  EXPECT_EQ("rw,seclabel,data=ordered", entry.get().fsOptions);
-  EXPECT_EQ("", entry.get().optionalFields);
-  EXPECT_EQ("ext4", entry.get().type);
-  EXPECT_EQ("/dev/sda1", entry.get().source);
+  EXPECT_EQ(19, entry->id);
+  EXPECT_EQ(1, entry->parent);
+  EXPECT_EQ(makedev(8, 1), entry->devno);
+  EXPECT_EQ("/", entry->root);
+  EXPECT_EQ("/", entry->target);
+  EXPECT_EQ("rw,relatime", entry->vfsOptions);
+  EXPECT_EQ("rw,seclabel,data=ordered", entry->fsOptions);
+  EXPECT_EQ("", entry->optionalFields);
+  EXPECT_EQ("ext4", entry->type);
+  EXPECT_EQ("/dev/sda1", entry->source);
 
   // Parse a shared mount (includes one optional field).
   const string sharedMount =
@@ -129,16 +129,16 @@ TEST_F(FsTest, MountInfoTableParse)
   entry = MountInfoTable::Entry::parse(sharedMount);
 
   ASSERT_SOME(entry);
-  EXPECT_EQ(19, entry.get().id);
-  EXPECT_EQ(1, entry.get().parent);
-  EXPECT_EQ(makedev(8, 1), entry.get().devno);
-  EXPECT_EQ("/", entry.get().root);
-  EXPECT_EQ("/", entry.get().target);
-  EXPECT_EQ("rw,relatime", entry.get().vfsOptions);
-  EXPECT_EQ("rw,seclabel", entry.get().fsOptions);
-  EXPECT_EQ("shared:2", entry.get().optionalFields);
-  EXPECT_EQ("ext4", entry.get().type);
-  EXPECT_EQ("/dev/sda1", entry.get().source);
+  EXPECT_EQ(19, entry->id);
+  EXPECT_EQ(1, entry->parent);
+  EXPECT_EQ(makedev(8, 1), entry->devno);
+  EXPECT_EQ("/", entry->root);
+  EXPECT_EQ("/", entry->target);
+  EXPECT_EQ("rw,relatime", entry->vfsOptions);
+  EXPECT_EQ("rw,seclabel", entry->fsOptions);
+  EXPECT_EQ("shared:2", entry->optionalFields);
+  EXPECT_EQ("ext4", entry->type);
+  EXPECT_EQ("/dev/sda1", entry->source);
 }
 
 
@@ -150,7 +150,7 @@ TEST_F(FsTest, DISABLED_MountInfoTableRead)
 
   // Every system should have at least a rootfs mounted.
   Option<MountInfoTable::Entry> root = None();
-  foreach (const MountInfoTable::Entry& entry, table.get().entries) {
+  foreach (const MountInfoTable::Entry& entry, table->entries) {
     if (entry.target == "/") {
       root = entry;
     }
@@ -164,7 +164,7 @@ TEST_F(FsTest, DISABLED_MountInfoTableRead)
 
   // Every system should have at least a rootfs mounted.
   root = None();
-  foreach (const MountInfoTable::Entry& entry, table.get().entries) {
+  foreach (const MountInfoTable::Entry& entry, table->entries) {
     if (entry.target == "/") {
       root = entry;
     }
@@ -244,14 +244,14 @@ TEST_F(FsTest, ROOT_SharedMount)
   ASSERT_SOME(table);
 
   Option<MountInfoTable::Entry> entry;
-  foreach (const MountInfoTable::Entry& _entry, table.get().entries) {
+  foreach (const MountInfoTable::Entry& _entry, table->entries) {
     if (_entry.target == directory) {
       entry = _entry;
     }
   }
 
   ASSERT_SOME(entry);
-  EXPECT_SOME(entry.get().shared());
+  EXPECT_SOME(entry->shared());
 
   // Clean up the mount.
   EXPECT_SOME(fs::unmount(directory));
@@ -288,7 +288,7 @@ TEST_F(FsTest, ROOT_SlaveMount)
 
   Option<MountInfoTable::Entry> parent;
   Option<MountInfoTable::Entry> child;
-  foreach (const MountInfoTable::Entry& entry, table.get().entries) {
+  foreach (const MountInfoTable::Entry& entry, table->entries) {
     if (entry.target == directory) {
       ASSERT_NONE(parent);
       parent = entry;
@@ -301,9 +301,9 @@ TEST_F(FsTest, ROOT_SlaveMount)
   ASSERT_SOME(parent);
   ASSERT_SOME(child);
 
-  EXPECT_SOME(parent.get().shared());
-  EXPECT_SOME(child.get().master());
-  EXPECT_EQ(child.get().master(), parent.get().shared());
+  EXPECT_SOME(parent->shared());
+  EXPECT_SOME(child->master());
+  EXPECT_EQ(child->master(), parent->shared());
 
   // Clean up the mount.
   EXPECT_SOME(fs::unmount(target));

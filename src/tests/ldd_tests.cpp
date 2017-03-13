@@ -45,11 +45,11 @@ TEST(Ldd, BinSh)
   Try<hashset<string>> dependencies = ldd("/bin/sh", cache.get());
   ASSERT_SOME(dependencies);
 
-  EXPECT_FALSE(dependencies.get().contains("/bin/sh"));
+  EXPECT_FALSE(dependencies->contains("/bin/sh"));
 
   auto libc = std::find_if(
-      dependencies.get().begin(),
-      dependencies.get().end(),
+      dependencies->begin(),
+      dependencies->end(),
       [](const string& dependency) {
         // On most Linux systems, libc would be in libc.so.6, but
         // checking the unversioned prefix is robust and is enough
@@ -58,7 +58,7 @@ TEST(Ldd, BinSh)
         return strings::startsWith(basename, "libc.so");
       });
 
-  EXPECT_TRUE(libc != dependencies.get().end());
+  EXPECT_TRUE(libc != dependencies->end());
 }
 
 

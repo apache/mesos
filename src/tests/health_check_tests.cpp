@@ -298,7 +298,7 @@ TEST_F(HealthCheckTest, HealthyTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   vector<TaskInfo> tasks =
     populateTasks(SLEEP_COMMAND(120), "exit 0", offers.get()[0]);
@@ -313,12 +313,12 @@ TEST_F(HealthCheckTest, HealthyTask)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   Future<TaskStatus> explicitReconciliation;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -328,7 +328,7 @@ TEST_F(HealthCheckTest, HealthyTask)
   TaskStatus status;
 
   // Send a task status to trigger explicit reconciliation.
-  const TaskID taskId = statusHealthy.get().task_id();
+  const TaskID taskId = statusHealthy->task_id();
   status.mutable_task_id()->CopyFrom(taskId);
 
   // State is not checked by reconciliation, but is required to be
@@ -338,9 +338,9 @@ TEST_F(HealthCheckTest, HealthyTask)
   driver.reconcileTasks(statuses);
 
   AWAIT_READY(explicitReconciliation);
-  EXPECT_EQ(TASK_RUNNING, explicitReconciliation.get().state());
-  EXPECT_TRUE(explicitReconciliation.get().has_healthy());
-  EXPECT_TRUE(explicitReconciliation.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, explicitReconciliation->state());
+  EXPECT_TRUE(explicitReconciliation->has_healthy());
+  EXPECT_TRUE(explicitReconciliation->healthy());
 
   Future<TaskStatus> implicitReconciliation;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -352,9 +352,9 @@ TEST_F(HealthCheckTest, HealthyTask)
   driver.reconcileTasks(statuses);
 
   AWAIT_READY(implicitReconciliation);
-  EXPECT_EQ(TASK_RUNNING, implicitReconciliation.get().state());
-  EXPECT_TRUE(implicitReconciliation.get().has_healthy());
-  EXPECT_TRUE(implicitReconciliation.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, implicitReconciliation->state());
+  EXPECT_TRUE(implicitReconciliation->has_healthy());
+  EXPECT_TRUE(implicitReconciliation->healthy());
 
   // Verify that task health is exposed in the master's state endpoint.
   {
@@ -366,10 +366,10 @@ TEST_F(HealthCheckTest, HealthyTask)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
-    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+    Result<JSON::Value> find = parse->find<JSON::Value>(
         "frameworks[0].tasks[0].statuses[0].healthy");
     EXPECT_SOME_TRUE(find);
   }
@@ -384,10 +384,10 @@ TEST_F(HealthCheckTest, HealthyTask)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
-    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+    Result<JSON::Value> find = parse->find<JSON::Value>(
         "frameworks[0].executors[0].tasks[0].statuses[0].healthy");
     EXPECT_SOME_TRUE(find);
   }
@@ -438,7 +438,7 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Make use of 'populateTasks()' to avoid duplicate code.
   vector<TaskInfo> tasks =
@@ -468,12 +468,12 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   // Verify that task health is exposed in the master's state endpoint.
   {
@@ -485,10 +485,10 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
-    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+    Result<JSON::Value> find = parse->find<JSON::Value>(
         "frameworks[0].tasks[0].statuses[0].healthy");
     EXPECT_SOME_TRUE(find);
   }
@@ -503,10 +503,10 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
-    Result<JSON::Value> find = parse.get().find<JSON::Value>(
+    Result<JSON::Value> find = parse->find<JSON::Value>(
         "frameworks[0].executors[0].tasks[0].statuses[0].healthy");
     EXPECT_SOME_TRUE(find);
   }
@@ -570,7 +570,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -607,12 +607,12 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   AWAIT_READY(containerId);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   Future<Option<ContainerTermination>> termination =
     containerizer.wait(containerId.get());
@@ -662,7 +662,7 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   CommandInfo command;
   command.set_shell(false);
@@ -682,11 +682,11 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   driver.stop();
   driver.join();
@@ -718,7 +718,7 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Create a temporary file.
   Try<string> temporaryPath = os::mktemp(path::join(os::getcwd(), "XXXXXX"));
@@ -747,19 +747,19 @@ TEST_F(HealthCheckTest, HealthStatusChange)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   AWAIT_READY(statusUnhealthy);
-  EXPECT_EQ(TASK_RUNNING, statusUnhealthy.get().state());
-  EXPECT_FALSE(statusUnhealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusUnhealthy->state());
+  EXPECT_FALSE(statusUnhealthy->healthy());
 
   AWAIT_READY(statusHealthyAgain);
-  EXPECT_EQ(TASK_RUNNING, statusHealthyAgain.get().state());
-  EXPECT_TRUE(statusHealthyAgain.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthyAgain->state());
+  EXPECT_TRUE(statusHealthyAgain->healthy());
 
   driver.stop();
   driver.join();
@@ -820,7 +820,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -879,19 +879,19 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusUnhealthy);
-  EXPECT_EQ(TASK_RUNNING, statusUnhealthy.get().state());
-  EXPECT_FALSE(statusUnhealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusUnhealthy->state());
+  EXPECT_FALSE(statusUnhealthy->healthy());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   AWAIT_READY(statusUnhealthyAgain);
-  EXPECT_EQ(TASK_RUNNING, statusUnhealthyAgain.get().state());
-  EXPECT_FALSE(statusUnhealthyAgain.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusUnhealthyAgain->state());
+  EXPECT_FALSE(statusUnhealthyAgain->healthy());
 
   // Check the temporary file created in host still
   // exists and the content has not changed.
@@ -947,7 +947,7 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   vector<TaskInfo> tasks = populateTasks(
     SLEEP_COMMAND(120), "exit 1", offers.get()[0], 0, 4);
@@ -971,28 +971,28 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(status1);
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
-  EXPECT_FALSE(status1.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
+  EXPECT_FALSE(status1->healthy());
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_RUNNING, status2.get().state());
-  EXPECT_FALSE(status2.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, status2->state());
+  EXPECT_FALSE(status2->healthy());
 
   AWAIT_READY(status3);
-  EXPECT_EQ(TASK_RUNNING, status3.get().state());
-  EXPECT_FALSE(status3.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, status3->state());
+  EXPECT_FALSE(status3->healthy());
 
   AWAIT_READY(status4);
-  EXPECT_EQ(TASK_RUNNING, status4.get().state());
-  EXPECT_FALSE(status4.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, status4->state());
+  EXPECT_FALSE(status4->healthy());
 
   AWAIT_READY(statusKilled);
-  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
-  EXPECT_TRUE(statusKilled.get().has_healthy());
-  EXPECT_FALSE(statusKilled.get().healthy());
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
+  EXPECT_TRUE(statusKilled->has_healthy());
+  EXPECT_FALSE(statusKilled->healthy());
 
   driver.stop();
   driver.join();
@@ -1024,7 +1024,7 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   map<string, string> env;
   env["STATUS"] = "0";
@@ -1042,11 +1042,11 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   driver.stop();
   driver.join();
@@ -1077,7 +1077,7 @@ TEST_F(HealthCheckTest, GracePeriod)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // The health check for this task will always fail, but the grace period of
   // 9999 seconds should mask the failures.
@@ -1095,13 +1095,13 @@ TEST_F(HealthCheckTest, GracePeriod)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
-  EXPECT_FALSE(statusRunning.get().has_healthy());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  EXPECT_FALSE(statusRunning->has_healthy());
 
   // No task unhealthy update should be called in grace period.
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
-  EXPECT_FALSE(statusFinished.get().has_healthy());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+  EXPECT_FALSE(statusFinished->has_healthy());
 
   driver.stop();
   driver.join();
@@ -1133,7 +1133,7 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   vector<TaskInfo> tasks = populateTasks(
       SLEEP_COMMAND(120),
@@ -1158,16 +1158,16 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusUnhealthy);
-  EXPECT_EQ(TASK_RUNNING, statusUnhealthy.get().state());
-  EXPECT_FALSE(statusUnhealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusUnhealthy->state());
+  EXPECT_FALSE(statusUnhealthy->healthy());
 
   AWAIT_READY(statusKilled);
-  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
-  EXPECT_TRUE(statusKilled.get().has_healthy());
-  EXPECT_FALSE(statusKilled.get().healthy());
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
+  EXPECT_TRUE(statusKilled->has_healthy());
+  EXPECT_FALSE(statusKilled->healthy());
 
   driver.stop();
   driver.join();
@@ -1202,7 +1202,7 @@ TEST_F(HealthCheckTest, HealthyToUnhealthyTransitionWithinGracePeriod)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Create a temporary file.
   const string tmpPath = path::join(os::getcwd(), "healthyToUnhealthy");
@@ -1227,17 +1227,17 @@ TEST_F(HealthCheckTest, HealthyToUnhealthyTransitionWithinGracePeriod)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   AWAIT_READY(statusUnhealthy);
-  EXPECT_EQ(TASK_RUNNING, statusUnhealthy.get().state());
-  EXPECT_TRUE(statusUnhealthy.get().has_healthy());
-  EXPECT_FALSE(statusUnhealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusUnhealthy->state());
+  EXPECT_TRUE(statusUnhealthy->has_healthy());
+  EXPECT_FALSE(statusUnhealthy->healthy());
 
   driver.stop();
   driver.join();
@@ -1270,7 +1270,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTP)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1307,12 +1307,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTP)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   driver.stop();
   driver.join();
@@ -1355,7 +1355,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1391,12 +1391,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   driver.stop();
   driver.join();
@@ -1432,7 +1432,7 @@ TEST_F(HealthCheckTest, HealthyTaskViaTCP)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1468,12 +1468,12 @@ TEST_F(HealthCheckTest, HealthyTaskViaTCP)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   driver.stop();
   driver.join();
@@ -1512,7 +1512,7 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaHTTPWithContainerImage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1553,12 +1553,12 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaHTTPWithContainerImage)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   driver.stop();
   driver.join();
@@ -1597,7 +1597,7 @@ TEST_F(HealthCheckTest,
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1641,12 +1641,12 @@ TEST_F(HealthCheckTest,
 
   // Increase time here to wait for pulling image finish.
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   driver.stop();
   driver.join();
@@ -1689,7 +1689,7 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaTCPWithContainerImage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1730,12 +1730,12 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaTCPWithContainerImage)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   driver.stop();
   driver.join();
@@ -1785,7 +1785,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTP)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1837,12 +1837,12 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTP)
   AWAIT_READY(containerId);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   Future<Option<ContainerTermination>> termination =
     containerizer.wait(containerId.get());
@@ -1912,7 +1912,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTPS)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1967,12 +1967,12 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTPS)
 
   // Increase time here to wait for pulling image finish.
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   Future<Option<ContainerTermination>> termination =
     containerizer.wait(containerId.get());
@@ -2044,7 +2044,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaTCP)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -2096,12 +2096,12 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaTCP)
   AWAIT_READY(containerId);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   Future<Option<ContainerTermination>> termination =
     containerizer.wait(containerId.get());

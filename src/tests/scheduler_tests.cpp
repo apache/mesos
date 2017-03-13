@@ -202,7 +202,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
 
   AWAIT_READY(subscribed);
 
-  v1::FrameworkID frameworkId = subscribed.get().framework_id();
+  v1::FrameworkID frameworkId = subscribed->framework_id();
 
   auto scheduler2 = std::make_shared<v1::MockHTTPScheduler>();
 
@@ -250,7 +250,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
   AWAIT_READY(disconnected);
   AWAIT_READY(subscribed);
 
-  EXPECT_EQ(frameworkId, subscribed.get().framework_id());
+  EXPECT_EQ(frameworkId, subscribed->framework_id());
 }
 
 
@@ -297,7 +297,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(SchedulerTest, MasterFailover)
 
   AWAIT_READY(subscribed);
 
-  v1::FrameworkID frameworkId = subscribed.get().framework_id();
+  v1::FrameworkID frameworkId = subscribed->framework_id();
 
   Future<Nothing> disconnected;
   EXPECT_CALL(*scheduler, disconnected(_))
@@ -336,7 +336,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(SchedulerTest, MasterFailover)
 
   AWAIT_READY(subscribed);
 
-  EXPECT_EQ(frameworkId, subscribed.get().framework_id());
+  EXPECT_EQ(frameworkId, subscribed->framework_id());
 }
 
 
@@ -386,7 +386,7 @@ TEST_P(SchedulerTest, MetricsEndpoint)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(parse);
 
@@ -455,7 +455,7 @@ TEST_P(SchedulerTest, TaskRunning)
 
   AWAIT_READY(subscribed);
 
-  v1::FrameworkID frameworkId(subscribed.get().framework_id());
+  v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
@@ -832,7 +832,7 @@ TEST_P(SchedulerTest, KillTask)
 
   AWAIT_READY(subscribed);
 
-  v1::FrameworkID frameworkId(subscribed.get().framework_id());
+  v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());

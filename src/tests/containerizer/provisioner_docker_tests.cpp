@@ -203,7 +203,7 @@ TEST_F(ProvisionerDockerLocalStoreTest, LocalStoreTestWithTar)
 
   AWAIT_READY(imageInfo);
 
-  verifyLocalDockerImage(flags, imageInfo.get().layers);
+  verifyLocalDockerImage(flags, imageInfo->layers);
 }
 
 
@@ -228,7 +228,7 @@ TEST_F(ProvisionerDockerLocalStoreTest, MetadataManagerInitialization)
 
   // Store is deleted and recreated. Metadata Manager is initialized upon
   // creation of the store.
-  store.get().reset();
+  store->reset();
   store = slave::docker::Store::create(flags);
   ASSERT_SOME(store);
   Future<Nothing> recover = store.get()->recover();
@@ -236,7 +236,7 @@ TEST_F(ProvisionerDockerLocalStoreTest, MetadataManagerInitialization)
 
   imageInfo = store.get()->get(image, COPY_BACKEND);
   AWAIT_READY(imageInfo);
-  verifyLocalDockerImage(flags, imageInfo.get().layers);
+  verifyLocalDockerImage(flags, imageInfo->layers);
 }
 
 
@@ -363,7 +363,7 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
   AWAIT_READY(imageInfo1);
   AWAIT_READY(imageInfo2);
 
-  EXPECT_EQ(imageInfo1.get().layers, imageInfo2.get().layers);
+  EXPECT_EQ(imageInfo1->layers, imageInfo2->layers);
 }
 
 

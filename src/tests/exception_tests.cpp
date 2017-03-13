@@ -161,7 +161,7 @@ TEST_F(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // None of these callbacks should be invoked.
   EXPECT_CALL(sched, offerRescinded(&driver, _))
@@ -188,7 +188,7 @@ TEST_F(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   RescindResourceOfferMessage rescindMessage;
   rescindMessage.mutable_offer_id()->MergeFrom(offers.get()[0].id());
 
-  process::post(message.get().to, rescindMessage);
+  process::post(message->to, rescindMessage);
 
   AWAIT_READY(rescindMsg);
 

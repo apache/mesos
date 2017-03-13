@@ -268,11 +268,11 @@ TEST_F(AppcStoreTest, Recover)
   Future<slave::ImageInfo> ImageInfo = store.get()->get(image, COPY_BACKEND);
   AWAIT_READY(ImageInfo);
 
-  EXPECT_EQ(1u, ImageInfo.get().layers.size());
+  EXPECT_EQ(1u, ImageInfo->layers.size());
   ASSERT_SOME(os::realpath(imagePath));
   EXPECT_EQ(
       os::realpath(path::join(imagePath, "rootfs")).get(),
-      ImageInfo.get().layers.front());
+      ImageInfo->layers.front());
 }
 
 
@@ -332,7 +332,7 @@ TEST_F(ProvisionerAppcTest, ROOT_Provision)
   ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend.get()));
   ASSERT_EQ(1u, rootfses->get(flags.image_provisioner_backend.get())->size());
   EXPECT_EQ(*rootfses->get(flags.image_provisioner_backend.get())->begin(),
-            Path(provisionInfo.get().rootfs).basename());
+            Path(provisionInfo->rootfs).basename());
 
   Future<bool> destroy = provisioner.get()->destroy(containerId);
   AWAIT_READY(destroy);
@@ -400,7 +400,7 @@ TEST_F(ProvisionerAppcTest, ROOT_ProvisionNestedContainer)
   ASSERT_TRUE(rootfses->contains(flags.image_provisioner_backend.get()));
   ASSERT_EQ(1u, rootfses->get(flags.image_provisioner_backend.get())->size());
   EXPECT_EQ(*rootfses->get(flags.image_provisioner_backend.get())->begin(),
-            Path(provisionInfo.get().rootfs).basename());
+            Path(provisionInfo->rootfs).basename());
 
   // TODO(jieyu): Verify that 'containerDir' is nested under its
   // parent container's 'containerDir'.
@@ -795,7 +795,7 @@ TEST_F(AppcImageFetcherTest, CURL_SimpleHttpFetch)
   slave::Flags flags;
 
   Try<Owned<slave::appc::Fetcher>> fetcher =
-    slave::appc::Fetcher::create(flags, uriFetcher.get().share());
+    slave::appc::Fetcher::create(flags, uriFetcher->share());
 
   ASSERT_SOME(fetcher);
 
@@ -813,12 +813,12 @@ TEST_F(AppcImageFetcherTest, CURL_SimpleHttpFetch)
   ASSERT_SOME(imageDirs);
 
   // Verify that there is only ONE image directory.
-  ASSERT_EQ(1u, imageDirs.get().size());
+  ASSERT_EQ(1u, imageDirs->size());
 
   // Verify that there is a roofs.
   const Path imageRootfs(path::join(
       imageFetchDir,
-      imageDirs.get().front(),
+      imageDirs->front(),
       "rootfs"));
 
   ASSERT_TRUE(os::exists(imageRootfs));
@@ -855,7 +855,7 @@ TEST_F(AppcImageFetcherTest, SimpleFileFetch)
   flags.appc_simple_discovery_uri_prefix = imageDirMountPath + "/";
 
   Try<Owned<slave::appc::Fetcher>> fetcher =
-    slave::appc::Fetcher::create(flags, uriFetcher.get().share());
+    slave::appc::Fetcher::create(flags, uriFetcher->share());
 
   ASSERT_SOME(fetcher);
 
@@ -873,12 +873,12 @@ TEST_F(AppcImageFetcherTest, SimpleFileFetch)
   ASSERT_SOME(imageDirs);
 
   // Verify that there is only ONE image directory.
-  ASSERT_EQ(1u, imageDirs.get().size());
+  ASSERT_EQ(1u, imageDirs->size());
 
   // Verify that there is a roofs.
   const Path imageRootfs(path::join(
       imageFetchDir,
-      imageDirs.get().front(),
+      imageDirs->front(),
       "rootfs"));
 
   ASSERT_TRUE(os::exists(imageRootfs));

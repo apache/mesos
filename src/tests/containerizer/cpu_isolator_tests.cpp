@@ -106,7 +106,7 @@ TEST_P(CpuIsolatorTest, ROOT_UserCpuUsage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Max out a single core in userspace. This will run for at most one
   // second.
@@ -121,13 +121,13 @@ TEST_P(CpuIsolatorTest, ROOT_UserCpuUsage)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   // Wait up to 1 second for the child process to induce 1/8 of a
   // second of user cpu time.
@@ -197,7 +197,7 @@ TEST_P(CpuIsolatorTest, ROOT_SystemCpuUsage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Generating random numbers is done by the kernel and will max out
   // a single core and run almost exclusively in the kernel, i.e.,
@@ -213,13 +213,13 @@ TEST_P(CpuIsolatorTest, ROOT_SystemCpuUsage)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   // Wait up to 1 second for the child process to induce 1/8 of a
   // second of user cpu time.

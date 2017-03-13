@@ -1193,7 +1193,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
       {CREATE(persistentVolume), LAUNCH({task})});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Wait for the ACK to be checkpointed.
   AWAIT_READY(ack);
@@ -1201,9 +1201,9 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   Future<hashset<ContainerID>> containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *containers.get().begin();
+  ContainerID containerId = *containers->begin();
 
   // Restart the slave.
   slave.get()->terminate();
@@ -1239,7 +1239,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
 
   // Verify that the orphaned container's persistent volume and
   // the rootfs are unmounted.
-  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+  foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
     EXPECT_FALSE(strings::contains(entry.target, directory))
       << "Target was not unmounted: " << entry.target;
   }

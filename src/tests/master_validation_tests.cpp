@@ -819,7 +819,7 @@ TEST_F(CreateOperationValidationTest, InsufficientDiskResource)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_FALSE(offers1.get().empty());
+  EXPECT_FALSE(offers1->empty());
 
   Offer offer1 = offers1.get()[0];
 
@@ -849,7 +849,7 @@ TEST_F(CreateOperationValidationTest, InsufficientDiskResource)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers2);
-  EXPECT_FALSE(offers2.get().empty());
+  EXPECT_FALSE(offers2->empty());
 
   Offer offer2 = offers2.get()[0];
 
@@ -1060,9 +1060,9 @@ TEST_F(TaskValidationTest, ExecutorUsesInvalidFrameworkID)
   driver.start();
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status->state());
   EXPECT_TRUE(strings::startsWith(
-      status.get().message(), "ExecutorInfo has an invalid FrameworkID"));
+      status->message(), "ExecutorInfo has an invalid FrameworkID"));
 
   // Make sure the task is not known to master anymore.
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -1117,7 +1117,7 @@ TEST_F(TaskValidationTest, ExecutorEnvironmentInvalid)
   driver.start();
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status->state());
   EXPECT_EQ(
       "Executor's `CommandInfo` is invalid: Environment variable 'ENV_VAR_KEY' "
       "of type 'VALUE' must have a value set",
@@ -1217,7 +1217,7 @@ TEST_F(TaskValidationTest, TaskUsesCommandInfoAndExecutorInfo)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -1230,9 +1230,9 @@ TEST_F(TaskValidationTest, TaskUsesCommandInfoAndExecutorInfo)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status->state());
   EXPECT_TRUE(strings::contains(
-      status.get().message(), "CommandInfo or ExecutorInfo present"));
+      status->message(), "CommandInfo or ExecutorInfo present"));
 
   driver.stop();
   driver.join();
@@ -1346,7 +1346,7 @@ TEST_F(TaskValidationTest, TaskUsesNoResources)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -1361,11 +1361,11 @@ TEST_F(TaskValidationTest, TaskUsesNoResources)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_ERROR, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
-  EXPECT_TRUE(status.get().has_message());
-  EXPECT_EQ("Task uses no resources", status.get().message());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_ERROR, status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status->reason());
+  EXPECT_TRUE(status->has_message());
+  EXPECT_EQ("Task uses no resources", status->message());
 
   driver.stop();
   driver.join();
@@ -1395,7 +1395,7 @@ TEST_F(TaskValidationTest, TaskUsesMoreResourcesThanOffered)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -1416,12 +1416,12 @@ TEST_F(TaskValidationTest, TaskUsesMoreResourcesThanOffered)
 
   AWAIT_READY(status);
 
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_ERROR, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
-  EXPECT_TRUE(status.get().has_message());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_ERROR, status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status->reason());
+  EXPECT_TRUE(status->has_message());
   EXPECT_TRUE(strings::contains(
-      status.get().message(), "more than available"));
+      status->message(), "more than available"));
 
   driver.stop();
   driver.join();
@@ -1456,7 +1456,7 @@ TEST_F(TaskValidationTest, DuplicatedTaskID)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
@@ -1495,14 +1495,14 @@ TEST_F(TaskValidationTest, DuplicatedTaskID)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(task);
-  EXPECT_EQ(task1.task_id(), task.get().task_id());
+  EXPECT_EQ(task1.task_id(), task->task_id());
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_ERROR, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  EXPECT_EQ(TASK_ERROR, status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status->reason());
 
   EXPECT_TRUE(strings::startsWith(
-      status.get().message(), "Task has duplicate ID"));
+      status->message(), "Task has duplicate ID"));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1540,7 +1540,7 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnSameSlave)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
@@ -1582,15 +1582,15 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnSameSlave)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(task);
-  EXPECT_EQ(task1.task_id(), task.get().task_id());
+  EXPECT_EQ(task1.task_id(), task->task_id());
 
   AWAIT_READY(status);
-  EXPECT_EQ(task2.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_ERROR, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
-  EXPECT_TRUE(status.get().has_message());
+  EXPECT_EQ(task2.task_id(), status->task_id());
+  EXPECT_EQ(TASK_ERROR, status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status->reason());
+  EXPECT_TRUE(status->has_message());
   EXPECT_TRUE(strings::contains(
-      status.get().message(), "ExecutorInfo is not compatible"));
+      status->message(), "ExecutorInfo is not compatible"));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1634,7 +1634,7 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
   ASSERT_SOME(slave1);
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   // Launch the first task with the default executor id.
   ExecutorInfo executor1;
@@ -1656,7 +1656,7 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
   driver.launchTasks(offers1.get()[0].id(), {task1});
 
   AWAIT_READY(status1);
-  ASSERT_EQ(TASK_RUNNING, status1.get().state());
+  ASSERT_EQ(TASK_RUNNING, status1->state());
 
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1672,7 +1672,7 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
   ASSERT_SOME(slave2);
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers2->size());
 
   // Now launch the second task with the same executor id but
   // a different executor command.
@@ -1695,7 +1695,7 @@ TEST_F(TaskValidationTest, ExecutorInfoDiffersOnDifferentSlaves)
   driver.launchTasks(offers2.get()[0].id(), {task2});
 
   AWAIT_READY(status2);
-  ASSERT_EQ(TASK_RUNNING, status2.get().state());
+  ASSERT_EQ(TASK_RUNNING, status2->state());
 
   EXPECT_CALL(exec1, shutdown(_))
     .Times(AtMost(1));
@@ -2140,7 +2140,7 @@ TEST_F(TaskValidationTest, TaskEnvironmentInvalid)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -2156,7 +2156,7 @@ TEST_F(TaskValidationTest, TaskEnvironmentInvalid)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_ERROR, status.get().state());
+  EXPECT_EQ(TASK_ERROR, status->state());
   EXPECT_EQ(
       "Task's `CommandInfo` is invalid: Environment variable 'ENV_VAR_KEY' "
       "of type 'VALUE' must have a value set",
@@ -2670,7 +2670,7 @@ TEST_F(TaskGroupValidationTest, ExecutorWithoutFrameworkId)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Create an invalid executor without framework id.
   ExecutorInfo executor;
@@ -3034,7 +3034,7 @@ TEST_F(TaskGroupValidationTest, ExecutorEnvironmentInvalid)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task1;
   task1.set_name("1");
@@ -3138,7 +3138,7 @@ TEST_F(TaskGroupValidationTest, TaskEnvironmentInvalid)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task1;
   task1.set_name("1");
@@ -3672,8 +3672,8 @@ TEST_F(FrameworkInfoValidationTest, RoleChangeWithMultiRoleMasterFailover)
     driver.launchTasks(offers.get()[0].id(), {task});
 
     AWAIT_READY(runningStatus);
-    EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-    EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+    EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+    EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
     // Since we launched a task, stopping the driver will cause the
     // task and its executor to be shutdown.

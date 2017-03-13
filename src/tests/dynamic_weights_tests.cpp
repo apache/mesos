@@ -96,11 +96,11 @@ protected:
             createBasicAuthHeaders(credential)));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
     AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-    Try<JSON::Value> parse = JSON::parse(response.get().body);
+    Try<JSON::Value> parse = JSON::parse(response->body);
     ASSERT_SOME(parse);
 
     // Create Protobuf representation of weights.
@@ -168,7 +168,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
           badRequest));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response.get().body;
+    << response->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -190,7 +190,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
           badRequest));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response.get().body;
+    << response->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -215,7 +215,7 @@ TEST_F(DynamicWeightsTest, ZeroWeight)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response.get().body;
+    << response->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -240,7 +240,7 @@ TEST_F(DynamicWeightsTest, NegativeWeight)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response.get().body;
+    << response->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -265,7 +265,7 @@ TEST_F(DynamicWeightsTest, NonNumericWeight)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response.get().body;
+    << response->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -289,7 +289,7 @@ TEST_F(DynamicWeightsTest, MissingRole)
           "weights=[{\"weight\":2.0}]"));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response1)
-    << response1.get().body;
+    << response1->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -305,7 +305,7 @@ TEST_F(DynamicWeightsTest, MissingRole)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response2)
-    << response2.get().body;
+    << response2->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -334,7 +334,7 @@ TEST_F(DynamicWeightsTest, UnknownRole)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response.get().body;
+    << response->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -365,7 +365,7 @@ TEST_F(DynamicWeightsTest, UpdateWeightsWithExplictRoles)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, UPDATED_WEIGHTS1);
 }
@@ -396,7 +396,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response1)
-    << response1.get().body;
+    << response1->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -412,7 +412,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response2)
-    << response2.get().body;
+    << response2->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -441,7 +441,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedQueryWeightRequest)
           createBasicAuthHeaders(credential)));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
-    << response.get().body;
+    << response->body;
 }
 
 
@@ -485,7 +485,7 @@ TEST_F(DynamicWeightsTest, AuthorizedGetWeightsRequest)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, GET_WEIGHTS1);
 
@@ -529,7 +529,7 @@ TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, UPDATED_WEIGHTS1);
 }
@@ -574,7 +574,7 @@ TEST_F(DynamicWeightsTest, AuthorizedUpdateWeightRequestWithoutPrincipal)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, UPDATED_WEIGHTS1);
 }
@@ -606,7 +606,7 @@ TEST_F(DynamicWeightsTest, UnauthorizedWeightUpdateRequest)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-    << response.get().body;
+    << response->body;
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -660,7 +660,7 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
             strings::format("%s", JSON::protobuf(infos)).get()));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
     checkWithGetRequest(
         master.get()->pid,

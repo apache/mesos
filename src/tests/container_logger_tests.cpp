@@ -162,7 +162,7 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -182,7 +182,7 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // We'll start a task that outputs to stdout.
   TaskInfo task = createTask(offers.get()[0], "echo 'Hello World!'");
@@ -197,10 +197,10 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   driver.stop();
   driver.join();
@@ -263,7 +263,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -283,7 +283,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Start a task that spams stdout with 11 MB of (mostly blank) output.
   // The logrotate container logger module is loaded with parameters that limit
@@ -305,10 +305,10 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   driver.stop();
   driver.join();
@@ -318,7 +318,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
   // Once they finish reading the container's pipe, they should exit.
   Try<os::ProcessTree> pstrees = os::pstree(0);
   ASSERT_SOME(pstrees);
-  foreach (const os::ProcessTree& pstree, pstrees.get().children) {
+  foreach (const os::ProcessTree& pstree, pstrees->children) {
     // Wait for the logger subprocesses to exit, for up to 5 seconds each.
     Duration waited = Duration::zero();
     do {
@@ -413,7 +413,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_CustomRotateOptions)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -433,7 +433,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_CustomRotateOptions)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   const string customConfig = "some-custom-logrotate-option";
 
@@ -456,10 +456,10 @@ TEST_F(ContainerLoggerTest, LOGROTATE_CustomRotateOptions)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   driver.stop();
   driver.join();
@@ -539,7 +539,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Start a task that will keep running until the end of the test.
   TaskInfo task = createTask(offers.get()[0], "sleep 100");
@@ -554,7 +554,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   // Open multiple files, so that we're fairly certain we've opened
   // the same FDs (integers) opened by the container logger.
@@ -567,10 +567,10 @@ TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
   }
 
   // Kill the task, which also kills the executor.
-  driver.killTask(statusRunning.get().task_id());
+  driver.killTask(statusRunning->task_id());
 
   AWAIT_READY(statusKilled);
-  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
 
   Future<Nothing> executorTerminated =
     FUTURE_DISPATCH(_, &Slave::executorTerminated);
@@ -644,7 +644,7 @@ TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -664,7 +664,7 @@ TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Start a task that spams stdout with 3 MB of (mostly blank) output.
   // The logrotate container logger module is loaded with parameters that limit
@@ -689,10 +689,10 @@ TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   driver.stop();
   driver.join();
@@ -702,7 +702,7 @@ TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
   // Once they finish reading the container's pipe, they should exit.
   Try<os::ProcessTree> pstrees = os::pstree(0);
   ASSERT_SOME(pstrees);
-  foreach (const os::ProcessTree& pstree, pstrees.get().children) {
+  foreach (const os::ProcessTree& pstree, pstrees->children) {
     // Wait for the logger subprocesses to exit, for up to 5 seconds each.
     Duration waited = Duration::zero();
     do {

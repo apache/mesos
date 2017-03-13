@@ -245,7 +245,7 @@ TEST_F(RegistrarTest, Recover)
       Owned<Operation>(new RemoveSlave(slave)));
 
   AWAIT_READY(registry);
-  EXPECT_EQ(master, registry.get().master().info());
+  EXPECT_EQ(master, registry->master().info());
 
   AWAIT_TRUE(admit);
   AWAIT_TRUE(unreachable);
@@ -441,7 +441,7 @@ TEST_F(RegistrarTest, Remove)
 // For example:
 //   MaintenanceTest(flags, state, [=](const Registry& registry) {
 //     // Checks and operations.  i.e.:
-//     EXPECT_EQ(1, registry.get().schedules().size());
+//     EXPECT_EQ(1, registry->schedules().size());
 //   });
 
 // Adds maintenance schedules to the registry, one machine at a time.
@@ -480,13 +480,13 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    EXPECT_EQ(1, registry.get().schedules().size());
-    EXPECT_EQ(1, registry.get().schedules(0).windows().size());
-    EXPECT_EQ(1, registry.get().schedules(0).windows(0).machine_ids().size());
-    EXPECT_EQ(1, registry.get().machines().machines().size());
+    EXPECT_EQ(1, registry->schedules().size());
+    EXPECT_EQ(1, registry->schedules(0).windows().size());
+    EXPECT_EQ(1, registry->schedules(0).windows(0).machine_ids().size());
+    EXPECT_EQ(1, registry->machines().machines().size());
     EXPECT_EQ(
         MachineInfo::DRAINING,
-        registry.get().machines().machines(0).info().mode());
+        registry->machines().machines(0).info().mode());
 
     // Extend the schedule by one machine (in a different window).
     maintenance::Schedule schedule = createSchedule({
@@ -503,14 +503,14 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    EXPECT_EQ(1, registry.get().schedules().size());
-    EXPECT_EQ(2, registry.get().schedules(0).windows().size());
-    EXPECT_EQ(1, registry.get().schedules(0).windows(0).machine_ids().size());
-    EXPECT_EQ(1, registry.get().schedules(0).windows(1).machine_ids().size());
-    EXPECT_EQ(2, registry.get().machines().machines().size());
+    EXPECT_EQ(1, registry->schedules().size());
+    EXPECT_EQ(2, registry->schedules(0).windows().size());
+    EXPECT_EQ(1, registry->schedules(0).windows(0).machine_ids().size());
+    EXPECT_EQ(1, registry->schedules(0).windows(1).machine_ids().size());
+    EXPECT_EQ(2, registry->machines().machines().size());
     EXPECT_EQ(
         MachineInfo::DRAINING,
-        registry.get().machines().machines(1).info().mode());
+        registry->machines().machines(1).info().mode());
 
     // Extend a window by one machine.
     maintenance::Schedule schedule = createSchedule({
@@ -527,14 +527,14 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    EXPECT_EQ(1, registry.get().schedules().size());
-    EXPECT_EQ(2, registry.get().schedules(0).windows().size());
-    EXPECT_EQ(1, registry.get().schedules(0).windows(0).machine_ids().size());
-    EXPECT_EQ(2, registry.get().schedules(0).windows(1).machine_ids().size());
-    EXPECT_EQ(3, registry.get().machines().machines().size());
+    EXPECT_EQ(1, registry->schedules().size());
+    EXPECT_EQ(2, registry->schedules(0).windows().size());
+    EXPECT_EQ(1, registry->schedules(0).windows(0).machine_ids().size());
+    EXPECT_EQ(2, registry->schedules(0).windows(1).machine_ids().size());
+    EXPECT_EQ(3, registry->machines().machines().size());
     EXPECT_EQ(
         MachineInfo::DRAINING,
-        registry.get().machines().machines(2).info().mode());
+        registry->machines().machines(2).info().mode());
 
     // Rearrange the schedule into one window.
     maintenance::Schedule schedule = createSchedule(
@@ -550,21 +550,21 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    EXPECT_EQ(1, registry.get().schedules().size());
-    EXPECT_EQ(1, registry.get().schedules(0).windows().size());
-    EXPECT_EQ(3, registry.get().schedules(0).windows(0).machine_ids().size());
-    EXPECT_EQ(3, registry.get().machines().machines().size());
+    EXPECT_EQ(1, registry->schedules().size());
+    EXPECT_EQ(1, registry->schedules(0).windows().size());
+    EXPECT_EQ(3, registry->schedules(0).windows(0).machine_ids().size());
+    EXPECT_EQ(3, registry->machines().machines().size());
     EXPECT_EQ(
         MachineInfo::DRAINING,
-        registry.get().machines().machines(0).info().mode());
+        registry->machines().machines(0).info().mode());
 
     EXPECT_EQ(
         MachineInfo::DRAINING,
-        registry.get().machines().machines(1).info().mode());
+        registry->machines().machines(1).info().mode());
 
     EXPECT_EQ(
         MachineInfo::DRAINING,
-        registry.get().machines().machines(2).info().mode());
+        registry->machines().machines(2).info().mode());
 
     // Delete one machine from the schedule.
     maintenance::Schedule schedule = createSchedule(
@@ -580,10 +580,10 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    EXPECT_EQ(1, registry.get().schedules().size());
-    EXPECT_EQ(1, registry.get().schedules(0).windows().size());
-    EXPECT_EQ(2, registry.get().schedules(0).windows(0).machine_ids().size());
-    EXPECT_EQ(2, registry.get().machines().machines().size());
+    EXPECT_EQ(1, registry->schedules().size());
+    EXPECT_EQ(1, registry->schedules(0).windows().size());
+    EXPECT_EQ(2, registry->schedules(0).windows(0).machine_ids().size());
+    EXPECT_EQ(2, registry->machines().machines().size());
 
     // Delete all machines from the schedule.
     maintenance::Schedule schedule;
@@ -597,9 +597,9 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    EXPECT_EQ(1, registry.get().schedules().size());
-    EXPECT_EQ(0, registry.get().schedules(0).windows().size());
-    EXPECT_EQ(0, registry.get().machines().machines().size());
+    EXPECT_EQ(1, registry->schedules().size());
+    EXPECT_EQ(0, registry->schedules(0).windows().size());
+    EXPECT_EQ(0, registry->machines().machines().size());
   }
 }
 
@@ -645,14 +645,14 @@ TEST_F(RegistrarTest, StartMaintenance)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    EXPECT_EQ(2, registry.get().machines().machines().size());
+    EXPECT_EQ(2, registry->machines().machines().size());
     EXPECT_EQ(
         MachineInfo::DRAINING,
-        registry.get().machines().machines(0).info().mode());
+        registry->machines().machines(0).info().mode());
 
     EXPECT_EQ(
         MachineInfo::DOWN,
-        registry.get().machines().machines(1).info().mode());
+        registry->machines().machines(1).info().mode());
 
     // Schedule three machines for maintenance.
     maintenance::Schedule schedule = createSchedule(
@@ -675,18 +675,18 @@ TEST_F(RegistrarTest, StartMaintenance)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    EXPECT_EQ(3, registry.get().machines().machines().size());
+    EXPECT_EQ(3, registry->machines().machines().size());
     EXPECT_EQ(
         MachineInfo::DOWN,
-        registry.get().machines().machines(0).info().mode());
+        registry->machines().machines(0).info().mode());
 
     EXPECT_EQ(
         MachineInfo::DOWN,
-        registry.get().machines().machines(1).info().mode());
+        registry->machines().machines(1).info().mode());
 
     EXPECT_EQ(
         MachineInfo::DOWN,
-        registry.get().machines().machines(2).info().mode());
+        registry->machines().machines(2).info().mode());
   }
 }
 
@@ -737,17 +737,17 @@ TEST_F(RegistrarTest, StopMaintenance)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    EXPECT_EQ(1, registry.get().schedules().size());
-    EXPECT_EQ(1, registry.get().schedules(0).windows().size());
-    EXPECT_EQ(2, registry.get().schedules(0).windows(0).machine_ids().size());
-    EXPECT_EQ(2, registry.get().machines().machines().size());
+    EXPECT_EQ(1, registry->schedules().size());
+    EXPECT_EQ(1, registry->schedules(0).windows().size());
+    EXPECT_EQ(2, registry->schedules(0).windows(0).machine_ids().size());
+    EXPECT_EQ(2, registry->machines().machines().size());
     EXPECT_EQ(
         MachineInfo::DRAINING,
-        registry.get().machines().machines(0).info().mode());
+        registry->machines().machines(0).info().mode());
 
     EXPECT_EQ(
         MachineInfo::DRAINING,
-        registry.get().machines().machines(1).info().mode());
+        registry->machines().machines(1).info().mode());
 
     // Transition machine one and two into `DOWN` mode.
     RepeatedPtrField<MachineID> machines =
@@ -767,8 +767,8 @@ TEST_F(RegistrarTest, StopMaintenance)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    EXPECT_EQ(0, registry.get().schedules().size());
-    EXPECT_EQ(0, registry.get().machines().machines().size());
+    EXPECT_EQ(0, registry->schedules().size());
+    EXPECT_EQ(0, registry->machines().machines().size());
   }
 }
 
@@ -816,11 +816,11 @@ TEST_F(RegistrarTest, UpdateQuota)
     AWAIT_READY(registry);
 
     // Check that the recovered quota matches the one we stored.
-    ASSERT_EQ(1, registry.get().quotas().size());
-    EXPECT_EQ(ROLE1, registry.get().quotas(0).info().role());
-    ASSERT_EQ(2, registry.get().quotas(0).info().guarantee().size());
+    ASSERT_EQ(1, registry->quotas().size());
+    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
+    ASSERT_EQ(2, registry->quotas(0).info().guarantee().size());
 
-    Resources storedResources(registry.get().quotas(0).info().guarantee());
+    Resources storedResources(registry->quotas(0).info().guarantee());
     EXPECT_EQ(quotaResources1, storedResources);
 
     // Change quota for `ROLE1`.
@@ -836,11 +836,11 @@ TEST_F(RegistrarTest, UpdateQuota)
     AWAIT_READY(registry);
 
     // Check that the recovered quota matches the one we updated.
-    ASSERT_EQ(1, registry.get().quotas().size());
-    EXPECT_EQ(ROLE1, registry.get().quotas(0).info().role());
-    ASSERT_EQ(1, registry.get().quotas(0).info().guarantee().size());
+    ASSERT_EQ(1, registry->quotas().size());
+    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
+    ASSERT_EQ(1, registry->quotas(0).info().guarantee().size());
 
-    Resources storedResources(registry.get().quotas(0).info().guarantee());
+    Resources storedResources(registry->quotas(0).info().guarantee());
     EXPECT_EQ(quotaResources2, storedResources);
 
     // Store one more quota for a role without quota.
@@ -856,14 +856,14 @@ TEST_F(RegistrarTest, UpdateQuota)
     // NOTE: We assume quota messages are stored in order they have
     // been added.
     // TODO(alexr): Consider removing dependency on the order.
-    ASSERT_EQ(2, registry.get().quotas().size());
-    EXPECT_EQ(ROLE1, registry.get().quotas(0).info().role());
-    ASSERT_EQ(1, registry.get().quotas(0).info().guarantee().size());
+    ASSERT_EQ(2, registry->quotas().size());
+    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
+    ASSERT_EQ(1, registry->quotas(0).info().guarantee().size());
 
-    EXPECT_EQ(ROLE2, registry.get().quotas(1).info().role());
-    ASSERT_EQ(2, registry.get().quotas(1).info().guarantee().size());
+    EXPECT_EQ(ROLE2, registry->quotas(1).info().role());
+    ASSERT_EQ(2, registry->quotas(1).info().guarantee().size());
 
-    Resources storedResources(registry.get().quotas(1).info().guarantee());
+    Resources storedResources(registry->quotas(1).info().guarantee());
     EXPECT_EQ(quotaResources1, storedResources);
 
     // Change quota for `role2`.
@@ -883,18 +883,18 @@ TEST_F(RegistrarTest, UpdateQuota)
     // NOTE: We assume quota messages are stored in order they have been
     // added and update does not change the order.
     // TODO(alexr): Consider removing dependency on the order.
-    ASSERT_EQ(2, registry.get().quotas().size());
+    ASSERT_EQ(2, registry->quotas().size());
 
-    EXPECT_EQ(ROLE1, registry.get().quotas(0).info().role());
-    ASSERT_EQ(1, registry.get().quotas(0).info().guarantee().size());
+    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
+    ASSERT_EQ(1, registry->quotas(0).info().guarantee().size());
 
-    Resources storedResources1(registry.get().quotas(0).info().guarantee());
+    Resources storedResources1(registry->quotas(0).info().guarantee());
     EXPECT_EQ(quotaResources2, storedResources1);
 
-    EXPECT_EQ(ROLE2, registry.get().quotas(1).info().role());
-    ASSERT_EQ(1, registry.get().quotas(1).info().guarantee().size());
+    EXPECT_EQ(ROLE2, registry->quotas(1).info().role());
+    ASSERT_EQ(1, registry->quotas(1).info().guarantee().size());
 
-    Resources storedResources2(registry.get().quotas(1).info().guarantee());
+    Resources storedResources2(registry->quotas(1).info().guarantee());
     EXPECT_EQ(quotaResources2, storedResources2);
   }
 }
@@ -946,9 +946,9 @@ TEST_F(RegistrarTest, RemoveQuota)
     // NOTE: We assume quota messages are stored in order they have been
     // added.
     // TODO(alexr): Consider removing dependency on the order.
-    ASSERT_EQ(2, registry.get().quotas().size());
-    EXPECT_EQ(ROLE1, registry.get().quotas(0).info().role());
-    EXPECT_EQ(ROLE2, registry.get().quotas(1).info().role());
+    ASSERT_EQ(2, registry->quotas().size());
+    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
+    EXPECT_EQ(ROLE2, registry->quotas(1).info().role());
 
     // Remove quota for `role2`.
     AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveQuota(ROLE2))));
@@ -960,8 +960,8 @@ TEST_F(RegistrarTest, RemoveQuota)
     AWAIT_READY(registry);
 
     // Check that there is only one quota left in the registry.
-    ASSERT_EQ(1, registry.get().quotas().size());
-    EXPECT_EQ(ROLE1, registry.get().quotas(0).info().role());
+    ASSERT_EQ(1, registry->quotas().size());
+    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
 
     // Remove quota for `ROLE1`.
     AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveQuota(ROLE1))));
@@ -973,7 +973,7 @@ TEST_F(RegistrarTest, RemoveQuota)
     AWAIT_READY(registry);
 
     // Check that there are no more quotas at this point.
-    ASSERT_EQ(0, registry.get().quotas().size());
+    ASSERT_EQ(0, registry->quotas().size());
   }
 }
 
@@ -994,7 +994,7 @@ TEST_F(RegistrarTest, UpdateWeights)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    ASSERT_EQ(0, registry.get().weights_size());
+    ASSERT_EQ(0, registry->weights_size());
 
     // Store the weight for 'ROLE1' previously without weight.
     hashmap<string, double> weights;
@@ -1012,9 +1012,9 @@ TEST_F(RegistrarTest, UpdateWeights)
 
     // Check that the recovered weights matches the weights we stored
     // previously.
-    ASSERT_EQ(1, registry.get().weights_size());
-    EXPECT_EQ(ROLE1, registry.get().weights(0).info().role());
-    ASSERT_EQ(WEIGHT1, registry.get().weights(0).info().weight());
+    ASSERT_EQ(1, registry->weights_size());
+    EXPECT_EQ(ROLE1, registry->weights(0).info().role());
+    ASSERT_EQ(WEIGHT1, registry->weights(0).info().weight());
 
     // Change weight for 'ROLE1', and store the weight for 'ROLE2'.
     hashmap<string, double> weights;
@@ -1033,11 +1033,11 @@ TEST_F(RegistrarTest, UpdateWeights)
 
     // Check that the recovered weights matches the weights we updated
     // previously.
-    ASSERT_EQ(2, registry.get().weights_size());
-    EXPECT_EQ(ROLE1, registry.get().weights(0).info().role());
-    ASSERT_EQ(UPDATED_WEIGHT1, registry.get().weights(0).info().weight());
-    EXPECT_EQ(ROLE2, registry.get().weights(1).info().role());
-    ASSERT_EQ(WEIGHT2, registry.get().weights(1).info().weight());
+    ASSERT_EQ(2, registry->weights_size());
+    EXPECT_EQ(ROLE1, registry->weights(0).info().role());
+    ASSERT_EQ(UPDATED_WEIGHT1, registry->weights(0).info().weight());
+    EXPECT_EQ(ROLE2, registry->weights(1).info().role());
+    ASSERT_EQ(WEIGHT2, registry->weights(1).info().weight());
   }
 }
 
@@ -1062,8 +1062,8 @@ TEST_F(RegistrarTest, Bootstrap)
 
     AWAIT_READY(registry);
 
-    ASSERT_EQ(1, registry.get().slaves().slaves().size());
-    EXPECT_EQ(slave, registry.get().slaves().slaves(0).info());
+    ASSERT_EQ(1, registry->slaves().slaves().size());
+    EXPECT_EQ(slave, registry->slaves().slaves(0).info());
   }
 }
 
@@ -1187,7 +1187,7 @@ TEST_F(RegistrarTest, Authentication)
   // Requests without credentials should be rejected.
   Future<Response> response = process::http::get(registrar.pid(), "registry");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
-    << response.get().body;
+    << response->body;
 
   Credential badCredential;
   badCredential.set_principal("bad-principal");
@@ -1200,7 +1200,7 @@ TEST_F(RegistrarTest, Authentication)
       None(),
       createBasicAuthHeaders(badCredential));
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
-    << response.get().body;
+    << response->body;
 
   // Requests with good credentials should be permitted.
   response = process::http::get(
@@ -1209,7 +1209,7 @@ TEST_F(RegistrarTest, Authentication)
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   AWAIT_READY(authentication::unsetAuthenticator(AUTHENTICATION_REALM));
 }
@@ -1286,7 +1286,7 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
   Future<Registry> registry = registrar2.recover(info);
   AWAIT_READY(registry);
   LOG(INFO) << "Recovered " << slaveCount << " agents ("
-            << Bytes(registry.get().ByteSize()) << ") in " << watch.elapsed();
+            << Bytes(registry->ByteSize()) << ") in " << watch.elapsed();
 
   // Shuffle the slaves so we are removing them in random order (same
   // as in production).

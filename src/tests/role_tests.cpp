@@ -136,7 +136,7 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -154,7 +154,7 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   // In the next offer, expect an offer with reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -180,7 +180,7 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   // In the next offer, expect an offer with a persistent volume.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -245,7 +245,7 @@ TEST_F(RoleTest, ImplicitRoleStaticReservation)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -288,11 +288,11 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointEmpty)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Value> parse = JSON::parse(response.get().body);
+  Try<JSON::Value> parse = JSON::parse(response->body);
   ASSERT_SOME(parse);
 
   Try<JSON::Value> expected = JSON::parse(
@@ -324,11 +324,11 @@ TEST_F(RoleTest, EndpointNoFrameworks)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Value> parse = JSON::parse(response.get().body);
+  Try<JSON::Value> parse = JSON::parse(response->body);
   ASSERT_SOME(parse);
 
   Try<JSON::Value> expected = JSON::parse(
@@ -422,18 +422,18 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesWeights)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Value> parse = JSON::parse(response.get().body);
+  Try<JSON::Value> parse = JSON::parse(response->body);
   ASSERT_SOME(parse);
 
   Try<JSON::Value> expected = JSON::parse(
       "{"
       "  \"roles\": ["
       "    {"
-      "      \"frameworks\": [\"" + frameworkId1.get().value() + "\"],"
+      "      \"frameworks\": [\"" + frameworkId1->value() + "\"],"
       "      \"name\": \"roleX\","
       "      \"resources\": {"
       "        \"cpus\": 0,"
@@ -455,7 +455,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesWeights)
       "      \"weight\": 4.0"
       "    },"
       "    {"
-      "      \"frameworks\": [\"" + frameworkId2.get().value() + "\"],"
+      "      \"frameworks\": [\"" + frameworkId2->value() + "\"],"
       "      \"name\": \"roleZ\","
       "      \"resources\": {"
       "        \"cpus\": 0,"
@@ -506,7 +506,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesQuotas)
       quotaRequestBody);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, quotaResponse)
-    << quotaResponse.get().body;
+    << quotaResponse->body;
 
   Future<Response> rolesResponse = process::http::get(
       master.get()->pid,
@@ -515,12 +515,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesQuotas)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, rolesResponse)
-    << rolesResponse.get().body;
+    << rolesResponse->body;
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
       APPLICATION_JSON, "Content-Type", rolesResponse);
 
-  Try<JSON::Value> parse = JSON::parse(rolesResponse.get().body);
+  Try<JSON::Value> parse = JSON::parse(rolesResponse->body);
   ASSERT_SOME(parse);
 
   Try<JSON::Value> expected = JSON::parse(
@@ -551,7 +551,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesQuotas)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, deleteResponse)
-    << deleteResponse.get().body;
+    << deleteResponse->body;
 
   rolesResponse = process::http::get(
       master.get()->pid,
@@ -560,12 +560,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesQuotas)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, rolesResponse)
-    << rolesResponse.get().body;
+    << rolesResponse->body;
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
       APPLICATION_JSON, "Content-Type", rolesResponse);
 
-  parse = JSON::parse(rolesResponse.get().body);
+  parse = JSON::parse(rolesResponse->body);
   ASSERT_SOME(parse);
 
   expected = JSON::parse(
@@ -679,9 +679,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Value> parse = JSON::parse(response.get().body);
+    Try<JSON::Value> parse = JSON::parse(response->body);
     ASSERT_SOME(parse);
 
     Try<JSON::Value> expected = JSON::parse(

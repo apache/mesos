@@ -167,7 +167,7 @@ TEST_F(PersistentVolumeEndpointsTest, StaticReservation)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -195,7 +195,7 @@ TEST_F(PersistentVolumeEndpointsTest, StaticReservation)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_FALSE(Resources(offer.resources()).contains(
@@ -262,7 +262,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -299,7 +299,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -381,7 +381,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservationRoleMismatch)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -899,7 +899,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -930,7 +930,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_FALSE(Resources(offer.resources()).contains(
@@ -1129,7 +1129,7 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -1337,7 +1337,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -1510,7 +1510,7 @@ TEST_F(PersistentVolumeEndpointsTest, NoVolumes)
   ASSERT_SOME(slave);
 
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
-  string body = "slaveId=" + slaveId.get().value();
+  string body = "slaveId=" + slaveId->value();
 
   Future<Response> response =
     process::http::post(master.get()->pid, "create-volumes", headers, body);
@@ -1591,7 +1591,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_EQ(offer.slave_id(), slaveId.get());
@@ -1610,7 +1610,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   // Expect an offer with reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -1635,7 +1635,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   // Expect an offer with a persistent volume.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -1664,7 +1664,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   // Expect an offer containing reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -1691,7 +1691,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   // Expect an offer containing only unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -1776,7 +1776,7 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   // Expect an offer containing the persistent volume.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -1798,7 +1798,7 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   // Expect an offer containing the dynamic reservation.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -1813,7 +1813,7 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   // Expect an offer containing only unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -1897,7 +1897,7 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(2u, offers.get().size());
+  ASSERT_EQ(2u, offers->size());
 
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(),
@@ -1910,7 +1910,7 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
       frameworkInfo.role(),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
-  for (size_t i = 0; i < offers.get().size(); i++) {
+  for (size_t i = 0; i < offers->size(); i++) {
     const Offer& offer = offers.get()[i];
     const SlaveID& offeredSlaveId = offer.slave_id();
 
@@ -1924,7 +1924,7 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
   }
 
   AWAIT_READY(checkpointResources);
-  EXPECT_EQ(Resources(checkpointResources.get().resources()),
+  EXPECT_EQ(Resources(checkpointResources->resources()),
             slave2Reserved);
 
   // Shutdown `slave2` with an explicit shutdown message.
@@ -2032,7 +2032,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
@@ -2074,7 +2074,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(parse);
 

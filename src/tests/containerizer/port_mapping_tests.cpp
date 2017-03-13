@@ -249,7 +249,7 @@ protected:
       << "Failed to retrieve the host public IP network from " << eth0 << ": "
       << hostIPNetwork.error();
 
-    hostIP = hostIPNetwork.get().address();
+    hostIP = hostIPNetwork->address();
 
     // Get all the external name servers for tests that need to talk
     // to an external host, e.g., ping, DNS.
@@ -388,11 +388,11 @@ protected:
       return Error(s.error());
     }
 
-    Future<Option<int>> status = s.get().status();
+    Future<Option<int>> status = s->status();
     AWAIT_EXPECT_READY(status);
     EXPECT_SOME_EQ(0, status.get());
 
-    Future<string> out = io::read(s.get().out().get());
+    Future<string> out = io::read(s->out().get());
     AWAIT_EXPECT_READY(out);
 
     Try<JSON::Object> object = JSON::parse<JSON::Object>(out.get());
@@ -1604,7 +1604,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
   ASSERT_GT(time.get(), (size.bytes() / rate.bytes()));
 
   // Make sure the nc server exits normally.
-  Future<Option<int>> status = s.get().status();
+  Future<Option<int>> status = s->status();
   AWAIT_READY(status);
   EXPECT_SOME_EQ(0, status.get());
 
@@ -1761,9 +1761,9 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
     Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
     AWAIT_READY(usage);
 
-    if (usage.get().has_net_tcp_rtt_microsecs_p50() &&
-        usage.get().has_net_tcp_active_connections()) {
-      EXPECT_GT(usage.get().net_tcp_active_connections(), 0);
+    if (usage->has_net_tcp_rtt_microsecs_p50() &&
+        usage->has_net_tcp_active_connections()) {
+      EXPECT_GT(usage->net_tcp_active_connections(), 0);
       break;
     }
   } while (waited < Seconds(5));
@@ -1800,7 +1800,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
   ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   // Make sure the nc server exits normally.
-  Future<Option<int>> status = s.get().status();
+  Future<Option<int>> status = s->status();
   AWAIT_READY(status);
   EXPECT_SOME_EQ(0, status.get());
 
@@ -1914,7 +1914,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   Offer offer1 = offers1.get()[0];
 
@@ -1971,7 +1971,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
   Clock::resume();
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers2->size());
 
   Offer offer2 = offers2.get()[0];
 
@@ -2020,7 +2020,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
   // were recovered.
   Future<hashset<ContainerID>> containers = containerizer.get()->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(2u, containers.get().size());
+  EXPECT_EQ(2u, containers->size());
 
   foreach (const ContainerID& containerId, containers.get()) {
     // Do some basic checks to make sure the network isolator can
@@ -2081,7 +2081,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Start a long running task using network islator.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
@@ -2099,9 +2099,9 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   Future<hashset<ContainerID>> containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *containers.get().begin();
+  ContainerID containerId = *containers->begin();
 
   slave.get()->terminate();
 
@@ -2140,11 +2140,11 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
     ip::classifiers(eth0, ingress::HANDLE);
 
   EXPECT_SOME(classifiers);
-  EXPECT_EQ(0u, classifiers.get().size());
+  EXPECT_EQ(0u, classifiers->size());
 
   classifiers = ip::classifiers(lo, ingress::HANDLE);
   EXPECT_SOME(classifiers);
-  EXPECT_EQ(0u, classifiers.get().size());
+  EXPECT_EQ(0u, classifiers->size());
 
   // Expect no 'veth' devices.
   Try<set<string>> links = net::links();
@@ -2156,7 +2156,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   // Expect no files in bind mount directory.
   Try<list<string>> files = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
   ASSERT_SOME(files);
-  EXPECT_EQ(0u, files.get().size());
+  EXPECT_EQ(0u, files->size());
 
   driver.stop();
   driver.join();
@@ -2200,7 +2200,7 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Start a long running task using network islator.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
@@ -2215,14 +2215,14 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status1);
-  EXPECT_EQ(task.task_id(), status1.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(task.task_id(), status1->task_id());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   const string symlink = path::join(
       slave::PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT(),
@@ -2237,8 +2237,8 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
   driver.killTask(task.task_id());
 
   AWAIT_READY(status2);
-  EXPECT_EQ(task.task_id(), status2.get().task_id());
-  EXPECT_EQ(TASK_KILLED, status2.get().state());
+  EXPECT_EQ(task.task_id(), status2->task_id());
+  EXPECT_EQ(TASK_KILLED, status2->state());
 
   AWAIT_READY(termination);
   EXPECT_SOME(termination.get());
@@ -2291,7 +2291,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Offer offer = offers.get()[0];
 
@@ -2315,17 +2315,17 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
   driver.launchTasks(offers.get()[0].id(), {task1, task2});
 
   AWAIT_READY(status1);
-  ASSERT_EQ(TASK_RUNNING, status1.get().state());
+  ASSERT_EQ(TASK_RUNNING, status1->state());
 
   AWAIT_READY(status2);
-  ASSERT_EQ(TASK_RUNNING, status2.get().state());
+  ASSERT_EQ(TASK_RUNNING, status2->state());
 
   // Obtain the container IDs.
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(2u, containers.get().size());
+  ASSERT_EQ(2u, containers->size());
 
-  auto iterator = containers.get().begin();
+  auto iterator = containers->begin();
   const ContainerID containerId1 = *iterator;
   const ContainerID containerId2 = *(++iterator);
 

@@ -102,7 +102,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, UnauthenticatedSlave)
 
   // Slave should get error message from the master.
   AWAIT_READY(shutdownMessage);
-  ASSERT_NE("", shutdownMessage.get().message());
+  ASSERT_NE("", shutdownMessage->message());
 }
 
 
@@ -163,7 +163,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, DisableSlaveAuthentication)
 
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 
@@ -322,7 +322,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, AuthenticatedSlave)
 
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 
@@ -396,7 +396,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, RetrySlaveAuthentication)
 
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 
@@ -485,7 +485,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 
@@ -579,7 +579,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 
@@ -663,7 +663,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 
@@ -737,7 +737,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 

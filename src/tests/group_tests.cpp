@@ -59,8 +59,8 @@ TEST_F(GroupTest, Group)
   Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(1u, memberships.get().size());
-  EXPECT_EQ(1u, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships->size());
+  EXPECT_EQ(1u, memberships->count(membership.get()));
 
   Future<Option<string>> data = group.data(membership.get());
 
@@ -74,10 +74,10 @@ TEST_F(GroupTest, Group)
   memberships = group.watch(memberships.get());
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(0u, memberships.get().size());
+  EXPECT_EQ(0u, memberships->size());
 
-  ASSERT_TRUE(membership.get().cancelled().isReady());
-  ASSERT_TRUE(membership.get().cancelled().get());
+  ASSERT_TRUE(membership->cancelled().isReady());
+  ASSERT_TRUE(membership->cancelled().get());
 }
 
 
@@ -98,8 +98,8 @@ TEST_F(GroupTest, GroupJoinWithDisconnect)
   Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(1u, memberships.get().size());
-  EXPECT_EQ(1u, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships->size());
+  EXPECT_EQ(1u, memberships->count(membership.get()));
 }
 
 
@@ -114,8 +114,8 @@ TEST_F(GroupTest, GroupDataWithDisconnect)
   Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(1u, memberships.get().size());
-  EXPECT_EQ(1u, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships->size());
+  EXPECT_EQ(1u, memberships->count(membership.get()));
 
   server->shutdownNetwork();
 
@@ -141,8 +141,8 @@ TEST_F(GroupTest, GroupDataWithRemovedMembership)
   Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(1u, memberships.get().size());
-  EXPECT_EQ(1u, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships->size());
+  EXPECT_EQ(1u, memberships->count(membership.get()));
 
   AWAIT_EXPECT_TRUE(group.cancel(membership.get()));
 
@@ -164,8 +164,8 @@ TEST_F(GroupTest, GroupCancelWithDisconnect)
   Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(1u, memberships.get().size());
-  EXPECT_EQ(1u, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships->size());
+  EXPECT_EQ(1u, memberships->count(membership.get()));
 
   Future<Option<string>> data = group.data(membership.get());
 
@@ -185,10 +185,10 @@ TEST_F(GroupTest, GroupCancelWithDisconnect)
   memberships = group.watch(memberships.get());
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(0u, memberships.get().size());
+  EXPECT_EQ(0u, memberships->size());
 
-  ASSERT_TRUE(membership.get().cancelled().isReady());
-  ASSERT_TRUE(membership.get().cancelled().get());
+  ASSERT_TRUE(membership->cancelled().isReady());
+  ASSERT_TRUE(membership->cancelled().get());
 }
 
 
@@ -203,8 +203,8 @@ TEST_F(GroupTest, GroupWatchWithSessionExpiration)
   Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(1u, memberships.get().size());
-  EXPECT_EQ(1u, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships->size());
+  EXPECT_EQ(1u, memberships->count(membership.get()));
 
   Future<Option<int64_t>> session = group.session();
 
@@ -213,13 +213,13 @@ TEST_F(GroupTest, GroupWatchWithSessionExpiration)
 
   memberships = group.watch(memberships.get());
 
-  server->expireSession(session.get().get());
+  server->expireSession(session->get());
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(0u, memberships.get().size());
+  EXPECT_EQ(0u, memberships->size());
 
-  AWAIT_READY(membership.get().cancelled());
-  ASSERT_FALSE(membership.get().cancelled().get());
+  AWAIT_READY(membership->cancelled());
+  ASSERT_FALSE(membership->cancelled().get());
 }
 
 
@@ -243,28 +243,28 @@ TEST_F(GroupTest, MultipleGroups)
   // NOTE: Since 'group2' joining doesn't guarantee that 'group1'
   // knows about it synchronously, we have to ensure that 'group1'
   // knows about both the memberships.
-  if (memberships1.get().size() == 1) {
+  if (memberships1->size() == 1) {
     memberships1 = group1.watch(memberships1.get());
     AWAIT_READY(memberships1);
   }
 
-  EXPECT_EQ(2u, memberships1.get().size());
-  EXPECT_EQ(1u, memberships1.get().count(membership1.get()));
-  EXPECT_EQ(1u, memberships1.get().count(membership2.get()));
+  EXPECT_EQ(2u, memberships1->size());
+  EXPECT_EQ(1u, memberships1->count(membership1.get()));
+  EXPECT_EQ(1u, memberships1->count(membership2.get()));
 
   Future<set<Group::Membership>> memberships2 = group2.watch();
 
   AWAIT_READY(memberships2);
 
   // See comments above for why we need to do this.
-  if (memberships2.get().size() == 1) {
+  if (memberships2->size() == 1) {
     memberships2 = group2.watch(memberships2.get());
     AWAIT_READY(memberships2);
   }
 
-  EXPECT_EQ(2u, memberships2.get().size());
-  EXPECT_EQ(1u, memberships2.get().count(membership1.get()));
-  EXPECT_EQ(1u, memberships2.get().count(membership2.get()));
+  EXPECT_EQ(2u, memberships2->size());
+  EXPECT_EQ(1u, memberships2->count(membership1.get()));
+  EXPECT_EQ(1u, memberships2->count(membership2.get()));
 
   Future<bool> cancelled;
 
@@ -281,7 +281,7 @@ TEST_F(GroupTest, MultipleGroups)
   AWAIT_READY(session1);
   ASSERT_SOME(session1.get());
 
-  server->expireSession(session1.get().get());
+  server->expireSession(session1->get());
 
   AWAIT_ASSERT_FALSE(cancelled);
 }
@@ -363,7 +363,7 @@ TEST_F(GroupTest, RetryableErrors)
   // on-going. This causes retries of authenticate() and group
   // create().
   connected = FUTURE_DISPATCH(_, &GroupProcess::connected);
-  server->expireSession(session.get().get());
+  server->expireSession(session->get());
 
   Future<Group::Membership> membership = group.join("hello world");
 
@@ -373,7 +373,7 @@ TEST_F(GroupTest, RetryableErrors)
   AWAIT_READY(session);
   ASSERT_SOME(session.get());
   connected = FUTURE_DISPATCH(_, &GroupProcess::connected);
-  server->expireSession(session.get().get());
+  server->expireSession(session->get());
 
   AWAIT_READY(membership);
 
@@ -383,7 +383,7 @@ TEST_F(GroupTest, RetryableErrors)
   AWAIT_READY(session);
   ASSERT_SOME(session.get());
   connected = FUTURE_DISPATCH(_, &GroupProcess::connected);
-  server->expireSession(session.get().get());
+  server->expireSession(session->get());
 
   Future<bool> cancellation = group.cancel(membership.get());
 
@@ -393,7 +393,7 @@ TEST_F(GroupTest, RetryableErrors)
   AWAIT_READY(session);
   ASSERT_SOME(session.get());
   connected = FUTURE_DISPATCH(_, &GroupProcess::connected);
-  server->expireSession(session.get().get());
+  server->expireSession(session->get());
 
   AWAIT_READY(cancellation);
   AWAIT_READY(connected);
@@ -413,8 +413,8 @@ TEST_F(GroupTest, LabelledGroup)
   Future<set<Group::Membership>> memberships = group.watch();
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(1u, memberships.get().size());
-  EXPECT_EQ(1u, memberships.get().count(membership.get()));
+  EXPECT_EQ(1u, memberships->size());
+  EXPECT_EQ(1u, memberships->count(membership.get()));
 
   Future<Option<string>> data = group.data(membership.get());
 
@@ -428,10 +428,10 @@ TEST_F(GroupTest, LabelledGroup)
   memberships = group.watch(memberships.get());
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(0u, memberships.get().size());
+  EXPECT_EQ(0u, memberships->size());
 
-  ASSERT_TRUE(membership.get().cancelled().isReady());
-  ASSERT_TRUE(membership.get().cancelled().get());
+  ASSERT_TRUE(membership->cancelled().isReady());
+  ASSERT_TRUE(membership->cancelled().get());
 }
 
 

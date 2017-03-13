@@ -136,7 +136,7 @@ void FetchAndStoreAndStoreAndFetch(State* state)
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
-  variable = future2.get().get();
+  variable = future2->get();
 
   future2 = state->store(variable);
   AWAIT_READY(future2);
@@ -182,7 +182,7 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
 
   future2 = state->store(variable2);
   AWAIT_READY(future2);
-  EXPECT_TRUE(future2.get().isNone());
+  EXPECT_TRUE(future2->isNone());
 
   future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);
@@ -214,7 +214,7 @@ void FetchAndStoreAndExpungeAndFetch(State* state)
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
-  variable = future2.get().get();
+  variable = future2->get();
 
   Future<bool> future3 = state->expunge(variable);
   AWAIT_READY(future3);
@@ -249,7 +249,7 @@ void FetchAndStoreAndExpungeAndExpunge(State* state)
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
-  variable = future2.get().get();
+  variable = future2->get();
 
   Future<bool> future3 = state->expunge(variable);
   AWAIT_READY(future3);
@@ -280,7 +280,7 @@ void FetchAndStoreAndExpungeAndStoreAndFetch(State* state)
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
-  variable = future2.get().get();
+  variable = future2->get();
 
   Future<bool> future3 = state->expunge(variable);
   AWAIT_READY(future3);
@@ -322,8 +322,8 @@ void Names(State* state)
 
   Future<set<string>> names = state->names();
   AWAIT_READY(names);
-  ASSERT_EQ(1u, names.get().size());
-  EXPECT_NE(names.get().find("slaves"), names.get().end());
+  ASSERT_EQ(1u, names->size());
+  EXPECT_NE(names->find("slaves"), names->end());
 }
 
 
@@ -637,7 +637,7 @@ TEST_F(LogStateTest, Diff)
   AWAIT_READY(future2);
   ASSERT_SOME(future2.get());
 
-  variable = future2.get().get();
+  variable = future2->get();
 
   Slave* slave = slaves.add_slaves();
   slave->mutable_info()->set_hostname("localhost1024");

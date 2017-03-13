@@ -99,7 +99,7 @@ TEST_F(MesosSchedulerDriverTest, MetricsEndpoint)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(parse);
 
@@ -296,7 +296,7 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgementsMasterGeneratedUpdate)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task using no resources.
   TaskInfo task;
@@ -315,9 +315,9 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgementsMasterGeneratedUpdate)
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_ERROR, status.get().state());
-  ASSERT_EQ(TaskStatus::SOURCE_MASTER, status.get().source());
-  ASSERT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  ASSERT_EQ(TASK_ERROR, status->state());
+  ASSERT_EQ(TaskStatus::SOURCE_MASTER, status->source());
+  ASSERT_EQ(TaskStatus::REASON_TASK_INVALID, status->reason());
 
   // Now send the acknowledgement.
   driver.acknowledgeStatusUpdate(status.get());
@@ -380,10 +380,10 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgementsUnsetSlaveID)
   driver.reconcileTasks(statuses);
 
   AWAIT_READY(update);
-  ASSERT_EQ(TASK_LOST, update.get().state());
-  ASSERT_EQ(TaskStatus::SOURCE_MASTER, update.get().source());
-  ASSERT_EQ(TaskStatus::REASON_RECONCILIATION, update.get().reason());
-  ASSERT_FALSE(update.get().has_slave_id());
+  ASSERT_EQ(TASK_LOST, update->state());
+  ASSERT_EQ(TaskStatus::SOURCE_MASTER, update->source());
+  ASSERT_EQ(TaskStatus::REASON_RECONCILIATION, update->reason());
+  ASSERT_FALSE(update->has_slave_id());
 
   // Now send the acknowledgement.
   driver.acknowledgeStatusUpdate(update.get());

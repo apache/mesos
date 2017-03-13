@@ -117,7 +117,7 @@ public:
       if (inspect.isReady()) {
         switch (state) {
           case ContainerState::RUNNING:
-            if (inspect.get().pid.isSome()) {
+            if (inspect->pid.isSome()) {
               return true;
             }
             // Retry looking for running pid until timeout.
@@ -222,7 +222,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -271,9 +271,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
 
@@ -350,7 +350,7 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -400,9 +400,9 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
 
@@ -470,7 +470,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -511,10 +511,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
-  ASSERT_TRUE(statusRunning.get().has_data());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  ASSERT_TRUE(statusRunning->has_data());
 
-  Try<JSON::Array> array = JSON::parse<JSON::Array>(statusRunning.get().data());
+  Try<JSON::Array> array = JSON::parse<JSON::Array>(statusRunning->data());
   ASSERT_SOME(array);
 
   // Check if container information is exposed through master's state endpoint.
@@ -526,10 +526,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  Result<JSON::Value> find = parse.get().find<JSON::Value>(
+  Result<JSON::Value> find = parse->find<JSON::Value>(
       "frameworks[0].tasks[0].container.docker.privileged");
 
   EXPECT_SOME_FALSE(find);
@@ -543,10 +543,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
 
-  parse = JSON::parse<JSON::Object>(response.get().body);
+  parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
-  find = parse.get().find<JSON::Value>(
+  find = parse->find<JSON::Value>(
       "frameworks[0].executors[0].tasks[0].container.docker.privileged");
 
   EXPECT_SOME_FALSE(find);
@@ -622,7 +622,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -662,7 +662,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   ASSERT_TRUE(
     exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
@@ -677,7 +677,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   driver.killTask(task.task_id());
 
   AWAIT_READY(statusKilled);
-  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
 
   AWAIT_READY(termination);
   EXPECT_SOME(termination.get());
@@ -752,7 +752,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -875,7 +875,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -919,7 +919,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   // Verify the usage.
   ResourceStatistics statistics;
@@ -1021,7 +1021,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -1063,7 +1063,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   AWAIT_READY(containerId);
 
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   ASSERT_TRUE(
     exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
@@ -1089,7 +1089,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   ASSERT_SOME(cpuHierarchy);
   ASSERT_SOME(memoryHierarchy);
 
-  Option<pid_t> pid = inspect.get().pid;
+  Option<pid_t> pid = inspect->pid;
   ASSERT_SOME(pid);
 
   Result<string> cpuCgroup = cgroups::cpu::cgroup(pid.get());
@@ -1111,7 +1111,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   ASSERT_SOME(mem);
 
   EXPECT_EQ(1024u, cpu.get());
-  EXPECT_EQ(128u, mem.get().megabytes());
+  EXPECT_EQ(128u, mem->megabytes());
 
   newResources = Resources::parse("cpus:1;mem:144");
 
@@ -1131,7 +1131,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   ASSERT_SOME(mem);
 
   EXPECT_EQ(1024u, cpu.get());
-  EXPECT_EQ(144u, mem.get().megabytes());
+  EXPECT_EQ(144u, mem->megabytes());
 
   driver.stop();
   driver.join();
@@ -1241,7 +1241,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
 
   RunState runState;
   runState.id = containerId;
-  runState.forkedPid = wait.get().pid();
+  runState.forkedPid = wait->pid();
 
   execState.runs.put(containerId, runState);
   frameworkState.executors.put(execId, execState);
@@ -1381,7 +1381,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
 
   RunState runState;
   runState.id = containerId;
-  runState.forkedPid = wait.get().pid();
+  runState.forkedPid = wait->pid();
 
   execState.runs.put(containerId, runState);
   frameworkState.executors.put(execId, execState);
@@ -1466,7 +1466,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
 
   // A MesosContainerizer task shouldn't be recovered by
   // DockerContainerizer.
-  EXPECT_EQ(0u, containers.get().size());
+  EXPECT_EQ(0u, containers->size());
 }
 
 
@@ -1610,7 +1610,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -1675,10 +1675,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   Future<Option<ContainerTermination>> termination =
     dockerContainerizer.wait(containerId.get());
@@ -1702,7 +1702,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
   EXPECT_SOME(table);
 
   // Verify that the persistent volume is unmounted.
-  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+  foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
     EXPECT_FALSE(
         strings::contains(entry.target, path::join(directory.get(), "path1")));
   }
@@ -1771,7 +1771,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -1826,7 +1826,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   // Recreate containerizer and start slave again.
   slave.get()->terminate();
@@ -1862,7 +1862,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
 
   // Verify that the recovered container's persistent volume is
   // unmounted.
-  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+  foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
     EXPECT_FALSE(
         strings::contains(entry.target, path::join(directory.get(), "path1")));
   }
@@ -1934,7 +1934,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -1989,7 +1989,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   // Recreate containerizer and start slave again.
   slave.get()->terminate();
@@ -2027,7 +2027,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
 
   // Verify that the orphaned container's persistent volume is
   // unmounted.
-  foreach (const fs::MountInfoTable::Entry& entry, table.get().entries) {
+  foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
     EXPECT_FALSE(
         strings::contains(entry.target, path::join(directory.get(), "path1")));
   }
@@ -2097,7 +2097,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2151,9 +2151,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   // Now check that the proper output is in stderr and stdout (which
   // might also contain other things, hence the use of a UUID).
@@ -2235,7 +2235,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2283,9 +2283,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   Try<string> read = os::read(path::join(directory.get(), "stdout"));
   ASSERT_SOME(read);
@@ -2366,7 +2366,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2416,9 +2416,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   // Now check that the proper output is in stderr and stdout.
   Try<string> read = os::read(path::join(directory.get(), "stdout"));
@@ -2502,7 +2502,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2553,9 +2553,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   // Now check that the proper output is in stderr and stdout.
   Try<string> read = os::read(path::join(directory.get(), "stdout"));
@@ -2640,7 +2640,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2708,7 +2708,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   AWAIT_READY(reregisterExecutorMessage);
 
   ReregisterExecutorMessage reregister;
-  reregister.ParseFromString(reregisterExecutorMessage.get().body);
+  reregister.ParseFromString(reregisterExecutorMessage->body);
 
   // Executor should inform about the unacknowledged update.
   ASSERT_EQ(1, reregister.updates_size());
@@ -2718,7 +2718,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 
   // Scheduler should receive the recovered update.
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_RUNNING, status.get().state());
+  ASSERT_EQ(TASK_RUNNING, status->state());
 
   ASSERT_TRUE(exists(docker, offer.slave_id(), containerId.get()));
 
@@ -2801,7 +2801,7 @@ TEST_F(DockerContainerizerTest,
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -2896,7 +2896,7 @@ TEST_F(DockerContainerizerTest,
   AWAIT_READY(reregisterExecutorMessage);
 
   ReregisterExecutorMessage reregister;
-  reregister.ParseFromString(reregisterExecutorMessage.get().body);
+  reregister.ParseFromString(reregisterExecutorMessage->body);
 
   // Executor should inform about the unacknowledged update.
   ASSERT_EQ(1, reregister.updates_size());
@@ -2906,7 +2906,7 @@ TEST_F(DockerContainerizerTest,
 
   // Scheduler should receive the recovered update.
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_RUNNING, status.get().state());
+  ASSERT_EQ(TASK_RUNNING, status->state());
 
   ASSERT_TRUE(exists(docker, slaveId.get(), containerId.get()));
 
@@ -2975,7 +2975,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -3030,7 +3030,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(directory);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   ASSERT_TRUE(
     exists(docker,
@@ -3045,10 +3045,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
       "echo " + uuid + " | nc localhost 10000");
 
   ASSERT_SOME(s);
-  AWAIT_READY_FOR(s.get().status(), Seconds(60));
+  AWAIT_READY_FOR(s->status(), Seconds(60));
 
   AWAIT_READY_FOR(statusFinished, Seconds(60));
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   // Now check that the proper output is in stdout.
   Try<string> read = os::read(path::join(directory.get(), "stdout"));
@@ -3124,7 +3124,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -3163,7 +3163,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   ASSERT_TRUE(exists(docker, offer.slave_id(), containerId.get()));
 
@@ -3241,7 +3241,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -3288,7 +3288,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
 
   AWAIT_READY(statusFailed);
 
-  EXPECT_EQ(TASK_FAILED, statusFailed.get().state());
+  EXPECT_EQ(TASK_FAILED, statusFailed->state());
 
   driver.stop();
   driver.join();
@@ -3361,7 +3361,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -3409,7 +3409,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
 
   AWAIT_READY(statusFailed);
 
-  EXPECT_EQ(TASK_FAILED, statusFailed.get().state());
+  EXPECT_EQ(TASK_FAILED, statusFailed->state());
 
   driver.stop();
   driver.join();
@@ -3500,7 +3500,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -3542,9 +3542,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
   AWAIT_READY_FOR(containerId, Seconds(60));
 
   AWAIT_READY(statusGone);
-  EXPECT_EQ(TASK_GONE, statusGone.get().state());
+  EXPECT_EQ(TASK_GONE, statusGone->state());
   EXPECT_EQ(TaskStatus::REASON_CONTAINER_UPDATE_FAILED,
-            statusGone.get().reason());
+            statusGone->reason());
 
   driver.stop();
   driver.join();
@@ -3608,7 +3608,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -3650,12 +3650,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
 
   AWAIT_READY(statusFailed);
 
-  EXPECT_EQ(TASK_FAILED, statusFailed.get().state());
+  EXPECT_EQ(TASK_FAILED, statusFailed->state());
   EXPECT_EQ("Failed to launch container: some error from fetch",
-             statusFailed.get().message());
+             statusFailed->message());
 
   // TODO(jaybuff): When MESOS-2035 is addressed we should validate
-  // that statusFailed.get().reason() is correctly set here.
+  // that statusFailed->reason() is correctly set here.
 
   driver.stop();
   driver.join();
@@ -3719,7 +3719,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -3761,12 +3761,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
 
   AWAIT_READY(statusFailed);
 
-  EXPECT_EQ(TASK_FAILED, statusFailed.get().state());
+  EXPECT_EQ(TASK_FAILED, statusFailed->state());
   EXPECT_EQ("Failed to launch container: some error from docker pull",
-             statusFailed.get().message());
+             statusFailed->message());
 
   // TODO(jaybuff): When MESOS-2035 is addressed we should validate
-  // that statusFailed.get().reason() is correctly set here.
+  // that statusFailed->reason() is correctly set here.
 
   driver.stop();
   driver.join();
@@ -3839,7 +3839,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -3889,7 +3889,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
   AWAIT_READY_FOR(containerId, Seconds(60));
 
   AWAIT_READY(statusFailed);
-  EXPECT_EQ(TASK_FAILED, statusFailed.get().state());
+  EXPECT_EQ(TASK_FAILED, statusFailed->state());
 
   AWAIT_READY(executorLost);
 
@@ -4041,22 +4041,22 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToRunning)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   driver.killTask(task.task_id());
 
   AWAIT_READY(statusKilling);
   EXPECT_EQ(TASK_KILLING, statusKilling->state());
-  EXPECT_FALSE(statusKilling.get().has_healthy());
+  EXPECT_FALSE(statusKilling->has_healthy());
 
   AWAIT_READY(statusKilled);
   EXPECT_EQ(TASK_KILLED, statusKilled->state());
-  EXPECT_FALSE(statusKilled.get().has_healthy());
+  EXPECT_FALSE(statusKilled->has_healthy());
 
   Future<Option<ContainerTermination>> termination =
     containerizer.wait(containerId.get());
@@ -4125,7 +4125,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
 
@@ -4164,8 +4164,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
-  ASSERT_TRUE(statusRunning.get().has_data());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  ASSERT_TRUE(statusRunning->has_data());
 
   // Find cgroups cpu hierarchy of the container and verifies
   // quota is set.
@@ -4176,7 +4176,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
   Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
   ASSERT_SOME(cpuHierarchy);
 
-  Option<pid_t> pid = inspect.get().pid;
+  Option<pid_t> pid = inspect->pid;
   ASSERT_SOME(pid);
 
   Result<string> cpuCgroup = cgroups::cpu::cgroup(pid.get());
