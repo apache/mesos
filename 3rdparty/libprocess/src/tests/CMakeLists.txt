@@ -53,6 +53,7 @@ endif (NOT WIN32)
 if (ENABLE_SSL)
   set(PROCESS_TESTS_SRC
     ${PROCESS_TESTS_SRC}
+    jwt_tests.cpp
     ssl_tests.cpp
     )
 endif (ENABLE_SSL)

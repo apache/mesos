@@ -80,6 +80,8 @@ endif (ENABLE_LIBEVENT)
 if (ENABLE_SSL)
   set(PROCESS_SRC
     ${PROCESS_SRC}
+    jwt.cpp
+    jwt_authenticator.cpp
     openssl.cpp
     ssl/utilities.cpp
     )
