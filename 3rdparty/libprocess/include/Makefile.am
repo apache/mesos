@@ -35,6 +35,7 @@ nobase_include_HEADERS =		\
   process/http.hpp			\
   process/id.hpp			\
   process/io.hpp			\
+  process/jwt.hpp			\
   process/latch.hpp			\
   process/limiter.hpp			\
   process/logging.hpp			\
