@@ -560,6 +560,7 @@ authentication_HEADERS =						\
   $(top_srcdir)/include/mesos/authentication/authentication.hpp		\
   $(top_srcdir)/include/mesos/authentication/authentication.proto	\
   $(top_srcdir)/include/mesos/authentication/authenticator.hpp		\
+  $(top_srcdir)/include/mesos/authentication/secret_generator.hpp	\
   $(top_srcdir)/include/mesos/authentication/http/basic_authenticator_factory.hpp
 
 nodist_authentication_HEADERS =						\
@@ -653,7 +654,8 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/qos_controller.hpp			\
   $(top_srcdir)/include/mesos/module/resource_estimator.hpp		\
   $(top_srcdir)/include/mesos/module/contender.hpp			\
-  $(top_srcdir)/include/mesos/module/detector.hpp
+  $(top_srcdir)/include/mesos/module/detector.hpp			\
+  $(top_srcdir)/include/mesos/module/secret_generator.hpp
 
 nodist_module_HEADERS =							\
   ../include/mesos/module/hook.pb.h					\
