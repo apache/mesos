@@ -181,6 +181,7 @@ libprocess_la_SOURCES =		\
 
 if ENABLE_SSL
 libprocess_la_SOURCES +=	\
+    src/jwt.cpp			\
     src/libevent_ssl_socket.cpp	\
     src/libevent_ssl_socket.hpp	\
     src/openssl.cpp		\
@@ -277,6 +278,7 @@ ssl_client_CPPFLAGS = $(libprocess_tests_CPPFLAGS)
 ssl_client_LDADD = $(libprocess_tests_LDADD)
 
 libprocess_tests_SOURCES +=		\
+  src/tests/jwt_tests.cpp		\
   src/tests/ssl_tests.cpp
 endif
 
