@@ -102,9 +102,9 @@ protected:
   {
     // Try to remove any mounts under sandbox.
     if (::geteuid() == 0) {
-      Try<Nothing> unmountAll = fs::unmountAll(sandbox->c_str(), MNT_DETACH);
+      Try<Nothing> unmountAll = fs::unmountAll(sandbox.get(), MNT_DETACH);
       if (unmountAll.isError()) {
-        LOG(ERROR) << "Failed to unmount '" << sandbox->c_str()
+        LOG(ERROR) << "Failed to unmount '" << sandbox.get()
                    << "': " << unmountAll.error();
         return;
       }
