@@ -75,7 +75,7 @@ public:
   {
     File* file = new File();
 
-    if (!file->elf.load(path.c_str())) {
+    if (!file->elf.load(path)) {
       delete file;
       return Error("Unknown error during elfio::load");
     }
