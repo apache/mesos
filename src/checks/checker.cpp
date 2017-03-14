@@ -433,6 +433,12 @@ void CheckerProcess::processCommandCheckResult(
   CheckStatusInfo checkStatusInfo;
   checkStatusInfo.set_type(check.type());
 
+  // On Posix, `result` corresponds to termination information in the
+  // `stat_loc` area. On Windows, `status` is obtained via calling the
+  // `GetExitCodeProcess()` function.
+  //
+  // TODO(alexr): Ensure `WEXITSTATUS` family macros are no-op on Windows,
+  // see MESOS-7242.
   if (result.isReady() && WIFEXITED(result.get())) {
     const int exitCode = WEXITSTATUS(result.get());
     VLOG(1) << check.type() << " check for task "

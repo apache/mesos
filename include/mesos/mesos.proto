@@ -1736,7 +1736,9 @@ enum TaskState {
 */
 message CheckStatusInfo {
   message Command {
-    // Exit code of a command check.
+    // Exit code of a command check. It is the result of calling
+    // `WEXITSTATUS()` on `waitpid()` termination information on
+    // Posix and calling `GetExitCodeProcess()` on Windows.
     optional int32 exit_code = 1;
   }
 

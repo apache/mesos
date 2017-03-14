@@ -155,6 +155,16 @@ message Event {
     // 'executor_id' will be set and possibly 'status' (if we were
     // able to determine the exit status).
     optional ExecutorID executor_id = 2;
+
+    // On Posix, `status` corresponds to termination information in the
+    // `stat_loc` area returned from a `waitpid` call. On Windows, `status`
+    // is obtained via calling the `GetExitCodeProcess()` function. For
+    // messages coming from Posix agents, schedulers need to apply
+    // `WEXITSTATUS` family macros or equivalent transformations to obtain
+    // exit codes.
+    //
+    // TODO(alexr): Consider unifying Windows and Posix behavior by returning
+    // exit code here, see MESOS-7241.
     optional int32 status = 3;
   }
 
