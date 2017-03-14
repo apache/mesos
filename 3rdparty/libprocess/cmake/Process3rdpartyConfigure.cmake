@@ -31,9 +31,9 @@ EXTERNAL("protobuf"    ${PROTOBUF_VERSION}    "${MESOS_3RDPARTY_BIN}")
 if (NOT WIN32)
   EXTERNAL("glog" ${GLOG_VERSION} "${MESOS_3RDPARTY_BIN}")
 elseif (WIN32)
-  # Glog 0.3.3 does not compile out of the box on Windows. Therefore, we
-  # require 0.3.4.
-  EXTERNAL("glog" "0.3.4" "${MESOS_3RDPARTY_BIN}")
+  # Glog 0.3.3 does not compile out of the box on Windows.
+  # Therefore, we require a specific commit on glog master.
+  EXTERNAL("glog" "da816ea70" "${MESOS_3RDPARTY_BIN}")
 
   # NOTE: We expect cURL and zlib exist on Unix (usually pulled in with a
   # package manager), but Windows has no package manager, so we have to go
@@ -111,6 +111,14 @@ if (WIN32)
 
   # Windows requires a static build of zlib.
   set(ZLIB_LFLAG     zlibstaticd)
+
+  # Windows requires Dbghelp.lib when linking to glog.
+  # NOTE: CMake's dependency graph does not pull in the `Dbghelp` library
+  # automatically as the glog dependency is added into Mesos as an
+  # "external" project.  If we were to, instead, add glog's CMake files
+  # to the build system directly (such as, as a git submodule), glog's
+  # targets would be inherited.
+  set(GLOG_LFLAG     glog Dbghelp)
 else (WIN32)
   set(CURL_LFLAG     curl)
   set(DL_LFLAG       dl)
