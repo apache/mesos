@@ -278,14 +278,22 @@ public:
    * Exit status of this subprocess captured as a Future (completed
    * when the subprocess exits).
    *
-   * The exit status is propagated from an underlying call to
-   * 'waitpid' and can be used with macros defined in wait.h, i.e.,
-   * 'WIFEXITED(status)'.
+   * On Posix, the exit status is propagated from an underlying call
+   * to `waitpid` and can be used with macros defined in wait.h, i.e.,
+   * `WIFEXITED(status)`.
+   *
+   * On Windows, the exit status contains the exit code from an
+   * underlying call to `GetExitCodeProcess()`.
+   *
+   * TODO(alexr): Ensure the code working with `status` is portable by
+   * either making `WIFEXITED` family macros no-op on Windows or
+   * converting `status` to a tuple <termination status, exit code>,
+   * see MESOS-7242.
    *
    * NOTE: Discarding this future has no effect on the subprocess!
    *
-   * @return Future from doing a process::reap of this subprocess.
-   *     Note that process::reap never fails or discards this future.
+   * @return Future from doing a `process::reap()` of this subprocess.
+   *     Note that `process::reap()` never fails or discards this future.
    */
   Future<Option<int>> status() const { return data->status; }
 
