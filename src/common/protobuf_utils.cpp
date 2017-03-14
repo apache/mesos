@@ -122,6 +122,8 @@ StatusUpdate createStatusUpdate(
     update.mutable_executor_id()->MergeFrom(executorId.get());
   }
 
+  // TODO(alexr): Use `createTaskStatus()` instead
+  // once `UUID` is required in this function.
   TaskStatus* status = update.mutable_status();
   status->mutable_task_id()->MergeFrom(taskId);
 
@@ -203,6 +205,23 @@ StatusUpdate createStatusUpdate(
   }
 
   return update;
+}
+
+
+TaskStatus createTaskStatus(
+    const TaskID& taskId,
+    const TaskState& state,
+    const UUID& uuid,
+    double timestamp)
+{
+  TaskStatus status;
+
+  status.set_uuid(uuid.toBytes());
+  status.set_timestamp(timestamp);
+  status.mutable_task_id()->CopyFrom(taskId);
+  status.set_state(state);
+
+  return status;
 }
 
 

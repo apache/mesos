@@ -131,6 +131,8 @@ public:
   void launchTask(ExecutorDriver* driver, const TaskInfo& task)
   {
     if (run.isSome()) {
+      // TODO(alexr): Use `protobuf::createTaskStatus()`
+      // instead of manually setting fields.
       TaskStatus status;
       status.mutable_task_id()->CopyFrom(task.task_id());
       status.set_state(TASK_FAILED);
@@ -169,6 +171,8 @@ public:
     );
 
     if (runOptions.isError()) {
+      // TODO(alexr): Use `protobuf::createTaskStatus()`
+      // instead of manually setting fields.
       TaskStatus status;
       status.mutable_task_id()->CopyFrom(task.task_id());
       status.set_state(TASK_FAILED);
@@ -204,6 +208,8 @@ public:
         if (!killed) {
           containerPid = container.pid;
 
+          // TODO(alexr): Use `protobuf::createTaskStatus()`
+          // instead of manually setting fields.
           TaskStatus status;
           status.mutable_task_id()->CopyFrom(taskId.get());
           status.set_state(TASK_RUNNING);
@@ -313,6 +319,8 @@ protected:
     cout << "Received task health update, healthy: "
          << stringify(healthStatus.healthy()) << endl;
 
+    // TODO(alexr): Use `protobuf::createTaskStatus()`
+    // instead of manually setting fields.
     TaskStatus status;
     status.mutable_task_id()->CopyFrom(healthStatus.task_id());
     status.set_healthy(healthStatus.healthy());
@@ -379,6 +387,8 @@ private:
       if (protobuf::frameworkHasCapability(
               frameworkInfo.get(),
               FrameworkInfo::Capability::TASK_KILLING_STATE)) {
+        // TODO(alexr): Use `protobuf::createTaskStatus()`
+        // instead of manually setting fields.
         TaskStatus status;
         status.mutable_task_id()->CopyFrom(taskId.get());
         status.set_state(TASK_KILLING);
@@ -463,6 +473,8 @@ private:
 
     CHECK_SOME(taskId);
 
+    // TODO(alexr): Use `protobuf::createTaskStatus()`
+    // instead of manually setting fields.
     TaskStatus taskStatus;
     taskStatus.mutable_task_id()->CopyFrom(taskId.get());
     taskStatus.set_state(state);

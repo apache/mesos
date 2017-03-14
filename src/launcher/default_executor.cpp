@@ -46,6 +46,7 @@
 #include "checks/health_checker.hpp"
 
 #include "common/http.hpp"
+#include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
 
 #include "internal/devolve.hpp"
@@ -890,14 +891,14 @@ private:
   {
     UUID uuid = UUID::random();
 
-    TaskStatus status;
-    status.mutable_task_id()->CopyFrom(taskId);
-    status.mutable_executor_id()->CopyFrom(executorId);
+    TaskStatus status = protobuf::createTaskStatus(
+        taskId,
+        state,
+        uuid,
+        Clock::now().secs());
 
-    status.set_state(state);
+    status.mutable_executor_id()->CopyFrom(executorId);
     status.set_source(TaskStatus::SOURCE_EXECUTOR);
-    status.set_uuid(uuid.toBytes());
-    status.set_timestamp(Clock::now().secs());
 
     if (message.isSome()) {
       status.set_message(message.get());

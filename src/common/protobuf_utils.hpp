@@ -93,6 +93,15 @@ StatusUpdate createStatusUpdate(
     const Option<SlaveID>& slaveId);
 
 
+// Helper function that creates a new task status from scratch with
+// obligatory fields set.
+TaskStatus createTaskStatus(
+    const TaskID& taskId,
+    const TaskState& state,
+    const UUID& uuid,
+    double timestamp);
+
+
 // Helper function that creates a new task status from the given task
 // status. Specific fields in `status` can be overridden in the new
 // status by specifying the appropriate argument. Fields `task_id`,
