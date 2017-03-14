@@ -1063,7 +1063,7 @@ Future<Nothing> NetworkCniIsolatorProcess::__isolate(
     .then([](const tuple<
         Future<Option<int>>,
         Future<string>>& t) -> Future<Nothing> {
-      Future<Option<int>> status = std::get<0>(t);
+      const Future<Option<int>>& status = std::get<0>(t);
       if (!status.isReady()) {
         return Failure(
             "Failed to get the exit status of the setup helper subprocess: " +
@@ -1074,7 +1074,7 @@ Future<Nothing> NetworkCniIsolatorProcess::__isolate(
         return Failure("Failed to reap the setup helper subprocess");
       }
 
-      Future<string> err = std::get<1>(t);
+      const Future<string>& err = std::get<1>(t);
       if (!err.isReady()) {
         return Failure(
             "Failed to read stderr from the helper subprocess: " +
@@ -1251,7 +1251,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
   CHECK(infos.contains(containerId));
   CHECK(infos[containerId]->containerNetworks.contains(networkName));
 
-  Future<Option<int>> status = std::get<0>(t);
+  const Future<Option<int>>& status = std::get<0>(t);
   if (!status.isReady()) {
     return Failure(
         "Failed to get the exit status of the CNI plugin '" +
@@ -1266,7 +1266,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
 
   // CNI plugin will print result (in case of success) or error (in
   // case of failure) to stdout.
-  Future<string> output = std::get<1>(t);
+  const Future<string>& output = std::get<1>(t);
   if (!output.isReady()) {
     return Failure(
         "Failed to read stdout from the CNI plugin '" +
@@ -1275,7 +1275,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
   }
 
   if (status.get() != 0) {
-    Future<string> error = std::get<2>(t);
+    const Future<string>& error = std::get<2>(t);
     if (!error.isReady()) {
       return Failure(
           "Failed to read stderr from the CNI plugin '" +
@@ -1607,7 +1607,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_detach(
   CHECK(infos.contains(containerId));
   CHECK(infos[containerId]->containerNetworks.contains(networkName));
 
-  Future<Option<int>> status = std::get<0>(t);
+  const Future<Option<int>>& status = std::get<0>(t);
   if (!status.isReady()) {
     return Failure(
         "Failed to get the exit status of the CNI plugin '" +
@@ -1637,7 +1637,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_detach(
     return Nothing();
   }
 
-  Future<string> output = std::get<1>(t);
+  const Future<string>& output = std::get<1>(t);
   if (!output.isReady()) {
     return Failure(
         "Failed to read stdout from the CNI plugin '" +
@@ -1645,7 +1645,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_detach(
         (output.isFailed() ? output.failure() : "discarded"));
   }
 
-  Future<string> error = std::get<2>(t);
+  const Future<string>& error = std::get<2>(t);
   if (!error.isReady()) {
     return Failure(
         "Failed to read stderr from the CNI plugin '" +

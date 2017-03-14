@@ -70,7 +70,7 @@ static Future<string> launch(
         Future<Option<int>>,
         Future<string>,
         Future<string>>& t) -> Future<string> {
-      Future<Option<int>> status = std::get<0>(t);
+      const Future<Option<int>>& status = std::get<0>(t);
       if (!status.isReady()) {
         return Failure(
             "Failed to get the exit status of the subprocess: " +
@@ -82,7 +82,7 @@ static Future<string> launch(
       }
 
       if (status->get() != 0) {
-        Future<string> error = std::get<2>(t);
+        const Future<string>& error = std::get<2>(t);
         if (!error.isReady()) {
             return Failure(
                 "Unexpected result from the subprocess: " +
@@ -93,7 +93,7 @@ static Future<string> launch(
         return Failure("Subprocess '" + command + "' failed: " + error.get());
       }
 
-      Future<string> output = std::get<1>(t);
+      const Future<string>& output = std::get<1>(t);
       if (!output.isReady()) {
          return Failure(
             "Failed to read stdout from '" + command + "': " +

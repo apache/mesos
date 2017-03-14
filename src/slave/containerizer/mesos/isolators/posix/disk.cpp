@@ -579,7 +579,7 @@ private:
     const Owned<Entry>& entry = entries.front();
     CHECK_SOME(entry->du);
 
-    Future<Option<int>> status = std::get<0>(future.get());
+    const Future<Option<int>>& status = std::get<0>(future.get());
 
     if (!status.isReady()) {
       entry->promise.fail(
@@ -588,7 +588,7 @@ private:
     } else if (status.get().isNone()) {
       entry->promise.fail("Failed to reap the status of 'du'");
     } else if (status.get().get() != 0) {
-      Future<string> error = std::get<2>(future.get());
+      const Future<string>& error = std::get<2>(future.get());
       if (!error.isReady()) {
         entry->promise.fail(
             "Failed to perform 'du'. Reading stderr failed: " +
@@ -597,7 +597,7 @@ private:
         entry->promise.fail("Failed to perform 'du': " + error.get());
       }
     } else {
-      Future<string> output = std::get<1>(future.get());
+      const Future<string>& output = std::get<1>(future.get());
       if (!output.isReady()) {
         entry->promise.fail(
             "Failed to read stdout from 'du': " +

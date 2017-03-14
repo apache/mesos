@@ -154,8 +154,8 @@ private:
           Future<Option<int>>,
           Future<string>,
           Future<string>>& results) {
-        Future<Option<int>> status = std::get<0>(results);
-        Future<string> output = std::get<1>(results);
+        const Future<Option<int>>& status = std::get<0>(results);
+        const Future<string>& output = std::get<1>(results);
 
         Option<Error> error = None();
 

@@ -560,7 +560,7 @@ Result<spec::NetworkInfo> PortMapper::delegate(const string& command)
         (result.isDiscarded() ? "discarded" : result.failure()));
   }
 
-  Future<Option<int>> status = std::get<0>(result.get());
+  const Future<Option<int>>& status = std::get<0>(result.get());
   if (!status.isReady()) {
     return Error(
         "Failed to get the exit status of the delegate CNI plugin '" +
@@ -575,7 +575,7 @@ Result<spec::NetworkInfo> PortMapper::delegate(const string& command)
   }
 
   // CNI plugin will print result or error to stdout.
-  Future<string> output = std::get<1>(result.get());
+  const Future<string>& output = std::get<1>(result.get());
   if (!output.isReady()) {
     return Error(
         "Failed to read stdout from the delegate CNI plugin '" +
@@ -586,7 +586,7 @@ Result<spec::NetworkInfo> PortMapper::delegate(const string& command)
   // We are reading stderr of the plugin since any log messages from
   // the CNI plugin would be thrown on stderr. This can be useful for
   // debugging issues when the plugin throws a `spec::Error`.
-  Future<string> err = std::get<2>(result.get());
+  const Future<string>& err = std::get<2>(result.get());
   if (!err.isReady()) {
     return Error(
         "Failed to read STDERR from the delegate CNI plugin '" +

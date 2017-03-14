@@ -65,21 +65,21 @@ static Future<CommandResult> result(const Subprocess& s)
         Future<Option<int>>,
         Future<string>,
         Future<string>>& t) -> Future<CommandResult> {
-      Future<Option<int>> status = std::get<0>(t);
+      const Future<Option<int>>& status = std::get<0>(t);
       if (!status.isReady()) {
         return Failure(
             "Failed to get the exit status of the subprocess: " +
             (status.isFailed() ? status.failure() : "discarded"));
       }
 
-      Future<string> output = std::get<1>(t);
+      const Future<string>& output = std::get<1>(t);
       if (!output.isReady()) {
         return Failure(
             "Failed to read stdout from the subprocess: " +
             (output.isFailed() ? output.failure() : "discarded"));
       }
 
-      Future<string> error = std::get<2>(t);
+      const Future<string>& error = std::get<2>(t);
       if (!error.isReady()) {
         return Failure(
             "Failed to read stderr from the subprocess: " +

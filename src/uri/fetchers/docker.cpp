@@ -131,7 +131,7 @@ static Future<http::Response> curl(
         Future<Option<int>>,
         Future<string>,
         Future<string>>& t) -> Future<http::Response> {
-      Future<Option<int>> status = std::get<0>(t);
+      const Future<Option<int>>& status = std::get<0>(t);
       if (!status.isReady()) {
         return Failure(
             "Failed to get the exit status of the curl subprocess: " +
@@ -143,7 +143,7 @@ static Future<http::Response> curl(
       }
 
       if (status->get() != 0) {
-        Future<string> error = std::get<2>(t);
+        const Future<string>& error = std::get<2>(t);
         if (!error.isReady()) {
           return Failure(
               "Failed to perform 'curl'. Reading stderr failed: " +
@@ -153,7 +153,7 @@ static Future<http::Response> curl(
         return Failure("Failed to perform 'curl': " + error.get());
       }
 
-      Future<string> output = std::get<1>(t);
+      const Future<string>& output = std::get<1>(t);
       if (!output.isReady()) {
         return Failure(
             "Failed to read stdout from 'curl': " +
@@ -249,7 +249,7 @@ static Future<int> download(
         Future<Option<int>>,
         Future<string>,
         Future<string>>& t) -> Future<int> {
-      Future<Option<int>> status = std::get<0>(t);
+      const Future<Option<int>>& status = std::get<0>(t);
       if (!status.isReady()) {
         return Failure(
             "Failed to get the exit status of the curl subprocess: " +
@@ -261,7 +261,7 @@ static Future<int> download(
       }
 
       if (status->get() != 0) {
-        Future<string> error = std::get<2>(t);
+        const Future<string>& error = std::get<2>(t);
         if (!error.isReady()) {
           return Failure(
               "Failed to perform 'curl'. Reading stderr failed: " +
@@ -271,7 +271,7 @@ static Future<int> download(
         return Failure("Failed to perform 'curl': " + error.get());
       }
 
-      Future<string> output = std::get<1>(t);
+      const Future<string>& output = std::get<1>(t);
       if (!output.isReady()) {
         return Failure(
             "Failed to read stdout from 'curl': " +
