@@ -122,9 +122,9 @@ struct Slave
         const std::vector<SlaveInfo::Capability>& _capabilites,
         const process::Time& _registeredTime,
         const Resources& _checkpointedResources,
-        const std::vector<ExecutorInfo> executorInfos =
+        const std::vector<ExecutorInfo>& executorInfos =
           std::vector<ExecutorInfo>(),
-        const std::vector<Task> tasks =
+        const std::vector<Task>& tasks =
           std::vector<Task>());
 
   ~Slave();

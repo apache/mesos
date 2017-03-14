@@ -144,7 +144,7 @@ public:
                 const SlaveID& _slaveId,
                 const PID<Master>& _master,
                 const Option<shared_ptr<RateLimiter>>& _limiter,
-                const shared_ptr<Metrics> _metrics,
+                const shared_ptr<Metrics>& _metrics,
                 const Duration& _slavePingTimeout,
                 const size_t _maxSlavePingTimeouts)
     : ProcessBase(process::ID::generate("slave-observer")),
@@ -9017,8 +9017,8 @@ Slave::Slave(
     const vector<SlaveInfo::Capability>& _capabilites,
     const Time& _registeredTime,
     const Resources& _checkpointedResources,
-    const vector<ExecutorInfo> executorInfos,
-    const vector<Task> tasks)
+    const vector<ExecutorInfo>& executorInfos,
+    const vector<Task>& tasks)
   : master(_master),
     id(_info.id()),
     info(_info),

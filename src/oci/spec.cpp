@@ -192,7 +192,7 @@ Try<Index> parse(const string& s)
       return Error("Expecting 'manifest' to be JSON object type");
     }
 
-    const JSON::Object manifest = value.as<JSON::Object>();
+    const JSON::Object& manifest = value.as<JSON::Object>();
     Result<JSON::String> digest = manifest.at<JSON::String>("digest");
     if (digest.isError()) {
       return Error("Failed to find 'digest': " + digest.error());

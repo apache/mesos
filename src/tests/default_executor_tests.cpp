@@ -179,7 +179,7 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   EXPECT_NE(0, offers->offers().size());
 
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   v1::TaskInfo taskInfo =
     v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
@@ -312,7 +312,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_NE(0, offers1->offers().size());
 
   const v1::Offer& offer1 = offers1->offers(0);
-  const v1::AgentID agentId = offer1.agent_id();
+  const v1::AgentID& agentId = offer1.agent_id();
 
   v1::TaskInfo taskInfo1 =
     v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
@@ -599,7 +599,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   EXPECT_NE(0, offers->offers().size());
 
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   // The first task exits with a non-zero status code.
   v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "exit 1");
@@ -778,7 +778,7 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
   EXPECT_NE(0, offers->offers().size());
 
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   v1::TaskInfo taskInfo =
     v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
@@ -995,7 +995,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, CommitSuicideOnTaskFailure)
   EXPECT_NE(0, offers->offers().size());
 
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   // The task exits with a non-zero status code.
   v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "exit 1");
@@ -1131,7 +1131,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   EXPECT_NE(0, offers->offers().size());
 
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   // The first task finishes successfully while the second
   // task is explicitly killed later.
@@ -1336,7 +1336,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   EXPECT_NE(0, offers->offers().size());
 
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   // Launch the task using unreserved resources.
   v1::TaskInfo taskInfo =

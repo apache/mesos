@@ -303,7 +303,7 @@ private:
   Resource::ReservationInfo reservationInfo;
   Resources taskResources;
 
-  Offer::Operation RESERVE(Resources resources)
+  Offer::Operation RESERVE(const Resources& resources)
   {
     Offer::Operation operation;
     operation.set_type(Offer::Operation::RESERVE);
@@ -311,7 +311,7 @@ private:
     return operation;
   }
 
-  Offer::Operation UNRESERVE(Resources resources)
+  Offer::Operation UNRESERVE(const Resources& resources)
   {
     Offer::Operation operation;
     operation.set_type(Offer::Operation::UNRESERVE);
