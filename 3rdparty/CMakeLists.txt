@@ -60,7 +60,7 @@ if (WIN32)
   # (as well as all the other third-party dependencies) on MSVC 1900.
   #
   # [1] https://github.com/google/glog/pull/43
-  set(GLOG_URL   ${UPSTREAM_URL}/glog-v0.3.4-g4d391fe.tar.gz)
+  set(GLOG_URL   ${UPSTREAM_URL}/glog-da816ea70.tar.gz)
   set(CURL_URL   ${UPSTREAM_URL}/curl-${CURL_VERSION}.tar.gz)
   set(LIBAPR_URL ${UPSTREAM_URL}/libapr-${LIBAPR_VERSION}.tar.gz)
   set(ZLIB_URL   ${UPSTREAM_URL}/zlib-${ZLIB_VERSION}.tar.gz)
@@ -107,6 +107,7 @@ if (NOT WIN32)
   set(LIBEVENT_INSTALL_CMD mkdir -p ${LIBEVENT_LIB_ROOT} && cp -r ${LIBEVENT_ROOT}-build/lib/. ${LIBEVENT_LIB_DIR} && cp -r ${LIBEVENT_ROOT}-build/include/. ${LIBEVENT_INCLUDE_DIR} && cp -r ${LIBEVENT_ROOT}/include/. ${LIBEVENT_INCLUDE_DIR})
 elseif (WIN32)
   set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
+  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/glog-da816ea70.patch)
 
   set(LIBEVENT_INSTALL_CMD ${CMAKE_NOOP})
 
