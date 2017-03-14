@@ -142,7 +142,7 @@ protected:
   // recovery testing.
   void stopSlave();
 
-  Try<Task> launchTask(const CommandInfo& commandInfo, const size_t taskIndex);
+  Try<Task> launchTask(const CommandInfo& commandInfo, size_t taskIndex);
 
   Try<vector<Task>> launchTasks(const vector<CommandInfo>& commandInfos);
 
@@ -407,7 +407,7 @@ ACTION_P(PushTaskStatus, taskStatusQueue)
 // available for all testing as possible.
 Try<FetcherCacheTest::Task> FetcherCacheTest::launchTask(
     const CommandInfo& commandInfo,
-    const size_t taskIndex)
+    size_t taskIndex)
 {
   Future<vector<Offer>> offers;
   EXPECT_CALL(scheduler, resourceOffers(driver.get(), _))
