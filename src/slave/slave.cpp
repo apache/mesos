@@ -1774,6 +1774,8 @@ void Slave::_run(
     const Option<TaskInfo>& task,
     const Option<TaskGroupInfo>& taskGroup)
 {
+  // TODO(anindya_sinha): Consider refactoring the initial steps common
+  // to `_run()` and `__run()`.
   CHECK_NE(task.isSome(), taskGroup.isSome())
     << "Either task or task group should be set but not both";
 
@@ -1787,10 +1789,6 @@ void Slave::_run(
   }
 
   const FrameworkID& frameworkId = frameworkInfo.id();
-
-  LOG(INFO) << "Launching " << taskOrTaskGroup(task, taskGroup)
-            << " for framework " << frameworkId;
-
   Framework* framework = getFramework(frameworkId);
   if (framework == nullptr) {
     LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
@@ -1801,27 +1799,200 @@ void Slave::_run(
 
   const ExecutorID& executorId = executorInfo.executor_id();
 
+  // We don't send a status update here because a terminating
+  // framework cannot send acknowledgements.
+  if (framework->state == Framework::TERMINATING) {
+    LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
+                 << " of framework " << frameworkId
+                 << " because the framework is terminating";
+
+    // Although we cannot send a status update in this case, we remove
+    // the affected tasks from the pending tasks.
+    foreach (const TaskInfo& _task, tasks) {
+      framework->removePendingTask(_task, executorInfo);
+    }
+
+    if (framework->executors.empty() && framework->pending.empty()) {
+      removeFramework(framework);
+    }
+
+    return;
+  }
+
+  // If any of the tasks in the task group have been killed in the interim,
+  // we send a TASK_KILLED for all the other tasks in the group.
+  bool killed = false;
+  foreach (const TaskInfo& _task, tasks) {
+    if (!framework->pending.contains(executorId) ||
+        !framework->pending.at(executorId).contains(_task.task_id())) {
+      killed = true;
+      break;
+    }
+  }
+
+  if (killed) {
+    LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
+                 << " of framework " << frameworkId
+                 << " because it has been killed in the meantime";
+
+    foreach (const TaskInfo& _task, tasks) {
+      framework->removePendingTask(_task, executorInfo);
+
+      const StatusUpdate update = protobuf::createStatusUpdate(
+          frameworkId,
+          info.id(),
+          _task.task_id(),
+          TASK_KILLED,
+          TaskStatus::SOURCE_SLAVE,
+          UUID::random(),
+          "Task killed before it was launched");
+
+      // TODO(vinod): Ensure that the status update manager reliably
+      // delivers this update. Currently, we don't guarantee this
+      // because removal of the framework causes the status update
+      // manager to stop retrying for its un-acked updates.
+      statusUpdate(update, UPID());
+    }
+
+    if (framework->executors.empty() && framework->pending.empty()) {
+      removeFramework(framework);
+    }
+
+    return;
+  }
+
+  CHECK(!future.isDiscarded());
+
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to unschedule directories scheduled for gc: "
+               << (future.isFailed() ? future.failure() : "future discarded");
+
+    // We report TASK_DROPPED to the framework because the task was
+    // never launched. For non-partition-aware frameworks, we report
+    // TASK_LOST for backward compatibility.
+    mesos::TaskState taskState = TASK_DROPPED;
+    if (!protobuf::frameworkHasCapability(
+            frameworkInfo, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      taskState = TASK_LOST;
+    }
+
+    foreach (const TaskInfo& _task, tasks) {
+      framework->removePendingTask(_task, executorInfo);
+
+      const StatusUpdate update = protobuf::createStatusUpdate(
+          frameworkId,
+          info.id(),
+          _task.task_id(),
+          taskState,
+          TaskStatus::SOURCE_SLAVE,
+          UUID::random(),
+          "Could not launch the task because we failed to unschedule"
+          " directories scheduled for gc",
+          TaskStatus::REASON_GC_ERROR);
+
+      // TODO(vinod): Ensure that the status update manager reliably
+      // delivers this update. Currently, we don't guarantee this
+      // because removal of the framework causes the status update
+      // manager to stop retrying for its un-acked updates.
+      statusUpdate(update, UPID());
+    }
+
+    if (framework->executors.empty() && framework->pending.empty()) {
+      removeFramework(framework);
+    }
+
+    return;
+  }
+
+  // Authorize the task or tasks (as in a task group) to ensure that the
+  // task user is allowed to launch tasks on the agent. If authorization
+  // fails, the task (or all tasks in a task group) are not launched.
+  list<Future<bool>> authorizations;
+
+  LOG(INFO) << "Authorizing " << taskOrTaskGroup(task, taskGroup)
+            << " for framework " << frameworkId;
+
+  foreach (const TaskInfo& _task, tasks) {
+    authorizations.push_back(authorizeTask(_task, frameworkInfo));
+  }
+
+  collect(authorizations)
+    .onAny(defer(self(),
+                 &Self::__run,
+                 lambda::_1,
+                 frameworkInfo,
+                 executorInfo,
+                 task,
+                 taskGroup));
+}
+
+
+void Slave::__run(
+    const Future<list<bool>>& future,
+    const FrameworkInfo& frameworkInfo,
+    const ExecutorInfo& executorInfo,
+    const Option<TaskInfo>& task,
+    const Option<TaskGroupInfo>& taskGroup)
+{
+  CHECK_NE(task.isSome(), taskGroup.isSome())
+    << "Either task or task group should be set but not both";
+
+  vector<TaskInfo> tasks;
+  if (task.isSome()) {
+    tasks.push_back(task.get());
+  } else {
+    foreach (const TaskInfo& _task, taskGroup->tasks()) {
+      tasks.push_back(_task);
+    }
+  }
+
+  const FrameworkID& frameworkId = frameworkInfo.id();
+  Framework* framework = getFramework(frameworkId);
+  if (framework == nullptr) {
+    LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
+                 << " because the framework " << frameworkId
+                 << " does not exist";
+    return;
+  }
+
+  const ExecutorID& executorId = executorInfo.executor_id();
+
+  // We don't send a status update here because a terminating
+  // framework cannot send acknowledgements.
+  if (framework->state == Framework::TERMINATING) {
+    LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
+                 << " of framework " << frameworkId
+                 << " because the framework is terminating";
+
+    // Although we cannot send a status update in this case, we remove
+    // the affected tasks from the list of pending tasks.
+    foreach (const TaskInfo& _task, tasks) {
+      framework->removePendingTask(_task, executorInfo);
+    }
+
+    if (framework->executors.empty() && framework->pending.empty()) {
+      removeFramework(framework);
+    }
+
+    return;
+  }
+
   // Remove the task/task group from being pending. If any of the
   // tasks in the task group have been killed in the interim, we
   // send a TASK_KILLED for all the other tasks in the group.
   bool killed = false;
   foreach (const TaskInfo& _task, tasks) {
-    if (framework->pending.contains(executorId) &&
-        framework->pending[executorId].contains(_task.task_id())) {
-      framework->pending[executorId].erase(_task.task_id());
-      if (framework->pending[executorId].empty()) {
-        framework->pending.erase(executorId);
-        // NOTE: Ideally we would perform the following check here:
-        //
-        //   if (framework->executors.empty() &&
-        //       framework->pending.empty()) {
-        //     removeFramework(framework);
-        //   }
-        //
-        // However, we need 'framework' to stay valid for the rest of
-        // this function. As such, we perform the check before each of
-        // the 'return' statements below.
-      }
+    if (framework->removePendingTask(_task, executorInfo)) {
+      // NOTE: Ideally we would perform the following check here:
+      //
+      //   if (framework->executors.empty() &&
+      //       framework->pending.empty()) {
+      //     removeFramework(framework);
+      //   }
+      //
+      // However, we need 'framework' to stay valid for the rest of
+      // this function. As such, we perform the check before each of
+      // the 'return' statements below.
     } else {
       killed = true;
     }
@@ -1844,7 +2015,7 @@ void Slave::_run(
       statusUpdate(update, UPID());
     }
 
-    // Refer to the comment after 'framework->pending.erase' above
+    // Refer to the comment after 'framework->removePendingTask' above
     // for why we need this.
     if (framework->executors.empty() && framework->pending.empty()) {
       removeFramework(framework);
@@ -1853,55 +2024,70 @@ void Slave::_run(
     return;
   }
 
-  // We don't send a status update here because a terminating
-  // framework cannot send acknowledgements.
-  if (framework->state == Framework::TERMINATING) {
-    LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
-                 << " of framework " << frameworkId
-                 << " because the framework is terminating";
+  CHECK(!future.isDiscarded());
 
-    // Refer to the comment after 'framework->pending.erase' above
-    // for why we need this.
-    if (framework->executors.empty() && framework->pending.empty()) {
-      removeFramework(framework);
-    }
-
-    return;
-  }
-
+  // Validate that the task (or tasks in case of task group) are authorized
+  // to be run on this agent.
+  Option<Error> error = None();
   if (!future.isReady()) {
-    LOG(ERROR) << "Failed to unschedule directories scheduled for gc: "
-               << (future.isFailed() ? future.failure() : "future discarded");
+    error = Error("Failed to authorize " + taskOrTaskGroup(task, taskGroup) +
+                  ": " + future.failure());
+  }
 
-    // We report TASK_DROPPED to the framework because the task was
-    // never launched. For non-partition-aware frameworks, we report
-    // TASK_LOST for backward compatibility.
-    mesos::TaskState taskState = TASK_DROPPED;
-    if (!protobuf::frameworkHasCapability(
-            frameworkInfo, FrameworkInfo::Capability::PARTITION_AWARE)) {
-      taskState = TASK_LOST;
+  if (error.isNone()) {
+    list<bool> authorizations = future.get();
+
+    foreach (const TaskInfo& _task, tasks) {
+      bool authorized = authorizations.front();
+      authorizations.pop_front();
+
+      // If authorization for this task fails, we fail all tasks (in case of
+      // a task group) with this specific error.
+      if (!authorized) {
+        string user = frameworkInfo.user();
+
+        if (_task.has_command() && _task.command().has_user()) {
+          user = _task.command().user();
+        } else if (executorInfo.has_command() &&
+                   executorInfo.command().has_user()) {
+          user = executorInfo.command().user();
+        }
+
+        error = Error("Task '" + stringify(_task.task_id()) + "'"
+                      " is not authorized to launch as"
+                      " user '" + user + "'");
+
+        break;
+      }
     }
+  }
+
+  // For failed authorization, we send a TASK_ERROR status update for
+  // all tasks.
+  if (error.isSome()) {
+    const TaskStatus::Reason reason = task.isSome()
+      ? TaskStatus::REASON_TASK_UNAUTHORIZED
+      : TaskStatus::REASON_TASK_GROUP_UNAUTHORIZED;
+
+    LOG(ERROR) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
+               << " of framework " << frameworkId
+               << ": " << error->message;
 
     foreach (const TaskInfo& _task, tasks) {
       const StatusUpdate update = protobuf::createStatusUpdate(
           frameworkId,
           info.id(),
           _task.task_id(),
-          taskState,
+          TASK_ERROR,
           TaskStatus::SOURCE_SLAVE,
           UUID::random(),
-          "Could not launch the task because we failed to unschedule"
-          " directories scheduled for gc",
-          TaskStatus::REASON_GC_ERROR);
+          error->message,
+          reason);
 
-      // TODO(vinod): Ensure that the status update manager reliably
-      // delivers this update. Currently, we don't guarantee this
-      // because removal of the framework causes the status update
-      // manager to stop retrying for its un-acked updates.
       statusUpdate(update, UPID());
     }
 
-    // Refer to the comment after 'framework->pending.erase' above
+    // Refer to the comment after 'framework->removePendingTask' above
     // for why we need this.
     if (framework->executors.empty() && framework->pending.empty()) {
       removeFramework(framework);
@@ -1909,6 +2095,9 @@ void Slave::_run(
 
     return;
   }
+
+  LOG(INFO) << "Launching " << taskOrTaskGroup(task, taskGroup)
+            << " for framework " << frameworkId;
 
   auto unallocated = [](const Resources& resources) {
     Resources result = resources;
@@ -1967,7 +2156,7 @@ void Slave::_run(
       statusUpdate(update, UPID());
     }
 
-    // Refer to the comment after 'framework->pending.erase' above
+    // Refer to the comment after 'framework->removePendingTask' above
     // for why we need this.
     if (framework->executors.empty() && framework->pending.empty()) {
       removeFramework(framework);
@@ -2020,7 +2209,7 @@ void Slave::_run(
       statusUpdate(update, UPID());
     }
 
-    // Refer to the comment after 'framework->pending.erase' above
+    // Refer to the comment after 'framework->removePendingTask' above
     // for why we need this.
     if (framework->executors.empty() && framework->pending.empty()) {
       removeFramework(framework);
@@ -2039,7 +2228,7 @@ void Slave::_run(
                  << " of framework " << frameworkId
                  << " because the agent is terminating";
 
-    // Refer to the comment after 'framework->pending.erase' above
+    // Refer to the comment after 'framework->removePendingTask' above
     // for why we need this.
     if (framework->executors.empty() && framework->pending.empty()) {
       removeFramework(framework);
@@ -2158,7 +2347,7 @@ void Slave::_run(
 
       containerizer->update(executor->containerId, resources)
         .onAny(defer(self(),
-                     &Self::__run,
+                     &Self::___run,
                      lambda::_1,
                      frameworkId,
                      executorId,
@@ -2183,7 +2372,7 @@ void Slave::_run(
 }
 
 
-void Slave::__run(
+void Slave::___run(
     const Future<Nothing>& future,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
@@ -3314,7 +3503,7 @@ void Slave::subscribe(
 
       containerizer->update(executor->containerId, resources)
         .onAny(defer(self(),
-                     &Self::__run,
+                     &Self::___run,
                      lambda::_1,
                      framework->id(),
                      executor->id,
@@ -3536,7 +3725,7 @@ void Slave::registerExecutor(
 
       containerizer->update(executor->containerId, resources)
         .onAny(defer(self(),
-                     &Self::__run,
+                     &Self::___run,
                      lambda::_1,
                      frameworkId,
                      executorId,
@@ -6150,6 +6339,45 @@ double Slave::_executor_directory_max_allowed_age_secs()
 }
 
 
+// As a principle, we do not need to re-authorize actions that have already
+// been authorized by the master. However, we re-authorize the RUN_TASK action
+// on the agent even though the master has already authorized it because:
+// a) in cases where hosts have heterogeneous user-account configurations,
+//    it makes sense to set the ACL on the agent instead of on the master
+// b) compared to other actions such as killing a task and shutting down a
+//    framework, it's a greater security risk if malicious tasks are launched
+//    as a superuser on the agent.
+Future<bool> Slave::authorizeTask(
+    const TaskInfo& task,
+    const FrameworkInfo& frameworkInfo)
+{
+  if (authorizer.isNone()) {
+    return true;
+  }
+
+  // Authorize the task.
+  authorization::Request request;
+
+  if (frameworkInfo.has_principal()) {
+    request.mutable_subject()->set_value(frameworkInfo.principal());
+  }
+
+  request.set_action(authorization::RUN_TASK);
+
+  authorization::Object* object = request.mutable_object();
+
+  object->mutable_task_info()->CopyFrom(task);
+  object->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+  LOG(INFO)
+    << "Authorizing framework principal '"
+    << (frameworkInfo.has_principal() ? frameworkInfo.principal() : "ANY")
+    << "' to launch task " << task.task_id();
+
+  return authorizer.get()->authorized(request);
+}
+
+
 Future<bool> Slave::authorizeLogAccess(const Option<Principal>& principal)
 {
   if (authorizer.isNone()) {
@@ -6633,6 +6861,27 @@ Executor* Framework::getExecutor(const TaskID& taskId) const
     }
   }
   return nullptr;
+}
+
+
+// Return `true` if `task` was a pending task of this framework
+// before the removal; `false` otherwise.
+bool Framework::removePendingTask(
+    const TaskInfo& task,
+    const ExecutorInfo& executorInfo)
+{
+  const ExecutorID executorId = executorInfo.executor_id();
+
+  if (pending.contains(executorId) &&
+      pending.at(executorId).contains(task.task_id())) {
+    pending.at(executorId).erase(task.task_id());
+    if (pending.at(executorId).empty()) {
+      pending.erase(executorId);
+    }
+    return true;
+  }
+
+  return false;
 }
 
 

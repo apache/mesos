@@ -369,6 +369,116 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
 }
 
 
+// This test verifies that a task is launched on the agent if the task
+// user is authorized based on `run_tasks` ACL configured on the agent
+// to only allow whitelisted users to run tasks on the agent.
+TYPED_TEST(SlaveAuthorizerTest, AuthorizeRunTaskOnAgent)
+{
+  // Get the current user.
+  Result<string> user = os::user();
+  ASSERT_SOME(user) << "Failed to get the current user name"
+                    << (user.isError() ? ": " + user.error() : "");
+
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  // Start a slave with `bar` and the current user being the only authorized
+  // users to launch tasks on the agent.
+  ACLs acls;
+  acls.set_permissive(false); // Restrictive.
+  mesos::ACL::RunTask* acl = acls.add_run_tasks();
+  acl->mutable_principals()->set_type(ACL::Entity::ANY);
+  acl->mutable_users()->add_values("bar");
+  acl->mutable_users()->add_values(user.get());
+
+  slave::Flags slaveFlags = this->CreateSlaveFlags();
+  slaveFlags.acls = acls;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = this->StartSlave(
+      detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create a framework with user `foo`.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_user("foo");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Framework is registered since the master admits frameworks of any user.
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  // Launch the first task with no user, so it defaults to the
+  // framework user `foo`.
+  TaskInfo task1 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:32").get(),
+      "sleep 1000");
+
+  // Launch the second task as the current user.
+  TaskInfo task2 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:32").get(),
+      "sleep 1000");
+  task2.mutable_command()->set_user(user.get());
+
+  // The first task should fail since the task user `foo` is not an
+  // authorized user that can launch a task. However, the second task
+  // should succeed.
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver.acceptOffers(
+      {offer.id()},
+      {LAUNCH({task1, task2})});
+
+  // Wait for TASK_FAILED for 1st task, and TASK_RUNNING for 2nd task.
+  AWAIT_READY(status1);
+  AWAIT_READY(status2);
+
+  // Validate both the statuses. Note that the order of receiving the
+  // status updates for the 2 tasks is not deterministic.
+  hashmap<TaskID, TaskStatus> statuses {
+    {status1->task_id(), status1.get()},
+    {status2->task_id(), status2.get()}
+  };
+
+  ASSERT_TRUE(statuses.contains(task1.task_id()));
+  EXPECT_EQ(TASK_ERROR, statuses.at(task1.task_id()).state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, statuses.at(task1.task_id()).source());
+  EXPECT_EQ(TaskStatus::REASON_TASK_UNAUTHORIZED,
+            statuses.at(task1.task_id()).reason());
+
+  ASSERT_TRUE(statuses.contains(task2.task_id()));
+  EXPECT_EQ(TASK_RUNNING, statuses.at(task2.task_id()).state());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // Parameterized fixture for agent-specific authorization tests. The
 // path of the tested endpoint is passed as the only parameter.
 class SlaveEndpointTest:
