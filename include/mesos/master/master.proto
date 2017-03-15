@@ -518,10 +518,8 @@ message Event {
     required Response.GetAgents.Agent agent = 1;
   }
 
-  // Forwarded by the master when an agent is removed.
-  // This can happen when an agent does not re-register
-  // within `--agent_reregister_timeout` upon a master failover,
-  // or when the agent is scheduled for maintenance.
+  // Forwarded by the master when an agent is removed. This
+  // can happen when the agent is scheduled for maintenance.
   //
   // NOTE: It's possible that an agent might become
   // active once it has been removed, i.e. if the master
