@@ -102,6 +102,8 @@ public:
 
   Future<hashset<ContainerID>> containers();
 
+  Future<Nothing> remove(const ContainerID& containerId);
+
 private:
   // Continuations.
   Future<Nothing> _recover();
@@ -274,6 +276,12 @@ Future<bool> ComposingContainerizer::destroy(const ContainerID& containerId)
 Future<hashset<ContainerID>> ComposingContainerizer::containers()
 {
   return dispatch(process, &ComposingContainerizerProcess::containers);
+}
+
+
+Future<Nothing> ComposingContainerizer::remove(const ContainerID& containerId)
+{
+  return dispatch(process, &ComposingContainerizerProcess::remove, containerId);
 }
 
 
@@ -694,6 +702,25 @@ Future<bool> ComposingContainerizerProcess::destroy(
 Future<hashset<ContainerID>> ComposingContainerizerProcess::containers()
 {
   return containers_.keys();
+}
+
+
+Future<Nothing> ComposingContainerizerProcess::remove(
+    const ContainerID& containerId)
+{
+  // A precondition of this method is that the nested container has already
+  // been terminated, hence `containers_` won't contain it. To work around it,
+  // we use the containerizer that launched the root container to remove the
+  // nested container.
+
+  const ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
+
+  if (!containers_.contains(rootContainerId)) {
+    return Failure(
+        "Root container " + stringify(rootContainerId) + " not found");
+  }
+
+  return containers_[rootContainerId]->containerizer->remove(containerId);
 }
 
 } // namespace slave {
