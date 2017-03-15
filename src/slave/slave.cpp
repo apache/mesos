@@ -51,24 +51,15 @@
 #include <stout/fs.hpp>
 #include <stout/lambda.hpp>
 #include <stout/net.hpp>
+#include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
-
-#ifdef __linux__
-#include <stout/proc.hpp>
-#endif // __linux__
-#include <stout/numify.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 #include <stout/utils.hpp>
-
-#ifdef __linux__
-#include "linux/cgroups.hpp"
-#include "linux/fs.hpp"
-#endif // __linux__
 
 #include "authentication/cram_md5/authenticatee.hpp"
 
@@ -80,6 +71,10 @@
 #include "credentials/credentials.hpp"
 
 #include "hook/manager.hpp"
+
+#ifdef __linux__
+#include "linux/fs.hpp"
+#endif // __linux__
 
 #include "logging/logging.hpp"
 
@@ -223,116 +218,6 @@ void Slave::initialize()
                  << " IP address.\n"
                  << "**************************************************";
   }
-
-#ifdef __linux__
-  // Move the slave into its own cgroup for each of the specified
-  // subsystems.
-  //
-  // NOTE: Any subsystem configuration is inherited from the mesos
-  // root cgroup for that subsystem, e.g., by default the memory
-  // cgroup will be unlimited.
-  //
-  // TODO(jieyu): Make sure the corresponding cgroup isolator is
-  // enabled so that the container processes are moved to different
-  // cgroups than the agent cgroup.
-  if (flags.agent_subsystems.isSome()) {
-    foreach (const string& subsystem,
-            strings::tokenize(flags.agent_subsystems.get(), ",")) {
-      LOG(INFO) << "Moving agent process into its own cgroup for"
-                << " subsystem: " << subsystem;
-
-      // Ensure the subsystem is mounted and the Mesos root cgroup is
-      // present.
-      Try<string> hierarchy = cgroups::prepare(
-          flags.cgroups_hierarchy,
-          subsystem,
-          flags.cgroups_root);
-
-      if (hierarchy.isError()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to prepare cgroup " << flags.cgroups_root
-          << " for subsystem " << subsystem << ": " << hierarchy.error();
-      }
-
-      // Create a cgroup for the slave.
-      string cgroup = path::join(flags.cgroups_root, "slave");
-
-      Try<bool> exists = cgroups::exists(hierarchy.get(), cgroup);
-      if (exists.isError()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to find cgroup " << cgroup
-          << " for subsystem " << subsystem
-          << " under hierarchy " << hierarchy.get()
-          << " for agent: " << exists.error();
-      }
-
-      if (!exists.get()) {
-        Try<Nothing> create = cgroups::create(hierarchy.get(), cgroup);
-        if (create.isError()) {
-          EXIT(EXIT_FAILURE)
-            << "Failed to create cgroup " << cgroup
-            << " for subsystem " << subsystem
-            << " under hierarchy " << hierarchy.get()
-            << " for agent: " << create.error();
-        }
-      }
-
-      // Exit if there are processes running inside the cgroup - this
-      // indicates a prior slave (or child process) is still running.
-      Try<set<pid_t>> processes = cgroups::processes(hierarchy.get(), cgroup);
-      if (processes.isError()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to check for existing threads in cgroup " << cgroup
-          << " for subsystem " << subsystem
-          << " under hierarchy " << hierarchy.get()
-          << " for agent: " << processes.error();
-      }
-
-      // Log if there are any processes in the slave's cgroup. They
-      // may be transient helper processes like 'perf' or 'du',
-      // ancillary processes like 'docker log' or possibly a stuck
-      // slave.
-      // TODO(idownes): Generally, it's not a problem if there are
-      // processes running in the slave's cgroup, though any resources
-      // consumed by those processes are accounted to the slave. Where
-      // applicable, transient processes should be configured to
-      // terminate if the slave exits; see example usage for perf in
-      // isolators/cgroups/perf.cpp. Consider moving ancillary
-      // processes to a different cgroup, e.g., moving 'docker log' to
-      // the container's cgroup.
-      if (!processes.get().empty()) {
-        // For each process, we print its pid as well as its command
-        // to help triaging.
-        vector<string> infos;
-        foreach (pid_t pid, processes.get()) {
-          Result<os::Process> proc = os::process(pid);
-
-          // Only print the command if available.
-          if (proc.isSome()) {
-            infos.push_back(stringify(pid) + " '" + proc.get().command + "'");
-          } else {
-            infos.push_back(stringify(pid));
-          }
-        }
-
-        LOG(INFO) << "An agent (or child process) is still running, please"
-                  << " consider checking the following process(es) listed in "
-                  << path::join(hierarchy.get(), cgroup, "cgroups.proc")
-                  << ":\n" << strings::join("\n", infos);
-      }
-
-      // Move all of our threads into the cgroup.
-      Try<Nothing> assign = cgroups::assign(hierarchy.get(), cgroup, getpid());
-      if (assign.isError()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to move agent into cgroup " << cgroup
-          << " for subsystem " << subsystem
-          << " under hierarchy " << hierarchy.get()
-          << " for agent: " << assign.error();
-      }
-    }
-  }
-#endif // __linux__
 
   if (flags.registration_backoff_factor > REGISTER_RETRY_INTERVAL_MAX) {
     EXIT(EXIT_FAILURE)
