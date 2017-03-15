@@ -19,6 +19,7 @@
 #include <vector>
 
 #include <mesos/authentication/http/basic_authenticator_factory.hpp>
+#include <mesos/authentication/http/combined_authenticator.hpp>
 
 #include <mesos/module/http_authenticator.hpp>
 
@@ -33,6 +34,7 @@
 
 using namespace process;
 
+using std::string;
 using std::vector;
 
 namespace process {
@@ -49,6 +51,27 @@ bool operator==(const Unauthorized &left, const Unauthorized &right)
   return left.body == right.body &&
          left.headers.get("WWW-Authenticate") ==
              right.headers.get("WWW-Authenticate");
+}
+
+
+bool operator==(const URL &left, const URL &right)
+{
+  return left.scheme == right.scheme &&
+         left.domain == right.domain &&
+         left.ip == right.ip &&
+         left.path == right.path &&
+         left.query == right.query &&
+         left.fragment == right.fragment &&
+         left.port == right.port;
+}
+
+
+bool operator==(const Request &left, const Request &right)
+{
+  return left.headers == right.headers &&
+         left.url == right.url &&
+         left.method == right.method &&
+         left.body == right.body;
 }
 
 
@@ -73,19 +96,21 @@ namespace internal {
 namespace tests {
 
 using mesos::http::authentication::BasicAuthenticatorFactory;
+using mesos::http::authentication::CombinedAuthenticator;
 
+using process::http::Forbidden;
 using process::http::Request;
 using process::http::Unauthorized;
 
 using process::http::authentication::Authenticator;
-using process::http::authentication::Principal;
 using process::http::authentication::AuthenticationResult;
+using process::http::authentication::Principal;
 
 
-static const std::string REALM = "tatooine";
+static const string REALM = "tatooine";
 
 static Parameters createBasicAuthenticatorParameters(
-    const Option<std::string>& realm,
+    const Option<string>& realm,
     const Option<Credentials>& credentials)
 {
   Parameters parameters;
@@ -233,6 +258,281 @@ TYPED_TEST(HttpAuthenticationTest, BasicWithoutRealm)
   Try<Authenticator*> create = TypeParam::create(parameters);
 
   ASSERT_ERROR(create);
+}
+
+
+class MockAuthenticator : public Authenticator
+{
+public:
+  MockAuthenticator(string scheme) : mockScheme(scheme) {}
+
+  MockAuthenticator(const MockAuthenticator& authenticator)
+    : mockScheme(authenticator.mockScheme) {}
+
+  MOCK_METHOD1(authenticate, Future<AuthenticationResult>(const Request&));
+
+  virtual string scheme() const { return mockScheme; }
+
+private:
+  const string mockScheme;
+};
+
+
+AuthenticationResult createUnauthorized(MockAuthenticator& authenticator)
+{
+  AuthenticationResult result;
+  result.unauthorized = Unauthorized(
+      {authenticator.scheme() + " realm=\"" + REALM + "\""},
+      authenticator.scheme() + " unauthorized");
+
+  return result;
+}
+
+
+AuthenticationResult createForbidden(MockAuthenticator& authenticator)
+{
+  AuthenticationResult result;
+  result.forbidden = Forbidden(authenticator.scheme() + " forbidden");
+
+  return result;
+}
+
+
+AuthenticationResult createCombinedUnauthorized(
+    vector<MockAuthenticator> authenticators)
+{
+  AuthenticationResult result;
+  vector<string> headers;
+  vector<string> bodies;
+
+  foreach (const MockAuthenticator& authenticator, authenticators) {
+    headers.push_back(authenticator.scheme() + " realm=\"" + REALM + "\"");
+    bodies.push_back(
+        "\"" + authenticator.scheme() + "\" authenticator returned:\n" +
+        authenticator.scheme() + " unauthorized");
+  }
+
+  result.unauthorized = Unauthorized(
+      {strings::join(",", headers)},
+      strings::join("\n\n", bodies));
+
+  return result;
+}
+
+
+AuthenticationResult createCombinedForbidden(
+    vector<MockAuthenticator> authenticators)
+{
+  AuthenticationResult result;
+  vector<string> bodies;
+
+  foreach (const MockAuthenticator& authenticator, authenticators) {
+    bodies.push_back(
+        "\"" + authenticator.scheme() + "\" authenticator returned:\n" +
+        authenticator.scheme() + " forbidden");
+  }
+
+  result.forbidden = Forbidden(strings::join("\n\n", bodies));
+
+  return result;
+}
+
+
+// Verifies the functionality of the `CombinedAuthenticator`.
+//
+// Note: This test relies on the order of invocation of the installed
+// authenticators. If the `CombinedAuthenticator` is changed in the future to
+// call them in a different order, this test must be udpated.
+TEST(CombinedAuthenticatorTest, MultipleAuthenticators)
+{
+  // Create two mock HTTP authenticators to install.
+  MockAuthenticator* basicAuthenticator = new MockAuthenticator("Basic");
+  MockAuthenticator* bearerAuthenticator = new MockAuthenticator("Bearer");
+
+  // Create a `CombinedAuthenticator` containing multiple authenticators.
+  Owned<Authenticator> combinedAuthenticator(
+      new CombinedAuthenticator(
+          REALM,
+          {
+            Owned<Authenticator>(basicAuthenticator),
+            Owned<Authenticator>(bearerAuthenticator)
+          }
+      ));
+
+  Request request;
+  request.headers.put(
+      "Authorization",
+      "Basic " + base64::encode("user:password"));
+
+  // The first authenticator succeeds.
+  {
+    AuthenticationResult successfulResult;
+    successfulResult.principal = Principal("user");
+
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(successfulResult));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_EQ(successfulResult, result);
+  }
+
+  // The first authenticator fails but the second one succeeds.
+  {
+    AuthenticationResult successfulResult;
+    successfulResult.principal = Principal("user");
+
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(createUnauthorized(*basicAuthenticator)));
+    EXPECT_CALL(*bearerAuthenticator, authenticate(request))
+      .WillOnce(Return(successfulResult));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_EQ(successfulResult, result);
+  }
+
+  // Two Unauthorized results.
+  {
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(createUnauthorized(*basicAuthenticator)));
+    EXPECT_CALL(*bearerAuthenticator, authenticate(request))
+      .WillOnce(Return(createUnauthorized(*bearerAuthenticator)));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_EQ(
+        createCombinedUnauthorized({*basicAuthenticator, *bearerAuthenticator}),
+        result);
+  }
+
+  // One Unauthorized and one Forbidden result.
+  {
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(createUnauthorized(*basicAuthenticator)));
+    EXPECT_CALL(*bearerAuthenticator, authenticate(request))
+      .WillOnce(Return(createForbidden(*bearerAuthenticator)));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_EQ(createCombinedUnauthorized({*basicAuthenticator}), result);
+  }
+
+  // Two Forbidden results.
+  {
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(createForbidden(*basicAuthenticator)));
+    EXPECT_CALL(*bearerAuthenticator, authenticate(request))
+      .WillOnce(Return(createForbidden(*bearerAuthenticator)));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_EQ(
+        createCombinedForbidden({*basicAuthenticator, *bearerAuthenticator}),
+        result);
+  }
+
+  // Two empty results.
+  {
+    AuthenticationResult emptyResult;
+
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(emptyResult));
+    EXPECT_CALL(*bearerAuthenticator, authenticate(request))
+      .WillOnce(Return(emptyResult));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_EQ(emptyResult, result);
+  }
+
+  // One empty and one Unauthorized result.
+  {
+    AuthenticationResult emptyResult;
+
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(emptyResult));
+    EXPECT_CALL(*bearerAuthenticator, authenticate(request))
+      .WillOnce(Return(createUnauthorized(*bearerAuthenticator)));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_EQ(createCombinedUnauthorized({*bearerAuthenticator}), result);
+  }
+
+  // One empty and one successful result.
+  {
+    AuthenticationResult emptyResult;
+    AuthenticationResult successfulResult;
+    successfulResult.principal = Principal("user");
+
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(emptyResult));
+    EXPECT_CALL(*bearerAuthenticator, authenticate(request))
+      .WillOnce(Return(successfulResult));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_EQ(successfulResult, result);
+  }
+
+  // Two failed futures.
+  {
+    Future<AuthenticationResult> failedResult(Failure("Failed result"));
+
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(failedResult));
+    EXPECT_CALL(*bearerAuthenticator, authenticate(request))
+      .WillOnce(Return(failedResult));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_FAILED(result);
+  }
+
+  // One failed future and one Unauthorized result.
+  {
+    Future<AuthenticationResult> failedResult(Failure("Failed result"));
+
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(failedResult));
+    EXPECT_CALL(*bearerAuthenticator, authenticate(request))
+      .WillOnce(Return(createUnauthorized(*bearerAuthenticator)));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_EQ(createCombinedUnauthorized({*bearerAuthenticator}), result);
+  }
+
+  // One failed future and one Forbidden result.
+  {
+    Future<AuthenticationResult> failedResult(Failure("Failed result"));
+
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(failedResult));
+    EXPECT_CALL(*bearerAuthenticator, authenticate(request))
+      .WillOnce(Return(createForbidden(*bearerAuthenticator)));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_EQ(createCombinedForbidden({*bearerAuthenticator}), result);
+  }
+
+  // One failed future and one successful result.
+  {
+    Future<AuthenticationResult> failedResult(Failure("Failed result"));
+    AuthenticationResult successfulResult;
+    successfulResult.principal = Principal("user");
+
+    EXPECT_CALL(*basicAuthenticator, authenticate(request))
+      .WillOnce(Return(failedResult));
+    EXPECT_CALL(*bearerAuthenticator, authenticate(request))
+      .WillOnce(Return(successfulResult));
+
+    Future<AuthenticationResult> result =
+      combinedAuthenticator->authenticate(request);
+    AWAIT_EXPECT_EQ(successfulResult, result);
+  }
 }
 
 } // namespace tests {
