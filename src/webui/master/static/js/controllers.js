@@ -333,6 +333,10 @@
       {
         pathRegexp: /^\/offers/,
         tab: 'offers'
+      },
+      {
+        pathRegexp: /^\/maintenance/,
+        tab: 'maintenance'
       }
     ];
 
