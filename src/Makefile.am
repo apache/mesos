@@ -561,7 +561,8 @@ authentication_HEADERS =						\
   $(top_srcdir)/include/mesos/authentication/authentication.proto	\
   $(top_srcdir)/include/mesos/authentication/authenticator.hpp		\
   $(top_srcdir)/include/mesos/authentication/secret_generator.hpp	\
-  $(top_srcdir)/include/mesos/authentication/http/basic_authenticator_factory.hpp
+  $(top_srcdir)/include/mesos/authentication/http/basic_authenticator_factory.hpp	\
+  $(top_srcdir)/include/mesos/authentication/http/combined_authenticator.hpp
 
 nodist_authentication_HEADERS =						\
   ../include/mesos/authentication/authentication.pb.h
@@ -843,6 +844,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   authentication/cram_md5/authenticator.cpp				\
   authentication/cram_md5/auxprop.cpp					\
   authentication/http/basic_authenticator_factory.cpp			\
+  authentication/http/combined_authenticator.cpp			\
   authorizer/acls.cpp							\
   authorizer/authorizer.cpp						\
   authorizer/local/authorizer.cpp					\

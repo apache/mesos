@@ -210,6 +210,7 @@ set(APPC_SRC
 
 set(AUTHENTICATION_SRC
   authentication/http/basic_authenticator_factory.cpp
+  authentication/http/combined_authenticator.cpp
   )
 
 if (NOT WIN32)
