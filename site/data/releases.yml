@@ -15,6 +15,10 @@ news:
 ##   - title: (required)
 ##     date: (required)
 ##     blog: (required)
+  - title: Mesos 1.1.1 is released!
+    date: March 14, 2017
+    blog: mesos-1-1-1-released
+    target_version: 1.1.1
   - title: Mesos 1.2.0 is released!
     date: March 8, 2017
     blog: mesos-1-2-0-released
