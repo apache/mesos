@@ -611,39 +611,6 @@ void Slave::terminate()
 void Slave::wait()
 {
   process::wait(pid);
-
-#ifdef __linux__
-  // Remove all of this processes threads into the root cgroups - this
-  // simulates the slave process terminating and permits a new slave to start
-  // when the --agent_subsystems flag is used.
-  if (flags.agent_subsystems.isSome()) {
-    foreach (const std::string& subsystem,
-             strings::tokenize(flags.agent_subsystems.get(), ",")) {
-      std::string hierarchy = path::join(flags.cgroups_hierarchy, subsystem);
-
-      std::string cgroup = path::join(flags.cgroups_root, "slave");
-
-      Try<bool> exists = cgroups::exists(hierarchy, cgroup);
-      if (exists.isError() || !exists.get()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to find cgroup " << cgroup
-          << " for subsystem " << subsystem
-          << " under hierarchy " << hierarchy
-          << " for agent: " + exists.error();
-      }
-
-      // Move all of our threads into the root cgroup.
-      Try<Nothing> assign = cgroups::assign(hierarchy, "", getpid());
-      if (assign.isError()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to move agent threads into cgroup " << cgroup
-          << " for subsystem " << subsystem
-          << " under hierarchy " << hierarchy
-          << " for agent: " + assign.error();
-      }
-    }
-  }
-#endif // __linux__
 }
 
 } // namespace cluster {
