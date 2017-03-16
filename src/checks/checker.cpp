@@ -365,7 +365,7 @@ Future<int> CheckerProcess::commandCheck()
 
     s = process::subprocess(
         command.value(),
-        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH(os::DEV_NULL),
         Subprocess::FD(STDERR_FILENO),
         Subprocess::FD(STDERR_FILENO),
         environment,
@@ -381,7 +381,7 @@ Future<int> CheckerProcess::commandCheck()
     s = process::subprocess(
         command.value(),
         argv,
-        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH(os::DEV_NULL),
         Subprocess::FD(STDERR_FILENO),
         Subprocess::FD(STDERR_FILENO),
         nullptr,
@@ -480,7 +480,7 @@ Future<int> CheckerProcess::httpCheck()
     "-L",                 // Follows HTTP 3xx redirects.
     "-k",                 // Ignores SSL validation when scheme is https.
     "-w", "%{http_code}", // Displays HTTP response code on stdout.
-    "-o", "/dev/null",    // Ignores output.
+    "-o", os::DEV_NULL,    // Ignores output.
     url
   };
 
@@ -489,7 +489,7 @@ Future<int> CheckerProcess::httpCheck()
   Try<Subprocess> s = process::subprocess(
       HTTP_CHECK_COMMAND,
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       nullptr,
