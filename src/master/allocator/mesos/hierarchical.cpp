@@ -1514,7 +1514,7 @@ void HierarchicalAllocatorProcess::__allocate()
   hashmap<SlaveID, Resources> offeredSharedResources;
 
   // Quota comes first and fair share second. Here we process only those
-  // roles, for which quota is set (quota'ed roles). Such roles form a
+  // roles for which quota is set (quota'ed roles). Such roles form a
   // special allocation group with a dedicated sorter.
   foreach (const SlaveID& slaveId, slaveIds) {
     foreach (const string& role, quotaRoleSorter->sort()) {

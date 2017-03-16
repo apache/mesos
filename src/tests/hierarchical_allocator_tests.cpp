@@ -4247,7 +4247,7 @@ TEST_F(HierarchicalAllocatorTest, DisproportionateQuotaVsAllocation)
   Quota quota = createQuota(QUOTA_ROLE, quotaResources);
   allocator->setQuota(QUOTA_ROLE, quota);
 
-  // Register two frameworks where on is using a role with quota.
+  // Register two frameworks where one is using a role with quota.
   FrameworkInfo framework1 = createFrameworkInfo({QUOTA_ROLE});
   FrameworkInfo framework2 = createFrameworkInfo({NO_QUOTA_ROLE});
   allocator->addFramework(framework1.id(), framework1, {}, true);
