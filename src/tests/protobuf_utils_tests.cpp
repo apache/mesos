@@ -64,88 +64,133 @@ TEST(ProtobufUtilTest, GetRoles)
 }
 
 
-// Tests that offer operations can be injected to include
-// the appropriate allocation info, if not already set.
-TEST(ProtobufUtilTest, InjectAllocationInfoInOfferOperation)
+// Tests that allocation info can be injected to and stripped from
+// offer operations.
+TEST(ProtobufUtilTest, InjectAndStripAllocationInfoInOfferOperation)
 {
-  Resources resources = Resources::parse("cpus:1").get();
+  Resources unallocatedResources = Resources::parse("cpus:1").get();
 
-  Resources allocatedResources = resources;
+  Resources allocatedResources = unallocatedResources;
   allocatedResources.allocate("role");
 
   Resource::AllocationInfo allocationInfo;
   allocationInfo.set_role("role");
 
-  // Test the LAUNCH case. This should be constructing a valid
-  // task and executor, but for now this just sets the resources
-  // in order to verify the allocation info injection.
   ExecutorInfo executorInfo;
-  executorInfo.mutable_resources()->CopyFrom(resources);
+  executorInfo.mutable_resources()->CopyFrom(unallocatedResources);
 
   TaskInfo taskInfo;
-  taskInfo.mutable_resources()->CopyFrom(resources);
+  taskInfo.mutable_resources()->CopyFrom(unallocatedResources);
   taskInfo.mutable_executor()->CopyFrom(executorInfo);
 
-  Offer::Operation launch = LAUNCH({taskInfo});
-  protobuf::injectAllocationInfo(&launch, allocationInfo);
+  {
+    // Test the LAUNCH case. This should be constructing a valid
+    // task and executor, but for now this just sets the resources
+    // in order to verify the allocation info injection and stripping.
+    Offer::Operation launch = LAUNCH({taskInfo});
+    protobuf::injectAllocationInfo(&launch, allocationInfo);
 
-  ASSERT_EQ(1, launch.launch().task_infos_size());
+    ASSERT_EQ(1, launch.launch().task_infos_size());
 
-  EXPECT_EQ(allocatedResources,
-            launch.launch().task_infos(0).resources());
+    EXPECT_EQ(allocatedResources,
+              launch.launch().task_infos(0).resources());
 
-  EXPECT_EQ(allocatedResources,
-            launch.launch().task_infos(0).executor().resources());
+    EXPECT_EQ(allocatedResources,
+              launch.launch().task_infos(0).executor().resources());
 
-  // Test the LAUNCH_GROUP case. This should be constructing a valid
-  // task and executor, but for now this just sets the resources in
-  // order to verify the allocation info injection.
-  TaskGroupInfo taskGroupInfo;
-  taskGroupInfo.add_tasks()->CopyFrom(taskInfo);
+    protobuf::stripAllocationInfo(&launch);
 
-  Offer::Operation launchGroup = LAUNCH_GROUP(executorInfo, taskGroupInfo);
-  protobuf::injectAllocationInfo(&launchGroup, allocationInfo);
+    EXPECT_EQ(unallocatedResources,
+              launch.launch().task_infos(0).resources());
 
-  ASSERT_EQ(1, launchGroup.launch_group().task_group().tasks_size());
+    EXPECT_EQ(unallocatedResources,
+              launch.launch().task_infos(0).executor().resources());
+  }
 
-  EXPECT_EQ(allocatedResources,
-            launchGroup.launch_group().task_group().tasks(0).resources());
+  {
+    // Test the LAUNCH_GROUP case. This should be constructing a valid
+    // task and executor, but for now this just sets the resources in
+    // order to verify the allocation info injection.
+    TaskGroupInfo taskGroupInfo;
+    taskGroupInfo.add_tasks()->CopyFrom(taskInfo);
 
-  EXPECT_EQ(allocatedResources,
-            launchGroup.launch_group().task_group().tasks(0).executor()
-              .resources());
+    Offer::Operation launchGroup = LAUNCH_GROUP(executorInfo, taskGroupInfo);
+    protobuf::injectAllocationInfo(&launchGroup, allocationInfo);
 
-  // Test the RESERVE case. This should be constructing a valid
-  // reservation, but for now this just sets the resources in
-  // order to verify the allocation info injection.
-  Offer::Operation reserve = RESERVE(resources);
-  protobuf::injectAllocationInfo(&reserve, allocationInfo);
+    ASSERT_EQ(1, launchGroup.launch_group().task_group().tasks_size());
 
-  EXPECT_EQ(allocatedResources, reserve.reserve().resources());
+    EXPECT_EQ(allocatedResources,
+              launchGroup.launch_group().task_group().tasks(0).resources());
 
-  // Test the UNRESERVE case. This should be constructing a valid
-  // reservation, but for now this just sets the resources in
-  // order to verify the allocation info injection.
-  Offer::Operation unreserve = UNRESERVE(resources);
-  protobuf::injectAllocationInfo(&unreserve, allocationInfo);
+    EXPECT_EQ(allocatedResources,
+              launchGroup.launch_group().task_group().tasks(0).executor()
+                .resources());
 
-  EXPECT_EQ(allocatedResources, unreserve.unreserve().resources());
+    protobuf::stripAllocationInfo(&launchGroup);
 
-  // Test the CREATE case. This should be constructing a valid
-  // volume, but for now this just sets the resources in order
-  // to verify the allocation info injection.
-  Offer::Operation create = CREATE(resources);
-  protobuf::injectAllocationInfo(&create, allocationInfo);
+    EXPECT_EQ(unallocatedResources,
+              launchGroup.launch_group().task_group().tasks(0).resources());
 
-  EXPECT_EQ(allocatedResources, create.create().volumes());
+    EXPECT_EQ(unallocatedResources,
+              launchGroup.launch_group().task_group().tasks(0).executor()
+                .resources());
+  }
 
-  // Test the DESTROY case. This should be constructing a valid
-  // volume, but for now this just sets the resources in order
-  // to verify the allocation info injection.
-  Offer::Operation destroy = DESTROY(resources);
-  protobuf::injectAllocationInfo(&destroy, allocationInfo);
+  {
+    // Test the RESERVE case. This should be constructing a valid
+    // reservation, but for now this just sets the resources in
+    // order to verify the allocation info injection.
+    Offer::Operation reserve = RESERVE(unallocatedResources);
+    protobuf::injectAllocationInfo(&reserve, allocationInfo);
 
-  EXPECT_EQ(allocatedResources, destroy.destroy().volumes());
+    EXPECT_EQ(allocatedResources, reserve.reserve().resources());
+
+    protobuf::stripAllocationInfo(&reserve);
+
+    EXPECT_EQ(unallocatedResources, reserve.reserve().resources());
+  }
+
+  {
+    // Test the UNRESERVE case. This should be constructing a valid
+    // reservation, but for now this just sets the resources in
+    // order to verify the allocation info injection.
+    Offer::Operation unreserve = UNRESERVE(unallocatedResources);
+    protobuf::injectAllocationInfo(&unreserve, allocationInfo);
+
+    EXPECT_EQ(allocatedResources, unreserve.unreserve().resources());
+
+    protobuf::stripAllocationInfo(&unreserve);
+
+    EXPECT_EQ(unallocatedResources, unreserve.unreserve().resources());
+  }
+
+  {
+    // Test the CREATE case. This should be constructing a valid
+    // volume, but for now this just sets the resources in order
+    // to verify the allocation info injection.
+    Offer::Operation create = CREATE(unallocatedResources);
+    protobuf::injectAllocationInfo(&create, allocationInfo);
+
+    EXPECT_EQ(allocatedResources, create.create().volumes());
+
+    protobuf::stripAllocationInfo(&create);
+
+    EXPECT_EQ(unallocatedResources, create.create().volumes());
+  }
+
+  {
+    // Test the DESTROY case. This should be constructing a valid
+    // volume, but for now this just sets the resources in order
+    // to verify the allocation info injection.
+    Offer::Operation destroy = DESTROY(unallocatedResources);
+    protobuf::injectAllocationInfo(&destroy, allocationInfo);
+
+    EXPECT_EQ(allocatedResources, destroy.destroy().volumes());
+
+    protobuf::stripAllocationInfo(&destroy);
+
+    EXPECT_EQ(unallocatedResources, destroy.destroy().volumes());
+  }
 }
 
 
