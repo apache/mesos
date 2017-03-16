@@ -77,19 +77,21 @@ private:
   AsyncExecutorProcess(const AsyncExecutorProcess&);
   AsyncExecutorProcess& operator=(const AsyncExecutorProcess&);
 
-  template <typename F>
-  typename result_of<F()>::type execute(
-      const F& f,
-      typename std::enable_if<!std::is_void<typename result_of<F()>::type>::value>::type* = nullptr) // NOLINT(whitespace/line_length)
+  template <
+      typename F,
+      typename std::enable_if<
+          !std::is_void<typename result_of<F()>::type>::value, int>::type = 0>
+  typename result_of<F()>::type execute(const F& f)
   {
     terminate(self()); // Terminate process after function returns.
     return f();
   }
 
-  template <typename F>
-  Nothing execute(
-      const F& f,
-      typename std::enable_if<std::is_void<typename result_of<F()>::type>::value>::type* = nullptr) // NOLINT(whitespace/line_length)
+  template <
+      typename F,
+      typename std::enable_if<
+          std::is_void<typename result_of<F()>::type>::value, int>::type = 0>
+  Nothing execute(const F& f)
   {
     terminate(self()); // Terminate process after function returns.
     f();
@@ -97,21 +99,29 @@ private:
   }
 
 #define TEMPLATE(Z, N, DATA)                                            \
-  template <typename F, ENUM_PARAMS(N, typename A)>                     \
+  template <                                                            \
+      typename F,                                                       \
+      ENUM_PARAMS(N, typename A),                                       \
+      typename std::enable_if<                                          \
+          !std::is_void<                                                \
+              typename result_of<F(ENUM_PARAMS(N, A))>::type>::value,   \
+          int>::type = 0>                                               \
   typename result_of<F(ENUM_PARAMS(N, A))>::type execute(       \
-      const F& f,                                                       \
-      ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename std::enable_if<!std::is_void<typename result_of<F(ENUM_PARAMS(N, A))>::type>::value>::type* = nullptr) /* NOLINT(whitespace/line_length) */ \
+      const F& f, ENUM_BINARY_PARAMS(N, A, a))                          \
   {                                                                     \
     terminate(self()); /* Terminate process after function returns. */  \
     return f(ENUM_PARAMS(N, a));                                        \
   }                                                                     \
                                                                         \
-  template <typename F, ENUM_PARAMS(N, typename A)>                     \
+  template <                                                            \
+      typename F,                                                       \
+      ENUM_PARAMS(N, typename A),                                       \
+      typename std::enable_if<                                          \
+          std::is_void<                                                 \
+              typename result_of<F(ENUM_PARAMS(N, A))>::type>::value,   \
+          int>::type = 0>                                               \
   Nothing execute(                                                      \
-      const F& f,                                                       \
-      ENUM_BINARY_PARAMS(N, A, a),                                      \
-      typename std::enable_if<std::is_void<typename result_of<F(ENUM_PARAMS(N, A))>::type>::value>::type* = nullptr) /* NOLINT(whitespace/line_length) */ \
+      const F& f, ENUM_BINARY_PARAMS(N, A, a))                          \
   {                                                                     \
     terminate(self()); /* Terminate process after function returns. */  \
     f(ENUM_PARAMS(N, a));                                               \
@@ -171,10 +181,10 @@ private:
       typename std::enable_if<!std::is_void<typename result_of<F()>::type>::value>::type* = nullptr) // NOLINT(whitespace/line_length)
   {
     // Need to disambiguate overloaded method.
-    typename result_of<F()>::type(AsyncExecutorProcess::*method)(const F&, typename std::enable_if<!std::is_void<typename result_of<F()>::type>::value>::type*) = // NOLINT(whitespace/line_length)
+    typename result_of<F()>::type(AsyncExecutorProcess::*method)(const F&) =
       &AsyncExecutorProcess::execute<F>;
 
-    return dispatch(process, method, f, (void*) nullptr);
+    return dispatch(process, method, f);
   }
 
   template <typename F>
@@ -183,10 +193,10 @@ private:
       typename std::enable_if<std::is_void<typename result_of<F()>::type>::value>::type* = nullptr) // NOLINT(whitespace/line_length)
   {
     // Need to disambiguate overloaded method.
-    Nothing(AsyncExecutorProcess::*method)(const F&, typename std::enable_if<std::is_void<typename result_of<F()>::type>::value>::type*) = // NOLINT(whitespace/line_length)
+    Nothing(AsyncExecutorProcess::*method)(const F&) =
       &AsyncExecutorProcess::execute<F>;
 
-    return dispatch(process, method, f, (void*) nullptr);
+    return dispatch(process, method, f);
   }
 
 #define TEMPLATE(Z, N, DATA)                                            \
@@ -197,10 +207,10 @@ private:
       typename std::enable_if<!std::is_void<typename result_of<F(ENUM_PARAMS(N, A))>::type>::value>::type* = nullptr) /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     /* Need to disambiguate overloaded method. */                       \
-    typename result_of<F(ENUM_PARAMS(N, A))>::type(AsyncExecutorProcess::*method)(const F&, ENUM_PARAMS(N, A), typename std::enable_if<!std::is_void<typename result_of<F(ENUM_PARAMS(N, A))>::type>::value>::type*) = /* NOLINT(whitespace/line_length) */ \
+    typename result_of<F(ENUM_PARAMS(N, A))>::type(AsyncExecutorProcess::*method)(const F&, ENUM_PARAMS(N, A)) = /* NOLINT(whitespace/line_length) */ \
       &AsyncExecutorProcess::execute<F, ENUM_PARAMS(N, A)>;             \
                                                                         \
-    return dispatch(process, method, f, ENUM_PARAMS(N, a), (void*) nullptr); \
+    return dispatch(process, method, f, ENUM_PARAMS(N, a));             \
   }                                                                     \
                                                                         \
   template <typename F, ENUM_PARAMS(N, typename A)>                     \
@@ -210,10 +220,10 @@ private:
       typename std::enable_if<std::is_void<typename result_of<F(ENUM_PARAMS(N, A))>::type>::value>::type* = nullptr) /* NOLINT(whitespace/line_length) */ \
   {                                                                     \
     /* Need to disambiguate overloaded method. */                       \
-    Nothing(AsyncExecutorProcess::*method)(const F&, ENUM_PARAMS(N, A), typename std::enable_if<std::is_void<typename result_of<F(ENUM_PARAMS(N, A))>::type>::value>::type*) = /* NOLINT(whitespace/line_length) */ \
+    Nothing(AsyncExecutorProcess::*method)(const F&, ENUM_PARAMS(N, A)) = \
       &AsyncExecutorProcess::execute<F, ENUM_PARAMS(N, A)>;             \
                                                                         \
-    return dispatch(process, method, f, ENUM_PARAMS(N, a), (void*) nullptr); \
+    return dispatch(process, method, f, ENUM_PARAMS(N, a));             \
   }
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
