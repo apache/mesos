@@ -432,11 +432,11 @@ Label createLabel(const string& key, const Option<string>& value)
 }
 
 
-void adjustOfferOperation(
+void injectAllocationInfo(
     Offer::Operation* operation,
     const Resource::AllocationInfo& allocationInfo)
 {
-  auto adjustResources = [](
+  auto inject = [](
       RepeatedPtrField<Resource>* resources,
       const Resource::AllocationInfo& allocationInfo) {
     foreach (Resource& resource, *resources) {
@@ -451,10 +451,10 @@ void adjustOfferOperation(
       Offer::Operation::Launch* launch = operation->mutable_launch();
 
       foreach (TaskInfo& task, *launch->mutable_task_infos()) {
-        adjustResources(task.mutable_resources(), allocationInfo);
+        inject(task.mutable_resources(), allocationInfo);
 
         if (task.has_executor()) {
-          adjustResources(
+          inject(
               task.mutable_executor()->mutable_resources(),
               allocationInfo);
         }
@@ -467,7 +467,7 @@ void adjustOfferOperation(
         operation->mutable_launch_group();
 
       if (launchGroup->has_executor()) {
-        adjustResources(
+        inject(
             launchGroup->mutable_executor()->mutable_resources(),
             allocationInfo);
       }
@@ -475,10 +475,10 @@ void adjustOfferOperation(
       TaskGroupInfo* taskGroup = launchGroup->mutable_task_group();
 
       foreach (TaskInfo& task, *taskGroup->mutable_tasks()) {
-        adjustResources(task.mutable_resources(), allocationInfo);
+        inject(task.mutable_resources(), allocationInfo);
 
         if (task.has_executor()) {
-          adjustResources(
+          inject(
               task.mutable_executor()->mutable_resources(),
               allocationInfo);
         }
@@ -487,7 +487,7 @@ void adjustOfferOperation(
     }
 
     case Offer::Operation::RESERVE: {
-      adjustResources(
+      inject(
           operation->mutable_reserve()->mutable_resources(),
           allocationInfo);
 
@@ -495,7 +495,7 @@ void adjustOfferOperation(
     }
 
     case Offer::Operation::UNRESERVE: {
-      adjustResources(
+      inject(
           operation->mutable_unreserve()->mutable_resources(),
           allocationInfo);
 
@@ -503,7 +503,7 @@ void adjustOfferOperation(
     }
 
     case Offer::Operation::CREATE: {
-      adjustResources(
+      inject(
           operation->mutable_create()->mutable_volumes(),
           allocationInfo);
 
@@ -511,7 +511,7 @@ void adjustOfferOperation(
     }
 
     case Offer::Operation::DESTROY: {
-      adjustResources(
+      inject(
           operation->mutable_destroy()->mutable_volumes(),
           allocationInfo);
 

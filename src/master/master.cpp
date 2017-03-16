@@ -3829,7 +3829,7 @@ void Master::accept(
   // inject the offer's allocation info into the operation's
   // resources if the scheduler has not done so already.
   foreach (Offer::Operation& operation, *accept.mutable_operations()) {
-    protobuf::adjustOfferOperation(&operation, allocationInfo.get());
+    protobuf::injectAllocationInfo(&operation, allocationInfo.get());
   }
 
   CHECK_SOME(slaveId);

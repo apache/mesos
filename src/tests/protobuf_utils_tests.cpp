@@ -64,9 +64,9 @@ TEST(ProtobufUtilTest, GetRoles)
 }
 
 
-// Tests that offer operations can be adjusted to include
+// Tests that offer operations can be injected to include
 // the appropriate allocation info, if not already set.
-TEST(ProtobufUtilTest, AdjustAllocationInfoInOfferOperation)
+TEST(ProtobufUtilTest, InjectAllocationInfoInOfferOperation)
 {
   Resources resources = Resources::parse("cpus:1").get();
 
@@ -87,7 +87,7 @@ TEST(ProtobufUtilTest, AdjustAllocationInfoInOfferOperation)
   taskInfo.mutable_executor()->CopyFrom(executorInfo);
 
   Offer::Operation launch = LAUNCH({taskInfo});
-  protobuf::adjustOfferOperation(&launch, allocationInfo);
+  protobuf::injectAllocationInfo(&launch, allocationInfo);
 
   ASSERT_EQ(1, launch.launch().task_infos_size());
 
@@ -104,7 +104,7 @@ TEST(ProtobufUtilTest, AdjustAllocationInfoInOfferOperation)
   taskGroupInfo.add_tasks()->CopyFrom(taskInfo);
 
   Offer::Operation launchGroup = LAUNCH_GROUP(executorInfo, taskGroupInfo);
-  protobuf::adjustOfferOperation(&launchGroup, allocationInfo);
+  protobuf::injectAllocationInfo(&launchGroup, allocationInfo);
 
   ASSERT_EQ(1, launchGroup.launch_group().task_group().tasks_size());
 
@@ -119,7 +119,7 @@ TEST(ProtobufUtilTest, AdjustAllocationInfoInOfferOperation)
   // reservation, but for now this just sets the resources in
   // order to verify the allocation info injection.
   Offer::Operation reserve = RESERVE(resources);
-  protobuf::adjustOfferOperation(&reserve, allocationInfo);
+  protobuf::injectAllocationInfo(&reserve, allocationInfo);
 
   EXPECT_EQ(allocatedResources, reserve.reserve().resources());
 
@@ -127,7 +127,7 @@ TEST(ProtobufUtilTest, AdjustAllocationInfoInOfferOperation)
   // reservation, but for now this just sets the resources in
   // order to verify the allocation info injection.
   Offer::Operation unreserve = UNRESERVE(resources);
-  protobuf::adjustOfferOperation(&unreserve, allocationInfo);
+  protobuf::injectAllocationInfo(&unreserve, allocationInfo);
 
   EXPECT_EQ(allocatedResources, unreserve.unreserve().resources());
 
@@ -135,7 +135,7 @@ TEST(ProtobufUtilTest, AdjustAllocationInfoInOfferOperation)
   // volume, but for now this just sets the resources in order
   // to verify the allocation info injection.
   Offer::Operation create = CREATE(resources);
-  protobuf::adjustOfferOperation(&create, allocationInfo);
+  protobuf::injectAllocationInfo(&create, allocationInfo);
 
   EXPECT_EQ(allocatedResources, create.create().volumes());
 
@@ -143,7 +143,7 @@ TEST(ProtobufUtilTest, AdjustAllocationInfoInOfferOperation)
   // volume, but for now this just sets the resources in order
   // to verify the allocation info injection.
   Offer::Operation destroy = DESTROY(resources);
-  protobuf::adjustOfferOperation(&destroy, allocationInfo);
+  protobuf::injectAllocationInfo(&destroy, allocationInfo);
 
   EXPECT_EQ(allocatedResources, destroy.destroy().volumes());
 }

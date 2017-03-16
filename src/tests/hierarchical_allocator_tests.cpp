@@ -4363,7 +4363,7 @@ TEST_P(HierarchicalAllocatorTestWithParam, AllocateSharedResources)
       "5", "role1", "id1", None(), None(), true);
   Offer::Operation create = CREATE(volume);
 
-  protobuf::adjustOfferOperation(&create, allocationInfo);
+  protobuf::injectAllocationInfo(&create, allocationInfo);
 
   // Launch a task using the shared volume.
   TaskInfo task = createTask(
@@ -4372,7 +4372,7 @@ TEST_P(HierarchicalAllocatorTestWithParam, AllocateSharedResources)
       "echo abc > path1/file");
   Offer::Operation launch = LAUNCH({task});
 
-  protobuf::adjustOfferOperation(&launch, allocationInfo);
+  protobuf::injectAllocationInfo(&launch, allocationInfo);
 
   // Ensure the CREATE operation can be applied.
   Try<Resources> updated =

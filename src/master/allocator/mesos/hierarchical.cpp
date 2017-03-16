@@ -733,7 +733,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
 
   foreach (const Offer::Operation& operation, operations) {
     // The operations should have been normalized by the master via
-    // `protobuf::adjustOfferOperation()`.
+    // `protobuf::injectAllocationInfo()`.
     //
     // TODO(bmahler): Check that the operations have the allocation
     // info set. The master should enforce this. E.g.

@@ -159,7 +159,7 @@ Label createLabel(
 // without an `AllocationInfo`. This allows the master to
 // inject the offer's `AllocationInfo` into the operation's
 // resources.
-void adjustOfferOperation(
+void injectAllocationInfo(
     Offer::Operation* operation,
     const Resource::AllocationInfo& allocationInfo);
 
