@@ -524,6 +524,80 @@ void injectAllocationInfo(
 }
 
 
+void stripAllocationInfo(Offer::Operation* operation)
+{
+  auto strip = [](RepeatedPtrField<Resource>* resources) {
+    foreach (Resource& resource, *resources) {
+      if (resource.has_allocation_info()) {
+        resource.clear_allocation_info();
+      }
+    }
+  };
+
+  switch (operation->type()) {
+    case Offer::Operation::LAUNCH: {
+      Offer::Operation::Launch* launch = operation->mutable_launch();
+
+      foreach (TaskInfo& task, *launch->mutable_task_infos()) {
+        strip(task.mutable_resources());
+
+        if (task.has_executor()) {
+          strip(task.mutable_executor()->mutable_resources());
+        }
+      }
+      break;
+    }
+
+    case Offer::Operation::LAUNCH_GROUP: {
+      Offer::Operation::LaunchGroup* launchGroup =
+        operation->mutable_launch_group();
+
+      if (launchGroup->has_executor()) {
+        strip(launchGroup->mutable_executor()->mutable_resources());
+      }
+
+      TaskGroupInfo* taskGroup = launchGroup->mutable_task_group();
+
+      foreach (TaskInfo& task, *taskGroup->mutable_tasks()) {
+        strip(task.mutable_resources());
+
+        if (task.has_executor()) {
+          strip(task.mutable_executor()->mutable_resources());
+        }
+      }
+      break;
+    }
+
+    case Offer::Operation::RESERVE: {
+      strip(operation->mutable_reserve()->mutable_resources());
+
+      break;
+    }
+
+    case Offer::Operation::UNRESERVE: {
+      strip(operation->mutable_unreserve()->mutable_resources());
+
+      break;
+    }
+
+    case Offer::Operation::CREATE: {
+      strip(operation->mutable_create()->mutable_volumes());
+
+      break;
+    }
+
+    case Offer::Operation::DESTROY: {
+      strip(operation->mutable_destroy()->mutable_volumes());
+
+      break;
+    }
+
+    case Offer::Operation::UNKNOWN:
+      break; // No-op.
+  }
+}
+
+
 TimeInfo getCurrentTime()
 {
   TimeInfo timeInfo;

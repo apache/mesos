@@ -164,6 +164,11 @@ void injectAllocationInfo(
     const Resource::AllocationInfo& allocationInfo);
 
 
+// This strips the Resource::AllocationInfo from all
+// Resource objects contained within the operation.
+void stripAllocationInfo(Offer::Operation* operation);
+
+
 // Helper function that fills in a TimeInfo from the current time.
 TimeInfo getCurrentTime();
 

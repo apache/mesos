@@ -824,7 +824,15 @@ void HierarchicalAllocatorProcess::updateAllocation(
   // the agent's total resources shouldn't contain:
   // 1. The additionally allocated shared resources.
   // 2. `AllocationInfo` as set in `updatedOfferedResources`.
-  Try<Resources> updatedTotal = slave.total.apply(operations);
+
+  // We strip `AllocationInfo` from operations in order to apply them
+  // successfully, since agent's total is stored as unallocated resources.
+  vector<Offer::Operation> strippedOperations = operations;
+  foreach (Offer::Operation& operation, strippedOperations) {
+    protobuf::stripAllocationInfo(&operation);
+  }
+
+  Try<Resources> updatedTotal = slave.total.apply(strippedOperations);
   CHECK_SOME(updatedTotal);
   updateSlaveTotal(slaveId, updatedTotal.get());
 
