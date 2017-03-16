@@ -462,7 +462,7 @@ bool operator!=(const CheckStatusInfo& left, const CheckStatusInfo& right)
 }
 
 
-ostream& operator<<(std::ostream& stream, const CapabilityInfo& capabilityInfo)
+ostream& operator<<(ostream& stream, const CapabilityInfo& capabilityInfo)
 {
   return stream << JSON::protobuf(capabilityInfo);
 }
