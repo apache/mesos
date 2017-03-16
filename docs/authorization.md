@@ -273,6 +273,14 @@ entries, each representing an authorizable action:
   </td>
   <td>Access Mesos logs.</td>
 </tr>
+<tr>
+  <td><code>register_agents</code></td>
+  <td>Agent principal.</td>
+  <td>Implicitly given. A user should only use types ANY and NONE to allow/deny
+      agent (re-)registration.
+  </td>
+  <td>(Re-)registration of agents.</td>
+</tr>
 </tbody>
 </table>
 
