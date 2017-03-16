@@ -30,8 +30,6 @@
 #include <type_traits>
 #include <vector>
 
-#include <boost/type_traits/is_arithmetic.hpp>
-#include <boost/utility/enable_if.hpp>
 #include <boost/variant.hpp>
 
 #include <stout/check.hpp>
@@ -257,7 +255,7 @@ struct Value : internal::Variant
   template <typename T>
   Value(
       const T& value,
-      typename boost::enable_if<boost::is_arithmetic<T>, int>::type = 0)
+      typename std::enable_if<std::is_arithmetic<T>::value, int>::type = 0)
     : internal::Variant(Number(value)) {}
 
   // Non-arithmetic types are passed to the default constructor of
@@ -265,7 +263,7 @@ struct Value : internal::Variant
   template <typename T>
   Value(
       const T& value,
-      typename boost::disable_if<boost::is_arithmetic<T>, int>::type = 0)
+      typename std::enable_if<!std::is_arithmetic<T>::value, int>::type = 0)
     : internal::Variant(value) {}
 
   template <typename T>
