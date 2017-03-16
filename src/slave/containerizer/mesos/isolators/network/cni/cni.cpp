@@ -28,6 +28,7 @@
 #include <stout/net.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/strings.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -997,7 +998,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_isolate(
               << containerId << ", using host '/etc/resolv.conf'";
   } else {
     LOG(INFO) << "DNS nameservers for container " << containerId
-              << " are " << dns.nameservers();
+              << " are: " << strings::join(", ", dns.nameservers());
 
     write = os::write(resolvPath, cni::spec::formatResolverConfig(dns));
     if (write.isError()) {
