@@ -1421,6 +1421,7 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_PersistentResources)
   flags.authenticate_http_readwrite = false;
   flags.launcher = param.launcher;
   flags.isolation = param.isolation;
+
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
@@ -1464,7 +1465,7 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_PersistentResources)
       frameworkInfo.role(),
       v1::createReservationInfo(frameworkInfo.principal())).get();
 
-  v1::Resources volume = v1::createPersistentVolume(
+  v1::Resource volume = v1::createPersistentVolume(
       Megabytes(1),
       frameworkInfo.role(),
       "id1",
@@ -1493,7 +1494,7 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_PersistentResources)
   v1::TaskInfo taskInfo = v1::createTask(
       offer.agent_id(),
       unreserved,
-      "test -d task_volume_path");
+      "echo abc > task_volume_path/file");
 
   // TODO(gilbert): Refactor the following code once the helper
   // to create a 'sandbox_path' volume is suppported.
@@ -1540,6 +1541,15 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_PersistentResources)
   AWAIT_READY(updateFinished);
   ASSERT_EQ(TASK_FINISHED, updateFinished->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateFinished->status().task_id());
+
+  string volumePath = slave::paths::getPersistentVolumePath(
+      flags.work_dir,
+      devolve(volume));
+
+  string filePath = path::join(volumePath, "file");
+
+  // Ensure that the task was able to write to the persistent volume.
+  EXPECT_SOME_EQ("abc\n", os::read(filePath));
 }
 
 
