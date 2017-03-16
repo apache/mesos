@@ -23,12 +23,14 @@
 #include "slave/containerizer/fetcher.hpp"
 #include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/isolators/network/cni/paths.hpp"
+#include "slave/containerizer/mesos/isolators/network/cni/spec.hpp"
 
 #include "tests/mesos.hpp"
 
 namespace master = mesos::internal::master;
 namespace paths = mesos::internal::slave::cni::paths;
 namespace slave = mesos::internal::slave;
+namespace spec = mesos::internal::slave::cni::spec;
 
 using master::Master;
 
@@ -53,6 +55,40 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+TEST(CniSpecTest, GenerateResolverConfig)
+{
+  spec::DNS dns;
+
+  EXPECT_EQ("", spec::formatResolverConfig(dns));
+
+  dns.Clear();
+  dns.set_domain("m.a.org");
+  EXPECT_EQ("domain m.a.org\n", spec::formatResolverConfig(dns));
+
+  dns.Clear();
+  dns.add_nameservers("1.1.1.1");
+  dns.add_nameservers("2.2.2.2");
+  EXPECT_EQ(
+      "nameserver 1.1.1.1\n"
+      "nameserver 2.2.2.2\n",
+      spec::formatResolverConfig(dns));
+
+  dns.Clear();
+  dns.add_search("a.m.a.org");
+  dns.add_search("b.m.a.org");
+  EXPECT_EQ(
+      "search a.m.a.org b.m.a.org\n",
+      spec::formatResolverConfig(dns));
+
+  dns.Clear();
+  dns.add_options("debug");
+  dns.add_options("ndots:2");
+  EXPECT_EQ(
+      "options debug ndots:2\n",
+      spec::formatResolverConfig(dns));
+}
+
+
 class CniIsolatorTest : public MesosTest
 {
 public:
@@ -60,20 +96,10 @@ public:
   {
     MesosTest::SetUp();
 
-    Try<set<string>> links = net::links();
-    ASSERT_SOME(links);
+    cniPluginDir = path::join(sandbox.get(), "plugins");
+    cniConfigDir = path::join(sandbox.get(), "configs");
 
-    Result<net::IPNetwork> hostIPNetwork = None();
-    foreach (const string& link, links.get()) {
-      hostIPNetwork = net::IPNetwork::fromLinkDevice(link, AF_INET);
-      EXPECT_FALSE(hostIPNetwork.isError());
-
-      if (hostIPNetwork.isSome() &&
-          (hostIPNetwork.get() != net::IPNetwork::LOOPBACK_V4())) {
-        break;
-      }
-    }
-
+    Result<net::IPNetwork> hostIPNetwork = findHostNetwork();
     ASSERT_SOME(hostIPNetwork);
 
     // Get the first external name server.
@@ -96,13 +122,8 @@ public:
 
     ASSERT_SOME(nameServer);
 
-    // Generate the mock CNI plugin.
-    cniPluginDir = path::join(sandbox.get(), "plugins");
-    ASSERT_SOME(os::mkdir(cniPluginDir));
-
-    // TODO(jieyu): Verify that Mesos metadata is set properly.
-    Try<Nothing> write = os::write(
-        path::join(cniPluginDir, "mockPlugin"),
+    // Set up the default CNI plugin.
+    Try<Nothing> result = setupMockPlugin(
         strings::format(R"~(
         #!/bin/sh
         echo "{"
@@ -118,18 +139,12 @@ public:
         hostIPNetwork->prefix(),
         nameServer.get()).get());
 
-    ASSERT_SOME(write);
-
-    // Make sure the plugin has execution permission.
-    ASSERT_SOME(os::chmod(
-        path::join(cniPluginDir, "mockPlugin"),
-        S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH));
+    ASSERT_SOME(result);
 
     // Generate the mock CNI config.
-    cniConfigDir = path::join(sandbox.get(), "configs");
     ASSERT_SOME(os::mkdir(cniConfigDir));
 
-    write = os::write(
+    result = os::write(
         path::join(cniConfigDir, "mockConfig"),
         R"~(
         {
@@ -137,7 +152,59 @@ public:
           "type": "mockPlugin"
         })~");
 
-    ASSERT_SOME(write);
+    ASSERT_SOME(result);
+  }
+
+  Try<net::IPNetwork> findHostNetwork()
+  {
+    Try<set<string>> links = net::links();
+
+    if (links.isError()) {
+      return Error("Failed to enumerate network interfaces: " + links.error());
+    }
+
+    Result<net::IPNetwork> hostIPNetwork = None();
+    foreach (const string& link, links.get()) {
+      hostIPNetwork = net::IPNetwork::fromLinkDevice(link, AF_INET);
+
+      if (hostIPNetwork.isError()) {
+        return Error("Failed to get address of " + link + ": " + links.error());
+      }
+
+      if (hostIPNetwork.isSome() &&
+          (hostIPNetwork.get() != net::IPNetwork::LOOPBACK_V4())) {
+        return hostIPNetwork.get();
+      }
+    }
+
+    return Error("Failed to find host network address");
+  }
+
+  // Generate the mock CNI plugin based on the given script.
+  Try<Nothing> setupMockPlugin(const string& pluginScript)
+  {
+    Try<Nothing> mkdir = os::mkdir(cniPluginDir);
+    if (mkdir.isError()) {
+      return Error("Failed to mkdir '" + cniPluginDir + "': " + mkdir.error());
+    }
+
+    string mockPlugin = path::join(cniPluginDir, "mockPlugin");
+
+    Try<Nothing> write = os::write(mockPlugin, pluginScript);
+    if (write.isError()) {
+      return Error("Failed to write '" + mockPlugin + "': " + write.error());
+    }
+
+    // Make sure the plugin has execution permission.
+    Try<Nothing> chmod = os::chmod(
+        mockPlugin,
+        S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+
+    if (chmod.isError()) {
+      return Error("Failed to chmod '" + mockPlugin + "': " + chmod.error());
+    }
+
+    return Nothing();
   }
 
   string cniPluginDir;
@@ -908,6 +975,241 @@ TEST_F(CniIsolatorTest, ROOT_OverrideHostname)
   ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
   container->set_hostname("test");
+
+  // Make sure the container joins the mock CNI network.
+  container->add_network_infos()->set_name("__MESOS_TEST__");
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(task.task_id(), statusFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test checks that a CNI DNS configuration ends up generating
+// the right settings in /etc/resolv.conf.
+TEST_F(CniIsolatorTest, ROOT_VerifyResolverConfig)
+{
+  Try<net::IPNetwork> hostIPNetwork = findHostNetwork();
+  ASSERT_SOME(hostIPNetwork);
+
+  Try<string> mockPlugin = strings::format(
+      R"~(
+      #!/bin/sh
+      echo '{'
+      echo '  "ip4": {'
+      echo '    "ip": "%s/%d"'
+      echo '  },'
+      echo '  "dns": {'
+      echo '    "nameservers": ['
+      echo '      "1.1.1.1",'
+      echo '      "1.1.1.2"'
+      echo '    ],'
+      echo '    "domain": "mesos.apache.org",'
+      echo '    "search": ['
+      echo '      "a.mesos.apache.org",'
+      echo '      "a.mesos.apache.org"'
+      echo '    ],'
+      echo '    "options":['
+      echo '      "option1",'
+      echo '      "option2"'
+      echo '    ]'
+      echo '  }'
+      echo '}'
+      )~",
+      hostIPNetwork.get().address(),
+      hostIPNetwork.get().prefix());
+
+  ASSERT_SOME(mockPlugin);
+
+  ASSERT_SOME(setupMockPlugin(mockPlugin.get()));
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/cni";
+
+  flags.network_cni_plugins_dir = cniPluginDir;
+  flags.network_cni_config_dir = cniConfigDir;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  // Verify that /etc/resolv.conf was generated the way we expect.
+  // This is sensitive to changes in 'formatResolverConfig()'.
+  const string command =
+      "#! /bin/sh\n"
+      "set -x\n"
+      "cat > expected <<EOF\n"
+      "domain mesos.apache.org\n"
+      "search a.mesos.apache.org a.mesos.apache.org\n"
+      "options option1 option2\n"
+      "nameserver 1.1.1.1\n"
+      "nameserver 1.1.1.2\n"
+      "EOF\n"
+      "cat /etc/resolv.conf\n"
+      "exec diff -c /etc/resolv.conf expected\n";
+
+  TaskInfo task = createTask(offer, command);
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+
+  // Make sure the container joins the mock CNI network.
+  container->add_network_infos()->set_name("__MESOS_TEST__");
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(task.task_id(), statusFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that we generate a /etc/resolv.conf
+// that glibc accepts by using it to ping a host.
+TEST_F(CniIsolatorTest, ROOT_INTERNET_VerifyResolverConfig)
+{
+  Try<net::IPNetwork> hostIPNetwork = findHostNetwork();
+  ASSERT_SOME(hostIPNetwork);
+
+  // Note: We set a dummy nameserver IP address followed by the
+  // Google anycast address. We also set the resolver timeout
+  // to 1sec so that ping doesn't time out waiting for DNS. Even
+  // so, this test is probably susceptible to network flakiness,
+  // especially in cloud providers.
+  Try<string> mockPlugin = strings::format(
+      R"~(
+      #!/bin/sh
+      echo '{'
+      echo '  "ip4": {'
+      echo '    "ip": "%s/%d"'
+      echo '  },'
+      echo '  "dns": {'
+      echo '    "nameservers": ['
+      echo '      "127.0.0.1",'
+      echo '      "8.8.8.8"'
+      echo '    ],'
+      echo '    "domain": "mesos.apache.org",'
+      echo '    "search": ['
+      echo '      "a.mesos.apache.org",'
+      echo '      "a.mesos.apache.org"'
+      echo '    ],'
+      echo '    "options":['
+      echo '      "timeout:1"'
+      echo '    ]'
+      echo '  }'
+      echo '}'
+      )~",
+      hostIPNetwork.get().address(),
+      hostIPNetwork.get().prefix());
+
+  ASSERT_SOME(mockPlugin);
+
+  ASSERT_SOME(setupMockPlugin(mockPlugin.get()));
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/cni";
+
+  flags.network_cni_plugins_dir = cniPluginDir;
+  flags.network_cni_config_dir = cniConfigDir;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  // In the CNI config above, we configured the Google
+  // DNS servers as our second resolver. Verify that we
+  // generated a resolv.conf that libc accepts by using
+  // it to resolve www.google.com.
+  const string command = R"~(
+    #! /bin/sh
+    set -ex
+    exec ping -W 1 -c 2 www.google.com
+    )~";
+
+  TaskInfo task = createTask(offer, command);
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
 
   // Make sure the container joins the mock CNI network.
   container->add_network_infos()->set_name("__MESOS_TEST__");

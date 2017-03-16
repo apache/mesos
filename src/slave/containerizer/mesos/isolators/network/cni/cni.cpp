@@ -18,6 +18,8 @@
 #include <list>
 #include <set>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/io.hpp>
 #include <process/pid.hpp>
 #include <process/subprocess.hpp>
@@ -970,39 +972,34 @@ Future<Nothing> NetworkCniIsolatorProcess::_isolate(
         hostsPath + "': " + write.error());
   }
 
-  // Update 'resolv.conf' with nameservers learned from IPAM. In case
-  // IPAM has not specified a DNS then we set the container
-  // 'resolv.conf' to be the same as the host 'resolv.conf'
-  // ('/etc/resolv.conf').
-  stringstream resolv;
-  foreachvalue (const ContainerNetwork& network,
-                info->containerNetworks) {
-    if (network.cniNetworkInfo.isNone() || !network.cniNetworkInfo->has_dns()) {
-      continue;
-    }
+  cni::spec::DNS dns;
 
-    foreach (const string& nameserver,
-             network.cniNetworkInfo->dns().nameservers()) {
-      resolv << "nameserver " << nameserver << endl;
+  // Collect all the DNS resolver specifications from the networks'
+  // IPAM plugins. Ordering is preserved and for single-value fields,
+  // the last network will win.
+  foreachvalue (const ContainerNetwork& network, info->containerNetworks) {
+    if (network.cniNetworkInfo.isSome() && network.cniNetworkInfo->has_dns()) {
+      dns.MergeFrom(network.cniNetworkInfo->dns());
     }
   }
 
-  // If `resolv` does not have any nameserver set `resolvPath` to
-  // '/etc/resolv.conf'.
-  if (resolv.str().size() == 0) {
+  // If IPAM has not specified any DNS servers, then we set
+  // the container 'resolv.conf' to be the same as the host
+  // 'resolv.conf' ('/etc/resolv.conf').
+  if (dns.nameservers().empty()) {
     if (!os::exists("/etc/resolv.conf")){
-      return Failure("Cannot find host /etc/resolv.conf");
+      return Failure("Cannot find host's /etc/resolv.conf");
     }
 
     resolvPath = "/etc/resolv.conf";
 
     LOG(INFO) << "Unable to find DNS nameservers for container "
-              << containerId << ". Using host '/etc/resolv.conf'";
+              << containerId << ", using host '/etc/resolv.conf'";
   } else {
     LOG(INFO) << "DNS nameservers for container " << containerId
-              << " are:\n" << resolv.str();
+              << " are " << dns.nameservers();
 
-    write = os::write(resolvPath, resolv.str());
+    write = os::write(resolvPath, cni::spec::formatResolverConfig(dns));
     if (write.isError()) {
       return Failure(
           "Failed to write 'resolv.conf' file at '" +

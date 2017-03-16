@@ -59,6 +59,40 @@ Try<NetworkInfo> parseNetworkInfo(const string& s)
 }
 
 
+string formatResolverConfig(const DNS& dns)
+{
+  std::stringstream resolv;
+
+  if (dns.has_domain()) {
+    resolv << "domain " << dns.domain() << std::endl;
+  }
+
+  if (!dns.search().empty()) {
+    resolv << "search";
+    foreach (const string& domain, dns.search()) {
+      resolv << " " << domain;
+    }
+    resolv << std::endl;
+  }
+
+  if (!dns.options().empty()) {
+    resolv << "options";
+    foreach (const string& opt, dns.options()) {
+      resolv << " " << opt;
+    }
+    resolv << std::endl;
+  }
+
+  if (!dns.nameservers().empty()) {
+    foreach (const string& nameserver, dns.nameservers()) {
+      resolv << "nameserver " << nameserver << std::endl;
+    }
+  }
+
+  return resolv.str();
+}
+
+
 string error(const string& msg, uint32_t code)
 {
   spec::Error error;
