@@ -214,6 +214,22 @@ public:
       const std::string& defaultRole = "*");
 
   /**
+   * Parse an input string into a vector of Resource objects.
+   *
+   * Parses into a vector of Resource objects from either JSON or plain
+   * text. If the string is well-formed JSON it is assumed to be JSON,
+   * otherwise plain text. Any resource that doesn't specify a role is
+   * assigned to the provided default role.
+   *
+   * NOTE: The `Resource` objects in the result vector may not be valid
+   * semantically (i.e., they may not pass `Resources::validate()`). This
+   * is to allow additional handling of the parsing results in some cases.
+   */
+  static Try<std::vector<Resource>> fromString(
+      const std::string& text,
+      const std::string& defaultRole = "*");
+
+  /**
    * Validates a Resource object.
    *
    * Validates the given Resource object. Returns Error if it is not valid. A

@@ -345,14 +345,6 @@ public:
 
   size_t size() const { return resources.size(); }
 
-  // Allocates the resources to the given role (by setting the
-  // `AllocationInfo.role`). Any existing allocation will be
-  // over-written.
-  void allocate(const std::string& role);
-
-  // Unallocates the resources.
-  void unallocate();
-
   // Checks if this Resources is a superset of the given Resources.
   bool contains(const Resources& that) const;
 
@@ -367,6 +359,14 @@ public:
   // - For a shared resource the count can be greater than 1.
   // - If the resource is not in the Resources object, the count is 0.
   size_t count(const Resource& that) const;
+
+  // Allocates the resources to the given role (by setting the
+  // `AllocationInfo.role`). Any existing allocation will be
+  // over-written.
+  void allocate(const std::string& role);
+
+  // Unallocates the resources.
+  void unallocate();
 
   // Filter resources based on the given predicate.
   Resources filter(
