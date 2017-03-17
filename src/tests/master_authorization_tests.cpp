@@ -884,11 +884,17 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
       offers1.get()[0], executor1.command().value(), executor1.executor_id());
 
   // Return a pending future from authorizer.
+  // Note that we retire this expectation after its use because
+  // the authorizer will next be called when `slave2` registers and
+  // this expectation would be hit again (and be oversaturated) if
+  // we don't retire. New expectations on `authorizer` will be set
+  // after `slave2` is registered.
   Future<Nothing> authorize;
   Promise<bool> promise;
   EXPECT_CALL(authorizer, authorized(_))
     .WillOnce(DoAll(FutureSatisfy(&authorize),
-                    Return(promise.future())));
+                    Return(promise.future())))
+    .RetiresOnSaturation();
 
   driver.launchTasks(offers1.get()[0].id(), {task1});
 
