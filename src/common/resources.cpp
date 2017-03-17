@@ -579,9 +579,6 @@ Try<Resources> Resources::parse(
     const string& text,
     const string& defaultRole)
 {
-  // Try to parse as a JSON Array. Otherwise, parse as a text string.
-  Try<JSON::Array> json = JSON::parse<JSON::Array>(text);
-
   Try<vector<Resource>> resources = Resources::fromString(text, defaultRole);
 
   if (resources.isError()) {
