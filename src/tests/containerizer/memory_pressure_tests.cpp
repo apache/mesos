@@ -83,7 +83,6 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
 
   // We only care about memory cgroup for this test.
   flags.isolation = "cgroups/mem";
-  flags.agent_subsystems = None();
 
   Fetcher fetcher;
 
@@ -201,7 +200,6 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
 
   // We only care about memory cgroup for this test.
   flags.isolation = "cgroups/mem";
-  flags.agent_subsystems = None();
 
   Fetcher fetcher;
 

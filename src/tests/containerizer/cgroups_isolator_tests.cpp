@@ -971,12 +971,6 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "cgroups/cpu,cgroups/mem";
 
-  // TODO(jieyu): This is necessary because currently, we don't have a
-  // way to kill and wait for the perf process to finish, and cgroups
-  // cleanup function does not yet support killing processes without a
-  // freezer cgroup.
-  flags.agent_subsystems = None();
-
   Fetcher fetcher;
 
   Try<MesosContainerizer*> create =

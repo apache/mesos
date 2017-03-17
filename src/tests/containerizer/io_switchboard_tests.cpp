@@ -710,9 +710,6 @@ TEST_F(IOSwitchboardTest, ContainerAttach)
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
-#ifdef __linux__
-  flags.agent_subsystems = None();
-#endif
 
   Fetcher fetcher;
 
@@ -779,9 +776,6 @@ TEST_F(IOSwitchboardTest, OutputRedirectionWithTTY)
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
-#ifdef __linux__
-  flags.agent_subsystems = None();
-#endif
 
   Fetcher fetcher;
 
@@ -847,9 +841,6 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
-#ifdef __linux__
-  flags.agent_subsystems = None();
-#endif
 
   Fetcher fetcher;
 
@@ -945,9 +936,6 @@ TEST_F(IOSwitchboardTest, DISABLED_RecoverThenKillSwitchboardContainerDestroyed)
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
-#ifdef __linux__
-  flags.agent_subsystems = None();
-#endif
 
   Fetcher fetcher;
 
@@ -1069,9 +1057,6 @@ TEST_F(IOSwitchboardTest, ContainerAttachAfterSlaveRestart)
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
-#ifdef __linux__
-  flags.agent_subsystems = None();
-#endif
 
   Fetcher fetcher;
 

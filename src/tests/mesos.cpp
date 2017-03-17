@@ -565,9 +565,6 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
     flags.isolation = "cgroups/cpu,cgroups/mem";
     flags.cgroups_hierarchy = baseHierarchy;
     flags.cgroups_root = TEST_CGROUPS_ROOT + "_" + UUID::random().toString();
-
-    // Enable putting the slave into memory and cpuacct cgroups.
-    flags.agent_subsystems = "memory,cpuacct";
   } else {
     flags.isolation = "posix/cpu,posix/mem";
   }
