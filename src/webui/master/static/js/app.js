@@ -22,6 +22,8 @@
           {templateUrl: 'static/maintenance.html', controller: 'MaintenanceCtrl'})
         .when('/offers',
           {templateUrl: 'static/offers.html', controller: 'OffersCtrl'})
+        .when('/roles',
+          {templateUrl: 'static/roles.html', controller: 'RolesCtrl'})
 
         // TODO(tomxing): Remove the following '/slaves/*' paths once the
         // slave->agent rename is complete(MESOS-3779).

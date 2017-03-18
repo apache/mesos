@@ -1583,6 +1583,7 @@ nobase_dist_pkgdata_DATA +=						\
   webui/master/static/maintenance.html					\
   webui/master/static/offers.html					\
   webui/master/static/pailer.html					\
+  webui/master/static/roles.html					\
   webui/master/static/directives/pagination.html			\
   webui/master/static/directives/tableHeader.html			\
   webui/master/static/directives/timestamp.html
