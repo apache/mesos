@@ -6,6 +6,7 @@ All Issues:
 ** Bug
   * [MESOS-7208] - Persistent volume ownership is set to root when task is running with non-root user
   * [MESOS-7237] - Enabling cgroups_limit_swap can lead to "invalid argument" error.
+  * [MESOS-7261] - maintenance.html is missing during packaging.
 
 
 Release Notes - Mesos - Version 1.2.0
