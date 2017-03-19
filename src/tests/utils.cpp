@@ -197,7 +197,8 @@ Try<net::IPNetwork> getNonLoopbackIP()
   Try<set<string>> links = net::links();
   if (links.isError()) {
     return Error(
-    "Unable to retrieve interfaces on this host: " + links.error());
+        "Unable to retrieve interfaces on this host: " +
+        links.error());
   }
 
   foreach (const string& link, links.get()) {
@@ -206,7 +207,8 @@ Try<net::IPNetwork> getNonLoopbackIP()
 
     if (hostIPNetwork.isError()) {
       return Error(
-          "Unable to find a non-loopback address: " + hostIPNetwork.error());
+          "Unable to find a non-loopback address: " +
+          hostIPNetwork.error());
     }
 
     if (hostIPNetwork.isSome() &&

@@ -1064,7 +1064,6 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INETERNET_CURL_PortMapper)
   // Augment the CNI plugins search path so that the `network/cni`
   // isolator can find the port-mapper CNI plugin.
   flags.network_cni_plugins_dir = cniPluginDir + ":" + getLauncherDir();
-
   flags.network_cni_config_dir = cniConfigDir;
 
   // Need to increase the registration timeout to give time for
@@ -1079,7 +1078,10 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INETERNET_CURL_PortMapper)
   MockScheduler sched;
 
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1103,9 +1105,7 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INETERNET_CURL_PortMapper)
 
   // Select a random port from the offer.
   std::srand(std::time(0));
-
   Value::Range ports = resources.ports()->range(0);
-
   uint16_t hostPort =
     ports.begin() + std::rand() % (ports.end() - ports.begin() + 1);
 
@@ -1176,8 +1176,8 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INETERNET_CURL_PortMapper)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusKilled));
 
-  // Wait for the executor to exit. We are using 'gc.schedule' as a proxy event
-  // to monitor the exit of the executor.
+  // Wait for the executor to exit. We are using 'gc.schedule' as a
+  // proxy event to monitor the exit of the executor.
   Future<Nothing> gcSchedule = FUTURE_DISPATCH(
       _, &slave::GarbageCollectorProcess::schedule);
 
@@ -1197,8 +1197,8 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INETERNET_CURL_PortMapper)
 
   // Make sure the iptables chain `MESOS-TEST-PORT-MAPPER-CHAIN`
   // doesn't have any iptable rules once the task is killed. The only
-  // rule that should exist in this chain is the
-  // `-N  MESOS-TEST-PORT-MAPPER-CHAIN` rule.
+  // rule that should exist in this chain is the `-N
+  // MESOS-TEST-PORT-MAPPER-CHAIN` rule.
   Try<string> rules = os::shell(
       "iptables -w -t nat -S " +
       stringify(MESOS_TEST_PORT_MAPPER_CHAIN) + "| wc -l");
