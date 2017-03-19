@@ -103,6 +103,7 @@ string getModulePath(const string& name)
   return path::join(path, os::libraries::expandName(name));
 }
 
+
 string getLibMesosPath()
 {
   string path = path::join(
@@ -118,6 +119,7 @@ string getLibMesosPath()
   return path;
 }
 
+
 string getLauncherDir()
 {
   string path = path::join(tests::flags.build_dir, "src");
@@ -128,6 +130,7 @@ string getLauncherDir()
 
   return path;
 }
+
 
 string getTestHelperPath(const string& name)
 {
@@ -140,6 +143,7 @@ string getTestHelperPath(const string& name)
   return path;
 }
 
+
 string getTestHelperDir()
 {
   string path = path::join(tests::flags.build_dir, "src");
@@ -150,6 +154,7 @@ string getTestHelperDir()
 
   return path;
 }
+
 
 string getTestScriptPath(const string& name)
 {
@@ -162,6 +167,7 @@ string getTestScriptPath(const string& name)
   return path;
 }
 
+
 string getSbinDir()
 {
   string path = path::join(tests::flags.build_dir, "src");
@@ -172,6 +178,7 @@ string getSbinDir()
 
   return path;
 }
+
 
 string getWebUIDir()
 {
