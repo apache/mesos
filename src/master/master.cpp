@@ -382,7 +382,7 @@ struct BoundedRateLimiter
 };
 
 
-bool Framework::isTrackedUnderRole(const std::string& role) const
+bool Framework::isTrackedUnderRole(const string& role) const
 {
   CHECK(master->isWhitelistedRole(role))
     << "Unknown role '" << role << "'" << " of framework " << *this;
@@ -391,7 +391,7 @@ bool Framework::isTrackedUnderRole(const std::string& role) const
          master->roles.at(role)->frameworks.contains(id());
 }
 
-void Framework::trackUnderRole(const std::string& role)
+void Framework::trackUnderRole(const string& role)
 {
   CHECK(master->isWhitelistedRole(role))
     << "Unknown role '" << role << "'" << " of framework " << *this;
@@ -406,7 +406,7 @@ void Framework::trackUnderRole(const std::string& role)
   master->roles.at(role)->addFramework(this);
 }
 
-void Framework::untrackUnderRole(const std::string& role)
+void Framework::untrackUnderRole(const string& role)
 {
   CHECK(master->isWhitelistedRole(role))
     << "Unknown role '" << role << "'" << " of framework " << *this;

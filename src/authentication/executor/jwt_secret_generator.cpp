@@ -35,7 +35,7 @@ using process::http::authentication::Principal;
 using std::string;
 
 
-JWTSecretGenerator::JWTSecretGenerator(const std::string& secret)
+JWTSecretGenerator::JWTSecretGenerator(const string& secret)
   : secret_(secret) {}
 
 

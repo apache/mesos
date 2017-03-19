@@ -1389,7 +1389,7 @@ struct LauncherAndIsolationParam
 
 class PersistentVolumeDefaultExecutor
   : public MesosTest,
-    public ::testing::WithParamInterface<LauncherAndIsolationParam>
+    public WithParamInterface<LauncherAndIsolationParam>
 {
 public:
   PersistentVolumeDefaultExecutor() : param(GetParam()) {}

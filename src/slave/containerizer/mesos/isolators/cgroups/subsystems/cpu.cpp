@@ -67,7 +67,7 @@ CpuSubsystem::CpuSubsystem(
 
 Future<Nothing> CpuSubsystem::update(
     const ContainerID& containerId,
-    const std::string& cgroup,
+    const string& cgroup,
     const Resources& resources)
 {
   if (resources.cpus().isNone()) {
@@ -130,7 +130,7 @@ Future<Nothing> CpuSubsystem::update(
 
 Future<ResourceStatistics> CpuSubsystem::usage(
     const ContainerID& containerId,
-    const std::string& cgroup)
+    const string& cgroup)
 {
   ResourceStatistics result;
 

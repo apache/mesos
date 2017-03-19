@@ -2214,7 +2214,7 @@ double HierarchicalAllocatorProcess::_offer_filters_active(
 
 bool HierarchicalAllocatorProcess::isFrameworkTrackedUnderRole(
     const FrameworkID& frameworkId,
-    const std::string& role) const
+    const string& role) const
 {
   return roles.contains(role) &&
          roles.at(role).contains(frameworkId);

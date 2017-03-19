@@ -68,7 +68,7 @@ public:
       const Option<string>& systemdHierarchy);
 
   virtual process::Future<hashset<ContainerID>> recover(
-      const std::list<mesos::slave::ContainerState>& states);
+      const list<mesos::slave::ContainerState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,
@@ -78,7 +78,7 @@ public:
       const process::Subprocess::IO& out,
       const process::Subprocess::IO& err,
       const flags::FlagsBase* flags,
-      const Option<std::map<string, string>>& environment,
+      const Option<map<string, string>>& environment,
       const Option<int>& enterNamespaces,
       const Option<int>& cloneNamespaces);
 
@@ -196,7 +196,7 @@ LinuxLauncher::~LinuxLauncher()
 
 
 Future<hashset<ContainerID>> LinuxLauncher::recover(
-    const std::list<mesos::slave::ContainerState>& states)
+    const list<mesos::slave::ContainerState>& states)
 {
   return dispatch(process.get(), &LinuxLauncherProcess::recover, states);
 }

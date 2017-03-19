@@ -498,7 +498,7 @@ Future<bool> ComposingContainerizerProcess::launch(
           const ContainerID& containerId,
           const CommandInfo& commandInfo,
           const Option<ContainerInfo>& containerInfo,
-          const Option<std::string>& user,
+          const Option<string>& user,
           const SlaveID& slaveId,
           const Option<ContainerClass>& containerClass)
 {
