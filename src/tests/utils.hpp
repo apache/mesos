@@ -21,6 +21,7 @@
 
 #include <string>
 
+#include <stout/ip.hpp>
 #include <stout/json.hpp>
 #include <stout/try.hpp>
 
@@ -80,6 +81,9 @@ std::string getWebUIDir();
 // unused when this function returns, it might become used before the
 // caller can bind to it.
 Try<uint16_t> getFreePort();
+
+// Get a non-loopback IP available on this host.
+Try<net::IPNetwork> getNonLoopbackIP();
 
 } // namespace tests {
 } // namespace internal {

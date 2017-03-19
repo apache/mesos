@@ -35,6 +35,7 @@
 namespace http = process::http;
 namespace inet = process::network::inet;
 
+using std::set;
 using std::string;
 
 using process::Future;
@@ -181,6 +182,33 @@ string getWebUIDir()
   }
 
   return path;
+}
+
+
+Try<net::IPNetwork> getNonLoopbackIP()
+{
+  Try<set<string>> links = net::links();
+  if (links.isError()) {
+    return Error(
+    "Unable to retrieve interfaces on this host: " + links.error());
+  }
+
+  foreach (const string& link, links.get()) {
+    Result<net::IPNetwork> hostIPNetwork =
+      net::IPNetwork::fromLinkDevice(link, AF_INET);
+
+    if (hostIPNetwork.isError()) {
+      return Error(
+          "Unable to find a non-loopback address: " + hostIPNetwork.error());
+    }
+
+    if (hostIPNetwork.isSome() &&
+        (hostIPNetwork.get() != net::IPNetwork::LOOPBACK_V4())) {
+      return hostIPNetwork.get();
+    }
+  }
+
+  return Error("No non-loopback addresses available on this host");
 }
 
 } // namespace tests {
