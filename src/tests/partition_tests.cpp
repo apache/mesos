@@ -74,8 +74,6 @@ using testing::Eq;
 using testing::Return;
 using testing::SaveArg;
 
-using ::testing::WithParamInterface;
-
 namespace mesos {
 namespace internal {
 namespace tests {

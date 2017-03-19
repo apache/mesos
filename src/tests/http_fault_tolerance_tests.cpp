@@ -71,7 +71,6 @@ using testing::AtMost;
 using testing::DoAll;
 using testing::Return;
 using testing::SaveArg;
-using testing::WithParamInterface;
 
 namespace mesos {
 namespace internal {

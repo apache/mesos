@@ -30,7 +30,6 @@ using std::cerr;
 using std::endl;
 using std::map;
 using std::string;
-using std::tuple;
 using std::vector;
 
 using process::Failure;

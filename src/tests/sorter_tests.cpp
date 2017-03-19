@@ -31,8 +31,6 @@
 
 using mesos::internal::master::allocator::DRFSorter;
 
-using ::testing::WithParamInterface;
-
 using std::cout;
 using std::endl;
 using std::string;

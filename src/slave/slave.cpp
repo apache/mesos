@@ -128,7 +128,6 @@ using std::map;
 using std::ostringstream;
 using std::set;
 using std::string;
-using std::tuple;
 using std::vector;
 
 using process::async;
