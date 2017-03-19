@@ -695,18 +695,29 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     env->set_value("0.0.0.0");
 
     if (!containerId.has_parent()) {
-      if (containerNetworks.contains("__MESOS_TEST__")) {
-        // This is only for test. For testing 'network/cni' isolator,
-        // we will use a mock CNI plugin and a mock CNI network
-        // configuration file which has "__MESOS_TEST__" as network
-        // name. The mock plugin will not create a new network
-        // namespace for the container. The container will be launched
-        // in the host's network namespace. The mock plugin will
-        // return the host's IP address for this test container.
-        //
-        // NOTE: There is an implicit assumption here that when used
-        // for testing, '__MESOS_TEST__' is the only network the
-        // container is going to join.
+      auto mesosTestNetwork = [=]() {
+        foreachkey (const string& networkName, containerNetworks) {
+          // We can specify test networks to the `network/cni` isolator
+          // with a name of the form "__MESOS_TEST__*".  For these test
+          // networks we will use a mock CNI plugin and a mock CNI
+          // network configuration file which has "__MESOS_TEST__*" as
+          // network name. The mock plugin will not create a new network
+          // namespace for the container. The container will be launched
+          // in the host's network namespace. The mock plugin will
+          // return the host's IP address for this test container.
+          //
+          // NOTE: There is an implicit assumption here that when used
+          // for testing, '__MESOS_TEST__*' are the only networks the
+          // container is going to join.
+          if (strings::contains(networkName, "__MESOS_TEST__")) {
+            return true;
+          }
+        }
+
+        return false;
+      };
+
+      if (mesosTestNetwork()) {
         launchInfo.add_clone_namespaces(CLONE_NEWNS);
         launchInfo.add_clone_namespaces(CLONE_NEWUTS);
       } else {
