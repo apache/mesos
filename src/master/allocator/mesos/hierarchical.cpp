@@ -1294,7 +1294,12 @@ void HierarchicalAllocatorProcess::setQuota(
   LOG(INFO) << "Set quota " << quota.info.guarantee() << " for role '" << role
             << "'";
 
-  allocate();
+  // NOTE: Since quota changes do not result in rebalancing of
+  // offered resources, we do not trigger an allocation here; the
+  // quota change will be reflected in subsequent allocations.
+  //
+  // If we add the ability for quota changes to incur a rebalancing
+  // of offered resources, then we should trigger that here.
 }
 
 
@@ -1317,7 +1322,12 @@ void HierarchicalAllocatorProcess::removeQuota(
 
   metrics.removeQuota(role);
 
-  allocate();
+  // NOTE: Since quota changes do not result in rebalancing of
+  // offered resources, we do not trigger an allocation here; the
+  // quota change will be reflected in subsequent allocations.
+  //
+  // If we add the ability for quota changes to incur a rebalancing
+  // of offered resources, then we should trigger that here.
 }
 
 
@@ -1326,33 +1336,26 @@ void HierarchicalAllocatorProcess::updateWeights(
 {
   CHECK(initialized);
 
-  bool rebalance = false;
-
   // Update the weight for each specified role.
   foreach (const WeightInfo& weightInfo, weightInfos) {
     CHECK(weightInfo.has_role());
     weights[weightInfo.role()] = weightInfo.weight();
 
-    // The allocator only needs to rebalance if there is a framework
-    // registered with this role. The roleSorter contains only roles
-    // for registered frameworks, but quotaRoleSorter contains any role
-    // with quota set, regardless of whether any frameworks are registered
-    // with that role.
     if (quotas.contains(weightInfo.role())) {
       quotaRoleSorter->update(weightInfo.role(), weightInfo.weight());
     }
 
     if (roleSorter->contains(weightInfo.role())) {
-      rebalance = true;
       roleSorter->update(weightInfo.role(), weightInfo.weight());
     }
   }
 
-  // If at least one of the updated roles has registered
-  // frameworks, then trigger the allocation.
-  if (rebalance) {
-    allocate();
-  }
+  // NOTE: Since weight changes do not result in rebalancing of
+  // offered resources, we do not trigger an allocation here; the
+  // weight change will be reflected in subsequent allocations.
+  //
+  // If we add the ability for weight changes to incur a rebalancing
+  // of offered resources, then we should trigger that here.
 }
 
 

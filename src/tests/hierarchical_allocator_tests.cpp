@@ -2745,6 +2745,9 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   // Since `QUOTA_ROLE` is under quota, `agent2`'s resources will
   // be allocated to `framework1`.
 
+  // Trigger the next batch allocation.
+  Clock::advance(flags.allocation_interval);
+
   expected = Allocation(
       framework1.id(),
       {{QUOTA_ROLE, {{agent2.id(), agent2.resources()}}}});
@@ -3974,8 +3977,8 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
     weightInfos.push_back(createWeightInfo({"role2"}, 2.0));
     allocator->updateWeights(weightInfos);
 
-    // 'updateWeights' will trigger the allocation immediately, so it does not
-    // need to manually advance the clock here.
+    // Advance the clock and trigger a batch allocation.
+    Clock::advance(flags.allocation_interval);
 
     // role1 share = 0.33 (cpus=4, mem=2048)
     //   framework1 share = 1
@@ -4015,15 +4018,13 @@ TEST_F(HierarchicalAllocatorTest, UpdateWeight)
     weightInfos.push_back(createWeightInfo("role3", 3.0));
     allocator->updateWeights(weightInfos);
 
-    // 'updateWeights' will not trigger the allocation immediately because no
-    // framework exists in 'role3' yet.
+    // 'updateWeights' does not trigger an allocation.
 
     // Framework3 registers with 'role3'.
     FrameworkInfo framework3 = createFrameworkInfo({"role3"});
     allocator->addFramework(framework3.id(), framework3, {}, true);
 
-    // 'addFramework' will trigger the allocation immediately, so it does not
-    // need to manually advance the clock here.
+    // 'addFramework' will trigger an allocation.
 
     // role1 share = 0.166 (cpus=2, mem=1024)
     //   framework1 share = 1
