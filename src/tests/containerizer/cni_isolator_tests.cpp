@@ -1286,7 +1286,7 @@ public:
 };
 
 
-TEST_F(CniIsolatorPortMapperTest, ROOT_INETERNET_CURL_PortMapper)
+TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
