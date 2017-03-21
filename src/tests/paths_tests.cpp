@@ -52,11 +52,11 @@ public:
     persistenceId = "persistenceId1";
 
     Try<string> path = os::mkdtemp();
-    CHECK_SOME(path) << "Failed to mkdtemp";
+    ASSERT_SOME(path) << "Failed to mkdtemp";
     rootDir = path.get();
 
     path = os::mkdtemp();
-    CHECK_SOME(path) << "Failed to mkdtemp";
+    ASSERT_SOME(path) << "Failed to mkdtemp";
     diskSourceDir = path.get();
 
     imageType = Image::APPC;
@@ -103,7 +103,7 @@ TEST_F(PathsTest, CreateExecutorDirectory)
 }
 
 
-TEST_F(PathsTest, ParseExecutorRunPath)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PathsTest, ParseExecutorRunPath)
 {
   string goodDir = paths::getExecutorRunPath(
       rootDir,

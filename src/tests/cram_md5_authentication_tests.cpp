@@ -97,7 +97,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Success)
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
   Try<Authenticatee*> authenticatee = TypeParam::TypeAuthenticatee::create();
-  CHECK_SOME(authenticatee);
+  ASSERT_SOME(authenticatee);
 
   Future<bool> client =
     authenticatee.get()->authenticate(pid, UPID(), credential1);
@@ -105,12 +105,12 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Success)
   AWAIT_READY(message);
 
   Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
-  CHECK_SOME(authenticator);
+  ASSERT_SOME(authenticator);
 
   EXPECT_SOME(authenticator.get()->initialize(credentials));
 
   Future<Option<string>> principal =
-    authenticator.get()->authenticate(message.get().from);
+    authenticator.get()->authenticate(message->from);
 
   AWAIT_TRUE(client);
   AWAIT_READY(principal);
@@ -142,7 +142,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Failed1)
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
   Try<Authenticatee*> authenticatee = TypeParam::TypeAuthenticatee::create();
-  CHECK_SOME(authenticatee);
+  ASSERT_SOME(authenticatee);
 
   Future<bool> client =
     authenticatee.get()->authenticate(pid, UPID(), credential1);
@@ -150,12 +150,12 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Failed1)
   AWAIT_READY(message);
 
   Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
-  CHECK_SOME(authenticator);
+  ASSERT_SOME(authenticator);
 
   EXPECT_SOME(authenticator.get()->initialize(credentials));
 
   Future<Option<string>> server =
-    authenticator.get()->authenticate(message.get().from);
+    authenticator.get()->authenticate(message->from);
 
   AWAIT_FALSE(client);
   AWAIT_READY(server);
@@ -187,7 +187,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Failed2)
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
   Try<Authenticatee*> authenticatee = TypeParam::TypeAuthenticatee::create();
-  CHECK_SOME(authenticatee);
+  ASSERT_SOME(authenticatee);
 
   Future<bool> client =
     authenticatee.get()->authenticate(pid, UPID(), credential1);
@@ -195,12 +195,12 @@ TYPED_TEST(CRAMMD5AuthenticationTest, Failed2)
   AWAIT_READY(message);
 
   Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
-  CHECK_SOME(authenticator);
+  ASSERT_SOME(authenticator);
 
   EXPECT_SOME(authenticator.get()->initialize(credentials));
 
   Future<Option<string>> server =
-    authenticator.get()->authenticate(message.get().from);
+    authenticator.get()->authenticate(message->from);
 
   AWAIT_FALSE(client);
   AWAIT_READY(server);
@@ -234,7 +234,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, AuthenticatorDestructionRace)
     FUTURE_MESSAGE(Eq(AuthenticateMessage().GetTypeName()), _, _);
 
   Try<Authenticatee*> authenticatee = TypeParam::TypeAuthenticatee::create();
-  CHECK_SOME(authenticatee);
+  ASSERT_SOME(authenticatee);
 
   Future<bool> client =
     authenticatee.get()->authenticate(pid, UPID(), credential1);
@@ -242,7 +242,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, AuthenticatorDestructionRace)
   AWAIT_READY(message);
 
   Try<Authenticator*> authenticator = TypeParam::TypeAuthenticator::create();
-  CHECK_SOME(authenticator);
+  ASSERT_SOME(authenticator);
 
   EXPECT_SOME(authenticator.get()->initialize(credentials));
 
@@ -252,7 +252,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, AuthenticatorDestructionRace)
     DROP_PROTOBUF(AuthenticationStepMessage(), _, _);
 
   Future<Option<string>> principal =
-    authenticator.get()->authenticate(message.get().from);
+    authenticator.get()->authenticate(message->from);
 
   AWAIT_READY(authenticationStepMessage);
 
@@ -279,7 +279,7 @@ TYPED_TEST(CRAMMD5AuthenticationTest, AuthenticateeSecretMissing)
   credential.set_principal("benh");
 
   Try<Authenticatee*> authenticatee = TypeParam::TypeAuthenticatee::create();
-  CHECK_SOME(authenticatee);
+  ASSERT_SOME(authenticatee);
 
   Future<bool> future =
     authenticatee.get()->authenticate(UPID(), UPID(), credential);

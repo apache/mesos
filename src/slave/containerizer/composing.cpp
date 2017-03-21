@@ -28,12 +28,12 @@
 #include <stout/lambda.hpp>
 #include <stout/os.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "slave/state.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/composing.hpp"
-
-#include "slave/containerizer/mesos/utils.hpp"
 
 using namespace process;
 
@@ -101,6 +101,8 @@ public:
   Future<bool> destroy(const ContainerID& containerId);
 
   Future<hashset<ContainerID>> containers();
+
+  Future<Nothing> remove(const ContainerID& containerId);
 
 private:
   // Continuations.
@@ -274,6 +276,12 @@ Future<bool> ComposingContainerizer::destroy(const ContainerID& containerId)
 Future<hashset<ContainerID>> ComposingContainerizer::containers()
 {
   return dispatch(process, &ComposingContainerizerProcess::containers);
+}
+
+
+Future<Nothing> ComposingContainerizer::remove(const ContainerID& containerId)
+{
+  return dispatch(process, &ComposingContainerizerProcess::remove, containerId);
 }
 
 
@@ -494,7 +502,7 @@ Future<bool> ComposingContainerizerProcess::launch(
           const SlaveID& slaveId,
           const Option<ContainerClass>& containerClass)
 {
-  ContainerID rootContainerId = getRootContainerId(containerId);
+  ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
 
   if (!containers_.contains(rootContainerId)) {
     return Failure(
@@ -694,6 +702,25 @@ Future<bool> ComposingContainerizerProcess::destroy(
 Future<hashset<ContainerID>> ComposingContainerizerProcess::containers()
 {
   return containers_.keys();
+}
+
+
+Future<Nothing> ComposingContainerizerProcess::remove(
+    const ContainerID& containerId)
+{
+  // A precondition of this method is that the nested container has already
+  // been terminated, hence `containers_` won't contain it. To work around it,
+  // we use the containerizer that launched the root container to remove the
+  // nested container.
+
+  const ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
+
+  if (!containers_.contains(rootContainerId)) {
+    return Failure(
+        "Root container " + stringify(rootContainerId) + " not found");
+  }
+
+  return containers_[rootContainerId]->containerizer->remove(containerId);
 }
 
 } // namespace slave {

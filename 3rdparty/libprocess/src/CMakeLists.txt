@@ -47,6 +47,7 @@ set(PROCESS_SRC
   latch.cpp
   logging.cpp
   metrics/metrics.cpp
+  mime.cpp
   pid.cpp
   poll_socket.cpp
   poll_socket.hpp
@@ -65,7 +66,8 @@ if (ENABLE_LIBEVENT)
     ${PROCESS_SRC}
     libevent.hpp
     libevent.cpp
-    libevent_poll.cpp)
+    libevent_poll.cpp
+    )
 else (ENABLE_LIBEVENT)
   set(PROCESS_SRC
     ${PROCESS_SRC}
@@ -75,9 +77,27 @@ else (ENABLE_LIBEVENT)
     )
 endif (ENABLE_LIBEVENT)
 
+if (ENABLE_SSL)
+  set(PROCESS_SRC
+    ${PROCESS_SRC}
+    jwt.cpp
+    jwt_authenticator.cpp
+    openssl.cpp
+    ssl/utilities.cpp
+    )
+
+  if (ENABLE_LIBEVENT)
+    set(PROCESS_SRC
+      ${PROCESS_SRC}
+      libevent_ssl_socket.cpp
+      )
+  endif (ENABLE_LIBEVENT)
+endif (ENABLE_SSL)
+
 # INCLUDE DIRECTIVES FOR PROCESS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).
 ###########################################################################
+include_directories(SYSTEM ${PROCESS_3RDPARTY_INCLUDE_DIRS})
 include_directories(${PROCESS_INCLUDE_DIRS})
 
 # LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
@@ -97,6 +117,15 @@ else (WIN32)
     POSITION_INDEPENDENT_CODE TRUE
     )
 endif (WIN32)
+
+GROUP_STOUT_HEADERS()
+GROUP_PROCESS_HEADERS()
+
+GROUP_SOURCE(
+  "src"
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+  "*.[ch]*")
 
 set_target_properties(
   ${PROCESS_TARGET} PROPERTIES

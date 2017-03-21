@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+syntax = "proto2";
+
 import "mesos/v1/mesos.proto";
 
 package mesos.v1.agent;
@@ -54,11 +56,13 @@ message Call {
     GET_FRAMEWORKS = 11;    // Retrieves the information about known frameworks.
     GET_EXECUTORS = 12;     // Retrieves the information about known executors.
     GET_TASKS = 13;         // Retrieves the information about known tasks.
+    GET_AGENT = 20;         // Retrieves the agent information.
 
     // Calls for managing nested containers underneath an executor's container.
     LAUNCH_NESTED_CONTAINER = 14;  // See 'LaunchNestedContainer' below.
     WAIT_NESTED_CONTAINER = 15;    // See 'WaitNestedContainer' below.
     KILL_NESTED_CONTAINER = 16;    // See 'KillNestedContainer' below.
+    REMOVE_NESTED_CONTAINER = 21;  // See 'RemoveNestedContainer' below.
 
     // See 'LaunchNestedContainerSession' below.
     LAUNCH_NESTED_CONTAINER_SESSION = 17;
@@ -122,6 +126,12 @@ message Call {
     required ContainerID container_id = 1;
   }
 
+  // Removes a nested container and its artifacts (runtime and sandbox
+  // directories).
+  message RemoveNestedContainer {
+    required ContainerID container_id = 1;
+  }
+
   // Launches a nested container within an executor's tree of containers.
   // The differences between this call and `LaunchNestedContainer` are:
   // 1) The container's life-cycle is tied to the lifetime of the
@@ -171,6 +181,7 @@ message Call {
   optional LaunchNestedContainer launch_nested_container = 6;
   optional WaitNestedContainer wait_nested_container = 7;
   optional KillNestedContainer kill_nested_container = 8;
+  optional RemoveNestedContainer remove_nested_container = 12;
   optional LaunchNestedContainerSession launch_nested_container_session = 9;
   optional AttachContainerInput attach_container_input = 10;
   optional AttachContainerOutput attach_container_output = 11;
@@ -201,6 +212,7 @@ message Response {
     GET_FRAMEWORKS = 10;           // See 'GetFrameworks' below.
     GET_EXECUTORS = 11;            // See 'GetExecutors' below.
     GET_TASKS = 12;                // See 'GetTasks' below.
+    GET_AGENT = 14;                // See 'GetAgent' below.
 
     WAIT_NESTED_CONTAINER = 13;    // See 'WaitNestedContainer' below.
   }
@@ -311,6 +323,11 @@ message Response {
     repeated Task completed_tasks = 5;
   }
 
+  // Contains the agent's information.
+  message GetAgent {
+    optional AgentInfo agent_info = 1;
+  }
+
   // Returns termination information about the nested container.
   message WaitNestedContainer {
     optional int32 exit_status = 1;
@@ -330,6 +347,7 @@ message Response {
   optional GetFrameworks get_frameworks = 11;
   optional GetExecutors get_executors = 12;
   optional GetTasks get_tasks = 13;
+  optional GetAgent get_agent = 15;
   optional WaitNestedContainer wait_nested_container = 14;
 }
 
@@ -365,10 +383,16 @@ message ProcessIO {
     enum Type {
       UNKNOWN = 0;
       TTY_INFO = 1;
+      HEARTBEAT = 2;
+    }
+
+    message Heartbeat {
+      optional DurationInfo interval = 1;
     }
 
     optional Type type = 1;
     optional TTYInfo tty_info = 2;
+    optional Heartbeat heartbeat = 3;
   }
 
   optional Type type = 1;

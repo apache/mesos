@@ -54,6 +54,7 @@
 #include <stout/strings.hpp>
 #include <stout/synchronized.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 
 #include "decoder.hpp"
 #include "encoder.hpp"
@@ -191,7 +192,7 @@ Try<URL> URL::parse(const string& urlString)
 {
   // TODO(tnachen): Consider using C++11 regex support instead.
 
-  size_t schemePos = urlString.find_first_of("://");
+  size_t schemePos = urlString.find("://");
   if (schemePos == string::npos) {
     return Error("Missing scheme in url string");
   }
@@ -199,7 +200,7 @@ Try<URL> URL::parse(const string& urlString)
   const string scheme = strings::lower(urlString.substr(0, schemePos));
   const string urlPath = urlString.substr(schemePos + 3);
 
-  size_t pathPos = urlPath.find_first_of("/");
+  size_t pathPos = urlPath.find_first_of('/');
   if (pathPos == 0) {
     return Error("Host not found in url");
   }
@@ -332,24 +333,38 @@ bool Request::acceptsEncoding(const string& encoding) const
 
 bool Request::acceptsMediaType(const string& mediaType) const
 {
+  return _acceptsMediaType(headers.get("Accept"), mediaType);
+}
+
+
+bool Request::acceptsMediaType(
+    const string& name,
+    const string& mediaType) const
+{
+  return _acceptsMediaType(headers.get(name), mediaType);
+}
+
+
+bool Request::_acceptsMediaType(
+    Option<string> name,
+    const string& mediaType) const
+{
   vector<string> mediaTypes = strings::tokenize(mediaType, "/");
 
   if (mediaTypes.size() != 2) {
     return false;
   }
 
-  Option<string> accept = headers.get("Accept");
-
-  // If no Accept header field is present, then it is assumed
+  // If no header field is present, then it is assumed
   // that the client accepts all media types.
-  if (accept.isNone()) {
+  if (name.isNone()) {
     return true;
   }
 
   // Remove spaces and tabs for easier parsing.
-  accept = strings::remove(accept.get(), " ");
-  accept = strings::remove(accept.get(), "\t");
-  accept = strings::remove(accept.get(), "\n");
+  name = strings::remove(name.get(), " ");
+  name = strings::remove(name.get(), "\t");
+  name = strings::remove(name.get(), "\n");
 
   // First match 'type/subtype', then 'type/*', then '*/*'.
   vector<string> candidates;
@@ -358,7 +373,7 @@ bool Request::acceptsMediaType(const string& mediaType) const
   candidates.push_back("*/*");
 
   foreach (const string& candidate, candidates) {
-    foreach (const string& type, strings::tokenize(accept.get(), ",")) {
+    foreach (const string& type, strings::tokenize(name.get(), ",")) {
       vector<string> tokens = strings::tokenize(type, ";");
 
       if (tokens.empty()) {
@@ -427,26 +442,22 @@ Future<string> Pipe::Reader::read()
 
 Future<string> Pipe::Reader::readAll()
 {
+  Pipe::Reader reader = *this;
+
   std::shared_ptr<string> buffer(new string());
 
-  return _readAll(*this, buffer);
-}
-
-
-Future<string> Pipe::Reader::_readAll(
-    Pipe::Reader reader,
-    const std::shared_ptr<string>& buffer)
-{
-  return reader.read()
-    .then([reader, buffer](const string& read) -> Future<string> {
-      if (read.empty()) { // EOF.
-        return std::move(*buffer);
-      }
-
-      buffer->append(read);
-
-      return _readAll(reader, buffer);
-    });
+  return loop(
+      None(),
+      [=]() mutable {
+        return reader.read();
+      },
+      [=](const string& data) -> ControlFlow<string> {
+        if (data.empty()) { // EOF.
+          return Break(std::move(*buffer));
+        }
+        buffer->append(data);
+        return Continue();
+      });
 }
 
 
@@ -584,6 +595,58 @@ Future<Nothing> Pipe::Writer::readerClosed() const
 {
   return data->readerClosure.future();
 }
+
+
+namespace header {
+
+Try<WWWAuthenticate> WWWAuthenticate::create(const string& value)
+{
+  // Set `maxTokens` as 2 since auth-param quoted string may
+  // contain space (e.g., "Basic realm="Registry Realm").
+  vector<string> tokens = strings::tokenize(value, " ", 2);
+  if (tokens.size() != 2) {
+    return Error("Unexpected WWW-Authenticate header format: '" + value + "'");
+  }
+
+  hashmap<string, string> authParam;
+  foreach (const string& token, strings::split(tokens[1], ",")) {
+    vector<string> split = strings::split(token, "=");
+    if (split.size() != 2) {
+      return Error(
+          "Unexpected auth-param format: '" +
+          token + "' in '" + tokens[1] + "'");
+    }
+
+    // Auth-param values can be a quoted-string or directive values.
+    // Please see section "3.2.2.4 Directive values and quoted-string":
+    // https://tools.ietf.org/html/rfc2617.
+    authParam[split[0]] = strings::trim(split[1], strings::ANY, "\"");
+  }
+
+  // The realm directive (case-insensitive) is required for all
+  // authentication schemes that issue a challenge.
+  if (!authParam.contains("realm")) {
+    return Error(
+        "Unexpected auth-param '" +
+        tokens[1] + "': 'realm' is not defined");
+  }
+
+  return WWWAuthenticate(tokens[0], authParam);
+}
+
+
+string WWWAuthenticate::authScheme()
+{
+  return authScheme_;
+}
+
+
+hashmap<string, string> WWWAuthenticate::authParam()
+{
+  return authParam_;
+}
+
+} // namespace header {
 
 
 OK::OK(const JSON::Value& value, const Option<string>& jsonp)
@@ -766,25 +829,24 @@ Try<vector<Response>> decodeResponses(const string& s)
 {
   ResponseDecoder decoder;
 
-  deque<http::Response*> responses = decoder.decode(s.data(), s.length());
+  vector<Response> result;
 
-  if (decoder.failed()) {
+  auto appendResult = [&result](const deque<http::Response*>& responses) {
     foreach (Response* response, responses) {
+      result.push_back(*response);
       delete response;
     }
+  };
 
+  appendResult(decoder.decode(s.data(), s.length()));
+  appendResult(decoder.decode("", 0));
+
+  if (decoder.failed()) {
     return Error("Decoding failed");
   }
 
-  if (responses.empty()) {
+  if (result.empty()) {
     return Error("No response decoded");
-  }
-
-  vector<Response> result;
-
-  foreach (Response* response, responses) {
-    result.push_back(*response);
-    delete response;
   }
 
   return result;
@@ -872,9 +934,6 @@ ostream& operator<<(ostream& stream, const URL& url)
 }
 
 namespace internal {
-
-void _encode(Pipe::Reader reader, Pipe::Writer writer); // Forward declaration.
-
 
 // Encodes the request by writing into a pipe, the caller can
 // read the encoded data from the returned read end of the pipe.
@@ -971,38 +1030,38 @@ Pipe::Reader encode(const Request& request)
     case Request::PIPE:
       CHECK_SOME(request.reader);
       CHECK(request.body.empty());
-      _encode(request.reader.get(), writer);
+      Pipe::Reader requestReader = request.reader.get();
+      loop(None(),
+           [=]() mutable {
+             return requestReader.read();
+           },
+           [=](const string& chunk) mutable -> ControlFlow<Nothing> {
+             if (chunk.empty()) {
+               // EOF case.
+               writer.write("0\r\n\r\n");
+               writer.close();
+               return Break();
+             }
+
+             std::ostringstream out;
+             out << std::hex << chunk.size() << "\r\n";
+             out << chunk;
+             out << "\r\n";
+
+             writer.write(out.str());
+
+             return Continue();
+           })
+        .onDiscarded([=]() mutable {
+          writer.fail("discarded");
+        })
+        .onFailed([=](const string& failure) mutable {
+          writer.fail(failure);
+        });
       break;
   }
 
   return reader;
-}
-
-
-void _encode(Pipe::Reader reader, Pipe::Writer writer)
-{
-  reader.read()
-    .onAny([reader, writer](const Future<string>& chunk) mutable {
-      if (!chunk.isReady()) {
-        writer.fail(chunk.isFailed() ? chunk.failure() : "discarded");
-        return;
-      }
-
-      if (chunk->empty()) {
-        // EOF case.
-        writer.write("0\r\n\r\n");
-        writer.close();
-        return;
-      }
-
-      std::ostringstream out;
-      out << std::hex << chunk->size() << "\r\n";
-      out << chunk.get();
-      out << "\r\n";
-
-      writer.write(out.str());
-      _encode(reader, writer);
-    });
 }
 
 
@@ -1132,15 +1191,20 @@ protected:
 private:
   static Future<Nothing> _send(network::Socket socket, Pipe::Reader reader)
   {
-    return reader.read()
-      .then([socket, reader](const string& data) mutable -> Future<Nothing> {
-        if (data.empty()) {
-          return Nothing(); // EOF.
-        }
-
-        return socket.send(data)
-          .then(lambda::bind(_send, socket, reader));
-      });
+    return loop(
+        None(),
+        [=]() mutable {
+          return reader.read();
+        },
+        [=](const string& data) mutable -> Future<ControlFlow<Nothing>> {
+          if (data.empty()) {
+            return Break(); // EOF.
+          }
+          return socket.send(data)
+            .then([]() -> ControlFlow<Nothing> {
+              return Continue();
+            });
+        });
   }
 
   void read()
@@ -1318,9 +1382,24 @@ Future<Nothing> Connection::disconnected()
 }
 
 
-Future<Connection> connect(const network::Address& address)
+Future<Connection> connect(const network::Address& address, Scheme scheme)
 {
-  Try<network::Socket> socket = network::Socket::create(address.family());
+  SocketImpl::Kind kind;
+
+  switch (scheme) {
+    case Scheme::HTTP:
+      kind = SocketImpl::Kind::POLL;
+      break;
+#ifdef USE_SSL_SOCKET
+    case Scheme::HTTPS:
+      kind = SocketImpl::Kind::SSL;
+      break;
+#endif
+  }
+
+  Try<network::Socket> socket = network::Socket::create(
+      address.family(), kind);
+
   if (socket.isError()) {
     return Failure("Failed to create socket: " + socket.error());
   }
@@ -1360,36 +1439,20 @@ Future<Connection> connect(const URL& url)
 
   address.port = url.port.get();
 
-  // TODO(benh): Reuse `connect(address)` once it supports SSL.
-  Try<network::Socket> socket = [&url]() -> Try<network::Socket> {
-    // Default to 'http' if no scheme was specified.
-    if (url.scheme.isNone() || url.scheme == string("http")) {
-      return network::Socket::create(
-          network::Address::Family::INET,
-          SocketImpl::Kind::POLL);
-    }
-
-    if (url.scheme == string("https")) {
-#ifdef USE_SSL_SOCKET
-      return network::Socket::create(
-          network::Address::Family::INET,
-          SocketImpl::Kind::SSL);
-#else
-      return Error("'https' scheme requires SSL enabled");
-#endif
-    }
-
-    return Error("Unsupported URL scheme");
-  }();
-
-  if (socket.isError()) {
-    return Failure("Failed to create socket: " + socket.error());
+  // Default to 'http' if no scheme was specified.
+  if (url.scheme.isNone() || url.scheme == string("http")) {
+    return connect(address, Scheme::HTTP);
   }
 
-  return socket->connect(address)
-    .then([socket]() {
-      return Connection(socket.get());
-    });
+  if (url.scheme == string("https")) {
+#ifdef USE_SSL_SOCKET
+    return connect(address, Scheme::HTTPS);
+#else
+    return Failure("'https' scheme requires SSL enabled");
+#endif
+  }
+
+  return Failure("Unsupported URL scheme");
 }
 
 
@@ -1397,34 +1460,37 @@ namespace internal {
 
 Future<Nothing> send(network::Socket socket, Encoder* encoder)
 {
-  size_t* size = new size_t();
-  return [=]() {
-    switch (encoder->kind()) {
-      case Encoder::DATA: {
-        const char* data = static_cast<DataEncoder*>(encoder)->next(size);
-        return socket.send(data, *size);
-      }
-      case Encoder::FILE: {
-        off_t offset = 0;
-        int fd = static_cast<FileEncoder*>(encoder)->next(&offset, size);
-        return socket.sendfile(fd, offset, *size);
-      }
-    }
-  }()
-  .then([=](size_t length) -> Future<Nothing> {
-    // Update the encoder with the amount sent.
-    encoder->backup(*size - length);
+  size_t* size = new size_t(0);
+  return loop(
+      None(),
+      [=]() {
+        switch (encoder->kind()) {
+          case Encoder::DATA: {
+            const char* data = static_cast<DataEncoder*>(encoder)->next(size);
+            return socket.send(data, *size);
+          }
+          case Encoder::FILE: {
+            off_t offset = 0;
+            int_fd fd = static_cast<FileEncoder*>(encoder)->next(&offset, size);
+            return socket.sendfile(fd, offset, *size);
+          }
+        }
+        UNREACHABLE();
+      },
+      [=](size_t length) -> ControlFlow<Nothing> {
+        // Update the encoder with the amount sent.
+        encoder->backup(*size - length);
 
-    // See if there is any more of the message to send.
-    if (encoder->remaining() != 0) {
-      return send(socket, encoder);
-    }
+        // See if there is any more of the message to send.
+        if (encoder->remaining() != 0) {
+          return Continue();
+        }
 
-    return Nothing();
-  })
-  .onAny([=]() {
-    delete size;
-  });
+        return Break();
+      })
+    .onAny([=]() {
+      delete size;
+    });
 }
 
 
@@ -1456,7 +1522,7 @@ Future<Nothing> sendfile(
   // should be reported and no response sent.
   response.body.clear();
 
-  Try<int> fd = os::open(response.path, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
+  Try<int_fd> fd = os::open(response.path, O_CLOEXEC | O_NONBLOCK | O_RDONLY);
 
   if (fd.isError()) {
     const string body = "Failed to open '" + response.path + "': " + fd.error();
@@ -1467,7 +1533,14 @@ Future<Nothing> sendfile(
   }
 
   struct stat s; // Need 'struct' because of function named 'stat'.
-  if (fstat(fd.get(), &s) != 0) {
+  // We don't bother introducing a `os::fstat` since this is only
+  // one of two places where we use `fstat` in the entire codebase
+  // as of writing this comment.
+#ifdef __WINDOWS__
+  if (::fstat(fd->crt(), &s) != 0) {
+#else
+  if (::fstat(fd.get(), &s) != 0) {
+#endif
     const string body =
       "Failed to fstat '" + response.path + "': " + os::strerror(errno);
     // TODO(benh): VLOG(1)?
@@ -1516,36 +1589,40 @@ Future<Nothing> stream(
     const network::Socket& socket,
     http::Pipe::Reader reader)
 {
-  return reader.read()
-    .then([=](const string& data) mutable {
-      bool finished = false;
+  return loop(
+      None(),
+      [=]() mutable {
+        return reader.read();
+      },
+      [=](const string& data) mutable {
+        bool finished = false;
 
-      ostringstream out;
+        ostringstream out;
 
-      if (data.empty()) {
-        // Finished reading.
-        out << "0\r\n" << "\r\n";
-        finished = true;
-      } else {
-        out << std::hex << data.size() << "\r\n";
-        out << data;
-        out << "\r\n";
-      }
+        if (data.empty()) {
+          // Finished reading.
+          out << "0\r\n" << "\r\n";
+          finished = true;
+        } else {
+          out << std::hex << data.size() << "\r\n";
+          out << data;
+          out << "\r\n";
+        }
 
-      Encoder* encoder = new DataEncoder(out.str());
+        Encoder* encoder = new DataEncoder(out.str());
 
-      return send(socket, encoder)
-        .onAny([=]() {
-          delete encoder;
-        })
-        .then([=]() mutable -> Future<Nothing> {
-          if (!finished) {
-            return stream(socket, reader);
-          }
+        return send(socket, encoder)
+          .onAny([=]() {
+            delete encoder;
+          })
+          .then([=]() mutable -> ControlFlow<Nothing> {
+            if (!finished) {
+              return Continue();
+            }
 
-          return Nothing();
-        });
-    });
+            return Break();
+          });
+      });
 }
 
 
@@ -1608,9 +1685,9 @@ Future<Nothing> send(
       [=]() mutable {
         return pipeline.get();
       },
-      [=](const Option<Item>& item) -> Future<bool> {
+      [=](const Option<Item>& item) -> Future<ControlFlow<Nothing>> {
         if (item.isNone()) {
-          return false;
+          return Break();
         }
 
         Request* request = item->request;
@@ -1638,8 +1715,9 @@ Future<Nothing> send(
                 case Response::BODY:
                 case Response::NONE: return send(socket, response, request);
               }
+              UNREACHABLE();
             }()
-            .then([=]() {
+            .then([=]() -> ControlFlow<Nothing> {
               // Persist the connection if the request expects it and
               // the response doesn't include 'Connection: close'.
               bool persist = request->keepAlive;
@@ -1648,7 +1726,10 @@ Future<Nothing> send(
                   persist = false;
                 }
               }
-              return persist;
+              if (persist) {
+                return Continue();
+              }
+              return Break();
             });
           })
           .onAny([=]() {
@@ -1679,9 +1760,9 @@ Future<Nothing> receive(
       [=]() {
         return socket.recv(data, size);
       },
-      [=](size_t length) mutable -> Future<bool> {
+      [=](size_t length) mutable -> Future<ControlFlow<Nothing>> {
         if (length == 0) {
-          return false;
+          return Break();
         }
 
         // Decode as much of the data as possible into HTTP requests.
@@ -1707,7 +1788,7 @@ Future<Nothing> receive(
           pipeline.put(Item{request, f(*request)});
         }
 
-        return true; // Keep looping!
+        return Continue(); // Keep looping!
       })
     .onAny([=]() {
       delete decoder;
@@ -1791,18 +1872,19 @@ Future<Nothing> serve(
     .onAny([=]() mutable {
       // Delete remaining requests and discard remaining responses.
       if (pipeline.size() != 0) {
-        loop([=]() mutable {
+        loop(None(),
+             [=]() mutable {
                return pipeline.get();
              },
-             [=](Option<Item> item) {
+             [=](Option<Item> item) -> ControlFlow<Nothing> {
                if (item.isNone()) {
-                 return false;
+                 return Break();
                }
                delete item->request;
                if (promise->future().hasDiscard()) {
                  item->response.discard();
                }
-               return true;
+               return Continue();
              });
       }
 
@@ -1864,7 +1946,7 @@ Request createRequest(
   const Option<string>& body,
   const Option<string>& contentType)
 {
-  string scheme = enableSSL ? "https" : "http";
+  const string scheme = enableSSL ? "https" : "http";
   URL url(scheme, net::IP(upid.address.ip), upid.address.port, upid.id);
 
   if (path.isSome()) {
@@ -1917,9 +1999,14 @@ Future<Response> get(
     const UPID& upid,
     const Option<string>& path,
     const Option<string>& query,
-    const Option<Headers>& headers)
+    const Option<Headers>& headers,
+    const Option<string>& scheme)
 {
-  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+  URL url(
+      scheme.getOrElse("http"),
+      net::IP(upid.address.ip),
+      upid.address.port,
+      upid.id);
 
   if (path.isSome()) {
     // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
@@ -1977,9 +2064,14 @@ Future<Response> post(
     const Option<string>& path,
     const Option<Headers>& headers,
     const Option<string>& body,
-    const Option<string>& contentType)
+    const Option<string>& contentType,
+    const Option<string>& scheme)
 {
-  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+  URL url(
+      scheme.getOrElse("http"),
+      net::IP(upid.address.ip),
+      upid.address.port,
+      upid.id);
 
   if (path.isSome()) {
     // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
@@ -2010,9 +2102,14 @@ Future<Response> requestDelete(
 Future<Response> requestDelete(
     const UPID& upid,
     const Option<string>& path,
-    const Option<Headers>& headers)
+    const Option<Headers>& headers,
+    const Option<string>& scheme)
 {
-  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+  URL url(
+      scheme.getOrElse("http"),
+      net::IP(upid.address.ip),
+      upid.address.port,
+      upid.id);
 
   if (path.isSome()) {
     // TODO(joerg84): Handle 'query' and/or 'fragment' in 'path'.
@@ -2048,9 +2145,14 @@ Future<Response> get(
     const UPID& upid,
     const Option<string>& path,
     const Option<string>& query,
-    const Option<Headers>& headers)
+    const Option<Headers>& headers,
+    const Option<string>& scheme)
 {
-  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+  URL url(
+      scheme.getOrElse("http"),
+      net::IP(upid.address.ip),
+      upid.address.port,
+      upid.id);
 
   if (path.isSome()) {
     // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.
@@ -2108,9 +2210,14 @@ Future<Response> post(
     const Option<string>& path,
     const Option<Headers>& headers,
     const Option<string>& body,
-    const Option<string>& contentType)
+    const Option<string>& contentType,
+    const Option<string>& scheme)
 {
-  URL url("http", net::IP(upid.address.ip), upid.address.port, upid.id);
+  URL url(
+      scheme.getOrElse("http"),
+      net::IP(upid.address.ip),
+      upid.address.port,
+      upid.id);
 
   if (path.isSome()) {
     // TODO(benh): Get 'query' and/or 'fragment' out of 'path'.

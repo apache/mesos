@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <algorithm>
+#include "master/allocator/sorter/drf/sorter.hpp"
+
 #include <set>
 #include <string>
 #include <vector>
@@ -27,11 +28,8 @@
 
 #include <stout/check.hpp>
 #include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/option.hpp>
-
-#include "logging/logging.hpp"
-
-#include "master/allocator/sorter/drf/sorter.hpp"
 
 using std::set;
 using std::string;
@@ -94,13 +92,15 @@ void DRFSorter::update(const string& name, double weight)
   // recalculate all the shares, so don't bother just
   // updating this client.
   if (!dirty) {
-    update(name);
+    updateShare(name);
   }
 }
 
 
 void DRFSorter::remove(const string& name)
 {
+  CHECK(contains(name));
+
   set<Client, DRFComparator>::iterator it = find(name);
 
   if (it != clients.end()) {
@@ -130,6 +130,8 @@ void DRFSorter::activate(const string& name)
 
 void DRFSorter::deactivate(const string& name)
 {
+  CHECK(contains(name));
+
   set<Client, DRFComparator>::iterator it = find(name);
 
   if (it != clients.end()) {
@@ -147,10 +149,16 @@ void DRFSorter::allocated(
     const SlaveID& slaveId,
     const Resources& resources)
 {
+  CHECK(contains(name));
+
   set<Client, DRFComparator>::iterator it = find(name);
 
-  if (it != clients.end()) { // TODO(benh): This should really be a CHECK.
-    // TODO(benh): Refactor 'update' to be able to reuse it here.
+  // The allocator might notify us about an allocation that has been
+  // made to an inactive sorter client. For example, this happens when
+  // an agent re-registers that is running tasks for a framework that
+  // has not yet re-registered.
+  if (it != clients.end()) {
+    // TODO(benh): Refactor 'updateShare' to be able to reuse it here.
     Client client(*it);
 
     // Update the 'allocations' to reflect the allocator decision.
@@ -178,11 +186,10 @@ void DRFSorter::allocated(
     allocations[name].totals[resource.name()] += resource.scalar();
   }
 
-  // If the total resources have changed, we're going to
-  // recalculate all the shares, so don't bother just
-  // updating this client.
+  // If the total resources have changed, we're going to recalculate
+  // all the shares, so don't bother just updating this client.
   if (!dirty) {
-    update(name);
+    updateShare(name);
   }
 }
 
@@ -227,23 +234,25 @@ void DRFSorter::update(
 }
 
 
-const hashmap<SlaveID, Resources>& DRFSorter::allocation(const string& name)
+const hashmap<SlaveID, Resources>& DRFSorter::allocation(
+    const string& name) const
 {
   CHECK(contains(name));
 
-  return allocations[name].resources;
+  return allocations.at(name).resources;
 }
 
 
-const Resources& DRFSorter::allocationScalarQuantities(const string& name)
+const Resources& DRFSorter::allocationScalarQuantities(
+    const string& name) const
 {
   CHECK(contains(name));
 
-  return allocations[name].scalarQuantities;
+  return allocations.at(name).scalarQuantities;
 }
 
 
-hashmap<string, Resources> DRFSorter::allocation(const SlaveID& slaveId)
+hashmap<string, Resources> DRFSorter::allocation(const SlaveID& slaveId) const
 {
   // TODO(jmlvanre): We can index the allocation by slaveId to make this faster.
   // It is a tradeoff between speed vs. memory. For now we use existing data
@@ -263,12 +272,14 @@ hashmap<string, Resources> DRFSorter::allocation(const SlaveID& slaveId)
 }
 
 
-Resources DRFSorter::allocation(const string& name, const SlaveID& slaveId)
+Resources DRFSorter::allocation(
+    const string& name,
+    const SlaveID& slaveId) const
 {
   CHECK(contains(name));
 
-  if (allocations[name].resources.contains(slaveId)) {
-    return allocations[name].resources[slaveId];
+  if (allocations.at(name).resources.contains(slaveId)) {
+    return allocations.at(name).resources.at(slaveId);
   }
 
   return Resources();
@@ -286,9 +297,10 @@ void DRFSorter::unallocated(
     const SlaveID& slaveId,
     const Resources& resources)
 {
-  CHECK(allocations[name].resources.contains(slaveId));
+  CHECK(contains(name));
+  CHECK(allocations.at(name).resources.contains(slaveId));
+  CHECK(allocations.at(name).resources.at(slaveId).contains(resources));
 
-  CHECK(allocations[name].resources[slaveId].contains(resources));
   allocations[name].resources[slaveId] -= resources;
 
   // Remove shared resources from the allocated quantities when there
@@ -313,7 +325,7 @@ void DRFSorter::unallocated(
   }
 
   if (!dirty) {
-    update(name);
+    updateShare(name);
   }
 }
 
@@ -352,7 +364,8 @@ void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
 {
   if (!resources.empty()) {
     CHECK(total_.resources.contains(slaveId));
-    CHECK(total_.resources[slaveId].contains(resources));
+    CHECK(total_.resources[slaveId].contains(resources))
+      << total_.resources[slaveId] << " does not contain " << resources;
 
     total_.resources[slaveId] -= resources;
 
@@ -387,10 +400,7 @@ vector<string> DRFSorter::sort()
   if (dirty) {
     set<Client, DRFComparator> temp;
 
-    set<Client, DRFComparator>::iterator it;
-    for (it = clients.begin(); it != clients.end(); it++) {
-      Client client(*it);
-
+    foreach (Client client, clients) {
       // Update the 'share' to get proper sorting.
       client.share = calculateShare(client.name);
 
@@ -407,9 +417,8 @@ vector<string> DRFSorter::sort()
   vector<string> result;
   result.reserve(clients.size());
 
-  set<Client, DRFComparator>::iterator it;
-  for (it = clients.begin(); it != clients.end(); it++) {
-    result.push_back((*it).name);
+  foreach (const Client& client, clients) {
+    result.push_back(client.name);
   }
 
   return result;
@@ -422,13 +431,13 @@ bool DRFSorter::contains(const string& name) const
 }
 
 
-int DRFSorter::count()
+int DRFSorter::count() const
 {
   return allocations.size();
 }
 
 
-void DRFSorter::update(const string& name)
+void DRFSorter::updateShare(const string& name)
 {
   set<Client, DRFComparator>::iterator it = find(name);
 
@@ -481,7 +490,7 @@ set<Client, DRFComparator>::iterator DRFSorter::find(const string& name)
 {
   set<Client, DRFComparator>::iterator it;
   for (it = clients.begin(); it != clients.end(); it++) {
-    if (name == (*it).name) {
+    if (name == it->name) {
       break;
     }
   }

@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
 #include <vector>
 
 #include <gmock/gmock.h>
@@ -30,6 +31,8 @@
 #include <process/pid.hpp>
 
 #include <stout/gtest.hpp>
+
+#include <stout/os/constants.hpp>
 
 #include "master/master.hpp"
 
@@ -59,6 +62,7 @@ using process::Future;
 using process::Owned;
 using process::PID;
 
+using std::string;
 using std::vector;
 
 using ::testing::WithParamInterface;
@@ -119,7 +123,7 @@ TEST_P(CommandExecutorTest, NoTaskKillingCapability)
   TaskInfo task = createTask(
       offers->front().slave_id(),
       offers->front().resources(),
-      "sleep 1000");
+      SLEEP_COMMAND(1000));
 
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -147,6 +151,9 @@ TEST_P(CommandExecutorTest, NoTaskKillingCapability)
 
 // This test ensures that the command executor sends TASK_KILLING
 // to frameworks that support the capability.
+// TODO(hausdorff): Enable test. The executor tests use the replicated log
+// by default. This is not currently supported on Windows, so they will all
+// fail until that changes.
 TEST_P(CommandExecutorTest, TaskKillingCapability)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -187,7 +194,7 @@ TEST_P(CommandExecutorTest, TaskKillingCapability)
   TaskInfo task = createTask(
       offers->front().slave_id(),
       offers->front().resources(),
-       "sleep 1000");
+       SLEEP_COMMAND(1000));
 
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -216,6 +223,9 @@ TEST_P(CommandExecutorTest, TaskKillingCapability)
 }
 
 
+// TODO(hausdorff): Kill policy helpers are not yet enabled on Windows. See
+// MESOS-6698.
+#ifndef __WINDOWS__
 // This test ensures that a task will transition straight from `TASK_KILLING` to
 // `TASK_KILLED`, even if the health check begins to fail during the kill policy
 // grace period.
@@ -272,7 +282,8 @@ TEST_P(CommandExecutorTest, NoTransitionFromKillingToRunning)
 
   HealthCheck healthCheck;
   healthCheck.set_type(HealthCheck::COMMAND);
-  healthCheck.mutable_command()->set_value("ls " + tmpPath + " >/dev/null");
+  healthCheck.mutable_command()->set_value(
+      "ls " + tmpPath + " > " + os::DEV_NULL);
   healthCheck.set_delay_seconds(0);
   healthCheck.set_grace_period_seconds(0);
   healthCheck.set_interval_seconds(0);
@@ -302,29 +313,30 @@ TEST_P(CommandExecutorTest, NoTransitionFromKillingToRunning)
   driver.launchTasks(offers->front().id(), tasks);
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   driver.killTask(task.task_id());
 
   AWAIT_READY(statusKilling);
   EXPECT_EQ(TASK_KILLING, statusKilling->state());
-  EXPECT_FALSE(statusKilling.get().has_healthy());
+  EXPECT_FALSE(statusKilling->has_healthy());
 
   // Remove the temporary file, so that the health check fails.
   os::rm(tmpPath);
 
   AWAIT_READY(statusKilled);
   EXPECT_EQ(TASK_KILLED, statusKilled->state());
-  EXPECT_FALSE(statusKilled.get().has_healthy());
+  EXPECT_FALSE(statusKilled->has_healthy());
 
   driver.stop();
   driver.join();
 }
+#endif // __WINDOWS__
 
 
 class HTTPCommandExecutorTest
@@ -333,7 +345,7 @@ class HTTPCommandExecutorTest
 
 // This test ensures that the HTTP command executor can self terminate
 // after it gets the ACK for the terminal status update from agent.
-TEST_F(HTTPCommandExecutorTest, TerminateWithACK)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HTTPCommandExecutorTest, TerminateWithACK)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -346,7 +358,7 @@ TEST_F(HTTPCommandExecutorTest, TerminateWithACK)
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
 
-  CHECK_SOME(_containerizer);
+  ASSERT_SOME(_containerizer);
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   StandaloneMasterDetector detector(master.get()->pid);
@@ -399,8 +411,8 @@ TEST_F(HTTPCommandExecutorTest, TerminateWithACK)
   // The executor should self terminate with 0 as exit status once
   // it gets the ACK for the terminal status update from agent.
   AWAIT_READY(termination);
-  ASSERT_TRUE(termination.get().isReady());
-  EXPECT_EQ(0, termination.get().get().get().status());
+  ASSERT_TRUE(termination->isReady());
+  EXPECT_EQ(0, termination->get()->status());
 
   driver.stop();
   driver.join();
@@ -450,7 +462,7 @@ TEST_F(HTTPCommandExecutorTest, ExplicitAcknowledgements)
   TaskInfo task = createTask(
       offers->front().slave_id(),
       offers->front().resources(),
-      "sleep 1000");
+      SLEEP_COMMAND(1000));
 
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))

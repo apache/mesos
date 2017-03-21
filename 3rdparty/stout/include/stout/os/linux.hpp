@@ -51,10 +51,52 @@ static int childMain(void* _func)
 
 // Helper that captures information about a stack to be used when
 // invoking clone.
-struct Stack
+class Stack
 {
+public:
+  // 8 MiB is the default for "ulimit -s" on OSX and Linux.
+  static constexpr size_t DEFAULT_SIZE = 8 * 1024 * 1024;
+
+  // Allocate a stack.
+  static Try<Stack> create(size_t size)
+  {
+    Stack stack(size);
+
+    // Allocate and align the memory to 16 bytes.
+    // x86, x64, and AArch64/ARM64 all expect a 16 byte aligned stack.
+    // ARM64/aarch64 enforces the alignment where x86/x64 does not.
+    // Without this alignment Mesos will crash with a SIGBUS on ARM64/aarch64.
+    int err = ::posix_memalign(
+                reinterpret_cast<void**>(&stack.address),
+                os::pagesize(),
+                stack.size);
+    if (err) {
+      return ErrnoError("Failed to allocate and align stack");
+    }
+
+    return stack;
+  }
+
+  // Explicitly free the stack.
+  // The destructor won't free the allocated stack.
+  void deallocate()
+  {
+    ::free(address);
+    address = nullptr;
+    size = 0;
+  }
+
+  // Stack grows down, return the first usable address.
+  char* start()
+  {
+    return address + size;
+  }
+
+private:
+  explicit Stack(size_t size_) : size(size_) {}
+
   size_t size;
-  unsigned long long* address;
+  char* address;
 };
 
 
@@ -64,26 +106,23 @@ inline pid_t clone(
     Option<Stack> stack = None())
 {
   // Stack for the child.
-  // - unsigned long long used for best alignment.
-  // - 8 MiB appears to be the default for "ulimit -s" on OSX and Linux.
   //
   // NOTE: We need to allocate the stack dynamically. This is because
   // glibc's 'clone' will modify the stack passed to it, therefore the
   // stack must NOT be shared as multiple 'clone's can be invoked
   // simultaneously.
+
   bool cleanup = false;
   if (stack.isNone()) {
-    stack = Stack();
-    stack->size = 8 * 1024 * 1024;
-    stack->address =
-      new unsigned long long[stack->size/sizeof(unsigned long long)];
+    Try<Stack> _stack = Stack::create(Stack::DEFAULT_SIZE);
+    if (_stack.isError()) {
+        return -1;
+    }
+    stack = _stack.get();
     cleanup = true;
   }
 
-  // Compute the address of the stack given that it grows down.
-  void* address = &stack->address[stack->size / sizeof(stack->address[0]) - 1];
-
-  pid_t pid = ::clone(childMain, address, flags, (void*) &func);
+  pid_t pid = ::clone(childMain, stack->start(), flags, (void*) &func);
 
   // Given we allocated the stack ourselves, there are two
   // circumstances where we need to delete the allocated stack to
@@ -97,7 +136,7 @@ inline pid_t clone(
   //     thread which runs in the same memory space with the calling
   //     process, in which case we don't want to call delete!
   if (cleanup && (pid < 0 || !(flags & CLONE_VM))) {
-    delete[] stack->address;
+    stack->deallocate();
   }
 
   return pid;

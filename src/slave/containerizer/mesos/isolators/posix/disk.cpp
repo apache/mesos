@@ -41,6 +41,7 @@
 #include <stout/strings.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/killtree.hpp>
 #include <stout/os/stat.hpp>
@@ -542,7 +543,7 @@ private:
     Try<Subprocess> s = subprocess(
         "du",
         command,
-        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH(os::DEV_NULL),
         Subprocess::PIPE(),
         Subprocess::PIPE(),
         nullptr,

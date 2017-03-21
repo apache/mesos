@@ -49,6 +49,7 @@
 #include <stout/os/exists.hpp>
 #include <stout/os/pstree.hpp>
 #include <stout/os/shell.hpp>
+#include <stout/os/temp.hpp>
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"
@@ -151,7 +152,7 @@ public:
       std::cerr
         << "-------------------------------------------------------------\n"
         << "The 'CFS_' tests cannot be run because:\n"
-        << cfsError.get().message << "\n"
+        << cfsError->message << "\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }
@@ -190,7 +191,7 @@ public:
         << std::endl;
 
       error = hierarchies.error();
-    } else if (!hierarchies.get().empty()) {
+    } else if (!hierarchies->empty()) {
       std::cerr
         << "-------------------------------------------------------------\n"
         << "We cannot run any cgroups tests that require mounting\n"
@@ -303,7 +304,7 @@ public:
       std::cerr
         << "-------------------------------------------------------------\n"
         << "We cannot run any Docker tests because:\n"
-        << dockerError.get().message << "\n"
+        << dockerError->message << "\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }
@@ -492,7 +493,7 @@ private:
 class SupportedFilesystemTestFilter : public TestFilter
 {
 public:
-  explicit SupportedFilesystemTestFilter(const string fsname)
+  explicit SupportedFilesystemTestFilter(const string& fsname)
   {
 #ifdef __linux__
     Try<bool> check = fs::supported(fsname);
@@ -510,7 +511,7 @@ public:
       std::cerr
         << "-------------------------------------------------------------\n"
         << "We cannot run any " << fsname << " tests because:\n"
-        << fsSupportError.get().message << "\n"
+        << fsSupportError->message << "\n"
         << "-------------------------------------------------------------\n";
     }
   }
@@ -585,7 +586,7 @@ public:
     if (perfError.isSome()) {
       std::cerr
         << "-------------------------------------------------------------\n"
-        << perfError.get().message << "\n"
+        << perfError->message << "\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }
@@ -795,16 +796,9 @@ Environment::Environment(const Flags& _flags) : flags(_flags)
 void Environment::SetUp()
 {
   // Clear any MESOS_ environment variables so they don't affect our tests.
-  char** env = os::raw::environment();
-  for (int i = 0; env[i] != nullptr; i++) {
-    string variable = env[i];
-    if (variable.find("MESOS_") == 0) {
-      string key;
-      size_t eq = variable.find_first_of("=");
-      if (eq == string::npos) {
-        continue; // Not expecting a missing '=', but ignore anyway.
-      }
-      os::unsetenv(variable.substr(strlen("MESOS_"), eq - strlen("MESOS_")));
+  foreachkey (const string& key, os::environment()) {
+    if (key.find("MESOS_") == 0) {
+      os::unsetenv(key);
     }
   }
 
@@ -816,9 +810,16 @@ void Environment::SetUp()
     os::setenv("MESOS_NATIVE_JAVA_LIBRARY", path);
   }
 
+  // TODO(hausdorff): Revisit whether we need this check when we complete work
+  // to light up Agent tests on Windows (see epic tracking this work at
+  // MESOS-6695). As we incrementally add tests to the Windows build, we will
+  // add this check to the tests that need it; eventually, the goal is to get
+  // rid of this altogether. See MESOS-5903.
+#ifndef __WINDOWS__
   if (!GTEST_IS_THREADSAFE) {
     EXIT(EXIT_FAILURE) << "Testing environment is not thread safe, bailing!";
   }
+#endif // __WINDOWS__
 }
 
 
@@ -831,7 +832,7 @@ void Environment::TearDown()
   // that we can identify leaked processes more precisely.
   Try<os::ProcessTree> pstree = os::pstree(0);
 
-  if (pstree.isSome() && !pstree.get().children.empty()) {
+  if (pstree.isSome() && !pstree->children.empty()) {
     FAIL() << "Tests completed with child processes remaining:\n"
            << pstree.get();
   }
@@ -894,14 +895,19 @@ Try<string> Environment::TemporaryDirectoryEventListener::mkdtemp()
     testName = strings::remove(testName, "DISABLED_", strings::PREFIX);
   }
 
-  Option<string> tmpdir = os::getenv("TMPDIR");
-
-  if (tmpdir.isNone()) {
-    tmpdir = "/tmp";
-  }
+  const string tmpdir = os::temp();
 
   const string& path =
-    path::join(tmpdir.get(), strings::join("_", testCase, testName, "XXXXXX"));
+#ifndef __WINDOWS__
+    path::join(tmpdir, strings::join("_", testCase, testName, "XXXXXX"));
+#else
+    // TODO(hausdorff): When we resolve MESOS-5849, we should change
+    // this back to the same path as the Unix version. This is
+    // currently necessary to make the sandbox path short enough to
+    // avoid the infamous Windows path length errors, which would
+    // normally cause many of our tests to fail.
+    path::join(tmpdir, "XXXXXX");
+#endif // __WINDOWS__
 
   Try<string> mkdtemp = os::mkdtemp(path);
   if (mkdtemp.isSome()) {

@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+syntax = "proto2";
+
 import "mesos/v1/mesos.proto";
 
 import "mesos/v1/maintenance/maintenance.proto";
@@ -66,7 +68,7 @@ message Call {
 
     GET_MASTER = 17;        // Retrieves the master's information.
 
-    SUBSCRIBE = 18;          // Subscribes the master to receive events.
+    SUBSCRIBE = 18;         // Subscribes the master to receive events.
 
     RESERVE_RESOURCES = 19;
     UNRESERVE_RESOURCES = 20;
@@ -84,7 +86,7 @@ message Call {
 
     GET_QUOTA = 28;
     SET_QUOTA = 29;          // See 'SetQuota' below.
-    REMOVE_QUOTA = 30;
+    REMOVE_QUOTA = 30;       // See 'RemoveQuota' below.
   }
 
   // Provides a snapshot of the current metrics tracked by the master.
@@ -306,10 +308,15 @@ message Response {
 
       repeated Resource allocated_resources = 8;
       repeated Resource offered_resources = 9;
+
+      repeated AgentInfo.Capability capabilities = 10;
     }
 
     // Registered agents.
     repeated Agent agents = 1;
+
+    // Agents which are recovered from registry but not reregistered yet.
+    repeated AgentInfo recovered_agents = 2;
   }
 
   // Information about all the frameworks known to the master at the current
@@ -320,6 +327,13 @@ message Response {
       required FrameworkInfo framework_info = 1;
       required bool active = 2;
       required bool connected = 3;
+
+      // If true, this framework was previously subscribed but hasn't
+      // yet re-subscribed after a master failover. Recovered frameworks
+      // are only reported if one or more agents running a task or
+      // executor for the framework have re-registered after master
+      // failover.
+      required bool recovered = 11;
 
       optional TimeInfo registered_time = 4;
       optional TimeInfo reregistered_time = 5;
@@ -339,8 +353,14 @@ message Response {
     // Frameworks that have been teared down.
     repeated Framework completed_frameworks = 2;
 
-    // Frameworks that have previously subscribed but haven't yet subscribed
-    // after a master failover.
+    // This field previously contained frameworks that previously
+    // subscribed but haven't yet re-subscribed after a master failover.
+    // As of Mesos 1.2, this field will always be empty; recovered
+    // frameworks are now reported in the `frameworks` list with the
+    // `recovered` field set to true.
+    //
+    // TODO(neilc): Remove this field after a deprecation cycle starting
+    // in Mesos 1.2.
     repeated FrameworkInfo recovered_frameworks = 3;
   }
 
@@ -354,6 +374,11 @@ message Response {
     }
 
     repeated Executor executors = 1;
+
+    // As of Mesos 1.2, this field will always be empty.
+    //
+    // TODO(neilc): Remove this field after a deprecation cycle starting
+    // in Mesos 1.2.
     repeated Executor orphan_executors = 2;
   }
 
@@ -365,16 +390,28 @@ message Response {
     // to be launched.
     repeated Task pending_tasks = 1;
 
-    // Tasks that have been forwarded to the agent for launch. This includes
-    // tasks that are running and reached terminal state.
+    // Tasks that have been forwarded to the agent for launch. This
+    // includes tasks that are staging or running; it also includes
+    // tasks that have reached a terminal state but the terminal status
+    // update has not yet been acknowledged by the scheduler.
     repeated Task tasks = 2;
+
+    // Tasks that were running on agents that have become partitioned
+    // from the master. If/when the agent is no longer partitioned,
+    // tasks running on that agent will no longer be unreachable (they
+    // will either be running or completed). Note that the master only
+    // stores a limited number of unreachable tasks; information about
+    // unreachable tasks is also not preserved across master failover.
+    repeated Task unreachable_tasks = 5;
 
     // Tasks that have reached terminal state and have all their updates
     // acknowledged by the scheduler.
     repeated Task completed_tasks = 3;
 
-    // Tasks belonging to frameworks that have not yet re-subscribed with
-    // master (e.g., immediately after master failover).
+    // As of Mesos 1.2, this field will always be empty.
+    //
+    // TODO(neilc): Remove this field after a deprecation cycle starting
+    // in Mesos 1.2.
     repeated Task orphan_tasks = 4;
   }
 
@@ -481,10 +518,8 @@ message Event {
     required Response.GetAgents.Agent agent = 1;
   }
 
-  // Forwarded by the master when an agent is removed.
-  // This can happen when an agent does not re-register
-  // within `--agent_reregister_timeout` upon a master failover,
-  // or when the agent is scheduled for maintenance.
+  // Forwarded by the master when an agent is removed. This
+  // can happen when the agent is scheduled for maintenance.
   //
   // NOTE: It's possible that an agent might become
   // active once it has been removed, i.e. if the master

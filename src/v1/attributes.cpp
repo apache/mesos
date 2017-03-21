@@ -29,6 +29,7 @@ using std::ostream;
 using std::string;
 using std::vector;
 
+
 namespace mesos {
 namespace v1 {
 

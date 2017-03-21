@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cctype>
+#include "slave/validation.hpp"
+
 #include <string>
 
 #include <mesos/agent/agent.hpp>
@@ -23,9 +24,9 @@
 #include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
-#include <stout/os/constants.hpp>
+#include "checks/checker.hpp"
 
-#include "slave/validation.hpp"
+#include "common/validation.hpp"
 
 using std::string;
 
@@ -38,7 +39,15 @@ namespace container {
 
 Option<Error> validateContainerId(const ContainerID& containerId)
 {
-  // Slashes are disallowed as these IDs are mapped to directories.
+  const string& id = containerId.value();
+
+  // Check common Mesos ID rules.
+  Option<Error> error = common::validation::validateID(id);
+  if (error.isSome()) {
+    return Error(error->message);
+  }
+
+  // Check ContainerID specific rules.
   //
   // Periods are disallowed because our string representation of
   // ContainerID uses periods: <uuid>.<child>.<grandchild>.
@@ -46,23 +55,9 @@ Option<Error> validateContainerId(const ContainerID& containerId)
   //
   // Spaces are disallowed as they can render logs confusing and
   // need escaping on terminals when dealing with paths.
-  //
-  // TODO(bmahler): Add common/validation.hpp to share ID validation.
-  // Note that this however is slightly stricter than other IDs in
-  // that we do not allow periods or spaces.
   auto invalidCharacter = [](char c) {
-    return iscntrl(c) ||
-      c == os::POSIX_PATH_SEPARATOR ||
-      c == os::WINDOWS_PATH_SEPARATOR ||
-      c == '.' ||
-      c == ' ';
+    return  c == '.' || c == ' ';
   };
-
-  const string& id = containerId.value();
-
-  if (id.empty()) {
-    return Error("'ContainerID.value' must be non-empty");
-  }
 
   if (std::any_of(id.begin(), id.end(), invalidCharacter)) {
     return Error("'ContainerID.value' '" + id + "'"
@@ -155,6 +150,9 @@ Option<Error> validate(
     case mesos::agent::Call::GET_TASKS:
       return None();
 
+    case mesos::agent::Call::GET_AGENT:
+      return None();
+
     case mesos::agent::Call::LAUNCH_NESTED_CONTAINER: {
       if (!call.has_launch_nested_container()) {
         return Error("Expecting 'launch_nested_container' to be present");
@@ -173,6 +171,15 @@ Option<Error> validate(
       if (!call.launch_nested_container().container_id().has_parent()) {
         return Error("Expecting 'launch_nested_container.container_id.parent'"
                      " to be present");
+      }
+
+      if (call.launch_nested_container().has_command()) {
+        error = common::validation::validateCommandInfo(
+            call.launch_nested_container().command());
+        if (error.isSome()) {
+          return Error("'launch_nested_container.command' is invalid"
+                       ": " + error->message);
+        }
       }
 
       return None();
@@ -222,6 +229,28 @@ Option<Error> validate(
       return None();
     }
 
+    case mesos::agent::Call::REMOVE_NESTED_CONTAINER: {
+      if (!call.has_remove_nested_container()) {
+        return Error("Expecting 'remove_nested_container' to be present");
+      }
+
+      Option<Error> error = validation::container::validateContainerId(
+          call.remove_nested_container().container_id());
+
+      if (error.isSome()) {
+        return Error("'remove_nested_container.container_id' is invalid"
+                     ": " + error->message);
+      }
+
+      // Nested containers always have at least one parent.
+      if (!call.remove_nested_container().container_id().has_parent()) {
+        return Error("Expecting 'remove_nested_container.container_id.parent'"
+                     " to be present");
+      }
+
+      return None();
+    }
+
     case mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION: {
       if (!call.has_launch_nested_container_session()) {
         return Error(
@@ -242,6 +271,15 @@ Option<Error> validate(
         return Error(
             "Expecting 'launch_nested_container_session.container_id.parent'"
             " to be present");
+      }
+
+      if (call.launch_nested_container_session().has_command()) {
+        error = common::validation::validateCommandInfo(
+            call.launch_nested_container_session().command());
+        if (error.isSome()) {
+          return Error("'launch_nested_container_session.command' is invalid"
+                       ": " + error->message);
+        }
       }
 
       return None();
@@ -342,7 +380,7 @@ Option<Error> validate(const mesos::executor::Call& call)
         return Error("Expecting 'uuid' to be present");
       }
 
-      Try<UUID> uuid = UUID::fromBytes(status.uuid()).get();
+      Try<UUID> uuid = UUID::fromBytes(status.uuid());
       if (uuid.isError()) {
         return uuid.error();
       }
@@ -373,6 +411,18 @@ Option<Error> validate(const mesos::executor::Call& call)
                      call.framework_id().value() +
                      " which is not allowed"
                      );
+      }
+
+      // TODO(alexr): Validate `check_status` is present if
+      // the corresponding `TaskInfo.check` has been defined.
+
+      if (status.has_check_status()) {
+        Option<Error> validate =
+          checks::validation::checkStatusInfo(status.check_status());
+
+        if (validate.isSome()) {
+          return validate.get();
+        }
       }
 
       return None();

@@ -26,6 +26,7 @@
 
 #include <stout/try.hpp>
 
+#include <mesos/slave/containerizer.hpp>
 #include <mesos/slave/container_logger.hpp>
 
 #include "slave/flags.hpp"
@@ -60,25 +61,45 @@ public:
 
   virtual bool supportsNesting();
 
+  virtual process::Future<Nothing> recover(
+    const std::list<mesos::slave::ContainerState>& states,
+    const hashset<ContainerID>& orphans);
+
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig);
 
+  virtual process::Future<mesos::slave::ContainerLimitation> watch(
+    const ContainerID& containerId);
+
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId);
 
+  // Connect to the `IOSwitchboard` associated with `containerId`.
   process::Future<process::http::Connection> connect(
-      const ContainerID& containerId);
+      const ContainerID& containerId) const;
+
+  // Transfer ownership of a `ContainerIO` struct for a given
+  // container out of the `IOSwitchboard` and into the caller.
+  process::Future<Option<mesos::slave::ContainerIO>> extractContainerIO(
+      const ContainerID& containerID);
+
+  // Helper function that returns `true` if `IOSwitchboardServer`
+  // needs to be enabled for the given `ContainerConfig`. It must
+  // be enabled for `DEBUG` containers and ones that need `TTYInfo`.
+  static bool requiresServer(
+      const mesos::slave::ContainerConfig& containerConfig);
 
 private:
   struct Info
   {
-    Info(pid_t _pid, const process::Future<Option<int>>& _status)
+    Info(Option<pid_t> _pid, const process::Future<Option<int>>& _status)
       : pid(_pid),
         status(_status) {}
 
-    pid_t pid;
+    Option<pid_t> pid;
     process::Future<Option<int>> status;
+    process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
 
   IOSwitchboard(
@@ -89,12 +110,33 @@ private:
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig,
-      const mesos::slave::ContainerLogger::SubprocessInfo& loggerInfo);
+      const mesos::slave::ContainerIO& loggerIO);
+
+  process::Future<process::http::Connection> _connect(
+      const ContainerID& containerId) const;
+
+  process::Future<Option<mesos::slave::ContainerIO>> _extractContainerIO(
+      const ContainerID& containerID);
+
+#ifndef __WINDOWS__
+  void reaped(
+      const ContainerID& containerId,
+      const process::Future<Option<int>>& future);
+#endif // __WINDOWS__
 
   Flags flags;
   bool local;
   process::Owned<mesos::slave::ContainerLogger> logger;
   hashmap<ContainerID, process::Owned<Info>> infos;
+
+  // We use a separate hashmap to hold the `ContainerIO` for each
+  // container because we need to maintain this information even in
+  // the case were we only instantiate the logger and never spawn an
+  // `IOSwitchbaordProcess`. Also, the lifetime of the `ContainerIO`
+  // is shorter lived than the `Info` struct, as it should be removed
+  // from this hash as soon as ownership is transferred out of the
+  // `IOSwitchboard` via a call to `extractContainerIO()`.
+  hashmap<ContainerID, mesos::slave::ContainerIO> containerIOs;
 };
 
 
@@ -113,14 +155,84 @@ class IOSwitchboardServerProcess;
 class IOSwitchboardServer
 {
 public:
-  static const char NAME[];
+  // The set of flags to pass to the io switchboard server when
+  // launched in an external binary.
+  struct Flags : public virtual flags::FlagsBase
+  {
+    Flags()
+    {
+      setUsageMessage(
+        "Usage: " + stringify(NAME) + " [options]\n"
+        "The io switchboard server is designed to feed stdin to a container\n"
+        "from an external source, as well as redirect the stdin/stdout of a\n"
+        "container to multiple targets.\n"
+        "\n"
+        "It runs an HTTP server over a unix domain socket in order to process\n"
+        "incoming `ATTACH_CONTAINER_INPUT` and `ATTACH_CONTAINER_OUTPUT`\n"
+        "calls and redirect a containers `stdin/stdout/stderr` through them.\n"
+        "\n"
+        "The primary motivation of this component is to enable support in\n"
+        "mesos similar to `docker attach` and `docker exec` whereby an\n"
+        "external client can attach to the stdin/stdout/stderr of a running\n"
+        "container as well as launch arbitrary subcommands inside a container\n"
+        "and attach to its stdin/stdout/stderr.\n");
 
-  // Constant FD numbers used by I/O switchboard server.
-  static const int STDIN_TO_FD;
-  static const int STDOUT_FROM_FD;
-  static const int STDERR_FROM_FD;
-  static const int STDOUT_TO_FD;
-  static const int STDERR_TO_FD;
+      add(&Flags::tty,
+          "tty",
+          "If a pseudo terminal has been allocated for the container.",
+           false);
+
+      add(&Flags::stdin_to_fd,
+          "stdin_to_fd",
+          "The file descriptor where incoming stdin data should be written.");
+
+      add(&Flags::stdout_from_fd,
+          "stdout_from_fd",
+          "The file descriptor that should be read to consume stdout data.");
+
+      add(&Flags::stdout_to_fd,
+          "stdout_to_fd",
+          "A file descriptor where data read from\n"
+          "'stdout_from_fd' should be redirected to.");
+
+      add(&Flags::stderr_from_fd,
+          "stderr_from_fd",
+          "The file descriptor that should be read to consume stderr data.");
+
+      add(&Flags::stderr_to_fd,
+          "stderr_to_fd",
+          "A file descriptor where data read from\n"
+          "'stderr_from_fd' should be redirected to.");
+
+      add(&Flags::wait_for_connection,
+          "wait_for_connection",
+          "A boolean indicating whether the server should wait for the\n"
+          "first connection before reading any data from the '*_from_fd's.",
+          false);
+
+      add(&Flags::socket_path,
+          "socket_address",
+          "The path of the unix domain socket this\n"
+          "io switchboard should attach itself to.");
+
+      add(&Flags::heartbeat_interval,
+          "heartbeat_interval",
+          "A heartbeat interval (e.g. '5secs', '10mins') for messages to\n"
+          "be sent to any open 'ATTACH_CONTAINER_OUTPUT' connections.");
+    }
+
+    bool tty;
+    Option<int> stdin_to_fd;
+    Option<int> stdout_from_fd;
+    Option<int> stdout_to_fd;
+    Option<int> stderr_from_fd;
+    Option<int> stderr_to_fd;
+    Option<std::string> socket_path;
+    bool wait_for_connection;
+    Option<Duration> heartbeat_interval;
+  };
+
+  static const char NAME[];
 
   static Try<process::Owned<IOSwitchboardServer>> create(
       bool tty,
@@ -130,11 +242,17 @@ public:
       int stderrFromFd,
       int stderrToFd,
       const std::string& socketPath,
-      bool waitForConnection = false);
+      bool waitForConnection = false,
+      Option<Duration> heartbeatInterval = None());
 
   ~IOSwitchboardServer();
 
+  // Run the io switchboard server.
   process::Future<Nothing> run();
+
+  // Forcibly unblock the io switchboard server if it
+  // has been started with `waitForConnection` set to `true`.
+  process::Future<Nothing> unblock();
 
 private:
   IOSwitchboardServer(
@@ -145,84 +263,10 @@ private:
       int stderrFromFd,
       int stderrToFd,
       const process::network::unix::Socket& socket,
-      bool waitForConnection);
+      bool waitForConnection,
+      Option<Duration> heartbeatInterval);
 
   process::Owned<IOSwitchboardServerProcess> process;
-};
-
-
-// The set of flags to pass to the io switchboard server when launched
-// in an external binary.
-struct IOSwitchboardServerFlags : public virtual flags::FlagsBase
-{
-  IOSwitchboardServerFlags()
-  {
-    setUsageMessage(
-      "Usage: " + stringify(IOSwitchboardServer::NAME) + " [options]\n"
-      "The io switchboard server is designed to feed stdin to a container\n"
-      "from an external source, as well as redirect the stdin/stdout of a\n"
-      "container to multiple targets.\n"
-      "\n"
-      "It runs an HTTP server over a unix domain socket in order to process\n"
-      "incoming `ATTACH_CONTAINER_INPUT` and `ATTACH_CONTAINER_OUTPUT` calls\n"
-      "and redirect a containers `stdin/stdout/stderr` through them.\n"
-      "\n"
-      "The primary motivation of this component is to enable support in mesos\n"
-      "similar to `docker attach` and `docker exec` whereby an external\n"
-      "client can attach to the stdin/stdout/stderr of a running container as\n"
-      "well as launch arbitrary subcommands inside a container and attach to\n"
-      "its stdin/stdout/stderr.\n");
-
-    add(&IOSwitchboardServerFlags::tty,
-        "tty",
-        "If a pseudo terminal has been allocated for the container.");
-
-    add(&IOSwitchboardServerFlags::stdin_to_fd,
-        "stdin_to_fd",
-        "The file descriptor where incoming stdin data should be written.",
-        IOSwitchboardServer::STDIN_TO_FD);
-
-    add(&IOSwitchboardServerFlags::stdout_from_fd,
-        "stdout_from_fd",
-        "The file descriptor that should be read to consume stdout data.",
-        IOSwitchboardServer::STDOUT_FROM_FD);
-
-    add(&IOSwitchboardServerFlags::stdout_to_fd,
-        "stdout_to_fd",
-        "A file descriptor where data read from\n"
-        "'stdout_from_fd' should be redirected to.",
-        IOSwitchboardServer::STDOUT_TO_FD);
-
-    add(&IOSwitchboardServerFlags::stderr_from_fd,
-        "stderr_from_fd",
-        "The file descriptor that should be read to consume stderr data.",
-        IOSwitchboardServer::STDERR_FROM_FD);
-
-    add(&IOSwitchboardServerFlags::stderr_to_fd,
-        "stderr_to_fd",
-        "A file descriptor where data read from\n"
-        "'stderr_from_fd' should be redirected to.",
-        IOSwitchboardServer::STDERR_TO_FD);
-
-    add(&IOSwitchboardServerFlags::wait_for_connection,
-        "wait_for_connection",
-        "A boolean indicating whether the server should wait for the\n"
-        "first connection before reading any data from the '*_from_fd's.");
-
-    add(&IOSwitchboardServerFlags::socket_path,
-        "socket_address",
-        "The path of the unix domain socket this\n"
-        "io switchboard should attach itself to.");
-  }
-
-  bool tty;
-  int stdin_to_fd;
-  int stdout_from_fd;
-  int stdout_to_fd;
-  int stderr_from_fd;
-  int stderr_to_fd;
-  std::string socket_path;
-  bool wait_for_connection;
 };
 #endif // __WINDOWS__
 

@@ -111,8 +111,11 @@ class DiskFullSchedulerProcess
   : public process::Process<DiskFullSchedulerProcess>
 {
 public:
-  DiskFullSchedulerProcess (const Flags& _flags)
+  DiskFullSchedulerProcess (
+      const Flags& _flags,
+      const FrameworkInfo& _frameworkInfo)
     : flags(_flags),
+      frameworkInfo(_frameworkInfo),
       tasksLaunched(0),
       taskActive(false),
       isRegistered(false),
@@ -135,10 +138,11 @@ public:
       SchedulerDriver* driver,
       const std::vector<Offer>& offers)
   {
-    static const Resources TASK_RESOURCES = Resources::parse(
+    Resources taskResources = Resources::parse(
         "cpus:" + stringify(CPUS_PER_TASK) +
         ";mem:" + stringify(MEMORY_PER_TASK) +
         ";disk:" + stringify(DISK_PER_TASK.megabytes())).get();
+    taskResources.allocate(frameworkInfo.role());
 
     foreach (const Offer& offer, offers) {
       LOG(INFO) << "Received offer " << offer.id() << " from agent "
@@ -149,7 +153,7 @@ public:
 
       // If we've already launched the task, or if the offer is not
       // big enough, reject the offer.
-      if (taskActive || !resources.flatten().contains(TASK_RESOURCES)) {
+      if (taskActive || !resources.flatten().contains(taskResources)) {
         Filters filters;
         filters.set_refuse_seconds(600);
 
@@ -173,7 +177,7 @@ public:
       task.set_name("Disk full framework task");
       task.mutable_task_id()->set_value(stringify(taskId));
       task.mutable_slave_id()->MergeFrom(offer.slave_id());
-      task.mutable_resources()->CopyFrom(TASK_RESOURCES);
+      task.mutable_resources()->CopyFrom(taskResources);
       task.mutable_command()->set_shell(true);
       task.mutable_command()->set_value(command);
 
@@ -252,6 +256,8 @@ public:
 
 private:
   const Flags flags;
+  const FrameworkInfo frameworkInfo;
+
   int tasksLaunched;
   bool taskActive;
 
@@ -313,8 +319,8 @@ private:
 class DiskFullScheduler : public Scheduler
 {
 public:
-  DiskFullScheduler(const Flags& _flags)
-    : process(_flags)
+  DiskFullScheduler(const Flags& _flags, const FrameworkInfo& _frameworkInfo)
+    : process(_flags, _frameworkInfo)
   {
     process::spawn(process);
   }
@@ -426,12 +432,12 @@ int main(int argc, char** argv)
     EXIT(EXIT_FAILURE) << flags.usage(load.error());
   }
 
-  DiskFullScheduler scheduler(flags);
-
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill the current user.
   framework.set_name("Disk Full Framework (C++)");
   framework.set_checkpoint(true);
+
+  DiskFullScheduler scheduler(flags, framework);
 
   MesosSchedulerDriver* driver;
 

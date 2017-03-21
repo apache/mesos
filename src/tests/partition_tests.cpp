@@ -72,6 +72,7 @@ using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
 using testing::Return;
+using testing::SaveArg;
 
 using ::testing::WithParamInterface;
 
@@ -165,7 +166,7 @@ TEST_F(PartitionTest, PartitionedSlave)
 // This test checks that a slave can reregister with the master after
 // a partition, and that PARTITION_AWARE tasks running on the slave
 // continue to run.
-TEST_F(PartitionTest, ReregisterSlavePartitionAware)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
 {
   Clock::pause();
 
@@ -183,8 +184,8 @@ TEST_F(PartitionTest, ReregisterSlavePartitionAware)
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   StandaloneMasterDetector detector(master.get()->pid);
-
-  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, agentFlags);
   ASSERT_SOME(slave);
 
   // Start a scheduler. The scheduler has the PARTITION_AWARE
@@ -207,8 +208,10 @@ TEST_F(PartitionTest, ReregisterSlavePartitionAware)
 
   driver.start();
 
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -224,10 +227,10 @@ TEST_F(PartitionTest, ReregisterSlavePartitionAware)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -237,6 +240,8 @@ TEST_F(PartitionTest, ReregisterSlavePartitionAware)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&unreachableStatus));
 
+  // We expect to get a `slaveLost` callback, even though this
+  // scheduler is partition-aware.
   Future<Nothing> slaveLost;
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(FutureSatisfy(&slaveLost));
@@ -255,20 +260,125 @@ TEST_F(PartitionTest, ReregisterSlavePartitionAware)
   Clock::advance(masterFlags.agent_ping_timeout);
 
   AWAIT_READY(unreachableStatus);
-  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
-  EXPECT_EQ(task.task_id(), unreachableStatus.get().task_id());
-  EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus->reason());
+  EXPECT_EQ(task.task_id(), unreachableStatus->task_id());
+  EXPECT_EQ(slaveId, unreachableStatus->slave_id());
 
   AWAIT_READY(slaveLost);
 
-  JSON::Object stats = Metrics();
-  EXPECT_EQ(0, stats.values["master/tasks_lost"]);
-  EXPECT_EQ(1, stats.values["master/tasks_unreachable"]);
-  EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
-  EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
-  EXPECT_EQ(1, stats.values["master/slave_removals"]);
-  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  {
+    JSON::Object stats = Metrics();
+    EXPECT_EQ(0, stats.values["master/tasks_lost"]);
+    EXPECT_EQ(1, stats.values["master/tasks_unreachable"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+  }
+
+  // Check the master's "/state" endpoint. There should be a single
+  // unreachable agent. The "tasks" and "completed_tasks" fields
+  // should be empty; there should be a single unreachable task.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    EXPECT_EQ(0, parse->values["activated_slaves"].as<JSON::Number>());
+    EXPECT_EQ(0, parse->values["deactivated_slaves"].as<JSON::Number>());
+    EXPECT_EQ(1, parse->values["unreachable_slaves"].as<JSON::Number>());
+
+    EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    JSON::Array completedTasks =
+      framework.values["completed_tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(completedTasks.values.empty());
+
+    JSON::Array runningTasks = framework.values["tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(runningTasks.values.empty());
+
+    JSON::Array unreachableTasks =
+      framework.values["unreachable_tasks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, unreachableTasks.values.size());
+
+    JSON::Object unreachableTask =
+      unreachableTasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(), unreachableTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_UNREACHABLE",
+        unreachableTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Check the master's "/tasks" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "tasks",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array tasks = parse->values["tasks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, tasks.values.size());
+
+    JSON::Object jsonTask = tasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(), jsonTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_UNREACHABLE",
+        jsonTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Check the master's "/state-summary" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state-summary",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(0, framework.values["TASK_LOST"].as<JSON::Number>());
+    EXPECT_EQ(0, framework.values["TASK_RUNNING"].as<JSON::Number>());
+    EXPECT_EQ(1, framework.values["TASK_UNREACHABLE"].as<JSON::Number>());
+  }
 
   // We now complete the partition on the slave side as well. We
   // simulate a master loss event, which would normally happen during
@@ -281,6 +391,7 @@ TEST_F(PartitionTest, ReregisterSlavePartitionAware)
 
   detector.appoint(master.get()->pid);
 
+  Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregistered);
 
   // Perform explicit reconciliation; the task should still be running.
@@ -296,10 +407,117 @@ TEST_F(PartitionTest, ReregisterSlavePartitionAware)
   driver.reconcileTasks({status});
 
   AWAIT_READY(reconcileUpdate);
-  EXPECT_EQ(TASK_RUNNING, reconcileUpdate.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate.get().reason());
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
 
   Clock::resume();
+
+  // Check the master's "/state" endpoint. The "unreachable_tasks" and
+  // "completed_tasks" fields should be empty; there should be a
+  // single running task.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    JSON::Array completedTasks =
+      framework.values["completed_tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(completedTasks.values.empty());
+
+    JSON::Array unreachableTasks =
+      framework.values["unreachable_tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(unreachableTasks.values.empty());
+
+    JSON::Array tasks = framework.values["tasks"].as<JSON::Array>();
+
+    JSON::Object activeTask = tasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(), activeTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_RUNNING", activeTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Check the master's "/tasks" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "tasks",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array tasks = parse->values["tasks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, tasks.values.size());
+
+    JSON::Object jsonTask = tasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(), jsonTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_RUNNING",
+        jsonTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Check the master's "/state-summary" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state-summary",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(0, framework.values["TASK_LOST"].as<JSON::Number>());
+    EXPECT_EQ(0, framework.values["TASK_UNREACHABLE"].as<JSON::Number>());
+    EXPECT_EQ(1, framework.values["TASK_RUNNING"].as<JSON::Number>());
+  }
+
+  {
+    JSON::Object stats = Metrics();
+    EXPECT_EQ(1, stats.values["master/tasks_running"]);
+    EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+    EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
+  }
 
   driver.stop();
   driver.join();
@@ -309,7 +527,7 @@ TEST_F(PartitionTest, ReregisterSlavePartitionAware)
 // This test checks that a slave can reregister with the master after
 // a partition, and that non-PARTITION_AWARE tasks running on the
 // slave are shutdown.
-TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
 {
   Clock::pause();
 
@@ -327,8 +545,8 @@ TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   StandaloneMasterDetector detector(master.get()->pid);
-
-  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, agentFlags);
   ASSERT_SOME(slave);
 
   // Start a scheduler. The scheduler is not PARTITION_AWARE, so we
@@ -347,8 +565,10 @@ TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
 
   driver.start();
 
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -364,10 +584,10 @@ TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -377,8 +597,6 @@ TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&lostStatus));
 
-  // Note that we expect to get `slaveLost` callbacks in both
-  // schedulers, regardless of PARTITION_AWARE.
   Future<Nothing> slaveLost;
   EXPECT_CALL(sched, slaveLost(&driver, _))
     .WillOnce(FutureSatisfy(&slaveLost));
@@ -408,22 +626,71 @@ TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
   // The scheduler should see TASK_LOST because it is not
   // PARTITION_AWARE.
   AWAIT_READY(lostStatus);
-  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
-  EXPECT_EQ(task.task_id(), lostStatus.get().task_id());
-  EXPECT_EQ(slaveId, lostStatus.get().slave_id());
-  EXPECT_EQ(partitionTime, lostStatus.get().unreachable_time());
+  EXPECT_EQ(TASK_LOST, lostStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus->reason());
+  EXPECT_EQ(task.task_id(), lostStatus->task_id());
+  EXPECT_EQ(slaveId, lostStatus->slave_id());
+  EXPECT_EQ(partitionTime, lostStatus->unreachable_time());
 
   AWAIT_READY(slaveLost);
 
-  JSON::Object stats = Metrics();
-  EXPECT_EQ(1, stats.values["master/tasks_lost"]);
-  EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
-  EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
-  EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
-  EXPECT_EQ(1, stats.values["master/slave_removals"]);
-  EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
-  EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
+  {
+    JSON::Object stats = Metrics();
+    EXPECT_EQ(1, stats.values["master/tasks_lost"]);
+    EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+    EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
+  }
+
+  // Check the master's "/state" endpoint. The "tasks" and
+  // "unreachable_tasks" fields should be empty; there should be a
+  // single completed task (we report LOST tasks as "completed" for
+  // backward compatibility).
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    JSON::Array runningTasks = framework.values["tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(runningTasks.values.empty());
+
+    JSON::Array unreachableTasks =
+      framework.values["unreachable_tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(unreachableTasks.values.empty());
+
+    JSON::Array completedTasks =
+      framework.values["completed_tasks"].as<JSON::Array>();
+
+    JSON::Object completedTask =
+      completedTasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(), completedTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_LOST",
+        completedTask.values["state"].as<JSON::String>().value);
+  }
 
   // We now complete the partition on the slave side as well. We
   // simulate a master loss event, which would normally happen during
@@ -436,6 +703,7 @@ TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
 
   detector.appoint(master.get()->pid);
 
+  Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregistered);
 
   // Perform explicit reconciliation. The task should not be running
@@ -452,11 +720,95 @@ TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
   driver.reconcileTasks({status});
 
   AWAIT_READY(reconcileUpdate);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate.get().reason());
-  EXPECT_FALSE(reconcileUpdate.get().has_unreachable_time());
+  EXPECT_EQ(TASK_LOST, reconcileUpdate->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
+  EXPECT_FALSE(reconcileUpdate->has_unreachable_time());
 
   Clock::resume();
+
+  // Check the master's "/state" endpoint. The "tasks" and
+  // "unreachable_tasks" fields should be empty; there should be a
+  // single completed task (we report LOST tasks as "completed" for
+  // backward compatibility).
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    JSON::Array runningTasks = framework.values["tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(runningTasks.values.empty());
+
+    JSON::Array unreachableTasks =
+      framework.values["unreachable_tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(unreachableTasks.values.empty());
+
+    JSON::Array completedTasks =
+      framework.values["completed_tasks"].as<JSON::Array>();
+
+    JSON::Object completedTask =
+      completedTasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(), completedTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_LOST",
+        completedTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Check the master's "/state-summary" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state-summary",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(0, framework.values["TASK_RUNNING"].as<JSON::Number>());
+    EXPECT_EQ(0, framework.values["TASK_UNREACHABLE"].as<JSON::Number>());
+    EXPECT_EQ(1, framework.values["TASK_LOST"].as<JSON::Number>());
+  }
+
+  {
+    JSON::Object stats = Metrics();
+    EXPECT_EQ(1, stats.values["master/tasks_lost"]);
+    EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+    EXPECT_EQ(0, stats.values["master/tasks_killed"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_scheduled"]);
+    EXPECT_EQ(1, stats.values["master/slave_unreachable_completed"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals"]);
+    EXPECT_EQ(1, stats.values["master/slave_removals/reason_unhealthy"]);
+    EXPECT_EQ(0, stats.values["master/slave_removals/reason_unregistered"]);
+  }
 
   driver.stop();
   driver.join();
@@ -470,7 +822,9 @@ TEST_F(PartitionTest, ReregisterSlaveNotPartitionAware)
 // not. Both tasks should survive the reregistration of the partitioned
 // agent: we allow the non-partition-aware task to continue running for
 // backward compatibility with the "non-strict" Mesos 1.0 behavior.
-TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    PartitionTest,
+    PartitionedSlaveReregistrationMasterFailover)
 {
   Clock::pause();
 
@@ -491,7 +845,6 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   slaveFlags.resources = "cpus:2;mem:1024";
 
   StandaloneMasterDetector detector(master.get()->pid);
-
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
 
@@ -508,12 +861,15 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
 
   driver1.start();
 
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
   Resources taskResources = Resources::parse("cpus:1;mem:512").get();
+  taskResources.allocate(DEFAULT_FRAMEWORK_INFO.role());
 
   EXPECT_TRUE(Resources(offer.resources()).contains(taskResources));
 
@@ -530,10 +886,10 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   driver1.launchTasks(offer.id(), {task1});
 
   AWAIT_READY(runningStatus1);
-  EXPECT_EQ(TASK_RUNNING, runningStatus1.get().state());
-  EXPECT_EQ(task1.task_id(), runningStatus1.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus1->state());
+  EXPECT_EQ(task1.task_id(), runningStatus1->task_id());
 
-  const SlaveID slaveId = runningStatus1.get().slave_id();
+  const SlaveID& slaveId = runningStatus1->slave_id();
 
   AWAIT_READY(statusUpdateAck1);
 
@@ -554,7 +910,7 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   driver2.start();
 
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -573,9 +929,9 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   driver2.launchTasks(offer.id(), {task2});
 
   AWAIT_READY(runningStatus2);
-  EXPECT_EQ(TASK_RUNNING, runningStatus2.get().state());
-  EXPECT_EQ(task2.task_id(), runningStatus2.get().task_id());
-  EXPECT_EQ(slaveId, runningStatus2.get().slave_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus2->state());
+  EXPECT_EQ(task2.task_id(), runningStatus2->task_id());
+  EXPECT_EQ(slaveId, runningStatus2->slave_id());
 
   AWAIT_READY(statusUpdateAck2);
 
@@ -623,19 +979,19 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
 
   // `sched1` should see TASK_LOST.
   AWAIT_READY(lostStatus);
-  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
-  EXPECT_EQ(task1.task_id(), lostStatus.get().task_id());
-  EXPECT_EQ(slaveId, lostStatus.get().slave_id());
-  EXPECT_EQ(partitionTime, lostStatus.get().unreachable_time());
+  EXPECT_EQ(TASK_LOST, lostStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus->reason());
+  EXPECT_EQ(task1.task_id(), lostStatus->task_id());
+  EXPECT_EQ(slaveId, lostStatus->slave_id());
+  EXPECT_EQ(partitionTime, lostStatus->unreachable_time());
 
   // `sched2` should see TASK_UNREACHABLE.
   AWAIT_READY(unreachableStatus);
-  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
-  EXPECT_EQ(task2.task_id(), unreachableStatus.get().task_id());
-  EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
-  EXPECT_EQ(partitionTime, unreachableStatus.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus->reason());
+  EXPECT_EQ(task2.task_id(), unreachableStatus->task_id());
+  EXPECT_EQ(slaveId, unreachableStatus->slave_id());
+  EXPECT_EQ(partitionTime, unreachableStatus->unreachable_time());
 
   // The master should notify both schedulers that the slave was lost.
   AWAIT_READY(slaveLost1);
@@ -667,6 +1023,7 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   detector.appoint(master.get()->pid);
 
   // Wait for slave to reregister.
+  Clock::advance(slaveFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregistered);
 
   // Wait for both schedulers to reregister.
@@ -689,8 +1046,8 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   driver1.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_RUNNING, reconcileUpdate1.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate1->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
 
   TaskStatus status2;
   status2.mutable_task_id()->CopyFrom(task2.task_id());
@@ -704,10 +1061,18 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
   driver2.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_RUNNING, reconcileUpdate2.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate2->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
 
   Clock::resume();
+
+  {
+    JSON::Object stats = Metrics();
+    EXPECT_EQ(2, stats.values["master/tasks_running"]);
+    EXPECT_EQ(0, stats.values["master/tasks_lost"]);
+    EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+    EXPECT_EQ(0, stats.values["master/slave_removals"]);
+  }
 
   driver1.stop();
   driver1.join();
@@ -718,10 +1083,10 @@ TEST_F(PartitionTest, PartitionedSlaveReregistrationMasterFailover)
 
 
 // This test causes a slave to be partitioned while it is running a
-// task for a PARTITION_AWARE scheduler. The scheduler disconnects
-// before the partition heals. Right now, the task is left running as
-// an orphan; once MESOS-4659 is fixed, the task should be shutdown.
-TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
+// task for a PARTITION_AWARE framework. The scheduler is shutdown
+// before the partition heals; the task should be shutdown after the
+// agent re-registers.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
 {
   Clock::pause();
 
@@ -739,8 +1104,8 @@ TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
   StandaloneMasterDetector detector(master.get()->pid);
-
-  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, agentFlags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
@@ -762,8 +1127,11 @@ TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
   driver.start();
 
   AWAIT_READY(frameworkId);
+
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -780,10 +1148,10 @@ TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -811,84 +1179,198 @@ TEST_F(PartitionTest, PartitionedSlaveOrphanedTask)
   Clock::advance(masterFlags.agent_ping_timeout);
   Clock::settle();
 
-  // Record the time at which we expect the master to have marked the
-  // agent as unhealthy. We then advance the clock -- this shouldn't
-  // do anything, but it ensures that the `unreachable_time` we check
-  // below is computed at the right time.
-  TimeInfo partitionTime = protobuf::getCurrentTime();
-
-  Clock::advance(Milliseconds(100));
-
   AWAIT_READY(unreachableStatus);
-  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus.get().reason());
-  EXPECT_EQ(task.task_id(), unreachableStatus.get().task_id());
-  EXPECT_EQ(slaveId, unreachableStatus.get().slave_id());
-  EXPECT_EQ(partitionTime, unreachableStatus.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus->reason());
+  EXPECT_EQ(task.task_id(), unreachableStatus->task_id());
+  EXPECT_EQ(slaveId, unreachableStatus->slave_id());
+  EXPECT_TRUE(unreachableStatus->has_unreachable_time());
 
   AWAIT_READY(slaveLost);
 
   // Disconnect the scheduler. The default `failover_timeout` is 0, so
-  // the framework's tasks should be shutdown when the slave
-  // reregisters, but this is currently not implemented (MESOS-4659).
+  // the framework's tasks should be shutdown when the slave reregisters.
   driver.stop();
   driver.join();
 
-  // Simulate a master loss event at the slave and then cause the
-  // slave to reregister with the master.
-  detector.appoint(None());
+  // Before the agent re-registers, check how `task` is displayed by
+  // the master's "/state" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array unregisteredFrameworks =
+      parse->values["unregistered_frameworks"].as<JSON::Array>();
+
+    EXPECT_TRUE(unregisteredFrameworks.values.empty());
+
+    EXPECT_TRUE(parse->values["frameworks"].as<JSON::Array>().values.empty());
+    EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array completedFrameworks =
+      parse->values["completed_frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, completedFrameworks.values.size());
+
+    JSON::Object framework =
+      completedFrameworks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        frameworkId.get(),
+        framework.values["id"].as<JSON::String>().value);
+
+    EXPECT_TRUE(framework.values["tasks"].as<JSON::Array>().values.empty());
+    EXPECT_TRUE(
+        framework.values["unreachable_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array completedTasks =
+      framework.values["completed_tasks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, completedTasks.values.size());
+
+    JSON::Object completedTask =
+      completedTasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(),
+        completedTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_KILLED",
+        completedTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Cause the slave to re-register with the master; the master should
+  // send a `ShutdownFrameworkMessage` to the slave.
   Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
       SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
 
+  Future<ShutdownFrameworkMessage> shutdownFramework = FUTURE_PROTOBUF(
+      ShutdownFrameworkMessage(), master.get()->pid, slave.get()->pid);
+
   detector.appoint(master.get()->pid);
 
+  Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregistered);
-
-  // Check if `task` is still running by querying master's state endpoint.
-  Future<Response> response = process::http::get(
-      master.get()->pid,
-      "state",
-      None(),
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
-
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
-
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
-  ASSERT_SOME(parse);
-
-  JSON::Object state = parse.get();
-  JSON::Array completedFrameworks =
-    state.values["completed_frameworks"].as<JSON::Array>();
-
-  EXPECT_EQ(1u, completedFrameworks.values.size());
-
-  JSON::Object jsonFramework =
-    completedFrameworks.values.front().as<JSON::Object>();
-
-  JSON::String jsonFrameworkId = jsonFramework.values["id"].as<JSON::String>();
-
-  EXPECT_EQ(frameworkId.get(), jsonFrameworkId.value);
-
-  // TODO(neilc): Update this when MESOS-4659 is fixed.
-  JSON::Array orphanTasks = state.values["orphan_tasks"].as<JSON::Array>();
-
-  EXPECT_EQ(1u, orphanTasks.values.size());
-
-  JSON::Object jsonTask = orphanTasks.values.front().as<JSON::Object>();
-  JSON::String jsonTaskId = jsonTask.values["id"].as<JSON::String>();
-
-  EXPECT_EQ(task.task_id(), jsonTaskId.value);
+  AWAIT_READY(shutdownFramework);
 
   Clock::resume();
+
+  // After the agent re-registers, check how `task` is displayed by
+  // the master's "/state" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array unregisteredFrameworks =
+      parse->values["unregistered_frameworks"].as<JSON::Array>();
+
+    EXPECT_TRUE(unregisteredFrameworks.values.empty());
+
+    EXPECT_TRUE(parse->values["frameworks"].as<JSON::Array>().values.empty());
+    EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array completedFrameworks =
+      parse->values["completed_frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, completedFrameworks.values.size());
+
+    JSON::Object framework =
+      completedFrameworks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        frameworkId.get(),
+        framework.values["id"].as<JSON::String>().value);
+
+    EXPECT_TRUE(framework.values["tasks"].as<JSON::Array>().values.empty());
+    EXPECT_TRUE(
+        framework.values["unreachable_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array completedTasks =
+      framework.values["completed_tasks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, completedTasks.values.size());
+
+    JSON::Object completedTask =
+      completedTasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(),
+        completedTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_KILLED",
+        completedTask.values["state"].as<JSON::String>().value);
+  }
+
+  // Check the master's "/state-summary" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state-summary",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    EXPECT_TRUE( frameworks.values.empty());
+  }
+
+  // Also check the master's "/tasks" endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "tasks",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array tasks = parse->values["tasks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, tasks.values.size());
+
+    JSON::Object jsonTask = tasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(), jsonTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_KILLED",
+        jsonTask.values["state"].as<JSON::String>().value);
+  }
 }
 
 
 // This test checks that the master handles a slave that becomes
 // partitioned while running a task that belongs to a disconnected
 // framework.
-TEST_F(PartitionTest, DisconnectedFramework)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, DisconnectedFramework)
 {
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -918,7 +1400,7 @@ TEST_F(PartitionTest, DisconnectedFramework)
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers1);
 
-  ASSERT_FALSE(offers1.get().empty());
+  ASSERT_FALSE(offers1->empty());
   Offer offer = offers1.get()[0];
 
   // Launch `task` using `sched1`.
@@ -934,10 +1416,10 @@ TEST_F(PartitionTest, DisconnectedFramework)
   driver1.launchTasks(offer.id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck1);
 
@@ -961,7 +1443,9 @@ TEST_F(PartitionTest, DisconnectedFramework)
 
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
-  // Notify the slave about the new master and wait for it to reregister.
+  // Notify the slave about the new master and wait for it to
+  // reregister. The task on the agent should continue running,
+  // because the master has failed over.
   Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
       SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
 
@@ -1020,10 +1504,10 @@ TEST_F(PartitionTest, DisconnectedFramework)
     driver2.reconcileTasks({status});
 
     AWAIT_READY(reconcileUpdate);
-    EXPECT_EQ(TASK_LOST, reconcileUpdate.get().state());
+    EXPECT_EQ(TASK_LOST, reconcileUpdate->state());
     EXPECT_EQ(TaskStatus::REASON_RECONCILIATION,
-              reconcileUpdate.get().reason());
-    EXPECT_TRUE(reconcileUpdate.get().has_unreachable_time());
+              reconcileUpdate->reason());
+    EXPECT_TRUE(reconcileUpdate->has_unreachable_time());
 
     Clock::resume();
 
@@ -1046,7 +1530,7 @@ TEST_F(PartitionTest, DisconnectedFramework)
 // master (e.g., because of a spurious Zk leader flap at the slave),
 // the master does not kill any tasks on the slave, even if those
 // tasks are not PARTITION_AWARE.
-TEST_F(PartitionTest, SpuriousSlaveReregistration)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, SpuriousSlaveReregistration)
 {
   Clock::pause();
 
@@ -1055,14 +1539,14 @@ TEST_F(PartitionTest, SpuriousSlaveReregistration)
   ASSERT_SOME(master);
 
   StandaloneMasterDetector detector(master.get()->pid);
-
-  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, agentFlags);
   ASSERT_SOME(slave);
 
   // The framework should not be PARTITION_AWARE, since tasks started
   // by PARTITION_AWARE frameworks will never be killed on reregistration.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  CHECK(!protobuf::frameworkHasCapability(
+  ASSERT_FALSE(protobuf::frameworkHasCapability(
       frameworkInfo, FrameworkInfo::Capability::PARTITION_AWARE));
 
   MockScheduler sched;
@@ -1080,8 +1564,11 @@ TEST_F(PartitionTest, SpuriousSlaveReregistration)
   driver.start();
 
   AWAIT_READY(frameworkId);
+
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
-  ASSERT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -1098,10 +1585,10 @@ TEST_F(PartitionTest, SpuriousSlaveReregistration)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(runningStatus);
-  EXPECT_EQ(TASK_RUNNING, runningStatus.get().state());
-  EXPECT_EQ(task.task_id(), runningStatus.get().task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  const SlaveID slaveId = runningStatus.get().slave_id();
+  const SlaveID& slaveId = runningStatus->slave_id();
 
   AWAIT_READY(statusUpdateAck);
 
@@ -1116,6 +1603,7 @@ TEST_F(PartitionTest, SpuriousSlaveReregistration)
 
   detector.appoint(master.get()->pid);
 
+  Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregistered);
 
   // Perform explicit reconciliation. The task should still be running.
@@ -1131,8 +1619,8 @@ TEST_F(PartitionTest, SpuriousSlaveReregistration)
   driver.reconcileTasks({status});
 
   AWAIT_READY(reconcileUpdate);
-  EXPECT_EQ(TASK_RUNNING, reconcileUpdate.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate.get().reason());
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
 
   driver.stop();
   driver.join();
@@ -1147,7 +1635,7 @@ TEST_F(PartitionTest, SpuriousSlaveReregistration)
 // master's POV). In prior Mesos versions, the master would shutdown
 // the slave in this situation. In Mesos >= 1.1, the master will drop
 // the status update; the slave will eventually try to reregister.
-TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveStatusUpdates)
 {
   Clock::pause();
 
@@ -1168,12 +1656,15 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
 
+  slave::Flags agentFlags = CreateSlaveFlags();
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, agentFlags);
   ASSERT_SOME(slave);
 
+  Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  const SlaveID& slaveId = slaveRegisteredMessage->slave_id();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1215,6 +1706,7 @@ TEST_F(PartitionTest, PartitionedSlaveStatusUpdates)
   AWAIT_READY(slaveLost);
 
   // Slave will try to authenticate for reregistration; message dropped.
+  Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(authenticateMessage);
 
   JSON::Object stats = Metrics();
@@ -1338,7 +1830,7 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   // Launch a task. This allows us to have the slave send an
   // ExitedExecutorMessage.
@@ -1382,8 +1874,8 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 
   // The master will notify the framework of the lost task.
   AWAIT_READY(lostStatus);
-  EXPECT_EQ(TASK_LOST, lostStatus.get().state());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus.get().reason());
+  EXPECT_EQ(TASK_LOST, lostStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus->reason());
 
   // The master will notify the framework that the slave was lost.
   AWAIT_READY(slaveLost);
@@ -1416,10 +1908,483 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 }
 
 
+// This test verifies that when a non-partition-aware task finishes
+// while an agent is partitioned, that task is displayed correctly at
+// the master after the partition heals.
+TEST_F(PartitionTest, TaskCompletedOnPartitionedAgent)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Allow the master to PING the slave, but drop all PONG messages
+  // from the slave. Note that we don't match on the master / slave
+  // PIDs because it's actually the `SlaveObserver` process that sends
+  // the pings.
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&detector, &containerizer, agentFlags);
+  ASSERT_SOME(slave);
+
+  // Start a non-partition-aware scheduler.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  Clock::advance(agentFlags.registration_backoff_factor);
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  const Offer& offer = offers->at(0);
+  const SlaveID& slaveId = offer.slave_id();
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(SaveArg<0>(&execDriver));
+
+  Future<TaskInfo> execTask;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(FutureArg<1>(&execTask));
+
+  Future<Nothing> runningAtScheduler;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureSatisfy(&runningAtScheduler));
+
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
+      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+
+  TaskInfo task;
+  task.set_name("test-task");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(slaveId);
+  task.mutable_resources()->MergeFrom(offer.resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(execTask);
+
+  {
+    TaskStatus runningStatus;
+    runningStatus.mutable_task_id()->MergeFrom(execTask->task_id());
+    runningStatus.set_state(TASK_RUNNING);
+
+    execDriver->sendStatusUpdate(runningStatus);
+  }
+
+  AWAIT_READY(runningAtScheduler);
+  AWAIT_READY(statusUpdateAck);
+
+  // Now, induce a partition of the slave by having the master
+  // timeout the slave.
+  Future<TaskStatus> lostStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&lostStatus));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  size_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+  Clock::settle();
+
+  // The scheduler should see TASK_LOST because it is not
+  // PARTITION_AWARE.
+  AWAIT_READY(lostStatus);
+  EXPECT_EQ(TASK_LOST, lostStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, lostStatus->reason());
+  EXPECT_EQ(task.task_id(), lostStatus->task_id());
+  EXPECT_EQ(slaveId, lostStatus->slave_id());
+  EXPECT_TRUE(lostStatus->has_unreachable_time());
+
+  AWAIT_READY(slaveLost);
+
+  // Have the executor inform the slave that the task has finished.
+  {
+    TaskStatus finishedStatus;
+    finishedStatus.mutable_task_id()->MergeFrom(execTask->task_id());
+    finishedStatus.set_state(TASK_FINISHED);
+
+    execDriver->sendStatusUpdate(finishedStatus);
+  }
+
+  // Cause the slave to reregister with the master. Because the
+  // framework is not partition-aware, this results in shutting down
+  // the executor on the slave. The enqueued TASK_FINISHED update
+  // should also be propagated to the scheduler.
+  detector.appoint(None());
+
+  Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
+      SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
+
+  Future<Nothing> execShutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&execShutdown));
+
+  Future<TaskStatus> finishedStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&finishedStatus));
+
+  detector.appoint(master.get()->pid);
+
+  Clock::advance(agentFlags.registration_backoff_factor);
+  AWAIT_READY(slaveReregistered);
+  AWAIT_READY(execShutdown);
+
+  AWAIT_READY(finishedStatus);
+  EXPECT_EQ(TASK_FINISHED, finishedStatus->state());
+  EXPECT_EQ(task.task_id(), finishedStatus->task_id());
+  EXPECT_EQ(slaveId, finishedStatus->slave_id());
+
+  // Perform explicit reconciliation. The task should not be running
+  // (TASK_LOST) because the framework is not PARTITION_AWARE.
+  TaskStatus status;
+  status.mutable_task_id()->CopyFrom(task.task_id());
+  status.mutable_slave_id()->CopyFrom(slaveId);
+  status.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate));
+
+  driver.reconcileTasks({status});
+
+  AWAIT_READY(reconcileUpdate);
+  EXPECT_EQ(TASK_LOST, reconcileUpdate->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
+  EXPECT_FALSE(reconcileUpdate->has_unreachable_time());
+
+  Clock::resume();
+
+  // Check the master's "/state" endpoint. The "tasks" and
+  // "unreachable_tasks" fields should be empty; there should be a
+  // single completed task.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    JSON::Array runningTasks = framework.values["tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(runningTasks.values.empty());
+
+    JSON::Array unreachableTasks =
+      framework.values["unreachable_tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(unreachableTasks.values.empty());
+
+    JSON::Array completedTasks =
+      framework.values["completed_tasks"].as<JSON::Array>();
+
+    JSON::Object completedTask =
+      completedTasks.values.front().as<JSON::Object>();
+
+    // TODO(neilc): It might be better to report TASK_FINISHED here. We
+    // report TASK_LOST currently because the master doesn't update
+    // the state of tasks it has already marked as completed.
+    EXPECT_EQ(
+        task.task_id(), completedTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_LOST",
+        completedTask.values["state"].as<JSON::String>().value);
+  }
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that when a partition-aware task finishes while
+// an agent is partitioned, that task is displayed correctly at the
+// master after the partition heals.
+TEST_F(PartitionTest, PartitionAwareTaskCompletedOnPartitionedAgent)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Allow the master to PING the slave, but drop all PONG messages
+  // from the slave. Note that we don't match on the master / slave
+  // PIDs because it's actually the `SlaveObserver` process that sends
+  // the pings.
+  Future<Message> ping = FUTURE_MESSAGE(
+      Eq(PingSlaveMessage().GetTypeName()), _, _);
+
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&detector, &containerizer, agentFlags);
+  ASSERT_SOME(slave);
+
+  // Start a partition-aware scheduler.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  Clock::advance(agentFlags.registration_backoff_factor);
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  const Offer& offer = offers->at(0);
+  const SlaveID& slaveId = offer.slave_id();
+
+  ExecutorDriver* execDriver;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .WillOnce(SaveArg<0>(&execDriver));
+
+  Future<TaskInfo> execTask;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(FutureArg<1>(&execTask));
+
+  Future<Nothing> runningAtScheduler;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureSatisfy(&runningAtScheduler));
+
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
+      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+
+  TaskInfo task;
+  task.set_name("test-task");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(slaveId);
+  task.mutable_resources()->MergeFrom(offer.resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(execTask);
+
+  {
+    TaskStatus runningStatus;
+    runningStatus.mutable_task_id()->MergeFrom(execTask->task_id());
+    runningStatus.set_state(TASK_RUNNING);
+
+    execDriver->sendStatusUpdate(runningStatus);
+  }
+
+  AWAIT_READY(runningAtScheduler);
+  AWAIT_READY(statusUpdateAck);
+
+  // Now, induce a partition of the slave by having the master
+  // timeout the slave.
+  Future<TaskStatus> unreachableStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&unreachableStatus));
+
+  Future<Nothing> slaveLost;
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .WillOnce(FutureSatisfy(&slaveLost));
+
+  size_t pings = 0;
+  while (true) {
+    AWAIT_READY(ping);
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    ping = FUTURE_MESSAGE(Eq(PingSlaveMessage().GetTypeName()), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+  }
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+  Clock::settle();
+
+  // The scheduler should see TASK_UNREACHABLE because it is
+  // PARTITION_AWARE.
+  AWAIT_READY(unreachableStatus);
+  EXPECT_EQ(TASK_UNREACHABLE, unreachableStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, unreachableStatus->reason());
+  EXPECT_EQ(task.task_id(), unreachableStatus->task_id());
+  EXPECT_EQ(slaveId, unreachableStatus->slave_id());
+  EXPECT_TRUE(unreachableStatus->has_unreachable_time());
+
+  AWAIT_READY(slaveLost);
+
+  // Have the executor inform the slave that the task has finished.
+  {
+    TaskStatus finishedStatus;
+    finishedStatus.mutable_task_id()->MergeFrom(execTask->task_id());
+    finishedStatus.set_state(TASK_FINISHED);
+
+    execDriver->sendStatusUpdate(finishedStatus);
+  }
+
+  // Cause the slave to reregister with the master. Because the
+  // framework is partition-aware, this should not result in shutting
+  // down the executor on the slave. The enqueued TASK_FINISHED update
+  // should also be propagated to the scheduler.
+  //
+  // The master sends the current framework PID to the slave via
+  // `UpdateFrameworkMessage`; the slave then resends any pending
+  // status updates. This would make the test non-deterministic; since
+  // the framework PID is unchanged, drop the `UpdateFrameworkMessage`.
+  detector.appoint(None());
+
+  Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
+      SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
+
+  Future<UpdateFrameworkMessage> frameworkUpdate = DROP_PROTOBUF(
+      UpdateFrameworkMessage(), master.get()->pid, slave.get()->pid);
+
+  Future<TaskStatus> finishedStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&finishedStatus));
+
+  detector.appoint(master.get()->pid);
+
+  Clock::advance(agentFlags.registration_backoff_factor);
+  AWAIT_READY(slaveReregistered);
+  AWAIT_READY(frameworkUpdate);
+
+  AWAIT_READY(finishedStatus);
+  EXPECT_EQ(TASK_FINISHED, finishedStatus->state());
+  EXPECT_EQ(task.task_id(), finishedStatus->task_id());
+  EXPECT_EQ(slaveId, finishedStatus->slave_id());
+
+  // Perform explicit reconciliation. The task should not be running.
+  TaskStatus status;
+  status.mutable_task_id()->CopyFrom(task.task_id());
+  status.mutable_slave_id()->CopyFrom(slaveId);
+  status.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate));
+
+  driver.reconcileTasks({status});
+
+  AWAIT_READY(reconcileUpdate);
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
+  EXPECT_FALSE(reconcileUpdate->has_unreachable_time());
+
+  // Check the master's "/state" endpoint. The "tasks" and
+  // "unreachable_tasks" fields should be empty; there should be a
+  // single completed task.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    EXPECT_TRUE(parse->values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    JSON::Array frameworks = parse->values["frameworks"].as<JSON::Array>();
+
+    ASSERT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+
+    JSON::Array runningTasks = framework.values["tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(runningTasks.values.empty());
+
+    JSON::Array unreachableTasks =
+      framework.values["unreachable_tasks"].as<JSON::Array>();
+
+    EXPECT_TRUE(unreachableTasks.values.empty());
+
+    JSON::Array completedTasks =
+      framework.values["completed_tasks"].as<JSON::Array>();
+
+    JSON::Object completedTask =
+      completedTasks.values.front().as<JSON::Object>();
+
+    EXPECT_EQ(
+        task.task_id(), completedTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_FINISHED",
+        completedTask.values["state"].as<JSON::String>().value);
+  }
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test checks that the master correctly garbage collects
 // information about unreachable agents from the registry using the
 // count-based GC criterion.
-TEST_F(PartitionTest, RegistryGcByCount)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
 {
   // Configure GC to only keep the most recent partitioned agent in
   // the unreachable list.
@@ -1431,7 +2396,7 @@ TEST_F(PartitionTest, RegistryGcByCount)
   const Duration health_check_duration =
     masterFlags.agent_ping_timeout * masterFlags.max_agent_ping_timeouts;
 
-  CHECK(masterFlags.registry_gc_interval >= health_check_duration * 2);
+  ASSERT_GE(masterFlags.registry_gc_interval, health_check_duration * 2);
 
   // Pause the clock before starting the master. This ensures that we
   // know precisely when the GC timer will fire.
@@ -1451,12 +2416,15 @@ TEST_F(PartitionTest, RegistryGcByCount)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage1 =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
+  slave::Flags agentFlags1 = CreateSlaveFlags();
   Owned<MasterDetector> slaveDetector1 = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave1 = StartSlave(slaveDetector1.get());
+  Try<Owned<cluster::Slave>> slave1 =
+    StartSlave(slaveDetector1.get(), agentFlags1);
   ASSERT_SOME(slave1);
 
+  Clock::advance(agentFlags1.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage1);
-  const SlaveID slaveId1 = slaveRegisteredMessage1.get().slave_id();
+  const SlaveID slaveId1 = slaveRegisteredMessage1->slave_id();
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.add_capabilities()->set_type(
@@ -1521,12 +2489,15 @@ TEST_F(PartitionTest, RegistryGcByCount)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
+  slave::Flags agentFlags2 = CreateSlaveFlags();
   Owned<MasterDetector> slaveDetector2 = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave2 = StartSlave(slaveDetector2.get());
+  Try<Owned<cluster::Slave>> slave2 =
+    StartSlave(slaveDetector2.get(), agentFlags2);
   ASSERT_SOME(slave2);
 
+  Clock::advance(agentFlags2.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage2);
-  const SlaveID slaveId2 = slaveRegisteredMessage2.get().slave_id();
+  const SlaveID slaveId2 = slaveRegisteredMessage2->slave_id();
 
   Future<Nothing> slaveLost2;
   EXPECT_CALL(sched, slaveLost(&driver, _))
@@ -1580,9 +2551,9 @@ TEST_F(PartitionTest, RegistryGcByCount)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
-  EXPECT_EQ(partitionTime1, reconcileUpdate1.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
+  EXPECT_EQ(partitionTime1, reconcileUpdate1->unreachable_time());
 
   // Advance the clock to cause GC to be performed.
   Clock::advance(masterFlags.registry_gc_interval);
@@ -1603,9 +2574,9 @@ TEST_F(PartitionTest, RegistryGcByCount)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
-  EXPECT_FALSE(reconcileUpdate2.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
+  EXPECT_FALSE(reconcileUpdate2->has_unreachable_time());
 
   // Do explicit reconciliation for a random task ID on the second
   // partitioned slave. Because the agent is still in the unreachable
@@ -1622,9 +2593,9 @@ TEST_F(PartitionTest, RegistryGcByCount)
   driver.reconcileTasks({status3});
 
   AWAIT_READY(reconcileUpdate3);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate3.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3.get().reason());
-  EXPECT_EQ(partitionTime2, reconcileUpdate3.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate3->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3->reason());
+  EXPECT_EQ(partitionTime2, reconcileUpdate3->unreachable_time());
 
   JSON::Object stats = Metrics();
   EXPECT_EQ(2, stats.values["master/slave_unreachable_scheduled"]);
@@ -1646,11 +2617,12 @@ TEST_F(PartitionTest, RegistryGcByCount)
 // would be annoying to do by creating slaves and simulating network
 // partitions; instead we add agents to the unreachable list by
 // directly applying registry operations.
-TEST_F(PartitionTest, RegistryGcByCountManySlaves)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCountManySlaves)
 {
   // Configure GC to only keep the most recent partitioned agent in
   // the unreachable list.
   master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
   masterFlags.registry_max_agent_count = 1;
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -1730,9 +2702,9 @@ TEST_F(PartitionTest, RegistryGcByCountManySlaves)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
-  EXPECT_EQ(unreachableTime, reconcileUpdate1.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
+  EXPECT_EQ(unreachableTime, reconcileUpdate1->unreachable_time());
 
   TaskStatus status2;
   status2.mutable_task_id()->set_value(UUID::random().toString());
@@ -1746,9 +2718,9 @@ TEST_F(PartitionTest, RegistryGcByCountManySlaves)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
-  EXPECT_FALSE(reconcileUpdate2.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
+  EXPECT_FALSE(reconcileUpdate2->has_unreachable_time());
 
   driver.stop();
   driver.join();
@@ -1762,16 +2734,23 @@ TEST_F(PartitionTest, RegistryGcByCountManySlaves)
 // age-based GC criterion. We configure GC to discard agents after 20
 // minutes; GC occurs every 15 mins. We test the following schedule:
 //
-// 75 sec:              slave1 is marked unreachable
-// 720 secs (12 mins):  slave2 is marked unreachable
+// 1 sec:               slave1 registered
+// 76 sec:              slave1 is marked unreachable
+// 720 secs (12 mins):  slave2 registers, is marked unreachable
 // 900 secs (15 mins):  GC runs, nothing discarded
 // 1800 secs (30 mins): GC runs, slave1 is discarded
 // 2700 secs (45 mins): GC runs, slave2 is discarded
-TEST_F(PartitionTest, RegistryGcByAge)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry_gc_interval = Minutes(15);
   masterFlags.registry_max_agent_age = Minutes(20);
+
+  slave::Flags agentFlags1 = CreateSlaveFlags();
+  agentFlags1.registration_backoff_factor = Seconds(1);
+
+  slave::Flags agentFlags2 = CreateSlaveFlags();
+  agentFlags2.registration_backoff_factor = Seconds(1);
 
   // Pause the clock before starting the master. This ensures that we
   // know precisely when the GC timer will fire.
@@ -1794,11 +2773,14 @@ TEST_F(PartitionTest, RegistryGcByAge)
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   Owned<MasterDetector> slaveDetector1 = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave1 = StartSlave(slaveDetector1.get());
+  Try<Owned<cluster::Slave>> slave1 =
+    StartSlave(slaveDetector1.get(), agentFlags1);
   ASSERT_SOME(slave1);
 
+  // Advance clock to trigger agent registration.
+  Clock::advance(agentFlags1.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage1);
-  const SlaveID slaveId1 = slaveRegisteredMessage1.get().slave_id();
+  const SlaveID slaveId1 = slaveRegisteredMessage1->slave_id();
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.add_capabilities()->set_type(
@@ -1858,20 +2840,27 @@ TEST_F(PartitionTest, RegistryGcByAge)
   // Per the schedule above, we want the second slave to be
   // partitioned after 720 seconds have elapsed, so we advance the
   // clock by 570 seconds (570 + 75 + 75 = 720).
-  EXPECT_EQ(Seconds(75), Clock::now() - startTime);
+  EXPECT_EQ(Seconds(75) + agentFlags1.registration_backoff_factor,
+            Clock::now() - startTime);
 
-  Clock::advance(Seconds(570));
+  // Advance clock to 720 seconds, minus the time we took to register agent1,
+  // and minus the time we will take to register agent 2.
+  Clock::advance(Seconds(570) - agentFlags1.registration_backoff_factor -
+    agentFlags2.registration_backoff_factor);
 
   // Start another slave.
   Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   Owned<MasterDetector> slaveDetector2 = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave2 = StartSlave(slaveDetector2.get());
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(slaveDetector2.get(),
+                                                 agentFlags2);
   ASSERT_SOME(slave2);
 
+  // Advance clock to trigger agent registration.
+  Clock::advance(agentFlags2.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage2);
-  const SlaveID slaveId2 = slaveRegisteredMessage2.get().slave_id();
+  const SlaveID slaveId2 = slaveRegisteredMessage2->slave_id();
 
   Future<Nothing> slaveLost2;
   EXPECT_CALL(sched, slaveLost(&driver, _))
@@ -1926,9 +2915,9 @@ TEST_F(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
-  EXPECT_EQ(partitionTime1, reconcileUpdate1.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate1->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
+  EXPECT_EQ(partitionTime1, reconcileUpdate1->unreachable_time());
 
   TaskStatus status2;
   status2.mutable_task_id()->set_value(UUID::random().toString());
@@ -1942,9 +2931,9 @@ TEST_F(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate2.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
-  EXPECT_EQ(partitionTime2, reconcileUpdate2.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate2->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
+  EXPECT_EQ(partitionTime2, reconcileUpdate2->unreachable_time());
 
   // Advance the clock to cause GC to be performed.
   Clock::advance(Minutes(15));
@@ -1965,9 +2954,9 @@ TEST_F(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status3});
 
   AWAIT_READY(reconcileUpdate3);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate3.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3.get().reason());
-  EXPECT_FALSE(reconcileUpdate3.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate3->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3->reason());
+  EXPECT_FALSE(reconcileUpdate3->has_unreachable_time());
 
   TaskStatus status4;
   status4.mutable_task_id()->set_value(UUID::random().toString());
@@ -1981,9 +2970,9 @@ TEST_F(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status4});
 
   AWAIT_READY(reconcileUpdate4);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate4.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate4.get().reason());
-  EXPECT_EQ(partitionTime2, reconcileUpdate4.get().unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate4->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate4->reason());
+  EXPECT_EQ(partitionTime2, reconcileUpdate4->unreachable_time());
 
   // Advance the clock to cause GC to be performed.
   Clock::advance(Minutes(15));
@@ -2004,9 +2993,9 @@ TEST_F(PartitionTest, RegistryGcByAge)
   driver.reconcileTasks({status5});
 
   AWAIT_READY(reconcileUpdate5);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate5.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate5.get().reason());
-  EXPECT_FALSE(reconcileUpdate5.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate5->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate5->reason());
+  EXPECT_FALSE(reconcileUpdate5->has_unreachable_time());
 
   driver.stop();
   driver.join();
@@ -2022,7 +3011,7 @@ TEST_F(PartitionTest, RegistryGcByAge)
 // configure GC to only keep a single agent. Concurrently with GC
 // running, we arrange for one of those agents to reregister with the
 // master.
-TEST_F(PartitionTest, RegistryGcRace)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry_max_agent_count = 1;
@@ -2045,13 +3034,14 @@ TEST_F(PartitionTest, RegistryGcRace)
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   Owned<MasterDetector> detector1 = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave1 = StartSlave(detector1.get());
+  slave::Flags agentFlags1 = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(detector1.get(), agentFlags1);
   ASSERT_SOME(slave1);
 
   // Wait for the slave to register and get the slave id.
+  Clock::advance(agentFlags1.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage1);
-  SlaveID slaveId1 = slaveRegisteredMessage1.get().slave_id();
+  SlaveID slaveId1 = slaveRegisteredMessage1->slave_id();
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.add_capabilities()->set_type(
@@ -2103,13 +3093,14 @@ TEST_F(PartitionTest, RegistryGcRace)
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   StandaloneMasterDetector detector2(master.get()->pid);
-
-  Try<Owned<cluster::Slave>> slave2 = StartSlave(&detector2);
+  slave::Flags agentFlags2 = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(&detector2, agentFlags2);
   ASSERT_SOME(slave2);
 
   // Wait for the slave to register and get the slave id.
+  Clock::advance(agentFlags2.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage2);
-  SlaveID slaveId2 = slaveRegisteredMessage2.get().slave_id();
+  SlaveID slaveId2 = slaveRegisteredMessage2->slave_id();
 
   // Induce a partition of the slave.
   size_t pings2 = 0;
@@ -2143,12 +3134,14 @@ TEST_F(PartitionTest, RegistryGcRace)
 
   Owned<MasterDetector> detector3 = master.get()->createDetector();
 
-  Try<Owned<cluster::Slave>> slave3 = StartSlave(detector3.get());
+  slave::Flags agentFlags3 = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave3 = StartSlave(detector3.get(), agentFlags3);
   ASSERT_SOME(slave3);
 
   // Wait for the slave to register and get the slave id.
+  Clock::advance(agentFlags3.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage3);
-  SlaveID slaveId3 = slaveRegisteredMessage3.get().slave_id();
+  SlaveID slaveId3 = slaveRegisteredMessage3->slave_id();
 
   // Induce a partition of the slave.
   size_t pings3 = 0;
@@ -2169,6 +3162,8 @@ TEST_F(PartitionTest, RegistryGcRace)
   Clock::advance(masterFlags.agent_ping_timeout);
 
   AWAIT_READY(slaveLost3);
+
+  Clock::advance(agentFlags2.registration_backoff_factor);
   AWAIT_READY(reregisterSlave2);
 
   // `slave3` will try to re-register below when we advance the clock.
@@ -2186,11 +3181,12 @@ TEST_F(PartitionTest, RegistryGcRace)
 
   detector2.appoint(master.get()->pid);
 
+  Clock::advance(agentFlags2.registration_backoff_factor);
   AWAIT_READY(markReachable);
   EXPECT_NE(
       nullptr,
       dynamic_cast<master::MarkSlaveReachable*>(
-          markReachable.get().get()));
+          markReachable->get()));
 
   // Trigger GC. Because GC has been configured to preserve a single
   // unreachable slave (the slave marked unreachable most recently),
@@ -2209,7 +3205,7 @@ TEST_F(PartitionTest, RegistryGcRace)
   EXPECT_NE(
       nullptr,
       dynamic_cast<master::PruneUnreachable*>(
-          pruneUnreachable.get().get()));
+          pruneUnreachable->get()));
 
   // Apply the registry operation to mark the slave reachable, then
   // pass the result back to the master to allow it to continue. We
@@ -2251,9 +3247,9 @@ TEST_F(PartitionTest, RegistryGcRace)
   driver.reconcileTasks({status1});
 
   AWAIT_READY(reconcileUpdate1);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate1.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1.get().reason());
-  EXPECT_FALSE(reconcileUpdate1.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate1->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
+  EXPECT_FALSE(reconcileUpdate1->has_unreachable_time());
 
   TaskStatus status2;
   status2.mutable_task_id()->set_value(UUID::random().toString());
@@ -2267,9 +3263,9 @@ TEST_F(PartitionTest, RegistryGcRace)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2.get().reason());
-  EXPECT_FALSE(reconcileUpdate2.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
+  EXPECT_FALSE(reconcileUpdate2->has_unreachable_time());
 
   TaskStatus status3;
   status3.mutable_task_id()->set_value(UUID::random().toString());
@@ -2283,9 +3279,9 @@ TEST_F(PartitionTest, RegistryGcRace)
   driver.reconcileTasks({status3});
 
   AWAIT_READY(reconcileUpdate3);
-  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate3.get().state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3.get().reason());
-  EXPECT_TRUE(reconcileUpdate3.get().has_unreachable_time());
+  EXPECT_EQ(TASK_UNREACHABLE, reconcileUpdate3->state());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3->reason());
+  EXPECT_TRUE(reconcileUpdate3->has_unreachable_time());
 
   driver.stop();
   driver.join();
@@ -2373,7 +3369,7 @@ TEST_F(PartitionTest, FailHealthChecksTwice)
   EXPECT_NE(
       nullptr,
       dynamic_cast<master::MarkSlaveUnreachable*>(
-          markUnreachable.get().get()));
+          markUnreachable->get()));
 
   // Cause the slave to fail another health check. This is possible
   // because we don't shutdown the SlaveObserver until we have marked
@@ -2417,53 +3413,58 @@ TEST_F(PartitionTest, FailHealthChecksTwice)
 class OneWayPartitionTest : public MesosTest {};
 
 
-// This test verifies that if master --> slave socket closes and the
-// slave is not aware of it (i.e., one way network partition), slave
+// This test verifies that if the master --> slave socket closes and
+// the slave is unaware of it (i.e., one-way network partition), slave
 // will re-register with the master.
-TEST_F(OneWayPartitionTest, MasterToSlave)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToSlave)
 {
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  Future<Message> slaveRegisteredMessage =
-    FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   // Ensure a ping reaches the slave.
-  Future<Message> ping = FUTURE_MESSAGE(
-      Eq(PingSlaveMessage().GetTypeName()), _, _);
+  Future<PingSlaveMessage> ping = FUTURE_PROTOBUF(PingSlaveMessage(), _, _);
 
+  slave::Flags agentFlags = CreateSlaveFlags();
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), agentFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
 
   AWAIT_READY(ping);
+  EXPECT_TRUE(ping->connected());
 
   Future<Nothing> deactivateSlave =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
 
+  Clock::pause();
+
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected. The slave should not notice
-  // it until the next ping is received.
-  process::inject::exited(slaveRegisteredMessage.get().to, master.get()->pid);
+  // until it receives the next ping message.
+  process::inject::exited(slave.get()->pid, master.get()->pid);
 
   // Wait until master deactivates the slave.
   AWAIT_READY(deactivateSlave);
 
+  ping = FUTURE_PROTOBUF(PingSlaveMessage(), _, _);
+
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
-
-  // Ensure the slave observer marked the slave as deactivated.
-  Clock::pause();
-  Clock::settle();
 
   // Let the slave observer send the next ping.
   Clock::advance(masterFlags.agent_ping_timeout);
 
+  AWAIT_READY(ping);
+  EXPECT_FALSE(ping->connected());
+
   // Slave should re-register.
+  Clock::resume();
   AWAIT_READY(slaveReregisteredMessage);
 }
 
@@ -2472,7 +3473,7 @@ TEST_F(OneWayPartitionTest, MasterToSlave)
 // framework is not aware of it (i.e., one way network partition), all
 // subsequent calls from the framework after the master has marked it as
 // disconnected would result in an error message causing the framework to abort.
-TEST_F(OneWayPartitionTest, MasterToScheduler)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToScheduler)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -2503,7 +3504,7 @@ TEST_F(OneWayPartitionTest, MasterToScheduler)
 
   // Simulate framework disconnection. This should result in an error message.
   ASSERT_TRUE(process::inject::exited(
-      frameworkRegisteredMessage.get().to, master.get()->pid));
+      frameworkRegisteredMessage->to, master.get()->pid));
 
   AWAIT_READY(error);
 

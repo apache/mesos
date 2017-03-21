@@ -13,6 +13,11 @@
 #ifndef __STOUT_JSONIFY__
 #define __STOUT_JSONIFY__
 
+#ifndef __WINDOWS__
+#include <xlocale.h>
+#endif // __WINDOWS__
+
+#include <clocale>
 #include <cstddef>
 #include <functional>
 #include <ostream>
@@ -21,6 +26,7 @@
 #include <type_traits>
 #include <utility>
 
+#include <stout/check.hpp>
 #include <stout/result_of.hpp>
 #include <stout/strings.hpp>
 
@@ -49,6 +55,67 @@ JSON::Proxy jsonify(const T&);
 
 namespace JSON {
 
+namespace internal {
+
+/**
+ * This object changes the current thread's locale to the default "C"
+ * locale for number printing purposes. This prevents, for example,
+ * commas from appearing in printed numbers instead of decimal points.
+ *
+ * NOTE: This object should only be used to guard synchronous code.
+ * If multiple blocks of code need to enforce the default locale,
+ * each block should utilize this object.
+ */
+// TODO(josephw): Consider pulling this helper into a separate header.
+class ClassicLocale
+{
+#ifdef __WINDOWS__
+public:
+  ClassicLocale()
+  {
+    // We will only change the locale for this thread
+    // and save the previous state of the thread's locale.
+    original_per_thread_ = _configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
+
+    // NOTE: We must make a copy of the return value as it points
+    // to global or shared memory. Future calls to `setlocale` will
+    // invalidate the memory location.
+    original_locale_ = setlocale(LC_NUMERIC, "C");
+  }
+
+  ~ClassicLocale()
+  {
+    setlocale(LC_NUMERIC, original_locale_.c_str());
+    _configthreadlocale(original_per_thread_);
+  }
+
+private:
+  int original_per_thread_;
+  std::string original_locale_;
+#else
+public:
+  ClassicLocale()
+  {
+    c_locale_ = newlocale(LC_NUMERIC_MASK, "C", nullptr);
+    original_locale_ = uselocale(c_locale_);
+  }
+
+  ~ClassicLocale()
+  {
+    uselocale(original_locale_);
+    CHECK(c_locale_ != 0);
+    freelocale(c_locale_);
+  }
+
+private:
+  locale_t original_locale_;
+  locale_t c_locale_;
+#endif // __WINDOWS__
+};
+
+} // namespace internal {
+
+
 // The result of `jsonify`. This is a light-weight proxy object that can either
 // be implicitly converted to a `std::string`, or directly inserted into an
 // output stream.
@@ -62,6 +129,9 @@ class Proxy
 public:
   operator std::string() &&
   {
+    // Needed to set C locale and therefore creating proper JSON output.
+    internal::ClassicLocale guard;
+
     std::ostringstream stream;
     stream << std::move(*this);
     return stream.str();
@@ -94,6 +164,9 @@ private:
 
 inline std::ostream& operator<<(std::ostream& stream, Proxy&& that)
 {
+  // Needed to set C locale and therefore creating proper JSON output.
+  internal::ClassicLocale guard;
+
   that.write_(&stream);
   return stream;
 }

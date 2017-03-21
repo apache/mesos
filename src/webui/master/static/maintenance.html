@@ -1,0 +1,36 @@
+<ol class="breadcrumb">
+  <li>
+    <a class="badge badge-type" href="#/">Master</a>
+  </li>
+  <li class="active">
+    <span class="badge badge-type">Maintenance Schedule</span>
+  </li>
+</ol>
+
+<table m-table table-content="maintenance.windows" title="Maintenance Schedule"
+  class="table table-striped table-bordered table-condensed">
+  <thead>
+    <tr>
+      <th data-key="unavailability.start.nanoseconds" data-sort>Begin</th>
+      <th>End</th>
+      <th>Hosts</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr ng-repeat="window in $data">
+      <td>
+        <m-timestamp value="{{window.unavailability.start.nanoseconds / 1000000}}">
+        </m-timestamp>
+      </td>
+      <td>
+        <m-timestamp value="{{(window.unavailability.duration.nanoseconds + window.unavailability.start.nanoseconds) / 1000000}}">
+        </m-timestamp>
+      </td>
+      <td>
+          <div ng-repeat="machine_ids in window.machine_ids">
+            {{machine_ids.hostname ? machine_ids.hostname : machine_ids.ip}}
+          </div>
+      </td>
+    </tr>
+  </tbody>
+</table>

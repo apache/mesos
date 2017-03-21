@@ -29,23 +29,35 @@ namespace docker {
 
 inline URI image(
     const std::string& repository,
-    const std::string& tag,
+    const std::string& reference, // Either tag or digest.
     const std::string& registry,
     const Option<std::string>& scheme = None(),
     const Option<int>& port = None())
 {
-  return construct("docker", repository, registry, port, tag, scheme);
+  return construct(
+      "docker",
+      repository,
+      registry,
+      port,
+      reference,
+      scheme);
 }
 
 
 inline URI manifest(
     const std::string& repository,
-    const std::string& tag,
+    const std::string& reference, // Either tag or digest.
     const std::string& registry,
     const Option<std::string>& scheme = None(),
     const Option<int>& port = None())
 {
-  return construct("docker-manifest", repository, registry, port, tag, scheme);
+  return construct(
+      "docker-manifest",
+      repository,
+      registry,
+      port,
+      reference,
+      scheme);
 }
 
 
@@ -56,7 +68,13 @@ inline URI blob(
     const Option<std::string>& scheme = None(),
     const Option<int>& port = None())
 {
-  return construct("docker-blob", repository, registry, port, digest, scheme);
+  return construct(
+      "docker-blob",
+      repository,
+      registry,
+      port,
+      digest,
+      scheme);
 }
 
 } // namespace docker {

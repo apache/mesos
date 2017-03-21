@@ -32,6 +32,7 @@
 #include <stout/none.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/os.hpp>
 #include <stout/os/pagesize.hpp>
 #include <stout/os/process.hpp>
 #include <stout/os/sysctl.hpp>

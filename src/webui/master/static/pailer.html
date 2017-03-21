@@ -43,8 +43,22 @@
 
       $(window).resize(resize);
 
+      // Set target URL in `sessionStorage` and clean it in `localStorage`.
+      (function() {
+        // Avoid fetching the target URL if reloading the pailer windoow.
+        if (sessionStorage.getItem('isReloaded') !== 'true') {
+          var storageKey = window.name;
+          sessionStorage.setItem(storageKey, localStorage.getItem(storageKey));
+          localStorage.removeItem(storageKey);
+
+          sessionStorage.setItem('isReloaded', 'true');
+        }
+      })();
+
       $(document).ready(function() {
         resize();
+
+        var storageKey = window.name;
 
         $data.pailer({
           read: function(options) {
@@ -52,7 +66,7 @@
               'offset': -1,
               'length': -1
             }, options);
-            var url = window.name
+            var url = sessionStorage.getItem(storageKey)
               + '&offset=' + settings.offset
               + '&length=' + settings.length
               + '&jsonp=?';

@@ -240,7 +240,7 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsWithVolumes)
 
   Try<Owned<cluster::Slave>> slave = StartSlave(
       detector.get(),
-      containerizer.get().get(),
+      containerizer->get(),
       flags);
 
   ASSERT_SOME(slave);
@@ -394,7 +394,7 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsFailedWithSameVolumes)
 
   Try<Owned<cluster::Slave>> slave = StartSlave(
       detector.get(),
-      containerizer.get().get(),
+      containerizer->get(),
       flags);
 
   ASSERT_SOME(slave);
@@ -494,7 +494,7 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsSlaveRecovery)
 
   Try<Owned<cluster::Slave>> slave = StartSlave(
       detector.get(),
-      containerizer.get().get(),
+      containerizer->get(),
       flags);
 
   ASSERT_SOME(slave);
@@ -633,7 +633,7 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsSlaveRecovery)
                     Return(Nothing())));
 
   // Use the same flags.
-  slave = StartSlave(detector.get(), containerizer.get().get(), flags);
+  slave = StartSlave(detector.get(), containerizer->get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(reregistered);
@@ -643,9 +643,9 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsSlaveRecovery)
 
   Future<hashset<ContainerID>> containers = containerizer.get()->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   Future<TaskStatus> statusKilled;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -691,7 +691,7 @@ TEST_F(DockerVolumeIsolatorTest,
 
   Try<Owned<cluster::Slave>> slave = StartSlave(
       detector.get(),
-      containerizer.get().get(),
+      containerizer->get(),
       flags);
 
   ASSERT_SOME(slave);
@@ -825,7 +825,7 @@ TEST_F(DockerVolumeIsolatorTest,
 
   Try<Owned<cluster::Slave>> slave = StartSlave(
       detector.get(),
-      containerizer.get().get(),
+      containerizer->get(),
       flags);
 
   ASSERT_SOME(slave);
@@ -960,7 +960,7 @@ TEST_F(DockerVolumeIsolatorTest,
 
   Try<Owned<cluster::Slave>> slave = StartSlave(
       detector.get(),
-      containerizer.get().get(),
+      containerizer->get(),
       flags);
 
   ASSERT_SOME(slave);

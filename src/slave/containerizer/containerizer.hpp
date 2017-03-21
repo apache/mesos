@@ -151,6 +151,18 @@ public:
   virtual process::Future<bool> destroy(const ContainerID& containerId) = 0;
 
   virtual process::Future<hashset<ContainerID>> containers() = 0;
+
+  // Remove a nested container, including its sandbox and runtime directories.
+  //
+  // NOTE: You can only remove a a nested container that has been fully
+  // destroyed and whose parent has not been destroyed yet. If the parent has
+  // already been destroyed, then the sandbox and runtime directories will be
+  // eventually garbage collected. The caller is responsible for ensuring that
+  // `containerId` belongs to a nested container.
+  virtual process::Future<Nothing> remove(const ContainerID& containerId)
+  {
+    return process::Failure("Unsupported");
+  }
 };
 
 } // namespace slave {

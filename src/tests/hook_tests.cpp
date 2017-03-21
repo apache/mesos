@@ -51,6 +51,7 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 #include "tests/mock_docker.hpp"
+#include "tests/resources_utils.hpp"
 
 using namespace mesos::modules;
 
@@ -123,7 +124,7 @@ protected:
 
 
 // Test varioud hook install/uninstall mechanisms.
-TEST_F(HookTest, HookLoading)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, HookLoading)
 {
   // Installing unknown hooks should fail.
   EXPECT_ERROR(HookManager::initialize("Unknown Hook"));
@@ -146,7 +147,7 @@ TEST_F(HookTest, HookLoading)
 
 // Test that the label decorator hook hangs a new label off the
 // taskinfo message during master launch task.
-TEST_F(HookTest, VerifyMasterLaunchTaskHook)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, VerifyMasterLaunchTaskHook)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -174,7 +175,7 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -212,7 +213,7 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
   // hook module has stripped the first 'testRemoveLabelKey' label.
   // We do this by ensuring that only one label is present and that it
   // is the new 'testLabelKey' label.
-  const Labels &labels_ = runTaskMessage.get().task().labels();
+  const Labels &labels_ = runTaskMessage->task().labels();
   ASSERT_EQ(1, labels_.labels_size());
 
   EXPECT_EQ(testLabelKey, labels_.labels().Get(0).key());
@@ -229,7 +230,7 @@ TEST_F(HookTest, VerifyMasterLaunchTaskHook)
 // This test forces a `SlaveLost` event. When this happens, we expect the
 // `masterSlaveLostHook` to be invoked and await an internal libprocess event
 // to trigger in the module code.
-TEST_F(HookTest, MasterSlaveLostHookTest)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, MasterSlaveLostHookTest)
 {
   Future<HookExecuted> hookFuture = FUTURE_PROTOBUF(HookExecuted(), _, _);
 
@@ -280,7 +281,9 @@ TEST_F(HookTest, MasterSlaveLostHookTest)
 // Test hook adds a new environment variable "FOO" to the executor
 // with a value "bar". We validate the hook by verifying the value
 // of this environment variable.
-TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HookTest,
+    VerifySlaveExecutorEnvironmentDecorator)
 {
   const string& directory = os::getcwd(); // We're inside a temporary sandbox.
   Fetcher fetcher;
@@ -340,7 +343,7 @@ TEST_F(HookTest, VerifySlaveExecutorEnvironmentDecorator)
 // Test executor environment decorator hook and remove executor hook
 // for slave. We expect the environment-decorator hook to create a
 // temporary file and the remove-executor hook to delete that file.
-TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, VerifySlaveLaunchExecutorHook)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -370,7 +373,7 @@ TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task with the command executor.
   TaskInfo task;
@@ -389,7 +392,7 @@ TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
   // remove-executor hook.
   Future<Nothing> shutdown;
   EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&shutdown));;
+    .WillOnce(FutureSatisfy(&shutdown));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -425,7 +428,7 @@ TEST_F(HookTest, VerifySlaveLaunchExecutorHook)
 // with two labels ("foo":"bar" and "bar":"baz") is launched and will
 // get modified by the slave hook to strip the "foo":"bar" pair and
 // add a new "baz":"qux" pair.
-TEST_F(HookTest, VerifySlaveRunTaskHook)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, VerifySlaveRunTaskHook)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -451,7 +454,7 @@ TEST_F(HookTest, VerifySlaveRunTaskHook)
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -482,7 +485,7 @@ TEST_F(HookTest, VerifySlaveRunTaskHook)
   AWAIT_READY(taskInfo);
 
   // The master hook will hang an extra label off.
-  const Labels& labels_ = taskInfo.get().labels();
+  const Labels& labels_ = taskInfo->labels();
 
   ASSERT_EQ(3, labels_.labels_size());
 
@@ -514,7 +517,7 @@ TEST_F(HookTest, VerifySlaveRunTaskHook)
 // "bar":"baz") is sent from the executor. The labels get modified by
 // the slave hook to strip the "foo":"bar" pair and/ add a new
 // "baz":"qux" pair.
-TEST_F(HookTest, VerifySlaveTaskStatusDecorator)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, VerifySlaveTaskStatusDecorator)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -540,7 +543,7 @@ TEST_F(HookTest, VerifySlaveTaskStatusDecorator)
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
 
   // Start a task.
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
@@ -568,7 +571,7 @@ TEST_F(HookTest, VerifySlaveTaskStatusDecorator)
   // The hook also adds a new label with the same key but a different
   // value ("bar:quz").
   TaskStatus runningStatus;
-  runningStatus.mutable_task_id()->MergeFrom(execTask.get().task_id());
+  runningStatus.mutable_task_id()->MergeFrom(execTask->task_id());
   runningStatus.set_state(TASK_RUNNING);
 
   // Add two labels to the TaskStatus
@@ -582,7 +585,7 @@ TEST_F(HookTest, VerifySlaveTaskStatusDecorator)
   AWAIT_READY(status);
 
   // The hook will hang an extra label off.
-  const Labels& labels_ = status.get().labels();
+  const Labels& labels_ = status->labels();
 
   EXPECT_EQ(2, labels_.labels_size());
 
@@ -598,11 +601,11 @@ TEST_F(HookTest, VerifySlaveTaskStatusDecorator)
 
   // Now validate TaskInfo.container_status. We must have received a
   // container_status with one network_info set by the test hook module.
-  EXPECT_TRUE(status.get().has_container_status());
-  EXPECT_EQ(1, status.get().container_status().network_infos().size());
+  EXPECT_TRUE(status->has_container_status());
+  EXPECT_EQ(1, status->container_status().network_infos().size());
 
   const NetworkInfo networkInfo =
-    status.get().container_status().network_infos(0);
+    status->container_status().network_infos(0);
 
   // The hook module sets up '4.3.2.1' as the IP address and 'public' as the
   // network isolation group. The `ip_address` field is deprecated, but the
@@ -679,7 +682,7 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerTaskExecutorDecorator)
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
 
   // The task should see `HOOKTEST_TASK` but not `HOOKTEST_EXECUTOR`.
   TaskInfo task = createTask(
@@ -714,9 +717,9 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerTaskExecutorDecorator)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   Future<Option<ContainerTermination>> termination =
     containerizer.wait(containerId.get());
@@ -787,7 +790,7 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerValidator)
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -823,7 +826,7 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerValidator)
 
   AWAIT_READY(statusError);
 
-  EXPECT_EQ(TASK_FAILED, statusError.get().state());
+  EXPECT_EQ(TASK_FAILED, statusError->state());
   EXPECT_EQ(TaskStatus::REASON_CONTAINER_LAUNCH_FAILED, statusError->reason());
 
   driver.stop();
@@ -885,11 +888,9 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers.get().size());
+  ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
-
-  SlaveID slaveId = offer.slave_id();
 
   TaskInfo task;
   task.set_name("");
@@ -931,9 +932,9 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   Future<Option<ContainerTermination>> termination =
     containerizer.wait(containerId.get());
@@ -1044,10 +1045,10 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePostFetchHook)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY_FOR(statusFinished, Seconds(60));
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   driver.stop();
   driver.join();
@@ -1070,7 +1071,9 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePostFetchHook)
 
 // Test that the changes made by the resources decorator hook are correctly
 // propagated to the resource offer.
-TEST_F(HookTest, VerifySlaveResourcesAndAttributesDecorator)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HookTest,
+    VerifySlaveResourcesAndAttributesDecorator)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1098,16 +1101,25 @@ TEST_F(HookTest, VerifySlaveResourcesAndAttributesDecorator)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Resources resources = offers.get()[0].resources();
 
-  // The test hook sets "cpus" to 4.
-  EXPECT_EQ(4, resources.cpus().get());
+  // The test hook sets "cpus" to 4 and adds a resource named
+  // "foo" of type set with values "bar" and "baz".
+  //
+  // TODO(bmahler): Avoid the need for non-local reasoning here
+  // about the test hook. E.g. Expose the resources from the test
+  // hook and use them here.
+  const size_t TEST_HOOK_CPUS = 4;
+  const Resources TEST_HOOK_ADDITIONAL_RESOURCES =
+    Resources::parse("foo:{bar,baz}").get();
 
-  // The test hook adds a resource named "foo" of type set with values "bar"
-  // and "baz".
-  EXPECT_EQ(Resources::parse("foo:{bar,baz}").get(), resources.get("foo"));
+  EXPECT_EQ(TEST_HOOK_CPUS, resources.cpus().get());
+
+  const string allocationRole = DEFAULT_FRAMEWORK_INFO.role();
+  EXPECT_TRUE(resources.contains(
+      allocatedResources(TEST_HOOK_ADDITIONAL_RESOURCES, allocationRole)));
 
   // The test hook does not modify "mem", the default value must still be
   // present.

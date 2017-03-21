@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
@@ -22,9 +24,21 @@
 
 #include "tests/resources_utils.hpp"
 
+using std::string;
+
 namespace mesos {
 namespace internal {
 namespace tests {
+
+Resources allocatedResources(
+    const Resources& resources,
+    const string& role)
+{
+  Resources result = resources;
+  result.allocate(role);
+  return result;
+}
+
 
 Resource createPorts(const ::mesos::Value::Ranges& ranges)
 {

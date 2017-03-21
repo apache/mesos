@@ -13,6 +13,22 @@
 # Makefile for libprocess. Note that 3rdparty needs to be built
 # first (see 3rdparty/Makefile.am).
 
+# Enable common (and some language specific) warnings.
+AM_CXXFLAGS = -Wall
+# Warn when a comparison is made between signed and unsigned values.
+AM_CXXFLAGS += -Wsign-compare
+# Warn about use of format functions that can produce security issues.
+AM_CXXFLAGS += -Wformat-security
+
+# We will also have much more hardened/secured binaries and libraries.
+if ENABLE_HARDENING
+# Protect many of the functions with stack guards
+# (either -fstack-protector-strong or -fstack-protector depending on compiler support).
+AM_CXXFLAGS += @STACK_PROTECTOR@
+# Produce position independent code when appropriate.
+AM_CXXFLAGS += -fPIC -fPIE
+endif
+
 ACLOCAL_AMFLAGS = -I m4
 
 AUTOMAKE_OPTIONS = foreign
@@ -149,6 +165,7 @@ libprocess_la_SOURCES =		\
   src/latch.cpp			\
   src/logging.cpp		\
   src/metrics/metrics.cpp	\
+  src/mime.cpp			\
   src/pid.cpp			\
   src/poll_socket.cpp		\
   src/poll_socket.hpp		\
@@ -164,6 +181,8 @@ libprocess_la_SOURCES =		\
 
 if ENABLE_SSL
 libprocess_la_SOURCES +=	\
+    src/jwt.cpp			\
+    src/jwt_authenticator.cpp	\
     src/libevent_ssl_socket.cpp	\
     src/libevent_ssl_socket.hpp	\
     src/openssl.cpp		\
@@ -217,6 +236,7 @@ libprocess_la_LIBADD =		\
 check_PROGRAMS = libprocess-tests benchmarks
 
 libprocess_tests_SOURCES =					\
+  src/tests/after_tests.cpp					\
   src/tests/collect_tests.cpp					\
   src/tests/decoder_tests.cpp					\
   src/tests/encoder_tests.cpp					\
@@ -259,6 +279,7 @@ ssl_client_CPPFLAGS = $(libprocess_tests_CPPFLAGS)
 ssl_client_LDADD = $(libprocess_tests_LDADD)
 
 libprocess_tests_SOURCES +=		\
+  src/tests/jwt_tests.cpp		\
   src/tests/ssl_tests.cpp
 endif
 

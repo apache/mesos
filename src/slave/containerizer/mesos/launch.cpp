@@ -25,6 +25,8 @@
 #include <set>
 #include <string>
 
+#include <process/subprocess.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
@@ -37,6 +39,7 @@
 #include <mesos/slave/containerizer.hpp>
 
 #include "common/parse.hpp"
+#include "common/status_utils.hpp"
 
 #ifdef __linux__
 #include "linux/capabilities.hpp"
@@ -318,16 +321,7 @@ int MesosContainerizerLaunch::execute()
     flags.pipe_read.isSome() && flags.pipe_write.isSome();
 
   if (controlPipeSpecified) {
-    int pipe[2] = { flags.pipe_read.get(), flags.pipe_write.get() };
-
-    // NOTE: On windows we need to pass `HANDLE`s between processes,
-    // as file descriptors are not unique across processes. Here we
-    // convert back from from the `HANDLE`s we receive to fds that can
-    // be used in os-agnostic code.
-#ifdef __WINDOWS__
-    pipe[0] = os::handle_to_fd(pipe[0], _O_RDONLY | _O_TEXT);
-    pipe[1] = os::handle_to_fd(pipe[1], _O_TEXT);
-#endif // __WINDOWS__
+    int_fd pipe[2] = { flags.pipe_read.get(), flags.pipe_write.get() };
 
     Try<Nothing> close = os::close(pipe[1]);
     if (close.isError()) {
@@ -366,31 +360,6 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
-#ifdef __linux__
-  if (flags.namespace_mnt_target.isSome()) {
-    string path = path::join(
-        "/proc",
-        stringify(flags.namespace_mnt_target.get()),
-        "ns",
-        "mnt");
-
-    Try<Nothing> setns = ns::setns(path, "mnt", false);
-    if (setns.isError()) {
-      cerr << "Failed to enter mount namespace: "
-           << setns.error() << endl;
-      exitWithStatus(EXIT_FAILURE);
-    }
-  }
-
-  if (flags.unshare_namespace_mnt) {
-    if (unshare(CLONE_NEWNS) != 0) {
-      cerr << "Failed to unshare mount namespace: "
-           << os::strerror(errno) << endl;
-      exitWithStatus(EXIT_FAILURE);
-    }
-  }
-#endif // __linux__
-
   // Run additional preparation commands. These are run as the same
   // user and with the environment as the agent.
   foreach (const CommandInfo& command, launchInfo.pre_exec_commands()) {
@@ -418,9 +387,11 @@ int MesosContainerizerLaunch::execute()
       status = os::spawn(command.value(), args);
     }
 
-    if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) {
+    if (!WSUCCEEDED(status)) {
       cerr << "Failed to execute pre-exec command '"
-           << JSON::protobuf(command) << "'" << endl;
+           << JSON::protobuf(command) << "': "
+           << WSTRINGIFY(status)
+           << endl;
       exitWithStatus(EXIT_FAILURE);
     }
   }
@@ -504,6 +475,31 @@ int MesosContainerizerLaunch::execute()
   if (launchInfo.has_capabilities()) {
     cerr << "Capabilities are not supported on non Linux system" << endl;
     exitWithStatus(EXIT_FAILURE);
+  }
+#endif // __linux__
+
+#ifdef __linux__
+  if (flags.namespace_mnt_target.isSome()) {
+    string path = path::join(
+        "/proc",
+        stringify(flags.namespace_mnt_target.get()),
+        "ns",
+        "mnt");
+
+    Try<Nothing> setns = ns::setns(path, "mnt", false);
+    if (setns.isError()) {
+      cerr << "Failed to enter mount namespace: "
+           << setns.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+  }
+
+  if (flags.unshare_namespace_mnt) {
+    if (unshare(CLONE_NEWNS) != 0) {
+      cerr << "Failed to unshare mount namespace: "
+           << os::strerror(errno) << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
   }
 #endif // __linux__
 
@@ -674,9 +670,21 @@ int MesosContainerizerLaunch::execute()
     }
 
     if (!environment.contains("PATH")) {
-      environment["PATH"] =
-        "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+      environment["PATH"] = os::host_default_path();
     }
+
+#ifdef __WINDOWS__
+    // TODO(dpravat): (MESOS-6816) We should allow system environment variables
+    // to be overwritten if they are specified by the framework.  This might
+    // cause applications to not work, but upon overriding system defaults, it
+    // becomes the overidder's problem.
+    Option<std::map<string, string>> systemEnvironment =
+      process::internal::getSystemEnvironment();
+    foreachpair (
+        const string& key, const string& value, systemEnvironment.get()) {
+      environment[key] = value;
+    }
+#endif // __WINDOWS__
 
     envp = os::raw::Envp(environment);
   }
@@ -763,6 +771,7 @@ int MesosContainerizerLaunch::execute()
 
   // If we get here, the execle call failed.
   cerr << "Failed to execute command: " << os::strerror(errno) << endl;
+  exitWithStatus(EXIT_FAILURE);
   UNREACHABLE();
 }
 

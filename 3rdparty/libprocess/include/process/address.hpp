@@ -37,6 +37,7 @@
 #include <stout/ip.hpp>
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
+#include <stout/unreachable.hpp>
 
 namespace process {
 namespace network {
@@ -103,6 +104,7 @@ public:
         return sizeof(sockaddr_un);
 #endif // __WINDOWS__
     }
+    UNREACHABLE();
   }
 
   operator sockaddr_storage() const

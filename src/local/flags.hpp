@@ -49,7 +49,16 @@ public:
         "when running in production, since long-running masters\n"
         "and agents could lose data when cleanup occurs.\n"
         "(Example: `/var/lib/mesos`)",
-        path::join(os::temp(), "mesos", "local"));
+        path::join(os::temp(), "mesos", "work"));
+
+    add(&Flags::runtime_dir,
+        "runtime_dir",
+        "Path of the agent runtime directory. This is where runtime\n"
+        "data is stored by an agent that it needs to persist across\n"
+        "crashes (but not across reboots). This directory will be\n"
+        "cleared on reboot.\n"
+        "(Example: `/var/run/mesos`)",
+        path::join(os::temp(), "mesos", "runtime"));
 
     add(&Flags::num_slaves,
         "num_slaves",
@@ -58,6 +67,7 @@ public:
   }
 
   std::string work_dir;
+  std::string runtime_dir;
   int num_slaves;
 };
 

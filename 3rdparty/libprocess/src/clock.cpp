@@ -185,6 +185,8 @@ void tick(const Time& time)
 
   (*clock::callback)(timedout);
 
+  timedout.clear();
+
   // Mark 'settling' as false since there are not any more timers
   // that will expire before the paused time and we've finished
   // executing expired timers.

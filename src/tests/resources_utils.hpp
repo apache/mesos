@@ -17,6 +17,9 @@
 #ifndef __TESTS_RESOURCES_UTILS_HPP__
 #define __TESTS_RESOURCES_UTILS_HPP__
 
+#include <string>
+#include <ostream>
+
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
@@ -25,6 +28,19 @@
 namespace mesos {
 namespace internal {
 namespace tests {
+
+// Returns a copy of the resources that are allocated to the role.
+//
+// TODO(bmahler): Consider adding a top-level `AllocatedResources`
+// that has the invariant that all resources contained within it
+// have an `AllocationInfo` set. This class could prevent
+// malformed operations between `Resources` and
+// `AllocatedResources`, and could clarify interfaces that take
+// allocated resources (e.g. allocator, sorter, etc).
+Resources allocatedResources(
+    const Resources& resources,
+    const std::string& role);
+
 
 // Creates a "ports(*)" resource for the given ranges.
 Resource createPorts(const ::mesos::Value::Ranges& ranges);

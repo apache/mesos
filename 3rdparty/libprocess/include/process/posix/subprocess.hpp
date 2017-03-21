@@ -42,16 +42,7 @@
 #include <stout/os/signals.hpp>
 #include <stout/os/strerror.hpp>
 
-using std::map;
-using std::string;
-using std::vector;
-
-
 namespace process {
-
-using InputFileDescriptors = Subprocess::IO::InputFileDescriptors;
-using OutputFileDescriptors = Subprocess::IO::OutputFileDescriptors;
-
 
 inline pid_t defaultClone(const lambda::function<int()>& func)
 {
@@ -70,33 +61,6 @@ inline pid_t defaultClone(const lambda::function<int()>& func)
 
 
 namespace internal {
-
-inline void close(const hashset<int>& fds)
-{
-  foreach (int fd, fds) {
-    if (fd >= 0) {
-      os::close(fd);
-    }
-  }
-}
-
-// This function will invoke `os::close` on all specified file
-// descriptors that are valid (i.e., not `None` and >= 0).
-inline void close(
-    const InputFileDescriptors& stdinfds,
-    const OutputFileDescriptors& stdoutfds,
-    const OutputFileDescriptors& stderrfds)
-{
-  close({
-    stdinfds.read,
-    stdinfds.write.getOrElse(-1),
-    stdoutfds.read.getOrElse(-1),
-    stdoutfds.write,
-    stderrfds.read.getOrElse(-1),
-    stderrfds.write
-  });
-}
-
 
 // This function will invoke `os::cloexec` on all specified file
 // descriptors that are valid (i.e., not `None` and >= 0).
@@ -140,7 +104,7 @@ inline void signalHandler(int signal)
 //
 // NOTE: This function has to be async signal safe.
 inline int childMain(
-    const string& path,
+    const std::string& path,
     char** argv,
     char** envp,
     const InputFileDescriptors& stdinfds,
@@ -148,7 +112,7 @@ inline int childMain(
     const OutputFileDescriptors& stderrfds,
     bool blocking,
     int pipes[2],
-    const vector<Subprocess::ChildHook>& child_hooks)
+    const std::vector<Subprocess::ChildHook>& child_hooks)
 {
   // Close parent's end of the pipes.
   if (stdinfds.write.isSome()) {
@@ -233,13 +197,13 @@ inline int childMain(
 
 
 inline Try<pid_t> cloneChild(
-    const string& path,
-    vector<string> argv,
-    const Option<map<string, string>>& environment,
+    const std::string& path,
+    std::vector<std::string> argv,
+    const Option<std::map<std::string, std::string>>& environment,
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone,
-    const vector<Subprocess::ParentHook>& parent_hooks,
-    const vector<Subprocess::ChildHook>& child_hooks,
+    const std::vector<Subprocess::ParentHook>& parent_hooks,
+    const std::vector<Subprocess::ChildHook>& child_hooks,
     const InputFileDescriptors stdinfds,
     const OutputFileDescriptors stdoutfds,
     const OutputFileDescriptors stderrfds)
@@ -263,8 +227,10 @@ inline Try<pid_t> cloneChild(
     envp = new char*[environment.get().size() + 1];
 
     size_t index = 0;
-    foreachpair (const string& key, const string& value, environment.get()) {
-      string entry = key + "=" + value;
+    foreachpair (
+        const std::string& key,
+        const std::string& value, environment.get()) {
+      std::string entry = key + "=" + value;
       envp[index] = new char[entry.size() + 1];
       strncpy(envp[index], entry.c_str(), entry.size() + 1);
       ++index;
@@ -280,13 +246,16 @@ inline Try<pid_t> cloneChild(
 
   // Currently we will block the child's execution of the new process
   // until all the `parent_hooks` (if any) have executed.
-  int pipes[2];
+  std::array<int, 2> pipes;
   const bool blocking = !parent_hooks.empty();
 
   if (blocking) {
     // We assume this should not fail under reasonable conditions so we
     // use CHECK.
-    CHECK_SOME(os::pipe(pipes));
+    Try<std::array<int, 2>> pipe = os::pipe();
+    CHECK_SOME(pipe);
+
+    pipes = pipe.get();
   }
 
   // Now, clone the child process.
@@ -299,7 +268,7 @@ inline Try<pid_t> cloneChild(
       stdoutfds,
       stderrfds,
       blocking,
-      pipes,
+      pipes.data(),
       child_hooks));
 
   delete[] _argv;

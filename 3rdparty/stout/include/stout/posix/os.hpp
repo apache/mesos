@@ -362,21 +362,6 @@ inline Try<std::set<pid_t>> pids(Option<pid_t> group, Option<pid_t> session)
 }
 
 
-// Looks in the environment variables for the specified key and
-// returns a string representation of its value. If no environment
-// variable matching key is found, None() is returned.
-inline Option<std::string> getenv(const std::string& key)
-{
-  char* value = ::getenv(key.c_str());
-
-  if (value == nullptr) {
-    return None();
-  }
-
-  return std::string(value);
-}
-
-
 // Creates a tar 'archive' with gzip compression, of the given 'path'.
 inline Try<Nothing> tar(const std::string& path, const std::string& archive)
 {
@@ -460,19 +445,9 @@ inline Option<std::string> which(
 }
 
 
-inline std::string temp()
+inline Try<std::string> var()
 {
-  return "/tmp";
-}
-
-
-// Create pipes for interprocess communication.
-inline Try<Nothing> pipe(int pipe_fd[2])
-{
-  if (::pipe(pipe_fd) == -1) {
-    return ErrnoError();
-  }
-  return Nothing();
+  return "/var";
 }
 
 
@@ -532,6 +507,14 @@ inline Try<Nothing> setWindowSize(
   }
 
   return Nothing();
+}
+
+
+// Returns a host-specific default for the `PATH` environment variable, based
+// on the configuration of the host.
+inline std::string host_default_path()
+{
+  return "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 }
 
 } // namespace os {

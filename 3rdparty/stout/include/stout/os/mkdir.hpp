@@ -44,7 +44,7 @@ inline Try<Nothing> mkdir(const std::string& directory, bool recursive = true)
     std::vector<std::string> tokens =
       strings::tokenize(directory, stringify(os::PATH_SEPARATOR));
 
-    std::string path = "";
+    std::string path;
 
     // We got an absolute path, so keep the leading slash.
     if (directory.find_first_of(stringify(os::PATH_SEPARATOR)) == 0) {

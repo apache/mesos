@@ -52,7 +52,7 @@ class CredentialsTest : public MesosTest {};
 
 // This test verifies that an authenticated slave is
 // granted registration by the master.
-TEST_F(CredentialsTest, AuthenticatedSlave)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlave)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -65,31 +65,31 @@ TEST_F(CredentialsTest, AuthenticatedSlave)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 
 // Test verifing well executed credential authentication
 // using text formatted credentials so as to test
 // backwards compatibility.
-TEST_F(CredentialsTest, AuthenticatedSlaveText)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlaveText)
 {
   string path =  path::join(os::getcwd(), "credentials");
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       path,
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP);
 
-  CHECK_SOME(fd);
+  ASSERT_SOME(fd);
 
   string credentials =
     DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
 
-  CHECK_SOME(os::write(fd.get(), credentials))
+  ASSERT_SOME(os::write(fd.get(), credentials))
       << "Failed to write credentials to '" << path << "'";
 
-  CHECK_SOME(os::close(fd.get()));
+  ASSERT_SOME(os::close(fd.get()));
 
   map<string, Option<string>> values{{"credentials", Some("file://" + path)}};
 
@@ -110,22 +110,22 @@ TEST_F(CredentialsTest, AuthenticatedSlaveText)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 
 // Using JSON base file for authentication without
 // protobuf tools assistance.
-TEST_F(CredentialsTest, AuthenticatedSlaveJSON)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlaveJSON)
 {
   string path =  path::join(os::getcwd(), "credentials");
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       path,
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP);
 
-  CHECK_SOME(fd);
+  ASSERT_SOME(fd);
 
   // This unit tests our capacity to process JSON credentials without
   // using our protobuf tools.
@@ -139,10 +139,10 @@ TEST_F(CredentialsTest, AuthenticatedSlaveJSON)
   JSON::Object credentials;
   credentials.values["credentials"] = array;
 
-  CHECK_SOME(os::write(fd.get(), stringify(credentials)))
+  ASSERT_SOME(os::write(fd.get(), stringify(credentials)))
       << "Failed to write credentials to '" << path << "'";
 
-  CHECK_SOME(os::close(fd.get()));
+  ASSERT_SOME(os::close(fd.get()));
 
   map<string, Option<string>> values{{"credentials", Some("file://" + path)}};
 
@@ -163,7 +163,7 @@ TEST_F(CredentialsTest, AuthenticatedSlaveJSON)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  ASSERT_NE("", slaveRegisteredMessage.get().slave_id().value());
+  ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
 }
 
 } // namespace tests {

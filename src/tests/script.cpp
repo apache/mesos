@@ -27,6 +27,8 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/constants.hpp>
+
 #include "common/status_utils.hpp"
 
 #include "mesos/mesos.hpp"
@@ -74,9 +76,10 @@ void execute(const string& script)
     // In parent process.
     int status;
     while (wait(&status) != pid || WIFSTOPPED(status));
-    CHECK(WIFEXITED(status) || WIFSIGNALED(status));
+    CHECK(WIFEXITED(status) || WIFSIGNALED(status))
+      << "Unexpected wait status " << status;
 
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+    if (!WSUCCEEDED(status)) {
       FAIL() << script << " " << WSTRINGIFY(status);
     }
   } else {
@@ -92,8 +95,8 @@ void execute(const string& script)
 
     // Redirect output to /dev/null unless the test is verbose.
     if (!flags.verbose) {
-      if (freopen("/dev/null", "w", stdout) == nullptr ||
-          freopen("/dev/null", "w", stderr) == nullptr) {
+      if (freopen(os::DEV_NULL, "w", stdout) == nullptr ||
+          freopen(os::DEV_NULL, "w", stderr) == nullptr) {
         std::cerr << "Failed to redirect stdout/stderr to /dev/null:"
                   << os::strerror(errno) << std::endl;
         abort();
@@ -163,7 +166,7 @@ void execute(const string& script)
     os::setenv("MESOS_ACLS", "file://" + aclsPath);
 
     // Now execute the script.
-    execl(path.get().c_str(), path.get().c_str(), (char*) nullptr);
+    execl(path->c_str(), path->c_str(), (char*) nullptr);
 
     std::cerr << "Failed to execute '" << script << "': "
               << os::strerror(errno) << std::endl;

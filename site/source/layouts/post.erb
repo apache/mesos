@@ -13,7 +13,9 @@ Blog
         <% end %>
         <span class="author_contact">
           <p><strong><%= current_page.data.post_author.display_name %></strong></p>
-          <p><a href="http://twitter.com/<%= current_page.data.post_author.twitter %>">@<%= current_page.data.post_author.twitter %></a></p>
+          <% if current_page.data.post_author.twitter %>
+            <p><a href="http://twitter.com/<%= current_page.data.post_author.twitter %>">@<%= current_page.data.post_author.twitter %></a></p>
+          <% end %>
         </span>
       </span>
       <p><em>Posted <%= current_article.date.strftime("%B %e, %Y")  %></em></p>

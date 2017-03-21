@@ -29,6 +29,7 @@
 
 #include <stout/hashmap.hpp>
 #include <stout/multihashmap.hpp>
+#include <stout/os/int_fd.hpp>
 
 #include <mesos/slave/isolator.hpp>
 
@@ -113,6 +114,8 @@ public:
 
   virtual process::Future<hashset<ContainerID>> containers();
 
+  virtual process::Future<Nothing> remove(const ContainerID& containerId);
+
 private:
   explicit MesosContainerizer(
       const process::Owned<MesosContainerizerProcess>& process);
@@ -181,10 +184,12 @@ public:
 
   virtual process::Future<bool> exec(
       const ContainerID& containerId,
-      int pipeWrite);
+      int_fd pipeWrite);
 
   virtual process::Future<bool> destroy(
       const ContainerID& containerId);
+
+  virtual process::Future<Nothing> remove(const ContainerID& containerId);
 
   virtual process::Future<hashset<ContainerID>> containers();
 
@@ -234,6 +239,7 @@ private:
 
   process::Future<bool> _launch(
       const ContainerID& containerId,
+      const Option<mesos::slave::ContainerIO>& containerIO,
       const std::map<std::string, std::string>& environment,
       const SlaveID& slaveId,
       bool checkpoint);

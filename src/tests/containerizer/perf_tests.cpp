@@ -24,7 +24,12 @@
 #include <process/gtest.hpp>
 
 #include <stout/gtest.hpp>
+#include <stout/os.hpp>
 #include <stout/stringify.hpp>
+
+#include <stout/os/shell.hpp>
+
+#include "common/status_utils.hpp"
 
 #include "linux/perf.hpp"
 
@@ -119,6 +124,45 @@ TEST_F(PerfTest, Parse)
 
   parse = perf::parse("1,unknown-field", Version(3, 12, 0));
   EXPECT_ERROR(parse);
+}
+
+
+// Test whether we can parse the perf version. Note that this avoids
+// the "PERF_" filter to verify that we can parse the version even if
+// the version check performed in the test filter fails.
+TEST_F(PerfTest, Version)
+{
+  // If there is a "perf" command that can successfully emit its
+  // version, make sure we can parse it using the perf library.
+  // Note that on some systems, perf is a stub that asks you to
+  // install the right packages.
+  if (WSUCCEEDED(os::spawn("perf", {"perf", "--version"}))) {
+    AWAIT_READY(perf::version());
+  }
+
+  EXPECT_SOME_EQ(Version(1, 0, 0), perf::parseVersion("1"));
+  EXPECT_SOME_EQ(Version(1, 2, 0), perf::parseVersion("1.2"));
+  EXPECT_SOME_EQ(Version(1, 2, 0), perf::parseVersion("1.2.3"));
+  EXPECT_SOME_EQ(Version(0, 0, 0), perf::parseVersion("0.0.0"));
+
+  // Fedora 25.
+  EXPECT_SOME_EQ(
+      Version(4, 8, 0),
+      perf::parseVersion("4.8.16.300.fc25.x86_64.ge69a"));
+
+  // Arch Linux.
+  EXPECT_SOME_EQ(
+      Version(4, 9, 0),
+      perf::parseVersion("4.9.g69973b"));
+
+  // CentOS 6.8.
+  EXPECT_SOME_EQ(
+      Version(2, 6, 0),
+      perf::parseVersion("2.6.32-642.13.1.el6.x86_64.debug"));
+
+  EXPECT_ERROR(perf::parseVersion(""));
+  EXPECT_ERROR(perf::parseVersion("foo"));
+  EXPECT_ERROR(perf::parseVersion("1.foo"));
 }
 
 } // namespace tests {

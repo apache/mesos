@@ -96,8 +96,11 @@ public:
   struct timeval timeval() const
   {
     struct timeval t;
-    t.tv_sec = secs();
-    t.tv_usec = us() - (t.tv_sec * MILLISECONDS);
+
+    // Explicitly compute `tv_sec` and `tv_usec` instead of using `us` and
+    // `secs` to avoid converting `int64_t` -> `double` -> `long`.
+    t.tv_sec = ns() / SECONDS;
+    t.tv_usec = (ns() / MICROSECONDS) - (t.tv_sec * SECONDS / MICROSECONDS);
     return t;
   }
 

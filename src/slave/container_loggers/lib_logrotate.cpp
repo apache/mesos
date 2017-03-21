@@ -24,6 +24,7 @@
 #include <mesos/module/container_logger.hpp>
 
 #include <mesos/slave/container_logger.hpp>
+#include <mesos/slave/containerizer.hpp>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -38,6 +39,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/environment.hpp>
 #include <stout/os/fcntl.hpp>
 #include <stout/os/killtree.hpp>
@@ -54,13 +56,11 @@ using namespace mesos;
 using namespace process;
 
 using mesos::slave::ContainerLogger;
+using mesos::slave::ContainerIO;
 
 namespace mesos {
 namespace internal {
 namespace logger {
-
-using SubprocessInfo = ContainerLogger::SubprocessInfo;
-
 
 class LogrotateContainerLoggerProcess :
   public Process<LogrotateContainerLoggerProcess>
@@ -71,19 +71,28 @@ public:
   // Spawns two subprocesses that read from their stdin and write to
   // "stdout" and "stderr" files in the sandbox.  The subprocesses will rotate
   // the files according to the configured maximum size and number of files.
-  Future<SubprocessInfo> prepare(
+  Future<ContainerIO> prepare(
       const ExecutorInfo& executorInfo,
       const std::string& sandboxDirectory,
       const Option<std::string>& user)
   {
-    // Inherit most, but not all of the agent's environment.
-    // Since the subprocess links to libmesos, it will need some of the
-    // same environment used to launch the agent (also uses libmesos).
-    // The libprocess port is explicitly removed because this
-    // will conflict with the already-running agent.
-    std::map<std::string, std::string> environment = os::environment();
-    environment.erase("LIBPROCESS_PORT");
-    environment.erase("LIBPROCESS_ADVERTISE_PORT");
+    // Prepare the environment for the container logger subprocess.
+    // We inherit agent environment variables except for those
+    // LIBPROCESS or MESOS prefixed environment variables. See MESOS-6747.
+    std::map<std::string, std::string> environment;
+
+    foreachpair (
+        const std::string& key, const std::string& value, os::environment()) {
+      if (!strings::startsWith(key, "LIBPROCESS_") &&
+          !strings::startsWith(key, "MESOS_")) {
+        environment.emplace(key, value);
+      }
+    }
+
+    // Make sure the libprocess of the subprocess can properly
+    // initialize and find the IP. Since we don't need to use the TCP
+    // socket for communication, it's OK to use a local address.
+    environment.emplace("LIBPROCESS_IP", "127.0.0.1");
 
     // Use the number of worker threads for libprocess that was passed
     // in through the flags.
@@ -94,11 +103,11 @@ public:
     // Copy the global rotation flags.
     // These will act as the defaults in case the executor environment
     // overrides a subset of them.
-    LoggerFlags overridenFlags;
-    overridenFlags.max_stdout_size = flags.max_stdout_size;
-    overridenFlags.logrotate_stdout_options = flags.logrotate_stdout_options;
-    overridenFlags.max_stderr_size = flags.max_stderr_size;
-    overridenFlags.logrotate_stderr_options = flags.logrotate_stderr_options;
+    LoggerFlags overriddenFlags;
+    overriddenFlags.max_stdout_size = flags.max_stdout_size;
+    overriddenFlags.logrotate_stdout_options = flags.logrotate_stdout_options;
+    overriddenFlags.max_stderr_size = flags.max_stderr_size;
+    overriddenFlags.logrotate_stderr_options = flags.logrotate_stderr_options;
 
     // Check for overrides of the rotation settings in the
     // `ExecutorInfo`s environment variables.
@@ -120,7 +129,7 @@ public:
       }
 
       // We will error out if there are unknown flags with the same prefix.
-      Try<flags::Warnings> load = overridenFlags.load(executorEnvironment);
+      Try<flags::Warnings> load = overriddenFlags.load(executorEnvironment);
 
       if (load.isError()) {
         return Failure(
@@ -160,8 +169,8 @@ public:
 
     // Spawn a process to handle stdout.
     mesos::internal::logger::rotate::Flags outFlags;
-    outFlags.max_size = overridenFlags.max_stdout_size;
-    outFlags.logrotate_options = overridenFlags.logrotate_stdout_options;
+    outFlags.max_size = overriddenFlags.max_stdout_size;
+    outFlags.logrotate_options = overriddenFlags.logrotate_stdout_options;
     outFlags.log_filename = path::join(sandboxDirectory, "stdout");
     outFlags.logrotate_path = flags.logrotate_path;
     outFlags.user = user;
@@ -181,7 +190,7 @@ public:
         path::join(flags.launcher_dir, mesos::internal::logger::rotate::NAME),
         {mesos::internal::logger::rotate::NAME},
         Subprocess::FD(outfds.read, Subprocess::IO::OWNED),
-        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH(os::DEV_NULL),
         Subprocess::FD(STDERR_FILENO),
         &outFlags,
         environment,
@@ -218,8 +227,8 @@ public:
 
     // Spawn a process to handle stderr.
     mesos::internal::logger::rotate::Flags errFlags;
-    errFlags.max_size = overridenFlags.max_stderr_size;
-    errFlags.logrotate_options = overridenFlags.logrotate_stderr_options;
+    errFlags.max_size = overriddenFlags.max_stderr_size;
+    errFlags.logrotate_options = overriddenFlags.logrotate_stderr_options;
     errFlags.log_filename = path::join(sandboxDirectory, "stderr");
     errFlags.logrotate_path = flags.logrotate_path;
     errFlags.user = user;
@@ -228,7 +237,7 @@ public:
         path::join(flags.launcher_dir, mesos::internal::logger::rotate::NAME),
         {mesos::internal::logger::rotate::NAME},
         Subprocess::FD(errfds.read, Subprocess::IO::OWNED),
-        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH(os::DEV_NULL),
         Subprocess::FD(STDERR_FILENO),
         &errFlags,
         environment,
@@ -243,10 +252,10 @@ public:
     }
 
     // NOTE: The ownership of these FDs is given to the caller of this function.
-    ContainerLogger::SubprocessInfo info;
-    info.out = SubprocessInfo::IO::FD(outfds.write.get());
-    info.err = SubprocessInfo::IO::FD(errfds.write.get());
-    return info;
+    ContainerIO io;
+    io.out = ContainerIO::IO::FD(outfds.write.get());
+    io.err = ContainerIO::IO::FD(errfds.write.get());
+    return io;
   }
 
 protected:
@@ -276,7 +285,7 @@ Try<Nothing> LogrotateContainerLogger::initialize()
 }
 
 
-Future<SubprocessInfo> LogrotateContainerLogger::prepare(
+Future<ContainerIO> LogrotateContainerLogger::prepare(
     const ExecutorInfo& executorInfo,
     const std::string& sandboxDirectory,
     const Option<std::string>& user)

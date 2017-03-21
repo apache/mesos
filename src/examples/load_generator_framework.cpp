@@ -297,7 +297,7 @@ int main(int argc, char** argv)
   }
 
   if (flags.master.isNone()) {
-    cerr << flags.usage( "Missing required option --master") << endl;
+    cerr << flags.usage("Missing required option --master") << endl;
     return EXIT_FAILURE;
   }
 

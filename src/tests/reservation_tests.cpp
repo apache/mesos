@@ -48,6 +48,7 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 #include "tests/mock_slave.hpp"
+#include "tests/resources_utils.hpp"
 
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
@@ -132,10 +133,11 @@ TEST_F(ReservationTest, ReserveThenUnreserve)
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -147,10 +149,11 @@ TEST_F(ReservationTest, ReserveThenUnreserve)
   // In the next offer, expect an offer with reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -162,10 +165,11 @@ TEST_F(ReservationTest, ReserveThenUnreserve)
   // In the next offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -222,11 +226,12 @@ TEST_F(ReservationTest, ReserveTwiceWithDoubleValue)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   // In the first offer, expect an offer with unreserved resources.
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -237,11 +242,12 @@ TEST_F(ReservationTest, ReserveTwiceWithDoubleValue)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   // In the second offer, expect an offer with reserved resources.
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -256,7 +262,7 @@ TEST_F(ReservationTest, ReserveTwiceWithDoubleValue)
   // potentially crashing the agent. See MESOS-3552.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   Resources reserved = Resources::parse("cpus:0.2;mem:512").get();
@@ -265,7 +271,8 @@ TEST_F(ReservationTest, ReserveTwiceWithDoubleValue)
         frameworkInfo.role(),
         createReservationInfo(frameworkInfo.principal())).get();
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(finalReservation));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(finalReservation, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -327,10 +334,11 @@ TEST_F(ReservationTest, ReserveAndLaunchThenUnreserve)
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   // Create a task.
   TaskInfo taskInfo =
@@ -357,10 +365,11 @@ TEST_F(ReservationTest, ReserveAndLaunchThenUnreserve)
   // In the next offer, expect an offer with reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -377,10 +386,11 @@ TEST_F(ReservationTest, ReserveAndLaunchThenUnreserve)
   // In the next offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -448,10 +458,11 @@ TEST_F(ReservationTest, ReserveShareWithinRole)
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo1.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -468,10 +479,11 @@ TEST_F(ReservationTest, ReserveShareWithinRole)
   // In the next offer, expect an offer with reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo1.role())));
 
   // The filter to decline the offer "forever".
   Filters filtersForever;
@@ -493,10 +505,11 @@ TEST_F(ReservationTest, ReserveShareWithinRole)
   // framework1.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo1.role())));
 
   driver1.stop();
   driver1.join();
@@ -520,7 +533,7 @@ TEST_F(ReservationTest, DropReserveTooLarge)
   masterFlags.allocation_interval = Milliseconds(5);
   masterFlags.roles = frameworkInfo.role();
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
@@ -528,7 +541,7 @@ TEST_F(ReservationTest, DropReserveTooLarge)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:1;mem:512";
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -553,17 +566,18 @@ TEST_F(ReservationTest, DropReserveTooLarge)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   driver.start();
 
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -588,10 +602,11 @@ TEST_F(ReservationTest, DropReserveTooLarge)
   // resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -611,7 +626,7 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
   masterFlags.allocation_interval = Milliseconds(5);
   masterFlags.roles = frameworkInfo.role();
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
@@ -619,7 +634,7 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus(role):1;mem(role):512";
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -644,7 +659,7 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   driver.start();
 
@@ -652,10 +667,11 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
   // resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(staticallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(staticallyReserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -677,10 +693,11 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
   // reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(staticallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(staticallyReserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -740,10 +757,11 @@ TEST_F(ReservationTest, SendingCheckpointResourcesMessage)
   // 'unreserved2'.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved1 + unreserved2));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved1 + unreserved2, frameworkInfo.role())));
 
   Future<CheckpointResourcesMessage> message3 =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
@@ -771,18 +789,18 @@ TEST_F(ReservationTest, SendingCheckpointResourcesMessage)
   // Expect the 'RESERVE(reserved1)' as the first message.
   // The checkpointed resources should correspond to 'reserved1'.
   AWAIT_READY(message1);
-  EXPECT_EQ(Resources(message1.get().resources()), reserved1);
+  EXPECT_EQ(Resources(message1->resources()), reserved1);
 
   // Expect the 'RESERVE(reserved2)' as the second message.
   // The checkpointed resources should correspond to
   // 'reserved1 + reserved2'.
   AWAIT_READY(message2);
-  EXPECT_EQ(Resources(message2.get().resources()), reserved1 + reserved2);
+  EXPECT_EQ(Resources(message2->resources()), reserved1 + reserved2);
 
   // Expect the 'UNRESERVE(reserved1)' as the third message.
   // The checkpointed resources should correspond to 'reserved2'.
   AWAIT_READY(message3);
-  EXPECT_EQ(Resources(message3.get().resources()), reserved2);
+  EXPECT_EQ(Resources(message3->resources()), reserved2);
 
   driver.stop();
   driver.join();
@@ -836,10 +854,11 @@ TEST_F(ReservationTest, ResourcesCheckpointing)
   // Expect an offer with the unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get()->pid);
@@ -873,7 +892,7 @@ TEST_F(ReservationTest, ResourcesCheckpointing)
   // reserved resources.
   AWAIT_READY(reregisterSlave);
 
-  EXPECT_EQ(reregisterSlave.get().checkpointed_resources(), reserved);
+  EXPECT_EQ(reregisterSlave->checkpointed_resources(), reserved);
 
   driver.stop();
   driver.join();
@@ -926,7 +945,7 @@ TEST_F(ReservationTest, MasterFailover)
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   Future<CheckpointResourcesMessage> checkpointResources =
@@ -969,16 +988,24 @@ TEST_F(ReservationTest, MasterFailover)
   // slave will do a re-registration.
   detector.appoint(master2.get()->pid);
 
+  // Ensure agent registration is processed.
+  Clock::pause();
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+  Clock::resume();
+
   // Wait for slave to confirm re-registration.
   AWAIT_READY(slaveReregistered);
 
   // In the next offer, expect an offer with the reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(reserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(reserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -1044,10 +1071,11 @@ TEST_F(ReservationTest, CompatibleCheckpointedResources)
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
@@ -1163,11 +1191,11 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(
-      Resources(offer.resources()).contains(unreserved + unreservedDisk));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved + unreservedDisk, frameworkInfo.role())));
 
   Future<CheckpointResourcesMessage> message2 =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
@@ -1193,18 +1221,19 @@ TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
   // NOTE: Currently, we send one message per operation. But this is
   // an implementation detail which is subject to change.
   AWAIT_READY(message1);
-  EXPECT_EQ(Resources(message1.get().resources()), reserved + reservedDisk);
+  EXPECT_EQ(Resources(message1->resources()), reserved + reservedDisk);
 
   AWAIT_READY(message2);
-  EXPECT_EQ(Resources(message2.get().resources()), reserved + volume);
+  EXPECT_EQ(Resources(message2->resources()), reserved + volume);
 
   // Expect an offer containing the volume.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(reserved + volume));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(reserved + volume, frameworkInfo.role())));
 
   Future<OfferID> rescindedOfferId;
 
@@ -1300,10 +1329,11 @@ TEST_F(ReservationTest, IncompatibleCheckpointedResources)
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
@@ -1423,10 +1453,11 @@ TEST_F(ReservationTest, GoodACLReserveThenUnreserve)
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1438,10 +1469,11 @@ TEST_F(ReservationTest, GoodACLReserveThenUnreserve)
   // In the next offer, expect an offer with reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1453,10 +1485,11 @@ TEST_F(ReservationTest, GoodACLReserveThenUnreserve)
   // In the next offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -1523,10 +1556,11 @@ TEST_F(ReservationTest, BadACLDropReserve)
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1539,10 +1573,11 @@ TEST_F(ReservationTest, BadACLDropReserve)
   // resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -1620,11 +1655,12 @@ TEST_F(ReservationTest, BadACLDropUnreserve)
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   // The slave's total resources are twice those defined by `unreserved1`.
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved1 + unreserved1));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved1 + unreserved1, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1636,15 +1672,15 @@ TEST_F(ReservationTest, BadACLDropUnreserve)
   // In the next offer, expect an offer with reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   // The reserved resources and an equal portion of
   // unreserved resources should be present.
-  EXPECT_TRUE(
-      Resources(offer.resources()).contains(
-          dynamicallyReserved1 +
-          unreserved1));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(
+          dynamicallyReserved1 + unreserved1,
+          frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1660,14 +1696,13 @@ TEST_F(ReservationTest, BadACLDropUnreserve)
   // resources, since the Unreserve operation should fail.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(
-      Resources(offer.resources()).contains(
-          dynamicallyReserved1 +
-          dynamicallyReserved2 +
-          unreserved2));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(
+          dynamicallyReserved1 + dynamicallyReserved2 + unreserved2,
+          frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -1756,13 +1791,16 @@ TEST_F(ReservationTest, ACLMultipleOperations)
   Clock::advance(masterFlags.allocation_interval);
 
   // In the first offer, expect an offer with unreserved resources.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
   // The slave's total resources are twice those defined by `unreserved1`.
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved1 + unreserved1));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved1 + unreserved1, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1777,15 +1815,15 @@ TEST_F(ReservationTest, ACLMultipleOperations)
   // In the next offer, expect an offer with reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   // The reserved resources and an equal portion of
   // unreserved resources should be present.
-  EXPECT_TRUE(
-      Resources(offer.resources()).contains(
-          dynamicallyReserved1 +
-          unreserved1));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(
+          dynamicallyReserved1 + unreserved1,
+          frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1815,7 +1853,7 @@ TEST_F(ReservationTest, ACLMultipleOperations)
 
   // Wait for TASK_FINISHED update ack.
   AWAIT_READY(statusUpdateAcknowledgement);
-  EXPECT_EQ(TASK_FINISHED, statusUpdateAcknowledgement.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusUpdateAcknowledgement->state());
 
   Clock::settle();
   Clock::advance(masterFlags.allocation_interval);
@@ -1824,14 +1862,13 @@ TEST_F(ReservationTest, ACLMultipleOperations)
   // resources, since the Unreserve operation should fail.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(
-      Resources(offer.resources()).contains(
-          dynamicallyReserved1 +
-          dynamicallyReserved2 +
-          unreserved2));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(
+          dynamicallyReserved1 + dynamicallyReserved2 + unreserved2,
+          frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1862,17 +1899,16 @@ TEST_F(ReservationTest, ACLMultipleOperations)
   // In the next offer, expect to find the reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(
-      Resources(offer.resources()).contains(
-          dynamicallyReserved1 +
-          dynamicallyReserved2 +
-          unreserved2));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(
+          dynamicallyReserved1 + dynamicallyReserved2 + unreserved2,
+          frameworkInfo.role())));
 
   // Check that the task launched as expected.
-  EXPECT_EQ(TASK_FINISHED, failedTaskStatus.get().state());
+  EXPECT_EQ(TASK_FINISHED, failedTaskStatus->state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1936,12 +1972,15 @@ TEST_F(ReservationTest, WithoutAuthenticationWithoutPrincipal)
   driver.start();
 
   // In the first offer, expect an offer with unreserved resources.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   // The expectation for the offer with reserved resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1955,11 +1994,12 @@ TEST_F(ReservationTest, WithoutAuthenticationWithoutPrincipal)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   // Make sure that the reservation succeeded.
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   // An expectation for an offer with unreserved resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1975,10 +2015,11 @@ TEST_F(ReservationTest, WithoutAuthenticationWithoutPrincipal)
   // In the next offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -2039,12 +2080,15 @@ TEST_F(ReservationTest, WithoutAuthenticationWithPrincipal)
   driver.start();
 
   // In the first offer, expect an offer with unreserved resources.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   // The expectation for the offer with reserved resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -2058,11 +2102,12 @@ TEST_F(ReservationTest, WithoutAuthenticationWithPrincipal)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
   // Make sure that the reservation succeeded.
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   // An expectation for an offer with unreserved resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -2078,10 +2123,11 @@ TEST_F(ReservationTest, WithoutAuthenticationWithPrincipal)
   // In the next offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -2102,7 +2148,7 @@ TEST_F(ReservationTest, DropReserveWithInvalidRole)
   masterFlags.allocation_interval = Milliseconds(5);
 
   TestAllocator<> allocator;
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
@@ -2110,7 +2156,7 @@ TEST_F(ReservationTest, DropReserveWithInvalidRole)
   slave::Flags agentFlags = CreateSlaveFlags();
   agentFlags.resources = "cpus:1;mem:512";
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), agentFlags);
@@ -2129,18 +2175,19 @@ TEST_F(ReservationTest, DropReserveWithInvalidRole)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   driver.start();
 
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers->front();
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -2170,10 +2217,11 @@ TEST_F(ReservationTest, DropReserveWithInvalidRole)
   // In the next offer, still expect an offer with the unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers->front();
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -2198,7 +2246,7 @@ TEST_F(ReservationTest, PreventUnreservingAlienResources)
   masterFlags.allocation_interval = Milliseconds(5);
 
   TestAllocator<> allocator;
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
@@ -2237,7 +2285,8 @@ TEST_F(ReservationTest, PreventUnreservingAlienResources)
 
   const Resources unreserved = Resources::parse("cpus:1;mem:512").get();
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo1.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -2264,8 +2313,10 @@ TEST_F(ReservationTest, PreventUnreservingAlienResources)
   ASSERT_EQ(1u, offers->size());
   offer = offers->front();
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
-  EXPECT_TRUE(Resources(offer.resources()).contains(halfMemory));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo1.role())));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(halfMemory, frameworkInfo1.role())));
 
   // The filter to decline the offer "forever".
   Filters filtersForever;
@@ -2286,11 +2337,13 @@ TEST_F(ReservationTest, PreventUnreservingAlienResources)
   // Expect an offer without the resources reserved by `framework1`.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers->front();
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(halfMemory));
-  EXPECT_FALSE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(halfMemory, frameworkInfo2.role())));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo2.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
@@ -2307,8 +2360,10 @@ TEST_F(ReservationTest, PreventUnreservingAlienResources)
   // Expect another offer without the resources reserved by `framework1`.
   AWAIT_READY(offers);
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(halfMemory));
-  EXPECT_FALSE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(halfMemory, frameworkInfo2.role())));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo2.role())));
 
   // Decline the offer "forever" in order to force `framework1` to
   // receive the remaining resources.
@@ -2331,8 +2386,10 @@ TEST_F(ReservationTest, PreventUnreservingAlienResources)
   offer = offers->front();
 
   // Make sure that the reservation is still in place.
-  EXPECT_TRUE(Resources(offer.resources()).contains(halfMemory));
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(halfMemory, frameworkInfo1.role())));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo1.role())));
 
   driver1.stop();
   driver1.join();

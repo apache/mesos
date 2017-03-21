@@ -182,14 +182,14 @@ TEST_F(ZooKeeperTest, LeaderDetector)
   EXPECT_SOME_EQ(membership2.get(), leader.get());
 
   // Cancelling the only member results in no leader elected.
-  leader = detector.detect(leader.get().get());
+  leader = detector.detect(leader->get());
   EXPECT_TRUE(leader.isPending());
   cancellation = group.cancel(membership2.get());
 
   AWAIT_READY(cancellation);
   EXPECT_TRUE(cancellation.get());
   AWAIT_READY(leader);
-  ASSERT_TRUE(leader.get().isNone());
+  ASSERT_TRUE(leader->isNone());
 }
 
 
@@ -245,7 +245,7 @@ TEST_F(ZooKeeperTest, LeaderDetectorCancellationHandling)
   EXPECT_SOME(leader.get());
 
   // Cancel the member and join another.
-  Future<bool> cancelled = group.cancel(leader.get().get());
+  Future<bool> cancelled = group.cancel(leader->get());
   AWAIT_READY(cancelled);
   EXPECT_TRUE(cancelled.get());
 
@@ -303,7 +303,7 @@ TEST_F(ZooKeeperTest, LeaderContender)
   Future<Nothing> connected = FUTURE_DISPATCH(
       group.process->self(),
       &GroupProcess::connected);
-  server->expireSession(session.get().get());
+  server->expireSession(session->get());
   AWAIT_READY(lostCandidacy);
 
   // Withdraw directly returns because candidacy is lost and there
@@ -322,7 +322,7 @@ TEST_F(ZooKeeperTest, LeaderContender)
   AWAIT_READY(session);
   ASSERT_SOME(session.get());
 
-  server->expireSession(session.get().get());
+  server->expireSession(session->get());
 
   Clock::pause();
   // The retry timeout.

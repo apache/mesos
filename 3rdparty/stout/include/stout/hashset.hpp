@@ -126,8 +126,19 @@ hashset<Elem, Hash, Equal> operator|(
   // Note, we're not using 'set_union' since it affords us no benefit
   // in efficiency and is more complicated to use given we have sets.
   hashset<Elem, Hash, Equal> result = left;
-  result.insert(right.begin(), right.end());
+  result |= right;
   return result;
+}
+
+
+// Union assignment operator.
+template <typename Elem, typename Hash, typename Equal>
+hashset<Elem, Hash, Equal>& operator|=(
+    hashset<Elem, Hash, Equal>& left,
+    const hashset<Elem, Hash, Equal>& right)
+{
+  left.insert(right.begin(), right.end());
+  return left;
 }
 
 #endif // __STOUT_HASHSET_HPP__

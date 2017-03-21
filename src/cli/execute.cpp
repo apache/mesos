@@ -37,6 +37,7 @@
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/stringify.hpp>
 
 #include "common/parse.hpp"
 #include "common/protobuf_utils.hpp"
@@ -60,6 +61,8 @@ using mesos::internal::devolve;
 
 using mesos::v1::AgentID;
 using mesos::v1::CapabilityInfo;
+using mesos::v1::CheckInfo;
+using mesos::v1::CheckStatusInfo;
 using mesos::v1::CommandInfo;
 using mesos::v1::ContainerInfo;
 using mesos::v1::Credential;
@@ -240,8 +243,9 @@ public:
 
     add(&Flags::framework_capabilities,
         "framework_capabilities",
-        "Comma separated list of optional framework capabilities to enable.\n"
-        "(the only valid value is currently 'GPU_RESOURCES')");
+        "Comma-separated list of optional framework capabilities to enable.\n"
+        "TASK_KILLING_STATE is always enabled. PARTITION_AWARE is enabled\n"
+        "unless --no-partition-aware is specified.");
 
     add(&Flags::containerizer,
         "containerizer",
@@ -338,6 +342,11 @@ public:
         "The content type to use for scheduler protocol messages. 'json'\n"
         "and 'protobuf' are valid choices.",
         "protobuf");
+
+    add(&Flags::partition_aware,
+        "partition_aware",
+        "Enable partition-awareness for the framework.",
+        true);
   }
 
   string master;
@@ -366,6 +375,7 @@ public:
   Option<string> principal;
   Option<string> secret;
   string content_type;
+  bool partition_aware;
 };
 
 
@@ -465,7 +475,9 @@ protected:
     CHECK_EQ(SUBSCRIBED, state);
 
     foreach (const Offer& offer, offers) {
+      // Strip the allocation from the offer since we use a single role.
       Resources offered = offer.resources();
+      offered.unallocate();
 
       Resources requiredResources;
 
@@ -501,21 +513,21 @@ protected:
           _task.mutable_resources()->CopyFrom(resources.get());
         } else {
           foreach (TaskInfo _task, taskGroup->tasks()) {
-              _task.mutable_agent_id()->MergeFrom(offer.agent_id());
+            _task.mutable_agent_id()->MergeFrom(offer.agent_id());
 
-              // Takes resources first from the specified role, then from '*'.
-              Try<Resources> flattened =
-                Resources(_task.resources()).flatten(frameworkInfo.role());
+            // Takes resources first from the specified role, then from '*'.
+            Try<Resources> flattened =
+              Resources(_task.resources()).flatten(frameworkInfo.role());
 
-              // `frameworkInfo.role()` must be valid as it's allowed to
-              // register.
-              CHECK_SOME(flattened);
-              Option<Resources> resources = offered.find(flattened.get());
+            // `frameworkInfo.role()` must be valid as it's allowed to
+            // register.
+            CHECK_SOME(flattened);
+            Option<Resources> resources = offered.find(flattened.get());
 
-              CHECK_SOME(resources);
+            CHECK_SOME(resources);
 
-              _task.mutable_resources()->CopyFrom(resources.get());
-              _taskGroup.add_tasks()->CopyFrom(_task);
+            _task.mutable_resources()->CopyFrom(resources.get());
+            _taskGroup.add_tasks()->CopyFrom(_task);
           }
        }
        Call call;
@@ -588,6 +600,12 @@ protected:
 
         Call::Decline* decline = call.mutable_decline();
         decline->add_offer_ids()->CopyFrom(offer.id());
+
+        mesos->send(call);
+
+        call.Clear();
+        call.set_type(Call::SUPPRESS);
+        call.mutable_framework_id()->CopyFrom(frameworkInfo.id());
 
         mesos->send(call);
       }
@@ -663,6 +681,33 @@ protected:
     }
     if (status.has_healthy()) {
       cout << "  healthy?: " << status.healthy() << endl;
+    }
+
+    if (status.has_check_status()) {
+      switch (status.check_status().type()) {
+        case CheckInfo::COMMAND: {
+          CHECK(status.check_status().has_command());
+          cout << "  check's last exit code: "
+               << (status.check_status().command().has_exit_code()
+                     ? stringify(status.check_status().command().exit_code())
+                     : "not available") << endl;
+          break;
+        }
+
+        case CheckInfo::HTTP: {
+          CHECK(status.check_status().has_http());
+          cout << "  check's last HTTP status code: "
+               << (status.check_status().http().has_status_code()
+                     ? stringify(status.check_status().http().status_code())
+                     : "not available") << endl;
+          break;
+        }
+
+        case CheckInfo::UNKNOWN: {
+          cout << "'" << CheckInfo::Type_Name(status.check_status().type())
+               << "' is not a valid check type" << endl;
+        }
+      }
     }
 
     if (status.has_uuid()) {
@@ -931,8 +976,8 @@ int main(int argc, char** argv)
     environment = flags.environment.get();
   }
 
-  // Copy the package to HDFS if requested save it's location as a URI
-  // for passing to the command (in CommandInfo).
+  // Copy the package to HDFS, if requested. Save its location
+  // as a URI for passing to the command (in CommandInfo).
   Option<string> uri = None();
 
   if (flags.package.isSome()) {
@@ -1002,9 +1047,15 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  // We set the TASK_KILLING_STATE capability by default.
+  // Always enable the TASK_KILLING_STATE capability.
   vector<FrameworkInfo::Capability::Type> frameworkCapabilities =
     { FrameworkInfo::Capability::TASK_KILLING_STATE };
+
+  // Enable PARTITION_AWARE unless disabled by the user.
+  if (flags.partition_aware) {
+    frameworkCapabilities.push_back(
+        FrameworkInfo::Capability::PARTITION_AWARE);
+  }
 
   if (flags.framework_capabilities.isSome()) {
     foreach (const string& capability, flags.framework_capabilities.get()) {
@@ -1012,14 +1063,14 @@ int main(int argc, char** argv)
 
       if (!FrameworkInfo::Capability::Type_Parse(capability, &type)) {
         cerr << "Flags '--framework_capabilities'"
-                " specifes an unknown capability"
+                " specifies an unknown capability"
                 " '" << capability << "'" << endl;
         return EXIT_FAILURE;
       }
 
       if (type != FrameworkInfo::Capability::GPU_RESOURCES) {
         cerr << "Flags '--framework_capabilities'"
-                " specifes an unsupported capability"
+                " specifies an unsupported capability"
                 " '" << capability << "'" << endl;
         return EXIT_FAILURE;
       }

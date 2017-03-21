@@ -108,7 +108,7 @@ There are two ways to disallow unauthorized uses on specific operations:
    actions to all objects except the ones explicitly allowed.
    Consider the [example below](#disallowExample) for details.
 
-2. Set `permissive` to `false` but allow for `ANY` principle to perform the
+2. Set `permissive` to `false` but allow `ANY` principal to perform the
    action on `ANY` object. This needs to be done for all actions which should
    work without being checked against ACLs. A template doing this for all
    actions can be found in [acls_template.json](../examples/acls_template.json).
@@ -117,8 +117,8 @@ More information about the structure of the ACLs can be found in
 [their definition](https://github.com/apache/mesos/blob/master/include/mesos/authorizer/acls.proto)
 inside the Mesos source code.
 
-Note that ACLs are compared in the order that they are specified. In other
-words, if an ACL allows some action and a later ACL forbids it, the action is
+ACLs are compared in the order that they are specified. In other words,
+if an ACL allows some action and a later ACL forbids it, the action is
 allowed; likewise, if the ACL forbidding the action appears earlier than the
 one allowing the action, the action is forbidden. If no ACLs match a request,
 the request is authorized if the ACLs are permissive (which is the default
@@ -127,7 +127,7 @@ are declined.
 
 ### Authorizable Actions
 
-Currently the local authorizer configuration format supports the following
+Currently, the local authorizer configuration format supports the following
 entries, each representing an authorizable action:
 
 <table class="table table-striped">

@@ -43,10 +43,11 @@
 #include <stout/os.hpp>
 #include <stout/uuid.hpp>
 
-#include "common/http.hpp"
-#include "common/status_utils.hpp"
+#include "checks/health_checker.hpp"
 
-#include "health-check/health_checker.hpp"
+#include "common/http.hpp"
+#include "common/protobuf_utils.hpp"
+#include "common/status_utils.hpp"
 
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
@@ -79,6 +80,27 @@ namespace internal {
 
 class DefaultExecutor : public ProtobufProcess<DefaultExecutor>
 {
+private:
+  // Represents a child container. This is defined here since
+  // C++ does not allow forward declaring nested classes.
+  struct Container
+  {
+    ContainerID containerId;
+    TaskID taskId;
+    TaskGroupInfo taskGroup; // Task group of the child container.
+
+    // Connection used for waiting on the child container. It is possible
+    // that a container is active but a connection for sending the
+    // `WAIT_NESTED_CONTAINER` call has not been established yet.
+    Option<Connection> waiting;
+
+    // Set to true if the child container is in the process of being killed.
+    bool killing;
+
+    // Set to true if the task group is in the process of being killed.
+    bool killingTaskGroup;
+  };
+
 public:
   DefaultExecutor(
       const FrameworkID& _frameworkId,
@@ -117,13 +139,14 @@ public:
     state = DISCONNECTED;
     connectionId = None();
 
-    // Disconnect all active connections used for waiting on child
-    // containers.
-    foreach (Connection connection, waiting.values()) {
-      connection.disconnect();
+    // Disconnect all active connections used for
+    // waiting on child containers.
+    foreachvalue (Owned<Container> container, containers) {
+      if (container->waiting.isSome()) {
+        container->waiting->disconnect();
+        container->waiting = None();
+      }
     }
-
-    waiting.clear();
   }
 
   void received(const Event& event)
@@ -145,7 +168,7 @@ public:
         // had launched the child containers. We can resume waiting on the
         // child containers again.
         if (launched) {
-          wait();
+          wait(containers.keys());
         }
 
         break;
@@ -171,10 +194,11 @@ public:
 
       case Event::ACKNOWLEDGED: {
         // Remove the corresponding update.
-        updates.erase(UUID::fromBytes(event.acknowledged().uuid()).get());
+        unacknowledgedUpdates.erase(
+            UUID::fromBytes(event.acknowledged().uuid()).get());
 
         // Remove the corresponding task.
-        tasks.erase(event.acknowledged().task_id());
+        unacknowledgedTasks.erase(event.acknowledged().task_id());
         break;
       }
 
@@ -231,12 +255,12 @@ protected:
     Call::Subscribe* subscribe = call.mutable_subscribe();
 
     // Send all unacknowledged updates.
-    foreach (const Call::Update& update, updates.values()) {
+    foreachvalue (const Call::Update& update, unacknowledgedUpdates) {
       subscribe->add_unacknowledged_updates()->MergeFrom(update);
     }
 
     // Send the unacknowledged tasks.
-    foreach (const TaskInfo& task, tasks.values()) {
+    foreachvalue (const TaskInfo& task, unacknowledgedTasks) {
       subscribe->add_unacknowledged_tasks()->MergeFrom(task);
     }
 
@@ -248,20 +272,6 @@ protected:
   void launchGroup(const TaskGroupInfo& taskGroup)
   {
     CHECK_EQ(SUBSCRIBED, state);
-
-    if (launched) {
-      LOG(WARNING) << "Ignoring the launch operation since a task group "
-                   << "has been already launched";
-
-      foreach (const TaskInfo& task, taskGroup.tasks()) {
-        update(
-            task.task_id(),
-            TASK_FAILED,
-            "Attempted to run multiple task groups using a "
-            "\"default\" executor");
-      }
-      return;
-    }
 
     launched = true;
 
@@ -283,7 +293,7 @@ protected:
       LOG(ERROR)
         << "Unable to establish connection with the agent: "
         << (connection.isFailed() ? connection.failure() : "discarded");
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -292,14 +302,14 @@ protected:
     if (state == DISCONNECTED || state == CONNECTED) {
       LOG(ERROR) << "Unable to complete the launch operation "
                  << "as the executor is in state " << state;
-      __shutdown();
+      _shutdown();
       return;
     }
 
     CHECK_EQ(SUBSCRIBED, state);
     CHECK_SOME(executorContainerId);
 
-    list<ContainerID> pending;
+    list<ContainerID> containerIds;
     list<Future<Response>> responses;
 
     foreach (const TaskInfo& task, taskGroup.tasks()) {
@@ -307,7 +317,7 @@ protected:
       containerId.set_value(UUID::random().toString());
       containerId.mutable_parent()->CopyFrom(executorContainerId.get());
 
-      pending.push_back(containerId);
+      containerIds.push_back(containerId);
 
       agent::Call call;
       call.set_type(agent::Call::LAUNCH_NESTED_CONTAINER);
@@ -325,6 +335,41 @@ protected:
         launch->mutable_container()->CopyFrom(task.container());
       }
 
+      // Currently, it is not possible to specify resources for nested
+      // containers (i.e., all resources are merged in the top level
+      // executor container). This means that any disk resources used by
+      // the task are mounted on the top level container. As a workaround,
+      // we set up the volume mapping allowing child containers to share
+      // the volumes from their parent containers sandbox.
+      foreach (const Resource& resource, task.resources()) {
+        // Ignore if there are no disk resources or if the
+        // disk resources did not specify a volume mapping.
+        if (!resource.has_disk() || !resource.disk().has_volume()) {
+          continue;
+        }
+
+        // Set `ContainerInfo.type` to 'MESOS' if the task did
+        // not specify a container.
+        if (!task.has_container()) {
+          launch->mutable_container()->set_type(ContainerInfo::MESOS);
+        }
+
+        const Volume& executorVolume = resource.disk().volume();
+
+        Volume* taskVolume = launch->mutable_container()->add_volumes();
+        taskVolume->set_mode(executorVolume.mode());
+        taskVolume->set_container_path(executorVolume.container_path());
+
+        Volume::Source* source = taskVolume->mutable_source();
+        source->set_type(Volume::Source::SANDBOX_PATH);
+
+        Volume::Source::SandboxPath* sandboxPath =
+          source->mutable_sandbox_path();
+
+        sandboxPath->set_type(Volume::Source::SandboxPath::PARENT);
+        sandboxPath->set_path(executorVolume.container_path());
+      }
+
       responses.push_back(post(connection.get(), call));
     }
 
@@ -332,14 +377,14 @@ protected:
       .onAny(defer(self(),
                    &Self::__launchGroup,
                    taskGroup,
-                   pending,
+                   containerIds,
                    connection.get(),
                    lambda::_1));
   }
 
   void __launchGroup(
       const TaskGroupInfo& taskGroup,
-      list<ContainerID> pending,
+      const list<ContainerID>& containerIds,
       const Connection& connection,
       const Future<list<Response>>& responses)
   {
@@ -356,7 +401,7 @@ protected:
       LOG(ERROR) << "Unable to receive a response from the agent for "
                  << "the LAUNCH_NESTED_CONTAINER call: "
                  << (responses.isFailed() ? responses.failure() : "discarded");
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -367,7 +412,7 @@ protected:
       if (response.code != process::http::Status::OK) {
         LOG(ERROR) << "Received '" << response.status << "' ("
                    << response.body << ") while launching child container";
-        __shutdown();
+        _shutdown();
         return;
       }
     }
@@ -377,29 +422,30 @@ protected:
     if (state == DISCONNECTED || state == CONNECTED) {
       LOG(ERROR) << "Unable to complete the operation of launching child "
                  << "containers as the executor is in state " << state;
-      __shutdown();
+      _shutdown();
       return;
     }
 
     CHECK_EQ(SUBSCRIBED, state);
     CHECK(launched);
+    CHECK_EQ(containerIds.size(), (size_t) taskGroup.tasks().size());
 
-    foreach (const TaskInfo& task, taskGroup.tasks()) {
+    size_t index = 0;
+    foreach (const ContainerID& containerId, containerIds) {
+      const TaskInfo& task = taskGroup.tasks().Get(index++);
       const TaskID& taskId = task.task_id();
-      ContainerID containerId = pending.front();
 
-      tasks[taskId] = task;
-      containers[containerId] = taskId;
-
-      pending.pop_front();
+      unacknowledgedTasks[taskId] = task;
+      containers[taskId] = Owned<Container>(
+          new Container {containerId, taskId, taskGroup, None(), false, false});
 
       if (task.has_health_check()) {
         // TODO(anand): Add support for command health checks.
         CHECK_NE(HealthCheck::COMMAND, task.health_check().type())
           << "Command health checks are not supported yet";
 
-        Try<Owned<health::HealthChecker>> _checker =
-          health::HealthChecker::create(
+        Try<Owned<checks::HealthChecker>> _checker =
+          checks::HealthChecker::create(
               task.health_check(),
               launcherDirectory,
               defer(self(), &Self::taskHealthUpdated, lambda::_1),
@@ -411,7 +457,7 @@ protected:
           // TODO(anand): Should we send a TASK_FAILED instead?
           LOG(ERROR) << "Failed to create health checker: "
                      << _checker.error();
-          __shutdown();
+          _shutdown();
           return;
         }
 
@@ -449,31 +495,41 @@ protected:
       update(task.task_id(), TASK_RUNNING);
     }
 
-    LOG(INFO)
-      << "Successfully launched child containers "
-      << stringify(containers.keys()) << " for tasks "
-      << stringify(containers.values());
+    auto taskIds = [&taskGroup]() {
+      list<TaskID> taskIds_;
+      foreach (const TaskInfo& task, taskGroup.tasks()) {
+        taskIds_.push_back(task.task_id());
+      }
+      return taskIds_;
+    };
 
-    wait();
+    LOG(INFO)
+      << "Successfully launched tasks "
+      << stringify(taskIds()) << " in child containers "
+      << stringify(containerIds);
+
+    wait(taskIds());
   }
 
-  void wait()
+  void wait(const list<TaskID>& taskIds)
   {
     CHECK_EQ(SUBSCRIBED, state);
     CHECK(launched);
     CHECK_SOME(connectionId);
 
     list<Future<Connection>> connections;
-    for (size_t i = 0; i < containers.size(); i++) {
+    for (size_t i = 0; i < taskIds.size(); i++) {
       connections.push_back(process::http::connect(agent));
     }
 
     process::collect(connections)
-      .onAny(defer(self(), &Self::_wait, lambda::_1, connectionId.get()));
+      .onAny(defer(
+          self(), &Self::_wait, lambda::_1, taskIds, connectionId.get()));
   }
 
   void _wait(
       const Future<list<Connection>>& _connections,
+      const list<TaskID>& taskIds,
       const UUID& _connectionId)
   {
     // It is possible that the agent process failed in the interim.
@@ -488,7 +544,7 @@ protected:
       LOG(ERROR)
         << "Unable to establish connection with the agent: "
         << (_connections.isFailed() ? _connections.failure() : "discarded");
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -496,16 +552,10 @@ protected:
     CHECK_SOME(connectionId);
 
     list<Connection> connections = _connections.get();
-    CHECK_EQ(containers.size(), connections.size());
 
-    foreach (const ContainerID& containerId, containers.keys()) {
-      CHECK(!waiting.contains(containerId));
-
-      __wait(connectionId.get(),
-             connections.front(),
-             containers[containerId],
-             containerId);
-
+    CHECK_EQ(taskIds.size(), connections.size());
+    foreach (const TaskID& taskId, taskIds) {
+      __wait(connectionId.get(), connections.front(), taskId);
       connections.pop_front();
     }
   }
@@ -513,8 +563,7 @@ protected:
   void __wait(
       const UUID& _connectionId,
       const Connection& connection,
-      const TaskID& taskId,
-      const ContainerID& containerId)
+      const TaskID& taskId)
   {
     if (connectionId != _connectionId) {
       VLOG(1) << "Ignoring the wait operation from a stale connection";
@@ -523,12 +572,15 @@ protected:
 
     CHECK_EQ(SUBSCRIBED, state);
     CHECK_SOME(connectionId);
-    CHECK(!waiting.contains(containerId));
+    CHECK(containers.contains(taskId));
 
-    LOG(INFO) << "Waiting for child container " << containerId
+    Owned<Container> container = containers.at(taskId);
+
+    LOG(INFO) << "Waiting for child container " << container->containerId
               << " of task '" << taskId << "'";
 
-    waiting.put(containerId, connection);
+    CHECK_NONE(container->waiting);
+    container->waiting = connection;
 
     agent::Call call;
     call.set_type(agent::Call::WAIT_NESTED_CONTAINER);
@@ -536,24 +588,20 @@ protected:
     agent::Call::WaitNestedContainer* containerWait =
       call.mutable_wait_nested_container();
 
-    containerWait->mutable_container_id()->CopyFrom(containerId);
+    containerWait->mutable_container_id()->CopyFrom(container->containerId);
 
     Future<Response> response = post(connection, call);
     response
       .onAny(defer(self(),
                    &Self::waited,
                    connectionId.get(),
-                   connection,
                    taskId,
-                   containerId,
                    lambda::_1));
   }
 
   void waited(
       const UUID& _connectionId,
-      Connection connection,
       const TaskID& taskId,
-      const ContainerID& containerId,
       const Future<Response>& response)
   {
     // It is possible that this callback executed after the agent process
@@ -565,13 +613,16 @@ protected:
     }
 
     CHECK_EQ(SUBSCRIBED, state);
-    CHECK(waiting.contains(containerId));
-    CHECK(waiting.get(containerId) == connection);
+    CHECK(containers.contains(taskId));
 
-    auto retry_ = [this, connection, taskId, containerId]() mutable {
-      connection.disconnect();
-      waiting.erase(containerId);
-      retry(connectionId.get(), taskId, containerId);
+    Owned<Container> container = containers.at(taskId);
+
+    CHECK_SOME(container->waiting);
+
+    auto retry_ = [this, container]() mutable {
+      container->waiting->disconnect();
+      container->waiting = None();
+      retry(connectionId.get(), container->taskId);
     };
 
     // It is possible that the response failed due to a network blip
@@ -580,7 +631,7 @@ protected:
     if (!response.isReady()) {
       LOG(ERROR)
         << "Connection for waiting on child container "
-        << containerId << " of task '" << taskId << "' interrupted: "
+        << container->containerId << " of task '" << taskId << "' interrupted: "
         << (response.isFailed() ? response.failure() : "discarded");
       retry_();
       return;
@@ -593,7 +644,7 @@ protected:
     if (response->code == process::http::Status::SERVICE_UNAVAILABLE) {
       LOG(WARNING) << "Received '" << response->status << "' ("
                    << response->body << ") waiting on child container "
-                   << containerId << " of task '" << taskId << "'";
+                   << container->containerId << " of task '" << taskId << "'";
       retry_();
       return;
     }
@@ -603,8 +654,8 @@ protected:
     if (response->code != process::http::Status::OK) {
       LOG(ERROR) << "Received '" << response->status << "' ("
                  << response->body << ") waiting on child container "
-                 << containerId << " of task '" << taskId << "'";
-      __shutdown();
+                 << container->containerId << " of task '" << taskId << "'";
+      _shutdown();
       return;
     }
 
@@ -632,11 +683,11 @@ protected:
       taskState = TASK_FAILED;
     } else {
       CHECK(WIFEXITED(status.get()) || WIFSIGNALED(status.get()))
-        << status.get();
+        << "Unexpected wait status " << status.get();
 
-      if (WIFEXITED(status.get()) && WEXITSTATUS(status.get()) == 0) {
+      if (WSUCCEEDED(status.get())) {
         taskState = TASK_FINISHED;
-      } else if (shuttingDown) {
+      } else if (container->killing) {
         // Send TASK_KILLED if the task was killed as a result of
         // `killTask()` or `shutdown()`.
         taskState = TASK_KILLED;
@@ -653,27 +704,63 @@ protected:
       update(taskId, taskState, message, None());
     }
 
-    LOG(INFO) << "Successfully waited for child container " << containerId
-              << " of task '" << taskId << "'"
-              << " in state " << stringify(taskState);
+    CHECK(containers.contains(taskId));
+    containers.erase(taskId);
 
-    CHECK(containers.contains(containerId));
-    containers.erase(containerId);
-
-    // The default restart policy for a task group is to kill all the
-    // remaining child containers if one of them terminated with a
-    // non-zero exit code. Ignore if a shutdown is in progress.
-    if (!shuttingDown && taskState == TASK_FAILED) {
-      LOG(ERROR)
-        << "Child container " << containerId << " terminated with status "
-        << (status.isSome() ? WSTRINGIFY(status.get()) : "unknown");
-      shutdown();
-      return;
-    }
+    LOG(INFO)
+      << "Child container " << container->containerId << " of task '" << taskId
+      << "' in state " << stringify(taskState) << " terminated with status "
+      << (status.isSome() ? WSTRINGIFY(status.get()) : "unknown");
 
     // Shutdown the executor if all the active child containers have terminated.
     if (containers.empty()) {
-      __shutdown();
+      _shutdown();
+      return;
+    }
+
+    // Ignore if the executor is already in the process of shutting down.
+    if (shuttingDown) {
+      return;
+    }
+
+    // Ignore if this task group is already in the process of being killed.
+    if (container->killingTaskGroup) {
+      return;
+    }
+
+    // The default restart policy for a task group is to kill all the
+    // remaining child containers if one of them terminated with a
+    // non-zero exit code.
+    if (taskState == TASK_FAILED || taskState == TASK_KILLED) {
+      // Needed for logging.
+      auto taskIds = [container]() {
+        list<TaskID> taskIds_;
+        foreach (const TaskInfo& task, container->taskGroup.tasks()) {
+          taskIds_.push_back(task.task_id());
+        }
+        return taskIds_;
+      };
+
+      // Kill all the other active containers
+      // belonging to this task group.
+      LOG(INFO) << "Killing task group containing tasks "
+                << stringify(taskIds());
+
+      container->killingTaskGroup = true;
+      foreach (const TaskInfo& task, container->taskGroup.tasks()) {
+        const TaskID& taskId = task.task_id();
+
+        // Ignore if it's the same task that triggered this callback or
+        // if the task is no longer active.
+        if (taskId == container->taskId || !containers.contains(taskId)) {
+          continue;
+        }
+
+        Owned<Container> container_ = containers.at(taskId);
+        container_->killingTaskGroup = true;
+
+        kill(container_);
+      }
     }
   }
 
@@ -689,13 +776,13 @@ protected:
     shuttingDown = true;
 
     // Stop health checking all tasks because we are shutting down.
-    foreach (const Owned<health::HealthChecker>& checker, checkers.values()) {
+    foreach (const Owned<checks::HealthChecker>& checker, checkers.values()) {
       checker->stop();
     }
     checkers.clear();
 
     if (!launched) {
-      __shutdown();
+      _shutdown();
       return;
     }
 
@@ -705,48 +792,30 @@ protected:
     // This could also happen when the executor is connected but the agent
     // asked it to shutdown because it didn't subscribe in time.
     if (state == CONNECTED || state == DISCONNECTED) {
-      __shutdown();
+      _shutdown();
       return;
     }
 
     CHECK_EQ(SUBSCRIBED, state);
 
-    process::http::connect(agent)
-      .onAny(defer(self(), &Self::_shutdown, lambda::_1));
-  }
+    list<Future<Nothing>> killResponses;
+    foreachvalue (const Owned<Container>& container, containers) {
+      // It is possible that we received a `killTask()` request
+      // from the scheduler before and are waiting on the `waited()`
+      // callback to be invoked for the child container.
+      if (container->killing) {
+        continue;
+      }
 
-  void _shutdown(const Future<Connection>& connection)
-  {
-    if (!connection.isReady()) {
-      LOG(ERROR)
-        << "Unable to establish connection with the agent: "
-        << (connection.isFailed() ? connection.failure() : "discarded");
-      __shutdown();
-      return;
-    }
-
-    // It is possible that the agent process failed before we could
-    // kill the child containers.
-    if (state == DISCONNECTED || state == CONNECTED) {
-      LOG(ERROR) << "Unable to kill child containers as the "
-                 << "executor is in state " << state;
-      __shutdown();
-      return;
-    }
-
-    list<Future<Nothing>> killing;
-    foreach (const ContainerID& containerId, containers.keys()) {
-      killing.push_back(kill(connection.get(), containerId));
+      killResponses.push_back(kill(container));
     }
 
     // It is possible that the agent process can fail while we are
-    // killing child containers. We fail fast if this happens. We
-    // capture `connection` to ensure that the connection is not
-    // disconnected before the responses are complete.
-    collect(killing)
+    // killing child containers. We fail fast if this happens.
+    collect(killResponses)
       .onAny(defer(
           self(),
-          [this, connection](const Future<list<Nothing>>& future) {
+          [this](const Future<list<Nothing>>& future) {
         if (future.isReady()) {
           return;
         }
@@ -756,11 +825,11 @@ protected:
           << "child containers: "
           << (future.isFailed() ? future.failure() : "discarded");
 
-        __shutdown();
+        _shutdown();
       }));
   }
 
-  void __shutdown()
+  void _shutdown()
   {
     const Duration duration = Seconds(1);
 
@@ -773,12 +842,14 @@ protected:
     terminate(self());
   }
 
-  Future<Nothing> kill(Connection connection, const ContainerID& containerId)
+  Future<Nothing> kill(Owned<Container> container)
   {
     CHECK_EQ(SUBSCRIBED, state);
-    CHECK(containers.contains(containerId));
 
-    LOG(INFO) << "Killing child container " << containerId;
+    CHECK(!container->killing);
+    container->killing = true;
+
+    LOG(INFO) << "Killing child container " << container->containerId;
 
     agent::Call call;
     call.set_type(agent::Call::KILL_NESTED_CONTAINER);
@@ -786,9 +857,9 @@ protected:
     agent::Call::KillNestedContainer* kill =
       call.mutable_kill_nested_container();
 
-    kill->mutable_container_id()->CopyFrom(containerId);
+    kill->mutable_container_id()->CopyFrom(container->containerId);
 
-    return post(connection, call)
+    return post(None(), call)
       .then([](const Response& /* response */) {
         return Nothing();
       });
@@ -808,21 +879,20 @@ protected:
 
     LOG(INFO) << "Received kill for task '" << taskId << "'";
 
-    bool found = false;
-    foreach (const TaskID& taskId_, containers.values()) {
-      if (taskId_ == taskId) {
-        found = true;
-        break;
-      }
-    }
-
-    if (!found) {
+    if (!containers.contains(taskId)) {
       LOG(WARNING) << "Ignoring kill for task '" << taskId
                    << "' as it is no longer active";
       return;
     }
 
-    shutdown();
+    const Owned<Container>& container = containers.at(taskId);
+    if (container->killing) {
+      LOG(WARNING) << "Ignoring kill for task '" << taskId
+                   << "' as it is in the process of getting killed";
+      return;
+    }
+
+    kill(container);
   }
 
   void taskHealthUpdated(const TaskHealthStatus& healthStatus)
@@ -856,14 +926,14 @@ private:
   {
     UUID uuid = UUID::random();
 
-    TaskStatus status;
-    status.mutable_task_id()->CopyFrom(taskId);
-    status.mutable_executor_id()->CopyFrom(executorId);
+    TaskStatus status = protobuf::createTaskStatus(
+        taskId,
+        state,
+        uuid,
+        Clock::now().secs());
 
-    status.set_state(state);
+    status.mutable_executor_id()->CopyFrom(executorId);
     status.set_source(TaskStatus::SOURCE_EXECUTOR);
-    status.set_uuid(uuid.toBytes());
-    status.set_timestamp(Clock::now().secs());
 
     if (message.isSome()) {
       status.set_message(message.get());
@@ -874,15 +944,11 @@ private:
     }
 
     // Fill the container ID associated with this task.
-    // TODO(jieyu): Consider maintain a hashmap between TaskID to
-    // ContainerID so that we don't have to loop through all tasks.
-    foreach (const ContainerID& containerId, containers.keys()) {
-      if (containers[containerId] == taskId) {
-        ContainerStatus* containerStatus = status.mutable_container_status();
-        containerStatus->mutable_container_id()->CopyFrom(containerId);
-        break;
-      }
-    }
+    CHECK(containers.contains(taskId));
+    const Owned<Container>& container = containers.at(taskId);
+
+    ContainerStatus* containerStatus = status.mutable_container_status();
+    containerStatus->mutable_container_id()->CopyFrom(container->containerId);
 
     Call call;
     call.set_type(Call::UPDATE);
@@ -893,28 +959,32 @@ private:
     call.mutable_update()->mutable_status()->CopyFrom(status);
 
     // Capture the status update.
-    updates[uuid] = call.update();
+    unacknowledgedUpdates[uuid] = call.update();
 
     mesos->send(evolve(call));
   }
 
-  Future<Response> post(Connection connection, const agent::Call& call)
+  Future<Response> post(
+      Option<Connection> connection,
+      const agent::Call& call)
   {
     ::Request request;
     request.method = "POST";
     request.url = agent;
     request.body = serialize(contentType, evolve(call));
-    request.keepAlive = true;
     request.headers = {{"Accept", stringify(contentType)},
                        {"Content-Type", stringify(contentType)}};
 
-    return connection.send(request);
+    // Only pipeline requests when there is an active connection.
+    if (connection.isSome()) {
+      request.keepAlive = true;
+    }
+
+    return connection.isSome() ? connection->send(request)
+                               : process::http::request(request);
   }
 
-  void retry(
-      const UUID& _connectionId,
-      const TaskID& taskId,
-      const ContainerID& containerId)
+  void retry(const UUID& _connectionId, const TaskID& taskId)
   {
     if (connectionId != _connectionId) {
       VLOG(1) << "Ignoring retry attempt from a stale connection";
@@ -928,15 +998,13 @@ private:
                    &Self::_retry,
                    lambda::_1,
                    connectionId.get(),
-                   taskId,
-                   containerId));
+                   taskId));
   }
 
   void _retry(
       const Future<Connection>& connection,
       const UUID& _connectionId,
-      const TaskID& taskId,
-      const ContainerID& containerId)
+      const TaskID& taskId)
   {
     const Duration duration = Seconds(1);
 
@@ -947,29 +1015,27 @@ private:
 
     CHECK_EQ(SUBSCRIBED, state);
     CHECK_SOME(connectionId);
+    CHECK(containers.contains(taskId));
+
+    const Owned<Container>& container = containers.at(taskId);
 
     if (!connection.isReady()) {
       LOG(ERROR)
         << "Unable to establish connection with the agent ("
         << (connection.isFailed() ? connection.failure() : "discarded")
-        << ") for waiting on child container " << containerId
+        << ") for waiting on child container " << container->containerId
         << " of task '" << taskId << "'; Retrying again in " << duration;
 
       process::delay(
-          duration,
-          self(),
-          &Self::retry,
-          connectionId.get(),
-          taskId,
-          containerId);
+          duration, self(), &Self::retry, connectionId.get(), taskId);
 
       return;
     }
 
     LOG(INFO)
-      << "Established connection to wait for child container " << containerId
-      << " of task '" << taskId << "'; Retrying the WAIT_NESTED_CONTAINER call "
-      << "in " << duration;
+      << "Established connection to wait for child container "
+      << container->containerId << " of task '" << taskId
+      << "'; Retrying the WAIT_NESTED_CONTAINER call " << "in " << duration;
 
     // It is possible that we were able to reestablish the connection
     // but the agent might still be recovering. To avoid the vicious
@@ -982,8 +1048,7 @@ private:
         &Self::__wait,
         connectionId.get(),
         connection.get(),
-        taskId,
-        containerId);
+        taskId);
   }
 
   enum State
@@ -1005,19 +1070,15 @@ private:
   const ::URL agent; // Agent API URL.
   const string sandboxDirectory;
   const string launcherDirectory;
-  LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
-  LinkedHashMap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
 
-  // TODO(anand): Consider creating a `Container` struct to manage
-  // information about an active container and its waiting connection.
+  LinkedHashMap<UUID, Call::Update> unacknowledgedUpdates;
 
-  LinkedHashMap<ContainerID, TaskID> containers; // Active child containers.
+  // A task is considered unacknowledged if no status update
+  // acknowledgements have been received for it yet.
+  LinkedHashMap<TaskID, TaskInfo> unacknowledgedTasks;
 
-  // Connections used for waiting on child containers. A child container
-  // can be active and present in `containers` but not present
-  // in `waiting` if a connection for sending the `WAIT_NESTED_CONTAINER`
-  // call has not been established yet.
-  hashmap<ContainerID, Connection> waiting;
+  // Active child containers.
+  LinkedHashMap<TaskID, Owned<Container>> containers;
 
   // There can be multiple simulataneous ongoing (re-)connection attempts
   // with the agent for waiting on child containers. This helps us in
@@ -1026,7 +1087,8 @@ private:
   // a `connected()` callback.
   Option<UUID> connectionId;
 
-  hashmap<TaskID, Owned<health::HealthChecker>> checkers; // Health checkers.
+  // TODO(anand): Move the health checker information to the `Container` struct.
+  hashmap<TaskID, Owned<checks::HealthChecker>> checkers; // Health checkers.
 };
 
 } // namespace internal {
@@ -1050,6 +1112,8 @@ public:
 
 int main(int argc, char** argv)
 {
+  process::initialize();
+
   Flags flags;
   mesos::FrameworkID frameworkId;
   mesos::ExecutorID executorId;
@@ -1130,5 +1194,14 @@ int main(int argc, char** argv)
   process::spawn(executor.get());
   process::wait(executor.get());
 
+  // NOTE: We need to delete the executor before we call `process::finalize`
+  // because the executor will try to terminate and wait on a libprocess
+  // actor in the executor's destructor.
+  executor.reset();
+
+  // NOTE: We need to finalize libprocess, on Windows especially,
+  // as any binary that uses the networking stack on Windows must
+  // also clean up the networking stack before exiting.
+  process::finalize(true);
   return EXIT_SUCCESS;
 }

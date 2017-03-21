@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <string>
+#include <vector>
 
 #include <gmock/gmock.h>
 
@@ -56,6 +57,7 @@ using process::http::OK;
 using process::http::Response;
 
 using std::string;
+using std::vector;
 
 using testing::AtMost;
 using testing::DoAll;
@@ -184,7 +186,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   AWAIT_READY(registered);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test");
@@ -204,7 +206,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Retrieve endpoint with the user allowed to view the framework.
   {
@@ -215,9 +217,9 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object state = parse.get();
@@ -247,9 +249,9 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object state = parse.get();
@@ -318,7 +320,7 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response.get().body;
+        << response->body;
 
     response = http::get(
         agent.get()->pid,
@@ -327,9 +329,9 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response.get().body;
+        << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
     JSON::Object state = parse.get();
 
@@ -347,7 +349,7 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-        << response.get().body;
+        << response->body;
 
     response = http::get(
         agent.get()->pid,
@@ -356,14 +358,124 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response.get().body;
+        << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
     JSON::Object state = parse.get();
 
     EXPECT_TRUE(state.values.find("flags") == state.values.end());
   }
+}
+
+
+// This test verifies that a task is launched on the agent if the task
+// user is authorized based on `run_tasks` ACL configured on the agent
+// to only allow whitelisted users to run tasks on the agent.
+TYPED_TEST(SlaveAuthorizerTest, AuthorizeRunTaskOnAgent)
+{
+  // Get the current user.
+  Result<string> user = os::user();
+  ASSERT_SOME(user) << "Failed to get the current user name"
+                    << (user.isError() ? ": " + user.error() : "");
+
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  // Start a slave with `bar` and the current user being the only authorized
+  // users to launch tasks on the agent.
+  ACLs acls;
+  acls.set_permissive(false); // Restrictive.
+  mesos::ACL::RunTask* acl = acls.add_run_tasks();
+  acl->mutable_principals()->set_type(ACL::Entity::ANY);
+  acl->mutable_users()->add_values("bar");
+  acl->mutable_users()->add_values(user.get());
+
+  slave::Flags slaveFlags = this->CreateSlaveFlags();
+  slaveFlags.acls = acls;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = this->StartSlave(
+      detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Create a framework with user `foo`.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_user("foo");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Framework is registered since the master admits frameworks of any user.
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  // Launch the first task with no user, so it defaults to the
+  // framework user `foo`.
+  TaskInfo task1 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:32").get(),
+      "sleep 1000");
+
+  // Launch the second task as the current user.
+  TaskInfo task2 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:32").get(),
+      "sleep 1000");
+  task2.mutable_command()->set_user(user.get());
+
+  // The first task should fail since the task user `foo` is not an
+  // authorized user that can launch a task. However, the second task
+  // should succeed.
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver.acceptOffers(
+      {offer.id()},
+      {LAUNCH({task1, task2})});
+
+  // Wait for TASK_FAILED for 1st task, and TASK_RUNNING for 2nd task.
+  AWAIT_READY(status1);
+  AWAIT_READY(status2);
+
+  // Validate both the statuses. Note that the order of receiving the
+  // status updates for the 2 tasks is not deterministic.
+  hashmap<TaskID, TaskStatus> statuses {
+    {status1->task_id(), status1.get()},
+    {status2->task_id(), status2.get()}
+  };
+
+  ASSERT_TRUE(statuses.contains(task1.task_id()));
+  EXPECT_EQ(TASK_ERROR, statuses.at(task1.task_id()).state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, statuses.at(task1.task_id()).source());
+  EXPECT_EQ(TaskStatus::REASON_TASK_UNAUTHORIZED,
+            statuses.at(task1.task_id()).reason());
+
+  ASSERT_TRUE(statuses.contains(task2.task_id()));
+  EXPECT_EQ(TASK_RUNNING, statuses.at(task2.task_id()).state());
+
+  driver.stop();
+  driver.join();
 }
 
 
@@ -424,18 +536,18 @@ TEST_P(SlaveEndpointTest, AuthorizedRequest)
   AWAIT_READY(request);
 
   const string principal = DEFAULT_CREDENTIAL.principal();
-  EXPECT_EQ(principal, request.get().subject().value());
+  EXPECT_EQ(principal, request->subject().value());
 
   // TODO(bbannier): Once agent endpoint handlers use more than just
   // `GET_ENDPOINT_WITH_PATH` we should factor out the request method
   // and expected authorization action and parameterize
   // `SlaveEndpointTest` on that as well in addition to the endpoint.
-  EXPECT_EQ(authorization::GET_ENDPOINT_WITH_PATH, request.get().action());
+  EXPECT_EQ(authorization::GET_ENDPOINT_WITH_PATH, request->action());
 
-  EXPECT_EQ("/" + endpoint, request.get().object().value());
+  EXPECT_EQ("/" + endpoint, request->object().value());
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 }
 
 
@@ -470,7 +582,7 @@ TEST_P(SlaveEndpointTest, UnauthorizedRequest)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-    << response.get().body;
+    << response->body;
 }
 
 
@@ -501,7 +613,7 @@ TEST_P(SlaveEndpointTest, NoAuthorizer)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 }
 
 } // namespace tests {

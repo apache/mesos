@@ -49,35 +49,35 @@
         <tbody>
           <tr>
             <td>Staging</td>
-            <td class="text-right">{{state.staging_tasks | number}}</td>
+            <td class="text-right">{{staging_tasks | number}}</td>
           </tr>
           <tr>
             <td>Starting</td>
-            <td class="text-right">{{state.starting_tasks | number}}</td>
+            <td class="text-right">{{starting_tasks | number}}</td>
           </tr>
           <tr>
             <td>Running</td>
-            <td class="text-right">{{state.running_tasks | number}}</td>
+            <td class="text-right">{{running_tasks | number}}</td>
           </tr>
           <tr>
             <td>Killing</td>
-            <td class="text-right">{{state.killing_tasks | number}}</td>
+            <td class="text-right">{{killing_tasks | number}}</td>
           </tr>
           <tr>
             <td>Finished</td>
-            <td class="text-right">{{state.finished_tasks | number}}</td>
+            <td class="text-right">{{finished_tasks | number}}</td>
           </tr>
           <tr>
             <td>Killed</td>
-            <td class="text-right">{{state.killed_tasks | number}}</td>
+            <td class="text-right">{{killed_tasks | number}}</td>
           </tr>
           <tr>
             <td>Failed</td>
-            <td class="text-right">{{state.failed_tasks | number}}</td>
+            <td class="text-right">{{failed_tasks | number}}</td>
           </tr>
           <tr>
             <td>Lost</td>
-            <td class="text-right">{{state.lost_tasks | number}}</td>
+            <td class="text-right">{{lost_tasks | number}}</td>
           </tr>
         </tbody>
       </table>
@@ -129,11 +129,12 @@
           <th data-key="id">ID</th>
           <th data-key="user">User</th>
           <th data-key="name">Name</th>
+          <th data-key="roles">Roles</th>
           <th data-key="num_tasks">Active Tasks</th>
           <th data-key="cpus">CPUs (Used / Allocated)</th>
           <th data-key="gpus">GPUs (Used / Allocated)</th>
-          <th data-key="Mem">Mem (Used / Allocated)</th>
-          <th data-key="Disk">Disk (Used / Allocated)</th>
+          <th data-key="mem">Mem (Used / Allocated)</th>
+          <th data-key="disk">Disk (Used / Allocated)</th>
         </tr>
       </thead>
       <tbody>
@@ -151,6 +152,11 @@
           </td>
           <td>{{framework.user}}</td>
           <td>{{framework.name}}</td>
+          <!-- TODO(bmahler): This doesn't display well when there are a lot
+               of roles (e.g. a large organization with a lot of teams &
+               services, using roles like /engineering/frontend/webserver, etc).
+               Figure out a way to display this without bloating the table. -->
+          <td>{{framework.roles.toString()}}</td>
           <td>{{framework.num_tasks | number}}</td>
           <td>{{monitor.frameworks[framework.id].statistics.cpus_total_usage | number}} / {{framework.cpus | number}}</td>
           <!-- TODO(haosdent): We need to show statistics for gpu once it is provided in monitor endpoint. -->
@@ -168,6 +174,7 @@
           <th data-key="id">ID</th>
           <th data-key="user">User</th>
           <th data-key="name">Name</th>
+          <th data-key="roles">Roles</th>
           <th data-key="tasks.length">Active Tasks</th>
           <th data-key="resources.cpus">CPUs</th>
           <th data-key="resources.gpus">GPUs</th>
@@ -190,6 +197,11 @@
           </td>
           <td>{{completed_framework.user}}</td>
           <td>{{completed_framework.name}}</td>
+          <!-- TODO(bmahler): This doesn't display well when there are a lot
+               of roles (e.g. a large organization with a lot of teams &
+               services, using roles like /engineering/frontend/webserver, etc).
+               Figure out a way to display this without bloating the table. -->
+          <td>{{completed_framework.roles.toString()}}</td>
           <td>{{completed_framework.num_tasks | number}}</td>
           <td>{{completed_framework.cpus | number}}</td>
           <td>{{completed_framework.gpus | number}}</td>

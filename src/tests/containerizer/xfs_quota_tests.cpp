@@ -32,6 +32,8 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/constants.hpp>
+
 #include "linux/fs.hpp"
 
 #include "master/master.hpp"
@@ -42,6 +44,7 @@
 
 #include "slave/containerizer/fetcher.hpp"
 #include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/isolators/xfs/disk.hpp"
 #include "slave/containerizer/mesos/isolators/xfs/utils.hpp"
 
 #include "tests/environment.hpp"
@@ -64,6 +67,7 @@ using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::Slave;
+using mesos::internal::slave::XfsDiskIsolatorProcess;
 
 using mesos::master::detector::MasterDetector;
 
@@ -79,9 +83,12 @@ static QuotaInfo makeQuotaInfo(
 }
 
 
-class ROOT_XFS_QuotaTest : public MesosTest
+class ROOT_XFS_TestBase : public MesosTest
 {
 public:
+  explicit ROOT_XFS_TestBase(const string& _xfsOptions)
+    : xfsOptions(_xfsOptions) {}
+
   virtual void SetUp()
   {
     MesosTest::SetUp();
@@ -102,7 +109,7 @@ public:
     // Attach the loop to a backing file.
     Try<Subprocess> losetup = subprocess(
         "losetup " + loop.get() + " " + devPath,
-        Subprocess::PATH("/dev/null"));
+        Subprocess::PATH(os::DEV_NULL));
 
     ASSERT_SOME(losetup);
     AWAIT_READY(losetup->status());
@@ -115,7 +122,7 @@ public:
     // should be good enough for tests.
     Try<Subprocess> mkfs = subprocess(
         "mkfs.xfs -f " + loopDevice.get(),
-        Subprocess::PATH("/dev/null"));
+        Subprocess::PATH(os::DEV_NULL));
 
     ASSERT_SOME(mkfs);
     AWAIT_READY(mkfs->status());
@@ -126,7 +133,7 @@ public:
         mntPath,
         "xfs",
         0, // Flags.
-        "prjquota"));
+        xfsOptions));
     mountPoint = mntPath;
 
     ASSERT_SOME(os::chdir(mountPoint.get()))
@@ -145,7 +152,7 @@ public:
     if (loopDevice.isSome()) {
       Try<Subprocess> cmdProcess = subprocess(
           "losetup -d " + loopDevice.get(),
-          Subprocess::PATH("/dev/null"));
+          Subprocess::PATH(os::DEV_NULL));
 
       if (cmdProcess.isSome()) {
         cmdProcess->status().await(Seconds(15));
@@ -206,8 +213,36 @@ public:
     return string("/dev/loop") + stringify(devno);
   }
 
+  string xfsOptions;
   Option<string> loopDevice; // The loop device we attached.
   Option<string> mountPoint; // XFS filesystem mountpoint.
+};
+
+
+// ROOT_XFS_QuotaTest is our standard fixture that sets up a
+// XFS filesystem on loopback with project quotas enabled.
+class ROOT_XFS_QuotaTest : public ROOT_XFS_TestBase
+{
+public:
+  ROOT_XFS_QuotaTest() : ROOT_XFS_TestBase("prjquota") {}
+};
+
+
+// ROOT_XFS_NoQuota sets up an XFS filesystem on loopback
+// with no quotas enabled.
+class ROOT_XFS_NoQuota : public ROOT_XFS_TestBase
+{
+public:
+  ROOT_XFS_NoQuota() : ROOT_XFS_TestBase("noquota") {}
+};
+
+
+// ROOT_XFS_NoProjectQuota sets up an XFS filesystem on loopback
+// with all the quota types except project quotas enabled.
+class ROOT_XFS_NoProjectQuota : public ROOT_XFS_TestBase
+{
+public:
+  ROOT_XFS_NoProjectQuota() : ROOT_XFS_TestBase("usrquota,grpquota") {}
 };
 
 
@@ -224,8 +259,8 @@ TEST_F(ROOT_XFS_QuotaTest, QuotaGetSet)
   Result<QuotaInfo> info = getProjectQuota(root, projectId);
   ASSERT_SOME(info);
 
-  EXPECT_EQ(limit, info.get().limit);
-  EXPECT_EQ(Bytes(0), info.get().used);
+  EXPECT_EQ(limit, info->limit);
+  EXPECT_EQ(Bytes(0), info->used);
 
   EXPECT_SOME(clearProjectQuota(root, projectId));
 }
@@ -369,7 +404,7 @@ TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuota)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -389,17 +424,17 @@ TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuota)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status1);
-  EXPECT_EQ(task.task_id(), status1.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  EXPECT_EQ(task.task_id(), status1->task_id());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   AWAIT_READY(status2);
-  EXPECT_EQ(task.task_id(), status2.get().task_id());
-  EXPECT_EQ(TASK_FAILED, status2.get().state());
+  EXPECT_EQ(task.task_id(), status2->task_id());
+  EXPECT_EQ(TASK_FAILED, status2->state());
 
   // Unlike the 'disk/du' isolator, the reason for task failure
   // should be that dd got an IO error.
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status2.get().source());
-  EXPECT_EQ("Command exited with status 1", status2.get().message());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status2->source());
+  EXPECT_EQ("Command exited with status 1", status2->message());
 
   driver.stop();
   driver.join();
@@ -442,7 +477,7 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -461,33 +496,33 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<hashset<ContainerID>> containers = containerizer.get()->containers();
   AWAIT_READY(containers);
-  ASSERT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
   Timeout timeout = Timeout::in(Seconds(5));
 
   while (true) {
     Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
     AWAIT_READY(usage);
 
-    ASSERT_TRUE(usage.get().has_disk_limit_bytes());
-    EXPECT_EQ(Megabytes(3), Bytes(usage.get().disk_limit_bytes()));
+    ASSERT_TRUE(usage->has_disk_limit_bytes());
+    EXPECT_EQ(Megabytes(3), Bytes(usage->disk_limit_bytes()));
 
-    if (usage.get().has_disk_used_bytes()) {
+    if (usage->has_disk_used_bytes()) {
       // Usage must always be <= the limit.
-      EXPECT_LE(usage.get().disk_used_bytes(), usage.get().disk_limit_bytes());
+      EXPECT_LE(usage->disk_used_bytes(), usage->disk_limit_bytes());
 
       // Usage might not be equal to the limit, but it must hit
       // and not exceed the limit.
-      if (usage.get().disk_used_bytes() >= usage.get().disk_limit_bytes()) {
+      if (usage->disk_used_bytes() >= usage->disk_limit_bytes()) {
         EXPECT_EQ(
-            usage.get().disk_used_bytes(), usage.get().disk_limit_bytes());
-        EXPECT_EQ(Megabytes(3), Bytes(usage.get().disk_used_bytes()));
+            usage->disk_used_bytes(), usage->disk_limit_bytes());
+        EXPECT_EQ(Megabytes(3), Bytes(usage->disk_used_bytes()));
         break;
       }
     }
@@ -543,7 +578,7 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -560,22 +595,22 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<ResourceUsage> usage1 =
     process::dispatch(slave.get()->pid, &Slave::usage);
   AWAIT_READY(usage1);
 
   // We should have 1 executor using resources.
-  ASSERT_EQ(1, usage1.get().executors().size());
+  ASSERT_EQ(1, usage1->executors().size());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *containers.get().begin();
+  ContainerID containerId = *containers->begin();
 
   // Restart the slave.
   slave.get()->terminate();
@@ -604,7 +639,7 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
   AWAIT_READY(usage2);
 
   // We should have no executors left because we didn't checkpoint.
-  ASSERT_EQ(0, usage2.get().executors().size());
+  ASSERT_EQ(0, usage2->executors().size());
 
   Try<std::list<string>> sandboxes = os::glob(path::join(
       slave::paths::getSandboxRootDir(mountPoint.get()),
@@ -667,7 +702,7 @@ TEST_F(ROOT_XFS_QuotaTest, CheckpointRecovery)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -683,15 +718,15 @@ TEST_F(ROOT_XFS_QuotaTest, CheckpointRecovery)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<ResourceUsage> usage1 =
     process::dispatch(slave.get()->pid, &Slave::usage);
   AWAIT_READY(usage1);
 
   // We should have 1 executor using resources.
-  ASSERT_EQ(1, usage1.get().executors().size());
+  ASSERT_EQ(1, usage1->executors().size());
 
   // Restart the slave.
   slave.get()->terminate();
@@ -710,7 +745,7 @@ TEST_F(ROOT_XFS_QuotaTest, CheckpointRecovery)
   AWAIT_READY(usage2);
 
   // We should have still have 1 executor using resources.
-  ASSERT_EQ(1, usage1.get().executors().size());
+  ASSERT_EQ(1, usage1->executors().size());
 
   Try<std::list<string>> sandboxes = os::glob(path::join(
       slave::paths::getSandboxRootDir(mountPoint.get()),
@@ -780,7 +815,7 @@ TEST_F(ROOT_XFS_QuotaTest, RecoverOldContainers)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  EXPECT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -796,8 +831,8 @@ TEST_F(ROOT_XFS_QuotaTest, RecoverOldContainers)
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   {
     Future<ResourceUsage> usage =
@@ -806,8 +841,8 @@ TEST_F(ROOT_XFS_QuotaTest, RecoverOldContainers)
 
     // We should have 1 executor using resources but it doesn't have
     // disk limit enabled.
-    ASSERT_EQ(1, usage.get().executors().size());
-    const ResourceUsage_Executor& executor = usage.get().executors().Get(0);
+    ASSERT_EQ(1, usage->executors().size());
+    const ResourceUsage_Executor& executor = usage->executors().Get(0);
     ASSERT_TRUE(executor.has_statistics());
     ASSERT_FALSE(executor.statistics().has_disk_limit_bytes());
   }
@@ -832,8 +867,8 @@ TEST_F(ROOT_XFS_QuotaTest, RecoverOldContainers)
 
     // We should still have 1 executor using resources but it doesn't
     // have disk limit enabled.
-    ASSERT_EQ(1, usage.get().executors().size());
-    const ResourceUsage_Executor& executor = usage.get().executors().Get(0);
+    ASSERT_EQ(1, usage->executors().size());
+    const ResourceUsage_Executor& executor = usage->executors().Get(0);
     ASSERT_TRUE(executor.has_statistics());
     ASSERT_FALSE(executor.statistics().has_disk_limit_bytes());
   }
@@ -876,6 +911,30 @@ TEST_F(ROOT_XFS_QuotaTest, IsolatorFlags)
   flags = CreateSlaveFlags();
   flags.xfs_project_range = "100";
   ASSERT_ERROR(StartSlave(detector.get(), flags));
+}
+
+
+// Verify that we correctly detect when quotas are not enabled at all.
+TEST_F(ROOT_XFS_NoQuota, CheckQuotaEnabled)
+{
+  EXPECT_SOME_EQ(false, xfs::isQuotaEnabled(mountPoint.get()));
+  EXPECT_ERROR(XfsDiskIsolatorProcess::create(CreateSlaveFlags()));
+}
+
+
+// Verify that we correctly detect when quotas are enabled but project
+// quotas are not enabled.
+TEST_F(ROOT_XFS_NoProjectQuota, CheckQuotaEnabled)
+{
+  EXPECT_SOME_EQ(false, xfs::isQuotaEnabled(mountPoint.get()));
+  EXPECT_ERROR(XfsDiskIsolatorProcess::create(CreateSlaveFlags()));
+}
+
+
+// Verify that we correctly detect that project quotas are enabled.
+TEST_F(ROOT_XFS_QuotaTest, CheckQuotaEnabled)
+{
+  EXPECT_SOME_EQ(true, xfs::isQuotaEnabled(mountPoint.get()));
 }
 
 } // namespace tests {

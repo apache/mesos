@@ -46,12 +46,12 @@ TEST_TEMP_DISABLED_ON_WINDOWS(NetTest, LinkDevice)
 
     if (network.isSome()) {
       string addr = stringify(network.get());
-      string prefix = addr.substr(addr.find("/") + 1);
+      string prefix = addr.substr(addr.find('/') + 1);
       ASSERT_SOME(numify<int>(prefix));
       EXPECT_EQ(network.get().prefix(), numify<int>(prefix).get());
 
       vector<string> tokens =
-        strings::split(addr.substr(0, addr.find("/")), ".");
+        strings::split(addr.substr(0, addr.find('/')), ".");
 
       EXPECT_EQ(4u, tokens.size());
 

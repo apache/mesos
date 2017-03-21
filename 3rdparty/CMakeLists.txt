@@ -60,7 +60,7 @@ if (WIN32)
   # (as well as all the other third-party dependencies) on MSVC 1900.
   #
   # [1] https://github.com/google/glog/pull/43
-  set(GLOG_URL   ${UPSTREAM_URL}/glog-v0.3.4-g4d391fe.tar.gz)
+  set(GLOG_URL   ${UPSTREAM_URL}/glog-da816ea70.tar.gz)
   set(CURL_URL   ${UPSTREAM_URL}/curl-${CURL_VERSION}.tar.gz)
   set(LIBAPR_URL ${UPSTREAM_URL}/libapr-${LIBAPR_VERSION}.tar.gz)
   set(ZLIB_URL   ${UPSTREAM_URL}/zlib-${ZLIB_VERSION}.tar.gz)
@@ -90,7 +90,7 @@ endif (WIN32)
 # libraries, we might as well move them to a library folder.)
 if (NOT WIN32)
   set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure --prefix=${GLOG_LIB_ROOT})
-  set(GLOG_BUILD_CMD   make)
+  set(GLOG_BUILD_CMD   make libglog.la)
   set(GLOG_INSTALL_CMD make install)
   # Patch glog to deal with a problem that appears when compiling on clang
   # under the C++11 standard. cf. MESOS-860, MESOS-966.
@@ -107,6 +107,7 @@ if (NOT WIN32)
   set(LIBEVENT_INSTALL_CMD mkdir -p ${LIBEVENT_LIB_ROOT} && cp -r ${LIBEVENT_ROOT}-build/lib/. ${LIBEVENT_LIB_DIR} && cp -r ${LIBEVENT_ROOT}-build/include/. ${LIBEVENT_INCLUDE_DIR} && cp -r ${LIBEVENT_ROOT}/include/. ${LIBEVENT_INCLUDE_DIR})
 elseif (WIN32)
   set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
+  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/glog-da816ea70.patch)
 
   set(LIBEVENT_INSTALL_CMD ${CMAKE_NOOP})
 
@@ -137,6 +138,18 @@ set(LIBEVENT_CMAKE_ARGS
   -DEVENT__HAVE_SYS_STAT_H=1
   -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
   )
+
+if (ENABLE_SSL)
+  set(LIBEVENT_CMAKE_ARGS
+    ${LIBEVENT_CMAKE_ARGS}
+    -DEVENT__DISABLE_OPENSSL=OFF
+    )
+else (ENABLE_SSL)
+  set(LIBEVENT_CMAKE_ARGS
+    ${LIBEVENT_CMAKE_ARGS}
+    -DEVENT__DISABLE_OPENSSL=ON
+    )
+endif (ENABLE_SSL)
 
 if (NOT WIN32)
   set(LIBEVENT_CMAKE_ARGS

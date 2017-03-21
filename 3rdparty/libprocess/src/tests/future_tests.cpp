@@ -18,6 +18,8 @@
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 
+#include <stout/duration.hpp>
+#include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
 using process::Clock;
@@ -253,6 +255,39 @@ TEST(FutureTest, After2)
   EXPECT_FALSE(executed.load());
 
   Clock::resume();
+}
+
+
+// Verifies that a a future does not leak memory after calling
+// `after()`. This behavior ocurred because a future indirectly
+// kept a reference counted pointer to itself.
+TEST(FutureTest, After3)
+{
+  Future<Nothing> future;
+  process::WeakFuture<Nothing> weak_future(future);
+
+  EXPECT_SOME(weak_future.get());
+
+  {
+    Clock::pause();
+
+    // The original future disappears here. After this call the
+    // original future goes out of scope and should not be reachable
+    // anymore.
+    future = future
+      .after(Milliseconds(1), [](Future<Nothing> f) {
+        f.discard();
+        return Nothing();
+      });
+
+    Clock::advance(Milliseconds(1));
+    Clock::settle();
+
+    AWAIT_READY(future);
+  }
+
+  EXPECT_NONE(weak_future.get());
+  EXPECT_FALSE(future.hasDiscard());
 }
 
 

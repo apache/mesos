@@ -56,7 +56,7 @@ Try<MasterDetector*> MasterDetector::create(
     return new StandaloneMasterDetector();
   }
 
-  string zk = zk_.get();
+  const string& zk = zk_.get();
 
   if (strings::startsWith(zk, "zk://")) {
     Try<zookeeper::URL> url = zookeeper::URL::parse(zk);

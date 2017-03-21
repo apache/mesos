@@ -88,7 +88,7 @@ private:
     Key(const Image::Appc& image);
 
     Key(const std::string& name,
-        const std::map<std::string, std::string> labels);
+        const std::map<std::string, std::string>& labels);
 
     bool operator==(const Key& other) const;
 

@@ -258,7 +258,7 @@ TYPED_TEST(AuthorizationTest, PrincipalRunAsAnyUser)
   {
     authorization::Request request;
     request.set_action(authorization::RUN_TASK);
-    request.mutable_subject()->set_value("foo");;
+    request.mutable_subject()->set_value("foo");
 
     FrameworkInfo frameworkInfo;
     frameworkInfo.set_user("user2");
@@ -1910,6 +1910,105 @@ TYPED_TEST(AuthorizationTest, ViewFramework)
   {
     authorization::Request request;
     request.set_action(authorization::VIEW_FRAMEWORK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfoBar);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+}
+
+
+// This tests the authorization of requests to ViewContainer.
+TYPED_TEST(AuthorizationTest, ViewContainer)
+{
+  // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal can view no containers.
+    mesos::ACL::ViewContainer* acl = acls.add_view_containers();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // "bar" principal can see containers running under user "bar".
+    mesos::ACL::ViewContainer* acl = acls.add_view_containers();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_users()->add_values("bar");
+  }
+
+  {
+    // "ops" principal can see all containers.
+    mesos::ACL::ViewContainer* acl = acls.add_view_containers();
+    acl->mutable_principals()->add_values("ops");
+    acl->mutable_users()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // No one else can view any containers.
+    mesos::ACL::ViewContainer* acl = acls.add_view_containers();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Create FrameworkInfo with a generic user as object to be authorized.
+  FrameworkInfo frameworkInfo;
+  {
+    frameworkInfo.set_user("user");
+    frameworkInfo.set_name("f");
+  }
+
+  // Create FrameworkInfo with user "bar" as object to be authorized.
+  FrameworkInfo frameworkInfoBar;
+  {
+    frameworkInfoBar.set_user("bar");
+    frameworkInfoBar.set_name("f");
+  }
+
+  // Principal "foo" cannot view containers running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_CONTAINER);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "bar" cannot view containers running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_CONTAINER);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "ops" can view containers running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_CONTAINER);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "bar" can view containers running with user "bar".
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_CONTAINER);
     request.mutable_subject()->set_value("bar");
     request.mutable_object()->mutable_framework_info()->MergeFrom(
         frameworkInfoBar);
@@ -3723,6 +3822,148 @@ TYPED_TEST(AuthorizationTest, KillNestedContainer)
 }
 
 
+// This tests the authorization of removing a nested container.
+TYPED_TEST(AuthorizationTest, RemoveNestedContainer)
+{
+  // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal cannot remove any nested container.
+    mesos::ACL::RemoveNestedContainer* acl =
+        acls.add_remove_nested_containers();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // "bar" principal can remove nested containers running under user "bar".
+    mesos::ACL::RemoveNestedContainer* acl =
+      acls.add_remove_nested_containers();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_users()->add_values("bar");
+  }
+
+  {
+    // "ops" principal can remove all nested containers.
+    mesos::ACL::RemoveNestedContainer* acl =
+      acls.add_remove_nested_containers();
+    acl->mutable_principals()->add_values("ops");
+    acl->mutable_users()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // No one else can remove any nested container.
+    mesos::ACL::RemoveNestedContainer* acl =
+        acls.add_remove_nested_containers();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_user("user");
+
+  // Create ExecutorInfo with a user not mentioned in the ACLs in
+  // command as object to be authorized.
+  ExecutorInfo executorInfo;
+  {
+    executorInfo.set_name("Task");
+    executorInfo.mutable_executor_id()->set_value("t");
+    executorInfo.mutable_command()->set_value("echo hello");
+    executorInfo.mutable_command()->set_user("user");
+  }
+
+  // Create ExecutorInfo with user "bar" in command as object to be
+  // authorized.
+  ExecutorInfo executorInfoBar;
+  {
+    executorInfoBar.set_name("Executor");
+    executorInfoBar.mutable_executor_id()->set_value("e");
+    executorInfoBar.mutable_command()->set_value("echo hello");
+    executorInfoBar.mutable_command()->set_user("bar");
+  }
+
+  // Create ExecutorInfo with no user in command as object to be
+  // authorized.
+  ExecutorInfo executorInfoNoUser;
+  {
+    executorInfoNoUser.set_name("Executor");
+    executorInfoNoUser.mutable_executor_id()->set_value("e");
+    executorInfoNoUser.mutable_command()->set_value("echo hello");
+  }
+
+  // Principal "foo" cannot remove a nested container with a request
+  // with ExecutorInfo running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::REMOVE_NESTED_CONTAINER);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->mutable_executor_info()->MergeFrom(executorInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "bar" cannot remove a nested container with a request
+  // with ExecutorInfo running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::REMOVE_NESTED_CONTAINER);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_executor_info()->MergeFrom(executorInfo);
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "ops" can remove a nested container with a request with
+  // ExecutorInfo running with user "user".
+  {
+    authorization::Request request;
+    request.set_action(authorization::REMOVE_NESTED_CONTAINER);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_executor_info()->MergeFrom(executorInfo);
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "bar" can remove a nested container with a request with
+  // ExecutorInfo running with user "bar".
+  {
+    authorization::Request request;
+    request.set_action(authorization::REMOVE_NESTED_CONTAINER);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->mutable_executor_info()->MergeFrom(
+        executorInfoBar);
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Principal "ops" can remove nested container with a request with
+  // an ExecutorInfo without user.
+  {
+    authorization::Request request;
+    request.set_action(authorization::REMOVE_NESTED_CONTAINER);
+    request.mutable_subject()->set_value("ops");
+    request.mutable_object()->mutable_executor_info()->MergeFrom(
+        executorInfoNoUser);
+    request.mutable_object()->mutable_framework_info()->MergeFrom(
+        frameworkInfo);
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+}
+
+
 // This tests that a missing request.object is allowed for an ACL whose
 // Object is ANY.
 // NOTE: The only usecase for this behavior is currently teardownFramework.
@@ -3818,6 +4059,59 @@ TYPED_TEST(AuthorizationTest, ViewFlags)
     mesos::ACL::ViewFlags* acl = invalid.add_view_flags();
     acl->mutable_principals()->add_values("foo");
     acl->mutable_flags()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
+
+TYPED_TEST(AuthorizationTest, SetLogLevel)
+{
+  // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal can set log level.
+    mesos::ACL::SetLogLevel* acl = acls.add_set_log_level();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_level()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can set log level.
+    mesos::ACL::SetLogLevel* acl = acls.add_set_log_level();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_level()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::SET_LOG_LEVEL);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::SET_LOG_LEVEL);
+    request.mutable_subject()->set_value("bar");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Test that no authorizer is created with invalid ACLs.
+  {
+    ACLs invalid;
+
+    mesos::ACL::SetLogLevel* acl = invalid.add_set_log_level();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_level()->add_values("yoda");
 
     Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
     EXPECT_ERROR(create);

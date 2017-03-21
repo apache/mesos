@@ -284,7 +284,12 @@ protected:
 
     // Update the slave link.
     slave = from;
-    link(slave);
+
+    // We force a reconnect here to avoid sending on a stale "half-open"
+    // socket. We do not detect a disconnection in some cases when the
+    // connection is terminated by a netfilter module e.g., iptables
+    // running on the agent (see MESOS-5332).
+    link(slave, RemoteConnection::RECONNECT);
 
     // Re-register with slave.
     ReregisterExecutorMessage message;
@@ -292,16 +297,12 @@ protected:
     message.mutable_framework_id()->MergeFrom(frameworkId);
 
     // Send all unacknowledged updates.
-    // TODO(vinod): Use foreachvalue instead once LinkedHashmap
-    // supports it.
-    foreach (const StatusUpdate& update, updates.values()) {
+    foreachvalue (const StatusUpdate& update, updates) {
       message.add_updates()->MergeFrom(update);
     }
 
     // Send all unacknowledged tasks.
-    // TODO(vinod): Use foreachvalue instead once LinkedHashmap
-    // supports it.
-    foreach (const TaskInfo& task, tasks.values()) {
+    foreachvalue (const TaskInfo& task, tasks) {
       message.add_tasks()->MergeFrom(task);
     }
 

@@ -168,6 +168,31 @@ inline Try<ino_t> inode(const std::string& path)
   return s.st_ino;
 }
 
+
+inline Try<uid_t> uid(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
+{
+  struct stat s;
+
+  switch (follow) {
+    case DO_NOT_FOLLOW_SYMLINK:
+      if (::lstat(path.c_str(), &s) == 0) {
+        return s.st_uid;
+      }
+      break;
+    case FOLLOW_SYMLINK:
+      if (::stat(path.c_str(), &s) == 0) {
+        return s.st_uid;
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  return ErrnoError("Error invoking stat for '" + path + "'");
+}
+
 } // namespace stat {
 
 } // namespace os {

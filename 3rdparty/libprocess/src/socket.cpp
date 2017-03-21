@@ -22,6 +22,7 @@
 #include <process/ssl/flags.hpp>
 
 #include <stout/os.hpp>
+#include <stout/unreachable.hpp>
 
 #ifdef USE_SSL_SOCKET
 #include "libevent_ssl_socket.hpp"
@@ -34,7 +35,7 @@ namespace process {
 namespace network {
 namespace internal {
 
-Try<std::shared_ptr<SocketImpl>> SocketImpl::create(int s, Kind kind)
+Try<std::shared_ptr<SocketImpl>> SocketImpl::create(int_fd s, Kind kind)
 {
   switch (kind) {
     case Kind::POLL:
@@ -44,6 +45,7 @@ Try<std::shared_ptr<SocketImpl>> SocketImpl::create(int s, Kind kind)
       return LibeventSSLSocketImpl::create(s);
 #endif
   }
+  UNREACHABLE();
 }
 
 
@@ -58,18 +60,19 @@ Try<std::shared_ptr<SocketImpl>> SocketImpl::create(
       case Address::Family::UNIX: return AF_UNIX;
 #endif // __WINDOWS__
     }
+    UNREACHABLE();
   }();
 
   // Supported in Linux >= 2.6.27.
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
-  Try<int> s =
+  Try<int_fd> s =
     network::socket(domain, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
 
   if (s.isError()) {
     return Error("Failed to create socket: " + s.error());
   }
 #else
-  Try<int> s = network::socket(domain, SOCK_STREAM, 0);
+  Try<int_fd> s = network::socket(domain, SOCK_STREAM, 0);
   if (s.isError()) {
     return Error("Failed to create socket: " + s.error());
   }

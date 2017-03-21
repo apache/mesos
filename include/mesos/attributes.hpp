@@ -28,6 +28,7 @@ namespace mesos {
 
 std::ostream& operator<<(std::ostream& stream, const Attribute& attribute);
 
+
 class Attributes
 {
 public:
@@ -39,6 +40,7 @@ public:
     attributes.MergeFrom(_attributes);
   }
 
+  /*implicit*/
   Attributes(const Attributes& that)
   {
     attributes.MergeFrom(that.attributes);

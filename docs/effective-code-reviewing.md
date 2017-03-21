@@ -15,7 +15,7 @@ to consider before sending review requests:
    wasted effort if the overall design needs changing. Try to get a reviewer
    on the same page before sending them a review request.
 2. **Think about how to break up your patch**: Did you make any changes
-   that could could be reviewed in independent patches? We use
+   that could be reviewed in independent patches? We use
    `support/post-reviews.py`, which makes it easy to create "chains" of
    reviews based on commits. Become familiar with interactive rebasing
    (`git rebase -i`) to split up commits.

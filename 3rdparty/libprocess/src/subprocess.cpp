@@ -54,6 +54,25 @@ Subprocess::ParentHook::ParentHook(
   : parent_setup(_parent_setup) {}
 
 
+#ifdef __WINDOWS__
+Subprocess::ParentHook Subprocess::ParentHook::CREATE_JOB()
+{
+  return Subprocess::ParentHook([](pid_t pid) -> Try<Nothing> {
+    // NOTE: The Job Object's handle is not closed here. Although it
+    // looks like we are leaking the handle, we can still retrieve and
+    // close the handle via the `OpenJobObject` Windows API.
+    Try<HANDLE> job = os::create_job(pid);
+
+    if (job.isError()) {
+      return Error(job.error());
+    }
+
+    return Nothing();
+  });
+}
+#endif // __WINDOWS__
+
+
 Subprocess::ChildHook::ChildHook(
     const lambda::function<Try<Nothing>()>& _child_setup)
   : child_setup(_child_setup) {}
@@ -96,6 +115,14 @@ Subprocess::ChildHook Subprocess::ChildHook::DUP2(int oldFd, int newFd)
 {
   return Subprocess::ChildHook([oldFd, newFd]() -> Try<Nothing> {
     return os::dup2(oldFd, newFd);
+  });
+}
+
+
+Subprocess::ChildHook Subprocess::ChildHook::UNSET_CLOEXEC(int fd)
+{
+  return Subprocess::ChildHook([fd]() -> Try<Nothing> {
+    return os::unsetCloexec(fd);
   });
 }
 #endif // __WINDOWS__
@@ -179,6 +206,64 @@ Subprocess::ChildHook Subprocess::ChildHook::SUPERVISOR()
 }
 
 
+Subprocess::IO Subprocess::FD(int_fd fd, IO::FDType type)
+{
+  return Subprocess::IO(
+      [fd, type]() -> Try<InputFileDescriptors> {
+        int_fd prepared_fd = -1;
+        switch (type) {
+          case IO::DUPLICATED: {
+            Try<int_fd> dup = os::dup(fd);
+            if (dup.isError()) {
+              return Error(dup.error());
+            }
+
+            prepared_fd = dup.get();
+            break;
+          }
+          case IO::OWNED: {
+            prepared_fd = fd;
+            break;
+          }
+
+            // NOTE: By not setting a default we leverage the compiler
+            // errors when the enumeration is augmented to find all
+            // the cases we need to provide. Same for below.
+        }
+
+        InputFileDescriptors fds;
+        fds.read = prepared_fd;
+        return fds;
+      },
+      [fd, type]() -> Try<OutputFileDescriptors> {
+        int_fd prepared_fd = -1;
+        switch (type) {
+          case IO::DUPLICATED: {
+            Try<int_fd> dup = os::dup(fd);
+            if (dup.isError()) {
+              return Error(dup.error());
+            }
+
+            prepared_fd = dup.get();
+            break;
+          }
+          case IO::OWNED: {
+            prepared_fd = fd;
+            break;
+          }
+
+            // NOTE: By not setting a default we leverage the compiler
+            // errors when the enumeration is augmented to find all
+            // the cases we need to provide. Same for below.
+        }
+
+        OutputFileDescriptors fds;
+        fds.write = prepared_fd;
+        return fds;
+      });
+}
+
+
 namespace internal {
 
 static void cleanup(
@@ -225,6 +310,9 @@ Try<Subprocess> subprocess(
     const vector<Subprocess::ParentHook>& parent_hooks,
     const vector<Subprocess::ChildHook>& child_hooks)
 {
+  // TODO(hausdorff): We should error out on Windows here if we are passing
+  // parameters that aren't used.
+
   // File descriptors for redirecting stdin/stdout/stderr.
   // These file descriptors are used for different purposes depending
   // on the specified I/O modes.
@@ -312,12 +400,18 @@ Try<Subprocess> subprocess(
 #else
     // TODO(joerg84): Consider using the childHooks and parentHooks here.
     Try<PROCESS_INFORMATION> processInformation = internal::createChildProcess(
-        path, argv, environment, stdinfds, stdoutfds, stderrfds);
+        path,
+        argv,
+        environment,
+        stdinfds,
+        stdoutfds,
+        stderrfds,
+        parent_hooks);
 
     if (processInformation.isError()) {
       process::internal::close(stdinfds, stdoutfds, stderrfds);
       return Error(
-          "Could not launch child process" + processInformation.error());
+          "Could not launch child process: " + processInformation.error());
     }
 
     if (processInformation.get().dwProcessId == -1) {

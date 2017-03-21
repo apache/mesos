@@ -48,6 +48,7 @@ struct Metrics
   process::metrics::Gauge slaves_disconnected;
   process::metrics::Gauge slaves_active;
   process::metrics::Gauge slaves_inactive;
+  process::metrics::Gauge slaves_unreachable;
 
   process::metrics::Gauge frameworks_connected;
   process::metrics::Gauge frameworks_disconnected;
@@ -60,6 +61,7 @@ struct Metrics
   process::metrics::Gauge tasks_staging;
   process::metrics::Gauge tasks_starting;
   process::metrics::Gauge tasks_running;
+  process::metrics::Gauge tasks_unreachable;
   process::metrics::Gauge tasks_killing;
   process::metrics::Counter tasks_finished;
   process::metrics::Counter tasks_failed;
@@ -67,7 +69,6 @@ struct Metrics
   process::metrics::Counter tasks_lost;
   process::metrics::Counter tasks_error;
   process::metrics::Counter tasks_dropped;
-  process::metrics::Counter tasks_unreachable;
   process::metrics::Counter tasks_gone;
   process::metrics::Counter tasks_gone_by_operator;
 

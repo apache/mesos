@@ -263,7 +263,7 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
 
   Try<Resources> initialResources =
     Resources::parse(slaveFlags.resources.get());
-  CHECK_SOME(initialResources);
+  ASSERT_SOME(initialResources);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -660,7 +660,7 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
 
       // NOTE: This is to capture the regression in MESOS-2452. The data
       // stored in the executor meta directory should be less than 64K.
-      if (usage.get().disk_used_bytes() > Kilobytes(64).bytes()) {
+      if (usage->disk_used_bytes() > Kilobytes(64).bytes()) {
         break;
       }
     }

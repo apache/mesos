@@ -135,7 +135,7 @@ Cache::Key::Key(const Image::Appc& image)
 
 Cache::Key::Key(
     const string& _name,
-    const map<string, string> _labels)
+    const map<string, string>& _labels)
   : name(_name),
     labels(_labels) {}
 
@@ -146,18 +146,8 @@ bool Cache::Key::operator==(const Cache::Key& other) const
     return false;
   }
 
-  foreachpair (const string& name, const string& value, other.labels) {
-    map<string, string>::const_iterator itr = labels.find(name);
-    if ((itr == labels.end()) || (labels.at(name) != value)) {
-      return false;
-    }
-  }
-
-  foreachpair (const string& name, const string& value, labels) {
-    map<string, string>::const_iterator itr = other.labels.find(name);
-    if ((itr == other.labels.end()) || (other.labels.at(name) != value)) {
-      return false;
-    }
+  if (labels != other.labels) {
+    return false;
   }
 
   return true;
@@ -169,11 +159,7 @@ size_t Cache::KeyHasher::operator()(const Cache::Key& key) const
   size_t seed = 0;
 
   boost::hash_combine(seed, key.name);
-
-  foreachpair (const string& name, const string& value, key.labels) {
-    boost::hash_combine(seed, name);
-    boost::hash_combine(seed, value);
-  }
+  boost::hash_combine(seed, key.labels);
 
   return seed;
 }

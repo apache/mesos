@@ -19,6 +19,7 @@
 #include <string>
 
 #include <stout/error.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #ifdef __WINDOWS__
@@ -26,6 +27,8 @@
 #endif // __WINDOWS__
 
 #include <stout/os/close.hpp>
+#include <stout/os/int_fd.hpp>
+#include <stout/os/temp.hpp>
 
 
 namespace os {
@@ -34,12 +37,13 @@ namespace os {
 // template may be any path with _6_ `Xs' appended to it, for example
 // /tmp/temp.XXXXXX. The trailing `Xs' are replaced with a unique
 // alphanumeric combination.
-inline Try<std::string> mktemp(const std::string& path = "/tmp/XXXXXX")
+inline Try<std::string> mktemp(
+    const std::string& path = path::join(os::temp(), "XXXXXX"))
 {
   char* temp = new char[path.size() + 1];
   ::memcpy(temp, path.c_str(), path.size() + 1);
 
-  int fd = ::mkstemp(temp);
+  int_fd fd = ::mkstemp(temp);
   if (fd < 0) {
     delete[] temp;
     return ErrnoError();

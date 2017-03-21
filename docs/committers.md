@@ -56,6 +56,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
     </tr>
     <tr>
       <td>-8</td>
+      <td>Neil Conway</td>
+      <td>Mesosphere</td>
+      <td>neilc</td>
+      <td>neilc@apache.org</td>
+    </tr>
+    <tr>
+      <td>-8</td>
       <td>Ian Downes</td>
       <td>Twitter</td>
       <td>idownes</td>
@@ -90,6 +97,20 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>ianh@apache.org</td>
     </tr>
     <tr>
+      <td>+8</td>
+      <td>Haosdent Huang</td>
+      <td>Shopee</td>
+      <td>haosdent</td>
+      <td>haosdent@apache.org</td>
+    </tr>
+    <tr>
+      <td>+8</td>
+      <td>Kevin Klues</td>
+      <td>Mesosphere</td>
+      <td>klueska</td>
+      <td>klueska@apache.org</td>
+    </tr>
+    <tr>
       <td>-8</td>
       <td>Vinod Kone</td>
       <td>Mesosphere</td>
@@ -109,6 +130,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>Apple</td>
       <td>dlester</td>
       <td>dlester@apache.org</td>
+    </tr>
+    <tr>
+      <td>+8</td>
+      <td>Guangya Liu</td>
+      <td>IBM</td>
+      <td>gyliu513</td>
+      <td>gyliu@apache.org</td>
     </tr>
     <tr>
       <td>-8</td>
@@ -351,7 +379,7 @@ committers to learn about areas of the code that they are unfamiliar with.
     </tr>
     <tr>
       <td>WebUI</td>
-      <td><i>maintainers needed</i></td>
+      <td>Haosdent Huang</td>
     </tr>
     <tr>
       <td>Project Website</td>

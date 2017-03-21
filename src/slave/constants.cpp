@@ -14,9 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
+
 #include "master/constants.hpp"
 
 #include "slave/constants.hpp"
+
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -26,6 +30,15 @@ Duration DEFAULT_MASTER_PING_TIMEOUT()
 {
   return master::DEFAULT_AGENT_PING_TIMEOUT *
     master::DEFAULT_MAX_AGENT_PING_TIMEOUTS;
+}
+
+
+vector<SlaveInfo::Capability> AGENT_CAPABILITIES()
+{
+  SlaveInfo::Capability multiRoleCapability;
+  multiRoleCapability.set_type(SlaveInfo::Capability::MULTI_ROLE);
+
+  return {multiRoleCapability};
 }
 
 } // namespace slave {

@@ -43,20 +43,38 @@ We categorize the changes as follows:
   </thead>
 <tr>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
-  1.1.x
+  1.2.x
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+    <ul style="padding-left:10px;">
+      <li>A <a href="#1-2-x-heartbeat-flag">http_heartbeat_interval</a></li>
+      <li>A <a href="#1-2-x-backend-flag">image_provisioner_backend</a></li>
+      <li>A <a href="#1-2-x-unreachable-flag">max_unreachable_tasks_per_framework</a></li>
+    </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+    <ul style="padding-left:10px;">
+      <li>A <a href="#1-2-x-revive-suppress">Revive and Suppress v1 scheduler Calls</a></li>
+    </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
     <ul style="padding-left:10px;">
       <li>C <a href="#1-2-x-container-logger-interface">Container Logger prepare method</a></li>
+      <li>C <a href="#1-2-x-allocator-module-changes">Allocator module changes</a></li>
+      <li>A <a href="#1-2-x-new-authz-actions">New Authorizer module actions</a></li>
+      <li>D <a href="#1-2-x-renamed-authz-actions">Renamed Authorizer module actions (deprecated old aliases)</a></li>
+      <li>R <a href="#1-2-x-removed-hooks">Removed slavePreLaunchDockerEnvironmentDecorator and slavePreLaunchDockerHook</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+    <ul style="padding-left:10px;">
+      <li>A <a href="#1-2-x-debug-endpoints">LAUNCH_NESTED_CONTAINER_SESSION, ATTACH_CONTAINER_INPUT, ATTACH_CONTAINER_OUTPUT</a></li>
+      <li>D <a href="#1-2-x-recovered-frameworks">v1 GetFrameworks recovered_frameworks</a></li>
+      <li>D <a href="#1-2-x-orphan-executors">v1 GetExecutors orphan_executors</a></li>
+      <li>D <a href="#1-2-x-orphan-tasks">v1 GetTasks orphan_tasks</a></li>
+    </ul>
   </td>
 </tr>
 <tr>
@@ -72,8 +90,6 @@ We categorize the changes as follows:
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
     <ul style="padding-left:10px;">
       <li>R <a href="#1-1-x-container-logger-interface">Container Logger recovery method</a></li>
-    </ul>
-    <ul style="padding-left:10px;">
       <li>C <a href="#1-1-x-allocator-updateallocation">Allocator updateAllocation method</a></li>
     </ul>
   </td>
@@ -110,7 +126,7 @@ We categorize the changes as follows:
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
     <ul style="padding-left:10px;">
       <li>DC <a href="#1-0-x-executorinfo">ExecutorInfo.source</a></li>
-      <li>N <a href="#1-0-x-v1-commandinfo">CommandInfo.URI output_file</a></li>
+      <li>A <a href="#1-0-x-v1-commandinfo">CommandInfo.URI output_file</a></li>
       <li>C <a href="#1-0-x-scheduler-proto">scheduler.proto optional fields</a></li>
       <li>C <a href="#1-0-x-executor-proto">executor.proto optional fields</a></li>
     </ul>
@@ -222,12 +238,55 @@ We categorize the changes as follows:
 </tr>
 </table>
 
-
 ## Upgrading from 1.1.x to 1.2.x ##
 
-<a name="1-2-x-container-logger-interface"></a>
+<a name="1-2-x-heartbeat-flag"></a>
+* New Agent flag http_heartbeat_interval: This flag sets a heartbeat interval for messages to be sent over persistent connections made against the agent HTTP API. Currently, this only applies to the LAUNCH_NESTED_CONTAINER_SESSION and ATTACH_CONTAINER_OUTPUT calls. (default: 30secs)
 
+<a name="1-2-x-backend-flag"></a>
+* New Agent flag image_provisioner_backend: Strategy for provisioning container rootfs from images, e.g., aufs, bind, copy, overlay.
+
+<a name="1-2-x-unreachable-flag"></a>
+* New Master flag max_unreachable_tasks_per_framework: Maximum number of unreachable tasks per framework to store in memory. (default: 1000)
+
+<a name="1-2-x-revive-suppress"></a>
+* New Revive and Suppress v1 scheduler Calls: Revive or Suppress offers for a specified role. If role is unset, the call will revive/suppress offers for all of the roles the framework is subscribed to. (Especially for multi-role frameworks.)
+
+<a name="1-2-x-container-logger-interface"></a>
 * Mesos 1.2 modifies the `ContainerLogger`'s `prepare()` method.  The method now takes an additional argument for the `user` the logger should run a subprocess as.  Please see [MESOS-5856](https://issues.apache.org/jira/browse/MESOS-5856) for more information.
+
+<a name="1-2-x-allocator-module-changes"></a>
+* Allocator module changes to support inactive frameworks, multi-role frameworks, and suppress/revive. See `allocator.hpp` for interface changes.
+
+<a name="1-2-x-new-authz-actions"></a>
+* New Authorizer module actions: LAUNCH_NESTED_CONTAINER, KILL_NESTED_CONTAINER, WAIT_NESTED_CONTAINER, LAUNCH_NESTED_CONTAINER_SESSION, ATTACH_CONTAINER_INPUT, ATTACH_CONTAINER_OUTPUT, VIEW_CONTAINER, and SET_LOG_LEVEL. See `authorizer.proto` for module interface changes, and `acls.proto` for corresponding LocalAuthorizer ACL changes.
+
+<a name="1-2-x-renamed-authz-actions"></a>
+* Renamed Authorizer module actions (and deprecated old aliases): REGISTER_FRAMEWORK, TEARDOWN_FRAMEWORK, RESERVE_RESOURCES, UNRESERVE_RESOURCES, CREATE_VOLUME, DESTROY_VOLUME, UPDATE_WEIGHT, GET_QUOTA. See `authorizer.proto` for interface changes.
+
+<a name="1-2-x-removed-hooks"></a>
+* Removed slavePreLaunchDockerEnvironmentDecorator and slavePreLaunchDockerHook in favor of slavePreLaunchDockerTaskExecutorDecorator.
+
+<a name="1-2-x-debug-endpoints"></a>
+* New Agent v1 operator API calls: LAUNCH_NESTED_CONTAINER_SESSION, ATTACH_CONTAINER_INPUT, ATTACH_CONTAINER_OUTPUT for debugging into running containers (Mesos containerizer only).
+
+<a name="1-2-x-recovered-frameworks"></a>
+* Deprecated `recovered_frameworks` in v1 GetFrameworks call. Now it will be empty.
+
+<a name="1-2-x-orphan-executors"></a>
+* Deprecated `orphan_executors` in v1 GetExecutors call. Now it will be empty.
+
+<a name="1-2-x-orphan-tasks"></a>
+* Deprecated `orphan_tasks` in v1 GetTasks call. Now it will be empty.
+
+In order to upgrade a running cluster:
+
+1. Rebuild and install any modules so that upgraded masters/agents/schedulers can use them.
+2. Install the new master binaries and restart the masters.
+3. Install the new agent binaries and restart the agents.
+4. Upgrade the schedulers by linking the latest native library / jar / egg (if necessary).
+5. Restart the schedulers.
+6. Upgrade the executors by linking the latest native library / jar / egg (if necessary).
 
 ## Upgrading from 1.0.x to 1.1.x ##
 

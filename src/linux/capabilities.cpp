@@ -20,6 +20,7 @@
 
 #include <sys/prctl.h>
 
+#include <set>
 #include <string>
 
 #include <stout/numify.hpp>
@@ -31,9 +32,7 @@
 
 using std::hex;
 using std::ostream;
-using std::set;
 using std::string;
-using std::vector;
 
 // We declare two functions provided in the libcap headers here to
 // prevent introduction of that build-time dependency.
@@ -104,7 +103,7 @@ struct SyscallPayload
 
 
 // Helper function to convert capability set to bitset.
-static uint64_t toCapabilityBitset(const set<Capability>& capabilities)
+static uint64_t toCapabilityBitset(const std::set<Capability>& capabilities)
 {
   uint64_t result = 0;
 
@@ -119,9 +118,9 @@ static uint64_t toCapabilityBitset(const set<Capability>& capabilities)
 
 
 // Helper function to convert capability bitset to std::set.
-static set<Capability> toCapabilitySet(uint64_t bitset)
+static std::set<Capability> toCapabilitySet(uint64_t bitset)
 {
-  set<Capability> result;
+  std::set<Capability> result;
 
   for (int i = 0; i < MAX_CAPABILITY; i++) {
     if ((bitset & (1ULL << i)) != 0) {
@@ -133,7 +132,7 @@ static set<Capability> toCapabilitySet(uint64_t bitset)
 }
 
 
-set<Capability> ProcessCapabilities::get(const Type& type) const
+std::set<Capability> ProcessCapabilities::get(const Type& type) const
 {
   switch (type) {
     case EFFECTIVE:   return effective;
@@ -319,7 +318,7 @@ Try<Nothing> Capabilities::setKeepCaps()
 }
 
 
-set<Capability> Capabilities::getAllSupportedCapabilities()
+std::set<Capability> Capabilities::getAllSupportedCapabilities()
 {
   std::set<Capability> result;
 
@@ -342,9 +341,9 @@ Capability convert(const CapabilityInfo::Capability& capability)
 }
 
 
-set<Capability> convert(const CapabilityInfo& capabilityInfo)
+std::set<Capability> convert(const CapabilityInfo& capabilityInfo)
 {
-  set<Capability> result;
+  std::set<Capability> result;
 
   foreach (int value, capabilityInfo.capabilities()) {
     result.insert(convert(static_cast<CapabilityInfo::Capability>(value)));
@@ -354,7 +353,7 @@ set<Capability> convert(const CapabilityInfo& capabilityInfo)
 }
 
 
-CapabilityInfo convert(const set<Capability>& capabilities)
+CapabilityInfo convert(const std::set<Capability>& capabilities)
 {
   CapabilityInfo capabilityInfo;
 

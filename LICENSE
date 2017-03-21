@@ -428,7 +428,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ======================================================================
-For leveldb (3rdparty/leveldb-1.4.tar.gz):
+For leveldb (3rdparty/leveldb-1.19.tar.gz):
 ======================================================================
 
 Copyright (c) 2011 The LevelDB Authors. All rights reserved.

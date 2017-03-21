@@ -40,6 +40,7 @@
 #include <stout/numify.hpp>
 #include <stout/os.hpp>
 #include <stout/os/environment.hpp>
+#include <stout/os/int_fd.hpp>
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
 #include <stout/os/write.hpp>
@@ -70,10 +71,8 @@ using std::vector;
 class OsTest : public TemporaryDirectoryTest {};
 
 
-// TODO(hausdorff): Enable this test on Windows. Currently setting an
-// environment variable to the blank string will cause the environment variable
-// to be deleted on Windows. See MESOS-5880.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Environment)
+#ifndef __WINDOWS__
+TEST_F(OsTest, Environment)
 {
   // Make sure the environment has some entries with '=' in the value.
   os::setenv("SOME_SPECIAL_FLAG", "--flag=foobar");
@@ -93,6 +92,36 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Environment)
     EXPECT_TRUE(environment.contains(key));
     EXPECT_EQ(value, environment[key]);
   }
+}
+#endif // __WINDOWS__
+
+
+TEST_F(OsTest, TrivialEnvironment)
+{
+  // NOTE: Regression test that ensures Windows can get and set an environment
+  // variable. This is easy to break: Windows maintains two non-compatible ways
+  // to get and set environment variables: the CRT way (using `environ`,
+  // `setenv`, and `getenv`), and the Win32 way (using `GetEnvironmentStrings`,
+  // `SetEnvironmentVariable`, and `GetEnvironmentVariable`). This test makes
+  // sure that we consistently back the Stout environment variable APIs with
+  // with one or the other; a mix won't work.
+  const string key = "test_key1";
+  const string value = "value";
+  os::setenv(key, value);
+
+  hashmap<string, string> environment = os::environment();
+  ASSERT_TRUE(environment.count(key) != 0);
+  ASSERT_EQ(value, environment[key]);
+
+  // NOTE: Regression test that ensures we can set an environment variable to
+  // be an empty string. On Windows, this is only possible with the Win32 APIs:
+  // the CRT `environ` macro will simply delete the variable if it is passed an
+  // empty string as a value.
+  os::setenv(key, "", true);
+
+  environment = os::environment();
+  ASSERT_TRUE(environment.count(key) != 0);
+  ASSERT_EQ("", environment[key]);
 }
 
 
@@ -124,13 +153,16 @@ TEST_F(OsTest, System)
 // NOTE: Disabled because `os::cloexec` is not implemented on Windows.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Cloexec)
 {
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       "cloexec",
       O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(fd);
   EXPECT_SOME_TRUE(os::isCloexec(fd.get()));
+
+  ASSERT_SOME(os::unsetCloexec(fd.get()));
+  EXPECT_SOME_FALSE(os::isCloexec(fd.get()));
 
   close(fd.get());
 
@@ -141,6 +173,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Cloexec)
 
   ASSERT_SOME(fd);
   EXPECT_SOME_FALSE(os::isCloexec(fd.get()));
+
+  ASSERT_SOME(os::cloexec(fd.get()));
+  EXPECT_SOME_TRUE(os::isCloexec(fd.get()));
 
   close(fd.get());
 }
@@ -674,8 +709,15 @@ TEST_F(OsTest, User)
   ASSERT_SOME(gid);
   EXPECT_SOME_EQ(gid.get(), os::getgid(user.get()));
 
+  // A random UUID is an invalid username on some platforms. Some
+  // versions of Linux (e.g., RHEL7) treat invalid usernames
+  // differently from valid-but-not-found usernames.
   EXPECT_NONE(os::getuid(UUID::random().toString()));
   EXPECT_NONE(os::getgid(UUID::random().toString()));
+
+  // A username that is valid but that is unlikely to exist.
+  EXPECT_NONE(os::getuid("zzzvaliduserzzz"));
+  EXPECT_NONE(os::getgid("zzzvaliduserzzz"));
 
   EXPECT_SOME(os::su(user.get()));
   EXPECT_ERROR(os::su(UUID::random().toString()));
@@ -710,7 +752,116 @@ TEST_F(OsTest, User)
   EXPECT_SOME(os::setgroups(gids.get(), uid.get()));
   EXPECT_SOME(os::setuid(uid.get()));
 }
+
+
+TEST_F(OsTest, Chown)
+{
+  using os::stat::DO_NOT_FOLLOW_SYMLINK;
+
+  Result<uid_t> uid = os::getuid();
+  ASSERT_SOME(uid);
+
+  // 'chown' requires root permission.
+  if (uid.get() != 0) {
+    return;
+  }
+
+  // In the following tests, we chown to an artitrary UID. There is
+  // no special significance to the value 9.
+
+  // Set up a simple directory hierarchy.
+  EXPECT_SOME(os::mkdir("chown/one/two/three"));
+  EXPECT_SOME(os::touch("chown/one/file"));
+  EXPECT_SOME(os::touch("chown/one/two/file"));
+  EXPECT_SOME(os::touch("chown/one/two/three/file"));
+
+  // Make a symlink back to the top of the tree so we can verify
+  // that it isn't followed.
+  EXPECT_SOME(fs::symlink("../../../../chown", "chown/one/two/three/link"));
+
+  // Make a symlink to the middle of the tree and verify that chowning the
+  // symlink does not chown that subtree.
+  EXPECT_SOME(fs::symlink("chown/one/two", "two.link"));
+  EXPECT_SOME(os::chown(9, 9, "two.link", true));
+  EXPECT_SOME_EQ(9u, os::stat::uid("two.link", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(0u, os::stat::uid("chown", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(0u,
+      os::stat::uid("chown/one/two/three/file", DO_NOT_FOLLOW_SYMLINK));
+
+  // Recursively chown the whole tree.
+  EXPECT_SOME(os::chown(9, 9, "chown", true));
+  EXPECT_SOME_EQ(9u, os::stat::uid("chown", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(9u,
+      os::stat::uid("chown/one/two/three/file", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(9u,
+      os::stat::uid("chown/one/two/three/link", DO_NOT_FOLLOW_SYMLINK));
+
+  // Chown the subtree with the embedded link back and verify that it
+  // doesn't follow back to the top of the tree.
+  EXPECT_SOME(os::chown(0, 0, "chown/one/two/three", true));
+  EXPECT_SOME_EQ(9u, os::stat::uid("chown", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(0u,
+      os::stat::uid("chown/one/two/three", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(0u,
+      os::stat::uid("chown/one/two/three/link", DO_NOT_FOLLOW_SYMLINK));
+
+  // Verify that non-recursive chown changes the directory and not
+  // its contents.
+  EXPECT_SOME(os::chown(0, 0, "chown/one", false));
+  EXPECT_SOME_EQ(0u, os::stat::uid("chown/one", DO_NOT_FOLLOW_SYMLINK));
+  EXPECT_SOME_EQ(9u, os::stat::uid("chown/one/file", DO_NOT_FOLLOW_SYMLINK));
+}
+
+
+TEST_F(OsTest, ChownNoAccess)
+{
+  Result<uid_t> uid = os::getuid();
+  Result<gid_t> gid = os::getgid();
+
+  ASSERT_SOME(uid);
+  ASSERT_SOME(gid);
+
+  // This test requires that we not be root, since root will
+  // bypass access checks.
+  if (uid.get() == 0) {
+    return;
+  }
+
+  ASSERT_SOME(os::mkdir("one/two"));
+
+  // Chown to ourself should be a noop.
+  EXPECT_SOME(os::chown(uid.get(), gid.get(), "one/two", true));
+
+  ASSERT_SOME(os::chmod("one/two", 0));
+
+  // Recursive chown should now fail to fully recurse due to
+  // the lack of permission on "one/two".
+  EXPECT_ERROR(os::chown(uid.get(), gid.get(), "one", true));
+  EXPECT_ERROR(os::chown(uid.get(), gid.get(), "one/two", true));
+
+  // A non-recursive should succeed when the child is not traversable.
+  EXPECT_SOME(os::chown(uid.get(), gid.get(), "one", false));
+
+  // A non-recursive should succeed on the non-traversable child too.
+  EXPECT_SOME(os::chown(uid.get(), gid.get(), "one/two", false));
+
+  // Restore directory access so the rmdir can work.
+  ASSERT_SOME(os::chmod("one/two", 0755));
+}
 #endif // __WINDOWS__
+
+
+TEST_F(OsTest, TrivialUser)
+{
+  const Result<string> user1 = os::user();
+  ASSERT_SOME(user1);
+  ASSERT_NE("", user1.get());
+
+#ifdef __WINDOWS__
+  const Result<string> user2 = os::user(INT_MAX);
+  ASSERT_ERROR(user2);
+#endif // __WINDOWS__
+}
 
 
 // TODO(hausdorff): Look into enabling this on Windows. Right now,

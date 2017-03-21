@@ -22,7 +22,9 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
+#ifndef __WINDOWS__
 #include <mesos/log/log.hpp>
+#endif // __WINDOWS__
 
 #include <mesos/allocator/allocator.hpp>
 
@@ -211,15 +213,16 @@ Try<process::Owned<Master>> Master::start(
 
   // Create the replicated-log-based registry, if specified in the flags.
   if (flags.registry == "replicated_log") {
+#ifndef __WINDOWS__
     if (zookeeperUrl.isSome()) {
       // Use ZooKeeper-based replicated log.
       master->log.reset(new mesos::log::Log(
           flags.quorum.get(),
           path::join(flags.work_dir.get(), "replicated_log"),
-          zookeeperUrl.get().servers,
+          zookeeperUrl->servers,
           flags.zk_session_timeout,
-          path::join(zookeeperUrl.get().path, "log_replicas"),
-          zookeeperUrl.get().authentication,
+          path::join(zookeeperUrl->path, "log_replicas"),
+          zookeeperUrl->authentication,
           flags.log_auto_initialize));
     } else {
       master->log.reset(new mesos::log::Log(
@@ -228,13 +231,21 @@ Try<process::Owned<Master>> Master::start(
           std::set<process::UPID>(),
           flags.log_auto_initialize));
     }
+#else
+    return Error("Windows does not support replicated log");
+#endif // __WINDOWS__
   }
 
   // Create the registry's storage backend.
   if (flags.registry == "in_memory") {
     master->storage.reset(new mesos::state::InMemoryStorage());
   } else if (flags.registry == "replicated_log") {
+#ifndef __WINDOWS__
     master->storage.reset(new mesos::state::LogStorage(master->log.get()));
+#else
+    return Error("Windows does not support replicated log");
+#endif // __WINDOWS__
+
   } else {
     return Error(
         "Unsupported option for registry persistence: " + flags.registry);
@@ -562,7 +573,7 @@ Slave::~Slave()
     containers = containerizer->containers();
     AWAIT_READY(containers);
 
-    ASSERT_TRUE(containers.get().empty())
+    ASSERT_TRUE(containers->empty())
       << "Failed to destroy containers: " << stringify(containers.get());
   }();
 
@@ -600,39 +611,6 @@ void Slave::terminate()
 void Slave::wait()
 {
   process::wait(pid);
-
-#ifdef __linux__
-  // Remove all of this processes threads into the root cgroups - this
-  // simulates the slave process terminating and permits a new slave to start
-  // when the --agent_subsystems flag is used.
-  if (flags.agent_subsystems.isSome()) {
-    foreach (const std::string& subsystem,
-             strings::tokenize(flags.agent_subsystems.get(), ",")) {
-      std::string hierarchy = path::join(flags.cgroups_hierarchy, subsystem);
-
-      std::string cgroup = path::join(flags.cgroups_root, "slave");
-
-      Try<bool> exists = cgroups::exists(hierarchy, cgroup);
-      if (exists.isError() || !exists.get()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to find cgroup " << cgroup
-          << " for subsystem " << subsystem
-          << " under hierarchy " << hierarchy
-          << " for agent: " + exists.error();
-      }
-
-      // Move all of our threads into the root cgroup.
-      Try<Nothing> assign = cgroups::assign(hierarchy, "", getpid());
-      if (assign.isError()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to move agent threads into cgroup " << cgroup
-          << " for subsystem " << subsystem
-          << " under hierarchy " << hierarchy
-          << " for agent: " + assign.error();
-      }
-    }
-  }
-#endif // __linux__
 }
 
 } // namespace cluster {

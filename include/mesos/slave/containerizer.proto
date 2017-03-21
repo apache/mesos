@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+syntax = "proto2";
+
 package mesos.slave;
 
 import "mesos/mesos.proto";
@@ -148,21 +150,6 @@ message ContainerConfig {
 }
 
 
-// This message is used to describe how to handle standard
-// input/output/error for the container.
-message ContainerIO {
-  enum Type {
-    UNKNOWN = 0;
-    FD = 1;       // File descriptor. Ownership will be transferred.
-    PATH = 2;     // File path.
-  }
-
-  optional Type type = 1;
-  optional int32 fd = 2;
-  optional string path = 3;
-}
-
-
 /**
  * Protobuf returned by Isolator::prepare(). The command is executed
  * by the Launcher in the containerized context.
@@ -206,12 +193,6 @@ message ContainerLaunchInfo {
   // (POSIX only) The rlimits requested for the container.
   // The rlimits are set while launching the container.
   optional RLimitInfo rlimits = 8;
-
-  // I/O information about the container to be launched. If not set,
-  // the container will inherit the agent standard input/output/error.
-  optional ContainerIO in = 11;
-  optional ContainerIO out = 12;
-  optional ContainerIO err = 13;
 
   // (POSIX only) The slave path of the pseudo terminal.
   optional string tty_slave_path = 14;

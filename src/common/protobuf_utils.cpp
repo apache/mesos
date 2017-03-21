@@ -22,6 +22,8 @@
 #include <pwd.h>
 #endif // __WINDOWS__
 
+#include <ostream>
+
 #include <mesos/slave/isolator.hpp>
 
 #include <mesos/type_utils.hpp>
@@ -48,6 +50,8 @@
 
 #include "messages/messages.hpp"
 
+using std::ostream;
+using std::set;
 using std::string;
 
 using google::protobuf::RepeatedPtrField;
@@ -78,14 +82,11 @@ bool frameworkHasCapability(
 
 bool isTerminalState(const TaskState& state)
 {
-  // TODO(neilc): Revise/rename this function. LOST, UNREACHABLE, and
-  // GONE_BY_OPERATOR are not truly "terminal".
   return (state == TASK_FINISHED ||
           state == TASK_FAILED ||
           state == TASK_KILLED ||
           state == TASK_LOST ||
           state == TASK_ERROR ||
-          state == TASK_UNREACHABLE ||
           state == TASK_DROPPED ||
           state == TASK_GONE ||
           state == TASK_GONE_BY_OPERATOR);
@@ -103,9 +104,10 @@ StatusUpdate createStatusUpdate(
     const Option<TaskStatus::Reason>& reason,
     const Option<ExecutorID>& executorId,
     const Option<bool>& healthy,
+    const Option<CheckStatusInfo>& checkStatus,
     const Option<Labels>& labels,
     const Option<ContainerStatus>& containerStatus,
-    const Option<TimeInfo> unreachableTime)
+    const Option<TimeInfo>& unreachableTime)
 {
   StatusUpdate update;
 
@@ -120,6 +122,8 @@ StatusUpdate createStatusUpdate(
     update.mutable_executor_id()->MergeFrom(executorId.get());
   }
 
+  // TODO(alexr): Use `createTaskStatus()` instead
+  // once `UUID` is required in this function.
   TaskStatus* status = update.mutable_status();
   status->mutable_task_id()->MergeFrom(taskId);
 
@@ -143,6 +147,10 @@ StatusUpdate createStatusUpdate(
 
   if (healthy.isSome()) {
     status->set_healthy(healthy.get());
+  }
+
+  if (checkStatus.isSome()) {
+    status->mutable_check_status()->CopyFrom(checkStatus.get());
   }
 
   if (labels.isSome()) {
@@ -200,6 +208,85 @@ StatusUpdate createStatusUpdate(
 }
 
 
+TaskStatus createTaskStatus(
+    const TaskID& taskId,
+    const TaskState& state,
+    const UUID& uuid,
+    double timestamp)
+{
+  TaskStatus status;
+
+  status.set_uuid(uuid.toBytes());
+  status.set_timestamp(timestamp);
+  status.mutable_task_id()->CopyFrom(taskId);
+  status.set_state(state);
+
+  return status;
+}
+
+
+TaskStatus createTaskStatus(
+    TaskStatus status,
+    const UUID& uuid,
+    double timestamp,
+    const Option<TaskState>& state,
+    const Option<string>& message,
+    const Option<TaskStatus::Source>& source,
+    const Option<TaskStatus::Reason>& reason,
+    const Option<string>& data,
+    const Option<bool>& healthy,
+    const Option<CheckStatusInfo>& checkStatus,
+    const Option<Labels>& labels,
+    const Option<ContainerStatus>& containerStatus,
+    const Option<TimeInfo>& unreachableTime)
+{
+  status.set_uuid(uuid.toBytes());
+  status.set_timestamp(timestamp);
+
+  if (state.isSome()) {
+    status.set_state(state.get());
+  }
+
+  if (message.isSome()) {
+    status.set_message(message.get());
+  }
+
+  if (source.isSome()) {
+    status.set_source(source.get());
+  }
+
+  if (reason.isSome()) {
+    status.set_reason(reason.get());
+  }
+
+  if (data.isSome()) {
+    status.set_data(data.get());
+  }
+
+  if (healthy.isSome()) {
+    status.set_healthy(healthy.get());
+  }
+
+  if (checkStatus.isSome()) {
+    status.mutable_check_status()->CopyFrom(checkStatus.get());
+  }
+
+  if (labels.isSome()) {
+    status.mutable_labels()->CopyFrom(labels.get());
+  }
+
+  if (containerStatus.isSome()) {
+    status.mutable_container_status()->CopyFrom(containerStatus.get());
+  }
+
+  if (unreachableTime.isSome()) {
+    status.mutable_unreachable_time()->CopyFrom(unreachableTime.get());
+  }
+
+  return status;
+}
+
+
 Task createTask(
     const TaskInfo& task,
     const TaskState& state,
@@ -244,16 +331,33 @@ Option<bool> getTaskHealth(const Task& task)
 {
   Option<bool> healthy = None();
   if (task.statuses_size() > 0) {
-    // The statuses list only keeps the most recent TaskStatus for
-    // each state, and appends later states at the end. Thus the last
-    // status is either a terminal state (where health is
-    // irrelevant), or the latest RUNNING status.
-    TaskStatus lastStatus = task.statuses(task.statuses_size() - 1);
+    // The statuses list only keeps the most recent `TaskStatus` for
+    // each state, and appends later statuses at the end. Thus the last
+    // status is either a terminal state (where health is irrelevant),
+    // or the latest TASK_RUNNING status.
+    const TaskStatus& lastStatus = task.statuses(task.statuses_size() - 1);
     if (lastStatus.has_healthy()) {
       healthy = lastStatus.healthy();
     }
   }
   return healthy;
+}
+
+
+Option<CheckStatusInfo> getTaskCheckStatus(const Task& task)
+{
+  Option<CheckStatusInfo> checkStatus = None();
+  if (task.statuses_size() > 0) {
+    // The statuses list only keeps the most recent `TaskStatus` for
+    // each state, and appends later statuses at the end. Thus the last
+    // status is either a terminal state (where check is irrelevant),
+    // or the latest TASK_RUNNING status.
+    const TaskStatus& lastStatus = task.statuses(task.statuses_size() - 1);
+    if (lastStatus.has_check_status()) {
+      checkStatus = lastStatus.check_status();
+    }
+  }
+  return checkStatus;
 }
 
 
@@ -328,6 +432,172 @@ Label createLabel(const string& key, const Option<string>& value)
 }
 
 
+void injectAllocationInfo(
+    Offer::Operation* operation,
+    const Resource::AllocationInfo& allocationInfo)
+{
+  auto inject = [](
+      RepeatedPtrField<Resource>* resources,
+      const Resource::AllocationInfo& allocationInfo) {
+    foreach (Resource& resource, *resources) {
+      if (!resource.has_allocation_info()) {
+        resource.mutable_allocation_info()->CopyFrom(allocationInfo);
+      }
+    }
+  };
+
+  switch (operation->type()) {
+    case Offer::Operation::LAUNCH: {
+      Offer::Operation::Launch* launch = operation->mutable_launch();
+
+      foreach (TaskInfo& task, *launch->mutable_task_infos()) {
+        inject(task.mutable_resources(), allocationInfo);
+
+        if (task.has_executor()) {
+          inject(
+              task.mutable_executor()->mutable_resources(),
+              allocationInfo);
+        }
+      }
+      break;
+    }
+
+    case Offer::Operation::LAUNCH_GROUP: {
+      Offer::Operation::LaunchGroup* launchGroup =
+        operation->mutable_launch_group();
+
+      if (launchGroup->has_executor()) {
+        inject(
+            launchGroup->mutable_executor()->mutable_resources(),
+            allocationInfo);
+      }
+
+      TaskGroupInfo* taskGroup = launchGroup->mutable_task_group();
+
+      foreach (TaskInfo& task, *taskGroup->mutable_tasks()) {
+        inject(task.mutable_resources(), allocationInfo);
+
+        if (task.has_executor()) {
+          inject(
+              task.mutable_executor()->mutable_resources(),
+              allocationInfo);
+        }
+      }
+      break;
+    }
+
+    case Offer::Operation::RESERVE: {
+      inject(
+          operation->mutable_reserve()->mutable_resources(),
+          allocationInfo);
+
+      break;
+    }
+
+    case Offer::Operation::UNRESERVE: {
+      inject(
+          operation->mutable_unreserve()->mutable_resources(),
+          allocationInfo);
+
+      break;
+    }
+
+    case Offer::Operation::CREATE: {
+      inject(
+          operation->mutable_create()->mutable_volumes(),
+          allocationInfo);
+
+      break;
+    }
+
+    case Offer::Operation::DESTROY: {
+      inject(
+          operation->mutable_destroy()->mutable_volumes(),
+          allocationInfo);
+
+      break;
+    }
+
+    case Offer::Operation::UNKNOWN:
+      break; // No-op.
+  }
+}
+
+
+void stripAllocationInfo(Offer::Operation* operation)
+{
+  auto strip = [](RepeatedPtrField<Resource>* resources) {
+    foreach (Resource& resource, *resources) {
+      if (resource.has_allocation_info()) {
+        resource.clear_allocation_info();
+      }
+    }
+  };
+
+  switch (operation->type()) {
+    case Offer::Operation::LAUNCH: {
+      Offer::Operation::Launch* launch = operation->mutable_launch();
+
+      foreach (TaskInfo& task, *launch->mutable_task_infos()) {
+        strip(task.mutable_resources());
+
+        if (task.has_executor()) {
+          strip(task.mutable_executor()->mutable_resources());
+        }
+      }
+      break;
+    }
+
+    case Offer::Operation::LAUNCH_GROUP: {
+      Offer::Operation::LaunchGroup* launchGroup =
+        operation->mutable_launch_group();
+
+      if (launchGroup->has_executor()) {
+        strip(launchGroup->mutable_executor()->mutable_resources());
+      }
+
+      TaskGroupInfo* taskGroup = launchGroup->mutable_task_group();
+
+      foreach (TaskInfo& task, *taskGroup->mutable_tasks()) {
+        strip(task.mutable_resources());
+
+        if (task.has_executor()) {
+          strip(task.mutable_executor()->mutable_resources());
+        }
+      }
+      break;
+    }
+
+    case Offer::Operation::RESERVE: {
+      strip(operation->mutable_reserve()->mutable_resources());
+
+      break;
+    }
+
+    case Offer::Operation::UNRESERVE: {
+      strip(operation->mutable_unreserve()->mutable_resources());
+
+      break;
+    }
+
+    case Offer::Operation::CREATE: {
+      strip(operation->mutable_create()->mutable_volumes());
+
+      break;
+    }
+
+    case Offer::Operation::DESTROY: {
+      strip(operation->mutable_destroy()->mutable_volumes());
+
+      break;
+    }
+
+    case Offer::Operation::UNKNOWN:
+      break; // No-op.
+  }
+}
+
+
 TimeInfo getCurrentTime()
 {
   TimeInfo timeInfo;
@@ -363,7 +633,50 @@ FileInfo createFileInfo(const string& path, const struct stat& s)
   return file;
 }
 
+
+ContainerID getRootContainerId(const ContainerID& containerId)
+{
+  ContainerID rootContainerId = containerId;
+  while (rootContainerId.has_parent()) {
+    // NOTE: Looks like protobuf does not handle copying well when
+    // nesting message is involved, because the source and the target
+    // point to the same object. Therefore, we create a temporary
+    // variable and use an extra copy here.
+    ContainerID id = rootContainerId.parent();
+    rootContainerId = id;
+  }
+
+  return rootContainerId;
+}
+
 namespace slave {
+
+bool operator==(const Capabilities& left, const Capabilities& right)
+{
+  // TODO(bmahler): Use reflection-based equality to avoid breaking
+  // as new capabilities are added. Note that it needs to be set-based
+  // equality.
+  return left.multiRole == right.multiRole;
+}
+
+
+bool operator!=(const Capabilities& left, const Capabilities& right)
+{
+  return !(left == right);
+}
+
+
+ostream& operator<<(ostream& stream, const Capabilities& c)
+{
+  set<string> names;
+
+  foreach (const SlaveInfo::Capability& capability, c.toRepeatedPtrField()) {
+    names.insert(SlaveInfo::Capability::Type_Name(capability.type()));
+  }
+
+  return stream << stringify(names);
+}
+
 
 ContainerLimitation createContainerLimitation(
     const Resources& resources,
@@ -523,6 +836,9 @@ mesos::master::Response::GetAgents::Agent createAgentResponse(
     agent.add_offered_resources()->CopyFrom(resource);
   }
 
+  agent.mutable_capabilities()->CopyFrom(
+      slave.capabilities.toRepeatedPtrField());
+
   return agent;
 }
 
@@ -553,6 +869,23 @@ mesos::master::Event createAgentRemoved(const SlaveID& slaveId)
 
 } // namespace event {
 } // namespace master {
+
+namespace framework {
+
+set<string> getRoles(const FrameworkInfo& frameworkInfo)
+{
+  if (protobuf::frameworkHasCapability(
+          frameworkInfo,
+          FrameworkInfo::Capability::MULTI_ROLE)) {
+    return set<string>(
+        frameworkInfo.roles().begin(),
+        frameworkInfo.roles().end());
+  } else {
+    return {frameworkInfo.role()};
+  }
+}
+
+} // namespace framework {
 
 } // namespace protobuf {
 } // namespace internal {

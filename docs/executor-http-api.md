@@ -29,19 +29,21 @@ considered stable and is the recommended way to develop new Mesos executors.
 
 ## Overview
 
-The executor interacts with Mesos via the [/api/v1/executor](endpoints/slave/api/v1/executor.md) agent endpoint. Note that we refer to this endpoint with its suffix "/executor" in the rest of this document. This endpoint accepts HTTP POST requests with data encoded as JSON (Content-Type: application/json) or binary Protobuf (Content-Type: application/x-protobuf). The first request that the executor sends to "/executor" endpoint is called SUBSCRIBE and results in a streaming response ("200 OK" status code with Transfer-Encoding: chunked). **Executors are expected to keep the subscription connection open as long as possible (barring errors in network, agent process restarts, software bugs etc.) and incrementally process the response** (NOTE: HTTP client libraries that can only parse the response after the connection is closed cannot be used). For the encoding used, please refer to **Events** section below.
+The executor interacts with Mesos via the [/api/v1/executor](endpoints/slave/api/v1/executor.md) agent endpoint. We refer to this endpoint with its suffix "/executor" in the rest of this document. This endpoint accepts HTTP POST requests with data encoded as JSON (Content-Type: application/json) or binary Protobuf (Content-Type: application/x-protobuf). The first request that the executor sends to "/executor" endpoint is called SUBSCRIBE and results in a streaming response ("200 OK" status code with Transfer-Encoding: chunked).
 
-All the subsequent (non-`SUBSCRIBE`) requests to the "/executor" endpoint (see details below in **Calls** section) must be sent using a different connection(s) than the one being used for subscription. The agent responds to these HTTP POST requests with "202 Accepted" status codes (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The "202 Accepted" response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., agent fails during the processing of the request). Any asynchronous responses from these requests will be streamed on the long-lived subscription connection.
+**Executors are expected to keep the subscription connection open as long as possible (barring network errors, agent process restarts, software bugs, etc.) and incrementally process the response.** HTTP client libraries that can only parse the response after the connection is closed cannot be used. For the encoding used, please refer to **Events** section below.
+
+All subsequent (non-`SUBSCRIBE`) requests to the "/executor" endpoint (see details below in **Calls** section) must be sent using a different connection than the one used for subscription. The agent responds to these HTTP POST requests with "202 Accepted" status codes (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The "202 Accepted" response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., agent fails during the processing of the request). Any asynchronous responses from these requests will be streamed on the long-lived subscription connection. Executors can submit requests using more than one different HTTP connection.
 
 ## Calls
 
-The following calls are currently accepted by the agent. The canonical source of this information is [executor.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/executor/executor.proto) (NOTE: The protobuf definitions are subject to change before the Beta API is finalized). Note that when sending JSON encoded Calls, executors should encode raw bytes in Base64 and strings in UTF-8.
+The following calls are currently accepted by the agent. The canonical source of this information is [executor.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/executor/executor.proto). When sending JSON-encoded Calls, executors should encode raw bytes in Base64 and strings in UTF-8.
 
 ### SUBSCRIBE
 
 This is the first step in the communication process between the executor and agent. This is also to be considered as subscription to the "/executor" events stream.
 
-To subscribe with the agent, the executor sends a HTTP POST request with encoded `SUBSCRIBE` message. The HTTP response is a stream with [RecordIO](scheduler-http-api.md#recordio-response-format) encoding, with the first event being `SUBSCRIBED` event (see details in **Events** section).
+To subscribe with the agent, the executor sends an HTTP POST with a `SUBSCRIBE` message. The HTTP response is a stream in [RecordIO](scheduler-http-api.md#recordio-response-format) format; the event stream will begin with a `SUBSCRIBED` event (see details in **Events** section).
 
 Additionally, if the executor is connecting to the agent after a [disconnection](#disconnections), it can also send a list of:
 
@@ -213,9 +215,9 @@ HTTP/1.1 202 Accepted
 
 ## Events
 
-Executor is expected to keep a **persistent** connection open to "/executor" endpoint even after getting a `SUBSCRIBED` HTTP Response event. This is indicated by "Connection: keep-alive" and "Transfer-Encoding: chunked" headers with *no* "Content-Length" header set. All subsequent events that are relevant to this executor generated by Mesos are streamed on this connection. agent encodes each Event in [RecordIO](scheduler-http-api.md#recordio-response-format) format, i.e., string representation of length of the event in bytes followed by JSON or binary Protobuf  (possibly compressed) encoded event. Note that the value of length will never be ‘0’ and the size of the length will be the size of unsigned integer (i.e., 64 bits). Also, note that the `RecordIO` encoding should be decoded by the executor whereas the underlying HTTP chunked encoding is typically invisible at the application (executor) layer. The type of content encoding used for the events will be determined by the accept header of the POST request (e.g., "Accept: application/json").
+Executors are expected to keep a **persistent** connection to the "/executor" endpoint (even after getting a `SUBSCRIBED` HTTP Response event). This is indicated by the "Connection: keep-alive" and "Transfer-Encoding: chunked" headers with *no* "Content-Length" header set. All subsequent events that are relevant to this executor generated by Mesos are streamed on this connection. The agent encodes each Event in [RecordIO](scheduler-http-api.md#recordio-response-format) format, i.e., string representation of length of the event in bytes followed by JSON or binary Protobuf  (possibly compressed) encoded event. The length of an event is a 64-bit unsigned integer (encoded as a textual value) and will never be "0". Also, note that the `RecordIO` encoding should be decoded by the executor whereas the underlying HTTP chunked encoding is typically invisible at the application (executor) layer. The type of content encoding used for the events will be determined by the accept header of the POST request (e.g., "Accept: application/json").
 
-The following events are currently sent by the agent. The canonical source of this information is at [executor.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/executor/executor.proto). Note that when sending JSON encoded events, agent encodes raw bytes in Base64 and strings in UTF-8.
+The following events are currently sent by the agent. The canonical source of this information is at [executor.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/executor/executor.proto). Note that when sending JSON-encoded events, agent encodes raw bytes in Base64 and strings in UTF-8.
 
 ### SUBSCRIBED
 
@@ -333,7 +335,7 @@ ACKNOWLEDGED Event (JSON)
 
 ### MESSAGE
 
-Custom message generated by the scheduler and forwarded all the way to the executor. These messages are delivered "as-is" by Mesos and have no delivery guarantees. It is up to the scheduler to retry if a message is dropped for any reason. Note that `data` is raw bytes encoded as Base64.
+Custom message generated by the scheduler and forwarded all the way to the executor. These messages are delivered "as-is" by Mesos and have no delivery guarantees. It is up to the scheduler to retry if a message is dropped for any reason. The `data` field contains raw bytes encoded as Base64.
 
 ```
 MESSAGE Event (JSON)
@@ -384,11 +386,11 @@ The following environment variables are set by the agent that can be used by the
 * `MESOS_EXECUTOR_ID`: `ExecutorID` of the executor needed as part of the `SUBSCRIBE` call.
 * `MESOS_DIRECTORY`: Path to the working directory for the executor on the host filesystem (deprecated).
 * `MESOS_SANDBOX`: Path to the mapped sandbox inside of the container (determined by the agent flag `sandbox_directory`) for either mesos container with image or docker container. For the case of command task without image specified, it is the path to the sandbox on the host filesystem, which is identical to `MESOS_DIRECTORY`. `MESOS_DIRECTORY` is always the sandbox on the host filesystem.
-* `MESOS_AGENT_ENDPOINT`: agent endpoint i.e. ip:port to be used by the executor to connect to the agent.
+* `MESOS_AGENT_ENDPOINT`: Agent endpoint (i.e., ip:port to be used by the executor to connect to the agent).
 * `MESOS_CHECKPOINT`: If set to true, denotes that framework has checkpointing enabled.
 * `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD`: Amount of time the agent would wait for an executor to shut down (e.g., 60secs, 3mins etc.) after sending a `SHUTDOWN` event.
 
-If `MESOS_CHECKPOINT` is set i.e. when framework checkpointing is enabled, the following additional variables are also set that can be used by the executor for retrying upon a disconnection with the agent:
+If `MESOS_CHECKPOINT` is set (i.e., if framework checkpointing is enabled), the following additional variables are also set that can be used by the executor for retrying upon a disconnection with the agent:
 
 * `MESOS_RECOVERY_TIMEOUT`: The total duration that the executor should spend retrying before shutting itself down when it is disconnected from the agent (e.g., `15mins`, `5secs` etc.). This is configurable at agent startup via the flag `--recovery_timeout`.
 * `MESOS_SUBSCRIPTION_BACKOFF_MAX`: The maximum backoff duration to be used by the executor between two retries when disconnected (e.g., `250ms`, `1mins` etc.). This is configurable at agent startup via the flag `--executor_reregistration_timeout`.

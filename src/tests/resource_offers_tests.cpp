@@ -58,7 +58,9 @@ namespace tests {
 class ResourceOffersTest : public MesosTest {};
 
 
-TEST_F(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    ResourceOffersTest,
+    ResourceOfferWithMultipleSlaves)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -82,8 +84,7 @@ TEST_F(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -93,12 +94,12 @@ TEST_F(ResourceOffersTest, ResourceOfferWithMultipleSlaves)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
-  EXPECT_GE(10u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
+  EXPECT_GE(10u, offers->size());
 
   Resources resources(offers.get()[0].resources());
-  EXPECT_EQ(2, resources.get<Value::Scalar>("cpus").get().value());
-  EXPECT_EQ(1024, resources.get<Value::Scalar>("mem").get().value());
+  EXPECT_EQ(2, resources.get<Value::Scalar>("cpus")->value());
+  EXPECT_EQ(1024, resources.get<Value::Scalar>("mem")->value());
 
   driver.stop();
   driver.join();
@@ -118,8 +119,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
   MesosSchedulerDriver driver1(
       &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched1, registered(&driver1, _, _))
-    .Times(1);
+  EXPECT_CALL(sched1, registered(&driver1, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -128,7 +128,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
   driver1.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   driver1.stop();
   driver1.join();
@@ -137,8 +137,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterFrameworkStops)
   MesosSchedulerDriver driver2(
       &sched2, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched2, registered(&driver2, _, _))
-    .Times(1);
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
 
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -165,8 +164,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   MesosSchedulerDriver driver1(
       &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched1, registered(&driver1, _, _))
-    .Times(1);
+  EXPECT_CALL(sched1, registered(&driver1, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -175,7 +173,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   driver1.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   vector<TaskInfo> tasks; // Use nothing!
   driver1.launchTasks(offers.get()[0].id(), tasks);
@@ -184,8 +182,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   MesosSchedulerDriver driver2(
       &sched2, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched2, registered(&driver2, _, _))
-    .Times(1);
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
 
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -216,8 +213,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   MesosSchedulerDriver driver1(
       &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched1, registered(&driver1, _, _))
-    .Times(1);
+  EXPECT_CALL(sched1, registered(&driver1, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
@@ -227,7 +223,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   driver1.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("");
@@ -255,19 +251,19 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   driver1.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_ERROR, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
-  EXPECT_TRUE(status.get().has_message());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_ERROR, status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status->reason());
+  EXPECT_TRUE(status->has_message());
   EXPECT_TRUE(strings::startsWith(
-        status.get().message(), "Task uses invalid resources"));
+        status->message(), "Task uses invalid resources"))
+    << status->message();
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
       &sched2, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched2, registered(&driver2, _, _))
-    .Times(1);
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
 
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
     .WillOnce(FutureArg<1>(&offers))
@@ -289,8 +285,7 @@ TEST_F(ResourceOffersTest, Request)
 {
   TestAllocator<master::allocator::HierarchicalDRFAllocator> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _))
-    .Times(1);
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
@@ -299,8 +294,7 @@ TEST_F(ResourceOffersTest, Request)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _))
-    .Times(1);
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   Future<Nothing> registered;
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -322,8 +316,8 @@ TEST_F(ResourceOffersTest, Request)
   driver.requestResources(sent);
 
   AWAIT_READY(received);
-  EXPECT_EQ(sent.size(), received.get().size());
-  EXPECT_NE(0u, received.get().size());
+  EXPECT_EQ(sent.size(), received->size());
+  EXPECT_NE(0u, received->size());
   EXPECT_EQ(request.slave_id(), received.get()[0].slave_id());
 
   driver.stop();

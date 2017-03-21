@@ -123,8 +123,7 @@ TEST_F(MasterContenderDetectorTest, File)
   MesosSchedulerDriver driver(
     &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -207,7 +206,7 @@ TEST(BasicMasterContenderDetectorTest, MasterInfo)
 
   AWAIT_READY(detected);
   ASSERT_SOME(detected.get());
-  const MasterInfo& info = detected.get().get();
+  const MasterInfo& info = detected->get();
 
   ASSERT_TRUE(info.has_address());
   EXPECT_EQ("10.10.1.105", info.address().ip());
@@ -272,7 +271,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterContender)
 
   Future<Option<int64_t>> sessionId = group.get()->session();
   AWAIT_READY(sessionId);
-  server->expireSession(sessionId.get().get());
+  server->expireSession(sessionId->get());
 
   AWAIT_READY(lostCandidacy);
   AWAIT_READY(leader);
@@ -714,9 +713,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   AWAIT_READY(session);
   EXPECT_SOME(session.get());
 
-  LOG(INFO) << "Now expire the ZK session: " << std::hex << session.get().get();
+  LOG(INFO) << "Now expire the ZK session: " << std::hex << session->get();
 
-  server->expireSession(session.get().get());
+  server->expireSession(session->get());
 
   AWAIT_READY(leaderLostLeadership);
 
@@ -724,7 +723,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   // a new leader.
   AWAIT_READY(newLeaderDetected);
   EXPECT_SOME(newLeaderDetected.get());
-  EXPECT_EQ(follower, newLeaderDetected.get().get());
+  EXPECT_EQ(follower, newLeaderDetected->get());
 }
 
 
@@ -767,7 +766,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, MasterDetectorExpireSlaveZKSession)
   Future<Option<int64_t>> session = group->session();
   AWAIT_READY(session);
 
-  server->expireSession(session.get().get());
+  server->expireSession(session->get());
 
   // Session expiration causes detector to assume all membership are
   // lost.
@@ -856,8 +855,8 @@ TEST_F(ZooKeeperMasterContenderDetectorTest,
   Future<Option<int64_t>> masterSession = leaderGroup->session();
   AWAIT_READY(masterSession);
 
-  server->expireSession(slaveSession.get().get());
-  server->expireSession(masterSession.get().get());
+  server->expireSession(slaveSession->get());
+  server->expireSession(masterSession->get());
 
   // Wait for session expiration and the detector will first receive
   // a "no master detected" event.

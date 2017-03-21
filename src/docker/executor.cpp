@@ -39,13 +39,13 @@
 
 #include <stout/os/killtree.hpp>
 
+#include "checks/health_checker.hpp"
+
 #include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
 
 #include "docker/docker.hpp"
 #include "docker/executor.hpp"
-
-#include "health-check/health_checker.hpp"
 
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
@@ -86,7 +86,8 @@ public:
       const string& mappedDirectory,
       const Duration& shutdownGracePeriod,
       const string& launcherDir,
-      const map<string, string>& taskEnvironment)
+      const map<string, string>& taskEnvironment,
+      bool cgroupsEnableCfs)
     : ProcessBase(ID::generate("docker-executor")),
       killed(false),
       killedByHealthCheck(false),
@@ -98,6 +99,7 @@ public:
       mappedDirectory(mappedDirectory),
       shutdownGracePeriod(shutdownGracePeriod),
       taskEnvironment(taskEnvironment),
+      cgroupsEnableCfs(cgroupsEnableCfs),
       stop(Nothing()),
       inspect(Nothing()) {}
 
@@ -129,6 +131,8 @@ public:
   void launchTask(ExecutorDriver* driver, const TaskInfo& task)
   {
     if (run.isSome()) {
+      // TODO(alexr): Use `protobuf::createTaskStatus()`
+      // instead of manually setting fields.
       TaskStatus status;
       status.mutable_task_id()->CopyFrom(task.task_id());
       status.set_state(TASK_FAILED);
@@ -154,6 +158,33 @@ public:
 
     CHECK(task.container().type() == ContainerInfo::DOCKER);
 
+    Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
+        task.container(),
+        task.command(),
+        containerName,
+        sandboxDirectory,
+        mappedDirectory,
+        task.resources() + task.executor().resources(),
+        cgroupsEnableCfs,
+        taskEnvironment,
+        None() // No extra devices.
+    );
+
+    if (runOptions.isError()) {
+      // TODO(alexr): Use `protobuf::createTaskStatus()`
+      // instead of manually setting fields.
+      TaskStatus status;
+      status.mutable_task_id()->CopyFrom(task.task_id());
+      status.set_state(TASK_FAILED);
+      status.set_message(
+        "Failed to create docker run options: " + runOptions.error());
+
+      driver->sendStatusUpdate(status);
+
+      _stop();
+      return;
+    }
+
     // We're adding task and executor resources to launch docker since
     // the DockerContainerizer updates the container cgroup limits
     // directly and it expects it to be the sum of both task and
@@ -161,14 +192,7 @@ public:
     // resources for running this executor, but we are assuming
     // this is just a very small amount of overcommit.
     run = docker->run(
-        task.container(),
-        task.command(),
-        containerName,
-        sandboxDirectory,
-        mappedDirectory,
-        task.resources() + task.executor().resources(),
-        taskEnvironment,
-        None(), // No extra devices.
+        runOptions.get(),
         Subprocess::FD(STDOUT_FILENO),
         Subprocess::FD(STDERR_FILENO));
 
@@ -184,6 +208,8 @@ public:
         if (!killed) {
           containerPid = container.pid;
 
+          // TODO(alexr): Use `protobuf::createTaskStatus()`
+          // instead of manually setting fields.
           TaskStatus status;
           status.mutable_task_id()->CopyFrom(taskId.get());
           status.set_state(TASK_RUNNING);
@@ -293,6 +319,8 @@ protected:
     cout << "Received task health update, healthy: "
          << stringify(healthStatus.healthy()) << endl;
 
+    // TODO(alexr): Use `protobuf::createTaskStatus()`
+    // instead of manually setting fields.
     TaskStatus status;
     status.mutable_task_id()->CopyFrom(healthStatus.task_id());
     status.set_healthy(healthStatus.healthy());
@@ -359,6 +387,8 @@ private:
       if (protobuf::frameworkHasCapability(
               frameworkInfo.get(),
               FrameworkInfo::Capability::TASK_KILLING_STATE)) {
+        // TODO(alexr): Use `protobuf::createTaskStatus()`
+        // instead of manually setting fields.
         TaskStatus status;
         status.mutable_task_id()->CopyFrom(taskId.get());
         status.set_state(TASK_KILLING);
@@ -419,9 +449,10 @@ private:
       message = "Failed to get exit status of container";
     } else {
       int status = run->get();
-      CHECK(WIFEXITED(status) || WIFSIGNALED(status)) << status;
+      CHECK(WIFEXITED(status) || WIFSIGNALED(status))
+        << "Unexpected wait status " << status;
 
-      if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+      if (WSUCCEEDED(status)) {
         state = TASK_FINISHED;
       } else if (killed) {
         // Send TASK_KILLED if the task was killed as a result of
@@ -442,6 +473,8 @@ private:
 
     CHECK_SOME(taskId);
 
+    // TODO(alexr): Use `protobuf::createTaskStatus()`
+    // instead of manually setting fields.
     TaskStatus taskStatus;
     taskStatus.mutable_task_id()->CopyFrom(taskId.get());
     taskStatus.set_state(state);
@@ -453,6 +486,11 @@ private:
     CHECK_SOME(driver);
     driver.get()->sendStatusUpdate(taskStatus);
 
+    _stop();
+  }
+
+  void _stop()
+  {
     // A hack for now ... but we need to wait until the status update
     // is sent to the slave before we shut ourselves down.
     // TODO(tnachen): Remove this hack and also the same hack in the
@@ -525,8 +563,8 @@ private:
       namespaces.push_back("net");
     }
 
-    Try<Owned<health::HealthChecker>> _checker =
-      health::HealthChecker::create(
+    Try<Owned<checks::HealthChecker>> _checker =
+      checks::HealthChecker::create(
           healthCheck,
           launcherDir,
           defer(self(), &Self::taskHealthUpdated, lambda::_1),
@@ -556,6 +594,7 @@ private:
   string mappedDirectory;
   Duration shutdownGracePeriod;
   map<string, string> taskEnvironment;
+  bool cgroupsEnableCfs;
 
   Option<KillPolicy> killPolicy;
   Option<Future<Option<int>>> run;
@@ -564,7 +603,7 @@ private:
   Option<ExecutorDriver*> driver;
   Option<FrameworkInfo> frameworkInfo;
   Option<TaskID> taskId;
-  Owned<health::HealthChecker> checker;
+  Owned<checks::HealthChecker> checker;
   Option<NetworkInfo> containerNetworkInfo;
   Option<pid_t> containerPid;
 };
@@ -580,7 +619,8 @@ public:
       const string& mappedDirectory,
       const Duration& shutdownGracePeriod,
       const string& launcherDir,
-      const map<string, string>& taskEnvironment)
+      const map<string, string>& taskEnvironment,
+      bool cgroupsEnableCfs)
   {
     process = Owned<DockerExecutorProcess>(new DockerExecutorProcess(
         docker,
@@ -589,7 +629,8 @@ public:
         mappedDirectory,
         shutdownGracePeriod,
         launcherDir,
-        taskEnvironment));
+        taskEnvironment,
+        cgroupsEnableCfs));
 
     spawn(process.get());
   }
@@ -670,6 +711,8 @@ private:
 int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+  process::initialize();
 
   mesos::internal::docker::Flags flags;
 
@@ -793,15 +836,31 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  mesos::internal::docker::DockerExecutor executor(
-      docker.get(),
-      flags.container.get(),
-      flags.sandbox_directory.get(),
-      flags.mapped_directory.get(),
-      shutdownGracePeriod,
-      flags.launcher_dir.get(),
-      taskEnvironment);
+  Owned<mesos::internal::docker::DockerExecutor> executor(
+      new mesos::internal::docker::DockerExecutor(
+          docker.get(),
+          flags.container.get(),
+          flags.sandbox_directory.get(),
+          flags.mapped_directory.get(),
+          shutdownGracePeriod,
+          flags.launcher_dir.get(),
+          taskEnvironment,
+          flags.cgroups_enable_cfs));
 
-  mesos::MesosExecutorDriver driver(&executor);
-  return driver.run() == mesos::DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;
+  Owned<mesos::MesosExecutorDriver> driver(
+      new mesos::MesosExecutorDriver(executor.get()));
+
+  bool success = driver->run() == mesos::DRIVER_STOPPED;
+
+  // NOTE: We need to delete the executor and driver before we call
+  // `process::finalize` because the executor/driver will try to terminate
+  // and wait on a libprocess actor in their destructor.
+  driver.reset();
+  executor.reset();
+
+  // NOTE: We need to finalize libprocess, on Windows especially,
+  // as any binary that uses the networking stack on Windows must
+  // also clean up the networking stack before exiting.
+  process::finalize(true);
+  return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }

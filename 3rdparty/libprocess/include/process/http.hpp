@@ -51,9 +51,20 @@ template <typename T>
 class Future;
 
 namespace http {
+
+enum class Scheme {
+  HTTP,
+#ifdef USE_SSL_SOCKET
+  HTTPS
+#endif
+};
+
+
 namespace authentication {
 
 class Authenticator;
+
+struct Principal;
 
 /**
  * Sets (or overwrites) the authenticator for the realm.
@@ -88,7 +99,7 @@ namespace authorization {
 typedef hashmap<std::string,
                 lambda::function<process::Future<bool>(
                     const Request,
-                    const Option<std::string> principal)>>
+                    const Option<authentication::Principal>)>>
   AuthorizationCallbacks;
 
 
@@ -247,12 +258,6 @@ struct Status
 };
 
 
-typedef hashmap<std::string,
-                std::string,
-                CaseInsensitiveHash,
-                CaseInsensitiveEqual> Headers;
-
-
 // Represents an asynchronous in-memory unbuffered Pipe, currently
 // used for streaming HTTP responses via chunked encoding. Note that
 // being an in-memory pipe means that this cannot be used across OS
@@ -328,11 +333,6 @@ public:
     };
 
     explicit Reader(const std::shared_ptr<Data>& _data) : data(_data) {}
-
-    // Continuation for `readAll()`.
-    static Future<std::string> _readAll(
-        Pipe::Reader reader,
-        const std::shared_ptr<std::string>& buffer);
 
     std::shared_ptr<Data> data;
   };
@@ -418,6 +418,96 @@ private:
 };
 
 
+namespace header {
+
+// https://tools.ietf.org/html/rfc2617.
+class WWWAuthenticate
+{
+public:
+  static constexpr const char* NAME = "WWW-Authenticate";
+
+  WWWAuthenticate(
+      const std::string& authScheme,
+      const hashmap<std::string, std::string>& authParam)
+    : authScheme_(authScheme),
+      authParam_(authParam) {}
+
+  static Try<WWWAuthenticate> create(const std::string& value);
+
+  std::string authScheme();
+  hashmap<std::string, std::string> authParam();
+
+private:
+  // According to RFC, HTTP/1.1 server may return multiple challenges
+  // with a 401 (Authenticate) response. Each challenage is in the
+  // format of 'auth-scheme 1*SP 1#auth-param' and each challenage may
+  // use a different auth-scheme.
+  // https://tools.ietf.org/html/rfc2617#section-4.6
+  //
+  // TODO(gilbert): We assume there is only one authenticate challenge.
+  // Multiple challenges should be supported as well.
+  std::string authScheme_;
+  hashmap<std::string, std::string> authParam_;
+};
+
+} // namespace header {
+
+
+class Headers : public hashmap<
+    std::string,
+    std::string,
+    CaseInsensitiveHash,
+    CaseInsensitiveEqual>
+{
+public:
+  Headers() {}
+
+  Headers(const std::map<std::string, std::string>& map)
+    : hashmap<
+          std::string,
+          std::string,
+          CaseInsensitiveHash,
+          CaseInsensitiveEqual>(map) {}
+
+  Headers(std::map<std::string, std::string>&& map)
+    : hashmap<
+          std::string,
+          std::string,
+          CaseInsensitiveHash,
+          CaseInsensitiveEqual>(map) {}
+
+  Headers(std::initializer_list<std::pair<std::string, std::string>> list)
+     : hashmap<
+          std::string,
+          std::string,
+          CaseInsensitiveHash,
+          CaseInsensitiveEqual>(list) {}
+
+  template <typename T>
+  Result<T> get() const
+  {
+    Option<std::string> value = get(T::NAME);
+    if (value.isNone()) {
+      return None();
+    }
+    Try<T> header = T::create(value.get());
+    if (header.isError()) {
+      return Error(header.error());
+    }
+    return header.get();
+  }
+
+  Option<std::string> get(const std::string& key) const
+  {
+    return hashmap<
+        std::string,
+        std::string,
+        CaseInsensitiveHash,
+        CaseInsensitiveEqual>::get(key);
+  }
+};
+
+
 struct Request
 {
   Request()
@@ -473,10 +563,25 @@ struct Request
   bool acceptsEncoding(const std::string& encoding) const;
 
   /**
-   * Returns whether the media type is considered acceptable in the
-   * response. See RFC 2616, section 14.1 for the details.
+   * Returns whether the media type in the "Accept" header  is considered
+   * acceptable in the response. See RFC 2616, section 14.1 for the details.
    */
   bool acceptsMediaType(const std::string& mediaType) const;
+
+  /**
+   * Returns whether the media type in the `name` header is considered
+   * acceptable in the response. The media type should have similar
+   * semantics as the "Accept" header. See RFC 2616, section 14.1 for
+   * the details.
+   */
+  bool acceptsMediaType(
+      const std::string& name,
+      const std::string& mediaType) const;
+
+private:
+  bool _acceptsMediaType(
+      Option<std::string> name,
+      const std::string& mediaType) const;
 };
 
 
@@ -850,7 +955,8 @@ public:
 
 private:
   Connection(const network::Socket& s);
-  friend Future<Connection> connect(const network::Address& address);
+  friend Future<Connection> connect(
+      const network::Address& address, Scheme scheme);
   friend Future<Connection> connect(const URL&);
 
   // Forward declaration.
@@ -860,11 +966,7 @@ private:
 };
 
 
-// TODO(benh): Currently we don't support SSL for this version of
-// connect. We should support this, perhaps with an enum or a bool and
-// then update the `connect(URL)` variant to just call this function
-// instead.
-Future<Connection> connect(const network::Address& address);
+Future<Connection> connect(const network::Address& address, Scheme scheme);
 
 
 Future<Connection> connect(const URL& url);
@@ -981,7 +1083,8 @@ Future<Response> get(
     const UPID& upid,
     const Option<std::string>& path = None(),
     const Option<std::string>& query = None(),
-    const Option<Headers>& headers = None());
+    const Option<Headers>& headers = None(),
+    const Option<std::string>& scheme = None());
 
 
 // Asynchronously sends an HTTP POST request to the specified URL
@@ -1002,7 +1105,8 @@ Future<Response> post(
     const Option<std::string>& path = None(),
     const Option<Headers>& headers = None(),
     const Option<std::string>& body = None(),
-    const Option<std::string>& contentType = None());
+    const Option<std::string>& contentType = None(),
+    const Option<std::string>& scheme = None());
 
 
 /**
@@ -1026,12 +1130,14 @@ Future<Response> requestDelete(
  * @param path The optional path to be be deleted. If not send the
      request is send to the process directly.
  * @param headers Optional headers for the request.
+ * @param scheme Optional scheme for the request.
  * @return A future with the HTTP response.
  */
 Future<Response> requestDelete(
     const UPID& upid,
     const Option<std::string>& path = None(),
-    const Option<Headers>& headers = None());
+    const Option<Headers>& headers = None(),
+    const Option<std::string>& scheme = None());
 
 
 namespace streaming {
@@ -1052,7 +1158,8 @@ Future<Response> get(
     const UPID& upid,
     const Option<std::string>& path = None(),
     const Option<std::string>& query = None(),
-    const Option<Headers>& headers = None());
+    const Option<Headers>& headers = None(),
+    const Option<std::string>& scheme = None());
 
 // Asynchronously sends an HTTP POST request to the specified URL
 // and returns the HTTP response of type 'PIPE' once the response
@@ -1073,7 +1180,8 @@ Future<Response> post(
     const Option<std::string>& path = None(),
     const Option<Headers>& headers = None(),
     const Option<std::string>& body = None(),
-    const Option<std::string>& contentType = None());
+    const Option<std::string>& contentType = None(),
+    const Option<std::string>& scheme = None());
 
 } // namespace streaming {
 

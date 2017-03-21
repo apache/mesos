@@ -474,7 +474,7 @@ Example:
     --slave_ping_timeout=VALUE
   </td>
   <td>
-The timeout within which each agent is expected to respond to a
+The timeout within which an agent is expected to respond to a
 ping from the master. Agents that do not respond within
 max_agent_ping_timeouts ping retries will be asked to shutdown.
 <b>NOTE</b>: The total ping timeout (<code>agent_ping_timeout</code> multiplied by
@@ -503,10 +503,12 @@ checks. The value is of the form <code>(Number of agents)/(Duration)</code>.
     --slave_reregister_timeout=VALUE
   </td>
   <td>
-The timeout within which all agents are expected to re-register
-when a new master is elected as the leader. Agents that do not
-re-register within the timeout will be removed from the registry
-and will be shutdown if they attempt to communicate with master.
+The timeout within which an agent is expected to re-register.
+Agents re-register when they become disconnected from the master
+or when a new master is elected as the leader. Agents that do not
+re-register within the timeout will be marked unreachable in the
+registry; if/when the agent re-registers with the master, any
+non-partition-aware tasks running on the agent will be terminated.
 <b>NOTE</b>: This value has to be at least 10mins. (default: 10mins)
   </td>
 </tr>
@@ -706,11 +708,18 @@ Maximum number of completed frameworks to store in memory. (default: 50)
 </tr>
 <tr>
   <td>
-    --max_completed_tasks_per_framework
-=VALUE
+    --max_completed_tasks_per_framework=VALUE
   </td>
   <td>
 Maximum number of completed tasks per framework to store in memory. (default: 1000)
+  </td>
+</tr>
+<tr>
+  <td>
+    --max_unreachable_tasks_per_framework=VALUE
+  </td>
+  <td>
+Maximum number of unreachable tasks per framework to store in memory. (default: 1000)
   </td>
 </tr>
 <tr>
@@ -1504,6 +1513,18 @@ production yet. (default: false)
 </tr>
 <tr>
   <td>
+    --http_heartbeat_interval=VALUE
+  </td>
+  <td>
+This flag sets a heartbeat interval (e.g. '5secs', '10mins') for
+messages to be sent over persistent connections made against
+the agent HTTP API. Currently, this only applies to the
+<code>LAUNCH_NESTED_CONTAINER_SESSION</code> and <code>ATTACH_CONTAINER_OUTPUT</code> calls.
+(default: 30secs)
+  </td>
+</tr>
+<tr>
+  <td>
     --image_providers=VALUE
   </td>
   <td>
@@ -1517,7 +1538,7 @@ e.g., <code>APPC,DOCKER</code>.
   </td>
   <td>
 Strategy for provisioning container rootfs from images, e.g., <code>aufs</code>,
-<code>bind</code>, <code>copy</code>, <code>overlay</code>. (default: copy)
+<code>bind</code>, <code>copy</code>, <code>overlay</code>.
   </td>
 </tr>
 <tr>
@@ -1754,6 +1775,17 @@ Example JSON:
 Run containers with revocable CPU at a lower priority than
 normal containers (non-revocable cpu). Currently only
 supported by the cgroups/cpu isolator. (default: true)
+  </td>
+</tr>
+<tr>
+  <td>
+    --runtime_dir
+  </td>
+  <td>
+Path of the agent runtime directory. This is where runtime data
+is stored by an agent that it needs to persist across crashes (but
+not across reboots). This directory will be cleared on reboot.
+(Example: <code>/var/run/mesos</code>)
   </td>
 </tr>
 <tr>
@@ -2041,9 +2073,9 @@ quotas for container sandbox directories. Valid project IDs range from
 </table>
 
 
-## Mesos Build Configuration Options
+## Mesos Autotools Build Configuration Options
 
-###The configure script has the following flags for optional features:
+### Autotools `configure` script options
 
 <table class="table table-striped">
   <thead>
@@ -2280,7 +2312,7 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
 </table>
 
-### The configure script has the following flags for optional packages:
+### Autotools `configure` script optional package flags
 
 <table class="table table-striped">
   <thead>
@@ -2501,7 +2533,7 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
 </table>
 
-### Some influential environment variables for configure script:
+### Environment variables which affect the Autotools `configure` script
 
 Use these variables to override the choices made by `configure` or to help
 it to find libraries and programs with nonstandard names/locations.

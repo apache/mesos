@@ -44,7 +44,7 @@ mesos::internal::slave::Flags::Flags()
       "hostname",
       "The hostname the agent should report.\n"
       "If left unset, the hostname is resolved from the IP address\n"
-      "that the agent binds to; unless the user explicitly prevents\n"
+      "that the agent advertises; unless the user explicitly prevents\n"
       "that, using `--no-hostname_lookup`, in which case the IP itself\n"
       "is used.");
 
@@ -96,14 +96,20 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::isolation,
       "isolation",
-      "Isolation mechanisms to use, e.g., `posix/cpu,posix/mem`, or\n"
+      "Isolation mechanisms to use, e.g., `posix/cpu,posix/mem` (or \n"
+      "`windows/cpu` if you are on Windows), or\n"
       "`cgroups/cpu,cgroups/mem`, or network/port_mapping\n"
       "(configure with flag: `--with-network-isolator` to enable),\n"
       "or `gpu/nvidia` for nvidia specific gpu isolation,\n"
       "or load an alternate isolator module using the `--modules`\n"
       "flag. Note that this flag is only relevant for the Mesos\n"
       "Containerizer.",
-      "posix/cpu,posix/mem");
+#ifndef __WINDOWS__
+      "posix/cpu,posix/mem"
+#else
+      "windows/cpu"
+#endif // __WINDOWS__
+      );
 
   add(&Flags::launcher,
       "launcher",
@@ -129,8 +135,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::image_provisioner_backend,
       "image_provisioner_backend",
       "Strategy for provisioning container rootfs from images,\n"
-      "e.g., `aufs`, `bind`, `copy`, `overlay`.",
-      COPY_BACKEND);
+      "e.g., `aufs`, `bind`, `copy`, `overlay`.");
 
   add(&Flags::appc_simple_discovery_uri_prefix,
       "appc_simple_discovery_uri_prefix",
@@ -221,14 +226,29 @@ mesos::internal::slave::Flags::Flags()
       "not across reboots). This directory will be cleared on reboot.\n"
       "(Example: `/var/run/mesos`)",
       []() -> string {
-        Result<string> user = os::user();
-        CHECK_SOME(user);
+        Try<string> var = os::var();
+        if (var.isSome()) {
+#ifdef __WINDOWS__
+          const string prefix(var.get());
+#else
+          const string prefix(path::join(var.get(), "run"));
+#endif // __WINDOWS__
 
-        if (user.get() == "root") {
-            return DEFAULT_ROOT_RUNTIME_DIRECTORY;
-        } else {
-            return path::join(os::temp(), "mesos", "runtime");
+          // We check for access on the prefix because the remainder
+          // of the directory structure is created by the agent later.
+          Try<bool> access = os::access(prefix, R_OK | W_OK);
+          if (access.isSome() && access.get()) {
+#ifdef __WINDOWS__
+            return path::join(prefix, "mesos", "runtime");
+#else
+            return path::join(prefix, "mesos");
+#endif // __WINDOWS__
+          }
         }
+
+        // We provide a fallback path for ease of use in case `os::var()`
+        // errors or if the directory is not accessible.
+        return path::join(os::temp(), "mesos", "runtime");
       }());
 
   add(&Flags::launcher_dir, // TODO(benh): This needs a better name.
@@ -258,18 +278,15 @@ mesos::internal::slave::Flags::Flags()
       "NOTE: This feature is not yet supported on Windows agent, and\n"
       "therefore the flag currently does not exist on that platform.",
       true);
-
-  add(&Flags::io_switchboard_enable_server,
-      "io_switchboard_enable_server",
-      "If set to `true`, the agent will launch a per-container sidecar\n"
-      "process that runs an HTTP serve to handle incoming\n"
-      "'ATTACH_CONTAINER_INPUT' and 'ATTACH_CONTAINER_OUTPUT' calls on\n"
-      "behalf of a container. If set to 'false', this functionality\n"
-      "will not be available. The default is 'false'.\n"
-      "NOTE: This feature is not yet supported on Windows agent, and\n"
-      "therefore the flag currently does not exist on that platform.",
-      false);
 #endif // __WINDOWS__
+
+  add(&Flags::http_heartbeat_interval,
+      "http_heartbeat_interval",
+      "This flag sets a heartbeat interval (e.g. '5secs', '10mins') for\n"
+      "messages to be sent over persistent connections made against\n"
+      "the agent HTTP API. Currently, this only applies to the\n"
+      "'LAUNCH_NESTED_CONTAINER_SESSION' and 'ATTACH_CONTAINER_OUTPUT' calls.",
+      Seconds(30));
 
   add(&Flags::frameworks_home,
       "frameworks_home",
@@ -519,7 +536,7 @@ mesos::internal::slave::Flags::Flags()
       "To set capabilities the agent should have the `SETPCAP` capability.\n"
       "\n"
       "This flag is effective iff `capabilities` isolation is enabled.\n"
-      "When `capabilities` isolation is enabled, the absense of this flag\n"
+      "When `capabilities` isolation is enabled, the absence of this flag\n"
       "would imply that the operator would allow ALL capabilities.\n"
       "\n"
       "Example:\n"
@@ -625,10 +642,12 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::docker_socket,
       "docker_socket",
-      "The UNIX socket path to be mounted into the docker executor container\n"
-      "to provide docker CLI access to the docker daemon. This must be the\n"
-      "path used by the agent's docker image.\n",
-      "/var/run/docker.sock");
+      "Resource used by the agent and the executor to provice CLI access\n"
+      "to the Docker daemon. On Unix, this is typically a path to a\n"
+      "socket, such as '/var/run/docker.sock'. On Windows this must be a\n"
+      "named pipe, such as '//./pipe/docker_engine'. NOTE: This must be\n"
+      "the path used by the Docker image used to run the agent.\n",
+      DEFAULT_DOCKER_HOST_RESOURCE);
 
   add(&Flags::docker_config,
       "docker_config",
@@ -651,7 +670,12 @@ mesos::internal::slave::Flags::Flags()
       "sandbox_directory",
       "The absolute path for the directory in the container where the\n"
       "sandbox is mapped to.\n",
-      "/mnt/mesos/sandbox");
+#ifndef __WINDOWS__
+      "/mnt/mesos/sandbox"
+#else
+      "C:\\mesos\\sandbox"
+#endif // __WINDOWS__
+      );
 
   add(&Flags::default_container_info,
       "default_container_info",

@@ -91,6 +91,8 @@ public:
 
   virtual process::Future<hashset<ContainerID>> containers();
 
+  virtual process::Future<Nothing> remove(const ContainerID& containerId);
+
 private:
   ComposingContainerizerProcess* process;
 };

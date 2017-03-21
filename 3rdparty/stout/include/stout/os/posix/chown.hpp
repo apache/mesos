@@ -13,6 +13,7 @@
 #ifndef __STOUT_OS_POSIX_CHOWN_HPP__
 #define __STOUT_OS_POSIX_CHOWN_HPP__
 
+#include <fts.h>
 #include <sys/types.h>
 #include <pwd.h>
 
@@ -21,33 +22,69 @@
 #include <stout/try.hpp>
 
 #include <stout/os/shell.hpp>
+#include <stout/os/stat.hpp>
 
 namespace os {
 
+// Set the ownership for a path. This function never follows any symlinks.
 inline Try<Nothing> chown(
     uid_t uid,
     gid_t gid,
     const std::string& path,
     bool recursive)
 {
-  if (recursive) {
-    // TODO(bmahler): Consider walking the file tree instead. We would need
-    // to be careful to not miss dotfiles.
-    std::string command =
-      "chown -R " + stringify(uid) + ':' + stringify(gid) + " '" + path + "'";
+  char* path_[] = {const_cast<char*>(path.c_str()), nullptr};
 
-    int status = os::system(command);
-    if (status != 0) {
-      return ErrnoError(
-          "Failed to execute '" + command +
-          "' (exit status: " + stringify(status) + ")");
+  FTS* tree = ::fts_open(
+      path_, FTS_NOCHDIR | FTS_PHYSICAL, nullptr);
+
+  if (tree == nullptr) {
+    return ErrnoError();
+  }
+
+  FTSENT *node;
+  while ((node = ::fts_read(tree)) != nullptr) {
+    switch (node->fts_info) {
+      // Preorder directory.
+      case FTS_D:
+      // Regular file.
+      case FTS_F:
+      // Symbolic link.
+      case FTS_SL:
+      // Symbolic link without target.
+      case FTS_SLNONE: {
+        if (::lchown(node->fts_path, uid, gid) < 0) {
+          Error error = ErrnoError();
+          ::fts_close(tree);
+          return error;
+        }
+
+        break;
+      }
+
+      // Unreadable directory.
+      case FTS_DNR:
+      // Error; errno is set.
+      case FTS_ERR:
+      // Directory that causes cycles.
+      case FTS_DC:
+      // `stat(2)` failed.
+      case FTS_NS: {
+        Error error = ErrnoError();
+        ::fts_close(tree);
+        return error;
+      }
+
+      default:
+        break;
     }
-  } else {
-    if (::chown(path.c_str(), uid, gid) < 0) {
-      return ErrnoError();
+
+    if (node->fts_level == FTS_ROOTLEVEL && !recursive) {
+      break;
     }
   }
 
+  ::fts_close(tree);
   return Nothing();
 }
 

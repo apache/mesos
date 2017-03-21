@@ -64,7 +64,7 @@ protected:
 
     // TODO(xujyan): Make sandbox a plain string instead of an option.
     ASSERT_SOME(sandbox);
-    foreach (const fs::MountInfoTable::Entry& entry, mountTable.get().entries) {
+    foreach (const fs::MountInfoTable::Entry& entry, mountTable->entries) {
       if (strings::startsWith(entry.target, sandbox.get())) {
         fs::unmount(entry.target, MNT_DETACH);
       }
@@ -81,19 +81,19 @@ class OverlayBackendTest : public MountBackendTest {};
 // Provision a rootfs using multiple layers with the overlay backend.
 TEST_F(OverlayBackendTest, ROOT_OVERLAYFS_OverlayFSBackend)
 {
-  string layer1 = path::join(os::getcwd(), "source1");
+  string layer1 = path::join(sandbox.get(), "source1");
   ASSERT_SOME(os::mkdir(layer1));
   ASSERT_SOME(os::mkdir(path::join(layer1, "dir1")));
   ASSERT_SOME(os::write(path::join(layer1, "dir1", "1"), "1"));
   ASSERT_SOME(os::write(path::join(layer1, "file"), "test1"));
 
-  string layer2 = path::join(os::getcwd(), "source2");
+  string layer2 = path::join(sandbox.get(), "source2");
   ASSERT_SOME(os::mkdir(layer2));
   ASSERT_SOME(os::mkdir(path::join(layer2, "dir2")));
   ASSERT_SOME(os::write(path::join(layer2, "dir2", "2"), "2"));
   ASSERT_SOME(os::write(path::join(layer2, "file"), "test2"));
 
-  string rootfs = path::join(os::getcwd(), "rootfs");
+  string rootfs = path::join(sandbox.get(), "rootfs");
 
   hashmap<string, Owned<Backend>> backends = Backend::create(slave::Flags());
   ASSERT_TRUE(backends.contains(OVERLAY_BACKEND));
@@ -176,7 +176,7 @@ class BindBackendTest : public MountBackendTest {};
 // verify if it is read-only within the mount.
 TEST_F(BindBackendTest, ROOT_BindBackend)
 {
-  string rootfs = path::join(os::getcwd(), "source");
+  string rootfs = path::join(sandbox.get(), "source");
 
   // Create a writable directory under the dummy rootfs.
   Try<Nothing> mkdir = os::mkdir(path::join(rootfs, "tmp"));
@@ -185,7 +185,7 @@ TEST_F(BindBackendTest, ROOT_BindBackend)
   hashmap<string, Owned<Backend>> backends = Backend::create(slave::Flags());
   ASSERT_TRUE(backends.contains(BIND_BACKEND));
 
-  string target = path::join(os::getcwd(), "target");
+  string target = path::join(sandbox.get(), "target");
 
   AWAIT_READY(backends[BIND_BACKEND]->provision(
       {rootfs},
@@ -212,19 +212,19 @@ class AufsBackendTest : public MountBackendTest {};
 // Provision a rootfs using multiple layers with the aufs backend.
 TEST_F(AufsBackendTest, ROOT_AUFS_AufsBackend)
 {
-  string layer1 = path::join(os::getcwd(), "source1");
+  string layer1 = path::join(sandbox.get(), "source1");
   ASSERT_SOME(os::mkdir(layer1));
   ASSERT_SOME(os::mkdir(path::join(layer1, "dir1")));
   ASSERT_SOME(os::write(path::join(layer1, "dir1", "1"), "1"));
   ASSERT_SOME(os::write(path::join(layer1, "file"), "test1"));
 
-  string layer2 = path::join(os::getcwd(), "source2");
+  string layer2 = path::join(sandbox.get(), "source2");
   ASSERT_SOME(os::mkdir(layer2));
   ASSERT_SOME(os::mkdir(path::join(layer2, "dir2")));
   ASSERT_SOME(os::write(path::join(layer2, "dir2", "2"), "2"));
   ASSERT_SOME(os::write(path::join(layer2, "file"), "test2"));
 
-  string rootfs = path::join(os::getcwd(), "rootfs");
+  string rootfs = path::join(sandbox.get(), "rootfs");
 
   hashmap<string, Owned<Backend>> backends = Backend::create(slave::Flags());
   ASSERT_TRUE(backends.contains(AUFS_BACKEND));
@@ -255,6 +255,49 @@ TEST_F(AufsBackendTest, ROOT_AUFS_AufsBackend)
 
   EXPECT_FALSE(os::exists(rootfs));
 }
+
+
+// Test aufs backend for rootfs provisioning when an image has
+// many layers. This test is used to verify the fix for MESOS-6001.
+TEST_F(AufsBackendTest, ROOT_AUFS_AufsBackendWithManyLayers)
+{
+  // Create 64 image layers with more than 64 char length path to make
+  // sure total length of mount option exceeds the 4096 support limit.
+  const int imageCount = 64;
+  vector<string> layers;
+
+  for (int i = 0; i < imageCount; ++i) {
+    const string layer = path::join(
+        sandbox.get(),
+        strings::format("lower_%.59d", i).get());
+
+    const string dir = strings::format("dir%d", i).get();
+
+    ASSERT_SOME(os::mkdir(layer));
+    ASSERT_SOME(os::mkdir(path::join(layer, dir)));
+
+    layers.push_back(layer);
+  }
+
+  string rootfs = path::join(sandbox.get(), "rootfs");
+
+  hashmap<string, Owned<Backend>> backends = Backend::create(slave::Flags());
+  ASSERT_TRUE(backends.contains(AUFS_BACKEND));
+
+  AWAIT_READY(backends[AUFS_BACKEND]->provision(
+      layers,
+      rootfs,
+      sandbox.get()));
+
+  // Verify that all layers are available.
+  for (int i = 0; i < imageCount; ++i) {
+    EXPECT_TRUE(os::exists(path::join(
+        rootfs,
+        strings::format("dir%d", i).get())));
+  }
+
+  AWAIT_READY(backends[AUFS_BACKEND]->destroy(rootfs, sandbox.get()));
+}
 #endif // __linux__
 
 
@@ -264,19 +307,19 @@ class CopyBackendTest : public TemporaryDirectoryTest {};
 // Provision a rootfs using multiple layers with the copy backend.
 TEST_F(CopyBackendTest, ROOT_CopyBackend)
 {
-  string layer1 = path::join(os::getcwd(), "source1");
+  string layer1 = path::join(sandbox.get(), "source1");
   ASSERT_SOME(os::mkdir(layer1));
   ASSERT_SOME(os::mkdir(path::join(layer1, "dir1")));
   ASSERT_SOME(os::write(path::join(layer1, "dir1", "1"), "1"));
   ASSERT_SOME(os::write(path::join(layer1, "file"), "test1"));
 
-  string layer2 = path::join(os::getcwd(), "source2");
+  string layer2 = path::join(sandbox.get(), "source2");
   ASSERT_SOME(os::mkdir(layer2));
   ASSERT_SOME(os::mkdir(path::join(layer2, "dir2")));
   ASSERT_SOME(os::write(path::join(layer2, "dir2", "2"), "2"));
   ASSERT_SOME(os::write(path::join(layer2, "file"), "test2"));
 
-  string rootfs = path::join(os::getcwd(), "rootfs");
+  string rootfs = path::join(sandbox.get(), "rootfs");
 
   hashmap<string, Owned<Backend>> backends = Backend::create(slave::Flags());
   ASSERT_TRUE(backends.contains(COPY_BACKEND));

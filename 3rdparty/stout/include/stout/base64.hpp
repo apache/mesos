@@ -23,17 +23,27 @@
 
 namespace base64 {
 
+namespace internal {
+
 // This slightly modified base64 implementation from
 // cplusplus.com answer by modoran can be found at:
 // http://www.cplusplus.com/forum/beginner/51572/
 
-static const std::string chars =
+constexpr char STANDARD_CHARS[] =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
   "abcdefghijklmnopqrstuvwxyz"
   "0123456789+/";
 
+constexpr char URL_SAFE_CHARS[] =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  "abcdefghijklmnopqrstuvwxyz"
+  "0123456789-_";
 
-inline std::string encode(const std::string& s)
+
+inline std::string encode(
+    const std::string& s,
+    const std::string& chars,
+    bool padding)
 {
   std::string result;
   int i = 0;
@@ -68,8 +78,10 @@ inline std::string encode(const std::string& s)
     for (j = 0; j < i + 1; j++) {
       result += chars[array4[j]];
     }
-    while (i++ < 3) {
-      result += '=';
+    if (padding) {
+      while (i++ < 3) {
+        result += '=';
+      }
     }
   }
 
@@ -77,10 +89,10 @@ inline std::string encode(const std::string& s)
 }
 
 
-inline Try<std::string> decode(const std::string& s)
+inline Try<std::string> decode(const std::string& s, const std::string& chars)
 {
-  auto isBase64 = [](unsigned char c) -> bool {
-    return (isalnum(c) || (c == '+') || (c == '/'));
+  auto isBase64 = [&chars](unsigned char c) -> bool {
+    return (isalnum(c) || (c == chars[62]) || (c == chars[63]));
   };
 
   size_t i = 0;
@@ -133,6 +145,59 @@ inline Try<std::string> decode(const std::string& s)
   }
 
   return result;
+}
+
+} // namespace internal {
+
+
+/**
+ * Encode a string to Base64 with the standard Base64 alphabet.
+ * @see <a href="https://tools.ietf.org/html/rfc4648#section-4">RFC4648</a>
+ *
+ * @param s The string to encode.
+ */
+inline std::string encode(const std::string& s)
+{
+  return internal::encode(s, internal::STANDARD_CHARS, true);
+}
+
+
+/**
+ * Decode a string that is Base64-encoded with the standard Base64
+ * alphabet.
+ * @see <a href="https://tools.ietf.org/html/rfc4648#section-4">RFC4648</a>
+ *
+ * @param s The string to decode.
+ */
+inline Try<std::string> decode(const std::string& s)
+{
+  return internal::decode(s, internal::STANDARD_CHARS);
+}
+
+
+/**
+ * Encode a string to Base64 with a URL and filename safe alphabet.
+ * @see <a href="https://tools.ietf.org/html/rfc4648#section-5">RFC4648</a>
+ *
+ * @param s The string to encode.
+ * @param padding True if padding characters ('=') should be added.
+ */
+inline std::string encode_url_safe(const std::string& s, bool padding = true)
+{
+  return internal::encode(s, internal::URL_SAFE_CHARS, padding);
+}
+
+
+/**
+ * Decode a string that is Base64-encoded with a URL and filename safe
+ * alphabet.
+ * @see <a href="https://tools.ietf.org/html/rfc4648#section-5">RFC4648</a>
+ *
+ * @param s The string to decode.
+ */
+inline Try<std::string> decode_url_safe(const std::string& s)
+{
+  return internal::decode(s, internal::URL_SAFE_CHARS);
 }
 
 } // namespace base64 {

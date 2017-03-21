@@ -37,8 +37,9 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
-#include "common/parse.hpp"
 #include "common/http.hpp"
+#include "common/parse.hpp"
+#include "common/protobuf_utils.hpp"
 
 using process::dispatch;
 using process::Failure;
@@ -222,7 +223,7 @@ public:
       switch (action_) {
         // All actions using `object.value` for authorization.
         case authorization::VIEW_ROLE:
-        case authorization::GET_ENDPOINT_WITH_PATH: {
+        case authorization::GET_ENDPOINT_WITH_PATH:
           // Check object has the required types set.
           CHECK_NOTNULL(object->value);
 
@@ -230,20 +231,26 @@ public:
           aclObject.set_type(mesos::ACL::Entity::SOME);
 
           break;
-        }
-        case authorization::REGISTER_FRAMEWORK: {
+        case authorization::REGISTER_FRAMEWORK:
           aclObject.set_type(mesos::ACL::Entity::SOME);
           if (object->framework_info) {
-            aclObject.add_values(object->framework_info->role());
+            foreach (
+                const string& role,
+                protobuf::framework::getRoles(*object->framework_info)) {
+              aclObject.add_values(role);
+            }
           } else if (object->value) {
+            // We also update the deprecated `value` field to support custom
+            // authorizers not yet modified to examine `framework_info`.
+            //
+            // TODO(bbannier): Clean up use of `value` here, see MESOS-7091.
             aclObject.add_values(*(object->value));
           } else {
             aclObject.set_type(mesos::ACL::Entity::ANY);
           }
 
           break;
-        }
-        case authorization::TEARDOWN_FRAMEWORK: {
+        case authorization::TEARDOWN_FRAMEWORK:
           aclObject.set_type(mesos::ACL::Entity::SOME);
           if (object->framework_info) {
             aclObject.add_values(object->framework_info->principal());
@@ -254,9 +261,8 @@ public:
           }
 
           break;
-        }
         case authorization::CREATE_VOLUME:
-        case authorization::RESERVE_RESOURCES: {
+        case authorization::RESERVE_RESOURCES:
           aclObject.set_type(mesos::ACL::Entity::SOME);
           if (object->resource) {
             aclObject.add_values(object->resource->role());
@@ -267,8 +273,7 @@ public:
           }
 
           break;
-        }
-        case authorization::DESTROY_VOLUME: {
+        case authorization::DESTROY_VOLUME:
           aclObject.set_type(mesos::ACL::Entity::SOME);
           if (object->resource) {
             aclObject.add_values(
@@ -280,8 +285,7 @@ public:
           }
 
           break;
-        }
-        case authorization::UNRESERVE_RESOURCES: {
+        case authorization::UNRESERVE_RESOURCES:
           aclObject.set_type(mesos::ACL::Entity::SOME);
           if (object->resource) {
             aclObject.add_values(object->resource->reservation().principal());
@@ -292,8 +296,7 @@ public:
           }
 
           break;
-        }
-        case authorization::GET_QUOTA: {
+        case authorization::GET_QUOTA:
           aclObject.set_type(mesos::ACL::Entity::SOME);
           if (object->quota_info) {
             aclObject.add_values(object->quota_info->role());
@@ -304,8 +307,7 @@ public:
           }
 
           break;
-        }
-        case authorization::UPDATE_WEIGHT: {
+        case authorization::UPDATE_WEIGHT:
           aclObject.set_type(mesos::ACL::Entity::SOME);
           if (object->weight_info) {
             aclObject.add_values(object->weight_info->role());
@@ -316,8 +318,7 @@ public:
           }
 
           break;
-        }
-        case authorization::RUN_TASK: {
+        case authorization::RUN_TASK:
           aclObject.set_type(mesos::ACL::Entity::SOME);
           if (object->task_info && object->task_info->has_command() &&
               object->task_info->command().has_user()) {
@@ -333,21 +334,19 @@ public:
           }
 
           break;
-        }
-        case authorization::ACCESS_MESOS_LOG: {
+        case authorization::ACCESS_MESOS_LOG:
           aclObject.set_type(mesos::ACL::Entity::ANY);
 
           break;
-        }
-        case authorization::VIEW_FLAGS: {
+        case authorization::VIEW_FLAGS:
           aclObject.set_type(mesos::ACL::Entity::ANY);
 
           break;
-        }
         case authorization::ATTACH_CONTAINER_INPUT:
         case authorization::ATTACH_CONTAINER_OUTPUT:
+        case authorization::REMOVE_NESTED_CONTAINER:
         case authorization::KILL_NESTED_CONTAINER:
-        case authorization::WAIT_NESTED_CONTAINER: {
+        case authorization::WAIT_NESTED_CONTAINER:
           aclObject.set_type(mesos::ACL::Entity::ANY);
 
           if (object->executor_info != nullptr &&
@@ -361,8 +360,7 @@ public:
           }
 
           break;
-        }
-        case authorization::ACCESS_SANDBOX: {
+        case authorization::ACCESS_SANDBOX:
           aclObject.set_type(mesos::ACL::Entity::ANY);
 
           if (object->executor_info != nullptr &&
@@ -375,8 +373,7 @@ public:
           }
 
           break;
-        }
-        case authorization::UPDATE_QUOTA: {
+        case authorization::UPDATE_QUOTA:
           // Check object has the required types set.
           CHECK_NOTNULL(object->quota_info);
 
@@ -408,8 +405,7 @@ public:
           aclObject.set_type(mesos::ACL::Entity::SOME);
 
           break;
-        }
-        case authorization::VIEW_FRAMEWORK: {
+        case authorization::VIEW_FRAMEWORK:
           // Check object has the required types set.
           CHECK_NOTNULL(object->framework_info);
 
@@ -417,7 +413,6 @@ public:
           aclObject.set_type(mesos::ACL::Entity::SOME);
 
           break;
-        }
         case authorization::VIEW_TASK: {
           CHECK(object->task != nullptr || object->task_info != nullptr);
           CHECK_NOTNULL(object->framework_info);
@@ -449,7 +444,7 @@ public:
 
           break;
         }
-        case authorization::VIEW_EXECUTOR: {
+        case authorization::VIEW_EXECUTOR:
           CHECK_NOTNULL(object->executor_info);
           CHECK_NOTNULL(object->framework_info);
 
@@ -462,9 +457,8 @@ public:
           }
 
           break;
-        }
         case authorization::LAUNCH_NESTED_CONTAINER:
-        case authorization::LAUNCH_NESTED_CONTAINER_SESSION: {
+        case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
           aclObject.set_type(mesos::ACL::Entity::ANY);
 
           if (object->command_info != nullptr) {
@@ -486,7 +480,24 @@ public:
           }
 
           break;
-        }
+        case authorization::VIEW_CONTAINER:
+          aclObject.set_type(mesos::ACL::Entity::ANY);
+
+          if (object->executor_info != nullptr &&
+              object->executor_info->command().has_user()) {
+            aclObject.add_values(object->executor_info->command().user());
+            aclObject.set_type(mesos::ACL::Entity::SOME);
+          } else if (object->framework_info != nullptr &&
+              object->framework_info->has_user()) {
+            aclObject.add_values(object->framework_info->user());
+            aclObject.set_type(mesos::ACL::Entity::SOME);
+          }
+
+          break;
+        case authorization::SET_LOG_LEVEL:
+          aclObject.set_type(mesos::ACL::Entity::ANY);
+
+          break;
         case authorization::UNKNOWN:
           LOG(WARNING) << "Authorization for action '" << action_
                        << "' is not defined and therefore not authorized";
@@ -908,7 +919,7 @@ private:
 
         return acls_;
         break;
-      case authorization::ACCESS_SANDBOX: {
+      case authorization::ACCESS_SANDBOX:
         foreach (const ACL::AccessSandbox& acl, acls.access_sandboxes()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
@@ -919,8 +930,7 @@ private:
 
         return acls_;
         break;
-      }
-      case authorization::ATTACH_CONTAINER_INPUT: {
+      case authorization::ATTACH_CONTAINER_INPUT:
         foreach (const ACL::AttachContainerInput& acl,
             acls.attach_containers_input()) {
           GenericACL acl_;
@@ -932,8 +942,7 @@ private:
 
         return acls_;
         break;
-      }
-      case authorization::ATTACH_CONTAINER_OUTPUT: {
+      case authorization::ATTACH_CONTAINER_OUTPUT:
         foreach (const ACL::AttachContainerOutput& acl,
             acls.attach_containers_output()) {
           GenericACL acl_;
@@ -945,8 +954,7 @@ private:
 
         return acls_;
         break;
-      }
-      case authorization::KILL_NESTED_CONTAINER: {
+      case authorization::KILL_NESTED_CONTAINER:
         foreach (const ACL::KillNestedContainer& acl,
             acls.kill_nested_containers()) {
           GenericACL acl_;
@@ -958,8 +966,7 @@ private:
 
         return acls_;
         break;
-      }
-      case authorization::WAIT_NESTED_CONTAINER: {
+      case authorization::WAIT_NESTED_CONTAINER:
         foreach (const ACL::WaitNestedContainer& acl,
             acls.wait_nested_containers()) {
           GenericACL acl_;
@@ -971,7 +978,18 @@ private:
 
         return acls_;
         break;
-      }
+      case authorization::REMOVE_NESTED_CONTAINER:
+        foreach (const ACL::RemoveNestedContainer& acl,
+            acls.remove_nested_containers()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.users();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+        break;
       case authorization::VIEW_FRAMEWORK:
         foreach (const ACL::ViewFramework& acl, acls.view_frameworks()) {
           GenericACL acl_;
@@ -996,6 +1014,28 @@ private:
         break;
       case authorization::VIEW_EXECUTOR:
         foreach (const ACL::ViewExecutor& acl, acls.view_executors()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.users();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+        break;
+      case authorization::SET_LOG_LEVEL:
+        foreach (const ACL::SetLogLevel& acl, acls.set_log_level()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.level();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+        break;
+      case authorization::VIEW_CONTAINER:
+        foreach (const ACL::ViewContainer& acl, acls.view_containers()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.users();
@@ -1076,6 +1116,12 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
   foreach (const ACL::ViewFlags& acl, acls.view_flags()) {
     if (acl.flags().type() == ACL::Entity::SOME) {
       return Error("acls.view_flags type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::SetLogLevel& acl, acls.set_log_level()) {
+    if (acl.level().type() == ACL::Entity::SOME) {
+      return Error("acls.set_log_level type must be either NONE or ANY");
     }
   }
 

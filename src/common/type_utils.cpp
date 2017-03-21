@@ -450,7 +450,19 @@ bool operator!=(const TaskStatus& left, const TaskStatus& right)
 }
 
 
-ostream& operator<<(std::ostream& stream, const CapabilityInfo& capabilityInfo)
+bool operator==(const CheckStatusInfo& left, const CheckStatusInfo& right)
+{
+  return left.SerializeAsString() == right.SerializeAsString();
+}
+
+
+bool operator!=(const CheckStatusInfo& left, const CheckStatusInfo& right)
+{
+  return !(left == right);
+}
+
+
+ostream& operator<<(ostream& stream, const CapabilityInfo& capabilityInfo)
 {
   return stream << JSON::protobuf(capabilityInfo);
 }
@@ -473,6 +485,12 @@ ostream& operator<<(ostream& stream, const ContainerID& containerId)
 ostream& operator<<(ostream& stream, const ContainerInfo& containerInfo)
 {
   return stream << containerInfo.DebugString();
+}
+
+
+ostream& operator<<(ostream& stream, const Environment& environment)
+{
+  return stream << JSON::protobuf(environment);
 }
 
 
@@ -574,6 +592,12 @@ ostream& operator<<(ostream& stream, const vector<TaskID>& taskIds)
   }
   stream << " ]";
   return stream;
+}
+
+
+ostream& operator<<(ostream& stream, const CheckInfo::Type& type)
+{
+  return stream << CheckInfo::Type_Name(type);
 }
 
 

@@ -37,6 +37,7 @@ PROTOC_TO_INCLUDE_DIR(MASTER           mesos/master/master)
 PROTOC_TO_INCLUDE_DIR(MESOS            mesos/mesos)
 PROTOC_TO_INCLUDE_DIR(MODULE           mesos/module/module)
 PROTOC_TO_INCLUDE_DIR(OVERSUBSCRIPTION mesos/slave/oversubscription)
+PROTOC_TO_INCLUDE_DIR(OCI_SPEC         mesos/oci/spec)
 PROTOC_TO_INCLUDE_DIR(QUOTA            mesos/quota/quota)
 PROTOC_TO_INCLUDE_DIR(SCHEDULER        mesos/scheduler/scheduler)
 PROTOC_TO_INCLUDE_DIR(STATE            mesos/state/state)
@@ -77,6 +78,7 @@ set(PUBLIC_PROTOBUF_SRC
   ${MASTER_PROTO_CC}
   ${MESOS_PROTO_CC}
   ${MODULE_PROTO_CC}
+  ${OCI_SPEC_PROTO_CC}
   ${OVERSUBSCRIPTION_PROTO_CC}
   ${QUOTA_PROTO_CC}
   ${SCHEDULER_PROTO_CC}
@@ -122,6 +124,13 @@ add_library(
 add_dependencies(${MESOS_PROTOBUF_TARGET} ${PROTOBUF_TARGET})
 
 target_link_libraries(${MESOS_PROTOBUF_TARGET} ${PROTOBUF_LFLAG})
+
+if (WIN32)
+  # Disable all compiler warnings on Protocol Buffers source.
+  set_target_properties(
+    ${MESOS_PROTOBUF_TARGET}
+    PROPERTIES COMPILE_FLAGS "/w")
+endif (WIN32)
 
 
 # Configure Mesos files.
@@ -201,6 +210,7 @@ set(APPC_SRC
 
 set(AUTHENTICATION_SRC
   authentication/http/basic_authenticator_factory.cpp
+  authentication/http/combined_authenticator.cpp
   )
 
 if (NOT WIN32)
@@ -211,6 +221,13 @@ if (NOT WIN32)
     authentication/cram_md5/auxprop.cpp
     )
 endif (NOT WIN32)
+
+if (ENABLE_SSL)
+  set(AUTHENTICATION_SRC
+    ${AUTHENTICATION_SRC}
+    authentication/executor/jwt_secret_generator.cpp
+    )
+endif (ENABLE_SSL)
 
 set(AUTHORIZER_SRC
   authorizer/acls.cpp
@@ -228,6 +245,7 @@ set(COMMON_SRC
   common/resources_utils.cpp
   common/roles.cpp
   common/type_utils.cpp
+  common/validation.cpp
   common/values.cpp
   )
 
@@ -252,7 +270,8 @@ set(HDFS_SRC
   )
 
 set(HEALTH_CHECK_SRC
-  health-check/health_checker.cpp
+  checks/checker.cpp
+  checks/health_checker.cpp
   )
 
 set(INTERNAL_SRC
@@ -266,18 +285,24 @@ set(LINUX_SRC
   linux/cgroups.cpp
   linux/fs.cpp
   linux/ldcache.cpp
+  linux/ldd.cpp
   linux/perf.cpp
   linux/systemd.cpp
   slave/containerizer/mesos/linux_launcher.cpp
   slave/containerizer/mesos/isolators/appc/runtime.cpp
   slave/containerizer/mesos/isolators/cgroups/cgroups.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystem.cpp
+  slave/containerizer/mesos/isolators/cgroups/subsystems/blkio.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystems/cpu.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystems/cpuacct.cpp
+  slave/containerizer/mesos/isolators/cgroups/subsystems/cpuset.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystems/devices.cpp
+  slave/containerizer/mesos/isolators/cgroups/subsystems/hugetlb.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystems/memory.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystems/net_cls.cpp
+  slave/containerizer/mesos/isolators/cgroups/subsystems/net_prio.cpp
   slave/containerizer/mesos/isolators/cgroups/subsystems/perf_event.cpp
+  slave/containerizer/mesos/isolators/cgroups/subsystems/pids.cpp
   slave/containerizer/mesos/isolators/docker/runtime.cpp
   slave/containerizer/mesos/isolators/docker/volume/isolator.cpp
   slave/containerizer/mesos/isolators/filesystem/linux.cpp
@@ -290,7 +315,6 @@ set(LINUX_SRC
   slave/containerizer/mesos/isolators/namespaces/ipc.cpp
   slave/containerizer/mesos/isolators/namespaces/pid.cpp
   slave/containerizer/mesos/isolators/network/cni/cni.cpp
-  slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.cpp
   slave/containerizer/mesos/isolators/volume/image.cpp
   slave/containerizer/mesos/provisioner/backends/aufs.cpp
   slave/containerizer/mesos/provisioner/backends/bind.cpp
@@ -323,35 +347,30 @@ set(LOGGING_SRC
   )
 
 set(MASTER_SRC
+  ${MASTER_SRC}
+  master/flags.cpp
+  master/http.cpp
+  master/maintenance.cpp
+  master/master.cpp
+  master/metrics.cpp
+  master/quota.cpp
+  master/quota_handler.cpp
+  master/registrar.cpp
+  master/weights.cpp
+  master/weights_handler.cpp
   master/validation.cpp
+  master/allocator/allocator.cpp
+  master/allocator/mesos/hierarchical.cpp
+  master/allocator/mesos/metrics.cpp
+  master/allocator/sorter/drf/metrics.cpp
+  master/allocator/sorter/drf/sorter.cpp
+  master/contender/contender.cpp
+  master/contender/standalone.cpp
+  master/contender/zookeeper.cpp
   master/detector/detector.cpp
   master/detector/standalone.cpp
   master/detector/zookeeper.cpp
   )
-
-if (NOT WIN32)
-  set(MASTER_SRC
-    ${MASTER_SRC}
-    master/flags.cpp
-    master/http.cpp
-    master/maintenance.cpp
-    master/master.cpp
-    master/metrics.cpp
-    master/quota.cpp
-    master/quota_handler.cpp
-    master/registrar.cpp
-    master/weights.cpp
-    master/weights_handler.cpp
-    master/allocator/allocator.cpp
-    master/allocator/mesos/hierarchical.cpp
-    master/allocator/mesos/metrics.cpp
-    master/allocator/sorter/drf/metrics.cpp
-    master/allocator/sorter/drf/sorter.cpp
-    master/contender/contender.cpp
-    master/contender/standalone.cpp
-    master/contender/zookeeper.cpp
-    )
-endif (NOT WIN32)
 
 set(MESSAGES_SRC
   ${MESSAGES_SRC}
@@ -361,6 +380,10 @@ set(MESSAGES_SRC
 set(MODULE_SRC
   hook/manager.cpp
   module/manager.cpp
+  )
+
+set(OCI_SRC
+  oci/spec.cpp
   )
 
 set(POSIX_SRC
@@ -375,9 +398,15 @@ set(SCHEDULER_SRC
 set(STATE_SRC
   ${STATE_SRC}
   state/in_memory.cpp
-  state/leveldb.cpp
-  state/log.cpp
   )
+
+if (NOT WIN32)
+  set(STATE_SRC
+    ${STATE_SRC}
+    state/leveldb.cpp
+    state/log.cpp
+    )
+endif (NOT WIN32)
 
 set(URI_SRC
   uri/fetcher.cpp
@@ -439,14 +468,19 @@ set(MESOS_SRC
   ${FILES_SRC}
   ${HEALTH_CHECK_SRC}
   ${INTERNAL_SRC}
+  ${LOCAL_SRC}
   ${LOGGING_SRC}
   ${MASTER_SRC}
   ${MESSAGES_SRC}
   ${MODULE_SRC}
+  ${OCI_SRC}
+  ${SCHEDULER_SRC}
+  ${STATE_SRC}
   ${URI_SRC}
   ${USAGE_SRC}
   ${V1_SRC}
   ${VERSION_SRC}
+  ${WATCHER_SRC}
   ${ZOOKEEPER_SRC}
   )
 
@@ -454,12 +488,8 @@ if (NOT WIN32)
   set(MESOS_SRC
     ${MESOS_SRC}
     ${HDFS_SRC}
-    ${LOCAL_SRC}
     ${LOG_SRC}
     ${POSIX_SRC}
-    ${SCHEDULER_SRC}
-    ${STATE_SRC}
-    ${WATCHER_SRC}
     )
 endif (NOT WIN32)
 
@@ -468,24 +498,15 @@ if (LINUX)
   set(MESOS_SRC ${MESOS_SRC} ${LINUX_SRC})
 endif (LINUX)
 
-# TODO(hausdorff): (MESOS-5455) These are placeholder values. Transition away
-# from them.
-set(BUILD_DATE "\"2016-3-3 10:20\"")
-set(BUILD_TIME "\"1111100\"")
-set(BUILD_USER "\"frank\"")
-set(BUILD_FLAGS "\"\"")
-set(BUILD_JAVA_JVM_LIBRARY "")
-
 # Include source for Windows build.
 if (WIN32)
   set(MESOS_SRC ${MESOS_SRC} ${WIN32_SRC})
 endif (WIN32)
 
-add_definitions(-DUSE_STATIC_LIB -DBUILD_DATE=${BUILD_DATE} -DBUILD_TIME=${BUILD_TIME} -DBUILD_USER=${BUILD_USER} -DBUILD_FLAGS=${BUILD_FLAGS} -DBUILD_JAVA_JVM_LIBRARY="")
-
 # INCLUDE DIRECTIVES FOR MESOS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).
 #########################################################################
+include_directories(SYSTEM ${AGENT_3RDPARTY_INCLUDE_DIRS})
 include_directories(${AGENT_INCLUDE_DIRS})
 
 # Generate all binaries in the same folder.
@@ -525,16 +546,20 @@ add_dependencies(
   ${AGENT_DEPENDENCIES}
   )
 
+if (WIN32)
+  add_dependencies(${MESOS_TARGET} ${ENSURE_TOOL_ARCH})
+endif (WIN32)
+
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
 target_link_libraries(${MESOS_LIBS_TARGET} ${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})
 
 # BUILD THE MESOS EXECUTABLES.
 ##############################
+add_subdirectory(checks/)
 add_subdirectory(cli/)
 add_subdirectory(docker/)
 add_subdirectory(examples/)
-add_subdirectory(health-check/)
 add_subdirectory(launcher/)
 add_subdirectory(local/)
 add_subdirectory(log/)
@@ -545,6 +570,4 @@ add_subdirectory(usage/)
 
 # BUILD THE MESOS TESTS.
 #########################################################
-if (NOT WIN32)
-  add_subdirectory(tests/)
-endif (NOT WIN32)
+add_subdirectory(tests/)

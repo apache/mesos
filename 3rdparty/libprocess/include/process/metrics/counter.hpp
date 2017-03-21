@@ -33,7 +33,7 @@ public:
     : Metric(name, window),
       data(new Data())
   {
-    push(data->value.load());
+    push(static_cast<double>(data->value.load()));
   }
 
   virtual ~Counter() {}
@@ -64,7 +64,7 @@ public:
   Counter& operator+=(int64_t v)
   {
     int64_t prev = data->value.fetch_add(v);
-    push(prev + v);
+    push(static_cast<double>(prev + v));
     return *this;
   }
 

@@ -4,7 +4,9 @@ import atexit
 import json
 import linecache
 import os
+import platform
 import re
+import ssl
 import subprocess
 import sys
 import urllib2
@@ -111,52 +113,67 @@ def shell(command, dry_run):
     sys.exit(error_code)
 
 
-def remove_patch(file_name=None):
-  """Removes the file. In case the file name is not provided it reads the
-  file name from global options dictionary."""
-  if file_name == None:
-    cmd = 'rm -f {_file}.patch'.format(_file=patch_id())
-  else:
-    cmd = 'rm -f {_file}'.format(_file=file_name)
-
-  # In case of github we always need to fetch the patch to extract username and
-  # email, so to ensure that it always gets cleaned up we ignore the dry_run
-  # option by always setting the second parameter to False.
-  if options['github']:
-    shell(cmd, False)
-  else:
-    shell(cmd, options['dry_run'])
-
-
 def apply_review():
   """Applies a review with a given ID locally."""
   # Make sure we don't leave the patch behind in case of failure.
-  atexit.register(lambda: remove_patch('{_file}.patch'\
-                                       .format(_file=patch_id())))
+  # We store the patch ID in a local variable to ensure the lambda
+  # captures the current patch ID.
+  patch_file = '%s.patch' % patch_id()
+  atexit.register(lambda: os.path.exists(patch_file) and os.remove(patch_file))
 
   fetch_patch()
   apply_patch()
   commit_patch()
-  remove_patch()
+
+
+def ssl_create_default_context():
+  """
+  Equivalent to `ssl.create_default_context` with default arguments and
+  certificate/hostname verification disabled.
+  See: https://github.com/python/cpython/blob/2.7/Lib/ssl.py#L410"""
+  context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+
+  # SSLv2 considered harmful.
+  context.options |= ssl.OP_NO_SSLv2
+
+  # SSLv3 has problematic security and is only required for really old
+  # clients such as IE6 on Windows XP.
+  context.options |= ssl.OP_NO_SSLv3
+
+  # Disable compression to prevent CRIME attacks (OpenSSL 1.0+).
+  context.options |= getattr(ssl, "OP_NO_COMPRESSION", 0)
+
+  # Disable certificate and hostname verification.
+  context.verify_mode = ssl.CERT_NONE
+  context.check_hostname = False
 
 
 def fetch_patch():
   """Fetches a patch from Review Board or GitHub."""
-  cmd = ' '.join(['wget',
-                 '--no-check-certificate',
-                 '--no-verbose',
-                 '-O '
-                 '{review_id}.patch',
-                 '{url}'])\
-                 .format(review_id=patch_id(), url=patch_url())
+  if platform.system() == 'Windows':
+    r = urllib2.urlopen(patch_url(), context=ssl_create_default_context())
 
-  # In case of github we always need to fetch the patch to extract username
-  # and email, so we ignore the dry_run option by setting the second parameter
-  # to False.
-  if options['github']:
-    shell(cmd, False)
+    with open('%s.patch' % patch_id(), 'w') as patch:
+      patch.write(r.read())
   else:
-    shell(cmd, options['dry_run'])
+    # NOTE: SSL contexts are only supported in Python 2.7.9+. The version
+    # of Python running on the non-Windows ASF CI machines is sometimes older.
+    # Hence, we fall back to `wget` on non-Windows machines.
+    cmd = ' '.join(['wget',
+                   '--no-check-certificate',
+                   '--no-verbose',
+                   '-O '
+                   '{review_id}.patch',
+                   '{url}'])\
+                   .format(review_id=patch_id(), url=patch_url())
+
+    # In case of github we always need to fetch the patch to extract username
+    # and email, so we ignore the dry_run option by setting the second parameter
+    # to False.
+    if options['github']:
+      shell(cmd, False)
+    else:
+      shell(cmd, options['dry_run'])
 
 
 def patch_id():
@@ -167,6 +184,15 @@ def apply_patch():
   """Applies patch locally."""
   cmd = 'git apply --index {review_id}.patch'\
         .format(review_id=patch_id())
+
+  if options['3way']:
+    cmd += ' --3way'
+
+  if platform.system() == 'Windows':
+    # NOTE: Depending on the Git settings, there may or may not be
+    # carriage returns in files and in the downloaded patch.
+    # We ignore these errors on Windows.
+    cmd += ' --ignore-whitespace'
   shell(cmd, options['dry_run'])
 
 
@@ -185,10 +211,17 @@ def commit_patch():
   else:
     amend = '-e'
 
-  cmd = u'git commit --author \'{author}\' {_amend} -am \'{message}\''\
+  # NOTE: Windows does not support multi-line commit messages via the shell.
+  message_file = '%s.message' % patch_id()
+  atexit.register(lambda: os.path.exists(message_file) and os.remove(message_file))
+
+  with open(message_file, 'w') as message:
+    message.write(data['message'])
+
+  cmd = u'git commit --author \"{author}\" {_amend} -aF \"{message}\"'\
         .format(author=quote(data['author']),
                 _amend=amend,
-                message=quote(data['message']))
+                message=message_file)
   shell(cmd, options['dry_run'])
 
 
@@ -289,6 +322,11 @@ def parse_options():
                       action='store_true',
                       help='Recursively apply parent review chain.')
 
+  parser.add_argument('-3', '--3way',
+                      dest='three_way',
+                      action='store_true',
+                      help='Use 3 way merge in git apply.')
+
   # Add -g and -r and make them mutually exclusive.
   group = parser.add_mutually_exclusive_group(required=True)
   group.add_argument('-g', '--github',
@@ -305,6 +343,7 @@ def parse_options():
   options['no_amend'] = args.no_amend
   options['github'] = args.github
   options['chain'] = args.chain
+  options['3way'] = args.three_way
 
 
 def reviewboard():

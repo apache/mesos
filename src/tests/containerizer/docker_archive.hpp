@@ -23,6 +23,7 @@
 
 #include <stout/error.hpp>
 #include <stout/json.hpp>
+#include <stout/jsonify.hpp>
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -48,11 +49,21 @@ public:
   // Create a docker test image tarball in docker registry directory.
   // Users can define own entrypoint/cmd as JSON array of JSON string
   // (e.g., `[\"sh\", \"-c\"]`).
+  //
+  // NOTE: The default value for `environment` includes some environment
+  // variables which will cause problems if they are fed into one of Mesos'
+  // built-in executors. This is on purpose, as the environment variables
+  // of the image should not be passed into built-in executors. Tests that
+  // use a custom executor should consider overriding this default.
   static Future<Nothing> create(
       const std::string& directory,
       const std::string& name,
       const std::string& entrypoint = "null",
-      const std::string& cmd = "null")
+      const std::string& cmd = "null",
+      const std::vector<std::string>& environment = {
+        {"LD_LIBRARY_PATH=invalid"},
+        {"LIBPROCESS_IP=invalid"},
+        {"LIBPROCESS_PORT=invalid"}})
   {
     Try<Nothing> mkdir = os::mkdir(directory, true);
     if (mkdir.isError()) {
@@ -138,7 +149,7 @@ public:
                 "Tty": false,
                 "OpenStdin": false,
                 "StdinOnce": false,
-                "Env": null,
+                "Env": %s,
                 "Cmd": %s,
                 "Image": "",
                 "Volumes": null,
@@ -150,8 +161,9 @@ public:
             "architecture": "amd64",
             "os": "linux"
         })~",
-        entrypoint,
-        cmd).get()).get();
+        std::string(jsonify(environment)),
+        cmd,
+        entrypoint).get()).get();
 
     write = os::write(
         path::join(layerPath, "json"),

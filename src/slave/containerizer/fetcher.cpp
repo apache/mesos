@@ -22,8 +22,10 @@
 #include <process/dispatch.hpp>
 #include <process/owned.hpp>
 
+#include <stout/hashset.hpp>
 #include <stout/net.hpp>
 #include <stout/path.hpp>
+#include <stout/strings.hpp>
 #ifdef __WINDOWS__
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
@@ -45,10 +47,16 @@ using std::string;
 using std::transform;
 using std::vector;
 
+using strings::startsWith;
+
 using mesos::fetcher::FetcherInfo;
 
+using process::async;
+
+using process::Failure;
 using process::Future;
 using process::Owned;
+using process::Subprocess;
 
 namespace mesos {
 namespace internal {
@@ -129,11 +137,11 @@ Try<string> Fetcher::basename(const string& uri)
     // ftp://, ftps://, hdfs://, hftp://, s3://, s3n://.
 
     string path = uri.substr(index + 3);
-    if (!strings::contains(path, "/") || path.size() <= path.find("/") + 1) {
+    if (!strings::contains(path, "/") || path.size() <= path.find('/') + 1) {
       return Error("Malformed URI (missing path): " + uri);
     }
 
-    return path.substr(path.find_last_of("/") + 1);
+    return path.substr(path.find_last_of('/') + 1);
   }
   return Path(uri).basename();
 }
@@ -273,7 +281,7 @@ void Fetcher::kill(const ContainerID& containerId)
 
 FetcherProcess::~FetcherProcess()
 {
-  foreach (const ContainerID& containerId, subprocessPids.keys()) {
+  foreachkey (const ContainerID& containerId, subprocessPids) {
     kill(containerId);
   }
 }
@@ -730,7 +738,7 @@ Future<Nothing> FetcherProcess::run(
   // chown them.
   const string stdoutPath = path::join(info.sandbox_directory(), "stdout");
 
-  Try<int> out = os::open(
+  Try<int_fd> out = os::open(
       stdoutPath,
       O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -740,7 +748,7 @@ Future<Nothing> FetcherProcess::run(
   }
 
   string stderrPath = path::join(info.sandbox_directory(), "stderr");
-  Try<int> err = os::open(
+  Try<int_fd> err = os::open(
       stderrPath,
       O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -818,12 +826,27 @@ Future<Nothing> FetcherProcess::run(
 
   // We pass arguments to the fetcher program by means of an
   // environment variable.
-  map<string, string> environment = os::environment();
+  // For assuring that we pass on variables that may be consumed by
+  // the mesos-fetcher, we whitelist them before masking out any
+  // unwanted agent->fetcher environment spillover.
+  // TODO(tillt): Consider using the `mesos::internal::logging::Flags`
+  // to determine the whitelist.
+  const hashset<string> whitelist = {
+    "MESOS_EXTERNAL_LOG_FILE",
+    "MESOS_INITIALIZE_DRIVER_LOGGING",
+    "MESOS_LOG_DIR",
+    "MESOS_LOGBUFSECS",
+    "MESOS_LOGGING_LEVEL",
+    "MESOS_QUIET"
+  };
 
-  // The libprocess port is explicitly removed because this will conflict
-  // with the already-running agent.
-  environment.erase("LIBPROCESS_PORT");
-  environment.erase("LIBPROCESS_ADVERTISE_PORT");
+  map<string, string> environment;
+  foreachpair (const string& key, const string& value, os::environment()) {
+    if (whitelist.contains(strings::upper(key)) ||
+        (!startsWith(key, "LIBPROCESS_") && !startsWith(key, "MESOS_"))) {
+      environment.emplace(key, value);
+    }
+  }
 
   environment["MESOS_FETCHER_INFO"] = stringify(JSON::protobuf(info));
 

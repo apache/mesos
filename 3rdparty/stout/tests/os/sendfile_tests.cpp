@@ -54,7 +54,7 @@ protected:
 
 TEST_F(OsSendfileTest, Sendfile)
 {
-  Try<int> fd = os::open(filename, O_RDONLY | O_CLOEXEC);
+  Try<int_fd> fd = os::open(filename, O_RDONLY | O_CLOEXEC);
   ASSERT_SOME(fd);
 
   // Construct a socket pair and use sendfile to transmit the text.

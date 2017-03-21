@@ -48,7 +48,7 @@ class AnonymousTest : public MesosTest {};
 
 // Test for the side effect of our test-module which mutates the
 // environment once it got loaded.
-TEST_F(AnonymousTest, Running)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(AnonymousTest, Running)
 {
   // Clear test relevant environment.
   os::unsetenv(TEST_ANONYMOUS_ENVIRONMENT_VARIABLE);

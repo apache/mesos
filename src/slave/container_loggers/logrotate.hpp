@@ -26,6 +26,7 @@
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/pagesize.hpp>
 
 
@@ -74,7 +75,7 @@ struct Flags : public virtual flags::FlagsBase
         "    <logrotate_options>\n"
         "    size <max_size>\n"
         "  }\n"
-        "NOTE: The 'size' option will be overriden by this command.");
+        "NOTE: The 'size' option will be overridden by this command.");
 
     add(&Flags::log_filename,
         "log_filename",
@@ -103,7 +104,7 @@ struct Flags : public virtual flags::FlagsBase
           // Check if `logrotate` exists via the help command.
           // TODO(josephw): Consider a more comprehensive check.
           Try<std::string> helpCommand =
-            os::shell(value + " --help > /dev/null");
+            os::shell(value + " --help > " + os::DEV_NULL);
 
           if (helpCommand.isError()) {
             return Error(

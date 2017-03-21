@@ -61,35 +61,37 @@ class RegistryPullerProcess : public Process<RegistryPullerProcess>
 public:
   RegistryPullerProcess(
       const string& _storeDir,
-      const string& _backend,
       const http::URL& _defaultRegistryUrl,
       const Shared<uri::Fetcher>& _fetcher);
 
   Future<vector<string>> pull(
       const spec::ImageReference& reference,
-      const string& directory);
+      const string& directory,
+      const string& backend);
 
 private:
   Future<vector<string>> _pull(
       const spec::ImageReference& reference,
-      const string& directory);
+      const string& directory,
+      const string& backend);
 
   Future<vector<string>> __pull(
     const spec::ImageReference& reference,
     const string& directory,
     const spec::v2::ImageManifest& manifest,
-    const hashset<string>& blobSums);
+    const hashset<string>& blobSums,
+    const string& backend);
 
   Future<hashset<string>> fetchBlobs(
     const spec::ImageReference& reference,
     const string& directory,
-    const spec::v2::ImageManifest& manifest);
+    const spec::v2::ImageManifest& manifest,
+    const string& backend);
 
   RegistryPullerProcess(const RegistryPullerProcess&) = delete;
   RegistryPullerProcess& operator=(const RegistryPullerProcess&) = delete;
 
   const string storeDir;
-  const string backend;
 
   // If the user does not specify the registry url in the image
   // reference, this registry url will be used as the default.
@@ -116,7 +118,6 @@ Try<Owned<Puller>> RegistryPuller::create(
   Owned<RegistryPullerProcess> process(
       new RegistryPullerProcess(
           flags.docker_store_dir,
-          flags.image_provisioner_backend,
           defaultRegistryUrl.get(),
           fetcher));
 
@@ -140,24 +141,24 @@ RegistryPuller::~RegistryPuller()
 
 Future<vector<string>> RegistryPuller::pull(
     const spec::ImageReference& reference,
-    const string& directory)
+    const string& directory,
+    const string& backend)
 {
   return dispatch(
       process.get(),
       &RegistryPullerProcess::pull,
       reference,
-      directory);
+      directory,
+      backend);
 }
 
 
 RegistryPullerProcess::RegistryPullerProcess(
     const string& _storeDir,
-    const string& _backend,
     const http::URL& _defaultRegistryUrl,
     const Shared<uri::Fetcher>& _fetcher)
   : ProcessBase(process::ID::generate("docker-provisioner-registry-puller")),
     storeDir(_storeDir),
-    backend(_backend),
     defaultRegistryUrl(_defaultRegistryUrl),
     fetcher(_fetcher) {}
 
@@ -199,7 +200,8 @@ static spec::ImageReference normalize(
 
 Future<vector<string>> RegistryPullerProcess::pull(
     const spec::ImageReference& _reference,
-    const string& directory)
+    const string& directory,
+    const string& backend)
 {
   spec::ImageReference reference = normalize(_reference, defaultRegistryUrl);
 
@@ -217,7 +219,9 @@ Future<vector<string>> RegistryPullerProcess::pull(
 
     manifestUri = uri::docker::manifest(
         reference.repository(),
-        (reference.has_tag() ? reference.tag() : "latest"),
+        (reference.has_digest()
+          ? reference.digest()
+          : (reference.has_tag() ? reference.tag() : "latest")),
         spec::getRegistryHost(reference.registry()),
         scheme.get(),
         port.isSome() ? port.get() : Option<int>());
@@ -232,7 +236,9 @@ Future<vector<string>> RegistryPullerProcess::pull(
 
     manifestUri = uri::docker::manifest(
         reference.repository(),
-        (reference.has_tag() ? reference.tag() : "latest"),
+        (reference.has_digest()
+          ? reference.digest()
+          : (reference.has_tag() ? reference.tag() : "latest")),
         registry,
         defaultRegistryUrl.scheme,
         port);
@@ -243,13 +249,14 @@ Future<vector<string>> RegistryPullerProcess::pull(
           << "' to '" << directory << "'";
 
   return fetcher->fetch(manifestUri, directory)
-    .then(defer(self(), &Self::_pull, reference, directory));
+    .then(defer(self(), &Self::_pull, reference, directory, backend));
 }
 
 
 Future<vector<string>> RegistryPullerProcess::_pull(
     const spec::ImageReference& reference,
-    const string& directory)
+    const string& directory,
+    const string& backend)
 {
   Try<string> _manifest = os::read(path::join(directory, "manifest"));
   if (_manifest.isError()) {
@@ -270,13 +277,14 @@ Future<vector<string>> RegistryPullerProcess::_pull(
     return Failure("'fsLayers' and 'history' have different size in manifest");
   }
 
-  return fetchBlobs(reference, directory, manifest.get())
+  return fetchBlobs(reference, directory, manifest.get(), backend)
     .then(defer(self(),
                 &Self::__pull,
                 reference,
                 directory,
                 manifest.get(),
-                lambda::_1));
+                lambda::_1,
+                backend));
 }
 
 
@@ -284,19 +292,50 @@ Future<vector<string>> RegistryPullerProcess::__pull(
     const spec::ImageReference& reference,
     const string& directory,
     const spec::v2::ImageManifest& manifest,
-    const hashset<string>& blobSums)
+    const hashset<string>& blobSums,
+    const string& backend)
 {
+  // Docker reads the layer ids from the disk:
+  // https://github.com/docker/docker/blob/v1.13.0/layer/filestore.go#L310
+  //
+  // So the layer ids should be unique and ordered alphabetically.
+  // Then, docker loads each layer depending on the layer's
+  // `parent-child` relationship:
+  // https://github.com/docker/docker/blob/v1.13.0/layer/layer_store.go#L90
+  //
+  // In the registry puller, the vector of layer ids are collected
+  // differently (not relying on finding the parent from the base
+  // layer). All the layer ids are queued using the returned manifest
+  // , and rely on the fact that the `v1Compatibility::id` from the
+  // manifest are pre-sorted based on the `parent-child` relationship.
+  //
+  // Some self-built images may contain duplicate layers (e.g., [a, a,
+  // b, b, b, c] from the manifest) which will cause failures for some
+  // backends (e.g., Aufs). We should filter the layer ids to make
+  // sure ids are unique.
+  hashset<string> uniqueIds;
   vector<string> layerIds;
   list<Future<Nothing>> futures;
 
+  // The order of `fslayers` should be [child, parent, ...].
+  //
+  // The content in the parent will be overwritten by the child if
+  // there is a conflict. Therefore, backends expect the following
+  // order: [parent, child, ...].
   for (int i = 0; i < manifest.fslayers_size(); i++) {
     CHECK(manifest.history(i).has_v1());
     const spec::v1::ImageManifest& v1 = manifest.history(i).v1();
     const string& blobSum = manifest.fslayers(i).blobsum();
 
+    // Skip duplicate layer ids.
+    if (uniqueIds.contains(v1.id())) {
+      continue;
+    }
+
     // NOTE: We put parent layer ids in front because that's what the
     // provisioner backends assume.
     layerIds.insert(layerIds.begin(), v1.id());
+    uniqueIds.insert(v1.id());
 
     // Skip if the layer is already in the store.
     if (os::exists(
@@ -352,7 +391,8 @@ Future<vector<string>> RegistryPullerProcess::__pull(
 Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
     const spec::ImageReference& reference,
     const string& directory,
-    const spec::v2::ImageManifest& manifest)
+    const spec::v2::ImageManifest& manifest,
+    const string& backend)
 {
   // First, find all the blobs that need to be fetched.
   //

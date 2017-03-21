@@ -57,6 +57,14 @@ class SharedHandle : public std::shared_ptr<void>
                 "Expected `HANDLE` to be of type `void*`.");
 
 public:
+  // We delete the default constructor so that the callsite is forced to make
+  // an explicit decision about what the empty `HANDLE` value should be, as it
+  // is not the same for all `HANDLE` types.  For example, `OpenProcess`
+  // returns a `nullptr` for an invalid handle, but `CreateFile` returns an
+  // `INVALID_HANDLE_VALUE` instead. This inconsistency is inherent in the
+  // Windows API.
+  SharedHandle() = delete;
+
   template <typename Deleter>
   SharedHandle(HANDLE handle, Deleter deleter)
       : std::shared_ptr<void>(handle, deleter) {}
@@ -141,9 +149,7 @@ inline BOOL GetMessage(
 #define O_APPEND _O_APPEND
 #define O_CLOEXEC _O_NOINHERIT
 
-// TODO(hausdorff): (MESOS-3398) Not defined on Windows. This value is
-// temporary.
-#define MAXHOSTNAMELEN 64
+#define MAXHOSTNAMELEN NI_MAXHOST
 
 #define PATH_MAX _MAX_PATH
 
@@ -333,14 +339,6 @@ decltype(strerror_s(buffer, length, errnum))
 // maintain the code. It is an explicit marker that we are using the compiler
 // to guarantee that the return type is identical to whatever is in the Windows
 // implementation of the standard.
-inline auto write(int fd, const void* buffer, size_t count) ->
-decltype(_write(fd, buffer, static_cast<unsigned int>(count)))
-{
-  return _write(fd, buffer, static_cast<unsigned int>(count));
-}
-
-
-
 inline auto chdir(const char* path) ->
 decltype(_chdir(path))
 {
@@ -348,7 +346,7 @@ decltype(_chdir(path))
 }
 
 
-inline char * getcwd(char* path, size_t maxlen)
+inline char* getcwd(char* path, size_t maxlen)
 {
   CHECK_LE(maxlen, INT_MAX);
   return _getcwd(path, static_cast<int>(maxlen));

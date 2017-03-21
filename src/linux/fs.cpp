@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "linux/fs.hpp"
+
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -39,9 +41,10 @@
 #include <stout/os.hpp>
 
 #include <stout/os/read.hpp>
+#include <stout/os/shell.hpp>
 #include <stout/os/stat.hpp>
 
-#include "linux/fs.hpp"
+#include "common/status_utils.hpp"
 
 using std::list;
 using std::set;
@@ -85,6 +88,50 @@ Try<bool> supported(const string& fsname)
 
   return false;
 }
+
+
+Try<uint32_t> type(const string& path)
+{
+  struct statfs buf;
+  if (statfs(path.c_str(), &buf) < 0) {
+    return ErrnoError();
+  }
+  return (uint32_t) buf.f_type;
+}
+
+
+Try<string> typeName(uint32_t fsType)
+{
+  // `typeNames` maps a filesystem id to its filesystem type name.
+  hashmap<uint32_t, string> typeNames = {
+    {FS_TYPE_AUFS      , "aufs"},
+    {FS_TYPE_BTRFS     , "btrfs"},
+    {FS_TYPE_CRAMFS    , "cramfs"},
+    {FS_TYPE_ECRYPTFS  , "ecryptfs"},
+    {FS_TYPE_EXTFS     , "extfs"},
+    {FS_TYPE_F2FS      , "f2fs"},
+    {FS_TYPE_GPFS      , "gpfs"},
+    {FS_TYPE_JFFS2FS   , "jffs2fs"},
+    {FS_TYPE_JFS       , "jfs"},
+    {FS_TYPE_NFSFS     , "nfsfs"},
+    {FS_TYPE_RAMFS     , "ramfs"},
+    {FS_TYPE_REISERFS  , "reiserfs"},
+    {FS_TYPE_SMBFS     , "smbfs"},
+    {FS_TYPE_SQUASHFS  , "squashfs"},
+    {FS_TYPE_TMPFS     , "tmpfs"},
+    {FS_TYPE_VXFS      , "vxfs"},
+    {FS_TYPE_XFS       , "xfs"},
+    {FS_TYPE_ZFS       , "zfs"},
+    {FS_TYPE_OVERLAY   , "overlay"}
+  };
+
+  if (!typeNames.contains(fsType)) {
+    return Error("Unexpected filesystem type '" + stringify(fsType) + "'");
+  }
+
+  return typeNames[fsType];
+}
+
 
 Try<MountInfoTable> MountInfoTable::read(
     const string& lines,
@@ -421,6 +468,24 @@ Try<Nothing> unmountAll(const string& target, int flags)
       Try<Nothing> unmount = fs::unmount(entry.dir, flags);
       if (unmount.isError()) {
         return unmount;
+      }
+
+      // This normally should not fail even if the entry is not in
+      // mtab or mtab doesn't exist or is not writable. However we
+      // still catch the error here in case there's an error somewhere
+      // else while running this command.
+      // TODO(xujyan): Consider using `setmntent(3)` to implement this.
+      int status = os::spawn("umount", {"umount", "--fake", entry.dir});
+
+      const string message =
+        "Failed to clean up '" + entry.dir + "' in /etc/mtab";
+
+      if (status == -1) {
+        return ErrnoError(message);
+      }
+
+      if (!WSUCCEEDED(status)) {
+        return Error(message + ": " + WSTRINGIFY(status));
       }
     }
   }

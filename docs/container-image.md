@@ -285,8 +285,29 @@ is `/tmp/mesos/store/appc`.
 ## Provisioner Backends
 
 A provisioner backend takes a set of filesystem layers and stacks them
-into a root filesystem. The following backends are supported
-currently.
+into a root filesystem. Currently, we support the following backends:
+`copy`, `bind`, `overlay` and `aufs`. Mesos will validate if the
+selected backend works with the underlying filesystem (the filesystem
+used by the image store `--docker_store_dir` or `--appc_store_dir`)
+using the following logic table:
+
+    +---------+--------------+------------------------------------------+
+    | Backend | Suggested on | Disabled on                              |
+    +---------+--------------+------------------------------------------+
+    | aufs    | ext4 xfs     | btrfs aufs eCryptfs                      |
+    | overlay | ext4 xfs     | btrfs aufs overlay overlay2 zfs eCryptfs |
+    | bind    |              | N/A(`--sandbox_directory' must exist)    |
+    | copy    |              | N/A                                      |
+    +---------+--------------+------------------------------------------+
+
+The provisioner backend can be specified through the agent flag
+`--provisioner_image_backend`. If not set, Mesos will select the best
+backend automatically for the users/operators. The selection logic is
+as following:
+
+    1. Use `overlay` backend if the overlayfs is available.
+    2. Use `aufs` backend if the aufs is available and overlayfs is not supported.
+    3. Use `copy` backend if none of above is selected.
 
 ### Copy
 

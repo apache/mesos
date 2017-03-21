@@ -26,9 +26,13 @@
 #include <stout/abort.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 #ifdef __WINDOWS__
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
+
+#include <stout/os/int_fd.hpp>
+
 
 namespace process {
 namespace network {
@@ -80,7 +84,7 @@ public:
    * @return An instance of a `SocketImpl`.
    */
   static Try<std::shared_ptr<SocketImpl>> create(
-      int s,
+      int_fd s,
       Kind kind = DEFAULT_KIND());
 
   /**
@@ -109,7 +113,7 @@ public:
   /**
    * Returns the file descriptor wrapped by this implementation.
    */
-  int get() const
+  int_fd get() const
   {
     return s;
   }
@@ -147,7 +151,7 @@ public:
   virtual Future<Nothing> connect(const Address& address) = 0;
   virtual Future<size_t> recv(char* data, size_t size) = 0;
   virtual Future<size_t> send(const char* data, size_t size) = 0;
-  virtual Future<size_t> sendfile(int fd, off_t offset, size_t size) = 0;
+  virtual Future<size_t> sendfile(int_fd fd, off_t offset, size_t size) = 0;
 
   /**
    * An overload of `recv`, which receives data based on the specified
@@ -180,8 +184,8 @@ public:
   virtual Future<Nothing> send(const std::string& data);
 
   /**
-   * Shutdown the receive-side of the socket. No further data can be
-   * received from the socket.
+   * Shuts down the socket. Accepts an integer which specifies the
+   * shutdown mode.
    */
   virtual Try<Nothing> shutdown(int how)
   {
@@ -195,7 +199,7 @@ public:
   virtual Kind kind() const = 0;
 
 protected:
-  explicit SocketImpl(int _s) : s(_s) { CHECK(s >= 0); }
+  explicit SocketImpl(int_fd _s) : s(_s) { CHECK(s >= 0); }
 
   /**
    * Releases ownership of the file descriptor. Not exposed
@@ -203,9 +207,9 @@ protected:
    * support `Socket::Impl` implementations that need to
    * override the file descriptor ownership.
    */
-  int release()
+  int_fd release()
   {
-    int released = s;
+    int_fd released = s;
     s = -1;
     return released;
   }
@@ -222,7 +226,7 @@ protected:
     return pointer;
   }
 
-  int s;
+  int_fd s;
 };
 
 
@@ -251,7 +255,7 @@ public:
    * @return An instance of a `Socket`.
    */
   static Try<Socket> create(
-      int s,
+      int_fd s,
       SocketImpl::Kind kind = SocketImpl::DEFAULT_KIND())
   {
     Try<std::shared_ptr<SocketImpl>> impl = SocketImpl::create(s, kind);
@@ -309,7 +313,7 @@ public:
     return impl == that.impl;
   }
 
-  operator int() const
+  operator int_fd() const
   {
     return impl->get();
   }
@@ -324,7 +328,7 @@ public:
     return convert<AddressType>(impl->peer());
   }
 
-  int get() const
+  int_fd get() const
   {
     return impl->get();
   }
@@ -341,10 +345,15 @@ public:
 
   Future<Socket> accept()
   {
+    // NOTE: We save a reference to the listening socket itself
+    // (i.e., 'this') so that we don't close the listening socket
+    // while 'accept' is in flight.
+    std::shared_ptr<SocketImpl> self = impl->shared_from_this();
+
     return impl->accept()
-      // TODO(benh): Use && for `impl` here!
-      .then([](const std::shared_ptr<SocketImpl>& impl) {
-        return Socket(impl);
+      // TODO(benh): Use && for `accepted` here!
+      .then([self](const std::shared_ptr<SocketImpl>& accepted) {
+        return Socket(accepted);
       });
   }
 
@@ -363,7 +372,7 @@ public:
     return impl->send(data, size);
   }
 
-  Future<size_t> sendfile(int fd, off_t offset, size_t size) const
+  Future<size_t> sendfile(int_fd fd, off_t offset, size_t size) const
   {
     return impl->sendfile(fd, offset, size);
   }
@@ -386,7 +395,7 @@ public:
   };
 
   // TODO(benh): Replace the default to Shutdown::READ_WRITE or remove
-  // all together since it's unclear what the defauilt should be.
+  // all together since it's unclear what the default should be.
   Try<Nothing> shutdown(Shutdown shutdown = Shutdown::READ)
   {
     int how = [&]() {
@@ -395,6 +404,7 @@ public:
         case Shutdown::WRITE: return SHUT_WR;
         case Shutdown::READ_WRITE: return SHUT_RDWR;
       }
+      UNREACHABLE();
     }();
 
     return impl->shutdown(how);

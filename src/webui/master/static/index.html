@@ -18,7 +18,7 @@
       <img src="/static/img/loading.gif" height="64" width="64" alt="">
     </div>
 
-    <div ng-controller="MainCntl">
+    <div ng-controller="MainCtrl">
       <header class="navbar navbar-inverse navbar-fixed-top" role="navigation">
         <div class="container-fluid">
           <div class="navbar-header">
@@ -30,7 +30,7 @@
               <span class="icon-bar"></span>
             </button>
             <a class="navbar-brand" href="#/">
-              <img id="logo" src="/static/img/mesos_logo.png" alt="Apache Mesos">
+              <img src="/static/img/mesos_logo.png" alt="Apache Mesos">
             </a>
           </div>
 
@@ -42,13 +42,19 @@
               <li data-ng-class="{active: (navbarActiveTab === 'agents')}">
                 <a href="#/agents">Agents</a>
               </li>
+              <li data-ng-class="{active: (navbarActiveTab === 'roles')}">
+                <a href="#/roles">Roles</a>
+              </li>
               <li data-ng-class="{active: (navbarActiveTab === 'offers')}">
                 <a href="#/offers">Offers</a>
+              </li>
+              <li data-ng-class="{active: (navbarActiveTab === 'maintenance')}">
+                <a href="#/maintenance">Maintenance</a>
               </li>
             </ul>
             <ul class="nav navbar-nav navbar-right">
               <li>
-                <p class="navbar-text" data-ng-cloak>{{state.cluster}}</p>
+                <a class="btn disabled" data-ng-cloak>{{state.cluster}}</a>
               </li>
             </ul>
           </div>
@@ -107,7 +113,7 @@
 
     <script src="/static/js/jquery-1.7.1.min.js"></script>
     <script src="/static/js/underscore-1.4.3.min.js"></script>
-    <script src="/static/js/zeroclipboard-1.1.7.js"></script>
+    <script src="/static/js/clipboard-1.5.16.min.js"></script>
     <script src="/static/js/angular-1.2.3.min.js"></script>
     <script src="/static/js/angular-route-1.2.3.min.js"></script>
     <script src="/static/js/ui-bootstrap-tpls-0.9.0.min.js"></script>

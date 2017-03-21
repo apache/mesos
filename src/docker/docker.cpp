@@ -27,6 +27,7 @@
 #include <stout/strings.hpp>
 #include <stout/stringify.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/killtree.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/write.hpp>
@@ -104,9 +105,18 @@ Try<Owned<Docker>> Docker::create(
     bool validate,
     const Option<JSON::Object>& config)
 {
+#ifndef __WINDOWS__
+  // TODO(hausdorff): Currently, `path::absolute` does not handle all the edge
+  // cases of Windows. Revisit this when MESOS-3442 is resolved.
+  //
+  // NOTE: When we do come back and fix this bug, it is also worth noting that
+  // on Windows an empty value of `socket` is frequently used to connect to the
+  // Docker host (i.e., the user wants to connect 'npipes://', with an empty
+  // socket path). A full solution should accommodate this.
   if (!path::absolute(socket)) {
     return Error("Invalid Docker socket path: " + socket);
   }
+#endif // __WINDOWS__
 
   Owned<Docker> docker(new Docker(path, socket, config));
   if (!validate) {
@@ -147,7 +157,7 @@ Future<Version> Docker::version() const
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -486,57 +496,50 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
 }
 
 
-Future<Option<int>> Docker::run(
+Try<Docker::RunOptions> Docker::RunOptions::create(
     const ContainerInfo& containerInfo,
     const CommandInfo& commandInfo,
     const string& name,
     const string& sandboxDirectory,
     const string& mappedDirectory,
     const Option<Resources>& resources,
+    bool enableCfsQuota,
     const Option<map<string, string>>& env,
-    const Option<vector<Device>>& devices,
-    const process::Subprocess::IO& _stdout,
-    const process::Subprocess::IO& _stderr) const
+    const Option<vector<Device>>& devices)
 {
   if (!containerInfo.has_docker()) {
-    return Failure("No docker info found in container info");
+    return Error("No docker info found in container info");
   }
 
   const ContainerInfo::DockerInfo& dockerInfo = containerInfo.docker();
 
-  vector<string> argv;
-  argv.push_back(path);
-  argv.push_back("-H");
-  argv.push_back(socket);
-  argv.push_back("run");
-
-  if (dockerInfo.privileged()) {
-    argv.push_back("--privileged");
-  }
+  RunOptions options;
+  options.privileged = dockerInfo.privileged();
 
   if (resources.isSome()) {
     // TODO(yifan): Support other resources (e.g. disk).
     Option<double> cpus = resources.get().cpus();
     if (cpus.isSome()) {
-      uint64_t cpuShare =
+      options.cpuShares =
         std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
-      argv.push_back("--cpu-shares");
-      argv.push_back(stringify(cpuShare));
+
+      if (enableCfsQuota) {
+        const Duration quota =
+          std::max(CPU_CFS_PERIOD * cpus.get(), MIN_CPU_CFS_QUOTA);
+
+        options.cpuQuota = quota.us();
+      }
     }
 
     Option<Bytes> mem = resources.get().mem();
     if (mem.isSome()) {
-      Bytes memLimit = std::max(mem.get(), MIN_MEMORY);
-      argv.push_back("--memory");
-      argv.push_back(stringify(memLimit.bytes()));
+      options.memory = std::max(mem.get(), MIN_MEMORY);
     }
   }
 
-  string environmentVariables = "";
-
   if (env.isSome()) {
     foreachpair (const string& key, const string& value, env.get()) {
-      environmentVariables += key + "=" + value + "\n";
+      options.env[key] = value;
     }
   }
 
@@ -547,11 +550,266 @@ Future<Option<int>> Docker::run(
       // Skip to avoid duplicate environment variables.
       continue;
     }
-    environmentVariables += variable.name() + "=" + variable.value() + "\n";
+    options.env[variable.name()] = variable.value();
   }
 
-  environmentVariables += "MESOS_SANDBOX=" + mappedDirectory + "\n";
-  environmentVariables += "MESOS_CONTAINER_NAME=" + name + "\n";
+  options.env["MESOS_SANDBOX"] = mappedDirectory;
+  options.env["MESOS_CONTAINER_NAME"] = name;
+
+  Option<string> volumeDriver;
+  foreach (const Volume& volume, containerInfo.volumes()) {
+    // The 'container_path' can be either an absolute path or a
+    // relative path. If it is a relative path, it would be prefixed
+    // with the container sandbox directory.
+    string volumeConfig = path::absolute(volume.container_path())
+      ? volume.container_path()
+      : path::join(mappedDirectory, volume.container_path());
+
+    // TODO(gyliu513): Set `host_path` as source.
+    if (volume.has_host_path()) {
+      // If both 'host_path' and 'container_path' are relative paths,
+      // return a failure because the user can just directly access the
+      // volume in the sandbox.
+      if (!path::absolute(volume.host_path()) &&
+          !path::absolute(volume.container_path())) {
+        return Error(
+            "Both host_path '" + volume.host_path() + "' " +
+            "and container_path '" + volume.container_path() + "' " +
+            "of a volume are relative");
+      }
+
+      if (!path::absolute(volume.host_path()) &&
+          !dockerInfo.has_volume_driver()) {
+        // When volume driver is empty and host path is a relative path, mapping
+        // host path from the sandbox.
+        volumeConfig =
+          path::join(sandboxDirectory, volume.host_path()) + ":" + volumeConfig;
+      } else {
+        volumeConfig = volume.host_path() + ":" + volumeConfig;
+      }
+
+      switch (volume.mode()) {
+        case Volume::RW: volumeConfig += ":rw"; break;
+        case Volume::RO: volumeConfig += ":ro"; break;
+        default: return Error("Unsupported volume mode");
+      }
+    } else if (volume.has_source()) {
+      if (volume.source().type() != Volume::Source::DOCKER_VOLUME) {
+        VLOG(1) << "Ignored volume type '" << volume.source().type()
+                << "' for container '" << name << "' as only "
+                << "'DOCKER_VOLUME' was supported by docker";
+        continue;
+      }
+
+      volumeConfig = volume.source().docker_volume().name() +
+                     ":" + volumeConfig;
+
+      if (volume.source().docker_volume().has_driver()) {
+        const string& currentDriver = volume.source().docker_volume().driver();
+
+        if (volumeDriver.isSome() &&
+            volumeDriver.get() != currentDriver) {
+          return Error("Only one volume driver is supported");
+        }
+
+        volumeDriver = currentDriver;
+      }
+
+      switch (volume.mode()) {
+        case Volume::RW: volumeConfig += ":rw"; break;
+        case Volume::RO: volumeConfig += ":ro"; break;
+        default: return Error("Unsupported volume mode");
+      }
+    } else {
+      return Error("Host path or volume source is required");
+    }
+
+    options.volumes.push_back(volumeConfig);
+  }
+
+  // Mapping sandbox directory into the container mapped directory.
+  options.volumes.push_back(sandboxDirectory + ":" + mappedDirectory);
+
+  // TODO(gyliu513): Deprecate this after the release cycle of 1.0.
+  // It will be replaced by Volume.Source.DockerVolume.driver.
+  if (dockerInfo.has_volume_driver()) {
+    if (volumeDriver.isSome() &&
+        volumeDriver.get() != dockerInfo.volume_driver()) {
+      return Error("Only one volume driver per task is supported");
+    }
+
+    volumeDriver = dockerInfo.volume_driver();
+  }
+
+  options.volumeDriver = volumeDriver;
+
+  switch (dockerInfo.network()) {
+    case ContainerInfo::DockerInfo::HOST: options.network = "host"; break;
+    case ContainerInfo::DockerInfo::BRIDGE: options.network = "bridge"; break;
+    case ContainerInfo::DockerInfo::NONE: options.network = "none"; break;
+    case ContainerInfo::DockerInfo::USER: {
+      if (containerInfo.network_infos_size() == 0) {
+        return Error("No network info found in container info");
+      }
+
+      if (containerInfo.network_infos_size() > 1) {
+        return Error("Only a single network can be defined in Docker run");
+      }
+
+      const NetworkInfo& networkInfo = containerInfo.network_infos(0);
+      if(!networkInfo.has_name()){
+        return Error("No network name found in network info");
+      }
+
+      options.network = networkInfo.name();
+      break;
+    }
+    default: return Error("Unsupported Network mode: " +
+                          stringify(dockerInfo.network()));
+  }
+
+  if (containerInfo.has_hostname()) {
+    if (options.network.isSome() && options.network.get() == "host") {
+      return Error("Unable to set hostname with host network mode");
+    }
+
+    options.hostname = containerInfo.hostname();
+  }
+
+  if (dockerInfo.port_mappings().size() > 0) {
+    if (options.network.isSome() &&
+        (options.network.get() == "host" || options.network.get() == "none")) {
+      return Error("Port mappings are only supported for bridge and "
+                   "user-defined networks");
+    }
+
+    if (!resources.isSome()) {
+      return Error("Port mappings require resources");
+    }
+
+    Option<Value::Ranges> portRanges = resources.get().ports();
+
+    if (!portRanges.isSome()) {
+      return Error("Port mappings require port resources");
+    }
+
+    foreach (const ContainerInfo::DockerInfo::PortMapping& mapping,
+             dockerInfo.port_mappings()) {
+      bool found = false;
+      foreach (const Value::Range& range, portRanges.get().range()) {
+        if (mapping.host_port() >= range.begin() &&
+            mapping.host_port() <= range.end()) {
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        return Error("Port [" + stringify(mapping.host_port()) + "] not " +
+                     "included in resources");
+      }
+
+      Docker::PortMapping portMapping;
+      portMapping.hostPort = mapping.host_port();
+      portMapping.containerPort = mapping.container_port();
+
+      if (mapping.has_protocol()) {
+        portMapping.protocol = mapping.protocol();
+      }
+
+      options.portMappings.push_back(portMapping);
+    }
+  }
+
+  if (devices.isSome()) {
+    options.devices = devices.get();
+  }
+
+  options.name = name;
+
+  foreach (const Parameter& parameter, dockerInfo.parameters()) {
+    options.additionalOptions.push_back(
+        "--" + parameter.key() + "=" + parameter.value());
+  }
+
+  options.image = dockerInfo.image();
+
+  if (commandInfo.shell()) {
+    // We override the entrypoint if shell is enabled because we
+    // assume the user intends to run the command within a shell
+    // and not the default entrypoint of the image. View MESOS-1770
+    // for more details.
+#ifdef __WINDOWS__
+    options.entrypoint = "cmd";
+#else
+    options.entrypoint = "/bin/sh";
+#endif // __WINDOWS__
+  }
+
+  if (commandInfo.shell()) {
+    if (!commandInfo.has_value()) {
+      return Error("Shell specified but no command value provided");
+    }
+
+    // The Docker CLI only supports a single word for overriding the
+    // entrypoint, so we must specify `-c` (or `/c` on Windows)
+    // for the other parts of the command.
+#ifdef __WINDOWS__
+    options.arguments.push_back("/c");
+#else
+    options.arguments.push_back("-c");
+#endif // __WINDOWS__
+
+    options.arguments.push_back(commandInfo.value());
+  } else {
+    if (commandInfo.has_value()) {
+      options.arguments.push_back(commandInfo.value());
+    }
+
+    foreach (const string& argument, commandInfo.arguments()) {
+      options.arguments.push_back(argument);
+    }
+  }
+
+  return options;
+}
+
+
+Future<Option<int>> Docker::run(
+    const Docker::RunOptions& options,
+    const process::Subprocess::IO& _stdout,
+    const process::Subprocess::IO& _stderr) const
+{
+  vector<string> argv;
+  argv.push_back(path);
+  argv.push_back("-H");
+  argv.push_back(socket);
+  argv.push_back("run");
+
+  if (options.privileged) {
+    argv.push_back("--privileged");
+  }
+
+  if (options.cpuShares.isSome()) {
+    argv.push_back("--cpu-shares");
+    argv.push_back(stringify(options.cpuShares.get()));
+  }
+
+  if (options.cpuQuota.isSome()) {
+    argv.push_back("--cpu-quota");
+    argv.push_back(stringify(options.cpuQuota.get()));
+  }
+
+  if (options.memory.isSome()) {
+    argv.push_back("--memory");
+    argv.push_back(stringify(options.memory->bytes()));
+  }
+
+  string environmentVariables;
+
+  foreachpair(const string& key, const string& value, options.env) {
+    environmentVariables += key + "=" + value + "\n";
+  }
 
   Try<string> environmentFile_ = os::mktemp();
   if (environmentFile_.isError()) {
@@ -561,7 +819,7 @@ Future<Option<int>> Docker::run(
 
   const string& environmentFile = environmentFile_.get();
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       environmentFile,
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR);
@@ -584,106 +842,23 @@ Future<Option<int>> Docker::run(
   argv.push_back("--env-file");
   argv.push_back(environmentFile);
 
-  Option<string> volumeDriver;
-  foreach (const Volume& volume, containerInfo.volumes()) {
-    // The 'container_path' can be either an absolute path or a
-    // relative path. If it is a relative path, it would be prefixed
-    // with the container sandbox directory.
-    string volumeConfig = path::absolute(volume.container_path())
-      ? volume.container_path()
-      : path::join(mappedDirectory, volume.container_path());
-
-    // TODO(gyliu513): Set `host_path` as source.
-    if (volume.has_host_path()) {
-      // If both 'host_path' and 'container_path' are relative paths,
-      // return a failure because the user can just directly access the
-      // volume in the sandbox.
-      if (!path::absolute(volume.host_path()) &&
-          !path::absolute(volume.container_path())) {
-        return Failure(
-            "Both host_path '" + volume.host_path() + "' " +
-            "and container_path '" + volume.container_path() + "' " +
-            "of a volume are relative");
-      }
-
-      if (!path::absolute(volume.host_path()) &&
-          !dockerInfo.has_volume_driver()) {
-        // When volume driver is empty and host path is a relative path, mapping
-        // host path from the sandbox.
-        volumeConfig =
-          path::join(sandboxDirectory, volume.host_path()) + ":" + volumeConfig;
-      } else {
-        volumeConfig = volume.host_path() + ":" + volumeConfig;
-      }
-
-      switch (volume.mode()) {
-        case Volume::RW: volumeConfig += ":rw"; break;
-        case Volume::RO: volumeConfig += ":ro"; break;
-        default: return Failure("Unsupported volume mode");
-      }
-    } else if (volume.has_source()) {
-      if (volume.source().type() != Volume::Source::DOCKER_VOLUME) {
-        VLOG(1) << "Ignored volume type '" << volume.source().type()
-                << "' for container '" << name << "' as only "
-                << "'DOCKER_VOLUME' was supported by docker";
-        continue;
-      }
-
-      volumeConfig = volume.source().docker_volume().name() +
-                     ":" + volumeConfig;
-
-      if (volume.source().docker_volume().has_driver()) {
-        const string& currentDriver = volume.source().docker_volume().driver();
-
-        if (volumeDriver.isSome() &&
-            volumeDriver.get() != currentDriver) {
-          return Failure("Only one volume driver is supported");
-        }
-
-        volumeDriver = currentDriver;
-      }
-
-      switch (volume.mode()) {
-        case Volume::RW: volumeConfig += ":rw"; break;
-        case Volume::RO: volumeConfig += ":ro"; break;
-        default: return Failure("Unsupported volume mode");
-      }
-    } else {
-      return Failure("Host path or volume source is required");
-    }
-
+  foreach(const string& volume, options.volumes) {
     argv.push_back("-v");
-    argv.push_back(volumeConfig);
+    argv.push_back(volume);
   }
 
-  // Mapping sandbox directory into the container mapped directory.
-  argv.push_back("-v");
-  argv.push_back(sandboxDirectory + ":" + mappedDirectory);
-
-  // TODO(gyliu513): Deprecate this after the release cycle of 1.0.
-  // It will be replaced by Volume.Source.DockerVolume.driver.
-  if (dockerInfo.has_volume_driver()) {
-    if (volumeDriver.isSome() &&
-        volumeDriver.get() != dockerInfo.volume_driver()) {
-      return Failure("Only one volume driver per task is supported");
-    }
-
-    volumeDriver = dockerInfo.volume_driver();
+  if (options.volumeDriver.isSome()) {
+    argv.push_back("--volume-driver=" + options.volumeDriver.get());
   }
 
-  if (volumeDriver.isSome()) {
-    argv.push_back("--volume-driver=" + volumeDriver.get());
-  }
+  if (options.network.isSome()) {
+    const string& network = options.network.get();
+    argv.push_back("--net");
+    argv.push_back(network);
 
-  const string& image = dockerInfo.image();
-
-  argv.push_back("--net");
-  string network;
-  switch (dockerInfo.network()) {
-    case ContainerInfo::DockerInfo::HOST: network = "host"; break;
-    case ContainerInfo::DockerInfo::BRIDGE: network = "bridge"; break;
-    case ContainerInfo::DockerInfo::NONE: network = "none"; break;
-    case ContainerInfo::DockerInfo::USER: {
+    if (network != "host" &&
+        network != "bridge" &&
+        network != "none") {
       // User defined networks require docker version >= 1.9.0.
       Try<Nothing> validateVer = validateVersion(Version(1, 9, 0));
 
@@ -691,168 +866,87 @@ Future<Option<int>> Docker::run(
         return Failure("User defined networks require Docker "
                        "version 1.9.0 or higher");
       }
-
-      if (containerInfo.network_infos_size() == 0) {
-        return Failure("No network info found in container info");
-      }
-
-      if (containerInfo.network_infos_size() > 1) {
-        return Failure("Only a single network can be defined in Docker run");
-      }
-
-      const NetworkInfo& networkInfo = containerInfo.network_infos(0);
-      if(!networkInfo.has_name()){
-        return Failure("No network name found in network info");
-      }
-
-      network = networkInfo.name();
-      break;
     }
-    default: return Failure("Unsupported Network mode: " +
-                            stringify(dockerInfo.network()));
   }
 
-  argv.push_back(network);
-
-  if (containerInfo.has_hostname()) {
-    if (network == "host") {
-      return Failure("Unable to set hostname with host network mode");
-    }
-
+  if (options.hostname.isSome()) {
     argv.push_back("--hostname");
-    argv.push_back(containerInfo.hostname());
+    argv.push_back(options.hostname.get());
   }
 
-  foreach (const Parameter& parameter, dockerInfo.parameters()) {
-    argv.push_back("--" + parameter.key() + "=" + parameter.value());
+  foreach (const Docker::PortMapping& mapping, options.portMappings) {
+    argv.push_back("-p");
+
+    string portMapping = stringify(mapping.hostPort) + ":" +
+                         stringify(mapping.containerPort);
+
+    if (mapping.protocol.isSome()) {
+      portMapping += "/" + strings::lower(mapping.protocol.get());
+    }
+
+    argv.push_back(portMapping);
   }
 
-  if (dockerInfo.port_mappings().size() > 0) {
-    if (network == "host" || network == "none") {
-      return Failure("Port mappings are only supported for bridge and "
-                     "user-defined networks");
+  foreach (const Device& device, options.devices) {
+    if (!device.hostPath.absolute()) {
+      return Failure("Device path '" + device.hostPath.string() + "'"
+                     " is not an absolute path");
     }
 
-    if (!resources.isSome()) {
-      return Failure("Port mappings require resources");
+    string permissions;
+    permissions += device.access.read ? "r" : "";
+    permissions += device.access.write ? "w" : "";
+    permissions += device.access.mknod ? "m" : "";
+
+    // Docker doesn't handle this case (it fails by saying
+    // that an absolute path is not being provided).
+    if (permissions.empty()) {
+      return Failure("At least one access required for --devices:"
+                     " none specified for"
+                     " '" + device.hostPath.string() + "'");
     }
 
-    Option<Value::Ranges> portRanges = resources.get().ports();
-
-    if (!portRanges.isSome()) {
-      return Failure("Port mappings require port resources");
-    }
-
-    foreach (const ContainerInfo::DockerInfo::PortMapping& mapping,
-             dockerInfo.port_mappings()) {
-      bool found = false;
-      foreach (const Value::Range& range, portRanges.get().range()) {
-        if (mapping.host_port() >= range.begin() &&
-            mapping.host_port() <= range.end()) {
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) {
-        return Failure("Port [" + stringify(mapping.host_port()) + "] not " +
-                       "included in resources");
-      }
-
-      string portMapping = stringify(mapping.host_port()) + ":" +
-                           stringify(mapping.container_port());
-
-      if (mapping.has_protocol()) {
-        portMapping += "/" + strings::lower(mapping.protocol());
-      }
-
-      argv.push_back("-p");
-      argv.push_back(portMapping);
-    }
+    // Note that docker silently does not handle default devices
+    // passed in with restricted permissions (e.g. /dev/null), so
+    // we don't bother checking this case either.
+    argv.push_back(
+        "--device=" +
+        device.hostPath.string() + ":" +
+        device.containerPath.string() + ":" +
+        permissions);
   }
 
-  if (devices.isSome()) {
-    foreach (const Device& device, devices.get()) {
-      if (!device.hostPath.absolute()) {
-        return Failure("Device path '" + device.hostPath.string() + "'"
-                       " is not an absolute path");
-      }
-
-      string permissions;
-      permissions += device.access.read ? "r" : "";
-      permissions += device.access.write ? "w" : "";
-      permissions += device.access.mknod ? "m" : "";
-
-      // Docker doesn't handle this case (it fails by saying
-      // that an absolute path is not being provided).
-      if (permissions.empty()) {
-        return Failure("At least one access required for --devices:"
-                       " none specified for"
-                       " '" + device.hostPath.string() + "'");
-      }
-
-      // Note that docker silently does not handle default devices
-      // passed in with restricted permissions (e.g. /dev/null), so
-      // we don't bother checking this case either.
-
-      argv.push_back("--device=" +
-                     device.hostPath.string() + ":" +
-                     device.containerPath.string() + ":" +
-                     permissions);
-    }
-  }
-
-  if (commandInfo.shell()) {
-    // We override the entrypoint if shell is enabled because we
-    // assume the user intends to run the command within /bin/sh
-    // and not the default entrypoint of the image. View MESOS-1770
-    // for more details.
+  if (options.entrypoint.isSome()) {
     argv.push_back("--entrypoint");
-    argv.push_back("/bin/sh");
+    argv.push_back(options.entrypoint.get());
   }
 
-  argv.push_back("--name");
-  argv.push_back(name);
-  argv.push_back(image);
+  if (options.name.isSome()) {
+    argv.push_back("--name");
+    argv.push_back(options.name.get());
+  }
 
-  if (commandInfo.shell()) {
-    if (!commandInfo.has_value()) {
-      return Failure("Shell specified but no command value provided");
-    }
+  foreach (const string& option, options.additionalOptions) {
+    argv.push_back(option);
+  }
 
-    // Adding -c here because Docker cli only supports a single word
-    // for overriding entrypoint, so adding the -c flag for /bin/sh
-    // as part of the command.
-    argv.push_back("-c");
-    argv.push_back(commandInfo.value());
-  } else {
-    if (commandInfo.has_value()) {
-      argv.push_back(commandInfo.value());
-    }
+  argv.push_back(options.image);
 
-    foreach (const string& argument, commandInfo.arguments()) {
-      argv.push_back(argument);
-    }
+  foreach(const string& argument, options.arguments) {
+    argv.push_back(argument);
   }
 
   string cmd = strings::join(" ", argv);
 
   LOG(INFO) << "Running " << cmd;
 
-  map<string, string> environment = os::environment();
-
-  // NOTE: This is non-relevant to pick up a docker config file,
-  // which is necessary for private registry.
-  environment["HOME"] = sandboxDirectory;
-
   Try<Subprocess> s = subprocess(
       path,
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       _stdout,
       _stderr,
-      nullptr,
-      environment);
+      nullptr);
 
   if (s.isError()) {
     return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
@@ -899,8 +993,8 @@ Future<Nothing> Docker::stop(
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE());
 
   if (s.isError()) {
@@ -947,8 +1041,8 @@ Future<Nothing> Docker::kill(
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE());
 
   if (s.isError()) {
@@ -972,8 +1066,8 @@ Future<Nothing> Docker::rm(
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE());
 
   if (s.isError()) {
@@ -1011,7 +1105,7 @@ void Docker::_inspect(
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -1130,7 +1224,7 @@ Future<list<Docker::Container>> Docker::ps(
 
   Try<Subprocess> s = subprocess(
       cmd,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -1299,7 +1393,7 @@ Future<Docker::Image> Docker::pull(
   Try<Subprocess> s = subprocess(
       path,
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       nullptr);
@@ -1435,7 +1529,7 @@ Future<Docker::Image> Docker::__pull(
   Try<Subprocess> s_ = subprocess(
       path,
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       nullptr,

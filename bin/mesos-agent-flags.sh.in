@@ -16,7 +16,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export MESOS_LAUNCHER_DIR=@abs_top_builddir@/src
+: ${MESOS_LAUNCHER_DIR:="@abs_top_builddir@/src"}
+
+export MESOS_LAUNCHER_DIR
 
 # Add the JNI library so we can run JVM based executors without them
 # needing to figure this out for themselves.
@@ -27,11 +29,11 @@ export MESOS_LAUNCHER_DIR=@abs_top_builddir@/src
 # TODO(tillt): Point MESOS_NATIVE_JAVA_LIBRARY towards the JNI
 # specific library once libmesos has been split.
 if test $(uname) = 'Darwin'; then
-  MESOS_NATIVE_JAVA_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.dylib
-  MESOS_NATIVE_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.dylib
+  : ${MESOS_NATIVE_JAVA_LIBRARY:="@abs_top_builddir@/src/.libs/libmesos-@VERSION@.dylib"}
+  : ${MESOS_NATIVE_LIBRARY:="@abs_top_builddir@/src/.libs/libmesos-@VERSION@.dylib"}
 else
-  MESOS_NATIVE_JAVA_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.so
-  MESOS_NATIVE_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.so
+  : ${MESOS_NATIVE_JAVA_LIBRARY:="@abs_top_builddir@/src/.libs/libmesos-@VERSION@.so"}
+  : ${MESOS_NATIVE_LIBRARY:="@abs_top_builddir@/src/.libs/libmesos-@VERSION@.so"}
 fi
 export MESOS_NATIVE_LIBRARY
 export MESOS_NATIVE_JAVA_LIBRARY

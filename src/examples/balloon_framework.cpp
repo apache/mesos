@@ -136,9 +136,11 @@ class BalloonSchedulerProcess : public process::Process<BalloonSchedulerProcess>
 {
 public:
   BalloonSchedulerProcess(
+      const FrameworkInfo& _frameworkInfo,
       const ExecutorInfo& _executor,
       const Flags& _flags)
-    : executor(_executor),
+    : frameworkInfo(_frameworkInfo),
+      executor(_executor),
       flags(_flags),
       taskActive(false),
       tasksLaunched(0),
@@ -162,19 +164,21 @@ public:
       SchedulerDriver* driver,
       const std::vector<Offer>& offers)
   {
-    static const Resources TASK_RESOURCES = Resources::parse(
+    Resources taskResources = Resources::parse(
         "cpus:" + stringify(CPUS_PER_TASK) +
         ";mem:" + stringify(flags.task_memory.megabytes())).get();
+    taskResources.allocate(frameworkInfo.role());
 
-    static const Resources EXECUTOR_RESOURCES = Resources(executor.resources());
+    Resources executorResources = Resources(executor.resources());
+    executorResources.allocate(frameworkInfo.role());
 
     foreach (const Offer& offer, offers) {
       Resources resources(offer.resources());
 
       // If there is an active task, or if the offer is not
       // big enough, reject the offer.
-      if (taskActive || !resources.flatten().contains(
-            TASK_RESOURCES + EXECUTOR_RESOURCES)) {
+      if (taskActive ||
+          !resources.flatten().contains(taskResources + executorResources)) {
         Filters filters;
         filters.set_refuse_seconds(600);
 
@@ -190,7 +194,7 @@ public:
       task.set_name("Balloon Task");
       task.mutable_task_id()->set_value(stringify(taskId));
       task.mutable_slave_id()->MergeFrom(offer.slave_id());
-      task.mutable_resources()->CopyFrom(TASK_RESOURCES);
+      task.mutable_resources()->CopyFrom(taskResources);
       task.set_data(stringify(flags.task_memory_usage_limit));
 
       task.mutable_executor()->CopyFrom(executor);
@@ -260,6 +264,7 @@ public:
   }
 
 private:
+  const FrameworkInfo frameworkInfo;
   const ExecutorInfo executor;
   const Flags flags;
   bool taskActive;
@@ -328,9 +333,10 @@ class BalloonScheduler : public Scheduler
 {
 public:
   BalloonScheduler(
+      const FrameworkInfo& _frameworkInfo,
       const ExecutorInfo& _executor,
       const Flags& _flags)
-    : process(_executor, _flags)
+    : process(_frameworkInfo, _executor, _flags)
   {
     process::spawn(process);
   }
@@ -487,17 +493,18 @@ int main(int argc, char** argv)
     uri->set_executable(true);
   }
 
-  BalloonScheduler scheduler(executor, flags);
+  FrameworkInfo framework;
+  framework.set_user(os::user().get());
+  framework.set_name("Balloon Framework (C++)");
+  framework.set_checkpoint(flags.checkpoint);
+  framework.set_role("*");
+
+  BalloonScheduler scheduler(framework, executor, flags);
 
   // Log any flag warnings (after logging is initialized by the scheduler).
   foreach (const flags::Warning& warning, load->warnings) {
     LOG(WARNING) << warning.message;
   }
-
-  FrameworkInfo framework;
-  framework.set_user(os::user().get());
-  framework.set_name("Balloon Framework (C++)");
-  framework.set_checkpoint(flags.checkpoint);
 
   MesosSchedulerDriver* driver;
 

@@ -13,16 +13,22 @@
 #include <gmock/gmock.h>
 
 #include <atomic>
+#include <string>
 
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/loop.hpp>
 #include <process/queue.hpp>
 
+using process::Break;
+using process::Continue;
+using process::ControlFlow;
 using process::Future;
 using process::loop;
 using process::Promise;
 using process::Queue;
+
+using std::string;
 
 
 TEST(LoopTest, Sync)
@@ -33,8 +39,11 @@ TEST(LoopTest, Sync)
       [&]() {
         return value.load();
       },
-      [](int i) {
-        return i != 0;
+      [](int i) -> ControlFlow<Nothing> {
+        if (i != 0) {
+          return Continue();
+        }
+        return Break();
       });
 
   EXPECT_TRUE(future.isPending());
@@ -50,15 +59,18 @@ TEST(LoopTest, Async)
   Queue<int> queue;
 
   Promise<int> promise1;
-  Promise<bool> promise2;
+  Promise<string> promise2;
 
-  Future<Nothing> future = loop(
+  Future<string> future = loop(
       [&]() {
         return queue.get();
       },
       [&](int i) {
         promise1.set(i);
-        return promise2.future();
+        return promise2.future()
+          .then([](const string& s) -> ControlFlow<string> {
+            return Break(s);
+          });
       });
 
   EXPECT_TRUE(future.isPending());
@@ -69,9 +81,11 @@ TEST(LoopTest, Async)
 
   EXPECT_TRUE(future.isPending());
 
-  promise2.set(false);
+  string s = "Hello world!";
 
-  AWAIT_READY(future);
+  promise2.set(s);
+
+  AWAIT_EQ(s, future);
 }
 
 
@@ -85,8 +99,8 @@ TEST(LoopTest, DiscardIterate)
       [&]() {
         return promise.future();
       },
-      [&](int i) {
-        return false;
+      [&](int i) -> ControlFlow<Nothing> {
+        return Break();
       });
 
   EXPECT_TRUE(future.isPending());
@@ -100,7 +114,7 @@ TEST(LoopTest, DiscardIterate)
 
 TEST(LoopTest, DiscardBody)
 {
-  Promise<bool> promise;
+  Promise<Nothing> promise;
 
   promise.future().onDiscard([&]() { promise.discard(); });
 
@@ -109,7 +123,10 @@ TEST(LoopTest, DiscardBody)
         return 42;
       },
       [&](int i) {
-        return promise.future();
+        return promise.future()
+          .then([]() -> ControlFlow<Nothing> {
+            return Break();
+          });
       });
 
   EXPECT_TRUE(future.isPending());

@@ -21,6 +21,8 @@
 #include <stout/format.hpp>
 #include <stout/gtest.hpp>
 
+#include <mesos/v1/scheduler.hpp>
+
 #include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
@@ -28,6 +30,7 @@
 
 #include "tests/mesos.hpp"
 #include "tests/mock_slave.hpp"
+#include "tests/resources_utils.hpp"
 #include "tests/script.hpp"
 
 #include "tests/containerizer/docker_archive.hpp"
@@ -53,6 +56,8 @@ using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
 
+using mesos::v1::scheduler::Event;
+
 using process::Future;
 using process::Owned;
 using process::Queue;
@@ -64,7 +69,10 @@ using std::set;
 using std::string;
 using std::vector;
 
+using testing::_;
+using testing::DoAll;
 using testing::InvokeWithoutArgs;
+using testing::Return;
 
 namespace mesos {
 namespace internal {
@@ -136,8 +144,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -147,7 +154,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Launch a task with the command executor.
   CommandInfo command;
@@ -177,7 +184,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(statusRunning, Seconds(60));
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   vector<string> subsystems = {
     CGROUP_SUBSYSTEM_CPU_NAME,
@@ -190,9 +197,9 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   foreach (const string& subsystem, subsystems) {
     Result<string> hierarchy = cgroups::hierarchy(subsystem);
@@ -276,8 +283,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -287,7 +293,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
   // Initially the framework will get all regular resources.
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
   EXPECT_TRUE(Resources(offers1.get()[0].resources()).revocable().empty());
 
   Future<vector<Offer>> offers2;
@@ -303,8 +309,9 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
-  EXPECT_EQ(cpus, Resources(offers2.get()[0].resources()));
+  EXPECT_NE(0u, offers2->size());
+  EXPECT_EQ(allocatedResources(cpus, frameworkInfo.role()),
+            Resources(offers2.get()[0].resources()));
 
   TaskInfo task = createTask(
       offers2.get()[0].slave_id(),
@@ -318,13 +325,13 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
   driver.launchTasks(offers2.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
   ASSERT_SOME(cpuHierarchy);
@@ -377,8 +384,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -388,7 +394,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Generate random numbers to max out a single core. We'll run this
   // for 0.5 seconds of wall time so it should consume approximately
@@ -415,13 +421,13 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   Future<ResourceStatistics> usage = containerizer->usage(containerId);
   AWAIT_READY(usage);
@@ -431,14 +437,123 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
   // this test will fail if the host system is very heavily loaded.
   // This behavior is correct because under such conditions we aren't
   // actually testing the CFS cpu limiter.
-  double cpuTime = usage.get().cpus_system_time_secs() +
-                   usage.get().cpus_user_time_secs();
+  double cpuTime = usage->cpus_system_time_secs() +
+                   usage->cpus_user_time_secs();
 
   EXPECT_GE(0.30, cpuTime);
   EXPECT_LE(0.05, cpuTime);
 
   driver.stop();
   driver.join();
+}
+
+
+// This test verifies the limit swap functionality. Note that We use
+// the default executor here in order to exercise both the increasing
+// and decreasing of the memory limit.
+TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_LimitSwap)
+{
+  // Disable AuthN on the agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,cgroups/mem";
+  flags.cgroups_limit_swap = true;
+  flags.authenticate_http_readwrite = false;
+
+  // TODO(jieyu): Add a test filter for memsw support.
+  Result<Bytes> check = cgroups::memory::memsw_limit_in_bytes(
+      path::join(flags.cgroups_hierarchy, "memory"), "/");
+
+  ASSERT_FALSE(check.isError());
+
+  if (check.isNone()) {
+    return;
+  }
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(DoAll(v1::scheduler::SendSubscribe(frameworkInfo),
+                    FutureSatisfy(&connected)));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid, ContentType::PROTOBUF, scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      "test_default_executor",
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT);
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+
+  const v1::Offer& offer = offers->offers(0);
+
+  // NOTE: We use a non-shell command here because 'sh' might not be
+  // in the PATH. 'alpine' does not specify env PATH in the image. On
+  // some linux distribution, '/bin' is not in the PATH by default.
+  v1::TaskInfo taskInfo = v1::createTask(
+      offer.agent_id(),
+      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
+      v1::createCommandInfo("ls", {"ls", "-al", "/"}));
+
+  Future<Event::Update> updateRunning;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateRunning),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())));
+
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
+
+  AWAIT_READY(updateRunning);
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
+  EXPECT_TRUE(updateRunning->status().has_timestamp());
+
+  Future<Event::Update> updateFinished;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&updateFinished));
+
+  AWAIT_READY(updateFinished);
+  ASSERT_EQ(v1::TASK_FINISHED, updateFinished->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateFinished->status().task_id());
+  EXPECT_TRUE(updateFinished->status().has_timestamp());
 }
 
 
@@ -478,8 +593,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PidsAndTids)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -489,7 +603,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PidsAndTids)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   CommandInfo command;
   command.set_shell(false);
@@ -508,13 +622,13 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PidsAndTids)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   Future<ResourceStatistics> usage = containerizer->usage(containerId);
   AWAIT_READY(usage);
@@ -527,8 +641,8 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PidsAndTids)
   //   - cat
   // For `cat` and `mesos-executor`, they keep idling during running
   // the test case. For other processes, they may occur temporarily.
-  EXPECT_GE(usage.get().processes(), 2U);
-  EXPECT_GE(usage.get().threads(), 2U);
+  EXPECT_GE(usage->processes(), 2U);
+  EXPECT_GE(usage->threads(), 2U);
 
   driver.stop();
   driver.join();
@@ -679,7 +793,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_Isolate)
   AWAIT_READY(schedRegistered);
 
   AWAIT_READY(offers);
-  EXPECT_EQ(1u, offers.get().size());
+  EXPECT_EQ(1u, offers->size());
 
   // Create a task to be launched in the mesos-container. We will be
   // explicitly killing this task to perform the cleanup test.
@@ -693,14 +807,14 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_Isolate)
 
   // Capture the update to verify that the task has been launched.
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_RUNNING, status.get().state());
+  ASSERT_EQ(TASK_RUNNING, status->state());
 
   // Task is ready.  Make sure there is exactly 1 container in the hashset.
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  const ContainerID& containerID = *(containers.get().begin());
+  const ContainerID& containerID = *(containers->begin());
 
   Result<string> hierarchy = cgroups::hierarchy("net_cls");
   ASSERT_SOME(hierarchy);
@@ -715,7 +829,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_Isolate)
   ASSERT_SOME(pids);
 
   // There should be at least one TGID associated with this cgroup.
-  EXPECT_LE(1u, pids.get().size());
+  EXPECT_LE(1u, pids->size());
 
   // Read the `net_cls.classid` to verify that the handle has been set.
   Try<uint32_t> classid = cgroups::net_cls::classid(hierarchy.get(), cgroup);
@@ -741,7 +855,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_Isolate)
   Future<Nothing> gcSchedule = FUTURE_DISPATCH(
       _, &slave::GarbageCollectorProcess::schedule);
 
-  driver.killTask(status.get().task_id());
+  driver.killTask(status->task_id());
 
   AWAIT_READY(gcSchedule);
 
@@ -806,7 +920,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_ContainerStatus)
   AWAIT_READY(schedRegistered);
 
   AWAIT_READY(offers);
-  EXPECT_EQ(1u, offers.get().size());
+  EXPECT_EQ(1u, offers->size());
 
   // Create a task to be launched in the mesos-container.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
@@ -818,7 +932,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_ContainerStatus)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_RUNNING, status.get().state());
+  ASSERT_EQ(TASK_RUNNING, status->state());
 
   // Task is ready. Verify `ContainerStatus` is present in slave state.
   Future<Response> response = process::http::get(
@@ -830,7 +944,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_ContainerStatus)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   Result<JSON::Object> netCls = parse->find<JSON::Object>(
@@ -887,8 +1001,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_Sample)
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -898,7 +1011,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_Sample)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 120");
 
@@ -909,21 +1022,21 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_Sample)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(1u, containers.get().size());
+  ASSERT_EQ(1u, containers->size());
 
-  ContainerID containerId = *(containers.get().begin());
+  ContainerID containerId = *(containers->begin());
 
   // This first sample is likely to be empty because perf hasn't
   // completed yet but we should still have the required fields.
   Future<ResourceStatistics> statistics1 = containerizer->usage(containerId);
   AWAIT_READY(statistics1);
-  ASSERT_TRUE(statistics1.get().has_perf());
-  EXPECT_TRUE(statistics1.get().perf().has_timestamp());
-  EXPECT_TRUE(statistics1.get().perf().has_duration());
+  ASSERT_TRUE(statistics1->has_perf());
+  EXPECT_TRUE(statistics1->perf().has_timestamp());
+  EXPECT_TRUE(statistics1->perf().has_duration());
 
   // Wait until we get the next sample. We use a generous timeout of
   // two seconds because we currently have a one second reap interval;
@@ -939,7 +1052,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_Sample)
 
     ASSERT_TRUE(statistics2.has_perf());
 
-    if (statistics1.get().perf().timestamp() !=
+    if (statistics1->perf().timestamp() !=
         statistics2.perf().timestamp()) {
       break;
     }
@@ -948,7 +1061,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_Sample)
     waited += Milliseconds(250);
   } while (waited < Seconds(2));
 
-  EXPECT_NE(statistics1.get().perf().timestamp(),
+  EXPECT_NE(statistics1->perf().timestamp(),
             statistics2.perf().timestamp());
 
   EXPECT_TRUE(statistics2.perf().has_cycles());
@@ -973,12 +1086,6 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   // Start an agent using a containerizer without the perf_event isolation.
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "cgroups/cpu,cgroups/mem";
-
-  // TODO(jieyu): This is necessary because currently, we don't have a
-  // way to kill and wait for the perf process to finish, and cgroups
-  // cleanup function does not yet support killing processes without a
-  // freezer cgroup.
-  flags.agent_subsystems = None();
 
   Fetcher fetcher;
 
@@ -1102,13 +1209,13 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   driver.launchTasks(offers2.get()[0].id(), {task2});
 
   AWAIT_READY(statusRunning2);
-  EXPECT_EQ(TASK_RUNNING, statusRunning2.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning2->state());
 
   containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  EXPECT_EQ(2u, containers.get().size());
-  EXPECT_TRUE(containers.get().contains(containerId1));
+  ASSERT_EQ(2u, containers->size());
+  EXPECT_TRUE(containers->contains(containerId1));
 
   ContainerID containerId2;
   foreach (const ContainerID& containerId, containers.get()) {
@@ -1260,13 +1367,13 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
   driver.launchTasks(offers2.get()[0].id(), {task2});
 
   AWAIT_READY(statusRunning2);
-  EXPECT_EQ(TASK_RUNNING, statusRunning2.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning2->state());
 
   containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  EXPECT_EQ(2u, containers.get().size());
-  EXPECT_TRUE(containers.get().contains(containerId1));
+  ASSERT_EQ(2u, containers->size());
+  EXPECT_TRUE(containers->contains(containerId1));
 
   ContainerID containerId2;
   foreach (const ContainerID& containerId, containers.get()) {
@@ -1368,7 +1475,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
   Future<ResourceStatistics> usage = containerizer->usage(containerId1);
   AWAIT_READY(usage);
 
-  EXPECT_TRUE(usage.get().has_mem_total_bytes());
+  EXPECT_TRUE(usage->has_mem_total_bytes());
 
   slave.get()->terminate();
 
@@ -1416,13 +1523,13 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
   driver.launchTasks(offers2.get()[0].id(), {task2});
 
   AWAIT_READY(statusRunning2);
-  EXPECT_EQ(TASK_RUNNING, statusRunning2.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning2->state());
 
   containers = containerizer->containers();
 
   AWAIT_READY(containers);
-  EXPECT_EQ(2u, containers.get().size());
-  EXPECT_TRUE(containers.get().contains(containerId1));
+  ASSERT_EQ(2u, containers->size());
+  EXPECT_TRUE(containers->contains(containerId1));
 
   ContainerID containerId2;
   foreach (const ContainerID& containerId, containers.get()) {

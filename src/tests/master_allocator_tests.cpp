@@ -34,6 +34,7 @@
 #include <process/gmock.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
+#include <process/queue.hpp>
 
 #include <stout/some.hpp>
 #include <stout/strings.hpp>
@@ -49,6 +50,7 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 #include "tests/module.hpp"
+#include "tests/resources_utils.hpp"
 
 using google::protobuf::RepeatedPtrField;
 
@@ -66,6 +68,7 @@ using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
+using process::Queue;
 
 using process::http::OK;
 using process::http::Response;
@@ -154,13 +157,14 @@ typedef ::testing::Types<HierarchicalDRFAllocator,
 TYPED_TEST_CASE(MasterAllocatorTest, AllocatorTypes);
 
 
+#ifndef __WINDOWS__
 // Checks that in a cluster with one slave and one framework, all of
 // the slave's resources are offered to the framework.
 TYPED_TEST(MasterAllocatorTest, SingleFramework)
 {
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
@@ -168,7 +172,7 @@ TYPED_TEST(MasterAllocatorTest, SingleFramework)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:2;mem:1024;disk:0");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = this->StartSlave(detector.get(), flags);
@@ -178,7 +182,7 @@ TYPED_TEST(MasterAllocatorTest, SingleFramework)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -196,6 +200,7 @@ TYPED_TEST(MasterAllocatorTest, SingleFramework)
   driver.stop();
   driver.join();
 }
+#endif // __WINDOWS__
 
 
 // Checks that when a task is launched with fewer resources than what
@@ -205,7 +210,7 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
 {
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
@@ -216,7 +221,7 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Some("cpus:2;mem:1024");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -228,7 +233,7 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   MesosSchedulerDriver driver1(
       &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   EXPECT_CALL(sched1, registered(_, _, _));
 
@@ -273,7 +278,7 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   MesosSchedulerDriver driver2(
       &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   EXPECT_CALL(sched2, registered(_, _, _));
 
@@ -312,7 +317,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
 {
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
@@ -320,7 +325,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Some("cpus:2;mem:1024");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -335,7 +340,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   MesosSchedulerDriver driver1(
       &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, Eq(frameworkInfo1), _))
+  EXPECT_CALL(allocator, addFramework(_, Eq(frameworkInfo1), _, _))
     .WillOnce(InvokeAddFramework(&allocator));
 
   Future<FrameworkID> frameworkId1;
@@ -403,7 +408,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   MesosSchedulerDriver driver2(
       &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, Eq(frameworkInfo2), _))
+  EXPECT_CALL(allocator, addFramework(_, Eq(frameworkInfo2), _, _))
     .WillOnce(InvokeAddFramework(&allocator));
 
   FrameworkID frameworkId2;
@@ -440,7 +445,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
 {
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
@@ -451,7 +456,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:3;mem:1024");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -469,7 +474,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   MesosSchedulerDriver driver1(
       &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   FrameworkID frameworkId;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
@@ -564,7 +569,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
 {
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -587,7 +592,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:3;mem:1024");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -599,7 +604,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   MesosSchedulerDriver driver1(
       &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   EXPECT_CALL(sched1, registered(_, _, _));
 
@@ -643,7 +648,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   MesosSchedulerDriver driver2(
       &sched2, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   EXPECT_CALL(sched2, registered(_, _, _));
 
@@ -712,7 +717,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
 {
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
@@ -727,7 +732,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   flags1.executor_shutdown_grace_period = Milliseconds(50);
   flags1.resources = Some("cpus:2;mem:1024");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -739,7 +744,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -798,7 +803,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   flags2.resources = string("cpus:3;gpus:0;mem:256;"
                             "disk:1024;ports:[31000-32000]");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   // Eventually after slave2 is launched, we should get
   // an offer that contains all of slave2's resources
@@ -813,7 +818,9 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   AWAIT_READY(resourceOffers);
 
   EXPECT_EQ(Resources(resourceOffers.get()[0].resources()),
-            Resources::parse(flags2.resources.get()).get());
+            allocatedResources(
+                Resources::parse(flags2.resources.get()).get(),
+                DEFAULT_FRAMEWORK_INFO.role()));
 
   // Shut everything down.
   EXPECT_CALL(allocator, recoverResources(_, _, _, _))
@@ -834,7 +841,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
 {
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -847,7 +854,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Some("cpus:3;mem:1024");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -859,7 +866,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -899,7 +906,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
   slave::Flags flags2 = this->CreateSlaveFlags();
   flags2.resources = Some("cpus:4;mem:2048");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   // After slave2 launches, all of its resources are combined with the
   // resources on slave1 that the task isn't using.
@@ -930,7 +937,7 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
 {
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -944,7 +951,7 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:3;mem:1024");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -956,7 +963,7 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1034,7 +1041,7 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
 {
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1049,7 +1056,7 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:2;mem:0");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -1061,7 +1068,7 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1115,7 +1122,7 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
 {
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1130,7 +1137,7 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.resources = Some("cpus:0;mem:200");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -1142,7 +1149,7 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(allocator, addFramework(_, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1209,7 +1216,7 @@ TYPED_TEST(MasterAllocatorTest, Whitelist)
 
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Future<Nothing> updateWhitelist1;
   EXPECT_CALL(allocator, updateWhitelist(Option<hashset<string>>(hosts)))
@@ -1248,7 +1255,7 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
 {
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   master::Flags masterFlags = this->CreateMasterFlags();
   masterFlags.roles = Some("role2");
@@ -1291,7 +1298,7 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
     .WillOnce(FutureSatisfy(&registered2));
 
   Future<Nothing> addFramework;
-  EXPECT_CALL(allocator, addFramework(_, _, _))
+  EXPECT_CALL(allocator, addFramework(_, _, _, _))
     .WillOnce(FutureSatisfy(&addFramework));
 
   driver2.start();
@@ -1341,7 +1348,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
   {
     TestAllocator<TypeParam> allocator;
 
-    EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+    EXPECT_CALL(allocator, initialize(_, _, _, _));
 
     Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
     ASSERT_SOME(master);
@@ -1349,7 +1356,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
     slaveDetector.appoint(master.get()->pid);
     schedulerDetector.appoint(master.get()->pid);
 
-    EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+    EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
     slave::Flags flags = this->CreateSlaveFlags();
     flags.resources = Some("cpus:2;mem:1024");
@@ -1357,7 +1364,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
     slave = this->StartSlave(&slaveDetector, &containerizer, flags);
     ASSERT_SOME(slave);
 
-    EXPECT_CALL(allocator, addFramework(_, _, _));
+    EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
     EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1385,7 +1392,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
     AWAIT_READY(status);
 
-    EXPECT_EQ(TASK_RUNNING, status.get().state());
+    EXPECT_EQ(TASK_RUNNING, status->state());
 
     // Make sure the slave handles status update acknowledgement so
     // that it doesn't try to retry the update after master failover.
@@ -1398,10 +1405,10 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
   {
     TestAllocator<TypeParam> allocator2;
 
-    EXPECT_CALL(allocator2, initialize(_, _, _, _, _));
+    EXPECT_CALL(allocator2, initialize(_, _, _, _));
 
     Future<Nothing> addFramework;
-    EXPECT_CALL(allocator2, addFramework(_, _, _))
+    EXPECT_CALL(allocator2, addFramework(_, _, _, _))
       .WillOnce(DoAll(InvokeAddFramework(&allocator2),
                       FutureSatisfy(&addFramework)));
 
@@ -1417,7 +1424,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
     AWAIT_READY(addFramework);
 
-    EXPECT_CALL(allocator2, addSlave(_, _, _, _, _));
+    EXPECT_CALL(allocator2, addSlave(_, _, _, _, _, _));
 
     Future<vector<Offer>> resourceOffers2;
     EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1465,7 +1472,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
   {
     TestAllocator<TypeParam> allocator;
 
-    EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+    EXPECT_CALL(allocator, initialize(_, _, _, _));
 
     Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
     ASSERT_SOME(master);
@@ -1473,7 +1480,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     slaveDetector.appoint(master.get()->pid);
     schedulerDetector.appoint(master.get()->pid);
 
-    EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+    EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
     slave::Flags flags = this->CreateSlaveFlags();
     flags.resources = Some("cpus:2;mem:1024");
@@ -1481,7 +1488,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     slave = this->StartSlave(&slaveDetector, &containerizer, flags);
     ASSERT_SOME(slave);
 
-    EXPECT_CALL(allocator, addFramework(_, _, _));
+    EXPECT_CALL(allocator, addFramework(_, _, _, _));
     EXPECT_CALL(allocator, recoverResources(_, _, _, _));
 
     EXPECT_CALL(sched, registered(&driver, _, _));
@@ -1508,7 +1515,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
     AWAIT_READY(status);
 
-    EXPECT_EQ(TASK_RUNNING, status.get().state());
+    EXPECT_EQ(TASK_RUNNING, status->state());
 
     // Make sure the slave handles status update acknowledgement so
     // that it doesn't try to retry the update after master failover.
@@ -1521,12 +1528,19 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
   {
     TestAllocator<TypeParam> allocator2;
 
-    EXPECT_CALL(allocator2, initialize(_, _, _, _, _));
+    EXPECT_CALL(allocator2, initialize(_, _, _, _));
 
     Future<Nothing> addSlave;
-    EXPECT_CALL(allocator2, addSlave(_, _, _, _, _))
+    EXPECT_CALL(allocator2, addSlave(_, _, _, _, _, _))
       .WillOnce(DoAll(InvokeAddSlave(&allocator2),
                       FutureSatisfy(&addSlave)));
+
+    // Expect the framework to be added but to be inactive when the
+    // agent re-registers, until the framework re-registers below.
+    Future<Nothing> addFramework;
+    EXPECT_CALL(allocator2, addFramework(_, _, _, false))
+      .WillOnce(DoAll(InvokeAddFramework(&allocator2),
+                      FutureSatisfy(&addFramework)));
 
     Try<Owned<cluster::Master>> master2 = this->StartMaster(&allocator2);
     ASSERT_SOME(master2);
@@ -1535,12 +1549,18 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     slaveDetector.appoint(master2.get()->pid);
 
     AWAIT_READY(addSlave);
+    AWAIT_READY(addFramework);
 
     EXPECT_CALL(sched, disconnected(_));
 
     EXPECT_CALL(sched, registered(&driver, _, _));
 
-    EXPECT_CALL(allocator2, addFramework(_, _, _));
+    // Because the framework was re-added above, we expect to only
+    // activate the framework when it re-registers.
+    EXPECT_CALL(allocator2, addFramework(_, _, _, _))
+      .Times(0);
+
+    EXPECT_CALL(allocator2, activateFramework(_));
 
     Future<vector<Offer>> resourceOffers2;
     EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1566,6 +1586,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 }
 
 
+#ifndef __WINDOWS__
 // This test ensures that resource allocation is correctly rebalanced
 // according to the updated weights.
 TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
@@ -1574,7 +1595,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
 
   TestAllocator<TypeParam> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   // Start Mesos master.
   master::Flags masterFlags = this->CreateMasterFlags();
@@ -1586,19 +1607,26 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   vector<Owned<cluster::Slave>> slaves;
 
   // Register three agents with the same resources.
-  string agentResources = "cpus:2;gpus:0;mem:1024;"
-                          "disk:4096;ports:[31000-32000]";
+  const Resources agentResources = Resources::parse(
+      "cpus:2;gpus:0;mem:1024;disk:4096;ports:[31000-32000]").get();
+
   for (int i = 0; i < 3; i++) {
     Future<Nothing> addSlave;
-    EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
       .WillOnce(DoAll(InvokeAddSlave(&allocator),
                       FutureSatisfy(&addSlave)));
 
     slave::Flags flags = this->CreateSlaveFlags();
-    flags.resources = agentResources;
+    flags.resources = stringify(agentResources);
 
     Try<Owned<cluster::Slave>> slave = this->StartSlave(detector.get(), flags);
     ASSERT_SOME(slave);
+
+    // Advance clock to force agents to register.
+    Clock::advance(flags.authentication_backoff_factor);
+    Clock::advance(flags.registration_backoff_factor);
+    Clock::settle();
+
     slaves.push_back(slave.get());
     AWAIT_READY(addSlave);
   }
@@ -1629,10 +1657,10 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   AWAIT_READY(registered1);
   AWAIT_READY(framework1offers1);
 
-  ASSERT_EQ(3u, framework1offers1.get().size());
+  ASSERT_EQ(3u, framework1offers1->size());
   for (int i = 0; i < 3; i++) {
     EXPECT_EQ(Resources(framework1offers1.get()[i].resources()),
-              Resources::parse(agentResources).get());
+              allocatedResources(agentResources, "role1"));
   }
 
   // Framework2 registers with 'role2' which also uses the default weight.
@@ -1648,12 +1676,16 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   EXPECT_CALL(sched2, registered(&driver2, _, _))
     .WillOnce(FutureSatisfy(&registered2));
 
-  Future<vector<Offer>> framework2offers;
+  Queue<Offer> framework2offers;
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
-    .WillOnce(FutureArg<1>(&framework2offers));
+    .WillRepeatedly(EnqueueOffers(&framework2offers));
 
   driver2.start();
   AWAIT_READY(registered2);
+
+  // Settle to make sure the dispatched allocation is executed before
+  // the weights are updated.
+  Clock::settle();
 
   // role1 share = 1 (cpus=6, mem=3072)
   //   framework1 share = 1
@@ -1685,23 +1717,41 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
           strings::format("%s", JSON::protobuf(infos)).get()));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   // 'updateWeights' will rescind all outstanding offers and the rescinded
   // offer resources will only be available to the updated weights once
   // another allocation is invoked.
-  AWAIT_READY(recoverResources1);
-  EXPECT_EQ(recoverResources1.get(),
-            Resources::parse(agentResources).get());
-  AWAIT_READY(recoverResources2);
-  EXPECT_EQ(recoverResources2.get(),
-            Resources::parse(agentResources).get());
-  AWAIT_READY(recoverResources3);
-  EXPECT_EQ(recoverResources3.get(),
-            Resources::parse(agentResources).get());
+  //
+  // TODO(bmahler): This lambda is copied in several places
+  // in the code, consider how best to pull this out.
+  auto unallocated = [](const Resources& resources) {
+    Resources result = resources;
+    result.unallocate();
+    return result;
+  };
 
-  // Trigger a batch allocation.
+  AWAIT_READY(recoverResources1);
+  EXPECT_EQ(agentResources, unallocated(recoverResources1.get()));
+
+  AWAIT_READY(recoverResources2);
+  EXPECT_EQ(agentResources, unallocated(recoverResources2.get()));
+
+  AWAIT_READY(recoverResources3);
+  EXPECT_EQ(agentResources, unallocated(recoverResources3.get()));
+
+  Resources totalRecovered =
+    recoverResources1.get() + recoverResources2.get() + recoverResources3.get();
+  totalRecovered.unallocate();
+
+  EXPECT_EQ(agentResources + agentResources + agentResources, totalRecovered);
+
+  // Trigger a batch allocation to make sure all resources are
+  // offered out again.
   Clock::advance(masterFlags.allocation_interval);
+
+  // Settle to make sure all offers are received.
+  Clock::settle();
 
   // role1 share = 0.33 (cpus=2, mem=1024)
   //   framework1 share = 1
@@ -1709,15 +1759,18 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   //   framework2 share = 1
 
   AWAIT_READY(framework1offers2);
-  ASSERT_EQ(1u, framework1offers2.get().size());
+  ASSERT_EQ(1u, framework1offers2->size());
   EXPECT_EQ(Resources(framework1offers2.get()[0].resources()),
-            Resources::parse(agentResources).get());
+            allocatedResources(agentResources, "role1"));
 
-  AWAIT_READY(framework2offers);
-  ASSERT_EQ(2u, framework2offers.get().size());
+  ASSERT_EQ(2u, framework2offers.size());
   for (int i = 0; i < 2; i++) {
-    EXPECT_EQ(Resources(framework2offers.get()[i].resources()),
-              Resources::parse(agentResources).get());
+    Future<Offer> offer = framework2offers.get();
+
+    // All offers for framework2 are enqueued by now.
+    AWAIT_READY(offer);
+    EXPECT_EQ(Resources(offer->resources()),
+              allocatedResources(agentResources, "role2"));
   }
 
   driver1.stop();
@@ -1725,6 +1778,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   driver2.stop();
   driver2.join();
 }
+#endif // __WINDOWS__
 
 } // namespace tests {
 } // namespace internal {

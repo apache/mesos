@@ -122,7 +122,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
   driver.start();
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Make sure the acknowledgement reaches the slave.
   AWAIT_READY(statusUpdateAcknowledgementMessage);
@@ -159,7 +159,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
   detector.appoint(master.get()->pid);
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_FINISHED, status2.get().state());
+  EXPECT_EQ(TASK_FINISHED, status2->state());
 
   driver.stop();
   driver.join();
@@ -194,7 +194,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 
   AWAIT_READY(offers);
 
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test task");
@@ -233,10 +233,10 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 
   AWAIT_READY(status);
 
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_LOST, status.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, status.get().reason());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_LOST, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, status->reason());
 
   // Before we obtain the metrics, ensure that the master has finished
   // processing the status update so metrics have been updated.
@@ -289,7 +289,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileDroppedTask)
 
   AWAIT_READY(offers);
 
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test task");
@@ -328,10 +328,10 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileDroppedTask)
 
   AWAIT_READY(status);
 
-  EXPECT_EQ(task.task_id(), status.get().task_id());
-  EXPECT_EQ(TASK_DROPPED, status.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status.get().source());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, status.get().reason());
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_DROPPED, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, status->reason());
 
   // Before we obtain the metrics, ensure that the master has finished
   // processing the status update so metrics have been updated.
@@ -411,7 +411,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
   AWAIT_READY(reregisterSlaveMessage);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test task");
@@ -474,7 +474,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
   executorDriver->sendStatusUpdate(taskStatus);
 
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_FINISHED, status.get().state());
+  ASSERT_EQ(TASK_FINISHED, status->state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -511,7 +511,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // No TASK_LOST updates should occur!
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -580,7 +580,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test task");
@@ -629,7 +629,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
   Clock::settle();
 
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_FINISHED, status.get().state());
+  ASSERT_EQ(TASK_FINISHED, status->state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -668,7 +668,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test task");
@@ -692,7 +692,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
 
   // Wait until TASK_RUNNING of the task is received.
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<ReregisterSlaveMessage> reregisterSlave =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
@@ -705,7 +705,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
   // active frameworks.
   AWAIT_READY(reregisterSlave);
 
-  EXPECT_EQ(1u, reregisterSlave.get().frameworks().size());
+  EXPECT_EQ(1u, reregisterSlave->frameworks().size());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

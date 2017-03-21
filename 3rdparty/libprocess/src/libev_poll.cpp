@@ -96,7 +96,7 @@ void _poll(const std::shared_ptr<ev_async>& async)
 }
 
 
-Future<short> poll(int fd, short events)
+Future<short> poll(int_fd fd, short events)
 {
   Poll* poll = new Poll();
 
@@ -129,7 +129,7 @@ Future<short> poll(int fd, short events)
 } // namespace internal {
 
 
-Future<short> poll(int fd, short events)
+Future<short> poll(int_fd fd, short events)
 {
   process::initialize();
 

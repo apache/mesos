@@ -33,6 +33,8 @@
 using std::list;
 using std::string;
 
+using google::protobuf::RepeatedPtrField;
+
 using process::Failure;
 using process::Future;
 using process::Owned;
@@ -101,10 +103,6 @@ Future<Option<ContainerLaunchInfo>> AppcRuntimeIsolatorProcess::prepare(
   // Set 'launchInfo'.
   ContainerLaunchInfo launchInfo;
 
-  if (environment.isSome()) {
-    launchInfo.mutable_environment()->CopyFrom(environment.get());
-  }
-
   // If working directory or command exists, operation has to be
   // handled specially for the command task. For the command task,
   // the working directory and task command will be passed to
@@ -116,6 +114,12 @@ Future<Option<ContainerLaunchInfo>> AppcRuntimeIsolatorProcess::prepare(
     // Command task case. The 'executorCommand' below is the
     // command with value as 'mesos-executor'.
     CommandInfo executorCommand = containerConfig.executor_info().command();
+
+    if (environment.isSome()) {
+      executorCommand.add_arguments(
+          "--task_environment=" +
+          stringify(JSON::protobuf(environment.get())));
+    }
 
     // Pass working directory to command executor as a flag.
     if (workingDirectory.isSome()) {
@@ -134,6 +138,10 @@ Future<Option<ContainerLaunchInfo>> AppcRuntimeIsolatorProcess::prepare(
     launchInfo.mutable_command()->CopyFrom(executorCommand);
   } else {
     // The custom executor, default executor and nested container cases.
+    if (environment.isSome()) {
+      launchInfo.mutable_environment()->CopyFrom(environment.get());
+    }
+
     if (workingDirectory.isSome()) {
       launchInfo.set_working_directory(workingDirectory.get());
     }
@@ -270,16 +278,10 @@ Result<CommandInfo> AppcRuntimeIsolatorProcess::getLaunchCommand(
   if (app.exec_size() > 0) {
     command.set_value(app.exec(0));
 
+    const RepeatedPtrField<string> arguments = command.arguments();
     command.clear_arguments();
     command.add_arguments(app.exec(0));
-
-    if (!containerConfig.has_task_info()) {
-      command.mutable_arguments()->MergeFrom(
-          containerConfig.executor_info().command().arguments());
-    } else {
-      command.mutable_arguments()->MergeFrom(
-          containerConfig.task_info().command().arguments());
-    }
+    command.mutable_arguments()->MergeFrom(arguments);
 
     if (command.arguments_size() == 1) {
       for (int i = 1; i < app.exec_size(); i++) {

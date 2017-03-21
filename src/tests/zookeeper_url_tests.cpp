@@ -26,48 +26,48 @@ TEST(ZooKeeperURLTest, URL)
   Try<zookeeper::URL> url =
     zookeeper::URL::parse("zk://host1:port1");
   EXPECT_SOME(url);
-  EXPECT_TRUE(url.get().authentication.isNone());
-  EXPECT_EQ("host1:port1", url.get().servers);
-  EXPECT_EQ("/", url.get().path);
+  EXPECT_TRUE(url->authentication.isNone());
+  EXPECT_EQ("host1:port1", url->servers);
+  EXPECT_EQ("/", url->path);
 
   url = zookeeper::URL::parse("zk://jake:1@host1:port1");
   EXPECT_SOME(url);
-  EXPECT_FALSE(url.get().authentication.isNone());
-  EXPECT_EQ("digest", url.get().authentication.get().scheme);
-  EXPECT_EQ("jake:1", url.get().authentication.get().credentials);
-  EXPECT_EQ("host1:port1", url.get().servers);
-  EXPECT_EQ("/", url.get().path);
+  EXPECT_FALSE(url->authentication.isNone());
+  EXPECT_EQ("digest", url->authentication->scheme);
+  EXPECT_EQ("jake:1", url->authentication->credentials);
+  EXPECT_EQ("host1:port1", url->servers);
+  EXPECT_EQ("/", url->path);
 
   url = zookeeper::URL::parse("zk://jake:1@host1:port1/");
   EXPECT_SOME(url);
-  EXPECT_FALSE(url.get().authentication.isNone());
-  EXPECT_EQ("digest", url.get().authentication.get().scheme);
-  EXPECT_EQ("jake:1", url.get().authentication.get().credentials);
-  EXPECT_EQ("host1:port1", url.get().servers);
-  EXPECT_EQ("/", url.get().path);
+  EXPECT_FALSE(url->authentication.isNone());
+  EXPECT_EQ("digest", url->authentication->scheme);
+  EXPECT_EQ("jake:1", url->authentication->credentials);
+  EXPECT_EQ("host1:port1", url->servers);
+  EXPECT_EQ("/", url->path);
 
   url = zookeeper::URL::parse("zk://jake:1@host1:port1,host2:port2");
   EXPECT_SOME(url);
-  EXPECT_FALSE(url.get().authentication.isNone());
-  EXPECT_EQ("digest", url.get().authentication.get().scheme);
-  EXPECT_EQ("jake:1", url.get().authentication.get().credentials);
-  EXPECT_EQ("host1:port1,host2:port2", url.get().servers);
-  EXPECT_EQ("/", url.get().path);
+  EXPECT_FALSE(url->authentication.isNone());
+  EXPECT_EQ("digest", url->authentication->scheme);
+  EXPECT_EQ("jake:1", url->authentication->credentials);
+  EXPECT_EQ("host1:port1,host2:port2", url->servers);
+  EXPECT_EQ("/", url->path);
 
   url = zookeeper::URL::parse("zk://jake:1@host1:port1,host2:port2/");
   EXPECT_SOME(url);
-  EXPECT_FALSE(url.get().authentication.isNone());
-  EXPECT_EQ("digest", url.get().authentication.get().scheme);
-  EXPECT_EQ("jake:1", url.get().authentication.get().credentials);
-  EXPECT_EQ("host1:port1,host2:port2", url.get().servers);
-  EXPECT_EQ("/", url.get().path);
+  EXPECT_FALSE(url->authentication.isNone());
+  EXPECT_EQ("digest", url->authentication->scheme);
+  EXPECT_EQ("jake:1", url->authentication->credentials);
+  EXPECT_EQ("host1:port1,host2:port2", url->servers);
+  EXPECT_EQ("/", url->path);
 
   url =
     zookeeper::URL::parse("zk://jake:1@host1:port1,host2:port2/path/to/znode");
   EXPECT_SOME(url);
-  EXPECT_FALSE(url.get().authentication.isNone());
-  EXPECT_EQ("digest", url.get().authentication.get().scheme);
-  EXPECT_EQ("jake:1", url.get().authentication.get().credentials);
-  EXPECT_EQ("host1:port1,host2:port2", url.get().servers);
-  EXPECT_EQ("/path/to/znode", url.get().path);
+  EXPECT_FALSE(url->authentication.isNone());
+  EXPECT_EQ("digest", url->authentication->scheme);
+  EXPECT_EQ("jake:1", url->authentication->credentials);
+  EXPECT_EQ("host1:port1,host2:port2", url->servers);
+  EXPECT_EQ("/path/to/znode", url->path);
 }

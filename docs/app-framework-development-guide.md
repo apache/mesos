@@ -575,7 +575,7 @@ without `DiscoveryInfo`. For instance, tasks may be made non discoverable to
 other frameworks (equivalent to `visibility=FRAMEWORK`) or discoverable to all
 frameworks (equivalent to `visibility=CLUSTER`).
 
-The `name` field is a string that that provides the service discovery system
+The `name` field is a string that provides the service discovery system
 with the name under which the task is discoverable. The typical use of the name
 field will be to provide a valid hostname. If name is not provided, it is up to
 the service discovery system to create a name for the task based on the name

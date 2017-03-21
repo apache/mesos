@@ -87,7 +87,7 @@ Future<R> run(R (*method)())
     return future;                                                      \
   }
 
-  REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
+  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
 #undef TEMPLATE
 
 } // namespace process {

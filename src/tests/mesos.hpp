@@ -503,11 +503,13 @@ inline TExecutorInfo createExecutorInfo(
 
 template <typename TCommandInfo>
 inline TCommandInfo createCommandInfo(
-    const std::string& value,
+    const Option<std::string>& value = None(),
     const std::vector<std::string>& arguments = {})
 {
   TCommandInfo commandInfo;
-  commandInfo.set_value(value);
+  if (value.isSome()) {
+    commandInfo.set_value(value.get());
+  }
   if (!arguments.empty()) {
     commandInfo.set_shell(false);
     foreach (const std::string& arg, arguments) {
@@ -558,8 +560,8 @@ inline TVolume createVolumeFromDockerImage(
 
 template <typename TContainerInfo, typename TVolume, typename TImage>
 inline TContainerInfo createContainerInfo(
-    const Option<std::string> imageName = None(),
-    const vector<TVolume>& volumes = {})
+    const Option<std::string>& imageName = None(),
+    const std::vector<TVolume>& volumes = {})
 {
   TContainerInfo info;
   info.set_type(TContainerInfo::MESOS);
@@ -808,7 +810,7 @@ inline typename TResource::DiskInfo::Source createDiskSourceMount(
 
 
 // Helper for creating a disk resource.
-template <typename TResource, typename TVolume>
+template <typename TResource, typename TResources, typename TVolume>
 inline TResource createDiskResource(
     const std::string& value,
     const std::string& role,
@@ -817,7 +819,7 @@ inline TResource createDiskResource(
     const Option<typename TResource::DiskInfo::Source>& source = None(),
     bool isShared = false)
 {
-  TResource resource = Resources::parse("disk", value, role).get();
+  TResource resource = TResources::parse("disk", value, role).get();
 
   if (persistenceID.isSome() || containerPath.isSome() || source.isSome()) {
     resource.mutable_disk()->CopyFrom(
@@ -839,7 +841,7 @@ inline TResource createDiskResource(
 
 // Note that `reservationPrincipal` should be specified if and only if
 // the volume uses dynamically reserved resources.
-template <typename TResource, typename TVolume>
+template <typename TResource, typename TResources, typename TVolume>
 inline TResource createPersistentVolume(
     const Bytes& size,
     const std::string& role,
@@ -850,7 +852,7 @@ inline TResource createPersistentVolume(
     const Option<std::string>& creatorPrincipal = None(),
     bool isShared = false)
 {
-  TResource volume = Resources::parse(
+  TResource volume = TResources::parse(
       "disk",
       stringify(size.megabytes()),
       role).get();
@@ -878,7 +880,7 @@ inline TResource createPersistentVolume(
 
 // Note that `reservationPrincipal` should be specified if and only if
 // the volume uses dynamically reserved resources.
-template <typename TResource, typename TVolume>
+template <typename TResource, typename TResources, typename TVolume>
 inline TResource createPersistentVolume(
     TResource volume,
     const std::string& persistenceId,
@@ -917,11 +919,11 @@ template <typename TCredential>
 inline process::http::Headers createBasicAuthHeaders(
     const TCredential& credential)
 {
-  return process::http::Headers{{
+  return process::http::Headers({{
       "Authorization",
       "Basic " +
         base64::encode(credential.principal() + ":" + credential.secret())
-  }};
+  }});
 }
 
 
@@ -1057,7 +1059,7 @@ inline ExecutorInfo createExecutorInfo(Args&&... args)
 
 // We specify the argument to allow brace initialized construction.
 inline CommandInfo createCommandInfo(
-    const std::string& value,
+    const Option<std::string>& value = None(),
     const std::vector<std::string>& arguments = {})
 {
   return common::createCommandInfo<CommandInfo>(value, arguments);
@@ -1088,8 +1090,8 @@ inline Volume createVolumeFromDockerImage(Args&&... args)
 
 // We specify the argument to allow brace initialized construction.
 inline ContainerInfo createContainerInfo(
-    const Option<std::string> imageName = None(),
-    const vector<Volume>& volumes = {})
+    const Option<std::string>& imageName = None(),
+    const std::vector<Volume>& volumes = {})
 {
   return common::createContainerInfo<ContainerInfo, Volume, Image>(
       imageName,
@@ -1158,7 +1160,7 @@ inline Resource::DiskInfo::Source createDiskSourceMount(Args&&... args)
 template <typename... Args>
 inline Resource createDiskResource(Args&&... args)
 {
-  return common::createDiskResource<Resource, Volume>(
+  return common::createDiskResource<Resource, Resources, Volume>(
       std::forward<Args>(args)...);
 }
 
@@ -1166,7 +1168,7 @@ inline Resource createDiskResource(Args&&... args)
 template <typename... Args>
 inline Resource createPersistentVolume(Args&&... args)
 {
-  return common::createPersistentVolume<Resource, Volume>(
+  return common::createPersistentVolume<Resource, Resources, Volume>(
       std::forward<Args>(args)...);
 }
 
@@ -1259,7 +1261,7 @@ inline mesos::v1::ExecutorInfo createExecutorInfo(Args&&... args)
 
 // We specify the argument to allow brace initialized construction.
 inline mesos::v1::CommandInfo createCommandInfo(
-    const std::string& value,
+    const Option<std::string>& value = None(),
     const std::vector<std::string>& arguments = {})
 {
   return common::createCommandInfo<mesos::v1::CommandInfo>(value, arguments);
@@ -1292,8 +1294,8 @@ inline mesos::v1::Volume createVolumeFromDockerImage(Args&&... args)
 
 // We specify the argument to allow brace initialized construction.
 inline mesos::v1::ContainerInfo createContainerInfo(
-    const Option<std::string> imageName = None(),
-    const vector<mesos::v1::Volume>& volumes = {})
+    const Option<std::string>& imageName = None(),
+    const std::vector<mesos::v1::Volume>& volumes = {})
 {
   return common::createContainerInfo<
       mesos::v1::ContainerInfo, mesos::v1::Volume, mesos::v1::Image>(
@@ -1371,16 +1373,20 @@ inline mesos::v1::Resource::DiskInfo::Source createDiskSourceMount(
 template <typename... Args>
 inline mesos::v1::Resource createDiskResource(Args&&... args)
 {
-  return common::createDiskResource<mesos::v1::Resource, mesos::v1::Volume>(
-      std::forward<Args>(args)...);
+  return common::createDiskResource<
+      mesos::v1::Resource,
+      mesos::v1::Resources,
+      mesos::v1::Volume>(std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
 inline mesos::v1::Resource createPersistentVolume(Args&&... args)
 {
-  return common::createPersistentVolume<mesos::v1::Resource, mesos::v1::Volume>(
-      std::forward<Args>(args)...);
+  return common::createPersistentVolume<
+      mesos::v1::Resource,
+      mesos::v1::Resources,
+      mesos::v1::Volume>(std::forward<Args>(args)...);
 }
 
 
@@ -1470,7 +1476,7 @@ inline mesos::v1::Parameters parameterize(Args&&... args)
 inline mesos::v1::scheduler::Call createCallAccept(
     const mesos::v1::FrameworkID& frameworkId,
     const mesos::v1::Offer& offer,
-    const mesos::v1::Offer::Operation& operation)
+    const std::vector<mesos::v1::Offer::Operation>& operations)
 {
   mesos::v1::scheduler::Call call;
   call.set_type(mesos::v1::scheduler::Call::ACCEPT);
@@ -1478,7 +1484,10 @@ inline mesos::v1::scheduler::Call createCallAccept(
 
   mesos::v1::scheduler::Call::Accept* accept = call.mutable_accept();
   accept->add_offer_ids()->CopyFrom(offer.id());
-  accept->add_operations()->CopyFrom(operation);
+
+  foreach (const mesos::v1::Offer::Operation& operation, operations) {
+    accept->add_operations()->CopyFrom(operation);
+  }
 
   return call;
 }
@@ -1556,14 +1565,15 @@ ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
   for (size_t i = 0; i < offers.size(); i++) {
     const Offer& offer = offers[i];
 
-    const Resources TASK_RESOURCES = Resources::parse(
+    Resources taskResources = Resources::parse(
         "cpus:" + stringify(cpus) + ";mem:" + stringify(mem)).get();
+    taskResources.allocate(role);
 
     int nextTaskId = 0;
     std::vector<TaskInfo> tasks;
     Resources remaining = offer.resources();
 
-    while (remaining.flatten().contains(TASK_RESOURCES) &&
+    while (remaining.flatten().contains(taskResources) &&
            launched < numTasks) {
       TaskInfo task;
       task.set_name("TestTask");
@@ -1572,7 +1582,7 @@ ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
       task.mutable_executor()->MergeFrom(executor);
 
       Option<Resources> resources =
-        remaining.find(TASK_RESOURCES.flatten(role).get());
+        remaining.find(taskResources.flatten(role).get());
 
       CHECK_SOME(resources);
 

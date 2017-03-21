@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+syntax = "proto2";
+
 import "mesos/mesos.proto";
 
 package mesos.internal;
@@ -32,6 +34,11 @@ package mesos.internal;
  * passing it from the agent to the framework that spawned the task.
  *
  * See protobuf::createStatusUpdate.
+ *
+ * A task status update may be used for guaranteed delivery of some
+ * task-related information, e.g., task's health update. Such information
+ * may be shadowed by subsequent task status updates, that do not preserve
+ * fields of the previously sent message.
  */
 message StatusUpdate {
   required FrameworkID framework_id = 1;
@@ -266,13 +273,18 @@ message RescindInverseOfferMessage {
 
 
 /**
- * Removes all filters previously set by the scheduler.
+ * Removes filters for the specified role. If a role is not provided, then
+ * this is equivalent to passing all of the framework's subscribed roles.
  *
  * Used by the pre-Event/Call Mesos scheduler driver.
  * See scheduler::Call::Revive.
+ *
+ * NOTE: There is no optional `role` field in V0 API as we will eventually
+ * move to V1 API.
  */
 message ReviveOffersMessage {
   required FrameworkID framework_id = 1;
+  optional string role = 2;
 }
 
 
@@ -427,6 +439,11 @@ message RegisterSlaveMessage {
   // version. If unset the agent is < 0.21.0.
   // TODO(bmahler): Do proper versioning: MESOS-986.
   optional string version = 2;
+
+  // This field allows an agent to advertise its set of
+  // capabilities (e.g., ability to launch tasks of 'multi-role'
+  // frameworks).
+  repeated SlaveInfo.Capability agent_capabilities = 4;
 }
 
 
@@ -458,6 +475,11 @@ message ReregisterSlaveMessage {
   // version. If unset the agent is < 0.21.0.
   // TODO(bmahler): Do proper versioning: MESOS-986.
   optional string version = 6;
+
+  // This field allows an agent to advertise its set of
+  // capabilities (e.g., ability to launch tasks of 'multi-role'
+  // frameworks).
+  repeated SlaveInfo.Capability agent_capabilities = 9;
 }
 
 
@@ -551,6 +573,9 @@ message UpdateFrameworkMessage {
 
   // See the comment on RunTaskMessage.pid.
   optional string pid = 2;
+
+  // Updated framework info.
+  optional FrameworkInfo framework_info = 3;
 }
 
 

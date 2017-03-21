@@ -157,6 +157,23 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
 
   deviceEntries[Path("/dev/nvidiactl")] = entry;
 
+  // The `nvidia-uvm` module is not typically loaded by default on
+  // systems that have Nvidia GPU drivers installed. Instead,
+  // applications that require this module use `nvidia-modprobe` to
+  // load it dynamically on first use. This program both loads the
+  // `nvidia-uvm` kernel module and creates the corresponding
+  // `/dev/nvidia-uvm` device that it controls.
+  //
+  // We call `nvidia-modprobe` here to ensure that `/dev/nvidia-uvm`
+  // is properly created so we can inject it into any containers that
+  // may require it.
+  if (!os::exists("/dev/nvidia-uvm")) {
+    Try<string> modprobe = os::shell("nvidia-modprobe -u -c 0");
+    if (modprobe.isError()) {
+      return Error("Failed to load '/dev/nvidia-uvm': " + modprobe.error());
+    }
+  }
+
   device = os::stat::rdev("/dev/nvidia-uvm");
   if (device.isError()) {
     return Error("Failed to obtain device ID for '/dev/nvidia-uvm': " +

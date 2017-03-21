@@ -81,7 +81,9 @@ public:
   //
   // The returned future fails if the requested image or any of its
   // dependencies cannot be found or failed to be fetched.
-  virtual process::Future<ImageInfo> get(const Image& image) = 0;
+  virtual process::Future<ImageInfo> get(
+      const Image& image,
+      const std::string& backend) = 0;
 };
 
 } // namespace slave {

@@ -33,14 +33,20 @@
 #include <process/http.hpp>
 #include <process/id.hpp>
 #include <process/io.hpp>
+#ifdef USE_SSL_SOCKET
+#include <process/jwt.hpp>
+#endif // USE_SSL_SOCKET
 #include <process/owned.hpp>
 #include <process/socket.hpp>
+
+#include <process/ssl/gtest.hpp>
 
 #include <stout/base64.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashset.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
@@ -49,7 +55,6 @@
 #include "encoder.hpp"
 
 namespace authentication = process::http::authentication;
-namespace ID = process::ID;
 namespace http = process::http;
 #ifndef __WINDOWS__
 namespace unix = process::network::unix;
@@ -58,12 +63,21 @@ namespace unix = process::network::unix;
 using authentication::Authenticator;
 using authentication::AuthenticationResult;
 using authentication::BasicAuthenticator;
+#ifdef USE_SSL_SOCKET
+using authentication::JWT;
+using authentication::JWTAuthenticator;
+using authentication::JWTError;
+#endif // USE_SSL_SOCKET
+using authentication::Principal;
 
+using process::Failure;
 using process::Future;
 using process::Owned;
 using process::PID;
 using process::Process;
 using process::Promise;
+using process::READONLY_HTTP_AUTHENTICATION_REALM;
+using process::READWRITE_HTTP_AUTHENTICATION_REALM;
 
 using process::http::URL;
 
@@ -79,6 +93,18 @@ using testing::DoAll;
 using testing::EndsWith;
 using testing::Invoke;
 using testing::Return;
+using testing::WithParamInterface;
+
+namespace process {
+
+// We need to reinitialize libprocess in order to test against different
+// configurations, such as when libprocess is initialized with SSL enabled.
+void reinitialize(
+    const Option<string>& delegate,
+    const Option<string>& readonlyAuthenticationRealm,
+    const Option<string>& readwriteAuthenticationRealm);
+
+} // namespace process {
 
 class HttpProcess : public Process<HttpProcess>
 {
@@ -97,7 +123,7 @@ public:
 
   MOCK_METHOD2(
       authenticated,
-      Future<http::Response>(const http::Request&, const Option<string>&));
+      Future<http::Response>(const http::Request&, const Option<Principal>&));
 
 protected:
   virtual void initialize()
@@ -139,10 +165,73 @@ public:
 };
 
 
+// Parametrize the tests with the scheme to be used for HTTP connections.
+class HTTPTest : public SSLTemporaryDirectoryTest,
+                 public WithParamInterface<string>
+{
+// These are only needed if libprocess is compiled with SSL support.
+#ifdef USE_SSL_SOCKET
+protected:
+  virtual void SetUp()
+  {
+    // We must run the parent's `SetUp` first so that we `chdir` into the test
+    // directory before SSL helpers like `key_path()` are called.
+    SSLTemporaryDirectoryTest::SetUp();
+
+    if (GetParam() == "https") {
+      generate_keys_and_certs();
+      set_environment_variables({
+          {"LIBPROCESS_SSL_ENABLED", "true"},
+          {"LIBPROCESS_SSL_KEY_FILE", key_path()},
+          {"LIBPROCESS_SSL_CERT_FILE", certificate_path()}});
+    } else {
+      set_environment_variables({});
+    }
+
+    process::reinitialize(
+        None(),
+        READWRITE_HTTP_AUTHENTICATION_REALM,
+        READONLY_HTTP_AUTHENTICATION_REALM);
+  }
+
+public:
+  static void TearDownTestCase()
+  {
+    set_environment_variables({});
+    process::reinitialize(
+        None(),
+        READWRITE_HTTP_AUTHENTICATION_REALM,
+        READONLY_HTTP_AUTHENTICATION_REALM);
+
+    SSLTemporaryDirectoryTest::TearDownTestCase();
+  }
+#endif // USE_SSL_SOCKET
+};
+
+
+// NOTE: We don't simply `#ifdef` out the `string("https")` argument inside
+// the `INSTANTIATE_TEST_CASE_P` because the `#ifdef` would not be required
+// to expand. In particular, it would break the build with MSVC.
+#ifdef USE_SSL_SOCKET
+INSTANTIATE_TEST_CASE_P(
+    Scheme,
+    HTTPTest,
+    ::testing::Values(
+        string("https"),
+        string("http")));
+#else
+INSTANTIATE_TEST_CASE_P(
+    Scheme,
+    HTTPTest,
+    ::testing::Values(
+        string("http")));
+#endif // USE_SSL_SOCKET
+
+
 // TODO(vinod): Use AWAIT_EXPECT_RESPONSE_STATUS_EQ in the tests.
 
 
-TEST(HTTPTest, Endpoints)
+TEST_P(HTTPTest, Endpoints)
 {
   Http http;
 
@@ -182,7 +271,8 @@ TEST(HTTPTest, Endpoints)
     .WillOnce(DoAll(FutureSatisfy(&request),
                     Return(ok)));
 
-  Future<http::Response> future = http::get(http.process->self(), "pipe");
+  Future<http::Response> future =
+    http::get(http.process->self(), "pipe", None(), None(), GetParam());
 
   AWAIT_READY(request);
 
@@ -202,7 +292,7 @@ TEST(HTTPTest, Endpoints)
   EXPECT_CALL(*http.process, body(_))
     .WillOnce(Return(Future<http::Response>::failed("failure")));
 
-  future = http::get(http.process->self(), "body");
+  future = http::get(http.process->self(), "body", None(), None(), GetParam());
 
   AWAIT_ASSERT_RESPONSE_STATUS_EQ(http::InternalServerError().status, future);
   EXPECT_EQ("failure", future->body);
@@ -212,7 +302,7 @@ TEST(HTTPTest, Endpoints)
 // TODO(hausdorff): Routing logic is broken on Windows. Fix and enable test. In
 // this case, the '/help/(14)/body' route is missing, but the /help/(14) route
 // exists. See MESOS-5904.
-TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelp)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelp)
 {
   Http http;
   PID<HttpProcess> pid = http.process->self();
@@ -225,7 +315,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelp)
 
   // Hit '/help' and wait for a 200 OK response.
   http::URL url = http::URL(
-      "http",
+      GetParam(),
       http.process->self().address.ip,
       http.process->self().address.port,
       "/help");
@@ -238,7 +328,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelp)
 
   // Hit '/help?format=json' and wait for a 200 OK response.
   url = http::URL(
-      "http",
+      GetParam(),
       http.process->self().address.ip,
       http.process->self().address.port,
       "/help",
@@ -255,7 +345,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelp)
 
   // Hit '/help/<id>/body' and wait for a 200 OK response.
   url = http::URL(
-      "http",
+      GetParam(),
       http.process->self().address.ip,
       http.process->self().address.port,
       "/help/" + pid.id + "/body");
@@ -268,7 +358,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelp)
 
   // Hit '/help/<id>/a/b/c' and wait for a 200 OK response.
   url = http::URL(
-      "http",
+      GetParam(),
       http.process->self().address.ip,
       http.process->self().address.port,
       "/help/" + pid.id + "/a/b/c");
@@ -284,7 +374,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelp)
 // TODO(hausdorff): Routing logic is broken on Windows. Fix and enable test. In
 // this case, the '/help/(14)/body' route is missing, but the /help/(14) route
 // exists. See MESOS-5904.
-TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelpRemoval)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelpRemoval)
 {
   // Start up a new HttpProcess;
   Owned<Http> http(new Http());
@@ -298,7 +388,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelpRemoval)
 
   // Hit '/help/<id>/body' and wait for a 200 OK response.
   http::URL url = http::URL(
-      "http",
+      GetParam(),
       http->process->self().address.ip,
       http->process->self().address.port,
       "/help/" + pid.id + "/body");
@@ -315,7 +405,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelpRemoval)
 
   // Hit '/help/<id>/bogus' and wait for a 400 BAD REQUEST response.
   url = http::URL(
-      "http",
+      GetParam(),
       process::address().ip,
       process::address().port,
       "/help/" + pid.id + "/bogus");
@@ -328,7 +418,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelpRemoval)
 }
 
 
-TEST(HTTPTest, PipeEOF)
+TEST_P(HTTPTest, PipeEOF)
 {
   http::Pipe pipe;
   http::Pipe::Reader reader = pipe.reader();
@@ -378,7 +468,7 @@ TEST(HTTPTest, PipeEOF)
 }
 
 
-TEST(HTTPTest, PipeFailure)
+TEST_P(HTTPTest, PipeFailure)
 {
   http::Pipe pipe;
   http::Pipe::Reader reader = pipe.reader();
@@ -449,7 +539,7 @@ TEST(HTTPTest, PipeReadAll)
 }
 
 
-TEST(HTTPTest, PipeReaderCloses)
+TEST_P(HTTPTest, PipeReaderCloses)
 {
   http::Pipe pipe;
   http::Pipe::Reader reader = pipe.reader();
@@ -483,7 +573,7 @@ TEST(HTTPTest, PipeReaderCloses)
 }
 
 
-TEST(HTTPTest, Encode)
+TEST_P(HTTPTest, Encode)
 {
   string unencoded = "a$&+,/:;=?@ \"<>#%{}|\\^~[]`\x19\x80\xFF";
   unencoded += string("\x00", 1); // Add a null byte to the end.
@@ -507,7 +597,7 @@ TEST(HTTPTest, Encode)
 }
 
 
-TEST(HTTPTest, PathParse)
+TEST_P(HTTPTest, PathParse)
 {
   const string pattern = "/books/{isbn}/chapters/{chapter}";
 
@@ -580,14 +670,15 @@ http::Response validateGetWithQuery(const http::Request& request)
 }
 
 
-TEST(HTTPTest, Get)
+TEST_P(HTTPTest, Get)
 {
   Http http;
 
   EXPECT_CALL(*http.process, get(_))
     .WillOnce(Invoke(validateGetWithoutQuery));
 
-  Future<http::Response> noQueryFuture = http::get(http.process->self(), "get");
+  Future<http::Response> noQueryFuture =
+    http::get(http.process->self(), "get", None(), None(), GetParam());
 
   AWAIT_READY(noQueryFuture);
   EXPECT_EQ(http::Status::OK, noQueryFuture->code);
@@ -597,7 +688,7 @@ TEST(HTTPTest, Get)
     .WillOnce(Invoke(validateGetWithQuery));
 
   Future<http::Response> queryFuture =
-    http::get(http.process->self(), "get", "foo=bar");
+    http::get(http.process->self(), "get", "foo=bar", None(), GetParam());
 
   AWAIT_READY(queryFuture);
   ASSERT_EQ(http::Status::OK, queryFuture->code);
@@ -608,7 +699,7 @@ TEST(HTTPTest, Get)
 // TODO(hausdorff): Routing logic is broken on Windows. Fix and enable test. In
 // this case, the route '/a/b/c' exists and returns 200 ok, but '/a/b' does
 // not. See MESOS-5904.
-TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, NestedGet)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(HTTPTest, NestedGet)
 {
   Http http;
 
@@ -619,7 +710,8 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, NestedGet)
     .WillOnce(Return(http::OK()));
 
   // The handler for "/a/b/c" should return 'http::OK()'.
-  Future<http::Response> response = http::get(http.process->self(), "/a/b/c");
+  Future<http::Response> response =
+    http::get(http.process->self(), "/a/b/c", None(), None(), GetParam());
 
   AWAIT_READY(response);
   ASSERT_EQ(http::Status::OK, response->code);
@@ -627,7 +719,8 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, NestedGet)
 
   // "/a/b" should be handled by "/a" handler and return
   // 'http::Accepted()'.
-  response = http::get(http.process->self(), "/a/b");
+  response =
+    http::get(http.process->self(), "/a/b", None(), None(), GetParam());
 
   AWAIT_READY(response);
   ASSERT_EQ(http::Status::ACCEPTED, response->code);
@@ -635,7 +728,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, NestedGet)
 }
 
 
-TEST(HTTPTest, StreamingGetComplete)
+TEST_P(HTTPTest, StreamingGetComplete)
 {
   Http http;
 
@@ -647,8 +740,8 @@ TEST(HTTPTest, StreamingGetComplete)
   EXPECT_CALL(*http.process, pipe(_))
     .WillOnce(Return(ok));
 
-  Future<http::Response> response =
-    http::streaming::get(http.process->self(), "pipe");
+  Future<http::Response> response = http::streaming::get(
+      http.process->self(), "pipe", None(), None(), GetParam());
 
   // The response should be ready since the headers were sent.
   AWAIT_READY(response);
@@ -677,7 +770,7 @@ TEST(HTTPTest, StreamingGetComplete)
 }
 
 
-TEST(HTTPTest, StreamingGetFailure)
+TEST_P(HTTPTest, StreamingGetFailure)
 {
   Http http;
 
@@ -689,8 +782,8 @@ TEST(HTTPTest, StreamingGetFailure)
   EXPECT_CALL(*http.process, pipe(_))
     .WillOnce(Return(ok));
 
-  Future<http::Response> response =
-    http::streaming::get(http.process->self(), "pipe");
+  Future<http::Response> response = http::streaming::get(
+      http.process->self(), "pipe", None(), None(), GetParam());
 
   // The response should be ready since the headers were sent.
   AWAIT_READY(response);
@@ -719,7 +812,7 @@ TEST(HTTPTest, StreamingGetFailure)
 }
 
 
-TEST(HTTPTest, PipeEquality)
+TEST_P(HTTPTest, PipeEquality)
 {
   // Pipes are shared objects, like Futures. Copies are considered
   // equal as they point to the same underlying object.
@@ -751,13 +844,18 @@ http::Response validatePost(const http::Request& request)
 }
 
 
-TEST(HTTPTest, Post)
+TEST_P(HTTPTest, Post)
 {
   Http http;
 
   // Test the case where there is a content type but no body.
-  Future<http::Response> future =
-    http::post(http.process->self(), "post", None(), None(), "text/plain");
+  Future<http::Response> future = http::post(
+      http.process->self(),
+      "post",
+      None(),
+      None(),
+      "text/plain",
+      GetParam());
 
   AWAIT_EXPECT_FAILED(future);
 
@@ -769,7 +867,8 @@ TEST(HTTPTest, Post)
       "post",
       None(),
       "This is the payload.",
-      "text/plain");
+      "text/plain",
+      GetParam());
 
   AWAIT_READY(future);
   ASSERT_EQ(http::Status::OK, future->code);
@@ -782,8 +881,13 @@ TEST(HTTPTest, Post)
   EXPECT_CALL(*http.process, post(_))
     .WillOnce(Invoke(validatePost));
 
-  future =
-    http::post(http.process->self(), "post", headers, "This is the payload.");
+  future = http::post(
+      http.process->self(),
+      "post",
+      headers,
+      "This is the payload.",
+      None(),
+      GetParam());
 
   AWAIT_READY(future);
   ASSERT_EQ(http::Status::OK, future->code);
@@ -802,7 +906,7 @@ http::Response validateDelete(const http::Request& request)
 }
 
 
-TEST(HTTPTest, Delete)
+TEST_P(HTTPTest, Delete)
 {
   Http http;
 
@@ -810,7 +914,11 @@ TEST(HTTPTest, Delete)
     .WillOnce(Invoke(validateDelete));
 
   Future<http::Response> future =
-    http::requestDelete(http.process->self(), "delete", None());
+    http::requestDelete(
+        http.process->self(),
+        "delete",
+        None(),
+        GetParam());
 
   AWAIT_READY(future);
   ASSERT_EQ(http::Status::OK, future->code);
@@ -829,7 +937,7 @@ http::Response validateDeleteHttpRequest(const http::Request& request)
 }
 
 
-TEST(HTTPTest, Request)
+TEST_P(HTTPTest, Request)
 {
   Http http;
 
@@ -838,7 +946,7 @@ TEST(HTTPTest, Request)
 
   Future<http::Response> future =
     http::request(http::createRequest(
-        http.process->self(), "DELETE", false, "request"));
+        http.process->self(), "DELETE", GetParam() == "https", "request"));
 
   AWAIT_READY(future);
   ASSERT_EQ(http::Status::OK, future->code);
@@ -1303,7 +1411,7 @@ TEST(HTTPConnectionTest, RequestStreaming)
 // incorrect) results across platforms. Fix and enable the test on Windows. In
 // particular, the encoding in the 3rd example puts the first variable into the
 // query string before the second, but we expect the reverse. See MESOS-5814.
-TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, QueryEncodeDecode)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(HTTPTest, QueryEncodeDecode)
 {
   // If we use Type<a, b> directly inside a macro without surrounding
   // parenthesis the comma will be eaten by the macro rather than the
@@ -1344,7 +1452,59 @@ TEST_TEMP_DISABLED_ON_WINDOWS(HTTPTest, QueryEncodeDecode)
 }
 
 
-TEST(HTTPTest, CaseInsensitiveHeaders)
+TEST_P(HTTPTest, Headers)
+{
+  http::Headers headers({
+    {"Content-Type", "application/json; charset=utf-8"},
+    {"Docker-Distribution-Api-Version", "registry/2.0"},
+    {"Www-Authenticate", "Basic realm=\"basic-realm\""},
+    {"Date", "Tue, 31 Jan 2017 13:48:24 GMT"}
+  });
+
+  EXPECT_EQ("application/json; charset=utf-8", headers["Content-Type"]);
+  EXPECT_EQ("registry/2.0", headers["Docker-Distribution-Api-Version"]);
+  EXPECT_EQ("Basic realm=\"basic-realm\"", headers["Www-Authenticate"]);
+  EXPECT_EQ("Tue, 31 Jan 2017 13:48:24 GMT", headers["Date"]);
+
+  EXPECT_SOME_EQ("application/json; charset=utf-8",
+                 headers.get("Content-Type"));
+
+  EXPECT_SOME_EQ("registry/2.0",
+                 headers.get("Docker-Distribution-Api-Version"));
+
+  EXPECT_SOME_EQ("Basic realm=\"basic-realm\"",
+                 headers.get("Www-Authenticate"));
+
+  EXPECT_SOME_EQ("Tue, 31 Jan 2017 13:48:24 GMT", headers.get("Date"));
+
+  EXPECT_EQ("application/json; charset=utf-8", headers.at("Content-Type"));
+  EXPECT_EQ("registry/2.0", headers.at("Docker-Distribution-Api-Version"));
+  EXPECT_EQ("Basic realm=\"basic-realm\"", headers.at("Www-Authenticate"));
+  EXPECT_EQ("Tue, 31 Jan 2017 13:48:24 GMT", headers.at("Date"));
+
+  EXPECT_TRUE(headers.contains("Content-Type"));
+  EXPECT_TRUE(headers.contains("Docker-Distribution-Api-Version"));
+  EXPECT_TRUE(headers.contains("Www-Authenticate"));
+  EXPECT_TRUE(headers.contains("Date"));
+  EXPECT_EQ(4u, headers.size());
+  EXPECT_FALSE(headers.empty());
+
+  headers.put("Date", "Wed, 1 Feb 2017 00:00:00 GMT");
+  headers.put("Content-Length", "87");
+
+  EXPECT_TRUE(headers.contains("Date"));
+  EXPECT_TRUE(headers.contains("Content-Length"));
+
+  EXPECT_EQ("Wed, 1 Feb 2017 00:00:00 GMT", headers["Date"]);
+  EXPECT_EQ("87", headers["Content-Length"]);
+
+  headers.clear();
+  EXPECT_EQ(0u, headers.size());
+  EXPECT_TRUE(headers.empty());
+}
+
+
+TEST_P(HTTPTest, CaseInsensitiveHeaders)
 {
   http::Request request;
   request.headers["Content-Length"] = "20";
@@ -1370,7 +1530,73 @@ TEST(HTTPTest, CaseInsensitiveHeaders)
 }
 
 
-TEST(HTTPTest, Accepts)
+TEST_P(HTTPTest, WWWAuthenticateHeader)
+{
+  http::Headers headers;
+  headers["Www-Authenticate"] = "Basic realm=\"basic-realm\"";
+
+  Result<http::header::WWWAuthenticate> header =
+    headers.get<http::header::WWWAuthenticate>();
+
+  ASSERT_SOME(header);
+
+  EXPECT_EQ("Basic", header->authScheme());
+  EXPECT_EQ(1u, header->authParam().size());
+  EXPECT_EQ("basic-realm", header->authParam()["realm"]);
+
+  headers.clear();
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_NONE(header);
+
+  headers["Www-Authenticate"] =
+    "Bearer realm=\"https://auth.docker.io/token\","
+    "service=\"registry.docker.io\","
+    "scope=\"repository:gilbertsong/inky:pull\"";
+
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  ASSERT_SOME(header);
+
+  EXPECT_EQ("Bearer", header->authScheme());
+  EXPECT_EQ(3u, header->authParam().size());
+  EXPECT_EQ("https://auth.docker.io/token", header->authParam()["realm"]);
+  EXPECT_EQ("registry.docker.io", header->authParam()["service"]);
+  EXPECT_EQ("repository:gilbertsong/inky:pull", header->authParam()["scope"]);
+
+  headers["Www-Authenticate"] = "";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
+
+  headers["Www-Authenticate"] = " ";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
+
+  headers["Www-Authenticate"] = "Digest";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
+
+  headers["Www-Authenticate"] = "Digest =";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
+
+  headers["Www-Authenticate"] = "Digest ,,";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
+
+  headers["Www-Authenticate"] = "Digest uri=\"/dir/index.html\",qop=auth";
+  header = headers.get<http::header::WWWAuthenticate>();
+
+  EXPECT_ERROR(header);
+}
+
+
+TEST_P(HTTPTest, Accepts)
 {
   // Create requests that do not accept the 'text/*' media type.
   vector<string> headers = {
@@ -1499,6 +1725,7 @@ TEST(URLTest, ParseUrls)
 
   // Missing scheme.
   EXPECT_ERROR(URL::parse("mesos.com"));
+  EXPECT_ERROR(URL::parse("http/abcdef"));
   // Unknown scheme with no port.
   EXPECT_ERROR(URL::parse("abc://abc.com"));
   // Invalid urls.
@@ -1554,7 +1781,7 @@ TEST_F(HttpAuthenticationTest, NoAuthenticator)
 {
   Http http;
 
-  EXPECT_CALL(*http.process, authenticated(_, Option<string>::none()))
+  EXPECT_CALL(*http.process, authenticated(_, Option<Principal>::none()))
     .WillOnce(Return(http::OK()));
 
   Future<http::Response> response =
@@ -1622,12 +1849,12 @@ TEST_F(HttpAuthenticationTest, Authenticated)
   Http http;
 
   AuthenticationResult authentication;
-  authentication.principal = "principal";
+  authentication.principal = Principal("principal");
 
   EXPECT_CALL((*authenticator), authenticate(_))
     .WillOnce(Return(authentication));
 
-  EXPECT_CALL(*http.process, authenticated(_, Option<string>("principal")))
+  EXPECT_CALL(*http.process, authenticated(_, Option<Principal>("principal")))
     .WillOnce(Return(http::OK()));
 
   // Note that we don't bother pretending to specify a valid
@@ -1636,6 +1863,31 @@ TEST_F(HttpAuthenticationTest, Authenticated)
     http::get(http.process->self(), "authenticated");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+}
+
+
+// Tests that if an authenticator returns an invalid principal, the request
+// will not succeed.
+TEST_F(HttpAuthenticationTest, InvalidPrincipal)
+{
+  MockAuthenticator* authenticator = new MockAuthenticator();
+  setAuthenticator("realm", Owned<Authenticator>(authenticator));
+
+  Http http;
+
+  // This principal is invalid because it has neither `value` nor `claims` set.
+  AuthenticationResult authentication;
+  authentication.principal = Principal(None(), {});
+
+  EXPECT_CALL((*authenticator), authenticate(_))
+    .WillOnce(Return(authentication));
+
+  // Note that we don't bother pretending to specify a valid
+  // 'Authorization' header since we force authentication success.
+  Future<http::Response> response =
+    http::get(http.process->self(), "authenticated");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::InternalServerError().status, response);
 }
 
 
@@ -1657,8 +1909,8 @@ TEST_F(HttpAuthenticationTest, Pipelining)
     .WillOnce(Return(promise1.future()))
     .WillOnce(Return(promise2.future()));
 
-  Future<Option<string>> principal1;
-  Future<Option<string>> principal2;
+  Future<Option<Principal>> principal1;
+  Future<Option<Principal>> principal2;
   EXPECT_CALL(*http.process, authenticated(_, _))
     .WillOnce(DoAll(FutureArg<1>(&principal1), Return(http::OK("1"))))
     .WillOnce(DoAll(FutureArg<1>(&principal2), Return(http::OK("2"))));
@@ -1684,13 +1936,13 @@ TEST_F(HttpAuthenticationTest, Pipelining)
   Future<http::Response> response1 = connection.send(request);
   Future<http::Response> response2 = connection.send(request);
 
-  AuthenticationResult authentiation2;
-  authentiation2.principal = "principal2";
-  promise2.set(authentiation2);
+  AuthenticationResult authentication2;
+  authentication2.principal = Principal("principal2");
+  promise2.set(authentication2);
 
-  AuthenticationResult authentiation1;
-  authentiation1.principal = "princpal1";
-  promise1.set(authentiation1);
+  AuthenticationResult authentication1;
+  authentication1.principal = Principal("principal1");
+  promise1.set(authentication1);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response1);
   EXPECT_EQ("1", response1->body);
@@ -1698,8 +1950,8 @@ TEST_F(HttpAuthenticationTest, Pipelining)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response2);
   EXPECT_EQ("2", response2->body);
 
-  AWAIT_EXPECT_EQ(authentiation1.principal, principal1);
-  AWAIT_EXPECT_EQ(authentiation2.principal, principal2);
+  AWAIT_EXPECT_EQ(authentication1.principal, principal1);
+  AWAIT_EXPECT_EQ(authentication2.principal, principal2);
 }
 
 
@@ -1752,7 +2004,7 @@ TEST_F(HttpAuthenticationTest, Basic)
 
   // Right credentials provided.
   {
-    EXPECT_CALL(*http.process, authenticated(_, Option<string>("user")))
+    EXPECT_CALL(*http.process, authenticated(_, Option<Principal>("user")))
       .WillOnce(Return(http::OK()));
 
     http::Headers headers;
@@ -1767,6 +2019,85 @@ TEST_F(HttpAuthenticationTest, Basic)
 }
 
 
+#ifdef USE_SSL_SOCKET
+// Tests the "JWT" authenticator.
+TEST_F(HttpAuthenticationTest, JWT)
+{
+  Http http;
+
+  Owned<Authenticator> authenticator(new JWTAuthenticator("realm", "secret"));
+
+  AWAIT_READY(setAuthenticator("realm", authenticator));
+
+  // No 'Authorization' header provided.
+  {
+    Future<http::Response> response = http::get(*http.process, "authenticated");
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Unauthorized({}).status, response);
+  }
+
+  // Invalid 'Authorization' header provided.
+  {
+    http::Headers headers;
+    headers["Authorization"] = "Basic " + base64::encode("user:password");
+
+    Future<http::Response> response =
+      http::get(http.process->self(), "authenticated", None(), headers);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Unauthorized({}).status, response);
+  }
+
+  // Invalid token provided.
+  {
+    JSON::Object payload;
+    payload.values["sub"] = "user";
+
+    Try<JWT, JWTError> jwt = JWT::create(payload, "a different secret");
+
+    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
+    // once MESOS-7220 is resolved.
+    EXPECT_TRUE(jwt.isSome());
+
+    http::Headers headers;
+    headers["Authorization"] = "Bearer " + stringify(jwt.get());
+
+    Future<http::Response> response =
+      http::get(http.process->self(), "authenticated", None(), headers);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Unauthorized({}).status, response);
+  }
+
+  // Valid token provided.
+  {
+    Principal principal(Option<string>::none());
+    principal.claims["foo"] = "1234";
+    principal.claims["sub"] = "user";
+
+    EXPECT_CALL(*http.process, authenticated(_, Option<Principal>(principal)))
+      .WillOnce(Return(http::OK()));
+
+    JSON::Object payload;
+    payload.values["foo"] = 1234;
+    payload.values["sub"] = "user";
+
+    Try<JWT, JWTError> jwt = JWT::create(payload, "secret");
+
+    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
+    // once MESOS-7220 is resolved.
+    EXPECT_TRUE(jwt.isSome());
+
+    http::Headers headers;
+    headers["Authorization"] = "Bearer " + stringify(jwt.get());
+
+    Future<http::Response> response =
+      http::get(http.process->self(), "authenticated", None(), headers);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
+}
+#endif // USE_SSL_SOCKET
+
+
 class HttpServeTest : public TemporaryDirectoryTest {};
 
 
@@ -1778,12 +2109,25 @@ TEST_F(HttpServeTest, Pipelining)
   ASSERT_SOME(server->bind(Address::ANY_ANY()));
   ASSERT_SOME(server->listen(1));
 
-  Try<Address> address = server->address();
-  ASSERT_SOME(address);
+  Try<Address> any_address = server->address();
+  ASSERT_SOME(any_address);
+
+  // Connect to the IP from the libprocess library, but use the port
+  // from the `bind` call above. The libprocess IP will always report
+  // a locally bindable IP, meaning it will also work for the server
+  // socket above.
+  //
+  // NOTE: We do not use the server socket's address directly because
+  // this contains a `0.0.0.0` IP. According to RFC1122, this is an
+  // invalid address, except when used to resolve a host's address
+  // for the first time.
+  // See: https://tools.ietf.org/html/rfc1122#section-3.2.1.3
+  Address address(process::address().ip, any_address->port);
 
   Future<Socket> accept = server->accept();
 
-  Future<http::Connection> connect = http::connect(address.get());
+  Future<http::Connection> connect =
+    http::connect(address, http::Scheme::HTTP);
 
   AWAIT_READY(connect);
   http::Connection connection = connect.get();
@@ -1818,7 +2162,7 @@ TEST_F(HttpServeTest, Pipelining)
     .WillOnce(DoAll(FutureArg<0>(&request3), Return(promise3.future())))
     .WillRepeatedly(Return(http::OK()));
 
-  http::URL url("http", address->hostname().get(), address->port, "/");
+  http::URL url("http", address.hostname().get(), address.port, "/");
 
   http::Request request;
   request.method = "GET";
@@ -1873,12 +2217,21 @@ TEST_F(HttpServeTest, Discard)
   ASSERT_SOME(server->bind(Address::ANY_ANY()));
   ASSERT_SOME(server->listen(1));
 
-  Try<Address> address = server->address();
-  ASSERT_SOME(address);
+  Try<Address> any_address = server->address();
+  ASSERT_SOME(any_address);
+
+  // Connect to the IP from the libprocess library, but use the port
+  // from the `bind` call above. The libprocess IP will always report
+  // a locally bindable IP, meaning it will also work for the server
+  // socket above.
+  //
+  // See the comment in `HttpServeTest.Pipelining` for more details.
+  Address address(process::address().ip, any_address->port);
 
   Future<Socket> accept = server->accept();
 
-  Future<http::Connection> connect = http::connect(address.get());
+  Future<http::Connection> connect =
+    http::connect(address, http::Scheme::HTTP);
 
   AWAIT_READY(connect);
   http::Connection connection = connect.get();
@@ -1904,7 +2257,7 @@ TEST_F(HttpServeTest, Discard)
   EXPECT_CALL(handler, handle(_))
     .WillOnce(DoAll(FutureArg<0>(&request1), Return(promise1.future())));
 
-  http::URL url("http", address->hostname().get(), address->port, "/");
+  http::URL url("http", address.hostname().get(), address.port, "/");
 
   http::Request request;
   request.method = "GET";
@@ -1946,7 +2299,8 @@ TEST_F(HttpServeTest, Unix)
 
   Future<unix::Socket> accept = server->accept();
 
-  Future<http::Connection> connect = http::connect(address.get());
+  Future<http::Connection> connect =
+    http::connect(address.get(), http::Scheme::HTTP);
 
   AWAIT_READY(connect);
   http::Connection connection = connect.get();
@@ -1956,8 +2310,11 @@ TEST_F(HttpServeTest, Unix)
 
   Future<Nothing> serve = http::serve(
     socket,
-    [](const http::Request& request) {
-      CHECK_SOME(request.reader);
+    [](const http::Request& request) -> Future<http::Response> {
+      if (request.reader.isNone()) {
+        return Failure("Request reader is not set");
+      }
+
       http::Pipe::Reader reader = request.reader.get(); // Remove const.
 
       return reader.readAll()

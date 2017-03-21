@@ -24,6 +24,7 @@
 
 #include <list>
 #include <sstream>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -199,13 +200,30 @@ Future<Version> version()
 
   return output
     .then([](const string& output) -> Future<Version> {
-      string trimmed = strings::trim(output);
-
-      // Trim off the leading 'perf version ' text to convert.
-      return Version::parse(
-          strings::remove(trimmed, "perf version ", strings::PREFIX));
+      return parseVersion(output);
     });
 };
+
+
+// Since there is a lot of variety in perf(1) version strings
+// across distributions, we parse just the first 2 version
+// components, which is enough of a version number to implement
+// perf::supported().
+Try<Version> parseVersion(const string& output)
+{
+  // Trim off the leading 'perf version ' text to convert.
+  string trimmed = strings::remove(
+      strings::trim(output), "perf version ", strings::PREFIX);
+
+  vector<string> components = strings::split(trimmed, ".");
+
+  // perf(1) always has a version with least 2 components.
+  if (components.size() > 2) {
+    components.resize(2);
+  }
+
+  return Version::parse(strings::join(".", components));
+}
 
 
 bool supported(const Version& version)
@@ -316,16 +334,23 @@ Future<hashmap<string, mesos::PerfStatistics>> sample(
 
 bool valid(const set<string>& events)
 {
-  ostringstream command;
+  vector<string> argv = {"stat"};
 
-  // Log everything to stderr which is then redirected to /dev/null.
-  command << "perf stat --log-fd 2";
   foreach (const string& event, events) {
-    command << " --event " << event;
+    argv.push_back("--event");
+    argv.push_back(event);
   }
-  command << " true 2>/dev/null";
 
-  return (os::system(command.str()) == 0);
+  argv.push_back("true");
+
+  internal::Perf* perf = new internal::Perf(argv);
+  Future<string> output = perf->output();
+  spawn(perf, true);
+
+  output.await();
+
+  // We don't care about the output, just whether it exited non-zero.
+  return output.isReady();
 }
 
 

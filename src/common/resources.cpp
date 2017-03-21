@@ -53,6 +53,30 @@ namespace mesos {
 /////////////////////////////////////////////////
 
 bool operator==(
+    const Resource::AllocationInfo& left,
+    const Resource::AllocationInfo& right)
+{
+  if (left.has_role() != right.has_role()) {
+    return false;
+  }
+
+  if (left.has_role() && left.role() != right.role()) {
+    return false;
+  }
+
+  return true;
+}
+
+
+bool operator!=(
+    const Resource::AllocationInfo& left,
+    const Resource::AllocationInfo& right)
+{
+  return !(left == right);
+}
+
+
+bool operator==(
     const Resource::ReservationInfo& left,
     const Resource::ReservationInfo& right)
 {
@@ -185,6 +209,16 @@ bool operator==(const Resource& left, const Resource& right)
     return false;
   }
 
+  // Check AllocationInfo.
+  if (left.has_allocation_info() != right.has_allocation_info()) {
+    return false;
+  }
+
+  if (left.has_allocation_info() &&
+      left.allocation_info() != right.allocation_info()) {
+    return false;
+  }
+
   // Check ReservationInfo.
   if (left.has_reservation() != right.has_reservation()) {
     return false;
@@ -255,6 +289,16 @@ static bool addable(const Resource& left, const Resource& right)
     return false;
   }
 
+  // Check AllocationInfo.
+  if (left.has_allocation_info() != right.has_allocation_info()) {
+    return false;
+  }
+
+  if (left.has_allocation_info() &&
+      left.allocation_info() != right.allocation_info()) {
+    return false;
+  }
+
   // Check ReservationInfo.
   if (left.has_reservation() != right.has_reservation()) {
     return false;
@@ -320,6 +364,16 @@ static bool subtractable(const Resource& left, const Resource& right)
   if (left.name() != right.name() ||
       left.type() != right.type() ||
       left.role() != right.role()) {
+    return false;
+  }
+
+  // Check AllocationInfo.
+  if (left.has_allocation_info() != right.has_allocation_info()) {
+    return false;
+  }
+
+  if (left.has_allocation_info() &&
+      left.allocation_info() != right.allocation_info()) {
     return false;
   }
 
@@ -525,12 +579,7 @@ Try<Resources> Resources::parse(
     const string& text,
     const string& defaultRole)
 {
-  // Try to parse as a JSON Array. Otherwise, parse as a text string.
-  Try<JSON::Array> json = JSON::parse<JSON::Array>(text);
-
-  Try<vector<Resource>> resources = json.isSome() ?
-    Resources::fromJSON(json.get(), defaultRole) :
-    Resources::fromSimpleString(text, defaultRole);
+  Try<vector<Resource>> resources = Resources::fromString(text, defaultRole);
 
   if (resources.isError()) {
     return Error(resources.error());
@@ -607,12 +656,12 @@ Try<vector<Resource>> Resources::fromSimpleString(
 
     string name;
     string role;
-    size_t openParen = pair[0].find("(");
+    size_t openParen = pair[0].find('(');
     if (openParen == string::npos) {
       name = strings::trim(pair[0]);
       role = defaultRole;
     } else {
-      size_t closeParen = pair[0].find(")");
+      size_t closeParen = pair[0].find(')');
       if (closeParen == string::npos || closeParen < openParen) {
         return Error(
             "Bad value for resources, mismatched parentheses in " + token);
@@ -635,6 +684,19 @@ Try<vector<Resource>> Resources::fromSimpleString(
   }
 
   return resources;
+}
+
+
+Try<vector<Resource>> Resources::fromString(
+    const string& text,
+    const string& defaultRole)
+{
+  // Try to parse as a JSON Array. Otherwise, parse as a text string.
+  Try<JSON::Array> json = JSON::parse<JSON::Array>(text);
+
+  return json.isSome() ?
+    Resources::fromJSON(json.get(), defaultRole) :
+    Resources::fromSimpleString(text, defaultRole);
 }
 
 
@@ -1002,6 +1064,24 @@ size_t Resources::count(const Resource& that) const
 }
 
 
+void Resources::allocate(const string& role)
+{
+  foreach (Resource_& resource_, resources) {
+    resource_.resource.mutable_allocation_info()->set_role(role);
+  }
+}
+
+
+void Resources::unallocate()
+{
+  foreach (Resource_& resource_, resources) {
+    if (resource_.resource.has_allocation_info()) {
+      resource_.resource.clear_allocation_info();
+    }
+  }
+}
+
+
 Resources Resources::filter(
     const lambda::function<bool(const Resource&)>& predicate) const
 {
@@ -1073,6 +1153,22 @@ Resources Resources::nonShared() const
 }
 
 
+hashmap<string, Resources> Resources::allocations() const
+{
+  hashmap<string, Resources> result;
+
+  foreach (const Resource_& resource_, resources) {
+    // We require that this is called only when
+    // the resources are allocated.
+    CHECK(resource_.resource.has_allocation_info());
+    CHECK(resource_.resource.allocation_info().has_role());
+    result[resource_.resource.allocation_info().role()].add(resource_);
+  }
+
+  return result;
+}
+
+
 Try<Resources> Resources::flatten(
     const string& role,
     const Option<Resource::ReservationInfo>& reservation) const
@@ -1122,6 +1218,7 @@ Resources Resources::createStrippedScalarQuantity() const
   foreach (const Resource& resource, resources) {
     if (resource.type() == Value::SCALAR) {
       Resource scalar = resource;
+      scalar.clear_allocation_info();
       scalar.clear_reservation();
       scalar.clear_disk();
       scalar.clear_shared();
@@ -1844,6 +1941,10 @@ ostream& operator<<(ostream& stream, const Resource& resource)
   }
 
   stream << ")";
+
+  if (resource.has_allocation_info()) {
+    stream << "(allocated: " << resource.allocation_info().role() << ")";
+  }
 
   if (resource.has_disk()) {
     stream << "[" << resource.disk() << "]";

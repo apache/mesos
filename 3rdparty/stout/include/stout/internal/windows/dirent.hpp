@@ -194,7 +194,8 @@ inline bool open_dir_stream(DIR* directory)
   //
   // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/aa365740(v=vs.85).aspx
   strcpy(directory->curr.d_name, directory->fd.cFileName);
-  directory->curr.d_namlen = strlen(directory->curr.d_name);
+  directory->curr.d_namlen =
+    static_cast<unsigned short>(strlen(directory->curr.d_name));
 
   return true;
 }
@@ -214,7 +215,8 @@ inline bool reentrant_advance_dir_stream(DIR* directory)
   //
   // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/aa365740(v=vs.85).aspx
   strcpy(directory->curr.d_name, directory->fd.cFileName);
-  directory->curr.d_namlen = strlen(directory->curr.d_name);
+  directory->curr.d_namlen =
+    static_cast<unsigned short>(strlen(directory->curr.d_name));
 
   return true;
 }

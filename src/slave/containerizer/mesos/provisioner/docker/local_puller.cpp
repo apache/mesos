@@ -51,21 +51,23 @@ namespace docker {
 class LocalPullerProcess : public Process<LocalPullerProcess>
 {
 public:
-  LocalPullerProcess(const string& _archivesDir, const string& _backend)
+  LocalPullerProcess(const string& _storeDir, const string& _archivesDir)
     : ProcessBase(process::ID::generate("docker-provisioner-local-puller")),
-      archivesDir(_archivesDir),
-      backend(_backend){}
+      storeDir(_storeDir),
+      archivesDir(_archivesDir) {}
 
   ~LocalPullerProcess() {}
 
   Future<vector<string>> pull(
       const spec::ImageReference& reference,
-      const string& directory);
+      const string& directory,
+      const string& backend);
 
 private:
   Future<vector<string>> _pull(
       const spec::ImageReference& reference,
-      const string& directory);
+      const string& directory,
+      const string& backend);
 
   Result<string> getParentLayerId(
       const string& directory,
@@ -73,14 +75,16 @@ private:
 
   Future<Nothing> extractLayers(
       const string& directory,
-      const vector<string>& layerIds);
+      const vector<string>& layerIds,
+      const string& backend);
 
   Future<Nothing> extractLayer(
       const string& directory,
-      const string& layerId);
+      const string& layerId,
+      const string& backend);
 
+  const string storeDir;
   const string archivesDir;
-  const string backend;
 };
 
 
@@ -94,9 +98,8 @@ Try<Owned<Puller>> LocalPuller::create(const Flags& flags)
   VLOG(1) << "Creating local puller with docker registry '"
           << flags.docker_registry << "'";
 
-  Owned<LocalPullerProcess> process(new LocalPullerProcess(
-      flags.docker_registry,
-      flags.image_provisioner_backend));
+  Owned<LocalPullerProcess> process(
+      new LocalPullerProcess(flags.docker_store_dir, flags.docker_registry));
 
   return Owned<Puller>(new LocalPuller(process));
 }
@@ -118,19 +121,22 @@ LocalPuller::~LocalPuller()
 
 Future<vector<string>> LocalPuller::pull(
     const spec::ImageReference& reference,
-    const string& directory)
+    const string& directory,
+    const string& backend)
 {
   return dispatch(
       process.get(),
       &LocalPullerProcess::pull,
       reference,
-      directory);
+      directory,
+      backend);
 }
 
 
 Future<vector<string>> LocalPullerProcess::pull(
     const spec::ImageReference& reference,
-    const string& directory)
+    const string& directory,
+    const string& backend)
 {
   // TODO(jieyu): We need to handle the case where the image reference
   // contains a slash '/'.
@@ -149,13 +155,14 @@ Future<vector<string>> LocalPullerProcess::pull(
           << "' to '" << directory << "'";
 
   return command::untar(Path(tarPath), Path(directory))
-    .then(defer(self(), &Self::_pull, reference, directory));
+    .then(defer(self(), &Self::_pull, reference, directory, backend));
 }
 
 
 Future<vector<string>> LocalPullerProcess::_pull(
     const spec::ImageReference& reference,
-    const string& directory)
+    const string& directory,
+    const string& backend)
 {
   // We first parse the 'repositories' JSON file to get the top most
   // layer id for the image.
@@ -229,7 +236,7 @@ Future<vector<string>> LocalPullerProcess::_pull(
         "': " + parentLayerId.error());
   }
 
-  return extractLayers(directory, layerIds)
+  return extractLayers(directory, layerIds, backend)
     .then([layerIds]() -> vector<string> { return layerIds; });
 }
 
@@ -272,11 +279,21 @@ Result<string> LocalPullerProcess::getParentLayerId(
 
 Future<Nothing> LocalPullerProcess::extractLayers(
     const string& directory,
-    const vector<string>& layerIds)
+    const vector<string>& layerIds,
+    const string& backend)
 {
   list<Future<Nothing>> futures;
   foreach (const string& layerId, layerIds) {
-    futures.push_back(extractLayer(directory, layerId));
+    // Check if the layer is already in the store. If yes, skip the
+    // unnecessary extracting.
+    if (os::exists(paths::getImageLayerRootfsPath(
+            storeDir,
+            layerId,
+            backend))) {
+      continue;
+    }
+
+    futures.push_back(extractLayer(directory, layerId, backend));
   }
 
   return collect(futures)
@@ -286,7 +303,8 @@ Future<Nothing> LocalPullerProcess::extractLayers(
 
 Future<Nothing> LocalPullerProcess::extractLayer(
     const string& directory,
-    const string& layerId)
+    const string& layerId,
+    const string& backend)
 {
   const string layerPath = path::join(directory, layerId);
   const string tar = paths::getImageLayerTarPath(layerPath);

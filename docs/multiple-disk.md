@@ -55,7 +55,7 @@ operator could optionally specify a `role` for the disk, which would result in
 
 ### `Path` disks
 
-A `Path` disk is an auxiliary disk resource provided by the operator. This can
+A `Path` disk is an auxiliary disk resource provided by the operator. This
 can be carved up into smaller chunks by creating persistent volumes that use
 less than the total available space on the disk. Common uses for this kind of
 disk are extra logging space, file archives or caches, or other non

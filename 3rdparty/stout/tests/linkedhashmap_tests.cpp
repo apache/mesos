@@ -10,10 +10,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#include <stdint.h>
-
 #include <list>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -22,6 +21,7 @@
 
 using std::list;
 using std::string;
+using std::vector;
 
 TEST(LinkedHashmapTest, Put)
 {
@@ -72,12 +72,7 @@ TEST(LinkedHashmapTest, Keys)
 {
   LinkedHashMap<string, int> map;
 
-  list<string> keys;
-  keys.push_back("foo");
-  keys.push_back("bar");
-  keys.push_back("food");
-  keys.push_back("rad");
-  keys.push_back("cat");
+  list<string> keys = {"foo", "bar", "food", "rad", "cat"};
 
   // Insert keys into the map.
   foreach (const string& key, keys) {
@@ -103,4 +98,87 @@ TEST(LinkedHashmapTest, Values)
     ++val;
     ASSERT_EQ(val, value);
   }
+}
+
+
+TEST(LinkedHashMapTest, Foreach)
+{
+  LinkedHashMap<string, int> map;
+
+  map["foo"] = 1;
+  map["bar"] = 2;
+  map["caz"] = 3;
+
+  map["foo"] = 4; // Re-insert a key.
+
+  list<string> keyList = map.keys();
+  list<int> valueList = map.values();
+
+  vector<string> keys{keyList.begin(), keyList.end()};
+  vector<int> values{valueList.begin(), valueList.end()};
+
+  {
+    int i = 0;
+    foreachpair (const string& key, int value, map) {
+      EXPECT_EQ(keys[i], key);
+      EXPECT_EQ(values[i], value);
+      i++;
+    }
+  }
+
+  {
+    int i = 0;
+    foreachkey (const string& key, map) {
+      EXPECT_EQ(keys[i], key);
+      i++;
+    }
+  }
+
+  {
+    int i = 0;
+    foreachvalue (int value, map) {
+      EXPECT_EQ(values[i], value);
+      i++;
+    }
+  }
+}
+
+
+// Check that `foreach`-style loops can be used with a const ref to
+// LinkedHashMap.
+TEST(LinkedHashMapTest, ForeachConst)
+{
+  LinkedHashMap<string, int> map;
+
+  map["foo"] = 1;
+  map["bar"] = 2;
+  map["caz"] = 3;
+
+  const LinkedHashMap<string, int>& constMap = map;
+
+  foreachkey (const string& key, constMap) {
+    EXPECT_NE("qux", key);
+  }
+  foreachvalue (int value, constMap) {
+    EXPECT_NE(0, value);
+  }
+}
+
+
+TEST(LinkedHashMapTest, ForeachMutate)
+{
+  LinkedHashMap<int, string> map;
+
+  map[1] = "foo";
+  map[2] = "bar";
+  map[3] = "caz";
+
+  foreachpair (int key, string& value, map) {
+    if (key == 2) {
+      value = "qux";
+    }
+  }
+
+  list<string> values = {"foo", "qux", "caz"};
+  EXPECT_EQ(values, map.values());
 }

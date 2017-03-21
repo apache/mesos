@@ -57,7 +57,8 @@ public:
    */
   virtual process::Future<std::vector<std::string>> pull(
       const ::docker::spec::ImageReference& reference,
-      const std::string& directory) = 0;
+      const std::string& directory,
+      const std::string& backend) = 0;
 };
 
 } // namespace docker {

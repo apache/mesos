@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "launcher/executor.hpp"
+
 #include <signal.h>
 #include <stdio.h>
 
@@ -27,7 +29,6 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
-
 #include <mesos/type_utils.hpp>
 
 #include <process/clock.hpp>
@@ -38,14 +39,10 @@
 #include <process/io.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
-#include <process/subprocess.hpp>
 #include <process/reap.hpp>
+#include <process/subprocess.hpp>
 #include <process/time.hpp>
 #include <process/timer.hpp>
-
-#ifdef __WINDOWS__
-#include <process/windows/winsock.hpp> // WSAStartup code.
-#endif // __WINDOWS__
 
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
@@ -61,36 +58,28 @@
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
 
+#include <stout/os/environment.hpp>
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
+
+#include "checks/checker.hpp"
+#include "checks/health_checker.hpp"
 
 #include "common/http.hpp"
 #include "common/parse.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
 
-#include "internal/devolve.hpp"
-#include "internal/evolve.hpp"
-
-#ifdef __linux__
-#include "linux/fs.hpp"
-#endif
-
 #include "executor/v0_v1executor.hpp"
 
-#include "health-check/health_checker.hpp"
-
-#include "launcher/executor.hpp"
+#include "internal/devolve.hpp"
+#include "internal/evolve.hpp"
 
 #include "logging/logging.hpp"
 
 #include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
-
-#ifdef __linux__
-namespace fs = mesos::internal::fs;
-#endif
 
 using namespace mesos::internal::slave;
 
@@ -107,6 +96,8 @@ using process::Owned;
 using process::Subprocess;
 using process::Time;
 using process::Timer;
+
+using mesos::Environment;
 
 using mesos::executor::Call;
 using mesos::executor::Event;
@@ -128,12 +119,14 @@ public:
       const Option<string>& _workingDirectory,
       const Option<string>& _user,
       const Option<string>& _taskCommand,
+      const Option<Environment>& _taskEnvironment,
       const Option<CapabilityInfo>& _capabilities,
       const FrameworkID& _frameworkId,
       const ExecutorID& _executorId,
       const Duration& _shutdownGracePeriod)
     : ProcessBase(process::ID::generate("command-executor")),
       state(DISCONNECTED),
+      taskData(None()),
       launched(false),
       killed(false),
       killedByHealthCheck(false),
@@ -148,10 +141,11 @@ public:
       workingDirectory(_workingDirectory),
       user(_user),
       taskCommand(_taskCommand),
+      taskEnvironment(_taskEnvironment),
       capabilities(_capabilities),
       frameworkId(_frameworkId),
       executorId(_executorId),
-      task(None())
+      lastTaskStatus(None())
   {
 #ifdef __WINDOWS__
     processHandle = INVALID_HANDLE_VALUE;
@@ -219,19 +213,27 @@ public:
       case Event::ACKNOWLEDGED: {
         const UUID uuid = UUID::fromBytes(event.acknowledged().uuid()).get();
 
+        if (!unacknowledgedUpdates.contains(uuid)) {
+          LOG(WARNING) << "Received acknowledgement " << uuid
+                       << " for unknown status update";
+          return;
+        }
+
         // Terminate if we receive the ACK for the terminal status update.
         // NOTE: The executor receives an ACK iff it uses the HTTP library.
         // No ACK will be received if V0ToV1Adapter is used.
         if (mesos::internal::protobuf::isTerminalState(
-            updates[uuid].status().state())) {
+            unacknowledgedUpdates[uuid].status().state())) {
           terminate(self());
         }
 
         // Remove the corresponding update.
-        updates.erase(uuid);
+        unacknowledgedUpdates.erase(uuid);
 
-        // Remove the corresponding task.
-        task = None();
+        // Mark task as acknowledged.
+        CHECK(taskData.isSome());
+        taskData->acknowledged = true;
+
         break;
       }
 
@@ -291,10 +293,51 @@ protected:
     }
   }
 
+  void taskCheckUpdated(
+      const TaskID& _taskId,
+      const CheckStatusInfo& checkStatus)
+  {
+    CHECK_SOME(taskId);
+    CHECK_EQ(taskId.get(), _taskId);
+
+    // This prevents us from sending check updates after a terminal
+    // status update, because we may receive an update from a check
+    // scheduled before the task has been reaped.
+    //
+    // TODO(alexr): Consider sending check updates after TASK_KILLING.
+    if (killed || terminated) {
+      return;
+    }
+
+    cout << "Received check update" << endl;
+
+    // Use the previous task status to preserve all attached information.
+    CHECK_SOME(lastTaskStatus);
+    TaskStatus status = protobuf::createTaskStatus(
+        lastTaskStatus.get(),
+        UUID::random(),
+        Clock::now().secs(),
+        None(),
+        None(),
+        None(),
+        TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+        None(),
+        None(),
+        checkStatus);
+
+    forward(status);
+  }
+
   void taskHealthUpdated(const TaskHealthStatus& healthStatus)
   {
-    // This check prevents us from sending `TASK_RUNNING` updates
-    // after the task has been transitioned to `TASK_KILLING`.
+    CHECK_SOME(taskId);
+    CHECK_EQ(taskId.get(), healthStatus.task_id());
+
+    // This prevents us from sending health updates after a terminal
+    // status update, because we may receive an update from a health
+    // check scheduled before the task has been reaped.
+    //
+    // TODO(alexr): Consider sending health updates after TASK_KILLING.
     if (killed || terminated) {
       return;
     }
@@ -302,7 +345,20 @@ protected:
     cout << "Received task health update, healthy: "
          << stringify(healthStatus.healthy()) << endl;
 
-    update(healthStatus.task_id(), TASK_RUNNING, healthStatus.healthy());
+    // Use the previous task status to preserve all attached information.
+    CHECK_SOME(lastTaskStatus);
+    TaskStatus status = protobuf::createTaskStatus(
+        lastTaskStatus.get(),
+        UUID::random(),
+        Clock::now().secs(),
+        None(),
+        None(),
+        None(),
+        None(),
+        None(),
+        healthStatus.healthy());
+
+    forward(status);
 
     if (healthStatus.kill_task()) {
       killedByHealthCheck = true;
@@ -325,13 +381,14 @@ protected:
     Call::Subscribe* subscribe = call.mutable_subscribe();
 
     // Send all unacknowledged updates.
-    foreach (const Call::Update& update, updates.values()) {
+    foreachvalue (const Call::Update& update, unacknowledgedUpdates) {
       subscribe->add_unacknowledged_updates()->MergeFrom(update);
     }
 
     // Send the unacknowledged task.
-    if (task.isSome()) {
-      subscribe->add_unacknowledged_tasks()->MergeFrom(task.get());
+    if (taskData.isSome() && !taskData->acknowledged) {
+      subscribe->add_unacknowledged_tasks()->MergeFrom(
+          taskData->taskInfo);
     }
 
     mesos->send(evolve(call));
@@ -339,28 +396,29 @@ protected:
     delay(Seconds(1), self(), &Self::doReliableRegistration);
   }
 
-  void launch(const TaskInfo& _task)
+  void launch(const TaskInfo& task)
   {
     CHECK_EQ(SUBSCRIBED, state);
 
     if (launched) {
-      update(
-          _task.task_id(),
+      TaskStatus status = createTaskStatus(
+          task.task_id(),
           TASK_FAILED,
           None(),
           "Attempted to run multiple tasks using a \"command\" executor");
+
+      forward(status);
       return;
     }
 
-    // Capture the task.
-    task = _task;
-
-    // Capture the TaskID.
-    taskId = task->task_id();
+    // Capture `TaskInfo` and `TaskID` of the task.
+    CHECK(taskData.isNone());
+    taskData = TaskData(task);
+    taskId = task.task_id();
 
     // Capture the kill policy.
-    if (task->has_kill_policy()) {
-      killPolicy = task->kill_policy();
+    if (task.has_kill_policy()) {
+      killPolicy = task.kill_policy();
     }
 
     // Determine the command to launch the task.
@@ -379,11 +437,10 @@ protected:
       }
 
       command = parse.get();
-    } else if (task->has_command()) {
-      command = task->command();
+    } else if (task.has_command()) {
+      command = task.command();
     } else {
-      LOG(FATAL) << "Expecting task '" << task->task_id() << "' "
-                 << "to have a command";
+      LOG(FATAL) << "Expecting task '" << taskId.get() << "' to have a command";
     }
 
     // TODO(jieyu): For now, we just fail the executor if the task's
@@ -393,20 +450,44 @@ protected:
     // correct solution is to perform this validation at master side.
     if (command.shell()) {
       CHECK(command.has_value())
-        << "Shell command of task '" << task->task_id()
-        << "' is not specified!";
+        << "Shell command of task '" << taskId.get() << "' is not specified";
     } else {
       CHECK(command.has_value())
-        << "Executable of task '" << task->task_id()
-        << "' is not specified!";
+        << "Executable of task '" << taskId.get() << "' is not specified";
     }
 
-    cout << "Starting task " << task->task_id() << endl;
+    // Determine the environment for the command to be launched.
+    // The priority of the environment should be:
+    //  1) User specified environment in CommandInfo.
+    //  2) Environment returned by isolators (`taskEnvironment`).
+    //  3) Environment passed from agent (`os::environment`).
+    //
+    // TODO(josephw): Windows tasks will inherit the environment
+    // from the executor for now. Change this if a Windows isolator
+    // ever uses the `--task_environment` flag.
+    Environment launchEnvironment;
+
+    foreachpair (const string& name, const string& value, os::environment()) {
+      Environment::Variable* variable = launchEnvironment.add_variables();
+      variable->set_name(name);
+      variable->set_value(value);
+    }
+
+    if (taskEnvironment.isSome()) {
+      launchEnvironment.MergeFrom(taskEnvironment.get());
+    }
+
+    if (command.has_environment()) {
+      launchEnvironment.MergeFrom(command.environment());
+    }
+
+    cout << "Starting task " << taskId.get() << endl;
 
 #ifndef __WINDOWS__
     pid = launchTaskPosix(
         command,
         launcherDir,
+        launchEnvironment,
         user,
         rootfs,
         sandboxDirectory,
@@ -428,10 +509,39 @@ protected:
 
     cout << "Forked command at " << pid << endl;
 
-    if (task->has_health_check()) {
+    if (task.has_check()) {
       vector<string> namespaces;
       if (rootfs.isSome() &&
-          task->health_check().type() == HealthCheck::COMMAND) {
+          task.check().type() == CheckInfo::COMMAND) {
+        // Make sure command checks are run from the task's mount namespace.
+        // Otherwise if rootfs is specified the command binary may not be
+        // available in the executor.
+        //
+        // NOTE: The command executor shares the network namespace
+        // with its task, hence no need to enter it explicitly.
+        namespaces.push_back("mnt");
+      }
+
+      Try<Owned<checks::Checker>> _checker =
+        checks::Checker::create(
+            task.check(),
+            defer(self(), &Self::taskCheckUpdated, taskId.get(), lambda::_1),
+            taskId.get(),
+            pid,
+            namespaces);
+
+      if (_checker.isError()) {
+        // TODO(alexr): Consider ABORT and return a TASK_FAILED here.
+        cerr << "Failed to create checker: " << _checker.error() << endl;
+      } else {
+        checker = _checker.get();
+      }
+    }
+
+    if (task.has_health_check()) {
+      vector<string> namespaces;
+      if (rootfs.isSome() &&
+          task.health_check().type() == HealthCheck::COMMAND) {
         // Make sure command health checks are run from the task's mount
         // namespace. Otherwise if rootfs is specified the command binary
         // may not be available in the executor.
@@ -441,21 +551,21 @@ protected:
         namespaces.push_back("mnt");
       }
 
-      Try<Owned<health::HealthChecker>> _checker =
-        health::HealthChecker::create(
-            task->health_check(),
+      Try<Owned<checks::HealthChecker>> _healthChecker =
+        checks::HealthChecker::create(
+            task.health_check(),
             launcherDir,
             defer(self(), &Self::taskHealthUpdated, lambda::_1),
-            task->task_id(),
+            taskId.get(),
             pid,
             namespaces);
 
-      if (_checker.isError()) {
+      if (_healthChecker.isError()) {
         // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
         cerr << "Failed to create health checker: "
-             << _checker.error() << endl;
+             << _healthChecker.error() << endl;
       } else {
-        checker = _checker.get();
+        healthChecker = _healthChecker.get();
       }
     }
 
@@ -463,8 +573,9 @@ protected:
     process::reap(pid)
       .onAny(defer(self(), &Self::reaped, pid, lambda::_1));
 
-    update(task->task_id(), TASK_RUNNING);
+    TaskStatus status = createTaskStatus(taskId.get(), TASK_RUNNING);
 
+    forward(status);
     launched = true;
   }
 
@@ -582,12 +693,18 @@ private:
       if (protobuf::frameworkHasCapability(
               frameworkInfo.get(),
               FrameworkInfo::Capability::TASK_KILLING_STATE)) {
-        update(taskId.get(), TASK_KILLING);
+        TaskStatus status = createTaskStatus(taskId.get(), TASK_KILLING);
+        forward(status);
+      }
+
+      // Stop checking the task.
+      if (checker.get() != nullptr) {
+        checker->stop();
       }
 
       // Stop health checking the task.
-      if (checker.get() != nullptr) {
-        checker->stop();
+      if (healthChecker.get() != nullptr) {
+        healthChecker->stop();
       }
 
       // Now perform signal escalation to begin killing the task.
@@ -625,9 +742,14 @@ private:
   {
     terminated = true;
 
-    // Stop health checking the task.
+    // Stop checking the task.
     if (checker.get() != nullptr) {
       checker->stop();
+    }
+
+    // Stop health checking the task.
+    if (healthChecker.get() != nullptr) {
+      healthChecker->stop();
     }
 
     TaskState taskState;
@@ -647,9 +769,10 @@ private:
       message = "Failed to get exit status for Command";
     } else {
       int status = status_.get().get();
-      CHECK(WIFEXITED(status) || WIFSIGNALED(status)) << status;
+      CHECK(WIFEXITED(status) || WIFSIGNALED(status))
+        << "Unexpected wait status " << status;
 
-      if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+      if (WSUCCEEDED(status)) {
         taskState = TASK_FINISHED;
       } else if (killed) {
         // Send TASK_KILLED if the task was killed as a result of
@@ -666,11 +789,18 @@ private:
 
     CHECK_SOME(taskId);
 
+    TaskStatus status = createTaskStatus(
+        taskId.get(),
+        taskState,
+        None(),
+        message);
+
+    // Indicate that a kill occured due to a failing health check.
     if (killed && killedByHealthCheck) {
-      update(taskId.get(), taskState, false, message);
-    } else {
-      update(taskId.get(), taskState, None(), message);
+      status.set_healthy(false);
     }
+
+    forward(status);
 
     Option<string> value = os::getenv("MESOS_HTTP_COMMAND_EXECUTOR");
     if (value.isSome() && value.get() == "1") {
@@ -716,31 +846,66 @@ private:
     }
   }
 
-  void update(
+  // Use this helper to create a status update from scratch, i.e., without
+  // previously attached extra information like `data` or `check_status`.
+  TaskStatus createTaskStatus(
       const TaskID& _taskId,
       const TaskState& state,
-      const Option<bool>& healthy = None(),
+      const Option<TaskStatus::Reason>& reason = None(),
       const Option<string>& message = None())
   {
-    UUID uuid = UUID::random();
+    TaskStatus status = protobuf::createTaskStatus(
+        _taskId,
+        state,
+        UUID::random(),
+        Clock::now().secs());
 
-    TaskStatus status;
-    status.mutable_task_id()->CopyFrom(_taskId);
     status.mutable_executor_id()->CopyFrom(executorId);
-
-    status.set_state(state);
     status.set_source(TaskStatus::SOURCE_EXECUTOR);
-    status.set_uuid(uuid.toBytes());
-    status.set_timestamp(Clock::now().secs());
 
-    if (healthy.isSome()) {
-      status.set_healthy(healthy.get());
+    if (reason.isSome()) {
+      status.set_reason(reason.get());
     }
 
     if (message.isSome()) {
       status.set_message(message.get());
     }
 
+    // TODO(alexr): Augment health information in a way similar to
+    // `CheckStatusInfo`. See MESOS-6417 for more details.
+
+    // If a check for the task has been defined, `check_status` field in each
+    // task status must be set to a valid `CheckStatusInfo` message even if
+    // there is no check status available yet.
+    CHECK(taskData.isSome());
+    if (taskData->taskInfo.has_check()) {
+      CheckStatusInfo checkStatusInfo;
+      checkStatusInfo.set_type(taskData->taskInfo.check().type());
+      switch (taskData->taskInfo.check().type()) {
+        case CheckInfo::COMMAND: {
+          checkStatusInfo.mutable_command();
+          break;
+        }
+
+        case CheckInfo::HTTP: {
+          checkStatusInfo.mutable_http();
+          break;
+        }
+
+        case CheckInfo::UNKNOWN: {
+          CHECK_NE(CheckInfo::UNKNOWN, taskData->taskInfo.check().type());
+          break;
+        }
+      }
+
+      status.mutable_check_status()->CopyFrom(checkStatusInfo);
+    }
+
+    return status;
+  }
+
+  void forward(const TaskStatus& status)
+  {
     Call call;
     call.set_type(Call::UPDATE);
 
@@ -750,7 +915,10 @@ private:
     call.mutable_update()->mutable_status()->CopyFrom(status);
 
     // Capture the status update.
-    updates[uuid] = call.update();
+    unacknowledgedUpdates[UUID::fromBytes(status.uuid()).get()] = call.update();
+
+    // Overwrite the last task status.
+    lastTaskStatus = status;
 
     mesos->send(evolve(call));
   }
@@ -779,6 +947,21 @@ private:
     SUBSCRIBED
   } state;
 
+  struct TaskData
+  {
+    explicit TaskData(const TaskInfo& _taskInfo)
+      : taskInfo(_taskInfo), acknowledged(false) {}
+
+    TaskInfo taskInfo;
+
+    // Indicates whether a status update acknowledgement
+    // has been received for any status update.
+    bool acknowledged;
+  };
+
+  // Once `TaskInfo` is received, it is cached for later access.
+  Option<TaskData> taskData;
+
   // TODO(alexr): Introduce a state enum and document transitions,
   // see MESOS-5252.
   bool launched;
@@ -803,13 +986,18 @@ private:
   Option<string> workingDirectory;
   Option<string> user;
   Option<string> taskCommand;
+  Option<Environment> taskEnvironment;
   Option<CapabilityInfo> capabilities;
   const FrameworkID frameworkId;
   const ExecutorID executorId;
   Owned<MesosBase> mesos;
-  LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
-  Option<TaskInfo> task; // Unacknowledged task.
-  Owned<health::HealthChecker> checker;
+
+  LinkedHashMap<UUID, Call::Update> unacknowledgedUpdates;
+
+  Option<TaskStatus> lastTaskStatus;
+
+  Owned<checks::Checker> checker;
+  Owned<checks::HealthChecker> healthChecker;
 };
 
 } // namespace internal {
@@ -845,6 +1033,12 @@ public:
         "If specified, this is the overrided command for launching the\n"
         "task (instead of the command from TaskInfo).");
 
+    add(&Flags::task_environment,
+        "task_environment",
+        "If specified, this is a JSON-ified `Environment` protobuf that\n"
+        "should be added to the executor's environment before launching\n"
+        "the task.");
+
     add(&Flags::capabilities,
         "capabilities",
         "Capabilities the command can use.");
@@ -863,6 +1057,7 @@ public:
   Option<string> working_directory;
   Option<string> user;
   Option<string> task_command;
+  Option<Environment> task_environment;
   Option<mesos::CapabilityInfo> capabilities;
   string launcher_dir;
 };
@@ -874,9 +1069,7 @@ int main(int argc, char** argv)
   mesos::FrameworkID frameworkId;
   mesos::ExecutorID executorId;
 
-#ifdef __WINDOWS__
-  process::Winsock winsock;
-#endif
+  process::initialize();
 
   // Load flags from command line.
   Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
@@ -937,6 +1130,7 @@ int main(int argc, char** argv)
           flags.working_directory,
           flags.user,
           flags.task_command,
+          flags.task_environment,
           flags.capabilities,
           frameworkId,
           executorId,
@@ -944,6 +1138,11 @@ int main(int argc, char** argv)
 
   process::spawn(executor.get());
   process::wait(executor.get());
+  executor.reset();
 
+  // NOTE: We need to finalize libprocess, on Windows especially,
+  // as any binary that uses the networking stack on Windows must
+  // also clean up the networking stack before exiting.
+  process::finalize(true);
   return EXIT_SUCCESS;
 }

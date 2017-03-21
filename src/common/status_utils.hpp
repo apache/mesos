@@ -22,6 +22,13 @@
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
 
+// Return whether the wait(2) status was a successful process exit.
+inline bool WSUCCEEDED(int status)
+{
+  return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
+
 inline std::string WSTRINGIFY(int status)
 {
 #ifdef __WINDOWS__
@@ -36,9 +43,18 @@ inline std::string WSTRINGIFY(int status)
   if (WIFEXITED(status)) {
     message += "exited with status ";
     message += stringify(WEXITSTATUS(status));
-  } else {
+  } else if (WIFSIGNALED(status)) {
     message += "terminated with signal ";
     message += strsignal(WTERMSIG(status));
+    if (WCOREDUMP(status)) {
+      message += " (core dumped)";
+    }
+  } else if (WIFSTOPPED(status)) {
+    message += "stopped on signal ";
+    message += strsignal(WSTOPSIG(status));
+  } else {
+    message += "wait status ";
+    message += stringify(status);
   }
   return message;
 #endif // __WINDOWS__

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,23 +16,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+set -o pipefail
 
-# Prepare clang-tidy docker image.
-TAG=mesos-tidy-`date +%s`-$RANDOM
-# TODO(vinod): Instead of building Docker images on the fly host the
-# images on DockerHub and use them.
-docker build --no-cache=true -t $TAG mesos-tidy/
+MESOS_DIR=$(git rev-parse --show-toplevel)
 
-# Configure how checks are run. These variables can be overriden by setting the
+# Configure how checks are run. These variables can be overridden by setting the
 # respective environment variables before invoking this script.
 # TODO(bbannier): Enable more upstream checks by default, e.g., from the Google set.
 CHECKS=${CHECKS:-'-*,mesos-*'}
-
-# By default perform an optimized build since it appears to finish
-# slightly faster. Note that this has no effect on the static analysis.
-CONFIGURE_FLAGS=${CONFIGURE_FLAGS:-'--enable-optimize'}
-
-MESOS_DIRECTORY=$(cd "$(dirname "$0")/.." && pwd)
 
 # Check for unstaged or uncommitted changes.
 if ! $(git diff-index --quiet HEAD --); then
@@ -40,13 +32,13 @@ if ! $(git diff-index --quiet HEAD --); then
   exit 1
 fi
 
+# Pull the `mesos-tidy` image from Docker Hub.
+docker pull mesos/mesos-tidy
+
 # Execute the container.
 docker run \
   --rm \
-  -v "${MESOS_DIRECTORY}":/SRC \
+  -v "${MESOS_DIR}":/SRC:Z \
   -e CHECKS="${CHECKS}" \
-  -e CONFIGURE_FLAGS="${CONFIGURE_FLAGS}" \
-  $TAG || exit 1
-
-# Set a trap to delete the image on exit.
-trap "docker rmi $TAG" EXIT
+  -e CMAKE_ARGS="${CMAKE_ARGS}" \
+  mesos/mesos-tidy

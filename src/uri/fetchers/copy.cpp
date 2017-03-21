@@ -30,6 +30,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/mkdir.hpp>
 
 #include "uri/fetchers/copy.hpp"
@@ -99,7 +100,7 @@ Future<Nothing> CopyFetcherPlugin::fetch(
   Try<Subprocess> s = subprocess(
       "cp",
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 

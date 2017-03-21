@@ -37,7 +37,7 @@ mesos::internal::master::Flags::Flags()
       "hostname",
       "The hostname the master should advertise in ZooKeeper.\n"
       "If left unset, the hostname is resolved from the IP address\n"
-      "that the agent binds to; unless the user explicitly prevents\n"
+      "that the master advertises; unless the user explicitly prevents\n"
       "that, using `--no-hostname_lookup`, in which case the IP itself\n"
       "is used.");
 
@@ -124,10 +124,12 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::agent_reregister_timeout,
       "agent_reregister_timeout",
       flags::DeprecatedName("slave_reregister_timeout"),
-      "The timeout within which all agents are expected to re-register\n"
-      "when a new master is elected as the leader. Agents that do not\n"
-      "re-register within the timeout will be removed from the registry\n"
-      "and will be shutdown if they attempt to communicate with master.\n"
+      "The timeout within which an agent is expected to re-register.\n"
+      "Agents re-register when they become disconnected from the master\n"
+      "or when a new master is elected as the leader. Agents that do not\n"
+      "re-register within the timeout will be marked unreachable in the\n"
+      "registry; if/when the agent re-registers with the master, any\n"
+      "non-partition-aware tasks running on the agent will be terminated.\n"
       "NOTE: This value has to be at least " +
         stringify(MIN_AGENT_REREGISTER_TIMEOUT) + ".",
       MIN_AGENT_REREGISTER_TIMEOUT);
@@ -466,7 +468,7 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::agent_ping_timeout,
       "agent_ping_timeout",
       flags::DeprecatedName("slave_ping_timeout"),
-      "The timeout within which each agent is expected to respond to a\n"
+      "The timeout within which an agent is expected to respond to a\n"
       "ping from the master. Agents that do not respond within\n"
       "max_agent_ping_timeouts ping retries will be asked to shutdown.\n"
       "NOTE: The total ping timeout (`agent_ping_timeout` multiplied by\n"
@@ -540,6 +542,11 @@ mesos::internal::master::Flags::Flags()
       "max_completed_tasks_per_framework",
       "Maximum number of completed tasks per framework to store in memory.",
       DEFAULT_MAX_COMPLETED_TASKS_PER_FRAMEWORK);
+
+  add(&Flags::max_unreachable_tasks_per_framework,
+      "max_unreachable_tasks_per_framework",
+      "Maximum number of unreachable tasks per framework to store in memory.",
+      DEFAULT_MAX_UNREACHABLE_TASKS_PER_FRAMEWORK);
 
   add(&Flags::master_contender,
       "master_contender",

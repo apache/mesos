@@ -57,6 +57,8 @@
 #include <process/metrics/gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
+#include <process/ssl/flags.hpp>
+
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
@@ -453,17 +455,10 @@ protected:
       string scheme = "http";
 
 #ifdef USE_SSL_SOCKET
-      // TODO(gkleiman): Update this once the deprecation cycle is over (see
-      // MESOS-6492).
-      Option<string> value = os::getenv("SSL_ENABLED");
-      if (value.isNone()) {
-        value = os::getenv("LIBPROCESS_SSL_ENABLED");
-      }
-
-      if (value.isSome() && (value.get() == "1" || value.get() == "true")) {
+      if (process::network::openssl::flags().enabled) {
         scheme = "https";
       }
-#endif
+#endif // USE_SSL_SOCKET
 
       master = ::URL(
         scheme,

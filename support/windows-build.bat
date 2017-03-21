@@ -49,12 +49,14 @@ REM Generate the Visual Studio solution.
 REM You can pass in other flags by setting `OTHER_CMAKE_OPTIONS` before
 REM calling the script. For example, the ASF CI will add `-DPATCHEXE_PATH=...`
 REM because the path to GNU Patch is not the default.
-cmake .. -G "Visual Studio 14 2015 Win64" -DENABLE_LIBEVENT=1 %OTHER_CMAKE_OPTIONS%
+cmake .. -G "Visual Studio 14 2015 Win64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 %OTHER_CMAKE_OPTIONS%
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-REM NOTE: We pass in the build option `/p:PreferredToolArchitecture=x64`
-REM to force Visual Studio to use the native toolchain, which is (infinitely?)
-REM faster than the default cross-compiler.
+REM NOTE: We set the environment variable `PreferredToolArchitecture`
+REM to work around some known issues in Visual Studio's linking step.
+REM Without this variable set, MSVC may take hours/days to link
+REM and may sometimes erroneously fail to find the library to link against.
+SET PreferredToolArchitecture=x64
 
 REM NOTE: The build option `/m` tells Visual Studio to build projects in
 REM parallel if possible.
@@ -63,26 +65,36 @@ REM NOTE: Specifying a build "target" is done via the build option `/t`.
 REM Multiple targets can be specified with semi-comma separation.
 
 REM Build and run the stout tests.
-msbuild Mesos.sln /p:PreferredToolArchitecture=x64 /m /t:stout_tests
+msbuild Mesos.sln /m /t:stout-tests
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-REM TODO(josephw): Uncomment this after fixing the tests on Windows.
-"3rdparty/stout/tests/Debug/stout_tests.exe"
+"3rdparty/stout/tests/Debug/stout-tests.exe"
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM Build and run the libprocess tests.
-msbuild Mesos.sln /p:PreferredToolArchitecture=x64 /m /t:process_tests
+msbuild Mesos.sln /m /t:libprocess-tests
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-REM TODO(josephw): Uncomment this after fixing the tests on Windows.
-"3rdparty/libprocess/src/tests/Debug/process_tests.exe"
+"3rdparty/libprocess/src/tests/Debug/libprocess-tests.exe"
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM Build everything else.
-msbuild Mesos.sln /p:PreferredToolArchitecture=x64 /m
+msbuild Mesos.sln /m
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-REM TODO(josephw): Run mesos tests.
+REM Due to how Mesos uses and creates symlinks, the next test suite
+REM will only pass when run as an Administrator. The following command
+REM is a read-only command that only passes for Administrators.
+REM See: https://technet.microsoft.com/en-us/library/bb490711.aspx
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Administrator permissions not detected.  Skipping Mesos tests...
+    exit /b 0
+)
+
+REM Run mesos tests.
+"src/mesos-tests.exe" --verbose
+if %errorlevel% neq 0 exit /b %errorlevel%
 
 goto :eof
 

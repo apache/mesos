@@ -82,8 +82,8 @@ public:
   process::Future<Nothing> attach(
       const std::string& path,
       const std::string& name,
-      const Option<lambda::function<
-          process::Future<bool>(const Option<std::string>&)>>&
+      const Option<lambda::function<process::Future<bool>(
+          const Option<process::http::authentication::Principal>&)>>&
               authorized = None());
 
   // Removes the specified name.
@@ -92,14 +92,14 @@ public:
   // Returns a file listing for a directory similar to `ls -l`.
   process::Future<Try<std::list<FileInfo>, FilesError>> browse(
       const std::string& path,
-      const Option<std::string>& principal);
+      const Option<process::http::authentication::Principal>& principal);
 
   // Returns the size and data of file.
   process::Future<Try<std::tuple<size_t, std::string>, FilesError>> read(
       const size_t offset,
       const Option<size_t>& length,
       const std::string& path,
-      const Option<std::string>& principal);
+      const Option<process::http::authentication::Principal>& principal);
 
 private:
   FilesProcess* process;

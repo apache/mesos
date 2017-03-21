@@ -214,6 +214,22 @@ public:
       const std::string& defaultRole = "*");
 
   /**
+   * Parse an input string into a vector of Resource objects.
+   *
+   * Parses into a vector of Resource objects from either JSON or plain
+   * text. If the string is well-formed JSON it is assumed to be JSON,
+   * otherwise plain text. Any resource that doesn't specify a role is
+   * assigned to the provided default role.
+   *
+   * NOTE: The `Resource` objects in the result vector may not be valid
+   * semantically (i.e., they may not pass `Resources::validate()`). This
+   * is to allow additional handling of the parsing results in some cases.
+   */
+  static Try<std::vector<Resource>> fromString(
+      const std::string& text,
+      const std::string& defaultRole = "*");
+
+  /**
    * Validates a Resource object.
    *
    * Validates the given Resource object. Returns Error if it is not valid. A
@@ -344,6 +360,14 @@ public:
   // - If the resource is not in the Resources object, the count is 0.
   size_t count(const Resource& that) const;
 
+  // Allocates the resources to the given role (by setting the
+  // `AllocationInfo.role`). Any existing allocation will be
+  // over-written.
+  void allocate(const std::string& role);
+
+  // Unallocates the resources.
+  void unallocate();
+
   // Filter resources based on the given predicate.
   Resources filter(
       const lambda::function<bool(const Resource&)>& predicate) const;
@@ -374,6 +398,10 @@ public:
   // Returns the non-shared resources.
   Resources nonShared() const;
 
+  // Returns the per-role allocations within these resource objects.
+  // This must be called only when the resources are allocated!
+  hashmap<std::string, Resources> allocations() const;
+
   // Returns a Resources object with the same amount of each resource
   // type as these Resources, but with all Resource objects marked as
   // the specified (role, reservation) pair. This is used to cross
@@ -392,11 +420,11 @@ public:
   Resources flatten() const;
 
   // Returns a Resources object that contains all the scalar resources
-  // in this object, but with their ReservationInfo and DiskInfo
-  // omitted. Note that the `role` and RevocableInfo, if any, are
-  // preserved. Because we clear ReservationInfo but preserve `role`,
-  // this means that stripping a dynamically reserved resource makes
-  // it effectively statically reserved.
+  // in this object, but with their ReservationInfo, AllocationInfo,
+  // and DiskInfo omitted. Note that the `role` and RevocableInfo,
+  // if any, are preserved. Because we clear ReservationInfo but
+  // preserve `role`, this means that stripping a dynamically
+  // reserved resource makes it effectively statically reserved.
   //
   // This is intended for code that would like to aggregate together
   // Resource values without regard for metadata like whether the

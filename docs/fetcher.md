@@ -251,7 +251,7 @@ The value of the proxy variable is of the format
 `[protocol://][user:password@]machine[:port]`, where `protocol` can be one of
 socks4, socks5, http, https.
 
-FTP/FTPS requests with a proxy also make use of a HTTP/HTTPS proxy. Even
+FTP/FTPS requests with a proxy also make use of an HTTP/HTTPS proxy. Even
 though in general this constrains the available FTP protocol operations,
 everything the fetcher uses is supported.
 

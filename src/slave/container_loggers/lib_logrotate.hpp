@@ -20,11 +20,13 @@
 #include <stdio.h>
 
 #include <mesos/slave/container_logger.hpp>
+#include <mesos/slave/containerizer.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/flags.hpp>
 #include <stout/option.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/pagesize.hpp>
 #include <stout/os/shell.hpp>
@@ -63,7 +65,7 @@ struct LoggerFlags : public virtual flags::FlagsBase
         "    <logrotate_stdout_options>\n"
         "    size <max_stdout_size>\n"
         "  }\n"
-        "NOTE: The 'size' option will be overriden by this module.");
+        "NOTE: The 'size' option will be overridden by this module.");
 
     add(&LoggerFlags::max_stderr_size,
         "max_stderr_size",
@@ -81,7 +83,7 @@ struct LoggerFlags : public virtual flags::FlagsBase
         "    <logrotate_stderr_options>\n"
         "    size <max_stderr_size>\n"
         "  }\n"
-        "NOTE: The 'size' option will be overriden by this module.");
+        "NOTE: The 'size' option will be overridden by this module.");
   }
 
   static Option<Error> validateSize(const Bytes& value)
@@ -147,7 +149,7 @@ struct Flags : public virtual LoggerFlags
           // Check if `logrotate` exists via the help command.
           // TODO(josephw): Consider a more comprehensive check.
           Try<std::string> helpCommand =
-            os::shell(value + " --help > /dev/null");
+            os::shell(value + " --help > " + os::DEV_NULL);
 
           if (helpCommand.isError()) {
             return Error(
@@ -195,8 +197,7 @@ public:
   // This is a noop.  The logrotate container logger has nothing to initialize.
   virtual Try<Nothing> initialize();
 
-  virtual process::Future<mesos::slave::ContainerLogger::SubprocessInfo>
-  prepare(
+  virtual process::Future<mesos::slave::ContainerIO> prepare(
       const ExecutorInfo& executorInfo,
       const std::string& sandboxDirectory,
       const Option<std::string>& user);

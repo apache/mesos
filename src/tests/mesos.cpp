@@ -107,8 +107,10 @@ master::Flags MesosTest::CreateMasterFlags()
 
   flags.authenticate_http_readonly = true;
   flags.authenticate_http_readwrite = true;
+#ifdef HAS_AUTHENTICATION
   flags.authenticate_frameworks = true;
   flags.authenticate_agents = true;
+#endif // HAS_AUTHENTICATION
 
   flags.authenticate_http_frameworks = true;
   flags.http_framework_authenticators = "basic";
@@ -116,7 +118,7 @@ master::Flags MesosTest::CreateMasterFlags()
   // Create a default credentials file.
   const string& path = path::join(os::getcwd(), "credentials");
 
-  Try<int> fd = os::open(
+  Try<int_fd> fd = os::open(
       path,
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP);
@@ -143,8 +145,10 @@ master::Flags MesosTest::CreateMasterFlags()
   // Set default ACLs.
   flags.acls = ACLs();
 
-  // Use the replicated log (without ZooKeeper) by default.
-  flags.registry = "replicated_log";
+  // Use the in-memory registry (instead of the replicated log) by default.
+  // TODO(josephw): Consider changing this back to `replicated_log` once
+  // all platforms support this registrar backend.
+  flags.registry = "in_memory";
 
   // On many test VMs, this default is too small.
   flags.registry_store_timeout = flags.registry_store_timeout * 5;
@@ -174,10 +178,11 @@ slave::Flags MesosTest::CreateSlaveFlags()
   flags.launcher_dir = getLauncherDir();
 
   {
+#ifdef HAS_AUTHENTICATION
     // Create a default credential file for master/agent authentication.
     const string& path = path::join(directory.get(), "credential");
 
-    Try<int> fd = os::open(
+    Try<int_fd> fd = os::open(
         path,
         O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
         S_IRUSR | S_IWUSR | S_IRGRP);
@@ -197,6 +202,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
     // Set default (permissive) ACLs.
     flags.acls = ACLs();
+#endif // HAS_AUTHENTICATION
   }
 
   flags.authenticate_http_readonly = true;
@@ -206,7 +212,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
     // Create a default HTTP credentials file.
     const string& path = path::join(directory.get(), "http_credentials");
 
-    Try<int> fd = os::open(
+    Try<int_fd> fd = os::open(
         path,
         O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
         S_IRUSR | S_IWUSR | S_IRGRP);
@@ -241,8 +247,6 @@ slave::Flags MesosTest::CreateSlaveFlags()
   if (tests::flags.isolation.isSome()) {
     flags.isolation = tests::flags.isolation.get();
   }
-
-  flags.io_switchboard_enable_server = true;
 
   return flags;
 }
@@ -561,12 +565,11 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
     flags.isolation = "cgroups/cpu,cgroups/mem";
     flags.cgroups_hierarchy = baseHierarchy;
     flags.cgroups_root = TEST_CGROUPS_ROOT + "_" + UUID::random().toString();
-
-    // Enable putting the slave into memory and cpuacct cgroups.
-    flags.agent_subsystems = "memory,cpuacct";
   } else {
     flags.isolation = "posix/cpu,posix/mem";
   }
+#elif defined(__WINDOWS__)
+  flags.isolation = "windows/cpu";
 #else
   flags.isolation = "posix/cpu,posix/mem";
 #endif
@@ -640,11 +643,10 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
 {
   MesosTest::SetUp();
 
-  subsystems.insert("cpu");
-  subsystems.insert("cpuacct");
-  subsystems.insert("memory");
-  subsystems.insert("freezer");
-  subsystems.insert("perf_event");
+  Try<std::set<string>> supportedSubsystems = cgroups::subsystems();
+  ASSERT_SOME(supportedSubsystems);
+
+  subsystems = supportedSubsystems.get();
 
   Result<string> user = os::user();
   EXPECT_SOME(user);
@@ -754,6 +756,10 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
             Clock::resume();
           }
 
+          // Since we are tearing down the tests, kill any processes
+          // that might remain. Any remaining zombie processes will
+          // not prevent the destroy from succeeding.
+          EXPECT_SOME(cgroups::kill(hierarchy, cgroup, SIGKILL));
           AWAIT_READY(cgroups::destroy(hierarchy, cgroup));
 
           if (paused) {

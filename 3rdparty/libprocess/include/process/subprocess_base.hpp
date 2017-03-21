@@ -15,6 +15,7 @@
 
 #include <sys/types.h>
 
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -30,6 +31,7 @@
 #include <stout/try.hpp>
 
 #include <stout/os/shell.hpp>
+#include <stout/os/int_fd.hpp>
 
 
 namespace process {
@@ -74,13 +76,8 @@ public:
      */
     struct InputFileDescriptors
     {
-#ifndef __WINDOWS__
-      int read = -1;
-      Option<int> write = None();
-#else
-      HANDLE read = INVALID_HANDLE_VALUE;
-      Option<HANDLE> write = None();
-#endif // __WINDOWS__
+      int_fd read = -1;
+      Option<int_fd> write = None();
     };
 
     /**
@@ -94,13 +91,8 @@ public:
      */
     struct OutputFileDescriptors
     {
-#ifndef __WINDOWS__
-      Option<int> read = None();
-      int write = -1;
-#else
-      Option<HANDLE> read = None();
-      HANDLE write = INVALID_HANDLE_VALUE;
-#endif // __WINDOWS__
+      Option<int_fd> read = None();
+      int_fd write = -1;
     };
 
     /**
@@ -174,6 +166,18 @@ public:
     const lambda::function<Try<Nothing>(pid_t)> parent_setup;
 
     friend class Subprocess;
+
+#ifdef __WINDOWS__
+    /**
+     * A Windows Job Object is used to manage groups of processes, which
+     * we use due to the lack of a process hierarchy (in a UNIX sense)
+     * on Windows.
+     *
+     * This hook places the subprocess into a Job Object, which will allow
+     * us to kill the subprocess and all of its children together.
+     */
+    static ParentHook CREATE_JOB();
+#endif // __WINDOWS__
   };
 
   /**
@@ -204,6 +208,12 @@ public:
      * `ChildHook` for duplicating a file descriptor.
      */
     static ChildHook DUP2(int oldFd, int newFd);
+
+    /**
+     * `ChildHook` to unset CLOEXEC on a file descriptor. This is
+     * useful to explicitly pass an FD to a subprocess.
+     */
+    static ChildHook UNSET_CLOEXEC(int fd);
 #endif // __WINDOWS__
 
     /**
@@ -227,7 +237,7 @@ public:
   // Some syntactic sugar to create an IO::PIPE redirector.
   static IO PIPE();
   static IO PATH(const std::string& path);
-  static IO FD(int fd, IO::FDType type = IO::DUPLICATED);
+  static IO FD(int_fd fd, IO::FDType type = IO::DUPLICATED);
 
   /**
    * @return The operating system PID for this subprocess.
@@ -239,11 +249,7 @@ public:
    *     write side) of this subprocess' stdin pipe or None if no pipe
    *     was requested.
    */
-#ifdef __WINDOWS__
-  Option<HANDLE> in() const
-#else
-  Option<int> in() const
-#endif // __WINDOWS__
+  Option<int_fd> in() const
   {
     return data->in;
   }
@@ -253,11 +259,7 @@ public:
    *     side) of this subprocess' stdout pipe or None if no pipe was
    *     requested.
    */
-#ifdef __WINDOWS__
-  Option<HANDLE> out() const
-#else
-  Option<int> out() const
-#endif // __WINDOWS__
+  Option<int_fd> out() const
   {
     return data->out;
   }
@@ -267,11 +269,7 @@ public:
    *     side) of this subprocess' stderr pipe or None if no pipe was
    *     requested.
    */
-#ifdef __WINDOWS__
-  Option<HANDLE> err() const
-#else
-  Option<int> err() const
-#endif // __WINDOWS__
+  Option<int_fd> err() const
   {
     return data->err;
   }
@@ -280,13 +278,22 @@ public:
    * Exit status of this subprocess captured as a Future (completed
    * when the subprocess exits).
    *
-   * The exit status is propagated from an underlying call to
-   * 'waitpid' and can be used with macros defined in wait.h, i.e.,
-   * 'WIFEXITED(status)'.
+   * On Posix, the exit status is propagated from an underlying call
+   * to `waitpid` and can be used with macros defined in wait.h, i.e.,
+   * `WIFEXITED(status)`.
+   *
+   * On Windows, the exit status contains the exit code from an
+   * underlying call to `GetExitCodeProcess()`.
+   *
+   * TODO(alexr): Ensure the code working with `status` is portable by
+   * either making `WIFEXITED` family macros no-op on Windows or
+   * converting `status` to a tuple <termination status, exit code>,
+   * see MESOS-7242.
    *
    * NOTE: Discarding this future has no effect on the subprocess!
    *
-   * @return Future from doing a process::reap of this subprocess.
+   * @return Future from doing a `process::reap()` of this subprocess.
+   *     Note that `process::reap()` never fails or discards this future.
    */
   Future<Option<int>> status() const { return data->status; }
 
@@ -313,8 +320,8 @@ private:
       if (err.isSome()) { os::close(err.get()); }
 
 #ifdef __WINDOWS__
-      os::close(processInformation.hProcess);
-      os::close(processInformation.hThread);
+      CloseHandle(processInformation.hProcess);
+      CloseHandle(processInformation.hThread);
 #endif // __WINDOWS__
     }
 
@@ -328,15 +335,9 @@ private:
     // IO mode is not a pipe, `None` will be stored.
     // NOTE: stdin, stdout, stderr are macros on some systems, hence
     // these names instead.
-#ifdef __WINDOWS__
-    Option<HANDLE> in;
-    Option<HANDLE> out;
-    Option<HANDLE> err;
-#else
-    Option<int> in;
-    Option<int> out;
-    Option<int> err;
-#endif // __WINDOWS__
+    Option<int_fd> in;
+    Option<int_fd> out;
+    Option<int_fd> err;
 
     Future<Option<int>> status;
   };
@@ -345,6 +346,9 @@ private:
 
   std::shared_ptr<Data> data;
 };
+
+using InputFileDescriptors = Subprocess::IO::InputFileDescriptors;
+using OutputFileDescriptors = Subprocess::IO::OutputFileDescriptors;
 
 /**
  * Forks a subprocess and execs the specified 'path' with the
@@ -435,6 +439,34 @@ inline Try<Subprocess> subprocess(
       child_hooks);
 }
 
+namespace internal {
+
+inline void close(std::initializer_list<int_fd> fds)
+{
+  foreach (int_fd fd, fds) {
+    if (fd >= 0) {
+      os::close(fd);
+    }
+  }
+}
+
+// This function will invoke `os::close` on all specified file
+// descriptors that are valid (i.e., not `None` and >= 0).
+inline void close(
+    const Subprocess::IO::InputFileDescriptors& stdinfds,
+    const Subprocess::IO::OutputFileDescriptors& stdoutfds,
+    const Subprocess::IO::OutputFileDescriptors& stderrfds)
+{
+  close(
+      {stdinfds.read,
+       stdinfds.write.getOrElse(-1),
+       stdoutfds.read.getOrElse(-1),
+       stdoutfds.write,
+       stderrfds.read.getOrElse(-1),
+       stderrfds.write});
+}
+
+} // namespace internal {
 } // namespace process {
 
 #endif // __PROCESS_SUBPROCESS_BASE_HPP__

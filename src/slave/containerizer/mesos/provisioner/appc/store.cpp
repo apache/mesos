@@ -154,7 +154,7 @@ Future<Nothing> Store::recover()
 }
 
 
-Future<ImageInfo> Store::get(const Image& image)
+Future<ImageInfo> Store::get(const Image& image, const string& backend)
 {
   return dispatch(process.get(), &StoreProcess::get, image);
 }

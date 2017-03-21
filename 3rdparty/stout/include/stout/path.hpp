@@ -227,7 +227,7 @@ public:
   inline Option<std::string> extension() const
   {
     std::string _basename = basename();
-    size_t index = _basename.rfind(".");
+    size_t index = _basename.rfind('.');
 
     if (_basename == "." || _basename == ".." || index == std::string::npos) {
       return None();

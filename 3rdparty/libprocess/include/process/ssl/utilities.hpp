@@ -110,6 +110,20 @@ Try<Nothing> write_key_file(EVP_PKEY* private_key, const Path& path);
  */
 Try<Nothing> write_certificate_file(X509* x509, const Path& path);
 
+
+/**
+ * Generates a keyed-hash message authentication code (HMAC) with SHA256.
+ * @see <a href="https://www.openssl.org/docs/man1.1.0/crypto/HMAC.html">HMAC</a> // NOLINT
+ *
+ * @param message The message to be authenticated.
+ * @param key The secret key.
+ *
+ * @return The HMAC if successful otherwise an Error.
+ */
+Try<std::string> generate_hmac_sha256(
+    const std::string& message,
+    const std::string& key);
+
 } // namespace openssl {
 } // namespace network {
 } // namespace process {

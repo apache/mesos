@@ -47,6 +47,11 @@ Try<NetworkConfig> parseNetworkConfig(const std::string& s);
 Try<NetworkInfo> parseNetworkInfo(const std::string& s);
 
 
+// Takes a DNS specification and returns a string containing
+// the equivalent resolv.conf(5) format.
+std::string formatResolverConfig(const DNS& dns);
+
+
 // Creates a `spec::Error` object, with the `msg` and `code`
 // specified. Returns a JSON string representation of the
 // `spec::Error` object. See details in:

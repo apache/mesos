@@ -30,14 +30,16 @@ considered stable and is the recommended way to develop new Mesos schedulers.
 
 ## Overview
 
-The scheduler interacts with Mesos via the [/api/v1/scheduler](endpoints/master/api/v1/scheduler.md) master endpoint. Note that we refer to this endpoint with its suffix "/scheduler" in the rest of this document. This endpoint accepts HTTP POST requests with data encoded as JSON (Content-Type: application/json) or binary Protobuf (Content-Type: application/x-protobuf). The first request that a scheduler sends to "/scheduler" endpoint is called SUBSCRIBE and results in a streaming response ("200 OK" status code with Transfer-Encoding: chunked). **Schedulers are expected to keep the subscription connection open as long as possible (barring errors in network, software, hardware etc.) and incrementally process the response** (NOTE: HTTP client libraries that can only parse the response after the connection is closed cannot be used). For the encoding used, please refer to **Events** section below.
+The scheduler interacts with Mesos via the [/api/v1/scheduler](endpoints/master/api/v1/scheduler.md) master endpoint. We refer to this endpoint with its suffix "/scheduler" in the rest of this document. This endpoint accepts HTTP POST requests with data encoded as JSON (Content-Type: application/json) or binary Protobuf (Content-Type: application/x-protobuf). The first request that a scheduler sends to "/scheduler" endpoint is called SUBSCRIBE and results in a streaming response ("200 OK" status code with Transfer-Encoding: chunked).
 
-All the subsequent (non-`SUBSCRIBE`) requests to "/scheduler" endpoint (see details below in **Calls** section) must be sent using a different connection(s) than the one being used for subscription. Master responds to these HTTP POST requests with "202 Accepted" status codes (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The "202 Accepted" response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., master fails during the processing of the request). Any asynchronous responses from these requests will be streamed on the long-lived subscription connection.
+**Schedulers are expected to keep the subscription connection open as long as possible (barring errors in network, software, hardware, etc.) and incrementally process the response.** HTTP client libraries that can only parse the response after the connection is closed cannot be used. For the encoding used, please refer to **Events** section below.
+
+All subsequent (non-`SUBSCRIBE`) requests to the "/scheduler" endpoint (see details below in **Calls** section) must be sent using a different connection than the one used for subscription. The master responds to these HTTP POST requests with "202 Accepted" status codes (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The "202 Accepted" response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., master fails during the processing of the request). Any asynchronous responses from these requests will be streamed on the long-lived subscription connection. Schedulers can submit requests using more than one different HTTP connection.
 
 
 ## Calls
 
-The following calls are currently accepted by the master. The canonical source of this information is [scheduler.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/scheduler/scheduler.proto) (NOTE: The protobuf definitions are subject to change before the beta API is finalized). Note that when sending JSON encoded Calls, schedulers should encode raw bytes in Base64 and strings in UTF-8. All non-`SUBSCRIBE` calls should include the `Mesos-Stream-Id` header, explained in the [`SUBSCRIBE`](#subscribe) section. `SUBSCRIBE` calls should never include the `Mesos-Stream-Id` header.
+The following calls are currently accepted by the master. The canonical source of this information is [scheduler.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/scheduler/scheduler.proto). When sending JSON-encoded Calls, schedulers should encode raw bytes in Base64 and strings in UTF-8. All non-`SUBSCRIBE` calls should include the `Mesos-Stream-Id` header, explained in the [`SUBSCRIBE`](#subscribe) section. `SUBSCRIBE` calls should never include the `Mesos-Stream-Id` header.
 
 
 <a id="recordio-response-format"></a>
@@ -81,15 +83,15 @@ In pseudo-code, this could be parsed with something like the following:
   }
 ```
 
-Network intermediaries e.g. proxies are free to change the chunk boundaries and this should not have any effect on the recipient application (scheduler layer). We wanted a way to delimit/encode two events for JSON/Protobuf responses consistently and RecordIO format allowed us to do that.
+Network intermediaries (e.g., proxies) are free to change the chunk boundaries; this should not have any effect on the recipient application (scheduler). We wanted a way to delimit/encode two events for JSON/Protobuf responses consistently and RecordIO format allowed us to do that.
 
 
 <a id="subscribe"></a>
 ### SUBSCRIBE
 
-This is the first step in the communication process between the scheduler and the master. This is also to be considered as subscription to the "/scheduler" events stream.
+This is the first step in the communication process between the scheduler and the master. This is also to be considered as subscription to the "/scheduler" event stream.
 
-To subscribe with the master, the scheduler sends a HTTP POST request with encoded  `SUBSCRIBE` message with the required FrameworkInfo. Note that if "subscribe.framework_info.id" is not set, master considers the scheduler as a new one and subscribes it by assigning it a FrameworkID. The HTTP response is a stream with RecordIO encoding, with the first event being `SUBSCRIBED` event (see details in **Events** section). The response also includes the `Mesos-Stream-Id` header, which is used by the master to uniquely identify the subscribed scheduler instance. This stream ID header should be included in all subsequent non-`SUBSCRIBE` calls sent over this subscription connection to the master. The value of `Mesos-Stream-Id` is guaranteed to be equal to or less than 128 bytes in length.
+To subscribe with the master, the scheduler sends an HTTP POST with a `SUBSCRIBE` message including the required FrameworkInfo. Note that if "subscribe.framework_info.id" is not set, master considers the scheduler as a new one and subscribes it by assigning it a FrameworkID. The HTTP response is a stream in RecordIO format; the event stream begins with a `SUBSCRIBED` event (see details in **Events** section). The response also includes the `Mesos-Stream-Id` header, which is used by the master to uniquely identify the subscribed scheduler instance. This stream ID header should be included in all subsequent non-`SUBSCRIBE` calls sent over this subscription connection to the master. The value of `Mesos-Stream-Id` is guaranteed to be at most 128 bytes in length.
 
 ```
 SUBSCRIBE Request (JSON):
@@ -134,9 +136,9 @@ with a `SUBSCRIBED` event. For further details, see the **Disconnections** secti
 
 NOTE: In the old version of the API, (re-)registered callbacks also included MasterInfo, which contained information about the master the driver currently connected to. With the new API, since schedulers explicitly subscribe with the leading master (see details below in **Master Detection** section), it's not relevant anymore.
 
-If subscription fails for whatever reason (e.g., invalid request), a HTTP 4xx response is returned with the error message as part of the body and the connection is closed.
+If subscription fails for whatever reason (e.g., invalid request), an HTTP 4xx response is returned with the error message as part of the body and the connection is closed.
 
-Scheduler must make additional HTTP requests to the "/scheduler" endpoint only after it has opened a persistent connection to it by sending a `SUBSCRIBE` request and received a `SUBSCRIBED` response. Calls made without subscription will result in a "403 Forbidden" instead of a "202 Accepted" response. A scheduler might also receive a "400 Bad Request" response if the HTTP request is malformed (e.g., malformed HTTP headers).
+A scheduler can make additional HTTP requests to the "/scheduler" endpoint only after it has opened a persistent connection to it by sending a `SUBSCRIBE` request and received a `SUBSCRIBED` response. Calls made without subscription will result in "403 Forbidden" instead of a "202 Accepted" response. A scheduler might also receive a "400 Bad Request" response if the HTTP request is malformed (e.g., malformed HTTP headers).
 
 Note that the `Mesos-Stream-Id` header should **never** be included with a `SUBSCRIBE` call; the master will always provide a new unique stream ID for each subscription.
 
@@ -161,7 +163,7 @@ HTTP/1.1 202 Accepted
 ```
 
 ### ACCEPT
-Sent by the scheduler when it accepts offer(s) sent by the master. The `ACCEPT` request includes the type of operations (e.g., launch task, launch task group, reserve resources, create volumes) that the scheduler wants to perform on the offers. Note that until the scheduler replies (accepts or declines) to an offer, its resources are considered allocated to the framework. Also, any of the offer's resources not used in the `ACCEPT` call (e.g., to launch a task or task group) are considered declined and might be reoffered to other frameworks. In other words, the same `OfferID` cannot be used in more than one `ACCEPT` call. These semantics might change when we add new features to Mesos (e.g., persistence, reservations, optimistic offers, resizeTask, etc.).
+Sent by the scheduler when it accepts offer(s) sent by the master. The `ACCEPT` request includes the type of operations (e.g., launch task, launch task group, reserve resources, create volumes) that the scheduler wants to perform on the offers. Note that until the scheduler replies (accepts or declines) to an offer, the offer's resources are considered allocated to the framework. Also, any of the offer's resources not used in the `ACCEPT` call (e.g., to launch a task or task group) are considered declined and might be reoffered to other frameworks. In other words, the same `OfferID` cannot be used in more than one `ACCEPT` call. These semantics might change when we add new features to Mesos (e.g., persistence, reservations, optimistic offers, resizeTask, etc.).
 
 ```
 ACCEPT Request (JSON):
@@ -196,7 +198,7 @@ Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
                                           },
                                           "resources"   : [
                                                            {
-                                                            "name"  : "cpus",
+                                    "name"  : "cpus",
 						            "role"  : "*",
 						            "type"  : "SCALAR",
 						            "scalar": {"value": 1.0}
@@ -297,7 +299,7 @@ HTTP/1.1 202 Accepted
 ```
 
 ### SHUTDOWN
-Sent by the scheduler to shutdown a specific custom executor (NOTE: This is a new call that was not present in the old API). When an executor gets a shutdown event, it is expected to kill all its tasks (and send `TASK_KILLED` updates) and terminate. If an executor doesn't terminate within a certain timeout (configurable via  "--executor_shutdown_grace_period" agent flag), the agent will forcefully destroy the container (executor and its tasks) and transitions its active tasks to `TASK_LOST`.
+Sent by the scheduler to shutdown a specific custom executor (NOTE: This is a new call that was not present in the old API). When an executor gets a shutdown event, it is expected to kill all its tasks (and send `TASK_KILLED` updates) and terminate. If an executor doesn't terminate within a certain timeout (configurable via the `--executor_shutdown_grace_period` agent flag), the agent will forcefully destroy the container (executor and its tasks) and transition its active tasks to `TASK_LOST`.
 
 ```
 SHUTDOWN Request (JSON):
@@ -322,7 +324,7 @@ HTTP/1.1 202 Accepted
 ```
 
 ### ACKNOWLEDGE
-Sent by the scheduler to acknowledge a status update. Note that with the new API, schedulers are responsible for explicitly acknowledging the receipt of status updates that have "status.uuid()" set. These status updates are reliably retried until they are acknowledged by the scheduler. The scheduler must not acknowledge status updates that do not have "status.uuid()" set as they are not retried. "uuid" is raw bytes encoded in Base64.
+Sent by the scheduler to acknowledge a status update. Note that with the new API, schedulers are responsible for explicitly acknowledging the receipt of status updates that have `status.uuid` set. These status updates are retried until they are acknowledged by the scheduler. The scheduler must not acknowledge status updates that do not have `status.uuid` set, as they are not retried. The `uuid` field contains raw bytes encoded in Base64.
 
 ```
 ACKNOWLEDGE Request (JSON):
@@ -363,8 +365,8 @@ Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
   "type"			: "RECONCILE",
   "reconcile"		: {
     "tasks"		: [
-                   { "task_id"  : { "value" : "312325" },
-                     "agent_id" : { "value" : "123535" }
+                   { "task_id"  : {"value" : "312325"},
+                     "agent_id" : {"value" : "123535"}
                    }
                   ]
   }
@@ -376,7 +378,7 @@ HTTP/1.1 202 Accepted
 ```
 
 ### MESSAGE
-Sent by the scheduler to send arbitrary binary data to the executor. Note that Mesos neither interprets this data nor makes any guarantees about the delivery of this message to the executor. "data" is raw bytes encoded in Base64.
+Sent by the scheduler to send arbitrary binary data to the executor. Mesos neither interprets this data nor makes any guarantees about the delivery of this message to the executor. `data` is raw bytes encoded in Base64.
 
 ```
 MESSAGE Request (JSON):
@@ -430,7 +432,7 @@ HTTP/1.1 202 Accepted
 
 ## Events
 
-Scheduler is expected to keep a **persistent** connection open to "/scheduler" endpoint even after getting a SUBSCRIBED HTTP Response event. This is indicated by "Connection: keep-alive" and "Transfer-Encoding: chunked" headers with *no* "Content-Length" header set. All subsequent events that are relevant to this framework  generated by Mesos are streamed on this connection. Master encodes each Event in RecordIO format, i.e., string representation of length of the event in bytes followed by JSON or binary Protobuf  (possibly compressed) encoded event. Note that the value of length will never be '0' and the size of the length will be the size of unsigned integer (i.e., 64 bits). Also, note that the RecordIO encoding should be decoded by the scheduler whereas the underlying HTTP chunked encoding is typically invisible at the application (scheduler) layer. The type of content encoding used for the events will be determined by the accept header of the POST request (e.g., Accept: application/json).
+Schedulers are expected to keep a **persistent** connection to the "/scheduler" endpoint (even after getting a `SUBSCRIBED` HTTP Response event). This is indicated by the "Connection: keep-alive" and "Transfer-Encoding: chunked" headers with *no* "Content-Length" header set. All subsequent events that are relevant to this framework generated by Mesos are streamed on this connection. The master encodes each Event in RecordIO format, i.e., string representation of the length of the event in bytes followed by JSON or binary Protobuf (possibly compressed) encoded event. The length of an event is a 64-bit unsigned integer (encoded as a textual value) and will never be "0". Also, note that the RecordIO encoding should be decoded by the scheduler whereas the underlying HTTP chunked encoding is typically invisible at the application (scheduler) layer. The type of content encoding used for the events will be determined by the accept header of the POST request (e.g., Accept: application/json).
 
 The following events are currently sent by the master. The canonical source of this information is at [scheduler.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/scheduler/scheduler.proto). Note that when sending JSON encoded events, master encodes raw bytes in Base64 and strings in UTF-8.
 
@@ -439,7 +441,7 @@ The first event sent by the master when the scheduler sends a `SUBSCRIBE` reques
 
 
 ### OFFERS
-Sent by the master whenever there are new resources that can be offered to the framework. Each offer corresponds to a set of resources on an agent. Until the scheduler 'Accept's or 'Decline's an offer the resources are considered allocated to the scheduler, unless the offer is otherwise rescinded, e.g. due to a lost agent or `--offer_timeout`.
+Sent by the master whenever there are new resources that can be offered to the framework. Each offer corresponds to a set of resources on an agent. Until the scheduler 'Accept's or 'Decline's an offer the resources are considered allocated to the scheduler, unless the offer is otherwise rescinded, e.g., due to a lost agent or `--offer_timeout`.
 
 ```
 OFFERS Event (JSON)
@@ -514,7 +516,7 @@ UPDATE Event (JSON)
 ```
 
 ### MESSAGE
-A custom message generated by the executor that is forwarded to the scheduler by the master. This message is not interpreted by Mesos and is only forwarded (without reliability guarantees) to the scheduler. It is up to the executor to retry if the message is dropped for any reason. Note that `data` is raw bytes encoded as Base64.
+A custom message generated by the executor that is forwarded to the scheduler by the master. This message is not interpreted by Mesos and is only forwarded (without reliability guarantees) to the scheduler. It is up to the executor to retry if the message is dropped for any reason. The `data` field contains raw bytes encoded as Base64.
 
 ```
 MESSAGE Event (JSON)

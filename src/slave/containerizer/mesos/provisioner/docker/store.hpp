@@ -50,7 +50,9 @@ public:
 
   virtual process::Future<Nothing> recover();
 
-  virtual process::Future<ImageInfo> get(const mesos::Image& image);
+  virtual process::Future<ImageInfo> get(
+      const mesos::Image& image,
+      const std::string& backend);
 
 private:
   explicit Store(process::Owned<StoreProcess> process);

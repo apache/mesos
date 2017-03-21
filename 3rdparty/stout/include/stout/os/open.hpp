@@ -23,7 +23,7 @@
 #include <stout/try.hpp>
 
 #include <stout/os/close.hpp>
-
+#include <stout/os/int_fd.hpp>
 
 // For old systems that do not support O_CLOEXEC, we still want
 // os::open to accept that flag so that we can simplify the code.
@@ -58,7 +58,7 @@
 
 namespace os {
 
-inline Try<int> open(const std::string& path, int oflag, mode_t mode = 0)
+inline Try<int_fd> open(const std::string& path, int oflag, mode_t mode = 0)
 {
 #ifdef O_CLOEXEC_UNDEFINED
   // Before we passing oflag to ::open, we need to strip the O_CLOEXEC
@@ -70,8 +70,7 @@ inline Try<int> open(const std::string& path, int oflag, mode_t mode = 0)
   }
 #endif
 
-  int fd = ::open(path.c_str(), oflag, mode);
-
+  int_fd fd = ::open(path.c_str(), oflag, mode);
   if (fd < 0) {
     return ErrnoError();
   }

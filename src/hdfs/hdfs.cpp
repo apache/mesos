@@ -31,9 +31,11 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/shell.hpp>
 
+#include "common/status_utils.hpp"
 #include "hdfs/hdfs.hpp"
 
 using namespace process;
@@ -142,7 +144,7 @@ Future<bool> HDFS::exists(const string& path)
   Try<Subprocess> s = subprocess(
       hadoop,
       {"hadoop", "fs", "-test", "-e", normalize(path)},
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -156,18 +158,18 @@ Future<bool> HDFS::exists(const string& path)
         return Failure("Failed to reap the subprocess");
       }
 
-      if (WIFEXITED(result.status.get())) {
-        int exitCode = WEXITSTATUS(result.status.get());
-        if (exitCode == 0) {
-          return true;
-        } else if (exitCode == 1) {
-          return false;
-        }
+      if (WSUCCEEDED(result.status.get())) {
+        return true;
+      }
+
+      if (WIFEXITED(result.status.get()) &&
+          WEXITSTATUS(result.status.get()) == 1) {
+        return false;
       }
 
       return Failure(
           "Unexpected result from the subprocess: "
-          "status='" + stringify(result.status.get()) + "', " +
+          "status='" + WSTRINGIFY(result.status.get()) + "', " +
           "stdout='" + result.out + "', " +
           "stderr='" + result.err + "'");
     });
@@ -181,7 +183,7 @@ Future<Bytes> HDFS::du(const string& _path)
   Try<Subprocess> s = subprocess(
       hadoop,
       {"hadoop", "fs", "-du", path},
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -234,7 +236,7 @@ Future<Nothing> HDFS::rm(const string& path)
   Try<Subprocess> s = subprocess(
       hadoop,
       {"hadoop", "fs", "-rm", normalize(path)},
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -270,7 +272,7 @@ Future<Nothing> HDFS::copyFromLocal(const string& from, const string& to)
   Try<Subprocess> s = subprocess(
       hadoop,
       {"hadoop", "fs", "-copyFromLocal", from, normalize(to)},
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 
@@ -302,7 +304,7 @@ Future<Nothing> HDFS::copyToLocal(const string& from, const string& to)
   Try<Subprocess> s = subprocess(
       hadoop,
       {"hadoop", "fs", "-copyToLocal", normalize(from), to},
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
 

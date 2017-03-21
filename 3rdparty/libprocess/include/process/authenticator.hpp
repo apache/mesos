@@ -13,6 +13,7 @@
 #ifndef __PROCESS_AUTHENTICATOR_HPP__
 #define __PROCESS_AUTHENTICATOR_HPP__
 
+#include <iosfwd>
 #include <string>
 
 #include <process/future.hpp>
@@ -26,6 +27,51 @@ namespace http {
 namespace authentication {
 
 class BasicAuthenticatorProcess;
+#ifdef USE_SSL_SOCKET
+class JWTAuthenticatorProcess;
+#endif // USE_SSL_SOCKET
+
+/**
+ * Contains information associated with an authenticated principal.
+ *
+ * At least one of the following two members must be set:
+ *   `value` : Optional string which is used to identify this principal.
+ *   `claims`: Map containing key-value pairs associated with this principal.
+ */
+struct Principal
+{
+  Principal() = delete;
+
+  Principal(const Option<std::string>& _value)
+    : value(_value) {}
+
+  Principal(
+      const Option<std::string>& _value,
+      const std::map<std::string, std::string>& _claims)
+    : value(_value), claims(_claims) {}
+
+  bool operator==(const Principal& that) const
+  {
+    return this->value == that.value && this->claims == that.claims;
+  }
+
+  bool operator==(const std::string& that) const
+  {
+    return this->value == that;
+  }
+
+  bool operator!=(const std::string& that) const
+  {
+    return !(*this == that);
+  }
+
+  Option<std::string> value;
+  std::map<std::string, std::string> claims;
+};
+
+
+std::ostream& operator<<(std::ostream& stream, const Principal& principal);
+
 
 /**
  * Represents the result of authenticating a request.
@@ -44,7 +90,7 @@ class BasicAuthenticatorProcess;
  */
 struct AuthenticationResult
 {
-  Option<std::string> principal;
+  Option<Principal> principal;
   Option<Unauthorized> unauthorized;
   Option<Forbidden> forbidden;
 };
@@ -92,16 +138,45 @@ public:
       const std::string& realm,
       const hashmap<std::string, std::string>& credentials);
 
-  virtual ~BasicAuthenticator();
+  ~BasicAuthenticator() override;
 
-  virtual Future<AuthenticationResult> authenticate(
+  Future<AuthenticationResult> authenticate(
       const http::Request& request) override;
 
-  virtual std::string scheme() const override;
+  std::string scheme() const override;
 
 private:
   Owned<BasicAuthenticatorProcess> process_;
 };
+
+
+#ifdef USE_SSL_SOCKET
+
+/**
+ * Implements the "Bearer" authentication scheme using JSON Web Tokens.
+ *
+ * The authenticator uses a JWT implementation that is compliant with
+ * RFC 7519, validating 'HS256' signed tokens using the specified
+ * secret key. If the authentication was successful, the claims of the
+ * returned principal will be set to the claims within the token's
+ * payload.
+ */
+class JWTAuthenticator : public Authenticator
+{
+public:
+  JWTAuthenticator(const std::string& realm, const std::string& secret);
+
+  ~JWTAuthenticator() override;
+
+  Future<AuthenticationResult> authenticate(
+      const http::Request& request) override;
+
+  std::string scheme() const override;
+
+private:
+  Owned<JWTAuthenticatorProcess> process_;
+};
+#endif // USE_SSL_SOCKET
 
 } // namespace authentication {
 } // namespace http {

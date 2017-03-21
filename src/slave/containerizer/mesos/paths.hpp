@@ -41,6 +41,7 @@ constexpr char PID_FILE[] = "pid";
 constexpr char STATUS_FILE[] = "status";
 constexpr char TERMINATION_FILE[] = "termination";
 constexpr char SOCKET_FILE[] = "socket";
+constexpr char FORCE_DESTROY_ON_RECOVERY_FILE[] = "force_destroy_on_recovery";
 constexpr char IO_SWITCHBOARD_DIRECTORY[] = "io_switchboard";
 constexpr char CONTAINER_DIRECTORY[] = "containers";
 
@@ -127,6 +128,19 @@ Result<process::network::unix::Address> getContainerIOSwitchboardAddress(
     const std::string& runtimeDir,
     const ContainerID& containerId);
 #endif
+
+
+// The helper method to get the destroy on recovery file path.
+std::string getContainerForceDestroyOnRecoveryPath(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
+// The helper method to check if we should
+// destroy a container on recovery or not.
+bool getContainerForceDestroyOnRecovery(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
 
 
 // The helper method to read the container termination state.

@@ -48,7 +48,7 @@ public:
   std::string launcher;
 
   Option<std::string> image_providers;
-  std::string image_provisioner_backend;
+  Option<std::string> image_provisioner_backend;
 
   std::string appc_simple_discovery_uri_prefix;
   std::string appc_store_dir;
@@ -70,7 +70,7 @@ public:
 #ifndef __WINDOWS__
   bool switch_user;
 #endif // __WINDOWS__
-  bool io_switchboard_enable_server;
+  Duration http_heartbeat_interval;
   std::string frameworks_home;  // TODO(benh): Make an Option.
   Duration registration_backoff_factor;
   Duration authentication_backoff_factor;

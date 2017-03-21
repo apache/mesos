@@ -14,12 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __WINDOWS__
-#include <process/windows/winsock.hpp>
-#endif // __WINDOWS__
-
 #include <stout/none.hpp>
 #include <stout/subcommand.hpp>
+
+#include <stout/os/socket.hpp>
 
 #include "slave/containerizer/mesos/launch.hpp"
 #include "slave/containerizer/mesos/mount.hpp"
@@ -35,11 +33,13 @@ int main(int argc, char** argv)
 {
 #ifdef __WINDOWS__
   // Initialize the Windows socket stack.
-  process::Winsock winsock;
-#endif
+  if (!net::wsa_initialize()) {
+    EXIT(EXIT_FAILURE) << "Failed to initialize the WSA socket stack";
+  }
+#endif // __WINDOWS__
 
 #ifdef __linux__
-  return Subcommand::dispatch(
+  int success = Subcommand::dispatch(
       "MESOS_CONTAINERIZER_",
       argc,
       argv,
@@ -47,11 +47,19 @@ int main(int argc, char** argv)
       new MesosContainerizerMount(),
       new NetworkCniIsolatorSetup());
 #else
-  return Subcommand::dispatch(
+  int success = Subcommand::dispatch(
       "MESOS_CONTAINERIZER_",
       argc,
       argv,
       new MesosContainerizerLaunch(),
       new MesosContainerizerMount());
 #endif
+
+#ifdef __WINDOWS__
+  if (!net::wsa_cleanup()) {
+    EXIT(EXIT_FAILURE) << "Failed to cleanup the WSA socket stack";
+  }
+#endif // __WINDOWS__
+
+  return success;
 }

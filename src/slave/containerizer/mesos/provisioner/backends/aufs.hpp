@@ -40,6 +40,7 @@ class AufsBackendProcess;
 //                    |-- scratch
 //                        |-- <rootfs_id> (the scratch space)
 //                            |-- workdir
+//                            |-- links (symlink to temp dir with links to layers) // NOLINT(whitespace/line_length)
 class AufsBackend : public Backend
 {
 public:

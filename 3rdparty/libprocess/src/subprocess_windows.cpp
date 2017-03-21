@@ -65,24 +65,10 @@ static Try<HANDLE> duplicateHandle(const HANDLE handle)
 }
 
 
-// Returns either the file descriptor associated to the Windows handle, or
-// `Nothing` if the handle is invalid.
-static Option<int> getFileDescriptorFromHandle(
-    const Option<HANDLE>& handle,
-    const int flags)
-{
-  int fd = ::_open_osfhandle(
-      reinterpret_cast<intptr_t>(handle.getOrElse(INVALID_HANDLE_VALUE)),
-      flags);
-
-  return fd > 0 ? Option<int>(fd) : None();
-}
-
-
-static Try<HANDLE> getHandleFromFileDescriptor(int fd)
+static Try<HANDLE> getHandleFromFileDescriptor(int_fd fd)
 {
   // Extract handle from file descriptor.
-  const HANDLE handle = reinterpret_cast<HANDLE>(::_get_osfhandle(fd));
+  const HANDLE handle = fd;
   if (handle == INVALID_HANDLE_VALUE) {
     return WindowsError("Failed to get `HANDLE` for file descriptor");
   }
@@ -92,7 +78,7 @@ static Try<HANDLE> getHandleFromFileDescriptor(int fd)
 
 
 static Try<HANDLE> getHandleFromFileDescriptor(
-    const int fd,
+    const int_fd fd,
     const Subprocess::IO::FDType type)
 {
   Try<HANDLE> handle = getHandleFromFileDescriptor(fd);
@@ -120,17 +106,30 @@ static Try<HANDLE> getHandleFromFileDescriptor(
 }
 
 
+// Creates a file for a subprocess's stdin, stdout, or stderr.
+//
+// NOTE: For portability, Libprocess implements POSIX-style semantics for these
+// files, and make no assumptions about who has access to them. For example, we
+// do not enforce a process-level write lock on stdin, and we do not enforce a
+// similar read lock from stdout.
+//
 // TODO(hausdorff): Rethink name here, write a comment about this function.
 static Try<HANDLE> createIoPath(const string& path, DWORD accessFlags)
 {
-  // The `TRUE` in the last field makes this duplicate handle inheritable.
+  // Per function comment, the flags `FILE_SHARE_READ`, `FILE_SHARE_WRITE`, and
+  // `OPEN_ALWAYS` are all important. The former two make sure we do not
+  // acquire a process-level lock on reading/writing the file, and the last one
+  // ensures that we open the file if it exists, and create it if it does not.
+  // Note that we specify both `FILE_SHARE_READ` and `FILE_SHARE_WRITE` because
+  // the documentation is not clear about whether `FILE_SHARE_WRITE` also
+  // ensures we don't take a read lock out.
   SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
   const HANDLE handle = ::CreateFile(
       path.c_str(),
       accessFlags,
-      FILE_SHARE_READ,
+      FILE_SHARE_READ | FILE_SHARE_WRITE,
       &sa,
-      CREATE_NEW,
+      OPEN_ALWAYS,
       FILE_ATTRIBUTE_NORMAL,
       nullptr);
 
@@ -159,6 +158,7 @@ static Try<HANDLE> createOutputFile(const string& path)
   return createIoPath(path, GENERIC_WRITE);
 }
 
+}  // namespace internal {
 
 // Opens an inheritable pipe[1] represented as a pair of file handles. On
 // success, the first handle returned recieves the 'read' handle of the pipe,
@@ -167,27 +167,11 @@ static Try<HANDLE> createOutputFile(const string& path)
 //
 // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/aa379560(v=vs.85).aspx
 // [2] https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx
-static Try<array<HANDLE, 2>> createPipeHandles()
-{
-  // The `TRUE` in the last field makes this duplicate handle inheritable.
-  SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
-  array<HANDLE, 2> handles{ INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE };
-
-  if (!::CreatePipe(&handles[0], &handles[1], &sa, 0)) {
-    return WindowsError("createPipeHandles: could not create pipe");
-  }
-
-  return handles;
-}
-
-}  // namespace internal {
-
-
 Subprocess::IO Subprocess::PIPE()
 {
   return Subprocess::IO(
       []() -> Try<InputFileDescriptors> {
-        const Try<array<HANDLE, 2>> handles = internal::createPipeHandles();
+        const Try<array<os::WindowsFD, 2>> handles = os::pipe();
         if (handles.isError()) {
           return Error(handles.error());
         }
@@ -205,7 +189,7 @@ Subprocess::IO Subprocess::PIPE()
         return fds;
       },
       []() -> Try<OutputFileDescriptors> {
-        const Try<array<HANDLE, 2>> handles = internal::createPipeHandles();
+        const Try<array<os::WindowsFD, 2>> handles = os::pipe();
         if (handles.isError()) {
           return Error(handles.error());
         }
@@ -248,36 +232,6 @@ Subprocess::IO Subprocess::PATH(const string& path)
         OutputFileDescriptors outDescriptors;
         outDescriptors.write = outHandle.get();
         return outDescriptors;
-      });
-}
-
-
-Subprocess::IO Subprocess::FD(int fd, IO::FDType type)
-{
-  return Subprocess::IO(
-      [fd, type]() -> Try<InputFileDescriptors> {
-        const Try<HANDLE> inHandle =
-          internal::getHandleFromFileDescriptor(fd, type);
-
-        if (inHandle.isError()) {
-          return Error(inHandle.error());
-        }
-
-        InputFileDescriptors fds;
-        fds.read = inHandle.get();
-        return fds;
-      },
-      [fd, type]() -> Try<OutputFileDescriptors> {
-        const Try<HANDLE> outHandle =
-          internal::getHandleFromFileDescriptor(fd, type);
-
-        if (outHandle.isError()) {
-          return Error(outHandle.error());
-        }
-
-        OutputFileDescriptors fds;
-        fds.write = outHandle.get();
-        return fds;
       });
 }
 

@@ -103,8 +103,21 @@ static Option<Bytes> getDiskResource(
 
 Try<Isolator*> XfsDiskIsolatorProcess::create(const Flags& flags)
 {
-  if (!xfs::pathIsXfs(flags.work_dir)) {
+  if (!xfs::isPathXfs(flags.work_dir)) {
     return Error("'" + flags.work_dir + "' is not an XFS filesystem");
+  }
+
+  Try<bool> enabled = xfs::isQuotaEnabled(flags.work_dir);
+  if (enabled.isError()) {
+    return Error(
+        "Failed to get quota status for '" +
+        flags.work_dir + "': " + enabled.error());
+  }
+
+  if (!enabled.get()) {
+    return Error(
+        "XFS project quotas are not enabled on '" +
+        flags.work_dir + "'");
   }
 
   Result<uid_t> uid = os::getuid();
@@ -120,8 +133,7 @@ Try<Isolator*> XfsDiskIsolatorProcess::create(const Flags& flags)
   if (projects.isError()) {
     return Error(
         "Failed to parse XFS project range '" +
-        flags.xfs_project_range +
-        "'");
+        flags.xfs_project_range + "'");
   }
 
   if (projects.get().type() != Value::RANGES) {
@@ -418,6 +430,7 @@ Option<prid_t> XfsDiskIsolatorProcess::nextProjectId()
   freeProjectIds -= projectId;
   return projectId;
 }
+
 
 void XfsDiskIsolatorProcess::returnProjectId(
     prid_t projectId)

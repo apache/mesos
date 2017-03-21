@@ -27,6 +27,7 @@ set(MASTER_EXECUTABLE_SRC
 # INCLUDE DIRECTIVES FOR MASTER EXECUTABLE (generates, e.g., -I/path/to/thing
 # on Linux).
 ############################################################################
+include_directories(SYSTEM ${MASTER_3RDPARTY_INCLUDE_DIRS})
 include_directories(${MASTER_INCLUDE_DIRS})
 
 # LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on

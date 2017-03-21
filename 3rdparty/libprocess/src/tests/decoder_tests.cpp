@@ -160,6 +160,35 @@ TEST(DecoderTest, Response)
 }
 
 
+TEST(DecoderTest, ResponseWithUnspecifiedLength)
+{
+  ResponseDecoder decoder;
+
+  const string data =
+    "HTTP/1.1 200 OK\r\n"
+    "Date: Fri, 31 Dec 1999 23:59:59 GMT\r\n"
+    "Content-Type: text/plain\r\n"
+    "\r\n"
+    "hi";
+
+  deque<http::Response*> responses = decoder.decode(data.data(), data.length());
+  ASSERT_FALSE(decoder.failed());
+  ASSERT_EQ(0u, responses.size());
+
+  responses = decoder.decode("", 0);
+  ASSERT_FALSE(decoder.failed());
+  ASSERT_EQ(1u, responses.size());
+
+  Owned<http::Response> response(responses[0]);
+
+  EXPECT_EQ("200 OK", response->status);
+  EXPECT_EQ(http::Response::BODY, response->type);
+  EXPECT_EQ("hi", response->body);
+
+  EXPECT_EQ(2u, response->headers.size());
+}
+
+
 TEST(DecoderTest, StreamingResponse)
 {
   StreamingResponseDecoder decoder;

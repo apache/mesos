@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+syntax = "proto2";
+
 import "mesos/mesos.proto";
 import "mesos/quota/quota.proto";
 
@@ -24,11 +26,14 @@ option java_outer_classname = "Protos";
 
 
 // A `Subject` is the entity which desires to execute an `Action` on
-// an `Object`. A `Subject` has a number of optional fields (currently
-// only a `value`).
+// an `Object`. A `Subject` has a number of optional fields:
+//   `value` : String which identifies the subject, i.e., a principal.
+//   `claims`: Key-value pairs associated with the subject.
+//
 // NOTE: A `Subject` should always come with at least one set field.
 message Subject {
   optional string value = 1;
+  optional Labels claims = 2;
 }
 
 
@@ -174,6 +179,16 @@ enum Action {
 
   // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
   ATTACH_CONTAINER_OUTPUT = 24;
+
+  // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
+  VIEW_CONTAINER = 25;
+
+  // This action will not fill in any object fields, since a principal is
+  // either allowed to change the log level or he is unauthorized.
+  SET_LOG_LEVEL = 26;
+
+  // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
+  REMOVE_NESTED_CONTAINER = 27;
 }
 
 

@@ -84,7 +84,7 @@ Result<htb::Config> decode<htb::Config>(
 
 namespace htb {
 
-Try<bool> exists( const string& link, const Handle& parent)
+Try<bool> exists(const string& link, const Handle& parent)
 {
   return internal::exists(link, parent, KIND);
 }

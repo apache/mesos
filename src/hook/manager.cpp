@@ -118,8 +118,7 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
     // will be the only effective hook setting the labels.
     TaskInfo taskInfo_ = taskInfo;
 
-    foreach (const string& name, availableHooks.keys()) {
-      Hook* hook = availableHooks[name];
+    foreachpair (const string& name, Hook* hook, availableHooks) {
       const Result<Labels> result =
         hook->masterLaunchTaskLabelDecorator(
             taskInfo_,
@@ -143,8 +142,7 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
 
 void HookManager::masterSlaveLostHook(const SlaveInfo& slaveInfo)
 {
-  foreach (const string& name, availableHooks.keys()) {
-    Hook* hook = availableHooks[name];
+  foreachpair (const string& name, Hook* hook, availableHooks) {
     Try<Nothing> result = hook->masterSlaveLostHook(slaveInfo);
     if (result.isError()) {
       LOG(WARNING) << "Master agent-lost hook failed for module '"
@@ -163,8 +161,7 @@ Labels HookManager::slaveRunTaskLabelDecorator(
   synchronized (mutex) {
     TaskInfo taskInfo_ = taskInfo;
 
-    foreach (const string& name, availableHooks.keys()) {
-      Hook* hook = availableHooks[name];
+    foreachpair (const string& name, Hook* hook, availableHooks) {
       const Result<Labels> result = hook->slaveRunTaskLabelDecorator(
           taskInfo_, executorInfo, frameworkInfo, slaveInfo);
 
@@ -187,8 +184,7 @@ Environment HookManager::slaveExecutorEnvironmentDecorator(
     ExecutorInfo executorInfo)
 {
   synchronized (mutex) {
-    foreach (const string& name, availableHooks.keys()) {
-      Hook* hook = availableHooks[name];
+    foreachpair (const string& name, Hook* hook, availableHooks) {
       const Result<Environment> result =
         hook->slaveExecutorEnvironmentDecorator(executorInfo);
 
@@ -222,9 +218,7 @@ Future<DockerTaskExecutorPrepareInfo>
   // (the last hook takes priority).
   list<Future<Option<DockerTaskExecutorPrepareInfo>>> futures;
 
-  foreach (const string& name, availableHooks.keys()) {
-    Hook* hook = availableHooks[name];
-
+  foreachvalue (Hook* hook, availableHooks) {
     // Chain together each hook.
     futures.push_back(
         hook->slavePreLaunchDockerTaskExecutorDecorator(
@@ -256,8 +250,7 @@ void HookManager::slavePostFetchHook(
     const ContainerID& containerId,
     const string& directory)
 {
-  foreach (const string& name, availableHooks.keys()) {
-    Hook* hook = availableHooks[name];
+  foreachpair (const string& name, Hook* hook, availableHooks) {
     Try<Nothing> result = hook->slavePostFetchHook(containerId, directory);
     if (result.isError()) {
       LOG(WARNING) << "Agent post fetch hook failed for module "
@@ -271,8 +264,7 @@ void HookManager::slaveRemoveExecutorHook(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo)
 {
-  foreach (const string& name, availableHooks.keys()) {
-    Hook* hook = availableHooks[name];
+  foreachpair (const string& name, Hook* hook, availableHooks) {
     const Try<Nothing> result =
       hook->slaveRemoveExecutorHook(frameworkInfo, executorInfo);
     if (result.isError()) {
@@ -288,8 +280,7 @@ TaskStatus HookManager::slaveTaskStatusDecorator(
     TaskStatus status)
 {
   synchronized (mutex) {
-    foreach (const string& name, availableHooks.keys()) {
-      Hook* hook = availableHooks[name];
+    foreachpair (const string& name, Hook* hook, availableHooks) {
       const Result<TaskStatus> result =
         hook->slaveTaskStatusDecorator(frameworkId, status);
 
@@ -317,15 +308,14 @@ TaskStatus HookManager::slaveTaskStatusDecorator(
 Resources HookManager::slaveResourcesDecorator(
     const SlaveInfo& slaveInfo)
 {
-  // We need a mutable copy of the Resources object. Each hook will see the
-  // changes made by previous hooks, so the order of execution matters. The
-  // execution order is currently unspecified since availableHooks uses a
-  // hashmap.
+  // We need a mutable copy of the Resources object. Each hook will
+  // see the changes made by previous hooks, so the order of execution
+  // matters. Hooks are executed in the order they are specified by
+  // the user (note that `availableHooks` is a LinkedHashMap).
   SlaveInfo slaveInfo_ = slaveInfo;
 
   synchronized (mutex) {
-    foreach (const string& name, availableHooks.keys()) {
-      Hook* hook = availableHooks[name];
+    foreachpair (const string& name, Hook* hook, availableHooks) {
       const Result<Resources> result =
         hook->slaveResourcesDecorator(slaveInfo_);
 
@@ -345,15 +335,14 @@ Resources HookManager::slaveResourcesDecorator(
 Attributes HookManager::slaveAttributesDecorator(
     const SlaveInfo& slaveInfo)
 {
-  // We need a mutable copy of the Attributes object. Each hook will see the
-  // changes made by previous hooks, so the order of execution matters. The
-  // execution order is currently unspecified since availableHooks uses a
-  // hashmap.
+  // We need a mutable copy of the Attributes object. Each hook will
+  // see the changes made by previous hooks, so the order of execution
+  // matters. Hooks are executed in the order they are specified by
+  // the user (note that `availableHooks` is a LinkedHashMap).
   SlaveInfo slaveInfo_ = slaveInfo;
 
   synchronized (mutex) {
-    foreach (const string& name, availableHooks.keys()) {
-      Hook* hook = availableHooks[name];
+    foreachpair (const string& name, Hook* hook, availableHooks) {
       const Result<Attributes> result =
         hook->slaveAttributesDecorator(slaveInfo_);
 

@@ -24,11 +24,13 @@
 
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
+#include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/thread_local.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/mkdir.hpp>
+#include <stout/os/temp.hpp>
 
 
 namespace os {
@@ -37,7 +39,8 @@ namespace os {
 // template. The template may be any path with _6_ `Xs' appended to
 // it, for example /tmp/temp.XXXXXX. The trailing `Xs' are replaced
 // with a unique alphanumeric combination.
-inline Try<std::string> mkdtemp(const std::string& path = "/tmp/XXXXXX")
+inline Try<std::string> mkdtemp(
+    const std::string& path = path::join(os::temp(), "XXXXXX"))
 {
   // NOTE: We'd like to avoid reallocating `postfixTemplate` and `alphabet`,
   // and to avoid  recomputing their sizes on each call to `mkdtemp`, so we
@@ -76,7 +79,7 @@ inline Try<std::string> mkdtemp(const std::string& path = "/tmp/XXXXXX")
     .substr(0, path.length() - postfixSize)
     .append(postfix);
 
-  Try<Nothing> mkdir = os::mkdir(tempPath);
+  Try<Nothing> mkdir = os::mkdir(tempPath, false);
 
   if (mkdir.isError()) {
     return Error(mkdir.error());

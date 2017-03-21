@@ -29,6 +29,8 @@
         <dd>{{executor.name}}</dd>
         <dt>Executor Source:</dt>
         <dd>{{executor.source}}</dd>
+        <dt>Executor Role:</dt>
+        <dd>{{executor.role}}</dd>
       </dl>
 
       <dl class="inline clearfix">
@@ -106,6 +108,7 @@
         <tr>
           <th data-key="id">ID</th>
           <th data-key="name">Name</th>
+          <th data-key="role">Role</th>
           <th data-key="resources.cpus">CPUs</th>
           <th data-key="resources.gpus">GPUs</th>
           <th data-key="resources.mem">Mem</th>
@@ -116,6 +119,7 @@
         <tr ng-repeat="queued_task in $data">
           <td>{{queued_task.id}}</td>
           <td>{{queued_task.name}}</td>
+          <td>{{queued_task.role}}</td>
           <td>{{queued_task.resources.cpus | number}}</td>
           <td>{{queued_task.resources.gpus | number}}</td>
           <td>{{queued_task.resources.mem * (1024 * 1024) | dataSize}}</td>
@@ -130,6 +134,7 @@
         <tr>
           <th data-key="id">ID</th>
           <th data-key="name">Name</th>
+          <th data-key="role">Role</th>
           <th data-key="state">State</th>
           <th data-key="resources.cpus">CPUs (allocated)</th>
           <th data-key="resources.gpus">GPUs (allocated)</th>
@@ -142,6 +147,7 @@
         <tr ng-repeat="task in $data">
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
+          <td>{{task.role}}</td>
           <td>{{task.state}}</td>
           <td>{{task.resources.cpus | number}}</td>
           <td>{{task.resources.gpus | number}}</td>
@@ -163,6 +169,7 @@
         <tr>
           <th data-key="id">ID</th>
           <th data-key="name">Name</th>
+          <th data-key="role">Role</th>
           <th data-key="state">State</th>
           <th data-key="resources.cpus">CPUs (allocated)</th>
           <th data-key="resources.gpus">GPUs (allocated)</th>
@@ -175,6 +182,7 @@
         <tr ng-repeat="completed_task in $data">
           <td>{{completed_task.id}}</td>
           <td>{{completed_task.name}}</td>
+          <td>{{completed_task.role}}</td>
           <td>{{completed_task.state}}</td>
           <td>{{completed_task.resources.cpus | number}}</td>
           <td>{{completed_task.resources.gpus | number}}</td>

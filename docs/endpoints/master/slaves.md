@@ -9,7 +9,7 @@ layout: documentation
 >        /master/slaves
 
 ### TL;DR; ###
-Information about registered agents.
+Information about agents.
 
 ### DESCRIPTION ###
 Returns 200 OK when the request was processed successfully.
@@ -17,8 +17,9 @@ Returns 307 TEMPORARY_REDIRECT redirect to the leading master when
 current master is not the leader.
 Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
 found.
-This endpoint shows information about the agents registered in
-this master formatted as a JSON object.
+This endpoint shows information about the agents which are registered
+in this master or recovered from registry, formatted as a JSON
+object.
 
 
 ### AUTHENTICATION ###

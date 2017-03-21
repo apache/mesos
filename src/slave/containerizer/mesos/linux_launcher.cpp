@@ -64,21 +64,21 @@ class LinuxLauncherProcess : public Process<LinuxLauncherProcess>
 public:
   LinuxLauncherProcess(
       const Flags& flags,
-      const std::string& freezerHierarchy,
-      const Option<std::string>& systemdHierarchy);
+      const string& freezerHierarchy,
+      const Option<string>& systemdHierarchy);
 
   virtual process::Future<hashset<ContainerID>> recover(
       const std::list<mesos::slave::ContainerState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,
-      const std::string& path,
-      const std::vector<std::string>& argv,
+      const string& path,
+      const vector<string>& argv,
       const process::Subprocess::IO& in,
       const process::Subprocess::IO& out,
       const process::Subprocess::IO& err,
       const flags::FlagsBase* flags,
-      const Option<std::map<std::string, std::string>>& environment,
+      const Option<std::map<string, string>>& environment,
       const Option<int>& enterNamespaces,
       const Option<int>& cloneNamespaces);
 
@@ -109,16 +109,16 @@ private:
 
   // Helper for determining the cgroup for a container (i.e., the path
   // in a cgroup subsystem).
-  std::string cgroup(const ContainerID& containerId);
+  string cgroup(const ContainerID& containerId);
 
   // Helper for parsing the cgroup path to determine the container ID
   // it belongs to.
   Option<ContainerID> parse(const string& cgroup);
 
-  static const std::string subsystem;
+  static const string subsystem;
   const Flags flags;
-  const std::string freezerHierarchy;
-  const Option<std::string> systemdHierarchy;
+  const string freezerHierarchy;
+  const Option<string> systemdHierarchy;
   hashmap<ContainerID, Container> containers;
 };
 
@@ -205,7 +205,7 @@ Future<hashset<ContainerID>> LinuxLauncher::recover(
 Try<pid_t> LinuxLauncher::fork(
     const ContainerID& containerId,
     const string& path,
-    const vector<std::string>& argv,
+    const vector<string>& argv,
     const process::Subprocess::IO& in,
     const process::Subprocess::IO& out,
     const process::Subprocess::IO& err,
@@ -330,7 +330,7 @@ Future<hashset<ContainerID>> LinuxLauncherProcess::recover(
   // still in the `MESOS_EXECUTORS_SLICE`. If they are not, warn the
   // operator that resource isolation may be invalidated.
   if (systemdHierarchy.isSome()) {
-    Result<std::set<pid_t>> mesosExecutorSlicePids = cgroups::processes(
+    Result<set<pid_t>> mesosExecutorSlicePids = cgroups::processes(
         systemdHierarchy.get(),
         systemd::mesos::MESOS_EXECUTORS_SLICE);
 

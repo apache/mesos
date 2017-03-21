@@ -45,32 +45,32 @@ TEST(ValuesTest, ValidInput)
   // Test parsing scalar type.
   Try<Value> result1 = parse("45.55");
   ASSERT_SOME(result1);
-  ASSERT_EQ(Value::SCALAR, result1.get().type());
-  EXPECT_FLOAT_EQ(45.55, result1.get().scalar().value());
+  ASSERT_EQ(Value::SCALAR, result1->type());
+  EXPECT_FLOAT_EQ(45.55, result1->scalar().value());
 
   // Test parsing ranges type.
   Try<Value> result2 = parse("[10000-20000, 30000-50000]");
   ASSERT_SOME(result2);
-  ASSERT_EQ(Value::RANGES, result2.get().type());
-  EXPECT_EQ(2, result2.get().ranges().range_size());
-  EXPECT_EQ(10000u, result2.get().ranges().range(0).begin());
-  EXPECT_EQ(20000u, result2.get().ranges().range(0).end());
-  EXPECT_EQ(30000u, result2.get().ranges().range(1).begin());
-  EXPECT_EQ(50000u, result2.get().ranges().range(1).end());
+  ASSERT_EQ(Value::RANGES, result2->type());
+  EXPECT_EQ(2, result2->ranges().range_size());
+  EXPECT_EQ(10000u, result2->ranges().range(0).begin());
+  EXPECT_EQ(20000u, result2->ranges().range(0).end());
+  EXPECT_EQ(30000u, result2->ranges().range(1).begin());
+  EXPECT_EQ(50000u, result2->ranges().range(1).end());
 
   // Test parsing set type.
   Try<Value> result3 = parse("{sda1, sda2}");
   ASSERT_SOME(result3);
-  ASSERT_EQ(Value::SET, result3.get().type());
-  ASSERT_EQ(2, result3.get().set().item_size());
-  EXPECT_EQ("sda1", result3.get().set().item(0));
-  EXPECT_EQ("sda2", result3.get().set().item(1));
+  ASSERT_EQ(Value::SET, result3->type());
+  ASSERT_EQ(2, result3->set().item_size());
+  EXPECT_EQ("sda1", result3->set().item(0));
+  EXPECT_EQ("sda2", result3->set().item(1));
 
   // Test parsing text type.
   Try<Value> result4 = parse("123abc,s");
   ASSERT_SOME(result4);
-  ASSERT_EQ(Value::TEXT, result4.get().type());
-  ASSERT_EQ("123abc,s", result4.get().text().value());
+  ASSERT_EQ(Value::TEXT, result4->type());
+  ASSERT_EQ("123abc,s", result4->text().value());
 }
 
 
@@ -92,17 +92,17 @@ TEST(ValuesTest, InvalidInput)
 
 TEST(ValuesTest, SetSubtraction)
 {
-  Value::Set set1 = parse("{sda1, sda2, sda3}").get().set();
-  Value::Set set2 = parse("{sda2, sda3}").get().set();
-  Value::Set set3 = parse("{sda4}").get().set();
+  Value::Set set1 = parse("{sda1, sda2, sda3}")->set();
+  Value::Set set2 = parse("{sda2, sda3}")->set();
+  Value::Set set3 = parse("{sda4}")->set();
 
   set1 -= set2;
 
-  EXPECT_EQ(set1, parse("{sda1}").get().set());
+  EXPECT_EQ(set1, parse("{sda1}")->set());
 
   set3 -= set1;
 
-  EXPECT_EQ(set3, parse("{sda4}").get().set());
+  EXPECT_EQ(set3, parse("{sda4}")->set());
 }
 
 
@@ -116,7 +116,7 @@ TEST(ValuesTest, RangesParse)
   range->set_end(10);
 
   Value::Ranges parsed =
-    parse("[1-10]").get().ranges();
+    parse("[1-10]")->ranges();
 
   EXPECT_EQ(ranges, parsed);
 }
@@ -164,84 +164,84 @@ TEST(ValuesTest, RangesCoalesceParse)
   range->set_begin(1);
   range->set_end(10);
   Value::Ranges parsed =
-    parse("[4-6, 6-8, 5-9, 3-4, 2-5, 4-6, 1-1, 10-10, 4-6]").get().ranges();
+    parse("[4-6, 6-8, 5-9, 3-4, 2-5, 4-6, 1-1, 10-10, 4-6]")->ranges();
 
   EXPECT_EQ(ranges, parsed);
   EXPECT_EQ(1, parsed.range_size());
 
   // Simple overlap.
-  parsed = parse("[4-6, 6-8]").get().ranges();
-  Value::Ranges expected = parse("[4-8]").get().ranges();
+  parsed = parse("[4-6, 6-8]")->ranges();
+  Value::Ranges expected = parse("[4-8]")->ranges();
 
   EXPECT_EQ(parsed, expected);
   EXPECT_EQ(1, parsed.range_size());
 
   // Simple overlap unordered.
-  parsed = parse("[6-8, 4-6]").get().ranges();
-  expected = parse("[4-8]").get().ranges();
+  parsed = parse("[6-8, 4-6]")->ranges();
+  expected = parse("[4-8]")->ranges();
 
   EXPECT_EQ(parsed, expected);
   EXPECT_EQ(1, parsed.range_size());
 
   // Subsumed range.
-  parsed = parse("[1-10, 8-10]").get().ranges();
-  expected = parse("[1-10]").get().ranges();
+  parsed = parse("[1-10, 8-10]")->ranges();
+  expected = parse("[1-10]")->ranges();
 
   EXPECT_EQ(parsed, expected);
   EXPECT_EQ(1, parsed.range_size());
 
   // Completely subsumed.
-  parsed = parse("[1-11, 8-10]").get().ranges();
-  expected = parse("[1-11]").get().ranges();
+  parsed = parse("[1-11, 8-10]")->ranges();
+  expected = parse("[1-11]")->ranges();
 
   EXPECT_EQ(parsed, expected);
   EXPECT_EQ(1, parsed.range_size());
 
   // Multiple overlapping ranges.
-  parsed = parse("[1-4, 4-5, 7-8, 8-10]").get().ranges();
-  expected = parse("[1-5, 7-10]").get().ranges();
+  parsed = parse("[1-4, 4-5, 7-8, 8-10]")->ranges();
+  expected = parse("[1-5, 7-10]")->ranges();
 
   EXPECT_EQ(parsed, expected);
   EXPECT_EQ(2, parsed.range_size());
 
   // Multiple overlap mixed.
-  parsed = parse("[7-8, 1-4, [8-10], 4-5]").get().ranges();
-  expected = parse("[1-5, 7-10]").get().ranges();
+  parsed = parse("[7-8, 1-4, [8-10], 4-5]")->ranges();
+  expected = parse("[1-5, 7-10]")->ranges();
 
   EXPECT_EQ(parsed, expected);
   EXPECT_EQ(2, parsed.range_size());
 
   // Simple neighboring with overlap.
-  parsed = parse("[4-6, 7-8]").get().ranges();
-  expected = parse("[4-8]").get().ranges();
+  parsed = parse("[4-6, 7-8]")->ranges();
+  expected = parse("[4-8]")->ranges();
 
   EXPECT_EQ(parsed, expected);
   EXPECT_EQ(1, parsed.range_size());
 
   // Single neighbouring.
-  parsed = parse("[4-6, 7-7]").get().ranges();
-  expected = parse("[4-7]").get().ranges();
+  parsed = parse("[4-6, 7-7]")->ranges();
+  expected = parse("[4-7]")->ranges();
 
   EXPECT_EQ(parsed, expected);
   EXPECT_EQ(1, parsed.range_size());
 
   // Multiple ranges coalescing into a single one.
-  parsed = parse("[4-6, 7-7, 8-8, 9-9]").get().ranges();
-  expected = parse("[4-9]").get().ranges();
+  parsed = parse("[4-6, 7-7, 8-8, 9-9]")->ranges();
+  expected = parse("[4-9]")->ranges();
 
   EXPECT_EQ(parsed, expected);
   EXPECT_EQ(1, parsed.range_size());
 
   // Multiple ranges coalescing into multiple ranges.
-  parsed = parse("[4-6, 7-7, 9-10, 9-11]").get().ranges();
-  expected = parse("[4-7, 9-11]").get().ranges();
+  parsed = parse("[4-6, 7-7, 9-10, 9-11]")->ranges();
+  expected = parse("[4-7, 9-11]")->ranges();
 
   EXPECT_EQ(parsed, expected);
   EXPECT_EQ(2, parsed.range_size());
 
   // Multiple duplicates.
-  parsed = parse("[6-8, 6-8, 4-6, 6-8]").get().ranges();
-  expected = parse("[4-8]").get().ranges();
+  parsed = parse("[6-8, 6-8, 4-6, 6-8]")->ranges();
+  expected = parse("[4-8]")->ranges();
   EXPECT_EQ(parsed, expected);
   EXPECT_EQ(1, parsed.range_size());
 }
@@ -380,98 +380,98 @@ TEST(ValuesTest, IntervalSetToRanges)
 TEST(ValuesTest, RangesAddition)
 {
   // Overlaps on right.
-  Value::Ranges ranges1 = parse("[3-8]").get().ranges();
-  Value::Ranges ranges2 = parse("[4-10]").get().ranges();
+  Value::Ranges ranges1 = parse("[3-8]")->ranges();
+  Value::Ranges ranges2 = parse("[4-10]")->ranges();
 
-  EXPECT_EQ(parse("[3-10]").get().ranges(), ranges1 + ranges2);
+  EXPECT_EQ(parse("[3-10]")->ranges(), ranges1 + ranges2);
 
   // Overlapps on right.
-  ranges1 = parse("[3-8]").get().ranges();
-  ranges2 = parse("[1-4]").get().ranges();
+  ranges1 = parse("[3-8]")->ranges();
+  ranges2 = parse("[1-4]")->ranges();
 
-  EXPECT_EQ(parse("[1-8]").get().ranges(), ranges1 + ranges2);
+  EXPECT_EQ(parse("[1-8]")->ranges(), ranges1 + ranges2);
 
   // Completely subsumed.
-  ranges1 = parse("[2-3]").get().ranges();
-  ranges2 = parse("[1-4]").get().ranges();
+  ranges1 = parse("[2-3]")->ranges();
+  ranges2 = parse("[1-4]")->ranges();
 
-  EXPECT_EQ(parse("[1-4]").get().ranges(), ranges1 + ranges2);
+  EXPECT_EQ(parse("[1-4]")->ranges(), ranges1 + ranges2);
 
   // Neighbouring right.
-  ranges1 = parse("[2-3]").get().ranges();
-  ranges2 = parse("[4-6]").get().ranges();
+  ranges1 = parse("[2-3]")->ranges();
+  ranges2 = parse("[4-6]")->ranges();
 
-  EXPECT_EQ(parse("[2-6]").get().ranges(), ranges1 + ranges2);
+  EXPECT_EQ(parse("[2-6]")->ranges(), ranges1 + ranges2);
 
   // Neighbouring left.
-  ranges1 = parse("[3-5]").get().ranges();
-  ranges2 = parse("[1-2]").get().ranges();
+  ranges1 = parse("[3-5]")->ranges();
+  ranges2 = parse("[1-2]")->ranges();
 
-  EXPECT_EQ(parse("[1-5]").get().ranges(), ranges1 + ranges2);
+  EXPECT_EQ(parse("[1-5]")->ranges(), ranges1 + ranges2);
 
   // Fills gap.
-  ranges1 = parse("[3-5, 7-8]").get().ranges();
-  ranges2 = parse("[6-6]").get().ranges();
+  ranges1 = parse("[3-5, 7-8]")->ranges();
+  ranges2 = parse("[6-6]")->ranges();
 
-  EXPECT_EQ(parse("[3-8]").get().ranges(), ranges1 + ranges2);
+  EXPECT_EQ(parse("[3-8]")->ranges(), ranges1 + ranges2);
 
   // Fills double gap.
-  ranges1 = parse("[1-4, 9-10, 20-22, 26-30]").get().ranges();
-  ranges2 = parse("[5-8, 23-25]").get().ranges();
+  ranges1 = parse("[1-4, 9-10, 20-22, 26-30]")->ranges();
+  ranges2 = parse("[5-8, 23-25]")->ranges();
 
-  EXPECT_EQ(parse("[1-10, 20-30]").get().ranges(), ranges1 + ranges2);
+  EXPECT_EQ(parse("[1-10, 20-30]")->ranges(), ranges1 + ranges2);
 }
 
 // Test subtracting two ranges.
 TEST(ValuesTest, RangesSubtraction)
 {
   // Completely subsumes.
-  Value::Ranges ranges1 = parse("[3-8]").get().ranges();
-  Value::Ranges ranges2 = parse("[1-10]").get().ranges();
+  Value::Ranges ranges1 = parse("[3-8]")->ranges();
+  Value::Ranges ranges2 = parse("[1-10]")->ranges();
 
-  EXPECT_EQ(parse("[]").get().ranges(), ranges1 - ranges2);
+  EXPECT_EQ(parse("[]")->ranges(), ranges1 - ranges2);
 
   // Subsummed on left.
-  ranges1 = parse("[3-8]").get().ranges();
-  ranges2 = parse("[3-5]").get().ranges();
+  ranges1 = parse("[3-8]")->ranges();
+  ranges2 = parse("[3-5]")->ranges();
 
-  EXPECT_EQ(parse("[6-8]").get().ranges(), ranges1 - ranges2);
+  EXPECT_EQ(parse("[6-8]")->ranges(), ranges1 - ranges2);
 
   // Subsummed on right.
-  ranges1 = parse("[3-8]").get().ranges();
-  ranges2 = parse("[5-8]").get().ranges();
+  ranges1 = parse("[3-8]")->ranges();
+  ranges2 = parse("[5-8]")->ranges();
 
-  EXPECT_EQ(parse("[3-4]").get().ranges(), ranges1 - ranges2);
+  EXPECT_EQ(parse("[3-4]")->ranges(), ranges1 - ranges2);
 
   // Subsummed in the middle.
-  ranges1 = parse("[3-8]").get().ranges();
-  ranges2 = parse("[5-6]").get().ranges();
+  ranges1 = parse("[3-8]")->ranges();
+  ranges2 = parse("[5-6]")->ranges();
 
-  EXPECT_EQ(parse("[3-4, 7-8]").get().ranges(), ranges1 - ranges2);
+  EXPECT_EQ(parse("[3-4, 7-8]")->ranges(), ranges1 - ranges2);
 
   // Overlaps to the left.
-  ranges1 = parse("[3-8]").get().ranges();
-  ranges2 = parse("[1-3]").get().ranges();
+  ranges1 = parse("[3-8]")->ranges();
+  ranges2 = parse("[1-3]")->ranges();
 
-  EXPECT_EQ(parse("[4-8]").get().ranges(), ranges1 - ranges2);
+  EXPECT_EQ(parse("[4-8]")->ranges(), ranges1 - ranges2);
 
   // Overlaps to the right.
-  ranges1 = parse("[3-8]").get().ranges();
-  ranges2 = parse("[5-10]").get().ranges();
+  ranges1 = parse("[3-8]")->ranges();
+  ranges2 = parse("[5-10]")->ranges();
 
-  EXPECT_EQ(parse("[3-4]").get().ranges(), ranges1 - ranges2);
+  EXPECT_EQ(parse("[3-4]")->ranges(), ranges1 - ranges2);
 
   // Doesn't overlap right.
-  ranges1 = parse("[3-8]").get().ranges();
-  ranges2 = parse("[9-10]").get().ranges();
+  ranges1 = parse("[3-8]")->ranges();
+  ranges2 = parse("[9-10]")->ranges();
 
-  EXPECT_EQ(parse("[3-8]").get().ranges(), ranges1 - ranges2);
+  EXPECT_EQ(parse("[3-8]")->ranges(), ranges1 - ranges2);
 
   // Doesn't overlap left.
-  ranges1 = parse("[3-8]").get().ranges();
-  ranges2 = parse("[1-2]").get().ranges();
+  ranges1 = parse("[3-8]")->ranges();
+  ranges2 = parse("[1-2]")->ranges();
 
-  EXPECT_EQ(parse("[3-8]").get().ranges(), ranges1 - ranges2);
+  EXPECT_EQ(parse("[3-8]")->ranges(), ranges1 - ranges2);
 }
 
 } // namespace tests {

@@ -63,7 +63,7 @@ private:
 
   Future<http::Response> _snapshot(
       const http::Request& request,
-      const Option<std::string>& /* principal */);
+      const Option<http::authentication::Principal>&);
 
   static std::list<Future<double>> _snapshotTimeout(
       const std::list<Future<double>>& futures);

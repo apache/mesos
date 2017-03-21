@@ -26,6 +26,7 @@
 #include <mesos/resources.hpp>
 
 #include <mesos/authentication/http/basic_authenticator_factory.hpp>
+#include <mesos/authentication/http/combined_authenticator.hpp>
 #include <mesos/authorizer/authorizer.hpp>
 #include <mesos/module/http_authenticator.hpp>
 
@@ -58,9 +59,12 @@ using process::Failure;
 using process::Owned;
 
 using process::http::authentication::Authenticator;
+using process::http::authentication::Principal;
+
 using process::http::authorization::AuthorizationCallbacks;
 
 using mesos::http::authentication::BasicAuthenticatorFactory;
+using mesos::http::authentication::CombinedAuthenticator;
 
 namespace mesos {
 
@@ -73,11 +77,8 @@ ostream& operator<<(ostream& stream, ContentType contentType)
     case ContentType::JSON: {
       return stream << APPLICATION_JSON;
     }
-    case ContentType::STREAMING_PROTOBUF: {
-      return stream << APPLICATION_STREAMING_PROTOBUF;
-    }
-    case ContentType::STREAMING_JSON: {
-      return stream << APPLICATION_STREAMING_JSON;
+    case ContentType::RECORDIO: {
+      return stream << APPLICATION_RECORDIO;
     }
   }
 
@@ -103,14 +104,15 @@ string serialize(
     const google::protobuf::Message& message)
 {
   switch (contentType) {
-    case ContentType::PROTOBUF:
-    case ContentType::STREAMING_PROTOBUF: {
+    case ContentType::PROTOBUF: {
       return message.SerializeAsString();
     }
-    case ContentType::JSON:
-    case ContentType::STREAMING_JSON: {
+    case ContentType::JSON: {
       JSON::Object object = JSON::protobuf(message);
       return stringify(object);
+    }
+    case ContentType::RECORDIO: {
+      LOG(FATAL) << "Serializing a RecordIO stream is not supported";
     }
   }
 
@@ -118,7 +120,7 @@ string serialize(
 }
 
 
-bool requestStreaming(ContentType contentType)
+bool streamingMediaType(ContentType contentType)
 {
   switch(contentType) {
     case ContentType::PROTOBUF:
@@ -126,8 +128,7 @@ bool requestStreaming(ContentType contentType)
       return false;
     }
 
-    case ContentType::STREAMING_JSON:
-    case ContentType::STREAMING_PROTOBUF: {
+    case ContentType::RECORDIO: {
       return true;
     }
   }
@@ -144,7 +145,7 @@ bool requestStreaming(ContentType contentType)
 static JSON::Value value(
     const string& name,
     const Value::Type& type,
-    Resources resources)
+    const Resources& resources)
 {
   switch (type) {
     case Value::SCALAR:
@@ -562,6 +563,15 @@ void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo)
   writer->field("command", executorInfo.command());
   writer->field("resources", Resources(executorInfo.resources()));
 
+  // Resources may be empty for command executors.
+  if (!executorInfo.resources().empty()) {
+    // Executors are not allowed to mix resources allocated to
+    // different roles, see MESOS-6636.
+    writer->field(
+        "role",
+        executorInfo.resources().begin()->allocation_info().role());
+  }
+
   if (executorInfo.has_labels()) {
     writer->field("labels", executorInfo.labels());
   }
@@ -644,6 +654,11 @@ void json(JSON::ObjectWriter* writer, const Task& task)
   writer->field("slave_id", task.slave_id().value());
   writer->field("state", TaskState_Name(task.state()));
   writer->field("resources", Resources(task.resources()));
+
+  // Tasks are not allowed to mix resources allocated to
+  // different roles, see MESOS-6636.
+  writer->field("role", task.resources().begin()->allocation_info().role());
+
   writer->field("statuses", task.statuses());
 
   if (task.has_user()) {
@@ -706,19 +721,44 @@ static void json(JSON::StringWriter* writer, const Value::Text& text)
   writer->append(text.value());
 }
 
+namespace authorization {
+
+const Option<authorization::Subject> createSubject(
+    const Option<Principal>& principal)
+{
+  if (principal.isSome()) {
+    authorization::Subject subject;
+
+    if (principal->value.isSome()) {
+      subject.set_value(principal->value.get());
+    }
+
+    foreachpair (const string& key, const string& value, principal->claims) {
+      Label* claim = subject.mutable_claims()->mutable_labels()->Add();
+      claim->set_key(key);
+      claim->set_value(value);
+    }
+
+    return subject;
+  }
+
+  return None();
+}
+
+} // namespace authorization {
 
 const AuthorizationCallbacks createAuthorizationCallbacks(
     Authorizer* authorizer)
 {
   typedef lambda::function<process::Future<bool>(
       const process::http::Request& httpRequest,
-      const Option<string>& principal)> Callback;
+      const Option<Principal>& principal)> Callback;
 
   AuthorizationCallbacks callbacks;
 
   Callback getEndpoint = [authorizer](
       const process::http::Request& httpRequest,
-      const Option<string>& principal) -> process::Future<bool> {
+      const Option<Principal>& principal) -> process::Future<bool> {
         const string path = httpRequest.url.path;
 
         if (!internal::AUTHORIZABLE_ENDPOINTS.contains(path)) {
@@ -729,14 +769,16 @@ const AuthorizationCallbacks createAuthorizationCallbacks(
         authorization::Request authRequest;
         authRequest.set_action(mesos::authorization::GET_ENDPOINT_WITH_PATH);
 
-        if (principal.isSome()) {
-          authRequest.mutable_subject()->set_value(principal.get());
+        Option<authorization::Subject> subject =
+          authorization::createSubject(principal);
+        if (subject.isSome()) {
+          authRequest.mutable_subject()->CopyFrom(subject.get());
         }
 
         authRequest.mutable_object()->set_value(path);
 
         LOG(INFO) << "Authorizing principal '"
-                  << (principal.isSome() ? principal.get() : "ANY")
+                  << (principal.isSome() ? stringify(principal.get()) : "ANY")
                   << "' to GET the endpoint '" << path << "'";
 
         return authorizer->authorized(authRequest);
@@ -844,7 +886,7 @@ process::Future<bool> authorizeEndpoint(
     const string& endpoint,
     const string& method,
     const Option<Authorizer*>& authorizer,
-    const Option<string>& principal)
+    const Option<Principal>& principal)
 {
   if (authorizer.isNone()) {
     return true;
@@ -865,14 +907,16 @@ process::Future<bool> authorizeEndpoint(
         "Endpoint '" + endpoint + "' is not an authorizable endpoint.");
   }
 
-  if (principal.isSome()) {
-    request.mutable_subject()->set_value(principal.get());
+  Option<authorization::Subject> subject =
+    authorization::createSubject(principal);
+  if (subject.isSome()) {
+    request.mutable_subject()->CopyFrom(subject.get());
   }
 
   request.mutable_object()->set_value(endpoint);
 
   LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? principal.get() : "ANY")
+            << (principal.isSome() ? stringify(principal.get()) : "ANY")
             << "' to " <<  method
             << " the '" << endpoint << "' endpoint";
 
@@ -896,72 +940,109 @@ bool approveViewRole(
   return approved.get();
 }
 
+namespace {
+
+Result<Authenticator*> createBasicAuthenticator(
+    const string& realm,
+    const string& authenticatorName,
+    const Option<Credentials>& credentials)
+{
+  if (credentials.isNone()) {
+    return Error(
+        "No credentials provided for the default '" +
+        string(internal::DEFAULT_HTTP_AUTHENTICATOR) +
+        "' HTTP authenticator for realm '" + realm + "'");
+  }
+
+  LOG(INFO) << "Creating default '" << internal::DEFAULT_HTTP_AUTHENTICATOR
+            << "' HTTP authenticator for realm '" << realm << "'";
+
+  return BasicAuthenticatorFactory::create(realm, credentials.get());
+}
+
+
+Result<Authenticator*> createCustomAuthenticator(
+    const string& realm,
+    const string& authenticatorName)
+{
+  if (!modules::ModuleManager::contains<Authenticator>(authenticatorName)) {
+    return Error(
+        "HTTP authenticator '" + authenticatorName + "' not found. "
+        "Check the spelling (compare to '" +
+        string(internal::DEFAULT_HTTP_AUTHENTICATOR) +
+        "') or verify that the authenticator was loaded "
+        "successfully (see --modules)");
+  }
+
+  LOG(INFO) << "Creating '" << authenticatorName << "' HTTP authenticator "
+            << "for realm '" << realm << "'";
+
+  return modules::ModuleManager::create<Authenticator>(authenticatorName);
+}
+
+} // namespace {
 
 Try<Nothing> initializeHttpAuthenticators(
     const string& realm,
-    const vector<string>& httpAuthenticatorNames,
+    const vector<string>& authenticatorNames,
     const Option<Credentials>& credentials)
 {
-  if (httpAuthenticatorNames.empty()) {
-    return Error("No HTTP authenticator specified for realm '" + realm + "'");
+  if (authenticatorNames.empty()) {
+    return Error(
+        "No HTTP authenticators specified for realm '" + realm + "'");
   }
 
-  if (httpAuthenticatorNames.size() > 1) {
-    return Error("Multiple HTTP authenticators not supported");
-  }
+  Option<Authenticator*> authenticator;
 
-  Option<Authenticator*> httpAuthenticator;
-  if (httpAuthenticatorNames[0] == internal::DEFAULT_HTTP_AUTHENTICATOR) {
-    if (credentials.isNone()) {
-      return Error(
-          "No credentials provided for the default '" +
-          string(internal::DEFAULT_HTTP_AUTHENTICATOR) +
-          "' HTTP authenticator for realm '" + realm + "'");
+  if (authenticatorNames.size() == 1) {
+    Result<Authenticator*> authenticator_ = None();
+    if (authenticatorNames[0] == internal::DEFAULT_HTTP_AUTHENTICATOR) {
+      authenticator_ =
+        createBasicAuthenticator(realm, authenticatorNames[0], credentials);
+    } else {
+      authenticator_ = createCustomAuthenticator(realm, authenticatorNames[0]);
     }
 
-    LOG(INFO) << "Using default '" << internal::DEFAULT_HTTP_AUTHENTICATOR
-              << "' HTTP authenticator for realm '" << realm << "'";
-
-    Try<Authenticator*> authenticator =
-      BasicAuthenticatorFactory::create(realm, credentials.get());
-    if (authenticator.isError()) {
+    if (authenticator_.isError()) {
       return Error(
-          "Could not create HTTP authenticator module '" +
-          httpAuthenticatorNames[0] + "': " + authenticator.error());
+          "Failed to create HTTP authenticator module '" +
+          authenticatorNames[0] + "': " + authenticator_.error());
     }
 
-    httpAuthenticator = authenticator.get();
+    CHECK_SOME(authenticator_);
+    authenticator = authenticator_.get();
   } else {
-    if (!modules::ModuleManager::contains<Authenticator>(
-          httpAuthenticatorNames[0])) {
-      return Error(
-          "HTTP authenticator '" + httpAuthenticatorNames[0] +
-          "' not found. Check the spelling (compare to '" +
-          string(internal::DEFAULT_HTTP_AUTHENTICATOR) +
-          "') or verify that the authenticator was loaded "
-          "successfully (see --modules)");
+    // There are multiple authenticators loaded for this realm,
+    // so construct a `CombinedAuthenticator` to handle them.
+    vector<Owned<Authenticator>> authenticators;
+    foreach (const string& name, authenticatorNames) {
+      Result<Authenticator*> authenticator_ = None();
+      if (name == internal::DEFAULT_HTTP_AUTHENTICATOR) {
+        authenticator_ = createBasicAuthenticator(realm, name, credentials);
+      } else {
+        authenticator_ = createCustomAuthenticator(realm, name);
+      }
+
+      if (authenticator_.isError()) {
+        return Error(
+            "Failed to create HTTP authenticator module '" +
+            name + "': " + authenticator_.error());
+      }
+
+      CHECK_SOME(authenticator_);
+      authenticators.push_back(Owned<Authenticator>(authenticator_.get()));
     }
 
-    Try<Authenticator*> module =
-      modules::ModuleManager::create<Authenticator>(httpAuthenticatorNames[0]);
-    if (module.isError()) {
-      return Error(
-          "Could not create HTTP authenticator module '" +
-          httpAuthenticatorNames[0] + "': " + module.error());
-    }
-    LOG(INFO) << "Using '" << httpAuthenticatorNames[0]
-              << "' HTTP authenticator for realm '" << realm << "'";
-    httpAuthenticator = module.get();
+    authenticator = new CombinedAuthenticator(realm, std::move(authenticators));
   }
 
-  CHECK(httpAuthenticator.isSome());
+  CHECK(authenticator.isSome());
 
-  // Ownership of the `httpAuthenticator` is passed to libprocess.
+  // Ownership of the authenticator is passed to libprocess.
   process::http::authentication::setAuthenticator(
-    realm, Owned<Authenticator>(httpAuthenticator.get()));
+      realm, Owned<Authenticator>(authenticator.get()));
 
   return Nothing();
 }
-
 
 }  // namespace mesos {

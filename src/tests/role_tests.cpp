@@ -20,11 +20,13 @@
 #include <mesos/http.hpp>
 #include <mesos/roles.hpp>
 
+#include <process/clock.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/resources_utils.hpp"
 
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
@@ -36,6 +38,7 @@ using std::vector;
 
 using google::protobuf::RepeatedPtrField;
 
+using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
@@ -133,11 +136,13 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
-  EXPECT_FALSE(Resources(offer.resources()).contains(dynamicallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -149,11 +154,13 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   // In the next offer, expect an offer with reserved resources.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
-  EXPECT_FALSE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   Resources volume = createPersistentVolume(
       Megabytes(64),
@@ -173,12 +180,15 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   // In the next offer, expect an offer with a persistent volume.
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(volume));
-  EXPECT_FALSE(Resources(offer.resources()).contains(dynamicallyReserved));
-  EXPECT_FALSE(Resources(offer.resources()).contains(unreserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(volume, frameworkInfo.role())));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+  EXPECT_FALSE(Resources(offer.resources()).contains(
+      allocatedResources(unreserved, frameworkInfo.role())));
 
   driver.stop();
   driver.join();
@@ -235,10 +245,11 @@ TEST_F(RoleTest, ImplicitRoleStaticReservation)
 
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
   Offer offer = offers.get()[0];
 
-  EXPECT_TRUE(Resources(offer.resources()).contains(staticallyReserved));
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(staticallyReserved, frameworkInfo.role())));
 
   // Create a task to launch with the resources of `staticallyReserved`.
   TaskInfo taskInfo =
@@ -265,7 +276,7 @@ TEST_F(RoleTest, ImplicitRoleStaticReservation)
 
 // This test checks that the "/roles" endpoint returns the expected
 // information when there are no active roles.
-TEST_F(RoleTest, EndpointEmpty)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointEmpty)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -277,28 +288,16 @@ TEST_F(RoleTest, EndpointEmpty)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Value> parse = JSON::parse(response.get().body);
+  Try<JSON::Value> parse = JSON::parse(response->body);
   ASSERT_SOME(parse);
 
   Try<JSON::Value> expected = JSON::parse(
       "{"
-      "  \"roles\": ["
-      "    {"
-      "      \"frameworks\": [],"
-      "      \"name\": \"*\","
-      "      \"resources\": {"
-      "        \"cpus\": 0,"
-      "        \"disk\": 0,"
-      "        \"gpus\": 0,"
-      "        \"mem\":  0"
-      "      },"
-      "      \"weight\": 1.0"
-      "    }"
-      "  ]"
+      "  \"roles\": []"
       "}");
 
   ASSERT_SOME(expected);
@@ -325,11 +324,11 @@ TEST_F(RoleTest, EndpointNoFrameworks)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Value> parse = JSON::parse(response.get().body);
+  Try<JSON::Value> parse = JSON::parse(response->body);
   ASSERT_SOME(parse);
 
   Try<JSON::Value> expected = JSON::parse(
@@ -379,7 +378,7 @@ TEST_F(RoleTest, EndpointNoFrameworks)
 // This test checks that when using implicit roles, the "/roles"
 // endpoint shows roles that have a configured weight even if they
 // have no registered frameworks.
-TEST_F(RoleTest, EndpointImplicitRolesWeights)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesWeights)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.weights = "roleX=5,roleY=4";
@@ -396,7 +395,7 @@ TEST_F(RoleTest, EndpointImplicitRolesWeights)
 
   Future<FrameworkID> frameworkId1;
   EXPECT_CALL(sched1, registered(&driver1, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId1));;
+    .WillOnce(FutureArg<1>(&frameworkId1));
 
   driver1.start();
 
@@ -409,7 +408,7 @@ TEST_F(RoleTest, EndpointImplicitRolesWeights)
 
   Future<FrameworkID> frameworkId2;
   EXPECT_CALL(sched2, registered(&driver2, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId2));;
+    .WillOnce(FutureArg<1>(&frameworkId2));
 
   driver2.start();
 
@@ -423,29 +422,18 @@ TEST_F(RoleTest, EndpointImplicitRolesWeights)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    << response->body;
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Value> parse = JSON::parse(response.get().body);
+  Try<JSON::Value> parse = JSON::parse(response->body);
   ASSERT_SOME(parse);
 
   Try<JSON::Value> expected = JSON::parse(
       "{"
       "  \"roles\": ["
       "    {"
-      "      \"frameworks\": [],"
-      "      \"name\": \"*\","
-      "      \"resources\": {"
-      "        \"cpus\": 0,"
-      "        \"disk\": 0,"
-      "        \"gpus\": 0,"
-      "        \"mem\":  0"
-      "      },"
-      "      \"weight\": 1.0"
-      "    },"
-      "    {"
-      "      \"frameworks\": [\"" + frameworkId1.get().value() + "\"],"
+      "      \"frameworks\": [\"" + frameworkId1->value() + "\"],"
       "      \"name\": \"roleX\","
       "      \"resources\": {"
       "        \"cpus\": 0,"
@@ -467,7 +455,7 @@ TEST_F(RoleTest, EndpointImplicitRolesWeights)
       "      \"weight\": 4.0"
       "    },"
       "    {"
-      "      \"frameworks\": [\"" + frameworkId2.get().value() + "\"],"
+      "      \"frameworks\": [\"" + frameworkId2->value() + "\"],"
       "      \"name\": \"roleZ\","
       "      \"resources\": {"
       "        \"cpus\": 0,"
@@ -494,7 +482,7 @@ TEST_F(RoleTest, EndpointImplicitRolesWeights)
 // This test checks that when using implicit roles, the "/roles"
 // endpoint shows roles that have a configured quota even if they have
 // no registered frameworks.
-TEST_F(RoleTest, EndpointImplicitRolesQuotas)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesQuotas)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -518,7 +506,7 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
       quotaRequestBody);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, quotaResponse)
-    << quotaResponse.get().body;
+    << quotaResponse->body;
 
   Future<Response> rolesResponse = process::http::get(
       master.get()->pid,
@@ -527,28 +515,17 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, rolesResponse)
-    << rolesResponse.get().body;
+    << rolesResponse->body;
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
       APPLICATION_JSON, "Content-Type", rolesResponse);
 
-  Try<JSON::Value> parse = JSON::parse(rolesResponse.get().body);
+  Try<JSON::Value> parse = JSON::parse(rolesResponse->body);
   ASSERT_SOME(parse);
 
   Try<JSON::Value> expected = JSON::parse(
       "{"
       "  \"roles\": ["
-      "    {"
-      "      \"frameworks\": [],"
-      "      \"name\": \"*\","
-      "      \"resources\": {"
-      "        \"cpus\": 0,"
-      "        \"disk\": 0,"
-      "        \"gpus\": 0,"
-      "        \"mem\":  0"
-      "      },"
-      "      \"weight\": 1.0"
-      "    },"
       "    {"
       "      \"frameworks\": [],"
       "      \"name\": \"non-existent-role\","
@@ -574,7 +551,7 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, deleteResponse)
-    << deleteResponse.get().body;
+    << deleteResponse->body;
 
   rolesResponse = process::http::get(
       master.get()->pid,
@@ -583,29 +560,17 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, rolesResponse)
-    << rolesResponse.get().body;
+    << rolesResponse->body;
 
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(
       APPLICATION_JSON, "Content-Type", rolesResponse);
 
-  parse = JSON::parse(rolesResponse.get().body);
+  parse = JSON::parse(rolesResponse->body);
   ASSERT_SOME(parse);
 
   expected = JSON::parse(
       "{"
-      "  \"roles\": ["
-      "    {"
-      "      \"frameworks\": [],"
-      "      \"name\": \"*\","
-      "      \"resources\": {"
-      "        \"cpus\": 0,"
-      "        \"disk\": 0,"
-      "        \"gpus\": 0,"
-      "        \"mem\":  0"
-      "      },"
-      "      \"weight\": 1.0"
-      "    }"
-      "  ]"
+      "  \"roles\": []"
       "}");
 
   ASSERT_SOME(expected);
@@ -613,8 +578,126 @@ TEST_F(RoleTest, EndpointImplicitRolesQuotas)
 }
 
 
+// This test ensures that master adds/removes all roles of
+// a multi-role framework when it registers/terminates.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    RoleTest,
+    AddAndRemoveFrameworkWithMultipleRoles)
+{
+  // When we test removeFramework later in this test, we have to
+  // be sure the teardown call is processed completely before
+  // sending request to `getRoles` API.
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.add_roles("role1");
+  framework.add_roles("role2");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));;
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  // Tests all roles of the multi-role framework are added.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "roles",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response->body;
+
+    Try<JSON::Value> parse = JSON::parse(response->body);
+    ASSERT_SOME(parse);
+
+    Try<JSON::Value> expected = JSON::parse(
+        "{"
+        "  \"roles\": ["
+        "    {"
+        "      \"frameworks\": [\"" + frameworkId->value() + "\"],"
+        "      \"name\": \"role1\","
+        "      \"resources\": {"
+        "        \"cpus\": 0,"
+        "        \"disk\": 0,"
+        "        \"gpus\": 0,"
+        "        \"mem\":  0"
+        "      },"
+        "      \"weight\": 1.0"
+        "    },"
+        "    {"
+        "      \"frameworks\": [\"" + frameworkId->value() + "\"],"
+        "      \"name\": \"role2\","
+        "      \"resources\": {"
+        "        \"cpus\": 0,"
+        "        \"disk\": 0,"
+        "        \"gpus\": 0,"
+        "        \"mem\":  0"
+        "      },"
+        "      \"weight\": 1.0"
+        "    }"
+        "  ]"
+        "}");
+
+    ASSERT_SOME(expected);
+
+    EXPECT_EQ(expected.get(), parse.get());
+  }
+
+  // Set expectation that Master receives teardown call.
+  Future<mesos::scheduler::Call> teardownCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::TEARDOWN, _, _);
+
+  driver.stop();
+  driver.join();
+
+  // Wait for teardown call to be dispatched.
+  AWAIT_READY(teardownCall);
+
+  // Make sure the teardown call is processed completely.
+  Clock::settle();
+
+  // Tests all roles of multi-role framework are removed.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "roles",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response->body;
+
+    Try<JSON::Value> parse = JSON::parse(response->body);
+    ASSERT_SOME(parse);
+
+    Try<JSON::Value> expected = JSON::parse(
+        "{"
+        "  \"roles\": []"
+        "}");
+
+    ASSERT_SOME(expected);
+
+    EXPECT_EQ(expected.get(), parse.get());
+  }
+}
+
+
 // This tests the parse function of roles.
-TEST(RolesTest, Parsing)
+TEST_F(RoleTest, Parsing)
 {
   vector<string> v = {"abc", "edf", "hgi"};
 
@@ -637,7 +720,7 @@ TEST(RolesTest, Parsing)
 // This tests the validate functions of roles. Keep in mind that
 // roles::validate returns Option<Error>, so it will return None() when
 // validation succeeds, or Error() when validation fails.
-TEST(RolesTest, Validate)
+TEST_F(RoleTest, Validate)
 {
   EXPECT_NONE(roles::validate("foo"));
   EXPECT_NONE(roles::validate("123"));

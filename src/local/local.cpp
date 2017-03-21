@@ -174,20 +174,18 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
   files = new Files();
 
-  // Attempt to create the `work_dir` as a convenience.
-  Try<Nothing> mkdir = os::mkdir(flags.work_dir);
-  if (mkdir.isError()) {
-    EXIT(EXIT_FAILURE)
-      << "Failed to create the work_dir for agents/master '"
-      << flags.work_dir << "': " << mkdir.error();
-  }
-
   {
+    // Use to propagate necessary flags to master. Without this, the
+    // load call will spit out an error unless their corresponding
+    // environment variables explicitly set.
+    map<string, string> propagatedFlags;
+    propagatedFlags["work_dir"] = path::join(flags.work_dir, "master");
+
     master::Flags masterFlags;
-
-    Try<flags::Warnings> load = masterFlags.load("MESOS_");
-
-    masterFlags.work_dir = flags.work_dir;
+    Try<flags::Warnings> load = masterFlags.load(
+        propagatedFlags,
+        false,
+        "MESOS_");
 
     if (load.isError()) {
       EXIT(EXIT_FAILURE)
@@ -198,6 +196,14 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     // Log any flag warnings.
     foreach (const flags::Warning& warning, load->warnings) {
       LOG(WARNING) << warning.message;
+    }
+
+    // Attempt to create the `work_dir` for master as a convenience.
+    Try<Nothing> mkdir = os::mkdir(masterFlags.work_dir.get());
+    if (mkdir.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Failed to create the work_dir for master '"
+        << masterFlags.work_dir.get() << "': " << mkdir.error();
     }
 
     // Load modules. Note that this covers both, master and slave
@@ -350,11 +356,24 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   vector<UPID> pids;
 
   for (int i = 0; i < flags.num_slaves; i++) {
+    // Use to propagate necessary flags to agent. Without this, the
+    // load call will spit out an error unless their corresponding
+    // environment variables explicitly set.
+    map<string, string> propagatedFlags;
+
+    // Use a different work directory for each agent.
+    propagatedFlags["work_dir"] =
+      path::join(flags.work_dir, "agents", stringify(i));
+
+    // Use a different runtime directory for each agent.
+    propagatedFlags["runtime_dir"] =
+      path::join(flags.runtime_dir, "agents", stringify(i));
+
     slave::Flags slaveFlags;
-
-    Try<flags::Warnings> load = slaveFlags.load("MESOS_");
-
-    slaveFlags.work_dir = flags.work_dir;
+    Try<flags::Warnings> load = slaveFlags.load(
+        propagatedFlags,
+        false,
+        "MESOS_");
 
     if (load.isError()) {
       EXIT(EXIT_FAILURE)
@@ -367,8 +386,21 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       LOG(WARNING) << warning.message;
     }
 
-    // Use a different work directory for each slave.
-    slaveFlags.work_dir = path::join(slaveFlags.work_dir, stringify(i));
+    // Attempt to create the `work_dir` for agent as a convenience.
+    Try<Nothing> mkdir = os::mkdir(slaveFlags.work_dir);
+    if (mkdir.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Failed to create the work_dir for agent '"
+        << slaveFlags.work_dir << "': " << mkdir.error();
+    }
+
+    // Attempt to create the `runtime_dir` for agent as a convenience.
+    mkdir = os::mkdir(slaveFlags.runtime_dir);
+    if (mkdir.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Failed to create the runtime_dir for agent '"
+        << slaveFlags.runtime_dir << "': " << mkdir.error();
+    }
 
     garbageCollectors->push_back(new GarbageCollector());
     statusUpdateManagers->push_back(new StatusUpdateManager(slaveFlags));

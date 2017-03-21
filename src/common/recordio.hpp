@@ -26,6 +26,7 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/http.hpp>
+#include <process/loop.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
@@ -113,26 +114,31 @@ process::Future<Nothing> transform(
     const std::function<std::string(const T&)>& func,
     process::http::Pipe::Writer writer)
 {
-  return reader->read()
-    .then([=](const Result<T>& record) mutable -> process::Future<Nothing> {
-      // This could happen if EOF is sent by the writer.
-      if (record.isNone()) {
-        return Nothing();
-      }
+  return process::loop(
+      None(),
+      [=]() {
+        return reader->read();
+      },
+      [=](const Result<T>& record) mutable
+        -> process::Future<process::ControlFlow<Nothing>> {
+        // This could happen if EOF is sent by the writer.
+        if (record.isNone()) {
+          return process::Break();
+        }
 
-      // This could happen if there is a de-serialization error.
-      if (record.isError()) {
-        return process::Failure(record.error());
-      }
+        // This could happen if there is a de-serialization error.
+        if (record.isError()) {
+          return process::Failure(record.error());
+        }
 
-      // TODO(vinod): Instead of detecting that the reader went away only
-      // after attempting a write, leverage `writer.readerClosed` future.
-      if (!writer.write(func(record.get()))) {
-        return process::Failure("Write failed to the pipe");
-      }
+        // TODO(vinod): Instead of detecting that the reader went away only
+        // after attempting a write, leverage `writer.readerClosed` future.
+        if (!writer.write(func(record.get()))) {
+          return process::Failure("Write failed to the pipe");
+        }
 
-      return transform(std::move(reader), func, writer);
-  });
+        return process::Continue();
+      });
 }
 
 

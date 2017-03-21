@@ -35,6 +35,8 @@
 using std::list;
 using std::string;
 
+using google::protobuf::RepeatedPtrField;
+
 using process::Failure;
 using process::Future;
 using process::Owned;
@@ -121,10 +123,6 @@ Future<Option<ContainerLaunchInfo>> DockerRuntimeIsolatorProcess::prepare(
   // Set 'launchInfo'.
   ContainerLaunchInfo launchInfo;
 
-  if (environment.isSome()) {
-    launchInfo.mutable_environment()->CopyFrom(environment.get());
-  }
-
   // If working directory or command exists, operation has to be
   // handled specially for the command task. For the command task,
   // the working directory and task command will be passed to
@@ -136,6 +134,12 @@ Future<Option<ContainerLaunchInfo>> DockerRuntimeIsolatorProcess::prepare(
     // Command task case. The 'executorCommand' below is the
     // command with value as 'mesos-executor'.
     CommandInfo executorCommand = containerConfig.executor_info().command();
+
+    if (environment.isSome()) {
+      executorCommand.add_arguments(
+          "--task_environment=" +
+          stringify(JSON::protobuf(environment.get())));
+    }
 
     // Pass working directory to command executor as a flag.
     if (workingDirectory.isSome()) {
@@ -154,6 +158,10 @@ Future<Option<ContainerLaunchInfo>> DockerRuntimeIsolatorProcess::prepare(
     launchInfo.mutable_command()->CopyFrom(executorCommand);
   } else {
     // The custom executor, default executor and nested container cases.
+    if (environment.isSome()) {
+      launchInfo.mutable_environment()->CopyFrom(environment.get());
+    }
+
     if (workingDirectory.isSome()) {
       launchInfo.set_working_directory(workingDirectory.get());
     }
@@ -313,6 +321,7 @@ Result<CommandInfo> DockerRuntimeIsolatorProcess::getLaunchCommand(
 
     // Put user defined argv after default entrypoint argv
     // in sequence.
+    const RepeatedPtrField<string> arguments = command.arguments();
     command.clear_arguments();
     command.add_arguments(config.entrypoint(0));
 
@@ -321,15 +330,7 @@ Result<CommandInfo> DockerRuntimeIsolatorProcess::getLaunchCommand(
     }
 
     // Append all possible user argv after entrypoint arguments.
-    if (!containerConfig.has_task_info()) {
-      // Custom executor, default executor or nested container case.
-      command.mutable_arguments()->MergeFrom(
-          containerConfig.executor_info().command().arguments());
-    } else {
-      // Command task case.
-      command.mutable_arguments()->MergeFrom(
-          containerConfig.task_info().command().arguments());
-    }
+    command.mutable_arguments()->MergeFrom(arguments);
 
     // Overwrite default cmd arguments if CommandInfo arguments are
     // set by user. The logic below is the case that no argument is
@@ -343,19 +344,12 @@ Result<CommandInfo> DockerRuntimeIsolatorProcess::getLaunchCommand(
     command.set_value(config.cmd(0));
 
     // Put user defined argv after default cmd[0].
+    const RepeatedPtrField<string> arguments = command.arguments();
     command.clear_arguments();
     command.add_arguments(config.cmd(0));
 
     // Append all possible user argv after cmd[0].
-    if (!containerConfig.has_task_info()) {
-      // Custom executor, default executor or nested container case.
-      command.mutable_arguments()->MergeFrom(
-          containerConfig.executor_info().command().arguments());
-    } else {
-      // Command task case.
-      command.mutable_arguments()->MergeFrom(
-          containerConfig.task_info().command().arguments());
-    }
+    command.mutable_arguments()->MergeFrom(arguments);
 
     // Overwrite default cmd arguments if CommandInfo arguments
     // are set by user.

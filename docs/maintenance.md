@@ -120,9 +120,9 @@ The operator can then post the schedule to the master's
 [/maintenance/schedule](endpoints/master/maintenance/schedule.md) endpoint:
 
 ```
-curl http://localhost:5050/maintenance/schedule
-  -H "Content-type: application/json"
-  -X POST
+curl http://localhost:5050/maintenance/schedule \
+  -H "Content-type: application/json" \
+  -X POST \
   -d @schedule.json
 ```
 
@@ -234,9 +234,9 @@ For example, to start maintenance on two machines:
 ```
 
 ```
-curl http://localhost:5050/machine/down
-  -H "Content-type: application/json"
-  -X POST
+curl http://localhost:5050/machine/down \
+  -H "Content-type: application/json" \
+  -X POST \
   -d @machines.json
 ```
 
@@ -293,9 +293,9 @@ The operator posts a list of machines to the master's [/machine/up](endpoints/ma
 ```
 
 ```
-curl http://localhost:5050/machine/up
-  -H "Content-type: application/json"
-  -X POST
+curl http://localhost:5050/machine/up \
+  -H "Content-type: application/json" \
+  -X POST \
   -d @machines.json
 ```
 

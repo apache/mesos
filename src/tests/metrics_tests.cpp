@@ -102,7 +102,7 @@ TEST_F(MetricsTest, Master)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   JSON::Object stats = parse.get();
@@ -220,7 +220,7 @@ TEST_F(MetricsTest, Slave)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   JSON::Object stats = parse.get();

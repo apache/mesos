@@ -122,8 +122,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedTask)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -133,7 +132,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Create an authorized task.
   TaskInfo task;
@@ -143,8 +142,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedTask)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
   task.mutable_executor()->MergeFrom(executor);
 
-  EXPECT_CALL(exec, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec, registered(_, _, _, _));
 
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -156,7 +154,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedTask)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -196,8 +194,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -207,7 +204,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   // Create an unauthorized task.
   TaskInfo task;
@@ -224,8 +221,8 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTask)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_ERROR, status.get().state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_UNAUTHORIZED, status.get().reason());
+  EXPECT_EQ(TASK_ERROR, status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_UNAUTHORIZED, status->reason());
 
   // Make sure the task is not known to master anymore.
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -281,7 +278,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedTaskGroup)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   Resources resources =
     Resources::parse("cpus:0.1;mem:32;disk:32").get();
@@ -372,8 +369,7 @@ TEST_F(MasterAuthorizationTest, KillTask)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -383,7 +379,7 @@ TEST_F(MasterAuthorizationTest, KillTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
 
@@ -408,7 +404,7 @@ TEST_F(MasterAuthorizationTest, KillTask)
 
   // Framework should get a TASK_KILLED right away.
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_KILLED, status.get().state());
+  EXPECT_EQ(TASK_KILLED, status->state());
 
   Future<Nothing> recoverResources =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
@@ -586,8 +582,7 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedLost)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -597,7 +592,7 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedLost)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
 
@@ -637,9 +632,9 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedLost)
   // Framework should get a TASK_LOST.
   AWAIT_READY(status);
 
-  EXPECT_EQ(TASK_LOST, status.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status.get().source());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status.get().reason());
+  EXPECT_EQ(TASK_LOST, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status->source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status->reason());
 
   // No task launch should happen resulting in all resources being
   // returned to the allocator.
@@ -692,8 +687,7 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedDropped)
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -703,7 +697,7 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedDropped)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
 
@@ -743,9 +737,9 @@ TEST_F(MasterAuthorizationTest, SlaveRemovedDropped)
   // Framework should get a TASK_DROPPED.
   AWAIT_READY(status);
 
-  EXPECT_EQ(TASK_DROPPED, status.get().state());
-  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status.get().source());
-  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status.get().reason());
+  EXPECT_EQ(TASK_DROPPED, status->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, status->source());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REMOVED, status->reason());
 
   // No task launch should happen resulting in all resources being
   // returned to the allocator.
@@ -794,8 +788,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemoved)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -805,7 +798,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemoved)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
 
@@ -877,7 +870,7 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
   ASSERT_SOME(slave1);
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1.get().size());
+  EXPECT_NE(0u, offers1->size());
 
   // Launch the first task with the default executor id.
   ExecutorInfo executor1;
@@ -913,7 +906,7 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
   ASSERT_SOME(slave2);
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2.get().size());
+  EXPECT_NE(0u, offers2->size());
 
   // Now launch the second task with the same executor id but
   // a different executor command.
@@ -924,8 +917,7 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
   TaskInfo task2 = createTask(
       offers2.get()[0], executor2.command().value(), executor2.executor_id());
 
-  EXPECT_CALL(exec2, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec2, registered(_, _, _, _));
 
   EXPECT_CALL(exec2, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -940,10 +932,9 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
   driver.launchTasks(offers2.get()[0].id(), {task2});
 
   AWAIT_READY(status2);
-  ASSERT_EQ(TASK_RUNNING, status2.get().state());
+  ASSERT_EQ(TASK_RUNNING, status2->state());
 
-  EXPECT_CALL(exec1, registered(_, _, _, _))
-    .Times(1);
+  EXPECT_CALL(exec1, registered(_, _, _, _));
 
   EXPECT_CALL(exec1, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
@@ -956,7 +947,7 @@ TEST_F(MasterAuthorizationTest, PendingExecutorInfoDiffersOnDifferentSlaves)
   promise.set(true);
 
   AWAIT_READY(status1);
-  ASSERT_EQ(TASK_RUNNING, status1.get().state());
+  ASSERT_EQ(TASK_RUNNING, status1->state());
 
   EXPECT_CALL(exec1, shutdown(_))
     .Times(AtMost(1));
@@ -1388,9 +1379,9 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateSummaryEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object stateSummary = parse.get();
@@ -1409,9 +1400,9 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateSummaryEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object stateSummary = parse.get();
@@ -1534,7 +1525,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateEndpoint)
   AWAIT_READY(registered);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test");
@@ -1554,7 +1545,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateEndpoint)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Retrieve endpoint with the user allowed to view the framework.
   {
@@ -1565,9 +1556,9 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object state = parse.get();
@@ -1594,9 +1585,9 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object state = parse.get();
@@ -1723,7 +1714,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterFrameworksEndpoint)
   AWAIT_READY(registered);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test");
@@ -1743,7 +1734,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterFrameworksEndpoint)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Retrieve endpoint with the user allowed to view the framework.
   {
@@ -1754,9 +1745,9 @@ TYPED_TEST(MasterAuthorizerTest, FilterFrameworksEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object state = parse.get();
@@ -1783,9 +1774,9 @@ TYPED_TEST(MasterAuthorizerTest, FilterFrameworksEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object state = parse.get();
@@ -1914,7 +1905,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterTasksEndpoint)
   AWAIT_READY(registered);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_NE(0u, offers->size());
 
   TaskInfo task;
   task.set_name("test");
@@ -1934,7 +1925,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterTasksEndpoint)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Retrieve endpoint with the user allowed to view the framework.
   {
@@ -1945,9 +1936,9 @@ TYPED_TEST(MasterAuthorizerTest, FilterTasksEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object tasks = parse.get();
@@ -1965,9 +1956,9 @@ TYPED_TEST(MasterAuthorizerTest, FilterTasksEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object tasks = parse.get();
@@ -2018,7 +2009,7 @@ TYPED_TEST(MasterAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response.get().body;
+        << response->body;
 
     response = http::get(
         master.get()->pid,
@@ -2027,9 +2018,9 @@ TYPED_TEST(MasterAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response.get().body;
+        << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
     JSON::Object state = parse.get();
 
@@ -2047,7 +2038,7 @@ TYPED_TEST(MasterAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-        << response.get().body;
+        << response->body;
 
     response = http::get(
         master.get()->pid,
@@ -2056,9 +2047,9 @@ TYPED_TEST(MasterAuthorizerTest, ViewFlags)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response.get().body;
+        << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
     JSON::Object state = parse.get();
 
@@ -2115,9 +2106,9 @@ TYPED_TEST(MasterAuthorizerTest, FilterRolesEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object tasks = parse.get();
@@ -2134,9 +2125,9 @@ TYPED_TEST(MasterAuthorizerTest, FilterRolesEndpoint)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object tasks = parse.get();
@@ -2147,9 +2138,11 @@ TYPED_TEST(MasterAuthorizerTest, FilterRolesEndpoint)
 
 
 // This test verifies that authorization based endpoint filtering
-// works correctly on the /state endpoint with orphaned tasks.
-// Both default users are allowed to to view high level frameworks, but only
-// one is allowed to view the tasks.
+// works correctly on the /state endpoint with orphaned tasks.  Both
+// default users are allowed to to view high level frameworks, but
+// only one is allowed to view the tasks. Although the tasks are
+// "orphaned" (in the sense that their framework has not yet
+// re-registered), they are now reported under the "tasks" key.
 TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
 {
   ACLs acls;
@@ -2242,7 +2235,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
   EXPECT_CALL(exec, launchTask(_, _))
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
-    // Wait until TASK_RUNNING of the task is received.
+  // Wait until TASK_RUNNING of the task is received.
   AWAIT_READY(statusUpdate);
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
@@ -2273,14 +2266,24 @@ TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object tasks = parse.get();
+
+    // The "orphan_tasks" array should be empty, regardless of authorization.
     ASSERT_TRUE(tasks.values["orphan_tasks"].is<JSON::Array>());
-    EXPECT_EQ(1u, tasks.values["orphan_tasks"].as<JSON::Array>().values.size());
+    EXPECT_TRUE(tasks.values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    ASSERT_TRUE(tasks.values["frameworks"].is<JSON::Array>());
+
+    JSON::Array frameworks = tasks.values["frameworks"].as<JSON::Array>();
+    EXPECT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+    EXPECT_EQ(1u, framework.values["tasks"].as<JSON::Array>().values.size());
   }
 
   // Retrieve endpoint with the user allowed to view the framework,
@@ -2293,14 +2296,24 @@ TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response.get().body;
+      << response->body;
 
-    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
 
     JSON::Object tasks = parse.get();
+
+    // The "orphan_tasks" array should be empty, regardless of authorization.
     ASSERT_TRUE(tasks.values["orphan_tasks"].is<JSON::Array>());
     EXPECT_TRUE(tasks.values["orphan_tasks"].as<JSON::Array>().values.empty());
+
+    ASSERT_TRUE(tasks.values["frameworks"].is<JSON::Array>());
+
+    JSON::Array frameworks = tasks.values["frameworks"].as<JSON::Array>();
+    EXPECT_EQ(1u, frameworks.values.size());
+
+    JSON::Object framework = frameworks.values.front().as<JSON::Object>();
+    EXPECT_TRUE(framework.values["tasks"].as<JSON::Array>().values.empty());
   }
 
   EXPECT_CALL(exec, shutdown(_))

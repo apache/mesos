@@ -350,25 +350,7 @@ static Try<string> read(
     const string& control)
 {
   string path = path::join(hierarchy, cgroup, control);
-
-  // TODO(benh): Use os::read. Note that we do not use os::read
-  // currently because it cannot correctly read /proc or cgroups
-  // control files since lseek (in os::read) will return error.
-  ifstream file(path.c_str());
-
-  if (!file.is_open()) {
-    return Error("Failed to open file " + path);
-  }
-
-  ostringstream ss;
-  ss << file.rdbuf();
-
-  if (file.fail()) {
-    // TODO(jieyu): Does ifstream actually set errno?
-    return ErrnoError();
-  }
-
-  return ss.str();
+  return os::read(path);
 }
 
 
@@ -386,23 +368,7 @@ static Try<Nothing> write(
     const string& value)
 {
   string path = path::join(hierarchy, cgroup, control);
-  ofstream file(path.c_str());
-
-  if (!file.is_open()) {
-    return Error("Failed to open file " + path);
-  }
-
-  // NOTE: cgroups convention does not append a endln!
-  // Recent kernels will cause operations to fail if 'endl' is
-  // appended to the control file.
-  file << value;
-
-  if (file.fail()) {
-    // TODO(jieyu): Does ofstream actually set errno?
-    return ErrnoError();
-  }
-
-  return Nothing();
+  return os::write(path, value);
 }
 
 } // namespace internal {

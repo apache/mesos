@@ -114,8 +114,8 @@ class ProvisionerProcess : public process::Process<ProvisionerProcess>
 {
 public:
   ProvisionerProcess(
-      const Flags& flags,
       const std::string& rootDir,
+      const std::string& defaultBackend,
       const hashmap<Image::Type, process::Owned<Store>>& stores,
       const hashmap<std::string, process::Owned<Backend>>& backends);
 
@@ -132,11 +132,14 @@ private:
   process::Future<ProvisionInfo> _provision(
       const ContainerID& containerId,
       const Image& image,
+      const std::string& backend,
       const ImageInfo& imageInfo);
 
-  process::Future<bool> _destroy(const ContainerID& containerId);
+  process::Future<bool> _destroy(
+      const ContainerID& containerId,
+      const std::list<process::Future<bool>>& destroys);
 
-  const Flags flags;
+  process::Future<bool> __destroy(const ContainerID& containerId);
 
   // Absolute path to the provisioner root directory. It can be
   // derived from '--work_dir' but we keep a separate copy here
@@ -145,6 +148,13 @@ private:
   // backends are used).
   const std::string rootDir;
 
+  // The default provisioner backend, using the following logic:
+  // 1. Use `--image_provisioner_backend` if it is set.
+  // 2. Use overlayfs backend if it exists.
+  // 3. Use aufs backend if the overlayfs does not exist.
+  // 4. Use copy backend of both overlayfs and aufs do not exist.
+  const std::string defaultBackend;
+
   const hashmap<Image::Type, process::Owned<Store>> stores;
   const hashmap<std::string, process::Owned<Backend>> backends;
 
@@ -152,6 +162,11 @@ private:
   {
     // Mappings: backend -> {rootfsId, ...}
     hashmap<std::string, hashset<std::string>> rootfses;
+
+    process::Promise<bool> termination;
+
+    // The container status in provisioner.
+    bool destroying = false;
   };
 
   hashmap<ContainerID, process::Owned<Info>> infos;

@@ -41,7 +41,7 @@ class OverlayBackendProcess;
 //                        |-- <rootfs_id> (the scratch space)
 //                            |-- upperdir
 //                            |-- workdir
-//                    |-- links (symlink to temp dir with links to layers)
+//                            |-- links (symlink to temp dir with links to layers) // NOLINT(whitespace/line_length)
 class OverlayBackend : public Backend
 {
 public:

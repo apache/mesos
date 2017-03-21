@@ -77,7 +77,12 @@ Future<Nothing> await_subprocess(
 {
   // Dup the pipe fd of the subprocess so we can read the output if
   // needed.
-  int out = dup(subprocess.out().get());
+  Try<int_fd> dup = os::dup(subprocess.out().get());
+  if (dup.isError()) {
+    return Failure(dup.error());
+  }
+
+  int_fd out = dup.get();
 
   // Once we get the status of the process.
   return subprocess.status()
@@ -141,9 +146,9 @@ TEST_P(SSLTest, BasicSameProcess)
   Try<Socket> client = Socket::create(SocketImpl::Kind::SSL);
   ASSERT_SOME(client);
 
-  // We need to explicitly bind to the loopback address so the
+  // We need to explicitly bind to the address advertised by libprocess so the
   // certificate we create in this test fixture can be verified.
-  ASSERT_SOME(server->bind(Address::LOOPBACK_ANY()));
+  ASSERT_SOME(server->bind(Address(net::IP(process::address().ip), 0)));
   ASSERT_SOME(server->listen(BACKLOG));
 
   Try<Address> address = server->address();

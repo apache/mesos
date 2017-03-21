@@ -254,26 +254,6 @@ class PyLinter(LinterBase):
 
     comment_prefix = '#'
 
-    def __check_virtualenv(self):
-        cli_dir = os.path.abspath(self.source_dirs[0])
-
-        if not os.path.isdir(os.path.join(cli_dir, '.virtualenv')):
-            print 'Virtualenv not detected... Building'
-
-            p = subprocess.Popen(
-                [os.path.join(cli_dir, 'bootstrap')],
-                stdout=subprocess.PIPE)
-
-            output = ''
-            for line in p.stdout:
-                output += line
-
-            p.wait()
-
-            if p.returncode != 0:
-                sys.stderr.write(output)
-                sys.exit(1);
-
     def run_lint(self, source_paths):
         '''
         Runs pylint over given files.
@@ -283,8 +263,6 @@ class PyLinter(LinterBase):
 
         cli_dir = os.path.abspath(self.source_dirs[0])
         source_files = ' '.join(source_paths)
-
-        self.__check_virtualenv()
 
         p = subprocess.Popen(
             ['. {virtualenv_dir}/bin/activate; \
@@ -304,6 +282,58 @@ class PyLinter(LinterBase):
             sys.stderr.write(line)
 
         return num_errors
+
+    def __should_build_virtualenv(self, file_list):
+        cli_dir = os.path.abspath(self.source_dirs[0])
+
+        if not os.path.isdir(os.path.join(cli_dir, '.virtualenv')):
+            print 'Virtualenv for python linter not detected ... building'
+            return True
+
+        basenames = []
+        if file_list:
+            basenames = [os.path.basename(file) for file in file_list]
+
+        if 'pip-requirements.txt' in basenames:
+            print 'The "pip-requirements.txt" file has changed.'
+            print 'Rebuilding virtualenv ...'
+            return True
+
+        if 'mesos.bash_completion' in basenames:
+            print 'The "mesos.bash_completion" file has changed.'
+            print 'Rebuilding virtualenv ...'
+            return True
+
+        return False
+
+    def __build_virtualenv(self):
+        '''
+        Rebuild the virtualenv.
+        '''
+        cli_dir = os.path.abspath(self.source_dirs[0])
+
+        p = subprocess.Popen(
+            [os.path.join(cli_dir, 'bootstrap')],
+            stdout=subprocess.PIPE)
+
+        output = ''
+        for line in p.stdout:
+            output += line
+
+        p.wait()
+
+        if p.returncode != 0:
+            sys.stderr.write(output)
+            sys.exit(1);
+
+    def main(self, file_list):
+       '''
+       Override main to rebuild our virtualenv if necessary.
+       '''
+       if self.__should_build_virtualenv(file_list):
+           self.__build_virtualenv()
+
+       return super(PyLinter, self).main(file_list)
 
 
 if __name__ == '__main__':

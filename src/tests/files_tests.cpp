@@ -52,6 +52,8 @@ using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
 
+using process::http::authentication::Principal;
+
 using std::string;
 
 using mesos::http::authentication::BasicAuthenticatorFactory;
@@ -110,7 +112,7 @@ TEST_F(FilesTest, AttachTest)
   AWAIT_EXPECT_READY(files.attach("file", "myname"));       // Re-attach.
   AWAIT_EXPECT_FAILED(files.attach("missing", "somename")); // Missing file.
 
-  auto authorization = [](const Option<string>&) { return true; };
+  auto authorization = [](const Option<Principal>&) { return true; };
 
   // Attach with required authorization.
   AWAIT_EXPECT_READY(files.attach("file", "myname", authorization));
@@ -183,7 +185,7 @@ TEST_F(FilesTest, ReadTest)
 
   // Test reads with authorization enabled.
   bool authorized = true;
-  auto authorization = [&authorized](const Option<string>&) {
+  auto authorization = [&authorized](const Option<Principal>&) {
     return authorized;
   };
 
@@ -238,7 +240,7 @@ TEST_F(FilesTest, ReadTest)
 }
 
 
-TEST_F(FilesTest, ResolveTest)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FilesTest, ResolveTest)
 {
   Files files;
   process::UPID upid("files", process::address());
@@ -317,7 +319,7 @@ TEST_F(FilesTest, ResolveTest)
 }
 
 
-TEST_F(FilesTest, BrowseTest)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(FilesTest, BrowseTest)
 {
   Files files;
   process::UPID upid("files", process::address());
@@ -373,7 +375,7 @@ TEST_F(FilesTest, BrowseTest)
   files.detach("one");
 
   bool authorized = true;
-  auto authorization = [&authorized](const Option<string>&) {
+  auto authorization = [&authorized](const Option<Principal>&) {
     return authorized;
   };
 
@@ -463,7 +465,7 @@ TEST_F(FilesTest, DownloadTest)
 
   // Test downloads with authorization enabled.
   bool authorized = true;
-  auto authorization = [&authorized](const Option<string>&) {
+  auto authorization = [&authorized](const Option<Principal>&) {
     return authorized;
   };
 
@@ -583,22 +585,22 @@ TEST_F(FilesTest, AuthenticationTest)
 
   Future<Response> response = process::http::get(upid, "browse");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
-  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+  EXPECT_EQ(response->headers.at("WWW-Authenticate"),
             expectedAuthorizationHeader);
 
   response = process::http::get(upid, "read");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
-  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+  EXPECT_EQ(response->headers.at("WWW-Authenticate"),
             expectedAuthorizationHeader);
 
   response = process::http::get(upid, "download");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
-  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+  EXPECT_EQ(response->headers.at("WWW-Authenticate"),
             expectedAuthorizationHeader);
 
   response = process::http::get(upid, "debug");
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
-  EXPECT_EQ(response.get().headers.at("WWW-Authenticate"),
+  EXPECT_EQ(response->headers.at("WWW-Authenticate"),
             expectedAuthorizationHeader);
 }
 

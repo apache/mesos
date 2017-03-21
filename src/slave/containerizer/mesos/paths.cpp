@@ -160,7 +160,7 @@ string getContainerIOSwitchboardPidPath(
 
 
 Result<pid_t> getContainerIOSwitchboardPid(
-    const std::string& runtimeDir,
+    const string& runtimeDir,
     const ContainerID& containerId)
 {
   const string path = getContainerIOSwitchboardPidPath(
@@ -228,6 +228,31 @@ Result<unix::Address> getContainerIOSwitchboardAddress(
   return address.get();
 }
 #endif // __WINDOWS__
+
+
+string getContainerForceDestroyOnRecoveryPath(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getRuntimePath(runtimeDir, containerId),
+      FORCE_DESTROY_ON_RECOVERY_FILE);
+}
+
+
+bool getContainerForceDestroyOnRecovery(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  const string path = getContainerForceDestroyOnRecoveryPath(
+      runtimeDir, containerId);
+
+  if (os::exists(path)) {
+    return true;
+  }
+
+  return false;
+}
 
 
 Result<ContainerTermination> getContainerTermination(

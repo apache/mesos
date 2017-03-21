@@ -34,7 +34,7 @@ namespace process {
 namespace network {
 namespace internal {
 
-Try<std::shared_ptr<SocketImpl>> PollSocketImpl::create(int s)
+Try<std::shared_ptr<SocketImpl>> PollSocketImpl::create(int_fd s)
 {
   return std::make_shared<PollSocketImpl>(s);
 }
@@ -51,14 +51,14 @@ Try<Nothing> PollSocketImpl::listen(int backlog)
 
 namespace internal {
 
-Future<int> accept(int fd)
+Future<int_fd> accept(int_fd fd)
 {
-  Try<int> accepted = network::accept(fd);
+  Try<int_fd> accepted = network::accept(fd);
   if (accepted.isError()) {
     return Failure(accepted.error());
   }
 
-  int s = accepted.get();
+  int_fd s = accepted.get();
   Try<Nothing> nonblock = os::nonblock(s);
   if (nonblock.isError()) {
     LOG_IF(INFO, VLOG_IS_ON(1)) << "Failed to accept, nonblock: "
@@ -112,7 +112,7 @@ Future<std::shared_ptr<SocketImpl>> PollSocketImpl::accept()
 {
   return io::poll(get(), io::READ)
     .then(lambda::bind(&internal::accept, get()))
-    .then([](int s) -> Future<std::shared_ptr<SocketImpl>> {
+    .then([](int_fd s) -> Future<std::shared_ptr<SocketImpl>> {
       Try<std::shared_ptr<SocketImpl>> impl = create(s);
       if (impl.isError()) {
         os::close(s);
@@ -132,7 +132,7 @@ Future<Nothing> connect(
   // Now check that a successful connection was made.
   int opt;
   socklen_t optlen = sizeof(opt);
-  int s = socket->get();
+  int_fd s = socket->get();
 
   // NOTE: We cast to `char*` here because the function prototypes on Windows
   // use `char*` instead of `void*`.
@@ -223,7 +223,7 @@ Future<size_t> socket_send_data(
 
 Future<size_t> socket_send_file(
     const std::shared_ptr<PollSocketImpl>& impl,
-    int fd,
+    int_fd fd,
     off_t offset,
     size_t size)
 {
@@ -276,7 +276,7 @@ Future<size_t> PollSocketImpl::send(const char* data, size_t size)
 }
 
 
-Future<size_t> PollSocketImpl::sendfile(int fd, off_t offset, size_t size)
+Future<size_t> PollSocketImpl::sendfile(int_fd fd, off_t offset, size_t size)
 {
   return io::poll(get(), io::WRITE)
     .then(lambda::bind(

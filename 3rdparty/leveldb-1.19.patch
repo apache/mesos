@@ -1,0 +1,43 @@
+diff --git a/Makefile b/Makefile
+index 07a5a1e..089da7c 100644
+--- a/Makefile
++++ b/Makefile
+@@ -138,7 +138,7 @@ $(SHARED_OUTDIR)/$(SHARED_LIB3): $(SHARED_LIBOBJECTS)
+ 
+ endif  # PLATFORM_SHARED_EXT
+ 
+-all: $(SHARED_LIBS) $(SHARED_PROGRAMS) $(STATIC_OUTDIR)/libleveldb.a $(STATIC_OUTDIR)/libmemenv.a $(STATIC_PROGRAMS)
++all: $(STATIC_OUTDIR)/libleveldb.a
+ 
+ check: $(STATIC_PROGRAMS)
+ 	for t in $(notdir $(TESTS)); do echo "***** Running $$t"; $(STATIC_OUTDIR)/$$t || exit 1; done
+diff --git a/build_detect_platform b/build_detect_platform
+index bb76c4f..c403e91 100755
+--- a/build_detect_platform
++++ b/build_detect_platform
+@@ -190,24 +190,7 @@ EOF
+         COMMON_FLAGS="$COMMON_FLAGS -DLEVELDB_PLATFORM_POSIX"
+     fi
+
+-    # Test whether Snappy library is installed
+-    # http://code.google.com/p/snappy/
+-    $CXX $CXXFLAGS -x c++ - -o $CXXOUTPUT 2>/dev/null  <<EOF
+-      #include <snappy.h>
+-      int main() {}
+-EOF
+-    if [ "$?" = 0 ]; then
+-        COMMON_FLAGS="$COMMON_FLAGS -DSNAPPY"
+-        PLATFORM_LIBS="$PLATFORM_LIBS -lsnappy"
+-    fi
+-
+-    # Test whether tcmalloc is available
+-    $CXX $CXXFLAGS -x c++ - -o $CXXOUTPUT -ltcmalloc 2>/dev/null  <<EOF
+-      int main() {}
+-EOF
+-    if [ "$?" = 0 ]; then
+-        PLATFORM_LIBS="$PLATFORM_LIBS -ltcmalloc"
+-    fi
++# Removed tests for TCMALLOC and SNAPPY to prevent additional dependencies.
+
+     rm -f $CXXOUTPUT 2>/dev/null
+ fi

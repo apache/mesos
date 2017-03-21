@@ -46,6 +46,7 @@ enum class SectionType
 {
   DYNAMIC = SHT_DYNAMIC,
   NOTE = SHT_NOTE,
+  PROGBITS = SHT_PROGBITS,
 };
 
 enum class DynamicTag
@@ -150,7 +151,7 @@ public:
     }
 
     if (SectionType(section->get_type()) != SectionType::NOTE) {
-      return Error("Section '.note.ABI-tag' is not a NOTE");
+      return Error("Section '.note.ABI-tag' is not a NOTE section");
     }
 
     auto accessor = ELFIO::note_section_accessor(elf, section);
@@ -195,6 +196,26 @@ public:
     }
 
     return Version(version[1], version[2], version[3]);
+  }
+
+  // Return the contents of the .interp section, if such a
+  // section exits. For Linux ELF executables, the .interp
+  // section contains the path to the program loader.
+  //
+  // https://refspecs.linuxfoundation.org/LSB_1.2.0/gLSB/specialsections.html
+  Result<std::string> get_interpreter() const
+  {
+    ELFIO::section* section = elf.sections[".interp"];
+
+    if (section == nullptr) {
+      return None();
+    }
+
+    if (SectionType(section->get_type()) != SectionType::PROGBITS) {
+      return Error("Section '.interp' is not a PROGBITS section");
+    }
+
+    return std::string(section->get_data(), section->get_size());
   }
 
 private:

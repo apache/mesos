@@ -18,7 +18,7 @@ layout: documentation
 * [Agent Recovery](agent-recovery.md) for doing seamless agent upgrades and allowing executors to survive `mesos-agent` crashes.
 * [Authentication](authentication.md)
 * [Authorization](authorization.md)
-* [Configuration](configuration.md) for command-line arguments.
+* [Configuration](configuration.md) and [CMake configuration](configuration-cmake.md) for command-line arguments.
 * [Container Image](container-image.md) for supporting container images in Mesos containerizer.
 * [Containerizer](containerizer.md) for containerizer overview and use cases.
   * [Containerizer Internals](containerizer-internals.md) for implementation details of containerizers.
@@ -46,7 +46,7 @@ layout: documentation
 
 * [Attributes and Resources](attributes-resources.md) for how to describe the agents that comprise a cluster.
 * [Fetcher Cache](fetcher.md) for how to configure the Mesos fetcher cache.
-* [Multiple Disks](multiple-disk.md) for how to to allow tasks to use multiple isolated disk resources.
+* [Multiple Disks](multiple-disk.md) for how to allow tasks to use multiple isolated disk resources.
 * [Networking](networking.md)
   * [Container Network Interface (CNI)](cni.md)
   * [Port Mapping Isolator](port-mapping-isolator.md)

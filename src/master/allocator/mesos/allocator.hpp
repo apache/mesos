@@ -50,12 +50,12 @@ public:
       const Duration& allocationInterval,
       const lambda::function<
           void(const FrameworkID&,
-               const hashmap<SlaveID, Resources>&)>& offerCallback,
+               const hashmap<std::string, hashmap<SlaveID, Resources>>&)>&
+                   offerCallback,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
         inverseOfferCallback,
-      const hashmap<std::string, double>& weights,
       const Option<std::set<std::string>>&
         fairnessExcludeResourceNames = None());
 
@@ -66,7 +66,8 @@ public:
   void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const hashmap<SlaveID, Resources>& used);
+      const hashmap<SlaveID, Resources>& used,
+      bool active);
 
   void removeFramework(
       const FrameworkID& frameworkId);
@@ -84,6 +85,7 @@ public:
   void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const std::vector<SlaveInfo::Capability>& capabilities,
       const Option<Unavailability>& unavailability,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used);
@@ -93,7 +95,8 @@ public:
 
   void updateSlave(
       const SlaveID& slave,
-      const Resources& oversubscribed);
+      const Option<Resources>& oversubscribed = None(),
+      const Option<std::vector<SlaveInfo::Capability>>& capabilities = None());
 
   void activateSlave(
       const SlaveID& slaveId);
@@ -141,10 +144,12 @@ public:
       const Option<Filters>& filters);
 
   void suppressOffers(
-      const FrameworkID& frameworkId);
+      const FrameworkID& frameworkId,
+      const Option<std::string>& role);
 
   void reviveOffers(
-      const FrameworkID& frameworkId);
+      const FrameworkID& frameworkId,
+      const Option<std::string>& role);
 
   void setQuota(
       const std::string& role,
@@ -181,12 +186,12 @@ public:
       const Duration& allocationInterval,
       const lambda::function<
           void(const FrameworkID&,
-               const hashmap<SlaveID, Resources>&)>& offerCallback,
+               const hashmap<std::string, hashmap<SlaveID, Resources>>&)>&
+                   offerCallback,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
         inverseOfferCallback,
-      const hashmap<std::string, double>& weights,
       const Option<std::set<std::string>>&
         fairnessExcludeResourceNames = None()) = 0;
 
@@ -197,7 +202,8 @@ public:
   virtual void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const hashmap<SlaveID, Resources>& used) = 0;
+      const hashmap<SlaveID, Resources>& used,
+      bool active) = 0;
 
   virtual void removeFramework(
       const FrameworkID& frameworkId) = 0;
@@ -215,6 +221,7 @@ public:
   virtual void addSlave(
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo,
+      const std::vector<SlaveInfo::Capability>& capabilities,
       const Option<Unavailability>& unavailability,
       const Resources& total,
       const hashmap<FrameworkID, Resources>& used) = 0;
@@ -224,7 +231,9 @@ public:
 
   virtual void updateSlave(
       const SlaveID& slave,
-      const Resources& oversubscribed) = 0;
+      const Option<Resources>& oversubscribed = None(),
+      const Option<std::vector<SlaveInfo::Capability>>&
+          capabilities = None()) = 0;
 
   virtual void activateSlave(
       const SlaveID& slaveId) = 0;
@@ -272,10 +281,12 @@ public:
       const Option<Filters>& filters) = 0;
 
   virtual void suppressOffers(
-      const FrameworkID& frameworkId) = 0;
+      const FrameworkID& frameworkId,
+      const Option<std::string>& role) = 0;
 
   virtual void reviveOffers(
-      const FrameworkID& frameworkId) = 0;
+      const FrameworkID& frameworkId,
+      const Option<std::string>& role) = 0;
 
   virtual void setQuota(
       const std::string& role,
@@ -320,12 +331,12 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
     const Duration& allocationInterval,
     const lambda::function<
         void(const FrameworkID&,
-             const hashmap<SlaveID, Resources>&)>& offerCallback,
+             const hashmap<std::string, hashmap<SlaveID, Resources>>&)>&
+                 offerCallback,
     const lambda::function<
         void(const FrameworkID&,
               const hashmap<SlaveID, UnavailableResources>&)>&
       inverseOfferCallback,
-    const hashmap<std::string, double>& weights,
     const Option<std::set<std::string>>& fairnessExcludeResourceNames)
 {
   process::dispatch(
@@ -334,7 +345,6 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
       allocationInterval,
       offerCallback,
       inverseOfferCallback,
-      weights,
       fairnessExcludeResourceNames);
 }
 
@@ -356,14 +366,16 @@ template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::addFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
-    const hashmap<SlaveID, Resources>& used)
+    const hashmap<SlaveID, Resources>& used,
+    bool active)
 {
   process::dispatch(
       process,
       &MesosAllocatorProcess::addFramework,
       frameworkId,
       frameworkInfo,
-      used);
+      used,
+      active);
 }
 
 
@@ -417,6 +429,7 @@ template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::addSlave(
     const SlaveID& slaveId,
     const SlaveInfo& slaveInfo,
+    const std::vector<SlaveInfo::Capability>& capabilities,
     const Option<Unavailability>& unavailability,
     const Resources& total,
     const hashmap<FrameworkID, Resources>& used)
@@ -426,6 +439,7 @@ inline void MesosAllocator<AllocatorProcess>::addSlave(
       &MesosAllocatorProcess::addSlave,
       slaveId,
       slaveInfo,
+      capabilities,
       unavailability,
       total,
       used);
@@ -446,13 +460,15 @@ inline void MesosAllocator<AllocatorProcess>::removeSlave(
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::updateSlave(
     const SlaveID& slaveId,
-    const Resources& oversubscribed)
+    const Option<Resources>& oversubscribed,
+    const Option<std::vector<SlaveInfo::Capability>>& capabilities)
 {
   process::dispatch(
       process,
       &MesosAllocatorProcess::updateSlave,
       slaveId,
-      oversubscribed);
+      oversubscribed,
+      capabilities);
 }
 
 
@@ -596,23 +612,27 @@ inline void MesosAllocator<AllocatorProcess>::recoverResources(
 
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::suppressOffers(
-    const FrameworkID& frameworkId)
+    const FrameworkID& frameworkId,
+    const Option<std::string>& role)
 {
   process::dispatch(
       process,
       &MesosAllocatorProcess::suppressOffers,
-      frameworkId);
+      frameworkId,
+      role);
 }
 
 
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::reviveOffers(
-    const FrameworkID& frameworkId)
+    const FrameworkID& frameworkId,
+    const Option<std::string>& role)
 {
   process::dispatch(
       process,
       &MesosAllocatorProcess::reviveOffers,
-      frameworkId);
+      frameworkId,
+      role);
 }
 
 

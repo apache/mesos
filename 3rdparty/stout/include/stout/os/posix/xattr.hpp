@@ -20,6 +20,12 @@
 #include <sys/xattr.h>
 #endif
 
+#include <string>
+
+#include <stout/error.hpp>
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
+
 namespace os {
 
 inline Try<Nothing> setxattr(

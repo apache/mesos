@@ -357,7 +357,7 @@ TEST_P(ExecutorHttpApiTest, DefaultAccept)
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
 
   Future<v1::executor::Mesos*> executorLib;
   EXPECT_CALL(*executor, connected(_))
@@ -434,7 +434,7 @@ TEST_P(ExecutorHttpApiTest, NoAcceptHeader)
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
 
   Future<v1::executor::Mesos*> executorLib;
   EXPECT_CALL(*executor, connected(_))
@@ -646,6 +646,34 @@ TEST_P(ExecutorHttpApiTest, StatusUpdateCallFailedValidation)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
   }
 
+  // We send a Call Update message with an invalid UUID.
+  // This should result in failed validation.
+  {
+    Call call;
+    call.set_type(Call::UPDATE);
+    call.mutable_framework_id()->set_value("dummy_framework_id");
+    call.mutable_executor_id()->set_value("call_level_executor_id");
+
+    v1::TaskStatus* status = call.mutable_update()->mutable_status();
+
+    status->set_uuid("dummy_uuid");
+    status->mutable_task_id()->set_value("dummy_task_id");
+    status->set_state(mesos::v1::TaskState::TASK_STARTING);
+    status->set_source(mesos::v1::TaskStatus::SOURCE_EXECUTOR);
+
+    process::http::Headers headers;
+    headers["Accept"] = APPLICATION_JSON;
+
+    Future<Response> response = process::http::post(
+        slave.get()->pid,
+        "api/v1/executor",
+        headers,
+        serialize(ContentType::PROTOBUF, call),
+        APPLICATION_PROTOBUF);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  }
+
   // We send a Call Update message with a TASK_STAGING
   // status update. This should fail validation.
   {
@@ -787,7 +815,7 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
 
-  ASSERT_EQ(1u, offers.get().size());
+  ASSERT_EQ(1u, offers->size());
 
   Future<Message> registerExecutorMessage =
     DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
@@ -825,9 +853,9 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ(contentTypeString, "Content-Type", response);
 
-  ASSERT_EQ(Response::PIPE, response.get().type);
+  ASSERT_EQ(Response::PIPE, response->type);
 
-  Option<Pipe::Reader> reader = response.get().reader;
+  Option<Pipe::Reader> reader = response->reader;
   ASSERT_SOME(reader);
 
   auto deserializer =
@@ -842,12 +870,12 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
   ASSERT_SOME(event.get());
 
   // Check event type is subscribed and if the ExecutorID matches.
-  ASSERT_EQ(Event::SUBSCRIBED, event.get().get().type());
-  ASSERT_EQ(event.get().get().subscribed().executor_info().executor_id(),
+  ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
+  ASSERT_EQ(event->get().subscribed().executor_info().executor_id(),
             call.executor_id());
-  ASSERT_TRUE(event.get().get().subscribed().has_container_id());
+  ASSERT_TRUE(event->get().subscribed().has_container_id());
 
-  reader.get().close();
+  reader->close();
 
   driver.stop();
   driver.join();

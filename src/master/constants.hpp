@@ -61,7 +61,9 @@ constexpr size_t DEFAULT_MAX_AGENT_PING_TIMEOUTS = 5;
 
 // The minimum timeout that can be used by a newly elected leader to
 // allow re-registration of slaves. Any slaves that do not re-register
-// within this timeout will be shutdown.
+// within this timeout will be marked unreachable; if/when the agent
+// re-registers, non-partition-aware tasks running on the agent will
+// be terminated.
 constexpr Duration MIN_AGENT_REREGISTER_TIMEOUT = Minutes(10);
 
 // Default limit on the percentage of slaves that will be removed
@@ -84,6 +86,10 @@ constexpr size_t DEFAULT_MAX_COMPLETED_FRAMEWORKS = 50;
 // Default maximum number of completed tasks per framework
 // to store in the cache.
 constexpr size_t DEFAULT_MAX_COMPLETED_TASKS_PER_FRAMEWORK = 1000;
+
+// Default maximum number of unreachable tasks per framework
+// to store in the cache.
+constexpr size_t DEFAULT_MAX_UNREACHABLE_TASKS_PER_FRAMEWORK = 1000;
 
 // Time interval to check for updated watchers list.
 constexpr Duration WHITELIST_WATCH_INTERVAL = Seconds(5);

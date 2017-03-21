@@ -16,11 +16,15 @@
 
 # THE MESOS PROJECT.
 ####################
-cmake_minimum_required(VERSION 2.8.10)
+if (NOT WIN32)
+  cmake_minimum_required(VERSION 2.8.10)
+else (NOT WIN32)
+  cmake_minimum_required(VERSION 3.6.0)
+endif (NOT WIN32)
 
 project(Mesos)
 set(MESOS_MAJOR_VERSION 1)
-set(MESOS_MINOR_VERSION 2)
+set(MESOS_MINOR_VERSION 3)
 set(MESOS_PATCH_VERSION 0)
 set(PACKAGE_VERSION
   ${MESOS_MAJOR_VERSION}.${MESOS_MINOR_VERSION}.${MESOS_PATCH_VERSION})
@@ -68,5 +72,67 @@ add_custom_target(
   check ${STOUT_TESTS_TARGET}
   COMMAND ${PROCESS_TESTS_TARGET}
   COMMAND ${MESOS_TESTS_TARGET}
-  DEPENDS ${STOUT_TESTS_TARGET} ${PROCESS_TESTS_TARGET}  ${MESOS_TESTS_TARGET}
+  DEPENDS ${STOUT_TESTS_TARGET} ${PROCESS_TESTS_TARGET} ${MESOS_TESTS_TARGET}
   )
+
+add_custom_target(
+  tests
+  DEPENDS ${STOUT_TESTS_TARGET} ${PROCESS_TESTS_TARGET} ${MESOS_TESTS_TARGET}
+  )
+
+# PACKAGING.
+############
+# List of sources we will ignore when generating a source package.
+# We assume there are no artifacts from an autotools build.
+#
+# NOTE: An in-source build is not supported. The build directory
+# must be different than the source directory.
+set(CPACK_SOURCE_IGNORE_FILES
+  .clang-format;
+  .gitignore;
+  .reviewboardrc;
+  bootstrap.bat;
+  bootstrap;
+  configure.ac;
+  Doxyfile;
+  mesos.pc.in;
+  /.git/;
+  /docs/;
+  /m4/;
+  /mpi/;
+  /site/;
+  /support/;
+  ${CMAKE_BINARY_DIR};
+  )
+
+# Convert the ignore list to a string (as required by CPack).
+set(CPACK_SOURCE_IGNORE_FILES "${CPACK_SOURCE_IGNORE_FILES}")
+
+# Set the basename of any packages to 'mesos-<version>'.
+set(CPACK_PACKAGE_FILE_NAME "mesos-${MESOS_PACKAGE_VERSION}")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME ${CPACK_PACKAGE_FILE_NAME})
+
+# By default, all forms of binary packages are disabled.
+option(CPACK_BINARY_BUNDLE       "Enable to build OSX bundles"              OFF)
+option(CPACK_BINARY_DEB          "Enable to build Debian packages"          OFF)
+option(CPACK_BINARY_DRAGNDROP    "Enable to build OSX Drag'n'Drop packages" OFF)
+option(CPACK_BINARY_IFW          "Enable to build IFW packages"             OFF)
+option(CPACK_BINARY_NSIS         "Enable to build NSIS packages"            OFF)
+option(CPACK_BINARY_OSXX11       "Enable to build OSX X11 packages"         OFF)
+option(CPACK_BINARY_PACKAGEMAKER "Enable to build PackageMaker packages"    OFF)
+option(CPACK_BINARY_RPM          "Enable to build RPM packages"             OFF)
+option(CPACK_BINARY_STGZ         "Enable to build STGZ packages"            OFF)
+option(CPACK_BINARY_TBZ2         "Enable to build TBZ2 packages"            OFF)
+option(CPACK_BINARY_TGZ          "Enable to build TGZ packages"             OFF)
+option(CPACK_BINARY_TXZ          "Enable to build TXZ packages"             OFF)
+
+# Output a gzip'd tarball for the `package_source` target.
+set(CPACK_SOURCE_TGZ ON)
+
+# By default, other forms of source packages are disabled.
+option(CPACK_SOURCE_TBZ2 "Enable to build TBZ2 source packages" OFF)
+option(CPACK_SOURCE_TXZ  "Enable to build TXZ source packages"  OFF)
+option(CPACK_SOURCE_TZ   "Enable to build TZ source packages"   OFF)
+option(CPACK_SOURCE_ZIP  "Enable to build ZIP source packages"  OFF)
+
+include(CPack)

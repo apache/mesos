@@ -13,33 +13,14 @@
 #ifndef __STOUT_OS_ENVIRONMENT_HPP__
 #define __STOUT_OS_ENVIRONMENT_HPP__
 
-#include <map>
-#include <string>
 
-#include <stout/os/raw/environment.hpp>
+// For readability, we minimize the number of #ifdef blocks in the code by
+// splitting platform specific system calls into separate directories.
+#ifdef __WINDOWS__
+#include <stout/os/windows/environment.hpp>
+#else
+#include <stout/os/posix/environment.hpp>
+#endif // __WINDOWS__
 
-
-namespace os {
-
-inline std::map<std::string, std::string> environment()
-{
-  char** env = os::raw::environment();
-
-  std::map<std::string, std::string> result;
-
-  for (size_t index = 0; env[index] != nullptr; index++) {
-    std::string entry(env[index]);
-    size_t position = entry.find_first_of('=');
-    if (position == std::string::npos) {
-      continue; // Skip malformed environment entries.
-    }
-
-    result[entry.substr(0, position)] = entry.substr(position + 1);
-  }
-
-  return result;
-}
-
-} // namespace os {
 
 #endif // __STOUT_OS_ENVIRONMENT_HPP__

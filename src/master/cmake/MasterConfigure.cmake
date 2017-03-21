@@ -16,11 +16,6 @@
 
 include(StoutConfigure)
 
-if (NOT WIN32)
-  find_package(Apr REQUIRED)
-  find_package(Svn REQUIRED)
-endif (NOT WIN32)
-
 # Define process library dependencies. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
@@ -45,8 +40,12 @@ set(MASTER_INCLUDE_DIRS
   ${MESOS_BIN_INCLUDE_DIR}/mesos
   ${MESOS_BIN_SRC_DIR}
   ${MESOS_SRC_DIR}
+  )
 
+set(MASTER_3RDPARTY_INCLUDE_DIRS
+  ${MASTER_3RDPARTY_INCLUDE_DIRS}
   ${PROCESS_INCLUDE_DIRS}
+  ${PROCESS_3RDPARTY_INCLUDE_DIRS}
   ${ZOOKEEPER_INCLUDE_DIR}
   ${ZOOKEEPER_INCLUDE_GENDIR}
   ${LEVELDB_INCLUDE_DIR}
@@ -85,53 +84,3 @@ if (NOT ENABLE_LIBEVENT)
 elseif (ENABLE_LIBEVENT)
   set(MASTER_LIBS ${MASTER_LIBS} ${LIBEVENT_LFLAG})
 endif (NOT ENABLE_LIBEVENT)
-
-
-############################################################
-
-
-set(
-  PROCESS_MASTER_TARGET master
-  CACHE STRING "Master target")
-
-
-# DEFINE PROCESS MASTER LIBRARY DEPENDENCIES. Tells the process library build
-# tests target download/configure/build all third-party libraries before
-# attempting to build.
-###########################################################################
-set(PROCESS_MASTER_DEPENDENCIES
-  ${PROCESS_MASTER_DEPENDENCIES}
-  ${PROCESS_DEPENDENCIES}
-  )
-
-if (WIN32)
-  set(PROCESS_MASTER_DEPENDENCIES
-    ${PROCESS_MASTER_DEPENDENCIES}
-    )
-endif (WIN32)
-
-# DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
-# headers for our third party libs (e.g., -I/path/to/glog on Linux).
-###############################################################################
-set(PROCESS_MASTER_INCLUDE_DIRS
-  ${PROCESS_MASTER_INCLUDE_DIRS}
-  ${MASTER_INCLUDE_DIRS}
-  ${PROTOBUF_INCLUDE_DIR}
-  src
-  )
-
-if (WIN32)
-  set(PROCESS_MASTER_INCLUDE_DIRS
-    ${PROCESS_MASTER_INCLUDE_DIRS}
-    ${MASTER_INCLUDE_DIRS}
-  )
-endif (WIN32)
-
-# DEFINE THIRD-PARTY LIB INSTALL DIRECTORIES. Used to tell the compiler
-# toolchain where to find our third party libs (e.g., -L/path/to/glog on
-# Linux).
-########################################################################
-set(PROCESS_MASTER_LIB_DIRS
-  ${PROCESS_MASTER_LIB_DIRS}
-  ${MASTER_LIB_DIRS}
-  )

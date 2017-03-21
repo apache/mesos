@@ -105,13 +105,17 @@ public:
       const Resources& resources);
 
   virtual const hashmap<SlaveID, Resources>& allocation(
-      const std::string& name);
+      const std::string& name) const;
 
-  virtual const Resources& allocationScalarQuantities(const std::string& name);
+  virtual const Resources& allocationScalarQuantities(
+      const std::string& name) const;
 
-  virtual hashmap<std::string, Resources> allocation(const SlaveID& slaveId);
+  virtual hashmap<std::string, Resources> allocation(
+      const SlaveID& slaveId) const;
 
-  virtual Resources allocation(const std::string& name, const SlaveID& slaveId);
+  virtual Resources allocation(
+      const std::string& name,
+      const SlaveID& slaveId) const;
 
   virtual const Resources& totalScalarQuantities() const;
 
@@ -123,12 +127,12 @@ public:
 
   virtual bool contains(const std::string& name) const;
 
-  virtual int count();
+  virtual int count() const;
 
 private:
   // Recalculates the share for the client and moves
   // it in 'clients' accordingly.
-  void update(const std::string& name);
+  void updateShare(const std::string& name);
 
   // Returns the dominant resource share for the client.
   double calculateShare(const std::string& name) const;
@@ -143,7 +147,7 @@ private:
   // If true, sort() will recalculate all shares.
   bool dirty = false;
 
-  // A set of Clients (names and shares) sorted by share.
+  // The set of active clients (names and shares), sorted by share.
   std::set<Client, DRFComparator> clients;
 
   // Maps client names to the weights that should be applied to their shares.
@@ -203,7 +207,9 @@ private:
     hashmap<std::string, Value::Scalar> totals;
   };
 
-  // Maps client names to the resources they have been allocated.
+  // Maps client names to the resources they have been allocated. Note
+  // that `allocations` might contain entries for deactivated clients
+  // not currently in `clients`.
   hashmap<std::string, Allocation> allocations;
 
   // Metrics are optionally exposed by the sorter.

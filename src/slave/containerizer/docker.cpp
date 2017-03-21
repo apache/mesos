@@ -21,6 +21,7 @@
 #include <vector>
 
 #include <mesos/slave/container_logger.hpp>
+#include <mesos/slave/containerizer.hpp>
 
 #include <process/check.hpp>
 #include <process/collect.hpp>
@@ -37,6 +38,7 @@
 #include <stout/hashset.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/uuid.hpp>
 
 #include <stout/os/killtree.hpp>
@@ -71,6 +73,7 @@ using std::string;
 using std::vector;
 
 using mesos::slave::ContainerLogger;
+using mesos::slave::ContainerIO;
 using mesos::slave::ContainerTermination;
 
 using mesos::internal::slave::state::SlaveState;
@@ -91,7 +94,15 @@ const string DOCKER_NAME_SEPERATOR = ".";
 
 
 // Declared in header, see explanation there.
-const string DOCKER_SYMLINK_DIRECTORY = "docker/links";
+const string DOCKER_SYMLINK_DIRECTORY = path::join("docker", "links");
+
+
+#ifdef __WINDOWS__
+const string MESOS_DOCKER_EXECUTOR = "mesos-docker-executor.exe";
+#else
+const string MESOS_DOCKER_EXECUTOR = "mesos-docker-executor";
+#endif // __WINDOWS__
+
 
 
 // Parse the ContainerID from a Docker container and return None if
@@ -244,6 +255,10 @@ docker::Flags dockerFlags(
     dockerFlags.task_environment = string(jsonify(taskEnvironment.get()));
   }
 
+#ifdef __linux__
+  dockerFlags.cgroups_enable_cfs = flags.cgroups_enable_cfs,
+#endif
+
   // TODO(alexr): Remove this after the deprecation cycle (started in 1.0).
   dockerFlags.stop_timeout = flags.docker_stop_timeout;
 
@@ -359,7 +374,7 @@ DockerContainerizerProcess::Container::create(
     newCommandInfo.set_shell(false);
 
     newCommandInfo.set_value(
-        path::join(flags.launcher_dir, "mesos-docker-executor"));
+        path::join(flags.launcher_dir, MESOS_DOCKER_EXECUTOR));
 
     // Stringify the flags as arguments.
     // This minimizes the need for escaping flag values.
@@ -1311,22 +1326,35 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
       container->user)
     .then(defer(
         self(),
-        [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
+        [=](const ContainerIO& containerIO)
           -> Future<Docker::Container> {
-    // Start the executor in a Docker container.
-    // This executor could either be a custom executor specified by an
-    // ExecutorInfo, or the docker executor.
-    Future<Option<int>> run = docker->run(
+    Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
         container->container,
         container->command,
         containerName,
         container->directory,
         flags.sandbox_directory,
         container->resources,
+#ifdef __linux__
+        flags.cgroups_enable_cfs,
+#else
+        false,
+#endif
         container->environment,
-        None(), // No extra devices.
-        subprocessInfo.out,
-        subprocessInfo.err);
+        None() // No extra devices.
+    );
+
+    if (runOptions.isError()) {
+      return Failure(runOptions.error());
+    }
+
+    // Start the executor in a Docker container.
+    // This executor could either be a custom executor specified by an
+    // ExecutorInfo, or the docker executor.
+    Future<Option<int>> run = docker->run(
+        runOptions.get(),
+        containerIO.out,
+        containerIO.err);
 
     // It's possible that 'run' terminates before we're able to
     // obtain an 'inspect' result. It's also possible that 'run'
@@ -1352,11 +1380,7 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
         inspect.discard();
         promise->fail("Failed to obtain exit status of container");
       } else {
-        bool exitedCleanly =
-          WIFEXITED(run->get()) &&
-          WEXITSTATUS(run->get()) == 0;
-
-        if (!exitedCleanly) {
+        if (!WSUCCEEDED(run->get())) {
           inspect.discard();
           promise->fail("Container " + WSTRINGIFY(run->get()));
         }
@@ -1397,12 +1421,24 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   }
 
   if (environment.count("PATH") == 0) {
-    environment["PATH"] =
-      "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+    environment["PATH"] = os::host_default_path();
   }
 
+#ifdef __WINDOWS__
+  // TODO(dpravat): (MESOS-6816) We should allow system environment variables to
+  // be overwritten if they are specified by the framework.  This might cause
+  // applications to not work, but upon overriding system defaults, it becomes
+  // the overidder's problem.
+  Option<map<string, string>> systemEnvironment =
+    process::internal::getSystemEnvironment();
+  foreachpair(const string& key, const string& value,
+    systemEnvironment.get()) {
+    environment[key] = value;
+  }
+#endif // __WINDOWS__
+
   vector<string> argv;
-  argv.push_back("mesos-docker-executor");
+  argv.push_back(MESOS_DOCKER_EXECUTOR);
 
   Future<Nothing> allocateGpus = Nothing();
 
@@ -1429,7 +1465,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     }))
     .then(defer(
         self(),
-        [=](const ContainerLogger::SubprocessInfo& subprocessInfo)
+        [=](const ContainerIO& containerIO)
           -> Future<pid_t> {
     // NOTE: The child process will be blocked until all hooks have been
     // executed.
@@ -1476,11 +1512,11 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     // container (to distinguish it from Docker containers not created
     // by Mesos).
     Try<Subprocess> s = subprocess(
-        path::join(flags.launcher_dir, "mesos-docker-executor"),
+        path::join(flags.launcher_dir, MESOS_DOCKER_EXECUTOR),
         argv,
         Subprocess::PIPE(),
-        subprocessInfo.out,
-        subprocessInfo.err,
+        containerIO.out,
+        containerIO.err,
         &launchFlags,
         environment,
         None(),
@@ -2002,8 +2038,6 @@ Future<bool> DockerContainerizerProcess::destroy(
     const ContainerID& containerId,
     bool killed)
 {
-  CHECK(!containerId.has_parent());
-
   if (!containers_.contains(containerId)) {
     // TODO(bmahler): Currently the agent does not log destroy
     // failures or unknown containers, so we log it here for now.
@@ -2012,6 +2046,17 @@ Future<bool> DockerContainerizerProcess::destroy(
 
     return false;
   }
+
+  // TODO(klueska): Ideally, we would do this check as the first thing
+  // we do after entering this function. However, the containerizer
+  // API currently requires callers of `launch()` to also call
+  // `destroy()` if the launch fails (MESOS-6214). As such, putting
+  // the check at the top of this function would cause the
+  // containerizer to crash if the launch failure was due to the
+  // container having its `parent` field set. Once we remove the
+  // requirement for `destroy()` to be called explicitly after launch
+  // failures, we should move this check to the top of this function.
+  CHECK(!containerId.has_parent());
 
   Container* container = containers_.at(containerId);
 

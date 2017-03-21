@@ -197,7 +197,7 @@ private:
   hashset<UUID> acknowledged;
 
   Option<std::string> path; // File path of the update stream.
-  Option<int> fd; // File descriptor to the update stream.
+  Option<int_fd> fd; // File descriptor to the update stream.
 
   Option<std::string> error; // Potential non-retryable error.
 };

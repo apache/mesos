@@ -15,8 +15,18 @@
   // specified window_title.
   function pailer(host, path, window_title) {
     var url = '//' + host + '/files/read?path=' + path;
+
+    // The randomized `storageKey` is removed from `localStorage` once the
+    // pailer window loads the URL into its `sessionStorage`, therefore
+    // the probability of collisions is low and we do not use a uuid.
+    var storageKey = Math.random().toString(36).substr(2, 8);
+
+    // Store the target URL in `localStorage` which is
+    // accessed by the pailer window when opened.
+    localStorage.setItem(storageKey, url);
+
     var pailer =
-      window.open('/static/pailer.html', url, 'width=580px, height=700px');
+      window.open('/static/pailer.html', storageKey, 'width=580px, height=700px');
 
     // Need to use window.onload instead of document.ready to make
     // sure the title doesn't get overwritten.
@@ -103,6 +113,7 @@
     $scope.offers = {};
     $scope.completed_frameworks = {};
     $scope.active_tasks = [];
+    $scope.unreachable_tasks = [];
     $scope.completed_tasks = [];
     $scope.orphan_tasks = [];
 
@@ -123,6 +134,7 @@
 
     $scope.activated_agents = $scope.state.activated_slaves;
     $scope.deactivated_agents = $scope.state.deactivated_slaves;
+    $scope.unreachable_agents = $scope.state.unreachable_slaves;
 
     _.each($scope.state.slaves, function(agent) {
       $scope.agents[agent.id] = agent;
@@ -154,13 +166,21 @@
           'TASK_FAILED',
           'TASK_FINISHED',
           'TASK_KILLED',
-          'TASK_LOST'
+          'TASK_LOST',
+          'TASK_DROPPED',
+          'TASK_GONE',
+          'TASK_GONE_BY_OPERATOR'
       ];
       return terminalStates.indexOf(taskState) > -1;
     };
 
     _.each($scope.state.frameworks, function(framework) {
       $scope.frameworks[framework.id] = framework;
+
+      // Fill in the `roles` field for non-MULTI_ROLE schedulers.
+      if (framework.role) {
+        framework.roles = [framework.role];
+      }
 
       _.each(framework.offers, function(offer) {
         $scope.offers[offer.id] = offer;
@@ -208,15 +228,22 @@
       // TODO(brenden): Remove this once
       // https://issues.apache.org/jira/browse/MESOS-527 is fixed.
       _.each(framework.tasks, setTaskMetadata);
+      _.each(framework.unreachable_tasks, setTaskMetadata);
       _.each(framework.completed_tasks, setTaskMetadata);
 
       $scope.active_tasks = $scope.active_tasks.concat(framework.tasks);
+      $scope.unreachable_tasks = $scope.unreachable_tasks.concat(framework.unreachable_tasks);
       $scope.completed_tasks =
         $scope.completed_tasks.concat(framework.completed_tasks);
     });
 
     _.each($scope.state.completed_frameworks, function(framework) {
       $scope.completed_frameworks[framework.id] = framework;
+
+      // Fill in the `roles` field for non-MULTI_ROLE schedulers.
+      if (framework.role) {
+        framework.roles = [framework.role];
+      }
 
       _.each(framework.completed_tasks, setTaskMetadata);
     });
@@ -258,10 +285,10 @@
   // Main controller that can be used to handle "global" events. E.g.,:
   //     $scope.$on('$afterRouteChange', function() { ...; });
   //
-  // In addition, the MainCntl encapsulates the "view", allowing the
+  // In addition, the MainCtrl encapsulates the "view", allowing the
   // active controller/view to easily access anything in scope (e.g.,
   // the state).
-  mesosApp.controller('MainCntl', [
+  mesosApp.controller('MainCtrl', [
       '$scope', '$http', '$location', '$timeout', '$modal',
       function($scope, $http, $location, $timeout, $modal) {
     $scope.doneLoading = true;
@@ -304,8 +331,16 @@
         tab: 'frameworks'
       },
       {
+        pathRegexp: /^\/roles/,
+        tab: 'roles'
+      },
+      {
         pathRegexp: /^\/offers/,
         tab: 'offers'
+      },
+      {
+        pathRegexp: /^\/maintenance/,
+        tab: 'maintenance'
       }
     ];
 
@@ -452,7 +487,53 @@
 
   mesosApp.controller('FrameworksCtrl', function() {});
 
+  mesosApp.controller('RolesCtrl', function($scope, $http) {
+    var update = function() {
+      // TODO(haosdent): Send requests to the leading master directly
+      // once `leadingMasterURL` is public.
+      $http.jsonp('/master/roles?jsonp=JSON_CALLBACK')
+      .success(function(response) {
+        $scope.roles = response;
+      })
+      .error(function() {
+        if ($scope.isErrorModalOpen === false) {
+          popupErrorModal();
+        }
+      });
+    };
+
+    if ($scope.state) {
+      update();
+    }
+
+    var removeListener = $scope.$on('state_updated', update);
+    $scope.$on('$routeChangeStart', removeListener);
+  });
+
   mesosApp.controller('OffersCtrl', function() {});
+
+  mesosApp.controller('MaintenanceCtrl', function($scope, $http) {
+    var update = function() {
+      // TODO(haosdent): Send requests to the leading master directly
+      // once `leadingMasterURL` is public.
+      $http.jsonp('/master/maintenance/schedule?jsonp=JSON_CALLBACK')
+      .success(function(response) {
+        $scope.maintenance = response;
+      })
+      .error(function() {
+        if ($scope.isErrorModalOpen === false) {
+          popupErrorModal();
+        }
+      });
+    };
+
+    if ($scope.state) {
+      update();
+    }
+
+    var removeListener = $scope.$on('state_updated', update);
+    $scope.$on('$routeChangeStart', removeListener);
+  });
 
   mesosApp.controller('FrameworkCtrl', function($scope, $routeParams) {
     var update = function() {
@@ -513,7 +594,7 @@
 
       // Set up polling for the monitor if this is the first update.
       if (!$top.started()) {
-        $top.start(host, $scope);
+        $top.start(host, id, $scope);
       }
 
       $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
@@ -547,11 +628,21 @@
           _.each($scope.state.frameworks, function(framework) {
             $scope.agent.frameworks[framework.id] = framework;
             computeFrameworkStats(framework);
+
+            // Fill in the `roles` field for non-MULTI_ROLE schedulers.
+            if (framework.role) {
+              framework.roles = [framework.role];
+            }
           });
 
           _.each($scope.state.completed_frameworks, function(framework) {
             $scope.agent.completed_frameworks[framework.id] = framework;
             computeFrameworkStats(framework);
+
+            // Fill in the `roles` field for non-MULTI_ROLE schedulers.
+            if (framework.role) {
+              framework.roles = [framework.role];
+            }
           });
 
           $('#agent').show();
@@ -563,18 +654,14 @@
 
       $http.jsonp('//' + host + '/metrics/snapshot?jsonp=JSON_CALLBACK')
         .success(function (response) {
-          if (!$scope.state) {
-            $scope.state = {};
-          }
-
-          $scope.state.staging_tasks = response['slave/tasks_staging'];
-          $scope.state.starting_tasks = response['slave/tasks_starting'];
-          $scope.state.running_tasks = response['slave/tasks_running'];
-          $scope.state.killing_tasks = response['slave/tasks_killing'];
-          $scope.state.finished_tasks = response['slave/tasks_finished'];
-          $scope.state.killed_tasks = response['slave/tasks_killed'];
-          $scope.state.failed_tasks = response['slave/tasks_failed'];
-          $scope.state.lost_tasks = response['slave/tasks_lost'];
+          $scope.staging_tasks = response['slave/tasks_staging'];
+          $scope.starting_tasks = response['slave/tasks_starting'];
+          $scope.running_tasks = response['slave/tasks_running'];
+          $scope.killing_tasks = response['slave/tasks_killing'];
+          $scope.finished_tasks = response['slave/tasks_finished'];
+          $scope.killed_tasks = response['slave/tasks_killed'];
+          $scope.failed_tasks = response['slave/tasks_failed'];
+          $scope.lost_tasks = response['slave/tasks_lost'];
         })
         .error(function(reason) {
           $scope.alert_message = 'Failed to get agent metrics: ' + reason;
@@ -611,7 +698,7 @@
 
       // Set up polling for the monitor if this is the first update.
       if (!$top.started()) {
-        $top.start(host, $scope);
+        $top.start(host, id, $scope);
       }
 
       $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
@@ -635,6 +722,11 @@
             return;
           }
 
+          // Fill in the `roles` field for non-MULTI_ROLE schedulers.
+          if ($scope.framework.role) {
+            $scope.framework.roles = [$scope.framework.role];
+          }
+
           // Compute the framework stats.
           $scope.framework.num_tasks = 0;
           $scope.framework.cpus = 0;
@@ -648,6 +740,11 @@
             $scope.framework.gpus += executor.resources.gpus;
             $scope.framework.mem += executor.resources.mem;
             $scope.framework.disk += executor.resources.disk;
+
+            // If 'role' is not present in executor, we are talking
+            // to a non-MULTI_ROLE capable agent. This means that we
+            // can use the 'role' of the framework.
+            executor.role = executor.role || $scope.framework.role;
           });
 
           $('#agent').show();
@@ -688,7 +785,7 @@
 
       // Set up polling for the monitor if this is the first update.
       if (!$top.started()) {
-        $top.start(host, $scope);
+        $top.start(host, id, $scope);
       }
 
       $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
@@ -725,6 +822,23 @@
             $scope.alert_message = 'No executor found with ID: ' + $routeParams.executor_id;
             $('#alert').show();
             return;
+          }
+
+          // If 'role' is not present in the task, we are talking
+          // to a non-MULTI_ROLE capable agent. This means that we
+          // can use the 'role' of the framework.
+          if (!("role" in $scope.executor)) {
+            $scope.executor.role = $scope.framework.role;
+
+            function setRole(tasks) {
+              _.each(tasks, function(task) {
+                task.role = $scope.framework.role;
+              });
+            }
+
+            setRole($scope.executor.tasks);
+            setRole($scope.executor.queued_tasks);
+            setRole($scope.executor.completed_tasks);
           }
 
           setTaskSandbox($scope.executor);

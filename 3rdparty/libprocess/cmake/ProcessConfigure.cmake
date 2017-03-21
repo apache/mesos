@@ -15,7 +15,7 @@
 # limitations under the License.
 
 ###############################################################
-# This file exports variables needed ot link to third-party libs. These are
+# This file exports variables needed to link to third-party libs. These are
 # used throughout the Mesos project.
 #
 # This includes things like:
@@ -40,9 +40,30 @@
 # party libraries, and where in the directory tree you need to look to get the
 # actual libraries.
 
+if (ENABLE_SSL)
+  find_package(OpenSSL REQUIRED)
+endif (ENABLE_SSL)
+
 set(PROCESS_PACKAGE_VERSION 0.0.1)
 set(PROCESS_PACKAGE_SOVERSION 0)
 set(PROCESS_TARGET process-${PROCESS_PACKAGE_VERSION})
+
+# SOURCE GROUPS. Allows IDEs to group header files for projects taking a
+# dependency on this package.
+########################################################################
+file(
+  GLOB_RECURSE
+  PROCESS_HEADERS
+  "${PROCESS_INCLUDE_DIR}/process/*.hpp"
+  )
+
+macro(GROUP_PROCESS_HEADERS)
+  GROUP_SOURCE(
+    "Libprocess Public Headers"
+    "${PROCESS_INCLUDE_DIR}/process"
+    "${PROCESS_INCLUDE_DIR}/process"
+    "*.h*")
+endmacro(GROUP_PROCESS_HEADERS)
 
 # Define process library dependencies. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
@@ -71,24 +92,42 @@ endif (WIN32)
 ###############################################################################
 set(PROCESS_INCLUDE_DIRS
   ${PROCESS_INCLUDE_DIRS}
-  ${STOUT_INCLUDE_DIRS}
   ${PROCESS_INCLUDE_DIR}
+  )
+
+set(PROCESS_3RDPARTY_INCLUDE_DIRS
+  ${PROCESS_3RDPARTY_INCLUDE_DIRS}
+  ${STOUT_3RDPARTY_INCLUDE_DIRS}
+  ${STOUT_INCLUDE_DIRS}
   ${HTTP_PARSER_INCLUDE_DIR}
   )
 
 if (NOT ENABLE_LIBEVENT)
-  set(PROCESS_INCLUDE_DIRS ${PROCESS_INCLUDE_DIRS} ${LIBEV_INCLUDE_DIR})
+  set(PROCESS_3RDPARTY_INCLUDE_DIRS
+    ${PROCESS_3RDPARTY_INCLUDE_DIRS}
+    ${LIBEV_INCLUDE_DIR}
+    )
 elseif (ENABLE_LIBEVENT)
-  set(PROCESS_INCLUDE_DIRS ${PROCESS_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIR})
+  set(PROCESS_3RDPARTY_INCLUDE_DIRS
+    ${PROCESS_3RDPARTY_INCLUDE_DIRS}
+    ${LIBEVENT_INCLUDE_DIR}
+    )
 endif (NOT ENABLE_LIBEVENT)
 
+if (ENABLE_SSL)
+  set(PROCESS_3RDPARTY_INCLUDE_DIRS
+    ${PROCESS_3RDPARTY_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIR}
+    )
+endif (ENABLE_SSL)
+
 if (HAS_GPERFTOOLS)
-  set(PROCESS_INCLUDE_DIRS ${PROCESS_INCLUDE_DIRS} ${GPERFTOOLS_INCLUDE_DIR})
+  set(PROCESS_3RDPARTY_INCLUDE_DIRS ${PROCESS_3RDPARTY_INCLUDE_DIRS} ${GPERFTOOLS_INCLUDE_DIR})
 endif (HAS_GPERFTOOLS)
 
 if (WIN32)
-  set(PROCESS_INCLUDE_DIRS
-    ${PROCESS_INCLUDE_DIRS}
+  set(PROCESS_3RDPARTY_INCLUDE_DIRS
+    ${PROCESS_3RDPARTY_INCLUDE_DIRS}
     ${ZLIB_INCLUDE_DIR}
   )
 endif (WIN32)
@@ -139,6 +178,13 @@ if (NOT ENABLE_LIBEVENT)
 elseif (ENABLE_LIBEVENT)
   set(PROCESS_LIBS ${PROCESS_LIBS} ${LIBEVENT_LFLAG})
 endif (NOT ENABLE_LIBEVENT)
+
+if (ENABLE_SSL)
+  set(PROCESS_LIBS
+    ${PROCESS_LIBS}
+    ${OPENSSL_LIBRARIES}
+    )
+endif (ENABLE_SSL)
 
 if (NOT WIN32)
   find_package(ZLIB REQUIRED)

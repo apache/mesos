@@ -16,6 +16,15 @@
 
 #include <mesos/zookeeper/authentication.hpp>
 
+#ifdef __WINDOWS__
+// NOTE: We need to redefine this macro, normally defined in
+// zookeeper/src/c/include/winconfig.h.  Headers that include
+// zookeeper.h typically need to undefine this macro to prevent
+// it from bleeding into other sources.  However, this file
+// needs to use the Zookeeper ACL struct, rather than Mesos ACLs.
+#define ACL ZKACL
+#endif // __WINDOWS__
+
 namespace zookeeper {
 
 ACL _EVERYONE_READ_CREATOR_ALL_ACL[] = {

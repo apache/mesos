@@ -28,12 +28,11 @@
 
 #include <process/pid.hpp>
 
-#include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
-#include <stout/strings.hpp>
+#include <stout/try.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
@@ -64,14 +63,13 @@ struct TaskState;
 // If the 'strict' flag is set, any errors encountered while
 // recovering a state are considered fatal and hence the recovery is
 // short-circuited and returns an error. There might be orphaned
-// executors that need to be manually cleaned up. If 'strict' flag is
-// not set, any errors encountered are considered non-fatal and the
+// executors that need to be manually cleaned up. If the 'strict' flag
+// is not set, any errors encountered are considered non-fatal and the
 // recovery continues by recovering as much of the state as possible,
 // while increasing the 'errors' count. Note that 'errors' on a struct
 // includes the 'errors' encountered recursively. In other words,
-// 'State.errors' is the sum total of all recovery errors. If the
-// machine has rebooted since the last slave run, None is returned.
-Result<State> recover(const std::string& rootDir, bool strict);
+// 'State.errors' is the sum total of all recovery errors.
+Try<State> recover(const std::string& rootDir, bool strict);
 
 
 namespace internal {
@@ -312,7 +310,7 @@ struct State
 
   // TODO(jieyu): Consider using a vector of Option<Error> here so
   // that we can print all the errors. This also applies to all the
-  // State structs below.
+  // State structs above.
   unsigned int errors;
 };
 

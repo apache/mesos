@@ -39,12 +39,17 @@ const Bytes MIN_MEMORY = Megabytes(32);
 
 
 // Subsystem names.
+const std::string CGROUP_SUBSYSTEM_BLKIO_NAME = "blkio";
 const std::string CGROUP_SUBSYSTEM_CPU_NAME = "cpu";
 const std::string CGROUP_SUBSYSTEM_CPUACCT_NAME = "cpuacct";
+const std::string CGROUP_SUBSYSTEM_CPUSET_NAME = "cpuset";
 const std::string CGROUP_SUBSYSTEM_DEVICES_NAME = "devices";
+const std::string CGROUP_SUBSYSTEM_HUGETLB_NAME = "hugetlb";
 const std::string CGROUP_SUBSYSTEM_MEMORY_NAME = "memory";
 const std::string CGROUP_SUBSYSTEM_NET_CLS_NAME = "net_cls";
+const std::string CGROUP_SUBSYSTEM_NET_PRIO_NAME = "net_prio";
 const std::string CGROUP_SUBSYSTEM_PERF_EVENT_NAME = "perf_event";
+const std::string CGROUP_SUBSYSTEM_PIDS_NAME = "pids";
 
 } // namespace slave {
 } // namespace internal {

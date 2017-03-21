@@ -12,6 +12,7 @@
   <thead>
     <tr>
       <th data-key="id">ID</th>
+      <th data-key="allocation_info.role">Role</th>
       <th data-key="framework_name">Framework</th>
       <th data-key="hostname">Host</th>
       <th data-key="resources.cpus">CPUs</th>
@@ -25,6 +26,8 @@
       <td>
         <abbr title="{{offer.id}}">{{offer.id | truncateMesosID}}</abbr>
       </td>
+      <!-- Make this a link to the role overview -->
+      <td>{{offer.allocation_info.role}}</td>
       <td>
         <a href="{{'#/frameworks/' + offer.framework_id}}">
           {{offer.framework_name}}

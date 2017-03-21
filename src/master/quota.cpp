@@ -110,15 +110,10 @@ Option<Error> quotaInfo(const QuotaInfo& quotaInfo)
     return Error("QuotaInfo must specify a role");
   }
 
-  if (quotaInfo.role().empty()) {
-    return Error("QuotaInfo must specify a non-empty role");
-  }
-
   // Check the provided role is valid.
   Option<Error> roleError = roles::validate(quotaInfo.role());
   if (roleError.isSome()) {
-    return Error(
-        "QuotaInfo with invalid role: " + roleError.get().message);
+    return Error("QuotaInfo with invalid role: " + roleError->message);
   }
 
   // Disallow quota for '*' role.
@@ -132,7 +127,7 @@ Option<Error> quotaInfo(const QuotaInfo& quotaInfo)
   // only way that we offer non-revocable resources. Setting quota
   // with an empty guarantee would mean the role is not entitled to
   // get non-revocable offers.
-  if (quotaInfo.guarantee().size() == 0) {
+  if (quotaInfo.guarantee().empty()) {
     return Error("QuotaInfo with empty 'guarantee'");
   }
 
@@ -141,25 +136,24 @@ Option<Error> quotaInfo(const QuotaInfo& quotaInfo)
     Option<Error> resourceError = Resources::validate(resource);
     if (resourceError.isSome()) {
       return Error(
-          "QuotaInfo with invalid resource: " + resourceError.get().message);
+          "QuotaInfo with invalid resource: " + resourceError->message);
     }
 
-    // Check that `resource` does not contain non-relevant fields for quota.
+    // Check that `resource` does not contain fields that are
+    // irrelevant for quota.
 
     if (resource.has_reservation()) {
-      return Error("QuotaInfo may not contain ReservationInfo");
+      return Error("QuotaInfo must not contain ReservationInfo");
     }
     if (resource.has_disk()) {
-      return Error("QuotaInfo may not contain DiskInfo");
+      return Error("QuotaInfo must not contain DiskInfo");
     }
     if (resource.has_revocable()) {
-      return Error("QuotaInfo may not contain RevocableInfo");
+      return Error("QuotaInfo must not contain RevocableInfo");
     }
 
-    // Check that the `Resource` is scalar.
     if (resource.type() != Value::SCALAR) {
-      return Error(
-          "QuotaInfo may not include non-scalar resources");
+      return Error("QuotaInfo must not include non-scalar resources");
     }
 
     // Check that the role is either unset or default.

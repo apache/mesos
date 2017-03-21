@@ -68,7 +68,7 @@ protected:
 
 
 // Tests the archive APIs for a simple file.
-TEST_F(TarTest, File)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(TarTest, File)
 {
   // Create a test file.
   const Path testFile("testfile");
@@ -93,7 +93,7 @@ TEST_F(TarTest, File)
 
 
 // Tests the archive APIs for a simple directory.
-TEST_F(TarTest, Directory)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(TarTest, Directory)
 {
   const Path testDir("test_dir");
   const Path testFile(path::join(testDir, "testfile"));
@@ -120,7 +120,7 @@ TEST_F(TarTest, Directory)
 
 
 // Tests the archive APIs for archiving after changing directory.
-TEST_F(TarTest, ChangeDirectory)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(TarTest, ChangeDirectory)
 {
   // Create a top directory where the directory to be archived will be placed.
   const Path topDir("top_dir");
@@ -154,7 +154,7 @@ TEST_F(TarTest, ChangeDirectory)
 
 // Tests the archive APIs for archiving/unarchiving a simple file for BZIP2
 // compression.
-TEST_F(TarTest, BZIP2CompressFile)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(TarTest, BZIP2CompressFile)
 {
   // Create a test file.
   const Path testFile("testfile");
@@ -186,7 +186,7 @@ TEST_F(TarTest, BZIP2CompressFile)
 // Tests the archive APIs for archiving/unarchiving a directory for GZIP
 // compression. This test specifically tests for the use case of changing
 // directory before archiving.
-TEST_F(TarTest, GZIPChangeDirectory)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(TarTest, GZIPChangeDirectory)
 {
   // Create a top directory where the directory to be archived will be placed.
   const Path topDir("top_dir");
@@ -226,7 +226,7 @@ TEST_F(TarTest, GZIPChangeDirectory)
 class ShasumTest : public TemporaryDirectoryTest {};
 
 
-TEST_F(ShasumTest, SHA512SimpleFile)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(ShasumTest, SHA512SimpleFile)
 {
   const Path testFile(path::join(os::getcwd(), "test"));
 
@@ -246,7 +246,7 @@ class CompressionTest : public TemporaryDirectoryTest {};
 
 
 // Tests command::decompress API for a tar + gzip file.
-TEST_F(CompressionTest, GZIPDecompressTarFile)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(CompressionTest, GZIPDecompressTarFile)
 {
   // Create a test file.
   const Path testFile("testfile");

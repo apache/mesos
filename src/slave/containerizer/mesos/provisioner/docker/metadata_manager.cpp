@@ -36,13 +36,14 @@
 #include "slave/containerizer/mesos/provisioner/docker/message.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
 
-using namespace process;
-
 namespace spec = docker::spec;
 
-using std::list;
 using std::string;
 using std::vector;
+
+using process::Failure;
+using process::Future;
+using process::Owned;
 
 namespace mesos {
 namespace internal {
@@ -220,25 +221,7 @@ Future<Nothing> MetadataManagerProcess::recover()
   }
 
   foreach (const Image& image, images.get().images()) {
-    vector<string> missingLayerIds;
-
-    foreach (const string& layerId, image.layer_ids()) {
-      const string rootfsPath = paths::getImageLayerRootfsPath(
-          flags.docker_store_dir,
-          layerId,
-          flags.image_provisioner_backend);
-
-      if (!os::exists(rootfsPath)) {
-        missingLayerIds.push_back(layerId);
-      }
-    }
-
     const string imageReference = stringify(image.reference());
-
-    if (!missingLayerIds.empty()) {
-      LOG(WARNING) << "Skipped loading image '" << imageReference << "'";
-      continue;
-    }
 
     if (storedImages.contains(imageReference)) {
       LOG(WARNING) << "Found duplicate image in recovery for image reference '"

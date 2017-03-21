@@ -22,6 +22,7 @@
 #include <mesos/agent/agent.hpp>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
 
 #include <mesos/executor/executor.hpp>
 
@@ -30,6 +31,7 @@
 #include <mesos/scheduler/scheduler.hpp>
 
 #include <mesos/v1/mesos.hpp>
+#include <mesos/v1/resources.hpp>
 
 #include <mesos/v1/agent/agent.hpp>
 
@@ -54,6 +56,8 @@ FrameworkInfo devolve(const v1::FrameworkInfo& frameworkInfo);
 HealthCheck devolve(const v1::HealthCheck& check);
 InverseOffer devolve(const v1::InverseOffer& inverseOffer);
 Offer devolve(const v1::Offer& offer);
+Resource devolve(const v1::Resource& resource);
+Resources devolve(const v1::Resources& resources);
 SlaveID devolve(const v1::AgentID& agentId);
 SlaveInfo devolve(const v1::AgentInfo& agentInfo);
 TaskID devolve(const v1::TaskID& taskId);

@@ -14,9 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdarg.h>
-#include <stdint.h>
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -210,6 +207,64 @@ TEST(SorterTest, WDRFSorterUpdateWeight)
 }
 
 
+// Check that the sorter uses the total number of allocations made to
+// a client as a tiebreaker when the two clients have the same share.
+TEST(SorterTest, CountAllocations)
+{
+  DRFSorter sorter;
+
+  SlaveID slaveId;
+  slaveId.set_value("agentId");
+
+  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
+
+  sorter.add(slaveId, totalResources);
+
+  sorter.add("a");
+  sorter.add("b");
+  sorter.add("c");
+  sorter.add("d");
+  sorter.add("e");
+
+  // Everyone is allocated the same resources; "c" gets three distinct
+  // allocations, "d" gets two, and all other clients get one.
+  sorter.allocated("a", slaveId, Resources::parse("cpus:3;mem:3").get());
+  sorter.allocated("b", slaveId, Resources::parse("cpus:3;mem:3").get());
+  sorter.allocated("c", slaveId, Resources::parse("cpus:1;mem:1").get());
+  sorter.allocated("c", slaveId, Resources::parse("cpus:1;mem:1").get());
+  sorter.allocated("c", slaveId, Resources::parse("cpus:1;mem:1").get());
+  sorter.allocated("d", slaveId, Resources::parse("cpus:2;mem:2").get());
+  sorter.allocated("d", slaveId, Resources::parse("cpus:1;mem:1").get());
+  sorter.allocated("e", slaveId, Resources::parse("cpus:3;mem:3").get());
+
+  EXPECT_EQ(vector<string>({"a", "b", "e", "d", "c"}), sorter.sort());
+
+  // Check that unallocating and re-allocating to a client does not
+  // reset the allocation count.
+  sorter.unallocated("c", slaveId, Resources::parse("cpus:3;mem:3").get());
+
+  EXPECT_EQ(vector<string>({"c", "a", "b", "e", "d"}), sorter.sort());
+
+  sorter.allocated("c", slaveId, Resources::parse("cpus:3;mem:3").get());
+
+  EXPECT_EQ(vector<string>({"a", "b", "e", "d", "c"}), sorter.sort());
+
+  // Deactivating and then re-activating a client currently resets the
+  // allocation count to zero.
+  //
+  // TODO(neilc): Consider changing this behavior.
+  sorter.deactivate("c");
+  sorter.activate("c");
+
+  EXPECT_EQ(vector<string>({"c", "a", "b", "e", "d"}), sorter.sort());
+
+  sorter.unallocated("c", slaveId, Resources::parse("cpus:3;mem:3").get());
+  sorter.allocated("c", slaveId, Resources::parse("cpus:3;mem:3").get());
+
+  EXPECT_EQ(vector<string>({"a", "b", "c", "e", "d"}), sorter.sort());
+}
+
+
 // Some resources are split across multiple resource objects (e.g.
 // persistent volumes). This test ensures that the shares for these
 // are accounted correctly.
@@ -380,10 +435,7 @@ TEST(SorterTest, UpdateTotal)
   sorter.allocated(
       "b", slaveId, Resources::parse("cpus:1;mem:2").get());
 
-  vector<string> sorted = sorter.sort();
-  ASSERT_EQ(2u, sorted.size());
-  EXPECT_EQ("b", sorted.front());
-  EXPECT_EQ("a", sorted.back());
+  EXPECT_EQ(vector<string>({"b", "a"}), sorter.sort());
 
   // Update the total resources by removing the previous total and
   // adding back the new total.
@@ -392,10 +444,7 @@ TEST(SorterTest, UpdateTotal)
 
   // Now the dominant share of "a" is 0.1 (mem) and "b" is 0.2 (mem),
   // which should change the sort order.
-  sorted = sorter.sort();
-  ASSERT_EQ(2u, sorted.size());
-  EXPECT_EQ("a", sorted.front());
-  EXPECT_EQ("b", sorted.back());
+  EXPECT_EQ(vector<string>({"a", "b"}), sorter.sort());
 }
 
 
@@ -425,10 +474,7 @@ TEST(SorterTest, MultipleSlavesUpdateTotal)
   sorter.allocated(
       "b", slaveB, Resources::parse("cpus:1;mem:3").get());
 
-  vector<string> sorted = sorter.sort();
-  ASSERT_EQ(2u, sorted.size());
-  EXPECT_EQ("b", sorted.front());
-  EXPECT_EQ("a", sorted.back());
+  EXPECT_EQ(vector<string>({"b", "a"}), sorter.sort());
 
   // Update the total resources of slaveA by removing the previous
   // total and adding the new total.
@@ -437,10 +483,7 @@ TEST(SorterTest, MultipleSlavesUpdateTotal)
 
   // Now the dominant share of "a" is 0.02 (cpus) and "b" is 0.03
   // (mem), which should change the sort order.
-  sorted = sorter.sort();
-  ASSERT_EQ(2u, sorted.size());
-  EXPECT_EQ("a", sorted.front());
-  EXPECT_EQ("b", sorted.back());
+  EXPECT_EQ(vector<string>({"a", "b"}), sorter.sort());
 }
 
 
@@ -475,16 +518,12 @@ TEST(SorterTest, RevocableResources)
   sorter.allocated("b", slaveId, b);
 
   // Check that the allocations are correct.
-  ASSERT_EQ(a, sorter.allocation("a", slaveId));
-  ASSERT_EQ(b, sorter.allocation("b", slaveId));
+  EXPECT_EQ(a, sorter.allocation("a", slaveId));
+  EXPECT_EQ(b, sorter.allocation("b", slaveId));
 
   // Check that the sort is correct.
-  vector<string> sorted = sorter.sort();
-  ASSERT_EQ(2u, sorted.size());
-  EXPECT_EQ("a", sorted.front());
-  EXPECT_EQ("b", sorted.back());
+  EXPECT_EQ(vector<string>({"a", "b"}), sorter.sort());
 }
-
 
 
 // This test verifies that shared resources are properly accounted for in

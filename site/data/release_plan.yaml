@@ -1,7 +1,44 @@
 ---
 releases:
   -
-    date: TBD
+    date: 3/8/2017
+    features:
+      - "Container attach and exec (*experimental)"
+      - "Support rlimit (*experimental)"
+      - "Auto Backend for Unified Containerizer (*experimental)"
+      - "Basic auth for docker private registries (*experimental)"
+      - "Teardown unregistered frameworks (*experimental)"
+    managers:
+      - "Adam B"
+    version: "1.2.0"
+  -
+    date: 11/10/2016
+    features:
+      - "Pods aka Task Groups (*experimental)"
+      - "New Default Executor (*experimental)"
+      - "HTTP and HTTPS Health Checks (*experimental)"
+      - "TCP Health Checks (*experimental)"
+      - "Shared Volumes (*experimental)"
+      - "Read-only Volumes"
+      - "Linux capabilities (*experimental)"
+      - "Partition-aware frameworks (*experimental)"
+      - "Java v1 scheduler adapter (*experimental)"
+      - "CNI Port Mapper plugin (*experimental)"
+    managers:
+      - "Till Toenshoff"
+    version: "1.1.0"
+  -
+    date: 6/27/2016
+    features:
+      - "HTTP API (*experimental)"
+      - "Unified Containerizer"
+      - "Container Networking Interface"
+      - "External Storage (*experimental)"
+      - "Improved Authentication and Authorization"
+      - "GPU Support"
+      - "Windows Support (*experimental)"
+    managers:
+      - "Vinod Kone"
     version: "1.0.0"
   -
     date: 6/4/2016

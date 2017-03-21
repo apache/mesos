@@ -24,6 +24,7 @@
 #include <mesos/mesos.hpp>
 
 #include <mesos/slave/container_logger.hpp>
+#include <mesos/slave/containerizer.hpp>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -58,8 +59,7 @@ public:
   // Tells the subprocess to redirect the executor/task's stdout and stderr
   // to separate "stdout" and "stderr" files in the sandbox.
   // The `path`, `argv`, and `environment` are not changed.
-  virtual process::Future<mesos::slave::ContainerLogger::SubprocessInfo>
-  prepare(
+  virtual process::Future<mesos::slave::ContainerIO> prepare(
       const ExecutorInfo& executorInfo,
       const std::string& sandboxDirectory,
       const Option<std::string>& user);

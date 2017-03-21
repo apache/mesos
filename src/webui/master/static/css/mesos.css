@@ -13,8 +13,6 @@
 
 .navbar .navbar-nav > li > a {
   color: inherit;
-  padding-top: 20px;
-  padding-bottom: 20px;
 }
 
 .navbar .navbar-nav > .active > a,
@@ -22,6 +20,14 @@
 .navbar .navbar-nav > .active > a:hover {
     color: inherit;
     background-color: rgba(255,255,255,.1);
+}
+
+.navbar-brand {
+  padding: 0px 5px;
+}
+
+.navbar-brand > img {
+  height: 100%;
 }
 
 .table thead th {
@@ -43,16 +49,6 @@
 body {
   /* Add space for fixed position navbar. */
   padding-top: 60px;
-}
-
-@media (max-width: 979px) {
-  body {
-    /* Mobile devices 979px and narrower use a statically positioned navbar */
-    /* and therefore need no padding for the <body>. */
-    /* */
-    /* @see http://twitter.github.io/bootstrap/scaffolding.html#responsive */
-    padding-top: 0;
-  }
 }
 
 dl.inline dt, dl.inline dd {
@@ -105,20 +101,14 @@ time:hover {
   visibility: hidden;
 }
 
-.inline .zeroclipboard-is-hover,
-.table-condensed .zeroclipboard-is-hover,
-.flash dd:hover .btn-toggle,
-.flash td:hover .btn-toggle {
+dd:hover .btn-toggle,
+td:hover .btn-toggle {
   visibility: visible;
 }
 
-.zeroclipboard-is-hover {
+.clipboard-is-hover {
   background-color: #e6e6e6;
   background-position: 0 -15px;
-}
-
-.zeroclipboard-is-active {
-  background-image: none;
 }
 
 .badge-type {
@@ -184,9 +174,4 @@ a.badge-type:hover {
 .btn-clear:active {
   -webkit-box-shadow: none;
   box-shadow: none;
-}
-
-#logo {
-  margin: -15px -10px;
-  height: 60px;
 }

@@ -16,14 +16,15 @@ Mesos 1.0.0 introduced experimental support for Windows.
 1. Install the latest version of [Visual Studio Community 2015](https://www.visualstudio.com/post-download-vs?sku=community).
    Make sure to select the Common Tools for Visual C++ and the Windows 10 SDK.
    Start Visual Studio Community to complete the setup and configuration.
-2. Install [CMake 3.5.2 or later](https://cmake.org/files/v3.5/cmake-3.5.2-win32-x86.msi).
+2. Install [CMake 3.6.3 or later](https://cmake.org/files/v3.6/cmake-3.6.3-win32-x86.msi).
    Do not run CMake before finishing the Visual Studio Community setup.
 3. Install [Gnu Patch 2.5.9-7 or later](http://downloads.sourceforge.net/project/gnuwin32/patch/2.5.9-7/patch-2.5.9-7-setup.exe).
 4. If building from git, make sure you have Windows-style line endings.
    i.e. `git config core.autocrlf true`.
 5. Make sure there are no spaces in your build directory.
    For example, `C:/Program Files (x86)/mesos` is an invalid build directory.
-
+6. **Optional**: Install [`python 2.6+`](https://www.python.org/downloads/windows/) and [`virtualenv`](https://pypi.python.org/pypi/virtualenv)
+   This is only necessary when developing Mesos on Windows (specifically for automated linting of python files).
 
 ### Build Instructions
 
@@ -41,15 +42,15 @@ Following are the instructions for stock Windows 10 and Windows Server 2012 or n
     $ .\bootstrap.bat
 
     # Generate the solution and build.
-    $ mkdir build
-    $ cd build
-    $ cmake .. -G "Visual Studio 14 2015 Win64" -DENABLE_LIBEVENT=1
+    $ .\support\windows-build.bat
+
+    # Set the `PreferredToolArchitecture` environment variable to `x64`.
+    # NOTE: `PreferredToolArchitecture` can be set system-wide via Control Panel.
+    $ SET PreferredToolArchitecture=x64
 
     # After generating the Visual Studio solution you can use the IDE to open
-    # the project and skip the next step. In this case it is recommended to set
-    # `PreferredToolArchitecture` environment variable to `x64`.
-    # NOTE: `PreferredToolArchitecture` can be set system-wide via Control Panel.
-    $ msbuild Mesos.sln /p:PreferredToolArchitecture=x64
+    # the project and skip this step.
+    $ msbuild Mesos.sln /m
 
     # mesos-agent.exe can be found in the <repository>\build\src folder.
     $ cd src
@@ -57,7 +58,7 @@ Following are the instructions for stock Windows 10 and Windows Server 2012 or n
     # The Windows agent exposes new isolators that must be used as with
     # the `--isolation` flag. To get started point the agent to a working
     # master, using eiher an IP address or zookeeper information.
-    $ mesos-agent.exe --master=<master> --work_dir=<work folder> --isolation=windows/cpu,filesystem/windows --launcher_dir=<repository>\build\src
+    $ mesos-agent.exe --master=<master> --work_dir=<work folder> --launcher_dir=<repository>\build\src
 
 
 ## Known Limitations

@@ -58,17 +58,10 @@ public:
       const Option<JSON::Object>& config = None());
   virtual ~MockDocker();
 
-  MOCK_CONST_METHOD10(
+  MOCK_CONST_METHOD3(
       run,
       process::Future<Option<int>>(
-          const mesos::ContainerInfo&,
-          const mesos::CommandInfo&,
-          const std::string&,
-          const std::string&,
-          const std::string&,
-          const Option<mesos::Resources>&,
-          const Option<std::map<std::string, std::string>>&,
-          const Option<std::vector<Device>>&,
+          const Docker::RunOptions& options,
           const process::Subprocess::IO&,
           const process::Subprocess::IO&));
 
@@ -98,26 +91,12 @@ public:
           const Option<Duration>&));
 
   process::Future<Option<int>> _run(
-      const mesos::ContainerInfo& containerInfo,
-      const mesos::CommandInfo& commandInfo,
-      const std::string& name,
-      const std::string& sandboxDirectory,
-      const std::string& mappedDirectory,
-      const Option<mesos::Resources>& resources,
-      const Option<std::map<std::string, std::string>>& env,
-      const Option<std::vector<Device>>& devices,
+      const Docker::RunOptions& runOptions,
       const process::Subprocess::IO& _stdout,
       const process::Subprocess::IO& _stderr) const
   {
     return Docker::run(
-        containerInfo,
-        commandInfo,
-        name,
-        sandboxDirectory,
-        mappedDirectory,
-        resources,
-        env,
-        devices,
+        runOptions,
         _stdout,
         _stderr);
   }

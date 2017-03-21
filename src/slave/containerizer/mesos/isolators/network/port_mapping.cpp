@@ -49,6 +49,7 @@
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
 
+#include <stout/os/constants.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/realpath.hpp>
 #include <stout/os/stat.hpp>
@@ -125,8 +126,8 @@ namespace slave {
 static const uint16_t MIN_EPHEMERAL_PORTS_SIZE = 16;
 
 // Linux traffic control is a combination of queueing disciplines,
-// filters and classes organized as a tree for the ingress (tx) and
-// egress (rx) flows for each interface. Each container provides two
+// filters and classes organized as a tree for the ingress (rx) and
+// egress (tx) flows for each interface. Each container provides two
 // networking interfaces, a virtual eth0 and a loopback interface. The
 // flow of packets from the external network to container is shown
 // below:
@@ -162,7 +163,7 @@ static const uint16_t MIN_EPHEMERAL_PORTS_SIZE = 16;
 // network flows along the reverse path [4,5,6]. Loopback traffic is
 // directed to the corresponding Ethernet interface, either [7,10] or
 // [8,9] where the same destination port routing can be applied as to
-// external traffic. We use traffic control filters at several of the
+// external traffic. We use traffic control filters on several of the
 // interfaces to create these packet paths.
 //
 // Linux provides only a very simple topology for ingress interfaces.
@@ -1587,35 +1588,47 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   Option<Bytes> egressRateLimitPerContainer;
   if (flags.egress_rate_limit_per_container.isSome()) {
     // Read host physical link speed from /sys/class/net/eth0/speed.
-    // This value is in MBits/s.
-    Try<string> value =
-      os::read(path::join("/sys/class/net", eth0.get(), "speed"));
+    // This value is in MBits/s. Some distribution does not support
+    // reading speed (depending on the driver). If that's the case,
+    // simply print warnings.
+    const string eth0SpeedPath =
+      path::join("/sys/class/net", eth0.get(), "speed");
 
-    if (value.isError()) {
-      return Error(
-          "Failed to read " +
-          path::join("/sys/class/net", eth0.get(), "speed") +
-          ": " + value.error());
-    }
+    if (!os::exists(eth0SpeedPath)) {
+      LOG(WARNING) << "Cannot determine link speed of " << eth0.get()
+                   << ": '" << eth0SpeedPath << "' does not exist";
+    } else {
+      Try<string> value = os::read(eth0SpeedPath);
+      if (value.isError()) {
+        // NOTE: Even if the speed file exists, the read might fail if
+        // the driver does not support reading the speed. Therefore,
+        // we print a warning here, instead of failing.
+        LOG(WARNING) << "Cannot determine link speed of " << eth0.get()
+                     << ": Failed to read '" << eth0SpeedPath
+                     << "': " << value.error();
+      } else {
+        Try<uint64_t> hostLinkSpeed =
+          numify<uint64_t>(strings::trim(value.get()));
 
-    Try<uint64_t> hostLinkSpeed = numify<uint64_t>(strings::trim(value.get()));
-    CHECK_SOME(hostLinkSpeed);
+        CHECK_SOME(hostLinkSpeed);
 
-    // It could be possible that the nic driver doesn't support
-    // reporting physical link speed. In that case, report error.
-    if (hostLinkSpeed.get() == 0xFFFFFFFF) {
-      return Error(
-          "Network Isolator failed to determine link speed for " + eth0.get());
-    }
-
-    // Convert host link speed to Bytes/s for comparason.
-    if (hostLinkSpeed.get() * 1000000 / 8 <
-        flags.egress_rate_limit_per_container.get().bytes()) {
-      return Error(
-          "The given egress traffic limit for containers " +
-          stringify(flags.egress_rate_limit_per_container.get().bytes()) +
-          " Bytes/s is greater than the host link speed " +
-          stringify(hostLinkSpeed.get() * 1000000 / 8) + " Bytes/s");
+        // It could be possible that the nic driver doesn't support
+        // reporting physical link speed. In that case, report error.
+        if (hostLinkSpeed.get() == 0xFFFFFFFF) {
+          LOG(WARNING) << "Link speed reporting is not supported for '"
+                       << eth0.get() + "'";
+        } else {
+          // Convert host link speed to Bytes/s for comparason.
+          if (hostLinkSpeed.get() * 1000000 / 8 <
+              flags.egress_rate_limit_per_container.get().bytes()) {
+            return Error(
+                "The given egress traffic limit for containers " +
+                stringify(flags.egress_rate_limit_per_container.get().bytes()) +
+                " Bytes/s is greater than the host link speed " +
+                stringify(hostLinkSpeed.get() * 1000000 / 8) + " Bytes/s");
+          }
+        }
+      }
     }
 
     if (flags.egress_rate_limit_per_container.get() != Bytes(0)) {
@@ -3079,7 +3092,7 @@ Future<Nothing> PortMappingIsolatorProcess::update(
   Try<Subprocess> s = subprocess(
       path::join(flags.launcher_dir, "mesos-network-helper"),
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::FD(STDOUT_FILENO),
       Subprocess::FD(STDERR_FILENO),
       &update.flags);
@@ -3205,7 +3218,7 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
   Try<Subprocess> s = subprocess(
       path::join(flags.launcher_dir, "mesos-network-helper"),
       argv,
-      Subprocess::PATH("/dev/null"),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::FD(STDERR_FILENO),
       &statistics.flags);

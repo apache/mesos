@@ -8,7 +8,7 @@ layout: documentation
 ## Organizations using Mesos
 
 * [Airbnb](http://www.airbnb.com)
-* [Allegro](http://allegrotech.io)
+* [Allegro](http://allegro.pl)
 * [Altocloud](http://www.altocloud.com/)
 * [Apple](http://www.apple.com)
 * [Artirix](http://www.artirix.com)
@@ -25,6 +25,7 @@ layout: documentation
 * [CERN](http://cern.ch)
 * [Cisco](http://www.cisco.com)
 * [CloudPhysics](http://cloudphysics.com)
+* [CMCC](http://www.chinamobileltd.com/)
 * [CMCRC](http://www.cmcrc.com)
 * [Conviva](http://www.conviva.com)
 * [CorvisaCloud](http://www.corvisacloud.com/)

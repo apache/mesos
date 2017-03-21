@@ -14,11 +14,16 @@ you should monitor to detect abnormal situations in your cluster.
 ## Overview
 
 Mesos master and agent nodes report a set of statistics and metrics that enable
-you to  monitor resource usage and detect abnormal situations early. The
+cluster operators to monitor resource usage and detect abnormal situations early. The
 information reported by Mesos includes details about available resources, used
 resources, registered frameworks, active agents, and task state. You can use
 this information to create automated alerts and to plot different metrics over
 time inside a monitoring dashboard.
+
+Metric information is not persisted to disk at either master or agent
+nodes, which means that metrics will be reset when masters and agents
+are restarted. Similarly, if the current leading master fails and a new
+leading master is elected, metrics at the new master will be reset.
 
 
 ## Metric Types
@@ -403,6 +408,15 @@ unhealthy or that they are not able to connect to the elected master.
   <td>Number of inactive agents</td>
   <td>Gauge</td>
 </tr>
+<tr>
+  <td>
+  <code>master/slaves_inactive</code>
+  </td>
+  <td>Number of unreachable agents. Unreachable agents are periodically
+      garbage collected from the registry, which will cause this value to
+      decrease.</td>
+  <td>Gauge</td>
+</tr>
 </table>
 
 #### Frameworks
@@ -492,6 +506,13 @@ The task states listed here match those of the task state machine.
 </tr>
 <tr>
   <td>
+  <code>master/tasks_killing</code>
+  </td>
+  <td>Number of tasks currently being killed</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
   <code>master/tasks_lost</code>
   </td>
   <td>Number of lost tasks</td>
@@ -516,6 +537,13 @@ The task states listed here match those of the task state machine.
   <code>master/tasks_starting</code>
   </td>
   <td>Number of starting tasks</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/tasks_unreachable</code>
+  </td>
+  <td>Number of unreachable tasks</td>
   <td>Gauge</td>
 </tr>
 </table>

@@ -61,7 +61,7 @@ extern PID<ReaperProcess> reaper;
 // the process is a direct child and it has not already been reaped.
 // Otherwise, returns None once the process has been reaped elsewhere
 // (or does not exist, which is indistinguishable from being reaped
-// elsewhere). This will never discard the returned future.
+// elsewhere). This will never fail or discard the returned future.
 Future<Option<int>> reap(pid_t pid);
 
 } // namespace process {

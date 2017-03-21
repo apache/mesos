@@ -28,6 +28,10 @@
 #include <stout/net.hpp>
 #include <stout/synchronized.hpp>
 
+#include <stout/os/close.hpp>
+#include <stout/os/dup.hpp>
+#include <stout/os/fcntl.hpp>
+
 #include "libevent.hpp"
 #include "libevent_ssl_socket.hpp"
 #include "openssl.hpp"
@@ -104,7 +108,7 @@ LibeventSSLSocketImpl::~LibeventSSLSocketImpl()
   //
   // Release ownership of the file descriptor so that
   // we can defer closing the socket.
-  int fd = release();
+  int_fd fd = release();
   CHECK(fd >= 0);
 
   evconnlistener* _listener = listener;
@@ -128,14 +132,10 @@ LibeventSSLSocketImpl::~LibeventSSLSocketImpl()
         }
 
         if (_bev != nullptr) {
-          SSL* ssl = bufferevent_openssl_get_ssl(_bev);
-          // Workaround for SSL shutdown, see http://www.wangafu.net/~nickm/libevent-book/Ref6a_advanced_bufferevents.html // NOLINT
-          SSL_set_shutdown(ssl, SSL_RECEIVED_SHUTDOWN);
-          SSL_shutdown(ssl);
-
           // NOTE: Removes all future callbacks using 'this->bev'.
           bufferevent_disable(_bev, EV_READ | EV_WRITE);
 
+          SSL* ssl = bufferevent_openssl_get_ssl(_bev);
           SSL_free(ssl);
           bufferevent_free(_bev);
         }
@@ -154,7 +154,7 @@ void LibeventSSLSocketImpl::initialize()
 }
 
 
-Try<Nothing> LibeventSSLSocketImpl::shutdown()
+Try<Nothing> LibeventSSLSocketImpl::shutdown(int how)
 {
   // Nothing to do if this socket was never initialized.
   synchronized (lock) {
@@ -196,6 +196,11 @@ Try<Nothing> LibeventSSLSocketImpl::shutdown()
             request->promise
               .set(bufferevent_read(self->bev, request->data, request->size));
           }
+
+          // Workaround for SSL shutdown, see http://www.wangafu.net/~nickm/libevent-book/Ref6a_advanced_bufferevents.html // NOLINT
+          SSL* ssl = bufferevent_openssl_get_ssl(self->bev);
+          SSL_set_shutdown(ssl, SSL_RECEIVED_SHUTDOWN);
+          SSL_shutdown(ssl);
         }
       },
       DISALLOW_SHORT_CIRCUIT);
@@ -249,23 +254,22 @@ void LibeventSSLSocketImpl::recv_callback()
   // g. libevent callback is called for the event queued at step b.
   // h. libevent callback finds the length of the buffer as 0 but the request is
   //    a non-nullptr due to step f.
-  if (buffer_length > 0) {
+  if (buffer_length > 0 || received_eof) {
     synchronized (lock) {
       std::swap(request, recv_request);
     }
   }
 
   if (request.get() != nullptr) {
-    // There is an invariant that if we are executing a
-    // 'recv_callback' and we have a request there must be data here
-    // because we should not be getting a spurrious receive callback
-    // invocation. Even if we discarded a request, the manual
-    // invocation of 'recv_callback' guarantees that there is a
-    // non-zero amount of data available in the bufferevent.
-    size_t length = bufferevent_read(bev, request->data, request->size);
-    CHECK(length > 0);
+    if (buffer_length > 0) {
+      size_t length = bufferevent_read(bev, request->data, request->size);
+      CHECK(length > 0);
 
-    request->promise.set(length);
+      request->promise.set(length);
+    } else {
+      CHECK(received_eof);
+      request->promise.set(0);
+    }
   }
 }
 
@@ -360,11 +364,33 @@ void LibeventSSLSocketImpl::event_callback(short events)
   // either because it was never created, it has already been
   // completed, or it has been discarded.
 
+  // The case below where `EVUTIL_SOCKET_ERROR() == 0` will catch
+  // unclean shutdowns of the socket.
+  //
+  // TODO(greggomann): We should make use of the `BEV_EVENT_READING`
+  // and `BEV_EVENT_WRITING` flags to handle read and write errors
+  // differently. Related JIRA: MESOS-6770
   if (events & BEV_EVENT_EOF ||
      (events & BEV_EVENT_ERROR && EVUTIL_SOCKET_ERROR() == 0)) {
     // At end of file, close the connection.
     if (current_recv_request.get() != nullptr) {
-      current_recv_request->promise.set(0);
+      received_eof = true;
+      // Drain any remaining data from the bufferevent or complete the
+      // promise with 0 to signify EOF. Because we set `received_eof`,
+      // subsequent calls to `recv` will return 0 if there is no data
+      // remaining on the buffer.
+      if (evbuffer_get_length(bufferevent_get_input(bev)) > 0) {
+        size_t length =
+          bufferevent_read(
+              bev,
+              current_recv_request->data,
+              current_recv_request->size);
+        CHECK(length > 0);
+
+        current_recv_request->promise.set(length);
+      } else {
+        current_recv_request->promise.set(0);
+      }
     }
 
     if (current_send_request.get() != nullptr) {
@@ -659,11 +685,12 @@ Future<size_t> LibeventSSLSocketImpl::recv(char* data, size_t size)
             evbuffer* input = bufferevent_get_input(self->bev);
             size_t length = evbuffer_get_length(input);
 
-            // If there is already data in the buffer, fulfill the
-            // 'recv_request' by calling 'recv_callback()'. Otherwise
-            // do nothing and wait for the 'recv_callback' to run when
-            // we receive data over the network.
-            if (length > 0) {
+            // If there is already data in the buffer or an EOF has
+            // been received, fulfill the 'recv_request' by calling
+            // 'recv_callback()'. Otherwise do nothing and wait for
+            // the 'recv_callback' to run when we receive data over
+            // the network.
+            if (length > 0 || self->received_eof) {
               self->recv_callback();
             }
           }
@@ -738,7 +765,7 @@ Future<size_t> LibeventSSLSocketImpl::send(const char* data, size_t size)
 
 
 Future<size_t> LibeventSSLSocketImpl::sendfile(
-    int fd,
+    int_fd fd,
     off_t offset,
     size_t size)
 {
@@ -761,10 +788,12 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
   // future versions of Libevent. In Libevent versions 2.1.2 and later,
   // we may use `evbuffer_file_segment_new` and `evbuffer_add_file_segment`
   // instead of `evbuffer_add_file`.
-  int owned_fd = dup(fd);
-  if (owned_fd < 0) {
-    return Failure(ErrnoError("Failed to duplicate file descriptor"));
+  Try<int_fd> dup = os::dup(fd);
+  if (dup.isError()) {
+    return Failure(dup.error());
   }
+
+  int_fd owned_fd = dup.get();
 
   // Set the close-on-exec flag.
   Try<Nothing> cloexec = os::cloexec(owned_fd);
