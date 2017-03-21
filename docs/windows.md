@@ -23,7 +23,8 @@ Mesos 1.0.0 introduced experimental support for Windows.
    i.e. `git config core.autocrlf true`.
 5. Make sure there are no spaces in your build directory.
    For example, `C:/Program Files (x86)/mesos` is an invalid build directory.
-
+6. **Optional**: Install [`python 2.6+`](https://www.python.org/downloads/windows/) and [`virtualenv`](https://pypi.python.org/pypi/virtualenv)
+   This is only necessary when developing Mesos on Windows (specifically for automated linting of python files).
 
 ### Build Instructions
 
