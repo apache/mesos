@@ -209,6 +209,14 @@
   jira_user: dzhuk
   reviewboard_user: dzhuk
 
+- name: Eric Chung
+  affiliations:
+    - {organization: Uber}
+  emails:
+    - cinchurge@gmail.com
+  jira_user: cinchurge
+  reviewboard_user: cinchurge
+
 - name: Ezra Silvera
   affiliations:
     - {organization: IBM}
