@@ -1245,6 +1245,10 @@ TEST_F(HealthCheckTest, HealthyToUnhealthyTransitionWithinGracePeriod)
 
 
 // Tests a healthy non-contained task via HTTP.
+//
+// TODO(josephw): Enable this. Mesos builds its own `curl.exe`, since it
+// can't rely on a package manager to get it. We need to make this test use
+// that executable.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTP)
 {
   master::Flags masterFlags = CreateMasterFlags();
@@ -1327,7 +1331,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTP)
 // with the difference being the health check type is not set.
 //
 // TODO(haosdent): Remove this after the deprecation cycle which starts in 2.0.
-// TODO(hausdorff): Enable this. Mesos builds its own `curl.exe`, since it
+//
+// TODO(josephw): Enable this. Mesos builds its own `curl.exe`, since it
 // can't rely on a package manager to get it. We need to make this test use
 // that executable.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTPWithoutType)

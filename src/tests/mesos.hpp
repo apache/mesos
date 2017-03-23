@@ -361,13 +361,17 @@ using mesos::v1::TASK_GONE_BY_OPERATOR;
 using mesos::v1::TASK_UNKNOWN;
 
 using mesos::v1::AgentID;
+using mesos::v1::CheckInfo;
+using mesos::v1::CommandInfo;
 using mesos::v1::ContainerID;
 using mesos::v1::ContainerStatus;
+using mesos::v1::Environment;
 using mesos::v1::ExecutorID;
 using mesos::v1::ExecutorInfo;
 using mesos::v1::Filters;
 using mesos::v1::FrameworkID;
 using mesos::v1::FrameworkInfo;
+using mesos::v1::HealthCheck;
 using mesos::v1::InverseOffer;
 using mesos::v1::MachineID;
 using mesos::v1::Metric;
