@@ -400,8 +400,7 @@ Future<Nothing> HealthCheckerProcess::commandHealthCheck()
       }
 
       return Failure(
-          "Command has not returned after " + stringify(timeout) +
-          "; aborting");
+          "Command timed out after " + stringify(timeout) + "; aborting");
     })
     .then([](const Option<int>& status) -> Future<Nothing> {
       if (status.isNone()) {
@@ -483,7 +482,7 @@ Future<Nothing> HealthCheckerProcess::httpHealthCheck()
       }
 
       return Failure(
-          string(HTTP_CHECK_COMMAND) + " has not returned after " +
+          string(HTTP_CHECK_COMMAND) + " timed out after " +
           stringify(timeout) + "; aborting");
     })
     .then(defer(self(), &Self::_httpHealthCheck, lambda::_1));
@@ -609,7 +608,7 @@ Future<Nothing> HealthCheckerProcess::tcpHealthCheck()
       }
 
       return Failure(
-          string(TCP_CHECK_COMMAND) + " has not returned after " +
+          string(TCP_CHECK_COMMAND) + " timed out after " +
           stringify(timeout) + "; aborting");
     })
     .then(defer(self(), &Self::_tcpHealthCheck, lambda::_1));
