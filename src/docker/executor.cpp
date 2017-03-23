@@ -684,8 +684,6 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  std::cout << stringify(flags) << std::endl;
-
   mesos::internal::logging::initialize(argv[0], flags, true); // Catch signals.
 
   // Log any flag warnings (after logging is initialized).
@@ -693,12 +691,12 @@ int main(int argc, char** argv)
     LOG(WARNING) << warning.message;
   }
 
+  VLOG(1) << stringify(flags);
+
   if (flags.help) {
     cout << flags.usage() << endl;
     return EXIT_SUCCESS;
   }
-
-  std::cout << stringify(flags) << std::endl;
 
   if (flags.docker.isNone()) {
     cerr << flags.usage("Missing required option --docker") << endl;
