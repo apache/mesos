@@ -41,7 +41,7 @@ namespace process {
 // this mechanism for varying numbers of function types and arguments
 // requires support for variadic templates, slated to be released in
 // C++11. Until then, we use the Boost preprocessor macros to
-// accomplish the same thing (all be it less cleanly). See below for
+// accomplish the same thing (albeit less cleanly). See below for
 // those definitions.
 //
 // Dispatching is done via a level of indirection. The dispatch
