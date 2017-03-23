@@ -196,9 +196,16 @@ public:
       }
 
       case Event::ACKNOWLEDGED: {
+        const UUID uuid = UUID::fromBytes(event.acknowledged().uuid()).get();
+
+        if (!unacknowledgedUpdates.contains(uuid)) {
+          LOG(WARNING) << "Received acknowledgement " << uuid
+                       << " for unknown status update";
+          return;
+        }
+
         // Remove the corresponding update.
-        unacknowledgedUpdates.erase(
-            UUID::fromBytes(event.acknowledged().uuid()).get());
+        unacknowledgedUpdates.erase(uuid);
 
         // Remove the corresponding task.
         unacknowledgedTasks.erase(event.acknowledged().task_id());
