@@ -251,6 +251,11 @@ std::ostream& operator<<(
     const CapabilityInfo& capabilityInfo);
 
 
+std::ostream& operator<<(
+    std::ostream& stream,
+    const CheckStatusInfo& checkStatusInfo);
+
+
 std::ostream& operator<<(std::ostream& stream, const CommandInfo& commandInfo);
 
 

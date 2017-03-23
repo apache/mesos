@@ -309,7 +309,7 @@ protected:
       return;
     }
 
-    cout << "Received check update" << endl;
+    cout << "Received check update '" << checkStatus << "'" << endl;
 
     // Use the previous task status to preserve all attached information.
     CHECK_SOME(lastTaskStatus);

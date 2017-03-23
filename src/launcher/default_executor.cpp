@@ -1009,7 +1009,8 @@ protected:
       return;
     }
 
-    LOG(INFO) << "Received check update for task '" << taskId << "'";
+    LOG(INFO) << "Received check update '" << checkStatus
+              << "' for task '" << taskId << "'";
 
     // Use the previous task status to preserve all attached information.
     // We always send a `TASK_RUNNING` right after the task is launched.
