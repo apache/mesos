@@ -2398,7 +2398,7 @@ Future<Nothing> MesosContainerizerProcess::remove(
   const ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
 
   if (!containers_.contains(rootContainerId)) {
-    return Failure("Unknown parent container");
+    return Failure("Unknown root container");
   }
 
   const string runtimePath =
