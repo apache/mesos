@@ -169,9 +169,7 @@ inline Try<dev_t> dev(
   struct _stat s;
 
   if (follow == DO_NOT_FOLLOW_SYMLINK) {
-      return WindowsError(
-          ERROR_NOT_SUPPORTED,
-          "Error invoking stat for '" + path + "'");
+      return Error("Non-following stat not supported for '" + path + "'");
   }
 
   if (::_stat(path.c_str(), &s) < 0) {
@@ -189,9 +187,7 @@ inline Try<ino_t> inode(
   struct _stat s;
 
   if (follow == DO_NOT_FOLLOW_SYMLINK) {
-      return WindowsError(
-          ERROR_NOT_SUPPORTED,
-          "Error invoking stat for '" + path + "'");
+      return Error("Non-following stat not supported for '" + path + "'");
   }
 
   if (::_stat(path.c_str(), &s) < 0) {
