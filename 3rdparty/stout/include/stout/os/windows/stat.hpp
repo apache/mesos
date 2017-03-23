@@ -31,9 +31,15 @@
 namespace os {
 namespace stat {
 
-inline bool isdir(const std::string& path)
+inline bool isdir(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
   struct _stat s;
+
+  if (follow == DO_NOT_FOLLOW_SYMLINK) {
+      return Error("Non-following stat not supported for '" + path + "'");
+  }
 
   if (::_stat(path.c_str(), &s) < 0) {
     return false;
@@ -43,9 +49,15 @@ inline bool isdir(const std::string& path)
 }
 
 
-inline bool isfile(const std::string& path)
+inline bool isfile(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
   struct _stat s;
+
+  if (follow == DO_NOT_FOLLOW_SYMLINK) {
+      return Error("Non-following stat not supported for '" + path + "'");
+  }
 
   if (::_stat(path.c_str(), &s) < 0) {
     return false;
@@ -62,15 +74,6 @@ inline bool islink(const std::string& path)
 
   return symlink.isSome();
 }
-
-
-// Describes the different semantics supported for the implementation
-// of `size` defined below.
-enum FollowSymlink
-{
-  DO_NOT_FOLLOW_SYMLINK,
-  FOLLOW_SYMLINK
-};
 
 
 // Returns the size in Bytes of a given file system entry. When
@@ -109,15 +112,19 @@ inline Try<Bytes> size(
 }
 
 
-inline Try<long> mtime(const std::string& path)
+inline Try<long> mtime(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  Try<::internal::windows::SymbolicLink> symlink =
-    ::internal::windows::query_symbolic_link_data(path);
+  if (follow == DO_NOT_FOLLOW_SYMLINK) {
+    Try<::internal::windows::SymbolicLink> symlink =
+      ::internal::windows::query_symbolic_link_data(path);
 
-  if (symlink.isSome()) {
-    return Error(
-        "Requested mtime for '" + path +
-        "', but symbolic links don't have an mtime on Windows");
+    if (symlink.isSome()) {
+      return Error(
+          "Requested mtime for '" + path +
+          "', but symbolic links don't have an mtime on Windows");
+    }
   }
 
   struct _stat s;
@@ -137,9 +144,15 @@ inline Try<long> mtime(const std::string& path)
 }
 
 
-inline Try<mode_t> mode(const std::string& path)
+inline Try<mode_t> mode(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
   struct _stat s;
+
+  if (follow == DO_NOT_FOLLOW_SYMLINK) {
+      return Error("Non-following stat not supported for '" + path + "'");
+  }
 
   if (::_stat(path.c_str(), &s) < 0) {
     return ErrnoError("Error invoking stat for '" + path + "'");
@@ -149,9 +162,17 @@ inline Try<mode_t> mode(const std::string& path)
 }
 
 
-inline Try<dev_t> dev(const std::string& path)
+inline Try<dev_t> dev(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
   struct _stat s;
+
+  if (follow == DO_NOT_FOLLOW_SYMLINK) {
+      return WindowsError(
+          ERROR_NOT_SUPPORTED,
+          "Error invoking stat for '" + path + "'");
+  }
 
   if (::_stat(path.c_str(), &s) < 0) {
     return ErrnoError("Error invoking stat for '" + path + "'");
@@ -161,9 +182,17 @@ inline Try<dev_t> dev(const std::string& path)
 }
 
 
-inline Try<ino_t> inode(const std::string& path)
+inline Try<ino_t> inode(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
   struct _stat s;
+
+  if (follow == DO_NOT_FOLLOW_SYMLINK) {
+      return WindowsError(
+          ERROR_NOT_SUPPORTED,
+          "Error invoking stat for '" + path + "'");
+  }
 
   if (::_stat(path.c_str(), &s) < 0) {
     return ErrnoError("Error invoking stat for '" + path + "'");
