@@ -143,8 +143,6 @@ public:
     connectionId = UUID::random();
 
     doReliableRegistration();
-
-    // TODO(gkleiman): Resume (health) checks.
   }
 
   void disconnected()
@@ -163,7 +161,12 @@ public:
       }
     }
 
-    // TODO(gkleiman): Stop (health) checks.
+    // Pause all health checks.
+    foreachvalue (Owned<Container> container, containers) {
+      if (container->healthChecker.isSome()) {
+        container->healthChecker->get()->pause();
+      }
+    }
   }
 
   void received(const Event& event)
@@ -186,6 +189,13 @@ public:
         // child containers again.
         if (launched) {
           wait(containers.keys());
+        }
+
+        // Resume all health checks.
+        foreachvalue (Owned<Container> container, containers) {
+          if (container->healthChecker.isSome()) {
+            container->healthChecker->get()->resume();
+          }
         }
 
         break;
@@ -734,11 +744,11 @@ protected:
       container->checker = None();
     }
 
-    // If the task is health checked, stop the associated health checker
+    // If the task is health checked, pause the associated health checker
     // to avoid sending health updates after a terminal status update.
     if (container->healthChecker.isSome()) {
       CHECK_NOTNULL(container->healthChecker->get());
-      container->healthChecker->get()->stop();
+      container->healthChecker->get()->pause();
       container->healthChecker = None();
     }
 
@@ -929,13 +939,13 @@ protected:
       container->checker = None();
     }
 
-    // If the task is health checked, stop the associated health checker.
+    // If the task is health checked, pause the associated health checker.
     //
     // TODO(alexr): Once we support `TASK_KILLING` in this executor,
     // consider health checking the task after sending `TASK_KILLING`.
     if (container->healthChecker.isSome()) {
       CHECK_NOTNULL(container->healthChecker->get());
-      container->healthChecker->get()->stop();
+      container->healthChecker->get()->pause();
       container->healthChecker = None();
     }
 
@@ -1032,6 +1042,13 @@ protected:
 
   void taskHealthUpdated(const TaskHealthStatus& healthStatus)
   {
+    if (state == DISCONNECTED) {
+      VLOG(1) << "Ignoring task health update for task"
+              << " '" << healthStatus.task_id() << "',"
+              << " because the executor is not connected to the agent";
+      return;
+    }
+
     // If the health checked container has already been waited on,
     // ignore the health update. This prevents us from sending
     // `TASK_RUNNING` after a terminal status update.

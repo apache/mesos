@@ -399,7 +399,7 @@ private:
 
       // Stop health checking the task.
       if (checker.get() != nullptr) {
-        checker->stop();
+        checker->pause();
       }
 
       // TODO(bmahler): Replace this with 'docker kill' so
@@ -415,7 +415,7 @@ private:
 
     // Stop health checking the task.
     if (checker.get() != nullptr) {
-      checker->stop();
+      checker->pause();
     }
 
     // In case the stop is stuck, discard it.

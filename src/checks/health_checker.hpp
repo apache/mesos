@@ -110,10 +110,9 @@ public:
 
   ~HealthChecker();
 
-  /**
-   * Immediately stops health checking. Any in-flight health checks are dropped.
-   */
-  void stop();
+  // Idempotent helpers for pausing and resuming health checking.
+  void pause();
+  void resume();
 
 private:
   explicit HealthChecker(process::Owned<HealthCheckerProcess> process);
@@ -137,6 +136,9 @@ public:
       bool _commandCheckViaAgent);
 
   virtual ~HealthCheckerProcess() {}
+
+  void pause();
+  void resume();
 
 protected:
   virtual void initialize() override;
@@ -225,6 +227,7 @@ private:
   uint32_t consecutiveFailures;
   process::Time startTime;
   bool initializing;
+  bool paused;
 };
 
 

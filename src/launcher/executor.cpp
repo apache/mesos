@@ -704,7 +704,7 @@ private:
 
       // Stop health checking the task.
       if (healthChecker.get() != nullptr) {
-        healthChecker->stop();
+        healthChecker->pause();
       }
 
       // Now perform signal escalation to begin killing the task.
@@ -749,7 +749,7 @@ private:
 
     // Stop health checking the task.
     if (healthChecker.get() != nullptr) {
-      healthChecker->stop();
+      healthChecker->pause();
     }
 
     TaskState taskState;

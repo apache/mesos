@@ -201,11 +201,15 @@ HealthChecker::~HealthChecker()
 }
 
 
-void HealthChecker::stop()
+void HealthChecker::pause()
 {
-  LOG(INFO) << "Health checking stopped";
+  dispatch(process.get(), &HealthCheckerProcess::pause);
+}
 
-  terminate(process.get(), true);
+
+void HealthChecker::resume()
+{
+  dispatch(process.get(), &HealthCheckerProcess::resume);
 }
 
 
@@ -230,7 +234,8 @@ HealthCheckerProcess::HealthCheckerProcess(
     agentURL(_agentURL),
     commandCheckViaAgent(_commandCheckViaAgent),
     consecutiveFailures(0),
-    initializing(true)
+    initializing(true),
+    paused(false)
 {
   Try<Duration> create = Duration::create(check.delay_seconds());
   CHECK_SOME(create);
@@ -324,6 +329,10 @@ void HealthCheckerProcess::success()
 
 void HealthCheckerProcess::performSingleCheck()
 {
+  if (paused) {
+    return;
+  }
+
   Future<Nothing> checkResult;
 
   Stopwatch stopwatch;
@@ -361,6 +370,13 @@ void HealthCheckerProcess::processCheckResult(
     const Stopwatch& stopwatch,
     const Future<Nothing>& future)
 {
+  // `HealthChecker` might have been paused while performing the check.
+  if (paused) {
+    LOG(INFO) << "Ignoring health check result of task " + stringify(taskId) +
+                 " (health checking is paused)";
+    return;
+  }
+
   VLOG(1) << "Performed " << HealthCheck::Type_Name(check.type())
           << " health check in " << stopwatch.elapsed();
 
@@ -904,9 +920,34 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck(
 
 void HealthCheckerProcess::scheduleNext(const Duration& duration)
 {
+  CHECK(!paused);
+
   VLOG(1) << "Scheduling health check in " << duration;
 
   delay(duration, self(), &Self::performSingleCheck);
+}
+
+
+void HealthCheckerProcess::pause()
+{
+  if (!paused) {
+    VLOG(1) << "Health checking paused";
+
+    paused = true;
+  }
+}
+
+
+void HealthCheckerProcess::resume()
+{
+  if (paused) {
+    VLOG(1) << "Health checking resumed";
+
+    paused = false;
+
+    // Schedule a health check immediately.
+    scheduleNext(Duration::zero());
+  }
 }
 
 
