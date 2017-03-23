@@ -51,6 +51,9 @@ public:
    * Attempts to create a `HealthChecker` object. In case of success, health
    * checking starts immediately after initialization.
    *
+   * If the check is a command health check, the checker will fork a process,
+   * enter the task's namespaces, and execute the commmand.
+   *
    * @param check The protobuf message definition of health check.
    * @param launcherDir A directory where Mesos helper binaries are located.
    * @param callback A callback HealthChecker uses to send health status
@@ -76,6 +79,35 @@ public:
       const Option<pid_t>& taskPid,
       const std::vector<std::string>& namespaces);
 
+  /**
+   * Attempts to create a `HealthChecker` object. In case of success, health
+   * checking starts immediately after initialization.
+   *
+   * If the check is a command health check, the checker will delegate the
+   * execution of the check to the Mesos agent via the
+   * `LaunchNestedContainerSession` API call.
+   *
+   * @param check The protobuf message definition of health check.
+   * @param launcherDir A directory where Mesos helper binaries are located.
+   * @param callback A callback HealthChecker uses to send health status
+   *     updates to its owner (usually an executor).
+   * @param taskId The TaskID of the target task.
+   * @param taskContainerId The ContainerID of the target task.
+   * @param agentURL The URL of the agent.
+   * @return A `HealthChecker` object or an error if `create` fails.
+   *
+   * @todo A better approach would be to return a stream of updates, e.g.,
+   * `process::Stream<TaskHealthStatus>` rather than invoking a callback.
+   */
+  static Try<process::Owned<HealthChecker>> create(
+      const HealthCheck& check,
+      const std::string& launcherDir,
+      const lambda::function<void(const TaskHealthStatus&)>& callback,
+      const TaskID& taskId,
+      const ContainerID& taskContainerId,
+      const process::http::URL& agentURL);
+
+
   ~HealthChecker();
 
   /**
@@ -99,7 +131,10 @@ public:
       const lambda::function<void(const TaskHealthStatus&)>& _callback,
       const TaskID& _taskId,
       const Option<pid_t>& _taskPid,
-      const std::vector<std::string>& _namespaces);
+      const std::vector<std::string>& _namespaces,
+      const Option<ContainerID>& _taskContainerId,
+      const Option<process::http::URL>& _agentURL,
+      bool _commandCheckViaAgent);
 
   virtual ~HealthCheckerProcess() {}
 
@@ -116,6 +151,39 @@ private:
       const process::Future<Nothing>& future);
 
   process::Future<Nothing> commandHealthCheck();
+
+  process::Future<Nothing> nestedCommandHealthCheck();
+
+  process::Future<Nothing> _nestedCommandHealthCheck(
+      process::http::Connection connection);
+
+  process::Future<Nothing> __nestedCommandHealthCheck(
+      const ContainerID& checkContainerId,
+      const process::http::Response& launchResponse);
+
+  process::Future<process::http::Response>
+  nestedCommandHealthCheckTimedOut(
+      const ContainerID& checkContainerId,
+      process::http::Connection connection,
+      process::Future<process::http::Response> future);
+
+  /**
+   * Waits for a container to be terminated.
+   *
+   * Waits for a container to be terminated via the Agent's
+   * `WaitNestedContainer` API call.
+   *
+   * @param containerID The `ContainerID` of the container that we want
+   * to wait for.
+   *
+   * @return The exit status as returned by the Agent.
+   */
+  process::Future<Option<int>> waitNestedContainer(
+      const ContainerID& containerId);
+
+  process::Future<Option<int>> _waitNestedContainer(
+      const ContainerID& containerId,
+      const process::http::Response& httpResponse);
 
   process::Future<Nothing> httpHealthCheck();
 
@@ -148,6 +216,10 @@ private:
   const TaskID taskId;
   const Option<pid_t> taskPid;
   const std::vector<std::string> namespaces;
+  const Option<ContainerID> taskContainerId;
+  const Option<process::http::URL> agentURL;
+  const bool commandCheckViaAgent;
+
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
 
   uint32_t consecutiveFailures;

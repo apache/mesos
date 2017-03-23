@@ -143,6 +143,8 @@ public:
     connectionId = UUID::random();
 
     doReliableRegistration();
+
+    // TODO(gkleiman): Resume (health) checks.
   }
 
   void disconnected()
@@ -160,6 +162,8 @@ public:
         container->waiting = None();
       }
     }
+
+    // TODO(gkleiman): Stop (health) checks.
   }
 
   void received(const Event& event)
@@ -502,18 +506,14 @@ protected:
       }
 
       if (task.has_health_check()) {
-        // TODO(anand): Add support for command health checks.
-        CHECK_NE(HealthCheck::COMMAND, task.health_check().type())
-          << "Command health checks are not supported yet";
-
         Try<Owned<checks::HealthChecker>> healthChecker =
           checks::HealthChecker::create(
               task.health_check(),
               launcherDirectory,
               defer(self(), &Self::taskHealthUpdated, lambda::_1),
               taskId,
-              None(),
-              vector<string>());
+              containerId,
+              agent);
 
         if (healthChecker.isError()) {
           // TODO(anand): Should we send a TASK_FAILED instead?
