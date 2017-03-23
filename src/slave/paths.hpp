@@ -309,6 +309,10 @@ std::string createSlaveDirectory(
     const std::string& rootDir,
     const SlaveID& slaveId);
 
+
+extern const char LIBPROCESS_PID_FILE[];
+extern const char HTTP_MARKER_FILE[];
+
 } // namespace paths {
 } // namespace slave {
 } // namespace internal {

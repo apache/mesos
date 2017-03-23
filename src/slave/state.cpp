@@ -502,8 +502,9 @@ Try<RunState> RunState::recover(
 
   Try<pid_t> forkedPid = numify<pid_t>(pid.get());
   if (forkedPid.isError()) {
-    return Error("Failed to parse forked pid " + pid.get() +
-                 ": " + forkedPid.error());
+    return Error("Failed to parse forked pid '" + pid.get() + "' "
+                 "from pid file '" + path + "': " +
+                 forkedPid.error());
   }
 
   state.forkedPid = forkedPid.get();
@@ -545,15 +546,18 @@ Try<RunState> RunState::recover(
   path = paths::getExecutorHttpMarkerPath(
       rootDir, slaveId, frameworkId, executorId, containerId);
 
+  // The marker could be absent if the slave died before the executor
+  // registered with the slave.
   if (!os::exists(path)) {
-    // This could happen if the slave died before the executor
-    // registered with the slave.
-    LOG(WARNING) << "Failed to find executor libprocess pid/http marker file";
+    LOG(WARNING) << "Failed to find '" <<  paths::LIBPROCESS_PID_FILE
+                 << "' or '" << paths::HTTP_MARKER_FILE
+                 << "' for container " << containerId
+                 << " of executor '" << executorId
+                 << "' of framework " << frameworkId;
     return state;
   }
 
   state.http = true;
-
   return state;
 }
 
