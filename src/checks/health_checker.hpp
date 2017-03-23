@@ -158,10 +158,13 @@ private:
   process::Future<Nothing> nestedCommandHealthCheck();
 
   void _nestedCommandHealthCheck(
+      std::shared_ptr<process::Promise<Nothing>> promise);
+
+  void __nestedCommandHealthCheck(
       std::shared_ptr<process::Promise<Nothing>> promise,
       process::http::Connection connection);
 
-  void __nestedCommandHealthCheck(
+  void ___nestedCommandHealthCheck(
       std::shared_ptr<process::Promise<Nothing>> promise,
       const ContainerID& checkContainerId,
       const process::http::Response& launchResponse);
@@ -232,6 +235,10 @@ private:
   process::Time startTime;
   bool initializing;
   bool paused;
+
+  // Contains the ID of the most recently terminated nested container
+  // that was used to perform a COMMAND health check.
+  Option<ContainerID> previousCheckContainerId;
 };
 
 
