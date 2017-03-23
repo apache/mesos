@@ -893,7 +893,7 @@ private:
         }
 
         case CheckInfo::UNKNOWN: {
-          CHECK_NE(CheckInfo::UNKNOWN, taskData->taskInfo.check().type());
+          LOG(FATAL) << "UNKNOWN check type is invalid";
           break;
         }
       }
