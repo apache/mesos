@@ -251,6 +251,8 @@ public:
       // the run future.
     }));
 
+    inspect.onReady(defer(self(), &Self::launchCheck, task));
+
     inspect.onReady(
         defer(self(), &Self::launchHealthCheck, containerName, task));
   }
@@ -498,6 +500,12 @@ private:
     // an ack.
     os::sleep(Seconds(1));
     driver.get()->stop();
+  }
+
+  void launchCheck(const TaskInfo& task)
+  {
+    // TODO(alexr): Implement general checks support, see MESOS-7250.
+    CHECK(!task.has_check()) << "Docker executor does not support checks yet";
   }
 
   void launchHealthCheck(const string& containerName, const TaskInfo& task)

@@ -112,6 +112,7 @@ namespace tests {
 // are elements of the cartesian product `executor-type` x `check-type`
 // and are split into groups by `executor-type`:
 //   * command executor tests,
+//   * docker executor tests,
 //   * default executor tests.
 
 class CheckTest : public MesosTest
@@ -841,6 +842,19 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
   EXPECT_TRUE(checkResult.check_status().http().has_status_code());
   EXPECT_EQ(200, checkResult.check_status().http().status_code());
 }
+
+
+// TODO(alexr): Implement following tests for the docker executor once
+// the docker executor supports checks.
+//
+// 1. COMMAND check with env var works, is delivered, and is reconciled
+//    properly.
+// 2. COMMAND check's status change is delivered. TODO(alexr): When check
+//    mocking is available, ensure only status changes are delivered.
+// 3. COMMAND check times out.
+// 4. COMMAND check and health check do not shadow each other; upon
+//    reconciliation both statuses are available.
+// 5. HTTP check works and is delivered.
 
 
 // These are check tests with the default executor.
