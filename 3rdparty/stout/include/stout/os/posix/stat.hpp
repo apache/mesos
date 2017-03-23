@@ -27,49 +27,58 @@ namespace os {
 
 namespace stat {
 
-inline bool isdir(const std::string& path)
-{
-  struct stat s;
+namespace internal {
 
-  if (::stat(path.c_str(), &s) < 0) {
-    return false;
+inline Try<struct ::stat> stat(
+    const std::string& path,
+    const FollowSymlink follow)
+{
+  struct ::stat s;
+
+  switch (follow) {
+    case DO_NOT_FOLLOW_SYMLINK:
+      if (::lstat(path.c_str(), &s) < 0) {
+        return ErrnoError("Failed to lstat '" + path + "'");
+      }
+      return s;
+    case FOLLOW_SYMLINK:
+      if (::stat(path.c_str(), &s) < 0) {
+        return ErrnoError("Failed to stat '" + path + "'");
+      }
+      return s;
   }
 
-  return S_ISDIR(s.st_mode);
+  UNREACHABLE();
 }
 
-
-inline bool isfile(const std::string& path)
-{
-  struct stat s;
-
-  if (::stat(path.c_str(), &s) < 0) {
-    return false;
-  }
-
-  return S_ISREG(s.st_mode);
-}
-
+} // namespace internal {
 
 inline bool islink(const std::string& path)
 {
-  struct stat s;
-
-  if (::lstat(path.c_str(), &s) < 0) {
-    return false;
-  }
-
-  return S_ISLNK(s.st_mode);
+  // By definition, you don't followsymlinks when trying
+  // to find whether a path is a link. If you followed it,
+  // it wouldn't ever be a link.
+  Try<struct ::stat> s = internal::stat(path, DO_NOT_FOLLOW_SYMLINK);
+  return s.isSome() && S_ISLNK(s->st_mode);
 }
 
 
-// Describes the different semantics supported for the implementation
-// of `size` defined below.
-enum FollowSymlink
+inline bool isdir(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  DO_NOT_FOLLOW_SYMLINK,
-  FOLLOW_SYMLINK
-};
+  Try<struct ::stat> s = internal::stat(path, follow);
+  return s.isSome() && S_ISDIR(s->st_mode);
+}
+
+
+inline bool isfile(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
+{
+  Try<struct ::stat> s = internal::stat(path, follow);
+  return s.isSome() && S_ISREG(s->st_mode);
+}
 
 
 // Returns the size in Bytes of a given file system entry. When
@@ -80,92 +89,81 @@ inline Try<Bytes> size(
     const std::string& path,
     const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  struct stat s;
-
-  switch (follow) {
-    case DO_NOT_FOLLOW_SYMLINK: {
-      if (::lstat(path.c_str(), &s) < 0) {
-        return ErrnoError("Error invoking lstat for '" + path + "'");
-      } else {
-        return Bytes(s.st_size);
-      }
-      break;
-    }
-    case FOLLOW_SYMLINK: {
-      if (::stat(path.c_str(), &s) < 0) {
-        return ErrnoError("Error invoking stat for '" + path + "'");
-      } else {
-        return Bytes(s.st_size);
-      }
-      break;
-    }
+  Try<struct ::stat> s = internal::stat(path, follow);
+  if (s.isError()) {
+    return Error(s.error());
   }
 
-  UNREACHABLE();
+  return Bytes(s->st_size);
 }
 
 
-inline Try<long> mtime(const std::string& path)
+inline Try<long> mtime(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  struct stat s;
-
-  if (::lstat(path.c_str(), &s) < 0) {
-    return ErrnoError("Error invoking stat for '" + path + "'");
+  Try<struct ::stat> s = internal::stat(path, follow);
+  if (s.isError()) {
+    return Error(s.error());
   }
 
-  return s.st_mtime;
+  return s->st_mtime;
 }
 
 
-inline Try<mode_t> mode(const std::string& path)
+inline Try<mode_t> mode(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  struct stat s;
-
-  if (::stat(path.c_str(), &s) < 0) {
-    return ErrnoError("Error invoking stat for '" + path + "'");
+  Try<struct ::stat> s = internal::stat(path, follow);
+  if (s.isError()) {
+    return Error(s.error());
   }
 
-  return s.st_mode;
+  return s->st_mode;
 }
 
 
-inline Try<dev_t> dev(const std::string& path)
+inline Try<dev_t> dev(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  struct stat s;
-
-  if (::stat(path.c_str(), &s) < 0) {
-    return ErrnoError("Error invoking stat for '" + path + "'");
+  Try<struct ::stat> s = internal::stat(path, follow);
+  if (s.isError()) {
+    return Error(s.error());
   }
 
-  return s.st_dev;
+  return s->st_dev;
 }
 
 
-inline Try<dev_t> rdev(const std::string& path)
+inline Try<dev_t> rdev(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  struct stat s;
-
-  if (::stat(path.c_str(), &s) < 0) {
-    return ErrnoError("Error invoking stat for '" + path + "'");
+  Try<struct ::stat> s = internal::stat(path, follow);
+  if (s.isError()) {
+    return Error(s.error());
   }
 
-  if (!S_ISCHR(s.st_mode) && !S_ISBLK(s.st_mode)) {
+  if (!S_ISCHR(s->st_mode) && !S_ISBLK(s->st_mode)) {
     return Error("Not a special file: " + path);
   }
 
-  return s.st_rdev;
+  return s->st_rdev;
 }
 
 
-inline Try<ino_t> inode(const std::string& path)
+inline Try<ino_t> inode(
+    const std::string& path,
+    const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  struct stat s;
-
-  if (::stat(path.c_str(), &s) < 0) {
-    return ErrnoError("Error invoking stat for '" + path + "'");
+  Try<struct ::stat> s = internal::stat(path, follow);
+  if (s.isError()) {
+    return Error(s.error());
   }
 
-  return s.st_ino;
+  return s->st_ino;
 }
 
 
@@ -173,24 +171,12 @@ inline Try<uid_t> uid(
     const std::string& path,
     const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  struct stat s;
-
-  switch (follow) {
-    case DO_NOT_FOLLOW_SYMLINK:
-      if (::lstat(path.c_str(), &s) == 0) {
-        return s.st_uid;
-      }
-      break;
-    case FOLLOW_SYMLINK:
-      if (::stat(path.c_str(), &s) == 0) {
-        return s.st_uid;
-      }
-      break;
-    default:
-      UNREACHABLE();
+  Try<struct ::stat> s = internal::stat(path, follow);
+  if (s.isError()) {
+    return Error(s.error());
   }
 
-  return ErrnoError("Error invoking stat for '" + path + "'");
+  return s->st_uid;
 }
 
 } // namespace stat {
