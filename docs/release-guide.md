@@ -257,6 +257,12 @@ This guide describes the process of doing an official release of Mesos.
 4. Write a blog post announcing the new release and its features and major bug
    fixes. Include a link to the updated website.
 
+   * This command may be helpful to gather the list of all contributors between
+     two tags:
+     `git log --pretty=format:%an <tagX>..<tagY> | sort | uniq | awk '{print}' ORS=', '`
+
+   * Mention the blog post in `site/data/releases.yml`.
+
 
 ## Removing Old Releases from svn
 
