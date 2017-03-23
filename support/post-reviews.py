@@ -26,8 +26,10 @@ import argparse
 import atexit
 import imp
 import os
+import platform
 import re
 import sys
+import urlparse
 
 from distutils.version import LooseVersion
 
@@ -70,10 +72,17 @@ def execute(command, ignore_errors=False):
 
 # Choose 'rbt' if available, otherwise choose 'post-review'.
 post_review = None
-rbt_version = execute(['rbt', '--version'], ignore_errors=True)
+
+rbt_command = 'rbt'
+# Windows command name must have `cmd` extension.
+if platform.system() == 'Windows':
+  rbt_command = 'rbt.cmd'
+
+rbt_version = execute([rbt_command, '--version'], ignore_errors=True)
+print rbt_version
 if rbt_version:
   rbt_version = LooseVersion(rbt_version)
-  post_review = ['rbt', 'post']
+  post_review = [rbt_command, 'post']
 elif execute(['post-review', '--version'], ignore_errors=True):
   post_review = ['post-review']
 else:
@@ -198,15 +207,16 @@ for i in range(len(shas)):
 
     pos = message.find('Review:')
     if pos != -1:
-        pattern = re.compile('Review: ({url})$'.format(
-            url=os.path.join(reviewboard_url, 'r', '[0-9]+')))
-        match = pattern.search(message.strip().strip('/'))
+        regex = 'Review: ({url})$'.format(
+            url=urlparse.urljoin(reviewboard_url, 'r/[0-9]+'))
+        pattern = re.compile(regex)
+        match = pattern.search(message[pos:].strip().strip('/'))
         if match is None:
             print "\nInvalid ReviewBoard URL: '{}'".format(message[pos:])
             sys.exit(1)
 
         url = match.group(1)
-        review_request_id = os.path.basename(url)
+        review_request_id = url.split('/')[-1]
 
     # Show the commit.
     if review_request_id is None:
@@ -270,7 +280,7 @@ for i in range(len(shas)):
         command = command + ['--review-request-id=' + review_request_id]
 
     # Determine how to specify the revision range.
-    if 'rbt' in post_review and rbt_version >= LooseVersion('RBTools 0.6'):
+    if rbt_command in post_review and rbt_version >= LooseVersion('RBTools 0.6'):
        # rbt >= 0.6.1 supports '--depends-on' argument.
        # Only set the "depends on" if this is not the first review in the chain.
        if rbt_version >= LooseVersion('RBTools 0.6.1') and parent_review_request_id:
@@ -305,7 +315,7 @@ for i in range(len(shas)):
 
     # The last line of output in post-review is the review url.
     # The second to the last line of output in rbt is the review url.
-    url = lines[len(lines) - 2] if 'rbt' in post_review \
+    url = lines[len(lines) - 2] if rbt_command in post_review \
         else lines[len(lines) - 1]
 
     # Using rbt >= 0.6.3 on Linux prints out two URLs where the second
@@ -325,7 +335,7 @@ for i in range(len(shas)):
 
     # Now rebase all remaining shas on top of this amended commit.
     j = i + 1
-    old_sha = execute(['cat', os.path.join(git_dir, 'refs/heads', temporary_branch)]).strip()
+    old_sha = execute(['git', 'rev-parse', '--verify', temporary_branch]).strip()
     previous = old_sha
     while j < len(shas):
         execute(['git', 'checkout', shas[j]])
@@ -343,7 +353,7 @@ for i in range(len(shas)):
 
     # Okay, now update the actual branch to our temporary branch.
     new_sha = old_sha
-    old_sha = execute(['cat', os.path.join(git_dir, 'refs/heads', branch)]).strip()
+    old_sha = execute(['git', 'rev-parse', '--verify', branch]).strip()
     execute(['git', 'update-ref', 'refs/heads/' + branch, new_sha, old_sha])
 
     i = i + 1
