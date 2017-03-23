@@ -17,6 +17,7 @@
 #ifndef __HEALTH_CHECKER_HPP__
 #define __HEALTH_CHECKER_HPP__
 
+#include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -156,18 +157,21 @@ private:
 
   process::Future<Nothing> nestedCommandHealthCheck();
 
-  process::Future<Nothing> _nestedCommandHealthCheck(
+  void _nestedCommandHealthCheck(
+      std::shared_ptr<process::Promise<Nothing>> promise,
       process::http::Connection connection);
 
-  process::Future<Nothing> __nestedCommandHealthCheck(
+  void __nestedCommandHealthCheck(
+      std::shared_ptr<process::Promise<Nothing>> promise,
       const ContainerID& checkContainerId,
       const process::http::Response& launchResponse);
 
-  process::Future<process::http::Response>
-  nestedCommandHealthCheckTimedOut(
-      const ContainerID& checkContainerId,
+  void nestedCommandHealthCheckFailure(
+      std::shared_ptr<process::Promise<Nothing>> promise,
       process::http::Connection connection,
-      process::Future<process::http::Response> future);
+      ContainerID checkContainerId,
+      std::shared_ptr<bool> checkTimedOut,
+      const std::string& failure);
 
   /**
    * Waits for a container to be terminated.
