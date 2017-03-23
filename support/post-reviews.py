@@ -79,7 +79,6 @@ if platform.system() == 'Windows':
   rbt_command = 'rbt.cmd'
 
 rbt_version = execute([rbt_command, '--version'], ignore_errors=True)
-print rbt_version
 if rbt_version:
   rbt_version = LooseVersion(rbt_version)
   post_review = [rbt_command, 'post']
