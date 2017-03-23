@@ -112,6 +112,7 @@ namespace tests {
 // are elements of the cartesian product `executor-type` x `check-type`
 // and are split into groups by `executor-type`:
 //   * command executor tests,
+//   * default executor tests.
 
 class CheckTest : public MesosTest
 {
@@ -826,6 +827,145 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
   EXPECT_TRUE(taskRunning.check_status().has_http());
   EXPECT_FALSE(taskRunning.check_status().http().has_status_code());
 
+  acknowledge(&mesos, frameworkId, taskRunning);
+
+  AWAIT_READY(updateCheckResult);
+  const v1::TaskStatus& checkResult = updateCheckResult->status();
+
+  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+      checkResult.reason());
+  EXPECT_EQ(taskInfo.task_id(), checkResult.task_id());
+  EXPECT_TRUE(checkResult.has_check_status());
+  EXPECT_TRUE(checkResult.check_status().http().has_status_code());
+  EXPECT_EQ(200, checkResult.check_status().http().status_code());
+}
+
+
+// These are check tests with the default executor.
+class DefaultExecutorCheckTest : public CheckTest {};
+
+// TODO(alexr): Implement following tests once the default executor supports
+// command checks.
+//
+// 1. COMMAND check with env var works, is delivered, and is reconciled
+//    properly.
+// 2. COMMAND check's status change is delivered. TODO(alexr): When check
+//    mocking is available, ensure only status changes are delivered.
+// 3. COMMAND check times out.
+// 4. COMMAND check and health check do not shadow each other; upon
+//    reconciliation both statuses are available.
+
+// Verifies that an HTTP check is supported by the default executor and
+// its status is delivered in a task status update.
+//
+// TODO(josephw): Enable this. Mesos builds its own `curl.exe`, since it
+// can't rely on a package manager to get it. We need to make this test use
+// that executable.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, HTTPCheckDelivered)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Disable AuthN on the agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = false;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), flags);
+  ASSERT_SOME(agent);
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  const v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_resources()->CopyFrom(resources);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  subscribe(&mesos, frameworkInfo);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID agentId = offer.agent_id();
+
+  Future<v1::scheduler::Event::Update> updateTaskRunning;
+  Future<v1::scheduler::Event::Update> updateCheckResult;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&updateTaskRunning))
+    .WillOnce(FutureArg<1>(&updateCheckResult))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  const uint16_t testPort = getFreePort().get();
+
+  // Use `test-helper` to launch a simple HTTP
+  // server to respond to HTTP checks.
+  const string command = strings::format(
+      "%s %s --ip=127.0.0.1 --port=%u",
+      getTestHelperPath("test-helper"),
+      HealthCheckTestHelper::NAME,
+      testPort).get();
+
+  v1::TaskInfo taskInfo = v1::createTask(agentId, resources, command);
+
+  v1::CheckInfo* checkInfo = taskInfo.mutable_check();
+  checkInfo->set_type(v1::CheckInfo::HTTP);
+  checkInfo->mutable_http()->set_port(testPort);
+  checkInfo->mutable_http()->set_path("/help");
+  checkInfo->set_delay_seconds(0);
+  checkInfo->set_interval_seconds(0);
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(taskInfo);
+
+  launchTaskGroup(&mesos, offer, executorInfo, taskGroup);
+
+  AWAIT_READY(updateTaskRunning);
+  const v1::TaskStatus& taskRunning = updateTaskRunning->status();
+
+  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
+  EXPECT_TRUE(taskRunning.has_check_status());
+  EXPECT_TRUE(taskRunning.check_status().has_http());
+  EXPECT_FALSE(taskRunning.check_status().http().has_status_code());
+
+  // Acknowledge (to be able to get the next update).
   acknowledge(&mesos, frameworkId, taskRunning);
 
   AWAIT_READY(updateCheckResult);
