@@ -1405,6 +1405,15 @@ in memory. (default: 150)
 </tr>
 <tr>
   <td>
+    --executor_secret_key=VALUE
+  </td>
+  <td>
+The key used when generating executor secrets. This flag is only
+available when Mesos is built with SSL support.
+  </td>
+</tr>
+<tr>
+  <td>
     --executor_shutdown_grace_period=VALUE
   </td>
   <td>

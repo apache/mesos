@@ -342,6 +342,13 @@ mesos::internal::slave::Flags::Flags()
       "terminations may occur.",
       DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD);
 
+#ifdef USE_SSL_SOCKET
+  add(&Flags::executor_secret_key,
+      "executor_secret_key",
+      "The key used when generating executor secrets. This flag is only\n"
+      "available when Mesos is built with SSL support.");
+#endif // USE_SSL_SOCKET
+
   add(&Flags::gc_delay,
       "gc_delay",
       "Maximum amount of time to wait before cleaning up\n"

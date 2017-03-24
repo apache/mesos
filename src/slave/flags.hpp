@@ -77,6 +77,9 @@ public:
   Option<JSON::Object> executor_environment_variables;
   Duration executor_registration_timeout;
   Duration executor_shutdown_grace_period;
+#ifdef USE_SSL_SOCKET
+  Option<std::string> executor_secret_key;
+#endif // USE_SSL_SOCKET
   Duration gc_delay;
   double gc_disk_headroom;
   Duration disk_watch_interval;
