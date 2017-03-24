@@ -503,7 +503,9 @@ private:
 
     // /api/v1/executor
     process::Future<process::http::Response> executor(
-        const process::http::Request& request) const;
+        const process::http::Request& request,
+        const Option<process::http::authentication::Principal>&
+            principal) const;
 
     // /slave/flags
     process::Future<process::http::Response> flags(

@@ -635,7 +635,9 @@ string Slave::Http::EXECUTOR_HELP() {
 }
 
 
-Future<Response> Slave::Http::executor(const Request& request) const
+Future<Response> Slave::Http::executor(
+    const Request& request,
+    const Option<Principal>& principal) const
 {
   if (!slave->recoveryInfo.reconnect) {
     CHECK(slave->state == RECOVERING);

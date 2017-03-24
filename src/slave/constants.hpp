@@ -142,6 +142,9 @@ constexpr char READONLY_HTTP_AUTHENTICATION_REALM[] = "mesos-agent-readonly";
 // Name of the agent HTTP authentication realm for read-write endpoints.
 constexpr char READWRITE_HTTP_AUTHENTICATION_REALM[] = "mesos-agent-readwrite";
 
+// Name of the agent HTTP authentication realm for HTTP executors.
+constexpr char EXECUTOR_HTTP_AUTHENTICATION_REALM[] = "mesos-agent-executor";
+
 // Default maximum storage space to be used by the fetcher cache.
 constexpr Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
 

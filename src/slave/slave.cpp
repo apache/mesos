@@ -565,10 +565,12 @@ void Slave::initialize()
         options);
 
   route("/api/v1/executor",
+        EXECUTOR_HTTP_AUTHENTICATION_REALM,
         Http::EXECUTOR_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const process::http::Request& request,
+               const Option<Principal>& principal) {
           Http::log(request);
-          return http.executor(request);
+          return http.executor(request, principal);
         });
 
   // TODO(ijimenez): Remove this endpoint at the end of the
