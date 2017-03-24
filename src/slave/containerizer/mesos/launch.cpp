@@ -653,6 +653,10 @@ int MesosContainerizerLaunch::execute()
   // specified, inherit the environment of the current process.
   Option<os::raw::Envp> envp;
   if (launchInfo.has_environment()) {
+    // TODO(tillt): `Environment::Variable` is not a string anymore,
+    // consider cleaning this up with the complete rollout of `Secrets`.
+    // This entire merging should be handled by the solution introduced
+    // by MESOS-7299.
     hashmap<string, string> environment;
 
     foreach (const Environment::Variable& variable,
@@ -660,10 +664,10 @@ int MesosContainerizerLaunch::execute()
       const string& name = variable.name();
       const string& value = variable.value();
 
-      if (environment.contains(name)) {
-        cout << "Overwriting environment variable '" << name
-             << "', original: '" << environment[name]
-             << "', new: '" << value << "'" << endl;
+      // TODO(tillt): Once we have a solution for MESOS-7292, allow
+      // logging of values.
+      if (environment.contains(name) && environment[name] != value) {
+        cout << "Overwriting environment variable '" << name << "'" << endl;
       }
 
       environment[name] = value;
