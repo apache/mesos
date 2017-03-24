@@ -44,7 +44,7 @@ class Task;
 namespace internal {
 
 // Name of the default, basic authenticator.
-constexpr char DEFAULT_HTTP_AUTHENTICATOR[] = "basic";
+constexpr char DEFAULT_BASIC_HTTP_AUTHENTICATOR[] = "basic";
 
 extern hashset<std::string> AUTHORIZABLE_ENDPOINTS;
 

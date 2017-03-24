@@ -950,11 +950,12 @@ Result<Authenticator*> createBasicAuthenticator(
   if (credentials.isNone()) {
     return Error(
         "No credentials provided for the default '" +
-        string(internal::DEFAULT_HTTP_AUTHENTICATOR) +
+        string(internal::DEFAULT_BASIC_HTTP_AUTHENTICATOR) +
         "' HTTP authenticator for realm '" + realm + "'");
   }
 
-  LOG(INFO) << "Creating default '" << internal::DEFAULT_HTTP_AUTHENTICATOR
+  LOG(INFO) << "Creating default '"
+            << internal::DEFAULT_BASIC_HTTP_AUTHENTICATOR
             << "' HTTP authenticator for realm '" << realm << "'";
 
   return BasicAuthenticatorFactory::create(realm, credentials.get());
@@ -969,7 +970,7 @@ Result<Authenticator*> createCustomAuthenticator(
     return Error(
         "HTTP authenticator '" + authenticatorName + "' not found. "
         "Check the spelling (compare to '" +
-        string(internal::DEFAULT_HTTP_AUTHENTICATOR) +
+        string(internal::DEFAULT_BASIC_HTTP_AUTHENTICATOR) +
         "') or verify that the authenticator was loaded "
         "successfully (see --modules)");
   }
@@ -996,7 +997,7 @@ Try<Nothing> initializeHttpAuthenticators(
 
   if (authenticatorNames.size() == 1) {
     Result<Authenticator*> authenticator_ = None();
-    if (authenticatorNames[0] == internal::DEFAULT_HTTP_AUTHENTICATOR) {
+    if (authenticatorNames[0] == internal::DEFAULT_BASIC_HTTP_AUTHENTICATOR) {
       authenticator_ =
         createBasicAuthenticator(realm, authenticatorNames[0], credentials);
     } else {
@@ -1017,7 +1018,7 @@ Try<Nothing> initializeHttpAuthenticators(
     vector<Owned<Authenticator>> authenticators;
     foreach (const string& name, authenticatorNames) {
       Result<Authenticator*> authenticator_ = None();
-      if (name == internal::DEFAULT_HTTP_AUTHENTICATOR) {
+      if (name == internal::DEFAULT_BASIC_HTTP_AUTHENTICATOR) {
         authenticator_ = createBasicAuthenticator(realm, name, credentials);
       } else {
         authenticator_ = createCustomAuthenticator(realm, name);

@@ -516,18 +516,18 @@ mesos::internal::master::Flags::Flags()
       "http_authenticators",
       "HTTP authenticator implementation to use when handling requests to\n"
       "authenticated endpoints. Use the default\n"
-      "`" + string(DEFAULT_HTTP_AUTHENTICATOR) + "`, or load an alternate\n"
-      "HTTP authenticator module using `--modules`.\n"
+      "`" + string(DEFAULT_BASIC_HTTP_AUTHENTICATOR) + "`, or load an\n"
+      "alternate HTTP authenticator module using `--modules`.\n"
       "\n"
       "Currently there is no support for multiple HTTP authenticators.",
-      DEFAULT_HTTP_AUTHENTICATOR);
+      DEFAULT_BASIC_HTTP_AUTHENTICATOR);
 
   add(&Flags::http_framework_authenticators,
       "http_framework_authenticators",
       "HTTP authenticator implementation to use when authenticating HTTP\n"
       "frameworks. Use the \n"
-      "`" + string(DEFAULT_HTTP_AUTHENTICATOR) + "` authenticator or load an\n"
-      "alternate authenticator module using `--modules`.\n"
+      "`" + string(DEFAULT_BASIC_HTTP_AUTHENTICATOR) + "` authenticator or\n"
+      "load an alternate authenticator module using `--modules`.\n"
       "Must be used in conjunction with `--http_authenticate_frameworks`.\n"
       "\n"
       "Currently there is no support for multiple HTTP framework\n"
