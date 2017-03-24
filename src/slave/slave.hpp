@@ -186,9 +186,7 @@ public:
       const std::string& data);
 
   void updateFramework(
-      const FrameworkID& frameworkId,
-      const process::UPID& pid,
-      const FrameworkInfo& frameworkInfo);
+      const UpdateFrameworkMessage& message);
 
   void checkpointResources(const std::vector<Resource>& checkpointedResources);
 

@@ -503,10 +503,7 @@ void Slave::initialize()
       &FrameworkToExecutorMessage::data);
 
   install<UpdateFrameworkMessage>(
-      &Slave::updateFramework,
-      &UpdateFrameworkMessage::framework_id,
-      &UpdateFrameworkMessage::pid,
-      &UpdateFrameworkMessage::framework_info);
+      &Slave::updateFramework);
 
   install<CheckpointResourcesMessage>(
       &Slave::checkpointResources,
@@ -2877,13 +2874,14 @@ void Slave::schedulerMessage(
 
 
 void Slave::updateFramework(
-    const FrameworkID& frameworkId,
-    const UPID& pid,
-    const FrameworkInfo& frameworkInfo)
+    const UpdateFrameworkMessage& message)
 {
   CHECK(state == RECOVERING || state == DISCONNECTED ||
         state == RUNNING || state == TERMINATING)
     << state;
+
+  const FrameworkID& frameworkId = message.framework_id();
+  const UPID& pid = message.pid();
 
   if (state != RUNNING) {
     LOG(WARNING) << "Dropping updateFramework message for " << frameworkId
@@ -2909,8 +2907,12 @@ void Slave::updateFramework(
                 << (pid != UPID() ? "with pid updated to " + stringify(pid)
                                   : "");
 
-      framework->info.CopyFrom(frameworkInfo);
-      framework->capabilities = frameworkInfo.capabilities();
+      // The framework info was added in 1.3, so it will not be set
+      // if from a master older than 1.3.
+      if (message.has_framework_info()) {
+        framework->info.CopyFrom(message.framework_info());
+        framework->capabilities = message.framework_info().capabilities();
+      }
 
       if (pid == UPID()) {
         framework->pid = None();
