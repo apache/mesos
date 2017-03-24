@@ -417,7 +417,6 @@ protected:
     foreachpair (const string& name, const string& value, os::environment()) {
       Environment::Variable variable;
       variable.set_name(name);
-      variable.set_type(Environment::Variable::VALUE);
       variable.set_value(value);
       environment[name] = variable;
     }
