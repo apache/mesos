@@ -127,8 +127,7 @@ HTTP authenticator implementation to use when handling requests to
 authenticated endpoints. Use the default
 <code>basic</code>, or load an alternate
 HTTP authenticator module using <code>--modules</code>.
-<p/>
-Currently there is no support for multiple HTTP authenticators. (default: basic)
+(default: basic, or basic and JWT if executor authentication is enabled)
   </td>
 </tr>
 <tr>
@@ -1046,6 +1045,17 @@ Directory the appc provisioner will store images in.
   <td>
 Attributes of the agent machine, in the form:
 <code>rack:2</code> or <code>rack:2;u:1</code>
+  </td>
+</tr>
+<tr>
+  <td>
+    --[no-]authenticate_http_executors
+  </td>
+  <td>
+If <code>true</code>, only authenticated requests for the HTTP executor API are
+allowed. If <code>false</code>, unauthenticated requests are also allowed. This
+flag is only available when Mesos is built with SSL support.
+(default: false)
   </td>
 </tr>
 <tr>

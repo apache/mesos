@@ -877,9 +877,7 @@ mesos::internal::slave::Flags::Flags()
       "HTTP authenticator implementation to use when handling requests to\n"
       "authenticated endpoints. Use the default\n"
       "`" + string(DEFAULT_BASIC_HTTP_AUTHENTICATOR) + "`, or load an\n"
-      "alternate HTTP authenticator module using `--modules`.\n"
-      "\n"
-      "Currently there is no support for multiple HTTP authenticators.",
+      "alternate HTTP authenticator module using `--modules`.",
       DEFAULT_BASIC_HTTP_AUTHENTICATOR);
 
   add(&Flags::authenticate_http_readwrite,
@@ -895,6 +893,15 @@ mesos::internal::slave::Flags::Flags()
       "supporting authentication are allowed. If `false`, unauthenticated\n"
       "requests to such HTTP endpoints are also allowed.",
       false);
+
+#ifdef USE_SSL_SOCKET
+  add(&Flags::authenticate_http_executors,
+      "authenticate_http_executors",
+      "If `true`, only authenticated requests for the HTTP executor API are\n"
+      "allowed. If `false`, unauthenticated requests are also allowed. This\n"
+      "flag is only available when Mesos is built with SSL support.",
+      false);
+#endif // USE_SSL_SOCKET
 
   add(&Flags::http_credentials,
       "http_credentials",

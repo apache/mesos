@@ -147,6 +147,9 @@ public:
   std::string http_authenticators;
   bool authenticate_http_readonly;
   bool authenticate_http_readwrite;
+#ifdef USE_SSL_SOCKET
+  bool authenticate_http_executors;
+#endif // USE_SSL_SOCKET
   Option<Path> http_credentials;
   Option<std::string> hooks;
   Option<std::string> resource_estimator;
