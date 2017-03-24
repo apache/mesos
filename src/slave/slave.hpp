@@ -32,6 +32,8 @@
 
 #include <mesos/agent/agent.hpp>
 
+#include <mesos/authentication/secret_generator.hpp>
+
 #include <mesos/executor/executor.hpp>
 
 #include <mesos/master/detector.hpp>
@@ -884,6 +886,10 @@ private:
   // The most recent estimate of the total amount of oversubscribed
   // (allocated and oversubscribable) resources.
   Option<Resources> oversubscribedResources;
+
+protected:
+  // Made protected for testing purposes.
+  process::Owned<mesos::SecretGenerator> secretGenerator;
 };
 
 

@@ -46,6 +46,9 @@ namespace internal {
 // Name of the default, basic authenticator.
 constexpr char DEFAULT_BASIC_HTTP_AUTHENTICATOR[] = "basic";
 
+// Name of the default, JWT authenticator.
+constexpr char DEFAULT_JWT_HTTP_AUTHENTICATOR[] = "jwt";
+
 extern hashset<std::string> AUTHORIZABLE_ENDPOINTS;
 
 
@@ -206,6 +209,7 @@ bool approveViewRole(
  * @param realm name of the realm.
  * @param authenticatorNames a vector of authenticator names.
  * @param credentials optional credentials for BasicAuthenticator only.
+ * @param secretKey optional secret key for the JWTAuthenticator only.
  * @return nothing if authenticators are initialized and registered to
  *         libprocess successfully, or error if authenticators cannot
  *         be initialized.
@@ -213,7 +217,8 @@ bool approveViewRole(
 Try<Nothing> initializeHttpAuthenticators(
     const std::string& realm,
     const std::vector<std::string>& httpAuthenticatorNames,
-    const Option<Credentials>& credentials);
+    const Option<Credentials>& credentials = None(),
+    const Option<std::string>& secretKey = None());
 
 } // namespace mesos {
 

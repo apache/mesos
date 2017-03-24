@@ -31,6 +31,8 @@
 
 #include <mesos/type_utils.hpp>
 
+#include <mesos/authentication/secret_generator.hpp>
+
 #include <mesos/module/authenticatee.hpp>
 
 #include <process/async.hpp>
@@ -62,6 +64,10 @@
 #include <stout/utils.hpp>
 
 #include "authentication/cram_md5/authenticatee.hpp"
+
+#ifdef USE_SSL_SOCKET
+#include "authentication/executor/jwt_secret_generator.hpp"
+#endif // USE_SSL_SOCKET
 
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
@@ -97,6 +103,12 @@
 #endif // __WINDOWS__
 
 using google::protobuf::RepeatedPtrField;
+
+using mesos::SecretGenerator;
+
+#ifdef USE_SSL_SOCKET
+using mesos::authentication::executor::JWTSecretGenerator;
+#endif // USE_SSL_SOCKET
 
 using mesos::authorization::createSubject;
 
@@ -260,11 +272,50 @@ void Slave::initialize()
     httpCredentials = credentials.get();
   }
 
+  string httpAuthenticators;
+  if (flags.http_authenticators.isSome()) {
+    httpAuthenticators = flags.http_authenticators.get();
+#ifdef USE_SSL_SOCKET
+  } else if (flags.authenticate_http_executors) {
+    httpAuthenticators =
+      string(DEFAULT_BASIC_HTTP_AUTHENTICATOR) + "," +
+      string(DEFAULT_JWT_HTTP_AUTHENTICATOR);
+#endif // USE_SSL_SOCKET
+  } else {
+    httpAuthenticators = DEFAULT_BASIC_HTTP_AUTHENTICATOR;
+  }
+
+  Option<string> secretKey;
+#ifdef USE_SSL_SOCKET
+  if (flags.executor_secret_key.isSome()) {
+    secretKey = flags.executor_secret_key.get();
+    secretGenerator.reset(new JWTSecretGenerator(secretKey.get()));
+  }
+
+  if (flags.authenticate_http_executors) {
+    if (flags.executor_secret_key.isNone()) {
+      EXIT(EXIT_FAILURE) << "--executor_secret_key must be specified when "
+                         << "--authenticate_http_executors is set to true";
+    }
+
+    Try<Nothing> result = initializeHttpAuthenticators(
+        EXECUTOR_HTTP_AUTHENTICATION_REALM,
+        strings::split(httpAuthenticators, ","),
+        httpCredentials,
+        secretKey);
+
+    if (result.isError()) {
+      EXIT(EXIT_FAILURE) << result.error();
+    }
+  }
+#endif // USE_SSL_SOCKET
+
   if (flags.authenticate_http_readonly) {
     Try<Nothing> result = initializeHttpAuthenticators(
         READONLY_HTTP_AUTHENTICATION_REALM,
-        strings::split(flags.http_authenticators, ","),
-        httpCredentials);
+        strings::split(httpAuthenticators, ","),
+        httpCredentials,
+        secretKey);
 
     if (result.isError()) {
       EXIT(EXIT_FAILURE) << result.error();
@@ -274,8 +325,9 @@ void Slave::initialize()
   if (flags.authenticate_http_readwrite) {
     Try<Nothing> result = initializeHttpAuthenticators(
         READWRITE_HTTP_AUTHENTICATION_REALM,
-        strings::split(flags.http_authenticators, ","),
-        httpCredentials);
+        strings::split(httpAuthenticators, ","),
+        httpCredentials,
+        secretKey);
 
     if (result.isError()) {
       EXIT(EXIT_FAILURE) << result.error();

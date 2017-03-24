@@ -877,8 +877,7 @@ mesos::internal::slave::Flags::Flags()
       "HTTP authenticator implementation to use when handling requests to\n"
       "authenticated endpoints. Use the default\n"
       "`" + string(DEFAULT_BASIC_HTTP_AUTHENTICATOR) + "`, or load an\n"
-      "alternate HTTP authenticator module using `--modules`.",
-      DEFAULT_BASIC_HTTP_AUTHENTICATOR);
+      "alternate HTTP authenticator module using `--modules`.");
 
   add(&Flags::authenticate_http_readwrite,
       "authenticate_http_readwrite",

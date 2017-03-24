@@ -30,6 +30,7 @@
 #include <mesos/authorizer/authorizer.hpp>
 #include <mesos/module/http_authenticator.hpp>
 
+#include <process/authenticator.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
@@ -59,6 +60,9 @@ using process::Failure;
 using process::Owned;
 
 using process::http::authentication::Authenticator;
+#ifdef USE_SSL_SOCKET
+using process::http::authentication::JWTAuthenticator;
+#endif // USE_SSL_SOCKET
 using process::http::authentication::Principal;
 
 using process::http::authorization::AuthorizationCallbacks;
@@ -962,6 +966,28 @@ Result<Authenticator*> createBasicAuthenticator(
 }
 
 
+#ifdef USE_SSL_SOCKET
+Result<Authenticator*> createJWTAuthenticator(
+    const string& realm,
+    const string& authenticatorName,
+    const Option<string>& secretKey)
+{
+  if (secretKey.isNone()) {
+    return Error(
+        "No secret key provided for the default '" +
+        string(internal::DEFAULT_JWT_HTTP_AUTHENTICATOR) +
+        "' HTTP authenticator for realm '" + realm + "'");
+  }
+
+  LOG(INFO) << "Creating default '"
+            << internal::DEFAULT_JWT_HTTP_AUTHENTICATOR
+            << "' HTTP authenticator for realm '" << realm << "'";
+
+  return new JWTAuthenticator(realm, secretKey.get());
+}
+#endif // USE_SSL_SOCKET
+
+
 Result<Authenticator*> createCustomAuthenticator(
     const string& realm,
     const string& authenticatorName)
@@ -986,7 +1012,8 @@ Result<Authenticator*> createCustomAuthenticator(
 Try<Nothing> initializeHttpAuthenticators(
     const string& realm,
     const vector<string>& authenticatorNames,
-    const Option<Credentials>& credentials)
+    const Option<Credentials>& credentials,
+    const Option<string>& secretKey)
 {
   if (authenticatorNames.empty()) {
     return Error(
@@ -1000,6 +1027,12 @@ Try<Nothing> initializeHttpAuthenticators(
     if (authenticatorNames[0] == internal::DEFAULT_BASIC_HTTP_AUTHENTICATOR) {
       authenticator_ =
         createBasicAuthenticator(realm, authenticatorNames[0], credentials);
+#ifdef USE_SSL_SOCKET
+    } else if (
+        authenticatorNames[0] == internal::DEFAULT_JWT_HTTP_AUTHENTICATOR) {
+      authenticator_ =
+        createJWTAuthenticator(realm, authenticatorNames[0], secretKey);
+#endif // USE_SSL_SOCKET
     } else {
       authenticator_ = createCustomAuthenticator(realm, authenticatorNames[0]);
     }
@@ -1020,6 +1053,10 @@ Try<Nothing> initializeHttpAuthenticators(
       Result<Authenticator*> authenticator_ = None();
       if (name == internal::DEFAULT_BASIC_HTTP_AUTHENTICATOR) {
         authenticator_ = createBasicAuthenticator(realm, name, credentials);
+#ifdef USE_SSL_SOCKET
+      } else if (name == internal::DEFAULT_JWT_HTTP_AUTHENTICATOR) {
+        authenticator_ = createJWTAuthenticator(realm, name, secretKey);
+#endif // USE_SSL_SOCKET
       } else {
         authenticator_ = createCustomAuthenticator(realm, name);
       }

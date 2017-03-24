@@ -144,7 +144,7 @@ public:
   Option<std::string> modulesDir;
   std::string authenticatee;
   std::string authorizer;
-  std::string http_authenticators;
+  Option<std::string> http_authenticators;
   bool authenticate_http_readonly;
   bool authenticate_http_readwrite;
 #ifdef USE_SSL_SOCKET
