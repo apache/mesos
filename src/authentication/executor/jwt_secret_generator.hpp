@@ -25,8 +25,8 @@
 #include <process/future.hpp>
 
 namespace mesos {
-namespace http {
 namespace authentication {
+namespace executor {
 
 /**
  * Creates a VALUE-type secret containing a JWT. When the secret is
@@ -48,8 +48,8 @@ private:
   std::string secret_;
 };
 
+} // namespace executor {
 } // namespace authentication {
-} // namespace http {
 } // namespace mesos {
 
 #endif // __MESOS_AUTHENTICATION_EXECUTOR_JWT_SECRET_GENERATOR_HPP__

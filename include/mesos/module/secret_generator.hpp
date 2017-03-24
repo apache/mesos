@@ -26,14 +26,14 @@ namespace mesos {
 namespace modules {
 
 template <>
-inline const char* kind<mesos::http::authentication::SecretGenerator>()
+inline const char* kind<mesos::SecretGenerator>()
 {
   return "SecretGenerator";
 }
 
 
 template <>
-struct Module<mesos::http::authentication::SecretGenerator> : ModuleBase
+struct Module<mesos::SecretGenerator> : ModuleBase
 {
   Module(
       const char* _moduleApiVersion,
@@ -47,14 +47,14 @@ struct Module<mesos::http::authentication::SecretGenerator> : ModuleBase
     : ModuleBase(
         _moduleApiVersion,
         _mesosVersion,
-        mesos::modules::kind<mesos::http::authentication::SecretGenerator>(),
+        mesos::modules::kind<mesos::SecretGenerator>(),
         _authorName,
         _authorEmail,
         _description,
         _compatible),
       create(_create) {}
 
-  mesos::http::authentication::SecretGenerator* (*create)(
+  mesos::SecretGenerator* (*create)(
       const Parameters& parameters);
 };
 

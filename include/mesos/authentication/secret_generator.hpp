@@ -23,8 +23,6 @@
 #include <process/http.hpp>
 
 namespace mesos {
-namespace http {
-namespace authentication {
 
 /**
  * The SecretGenerator interface represents a mechanism to create a secret
@@ -42,8 +40,6 @@ public:
       const process::http::authentication::Principal& principal) = 0;
 };
 
-} // namespace authentication {
-} // namespace http {
 } // namespace mesos {
 
 #endif // __MESOS_AUTHENTICATION_SECRET_GENERATOR_HPP__

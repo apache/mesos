@@ -35,7 +35,7 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-using mesos::http::authentication::JWTSecretGenerator;
+using mesos::authentication::executor::JWTSecretGenerator;
 
 using process::Future;
 
