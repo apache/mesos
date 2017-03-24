@@ -4,6 +4,7 @@ Release Notes - Mesos - Version 1.2.1 (WIP)
 
 All Issues:
 ** Bug
+  * [MESOS-6951] - Docker containerizer: mangled environment when env value contains LF byte.
   * [MESOS-7197] - Requesting tiny amount of CPU crashes master.
   * [MESOS-7208] - Persistent volume ownership is set to root when task is running with non-root user
   * [MESOS-7237] - Enabling cgroups_limit_swap can lead to "invalid argument" error.
