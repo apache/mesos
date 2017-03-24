@@ -9,6 +9,9 @@ All Issues:
   * [MESOS-7208] - Persistent volume ownership is set to root when task is running with non-root user
   * [MESOS-7237] - Enabling cgroups_limit_swap can lead to "invalid argument" error.
   * [MESOS-7261] - maintenance.html is missing during packaging.
+  * [MESOS-7263] - User supplied task environment variables cause warnings in sandbox stdout.
+  * [MESOS-7264] - Possibly duplicate environment variables should not leak values to the sandbox.
+  * [MESOS-7265] - Containerizer startup may cause sensitive data to leak into sandbox logs.
 
 
 Release Notes - Mesos - Version 1.2.0
