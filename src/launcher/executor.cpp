@@ -465,20 +465,52 @@ protected:
     // TODO(josephw): Windows tasks will inherit the environment
     // from the executor for now. Change this if a Windows isolator
     // ever uses the `--task_environment` flag.
-    Environment launchEnvironment;
+    //
+    // TODO(tillt): Consider logging in detail the original environment
+    // variable source and overwriting source.
+    //
+    // TODO(tillt): Consider implementing a generic, reusable solution
+    // for merging these environments. See MESOS-7299.
+    //
+    // Note that we can not use protobuf message merging as that could
+    // cause duplicate keys in the resulting environment.
+    hashmap<string, Environment::Variable> environment;
 
     foreachpair (const string& name, const string& value, os::environment()) {
-      Environment::Variable* variable = launchEnvironment.add_variables();
-      variable->set_name(name);
-      variable->set_value(value);
+      Environment::Variable variable;
+      variable.set_name(name);
+      variable.set_type(Environment::Variable::VALUE);
+      variable.set_value(value);
+      environment[name] = variable;
     }
 
     if (taskEnvironment.isSome()) {
-      launchEnvironment.MergeFrom(taskEnvironment.get());
+      foreach (const Environment::Variable& variable,
+               taskEnvironment->variables()) {
+        const string& name = variable.name();
+        if (environment.contains(name) &&
+            environment[name].value() != variable.value()) {
+          cout << "Overwriting environment variable '" << name << "'" << endl;
+        }
+        environment[name] = variable;
+      }
     }
 
     if (command.has_environment()) {
-      launchEnvironment.MergeFrom(command.environment());
+      foreach (const Environment::Variable& variable,
+               command.environment().variables()) {
+        const string& name = variable.name();
+        if (environment.contains(name) &&
+            environment[name].value() != variable.value()) {
+          cout << "Overwriting environment variable '" << name << "'" << endl;
+        }
+        environment[name] = variable;
+      }
+    }
+
+    Environment launchEnvironment;
+    foreachvalue (const Environment::Variable& variable, environment) {
+      launchEnvironment.add_variables()->CopyFrom(variable);
     }
 
     cout << "Starting task " << taskId.get() << endl;
