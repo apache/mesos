@@ -116,11 +116,14 @@ pid_t launchTaskPosix(
 
   launchFlags.launch_info = JSON::protobuf(launchInfo);
 
+  // TODO(tillt): Consider using a flag allowing / disallowing the
+  // log output of possibly sensitive data. See MESOS-7292.
   string commandString = strings::format(
-      "%s %s %s",
+      "%s %s <POSSIBLY-SENSITIVE-DATA>",
       path::join(launcherDir, MESOS_CONTAINERIZER),
-      MesosContainerizerLaunch::NAME,
-      stringify(launchFlags)).get();
+      MesosContainerizerLaunch::NAME).get();
+
+  cout << "Running '" << commandString << "'" << endl;
 
   // Fork the child using launcher.
   vector<string> argv(2);
@@ -142,8 +145,6 @@ pid_t launchTaskPosix(
   if (s.isError()) {
     ABORT("Failed to launch '" + commandString + "': " + s.error());
   }
-
-  cout << commandString << endl;
 
   return s->pid();
 }
