@@ -208,6 +208,13 @@ slave::Flags MesosTest::CreateSlaveFlags()
   flags.authenticate_http_readonly = true;
   flags.authenticate_http_readwrite = true;
 
+#ifdef USE_SSL_SOCKET
+  // Executor authentication currently has SSL as a dependency, so we
+  // cannot enable it if Mesos was not built with SSL support.
+  flags.authenticate_http_executors = true;
+  flags.executor_secret_key = "secret_key";
+#endif // USE_SSL_SOCKET
+
   {
     // Create a default HTTP credentials file.
     const string& path = path::join(directory.get(), "http_credentials");
