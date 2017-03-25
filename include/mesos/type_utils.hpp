@@ -322,6 +322,9 @@ std::ostream& operator<<(
 std::ostream& operator<<(std::ostream& stream, const Image::Type& imageType);
 
 
+std::ostream& operator<<(std::ostream& stream, const Secret::Type& secretType);
+
+
 std::ostream& operator<<(std::ostream& stream, const RLimitInfo& rlimitInfo);
 
 

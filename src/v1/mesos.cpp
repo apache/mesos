@@ -557,6 +557,12 @@ ostream& operator<<(ostream& stream, const Image::Type& imageType)
 }
 
 
+ostream& operator<<(ostream& stream, const Secret::Type& secretType)
+{
+  return stream << Secret::Type_Name(secretType);
+}
+
+
 ostream& operator<<(ostream& stream, const hashmap<string, string>& map)
 {
   return stream << stringify(map);
