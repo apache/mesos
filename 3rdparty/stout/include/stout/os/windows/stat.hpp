@@ -31,14 +31,19 @@
 namespace os {
 namespace stat {
 
+// Forward declaration.
+inline bool islink(const std::string& path);
+
 inline bool isdir(
     const std::string& path,
     const FollowSymlink follow = FOLLOW_SYMLINK)
 {
   struct _stat s;
 
-  if (follow == DO_NOT_FOLLOW_SYMLINK) {
-      return Error("Non-following stat not supported for '" + path + "'");
+  // A symlink itself is not a directory.
+  // If it's not a link, we ignore `follow`.
+  if (follow == DO_NOT_FOLLOW_SYMLINK && islink(path)) {
+    return false;
   }
 
   if (::_stat(path.c_str(), &s) < 0) {
@@ -55,8 +60,12 @@ inline bool isfile(
 {
   struct _stat s;
 
-  if (follow == DO_NOT_FOLLOW_SYMLINK) {
-      return Error("Non-following stat not supported for '" + path + "'");
+  // A symlink itself is a file, but not a regular file.
+  // On POSIX, this check is done with `S_IFREG`, which
+  // returns false for symbolic links.
+  // If it's not a link, we ignore `follow`.
+  if (follow == DO_NOT_FOLLOW_SYMLINK && islink(path)) {
+    return false;
   }
 
   if (::_stat(path.c_str(), &s) < 0) {
@@ -150,8 +159,8 @@ inline Try<mode_t> mode(
 {
   struct _stat s;
 
-  if (follow == DO_NOT_FOLLOW_SYMLINK) {
-      return Error("Non-following stat not supported for '" + path + "'");
+  if (follow == DO_NOT_FOLLOW_SYMLINK && islink(path)) {
+    return Error("lstat not supported for symlink '" + path + "'");
   }
 
   if (::_stat(path.c_str(), &s) < 0) {
@@ -168,8 +177,8 @@ inline Try<dev_t> dev(
 {
   struct _stat s;
 
-  if (follow == DO_NOT_FOLLOW_SYMLINK) {
-      return Error("Non-following stat not supported for '" + path + "'");
+  if (follow == DO_NOT_FOLLOW_SYMLINK && islink(path)) {
+    return Error("lstat not supported for symlink '" + path + "'");
   }
 
   if (::_stat(path.c_str(), &s) < 0) {
