@@ -18,6 +18,8 @@
 
 #include <gmock/gmock.h>
 
+#include <mesos/authentication/secret_generator.hpp>
+
 #include <mesos/slave/qos_controller.hpp>
 #include <mesos/slave/resource_estimator.hpp>
 
@@ -104,7 +106,8 @@ MockSlave::MockSlave(
     MasterDetector* detector,
     slave::Containerizer* containerizer,
     const Option<mesos::slave::QoSController*>& _qosController,
-    const Option<mesos::Authorizer*>& authorizer)
+    const Option<mesos::Authorizer*>& authorizer,
+    const Option<mesos::SecretGenerator*>& _mockSecretGenerator)
   : slave::Slave(
         process::ID::generate("slave"),
         flags,
@@ -116,7 +119,8 @@ MockSlave::MockSlave(
         &resourceEstimator,
         _qosController.isSome() ? _qosController.get() : &qosController,
         authorizer),
-    files(slave::READONLY_HTTP_AUTHENTICATION_REALM)
+    files(slave::READONLY_HTTP_AUTHENTICATION_REALM),
+    mockSecretGenerator(_mockSecretGenerator)
 {
   // Set up default behaviors, calling the original methods.
   EXPECT_CALL(*this, runTask(_, _, _, _, _))
@@ -141,6 +145,18 @@ MockSlave::MockSlave(
 MockSlave::~MockSlave()
 {
   delete statusUpdateManager;
+}
+
+
+void MockSlave::initialize()
+{
+  Slave::initialize();
+
+  if (mockSecretGenerator.isSome()) {
+    delete secretGenerator;
+    secretGenerator = mockSecretGenerator.get();
+    mockSecretGenerator = None();
+  }
 }
 
 
