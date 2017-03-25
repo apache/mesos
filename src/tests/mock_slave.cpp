@@ -35,6 +35,8 @@
 
 using mesos::master::detector::MasterDetector;
 
+using mesos::slave::ContainerTermination;
+
 using std::list;
 
 using process::Future;
@@ -139,6 +141,8 @@ MockSlave::MockSlave(
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_qosCorrections));
   EXPECT_CALL(*this, usage())
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_usage));
+  EXPECT_CALL(*this, executorTerminated(_, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_executorTerminated));
 }
 
 
@@ -222,6 +226,15 @@ void MockSlave::unmocked_qosCorrections()
 Future<ResourceUsage> MockSlave::unmocked_usage()
 {
   return slave::Slave::usage();
+}
+
+
+void MockSlave::unmocked_executorTerminated(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const Future<Option<ContainerTermination>>& termination)
+{
+  slave::Slave::executorTerminated(frameworkId, executorId, termination);
 }
 
 } // namespace tests {

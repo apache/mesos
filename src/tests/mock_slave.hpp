@@ -195,6 +195,12 @@ public:
       const process::Future<Option<
           mesos::slave::ContainerTermination>>& termination));
 
+  void unmocked_executorTerminated(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const process::Future<Option<
+          mesos::slave::ContainerTermination>>& termination);
+
 private:
   Files files;
   MockGarbageCollector gc;
