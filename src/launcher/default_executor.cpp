@@ -120,7 +120,8 @@ public:
       const ExecutorID& _executorId,
       const ::URL& _agent,
       const string& _sandboxDirectory,
-      const string& _launcherDirectory)
+      const string& _launcherDirectory,
+      const Option<string>& _authenticationToken)
     : ProcessBase(process::ID::generate("default-executor")),
       state(DISCONNECTED),
       contentType(ContentType::PROTOBUF),
@@ -133,7 +134,8 @@ public:
       executorId(_executorId),
       agent(_agent),
       sandboxDirectory(_sandboxDirectory),
-      launcherDirectory(_launcherDirectory) {}
+      launcherDirectory(_launcherDirectory),
+      authenticationToken(_authenticationToken) {}
 
   virtual ~DefaultExecutor() = default;
 
@@ -1191,6 +1193,10 @@ private:
     request.headers = {{"Accept", stringify(contentType)},
                        {"Content-Type", stringify(contentType)}};
 
+    if (authenticationToken.isSome()) {
+      request.headers["Authorization"] = "Bearer " + authenticationToken.get();
+    }
+
     // Only pipeline requests when there is an active connection.
     if (connection.isSome()) {
       request.keepAlive = true;
@@ -1286,6 +1292,7 @@ private:
   const ::URL agent; // Agent API URL.
   const string sandboxDirectory;
   const string launcherDirectory;
+  const Option<string> authenticationToken;
 
   LinkedHashMap<UUID, Call::Update> unacknowledgedUpdates;
 
@@ -1392,13 +1399,20 @@ int main(int argc, char** argv)
   }
   sandboxDirectory = value.get();
 
+  Option<string> authenticationToken;
+  value = os::getenv("MESOS_EXECUTOR_AUTHENTICATION_TOKEN");
+  if (value.isSome()) {
+    authenticationToken = value.get();
+  }
+
   Owned<mesos::internal::DefaultExecutor> executor(
       new mesos::internal::DefaultExecutor(
           frameworkId,
           executorId,
           agent,
           sandboxDirectory,
-          flags.launcher_dir));
+          flags.launcher_dir,
+          authenticationToken));
 
   process::spawn(executor.get());
   process::wait(executor.get());
