@@ -60,6 +60,7 @@ using mesos::internal::master::Master;
 using mesos::internal::protobuf::createLabel;
 
 using mesos::internal::slave::DockerContainerizer;
+using mesos::internal::slave::executorEnvironment;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
@@ -309,6 +310,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
       directory,
       slaveId,
       PID<Slave>(),
+      None(),
       false);
 
   // Test hook adds a new environment variable "FOO" to the executor

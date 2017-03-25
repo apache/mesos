@@ -35,6 +35,7 @@
 #include <stout/uuid.hpp>
 
 #include "slave/flags.hpp"
+#include "slave/slave.hpp"
 
 #include "slave/containerizer/fetcher.hpp"
 
@@ -56,6 +57,7 @@ using namespace process;
 
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::executorEnvironment;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::FetcherProcess;
 using mesos::internal::slave::Launcher;
@@ -535,6 +537,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
       directory,
       slaveId,
       PID<Slave>(),
+      None(),
       false);
 
   Future<bool> launch = containerizer->launch(
