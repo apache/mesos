@@ -46,6 +46,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 
 #include "common/build.hpp"
@@ -5109,6 +5110,416 @@ TEST_F(SlaveTest, RunTaskGroup)
 
   EXPECT_CALL(*executor, shutdown(_))
     .Times(AtMost(1));
+}
+
+
+// This test verifies that TASK_FAILED updates are sent correctly for all the
+// tasks in a task group when secret generation fails.
+TEST_F(SlaveTest, RunTaskGroupFailedSecretGeneration)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
+
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo = v1::DEFAULT_EXECUTOR_INFO;
+  executorInfo.set_type(v1::ExecutorInfo::CUSTOM);
+
+  executorInfo.mutable_resources()->CopyFrom(resources);
+
+  const v1::ExecutorID& executorId = executorInfo.executor_id();
+  TestContainerizer containerizer(devolve(executorId), executor);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  // This pointer is passed to the agent, which will perform the cleanup.
+  MockSecretGenerator* secretGenerator = new MockSecretGenerator();
+
+  MockSlave slave(
+      CreateSlaveFlags(),
+      &detector,
+      &containerizer,
+      None(),
+      None(),
+      secretGenerator);
+  spawn(slave);
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0, offers->offers().size());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID agentId = offer.agent_id();
+
+  v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "");
+
+  v1::TaskInfo taskInfo2 = v1::createTask(agentId, resources, "");
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(taskInfo1);
+  taskGroup.add_tasks()->CopyFrom(taskInfo2);
+
+  const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
+
+  // The tasks will fail to launch because the executor secret generation fails.
+  const string failureMessage = "Mock secret generator failed";
+  EXPECT_CALL(*secretGenerator, generate(_))
+    .WillOnce(Return(Failure(failureMessage)));
+
+  EXPECT_CALL(*executor, connected(_))
+    .Times(0);
+
+  EXPECT_CALL(*executor, subscribed(_, _))
+    .Times(0);
+
+  EXPECT_CALL(*executor, shutdown(_))
+    .Times(0);
+
+  EXPECT_CALL(*executor, launchGroup(_, _))
+    .Times(0);
+
+  EXPECT_CALL(*executor, launch(_, _))
+    .Times(0);
+
+  EXPECT_CALL(slave, executorTerminated(_, _, _))
+    .WillOnce(Invoke(&slave, &MockSlave::unmocked_executorTerminated));
+
+  Future<v1::scheduler::Event::Update> update1;
+  Future<v1::scheduler::Event::Update> update2;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&update1))
+    .WillOnce(FutureArg<1>(&update2));
+
+  Future<Nothing> failure;
+  EXPECT_CALL(*scheduler, failure(_, _))
+    .WillOnce(FutureSatisfy(&failure));
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH_GROUP);
+
+    v1::Offer::Operation::LaunchGroup* launchGroup =
+      operation->mutable_launch_group();
+
+    launchGroup->mutable_executor()->CopyFrom(executorInfo);
+    launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(update1);
+  AWAIT_READY(update2);
+
+  AWAIT_READY(failure);
+
+  const hashset<v1::TaskID> failedTasks{
+      update1->status().task_id(), update2->status().task_id()};
+
+  ASSERT_EQ(TASK_FAILED, update1->status().state());
+  ASSERT_EQ(TASK_FAILED, update2->status().state());
+
+  EXPECT_TRUE(strings::contains(update1->status().message(), failureMessage));
+  EXPECT_TRUE(strings::contains(update2->status().message(), failureMessage));
+
+  ASSERT_EQ(tasks, failedTasks);
+
+  // Since this is the only task group for this framework, the
+  // framework should be removed after secret generation fails.
+  Future<Nothing> removeFramework;
+  EXPECT_CALL(slave, removeFramework(_))
+    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
+                    FutureSatisfy(&removeFramework)));
+
+  // Acknowledge the status updates so that the agent will remove the framework.
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACKNOWLEDGE);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+    acknowledge->mutable_task_id()->CopyFrom(update1->status().task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
+    acknowledge->set_uuid(update1->status().uuid());
+
+    mesos.send(call);
+  }
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACKNOWLEDGE);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+    acknowledge->mutable_task_id()->CopyFrom(update2->status().task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
+    acknowledge->set_uuid(update2->status().uuid());
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(removeFramework);
+
+  terminate(slave);
+  wait(slave);
+}
+
+
+// This test verifies that TASK_FAILED updates are sent correctly for all the
+// tasks in a task group when the secret generator returns an invalid secret.
+TEST_F(SlaveTest, RunTaskGroupInvalidExecutorSecret)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
+
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo = v1::DEFAULT_EXECUTOR_INFO;
+  executorInfo.set_type(v1::ExecutorInfo::CUSTOM);
+
+  executorInfo.mutable_resources()->CopyFrom(resources);
+
+  const v1::ExecutorID& executorId = executorInfo.executor_id();
+  TestContainerizer containerizer(devolve(executorId), executor);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  // This pointer is passed to the agent, which will perform the cleanup.
+  MockSecretGenerator* secretGenerator = new MockSecretGenerator();
+
+  MockSlave slave(
+      CreateSlaveFlags(),
+      &detector,
+      &containerizer,
+      None(),
+      None(),
+      secretGenerator);
+  spawn(slave);
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0, offers->offers().size());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID agentId = offer.agent_id();
+
+  v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "");
+
+  v1::TaskInfo taskInfo2 = v1::createTask(agentId, resources, "");
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(taskInfo1);
+  taskGroup.add_tasks()->CopyFrom(taskInfo2);
+
+  const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
+
+  // The tasks will fail to launch because the executor secret is invalid
+  // (VALUE type secrets must not have the `reference` member set).
+  Secret authenticationToken;
+  authenticationToken.set_type(Secret::VALUE);
+  authenticationToken.mutable_reference()->set_name("secret_name");
+  authenticationToken.mutable_reference()->set_key("secret_key");
+
+  EXPECT_CALL(*secretGenerator, generate(_))
+    .WillOnce(Return(authenticationToken));
+
+  EXPECT_CALL(*executor, connected(_))
+    .Times(0);
+
+  EXPECT_CALL(*executor, subscribed(_, _))
+    .Times(0);
+
+  EXPECT_CALL(*executor, shutdown(_))
+    .Times(0);
+
+  EXPECT_CALL(*executor, launchGroup(_, _))
+    .Times(0);
+
+  EXPECT_CALL(*executor, launch(_, _))
+    .Times(0);
+
+  EXPECT_CALL(slave, executorTerminated(_, _, _))
+    .WillOnce(Invoke(&slave, &MockSlave::unmocked_executorTerminated));
+
+  Future<v1::scheduler::Event::Update> update1;
+  Future<v1::scheduler::Event::Update> update2;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&update1))
+    .WillOnce(FutureArg<1>(&update2));
+
+  Future<Nothing> failure;
+  EXPECT_CALL(*scheduler, failure(_, _))
+    .WillOnce(FutureSatisfy(&failure));
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH_GROUP);
+
+    v1::Offer::Operation::LaunchGroup* launchGroup =
+      operation->mutable_launch_group();
+
+    launchGroup->mutable_executor()->CopyFrom(executorInfo);
+    launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(update1);
+  AWAIT_READY(update2);
+
+  AWAIT_READY(failure);
+
+  const hashset<v1::TaskID> failedTasks{
+      update1->status().task_id(), update2->status().task_id()};
+
+  ASSERT_EQ(TASK_FAILED, update1->status().state());
+  ASSERT_EQ(TASK_FAILED, update2->status().state());
+
+  const string failureMessage =
+    "Secret of type VALUE must have the 'value' field set";
+
+  EXPECT_TRUE(strings::contains(update1->status().message(), failureMessage));
+  EXPECT_TRUE(strings::contains(update2->status().message(), failureMessage));
+
+  ASSERT_EQ(tasks, failedTasks);
+
+  // Since this is the only task group for this framework, the
+  // framework should be removed after secret generation fails.
+  Future<Nothing> removeFramework;
+  EXPECT_CALL(slave, removeFramework(_))
+    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
+                    FutureSatisfy(&removeFramework)));
+
+  // Acknowledge the status updates so that the agent will remove the framework.
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACKNOWLEDGE);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+    acknowledge->mutable_task_id()->CopyFrom(update1->status().task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
+    acknowledge->set_uuid(update1->status().uuid());
+
+    mesos.send(call);
+  }
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACKNOWLEDGE);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+    acknowledge->mutable_task_id()->CopyFrom(update2->status().task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
+    acknowledge->set_uuid(update2->status().uuid());
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(removeFramework);
+
+  terminate(slave);
+  wait(slave);
 }
 
 
