@@ -223,6 +223,11 @@ public:
         upid.id +
         "/api/v1/executor");
 
+    value = os::getenv("MESOS_EXECUTOR_AUTHENTICATION_TOKEN");
+    if (value.isSome()) {
+      authenticationToken = value.get();
+    }
+
     // Get checkpointing status from environment.
     value = os::getenv("MESOS_CHECKPOINT");
     checkpoint = value.isSome() && value.get() == "1";
@@ -308,6 +313,10 @@ public:
     request.keepAlive = true;
     request.headers = {{"Accept", stringify(contentType)},
                        {"Content-Type", stringify(contentType)}};
+
+    if (authenticationToken.isSome()) {
+      request.headers["Authorization"] = "Bearer " + authenticationToken.get();
+    }
 
     CHECK_SOME(connections);
 
@@ -811,6 +820,7 @@ private:
   Option<Duration> maxBackoff;
   Option<Timer> recoveryTimer;
   Duration shutdownGracePeriod;
+  Option<string> authenticationToken;
 };
 
 
