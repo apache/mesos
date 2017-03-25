@@ -188,7 +188,8 @@ Slave::Slave(const string& id,
     executorDirectoryMaxAllowedAge(age(0)),
     resourceEstimator(_resourceEstimator),
     qosController(_qosController),
-    authorizer(_authorizer) {}
+    authorizer(_authorizer),
+    secretGenerator(nullptr) {}
 
 
 Slave::~Slave()
@@ -203,6 +204,8 @@ Slave::~Slave()
   }
 
   delete authenticatee;
+
+  delete secretGenerator;
 }
 
 void Slave::signaled(int signal, int uid)
@@ -290,7 +293,7 @@ void Slave::initialize()
 #ifdef USE_SSL_SOCKET
   if (flags.executor_secret_key.isSome()) {
     secretKey = flags.executor_secret_key.get();
-    secretGenerator.reset(new JWTSecretGenerator(secretKey.get()));
+    secretGenerator = new JWTSecretGenerator(secretKey.get());
   }
 
   if (flags.authenticate_http_executors) {
@@ -2185,7 +2188,7 @@ void Slave::__run(
   if (executor == nullptr) {
     executor = framework->addExecutor(executorInfo);
 
-    if (secretGenerator.get()) {
+    if (secretGenerator) {
       generateSecret(framework->id(), executor->id, executor->containerId)
         .onAny(defer(
             self(),

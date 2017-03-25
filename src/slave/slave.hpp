@@ -901,7 +901,7 @@ private:
 
 protected:
   // Made protected for testing purposes.
-  process::Owned<mesos::SecretGenerator> secretGenerator;
+  mesos::SecretGenerator* secretGenerator;
 };
 
 
