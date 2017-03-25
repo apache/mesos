@@ -80,7 +80,24 @@ namespace tests {
 
 class DefaultExecutorTest
   : public MesosTest,
-    public WithParamInterface<string> {};
+    public WithParamInterface<string>
+{
+protected:
+  slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
+
+#ifndef USE_SSL_SOCKET
+    // Disable operator API authentication for the default executor. Executor
+    // authentication currently has SSL as a dependency, so we cannot require
+    // executors to authenticate with the agent operator API if Mesos was not
+    // built with SSL support.
+    flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
+
+    return flags;
+  }
+};
 
 
 // These tests are parameterized by the containerizers enabled on the agent.
@@ -105,9 +122,7 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
   flags.containerizers = GetParam();
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -241,9 +256,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
   flags.containerizers = GetParam();
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -530,9 +543,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
@@ -710,9 +721,7 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
   flags.containerizers = GetParam();
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -819,9 +828,7 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
   flags.containerizers = GetParam();
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -932,9 +939,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, CommitSuicideOnTaskFailure)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
@@ -1070,9 +1075,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
@@ -1270,9 +1273,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
@@ -1394,6 +1395,21 @@ public:
   PersistentVolumeDefaultExecutor() : param(GetParam()) {}
 
 protected:
+  slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
+
+#ifndef USE_SSL_SOCKET
+    // Disable operator API authentication for the default executor. Executor
+    // authentication currently has SSL as a dependency, so we cannot require
+    // executors to authenticate with the agent operator API if Mesos was not
+    // built with SSL support.
+    flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
+
+    return flags;
+  }
+
   LauncherAndIsolationParam param;
 };
 
@@ -1416,9 +1432,7 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_PersistentResources)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
   flags.launcher = param.launcher;
   flags.isolation = param.isolation;
 
@@ -1560,9 +1574,7 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_TaskSandboxPersistentVolume)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
   flags.launcher = param.launcher;
   flags.isolation = param.isolation;
 
