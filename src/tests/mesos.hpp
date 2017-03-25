@@ -34,6 +34,8 @@
 
 #include <mesos/v1/scheduler/scheduler.hpp>
 
+#include <mesos/authentication/secret_generator.hpp>
+
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/fetcher/fetcher.hpp>
@@ -2140,6 +2142,17 @@ public:
       getObjectApprover, process::Future<process::Owned<ObjectApprover>>(
           const Option<authorization::Subject>& subject,
           const authorization::Action& action));
+};
+
+
+class MockSecretGenerator : public SecretGenerator
+{
+public:
+  MockSecretGenerator() = default;
+  virtual ~MockSecretGenerator() = default;
+
+  MOCK_METHOD1(generate, process::Future<Secret>(
+      const process::http::authentication::Principal& principal));
 };
 
 
