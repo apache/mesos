@@ -21,7 +21,7 @@ events (e.g., statistics).
   composing containerizer will be used to create a containerizer.
 * If an executor is not specified in `TaskInfo`, Mesos agent will use
   the default executor for the task (depending on the Containerizer
-	the agent is using, it could be `mesos-executor` or
+  the agent is using, it could be `mesos-executor` or
   `mesos-docker-executor`). TODO: Update this after MESOS-1718 is
   completed. After this change, master will be responsible for
   generating executor information.
@@ -38,12 +38,12 @@ Mesos currently supports the following containerizers:
 
 Composing containerizer will compose the specified containerizers
 (using agent flag `--containerizers`) and act like a single
-containerizer. This is an implementation of `composite` design
+containerizer. This is an implementation of the `composite` design
 pattern.
 
 #### Docker Containerizer
 
-Docker containerizer manages containers using docker engine provided
+Docker containerizer manages containers using the docker engine provided
 in the docker package.
 
 ##### Container launch
@@ -109,7 +109,7 @@ Launcher is responsible for forking/destroying containers.
 * Creates a “freezer” cgroup for the container.
 * Creates posix “pipe” to enable communication between host (parent
   process) and container process.
-* Spawn child process(container process) using `clone` system call.
+* Spawn child process (container process) using `clone` system call.
 * Moves the new container process to the freezer hierarchy.
 * Signals the child process to continue (exec’ing) by writing a
   character to the write end of the pipe in the parent process.

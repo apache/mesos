@@ -2064,7 +2064,7 @@ quotas for container sandbox directories. Valid project IDs range from
     </td>
     <td>
       To enable the profiler, this variable must be set to 1. Note that this
-      variable will only work if mesos has been configured with
+      variable will only work if Mesos has been configured with
       <code>--enable-perftools</code>.
     </td>
   </tr>

@@ -7,12 +7,12 @@ layout: documentation
 
 ## Motivation
 
-Containerizers are intended to run tasks in 'containers' which in turn are used
-to:
+Containerizers are used to run tasks in 'containers', which in turn are
+used to:
 
 * Isolate a task from other running tasks.
 * 'Contain' tasks to run in limited resource runtime environment.
-* Control task's individual resources (e.g, CPU, memory) programatically.
+* Control a task's resource usage (e.g., CPU, memory) programatically.
 * Run software in a pre-packaged file system image, allowing it to run in
   different environments.
 
@@ -21,14 +21,13 @@ to:
 
 Mesos plays well with existing container technologies (e.g., docker) and also
 provides its own container technology. It also supports composing different
-container technologies(e.g., docker and mesos).
+container technologies (e.g., docker and mesos).
 
 Mesos implements the following containerizers:
 
 * [Composing](#Composing)
 * [Docker](#Docker)
 * [Mesos (default)](#Mesos)
-* External (deprecated)
 
 User can specify the types of containerizers to use via the agent flag
 `--containerizers`.
@@ -61,7 +60,7 @@ containerizer is enabled when you configure the agent flag as
 
 Use cases:
 
-* If task needs to be run with the tooling that comes with the docker package.
+* If a task needs to be run with the tooling that comes with the docker package.
 * If Mesos agent is running inside a docker container.
 
 For more details, see
@@ -79,7 +78,7 @@ Use cases:
 * Allow Mesos to control the task's runtime environment without depending on
   other container technologies (e.g., docker).
 * Want fine grained operating system controls (e.g., cgroups/namespaces provided
-  by linux).
+  by Linux).
 * Want Mesos's latest container technology features.
 * Need additional resource controls like disk usage limits, which
   might not be provided by other container technologies.

@@ -245,22 +245,22 @@ described in the ***Building Mesos*** section above.
     # Change into build directory.
     $ cd build
 
-    # Start mesos master (Ensure work directory exists and has proper permissions).
+    # Start Mesos master (ensure work directory exists and has proper permissions).
     $ ./bin/mesos-master.sh --ip=127.0.0.1 --work_dir=/var/lib/mesos
 
-    # Start mesos agent (Ensure work directory exists and has proper permissions).
+    # Start Mesos agent (ensure work directory exists and has proper permissions).
     $ ./bin/mesos-agent.sh --master=127.0.0.1:5050 --work_dir=/var/lib/mesos
 
-    # Visit the mesos web page.
+    # Visit the Mesos web page.
     $ http://127.0.0.1:5050
 
-    # Run C++ framework (Exits after successfully running some tasks.).
+    # Run C++ framework (exits after successfully running some tasks).
     $ ./src/test-framework --master=127.0.0.1:5050
 
-    # Run Java framework (Exits after successfully running some tasks.).
+    # Run Java framework (exits after successfully running some tasks).
     $ ./src/examples/java/test-framework 127.0.0.1:5050
 
-    # Run Python framework (Exits after successfully running some tasks.).
+    # Run Python framework (exits after successfully running some tasks).
     $ ./src/examples/python/test-framework 127.0.0.1:5050
 
 *Note: These examples assume you are running Mesos on your local machine.
