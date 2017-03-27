@@ -401,6 +401,8 @@ message ACL {
  *
  * TODO(vinod): Do aggregation of ACLs when possible.
  *
+ * NOTE: Fields in this message should be kept in
+ * numerical order to avoid accidental tag reuse.
  */
 message ACLs {
   optional bool permissive = 1 [default = true];
@@ -437,7 +439,6 @@ message ACLs {
       launch_nested_containers_under_parent_with_user = 24;
   repeated ACL.KillNestedContainer kill_nested_containers = 25;
   repeated ACL.WaitNestedContainer wait_nested_containers = 26;
-  repeated ACL.RemoveNestedContainer remove_nested_containers = 33;
   repeated ACL.LaunchNestedContainerSessionAsUser
       launch_nested_container_sessions_as_user = 27;
   repeated ACL.LaunchNestedContainerSessionUnderParentWithUser
@@ -446,4 +447,5 @@ message ACLs {
   repeated ACL.AttachContainerOutput attach_containers_output = 30;
   repeated ACL.ViewContainer view_containers = 31;
   repeated ACL.SetLogLevel set_log_level = 32;
+  repeated ACL.RemoveNestedContainer remove_nested_containers = 33;
 }
