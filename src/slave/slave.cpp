@@ -3184,7 +3184,7 @@ void Slave::updateFramework(
       break;
     case Framework::RUNNING: {
       LOG(INFO) << "Updating info for framework " << frameworkId
-                << (pid != UPID() ? "with pid updated to " + stringify(pid)
+                << (pid != UPID() ? " with pid updated to " + stringify(pid)
                                   : "");
 
       // The framework info was added in 1.3, so it will not be set
