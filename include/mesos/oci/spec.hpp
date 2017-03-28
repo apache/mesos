@@ -26,8 +26,8 @@ namespace v1 {
 
 // Constant strings for OCI image media types:
 // https://github.com/opencontainers/image-spec/blob/master/media-types.md
-constexpr char MEDIA_TYPE_MANIFEST_LIST[] =
-    "application/vnd.oci.image.manifest.list.v1+json";
+constexpr char MEDIA_TYPE_INDEX[] =
+    "application/vnd.oci.image.index.v1+json";
 
 constexpr char MEDIA_TYPE_MANIFEST[] =
     "application/vnd.oci.image.manifest.v1+json";
@@ -36,13 +36,22 @@ constexpr char MEDIA_TYPE_CONFIG[] =
     "application/vnd.oci.image.config.v1+json";
 
 constexpr char MEDIA_TYPE_LAYER[] =
+    "application/vnd.oci.image.layer.v1.tar";
+
+constexpr char MEDIA_TYPE_LAYER_GZIP[] =
     "application/vnd.oci.image.layer.v1.tar+gzip";
 
 constexpr char MEDIA_TYPE_NONDIST_LAYER[] =
+    "application/vnd.oci.image.layer.nondistributable.v1.tar";
+
+constexpr char MEDIA_TYPE_NONDIST_LAYER_GZIP[] =
     "application/vnd.oci.image.layer.nondistributable.v1.tar+gzip";
 
+// Rootfs type of OCI image configuration.
+constexpr char ROOTFS_TYPE[] = "layers";
+
 /**
- * Returns the OCI v1 descriptor, image manifest list, image manifest
+ * Returns the OCI v1 descriptor, image index, image manifest
  * and image configuration from the given string.
  */
 template <typename T>

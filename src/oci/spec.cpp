@@ -43,24 +43,19 @@ Option<Error> validateDigest(const string& digest)
 }
 
 
-Option<Error> validate(const ManifestList& manifestList)
+Option<Error> validate(const Index& index)
 {
-  if (manifestList.schemaversion() != 2) {
+  if (index.schemaversion() != 2) {
     return Error(
         "Incorrect 'schemaVersion': " +
-        stringify(manifestList.schemaversion()));
+        stringify(index.schemaversion()));
   }
 
-  foreach (const ManifestDescriptor& manifest, manifestList.manifests()) {
+  foreach (const ManifestDescriptor& manifest, index.manifests()) {
     Option<Error> error = validateDigest(manifest.digest());
     if (error.isSome()) {
       return Error(
           "Failed to validate 'digest' of the 'manifest': " + error->message);
-    }
-
-    if (manifest.mediatype() != MEDIA_TYPE_MANIFEST) {
-      return Error(
-          "Incorrect 'mediaType' of the 'manifest': " + manifest.mediatype());
     }
   }
 
@@ -101,10 +96,22 @@ Option<Error> validate(const Manifest& manifest)
     }
 
     if (layer.mediatype() != MEDIA_TYPE_LAYER &&
-        layer.mediatype() != MEDIA_TYPE_NONDIST_LAYER) {
+        layer.mediatype() != MEDIA_TYPE_LAYER_GZIP &&
+        layer.mediatype() != MEDIA_TYPE_NONDIST_LAYER &&
+        layer.mediatype() != MEDIA_TYPE_NONDIST_LAYER_GZIP) {
       return Error(
           "Incorrect 'mediaType' of the 'layer': " + layer.mediatype());
     }
+  }
+
+  return None();
+}
+
+
+Option<Error> validate(const Configuration& configuration)
+{
+  if (configuration.rootfs().type() != ROOTFS_TYPE) {
+    return Error("Incorrect 'type': " + configuration.rootfs().type());
   }
 
   return None();
@@ -126,6 +133,28 @@ Try<Descriptor> parse(const string& s)
     return Error("Protobuf parse failed: " + descriptor.error());
   }
 
+  // Manually parse 'annotations' field.
+  Result<JSON::Value> annotations = json->find<JSON::Value>("annotations");
+  if (annotations.isError()) {
+    return Error(
+        "Failed to find 'annotations': " + annotations.error());
+  }
+
+  if (annotations.isSome() && !annotations->is<JSON::Null>()) {
+    foreachpair (const string& key,
+                 const JSON::Value& value,
+                 annotations->as<JSON::Object>().values) {
+      if (!value.is<JSON::String>()) {
+        return Error(
+            "The value of annotation key '" + key + "' is not a JSON string");
+      }
+
+      Label* annotation = descriptor->add_annotations();
+      annotation->set_key(key);
+      annotation->set_value(value.as<JSON::String>().value);
+    }
+  }
+
   Option<Error> error = internal::validateDigest(descriptor->digest());
   if (error.isSome()) {
     return Error(
@@ -137,20 +166,20 @@ Try<Descriptor> parse(const string& s)
 
 
 template <>
-Try<ManifestList> parse(const string& s)
+Try<Index> parse(const string& s)
 {
   Try<JSON::Object> json = JSON::parse<JSON::Object>(s);
   if (json.isError()) {
     return Error("JSON parse failed: " + json.error());
   }
 
-  Try<ManifestList> manifestList = protobuf::parse<ManifestList>(json.get());
-  if (manifestList.isError()) {
-    return Error("Protobuf parse failed: " + manifestList.error());
+  Try<Index> index = protobuf::parse<Index>(json.get());
+  if (index.isError()) {
+    return Error("Protobuf parse failed: " + index.error());
   }
 
-  // Manually parse 'manifest.platform.os.version' and
-  // 'manifest.platform.os.features'.
+  // Manually parse 'manifest.annotations', 'manifest.platform.os.version'
+  // and 'manifest.platform.os.features'.
   Result<JSON::Array> manifests = json->at<JSON::Array>("manifests");
   if (manifests.isError()) {
     return Error("Failed to find 'manifests': " + manifests.error());
@@ -172,9 +201,9 @@ Try<ManifestList> parse(const string& s)
     }
 
     ManifestDescriptor* _manifest = nullptr;
-    for (int i = 0; i < manifestList->manifests_size(); i++) {
-      if (manifestList->manifests(i).digest() == digest.get()) {
-        _manifest = manifestList->mutable_manifests(i);
+    for (int i = 0; i < index->manifests_size(); i++) {
+      if (index->manifests(i).digest() == digest.get()) {
+        _manifest = index->mutable_manifests(i);
         break;
       }
     }
@@ -185,40 +214,61 @@ Try<ManifestList> parse(const string& s)
           digest->value + "'");
     }
 
+    Result<JSON::Value> annotations = manifest.find<JSON::Value>("annotations");
+    if (annotations.isError()) {
+      return Error(
+          "Failed to find 'annotations': " + annotations.error());
+    }
+
+    if (annotations.isSome() && !annotations->is<JSON::Null>()) {
+      foreachpair (const string& key,
+                   const JSON::Value& value,
+                   annotations->as<JSON::Object>().values) {
+        if (!value.is<JSON::String>()) {
+          return Error(
+              "The value of annotation key '" + key + "' is not a JSON string");
+        }
+
+        Label* annotation = _manifest->add_annotations();
+        annotation->set_key(key);
+        annotation->set_value(value.as<JSON::String>().value);
+      }
+    }
+
     Result<JSON::Object> platform = manifest.at<JSON::Object>("platform");
     if (platform.isError()) {
       return Error("Failed to find 'platform': " + platform.error());
-    } else if (platform.isNone()) {
-      return Error("Unable to find 'platform'");
     }
 
-    Result<JSON::String> osVersion = platform->at<JSON::String>("os.version");
-    if (osVersion.isError()) {
-      return Error(
-          "Failed to find 'platform.os.version': " + osVersion.error());
-    }
+    if (platform.isSome()) {
+      Result<JSON::String> osVersion = platform->at<JSON::String>("os.version");
+      if (osVersion.isError()) {
+        return Error(
+            "Failed to find 'platform.os.version': " + osVersion.error());
+      }
 
-    if (osVersion.isSome()) {
-      Platform* platform = _manifest->mutable_platform();
-      platform->set_os_version(osVersion->value);
-    }
-
-    Result<JSON::Array> osFeatures = platform->at<JSON::Array>("os.features");
-    if (osFeatures.isError()) {
-      return Error(
-          "Failed to find 'platform.os.features': " + osFeatures.error());
-    }
-
-    if (osFeatures.isSome()) {
-      const vector<JSON::Value>& values = osFeatures->values;
-      if (values.size() != 0) {
+      if (osVersion.isSome()) {
         Platform* platform = _manifest->mutable_platform();
-        foreach (const JSON::Value& value, values) {
-          if (!value.is<JSON::String>()) {
-            return Error("Expecting OS feature to be string type");
-          }
+        platform->set_os_version(osVersion->value);
+      }
 
-          platform->add_os_features(value.as<JSON::String>().value);
+      Result<JSON::Array> osFeatures = platform->at<JSON::Array>("os.features");
+      if (osFeatures.isError()) {
+        return Error(
+            "Failed to find 'platform.os.features': " + osFeatures.error());
+      }
+
+      if (osFeatures.isSome()) {
+        const vector<JSON::Value>& values = osFeatures->values;
+        if (values.size() != 0) {
+          Platform* platform = _manifest->mutable_platform();
+          foreach (const JSON::Value& value, values) {
+            if (!value.is<JSON::String>()) {
+              return Error("Expecting OS feature to be string type");
+            }
+
+            platform->add_os_features(value.as<JSON::String>().value);
+          }
         }
       }
     }
@@ -240,19 +290,19 @@ Try<ManifestList> parse(const string& s)
             "The value of annotation key '" + key + "' is not a JSON string");
       }
 
-      Label* annotation = manifestList->add_annotations();
+      Label* annotation = index->add_annotations();
       annotation->set_key(key);
       annotation->set_value(value.as<JSON::String>().value);
     }
   }
 
-  Option<Error> error = internal::validate(manifestList.get());
+  Option<Error> error = internal::validate(index.get());
   if (error.isSome()) {
     return Error(
-        "OCI v1 image manifest list validation failed: " + error->message);
+        "OCI v1 image index validation failed: " + error->message);
   }
 
-  return manifestList.get();
+  return index.get();
 }
 
 
@@ -366,6 +416,12 @@ Try<Configuration> parse(const string& s)
         label->set_value(value.as<JSON::String>().value);
       }
     }
+  }
+
+  Option<Error> error = internal::validate(configuration.get());
+  if (error.isSome()) {
+    return Error(
+        "OCI v1 image configuration validation failed: " + error->message);
   }
 
   return configuration.get();
