@@ -14,10 +14,10 @@
       <th data-key="name" data-sort>Role</th>
       <th data-key="weight">Weight</th>
       <th data-key="frameworks.length">Frameworks</th>
-      <th data-key="resources.cpus">CPUs</th>
-      <th data-key="resources.gpus">GPUs</th>
-      <th data-key="resources.mem">Mem</th>
-      <th data-key="resources.disk">Disk</th>
+      <th data-key="resources.cpus">CPUs (Allocated / Quota)</th>
+      <th data-key="resources.gpus">GPUs (Allocated / Quota)</th>
+      <th data-key="resources.mem">Mem (Allocated / Quota)</th>
+      <th data-key="resources.disk">Disk (Allocated / Quota)</th>
     </tr>
   </thead>
   <tbody>
@@ -25,10 +25,10 @@
       <td>{{role.name}}</td>
       <td>{{role.weight | number}}</td>
       <td>{{role.frameworks.length | number}}</td>
-      <td>{{role.resources.cpus | decimalFloat}}</td>
-      <td>{{role.resources.gpus | decimalFloat}}</td>
-      <td>{{role.resources.mem * (1024 * 1024) | dataSize}}</td>
-      <td>{{role.resources.disk * (1024 * 1024) | dataSize}}</td>
+      <td>{{role.resources.cpus | decimalFloat}} / {{(role.quota.guarantee.cpus || 0) | decimalFloat}}</td>
+      <td>{{role.resources.gpus | decimalFloat}} / {{(role.quota.guarantee.gpus || 0) | decimalFloat}}</td>
+      <td>{{role.resources.mem * (1024 * 1024) | dataSize}} / {{(role.quota.guarantee.mem || 0) * (1024 * 1024) | dataSize}}</td>
+      <td>{{role.resources.disk * (1024 * 1024) | dataSize}} / {{(role.quota.guarantee.disk || 0) * (1024 * 1024) | dataSize}}</td>
     </tr>
   </tbody>
 </table>
