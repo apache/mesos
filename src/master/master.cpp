@@ -804,8 +804,8 @@ void Master::initialize()
       &UnregisterFrameworkMessage::framework_id);
 
   install<DeactivateFrameworkMessage>(
-        &Master::deactivateFramework,
-        &DeactivateFrameworkMessage::framework_id);
+      &Master::deactivateFramework,
+      &DeactivateFrameworkMessage::framework_id);
 
   install<ResourceRequestMessage>(
       &Master::resourceRequest,
