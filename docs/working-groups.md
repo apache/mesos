@@ -73,7 +73,7 @@ layout: documentation
 	* communication:
 		* irc: mesos-oversubscription
 	* members:
-		* Bartłomiej Płotka
+		* Bartlomiej Plotka
 		* Jie Yu
 		* Joris Van Remoortere
 		* Niklas Nielsen

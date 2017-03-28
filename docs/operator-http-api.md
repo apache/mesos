@@ -40,7 +40,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”: “GET_HEALTH”
+  "type": "GET_HEALTH"
 }
 
 
@@ -73,7 +73,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”: “GET_FLAGS”
+  "type": "GET_FLAGS"
 }
 
 
@@ -255,7 +255,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”: “GET_VERSION”
+  "type": "GET_VERSION"
 }
 
 
@@ -266,9 +266,9 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  “type”: GET_VERSION,
-  “get_version”: {
-    “version_info”: {
+  "type": "GET_VERSION",
+  "get_version": {
+    "version_info": {
       "version": "1.0.0",
       "build_date": "2016-06-24 23:18:37",
       "build_time": 1466810317,
@@ -1358,7 +1358,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”: “GET_FRAMEWORKS”
+  "type": "GET_FRAMEWORKS"
 }
 
 
@@ -1369,7 +1369,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  “type”: “GET_FRAMEWORKS”,
+  "type": "GET_FRAMEWORKS",
   "get_frameworks": {
     "frameworks": [
       {
@@ -1414,7 +1414,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”: “GET_EXECUTORS”
+  "type": "GET_EXECUTORS"
 }
 
 
@@ -1425,7 +1425,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  “type”: “GET_EXECUTORS”,
+  "type": "GET_EXECUTORS",
   "get_executors": {
     "executors": [
       {
@@ -1670,7 +1670,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”: “GET_WEIGHTS”
+  "type": "GET_WEIGHTS"
 }
 
 
@@ -1681,7 +1681,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  “type”: “GET_WEIGHTS”,
+  "type": "GET_WEIGHTS",
   "get_weights": {
     "weight_infos": [
       {
@@ -2457,7 +2457,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”: "GET_FLAGS"
+  "type": "GET_FLAGS"
 }
 
 
@@ -2768,7 +2768,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”: “GET_STATE”
+  "type": "GET_STATE"
 }
 
 
@@ -2948,7 +2948,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”: “GET_CONTAINERS”
+  "type": "GET_CONTAINERS"
 }
 
 
@@ -3009,7 +3009,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”: "GET_FRAMEWORKS"
+  "type": "GET_FRAMEWORKS"
 }
 
 
@@ -3057,7 +3057,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  “type”: "GET_EXECUTORS"
+  "type": "GET_EXECUTORS"
 }
 
 
@@ -3129,7 +3129,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
- “type”: "GET_TASKS"
+  "type": "GET_TASKS"
 }
 
 
@@ -3140,7 +3140,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  “type”: “GET_TASKS”,
+  "type": "GET_TASKS",
   "get_tasks": {
     "launched_tasks": [
       {

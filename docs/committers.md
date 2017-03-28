@@ -303,7 +303,7 @@ responsible for the following:
 * Ensuring that any hacks, known limitations, or future considerations are
   accompanied with TODOs as appropriate.
 
-We’re here to build great software together! Maintainers are a means to ensure that
+We're here to build great software together! Maintainers are a means to ensure that
 we can continue to build great software while scaling the amount of contributors and
 committers in the project. The responsibilities listed above are expected from all
 committers in the project in the work that they do, no matter which component they

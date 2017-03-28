@@ -526,8 +526,8 @@ In order to upgrade a running cluster:
 
   For agent endpoints:
 
-  * /state.json becomes /stateπ
-  * /monitor/statistics.json becomes /monitor/statisticsπ
+  * /state.json becomes /state
+  * /monitor/statistics.json becomes /monitor/statistics
 
   For both master and agent:
 

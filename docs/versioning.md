@@ -75,9 +75,9 @@ A given Mesos installation might host multiple versions of the same API i.e., Sc
 * To keep things simple, the stable version of the API will correspond to the major release version of Mesos.
   * For example, v1 of the API will be supported by Mesos release versions 1.0.0, 1.4.0, 1.20.0 etc.
 * vN version of the API might also be supported by release versions of N-1 series but the vN API is not considered stable until the last release version of N-1 series.
- *  For example, v2 of the API might be introduced in Mesos 1.12.0 release but it is only considered stable in Mesos 1.21.0 release if it is the last release of “1” series. Note that all Mesos 1.x.y versions will still support v1 of the API.
+ *  For example, v2 of the API might be introduced in Mesos 1.12.0 release but it is only considered stable in Mesos 1.21.0 release if it is the last release of "1" series. Note that all Mesos 1.x.y versions will still support v1 of the API.
 *  The API version is only bumped if we need to make a backwards [incompatible](#api-compatibility) API change. We will strive to support a given API version for at least a year.
-*  The deprecation clock for vN-1 API will start as soon as we release “N.0.0” version of Mesos. We will strive to give enough time (e.g., 6 months) for frameworks/operators to upgrade to vN API before we stop supporting vN-1 API.
+*  The deprecation clock for vN-1 API will start as soon as we release "N.0.0" version of Mesos. We will strive to give enough time (e.g., 6 months) for frameworks/operators to upgrade to vN API before we stop supporting vN-1 API.
 
 <a name="api-compatibility"></a>
 ### API Compatibility
@@ -90,7 +90,7 @@ As an example, the following are considered "backwards compatible" changes for S
 * Adding new optional fields to existing requests to "/scheduler".
 * Adding new types of Events i.e., new types of chunks streamed on "/scheduler".
 * Adding new header fields to chunked response streamed on "/scheduler".
-* Adding new fields (or changing the order of fields) to chunks’ body streamed on "/scheduler".
+* Adding new fields (or changing the order of fields) to chunks' body streamed on "/scheduler".
 * Adding new API resources (e.g., "/foobar").
 
 The following are considered backwards incompatible changes for Scheduler API:
@@ -107,7 +107,7 @@ The following are considered backwards incompatible changes for Scheduler API:
 
 For regular releases, the work is done on the master branch. There are no feature branches but there will be release branches.
 
-When it is time to cut a minor release, a new branch (e.g., 1.2.x) is created off the master branch. We chose ‘x’ instead of patch release number to disambiguate branch names from tag names. Then the first RC (-rc1) is tagged on the release branch. Subsequent RCs, in case the previous RCs fail testing, should be tagged on the release branch.
+When it is time to cut a minor release, a new branch (e.g., 1.2.x) is created off the master branch. We chose 'x' instead of patch release number to disambiguate branch names from tag names. Then the first RC (-rc1) is tagged on the release branch. Subsequent RCs, in case the previous RCs fail testing, should be tagged on the release branch.
 
 Patch releases are also based off the release branches. Typically the fix for an issue that is affecting supported releases lands on the master branch and is then backported to the release branch(es). In rare cases, the fix might directly go into a release branch without landing on master (e.g.,  fix / issue is not applicable to master).
 
@@ -117,7 +117,7 @@ Having a branch for each minor release reduces the amount of work a release mana
 ### API protobufs
 
 
-Most APIs in Mesos accept protobuf messages with a corresponding JSON field mapping. To support multiple versions of the API, we decoupled the versioned protobufs backing the API from the “internal” protobufs used by the Mesos code.
+Most APIs in Mesos accept protobuf messages with a corresponding JSON field mapping. To support multiple versions of the API, we decoupled the versioned protobufs backing the API from the "internal" protobufs used by the Mesos code.
 
 For example, the protobufs for the v1 Scheduler API are located at:
 

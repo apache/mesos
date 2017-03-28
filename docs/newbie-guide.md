@@ -46,7 +46,7 @@ The following information will help provide additional guidance to execute the s
 
 ## Apache JIRA Account Pre-Requisite
 
-Detailed steps are provided in the Mesos documentation to obtain a JIRA account. Once you have obtained a JIRA account, ensure the additional step to request addition to the list of “contributors” is completed.
+Detailed steps are provided in the Mesos documentation to obtain a JIRA account. Once you have obtained a JIRA account, ensure the additional step to request addition to the list of "contributors" is completed.
 
 ## Tooling Pre-Requisites
 

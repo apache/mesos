@@ -1627,7 +1627,7 @@ string `gpu/nvidia`.
   <td>
 Directory path of the CNI plugin binaries. The <code>network/cni</code>
 isolator will find CNI plugins under this directory so that it can execute
-the plugins to add/delete container from the CNI networks. It is the operator’s
+the plugins to add/delete container from the CNI networks. It is the operator's
 responsibility to install the CNI plugin binaries in the specified directory.
   </td>
 </tr>

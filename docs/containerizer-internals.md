@@ -106,12 +106,12 @@ Launcher is responsible for forking/destroying containers.
 
 ###### Linux launcher
 
-* Creates a “freezer” cgroup for the container.
-* Creates posix “pipe” to enable communication between host (parent
+* Creates a "freezer" cgroup for the container.
+* Creates posix "pipe" to enable communication between host (parent
   process) and container process.
 * Spawn child process (container process) using `clone` system call.
 * Moves the new container process to the freezer hierarchy.
-* Signals the child process to continue (exec’ing) by writing a
+* Signals the child process to continue (exec'ing) by writing a
   character to the write end of the pipe in the parent process.
 
 ###### Posix launcher (TBD)

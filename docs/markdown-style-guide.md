@@ -41,7 +41,7 @@ Effectively, only "minor" words of four letters or fewer, namely, conjunctions
 (words like __and__, __or__, __nor__, and __but__), articles (the words __a__,
 __an__, and __the__), and prepositions (words like __as__, __at__, __by__,
 __for__, __from__, __in__, __of__, __on__, __per__, __to__, __with__), are
-lowercased in any heading, as long as they aren’t the first word.
+lowercased in any heading, as long as they aren't the first word.
 
 
 ## Code Examples

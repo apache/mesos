@@ -39,10 +39,10 @@ resources at a particular agent, the role has a minimum guarantee of 4 CPUs, not
 
 ## Terminology
 
-For the purpose of this document, an “Operator” is a person, tool, or script
+For the purpose of this document, an "Operator" is a person, tool, or script
 that manages the Mesos cluster.
 
-In computer science, a “quota” usually refers to one of the following:
+In computer science, a "quota" usually refers to one of the following:
 
 * A minimal guarantee.
 * A maximal limit.
@@ -64,8 +64,8 @@ There are two frameworks in a cluster, each running in a separate role with
 equal weights: framework fA in role rA and framework fB in role rB. There is a
 single resource available in the cluster: 100 CPUs. fA consumes 10 CPUs and is
 idle (declines resource offers), while fB is greedy and accepts all offers it gets,
-hogging the remaining 90 CPUs. Without quota, though fA’s fair share is 50 CPUs
-it will not be able to make use of additional the 40 CPUs until some of fB’s
+hogging the remaining 90 CPUs. Without quota, though fA's fair share is 50 CPUs
+it will not be able to make use of additional the 40 CPUs until some of fB's
 tasks terminate.
 
 
@@ -74,7 +74,7 @@ tasks terminate.
 A greedy framework fB in role rB is currently the only framework in the cluster
 and it uses all available resources---100 CPUs. If a new framework fA in role rA
 joins the cluster, it will not receive its fair share of the cluster resources
-(50 CPUs) until some of fB’s tasks terminate.
+(50 CPUs) until some of fB's tasks terminate.
 
 To deal with Scenario 2, quota by itself is not a sufficient solution as it
 would be set after fB has started using all resources. Instead Scenario 2
@@ -354,7 +354,7 @@ suspension---ends when either:
   requested resources (e.g., 10 CPUs on a single node).
 * The quota set request does not allow to specify constraints (e.g., 2*5 cpus
   on disjoint nodes for an HA like setup).
-* Quota is not allowed for the default role ‘*’ (see
+* Quota is not allowed for the default role '*' (see
   [MESOS-3938](https://issues.apache.org/jira/browse/MESOS-3938)).
 * Currently it is not possible to update previously configured quotas. See
   [quota set request](#setRequest) for details.
