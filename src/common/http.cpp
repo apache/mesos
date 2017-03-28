@@ -29,6 +29,7 @@
 #include <mesos/authentication/http/combined_authenticator.hpp>
 #include <mesos/authorizer/authorizer.hpp>
 #include <mesos/module/http_authenticator.hpp>
+#include <mesos/quota/quota.hpp>
 
 #include <process/authenticator.hpp>
 #include <process/dispatch.hpp>
@@ -489,6 +490,20 @@ JSON::Object model(const FileInfo& fileInfo)
   file.values["gid"] = fileInfo.gid();
 
   return file;
+}
+
+
+JSON::Object model(const quota::QuotaInfo& quotaInfo)
+{
+  JSON::Object object;
+
+  object.values["guarantee"] = model(quotaInfo.guarantee());
+  object.values["role"] = quotaInfo.role();
+  if (quotaInfo.has_principal()) {
+    object.values["principal"] = quotaInfo.principal();
+  }
+
+  return object;
 }
 
 }  // namespace internal {

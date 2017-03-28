@@ -24,6 +24,8 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
+#include <mesos/quota/quota.hpp>
+
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
@@ -118,6 +120,7 @@ JSON::Object model(const ExecutorInfo& executorInfo);
 JSON::Array model(const Labels& labels);
 JSON::Object model(const Task& task);
 JSON::Object model(const FileInfo& fileInfo);
+JSON::Object model(const quota::QuotaInfo& quotaInfo);
 
 void json(JSON::ObjectWriter* writer, const Task& task);
 

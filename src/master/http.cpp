@@ -3321,6 +3321,7 @@ Future<Response> Master::Http::stateSummary(
 JSON::Object model(
     const string& name,
     Option<double> weight,
+    Option<Quota> quota,
     Option<Role*> _role)
 {
   JSON::Object object;
@@ -3330,6 +3331,10 @@ JSON::Object model(
     object.values["weight"] = weight.get();
   } else {
     object.values["weight"] = 1.0; // Default weight.
+  }
+
+  if (quota.isSome()) {
+    object.values["quota"] = model(quota->info);
   }
 
   if (_role.isNone()) {
@@ -3468,12 +3473,17 @@ Future<Response> Master::Http::roles(
             weight = master->weights[name];
           }
 
+          Option<Quota> quota = None();
+          if (master->quotas.contains(name)) {
+            quota = master->quotas.at(name);
+          }
+
           Option<Role*> role = None();
           if (master->roles.contains(name)) {
             role = master->roles.at(name);
           }
 
-          array.values.push_back(model(name, weight, role));
+          array.values.push_back(model(name, weight, quota, role));
         }
 
         object.values["roles"] = std::move(array);
