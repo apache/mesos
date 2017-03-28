@@ -753,7 +753,7 @@ authorization interface consists of three parts:
 First, the `authorization::Request` protobuf message represents a request to be
 authorized. It follows the
 _[Subject-Verb-Object](https://en.wikipedia.org/wiki/Subject%E2%80%93verb%E2%80%93object)_
-pattern, where a _subject_ — commonly a principal — attempts to perform an
+pattern, where a _subject_ ---commonly a principal---attempts to perform an
 _action_ on a given _object_.
 
 Second, the
@@ -798,8 +798,8 @@ one or more fields must be set
 (e.g., the `view_executors` action expects the `executor_info` and
 `framework_info` to be set).
 
-The `action` field of the `Request` message is an enum. It is kept optional —
-even though a valid action is necessary for every request — to allow for
+The `action` field of the `Request` message is an enum. It is kept optional---
+even though a valid action is necessary for every request---to allow for
 backwards compatibility when adding new fields (see
 [MESOS-4997](https://issues.apache.org/jira/browse/MESOS-4997) for details).
 
