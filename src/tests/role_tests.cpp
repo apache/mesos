@@ -375,6 +375,77 @@ TEST_F(RoleTest, EndpointNoFrameworks)
 }
 
 
+// This test ensures that quota information is included
+// in /roles endpoint of master.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, RolesEndpointContainsQuota)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
+
+  mesos::quota::QuotaRequest request;
+  request.set_role("foo");
+  request.mutable_guarantee()->CopyFrom(quotaResources);
+
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  request.set_force(true);
+
+  {
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        stringify(JSON::protobuf(request)));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response->body;
+  }
+
+  // Query the master roles endpoint and check it contains quota.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "roles",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response->body;
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Array> roles = parse->find<JSON::Array>("roles");
+    ASSERT_SOME(roles);
+    EXPECT_EQ(1u, roles->values.size());
+
+    JSON::Value role = roles->values[0].as<JSON::Value>();
+
+    Try<JSON::Value> expected = JSON::parse(
+        "{"
+          "\"quota\":"
+            "{"
+              "\"guarantee\":"
+                "{"
+                  "\"cpus\":1.0,"
+                  "\"disk\":0,"
+                  "\"gpus\":0,"
+                  "\"mem\":512.0"
+                "},"
+              "\"principal\":\"test-principal\","
+              "\"role\":\"foo\""
+            "}"
+        "}"
+    );
+    ASSERT_SOME(expected);
+
+    EXPECT_TRUE(role.contains(expected.get()));
+  }
+}
+
+
 // This test checks that when using implicit roles, the "/roles"
 // endpoint shows roles that have a configured weight even if they
 // have no registered frameworks.
@@ -541,7 +612,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesQuotas)
       "}");
 
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), parse.get());
+  EXPECT_TRUE(parse->contains(expected.get()));
 
   // Remove the quota, and check that the role no longer appears in
   // the "/roles" endpoint.
