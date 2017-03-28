@@ -29,6 +29,11 @@ message Descriptor {
   required string digest = 2;
   required int64 size = 3;
   repeated string urls = 4;
+
+  // NOTE: We cannot use 'annotations' here because otherwise,
+  // json->protobuf parsing will fail. 'Annotations' is manually
+  // set during parsing.
+  repeated Label Annotations = 5;
 }
 
 
@@ -50,8 +55,13 @@ message ManifestDescriptor {
   required string mediaType = 1;
   required string digest = 2;
   required int64 size = 3;
-  required Platform platform = 4;
+  optional Platform platform = 4;
   repeated string urls = 5;
+
+  // NOTE: We cannot use 'annotations' here because otherwise,
+  // json->protobuf parsing will fail. 'Annotations' is manually
+  // set during parsing.
+  repeated Label Annotations = 6;
 }
 
 
@@ -65,13 +75,13 @@ message Label {
 
 
 /**
- * Protobuf for the OCI image manifest list JSON schema:
- * https://github.com/opencontainers/image-spec/blob/master/manifest-list.md
+ * Protobuf for the OCI image index JSON schema:
+ * https://github.com/opencontainers/image-spec/blob/master/image-index.md
  *
  * The OCI MIME type of this message is:
- *   application/vnd.oci.image.manifest.list.v1+json
+ *   application/vnd.oci.image.index.v1+json
  */
-message ManifestList {
+message Index {
   required int64 schemaVersion = 1;
   repeated ManifestDescriptor manifests = 2;
 
