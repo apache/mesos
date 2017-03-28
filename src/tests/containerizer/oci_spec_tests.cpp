@@ -68,7 +68,7 @@ TEST_F(OCISpecTest, ParseDescriptor)
 }
 
 
-TEST_F(OCISpecTest, ParseManifestList)
+TEST_F(OCISpecTest, ParseIndex)
 {
   const string json =
       R"~(
@@ -104,54 +104,54 @@ TEST_F(OCISpecTest, ParseManifestList)
         }
       })~";
 
-  Try<image::v1::ManifestList> manifestList =
-      image::v1::parse<image::v1::ManifestList>(json);
+  Try<image::v1::Index> index =
+      image::v1::parse<image::v1::Index>(json);
 
-  ASSERT_SOME(manifestList);
+  ASSERT_SOME(index);
 
-  EXPECT_EQ(2u, manifestList->schemaversion());
+  EXPECT_EQ(2u, index->schemaversion());
 
   EXPECT_EQ(
       "application/vnd.oci.image.manifest.v1+json",
-      manifestList->manifests(0).mediatype());
+      index->manifests(0).mediatype());
 
-  EXPECT_EQ(7143u, manifestList->manifests(0).size());
+  EXPECT_EQ(7143u, index->manifests(0).size());
 
   EXPECT_EQ(
       "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f",
-      manifestList->manifests(0).digest());
+      index->manifests(0).digest());
 
   EXPECT_EQ(
       "ppc64le",
-      manifestList->manifests(0).platform().architecture());
+      index->manifests(0).platform().architecture());
 
   EXPECT_EQ(
       "linux",
-      manifestList->manifests(0).platform().os());
+      index->manifests(0).platform().os());
 
   EXPECT_EQ(
       "16.04",
-      manifestList->manifests(0).platform().os_version());
+      index->manifests(0).platform().os_version());
 
   EXPECT_EQ(
       "sse4",
-      manifestList->manifests(1).platform().os_features(0));
+      index->manifests(1).platform().os_features(0));
 
   EXPECT_EQ(
       "com.example.key1",
-      manifestList->annotations(0).key());
+      index->annotations(0).key());
 
   EXPECT_EQ(
       "value1",
-      manifestList->annotations(0).value());
+      index->annotations(0).value());
 
   EXPECT_EQ(
       "com.example.key2",
-      manifestList->annotations(1).key());
+      index->annotations(1).key());
 
   EXPECT_EQ(
       "value2",
-      manifestList->annotations(1).value());
+      index->annotations(1).value());
 }
 
 
