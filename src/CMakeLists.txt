@@ -537,6 +537,26 @@ set_target_properties(
   SOVERSION ${MESOS_PACKAGE_SOVERSION}
   )
 
+if (ENABLE_PRECOMPILED_HEADERS)
+  # These exluded headers either cause namespace resolution issues or
+  # are problematic for incremental builds.
+  set_property(DIRECTORY
+    PROPERTY COTIRE_PREFIX_HEADER_IGNORE_PATH
+      "${CMAKE_SOURCE_DIR}/include/mesos/authentication/http/basic_authenticator_factory.hpp"
+      "${CMAKE_SOURCE_DIR}/include/mesos/authentication/http/combined_authenticator.hpp"
+      "${CMAKE_SOURCE_DIR}/src/sched/constants.hpp"
+      "${CMAKE_SOURCE_DIR}/src/sched/flags.hpp"
+      "${CMAKE_BINARY_DIR}/src/common/build_config.hpp")
+
+  # For now, we include agent headers, because the Windows build currently
+  # does not build all of the Mesos master (only enough for testing the agent).
+  set_property(DIRECTORY
+    PROPERTY COTIRE_PREFIX_HEADER_INCLUDE_PATH
+      "${AGENT_INCLUDE_DIRS};${AGENT_3RDPARTY_INCLUDE_DIRS}")
+
+  cotire(${MESOS_LIBS_TARGET})
+endif (ENABLE_PRECOMPILED_HEADERS)
+
 # ADD LIBRARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
 add_dependencies(${MESOS_TARGET} ${MESOS_LIBS_TARGET})

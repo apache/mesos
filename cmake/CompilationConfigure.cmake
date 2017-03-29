@@ -26,6 +26,26 @@ endif (ENABLE_DEBUG)
 
 option(BUILD_SHARED_LIBS "Build shared libraries." OFF)
 
+option(ENABLE_PRECOMPILED_HEADERS
+  "Enable auto-generated precompiled headers using cotire" ${WIN32})
+
+if (NOT WIN32 AND ENABLE_PRECOMPILED_HEADERS)
+  message(
+    FATAL_ERROR
+    "Precompiled headers are only supported on Windows.  See MESOS-7322.")
+endif (NOT WIN32 AND ENABLE_PRECOMPILED_HEADERS)
+
+if (ENABLE_PRECOMPILED_HEADERS)
+  # By default Cotire generates both precompiled headers and a "unity" build.
+  # A unity build is where all the source files in a target are combined into
+  # a single source file to reduce the number of files that need to be opened
+  # and read. We disable "unity" builds for now.
+  set(COTIRE_ADD_UNITY_BUILD FALSE)
+
+  set(COTIRE_VERBOSE ${VERBOSE})
+endif (ENABLE_PRECOMPILED_HEADERS)
+
+# Enable optimization?
 option(ENABLE_OPTIMIZE "Enable optimization" TRUE)
 if (ENABLE_OPTIMIZE)
   if (WIN32)
