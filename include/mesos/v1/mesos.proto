@@ -96,6 +96,15 @@ message ContainerID {
 
 
 /**
+ * A unique ID assigned to a resource provider. Currently, a resource
+ * provider gets a new ID whenever it (re)registers with Mesos.
+ */
+message ResourceProviderID {
+  required string value = 1;
+}
+
+
+/**
  * Represents time since the epoch, in nanoseconds.
  */
 message TimeInfo {

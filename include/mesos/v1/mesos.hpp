@@ -172,6 +172,11 @@ inline bool operator==(const MachineID& left, const MachineID& right)
 }
 
 
+bool operator==(
+    const ResourceProviderID& left,
+    const ResourceProviderID& right);
+
+
 inline bool operator!=(const ContainerID& left, const ContainerID& right)
 {
   return left.value() != right.value();
@@ -206,6 +211,11 @@ inline bool operator!=(const DurationInfo& left, const DurationInfo& right)
 {
   return !(left == right);
 }
+
+
+bool operator!=(
+    const ResourceProviderID& left,
+    const ResourceProviderID& right);
 
 
 inline bool operator<(const ContainerID& left, const ContainerID& right)
@@ -323,6 +333,11 @@ std::ostream& operator<<(std::ostream& stream, const Image::Type& imageType);
 
 
 std::ostream& operator<<(std::ostream& stream, const Secret::Type& secretType);
+
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const ResourceProviderID& resourceProviderId);
 
 
 template <typename T>
