@@ -259,7 +259,7 @@ TEST(FutureTest, After2)
 
 
 // Verifies that a a future does not leak memory after calling
-// `after()`. This behavior ocurred because a future indirectly
+// `after()`. This behavior occurred because a future indirectly
 // kept a reference counted pointer to itself.
 TEST(FutureTest, After3)
 {

@@ -224,7 +224,7 @@ private:
         }));
   }
 
-  // This is the less prefered `onReady`, we prefer the `onReady` method which
+  // This is the less preferred `onReady`, we prefer the `onReady` method which
   // has `f` taking a `const T&` parameter. Unfortunately, to complicate
   // matters, if `F` is the result of a `std::bind` expression we need to SFINAE
   // out this version of `onReady` and force the use of the preferred `onReady`

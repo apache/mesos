@@ -985,7 +985,7 @@ Future<Nothing> serve(
 // handler.
 //
 // Returns `Nothing` after serving has completed, either because (1) a
-// failure occured receiving requests or sending responses or (2) the
+// failure occurred receiving requests or sending responses or (2) the
 // HTTP connection was not persistent (i.e., a 'Connection: close'
 // header existed either on the request or the response) or (3)
 // serving was discarded.

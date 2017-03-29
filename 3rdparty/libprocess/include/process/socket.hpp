@@ -234,7 +234,7 @@ protected:
  * An abstraction around a socket (file descriptor).
  *
  * Provides reference counting such that the socket is only closed
- * (and thus, has the possiblity of being reused) after there are no
+ * (and thus, has the possibility of being reused) after there are no
  * more references.
  */
 template <typename AddressType>

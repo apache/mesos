@@ -48,7 +48,7 @@ namespace process {
 // routine itself creates a promise that is passed as an argument to a
 // partially applied 'dispatcher' function (defined below). The
 // dispatcher routines get passed to the actual process via an
-// internal routine called, not suprisingly, 'dispatch', defined
+// internal routine called, not surprisingly, 'dispatch', defined
 // below:
 
 namespace internal {

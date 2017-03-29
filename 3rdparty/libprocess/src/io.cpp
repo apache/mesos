@@ -213,7 +213,7 @@ Future<string> read(int_fd fd)
   process::initialize();
 
   // Get our own copy of the file descriptor so that we're in control
-  // of the lifetime and don't crash if/when someone by accidently
+  // of the lifetime and don't crash if/when someone accidentally
   // closes the file descriptor before discarding this future. We can
   // also make sure it's non-blocking and will close-on-exec. Start by
   // checking we've got a "valid" file descriptor before dup'ing.
@@ -274,7 +274,7 @@ Future<Nothing> write(int_fd fd, const string& data)
   process::initialize();
 
   // Get our own copy of the file descriptor so that we're in control
-  // of the lifetime and don't crash if/when someone by accidently
+  // of the lifetime and don't crash if/when someone accidentally
   // closes the file descriptor before discarding this future. We can
   // also make sure it's non-blocking and will close-on-exec. Start by
   // checking we've got a "valid" file descriptor before dup'ing.

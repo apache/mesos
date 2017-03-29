@@ -206,7 +206,7 @@ Try<URL> URL::parse(const string& urlString)
   }
 
   // If path is specified in the URL, try to capture the host and path
-  // seperately.
+  // separately.
   string host = urlPath;
   string path = "/";
   if (pathPos != string::npos) {
@@ -1662,7 +1662,7 @@ Future<Nothing> stream(
     .then([=]() {
       return stream(socket, response.reader.get());
     })
-    // Regardless of whether `send` or `stream` completed succesfully
+    // Regardless of whether `send` or `stream` completed successfully
     // or failed we close the reader so any writers will be notified.
     .onAny([=]() mutable {
       response.reader->close();
@@ -1818,7 +1818,7 @@ Future<Nothing> serve(
         // Either:
         //
         //   (1) An EOF was received.
-        //   (2) A failure occured while receiving.
+        //   (2) A failure occurred while receiving.
         //   (3) Receiving was discarded (likely because serving was
         //       discarded).
         //
@@ -1842,7 +1842,7 @@ Future<Nothing> serve(
         //
         //   (1) HTTP connection is not meant to be persistent or
         //       there are no more items expected in the pipeline.
-        //   (2) A failure occured while sending.
+        //   (2) A failure occurred while sending.
         //   (3) Sending was discarded (likely because serving was
         //       discarded).
         //

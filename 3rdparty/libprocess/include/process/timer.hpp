@@ -75,7 +75,7 @@ private:
   // there is one). We don't store a pointer to the process because we
   // can't dereference it since it might no longer be valid. (Instead,
   // the PID can be used internally to check if the process is still
-  // valid and get a refernce to it.)
+  // valid and get a reference to it.)
   process::UPID pid;
 
   lambda::function<void()> thunk;

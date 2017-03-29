@@ -161,7 +161,7 @@ static Try<HANDLE> createOutputFile(const string& path)
 }  // namespace internal {
 
 // Opens an inheritable pipe[1] represented as a pair of file handles. On
-// success, the first handle returned recieves the 'read' handle of the pipe,
+// success, the first handle returned receives the 'read' handle of the pipe,
 // while the second receives the 'write' handle. The pipe handles can then be
 // passed to a child process, as exemplified in [2].
 //
