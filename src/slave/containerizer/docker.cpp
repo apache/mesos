@@ -237,13 +237,13 @@ DockerContainerizer::~DockerContainerizer()
 //
 // NOTE: `taskEnvironment` is currently used to propagate environment variables
 // from a hook: `slavePreLaunchDockerEnvironmentDecorator`.
-docker::Flags dockerFlags(
+::mesos::internal::docker::Flags dockerFlags(
   const Flags& flags,
   const string& name,
   const string& directory,
   const Option<map<string, string>>& taskEnvironment)
 {
-  docker::Flags dockerFlags;
+  ::mesos::internal::docker::Flags dockerFlags;
   dockerFlags.container = name;
   dockerFlags.docker = flags.docker;
   dockerFlags.sandbox_directory = directory;
@@ -363,7 +363,7 @@ DockerContainerizerProcess::Container::create(
     // NOTE: We do not set the optional `taskEnvironment` here as
     // this field is currently used to propagate environment variables
     // from a hook. This hook is called after `Container::create`.
-    docker::Flags dockerExecutorFlags = dockerFlags(
+    ::mesos::internal::docker::Flags dockerExecutorFlags = dockerFlags(
       flags,
       Container::name(slaveId, stringify(id)),
       containerWorkdir,
@@ -1499,7 +1499,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
 #endif // __linux__
 
     // Prepare the flags to pass to the mesos docker executor process.
-    docker::Flags launchFlags = dockerFlags(
+    ::mesos::internal::docker::Flags launchFlags = dockerFlags(
         flags,
         container->name(),
         container->directory,

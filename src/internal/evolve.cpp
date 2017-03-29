@@ -593,7 +593,7 @@ v1::master::Response evolve<v1::master::Response::GET_VERSION>(
   v1::master::Response response;
   response.set_type(v1::master::Response::GET_VERSION);
 
-  Try<v1::VersionInfo> version = protobuf::parse<v1::VersionInfo>(object);
+  Try<v1::VersionInfo> version = ::protobuf::parse<v1::VersionInfo>(object);
   CHECK_SOME(version);
 
   response.mutable_get_version()->mutable_version_info()->CopyFrom(
@@ -611,7 +611,7 @@ v1::agent::Response evolve<v1::agent::Response::GET_VERSION>(
   v1::agent::Response response;
   response.set_type(v1::agent::Response::GET_VERSION);
 
-  Try<v1::VersionInfo> version = protobuf::parse<v1::VersionInfo>(object);
+  Try<v1::VersionInfo> version = ::protobuf::parse<v1::VersionInfo>(object);
   CHECK_SOME(version);
 
   response.mutable_get_version()->mutable_version_info()->CopyFrom(
@@ -660,7 +660,7 @@ v1::agent::Response evolve<v1::agent::Response::GET_CONTAINERS>(
     Result<JSON::Object> container_status = object.find<JSON::Object>("status");
     if (container_status.isSome()) {
       Try<v1::ContainerStatus> status =
-        protobuf::parse<v1::ContainerStatus>(container_status.get());
+        ::protobuf::parse<v1::ContainerStatus>(container_status.get());
 
       CHECK_SOME(status);
       container->mutable_container_status()->CopyFrom(status.get());
@@ -671,7 +671,7 @@ v1::agent::Response evolve<v1::agent::Response::GET_CONTAINERS>(
 
     if (resource_statistics.isSome()) {
       Try<v1::ResourceStatistics> statistics =
-        protobuf::parse<v1::ResourceStatistics>(resource_statistics.get());
+        ::protobuf::parse<v1::ResourceStatistics>(resource_statistics.get());
 
       CHECK_SOME(statistics);
       container->mutable_resource_statistics()->CopyFrom(statistics.get());

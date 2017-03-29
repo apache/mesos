@@ -24,9 +24,9 @@ namespace internal {
 // handler should be configured once. Configuring it multiple times will
 // overwrite any previous handlers. Configuring from multiple threads
 // simultaneously has undefined behavior.
-std::function<void(int, int)>* signaledWrapper = nullptr;
+static std::function<void(int, int)>* signaledWrapper = nullptr;
 
-BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
+inline BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
 {
   switch (fdwCtrlType) {
   // Handle the CTRL-C signal.
@@ -47,7 +47,7 @@ BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
 }
 
 
-int installCtrlHandler(const std::function<void(int, int)>* signal)
+inline int installCtrlHandler(const std::function<void(int, int)>* signal)
 {
   // NOTE: We only expect this function to be called called multiple
   // times inside tests and `mesos-local`.
