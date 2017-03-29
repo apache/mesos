@@ -348,6 +348,14 @@
   jira_user: guoger
   reviewboard_user: guoger
 
+- name: Jeff Coffler
+  affiliations:
+    - {organization: Microsoft}
+  emails:
+    - jeff@taltos.com
+  jira_user: coffler
+  reviewboard_user: coffler
+
 - name: Jian Qiu
   affiliations:
     - {organization: IBM}
