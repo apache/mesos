@@ -93,7 +93,7 @@ inline bool wsa_cleanup()
 
 
 // The error indicates the last socket operation has been
-// interupted, the operation can be restarted imediately.
+// interupted, the operation can be restarted immediately.
 // The error will append on Windows only when the operation
 // is interupted using  `WSACancelBlockingCall`.
 inline bool is_restartable_error(int error) { return (error == WSAEINTR); }

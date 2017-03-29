@@ -27,7 +27,7 @@
 #include <stout/some.hpp>
 #include <stout/try.hpp>
 
-// A generic macro to faciliate definitions of CHECK_*, akin to CHECK.
+// A generic macro to facilitate definitions of CHECK_*, akin to CHECK.
 // This appends the error if possible to the end of the log message,
 // so there's no need to append the error message explicitly.
 // To define a new CHECK_*, provide the name, the function that performs the

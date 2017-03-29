@@ -24,7 +24,7 @@ namespace os {
 // Terminate the process tree rooted at the specified pid.
 // Note that if the process 'pid' has exited we'll terminate the process
 // tree(s) rooted at pids.
-// Returns the process trees that were succesfully or unsuccessfully
+// Returns the process trees that were successfully or unsuccessfully
 // signaled. Note that the process trees can be stringified.
 inline Try<std::list<ProcessTree>> killtree(
     pid_t pid,

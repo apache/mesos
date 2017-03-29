@@ -56,7 +56,7 @@ extern char** environ;
 //
 // NOTE: These functions were originally called `environment` and not `environ`
 // because on Windows, `environ` is a macro, and not an `extern char**` as it
-// is in the POSIX standard. The existance of this macro on Windows makes it
+// is in the POSIX standard. The existence of this macro on Windows makes it
 // impossible to use a function called `os::environ`.
 namespace os {
 namespace raw {

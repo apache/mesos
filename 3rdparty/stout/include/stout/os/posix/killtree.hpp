@@ -49,7 +49,7 @@ inline Try<std::list<ProcessTree>> pstrees(
 // Note that if the process 'pid' has exited we'll signal the process
 // tree(s) rooted at pids in the group or session led by the process
 // if groups = true or sessions = true, respectively.
-// Returns the process trees that were succesfully or unsuccessfully
+// Returns the process trees that were successfully or unsuccessfully
 // signaled. Note that the process trees can be stringified.
 // TODO(benh): Allow excluding the root pid from stopping, killing,
 // and continuing so as to provide a means for expressing "kill all of

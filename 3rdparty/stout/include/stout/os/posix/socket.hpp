@@ -29,7 +29,7 @@ using ::recv;
 using ::send;
 
 // The error indicates the last socket operation has been
-// interupted, the operation can be restarted imediately.
+// interupted, the operation can be restarted immediately.
 inline bool is_restartable_error(int error)
 {
   return (error == EINTR);
