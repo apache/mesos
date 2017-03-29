@@ -51,3 +51,4 @@ layout: documentation
 - [Design Doc: Multiple Disk Support](https://docs.google.com/document/d/1syPxygVNEHjG6FoyqslnpUGgNpYKU9QzKBuV2yKmjfQ/edit#heading=h.4fzj9sl24cwy)
 - [Resource Monitoring Design Doc (Recovered)](https://docs.google.com/document/d/1LwFKbybtkAPt4MRmxGZQePp16IHcELsFrGbF2BEQopA/edit?usp=sharing)
 - [Mesos HTTP API](https://docs.google.com/document/d/1pnIY_HckimKNvpqhKRhbc9eSItWNFT-priXh_urR-T0/edit#heading=h.ej7mjb84f6x9)
+- [Multi-Role Frameworks](https://docs.google.com/document/d/1n0ZtRL49m3qpAeB4beEEhjTXQS-nYAbgRG9g44fn4WY/edit?usp=sharing)
