@@ -587,7 +587,7 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::registry_max_agent_count,
       "registry_max_agent_count",
       "Maximum number of disconnected agents to store in the registry.\n"
-      "This informtion allows frameworks to determine the status of\n"
+      "This information allows frameworks to determine the status of\n"
       "disconnected agents. Note that the registry always stores\n"
       "information about all connected agents. See also the\n"
       "`registry_max_agent_age` flag.",
