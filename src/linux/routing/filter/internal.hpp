@@ -440,7 +440,7 @@ template <typename Classifier>
 Result<Filter<Classifier>> decodeFilter(const Netlink<struct rtnl_cls>& cls)
 {
   // If the handle of the libnl filer is 0, it means that it is an
-  // internal filter, therefore is definitly not created by us.
+  // internal filter, therefore is definitely not created by us.
   if (rtnl_tc_get_handle(TC_CAST(cls.get())) == 0) {
     return None();
   }

@@ -153,7 +153,7 @@ public:
 
   /**
    * Clean up the cgroups subsystem for the associated container. It
-   * will be called when destruction to ensure everyting be cleanup.
+   * will be called when destruction to ensure everything be cleanup.
    * Similar to the isolator `cleanup`, it's likely that the `cleanup`
    * for the subsystem is called for unknown containers (see
    * MESOS-6059). We should ignore the cleanup request if the

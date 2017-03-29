@@ -38,7 +38,7 @@ Option<Error> validateContainerId(const ContainerID& containerId);
 namespace agent {
 namespace call {
 
-// Validates that a agent:Call is well-formed.
+// Validates that an agent::Call is well-formed.
 // TODO(bmahler): Add unit tests.
 Option<Error> validate(
     const mesos::agent::Call& call,

@@ -666,7 +666,7 @@ public:
 private:
   // TODO(jojy): Currently hard-codes the images dierctory name.
   // Consider parameterizing the directory name. This could be done
-  // by removing the 'const' ness of teh variable and adding mutator.
+  // by removing the 'const' ness of the variable and adding mutator.
   const string imagesDirName;
 };
 

@@ -1408,7 +1408,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   // Prepare environment variables for the executor.
   map<string, string> environment = container->environment;
 
-  // Include any enviroment variables from ExecutorInfo.
+  // Include any environment variables from ExecutorInfo.
   foreach (const Environment::Variable& variable,
            container->executor.command().environment().variables()) {
     environment[variable.name()] = variable.value();
@@ -2244,7 +2244,7 @@ void DockerContainerizerProcess::__destroy(
     // means it's possible that the container is still going to be
     // running after we return! We either need to have a periodic
     // "garbage collector", or we need to retry the Docker::kill
-    // indefinitely until it has been sucessful.
+    // indefinitely until it has been successful.
 
     string failure = "Failed to kill the Docker container: " +
                      (kill.isFailed() ? kill.failure() : "discarded future");

@@ -374,7 +374,7 @@ Try<Nothing> pivot_root(const std::string& newRoot, const std::string& putOld);
 
 namespace chroot {
 
-// Enter a 'chroot' enviroment. The caller should be in a new mount
+// Enter a 'chroot' environment. The caller should be in a new mount
 // namespace. Basic configuration of special filesystems and device
 // nodes is performed. Any mounts to the current root will be
 // unmounted.

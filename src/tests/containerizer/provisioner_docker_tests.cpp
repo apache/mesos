@@ -182,7 +182,7 @@ protected:
 
 
 // This test verifies that a locally stored Docker image in the form of a
-// tar achive created from a 'docker save' command can be unpacked and
+// tar archive created from a 'docker save' command can be unpacked and
 // stored in the proper locations accessible to the Docker provisioner.
 TEST_F(ProvisionerDockerLocalStoreTest, LocalStoreTestWithTar)
 {

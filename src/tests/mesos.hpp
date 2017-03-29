@@ -259,7 +259,7 @@ protected:
 
 private:
   // Base hierarchy for separately mounted cgroup controllers, e.g., if the
-  // base hierachy is /sys/fs/cgroup then each controller will be mounted to
+  // base hierarchy is /sys/fs/cgroup then each controller will be mounted to
   // /sys/fs/cgroup/{controller}/.
   std::string baseHierarchy;
 

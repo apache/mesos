@@ -3073,8 +3073,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
 
 // This test verifies that sandbox with ':' in the path can still
 // run successfully. This a limitation of the Docker CLI where
-// the volume map parameter treats colons (:) as seperators,
-// and incorrectly seperates the sandbox directory.
+// the volume map parameter treats colons (:) as separators,
+// and incorrectly separates the sandbox directory.
 TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
 {
   Try<Owned<cluster::Master>> master = StartMaster();

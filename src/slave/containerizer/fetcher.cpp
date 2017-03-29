@@ -762,7 +762,7 @@ Future<Nothing> FetcherProcess::run(
 // here is conditionally compiled out on Windows.
 #ifndef __WINDOWS__
   if (user.isSome()) {
-    // TODO(megha.sharma): Fetcher should not create seperate stdout/stderr
+    // TODO(megha.sharma): Fetcher should not create separate stdout/stderr
     // files but rather use FDs prepared by the container logger.
     // See MESOS-6271 for more details.
     Try<Nothing> chownOut = os::chown(

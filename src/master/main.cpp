@@ -202,7 +202,7 @@ int main(int argc, char** argv)
   // * Allocator.
   // * Registry storage.
   // * State.
-  // * Master contendor.
+  // * Master contender.
   // * Master detector.
   // * Authorizer.
   // * Slave removal rate limiter.

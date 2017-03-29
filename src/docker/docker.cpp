@@ -927,7 +927,7 @@ Future<Option<int>> Docker::run(
   //
   // TODO(bmahler): Determine a way to redirect stderr while still
   // capturing the stderr when 'docker run' itself fails. E.g. we
-  // could use 'docker logs' in conjuction with a "detached" form
+  // could use 'docker logs' in conjunction with a "detached" form
   // of 'docker run' to isolate 'docker run' failure messages from
   // the container stderr.
   return s->status();

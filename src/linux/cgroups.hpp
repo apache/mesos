@@ -471,7 +471,7 @@ struct Stats
 //
 // @param   hierarchy   hierarchy for the 'cpuacct' subsystem.
 // @param   cgroup      cgroup for a given process.
-// @return  Some<Stats> if sucessful.
+// @return  Some<Stats> if successful.
 //          Error in case of any error during processing.
 Try<Stats> stat(
     const std::string& hierarchy,

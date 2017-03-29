@@ -497,13 +497,13 @@ Future<bool> ProvisionerProcess::destroy(const ContainerID& containerId)
   // 2. Containerizer `recover` to destroy known orphans.
   // 3. Containerizer `destroy` on one specific container.
   //
-  // NOTE: For (2) and (3), we expect the container being destory
+  // NOTE: For (2) and (3), we expect the container being destroyed
   // has no any child contain remain running. However, for case (1),
   // if the container runtime directory does not survive after the
   // machine reboots and the provisioner directory under the agent
   // work dir still exists, all containers will be regarded as
-  // unkown containers and will be destroyed. In this case, a parent
-  // container may be destoryed before its child containers are
+  // unknown containers and will be destroyed. In this case, a parent
+  // container may be destroyed before its child containers are
   // cleaned up. So we have to make `destroy()` recursively for
   // this particular case.
   //
@@ -543,7 +543,7 @@ Future<bool> ProvisionerProcess::_destroy(
     ++metrics.remove_container_errors;
 
     return Failure(
-        "Failed to destory nested containers: " +
+        "Failed to destroy nested containers: " +
         strings::join("; ", errors));
   }
 

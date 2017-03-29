@@ -727,7 +727,7 @@ int MesosContainerizerLaunch::execute()
       int status = 0;
       Result<pid_t> waitpid = None();
 
-      // Reap all decendants, but only continue once we reap the
+      // Reap all descendants, but only continue once we reap the
       // process we just launched.
       while (true) {
         waitpid = os::waitpid(-1, &status, 0);
