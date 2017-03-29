@@ -31,6 +31,8 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
+#include <glog/logging.h>
+
 #include "common/validation.hpp"
 
 #include "messages/messages.hpp"
@@ -477,18 +479,23 @@ string getPersistentVolumePath(
   // If a `source` was provided for the volume, we map it according
   // to the `type` of disk. Currently only the `PATH` and 'MOUNT'
   // types are supported.
-  if (volume.disk().source().type() == Resource::DiskInfo::Source::PATH) {
-    // For `PATH` we mount a directory inside the `root`.
-    CHECK(volume.disk().source().has_path());
-    return getPersistentVolumePath(
-        volume.disk().source().path().root(),
-        volume.role(),
-        volume.disk().persistence().id());
-  } else if (
-      volume.disk().source().type() == Resource::DiskInfo::Source::MOUNT) {
-    // For `MOUNT` we map straight onto the root of the mount.
-    CHECK(volume.disk().source().has_mount());
-    return volume.disk().source().mount().root();
+  switch (volume.disk().source().type()) {
+    case Resource::DiskInfo::Source::PATH: {
+      // For `PATH` we mount a directory inside the `root`.
+      CHECK(volume.disk().source().has_path());
+      return getPersistentVolumePath(
+          volume.disk().source().path().root(),
+          volume.role(),
+          volume.disk().persistence().id());
+    }
+    case Resource::DiskInfo::Source::MOUNT: {
+      // For `MOUNT` we map straight onto the root of the mount.
+      CHECK(volume.disk().source().has_mount());
+      return volume.disk().source().mount().root();
+    }
+    case Resource::DiskInfo::Source::UNKNOWN:
+      LOG(FATAL) << "Unsupported DiskInfo.Source.type";
+      break;
   }
 
   UNREACHABLE();

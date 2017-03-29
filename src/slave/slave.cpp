@@ -375,71 +375,77 @@ void Slave::initialize()
       resources->filter([](const Resource& _resource) {
         return _resource.has_disk() && _resource.disk().has_source();
       })) {
-    // For `PATH` sources we create them if they do not exist.
     const Resource::DiskInfo::Source& source = resource.disk().source();
-    if (source.type() == Resource::DiskInfo::Source::PATH) {
-      CHECK(source.has_path());
+    switch (source.type()) {
+      case Resource::DiskInfo::Source::PATH: {
+        // For `PATH` sources we create them if they do not exist.
+        CHECK(source.has_path());
 
-      Try<Nothing> mkdir =
-        os::mkdir(source.path().root(), true);
+        Try<Nothing> mkdir = os::mkdir(source.path().root(), true);
 
-      if (mkdir.isError()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to create DiskInfo path directory '"
-          << source.path().root() << "': " << mkdir.error();
-      }
-    } else if (source.type() == Resource::DiskInfo::Source::MOUNT) {
-      CHECK(source.has_mount());
-
-      // For `MOUNT` sources we fail if they don't exist.
-      // On Linux we test the mount table for existence.
-#ifdef __linux__
-      // Get the `realpath` of the `root` to verify it against the
-      // mount table entries.
-      // TODO(jmlvanre): Consider enforcing allowing only real paths
-      // as opposed to symlinks. This would prevent the ability for
-      // an operator to change the underlying data while the slave
-      // checkpointed `root` had the same value. We could also check
-      // the UUID of the underlying block device to catch this case.
-      Result<string> realpath = os::realpath(source.mount().root());
-
-      if (!realpath.isSome()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to determine `realpath` for DiskInfo mount in resource '"
-          << resource << "' with path '" << source.mount().root() << "': "
-          << (realpath.isError() ? realpath.error() : "no such path");
-      }
-
-      // TODO(jmlvanre): Consider moving this out of the for loop.
-      Try<fs::MountTable> mountTable = fs::MountTable::read("/proc/mounts");
-      if (mountTable.isError()) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to open mount table to verify mounts: "
-          << mountTable.error();
-      }
-
-      bool foundEntry = false;
-      foreach (const fs::MountTable::Entry& entry, mountTable.get().entries) {
-        if (entry.dir == realpath.get()) {
-          foundEntry = true;
-          break;
+        if (mkdir.isError()) {
+          EXIT(EXIT_FAILURE)
+            << "Failed to create DiskInfo path directory "
+            << "'" << source.path().root() << "': " << mkdir.error();
         }
+        break;
       }
+      case Resource::DiskInfo::Source::MOUNT: {
+        CHECK(source.has_mount());
 
-      if (!foundEntry) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to found mount '" << realpath.get() << "' in /proc/mounts";
-      }
+        // For `MOUNT` sources we fail if they don't exist.
+        // On Linux we test the mount table for existence.
+#ifdef __linux__
+        // Get the `realpath` of the `root` to verify it against the
+        // mount table entries.
+        // TODO(jmlvanre): Consider enforcing allowing only real paths
+        // as opposed to symlinks. This would prevent the ability for
+        // an operator to change the underlying data while the slave
+        // checkpointed `root` had the same value. We could also check
+        // the UUID of the underlying block device to catch this case.
+        Result<string> realpath = os::realpath(source.mount().root());
+
+        if (!realpath.isSome()) {
+          EXIT(EXIT_FAILURE)
+            << "Failed to determine `realpath` for DiskInfo mount in resource '"
+            << resource << "' with path '" << source.mount().root() << "': "
+            << (realpath.isError() ? realpath.error() : "no such path");
+        }
+
+        // TODO(jmlvanre): Consider moving this out of the for loop.
+        Try<fs::MountTable> mountTable = fs::MountTable::read("/proc/mounts");
+        if (mountTable.isError()) {
+          EXIT(EXIT_FAILURE)
+            << "Failed to open mount table to verify mounts: "
+            << mountTable.error();
+        }
+
+        bool foundEntry = false;
+        foreach (const fs::MountTable::Entry& entry, mountTable.get().entries) {
+          if (entry.dir == realpath.get()) {
+            foundEntry = true;
+            break;
+          }
+        }
+
+        if (!foundEntry) {
+          EXIT(EXIT_FAILURE)
+            << "Failed to found mount '" << realpath.get()
+            << "' in /proc/mounts";
+        }
 #else // __linux__
-      // On other platforms we test whether that provided `root` exists.
-      if (!os::exists(source.mount().root())) {
-        EXIT(EXIT_FAILURE)
-          << "Failed to find mount point '" << source.mount().root() << "'";
-      }
+        // On other platforms we test whether that provided `root` exists.
+        if (!os::exists(source.mount().root())) {
+          EXIT(EXIT_FAILURE)
+            << "Failed to find mount point '" << source.mount().root() << "'";
+        }
 #endif // __linux__
-    } else {
-      EXIT(EXIT_FAILURE)
-        << "Unsupported 'DiskInfo.Source.Type' in '" << resource << "'";
+        break;
+      }
+      case Resource::DiskInfo::Source::UNKNOWN: {
+        EXIT(EXIT_FAILURE)
+          << "Unsupported 'DiskInfo.Source.Type' in '" << resource << "'";
+      }
     }
   }
 

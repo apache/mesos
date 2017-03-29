@@ -779,16 +779,25 @@ Option<Error> Resources::validate(const Resource& resource)
     if (disk.has_source()) {
       const Resource::DiskInfo::Source& source = disk.source();
 
-      if (source.type() == Resource::DiskInfo::Source::PATH &&
-          !source.has_path()) {
-        return Error(
-            "DiskInfo::Source 'type' set to 'PATH' but missing 'path' data");
-      }
-
-      if (source.type() == Resource::DiskInfo::Source::MOUNT &&
-          !source.has_mount()) {
-        return Error(
-            "DiskInfo::Source 'type' set to 'MOUNT' but missing 'mount' data");
+      switch (source.type()) {
+        case Resource::DiskInfo::Source::PATH:
+          if (!source.has_path()) {
+            return Error(
+                "DiskInfo::Source 'type' set to 'PATH' but missing 'path' "
+                "data");
+          }
+          break;
+        case Resource::DiskInfo::Source::MOUNT:
+          if (!source.has_mount()) {
+            return Error(
+                "DiskInfo::Source 'type' set to 'MOUNT' but missing 'mount' "
+                "data");
+          }
+          break;
+        case Resource::DiskInfo::Source::UNKNOWN:
+          return Error(
+              "Unsupported 'DiskInfo.Source.Type' in "
+              "'" + stringify(source) + "'");
       }
     }
   }
@@ -1851,6 +1860,8 @@ ostream& operator<<(ostream& stream, const Resource::DiskInfo::Source& source)
       return stream << "MOUNT:" + source.mount().root();
     case Resource::DiskInfo::Source::PATH:
       return stream << "PATH:" + source.path().root();
+    case Resource::DiskInfo::Source::UNKNOWN:
+      return stream << "UNKNOWN";
   }
 
   UNREACHABLE();
