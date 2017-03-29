@@ -63,7 +63,7 @@ ssh -NT -L 4567:localhost:4567 -L 35729:localhost:35729 <remote-machine>
 
 The generation includes `doxygen` and `javadoc` as well. We could check out them
 under `/api/latest/c++/index.html` and `/api/latest/java/index.html` endpoints
-once the generation finishs.
+once the generation finishes.
 
 ## Development
 
@@ -77,7 +77,7 @@ destroy/remove the container.
 
 Because we mount the `publish` folder under Mesos website svn source code into
 the docker container we launched above, all website contents would be ready
-under the `publish` folder when the generation finishs.
+under the `publish` folder when the generation finishes.
 
 The website uses svnpubsub. The `publish` folder contains the websites content
 and when committed to the svn repository it will be automatically deployed to
