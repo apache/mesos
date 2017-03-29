@@ -52,3 +52,4 @@ layout: documentation
 - [Resource Monitoring Design Doc (Recovered)](https://docs.google.com/document/d/1LwFKbybtkAPt4MRmxGZQePp16IHcELsFrGbF2BEQopA/edit?usp=sharing)
 - [Mesos HTTP API](https://docs.google.com/document/d/1pnIY_HckimKNvpqhKRhbc9eSItWNFT-priXh_urR-T0/edit#heading=h.ej7mjb84f6x9)
 - [Multi-Role Frameworks](https://docs.google.com/document/d/1n0ZtRL49m3qpAeB4beEEhjTXQS-nYAbgRG9g44fn4WY/edit?usp=sharing)
+- [Hierarchical Roles](https://docs.google.com/document/d/1Ie2-6O400ayNXtRqipHq6_CCQ4wOoLWzoqql3b0Y6HU/edit?usp=sharing)
