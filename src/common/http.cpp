@@ -60,7 +60,6 @@ using std::vector;
 using process::Failure;
 using process::Owned;
 
-using process::http::authentication::Authenticator;
 #ifdef USE_SSL_SOCKET
 using process::http::authentication::JWTAuthenticator;
 #endif // USE_SSL_SOCKET
@@ -961,7 +960,7 @@ bool approveViewRole(
 
 namespace {
 
-Result<Authenticator*> createBasicAuthenticator(
+Result<process::http::authentication::Authenticator*> createBasicAuthenticator(
     const string& realm,
     const string& authenticatorName,
     const Option<Credentials>& credentials)
@@ -982,7 +981,7 @@ Result<Authenticator*> createBasicAuthenticator(
 
 
 #ifdef USE_SSL_SOCKET
-Result<Authenticator*> createJWTAuthenticator(
+Result<process::http::authentication::Authenticator*> createJWTAuthenticator(
     const string& realm,
     const string& authenticatorName,
     const Option<string>& secretKey)
@@ -1003,11 +1002,12 @@ Result<Authenticator*> createJWTAuthenticator(
 #endif // USE_SSL_SOCKET
 
 
-Result<Authenticator*> createCustomAuthenticator(
+Result<process::http::authentication::Authenticator*> createCustomAuthenticator(
     const string& realm,
     const string& authenticatorName)
 {
-  if (!modules::ModuleManager::contains<Authenticator>(authenticatorName)) {
+  if (!modules::ModuleManager::contains<
+        process::http::authentication::Authenticator>(authenticatorName)) {
     return Error(
         "HTTP authenticator '" + authenticatorName + "' not found. "
         "Check the spelling (compare to '" +
@@ -1019,7 +1019,8 @@ Result<Authenticator*> createCustomAuthenticator(
   LOG(INFO) << "Creating '" << authenticatorName << "' HTTP authenticator "
             << "for realm '" << realm << "'";
 
-  return modules::ModuleManager::create<Authenticator>(authenticatorName);
+  return modules::ModuleManager::create<
+      process::http::authentication::Authenticator>(authenticatorName);
 }
 
 } // namespace {
@@ -1035,10 +1036,12 @@ Try<Nothing> initializeHttpAuthenticators(
         "No HTTP authenticators specified for realm '" + realm + "'");
   }
 
-  Option<Authenticator*> authenticator;
+  Option<process::http::authentication::Authenticator*> authenticator;
 
   if (authenticatorNames.size() == 1) {
-    Result<Authenticator*> authenticator_ = None();
+    Result<process::http::authentication::Authenticator*> authenticator_ =
+      None();
+
     if (authenticatorNames[0] == internal::DEFAULT_BASIC_HTTP_AUTHENTICATOR) {
       authenticator_ =
         createBasicAuthenticator(realm, authenticatorNames[0], credentials);
@@ -1063,9 +1066,11 @@ Try<Nothing> initializeHttpAuthenticators(
   } else {
     // There are multiple authenticators loaded for this realm,
     // so construct a `CombinedAuthenticator` to handle them.
-    vector<Owned<Authenticator>> authenticators;
+    vector<Owned<process::http::authentication::Authenticator>> authenticators;
     foreach (const string& name, authenticatorNames) {
-      Result<Authenticator*> authenticator_ = None();
+      Result<process::http::authentication::Authenticator*> authenticator_ =
+        None();
+
       if (name == internal::DEFAULT_BASIC_HTTP_AUTHENTICATOR) {
         authenticator_ = createBasicAuthenticator(realm, name, credentials);
 #ifdef USE_SSL_SOCKET
@@ -1083,7 +1088,9 @@ Try<Nothing> initializeHttpAuthenticators(
       }
 
       CHECK_SOME(authenticator_);
-      authenticators.push_back(Owned<Authenticator>(authenticator_.get()));
+      authenticators.push_back(
+          Owned<process::http::authentication::Authenticator>(
+              authenticator_.get()));
     }
 
     authenticator = new CombinedAuthenticator(realm, std::move(authenticators));
@@ -1093,7 +1100,8 @@ Try<Nothing> initializeHttpAuthenticators(
 
   // Ownership of the authenticator is passed to libprocess.
   process::http::authentication::setAuthenticator(
-      realm, Owned<Authenticator>(authenticator.get()));
+      realm, Owned<process::http::authentication::Authenticator>(
+          authenticator.get()));
 
   return Nothing();
 }
