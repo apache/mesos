@@ -92,6 +92,9 @@
 #include "tests/cluster.hpp"
 #include "tests/mock_registrar.hpp"
 
+using std::string;
+using std::vector;
+
 using mesos::master::contender::StandaloneMasterContender;
 using mesos::master::contender::ZooKeeperMasterContender;
 
@@ -136,8 +139,7 @@ Try<process::Owned<Master>> Master::start(
     // authorization configuration for this master.
     bool authorizationSpecified = true;
 
-    std::vector<std::string> authorizerNames =
-      strings::split(flags.authorizers, ",");
+    vector<string> authorizerNames = strings::split(flags.authorizers, ",");
 
     if (authorizerNames.empty()) {
       return Error("No authorizer specified");
@@ -147,7 +149,7 @@ Try<process::Owned<Master>> Master::start(
       return Error("Multiple authorizers not supported");
     }
 
-    std::string authorizerName = authorizerNames[0];
+    string authorizerName = authorizerNames[0];
 
     Result<Authorizer*> authorizer((None()));
     if (authorizerName != master::DEFAULT_AUTHORIZER) {
@@ -260,7 +262,7 @@ Try<process::Owned<Master>> Master::start(
     // Parse the flag value.
     // TODO(vinod): Move this parsing logic to flags once we have a
     // 'Rate' abstraction in stout.
-    std::vector<std::string> tokens =
+    vector<string> tokens =
       strings::tokenize(flags.agent_removal_rate_limit.get(), "/");
 
     if (tokens.size() != 2) {
@@ -391,7 +393,7 @@ void Master::setAuthorizationCallbacks(Authorizer* authorizer)
 Try<process::Owned<Slave>> Slave::start(
     MasterDetector* detector,
     const slave::Flags& flags,
-    const Option<std::string>& id,
+    const Option<string>& id,
     const Option<slave::Containerizer*>& containerizer,
     const Option<slave::GarbageCollector*>& gc,
     const Option<slave::StatusUpdateManager*>& statusUpdateManager,
@@ -432,7 +434,7 @@ Try<process::Owned<Slave>> Slave::start(
     // authorization configuration for this agent.
     bool authorizationSpecified = true;
 
-    std::string authorizerName = flags.authorizer;
+    string authorizerName = flags.authorizer;
 
     Result<Authorizer*> createdAuthorizer((None()));
     if (authorizerName != slave::DEFAULT_AUTHORIZER) {

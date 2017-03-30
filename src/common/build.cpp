@@ -32,38 +32,40 @@
 #include "common/build_config.hpp"
 #endif // USE_CMAKE_BUILD_CONFIG
 
+using std::string;
+
 namespace mesos {
 namespace internal {
 namespace build {
 
-const std::string DATE = BUILD_DATE;
+const string DATE = BUILD_DATE;
 const double TIME = atof(BUILD_TIME);
 
 #ifdef BUILD_USER
-const std::string USER = BUILD_USER;
+const string USER = BUILD_USER;
 #else
-const std::string USER = "";
+const string USER = "";
 #endif
 
-const std::string FLAGS = BUILD_FLAGS;
-const std::string JAVA_JVM_LIBRARY = BUILD_JAVA_JVM_LIBRARY;
+const string FLAGS = BUILD_FLAGS;
+const string JAVA_JVM_LIBRARY = BUILD_JAVA_JVM_LIBRARY;
 
 #ifdef BUILD_GIT_SHA
-const Option<std::string> GIT_SHA = std::string(BUILD_GIT_SHA);
+const Option<string> GIT_SHA = string(BUILD_GIT_SHA);
 #else
-const Option<std::string> GIT_SHA = None();
+const Option<string> GIT_SHA = None();
 #endif
 
 #ifdef BUILD_GIT_BRANCH
-const Option<std::string> GIT_BRANCH = std::string(BUILD_GIT_BRANCH);
+const Option<string> GIT_BRANCH = string(BUILD_GIT_BRANCH);
 #else
-const Option<std::string> GIT_BRANCH = None();
+const Option<string> GIT_BRANCH = None();
 #endif
 
 #ifdef BUILD_GIT_TAG
-const Option<std::string> GIT_TAG = std::string(BUILD_GIT_TAG);
+const Option<string> GIT_TAG = string(BUILD_GIT_TAG);
 #else
-const Option<std::string> GIT_TAG = None();
+const Option<string> GIT_TAG = None();
 #endif
 } // namespace build {
 } // namespace internal {

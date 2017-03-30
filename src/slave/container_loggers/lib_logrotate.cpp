@@ -55,6 +55,9 @@
 using namespace mesos;
 using namespace process;
 
+using std::map;
+using std::string;
+
 using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerIO;
 
@@ -73,16 +76,16 @@ public:
   // the files according to the configured maximum size and number of files.
   Future<ContainerIO> prepare(
       const ExecutorInfo& executorInfo,
-      const std::string& sandboxDirectory,
-      const Option<std::string>& user)
+      const string& sandboxDirectory,
+      const Option<string>& user)
   {
     // Prepare the environment for the container logger subprocess.
     // We inherit agent environment variables except for those
     // LIBPROCESS or MESOS prefixed environment variables. See MESOS-6747.
-    std::map<std::string, std::string> environment;
+    map<string, string> environment;
 
     foreachpair (
-        const std::string& key, const std::string& value, os::environment()) {
+        const string& key, const string& value, os::environment()) {
       if (!strings::startsWith(key, "LIBPROCESS_") &&
           !strings::startsWith(key, "MESOS_")) {
         environment.emplace(key, value);
@@ -115,12 +118,12 @@ public:
         executorInfo.command().has_environment()) {
       // Search the environment for prefixed environment variables.
       // We un-prefix those variables before parsing the flag values.
-      std::map<std::string, std::string> executorEnvironment;
+      map<string, string> executorEnvironment;
       foreach (const Environment::Variable variable,
                executorInfo.command().environment().variables()) {
         if (strings::startsWith(
               variable.name(), flags.environment_variable_prefix)) {
-          std::string unprefixed = strings::lower(strings::remove(
+          string unprefixed = strings::lower(strings::remove(
               variable.name(),
               flags.environment_variable_prefix,
               strings::PREFIX));
@@ -287,8 +290,8 @@ Try<Nothing> LogrotateContainerLogger::initialize()
 
 Future<ContainerIO> LogrotateContainerLogger::prepare(
     const ExecutorInfo& executorInfo,
-    const std::string& sandboxDirectory,
-    const Option<std::string>& user)
+    const string& sandboxDirectory,
+    const Option<string>& user)
 {
   return dispatch(
       process.get(),
@@ -313,7 +316,7 @@ org_apache_mesos_LogrotateContainerLogger(
     nullptr,
     [](const Parameters& parameters) -> ContainerLogger* {
       // Convert `parameters` into a map.
-      std::map<std::string, std::string> values;
+      map<string, string> values;
       foreach (const Parameter& parameter, parameters.parameter()) {
         values[parameter.key()] = parameter.value();
       }

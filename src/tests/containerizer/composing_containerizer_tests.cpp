@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <map>
+#include <string>
 #include <vector>
 
 #include <gmock/gmock.h>
@@ -39,6 +41,8 @@ using namespace mesos::internal::slave;
 
 using namespace process;
 
+using std::map;
+using std::string;
 using std::vector;
 
 using testing::_;
@@ -77,7 +81,7 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
   TaskInfo taskInfo;
   ExecutorInfo executorInfo;
   SlaveID slaveId;
-  std::map<std::string, std::string> environment;
+  map<string, string> environment;
 
   Promise<bool> launchPromise;
 
@@ -147,7 +151,7 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
   TaskInfo taskInfo;
   ExecutorInfo executorInfo;
   SlaveID slaveId;
-  std::map<std::string, std::string> environment;
+  map<string, string> environment;
 
   Promise<bool> launchPromise;
 
@@ -213,7 +217,7 @@ TEST_F(ComposingContainerizerTest, DestroyAfterLaunchLoop)
   TaskInfo taskInfo;
   ExecutorInfo executorInfo;
   SlaveID slaveId;
-  std::map<std::string, std::string> environment;
+  map<string, string> environment;
 
   Promise<bool> launchPromise;
 
