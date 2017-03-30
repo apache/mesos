@@ -127,6 +127,9 @@ public:
       const Option<pid_t>& _taskPid,
       const std::vector<std::string>& _namespaces);
 
+  void pause();
+  void resume();
+
   virtual ~CheckerProcess() {}
 
 protected:
@@ -167,6 +170,7 @@ private:
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
 
   CheckStatusInfo previousCheckStatus;
+  bool paused;
 };
 
 
@@ -208,9 +212,15 @@ Checker::~Checker()
 }
 
 
-void Checker::stop()
+void Checker::pause()
 {
-  terminate(process.get(), true);
+  dispatch(process.get(), &CheckerProcess::pause);
+}
+
+
+void Checker::resume()
+{
+  dispatch(process.get(), &CheckerProcess::resume);
 }
 
 
@@ -225,7 +235,8 @@ CheckerProcess::CheckerProcess(
     updateCallback(_callback),
     taskId(_taskId),
     taskPid(_taskPid),
-    namespaces(_namespaces)
+    namespaces(_namespaces),
+    paused(false)
 {
   Try<Duration> create = Duration::create(check.delay_seconds());
   CHECK_SOME(create);
@@ -286,6 +297,10 @@ void CheckerProcess::finalize()
 
 void CheckerProcess::performCheck()
 {
+  if (paused) {
+    return;
+  }
+
   Stopwatch stopwatch;
   stopwatch.start();
 
@@ -314,16 +329,47 @@ void CheckerProcess::performCheck()
 
 void CheckerProcess::scheduleNext(const Duration& duration)
 {
+  CHECK(!paused);
+
   VLOG(1) << "Scheduling check for task '" << taskId << "' in " << duration;
 
   delay(duration, self(), &Self::performCheck);
 }
 
 
+void CheckerProcess::pause()
+{
+  if (!paused) {
+    VLOG(1) << "Checking for task '" << taskId << "' paused";
+
+    paused = true;
+  }
+}
+
+
+void CheckerProcess::resume()
+{
+  if (paused) {
+    VLOG(1) << "Checking for task '" << taskId << "' resumed";
+
+    paused = false;
+
+    // Schedule a check immediately.
+    scheduleNext(Duration::zero());
+  }
+}
+
 void CheckerProcess::processCheckResult(
     const Stopwatch& stopwatch,
     const CheckStatusInfo& result)
 {
+  // `Checker` might have been paused while performing the check.
+  if (paused) {
+    LOG(INFO) << "Ignoring " << check.type() << " check result for"
+              << " task '" << taskId << "': checking is paused";
+    return;
+  }
+
   VLOG(1) << "Performed " << check.type() << " check"
           << " for task '" << taskId << "' in " << stopwatch.elapsed();
 

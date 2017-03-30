@@ -731,7 +731,7 @@ private:
 
       // Stop checking the task.
       if (checker.get() != nullptr) {
-        checker->stop();
+        checker->pause();
       }
 
       // Stop health checking the task.
@@ -776,7 +776,7 @@ private:
 
     // Stop checking the task.
     if (checker.get() != nullptr) {
-      checker->stop();
+      checker->pause();
     }
 
     // Stop health checking the task.

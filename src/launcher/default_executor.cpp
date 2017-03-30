@@ -163,8 +163,12 @@ public:
       }
     }
 
-    // Pause all health checks.
+    // Pause all checks and health checks.
     foreachvalue (Owned<Container> container, containers) {
+      if (container->checker.isSome()) {
+        container->checker->get()->pause();
+      }
+
       if (container->healthChecker.isSome()) {
         container->healthChecker->get()->pause();
       }
@@ -193,8 +197,12 @@ public:
           wait(containers.keys());
         }
 
-        // Resume all health checks.
+        // Resume all checks and health checks.
         foreachvalue (Owned<Container> container, containers) {
+          if (container->checker.isSome()) {
+            container->checker->get()->resume();
+          }
+
           if (container->healthChecker.isSome()) {
             container->healthChecker->get()->resume();
           }
@@ -738,11 +746,11 @@ protected:
       deserialize<agent::Response>(contentType, response->body);
     CHECK_SOME(waitResponse);
 
-    // If there is an associated checker with the task, stop it to
-    // avoid sending check updates after a terminal status update.
+    // If the task is checked, pause the associated checker to avoid
+    // sending check updates after a terminal status update.
     if (container->checker.isSome()) {
       CHECK_NOTNULL(container->checker->get());
-      container->checker->get()->stop();
+      container->checker->get()->pause();
       container->checker = None();
     }
 
@@ -931,13 +939,13 @@ protected:
     CHECK(!container->killing);
     container->killing = true;
 
-    // If the task is checked, stop the associated checker.
+    // If the task is checked, pause the associated checker.
     //
     // TODO(alexr): Once we support `TASK_KILLING` in this executor,
     // consider continuing checking the task after sending `TASK_KILLING`.
     if (container->checker.isSome()) {
       CHECK_NOTNULL(container->checker->get());
-      container->checker->get()->stop();
+      container->checker->get()->pause();
       container->checker = None();
     }
 

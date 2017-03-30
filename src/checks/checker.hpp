@@ -68,10 +68,9 @@ public:
   Checker(const Checker&) = delete;
   Checker& operator=(const Checker&) = delete;
 
-  /**
-   * Immediately stops checking. Any in-flight checks are dropped.
-   */
-  void stop();
+  // Idempotent helpers for pausing and resuming checking.
+  void pause();
+  void resume();
 
 private:
   explicit Checker(process::Owned<CheckerProcess> process);
