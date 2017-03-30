@@ -33,10 +33,15 @@
 
 #include "checks/checker.hpp"
 
+#include "slave/containerizer/fetcher.hpp"
+
 #include "tests/flags.hpp"
 #include "tests/health_check_test_helper.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
+
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::MesosContainerizer;
 
 using mesos::master::detector::MasterDetector;
 
@@ -208,6 +213,17 @@ public:
     call.set_type(Call::SUBSCRIBE);
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(framework);
+
+    mesos->send(call);
+  }
+
+  virtual void teardown(
+      Mesos* mesos,
+      const v1::FrameworkID& frameworkId)
+  {
+    Call call;
+    call.set_type(Call::TEARDOWN);
+    call.mutable_framework_id()->CopyFrom(frameworkId);
 
     mesos->send(call);
   }
@@ -661,10 +677,14 @@ TEST_F(CommandExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   v1::TaskInfo taskInfo =
       v1::createTask(agentId, resources, SLEEP_COMMAND(10000));
 
+  // Set both check and health check interval to an increased value to
+  // prevent a second update coming before reconciliation response.
+  int interval = 10;
+
   v1::CheckInfo* checkInfo = taskInfo.mutable_check();
   checkInfo->set_type(v1::CheckInfo::COMMAND);
   checkInfo->set_delay_seconds(0);
-  checkInfo->set_interval_seconds(0);
+  checkInfo->set_interval_seconds(interval);
   checkInfo->mutable_command()->mutable_command()->set_value("exit 1");
 
   // Delay health check for 1s to ensure health update comes after check update.
@@ -676,7 +696,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   v1::HealthCheck* healthCheckInfo = taskInfo.mutable_health_check();
   healthCheckInfo->set_type(v1::HealthCheck::COMMAND);
   healthCheckInfo->set_delay_seconds(1);
-  healthCheckInfo->set_interval_seconds(0);
+  healthCheckInfo->set_interval_seconds(interval);
   healthCheckInfo->mutable_command()->set_value("exit 0");
 
   launchTask(&mesos, offer, taskInfo);
@@ -860,16 +880,707 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
 // These are check tests with the default executor.
 class DefaultExecutorCheckTest : public CheckTest {};
 
-// TODO(alexr): Implement following tests once the default executor supports
-// command checks.
+
+// Verifies that a command check is supported by the default executor,
+// its status is delivered in a task status update, and the last known
+// status can be obtained during explicit and implicit reconciliation.
+// Additionally ensures that the specified environment of the command
+// check is honored.
 //
-// 1. COMMAND check with env var works, is delivered, and is reconciled
-//    properly.
-// 2. COMMAND check's status change is delivered. TODO(alexr): When check
-//    mocking is available, ensure only status changes are delivered.
-// 3. COMMAND check times out.
-// 4. COMMAND check and health check do not shadow each other; upon
-//    reconciliation both statuses are available.
+// TODO(gkleiman): Check if this test works on Windows.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    DefaultExecutorCheckTest,
+    CommandCheckDeliveredAndReconciled)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Disable AuthN on the agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = false;
+
+  Fetcher fetcher;
+
+  // We have to explicitly create a `Containerizer` in non-local mode,
+  // because `LaunchNestedContainerSession` (used by command checks)
+  // tries to start a IO switchboard, which doesn't work in local mode yet.
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(agent);
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  const v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_resources()->CopyFrom(resources);
+  executorInfo.mutable_shutdown_grace_period()->set_nanoseconds(
+      Seconds(10).ns());
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore teardown reconnections, see MESOS-6033.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  subscribe(&mesos, frameworkInfo);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID agentId = offer.agent_id();
+
+  Future<Event::Update> updateTaskRunning;
+  Future<Event::Update> updateCheckResult;
+  Future<Event::Update> updateExplicitReconciliation;
+  Future<Event::Update> updateImplicitReconciliation;
+
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&updateTaskRunning))
+    .WillOnce(FutureArg<1>(&updateCheckResult))
+    .WillOnce(FutureArg<1>(&updateExplicitReconciliation))
+    .WillOnce(FutureArg<1>(&updateImplicitReconciliation))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  v1::TaskInfo taskInfo =
+    v1::createTask(agentId, resources, SLEEP_COMMAND(10000));
+
+  v1::CheckInfo* checkInfo = taskInfo.mutable_check();
+  checkInfo->set_type(v1::CheckInfo::COMMAND);
+  checkInfo->set_delay_seconds(0);
+  checkInfo->set_interval_seconds(0);
+
+  v1::CommandInfo* checkCommand =
+    checkInfo->mutable_command()->mutable_command();
+  checkCommand->set_value("exit $STATUS");
+
+  v1::Environment::Variable* variable =
+    checkCommand->mutable_environment()->add_variables();
+  variable->set_name("STATUS");
+  variable->set_value("1");
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(taskInfo);
+
+  launchTaskGroup(&mesos, offer, executorInfo, taskGroup);
+
+  AWAIT_READY(updateTaskRunning);
+  const v1::TaskStatus& taskRunning = updateTaskRunning->status();
+
+  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
+  EXPECT_TRUE(taskRunning.has_check_status());
+  EXPECT_TRUE(taskRunning.check_status().has_command());
+  EXPECT_FALSE(taskRunning.check_status().command().has_exit_code());
+
+  acknowledge(&mesos, frameworkId, taskRunning);
+
+  AWAIT_READY(updateCheckResult);
+  const v1::TaskStatus& checkResult = updateCheckResult->status();
+
+  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+      checkResult.reason());
+  EXPECT_EQ(taskInfo.task_id(), checkResult.task_id());
+  EXPECT_TRUE(checkResult.has_check_status());
+  EXPECT_TRUE(checkResult.check_status().command().has_exit_code());
+  EXPECT_EQ(1, checkResult.check_status().command().exit_code());
+
+  acknowledge(&mesos, frameworkId, checkResult);
+
+  // Trigger explicit reconciliation.
+  reconcile(
+      &mesos,
+      frameworkId,
+      {std::make_pair(checkResult.task_id(), checkResult.agent_id())});
+
+  AWAIT_READY(updateExplicitReconciliation);
+  const v1::TaskStatus& explicitReconciliation =
+    updateExplicitReconciliation->status();
+
+  ASSERT_EQ(TASK_RUNNING, explicitReconciliation.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_RECONCILIATION,
+      explicitReconciliation.reason());
+  EXPECT_EQ(taskInfo.task_id(), explicitReconciliation.task_id());
+  EXPECT_TRUE(explicitReconciliation.has_check_status());
+  EXPECT_TRUE(explicitReconciliation.check_status().command().has_exit_code());
+  EXPECT_EQ(1, explicitReconciliation.check_status().command().exit_code());
+
+  acknowledge(&mesos, frameworkId, explicitReconciliation);
+
+  // Trigger implicit reconciliation.
+  reconcile(&mesos, frameworkId, {});
+
+  AWAIT_READY(updateImplicitReconciliation);
+  const v1::TaskStatus& implicitReconciliation =
+    updateImplicitReconciliation->status();
+
+  ASSERT_EQ(TASK_RUNNING, implicitReconciliation.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_RECONCILIATION,
+      implicitReconciliation.reason());
+  EXPECT_EQ(taskInfo.task_id(), implicitReconciliation.task_id());
+  EXPECT_TRUE(implicitReconciliation.has_check_status());
+  EXPECT_TRUE(implicitReconciliation.check_status().command().has_exit_code());
+  EXPECT_EQ(1, implicitReconciliation.check_status().command().exit_code());
+
+  // Cleanup all mesos launched containers.
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+
+  EXPECT_CALL(*scheduler, disconnected(_));
+
+  teardown(&mesos, frameworkId);
+
+  foreach (const ContainerID& containerId, containerIds.get()) {
+    AWAIT_READY(containerizer->wait(containerId));
+  }
+}
+
+
+// Verifies that a command check's status changes are delivered.
+//
+// TODO(alexr): When check mocking is available, ensure that *only*
+// status changes are delivered.
+//
+// TODO(gkleiman): Check if this test works on Windows.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    DefaultExecutorCheckTest,
+    CommandCheckStatusChange)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Disable AuthN on the agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = false;
+
+  Fetcher fetcher;
+
+  // We have to explicitly create a `Containerizer` in non-local mode,
+  // because `LaunchNestedContainerSession` (used by command checks)
+  // tries to start a IO switchboard, which doesn't work in local mode yet.
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(agent);
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  const v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_resources()->CopyFrom(resources);
+  executorInfo.mutable_shutdown_grace_period()->set_nanoseconds(
+      Seconds(10).ns());
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore teardown reconnections, see MESOS-6033.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  subscribe(&mesos, frameworkInfo);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID agentId = offer.agent_id();
+
+  Future<Event::Update> updateTaskRunning;
+  Future<Event::Update> updateCheckResult;
+  Future<Event::Update> updateCheckResultChanged;
+  Future<Event::Update> updateCheckResultBack;
+
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&updateTaskRunning))
+    .WillOnce(FutureArg<1>(&updateCheckResult))
+    .WillOnce(FutureArg<1>(&updateCheckResultChanged))
+    .WillOnce(FutureArg<1>(&updateCheckResultBack))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  v1::TaskInfo taskInfo =
+    v1::createTask(agentId, resources, SLEEP_COMMAND(10000));
+
+  v1::CheckInfo* checkInfo = taskInfo.mutable_check();
+  checkInfo->set_type(v1::CheckInfo::COMMAND);
+  checkInfo->set_delay_seconds(0);
+  checkInfo->set_interval_seconds(0);
+  checkInfo->mutable_command()->mutable_command()->set_value(
+      FLAPPING_CHECK_COMMAND(path::join(os::getcwd(), "XXXXXX")));
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(taskInfo);
+
+  launchTaskGroup(&mesos, offer, executorInfo, taskGroup);
+
+  AWAIT_READY(updateTaskRunning);
+  ASSERT_EQ(TASK_RUNNING, updateTaskRunning->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateTaskRunning->status().task_id());
+
+  acknowledge(&mesos, frameworkId, updateTaskRunning->status());
+
+  AWAIT_READY(updateCheckResult);
+  const v1::TaskStatus& checkResult = updateCheckResult->status();
+
+  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+      checkResult.reason());
+  EXPECT_TRUE(checkResult.check_status().command().has_exit_code());
+  EXPECT_EQ(1, checkResult.check_status().command().exit_code());
+
+  acknowledge(&mesos, frameworkId, checkResult);
+
+  AWAIT_READY(updateCheckResultChanged);
+  const v1::TaskStatus& checkResultChanged = updateCheckResultChanged->status();
+
+  ASSERT_EQ(TASK_RUNNING, checkResultChanged.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+      checkResultChanged.reason());
+  EXPECT_TRUE(checkResultChanged.check_status().command().has_exit_code());
+  EXPECT_EQ(0, checkResultChanged.check_status().command().exit_code());
+
+  acknowledge(&mesos, frameworkId, checkResultChanged);
+
+  AWAIT_READY(updateCheckResultBack);
+  const v1::TaskStatus& checkResultBack = updateCheckResultBack->status();
+
+  ASSERT_EQ(TASK_RUNNING, checkResultBack.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+      checkResultBack.reason());
+  EXPECT_TRUE(checkResultBack.check_status().command().has_exit_code());
+  EXPECT_EQ(1, checkResultBack.check_status().command().exit_code());
+
+  // Cleanup all mesos launched containers.
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+
+  EXPECT_CALL(*scheduler, disconnected(_));
+
+  teardown(&mesos, frameworkId);
+
+  foreach (const ContainerID& containerId, containerIds.get()) {
+    AWAIT_READY(containerizer->wait(containerId));
+  }
+}
+
+
+// Verifies that when a command check times out after a successful check,
+// an empty check status update is delivered.
+//
+// TODO(gkleiman): Check if this test works on Windows.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, CommandCheckTimeout)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Disable AuthN on the agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = false;
+
+  Fetcher fetcher;
+
+  // We have to explicitly create a `Containerizer` in non-local mode,
+  // because `LaunchNestedContainerSession` (used by command checks)
+  // tries to start a IO switchboard, which doesn't work in local mode yet.
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(agent);
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  const v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_resources()->CopyFrom(resources);
+  executorInfo.mutable_shutdown_grace_period()->set_nanoseconds(
+      Seconds(10).ns());
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore teardown reconnections, see MESOS-6033.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  subscribe(&mesos, frameworkInfo);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID agentId = offer.agent_id();
+
+  Future<Event::Update> updateTaskRunning;
+  Future<Event::Update> updateCheckResult;
+  Future<Event::Update> updateCheckResultTimeout;
+
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&updateTaskRunning))
+    .WillOnce(FutureArg<1>(&updateCheckResult))
+    .WillOnce(FutureArg<1>(&updateCheckResultTimeout))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  v1::TaskInfo taskInfo =
+    v1::createTask(agentId, resources, SLEEP_COMMAND(10000));
+
+  v1::CheckInfo* checkInfo = taskInfo.mutable_check();
+  checkInfo->set_type(v1::CheckInfo::COMMAND);
+  checkInfo->set_delay_seconds(0);
+  checkInfo->set_interval_seconds(0);
+  checkInfo->set_timeout_seconds(1);
+  checkInfo->mutable_command()->mutable_command()->set_value(
+      STALLING_CHECK_COMMAND(path::join(os::getcwd(), "XXXXXX")));
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(taskInfo);
+
+  launchTaskGroup(&mesos, offer, executorInfo, taskGroup);
+
+  AWAIT_READY(updateTaskRunning);
+  ASSERT_EQ(TASK_RUNNING, updateTaskRunning->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateTaskRunning->status().task_id());
+
+  acknowledge(&mesos, frameworkId, updateTaskRunning->status());
+
+  AWAIT_READY(updateCheckResult);
+  const v1::TaskStatus& checkResult = updateCheckResult->status();
+
+  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+      checkResult.reason());
+  EXPECT_TRUE(checkResult.check_status().command().has_exit_code());
+  EXPECT_EQ(1, checkResult.check_status().command().exit_code());
+
+  acknowledge(&mesos, frameworkId, checkResult);
+
+  AWAIT_READY(updateCheckResultTimeout);
+  const v1::TaskStatus& checkResultTimeout = updateCheckResultTimeout->status();
+
+  ASSERT_EQ(TASK_RUNNING, checkResultTimeout.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+      checkResultTimeout.reason());
+  EXPECT_FALSE(checkResultTimeout.check_status().command().has_exit_code());
+
+  // Cleanup all mesos launched containers.
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+
+  EXPECT_CALL(*scheduler, disconnected(_));
+
+  teardown(&mesos, frameworkId);
+
+  foreach (const ContainerID& containerId, containerIds.get()) {
+    AWAIT_READY(containerizer->wait(containerId));
+  }
+}
+
+
+// Verifies that when both command check and health check are specified,
+// health and check updates include both statuses. Also verifies that
+// both statuses are included upon reconciliation.
+//
+// TODO(gkleiman): Check if this test works on Windows.
+TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Disable AuthN on the agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = false;
+
+  Fetcher fetcher;
+
+  // We have to explicitly create a `Containerizer` in non-local mode,
+  // because `LaunchNestedContainerSession` (used by command checks)
+  // tries to start a IO switchboard, which doesn't work in local mode yet.
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(agent);
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  const v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_resources()->CopyFrom(resources);
+  executorInfo.mutable_shutdown_grace_period()->set_nanoseconds(
+      Seconds(10).ns());
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore teardown reconnections, see MESOS-6033.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  subscribe(&mesos, frameworkInfo);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID agentId = offer.agent_id();
+
+  Future<Event::Update> updateTaskRunning;
+  Future<Event::Update> updateCheckResult;
+  Future<Event::Update> updateHealthResult;
+  Future<Event::Update> updateImplicitReconciliation;
+
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&updateTaskRunning))
+    .WillOnce(FutureArg<1>(&updateCheckResult))
+    .WillOnce(FutureArg<1>(&updateHealthResult))
+    .WillOnce(FutureArg<1>(&updateImplicitReconciliation))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  v1::TaskInfo taskInfo =
+      v1::createTask(agentId, resources, SLEEP_COMMAND(10000));
+
+  // Set both check and health check interval to an increased value to
+  // prevent a second update coming before reconciliation response.
+  int interval = 10;
+
+  v1::CheckInfo* checkInfo = taskInfo.mutable_check();
+  checkInfo->set_type(v1::CheckInfo::COMMAND);
+  checkInfo->set_delay_seconds(0);
+  checkInfo->set_interval_seconds(interval);
+  checkInfo->mutable_command()->mutable_command()->set_value("exit 1");
+
+  // Delay health check for 1s to ensure health update comes after check update.
+  //
+  // TODO(alexr): This can lead to flakiness on busy agents. A more robust
+  // approach could be setting the grace period to MAX_INT, and make the
+  // health check pass iff a file created by the check exists. Alternatively,
+  // we can relax the expectation that the check update is delivered first.
+  v1::HealthCheck* healthCheckInfo = taskInfo.mutable_health_check();
+  healthCheckInfo->set_type(v1::HealthCheck::COMMAND);
+  healthCheckInfo->set_delay_seconds(1);
+  healthCheckInfo->set_interval_seconds(interval);
+  healthCheckInfo->mutable_command()->set_value("exit 0");
+
+  launchTask(&mesos, offer, taskInfo);
+
+  AWAIT_READY(updateTaskRunning);
+  ASSERT_EQ(TASK_RUNNING, updateTaskRunning->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateTaskRunning->status().task_id());
+
+  acknowledge(&mesos, frameworkId, updateTaskRunning->status());
+
+  AWAIT_READY(updateCheckResult);
+  const v1::TaskStatus& checkResult = updateCheckResult->status();
+
+  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+      checkResult.reason());
+  EXPECT_EQ(taskInfo.task_id(), checkResult.task_id());
+  EXPECT_FALSE(checkResult.has_healthy());
+  EXPECT_TRUE(checkResult.has_check_status());
+  EXPECT_TRUE(checkResult.check_status().command().has_exit_code());
+  EXPECT_EQ(1, checkResult.check_status().command().exit_code());
+
+  acknowledge(&mesos, frameworkId, checkResult);
+
+  AWAIT_READY(updateHealthResult);
+  const v1::TaskStatus& healthResult = updateHealthResult->status();
+
+  ASSERT_EQ(TASK_RUNNING, healthResult.state());
+  EXPECT_EQ(taskInfo.task_id(), healthResult.task_id());
+  EXPECT_TRUE(healthResult.has_healthy());
+  EXPECT_TRUE(healthResult.healthy());
+  EXPECT_TRUE(healthResult.has_check_status());
+  EXPECT_TRUE(healthResult.check_status().command().has_exit_code());
+  EXPECT_EQ(1, healthResult.check_status().command().exit_code());
+
+  acknowledge(&mesos, frameworkId, healthResult);
+
+  // Trigger implicit reconciliation.
+  reconcile(&mesos, frameworkId, {});
+
+  AWAIT_READY(updateImplicitReconciliation);
+  const v1::TaskStatus& implicitReconciliation =
+    updateImplicitReconciliation->status();
+
+  ASSERT_EQ(TASK_RUNNING, implicitReconciliation.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_RECONCILIATION,
+      implicitReconciliation.reason());
+  EXPECT_EQ(taskInfo.task_id(), implicitReconciliation.task_id());
+  EXPECT_TRUE(implicitReconciliation.has_healthy());
+  EXPECT_TRUE(implicitReconciliation.healthy());
+  EXPECT_TRUE(implicitReconciliation.has_check_status());
+  EXPECT_TRUE(implicitReconciliation.check_status().command().has_exit_code());
+  EXPECT_EQ(1, implicitReconciliation.check_status().command().exit_code());
+
+  // Cleanup all mesos launched containers.
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+
+  EXPECT_CALL(*scheduler, disconnected(_));
+
+  teardown(&mesos, frameworkId);
+
+  foreach (const ContainerID& containerId, containerIds.get()) {
+    AWAIT_READY(containerizer->wait(containerId));
+  }
+}
+
 
 // Verifies that an HTTP check is supported by the default executor and
 // its status is delivered in a task status update.

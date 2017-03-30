@@ -503,17 +503,13 @@ protected:
         false});
 
       if (task.has_check()) {
-        // TODO(alexr): Add support for command checks.
-        CHECK_NE(CheckInfo::COMMAND, task.check().type())
-          << "Command checks are not supported yet";
-
         Try<Owned<checks::Checker>> checker =
           checks::Checker::create(
               task.check(),
               defer(self(), &Self::taskCheckUpdated, taskId, lambda::_1),
               taskId,
-              None(),
-              vector<string>());
+              containerId,
+              agent);
 
         if (checker.isError()) {
           // TODO(anand): Should we send a TASK_FAILED instead?

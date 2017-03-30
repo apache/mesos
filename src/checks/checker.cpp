@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -27,6 +28,8 @@
 
 #include <mesos/mesos.hpp>
 #include <mesos/type_utils.hpp>
+
+#include <mesos/agent/agent.hpp>
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -49,13 +52,17 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
+#include <stout/uuid.hpp>
 
 #include <stout/os/environment.hpp>
 #include <stout/os/killtree.hpp>
 
+#include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
 #include "common/validation.hpp"
+
+#include "internal/evolve.hpp"
 
 #ifdef __linux__
 #include "linux/ns.hpp"
@@ -64,9 +71,14 @@
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::Promise;
 using process::Subprocess;
 
+using process::http::Connection;
+using process::http::Response;
+
 using std::map;
+using std::shared_ptr;
 using std::string;
 using std::tuple;
 using std::vector;
@@ -125,7 +137,10 @@ public:
       const lambda::function<void(const CheckStatusInfo&)>& _callback,
       const TaskID& _taskId,
       const Option<pid_t>& _taskPid,
-      const std::vector<std::string>& _namespaces);
+      const vector<string>& _namespaces,
+      const Option<ContainerID>& _taskContainerId,
+      const Option<process::http::URL>& _agentURL,
+      bool _commandCheckViaAgent);
 
   void pause();
   void resume();
@@ -141,9 +156,33 @@ private:
   void scheduleNext(const Duration& duration);
   void processCheckResult(
       const Stopwatch& stopwatch,
-      const CheckStatusInfo& result);
+      const Option<CheckStatusInfo>& result);
 
   process::Future<int> commandCheck();
+
+  process::Future<int> nestedCommandCheck();
+  void _nestedCommandCheck(std::shared_ptr<process::Promise<int>> promise);
+  void __nestedCommandCheck(
+      std::shared_ptr<process::Promise<int>> promise,
+      process::http::Connection connection);
+  void ___nestedCommandCheck(
+      std::shared_ptr<process::Promise<int>> promise,
+      const ContainerID& checkContainerId,
+      const process::http::Response& launchResponse);
+
+  void nestedCommandCheckFailure(
+      std::shared_ptr<process::Promise<int>> promise,
+      process::http::Connection connection,
+      ContainerID checkContainerId,
+      std::shared_ptr<bool> checkTimedOut,
+      const std::string& failure);
+
+  process::Future<Option<int>> waitNestedContainer(
+      const ContainerID& containerId);
+  process::Future<Option<int>> _waitNestedContainer(
+      const ContainerID& containerId,
+      const process::http::Response& httpResponse);
+
   void processCommandCheckResult(
       const Stopwatch& stopwatch,
       const process::Future<int>& result);
@@ -167,10 +206,18 @@ private:
   const TaskID taskId;
   const Option<pid_t> taskPid;
   const std::vector<std::string> namespaces;
+  const Option<ContainerID> taskContainerId;
+  const Option<process::http::URL> agentURL;
+  const bool commandCheckViaAgent;
+
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
 
   CheckStatusInfo previousCheckStatus;
   bool paused;
+
+  // Contains the ID of the most recently terminated nested container
+  // that was used to perform a COMMAND check.
+  Option<ContainerID> previousCheckContainerId;
 };
 
 
@@ -192,7 +239,37 @@ Try<Owned<Checker>> Checker::create(
       callback,
       taskId,
       taskPid,
-      namespaces));
+      namespaces,
+      None(),
+      None(),
+      false));
+
+  return Owned<Checker>(new Checker(process));
+}
+
+
+Try<process::Owned<Checker>> Checker::create(
+    const CheckInfo& check,
+    const lambda::function<void(const CheckStatusInfo&)>& callback,
+    const TaskID& taskId,
+    const ContainerID& taskContainerId,
+    const process::http::URL& agentURL)
+{
+  // Validate the `CheckInfo` protobuf.
+  Option<Error> error = validation::checkInfo(check);
+  if (error.isSome()) {
+    return error.get();
+  }
+
+  Owned<CheckerProcess> process(new CheckerProcess(
+      check,
+      callback,
+      taskId,
+      None(),
+      {},
+      taskContainerId,
+      agentURL,
+      true));
 
   return Owned<Checker>(new Checker(process));
 }
@@ -229,13 +306,19 @@ CheckerProcess::CheckerProcess(
     const lambda::function<void(const CheckStatusInfo&)>& _callback,
     const TaskID& _taskId,
     const Option<pid_t>& _taskPid,
-    const vector<string>& _namespaces)
+    const vector<string>& _namespaces,
+    const Option<ContainerID>& _taskContainerId,
+    const Option<process::http::URL>& _agentURL,
+    bool _commandCheckViaAgent)
   : ProcessBase(process::ID::generate("checker")),
     check(_check),
     updateCallback(_callback),
     taskId(_taskId),
     taskPid(_taskPid),
     namespaces(_namespaces),
+    taskContainerId(_taskContainerId),
+    agentURL(_agentURL),
+    commandCheckViaAgent(_commandCheckViaAgent),
     paused(false)
 {
   Try<Duration> create = Duration::create(check.delay_seconds());
@@ -306,7 +389,9 @@ void CheckerProcess::performCheck()
 
   switch (check.type()) {
     case CheckInfo::COMMAND: {
-      commandCheck().onAny(defer(
+      Future<int> future = commandCheckViaAgent ? nestedCommandCheck()
+                                                : commandCheck();
+      future.onAny(defer(
           self(),
           &Self::processCommandCheckResult, stopwatch, lambda::_1));
       break;
@@ -361,7 +446,7 @@ void CheckerProcess::resume()
 
 void CheckerProcess::processCheckResult(
     const Stopwatch& stopwatch,
-    const CheckStatusInfo& result)
+    const Option<CheckStatusInfo>& result)
 {
   // `Checker` might have been paused while performing the check.
   if (paused) {
@@ -370,16 +455,20 @@ void CheckerProcess::processCheckResult(
     return;
   }
 
-  VLOG(1) << "Performed " << check.type() << " check"
-          << " for task '" << taskId << "' in " << stopwatch.elapsed();
+  // `result` should be some if it was possible to perform the check,
+  // and empty if there was a transient error.
+  if (result.isSome()) {
+    VLOG(1) << "Performed " << check.type() << " check"
+            << " for task '" << taskId << "' in " << stopwatch.elapsed();
 
-  // Trigger the callback if check info changes.
-  if (result != previousCheckStatus) {
-    // We assume this is a local send, i.e., the checker library is not used
-    // in a binary external to the executor and hence can not exit before
-    // the data is sent to the executor.
-    updateCallback(result);
-    previousCheckStatus = result;
+    // Trigger the callback if check info changes.
+    if (result.get() != previousCheckStatus) {
+      // We assume this is a local send, i.e., the checker library is not used
+      // in a binary external to the executor and hence can not exit before
+      // the data is sent to the executor.
+      updateCallback(result.get());
+      previousCheckStatus = result.get();
+    }
   }
 
   scheduleNext(checkInterval);
@@ -470,37 +559,346 @@ Future<int> CheckerProcess::commandCheck()
 }
 
 
+Future<int> CheckerProcess::nestedCommandCheck()
+{
+  CHECK_EQ(CheckInfo::COMMAND, check.type());
+  CHECK(check.has_command());
+  CHECK_SOME(taskContainerId);
+  CHECK_SOME(agentURL);
+
+  VLOG(1) << "Launching COMMAND check for task '" << taskId << "'";
+
+  // We don't want recoverable errors, e.g., the agent responding with
+  // HTTP status code 503, to trigger a check failure.
+  //
+  // The future returned by this method represents the result of a
+  // check. It will be set to the exit status of the check command if it
+  // succeeded, to a `Failure` if there was a non-transient error, and
+  // discarded if there was a transient error.
+  auto promise = std::make_shared<Promise<int>>();
+
+  if (previousCheckContainerId.isSome()) {
+    agent::Call call;
+    call.set_type(agent::Call::REMOVE_NESTED_CONTAINER);
+
+    agent::Call::RemoveNestedContainer* removeContainer =
+      call.mutable_remove_nested_container();
+
+    removeContainer->mutable_container_id()->CopyFrom(
+        previousCheckContainerId.get());
+
+    process::http::Request request;
+    request.method = "POST";
+    request.url = agentURL.get();
+    request.body = serialize(ContentType::PROTOBUF, evolve(call));
+    request.headers = {{"Accept", stringify(ContentType::PROTOBUF)},
+                       {"Content-Type", stringify(ContentType::PROTOBUF)}};
+
+    process::http::request(request, false)
+      .onFailed(defer(self(),
+                      [this, promise](const string& failure) {
+        LOG(WARNING) << "Connection to remove the nested container '"
+                     << previousCheckContainerId.get()
+                     << "' used for the COMMAND check for task '"
+                     << taskId << "' failed: " << failure;
+
+        // Something went wrong while sending the request, we treat this
+        // as a transient failure and discard the promise.
+        promise->discard();
+      }))
+      .onReady(defer(self(), [this, promise](const Response& response) {
+        if (response.code != process::http::Status::OK) {
+          // The agent was unable to remove the check container, we
+          // treat this as a transient failure and discard the promise.
+          LOG(WARNING) << "Received '" << response.status << "' ("
+                       << response.body << ") while removing the nested"
+                       << " container '" << previousCheckContainerId.get()
+                       << "' used for the COMMAND check for task '"
+                       << taskId << "'";
+
+          promise->discard();
+        }
+
+        previousCheckContainerId = None();
+        _nestedCommandCheck(promise);
+      }));
+  } else {
+    _nestedCommandCheck(promise);
+  }
+
+  return promise->future();
+}
+
+
+void CheckerProcess::_nestedCommandCheck(
+    shared_ptr<process::Promise<int>> promise)
+{
+  // TODO(alexr): Use a lambda named capture for
+  // this cached value once it is available.
+  const TaskID _taskId = taskId;
+
+  process::http::connect(agentURL.get())
+    .onFailed(defer(self(), [_taskId, promise](const string& failure) {
+      LOG(WARNING) << "Unable to establish connection with the agent to launch"
+                   << " COMMAND check for task '" << _taskId << "'"
+                   << ": " << failure;
+
+      // We treat this as a transient failure.
+      promise->discard();
+    }))
+    .onReady(defer(self(), &Self::__nestedCommandCheck, promise, lambda::_1));
+}
+
+
+void CheckerProcess::__nestedCommandCheck(
+    shared_ptr<process::Promise<int>> promise,
+    Connection connection)
+{
+  ContainerID checkContainerId;
+  checkContainerId.set_value("check-" + UUID::random().toString());
+  checkContainerId.mutable_parent()->CopyFrom(taskContainerId.get());
+
+  previousCheckContainerId = checkContainerId;
+
+  CommandInfo command(check.command().command());
+
+  agent::Call call;
+  call.set_type(agent::Call::LAUNCH_NESTED_CONTAINER_SESSION);
+
+  agent::Call::LaunchNestedContainerSession* launch =
+    call.mutable_launch_nested_container_session();
+
+  launch->mutable_container_id()->CopyFrom(checkContainerId);
+  launch->mutable_command()->CopyFrom(command);
+
+  process::http::Request request;
+  request.method = "POST";
+  request.url = agentURL.get();
+  request.body = serialize(ContentType::PROTOBUF, evolve(call));
+  request.headers = {{"Accept", stringify(ContentType::RECORDIO)},
+                     {"Message-Accept", stringify(ContentType::PROTOBUF)},
+                     {"Content-Type", stringify(ContentType::PROTOBUF)}};
+
+  // TODO(alexr): Use a lambda named capture for
+  // this cached value once it is available.
+  const Duration timeout = checkTimeout;
+
+  auto checkTimedOut = std::make_shared<bool>(false);
+
+  // `LAUNCH_NESTED_CONTAINER_SESSION` returns a streamed response with
+  // the output of the container. The agent will close the stream once
+  // the container has exited, or kill the container if the client
+  // closes the connection.
+  //
+  // We're calling `Connection::send` with `streamed = false`, so that
+  // it returns an HTTP response of type 'BODY' once the entire response
+  // is received.
+  //
+  // This means that this future will not be completed until after the
+  // check command has finished or the connection has been closed.
+  connection.send(request, false)
+    .after(checkTimeout,
+           defer(self(), [timeout, checkTimedOut](Future<Response> future) {
+      future.discard();
+
+      *checkTimedOut = true;
+
+      return Failure("Command timed out after " + stringify(timeout));
+    }))
+    .onFailed(defer(self(),
+                    &Self::nestedCommandCheckFailure,
+                    promise,
+                    connection,
+                    checkContainerId,
+                    checkTimedOut,
+                    lambda::_1))
+    .onReady(defer(self(),
+                   &Self::___nestedCommandCheck,
+                   promise,
+                   checkContainerId,
+                   lambda::_1));
+}
+
+
+void CheckerProcess::___nestedCommandCheck(
+    shared_ptr<process::Promise<int>> promise,
+    const ContainerID& checkContainerId,
+    const Response& launchResponse)
+{
+  if (launchResponse.code != process::http::Status::OK) {
+    // The agent was unable to launch the check container,
+    // we treat this as a transient failure.
+    LOG(WARNING) << "Received '" << launchResponse.status << "' ("
+                 << launchResponse.body << ") while launching COMMAND check"
+                 << " for task '" << taskId << "'";
+
+    promise->discard();
+    return;
+  }
+
+  waitNestedContainer(checkContainerId)
+    .onFailed([promise](const string& failure) {
+      promise->fail(
+          "Unable to get the exit code: " + failure);
+    })
+    .onReady([promise](const Option<int>& status) -> void {
+      if (status.isNone()) {
+        promise->fail("Unable to get the exit code");
+      // TODO(gkleiman): Make sure that the following block works on Windows.
+      } else if (WIFSIGNALED(status.get()) &&
+                 WTERMSIG(status.get()) == SIGKILL) {
+        // The check container was signaled, probably because the task
+        // finished while the check was still in-flight, so we discard
+        // the result.
+        promise->discard();
+      } else {
+        promise->set(status.get());
+      }
+    });
+}
+
+
+void CheckerProcess::nestedCommandCheckFailure(
+    shared_ptr<Promise<int>> promise,
+    Connection connection,
+    ContainerID checkContainerId,
+    shared_ptr<bool> checkTimedOut,
+    const string& failure)
+{
+  if (*checkTimedOut) {
+    // The check timed out, closing the connection will make the agent
+    // kill the container.
+    connection.disconnect();
+
+    // If the check delay interval is zero, we'll try to perform another
+    // check right after we finish processing the current timeout.
+    //
+    // We'll try to remove the container created for the check at the
+    // beginning of the next check. In order to prevent a failure, the
+    // promise should only be completed once we're sure that the
+    // container has terminated.
+    waitNestedContainer(checkContainerId)
+      .onAny([failure, promise](const Future<Option<int>>&) {
+        // We assume that once `WaitNestedContainer` returns,
+        // irrespective of whether the response contains a failure, the
+        // container will be in a terminal state, and that it will be
+        // possible to remove it.
+        //
+        // This means that we don't need to retry the
+        // `WaitNestedContainer` call.
+        promise->fail(failure);
+      });
+  } else {
+    // The agent was not able to complete the request, discarding the
+    // promise signals the checker that it should retry the check.
+    //
+    // This will allow us to recover from a blip. The executor will
+    // pause the checker when it detects that the agent is not
+    // available.
+    LOG(WARNING) << "Connection to the agent to launch COMMAND check"
+                 << " for task '" << taskId << "' failed: " << failure;
+
+    promise->discard();
+  }
+}
+
+
+Future<Option<int>> CheckerProcess::waitNestedContainer(
+    const ContainerID& containerId)
+{
+  agent::Call call;
+  call.set_type(agent::Call::WAIT_NESTED_CONTAINER);
+
+  agent::Call::WaitNestedContainer* containerWait =
+    call.mutable_wait_nested_container();
+
+  containerWait->mutable_container_id()->CopyFrom(containerId);
+
+  process::http::Request request;
+  request.method = "POST";
+  request.url = agentURL.get();
+  request.body = serialize(ContentType::PROTOBUF, evolve(call));
+  request.headers = {{"Accept", stringify(ContentType::PROTOBUF)},
+                     {"Content-Type", stringify(ContentType::PROTOBUF)}};
+
+  return process::http::request(request, false)
+    .repair([containerId](const Future<Response>& future) {
+      return Failure(
+          "Connection to wait for check container '" +
+          stringify(containerId) + "' failed: " + future.failure());
+    })
+    .then(defer(self(),
+                &Self::_waitNestedContainer, containerId, lambda::_1));
+}
+
+
+Future<Option<int>> CheckerProcess::_waitNestedContainer(
+    const ContainerID& containerId,
+    const Response& httpResponse)
+{
+  if (httpResponse.code != process::http::Status::OK) {
+    return Failure(
+        "Received '" + httpResponse.status + "' (" + httpResponse.body +
+        ") while waiting on check container '" + stringify(containerId) + "'");
+  }
+
+  Try<agent::Response> response =
+    deserialize<agent::Response>(ContentType::PROTOBUF, httpResponse.body);
+  CHECK_SOME(response);
+
+  CHECK(response->has_wait_nested_container());
+
+  return (
+      response->wait_nested_container().has_exit_status()
+        ? Option<int>(response->wait_nested_container().exit_status())
+        : Option<int>::none());
+}
+
+
 void CheckerProcess::processCommandCheckResult(
     const Stopwatch& stopwatch,
-    const Future<int>& result)
+    const Future<int>& future)
 {
-  CheckStatusInfo checkStatusInfo;
-  checkStatusInfo.set_type(check.type());
+  Option<CheckStatusInfo> result;
 
-  // On Posix, `result` corresponds to termination information in the
+  // On Posix, `future` corresponds to termination information in the
   // `stat_loc` area. On Windows, `status` is obtained via calling the
   // `GetExitCodeProcess()` function.
   //
   // TODO(alexr): Ensure `WEXITSTATUS` family macros are no-op on Windows,
   // see MESOS-7242.
-  if (result.isReady() && WIFEXITED(result.get())) {
-    const int exitCode = WEXITSTATUS(result.get());
-    VLOG(1) << check.type() << " check for task '"
-            << taskId << "' returned: " << exitCode;
+  if (future.isReady() && WIFEXITED(future.get())) {
+    const int exitCode = WEXITSTATUS(future.get());
+    VLOG(1) << check.type() << " check for task '" << taskId << "'"
+            << " returned: " << exitCode;
 
+    CheckStatusInfo checkStatusInfo;
+    checkStatusInfo.set_type(check.type());
     checkStatusInfo.mutable_command()->set_exit_code(
         static_cast<int32_t>(exitCode));
+
+    result = checkStatusInfo;
+  } else if (future.isDiscarded()) {
+    // Check's status is currently not available due to a transient error,
+    // e.g., due to the agent failover, no `CheckStatusInfo` message should
+    // be sent to the callback.
+    LOG(INFO) << check.type() << " check for task '" << taskId << "' discarded";
+
+    result = None();
   } else {
     // Check's status is currently not available, which may indicate a change
     // that should be reported as an empty `CheckStatusInfo.Command` message.
-    LOG(WARNING) << check.type() << " check for task '" << taskId
-                 << "' failed: "
-                 << (result.isFailed() ? result.failure() : "discarded");
+    LOG(WARNING) << check.type() << " check for task '" << taskId << "'"
+                 << " failed: " << future.failure();
 
+    CheckStatusInfo checkStatusInfo;
+    checkStatusInfo.set_type(check.type());
     checkStatusInfo.mutable_command();
+
+    result = checkStatusInfo;
   }
 
-  processCheckResult(stopwatch, checkStatusInfo);
+  processCheckResult(stopwatch, result);
 }
 
 

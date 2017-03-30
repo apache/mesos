@@ -22,6 +22,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <process/http.hpp>
 #include <process/owned.hpp>
 
 #include <stout/error.hpp>
@@ -43,6 +44,9 @@ public:
    * Attempts to create a `Checker` object. In case of success, checking
    * starts immediately after initialization.
    *
+   * If the check is a COMMAND check, the checker will fork a process, enter
+   * the task's namespaces, and execute the commmand.
+   *
    * @param check The protobuf message definition of a check.
    * @param callback A callback `Checker` uses to send check status updates
    *     to its owner (usually an executor).
@@ -56,11 +60,37 @@ public:
    * `process::Stream<CheckStatusInfo>` rather than invoking a callback.
    */
   static Try<process::Owned<Checker>> create(
-      const CheckInfo& checkInfo,
+      const CheckInfo& check,
       const lambda::function<void(const CheckStatusInfo&)>& callback,
       const TaskID& taskId,
       const Option<pid_t>& taskPid,
       const std::vector<std::string>& namespaces);
+
+  /**
+   * Attempts to create a `Checker` object. In case of success, checking
+   * starts immediately after initialization.
+   *
+   * If the check is a COMMAND check, the checker will delegate the execution
+   * of the check to the Mesos agent via the `LaunchNestedContainerSession`
+   * API call.
+   *
+   * @param check The protobuf message definition of a check.
+   * @param callback A callback `Checker` uses to send check status updates
+   *     to its owner (usually an executor).
+   * @param taskId The TaskID of the target task.
+   * @param taskContainerId The ContainerID of the target task.
+   * @param agentURL The URL of the agent.
+   * @return A `Checker` object or an error if `create` fails.
+   *
+   * @todo A better approach would be to return a stream of updates, e.g.,
+   * `process::Stream<CheckStatusInfo>` rather than invoking a callback.
+   */
+  static Try<process::Owned<Checker>> create(
+      const CheckInfo& check,
+      const lambda::function<void(const CheckStatusInfo&)>& callback,
+      const TaskID& taskId,
+      const ContainerID& taskContainerId,
+      const process::http::URL& agentURL);
 
   ~Checker();
 
