@@ -83,7 +83,7 @@ receive a resource offer with 2048 MB of dynamically reserved disk.
           "name" : "disk",
           "type" : "SCALAR",
           "scalar" : { "value" : 2048 },
-          "role" : <framework_role>,
+          "role" : <offer's allocation role>,
           "reservation" : {
             "principal" : <framework_principal>
           }
@@ -115,7 +115,7 @@ volume information. We need to specify the following:
                 "name" : "disk",
                 "type" : "SCALAR",
                 "scalar" : { "value" : 2048 },
-                "role" : <framework_role>,
+                "role" : <offer's allocation role>,
                 "reservation" : {
                   "principal" : <framework_principal>
                 },
@@ -147,7 +147,7 @@ persistent volume:
           "name" : "disk",
           "type" : "SCALAR",
           "scalar" : { "value" : 2048 },
-          "role" : <framework_role>,
+          "role" : <offer's allocation role>,
           "reservation" : {
             "principal" : <framework_principal>
           },
@@ -182,7 +182,7 @@ created. First, we receive a resource offer (copy/pasted from above):
           "name" : "disk",
           "type" : "SCALAR",
           "scalar" : { "value" : 2048 },
-          "role" : <framework_role>,
+          "role" : <offer's allocation role>,
           "reservation" : {
             "principal" : <framework_principal>
           },
@@ -211,7 +211,7 @@ specifies the persistent volumes to be destroyed.
             "name" : "disk",
             "type" : "SCALAR",
             "scalar" : { "value" : 2048 },
-            "role" : <framework_role>,
+            "role" : <offer's allocation role>,
             "reservation" : {
               "principal" : <framework_principal>
             },
@@ -244,7 +244,7 @@ contain the following reserved disk resources:
           "name" : "disk",
           "type" : "SCALAR",
           "scalar" : { "value" : 2048 },
-          "role" : <framework_role>,
+          "role" : <offer's allocation role>,
           "reservation" : {
             "principal" : <framework_principal>
           }
@@ -468,21 +468,22 @@ volumes:
   next.
 
 * Because persistent volumes are associated with roles, a volume might be
-  offered to _any_ of the frameworks that are registered in that role. For
+  offered to _any_ of the frameworks that are subscribed to that role. For
   example, a persistent volume might be created by one framework and then
-  offered to a different framework in the same role. This can be used to pass
-  large volumes of data between frameworks in a convenient way. However, this
-  behavior might also allow sensitive data created by one framework to be read
-  or modified by another framework in the same role. It can also make it more
-  difficult for frameworks to determine whether a dynamic reservation has
-  succeeded: as discussed above, frameworks need to wait for an offer that
-  contains the "expected" reserved resources to determine when a reservation
-  request has succeeded. Determining what a framework should "expect" to find in
-  an offer is more difficult when multiple frameworks can make reservations
-  for the same role concurrently. In general, whenever multiple frameworks are
-  allowed to register in the same role, the operator should ensure that those
-  frameworks are configured to collaborate with one another when using
-  role-specific resources. For more information, see the discussion of
+  offered to a different framework subscribed to the same role. This can be
+  used to pass large volumes of data between frameworks in a convenient way.
+  However, this behavior might also allow sensitive data created by one
+  framework to be read or modified by another framework subscribed to the
+  same role. It can also make it more difficult for frameworks to determine
+  whether a dynamic reservation has succeeded: as discussed above, frameworks
+  need to wait for an offer that contains the "expected" reserved resources
+  to determine when a reservation request has succeeded. Determining what a
+  framework should "expect" to find in an offer is more difficult when
+  multiple frameworks can make reservations for the same role concurrently.
+  In general, whenever multiple frameworks are allowed to subscribe to the
+  same role, the operator should ensure that those frameworks are configured
+  to collaborate with one another when using role-specific resources. For
+  more information, see the discussion of
   [multiple frameworks in the same role](roles.md#roles-multiple-frameworks).
 
 ## Version History

@@ -47,13 +47,14 @@ That is, statically reserved resources cannot be reserved for another role nor
 be unreserved. Dynamic reservation enables operators and authorized frameworks
 to reserve and unreserve resources after slave-startup.
 
-By default, frameworks and operators can reserve resources for any role, and can
-unreserve any dynamically reserved resources. [Authorization](authorization.md)
-allows this behavior to be limited so that only particular roles can be reserved
-for, and only particular resources can be unreserved. For these operations to be
-authorized, the framework or operator should provide a `principal` to identify
-itself. To use authorization with reserve/unreserve operations, the Mesos master
-must be configured with the appropriate ACLs. For more information, see the
+By default, frameworks and operators are authorized to reserve resources for
+any role and to unreserve dynamically reserved resources.
+[Authorization](authorization.md) allows this behavior to be limited so that
+only particular roles can be reserved for, and only particular resources can
+be unreserved. For these operations to be authorized, the framework or operator
+should provide a `principal` to identify itself. To use authorization with
+reserve/unreserve operations, the Mesos master must be configured with the
+appropriate ACLs. For more information, see the
 [authorization documentation](authorization.md).
 
 * `Offer::Operation::Reserve` and `Offer::Operation::Unreserve` messages are
@@ -95,22 +96,27 @@ same slave and use the same role.
 <a name="offer-operation-reserve"></a>
 #### `Offer::Operation::Reserve`
 
-A framework can reserve resources through the resource offer cycle.  Suppose we
-receive a resource offer with 12 CPUs and 6144 MB of RAM unreserved.
+A framework can reserve resources through the resource offer cycle. The
+reservation role must match the offer's allocation role. Suppose we
+receive a resource offer with 12 CPUs and 6144 MB of RAM unreserved, allocated
+to role `"engineering"`.
 
         {
+          "allocation_info": { "role": "engineering" },
           "id": <offer_id>,
           "framework_id": <framework_id>,
           "slave_id": <slave_id>,
           "hostname": <hostname>,
           "resources": [
             {
+              "allocation_info": { "role": "engineering" },
               "name": "cpus",
               "type": "SCALAR",
               "scalar": { "value": 12 },
               "role": "*",
             },
             {
+              "allocation_info": { "role": "engineering" },
               "name": "mem",
               "type": "SCALAR",
               "scalar": { "value": 6144 },
@@ -122,33 +128,36 @@ receive a resource offer with 12 CPUs and 6144 MB of RAM unreserved.
 We can reserve 8 CPUs and 4096 MB of RAM by sending the following
 `Offer::Operation` message. `Offer::Operation::Reserve` has a `resources` field
 which we specify with the resources to be reserved. We must explicitly set the
-resources' `role` field with the framework's role. The required value of the
-`principal` field depends on whether or not the framework provided a principal
-when it registered with the master. If a principal was provided, then the
-resources' `principal` field must be equal to the framework's principal. If no
-principal was provided during registration, then the resources' `principal`
-field can take any value, or can be left unset. Note that the `principal` field
-determines the "reserver principal" when [authorization](authorization.md) is
-enabled, even if authentication is disabled.
+resources' `role` field to the offer's allocation role. The required value of
+the `principal` field depends on whether or not the framework provided a
+principal when it registered with the master. If a principal was provided, then
+the resources' `principal` field must be equal to the framework's principal.
+If no principal was provided during registration, then the resources'
+`principal` field can take any value, or can be left unset. Note that the
+`principal` field determines the "reserver principal" when
+[authorization](authorization.md) is enabled, even if authentication is
+disabled.
 
         {
           "type": Offer::Operation::RESERVE,
           "reserve": {
             "resources": [
               {
+                "allocation_info": { "role": "engineering" },
                 "name": "cpus",
                 "type": "SCALAR",
                 "scalar": { "value": 8 },
-                "role": <framework_role>,
+                "role": "engineering",
                 "reservation": {
                   "principal": <framework_principal>
                 }
               },
               {
+                "allocation_info": { "role": "engineering" },
                 "name": "mem",
                 "type": "SCALAR",
                 "scalar": { "value": 4096 },
-                "role": <framework_role>,
+                "role": "engineering",
                 "reservation": {
                   "principal": <framework_principal>
                 }
@@ -161,25 +170,28 @@ If the reservation is successful, a subsequent resource offer will contain the
 following reserved resources:
 
         {
+          "allocation_info": { "role": "engineering" },
           "id": <offer_id>,
           "framework_id": <framework_id>,
           "slave_id": <slave_id>,
           "hostname": <hostname>,
           "resources": [
             {
+              "allocation_info": { "role": "engineering" },
               "name": "cpus",
               "type": "SCALAR",
               "scalar": { "value": 8 },
-              "role": <framework_role>,
+              "role": "engineering",
               "reservation": {
                 "principal": <framework_principal>
               }
             },
             {
+              "allocation_info": { "role": "engineering" },
               "name": "mem",
               "type": "SCALAR",
               "scalar": { "value": 4096 },
-              "role": <framework_role>,
+              "role": "engineering",
               "reservation": {
                 "principal": <framework_principal>
               }
@@ -192,31 +204,34 @@ following reserved resources:
 
 A framework can unreserve resources through the resource offer cycle.
 In [Offer::Operation::Reserve](#offer-operation-reserve), we reserved 8 CPUs
-and 4096 MB of RAM on a particular slave for our `role`. The master will
-continue to only offer these resources to our `role`. Suppose we would like to
-unreserve these resources. First, we receive a resource offer (copy/pasted
-from above):
+and 4096 MB of RAM on a particular slave for one of our subscribed roles
+(e.g. `"engineering"`). The master will continue to only offer these reserved
+resources to the reservation's `role`. Suppose we would like to unreserve
+these resources. First, we receive a resource offer (copy/pasted from above):
 
         {
+          "allocation_info": { "role": "engineering" },
           "id": <offer_id>,
           "framework_id": <framework_id>,
           "slave_id": <slave_id>,
           "hostname": <hostname>,
           "resources": [
             {
+              "allocation_info": { "role": "engineering" },
               "name": "cpus",
               "type": "SCALAR",
               "scalar": { "value": 8 },
-              "role": <framework_role>,
+              "role": "engineering",
               "reservation": {
                 "principal": <framework_principal>
               }
             },
             {
+              "allocation_info": { "role": "engineering" },
               "name": "mem",
               "type": "SCALAR",
               "scalar": { "value": 4096 },
-              "role": <framework_role>,
+              "role": "engineering",
               "reservation": {
                 "principal": <framework_principal>
               }
@@ -233,19 +248,21 @@ which we can use to specify the resources to be unreserved.
           "unreserve": {
             "resources": [
               {
+                "allocation_info": { "role": "engineering" },
                 "name": "cpus",
                 "type": "SCALAR",
                 "scalar": { "value": 8 },
-                "role": <framework_role>,
+                "role": "engineering",
                 "reservation": {
                   "principal": <framework_principal>
                 }
               },
               {
+                "allocation_info": { "role": "engineering" },
                 "name": "mem",
                 "type": "SCALAR",
                 "scalar": { "value": 4096 },
-                "role": <framework_role>,
+                "role": "engineering",
                 "reservation": {
                   "principal": <framework_principal>
                 }

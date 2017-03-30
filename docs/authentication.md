@@ -33,8 +33,8 @@ passwords.
 Principals are used primarily for authentication and
 [authorization](authorization.md); note that a principal is different from a
 framework's *user*, which is the operating system account used by the agent to
-run executors, and a framework's *[role](roles.md)*, which is used to determine
-which resources a framework can use.
+run executors, and the framework's *[roles](roles.md)*, which are used to
+determine which resources a framework can use.
 
 ## Configuration
 

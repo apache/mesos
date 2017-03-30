@@ -8,8 +8,8 @@ layout: documentation
 In Mesos, the authorization subsystem allows the operator to configure the
 actions that certain principals are allowed to perform. For example, the
 operator can use authorization to ensure that principal `foo` can only register
-frameworks in role `bar`, and no other principals can register frameworks in
-any role.
+frameworks subscribed to role `bar`, and no other principals can register
+frameworks subscribed to any roles.
 
 A reference implementation _local authorizer_ provides basic security for most
 use cases. This authorizer is configured using Access Control Lists (ACLs).
@@ -50,19 +50,19 @@ launches a Mesos framework and then attempts to destroy a persistent volume:
   be `payroll-framework`; this principal represents the trusted identity of the
   framework.
 * The framework now sends a registration message to the master. This message
-  includes a `FrameworkInfo` object containing a `principal` and a `role`; in
-  this case, it will use the role `accounting`. The principal in this message
-  must be `payroll-framework`, to match the one used by the framework for
-  authentication.
+  includes a `FrameworkInfo` object containing a `principal` and `roles`; in
+  this case, it will use a single role named `accounting`. The principal in
+  this message must be `payroll-framework`, to match the one used by the
+  framework for authentication.
 * The master consults the local authorizer, which in turn looks through its ACLs
   to see if it has a `RegisterFramework` ACL which authorizes the principal
   `payroll-framework` to register with the `accounting` role. It does find such
-  an ACL, the framework registers successfully. Now that the framework belongs
-  to the `accounting` role, any [weights](roles.md),
+  an ACL, the framework registers successfully. Now that the framework is
+  subscribed to the `accounting` role, any [weights](weights.md),
   [reservations](reservation.md), [persistent volumes](persistent-volume.md),
   or [quota](quota.md) associated with the accounting department's role will
-  apply. This allows operators to control the resource consumption of this
-  department.
+  apply when allocating resources to this role within the framework. This
+  allows operators to control the resource consumption of this department.
 * Suppose the framework has created a persistent volume on an agent which it
   now wishes to destroy. The framework sends an `ACCEPT` call containing an
   offer operation which will `DESTROY` the persistent volume.
@@ -269,9 +269,9 @@ The `get_endpoints` action covers:
 ### Examples
 
 Consider for example the following ACL: Only principal `foo` can register
-frameworks within the `analytics` role. All principals can register to any
-other role (including the principal `foo` since permissive is the default
-behavior).
+frameworks subscribed to the `analytics` role. All principals can register
+frameworks subscribing to any other roles (including the principal `foo`
+since permissive is the default behavior).
 
 ```json
 {
@@ -296,9 +296,9 @@ behavior).
 }
 ```
 
-Principal `foo` can register frameworks with the `analytics` and `ads` roles
-and no other role. Any other principal (or framework without a principal) can
-register frameworks with any role.
+Principal `foo` can register frameworks subscribed to the `analytics` and
+`ads` roles and no other role. Any other principal (or framework without
+a principal) can register frameworks subscribed to any roles.
 
 ```json
 {
@@ -323,9 +323,9 @@ register frameworks with any role.
 }
 ```
 
-Only principal `foo` and no one else can register frameworks with the
+Only principal `foo` and no one else can register frameworks subscribed to the
 `analytics` role. Any other principal (or framework without a principal) can
-register frameworks with any other role.
+register frameworks subscribed to any other roles.
 
 ```json
 {
@@ -350,8 +350,9 @@ register frameworks with any other role.
 }
 ```
 
-Principal `foo` can register frameworks with the `analytics` role and no other
-role. No other principal can register frameworks with any role, including `*`.
+Principal `foo` can register frameworks subscribed to the `analytics` role
+and no other roles. No other principal can register frameworks subscribed to
+any roles, including `*`.
 
 ```json
 {

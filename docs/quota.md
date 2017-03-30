@@ -60,21 +60,21 @@ use-cases are supported by quota, and which are not.
 
 ### Scenario 1: Greedy Framework
 
-There are two frameworks in a cluster, each running in a separate role with
-equal weights: framework fA in role rA and framework fB in role rB. There is a
-single resource available in the cluster: 100 CPUs. fA consumes 10 CPUs and is
-idle (declines resource offers), while fB is greedy and accepts all offers it gets,
-hogging the remaining 90 CPUs. Without quota, though fA's fair share is 50 CPUs
-it will not be able to make use of additional the 40 CPUs until some of fB's
-tasks terminate.
+There are two frameworks in a cluster, each are subscribed to their own distinct
+role, and both roles have equal weights: framework fA subscribed to role rA and
+framework fB subscribed to role rB. There is a single resource available in the
+cluster: 100 CPUs. fA consumes 10 CPUs and is idle (declines resource offers),
+while fB is greedy and accepts all offers it gets, hogging the remaining 90
+CPUs. Without quota, though fA's fair share is 50 CPUs it will not be able to
+make use of additional the 40 CPUs until some of fB's tasks terminate.
 
 
 ### Scenario 2: Resources for a new Framework
 
-A greedy framework fB in role rB is currently the only framework in the cluster
-and it uses all available resources---100 CPUs. If a new framework fA in role rA
-joins the cluster, it will not receive its fair share of the cluster resources
-(50 CPUs) until some of fB's tasks terminate.
+A greedy framework fB subscribed to role rB is currently the only framework in
+the cluster and it uses all available resources---100 CPUs. If a new framework
+fA subscribed to role rA joins the cluster, it will not receive its fair share
+of the cluster resources (50 CPUs) until some of fB's tasks terminate.
 
 To deal with Scenario 2, quota by itself is not a sufficient solution as it
 would be set after fB has started using all resources. Instead Scenario 2
@@ -300,17 +300,17 @@ outstanding offers with the following rules:
   agent are rescinded. This is done in order to make the potential offer bigger,
   which increases the chances that a quota'ed framework will be able to use the
   offer.
-* Rescind offers from at least as many agents as there are frameworks in the
-  role for which quota is being set. This enables (but does not guarantee, due
-  to fair sharing) each framework in the role to receive an offer.
+* Rescind offers from at least as many agents as there are frameworks subscribed
+  to the role for which quota is being set. This enables (but does not guarantee,
+  due to fair sharing) each framework subscribed to the role to receive an offer.
 
 
 <a name="allocatorEnforcement"></a>
 ## Enforcement by wDRF Allocator
 
 The wDRF allocator first allocates (or lays away if offers are declined)
-resources to framework in roles with quota set. Once all quotas are
-satisfied, it proceeds with the standard wDRF for all frameworks.
+resources to roles with quota set. Once all quotas are satisfied, it proceeds
+with the standard wDRF for all remaining roles.
 
 **NOTE:** A quota'ed role may not be allocated any unreserved non-revocable
 resources beyond its quota guarantee. If frameworks in the quota'ed role have
@@ -319,12 +319,12 @@ the role is satisfied. In this case setting quota to any value that is less than
 the role's fair share may reduce the amount of resources offered to this role.
 
 **NOTE:** Currently quota guarantee also serves as quota limit, i.e. once quota
-for the role is satisfied, frameworks in this role will not be offered any
-resources except those reserved for the role. This behavior aims to mitigate the
-absence of quota limit and will be changed in future releases.
+for the role is satisfied, no further resources will be offered to the role
+except those reserved for the role. This behavior aims to mitigate the absence
+of quota limit and will be changed in future releases.
 
-If there are multiple frameworks in a role with quota set, the standard wDRF
-algorithm determines framework priority inside this role.
+If there are multiple frameworks subscribed to a role with quota set, the
+standard wDRF algorithm determines offer precedence amongst these frameworks.
 
 The default wDRF allocator considers only non-revocable resources as applicable
 towards quota.

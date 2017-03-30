@@ -25,21 +25,23 @@ either via the framework scheduler API or the
 [/create-volumes](endpoints/master/create-volumes.md) HTTP endpoint. To
 create a shared volume, set the `shared` field during volume creation.
 
-For example, suppose a framework receives a resource offer containing
-2048MB of dynamically reserved disk:
+For example, suppose a framework subscribed to the `"engineering"` role
+receives a resource offer containing 2048MB of dynamically reserved disk:
 
 ```
 {
+  "allocation_info": { "role": "engineering" },
   "id" : <offer_id>,
   "framework_id" : <framework_id>,
   "slave_id" : <slave_id>,
   "hostname" : <hostname>,
   "resources" : [
     {
+      "allocation_info": { "role": "engineering" },
       "name" : "disk",
       "type" : "SCALAR",
       "scalar" : { "value" : 2048 },
-      "role" : <framework_role>,
+      "role" : "engineering",
       "reservation" : {
         "principal" : <framework_principal>
       }
@@ -57,10 +59,11 @@ resource via the following offer operation:
   "create": {
     "volumes" : [
       {
+        "allocation_info": { "role": "engineering" },
         "name" : "disk",
         "type" : "SCALAR",
         "scalar" : { "value" : 2048 },
-        "role" : <framework_role>,
+        "role" : "engineering",
         "reservation" : {
           "principal" : <framework_principal>
         },
@@ -95,10 +98,10 @@ shared resources.
 When a framework receives a resource offer, it can determine whether a
 volume is shared by checking if the `shared` field has been set. Unlike
 normal persistent volumes, a shared volume that is in use by a task will
-continue to be offered to the frameworks in the volume's role; this
-gives those frameworks the opportunity to launch additional tasks that
-can access the volume. A framework can also launch multiple tasks that
-access the volume using a single `ACCEPT` call.
+continue to be offered to the frameworks subscribed to the volume's role;
+this gives those frameworks the opportunity to launch additional tasks
+that can access the volume. A framework can also launch multiple tasks
+that access the volume using a single `ACCEPT` call.
 
 Note that Mesos does not provide any isolation or concurrency control
 between the tasks that are sharing a volume. Framework developers should

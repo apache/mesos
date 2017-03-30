@@ -109,6 +109,8 @@ Connection: close
       "framework_info"	: {
         "user" :  "foo",
         "name" :  "Example HTTP Framework"
+        "roles": ["test"],
+        "capabilities" : [{"type": "MULTI_ROLE"}]
       }
   }
 }
@@ -163,7 +165,7 @@ HTTP/1.1 202 Accepted
 ```
 
 ### ACCEPT
-Sent by the scheduler when it accepts offer(s) sent by the master. The `ACCEPT` request includes the type of operations (e.g., launch task, launch task group, reserve resources, create volumes) that the scheduler wants to perform on the offers. Note that until the scheduler replies (accepts or declines) to an offer, the offer's resources are considered allocated to the framework. Also, any of the offer's resources not used in the `ACCEPT` call (e.g., to launch a task or task group) are considered declined and might be reoffered to other frameworks. In other words, the same `OfferID` cannot be used in more than one `ACCEPT` call. These semantics might change when we add new features to Mesos (e.g., persistence, reservations, optimistic offers, resizeTask, etc.).
+Sent by the scheduler when it accepts offer(s) sent by the master. The `ACCEPT` request includes the type of operations (e.g., launch task, launch task group, reserve resources, create volumes) that the scheduler wants to perform on the offers. Note that until the scheduler replies (accepts or declines) to an offer, the offer's resources are considered allocated to the offer's role and to the framework. Also, any of the offer's resources not used in the `ACCEPT` call (e.g., to launch a task or task group) are considered declined and might be reoffered to other frameworks. In other words, the same `OfferID` cannot be used in more than one `ACCEPT` call. These semantics might change when we add new features to Mesos (e.g., persistence, reservations, optimistic offers, resizeTask, etc.).
 
 ```
 ACCEPT Request (JSON):
@@ -198,12 +200,14 @@ Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
                                           },
                                           "resources"   : [
                                                            {
-                                    "name"  : "cpus",
+                                "allocation_info": {"role": "engineering"},
+                                "name"  : "cpus",
 						            "role"  : "*",
 						            "type"  : "SCALAR",
 						            "scalar": {"value": 1.0}
 					                   },
                                                            {
+						            "allocation_info": {"role": "engineering"},
 						            "name"  : "mem",
 						            "role"  : "*",
 						            "type"  : "SCALAR",
@@ -264,8 +268,9 @@ Content-Type: application/json
 Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 {
-  "framework_id"	: {"value" : "12220-3440-12532-2345"},
-  "type"			: "REVIVE"
+  "framework_id" : {"value" : "12220-3440-12532-2345"},
+  "type"         : "REVIVE",
+  "revive"       : {"role": <one-of-the-subscribed-roles>}
 }
 
 REVIVE Response:
@@ -441,7 +446,7 @@ The first event sent by the master when the scheduler sends a `SUBSCRIBE` reques
 
 
 ### OFFERS
-Sent by the master whenever there are new resources that can be offered to the framework. Each offer corresponds to a set of resources on an agent. Until the scheduler 'Accept's or 'Decline's an offer the resources are considered allocated to the scheduler, unless the offer is otherwise rescinded, e.g., due to a lost agent or `--offer_timeout`.
+Sent by the master whenever there are new resources that can be offered to the framework. Each offer corresponds to a set of resources on an agent and is allocated to one of roles the framework is subscribed to. Until the scheduler 'Accept's or 'Decline's an offer the resources are considered allocated to the scheduler, unless the offer is otherwise rescinded, e.g., due to a lost agent or `--offer_timeout`.
 
 ```
 OFFERS Event (JSON)
@@ -451,28 +456,30 @@ OFFERS Event (JSON)
   "type"	: "OFFERS",
   "offers"	: [
     {
-      "offer_id"     : {"value": "12214-23523-O235235"},
-      "framework_id" : {"value": "12124-235325-32425"},
-      "agent_id"     : {"value": "12325-23523-S23523"},
-      "hostname"     : "agent.host",
-      "resources"    : [
-                        {
-                         "name"   : "cpus",
-                         "type"   : "SCALAR",
-                         "scalar" : {"value" : 2},
-                         "role"   : "*"
-                        }
-                       ],
-      "attributes"   : [
-                        {
-                         "name"   : "os",
-                         "type"   : "TEXT",
-                         "text"   : {"value" : "ubuntu16.04"}
-                        }
-                       ],
-      "executor_ids" : [
-                        {"value" : "12214-23523-my-executor"}
-                       ]
+      "allocation_info": { "role": "engineering" },
+      "id"             : {"value": "12214-23523-O235235"},
+      "framework_id"   : {"value": "12124-235325-32425"},
+      "agent_id"       : {"value": "12325-23523-S23523"},
+      "hostname"       : "agent.host",
+      "resources"      : [
+                          {
+                           "allocation_info": { "role": "engineering" },
+                           "name"   : "cpus",
+                           "type"   : "SCALAR",
+                           "scalar" : {"value" : 2},
+                           "role"   : "*"
+                          }
+                         ],
+      "attributes"     : [
+                          {
+                           "name"   : "os",
+                           "type"   : "TEXT",
+                           "text"   : {"value" : "ubuntu16.04"}
+                          }
+                         ],
+      "executor_ids"   : [
+                          {"value" : "12214-23523-my-executor"}
+                         ]
     }
   ]
 }
@@ -551,7 +558,7 @@ FAILURE Event (JSON)
 ```
 
 ### ERROR
-Sent by the master when an asynchronous error event is generated (e.g., a framework is not authorized to subscribe with the given role). It is recommended that the framework abort when it receives an error and retry subscription as necessary.
+Sent by the master when an asynchronous error event is generated (e.g., a framework is not authorized to subscribe with one of the given roles). It is recommended that the framework abort when it receives an error and retry subscription as necessary.
 
 ```
 ERROR Event (JSON)
