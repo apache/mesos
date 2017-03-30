@@ -24,7 +24,7 @@ MESOS_DIR=$(git rev-parse --show-toplevel)
 # Configure how checks are run. These variables can be overridden by setting the
 # respective environment variables before invoking this script.
 # TODO(bbannier): Enable more upstream checks by default, e.g., from the Google set.
-CHECKS=${CHECKS:-'-*,mesos-*'}
+CHECKS=${CHECKS:-'-*,mesos-*,readability-redundant-string-cstr'}
 
 # Check for unstaged or uncommitted changes.
 if ! $(git diff-index --quiet HEAD --); then
