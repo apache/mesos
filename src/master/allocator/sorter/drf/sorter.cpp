@@ -45,10 +45,10 @@ namespace allocator {
 bool DRFComparator::operator()(const Client& client1, const Client& client2)
 {
   if (client1.share == client2.share) {
-    if (client1.allocations == client2.allocations) {
+    if (client1.allocation.count == client2.allocation.count) {
       return client1.name < client2.name;
     }
-    return client1.allocations < client2.allocations;
+    return client1.allocation.count < client2.allocation.count;
   }
   return client1.share < client2.share;
 }
@@ -71,10 +71,8 @@ void DRFSorter::add(const string& name)
 {
   CHECK(!contains(name));
 
-  Client client(name, 0, 0);
+  Client client(name);
   clients.insert(client);
-
-  allocations[name] = Allocation();
 
   if (metrics.isSome()) {
     metrics->add(name);
@@ -84,13 +82,10 @@ void DRFSorter::add(const string& name)
 
 void DRFSorter::remove(const string& name)
 {
-  CHECK(contains(name));
-
   set<Client, DRFComparator>::iterator it = find(name);
   CHECK(it != clients.end());
-  clients.erase(it);
 
-  allocations.erase(name);
+  clients.erase(it);
 
   if (metrics.isSome()) {
     metrics->remove(name);
@@ -100,8 +95,6 @@ void DRFSorter::remove(const string& name)
 
 void DRFSorter::activate(const string& name)
 {
-  CHECK(contains(name));
-
   set<Client, DRFComparator>::iterator it = find(name);
   CHECK(it != clients.end());
 
@@ -117,8 +110,6 @@ void DRFSorter::activate(const string& name)
 
 void DRFSorter::deactivate(const string& name)
 {
-  CHECK(contains(name));
-
   set<Client, DRFComparator>::iterator it = find(name);
   CHECK(it != clients.end());
 
@@ -147,47 +138,19 @@ void DRFSorter::allocated(
     const SlaveID& slaveId,
     const Resources& resources)
 {
-  CHECK(contains(name));
+  set<Client, DRFComparator>::iterator it = find(name);
+  CHECK(it != clients.end());
 
-  // Update the number of allocations that have been made to this
-  // client. Note that the client might currently be inactive.
-  //
-  // TODO(benh): Refactor 'updateShare' to be able to reuse it here.
-  {
-    set<Client, DRFComparator>::iterator it = find(name);
-    CHECK(it != clients.end());
+  Client client(*it);
+  client.allocation.add(slaveId, resources);
 
-    Client client(*it);
-
-    // Update the 'allocations' to reflect the allocator decision.
-    client.allocations++;
-
-    // Remove and reinsert it to update the ordering appropriately.
-    clients.erase(it);
-    clients.insert(client);
-  }
-
-  // Add shared resources to the allocated quantities when the same
-  // resources don't already exist in the allocation.
-  const Resources newShared = resources.shared()
-    .filter([this, name, slaveId](const Resource& resource) {
-      return !allocations[name].resources[slaveId].contains(resource);
-    });
-
-  const Resources scalarQuantities =
-    (resources.nonShared() + newShared).createStrippedScalarQuantity();
-
-  allocations[name].resources[slaveId] += resources;
-  allocations[name].scalarQuantities += scalarQuantities;
-
-  foreach (const Resource& resource, scalarQuantities) {
-    allocations[name].totals[resource.name()] += resource.scalar();
-  }
+  clients.erase(it);
+  clients.insert(client);
 
   // If the total resources have changed, we're going to recalculate
   // all the shares, so don't bother just updating this client.
   if (!dirty) {
-    updateShare(name);
+    updateShare(client.name);
   }
 }
 
@@ -198,34 +161,19 @@ void DRFSorter::update(
     const Resources& oldAllocation,
     const Resources& newAllocation)
 {
-  CHECK(contains(name));
-
   // TODO(bmahler): Check invariants between old and new allocations.
   // Namely, the roles and quantities of resources should be the same!
   // Otherwise, we need to ensure we re-calculate the shares, as
   // is being currently done, for safety.
 
-  const Resources oldAllocationQuantity =
-    oldAllocation.createStrippedScalarQuantity();
-  const Resources newAllocationQuantity =
-    newAllocation.createStrippedScalarQuantity();
+  set<Client, DRFComparator>::iterator it = find(name);
+  CHECK(it != clients.end());
 
-  CHECK(allocations[name].resources[slaveId].contains(oldAllocation));
-  CHECK(allocations[name].scalarQuantities.contains(oldAllocationQuantity));
+  Client client(*it);
+  client.allocation.update(slaveId, oldAllocation, newAllocation);
 
-  allocations[name].resources[slaveId] -= oldAllocation;
-  allocations[name].resources[slaveId] += newAllocation;
-
-  allocations[name].scalarQuantities -= oldAllocationQuantity;
-  allocations[name].scalarQuantities += newAllocationQuantity;
-
-  foreach (const Resource& resource, oldAllocationQuantity) {
-    allocations[name].totals[resource.name()] -= resource.scalar();
-  }
-
-  foreach (const Resource& resource, newAllocationQuantity) {
-    allocations[name].totals[resource.name()] += resource.scalar();
-  }
+  clients.erase(it);
+  clients.insert(client);
 
   // Just assume the total has changed, per the TODO above.
   dirty = true;
@@ -237,35 +185,19 @@ void DRFSorter::unallocated(
     const SlaveID& slaveId,
     const Resources& resources)
 {
-  CHECK(contains(name));
-  CHECK(allocations.at(name).resources.contains(slaveId));
-  CHECK(allocations.at(name).resources.at(slaveId).contains(resources));
+  set<Client, DRFComparator>::iterator it = find(name);
+  CHECK(it != clients.end());
 
-  allocations[name].resources[slaveId] -= resources;
+  Client client(*it);
+  client.allocation.subtract(slaveId, resources);
 
-  // Remove shared resources from the allocated quantities when there
-  // are no instances of same resources left in the allocation.
-  const Resources absentShared = resources.shared()
-    .filter([this, name, slaveId](const Resource& resource) {
-      return !allocations[name].resources[slaveId].contains(resource);
-    });
+  clients.erase(it);
+  clients.insert(client);
 
-  const Resources scalarQuantities =
-    (resources.nonShared() + absentShared).createStrippedScalarQuantity();
-
-  foreach (const Resource& resource, scalarQuantities) {
-    allocations[name].totals[resource.name()] -= resource.scalar();
-  }
-
-  CHECK(allocations[name].scalarQuantities.contains(scalarQuantities));
-  allocations[name].scalarQuantities -= scalarQuantities;
-
-  if (allocations[name].resources[slaveId].empty()) {
-    allocations[name].resources.erase(slaveId);
-  }
-
+  // If the total resources have changed, we're going to recalculate
+  // all the shares, so don't bother just updating this client.
   if (!dirty) {
-    updateShare(name);
+    updateShare(client.name);
   }
 }
 
@@ -273,18 +205,20 @@ void DRFSorter::unallocated(
 const hashmap<SlaveID, Resources>& DRFSorter::allocation(
     const string& name) const
 {
-  CHECK(contains(name));
+  set<Client, DRFComparator>::iterator it = find(name);
+  CHECK(it != clients.end());
 
-  return allocations.at(name).resources;
+  return it->allocation.resources;
 }
 
 
 const Resources& DRFSorter::allocationScalarQuantities(
     const string& name) const
 {
-  CHECK(contains(name));
+  set<Client, DRFComparator>::iterator it = find(name);
+  CHECK(it != clients.end());
 
-  return allocations.at(name).scalarQuantities;
+  return it->allocation.scalarQuantities;
 }
 
 
@@ -296,11 +230,11 @@ hashmap<string, Resources> DRFSorter::allocation(const SlaveID& slaveId) const
 
   hashmap<string, Resources> result;
 
-  foreachpair (const string& name, const Allocation& allocation, allocations) {
-    if (allocation.resources.contains(slaveId)) {
-      // It is safe to use `at()` here because we've just checked the existence
-      // of the key. This avoid un-necessary copies.
-      result.emplace(name, allocation.resources.at(slaveId));
+  foreach (const Client& client, clients) {
+    if (client.allocation.resources.contains(slaveId)) {
+      // It is safe to use `at()` here because we've just checked the
+      // existence of the key. This avoid un-necessary copies.
+      result.emplace(client.name, client.allocation.resources.at(slaveId));
     }
   }
 
@@ -312,10 +246,11 @@ Resources DRFSorter::allocation(
     const string& name,
     const SlaveID& slaveId) const
 {
-  CHECK(contains(name));
+  set<Client, DRFComparator>::iterator it = find(name);
+  CHECK(it != clients.end());
 
-  if (allocations.at(name).resources.contains(slaveId)) {
-    return allocations.at(name).resources.at(slaveId);
+  if (it->allocation.resources.contains(slaveId)) {
+    return it->allocation.resources.at(slaveId);
   }
 
   return Resources();
@@ -400,7 +335,7 @@ vector<string> DRFSorter::sort()
 
     foreach (Client client, clients) {
       // Update the 'share' to get proper sorting.
-      client.share = calculateShare(client.name);
+      client.share = calculateShare(client);
 
       temp.insert(client);
     }
@@ -426,13 +361,14 @@ vector<string> DRFSorter::sort()
 
 bool DRFSorter::contains(const string& name) const
 {
-  return allocations.contains(name);
+  set<Client, DRFComparator>::iterator it = find(name);
+  return it != clients.end();
 }
 
 
 int DRFSorter::count() const
 {
-  return allocations.size();
+  return clients.size();
 }
 
 
@@ -444,7 +380,7 @@ void DRFSorter::updateShare(const string& name)
   Client client(*it);
 
   // Update the 'share' to get proper sorting.
-  client.share = calculateShare(client.name);
+  client.share = calculateShare(client);
 
   // Remove and reinsert it to update the ordering appropriately.
   clients.erase(it);
@@ -452,10 +388,8 @@ void DRFSorter::updateShare(const string& name)
 }
 
 
-double DRFSorter::calculateShare(const string& name) const
+double DRFSorter::calculateShare(const Client& client) const
 {
-  CHECK(contains(name));
-
   double share = 0.0;
 
   // TODO(benh): This implementation of "dominant resource fairness"
@@ -472,15 +406,15 @@ double DRFSorter::calculateShare(const string& name) const
     }
 
     if (scalar.value() > 0.0 &&
-        allocations.at(name).totals.contains(resourceName)) {
+        client.allocation.totals.contains(resourceName)) {
       const double allocation =
-        allocations.at(name).totals.at(resourceName).value();
+        client.allocation.totals.at(resourceName).value();
 
       share = std::max(share, allocation / scalar.value());
     }
   }
 
-  return share / clientWeight(name);
+  return share / clientWeight(client.name);
 }
 
 
@@ -496,7 +430,7 @@ double DRFSorter::clientWeight(const string& name) const
 }
 
 
-set<Client, DRFComparator>::iterator DRFSorter::find(const string& name)
+set<Client, DRFComparator>::iterator DRFSorter::find(const string& name) const
 {
   set<Client, DRFComparator>::iterator it;
   for (it = clients.begin(); it != clients.end(); it++) {

@@ -16,6 +16,8 @@
 
 #include "master/allocator/sorter/drf/metrics.hpp"
 
+#include <set>
+
 #include <process/defer.hpp>
 
 #include <process/metrics/metrics.hpp>
@@ -25,6 +27,7 @@
 
 #include "master/allocator/sorter/drf/sorter.hpp"
 
+using std::set;
 using std::string;
 
 using process::UPID;
@@ -65,7 +68,8 @@ void Metrics::add(const string& client)
         // occurs after the client is removed but before the
         // metric is removed.
         if (sorter->contains(client)) {
-          return sorter->calculateShare(client);
+          set<Client, DRFComparator>::iterator it = sorter->find(client);
+          return sorter->calculateShare(*it);
         }
 
         return 0.0;

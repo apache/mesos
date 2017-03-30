@@ -40,21 +40,122 @@ namespace allocator {
 
 struct Client
 {
-  Client(const std::string& _name, double _share, uint64_t _allocations)
-    : name(_name), share(_share), active(true), allocations(_allocations) {}
+  explicit Client(const std::string& _name)
+    : name(_name), share(0), active(true) {}
 
   std::string name;
   double share;
   bool active;
 
-  // We store the number of times this client has been chosen for
-  // allocation so that we can fairly share the resources across
-  // clients that have the same share. Note that this information is
-  // not persisted across master failovers, but since the point is to
-  // equalize the 'allocations' across clients of the same 'share'
-  // having allocations restart at 0 after a master failover should be
-  // sufficient (famous last words.)
-  uint64_t allocations;
+  // Allocation for a client.
+  struct Allocation {
+    Allocation() : count(0) {}
+
+    void add(const SlaveID& slaveId, const Resources& toAdd) {
+      // Add shared resources to the allocated quantities when the same
+      // resources don't already exist in the allocation.
+      const Resources sharedToAdd = toAdd.shared()
+        .filter([this, slaveId](const Resource& resource) {
+            return !resources[slaveId].contains(resource);
+        });
+
+      const Resources quantitiesToAdd =
+        (toAdd.nonShared() + sharedToAdd).createStrippedScalarQuantity();
+
+      resources[slaveId] += toAdd;
+      scalarQuantities += quantitiesToAdd;
+
+      foreach (const Resource& resource, quantitiesToAdd) {
+        totals[resource.name()] += resource.scalar();
+      }
+
+      count++;
+    }
+
+    void subtract(const SlaveID& slaveId, const Resources& toRemove) {
+      CHECK(resources.contains(slaveId));
+      CHECK(resources.at(slaveId).contains(toRemove));
+
+      resources[slaveId] -= toRemove;
+
+      // Remove shared resources from the allocated quantities when there
+      // are no instances of same resources left in the allocation.
+      const Resources sharedToRemove = toRemove.shared()
+        .filter([this, slaveId](const Resource& resource) {
+            return !resources[slaveId].contains(resource);
+        });
+
+      const Resources quantitiesToRemove =
+        (toRemove.nonShared() + sharedToRemove).createStrippedScalarQuantity();
+
+      foreach (const Resource& resource, quantitiesToRemove) {
+        totals[resource.name()] -= resource.scalar();
+      }
+
+      CHECK(scalarQuantities.contains(quantitiesToRemove));
+      scalarQuantities -= quantitiesToRemove;
+
+      if (resources[slaveId].empty()) {
+        resources.erase(slaveId);
+      }
+    }
+
+    void update(
+        const SlaveID& slaveId,
+        const Resources& oldAllocation,
+        const Resources& newAllocation) {
+      const Resources oldAllocationQuantity =
+        oldAllocation.createStrippedScalarQuantity();
+      const Resources newAllocationQuantity =
+        newAllocation.createStrippedScalarQuantity();
+
+      CHECK(resources[slaveId].contains(oldAllocation));
+      CHECK(scalarQuantities.contains(oldAllocationQuantity));
+
+      resources[slaveId] -= oldAllocation;
+      resources[slaveId] += newAllocation;
+
+      scalarQuantities -= oldAllocationQuantity;
+      scalarQuantities += newAllocationQuantity;
+
+      foreach (const Resource& resource, oldAllocationQuantity) {
+        totals[resource.name()] -= resource.scalar();
+      }
+
+      foreach (const Resource& resource, newAllocationQuantity) {
+        totals[resource.name()] += resource.scalar();
+      }
+    }
+
+    // We store the number of times this client has been chosen for
+    // allocation so that we can fairly share the resources across
+    // clients that have the same share. Note that this information is
+    // not persisted across master failovers, but since the point is
+    // to equalize the `count` across clients of the same `share`
+    // having allocations restart at 0 after a master failover should
+    // be sufficient (famous last words.)
+    uint64_t count;
+
+    // We maintain multiple copies of each shared resource allocated
+    // to a client, where the number of copies represents the number
+    // of times this shared resource has been allocated to (and has
+    // not been recovered from) a specific client.
+    hashmap<SlaveID, Resources> resources;
+
+    // Similarly, we aggregate scalars across slaves and omit information
+    // about dynamic reservations, persistent volumes and sharedness of
+    // the corresponding resource. See notes above.
+    Resources scalarQuantities;
+
+    // We also store a map version of `scalarQuantities`, mapping
+    // the `Resource::name` to aggregated scalar. This improves the
+    // performance of calculating shares. See MESOS-4694.
+    //
+    // TODO(bmahler): Ideally we do not store `scalarQuantities`
+    // redundantly here, investigate performance improvements to
+    // `Resources` to make this unnecessary.
+    hashmap<std::string, Value::Scalar> totals;
+  } allocation;
 };
 
 
@@ -136,7 +237,7 @@ private:
   void updateShare(const std::string& name);
 
   // Returns the dominant resource share for the client.
-  double calculateShare(const std::string& name) const;
+  double calculateShare(const Client& client) const;
 
   // Resources (by name) that will be excluded from fair sharing.
   Option<std::set<std::string>> fairnessExcludeResourceNames;
@@ -147,7 +248,7 @@ private:
 
   // Returns an iterator to the specified client, if
   // it exists in this Sorter.
-  std::set<Client, DRFComparator>::iterator find(const std::string& name);
+  std::set<Client, DRFComparator>::iterator find(const std::string& name) const;
 
   // If true, sort() will recalculate all shares.
   bool dirty = false;
@@ -188,35 +289,6 @@ private:
     // `Resources` to make this unnecessary.
     hashmap<std::string, Value::Scalar> totals;
   } total_;
-
-  // Allocation for a client.
-  struct Allocation {
-    // We maintain multiple copies of each shared resource allocated
-    // to a client, where the number of copies represents the number
-    // of times this shared resource has been allocated to (and has
-    // not been recovered from) a specific client.
-    hashmap<SlaveID, Resources> resources;
-
-    // Similarly, we aggregate scalars across slaves and omit information
-    // about dynamic reservations, persistent volumes and sharedness of
-    // the corresponding resource. See notes above.
-    Resources scalarQuantities;
-
-    // We also store a map version of `scalarQuantities`, mapping
-    // the `Resource::name` to aggregated scalar. This improves the
-    // performance of calculating shares. See MESOS-4694.
-    //
-    // TODO(bmahler): Ideally we do not store `scalarQuantities`
-    // redundantly here, investigate performance improvements to
-    // `Resources` to make this unnecessary.
-    hashmap<std::string, Value::Scalar> totals;
-  };
-
-  // Maps client names to the resources they have been allocated.
-  //
-  // TODO(neilc): It would be cleaner to store a client's allocation
-  // in the `Client` struct instead.
-  hashmap<std::string, Allocation> allocations;
 
   // Metrics are optionally exposed by the sorter.
   friend Metrics;
