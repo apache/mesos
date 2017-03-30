@@ -388,7 +388,7 @@ Future<http::Response> Master::QuotaHandler::_set(
     quotaInfo.set_principal(principal->value.get());
   }
 
-  return authorizeSetQuota(principal, quotaInfo)
+  return authorizeUpdateQuota(principal, quotaInfo)
     .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
       return !authorized ? Forbidden() : __set(quotaInfo, forced);
     }));
@@ -508,7 +508,7 @@ Future<http::Response> Master::QuotaHandler::_remove(
     const string& role,
     const Option<Principal>& principal) const
 {
-  return authorizeRemoveQuota(principal, master->quotas.at(role).info)
+  return authorizeUpdateQuota(principal, master->quotas.at(role).info)
     .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
       return !authorized ? Forbidden() : __remove(role);
     }));
@@ -568,9 +568,7 @@ Future<bool> Master::QuotaHandler::authorizeGetQuota(
 }
 
 
-// TODO(zhitao): Remove this function at the end of the
-// deprecation cycle which started with 1.0.
-Future<bool> Master::QuotaHandler::authorizeSetQuota(
+Future<bool> Master::QuotaHandler::authorizeUpdateQuota(
     const Option<Principal>& principal,
     const QuotaInfo& quotaInfo) const
 {
@@ -580,7 +578,7 @@ Future<bool> Master::QuotaHandler::authorizeSetQuota(
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to set quota for role '" << quotaInfo.role() << "'";
+            << "' to update quota for role '" << quotaInfo.role() << "'";
 
   authorization::Request request;
   request.set_action(authorization::UPDATE_QUOTA);
@@ -590,36 +588,6 @@ Future<bool> Master::QuotaHandler::authorizeSetQuota(
     request.mutable_subject()->CopyFrom(subject.get());
   }
 
-  request.mutable_object()->set_value("SetQuota");
-  request.mutable_object()->mutable_quota_info()->CopyFrom(quotaInfo);
-
-  return master->authorizer.get()->authorized(request);
-}
-
-
-// TODO(zhitao): Remove this function at the end of the
-// deprecation cycle which started with 1.0.
-Future<bool> Master::QuotaHandler::authorizeRemoveQuota(
-    const Option<Principal>& principal,
-    const QuotaInfo& quotaInfo) const
-{
-  if (master->authorizer.isNone()) {
-    return true;
-  }
-
-  LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to remove quota for role '" << quotaInfo.role() << "'";
-
-  authorization::Request request;
-  request.set_action(authorization::UPDATE_QUOTA);
-
-  Option<authorization::Subject> subject = createSubject(principal);
-  if (subject.isSome()) {
-    request.mutable_subject()->CopyFrom(subject.get());
-  }
-
-  request.mutable_object()->set_value("RemoveQuota");
   request.mutable_object()->mutable_quota_info()->CopyFrom(quotaInfo);
 
   return master->authorizer.get()->authorized(request);

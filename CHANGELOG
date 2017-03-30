@@ -2,6 +2,7 @@ Release Notes - Mesos - Version 1.3.0 (WIP)
 -------------------------------------------
 This release contains the following new features:
 
+
   * [MESOS-1763] - Support for frameworks to receive resources for multiple
     roles. This allows "multi-user" frameworks to leverage the role-based
     resource allocation in mesos. Prior to this support, one had to run
@@ -14,6 +15,12 @@ This release contains the following new features:
     (see MESOS-1763) in that roles are expected to come and go over time
     (e.g. new employees join, new teams are formed, employees leave, teams
     are disbanded, etc).
+
+Deprecations:
+  * [MESOS-7259] - Remove deprecated ACLs `SetQuota` and `RemoveQuota`
+    This change is only applicable to the local authorizer since internally
+    these acls were being translated to the `UPDATE_QUOTA` action.
+
 
 
 Release Notes - Mesos - Version 1.2.1 (WIP)

@@ -59,28 +59,6 @@ struct GenericACL
 };
 
 
-// TODO(mpark): This class exists to optionally carry `ACL::SetQuota` and
-// `ACL::RemoveQuota` ACLs. This is a hack to support the deprecation cycle for
-// `ACL::SetQuota` and `ACL::RemoveQuota`. This can be removed / replaced with
-// `vector<GenericACL>` at the end of deprecation cycle which started with 1.0.
-struct GenericACLs
-{
-  GenericACLs(const vector<GenericACL>& acls_) : acls(acls_) {}
-
-  GenericACLs(
-      const vector<GenericACL>& acls_,
-      const vector<GenericACL>& set_quotas_,
-      const vector<GenericACL>& remove_quotas_)
-    : acls(acls_), set_quotas(set_quotas_), remove_quotas(remove_quotas_) {}
-
-  vector<GenericACL> acls;
-
-  // These ACLs are set iff the authorization action is `UPDATE_QUOTA`.
-  Option<vector<GenericACL>> set_quotas;
-  Option<vector<GenericACL>> remove_quotas;
-};
-
-
 // Match matrix:
 //
 //                  -----------ACL----------
@@ -193,7 +171,7 @@ class LocalAuthorizerObjectApprover : public ObjectApprover
 {
 public:
   LocalAuthorizerObjectApprover(
-      const GenericACLs& acls,
+      const vector<GenericACL>& acls,
       const Option<authorization::Subject>& subject,
       const authorization::Action& action,
       bool permissive)
@@ -377,30 +355,6 @@ public:
           // Check object has the required types set.
           CHECK_NOTNULL(object->quota_info);
 
-          // TODO(mpark): This is a hack to support the deprecation cycle for
-          // `ACL::SetQuota` and `ACL::RemoveQuota`. This block of code can be
-          // removed at the end of deprecation cycle which started with 1.0.
-          if (acls_.set_quotas->size() > 0 || acls_.remove_quotas->size() > 0) {
-            CHECK_NOTNULL(object->value);
-            if (*object->value == "SetQuota") {
-              aclObject.add_values(object->quota_info->role());
-              aclObject.set_type(mesos::ACL::Entity::SOME);
-
-              CHECK_SOME(acls_.set_quotas);
-              return approved(acls_.set_quotas.get(), aclSubject, aclObject);
-            } else if (*object->value == "RemoveQuota") {
-              if (object->quota_info->has_principal()) {
-                aclObject.add_values(object->quota_info->principal());
-                aclObject.set_type(mesos::ACL::Entity::SOME);
-              } else {
-                aclObject.set_type(mesos::ACL::Entity::ANY);
-              }
-
-              CHECK_SOME(acls_.remove_quotas);
-              return approved(acls_.remove_quotas.get(), aclSubject, aclObject);
-            }
-          }
-
           aclObject.add_values(object->quota_info->role());
           aclObject.set_type(mesos::ACL::Entity::SOME);
 
@@ -506,7 +460,7 @@ public:
       }
     }
 
-    return approved(acls_.acls, aclSubject, aclObject);
+    return approved(acls_, aclSubject, aclObject);
   }
 
 private:
@@ -525,7 +479,7 @@ private:
     return permissive_; // None of the ACLs match.
   }
 
-  const GenericACLs acls_;
+  const vector<GenericACL> acls_;
   const Option<authorization::Subject> subject_;
   const authorization::Action action_;
   const bool permissive_;
@@ -536,8 +490,8 @@ class LocalNestedContainerObjectApprover : public ObjectApprover
 {
 public:
   LocalNestedContainerObjectApprover(
-      const GenericACLs& userAcls,
-      const GenericACLs& parentAcls,
+      const vector<GenericACL>& userAcls,
+      const vector<GenericACL>& parentAcls,
       const Option<authorization::Subject>& subject,
       const authorization::Action& action,
       bool permissive)
@@ -592,14 +546,6 @@ public:
 
   virtual void initialize()
   {
-    // TODO(zhitao): Remove the following log warning at the end of the
-    // deprecation cycle which started with 1.0.
-    if (acls.set_quotas_size() > 0 ||
-        acls.remove_quotas_size() > 0) {
-      LOG(WARNING) << "SetQuota and RemoveQuota ACLs are deprecated; "
-                   << "please use UpdateQuota";
-    }
-
     // TODO(arojas): Remove the following two if blocks once
     // ShutdownFramework reaches the end of deprecation cycle
     // which started with 0.27.0.
@@ -719,8 +665,7 @@ public:
       return getNestedContainerObjectApprover(subject, action);
     }
 
-    // Generate GenericACLs.
-    Result<GenericACLs> genericACLs = createGenericACLs(action, acls);
+    Result<vector<GenericACL>> genericACLs = createGenericACLs(action, acls);
     if (genericACLs.isError()) {
       return Failure(genericACLs.error());
     }
@@ -736,7 +681,7 @@ public:
   }
 
 private:
-  static Result<GenericACLs> createGenericACLs(
+  static Result<vector<GenericACL>> createGenericACLs(
       const authorization::Action& action,
       const ACLs& acls)
   {
@@ -843,25 +788,7 @@ private:
           acls_.push_back(acl_);
         }
 
-        vector<GenericACL> set_quotas;
-        foreach (const ACL::SetQuota& acl, acls.set_quotas()) {
-          GenericACL acl_;
-          acl_.subjects = acl.principals();
-          acl_.objects = acl.roles();
-
-          set_quotas.push_back(acl_);
-        }
-
-        vector<GenericACL> remove_quotas;
-        foreach (const ACL::RemoveQuota& acl, acls.remove_quotas()) {
-          GenericACL acl_;
-          acl_.subjects = acl.principals();
-          acl_.objects = acl.quota_principals();
-
-          remove_quotas.push_back(acl_);
-        }
-
-        return GenericACLs(acls_, set_quotas, remove_quotas);
+        return acls_;
         break;
       }
       case authorization::VIEW_ROLE:
@@ -1100,13 +1027,6 @@ Try<Authorizer*> LocalAuthorizer::create(const Parameters& parameters)
 
 Option<Error> LocalAuthorizer::validate(const ACLs& acls)
 {
-  if (acls.update_quotas_size() > 0 &&
-      (acls.set_quotas_size() > 0 || acls.remove_quotas_size() > 0)) {
-    return Error("acls.update_quotas cannot be used "
-                 "together with deprecated set_quotas/remove_quotas!");
-  }
-
-
   foreach (const ACL::AccessMesosLog& acl, acls.access_mesos_logs()) {
     if (acl.logs().type() == ACL::Entity::SOME) {
       return Error("acls.access_mesos_logs type must be either NONE or ANY");

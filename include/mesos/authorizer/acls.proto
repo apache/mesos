@@ -142,30 +142,6 @@ message ACL {
     required Entity roles = 2;
   }
 
-  // Which principals are authorized to set quotas for given roles.
-  //
-  // TODO(zhitao): Remove this message at the end of the deprecation cycle
-  // which started with 1.0. It will be fully replaced by `UpdateQuota`.
-  message SetQuota {
-    // Subjects: Operator username.
-    required Entity principals = 1;
-
-    // Objects: The list of roles for which a quota can be set.
-    required Entity roles = 2;
-  }
-
-  // Which principals can remove quotas set by which other principals.
-  //
-  // TODO(zhitao): Remove this message at the end of the deprecation cycle
-  // which started with 1.0. It will be fully replaced by `UpdateQuota`.
-  message RemoveQuota {
-    // Subjects: Operator username.
-    required Entity principals = 1;
-
-    // Objects: Principal of the entity that set the quota.
-    required Entity quota_principals = 2;
-  }
-
   // Which principals are authorized to view information (including weights)
   // about the given roles.
   message ViewRole {
@@ -403,6 +379,11 @@ message ACL {
  *
  * NOTE: Fields in this message should be kept in
  * numerical order to avoid accidental tag reuse.
+ *
+ * NOTE: Do not use '9' and '10' as field identifiers, since they were
+ * used by removed entries and can cause conflict with old versions of
+ * the file.
+ *
  */
 message ACLs {
   optional bool permissive = 1 [default = true];
@@ -415,12 +396,6 @@ message ACLs {
   repeated ACL.UnreserveResources unreserve_resources = 6;
   repeated ACL.CreateVolume create_volumes = 7;
   repeated ACL.DestroyVolume destroy_volumes = 8;
-
-  // TODO(zhitao): Remove the following two fields at the end
-  // of the deprecation cycle which started with 1.0.
-  repeated ACL.SetQuota set_quotas = 9 [deprecated = true];
-  repeated ACL.RemoveQuota remove_quotas = 10 [deprecated = true];
-
   repeated ACL.TeardownFramework teardown_frameworks = 11;
   repeated ACL.UpdateWeight update_weights = 12;
   repeated ACL.GetEndpoint get_endpoints = 13;

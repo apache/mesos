@@ -43,6 +43,24 @@ We categorize the changes as follows:
   </thead>
 <tr>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
+  1.3.x
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+    <ul style="padding-left:10px;">
+      <li>R <a href="1-3-x-setquota-removequota-acl">--acls (set_quotas and remove_quotas)</a></li>
+    </ul>
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+  </td>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+  </td>
+</tr>
+<tr>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
   1.2.x
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
@@ -237,6 +255,11 @@ We categorize the changes as follows:
   </td>
 </tr>
 </table>
+
+## Upgrading from 1.2.x to 1.3.x ##
+
+<a name="1-3-x-setquota-removequota-acl"></a>
+* Support for deprecated ACLs `set_quotas` and `remove_quotas` has been removed from the local authorizer. Before upgrading the Mesos binaries, consolidate the ACLs used under `set_quotas` and `remove_quotes` under their replacemente ACL `update_quotas`. After consolidation of the ACLs, the binaries could be safely replaced.
 
 ## Upgrading from 1.1.x to 1.2.x ##
 

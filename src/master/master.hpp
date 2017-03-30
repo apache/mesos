@@ -1057,15 +1057,7 @@ private:
         const Option<process::http::authentication::Principal>& principal,
         const mesos::quota::QuotaInfo& quotaInfo) const;
 
-    // TODO(mpark): The following functions `authorizeSetQuota` and
-    // `authorizeRemoveQuota` should be replaced with `authorizeUpdateQuota` at
-    // the end of deprecation cycle which started with 1.0.
-
-    process::Future<bool> authorizeSetQuota(
-        const Option<process::http::authentication::Principal>& principal,
-        const mesos::quota::QuotaInfo& quotaInfo) const;
-
-    process::Future<bool> authorizeRemoveQuota(
+    process::Future<bool> authorizeUpdateQuota(
         const Option<process::http::authentication::Principal>& principal,
         const mesos::quota::QuotaInfo& quotaInfo) const;
 
