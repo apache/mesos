@@ -1028,7 +1028,7 @@ TEST_F(CheckTest, CheckInfoValidation)
     Option<Error> validate = validation::checkInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
-        "Expecting 'command' to be set for command check",
+        "Expecting 'command' to be set for COMMAND check",
         validate->message);
 
     checkInfo.set_type(CheckInfo::HTTP);
@@ -1090,7 +1090,7 @@ TEST_F(CheckTest, CheckInfoValidation)
     validate = validation::checkInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
-        "The path 'healthz' of HTTP  check must start with '/'",
+        "The path 'healthz' of HTTP check must start with '/'",
         validate->message);
   }
 
@@ -1160,7 +1160,7 @@ TEST_F(CheckTest, CheckStatusInfoValidation)
     Option<Error> validate = validation::checkStatusInfo(checkStatusInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
-        "Expecting 'command' to be set for command check's status",
+        "Expecting 'command' to be set for COMMAND check's status",
         validate->message);
 
     checkStatusInfo.set_type(CheckInfo::HTTP);

@@ -102,13 +102,12 @@ static pid_t cloneWithSetns(
         Try<Nothing> setns = ns::setns(taskPid.get(), ns);
         if (setns.isError()) {
           // This effectively aborts the check.
-          LOG(FATAL) << "Failed to enter the " << ns << " namespace of "
-                     << "task (pid: '" << taskPid.get() << "'): "
-                     << setns.error();
+          LOG(FATAL) << "Failed to enter the " << ns << " namespace of task"
+                     << " (pid: " << taskPid.get() << "): " << setns.error();
         }
 
-        VLOG(1) << "Entered the " << ns << " namespace of "
-                << "task (pid: '" << taskPid.get() << "') successfully";
+        VLOG(1) << "Entered the " << ns << " namespace of task"
+                << " (pid: " << taskPid.get() << ") successfully";
       }
     }
 
@@ -272,7 +271,7 @@ CheckerProcess::CheckerProcess(
 
 void CheckerProcess::initialize()
 {
-  VLOG(1) << "Check configuration for task " << taskId << ":"
+  VLOG(1) << "Check configuration for task '" << taskId << "':"
           << " '" << jsonify(JSON::Protobuf(check)) << "'";
 
   scheduleNext(checkDelay);
@@ -281,7 +280,7 @@ void CheckerProcess::initialize()
 
 void CheckerProcess::finalize()
 {
-  LOG(INFO) << "Checking for task " << taskId << " stopped";
+  LOG(INFO) << "Checking for task '" << taskId << "' stopped";
 }
 
 
@@ -315,7 +314,7 @@ void CheckerProcess::performCheck()
 
 void CheckerProcess::scheduleNext(const Duration& duration)
 {
-  VLOG(1) << "Scheduling check for task " << taskId << " in " << duration;
+  VLOG(1) << "Scheduling check for task '" << taskId << "' in " << duration;
 
   delay(duration, self(), &Self::performCheck);
 }
@@ -325,8 +324,8 @@ void CheckerProcess::processCheckResult(
     const Stopwatch& stopwatch,
     const CheckStatusInfo& result)
 {
-  VLOG(1) << "Performed " << check.type() << " check for task " << taskId
-          << " in " << stopwatch.elapsed();
+  VLOG(1) << "Performed " << check.type() << " check"
+          << " for task '" << taskId << "' in " << stopwatch.elapsed();
 
   // Trigger the callback if check info changes.
   if (result != previousCheckStatus) {
@@ -360,8 +359,8 @@ Future<int> CheckerProcess::commandCheck()
 
   if (command.shell()) {
     // Use the shell variant.
-    VLOG(1) << "Launching command check '" << command.value() << "'"
-            << " for task " << taskId;
+    VLOG(1) << "Launching COMMAND check '" << command.value() << "'"
+            << " for task '" << taskId << "'";
 
     s = process::subprocess(
         command.value(),
@@ -375,8 +374,8 @@ Future<int> CheckerProcess::commandCheck()
     vector<string> argv(
         std::begin(command.arguments()), std::end(command.arguments()));
 
-    VLOG(1) << "Launching command check [" << command.value() << ", "
-            << strings::join(", ", argv) << "] for task " << taskId;
+    VLOG(1) << "Launching COMMAND check [" << command.value() << ", "
+            << strings::join(", ", argv) << "] for task '" << taskId << "'";
 
     s = process::subprocess(
         command.value(),
@@ -407,14 +406,13 @@ Future<int> CheckerProcess::commandCheck()
 
       if (commandPid != -1) {
         // Cleanup the external command process.
-        VLOG(1) << "Killing the command check process " << commandPid
-                << " for task " << _taskId;
+        VLOG(1) << "Killing the COMMAND check process '" << commandPid
+                << "' for task '" << _taskId << "'";
 
         os::killtree(commandPid, SIGKILL);
       }
 
-      return Failure(
-          "Command timed out after " + stringify(timeout) + "; aborting");
+      return Failure("Command timed out after " + stringify(timeout));
     })
     .then([](const Option<int>& exitCode) -> Future<int> {
       if (exitCode.isNone()) {
@@ -441,15 +439,16 @@ void CheckerProcess::processCommandCheckResult(
   // see MESOS-7242.
   if (result.isReady() && WIFEXITED(result.get())) {
     const int exitCode = WEXITSTATUS(result.get());
-    VLOG(1) << check.type() << " check for task "
-            << taskId << " returned " << exitCode;
+    VLOG(1) << check.type() << " check for task '"
+            << taskId << "' returned: " << exitCode;
 
     checkStatusInfo.mutable_command()->set_exit_code(
         static_cast<int32_t>(exitCode));
   } else {
     // Check's status is currently not available, which may indicate a change
     // that should be reported as an empty `CheckStatusInfo.Command` message.
-    LOG(WARNING) << "Check for task " << taskId << " failed: "
+    LOG(WARNING) << check.type() << " check for task '" << taskId
+                 << "' failed: "
                  << (result.isFailed() ? result.failure() : "discarded");
 
     checkStatusInfo.mutable_command();
@@ -471,7 +470,7 @@ Future<int> CheckerProcess::httpCheck()
   const string url = scheme + "://" + DEFAULT_DOMAIN + ":" +
                      stringify(http.port()) + path;
 
-  VLOG(1) << "Launching HTTP check '" << url << "' for task " << taskId;
+  VLOG(1) << "Launching HTTP check '" << url << "' for task '" << taskId << "'";
 
   const vector<string> argv = {
     HTTP_CHECK_COMMAND,
@@ -522,14 +521,14 @@ Future<int> CheckerProcess::httpCheck()
       if (curlPid != -1) {
         // Cleanup the HTTP_CHECK_COMMAND process.
         VLOG(1) << "Killing the HTTP check process " << curlPid
-                << " for task " << _taskId;
+                << " for task '" << _taskId << "'";
 
         os::killtree(curlPid, SIGKILL);
       }
 
       return Failure(
           string(HTTP_CHECK_COMMAND) + " timed out after " +
-          stringify(timeout) + "; aborting");
+          stringify(timeout));
     })
     .then(defer(self(), &Self::_httpCheck, lambda::_1));
 }
@@ -595,15 +594,15 @@ void CheckerProcess::processHttpCheckResult(
   checkStatusInfo.set_type(check.type());
 
   if (result.isReady()) {
-    VLOG(1) << check.type() << " check for task "
-            << taskId << " returned " << result.get();
+    VLOG(1) << check.type() << " check for task '"
+            << taskId << "' returned: " << result.get();
 
     checkStatusInfo.mutable_http()->set_status_code(
         static_cast<uint32_t>(result.get()));
   } else {
     // Check's status is currently not available, which may indicate a change
     // that should be reported as an empty `CheckStatusInfo.Http` message.
-    LOG(WARNING) << "Check for task " << taskId << " failed: "
+    LOG(WARNING) << "Check for task '" << taskId << "' failed: "
                  << (result.isFailed() ? result.failure() : "discarded");
 
     checkStatusInfo.mutable_http();
@@ -623,7 +622,7 @@ Option<Error> checkInfo(const CheckInfo& checkInfo)
   switch (checkInfo.type()) {
     case CheckInfo::COMMAND: {
       if (!checkInfo.has_command()) {
-        return Error("Expecting 'command' to be set for command check");
+        return Error("Expecting 'command' to be set for COMMAND check");
       }
 
       const CommandInfo& command = checkInfo.command().command();
@@ -656,8 +655,7 @@ Option<Error> checkInfo(const CheckInfo& checkInfo)
 
       if (http.has_path() && !strings::startsWith(http.path(), '/')) {
         return Error(
-            "The path '" + http.path() +
-            "' of HTTP  check must start with '/'");
+            "The path '" + http.path() + "' of HTTP check must start with '/'");
       }
 
       break;
@@ -696,7 +694,7 @@ Option<Error> checkStatusInfo(const CheckStatusInfo& checkStatusInfo)
     case CheckInfo::COMMAND: {
       if (!checkStatusInfo.has_command()) {
         return Error(
-            "Expecting 'command' to be set for command check's status");
+            "Expecting 'command' to be set for COMMAND check's status");
       }
       break;
     }
