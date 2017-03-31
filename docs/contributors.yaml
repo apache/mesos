@@ -99,6 +99,15 @@
   jira_user: anindya.sinha
   reviewboard_user: anisinha
 
+- name: Armand Grillet
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - armand.grillet@outlook.com
+    - agrillet@mesosphere.io
+  jira_user: armandgrillet
+  reviewboard_user: armandgrillet
+
 - name: Artem Harutyunyan
   affiliations:
     - {organization: Mesosphere}
