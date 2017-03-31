@@ -155,7 +155,7 @@ message Event {
  * Like Event, a Call is described using the standard protocol buffer
  * "union" trick (see above).
  */
- message Call {
+message Call {
   // Possible call types, followed by message definitions if
   // applicable.
   enum Type {
