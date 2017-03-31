@@ -17,6 +17,7 @@
 #ifndef __SLAVE_FLAGS_HPP__
 #define __SLAVE_FLAGS_HPP__
 
+#include <cstdint>
 #include <string>
 
 #include <stout/bytes.hpp>
@@ -161,6 +162,20 @@ public:
   std::string xfs_project_range;
 #endif
   bool http_command_executor;
+
+  // The following flags are executable specific (e.g., since we only
+  // have one instance of libprocess per execution, we only want to
+  // advertise the IP and port option once, here).
+
+  Option<std::string> ip;
+  uint16_t port;
+  Option<std::string> advertise_ip;
+  Option<std::string> advertise_port;
+  Option<std::string> master;
+
+  // Optional IP discover script that will set the slave's IP.
+  // If set, its output is expected to be a valid parseable IP string.
+  Option<std::string> ip_discovery_command;
 };
 
 } // namespace slave {

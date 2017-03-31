@@ -99,63 +99,6 @@ using std::string;
 using std::vector;
 
 
-class Flags : public virtual slave::Flags
-{
-public:
-  Flags()
-  {
-    add(&Flags::ip,
-        "ip",
-        "IP address to listen on. This cannot be used in conjunction\n"
-        "with `--ip_discovery_command`.");
-
-    add(&Flags::port, "port", "Port to listen on.", SlaveInfo().port());
-
-    add(&Flags::advertise_ip,
-        "advertise_ip",
-        "IP address advertised to reach this Mesos slave.\n"
-        "The slave does not bind to this IP address.\n"
-        "However, this IP address may be used to access this slave.");
-
-    add(&Flags::advertise_port,
-        "advertise_port",
-        "Port advertised to reach this Mesos slave (along with\n"
-        "`advertise_ip`). The slave does not bind to this port.\n"
-        "However, this port (along with `advertise_ip`) may be used to\n"
-        "access this slave.");
-
-    add(&Flags::master,
-        "master",
-        "May be one of:\n"
-        "  `host:port`\n"
-        "  `zk://host1:port1,host2:port2,.../path`\n"
-        "  `zk://username:password@host1:port1,host2:port2,.../path`\n"
-        "  `file:///path/to/file` (where file contains one of the above)");
-
-
-    add(&Flags::ip_discovery_command,
-        "ip_discovery_command",
-        "Optional IP discovery binary: if set, it is expected to emit\n"
-        "the IP address which the slave will try to bind to.\n"
-        "Cannot be used in conjunction with `--ip`.");
-  }
-
-  // The following flags are executable specific (e.g., since we only
-  // have one instance of libprocess per execution, we only want to
-  // advertise the IP and port option once, here).
-
-  Option<string> ip;
-  uint16_t port;
-  Option<string> advertise_ip;
-  Option<string> advertise_port;
-  Option<string> master;
-
-  // Optional IP discover script that will set the slave's IP.
-  // If set, its output is expected to be a valid parseable IP string.
-  Option<string> ip_discovery_command;
-};
-
-
 #ifdef __linux__
 // Move the slave into its own cgroup for each of the specified
 // subsystems.
@@ -167,7 +110,7 @@ public:
 // TODO(jieyu): Make sure the corresponding cgroup isolator is
 // enabled so that the container processes are moved to different
 // cgroups than the agent cgroup.
-static Try<Nothing> assignCgroups(const ::Flags& flags)
+static Try<Nothing> assignCgroups(const slave::Flags& flags)
 {
   CHECK_SOME(flags.agent_subsystems);
 
@@ -303,7 +246,7 @@ int main(int argc, char** argv)
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  ::Flags flags;
+  slave::Flags flags;
 
   Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 

@@ -968,4 +968,39 @@ mesos::internal::slave::Flags::Flags()
       "NOTE: This flag is *experimental* and should not be used in\n"
       "production yet.",
       false);
+
+  add(&Flags::ip,
+      "ip",
+      "IP address to listen on. This cannot be used in conjunction\n"
+      "with `--ip_discovery_command`.");
+
+  add(&Flags::port, "port", "Port to listen on.", SlaveInfo().port());
+
+  add(&Flags::advertise_ip,
+      "advertise_ip",
+      "IP address advertised to reach this Mesos slave.\n"
+      "The slave does not bind to this IP address.\n"
+      "However, this IP address may be used to access this slave.");
+
+  add(&Flags::advertise_port,
+      "advertise_port",
+      "Port advertised to reach this Mesos slave (along with\n"
+      "`advertise_ip`). The slave does not bind to this port.\n"
+      "However, this port (along with `advertise_ip`) may be used to\n"
+      "access this slave.");
+
+  add(&Flags::master,
+      "master",
+      "May be one of:\n"
+      "  `host:port`\n"
+      "  `zk://host1:port1,host2:port2,.../path`\n"
+      "  `zk://username:password@host1:port1,host2:port2,.../path`\n"
+      "  `file:///path/to/file` (where file contains one of the above)");
+
+
+  add(&Flags::ip_discovery_command,
+      "ip_discovery_command",
+      "Optional IP discovery binary: if set, it is expected to emit\n"
+      "the IP address which the slave will try to bind to.\n"
+      "Cannot be used in conjunction with `--ip`.");
 }

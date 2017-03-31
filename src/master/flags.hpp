@@ -17,6 +17,8 @@
 #ifndef __MASTER_FLAGS_HPP__
 #define __MASTER_FLAGS_HPP__
 
+#include <cstdint>
+
 #include <string>
 
 #include <stout/duration.hpp>
@@ -93,6 +95,20 @@ public:
   Duration registry_gc_interval;
   Duration registry_max_agent_age;
   size_t registry_max_agent_count;
+
+  // The following flags are executable specific (e.g., since we only
+  // have one instance of libprocess per execution, we only want to
+  // advertise the IP and port option once, here).
+
+  Option<std::string> ip;
+  uint16_t port;
+  Option<std::string> advertise_ip;
+  Option<std::string> advertise_port;
+  Option<std::string> zk;
+
+  // Optional IP discover script that will set the Master IP.
+  // If set, its output is expected to be a valid parseable IP string.
+  Option<std::string> ip_discovery_command;
 
 #ifdef WITH_NETWORK_ISOLATOR
   Option<size_t> max_executors_per_agent;
