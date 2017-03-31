@@ -241,7 +241,7 @@ of the container by using the
 Currently, we support `host`, `bridge` and user defined networks
 ([reference](https://docs.docker.com/engine/userguide/networking/)).
 `none` is not supported yet. We support the above networking modes in
-Mesos Containerizer (mesos-containerizer.md) using the
+[Mesos Containerizer](mesos-containerizer.md) using the
 [CNI](https://github.com/containernetworking/cni) (Container Network
 Interface) standard. Please refer to the [network/cni](cni.md)
 isolator document for more details about how to configure the network
