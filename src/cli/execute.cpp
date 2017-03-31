@@ -682,32 +682,8 @@ protected:
     if (status.has_healthy()) {
       cout << "  healthy?: " << status.healthy() << endl;
     }
-
     if (status.has_check_status()) {
-      switch (status.check_status().type()) {
-        case CheckInfo::COMMAND: {
-          CHECK(status.check_status().has_command());
-          cout << "  check's last exit code: "
-               << (status.check_status().command().has_exit_code()
-                     ? stringify(status.check_status().command().exit_code())
-                     : "not available") << endl;
-          break;
-        }
-
-        case CheckInfo::HTTP: {
-          CHECK(status.check_status().has_http());
-          cout << "  check's last HTTP status code: "
-               << (status.check_status().http().has_status_code()
-                     ? stringify(status.check_status().http().status_code())
-                     : "not available") << endl;
-          break;
-        }
-
-        case CheckInfo::UNKNOWN: {
-          cout << "'" << CheckInfo::Type_Name(status.check_status().type())
-               << "' is not a valid check type" << endl;
-        }
-      }
+      cout << "  check status: " << status.check_status() << endl;
     }
 
     if (status.has_uuid()) {
