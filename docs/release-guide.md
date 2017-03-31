@@ -51,7 +51,8 @@ This guide describes the process of doing an official release of Mesos.
           </servers>
         </settings>
 
-6. Use `gpg-agent` to avoid typing your passphrase repeatedly.
+6. Use `gpg-agent` to avoid typing your passphrase repeatedly:<br>
+   `export GPG_TTY="$(tty)" && eval $(gpg-agent --daemon)`
 
 
 ## Preparation
@@ -111,7 +112,8 @@ This guide describes the process of doing an official release of Mesos.
    pick onto the release branch.
 
 4. Ensure version in `configure.ac` and `CMakeLists.txt` is correctly set for
-   the release.
+   the release. Do not forget to remove "(WIP)" suffix from the release notes'
+   title.
 
 5. Run `make && support/generate-endpoint-help.py` and commit any resulting
    changes.
