@@ -242,6 +242,7 @@ MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 MODULE_PROTO = $(top_srcdir)/include/mesos/module/module.proto
 OCI_SPEC_PROTO = $(top_srcdir)/include/mesos/oci/spec.proto
 QUOTA_PROTO = $(top_srcdir)/include/mesos/quota/quota.proto
+RESOURCE_PROVIDER_PROTO = $(top_srcdir)/include/mesos/resource_provider/resource_provider.proto
 SCHEDULER_PROTO = $(top_srcdir)/include/mesos/scheduler/scheduler.proto
 STATE_PROTO = $(top_srcdir)/include/mesos/state/state.proto
 OVERSUBSCRIPTION_PROTO = $(top_srcdir)/include/mesos/slave/oversubscription.proto
@@ -253,6 +254,7 @@ V1_MAINTENANCE_PROTO = $(top_srcdir)/include/mesos/v1/maintenance/maintenance.pr
 V1_MASTER_PROTO = $(top_srcdir)/include/mesos/v1/master/master.proto
 V1_MESOS_PROTO = $(top_srcdir)/include/mesos/v1/mesos.proto
 V1_QUOTA_PROTO = $(top_srcdir)/include/mesos/v1/quota/quota.proto
+V1_RESOURCE_PROVIDER_PROTO = $(top_srcdir)/include/mesos/v1/resource_provider/resource_provider.proto
 V1_SCHEDULER_PROTO = $(top_srcdir)/include/mesos/v1/scheduler/scheduler.proto
 
 
@@ -293,6 +295,8 @@ CXX_PROTOS =								\
   ../include/mesos/oci/spec.pb.h					\
   ../include/mesos/quota/quota.pb.cc					\
   ../include/mesos/quota/quota.pb.h					\
+  ../include/mesos/resource_provider/resource_provider.pb.cc		\
+  ../include/mesos/resource_provider/resource_provider.pb.h		\
   ../include/mesos/scheduler/scheduler.pb.cc				\
   ../include/mesos/scheduler/scheduler.pb.h				\
   ../include/mesos/slave/containerizer.pb.cc				\
@@ -317,6 +321,8 @@ CXX_PROTOS =								\
   ../include/mesos/v1/master/master.pb.h				\
   ../include/mesos/v1/quota/quota.pb.cc					\
   ../include/mesos/v1/quota/quota.pb.h					\
+  ../include/mesos/v1/resource_provider/resource_provider.pb.cc		\
+  ../include/mesos/v1/resource_provider/resource_provider.pb.h		\
   ../include/mesos/v1/scheduler/scheduler.pb.cc				\
   ../include/mesos/v1/scheduler/scheduler.pb.h
 
@@ -680,6 +686,15 @@ quota_HEADERS =								\
 nodist_quota_HEADERS =							\
   ../include/mesos/quota/quota.pb.h
 
+resourceproviderdir = $(pkgincludedir)/resource_provider
+
+resourceprovider_HEADERS =						\
+  $(top_srcdir)/include/mesos/resource_provider/resource_provider.hpp	\
+  $(top_srcdir)/include/mesos/resource_provider/resource_provider.proto
+
+nodist_resourceprovider_HEADERS =					\
+  ../include/mesos/resource_provider/resource_provider.pb.h
+
 schedulerdir = $(pkgincludedir)/scheduler
 
 scheduler_HEADERS =							\
@@ -797,6 +812,15 @@ v1quota_HEADERS =							\
 
 nodist_v1quota_HEADERS =						\
   ../include/mesos/v1/quota/quota.pb.h
+
+v1resourceproviderdir = $(pkgincludedir)/v1/resource_provider
+
+v1resourceprovider_HEADERS =							\
+  $(top_srcdir)/include/mesos/v1/resource_provider/resource_provider.hpp	\
+  $(top_srcdir)/include/mesos/v1/resource_provider/resource_provider.proto
+
+nodist_v1resourceprovider_HEADERS =						\
+  ../include/mesos/v1/resource_provider/resource_provider.pb.h
 
 v1schedulerdir = $(pkgincludedir)/v1/scheduler
 
