@@ -21,6 +21,13 @@
 #include <string>
 #include <vector>
 
+#ifdef __WINDOWS__
+// `codecvt` is not available on older versions of Linux. Until it is needed on
+// other platforms, it's easiest to just build the UTF converter for Windows.
+#include <codecvt>
+#include <locale>
+#endif // __WINDOWS__
+
 #include "abort.hpp"
 #include "hashmap.hpp"
 #include "set.hpp"
@@ -35,6 +42,15 @@ std::string stringify(T t)
   }
   return out.str();
 }
+
+#ifdef __WINDOWS__
+inline std::string stringify(const std::wstring& str)
+{
+  // Convert UTF-16 `wstring` to UTF-8 `string`.
+  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> converter;
+  return converter.to_bytes(str);
+}
+#endif // __WINDOWS__
 
 
 template <>
