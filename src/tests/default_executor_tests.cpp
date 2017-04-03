@@ -934,7 +934,7 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
 
 // This test verifies that the default executor commits suicide when the only
 // task in the task group exits with a non-zero status code.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, CommitSuicideOnTaskFailure)
+TEST_P(DefaultExecutorTest, CommitSuicideOnTaskFailure)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

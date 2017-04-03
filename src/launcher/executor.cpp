@@ -145,21 +145,9 @@ public:
       capabilities(_capabilities),
       frameworkId(_frameworkId),
       executorId(_executorId),
-      lastTaskStatus(None())
-  {
-#ifdef __WINDOWS__
-    processHandle = INVALID_HANDLE_VALUE;
-#endif
-  }
+      lastTaskStatus(None()) {}
 
-  virtual ~CommandExecutor()
-  {
-#ifdef __WINDOWS__
-    if (processHandle != INVALID_HANDLE_VALUE) {
-      ::CloseHandle(processHandle);
-    }
-#endif // __WINDOWS__
-  }
+  virtual ~CommandExecutor() = default;
 
   void connected()
   {
@@ -515,7 +503,6 @@ protected:
 
     cout << "Starting task " << taskId.get() << endl;
 
-#ifndef __WINDOWS__
     pid = launchTaskPosix(
         command,
         launcherDir,
@@ -525,19 +512,6 @@ protected:
         sandboxDirectory,
         workingDirectory,
         capabilities);
-#else
-    // A Windows process is started using the `CREATE_SUSPENDED` flag
-    // and is part of a job object. While the process handle is kept
-    // open the reap function will work.
-    PROCESS_INFORMATION processInformation = launchTaskWindows(
-        command,
-        rootfs);
-
-    pid = processInformation.dwProcessId;
-    ::ResumeThread(processInformation.hThread);
-    CloseHandle(processInformation.hThread);
-    processHandle = processInformation.hProcess;
-#endif
 
     cout << "Forked command at " << pid << endl;
 
@@ -1005,9 +979,6 @@ private:
   Option<Timer> killGracePeriodTimer;
 
   pid_t pid;
-#ifdef __WINDOWS__
-  HANDLE processHandle;
-#endif
   Duration shutdownGracePeriod;
   Option<KillPolicy> killPolicy;
   Option<FrameworkInfo> frameworkInfo;

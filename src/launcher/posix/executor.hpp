@@ -22,6 +22,9 @@
 #include <mesos/mesos.hpp>
 
 #include <stout/option.hpp>
+#ifdef __WINDOWS__
+#include <stout/windows.hpp>
+#endif // __WINDOWS__
 
 namespace mesos {
 namespace internal {

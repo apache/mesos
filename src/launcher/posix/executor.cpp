@@ -17,6 +17,9 @@
 #include <iostream>
 
 #include <process/subprocess.hpp>
+#ifdef __WINDOWS__
+#include <process/windows/jobobject.hpp>
+#endif // __WINDOWS__
 
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
@@ -88,6 +91,7 @@ pid_t launchTaskPosix(
       ? workingDirectory.get()
       : sandboxDirectory.get());
 
+#ifndef __WINDOWS__
     // TODO(jieyu): If the task has a rootfs, the executor itself will
     // be running as root. Its sandbox is owned by root as well. In
     // order for the task to be able to access to its sandbox, we need
@@ -102,6 +106,7 @@ pid_t launchTaskPosix(
               user.get() + ": " + chown.error());
       }
     }
+#endif // __WINDOWS__
   }
 
   launchInfo.mutable_environment()->CopyFrom(environment);
@@ -130,6 +135,11 @@ pid_t launchTaskPosix(
   argv[0] = MESOS_CONTAINERIZER;
   argv[1] = MesosContainerizerLaunch::NAME;
 
+  vector<process::Subprocess::ParentHook> parentHooks;
+#ifdef __WINDOWS__
+  parentHooks.emplace_back(Subprocess::ParentHook::CREATE_JOB());
+#endif // __WINDOWS__
+
   Try<Subprocess> s = subprocess(
       path::join(launcherDir, MESOS_CONTAINERIZER),
       argv,
@@ -139,7 +149,7 @@ pid_t launchTaskPosix(
       &launchFlags,
       None(),
       None(),
-      {},
+      parentHooks,
       {Subprocess::ChildHook::SETSID()});
 
   if (s.isError()) {

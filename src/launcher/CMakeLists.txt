@@ -34,7 +34,7 @@ if (NOT WIN32)
 else (NOT WIN32)
   set(EXECUTOR_EXECUTABLE_SRC
     ${EXECUTOR_EXECUTABLE_SRC}
-    windows/executor.cpp
+    posix/executor.cpp
     )
 endif (NOT WIN32)
 

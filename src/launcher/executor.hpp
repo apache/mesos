@@ -18,12 +18,6 @@
 #define __LAUNCHER_EXECUTOR_HPP__
 
 
-// For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specific system calls into separate directories.
-#ifdef __WINDOWS__
-#include "launcher/windows/executor.hpp"
-#else
 #include "launcher/posix/executor.hpp"
-#endif // __WINDOWS__
 
 #endif // __LAUNCHER_EXECUTOR_HPP__
