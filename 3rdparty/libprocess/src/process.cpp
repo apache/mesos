@@ -90,6 +90,10 @@
 
 #include <process/ssl/flags.hpp>
 
+#ifdef __WINDOWS__
+#include <process/windows/jobobject.hpp>
+#endif // __WINDOWS__
+
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
 #include <stout/foreach.hpp>
@@ -629,7 +633,13 @@ PID<metrics::internal::MetricsProcess> metrics;
 
 namespace internal {
 
+// Global reaper.
 PID<process::internal::ReaperProcess> reaper;
+
+// Global job object manager.
+#ifdef __WINDOWS__
+PID<process::internal::JobObjectManager> job_object_manager;
+#endif // __WINDOWS__
 
 } // namespace internal {
 
@@ -1199,6 +1209,7 @@ bool initialize(
   //   |--help
   //   |  |--metrics
   //   |  |  |--system
+  //   |  |  |--job_object_manager (Windows only)
   //   |  |  |--All other processes
   //   |  |
   //   |  |--logging
@@ -1234,6 +1245,12 @@ bool initialize(
   // Create the global reaper process.
   process::internal::reaper =
     spawn(new process::internal::ReaperProcess(), true);
+
+  // Create the global job object manager process.
+#ifdef __WINDOWS__
+  process::internal::job_object_manager =
+    spawn(new process::internal::JobObjectManager(), true);
+#endif // __WINDOWS__
 
   // Initialize the mime types.
   mime::initialize();

@@ -54,25 +54,6 @@ Subprocess::ParentHook::ParentHook(
   : parent_setup(_parent_setup) {}
 
 
-#ifdef __WINDOWS__
-Subprocess::ParentHook Subprocess::ParentHook::CREATE_JOB()
-{
-  return Subprocess::ParentHook([](pid_t pid) -> Try<Nothing> {
-    // NOTE: The Job Object's handle is not closed here. Although it
-    // looks like we are leaking the handle, we can still retrieve and
-    // close the handle via the `OpenJobObject` Windows API.
-    Try<HANDLE> job = os::create_job(pid);
-
-    if (job.isError()) {
-      return Error(job.error());
-    }
-
-    return Nothing();
-  });
-}
-#endif // __WINDOWS__
-
-
 Subprocess::ChildHook::ChildHook(
     const lambda::function<Try<Nothing>()>& _child_setup)
   : child_setup(_child_setup) {}
