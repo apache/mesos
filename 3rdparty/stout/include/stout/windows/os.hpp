@@ -24,6 +24,7 @@
 #include <codecvt>
 #include <list>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 
@@ -34,6 +35,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+#include <stout/version.hpp>
 #include <stout/windows.hpp>
 
 #include <stout/os/os.hpp>
@@ -653,84 +655,135 @@ inline int random()
 }
 
 
-// `create_job` function creates a job object whose name is derived
-// from the `pid` and associates the process with the job object.
-// Every process started by the `pid` process which is part of the job
-// object becomes part of the job object. The job name should match
-// the name used in `kill_job`.
-inline Try<HANDLE> create_job(pid_t pid)
-{
+// `name_job` maps a `pid` to a `string` name for a job object.
+// Only named job objects are accessible via `OpenJobObject`.
+// Thus all our job objects must be named. This is essentially a shim
+// to map the Linux concept of a process tree's root `pid` to a
+// named job object so that the process group can be treated similarly.
+inline Try<std::string> name_job(pid_t pid) {
   Try<std::string> alpha_pid = strings::internal::format("MESOS_JOB_%X", pid);
   if (alpha_pid.isError()) {
     return Error(alpha_pid.error());
   }
+  return alpha_pid;
+}
 
-  HANDLE process_handle = ::OpenProcess(
-      PROCESS_SET_QUOTA | PROCESS_TERMINATE,
-      false,
-      pid);
 
-  if (process_handle == INVALID_HANDLE_VALUE) {
-    return WindowsError("os::create_job: Call to `OpenProcess` failed");
+// `open_job` returns a safe shared handle to the named job object `name`.
+// `desired_access` is a job object access rights flag.
+// `inherit_handles` if true, processes created by this
+// process will inherit the handle. Otherwise, the processes
+// do not inherit this handle.
+inline Try<SharedHandle> open_job(
+    const DWORD desired_access,
+    BOOL inherit_handles,
+    const std::string& name)
+{
+  SharedHandle jobHandle(
+      ::OpenJobObject(
+          desired_access,
+          inherit_handles,
+          name.c_str()),
+      ::CloseHandle);
+
+  if (jobHandle.get() == nullptr) {
+    return WindowsError(
+        "os::open_job: Call to `OpenJobObject` failed for job: " + name);
   }
 
-  SharedHandle safe_process_handle(process_handle, ::CloseHandle);
+  return jobHandle;
+}
 
-  HANDLE job_handle = ::CreateJobObject(nullptr, alpha_pid.get().c_str());
 
-  if (job_handle == nullptr) {
-    return WindowsError("os::create_job: Call to `CreateJobObject` failed");
+// `create_job` function creates a named job object using `name`.
+// This returns the safe job handle, which closes the job handle
+// when destructed. Because the job is destroyed when its last
+// handle is closed and all associated processes have exited,
+// a running process must be assigned to the created job
+// before the returned handle is closed.
+inline Try<SharedHandle> create_job(const std::string& name)
+{
+  SharedHandle jobHandle(
+      ::CreateJobObject(
+          nullptr,       // Use a default security descriptor, and
+                         // the created handle cannot be inherited.
+          name.c_str()), // The name of the job.
+      ::CloseHandle);
+  // TODO(andschwa): Fix the type of `name` when Unicode is turned on.
+
+  if (jobHandle.get_handle() == nullptr) {
+    return WindowsError(
+        "os::create_job: Call to `CreateJobObject` failed for job: " + name);
   }
 
   JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = { { 0 }, 0 };
 
-  jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-
   // The job object will be terminated when the job handle closes. This allows
   // the job tree to be terminated in case of errors by closing the handle.
-  ::SetInformationJobObject(
-      job_handle,
+  // We set this flag so that the death of the agent process will
+  // always kill any running jobs, as the OS will close the remaining open
+  // handles if all destructors failed to run (catastrophic death).
+  jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+  const BOOL setInformationResult = ::SetInformationJobObject(
+      jobHandle.get_handle(),
       JobObjectExtendedLimitInformation,
       &jeli,
       sizeof(jeli));
 
-  if (::AssignProcessToJobObject(
-          job_handle,
-          safe_process_handle.get_handle()) == 0) {
+  if (setInformationResult == FALSE) {
     return WindowsError(
-        "os::create_job: Call to `AssignProcessToJobObject` failed");
-  };
+        "os::create_job: `SetInformationJobObject` failed for job: " + name);
+  }
 
-  return job_handle;
+  return jobHandle;
 }
 
 
-// `kill_job` function assumes the process identified by `pid`
-// is associated with a job object whose name is derived from it.
-// Every process started by the `pid` process which is part of the job
-// object becomes part of the job object. Destroying the task
-// will close all such processes.
-inline Try<Nothing> kill_job(pid_t pid)
+// `assign_job` assigns a process with `pid` to the job object `jobHandle`.
+// Every process started by the `pid` process using `CreateProcess`
+// will also be owned by the job object.
+inline Try<Nothing> assign_job(SharedHandle jobHandle, pid_t pid) {
+  // Get process handle for `pid`.
+  SharedHandle processHandle(
+      ::OpenProcess(
+          // Required access rights to assign to a Job Object.
+          PROCESS_SET_QUOTA | PROCESS_TERMINATE,
+          false, // Don't inherit handle.
+          pid),
+      ::CloseHandle);
+
+  if (processHandle.get_handle() == nullptr) {
+    return WindowsError(
+        "os::assign_job: Call to `OpenProcess` failed");
+  }
+
+  const BOOL assignResult = ::AssignProcessToJobObject(
+      jobHandle.get_handle(),
+      processHandle.get_handle());
+
+  if (assignResult == FALSE) {
+    return WindowsError(
+        "os::assign_job: Call to `AssignProcessToJobObject` failed");
+  };
+
+  return Nothing();
+}
+
+
+// The `kill_job` function wraps the Windows sytem call `TerminateJobObject`
+// for the job object `jobHandle`. This will call `TerminateProcess`
+// for every associated child process.
+inline Try<Nothing> kill_job(SharedHandle jobHandle)
 {
-  Try<std::string> alpha_pid = strings::internal::format("MESOS_JOB_%X", pid);
-  if (alpha_pid.isError()) {
-    return Error(alpha_pid.error());
-  }
+  const BOOL terminateResult = ::TerminateJobObject(
+      jobHandle.get_handle(),
+      // The exit code to be used by all processes in the job object.
+      1);
 
-  HANDLE job_handle = ::OpenJobObject(
-      JOB_OBJECT_TERMINATE,
-      FALSE,
-      alpha_pid.get().c_str());
-
-  if (job_handle == nullptr) {
-    return WindowsError("os::kill_job: Call to `OpenJobObject` failed");
-  }
-
-  SharedHandle safe_job_handle(job_handle, ::CloseHandle);
-
-  BOOL result = ::TerminateJobObject(safe_job_handle.get_handle(), 1);
-  if (result == 0) {
-    return WindowsError();
+  if (terminateResult == FALSE) {
+    return WindowsError(
+        "os::kill_job: Call to `TerminateJobObject` failed");
   }
 
   return Nothing();
