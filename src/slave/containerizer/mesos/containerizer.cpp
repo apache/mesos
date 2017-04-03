@@ -226,7 +226,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     if (flags_.launcher == "linux") {
       return LinuxLauncher::create(flags_);
     } else if (flags_.launcher == "posix") {
-      return PosixLauncher::create(flags_);
+      return SubprocessLauncher::create(flags_);
     } else {
       return Error("Unknown or unsupported launcher: " + flags_.launcher);
     }
@@ -235,13 +235,13 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       return Error("Unsupported launcher: " + flags_.launcher);
     }
 
-    return WindowsLauncher::create(flags_);
+    return SubprocessLauncher::create(flags_);
 #else
     if (flags_.launcher != "posix") {
       return Error("Unsupported launcher: " + flags_.launcher);
     }
 
-    return PosixLauncher::create(flags_);
+    return SubprocessLauncher::create(flags_);
 #endif // __linux__
   }();
 
@@ -1574,9 +1574,9 @@ Future<bool> MesosContainerizerProcess::_launch(
       containerIO->err,
       nullptr,
       launchEnvironment,
-      // 'enterNamespaces' will be ignored by PosixLauncher.
+      // 'enterNamespaces' will be ignored by SubprocessLauncher.
       _enterNamespaces,
-      // 'cloneNamespaces' will be ignored by PosixLauncher.
+      // 'cloneNamespaces' will be ignored by SubprocessLauncher.
       _cloneNamespaces);
 
   if (forked.isError()) {

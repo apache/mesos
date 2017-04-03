@@ -86,12 +86,14 @@ public:
 // groups and sessions to track processes in a container. POSIX states
 // that process groups cannot migrate between sessions so all
 // processes for a container will be contained in a session.
-class PosixLauncher : public Launcher
+// Also suitable for Windows, which uses job objects to obtain the
+// same functionality. Everything is coordinated through `Subprocess`.
+class SubprocessLauncher : public Launcher
 {
 public:
   static Try<Launcher*> create(const Flags& flags);
 
-  virtual ~PosixLauncher() {}
+  virtual ~SubprocessLauncher() {}
 
   virtual process::Future<hashset<ContainerID>> recover(
       const std::list<mesos::slave::ContainerState>& states);
@@ -114,26 +116,13 @@ public:
       const ContainerID& containerId);
 
 protected:
-  PosixLauncher() {}
+  SubprocessLauncher() {}
 
   // The 'pid' is the process id of the first process and also the
   // process group id and session id.
   hashmap<ContainerID, pid_t> pids;
 };
 
-
-// Minimal implementation of a `Launcher` for the Windows platform. Does not
-// take into account process groups (jobs) or sessions.
-class WindowsLauncher : public PosixLauncher
-{
-public:
-  static Try<Launcher*> create(const Flags& flags);
-
-  virtual ~WindowsLauncher() {}
-
-private:
-  WindowsLauncher() {}
-};
 
 } // namespace slave {
 } // namespace internal {

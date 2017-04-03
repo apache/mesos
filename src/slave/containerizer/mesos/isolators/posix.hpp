@@ -47,7 +47,7 @@ public:
   {
     foreach (const mesos::slave::ContainerState& run, state) {
       // This should (almost) never occur: see comment in
-      // PosixLauncher::recover().
+      // SubprocessLauncher::recover().
       if (pids.contains(run.container_id())) {
         return process::Failure("Container already recovered");
       }

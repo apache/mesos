@@ -20,6 +20,9 @@
 #include <process/delay.hpp>
 #include <process/process.hpp>
 #include <process/reap.hpp>
+#ifdef __WINDOWS__
+#include <process/windows/jobobject.hpp>
+#endif // __WINDOWS__
 
 #include <stout/unreachable.hpp>
 
@@ -46,13 +49,13 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Launcher*> PosixLauncher::create(const Flags& flags)
+Try<Launcher*> SubprocessLauncher::create(const Flags& flags)
 {
-  return new PosixLauncher();
+  return new SubprocessLauncher();
 }
 
 
-Future<hashset<ContainerID>> PosixLauncher::recover(
+Future<hashset<ContainerID>> SubprocessLauncher::recover(
     const list<ContainerState>& states)
 {
   foreach (const ContainerState& state, states) {
@@ -78,7 +81,7 @@ Future<hashset<ContainerID>> PosixLauncher::recover(
 }
 
 
-Try<pid_t> PosixLauncher::fork(
+Try<pid_t> SubprocessLauncher::fork(
     const ContainerID& containerId,
     const string& path,
     const vector<string>& argv,
@@ -91,11 +94,11 @@ Try<pid_t> PosixLauncher::fork(
     const Option<int>& cloneNamespaces)
 {
   if (enterNamespaces.isSome() && enterNamespaces.get() != 0) {
-    return Error("Posix launcher does not support entering namespaces");
+    return Error("Subprocess launcher does not support entering namespaces");
   }
 
   if (cloneNamespaces.isSome() && cloneNamespaces.get() != 0) {
-    return Error("Posix launcher does not support cloning namespaces");
+    return Error("Subprocess launcher does not support cloning namespaces");
   }
 
   if (pids.contains(containerId)) {
@@ -103,16 +106,18 @@ Try<pid_t> PosixLauncher::fork(
                  stringify(containerId));
   }
 
-  // If we are on systemd, then extend the life of the child. Any
-  // grandchildren's lives will also be extended.
   vector<process::Subprocess::ParentHook> parentHooks;
 
 #ifdef __linux__
+  // If we are on systemd, then extend the life of the child. Any
+  // grandchildren's lives will also be extended.
   if (systemd::enabled()) {
     parentHooks.emplace_back(Subprocess::ParentHook(
         &systemd::mesos::extendLifetime));
   }
 #elif defined(__WINDOWS__)
+  // If we are on Windows, then ensure the child is placed inside a
+  // new job object.
   parentHooks.emplace_back(Subprocess::ParentHook::CREATE_JOB());
 #endif // __linux__
 
@@ -146,7 +151,7 @@ Try<pid_t> PosixLauncher::fork(
 Future<Nothing> _destroy(const Future<Option<int>>& future);
 
 
-Future<Nothing> PosixLauncher::destroy(const ContainerID& containerId)
+Future<Nothing> SubprocessLauncher::destroy(const ContainerID& containerId)
 {
   LOG(INFO) << "Asked to destroy container " << containerId;
 
@@ -158,7 +163,7 @@ Future<Nothing> PosixLauncher::destroy(const ContainerID& containerId)
   pid_t pid = pids.get(containerId).get();
 
   // Kill all processes in the session and process group.
-  Try<list<os::ProcessTree>> trees = os::killtree(pid, SIGKILL, true, true);
+  os::killtree(pid, SIGKILL, true, true);
 
   pids.erase(containerId);
 
@@ -180,7 +185,8 @@ Future<Nothing> _destroy(const Future<Option<int>>& future)
 }
 
 
-Future<ContainerStatus> PosixLauncher::status(const ContainerID& containerId)
+Future<ContainerStatus> SubprocessLauncher::status(
+    const ContainerID& containerId)
 {
   if (!pids.contains(containerId)) {
     return Failure("Container does not exist!");
@@ -192,11 +198,6 @@ Future<ContainerStatus> PosixLauncher::status(const ContainerID& containerId)
   return status;
 }
 
-
-Try<Launcher*> WindowsLauncher::create(const Flags& flags)
-{
-  return new WindowsLauncher();
-}
 
 } // namespace slave {
 } // namespace internal {
