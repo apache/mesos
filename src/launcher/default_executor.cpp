@@ -802,8 +802,9 @@ protected:
 
     LOG(INFO)
       << "Child container " << container->containerId << " of task '" << taskId
-      << "' in state " << stringify(taskState) << " terminated with status "
-      << (status.isSome() ? WSTRINGIFY(status.get()) : "unknown");
+      << "' in state " << stringify(taskState) << " "
+      << (status.isSome() ? WSTRINGIFY(status.get())
+                          : "terminated with unknown status");
 
     // Shutdown the executor if all the active child containers have terminated.
     if (containers.empty()) {
