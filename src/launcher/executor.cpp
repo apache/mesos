@@ -14,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "launcher/executor.hpp"
-
 #include <signal.h>
 #include <stdio.h>
 
@@ -43,6 +41,9 @@
 #include <process/subprocess.hpp>
 #include <process/time.hpp>
 #include <process/timer.hpp>
+#ifdef __WINDOWS__
+#include <process/windows/jobobject.hpp>
+#endif // __WINDOWS__
 
 #include <stout/duration.hpp>
 #include <stout/flags.hpp>
@@ -80,6 +81,8 @@
 #include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/containerizer/mesos/constants.hpp"
+#include "slave/containerizer/mesos/launch.hpp"
 
 using namespace mesos::internal::slave;
 
@@ -384,6 +387,115 @@ protected:
     delay(Seconds(1), self(), &Self::doReliableRegistration);
   }
 
+  static pid_t launchTaskSubprocess(
+      const CommandInfo& command,
+      const string& launcherDir,
+      const Environment& environment,
+      const Option<string>& user,
+      const Option<string>& rootfs,
+      const Option<string>& sandboxDirectory,
+      const Option<string>& workingDirectory,
+      const Option<CapabilityInfo>& capabilities)
+  {
+    // Prepare the flags to pass to the launch process.
+    slave::MesosContainerizerLaunch::Flags launchFlags;
+
+    ::mesos::slave::ContainerLaunchInfo launchInfo;
+    launchInfo.mutable_command()->CopyFrom(command);
+
+#ifndef __WINDOWS__
+    if (rootfs.isSome()) {
+      // The command executor is responsible for chrooting into the
+      // root filesystem and changing the user before exec-ing the
+      // user process.
+#ifdef __linux__
+      if (geteuid() != 0) {
+        ABORT("The command executor requires root with rootfs");
+      }
+
+      // Ensure that mount namespace of the executor is not affected by
+      // changes in its task's namespace induced by calling `pivot_root`
+      // as part of the task setup in mesos-containerizer binary.
+      launchFlags.unshare_namespace_mnt = true;
+#else
+      ABORT("Not expecting root volume with non-linux platform");
+#endif // __linux__
+
+      launchInfo.set_rootfs(rootfs.get());
+
+      CHECK_SOME(sandboxDirectory);
+
+      launchInfo.set_working_directory(workingDirectory.isSome()
+        ? workingDirectory.get()
+        : sandboxDirectory.get());
+
+      // TODO(jieyu): If the task has a rootfs, the executor itself will
+      // be running as root. Its sandbox is owned by root as well. In
+      // order for the task to be able to access to its sandbox, we need
+      // to make sure the owner of the sandbox is 'user'. However, this
+      // is still a workaround. The owner of the files downloaded by the
+      // fetcher is still not correct (i.e., root).
+      if (user.isSome()) {
+        // NOTE: We only chown the sandbox directory (non-recursively).
+        Try<Nothing> chown = os::chown(user.get(), os::getcwd(), false);
+        if (chown.isError()) {
+          ABORT("Failed to chown sandbox to user " +
+                user.get() + ": " + chown.error());
+        }
+      }
+    }
+#endif // __WINDOWS__
+
+    launchInfo.mutable_environment()->CopyFrom(environment);
+
+    if (user.isSome()) {
+      launchInfo.set_user(user.get());
+    }
+
+    if (capabilities.isSome()) {
+      launchInfo.mutable_capabilities()->CopyFrom(capabilities.get());
+    }
+
+    launchFlags.launch_info = JSON::protobuf(launchInfo);
+
+    // TODO(tillt): Consider using a flag allowing / disallowing the
+    // log output of possibly sensitive data. See MESOS-7292.
+    string commandString = strings::format(
+        "%s %s <POSSIBLY-SENSITIVE-DATA>",
+        path::join(launcherDir, MESOS_CONTAINERIZER),
+        MesosContainerizerLaunch::NAME).get();
+
+    cout << "Running '" << commandString << "'" << endl;
+
+    // Fork the child using launcher.
+    vector<string> argv(2);
+    argv[0] = MESOS_CONTAINERIZER;
+    argv[1] = MesosContainerizerLaunch::NAME;
+
+    vector<process::Subprocess::ParentHook> parentHooks;
+#ifdef __WINDOWS__
+    parentHooks.emplace_back(Subprocess::ParentHook::CREATE_JOB());
+#endif // __WINDOWS__
+
+    Try<Subprocess> s = subprocess(
+        path::join(launcherDir, MESOS_CONTAINERIZER),
+        argv,
+        Subprocess::FD(STDIN_FILENO),
+        Subprocess::FD(STDOUT_FILENO),
+        Subprocess::FD(STDERR_FILENO),
+        &launchFlags,
+        None(),
+        None(),
+        parentHooks,
+        {Subprocess::ChildHook::SETSID()});
+
+    if (s.isError()) {
+      ABORT("Failed to launch '" + commandString + "': " + s.error());
+    }
+
+    return s->pid();
+  }
+
   void launch(const TaskInfo& task)
   {
     CHECK_EQ(SUBSCRIBED, state);
@@ -503,7 +615,7 @@ protected:
 
     cout << "Starting task " << taskId.get() << endl;
 
-    pid = launchTaskPosix(
+    pid = launchTaskSubprocess(
         command,
         launcherDir,
         launchEnvironment,

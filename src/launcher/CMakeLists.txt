@@ -26,18 +26,6 @@ set(EXECUTOR_EXECUTABLE_SRC
   executor.cpp
   )
 
-if (NOT WIN32)
-  set(EXECUTOR_EXECUTABLE_SRC
-    ${EXECUTOR_EXECUTABLE_SRC}
-    posix/executor.cpp
-    )
-else (NOT WIN32)
-  set(EXECUTOR_EXECUTABLE_SRC
-    ${EXECUTOR_EXECUTABLE_SRC}
-    posix/executor.cpp
-    )
-endif (NOT WIN32)
-
 # THE MESOS LAUNCHER FETCHER SOURCE.
 ####################################
 set(FETCHER_EXECUTABLE_SRC fetcher.cpp)
