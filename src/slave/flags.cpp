@@ -997,7 +997,6 @@ mesos::internal::slave::Flags::Flags()
       "  `zk://username:password@host1:port1,host2:port2,.../path`\n"
       "  `file:///path/to/file` (where file contains one of the above)");
 
-
   add(&Flags::ip_discovery_command,
       "ip_discovery_command",
       "Optional IP discovery binary: if set, it is expected to emit\n"
