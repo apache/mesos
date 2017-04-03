@@ -36,7 +36,7 @@
 #include "slave/containerizer/fetcher.hpp"
 
 #include "tests/flags.hpp"
-#include "tests/health_check_test_helper.hpp"
+#include "tests/http_server_test_helper.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
@@ -822,7 +822,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
   const string command = strings::format(
       "%s %s --ip=127.0.0.1 --port=%u",
       getTestHelperPath("test-helper"),
-      HealthCheckTestHelper::NAME,
+      HttpServerTestHelper::NAME,
       testPort).get();
 
   v1::Resources resources =
@@ -1677,7 +1677,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, HTTPCheckDelivered)
   const string command = strings::format(
       "%s %s --ip=127.0.0.1 --port=%u",
       getTestHelperPath("test-helper"),
-      HealthCheckTestHelper::NAME,
+      HttpServerTestHelper::NAME,
       testPort).get();
 
   v1::TaskInfo taskInfo = v1::createTask(agentId, resources, command);

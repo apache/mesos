@@ -18,7 +18,7 @@
 #include <stout/subcommand.hpp>
 
 #include "tests/active_user_test_helper.hpp"
-#include "tests/health_check_test_helper.hpp"
+#include "tests/http_server_test_helper.hpp"
 #include "tests/kill_policy_test_helper.hpp"
 
 #ifndef __WINDOWS__
@@ -30,7 +30,7 @@
 #endif
 
 using mesos::internal::tests::ActiveUserTestHelper;
-using mesos::internal::tests::HealthCheckTestHelper;
+using mesos::internal::tests::HttpServerTestHelper;
 #ifndef __WINDOWS__
 using mesos::internal::tests::KillPolicyTestHelper;
 using mesos::internal::tests::MemoryTestHelper;
@@ -51,7 +51,7 @@ int main(int argc, char** argv)
       new CapabilitiesTestHelper(),
       new SetnsTestHelper(),
 #endif
-      new HealthCheckTestHelper(),
+      new HttpServerTestHelper(),
 #ifndef __WINDOWS__
       new KillPolicyTestHelper(),
       new MemoryTestHelper(),

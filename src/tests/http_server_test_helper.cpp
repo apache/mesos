@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "tests/health_check_test_helper.hpp"
+#include "tests/http_server_test_helper.hpp"
 
 #include <cstdlib>
 
@@ -33,7 +33,7 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-const char HealthCheckTestHelper::NAME[] = "HealthCheck";
+const char HttpServerTestHelper::NAME[] = "HttpServer";
 
 
 class HttpServer : public Process<HttpServer>
@@ -44,7 +44,7 @@ public:
 };
 
 
-HealthCheckTestHelper::Flags::Flags()
+HttpServerTestHelper::Flags::Flags()
 {
   add(&Flags::ip,
       "ip",
@@ -56,7 +56,7 @@ HealthCheckTestHelper::Flags::Flags()
 }
 
 
-int HealthCheckTestHelper::execute()
+int HttpServerTestHelper::execute()
 {
   os::setenv("LIBPROCESS_IP", flags.ip);
   os::setenv("LIBPROCESS_PORT", stringify(flags.port));

@@ -23,7 +23,7 @@ set(TEST_HELPER_SRC
   ${TEST_HELPER_SRC}
   active_user_test_helper.cpp
   flags.cpp
-  health_check_test_helper.cpp
+  http_server_test_helper.cpp
   resources_utils.cpp
   test_helper_main.cpp
   utils.cpp
@@ -54,7 +54,7 @@ set(MESOS_TESTS_UTILS_SRC
   containerizer.cpp
   environment.cpp
   flags.cpp
-  health_check_test_helper.cpp
+  http_server_test_helper.cpp
   main.cpp
   mesos.cpp
   mock_docker.cpp

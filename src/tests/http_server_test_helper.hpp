@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __HEALTH_CHECK_TEST_HELPER_HPP__
-#define __HEALTH_CHECK_TEST_HELPER_HPP__
+#ifndef __HTTP_SERVER_TEST_HELPER_HPP__
+#define __HTTP_SERVER_TEST_HELPER_HPP__
 
 #include <cstdint>
 #include <string>
@@ -27,7 +27,7 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class HealthCheckTestHelper : public Subcommand
+class HttpServerTestHelper : public Subcommand
 {
 public:
   static const char NAME[];
@@ -40,7 +40,7 @@ public:
     uint16_t port;
   };
 
-  HealthCheckTestHelper() : Subcommand(NAME) {}
+  HttpServerTestHelper() : Subcommand(NAME) {}
 
   Flags flags;
 
@@ -53,4 +53,4 @@ protected:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __HEALTH_CHECK_TEST_HELPER_HPP__
+#endif // __HTTP_SERVER_TEST_HELPER_HPP__
