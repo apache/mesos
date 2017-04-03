@@ -53,3 +53,4 @@ layout: documentation
 - [Mesos HTTP API](https://docs.google.com/document/d/1pnIY_HckimKNvpqhKRhbc9eSItWNFT-priXh_urR-T0/edit#heading=h.ej7mjb84f6x9)
 - [Multi-Role Frameworks](https://docs.google.com/document/d/1n0ZtRL49m3qpAeB4beEEhjTXQS-nYAbgRG9g44fn4WY/edit?usp=sharing)
 - [Hierarchical Roles](https://docs.google.com/document/d/1Ie2-6O400ayNXtRqipHq6_CCQ4wOoLWzoqql3b0Y6HU/edit?usp=sharing)
+- [Improve Storage Support in Mesos using Resource Provider and CSI](https://docs.google.com/document/d/125YWqg_5BB5OY9a6M7LZcby5RSqBwo2PZzpVLuxYXh4/edit?usp=sharing)
