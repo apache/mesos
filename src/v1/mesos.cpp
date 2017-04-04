@@ -288,19 +288,7 @@ bool operator==(const Labels& left, const Labels& right)
 }
 
 
-bool operator==(const ResourceProviderID& left, const ResourceProviderID& right)
-{
-  return left.value() == right.value();
-}
-
-
 bool operator!=(const Labels& left, const Labels& right)
-{
-  return !(left == right);
-}
-
-
-bool operator!=(const ResourceProviderID& left, const ResourceProviderID& right)
 {
   return !(left == right);
 }
@@ -478,6 +466,14 @@ ostream& operator<<(ostream& stream, const RateLimits& limits)
 }
 
 
+ostream& operator<<(
+    ostream& stream,
+    const ResourceProviderID& resourceProviderId)
+{
+  return stream << resourceProviderId.value();
+}
+
+
 ostream& operator<<(ostream& stream, const RLimitInfo& limits)
 {
   return stream << JSON::protobuf(limits);
@@ -572,14 +568,6 @@ ostream& operator<<(ostream& stream, const Image::Type& imageType)
 ostream& operator<<(ostream& stream, const Secret::Type& secretType)
 {
   return stream << Secret::Type_Name(secretType);
-}
-
-
-ostream& operator<<(
-    ostream& stream,
-    const ResourceProviderID& resourceProviderId)
-{
-  return stream << resourceProviderId.value();
 }
 
 

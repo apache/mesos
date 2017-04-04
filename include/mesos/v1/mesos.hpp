@@ -97,6 +97,14 @@ inline bool operator==(const OfferID& left, const OfferID& right)
 }
 
 
+inline bool operator==(
+    const ResourceProviderID& left,
+    const ResourceProviderID& right)
+{
+  return left.value() == right.value();
+}
+
+
 inline bool operator==(const AgentID& left, const AgentID& right)
 {
   return left.value() == right.value();
@@ -172,11 +180,6 @@ inline bool operator==(const MachineID& left, const MachineID& right)
 }
 
 
-bool operator==(
-    const ResourceProviderID& left,
-    const ResourceProviderID& right);
-
-
 inline bool operator!=(const ContainerID& left, const ContainerID& right)
 {
   return left.value() != right.value();
@@ -190,6 +193,14 @@ inline bool operator!=(const ExecutorID& left, const ExecutorID& right)
 
 
 inline bool operator!=(const FrameworkID& left, const FrameworkID& right)
+{
+  return left.value() != right.value();
+}
+
+
+inline bool operator!=(
+    const ResourceProviderID& left,
+    const ResourceProviderID& right)
 {
   return left.value() != right.value();
 }
@@ -211,11 +222,6 @@ inline bool operator!=(const DurationInfo& left, const DurationInfo& right)
 {
   return !(left == right);
 }
-
-
-bool operator!=(
-    const ResourceProviderID& left,
-    const ResourceProviderID& right);
 
 
 inline bool operator<(const ContainerID& left, const ContainerID& right)
@@ -293,6 +299,11 @@ std::ostream& operator<<(std::ostream& stream, const RateLimits& limits);
 std::ostream& operator<<(std::ostream& stream, const RLimitInfo& limits);
 
 
+std::ostream& operator<<(
+    std::ostream& stream,
+    const ResourceProviderID& resourceProviderId);
+
+
 std::ostream& operator<<(std::ostream& stream, const AgentID& agentId);
 
 
@@ -333,11 +344,6 @@ std::ostream& operator<<(std::ostream& stream, const Image::Type& imageType);
 
 
 std::ostream& operator<<(std::ostream& stream, const Secret::Type& secretType);
-
-
-std::ostream& operator<<(
-    std::ostream& stream,
-    const ResourceProviderID& resourceProviderId);
 
 
 template <typename T>

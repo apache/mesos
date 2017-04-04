@@ -99,6 +99,14 @@ inline bool operator==(const OfferID& left, const OfferID& right)
 }
 
 
+inline bool operator==(
+    const ResourceProviderID& left,
+    const ResourceProviderID& right)
+{
+  return left.value() == right.value();
+}
+
+
 inline bool operator==(const SlaveID& left, const SlaveID& right)
 {
   return left.value() == right.value();
