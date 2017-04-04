@@ -170,22 +170,69 @@ inline int execvpe(const char* file, char* const argv[], char* const envp[])
 
 
 // Concatenates multiple command-line arguments and escapes the values.
-// If `arg` is not specified (or takes the value `0`), the function will
-// scan `argv` until a `nullptr` is encountered.
-inline std::string stringify_args(char** argv, unsigned long argc = 0)
+// NOTE: This is necessary even when using Windows APIs that "appear"
+// to take arguments as a list, because those APIs will themselves
+// concatenate command-line arguments *without* escaping them.
+//
+// This function escapes arguments with the following rules:
+//   1) Any argument with a space, tab, newline, vertical tab,
+//      or double-quote must be surrounded in double-quotes.
+//   2) Backslashes at the very end of an argument must be escaped.
+//   3) Backslashes that precede a double-quote must be escaped.
+//      The double-quote must also be escaped.
+//
+// NOTE: The below algorithm is adapted from Daniel Colascione's public domain
+// algorithm for quoting command line arguments on Windows for `CreateProcess`.
+//
+// https://blogs.msdn.microsoft.com/twistylittlepassagesallalike/2011/04/23/everyone-quotes-command-line-arguments-the-wrong-way/
+// NOLINT(whitespace/line_length)
+inline std::wstring stringify_args(const std::vector<std::string>& argv)
 {
-  std::string arg_line = "";
-  unsigned long index = 0;
-  while ((argc == 0 || index < argc) && argv[index] != nullptr) {
-    // TODO(dpravat): (MESOS-5522) Format these args for all cases.
-    // Specifically, we need to:
-    //   (1) Add double quotes around arguments that contain special
-    //       characters, like spaces and tabs.
-    //   (2) Escape any existing double quotes and backslashes.
-    arg_line = strings::join(" ", arg_line, argv[index++]);
-  }
+  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> converter;
+  std::wstring command;
+  for (auto argit = argv.cbegin(); argit != argv.cend(); ++argit) {
+    std::wstring arg = converter.from_bytes(*argit);
+    // Don't quote empty arguments or those without troublesome characters.
+    if (!arg.empty() && arg.find_first_of(L" \t\n\v\"") == arg.npos) {
+      command.append(arg);
+    } else {
+      // Beginning double quotation mark.
+      command.push_back(L'"');
+      for (auto it = arg.cbegin(); it != arg.cend(); ++it) {
+        // Count existent backslashes in argument.
+        unsigned int backslashes = 0;
+        while (it != arg.cend() && *it == L'\\') {
+          ++it;
+          ++backslashes;
+        }
 
-  return arg_line;
+        if (it == arg.cend()) {
+          // Escape all backslashes, but let the terminating double quotation
+          // mark we add below be interpreted as a metacharacter.
+          command.append(backslashes * 2, L'\\');
+          break;
+        } else if (*it == L'"') {
+          // Escape all backslashes and the following double quotation mark.
+          command.append(backslashes * 2 + 1, L'\\');
+          command.push_back(*it);
+        } else {
+          // Backslashes aren't special here.
+          command.append(backslashes, L'\\');
+          command.push_back(*it);
+        }
+      }
+
+      // Terminating double quotation mark.
+      command.push_back(L'"');
+    }
+    // Space separate arguments (but don't append at end).
+    if (argit != argv.cend() - 1) {
+      command.push_back(L' ');
+    }
+  }
+  // Append final null terminating character.
+  command.push_back(L'\0');
+  return command;
 }
 
 } // namespace os {
