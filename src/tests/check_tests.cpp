@@ -113,7 +113,7 @@ namespace tests {
 #endif // !__WINDOWS__
 
 
-// Tests for checks support in built in executors. Logically the tests
+// Tests for checks support in built-in executors. Logically the tests
 // are elements of the cartesian product `executor-type` x `check-type`
 // and are split into groups by `executor-type`:
 //   * command executor tests,
@@ -860,7 +860,33 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
   EXPECT_EQ(taskInfo.task_id(), checkResult.task_id());
   EXPECT_TRUE(checkResult.has_check_status());
   EXPECT_TRUE(checkResult.check_status().http().has_status_code());
-  EXPECT_EQ(200, checkResult.check_status().http().status_code());
+
+  // Since it takes some time for the HTTP server to start serving requests,
+  // the first several HTTP checks may not return 200. However we still expect
+  // a successful HTTP check and hence an extra status update.
+  if (checkResult.check_status().http().status_code() != 200)
+  {
+    // Inject an expectation for the extra status update we expect.
+    Future<v1::scheduler::Event::Update> updateCheckResult2;
+    EXPECT_CALL(*scheduler, update(_, _))
+      .WillOnce(FutureArg<1>(&updateCheckResult2))
+      .RetiresOnSaturation();
+
+    // Acknowledge (to be able to get the next update).
+    acknowledge(&mesos, frameworkId, checkResult);
+
+    AWAIT_READY(updateCheckResult2);
+    const v1::TaskStatus& checkResult2 = updateCheckResult2->status();
+
+    ASSERT_EQ(TASK_RUNNING, checkResult2.state());
+    ASSERT_EQ(
+        v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+        checkResult2.reason());
+    EXPECT_EQ(taskInfo.task_id(), checkResult2.task_id());
+    EXPECT_TRUE(checkResult2.has_check_status());
+    EXPECT_TRUE(checkResult2.check_status().http().has_status_code());
+    EXPECT_EQ(200, checkResult2.check_status().http().status_code());
+  }
 }
 
 
@@ -1849,7 +1875,33 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, HTTPCheckDelivered)
   EXPECT_EQ(taskInfo.task_id(), checkResult.task_id());
   EXPECT_TRUE(checkResult.has_check_status());
   EXPECT_TRUE(checkResult.check_status().http().has_status_code());
-  EXPECT_EQ(200, checkResult.check_status().http().status_code());
+
+  // Since it takes some time for the HTTP server to start serving requests,
+  // the first several HTTP checks may not return 200. However we still expect
+  // a successful HTTP check and hence an extra status update.
+  if (checkResult.check_status().http().status_code() != 200)
+  {
+    // Inject an expectation for the extra status update we expect.
+    Future<v1::scheduler::Event::Update> updateCheckResult2;
+    EXPECT_CALL(*scheduler, update(_, _))
+      .WillOnce(FutureArg<1>(&updateCheckResult2))
+      .RetiresOnSaturation();
+
+    // Acknowledge (to be able to get the next update).
+    acknowledge(&mesos, frameworkId, checkResult);
+
+    AWAIT_READY(updateCheckResult2);
+    const v1::TaskStatus& checkResult2 = updateCheckResult2->status();
+
+    ASSERT_EQ(TASK_RUNNING, checkResult2.state());
+    ASSERT_EQ(
+        v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+        checkResult2.reason());
+    EXPECT_EQ(taskInfo.task_id(), checkResult2.task_id());
+    EXPECT_TRUE(checkResult2.has_check_status());
+    EXPECT_TRUE(checkResult2.check_status().http().has_status_code());
+    EXPECT_EQ(200, checkResult2.check_status().http().status_code());
+  }
 }
 
 
