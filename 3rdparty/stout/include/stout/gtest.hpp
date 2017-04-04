@@ -230,13 +230,6 @@ template <typename T1, typename T2>
 #endif // __WINDOWS__
 
 
-#ifndef __WINDOWS__
-constexpr char TRUE_COMMAND[] = "true";
-#else
-constexpr char TRUE_COMMAND[] = "cmd /c exit 0";
-#endif // __WINDOWS__
-
-
 inline ::testing::AssertionResult AssertExited(
     const char* actualExpr,
     const int actual)
