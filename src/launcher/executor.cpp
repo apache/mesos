@@ -643,6 +643,7 @@ protected:
       Try<Owned<checks::Checker>> _checker =
         checks::Checker::create(
             task.check(),
+            launcherDir,
             defer(self(), &Self::taskCheckUpdated, taskId.get(), lambda::_1),
             taskId.get(),
             pid,

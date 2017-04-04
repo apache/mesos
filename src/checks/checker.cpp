@@ -88,8 +88,10 @@ namespace checks {
 
 #ifndef __WINDOWS__
 constexpr char HTTP_CHECK_COMMAND[] = "curl";
+constexpr char TCP_CHECK_COMMAND[] = "mesos-tcp-connect";
 #else
 constexpr char HTTP_CHECK_COMMAND[] = "curl.exe";
+constexpr char TCP_CHECK_COMMAND[] = "mesos-tcp-connect.exe";
 #endif // __WINDOWS__
 
 constexpr char DEFAULT_HTTP_SCHEME[] = "http";
@@ -133,6 +135,7 @@ class CheckerProcess : public ProtobufProcess<CheckerProcess>
 public:
   CheckerProcess(
       const CheckInfo& _check,
+      const string& _launcherDir,
       const lambda::function<void(const CheckStatusInfo&)>& _callback,
       const TaskID& _taskId,
       const Option<pid_t>& _taskPid,
@@ -193,10 +196,20 @@ private:
       const Stopwatch& stopwatch,
       const Future<int>& future);
 
+  Future<bool> tcpCheck();
+  Future<bool> _tcpCheck(
+      const tuple<Future<Option<int>>, Future<string>, Future<string>>& t);
+  void processTcpCheckResult(
+      const Stopwatch& stopwatch,
+      const Future<bool>& future);
+
   const CheckInfo check;
   Duration checkDelay;
   Duration checkInterval;
   Duration checkTimeout;
+
+  // Contains the binary for TCP checks.
+  const string launcherDir;
 
   const lambda::function<void(const CheckStatusInfo&)> updateCallback;
   const TaskID taskId;
@@ -220,6 +233,7 @@ private:
 
 Try<Owned<Checker>> Checker::create(
     const CheckInfo& check,
+    const string& launcherDir,
     const lambda::function<void(const CheckStatusInfo&)>& callback,
     const TaskID& taskId,
     const Option<pid_t>& taskPid,
@@ -233,6 +247,7 @@ Try<Owned<Checker>> Checker::create(
 
   Owned<CheckerProcess> process(new CheckerProcess(
       check,
+      launcherDir,
       callback,
       taskId,
       taskPid,
@@ -248,6 +263,7 @@ Try<Owned<Checker>> Checker::create(
 
 Try<Owned<Checker>> Checker::create(
     const CheckInfo& check,
+    const string& launcherDir,
     const lambda::function<void(const CheckStatusInfo&)>& callback,
     const TaskID& taskId,
     const ContainerID& taskContainerId,
@@ -262,6 +278,7 @@ Try<Owned<Checker>> Checker::create(
 
   Owned<CheckerProcess> process(new CheckerProcess(
       check,
+      launcherDir,
       callback,
       taskId,
       None(),
@@ -303,6 +320,7 @@ void Checker::resume()
 
 CheckerProcess::CheckerProcess(
     const CheckInfo& _check,
+    const string& _launcherDir,
     const lambda::function<void(const CheckStatusInfo&)>& _callback,
     const TaskID& _taskId,
     const Option<pid_t>& _taskPid,
@@ -313,6 +331,7 @@ CheckerProcess::CheckerProcess(
     bool _commandCheckViaAgent)
   : ProcessBase(process::ID::generate("checker")),
     check(_check),
+    launcherDir(_launcherDir),
     updateCallback(_callback),
     taskId(_taskId),
     taskPid(_taskPid),
@@ -407,6 +426,9 @@ void CheckerProcess::performCheck()
       break;
     }
     case CheckInfo::TCP: {
+      tcpCheck().onAny(defer(
+          self(),
+          &Self::processTcpCheckResult, stopwatch, lambda::_1));
       break;
     }
     case CheckInfo::UNKNOWN: {
@@ -1063,6 +1085,139 @@ void CheckerProcess::processHttpCheckResult(
                  << " " << (future.isFailed() ? future.failure() : "discarded");
 
     result.mutable_http();
+  }
+
+  processCheckResult(stopwatch, result);
+}
+
+
+Future<bool> CheckerProcess::tcpCheck()
+{
+  CHECK_EQ(CheckInfo::TCP, check.type());
+  CHECK(check.has_tcp());
+
+  // TCP_CHECK_COMMAND should be reachable.
+  CHECK(os::exists(launcherDir));
+
+  const CheckInfo::Tcp& tcp = check.tcp();
+
+  VLOG(1) << "Launching TCP check for task '" << taskId << "' at port "
+          << tcp.port();
+
+  const string command = path::join(launcherDir, TCP_CHECK_COMMAND);
+
+  const vector<string> argv = {
+    command,
+    "--ip=" + stringify(DEFAULT_DOMAIN),
+    "--port=" + stringify(tcp.port())
+  };
+
+  // TODO(alexr): Consider launching the helper binary once per task lifetime,
+  // see MESOS-6766.
+  Try<Subprocess> s = subprocess(
+      command,
+      argv,
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PIPE(),
+      Subprocess::PIPE(),
+      nullptr,
+      None(),
+      clone);
+
+  if (s.isError()) {
+    return Failure(
+        "Failed to create the " + command + " subprocess: " + s.error());
+  }
+
+  // TODO(alexr): Use lambda named captures for
+  // these cached values once they are available.
+  pid_t commandPid = s->pid();
+  const Duration timeout = checkTimeout;
+  const TaskID _taskId = taskId;
+
+  return await(
+      s->status(),
+      process::io::read(s->out().get()),
+      process::io::read(s->err().get()))
+    .after(
+        timeout,
+        [timeout, commandPid, _taskId](Future<tuple<Future<Option<int>>,
+                                                    Future<string>,
+                                                    Future<string>>> future)
+    {
+      future.discard();
+
+      if (commandPid != -1) {
+        // Cleanup the TCP_CHECK_COMMAND process.
+        VLOG(1) << "Killing the TCP check process " << commandPid
+                << " for task '" << _taskId << "'";
+
+        os::killtree(commandPid, SIGKILL);
+      }
+
+      return Failure(
+          string(TCP_CHECK_COMMAND) + " timed out after " + stringify(timeout));
+    })
+    .then(defer(self(), &Self::_tcpCheck, lambda::_1));
+}
+
+
+Future<bool> CheckerProcess::_tcpCheck(
+    const tuple<Future<Option<int>>, Future<string>, Future<string>>& t)
+{
+  const Future<Option<int>>& status = std::get<0>(t);
+  if (!status.isReady()) {
+    return Failure(
+        "Failed to get the exit status of the " + string(TCP_CHECK_COMMAND) +
+        " process: " + (status.isFailed() ? status.failure() : "discarded"));
+  }
+
+  if (status->isNone()) {
+    return Failure(
+        "Failed to reap the " + string(TCP_CHECK_COMMAND) + " process");
+  }
+
+  int exitCode = status->get();
+
+  const Future<string>& commandOutput = std::get<1>(t);
+  if (commandOutput.isReady()) {
+    VLOG(1) << string(TCP_CHECK_COMMAND) << ": " << commandOutput.get();
+  }
+
+  if (exitCode != 0) {
+    const Future<string>& commandError = std::get<2>(t);
+    if (commandError.isReady()) {
+      VLOG(1) << string(TCP_CHECK_COMMAND) << ": " << commandError.get();
+    }
+  }
+
+  // Non-zero exit code of TCP_CHECK_COMMAND can mean configuration problem
+  // (e.g., bad command flag), system error (e.g., a socket cannot be
+  // created), or actually a failed connection. We cannot distinguish between
+  // these cases, hence treat all of them as connection failure.
+  return (exitCode == 0 ? true : false);
+}
+
+
+void CheckerProcess::processTcpCheckResult(
+    const Stopwatch& stopwatch,
+    const Future<bool>& future)
+{
+  CheckStatusInfo result;
+  result.set_type(check.type());
+
+  if (future.isReady()) {
+    VLOG(1) << check.type() << " check for task '"
+            << taskId << "' returned: " << stringify(future.get());
+
+    result.mutable_tcp()->set_succeeded(future.get());
+  } else {
+    // Check's status is currently not available, which may indicate a change
+    // that should be reported as an empty `CheckStatusInfo.Tcp` message.
+    LOG(WARNING) << check.type() << " check for task '" << taskId << "' failed:"
+                 << " " << (future.isFailed() ? future.failure() : "discarded");
+
+    result.mutable_tcp();
   }
 
   processCheckResult(stopwatch, result);

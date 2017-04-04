@@ -48,6 +48,8 @@ public:
    * the task's namespaces, and execute the commmand.
    *
    * @param check The protobuf message definition of a check.
+   * @param launcherDir A directory where Mesos helper binaries are located.
+   *     Executor must have access to this directory for TCP checks.
    * @param callback A callback `Checker` uses to send check status updates
    *     to its owner (usually an executor).
    * @param taskId The TaskID of the target task.
@@ -61,6 +63,7 @@ public:
    */
   static Try<process::Owned<Checker>> create(
       const CheckInfo& check,
+      const std::string& launcherDir,
       const lambda::function<void(const CheckStatusInfo&)>& callback,
       const TaskID& taskId,
       const Option<pid_t>& taskPid,
@@ -75,6 +78,8 @@ public:
    * API call.
    *
    * @param check The protobuf message definition of a check.
+   * @param launcherDir A directory where Mesos helper binaries are located.
+   *     Executor must have access to this directory for TCP checks.
    * @param callback A callback `Checker` uses to send check status updates
    *     to its owner (usually an executor).
    * @param taskId The TaskID of the target task.
@@ -89,6 +94,7 @@ public:
    */
   static Try<process::Owned<Checker>> create(
       const CheckInfo& check,
+      const std::string& launcherDir,
       const lambda::function<void(const CheckStatusInfo&)>& callback,
       const TaskID& taskId,
       const ContainerID& taskContainerId,

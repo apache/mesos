@@ -506,6 +506,7 @@ protected:
         Try<Owned<checks::Checker>> checker =
           checks::Checker::create(
               task.check(),
+              launcherDirectory,
               defer(self(), &Self::taskCheckUpdated, taskId, lambda::_1),
               taskId,
               containerId,
