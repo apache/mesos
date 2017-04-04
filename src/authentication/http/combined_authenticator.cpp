@@ -100,7 +100,7 @@ CombinedAuthenticatorProcess::CombinedAuthenticatorProcess(
     const string& _realm,
     vector<Owned<Authenticator>>&& _authenticators)
   : ProcessBase(process::ID::generate("__combined_authenticator__")),
-    authenticators(_authenticators),
+    authenticators(std::move(_authenticators)),
     realm(_realm) {}
 
 
