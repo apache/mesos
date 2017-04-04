@@ -667,8 +667,15 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
 
   CommandInfo command;
   command.set_shell(false);
-  command.set_value(TRUE_COMMAND);
-  command.add_arguments(TRUE_COMMAND);
+#ifdef __WINDOWS__
+  command.set_value(os::Shell::name);
+  command.add_arguments(os::Shell::arg0);
+  command.add_arguments(os::Shell::arg1);
+  command.add_arguments("exit 0");
+#else
+  command.set_value("true");
+  command.add_arguments("true");
+#endif // __WINDOWS
 
   vector<TaskInfo> tasks =
     populateTasks(SLEEP_COMMAND(120), command, offers.get()[0]);
