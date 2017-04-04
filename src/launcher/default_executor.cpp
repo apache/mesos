@@ -1147,12 +1147,14 @@ private:
           checkStatusInfo.mutable_command();
           break;
         }
-
         case CheckInfo::HTTP: {
           checkStatusInfo.mutable_http();
           break;
         }
-
+        case CheckInfo::TCP: {
+          checkStatusInfo.mutable_tcp();
+          break;
+        }
         case CheckInfo::UNKNOWN: {
           LOG(FATAL) << "UNKNOWN check type is invalid";
           break;

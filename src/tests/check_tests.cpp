@@ -1761,6 +1761,13 @@ TEST_F(CheckTest, CheckInfoValidation)
     EXPECT_EQ(
         "Expecting 'http' to be set for HTTP check",
         validate->message);
+
+    checkInfo.set_type(CheckInfo::TCP);
+    validate = validation::checkInfo(checkInfo);
+    EXPECT_SOME(validate);
+    EXPECT_EQ(
+        "Expecting 'tcp' to be set for TCP check",
+        validate->message);
   }
 
   // Command check must specify an actual command in `command.command.value`.
@@ -1892,6 +1899,13 @@ TEST_F(CheckTest, CheckStatusInfoValidation)
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "Expecting 'http' to be set for HTTP check's status",
+        validate->message);
+
+    checkStatusInfo.set_type(CheckInfo::TCP);
+    validate = validation::checkStatusInfo(checkStatusInfo);
+    EXPECT_SOME(validate);
+    EXPECT_EQ(
+        "Expecting 'tcp' to be set for TCP check's status",
         validate->message);
   }
 }

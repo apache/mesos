@@ -345,12 +345,14 @@ CheckerProcess::CheckerProcess(
       previousCheckStatus.mutable_command();
       break;
     }
-
     case CheckInfo::HTTP: {
       previousCheckStatus.mutable_http();
       break;
     }
-
+    case CheckInfo::TCP: {
+      previousCheckStatus.mutable_tcp();
+      break;
+    }
     case CheckInfo::UNKNOWN: {
       LOG(FATAL) << "Received UNKNOWN check type";
       break;
@@ -398,14 +400,15 @@ void CheckerProcess::performCheck()
           &Self::processCommandCheckResult, stopwatch, lambda::_1));
       break;
     }
-
     case CheckInfo::HTTP: {
       httpCheck().onAny(defer(
           self(),
           &Self::processHttpCheckResult, stopwatch, lambda::_1));
       break;
     }
-
+    case CheckInfo::TCP: {
+      break;
+    }
     case CheckInfo::UNKNOWN: {
       LOG(FATAL) << "Received UNKNOWN check type";
       break;
@@ -1099,7 +1102,6 @@ Option<Error> checkInfo(const CheckInfo& checkInfo)
 
       break;
     }
-
     case CheckInfo::HTTP: {
       if (!checkInfo.has_http()) {
         return Error("Expecting 'http' to be set for HTTP check");
@@ -1114,7 +1116,13 @@ Option<Error> checkInfo(const CheckInfo& checkInfo)
 
       break;
     }
+    case CheckInfo::TCP: {
+      if (!checkInfo.has_tcp()) {
+        return Error("Expecting 'tcp' to be set for TCP check");
+      }
 
+      break;
+    }
     case CheckInfo::UNKNOWN: {
       return Error(
           "'" + CheckInfo::Type_Name(checkInfo.type()) + "'"
@@ -1152,14 +1160,18 @@ Option<Error> checkStatusInfo(const CheckStatusInfo& checkStatusInfo)
       }
       break;
     }
-
     case CheckInfo::HTTP: {
       if (!checkStatusInfo.has_http()) {
         return Error("Expecting 'http' to be set for HTTP check's status");
       }
       break;
     }
-
+    case CheckInfo::TCP: {
+      if (!checkStatusInfo.has_tcp()) {
+        return Error("Expecting 'tcp' to be set for TCP check's status");
+      }
+      break;
+    }
     case CheckInfo::UNKNOWN: {
       return Error(
           "'" + CheckInfo::Type_Name(checkStatusInfo.type()) + "'"

@@ -409,6 +409,15 @@ ostream& operator<<(ostream& stream, const CheckStatusInfo& checkStatusInfo)
         }
       }
       break;
+    case CheckInfo::TCP:
+      if (checkStatusInfo.has_tcp()) {
+        stream << "TCP";
+        if (checkStatusInfo.tcp().has_succeeded()) {
+          stream << (checkStatusInfo.tcp().succeeded() ? " connection success"
+                                                       : " connection failure");
+        }
+      }
+      break;
     case CheckInfo::UNKNOWN:
       stream << "UNKNOWN";
       break;

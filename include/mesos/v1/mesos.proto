@@ -381,10 +381,11 @@ message CheckInfo {
     UNKNOWN = 0;
     COMMAND = 1;
     HTTP = 2;
+    TCP = 3;
 
-    // TODO(alexr): Consider supporting TCP checks and custom user checks.
-    // The latter should probably be paired with a `data` field and
-    // complemented by a `data` response in `CheckStatusInfo`.
+    // TODO(alexr): Consider supporting custom user checks. They should
+    // probably be paired with a `data` field and complemented by a
+    // `data` response in `CheckStatusInfo`.
   }
 
   // Describes a command check. If applicable, enters mount and/or network
@@ -413,6 +414,13 @@ message CheckInfo {
     // validation, TLS version.
   }
 
+  // Describes a TCP check, i.e. based on establishing a TCP connection to
+  // the specified port. Note that <host> is not configurable and is resolved
+  // automatically to 127.0.0.1.
+  message Tcp {
+    required uint32 port = 1;
+  }
+
   // The type of the check.
   optional Type type = 1;
 
@@ -421,6 +429,9 @@ message CheckInfo {
 
   // HTTP check.
   optional Http http = 3;
+
+  // TCP check.
+  optional Tcp tcp = 7;
 
   // Amount of time to wait to start checking the task after it
   // transitions to `TASK_RUNNING` or `TASK_STARTING` if the latter
@@ -1753,6 +1764,11 @@ message CheckStatusInfo {
     optional uint32 status_code = 1;
   }
 
+  message Tcp {
+    // Whether a TCP connection succeeded.
+    optional bool succeeded = 1;
+  }
+
   // TODO(alexr): Consider adding a `data` field, which can contain, e.g.,
   // truncated stdout/stderr output for command checks or HTTP response body
   // for HTTP checks. Alternatively, it can be an even shorter `message` field
@@ -1767,6 +1783,9 @@ message CheckStatusInfo {
 
   // Status of an HTTP check.
   optional Http http = 3;
+
+  // Status of a TCP check.
+  optional Tcp tcp = 4;
 
   // TODO(alexr): Consider introducing a "last changed at" timestamp, since
   // task status update's timestamp may not correspond to the last check's
