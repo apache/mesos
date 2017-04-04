@@ -92,11 +92,11 @@ constexpr char HTTP_CHECK_COMMAND[] = "curl";
 constexpr char HTTP_CHECK_COMMAND[] = "curl.exe";
 #endif // __WINDOWS__
 
-static const string DEFAULT_HTTP_SCHEME = "http";
+constexpr char DEFAULT_HTTP_SCHEME[] = "http";
 
 // Use '127.0.0.1' instead of 'localhost', because the host
 // file in some container images may not contain 'localhost'.
-static const string DEFAULT_DOMAIN = "127.0.0.1";
+constexpr char DEFAULT_DOMAIN[] = "127.0.0.1";
 
 
 #ifdef __linux__
