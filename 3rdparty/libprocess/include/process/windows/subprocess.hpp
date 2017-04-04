@@ -26,6 +26,7 @@
 #include <stout/hashset.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/os/shell.hpp>
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
 
@@ -39,12 +40,9 @@ namespace internal {
 
 // Retrieves system environment in a `std::map`, ignoring
 // the current process's environment variables.
-inline Option<std::map<std::string, std::string>> getSystemEnvironment()
+inline Option<std::map<std::wstring, std::wstring>> getSystemEnvironment()
 {
-  std::wstring_convert<std::codecvt<wchar_t, char, mbstate_t>,
-    wchar_t> converter;
-
-  std::map<std::string, std::string> systemEnvironment;
+  std::map<std::wstring, std::wstring> systemEnvironment;
   wchar_t* environmentEntry = nullptr;
 
   // Get the system environment.
@@ -66,21 +64,23 @@ inline Option<std::map<std::string, std::string>> getSystemEnvironment()
     // VarN=ValueN\0\0
     // The name of an environment variable cannot include an equal sign (=).
 
-    wchar_t * separator = wcschr(environmentEntry, L'=');
-    std::wstring varName = std::wstring(environmentEntry, separator);
-    std::wstring varVal = std::wstring(separator + 1);
+    // Construct a string from the pointer up to the first '\0',
+    // e.g. "Var1=Value1\0", then split into name and value.
+    std::wstring entryString(environmentEntry);
+    std::wstring::size_type separator = entryString.find(L"=");
+    std::wstring varName(entryString.substr(0, separator));
+    std::wstring varVal(entryString.substr(separator + 1));
 
     // Mesos variables are upper case. Convert system variables to
     // match the name provided by the scheduler in case of a collision.
+    // This is safe because Windows environment variables are case insensitive.
     std::transform(varName.begin(), varName.end(), varName.begin(), ::towupper);
 
-    // The system environment has priority. Force `ANSI` usage until the code
-    // is converted to UNICODE.
-    systemEnvironment.insert_or_assign(
-      converter.to_bytes(varName.c_str()),
-      converter.to_bytes(varVal.c_str()));
+    // The system environment has priority.
+    systemEnvironment.insert_or_assign(varName.data(), varVal.data());
 
-    environmentEntry += varName.length() + varVal.length() + 2;
+    // Advance the pointer the length of the entry string plus the '\0'.
+    environmentEntry += entryString.length() + 1;
   }
 
   DestroyEnvironmentBlock(environmentBlock);
@@ -88,11 +88,12 @@ inline Option<std::map<std::string, std::string>> getSystemEnvironment()
   return systemEnvironment;
 }
 
+
 // Creates a null-terminated array of null-terminated strings that will be
-// passed to `CreateProcess` as the `lpEnvironment` argument, as described by
+// passed to `CreateProcessW` as the `lpEnvironment` argument, as described by
 // MSDN[1]. This array needs to be sorted in alphabetical order, but the `map`
-// already takes care of that. Note that this function does not handle Unicode
-// environments, so it should not be used in conjunction with the
+// already takes care of that. Note that this function explicitly handles
+// UTF-16 environments, so it must be used in conjunction with the
 // `CREATE_UNICODE_ENVIRONMENT` flag.
 //
 // NOTE: This function will add the system's environment variables into
@@ -100,39 +101,57 @@ inline Option<std::map<std::string, std::string>> getSystemEnvironment()
 // `env` and are generally necessary in order to launch things on Windows.
 //
 // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms682425(v=vs.85).aspx
-inline Option<std::string> createProcessEnvironment(
+inline Option<std::wstring> createProcessEnvironment(
     const Option<std::map<std::string, std::string>>& env)
 {
   if (env.isNone() || (env.isSome() && env.get().size() == 0)) {
     return None();
   }
 
-  Option<std::map<std::string, std::string>> systemEnvironment =
+  Option<std::map<std::wstring, std::wstring>> systemEnvironment =
     getSystemEnvironment();
 
   // The system environment must be non-empty.
   // No subprocesses will be able to launch if the system environment is blank.
   CHECK(systemEnvironment.isSome() && systemEnvironment.get().size() > 0);
 
-  std::map<std::string, std::string> combinedEnvironment = env.get();
+  std::map<std::wstring, std::wstring> combinedEnvironment;
 
+  // Populate the combined environment first with the given environment
+  // converted to UTF-16 for Windows.
+  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> converter;
   foreachpair (const std::string& key,
                const std::string& value,
+               env.get()) {
+    combinedEnvironment[converter.from_bytes(key)] =
+      converter.from_bytes(value);
+  }
+
+  // Add the system environment variables, overwriting the previous.
+  foreachpair (const std::wstring& key,
+               const std::wstring& value,
                systemEnvironment.get()) {
     combinedEnvironment[key] = value;
   }
 
-  std::string environmentString;
-  foreachpair (const std::string& key,
-               const std::string& value,
+  std::wstring environmentString;
+  foreachpair (const std::wstring& key,
+               const std::wstring& value,
                combinedEnvironment) {
-    environmentString += key + '=' + value + '\0';
+    environmentString += key + L'=' + value + L'\0';
   }
 
+  // Append final null terminating character.
+  environmentString.push_back(L'\0');
   return environmentString;
 }
 
 
+// NOTE: We are expecting that components of `argv` that need to be quoted
+// (for example, paths with spaces in them like `C:\"Program Files"\foo.exe`)
+// to have been already quoted correctly before we generate `command`.
+// Incorrectly-quoted command arguments will probably lead the child process
+// to terminate with an error. See also NOTE on `process::subprocess`.
 inline Try<PROCESS_INFORMATION> createChildProcess(
     const std::string& path,
     const std::vector<std::string>& argv,
@@ -142,17 +161,27 @@ inline Try<PROCESS_INFORMATION> createChildProcess(
     const OutputFileDescriptors stderrfds,
     const std::vector<Subprocess::ParentHook>& parent_hooks)
 {
-  // Construct the environment that will be passed to `CreateProcess`.
-  Option<std::string> environmentString = createProcessEnvironment(environment);
-  const char* processEnvironment = environmentString.isNone()
+  // The second argument to `::CreateProcessW` explicitly requries a writable
+  // buffer, so we copy the `wstring` data into this `vector`.
+  std::wstring command = os::stringify_args(argv);
+  std::vector<wchar_t> commandLine(command.begin(), command.end());
+
+  // Create the process suspended and with a Unicode environment.
+  DWORD creationFlags = CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT;
+
+  // Construct the environment that will be passed to `::CreateProcessW`.
+  Option<std::wstring> environmentString =
+    createProcessEnvironment(environment);
+
+  const wchar_t* processEnvironment = environmentString.isNone()
     ? nullptr
-    : environmentString.get().c_str();
+    : environmentString.get().data();
 
+  STARTUPINFOW startupInfo;
   PROCESS_INFORMATION processInfo;
-  STARTUPINFO startupInfo;
 
+  ::ZeroMemory(&startupInfo, sizeof(STARTUPINFOW));
   ::ZeroMemory(&processInfo, sizeof(PROCESS_INFORMATION));
-  ::ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
 
   // Hook up the `stdin`/`stdout`/`stderr` pipes and use the
   // `STARTF_USESTDHANDLES` flag to instruct the child to use them[1]. A more
@@ -160,47 +189,29 @@ inline Try<PROCESS_INFORMATION> createChildProcess(
   //
   // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms686331(v=vs.85).aspx
   // [2] https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx
-  startupInfo.cb = sizeof(STARTUPINFO);
+  startupInfo.cb = sizeof(STARTUPINFOW);
   startupInfo.hStdInput = stdinfds.read;
   startupInfo.hStdOutput = stdoutfds.write;
   startupInfo.hStdError = stderrfds.write;
   startupInfo.dwFlags |= STARTF_USESTDHANDLES;
 
-  // Build command to pass to `::CreateProcess`.
-  //
-  // NOTE: We are expecting that components of `argv` that need to be quoted
-  // (for example, paths with spaces in them like `C:\"Program Files"\foo.exe`)
-  // to have been already quoted correctly before we generate `command`.
-  // Incorrectly-quoted command arguments will probably lead the child process
-  // to terminate with an error. See also NOTE on `process::subprocess`.
-  std::string command = strings::join(" ", argv);
-
-  // Escape the quotes in `command`.
-  //
-  // TODO(dpravat): Add tests cases that cover this functionality. See
-  // MESOS-5418.
-  command = strings::replace(command, "\"", "\\\"");
-
-  // NOTE: If Mesos is built against the ANSI version of this function, the
-  // environment is limited to 32,767 characters. See[1].
-  //
   // TODO(hausdorff): Figure out how to map the `path` and `args` arguments of
   // this function into a call to `::CreateProcess` that is more general
   // purpose. In particular, on POSIX, we expect that calls to `subprocess` can
   // be called with relative `path` (e.g., it could simply be `sh`). However,
-  // on Windows, unlike the calls to (e.g.) `exec`, `::CreateProcess` will
+  // on Windows, unlike the calls to (e.g.) `exec`, `::CreateProcessW` will
   // expect that this argument be a fully-qualified path. In the end, we'd like
   // the calls to `subprocess` to have similar command formats to minimize
   // confusion and mistakes.
   //
   // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms682425(v=vs.85).aspx
-  BOOL createProcessResult = CreateProcess(
+  BOOL createProcessResult = ::CreateProcessW(
       nullptr,
-      (LPSTR)command.data(),
+      (LPWSTR)commandLine.data(),
       nullptr,                 // Default security attributes.
       nullptr,                 // Default primary thread security attributes.
       TRUE,                    // Inherited parent process handles.
-      CREATE_SUSPENDED,        // Create process in suspended state.
+      creationFlags,
       (LPVOID)processEnvironment,
       nullptr,                 // Use parent's current directory.
       &startupInfo,            // STARTUPINFO pointer.
@@ -208,7 +219,7 @@ inline Try<PROCESS_INFORMATION> createChildProcess(
 
   if (!createProcessResult) {
     return WindowsError(
-        "Failed to call CreateProcess on command '" + command + "'");
+        "Failed to call CreateProcess on command '" + stringify(command) + "'");
   }
 
   // Run the parent hooks.
@@ -227,14 +238,16 @@ inline Try<PROCESS_INFORMATION> createChildProcess(
 
       return Error(
           "Failed to execute Parent Hook in child '" + stringify(pid) +
-          "' with command '" + command + "': " + parentSetup.error());
+          "' with command '" + stringify(command) + "': " +
+          parentSetup.error());
     }
   }
 
   // Start child process.
   if (::ResumeThread(processInfo.hThread) == -1) {
     return WindowsError(
-        "Failed to resume child process with command '" + command + "'");
+        "Failed to resume child process with command '" +
+        stringify(command) + "'");
   }
 
   return processInfo;
