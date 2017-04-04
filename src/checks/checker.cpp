@@ -184,14 +184,14 @@ private:
 
   void processCommandCheckResult(
       const Stopwatch& stopwatch,
-      const Future<int>& result);
+      const Future<int>& future);
 
   Future<int> httpCheck();
   Future<int> _httpCheck(
       const tuple<Future<Option<int>>, Future<string>, Future<string>>& t);
   void processHttpCheckResult(
       const Stopwatch& stopwatch,
-      const Future<int>& result);
+      const Future<int>& future);
 
   const CheckInfo check;
   Duration checkDelay;
@@ -937,7 +937,7 @@ Future<int> CheckerProcess::httpCheck()
     "-L",                 // Follows HTTP 3xx redirects.
     "-k",                 // Ignores SSL validation when scheme is https.
     "-w", "%{http_code}", // Displays HTTP response code on stdout.
-    "-o", os::DEV_NULL,    // Ignores output.
+    "-o", os::DEV_NULL,   // Ignores output.
     url
   };
 
@@ -1043,27 +1043,26 @@ Future<int> CheckerProcess::_httpCheck(
 
 void CheckerProcess::processHttpCheckResult(
     const Stopwatch& stopwatch,
-    const Future<int>& result)
+    const Future<int>& future)
 {
-  CheckStatusInfo checkStatusInfo;
-  checkStatusInfo.set_type(check.type());
+  CheckStatusInfo result;
+  result.set_type(check.type());
 
-  if (result.isReady()) {
+  if (future.isReady()) {
     VLOG(1) << check.type() << " check for task '"
-            << taskId << "' returned: " << result.get();
+            << taskId << "' returned: " << future.get();
 
-    checkStatusInfo.mutable_http()->set_status_code(
-        static_cast<uint32_t>(result.get()));
+    result.mutable_http()->set_status_code(static_cast<uint32_t>(future.get()));
   } else {
     // Check's status is currently not available, which may indicate a change
     // that should be reported as an empty `CheckStatusInfo.Http` message.
-    LOG(WARNING) << "Check for task '" << taskId << "' failed: "
-                 << (result.isFailed() ? result.failure() : "discarded");
+    LOG(WARNING) << check.type() << " check for task '" << taskId << "' failed:"
+                 << " " << (future.isFailed() ? future.failure() : "discarded");
 
-    checkStatusInfo.mutable_http();
+    result.mutable_http();
   }
 
-  processCheckResult(stopwatch, checkStatusInfo);
+  processCheckResult(stopwatch, result);
 }
 
 namespace validation {
