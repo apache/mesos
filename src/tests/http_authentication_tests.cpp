@@ -278,7 +278,7 @@ private:
 };
 
 
-AuthenticationResult createUnauthorized(MockAuthenticator& authenticator)
+AuthenticationResult createUnauthorized(const MockAuthenticator& authenticator)
 {
   AuthenticationResult result;
   result.unauthorized = Unauthorized(
@@ -299,7 +299,7 @@ AuthenticationResult createForbidden(MockAuthenticator& authenticator)
 
 
 AuthenticationResult createCombinedUnauthorized(
-    vector<MockAuthenticator> authenticators)
+    const vector<MockAuthenticator>& authenticators)
 {
   AuthenticationResult result;
   vector<string> headers;
@@ -321,7 +321,7 @@ AuthenticationResult createCombinedUnauthorized(
 
 
 AuthenticationResult createCombinedForbidden(
-    vector<MockAuthenticator> authenticators)
+    const vector<MockAuthenticator>& authenticators)
 {
   AuthenticationResult result;
   vector<string> bodies;
