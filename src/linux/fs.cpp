@@ -23,6 +23,8 @@
 #include <linux/limits.h>
 #include <linux/unistd.h>
 
+#include <sys/sysmacros.h>
+
 #include <list>
 #include <set>
 #include <utility>
