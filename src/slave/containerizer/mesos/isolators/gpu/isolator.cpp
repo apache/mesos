@@ -16,6 +16,8 @@
 
 #include <stdint.h>
 
+#include <sys/sysmacros.h>
+
 #include <algorithm>
 #include <list>
 #include <map>

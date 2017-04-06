@@ -18,6 +18,8 @@
 
 #include <gmock/gmock.h>
 
+#include <sys/sysmacros.h>
+
 #include <stout/foreach.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashset.hpp>
