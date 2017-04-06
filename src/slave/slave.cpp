@@ -670,6 +670,7 @@ void Slave::initialize()
         Http::STATISTICS_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
+          logRequest(request);
           return http.statistics(request, principal);
         });
   // TODO(ijimenez): Remove this endpoint at the end of the
@@ -679,6 +680,7 @@ void Slave::initialize()
         Http::STATISTICS_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
+          logRequest(request);
           return http.statistics(request, principal);
         });
   route("/containers",
@@ -686,6 +688,7 @@ void Slave::initialize()
         Http::CONTAINERS_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
+          logRequest(request);
           return http.containers(request, principal);
         });
 
