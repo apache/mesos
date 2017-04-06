@@ -15,9 +15,9 @@
 # limitations under the License.
 
 """
-This file defines the default configuration of the mesos-cli. It also takes
-care of updating the default configuration from reading environment variables
-or parsing a configuration file.
+This file defines the default settings of the mesos-cli. It also takes care
+of updating the default configuration from reading environment variables or
+parsing a configuration file.
 """
 
 import json

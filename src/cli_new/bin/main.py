@@ -20,14 +20,14 @@ This is the main executable of the mesos-cli.
 
 import sys
 
-import config
-import cli
+import settings
 
+import cli
 from cli.docopt import docopt
 from cli.exceptions import CLIException
 
 
-VERSION = "Mesos " + config.VERSION + " CLI"
+VERSION = "Mesos " + settings.VERSION + " CLI"
 
 SHORT_HELP = "Perform operations on a running Mesos cluster."
 
@@ -70,7 +70,7 @@ def autocomplete(cmds, plugins, current_word, argv):
     plugin = cli.util.get_module(plugins, argv[0])
     plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
 
-    return plugin_class(config).__autocomplete_base__(current_word, argv[1:])
+    return plugin_class(settings).__autocomplete_base__(current_word, argv[1:])
 
 
 def main(argv):
@@ -79,7 +79,7 @@ def main(argv):
     """
 
     # Initialize the various plugins.
-    plugins = cli.util.import_modules(config.PLUGINS, "plugins")
+    plugins = cli.util.import_modules(settings.PLUGINS, "plugins")
 
     cmds = {
         cli.util.get_module(plugins, plugin).PLUGIN_NAME:
@@ -125,7 +125,7 @@ def main(argv):
         if len(argv) > 0 and argv[0] in cmds:
             plugin = cli.util.get_module(plugins, argv[0])
             plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
-            plugin_class(config).main(argv[1:] + ["--help"])
+            plugin_class(settings).main(argv[1:] + ["--help"])
         else:
             main(["--help"])
 
@@ -133,7 +133,7 @@ def main(argv):
     elif cmd in cmds.keys():
         plugin = cli.util.get_module(plugins, cmd)
         plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
-        plugin_class(config).main(argv)
+        plugin_class(settings).main(argv)
 
     # Print help information if no commands match.
     else:
