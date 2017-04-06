@@ -117,7 +117,7 @@ struct HeaderNew
 
 struct EntryNew
 {
-  int16_t flags;        // Flags bits determine arch and library type.
+  int32_t flags;        // Flags bits determine arch and library type.
   uint32_t key;         // String table index.
   uint32_t value;       // String table index.
   uint32_t osVersion;   // Required OS version.
