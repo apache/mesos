@@ -205,69 +205,101 @@ FilesProcess::FilesProcess(
 void FilesProcess::initialize()
 {
   if (authenticationRealm.isSome()) {
+    auto browse_ = [this](
+        const http::Request& request,
+        const Option<Principal>& principal) {
+      logRequest(request);
+      return _browse(request, principal);
+    };
+
+    auto read_ = [this](
+        const http::Request& request,
+        const Option<Principal>& principal) {
+      logRequest(request);
+      return __read(request, principal);
+    };
+
+    auto download_ = [this](
+        const http::Request& request,
+        const Option<Principal>& principal) {
+      logRequest(request);
+      return download(request, principal);
+    };
+
+    auto debug_ = [this](
+        const http::Request& request,
+        const Option<Principal>& principal) {
+      logRequest(request);
+      return debug(request, principal);
+    };
+
     // TODO(ijimenez): Remove these endpoints at the end of the
     // deprecation cycle on 0.26.
     route("/browse.json",
           authenticationRealm.get(),
           FilesProcess::BROWSE_HELP,
-          &FilesProcess::_browse);
+          browse_);
     route("/read.json",
           authenticationRealm.get(),
           FilesProcess::READ_HELP,
-          &FilesProcess::__read);
+          read_);
     route("/download.json",
           authenticationRealm.get(),
           FilesProcess::DOWNLOAD_HELP,
-          &FilesProcess::download);
+          download_);
     route("/debug.json",
           authenticationRealm.get(),
           FilesProcess::DEBUG_HELP,
-          &FilesProcess::debug);
+          debug_);
 
     route("/browse",
           authenticationRealm.get(),
           FilesProcess::BROWSE_HELP,
-          &FilesProcess::_browse);
+          browse_);
     route("/read",
           authenticationRealm.get(),
           FilesProcess::READ_HELP,
-          &FilesProcess::__read);
+          read_);
     route("/download",
           authenticationRealm.get(),
           FilesProcess::DOWNLOAD_HELP,
-          &FilesProcess::download);
+          download_);
     route("/debug",
           authenticationRealm.get(),
           FilesProcess::DEBUG_HELP,
-          &FilesProcess::debug);
+          debug_);
   } else {
+    auto browse_ = [this](const http::Request& request) {
+      logRequest(request);
+      return _browse(request, None());
+    };
+
+    auto read_ = [this](const http::Request& request) {
+      logRequest(request);
+      return __read(request, None());
+    };
+
+    auto download_ = [this](const http::Request& request) {
+      logRequest(request);
+      return download(request, None());
+    };
+
+    auto debug_ = [this](const http::Request& request) {
+      logRequest(request);
+      return debug(request, None());
+    };
+
     // TODO(ijimenez): Remove these endpoints at the end of the
     // deprecation cycle on 0.26.
-    route("/browse.json",
-          FilesProcess::BROWSE_HELP,
-          lambda::bind(&FilesProcess::_browse, this, lambda::_1, None()));
-    route("/read.json",
-          FilesProcess::READ_HELP,
-          lambda::bind(&FilesProcess::__read, this, lambda::_1, None()));
-    route("/download.json",
-          FilesProcess::DOWNLOAD_HELP,
-          lambda::bind(&FilesProcess::download, this, lambda::_1, None()));
-    route("/debug.json",
-          FilesProcess::DEBUG_HELP,
-          lambda::bind(&FilesProcess::debug, this, lambda::_1, None()));
+    route("/browse.json", FilesProcess::BROWSE_HELP, browse_);
+    route("/read.json", FilesProcess::READ_HELP, read_);
+    route("/download.json", FilesProcess::DOWNLOAD_HELP, download_);
+    route("/debug.json", FilesProcess::DEBUG_HELP, debug_);
 
-    route("/browse",
-          FilesProcess::BROWSE_HELP,
-          lambda::bind(&FilesProcess::_browse, this, lambda::_1, None()));
-    route("/read",
-          FilesProcess::READ_HELP,
-          lambda::bind(&FilesProcess::__read, this, lambda::_1, None()));
-    route("/download",
-          FilesProcess::DOWNLOAD_HELP,
-          lambda::bind(&FilesProcess::download, this, lambda::_1, None()));
-    route("/debug",
-          FilesProcess::DEBUG_HELP,
-          lambda::bind(&FilesProcess::debug, this, lambda::_1, None()));
+    route("/browse", FilesProcess::BROWSE_HELP, browse_);
+    route("/read", FilesProcess::READ_HELP, read_);
+    route("/download", FilesProcess::DOWNLOAD_HELP, download_);
+    route("/debug", FilesProcess::DEBUG_HELP, debug_);
   }
 }
 
