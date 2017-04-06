@@ -2912,6 +2912,8 @@ void Master::_subscribe(
       }
     }
 
+    CHECK(!frameworks.principals.contains(from));
+
     // Assign a new FrameworkID.
     FrameworkInfo frameworkInfo_ = frameworkInfo;
     frameworkInfo_.mutable_id()->CopyFrom(newFrameworkId());
@@ -2930,6 +2932,20 @@ void Master::_subscribe(
 
   // If we are here the framework has already been assigned an id.
   CHECK(!frameworkInfo.id().value().empty());
+
+  // Check whether we got a subscribe from a framework whose UPID duplicates
+  // a framework that is already connected. Note that we don't send an error
+  // response because that would go to the framework that is already connected.
+  if (frameworks.principals.contains(from)) {
+    foreachvalue (Framework* framework, frameworks.registered) {
+      if (framework->pid == from && framework->id() != frameworkInfo.id()) {
+        LOG(ERROR) << "Dropping SUBSCRIBE call for framework '"
+                   << frameworkInfo.name() << "': " << *framework
+                   << " already connected at " << from;
+        return;
+      }
+    }
+  }
 
   Framework* framework = getFramework(frameworkInfo.id());
 
