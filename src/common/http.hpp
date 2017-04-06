@@ -223,6 +223,11 @@ Try<Nothing> initializeHttpAuthenticators(
     const Option<Credentials>& credentials = None(),
     const Option<std::string>& secretKey = None());
 
+
+// Logs the request. Route handlers can compose this with the
+// desired request handler to get consistent request logging.
+void logRequest(const process::http::Request& request);
+
 } // namespace mesos {
 
 #endif // __COMMON_HTTP_HPP__

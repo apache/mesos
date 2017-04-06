@@ -620,7 +620,7 @@ void Slave::initialize()
         Http::API_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.api(request, principal);
         },
         options);
@@ -630,7 +630,7 @@ void Slave::initialize()
         Http::EXECUTOR_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.executor(request, principal);
         });
 
@@ -641,7 +641,7 @@ void Slave::initialize()
         Http::STATE_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.state(request, principal);
         });
   route("/state",
@@ -649,7 +649,7 @@ void Slave::initialize()
         Http::STATE_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.state(request, principal);
         });
   route("/flags",
@@ -657,7 +657,7 @@ void Slave::initialize()
         Http::FLAGS_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.flags(request, principal);
         });
   route("/health",

@@ -1164,10 +1164,6 @@ private:
                                      quotaHandler(_master),
                                      weightsHandler(_master) {}
 
-    // Logs the request, route handlers can compose this with the
-    // desired request handler to get consistent request logging.
-    static void log(const process::http::Request& request);
-
     // /api/v1
     process::Future<process::http::Response> api(
         const process::http::Request& request,

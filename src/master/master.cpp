@@ -73,6 +73,7 @@
 #include "authentication/cram_md5/authenticator.hpp"
 
 #include "common/build.hpp"
+#include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
 
@@ -910,7 +911,7 @@ void Master::initialize()
         Http::API_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.api(request, principal);
         });
   route("/api/v1/scheduler",
@@ -918,7 +919,7 @@ void Master::initialize()
         Http::SCHEDULER_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.scheduler(request, principal);
         });
   route("/create-volumes",
@@ -926,7 +927,7 @@ void Master::initialize()
         Http::CREATE_VOLUMES_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.createVolumes(request, principal);
         });
   route("/destroy-volumes",
@@ -934,7 +935,7 @@ void Master::initialize()
         Http::DESTROY_VOLUMES_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.destroyVolumes(request, principal);
         });
   route("/frameworks",
@@ -942,7 +943,7 @@ void Master::initialize()
         Http::FRAMEWORKS_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.frameworks(request, principal);
         });
   route("/flags",
@@ -950,7 +951,7 @@ void Master::initialize()
         Http::FLAGS_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.flags(request, principal);
         });
   route("/health",
@@ -968,7 +969,7 @@ void Master::initialize()
         Http::RESERVE_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.reserve(request, principal);
         });
   // TODO(ijimenez): Remove this endpoint at the end of the
@@ -978,7 +979,7 @@ void Master::initialize()
         Http::ROLES_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.roles(request, principal);
         });
   route("/roles",
@@ -986,7 +987,7 @@ void Master::initialize()
         Http::ROLES_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.roles(request, principal);
         });
   route("/teardown",
@@ -994,7 +995,7 @@ void Master::initialize()
         Http::TEARDOWN_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.teardown(request, principal);
         });
   route("/slaves",
@@ -1002,7 +1003,7 @@ void Master::initialize()
         Http::SLAVES_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.slaves(request, principal);
         });
   // TODO(ijimenez): Remove this endpoint at the end of the
@@ -1012,7 +1013,7 @@ void Master::initialize()
         Http::STATE_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.state(request, principal);
         });
   route("/state",
@@ -1020,7 +1021,7 @@ void Master::initialize()
         Http::STATE_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.state(request, principal);
         });
   route("/state-summary",
@@ -1028,7 +1029,7 @@ void Master::initialize()
         Http::STATESUMMARY_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.stateSummary(request, principal);
         });
   // TODO(ijimenez): Remove this endpoint at the end of the
@@ -1038,7 +1039,7 @@ void Master::initialize()
         Http::TASKS_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.tasks(request, principal);
         });
   route("/tasks",
@@ -1046,7 +1047,7 @@ void Master::initialize()
         Http::TASKS_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.tasks(request, principal);
         });
   route("/maintenance/schedule",
@@ -1054,7 +1055,7 @@ void Master::initialize()
         Http::MAINTENANCE_SCHEDULE_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.maintenanceSchedule(request, principal);
         });
   route("/maintenance/status",
@@ -1062,7 +1063,7 @@ void Master::initialize()
         Http::MAINTENANCE_STATUS_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.maintenanceStatus(request, principal);
         });
   route("/machine/down",
@@ -1070,7 +1071,7 @@ void Master::initialize()
         Http::MACHINE_DOWN_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.machineDown(request, principal);
         });
   route("/machine/up",
@@ -1078,7 +1079,7 @@ void Master::initialize()
         Http::MACHINE_UP_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.machineUp(request, principal);
         });
   route("/unreserve",
@@ -1086,7 +1087,7 @@ void Master::initialize()
         Http::UNRESERVE_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.unreserve(request, principal);
         });
   route("/quota",
@@ -1094,7 +1095,7 @@ void Master::initialize()
         Http::QUOTA_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.quota(request, principal);
         });
   route("/weights",
@@ -1102,7 +1103,7 @@ void Master::initialize()
         Http::WEIGHTS_HELP(),
         [this](const process::http::Request& request,
                const Option<Principal>& principal) {
-          Http::log(request);
+          logRequest(request);
           return http.weights(request, principal);
         });
 
