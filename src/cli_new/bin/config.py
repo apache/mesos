@@ -24,7 +24,7 @@ import json
 import os
 import sys
 
-from mesos.exceptions import CLIException
+from cli.exceptions import CLIException
 
 
 # There is no version module included in this package. However,

@@ -20,9 +20,9 @@ Plugin's Base Class
 
 import sys
 
-import mesos
+import cli
 
-from mesos.docopt import docopt
+from cli.docopt import docopt
 
 
 PLUGIN_NAME = "base-plugin"
@@ -110,7 +110,7 @@ class PluginBase(object):
 
         # <command>
         comp_words = list(self.COMMANDS.keys())
-        comp_words = mesos.util.completions(comp_words, current_word, argv)
+        comp_words = cli.util.completions(comp_words, current_word, argv)
         if comp_words != None:
             return (option, comp_words)
 
@@ -133,7 +133,7 @@ class PluginBase(object):
         Main method takes argument from top level mesos and parses them
         to call the appropriate method.
         """
-        command_strings = mesos.util.format_commands_help(self.COMMANDS)
+        command_strings = cli.util.format_commands_help(self.COMMANDS)
 
         usage = self.USAGE.format(
             plugin=self.PLUGIN_NAME,
@@ -153,7 +153,7 @@ class PluginBase(object):
         if cmd in self.COMMANDS.keys():
             if "external" not in self.COMMANDS[cmd]:
                 argument_format, short_help, long_help, flag_format = \
-                    mesos.util.format_subcommands_help(self.COMMANDS[cmd])
+                    cli.util.format_subcommands_help(self.COMMANDS[cmd])
 
                 usage = SUBCOMMAND_USAGE.format(
                     plugin=self.PLUGIN_NAME,

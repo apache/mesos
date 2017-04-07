@@ -21,10 +21,10 @@ This is the main executable of the mesos-cli.
 import sys
 
 import config
-import mesos
+import cli
 
-from mesos.docopt import docopt
-from mesos.exceptions import CLIException
+from cli.docopt import docopt
+from cli.exceptions import CLIException
 
 
 VERSION = "Mesos " + config.VERSION + " CLI"
@@ -63,11 +63,11 @@ def autocomplete(cmds, plugins, current_word, argv):
         argv = argv[1:]
 
     comp_words = list(cmds.keys()) + ["help"]
-    comp_words = mesos.util.completions(comp_words, current_word, argv)
+    comp_words = cli.util.completions(comp_words, current_word, argv)
     if comp_words != None:
         return (option, comp_words)
 
-    plugin = mesos.util.get_module(plugins, argv[0])
+    plugin = cli.util.get_module(plugins, argv[0])
     plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
 
     return plugin_class(config).__autocomplete_base__(current_word, argv[1:])
@@ -79,18 +79,18 @@ def main(argv):
     """
 
     # Initialize the various plugins.
-    plugins = mesos.util.import_modules(config.PLUGINS, "plugins")
+    plugins = cli.util.import_modules(config.PLUGINS, "plugins")
 
     cmds = {
-        mesos.util.get_module(plugins, plugin).PLUGIN_NAME:
-        mesos.util.get_module(plugins, plugin).SHORT_HELP
+        cli.util.get_module(plugins, plugin).PLUGIN_NAME:
+        cli.util.get_module(plugins, plugin).SHORT_HELP
         for plugin in plugins.keys()
     }
 
     # Parse all incoming arguments using docopt.
     command_strings = ""
     if cmds != {}:
-        command_strings = mesos.util.format_commands_help(cmds)
+        command_strings = cli.util.format_commands_help(cmds)
     usage = USAGE.format(commands=command_strings)
 
     arguments = docopt(usage, argv=argv, version=VERSION, options_first=True)
@@ -123,7 +123,7 @@ def main(argv):
     # supplied command and its subcommands.
     elif cmd == "help":
         if len(argv) > 0 and argv[0] in cmds:
-            plugin = mesos.util.get_module(plugins, argv[0])
+            plugin = cli.util.get_module(plugins, argv[0])
             plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
             plugin_class(config).main(argv[1:] + ["--help"])
         else:
@@ -131,7 +131,7 @@ def main(argv):
 
     # Run the command through its plugin.
     elif cmd in cmds.keys():
-        plugin = mesos.util.get_module(plugins, cmd)
+        plugin = cli.util.get_module(plugins, cmd)
         plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
         plugin_class(config).main(argv)
 
