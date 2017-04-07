@@ -811,6 +811,83 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountNeeded)
 }
 
 
+// This test tries to catch the regression for MESOS-7366. It verifies
+// that the persistent volume mount points in the sandbox will be
+// cleaned up even if there is still reference to the volume.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeMountPointCleanup)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux";
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ExecutorInfo executor = createExecutorInfo(
+      "test_executor",
+      "sleep 1000");
+
+  // Create a persistent volume.
+  executor.add_resources()->CopyFrom(createPersistentVolume(
+      Megabytes(32),
+      "test_role",
+      "persistent_volume_id",
+      "volume"));
+
+  string volume = slave::paths::getPersistentVolumePath(
+      flags.work_dir,
+      "test_role",
+      "persistent_volume_id");
+
+  ASSERT_SOME(os::mkdir(volume));
+
+  string directory = path::join(flags.work_dir, "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<bool> launch = containerizer->launch(
+      containerId,
+      None(),
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      map<string, string>(),
+      false);
+
+  AWAIT_READY(launch);
+
+  ASSERT_SOME(os::touch(path::join(directory, "volume", "abc")));
+
+  // This keeps a reference to the persistent volume mount.
+  Try<int_fd> fd = os::open(
+      path::join(directory, "volume", "abc"),
+      O_WRONLY | O_TRUNC | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+  ASSERT_SOME(fd);
+
+  containerizer->destroy(containerId);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+
+  // Verifies that mount point has been removed.
+  EXPECT_FALSE(os::exists(path::join(directory, "volume", "abc")));
+
+  os::close(fd.get());
+}
+
+
 // End to end Mesos integration tests for linux filesystem isolator.
 class LinuxFilesystemIsolatorMesosTest : public LinuxFilesystemIsolatorTest {};
 
