@@ -818,6 +818,8 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
     return Failure("Failed to get mount table: " + table.error());
   }
 
+  vector<string> unmountErrors;
+
   // Reverse unmount order to handle nested mount points.
   foreach (const fs::MountInfoTable::Entry& entry,
            adaptor::reverse(table->entries)) {
@@ -828,13 +830,29 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::cleanup(
       LOG(INFO) << "Unmounting volume '" << entry.target
                 << "' for container " << containerId;
 
-      Try<Nothing> unmount = fs::unmount(entry.target);
+      // TODO(jieyu): Use MNT_DETACH here to workaround an issue of
+      // incorrect handling of container destroy failures. Currently,
+      // if isolator cleanup returns a failure, the slave will treat
+      // the container as terminated, and will schedule the cleanup of
+      // the container's sandbox. Since the mount hasn't been removed
+      // in the sandbox, that'll result in data in the persistent
+      // volume being incorrectly deleted. Use MNT_DETACH here so that
+      // the mount point in the sandbox will be removed immediately.
+      // See MESOS-7366 for more details.
+      Try<Nothing> unmount = fs::unmount(entry.target, MNT_DETACH);
       if (unmount.isError()) {
-        return Failure(
+        // NOTE: Instead of short circuit, we try to perform as many
+        // unmount as possible. We'll accumulate the errors together
+        // in the end.
+        unmountErrors.push_back(
             "Failed to unmount volume '" + entry.target +
             "': " + unmount.error());
       }
     }
+  }
+
+  if (!unmountErrors.empty()) {
+    return Failure(strings::join(", ", unmountErrors));
   }
 
   return Nothing();
