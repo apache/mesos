@@ -338,6 +338,15 @@ static bool addable(const Resource& left, const Resource& right)
     return false;
   }
 
+  // Check ResourceProvider.
+  if (left.has_provider_id() != right.has_provider_id()) {
+    return false;
+  }
+
+  if (left.has_provider_id() && left.provider_id() != right.provider_id()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -412,6 +421,15 @@ static bool subtractable(const Resource& left, const Resource& right)
 
   // Check RevocableInfo.
   if (left.has_revocable() != right.has_revocable()) {
+    return false;
+  }
+
+  // Check ResourceProvider.
+  if (left.has_provider_id() != right.has_provider_id()) {
+    return false;
+  }
+
+  if (left.has_provider_id() && left.provider_id() != right.provider_id()) {
     return false;
   }
 

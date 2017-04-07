@@ -876,19 +876,21 @@ message Attribute {
 
 
 /**
- * Describes a resource on a machine. The `name` field is a string
- * like "cpus" or "mem" that indicates which kind of resource this is;
- * the rest of the fields describe the properties of the resource. A
- * resource can take on one of three types: scalar (double), a list of
- * finite and discrete ranges (e.g., [1-10, 20-30]), or a set of
- * items. A resource is described using the standard protocol buffer
- * "union" trick.
+ * Describes a resource from a resource provider. The `name` field is
+ * a string like "cpus" or "mem" that indicates which kind of resource
+ * this is; the rest of the fields describe the properties of the
+ * resource. A resource can take on one of three types: scalar
+ * (double), a list of finite and discrete ranges (e.g., [1-10,
+ * 20-30]), or a set of items. A resource is described using the
+ * standard protocol buffer "union" trick.
  *
  * Note that "disk" and "mem" resources are scalar values expressed in
  * megabytes. Fractional "cpus" values are allowed (e.g., "0.5"),
  * which correspond to partial shares of a CPU.
  */
 message Resource {
+  optional ResourceProviderID provider_id = 12;
+
   required string name = 1;
   required Value.Type type = 2;
   optional Value.Scalar scalar = 3;

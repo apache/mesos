@@ -1529,6 +1529,164 @@ TEST(ResourcesTest, Reservations)
 }
 
 
+TEST(ResourceProviderIDTest, Addition)
+{
+  ResourceProviderID resourceProviderId;
+  resourceProviderId.set_value("RESOURCE_PROVIDER_ID");
+
+  Resource cpus = Resources::parse("cpus", "4", "*").get();
+  cpus.mutable_provider_id()->CopyFrom(resourceProviderId);
+
+  Resource disk1 = createDiskResource("1", "*", None(), None());
+
+  Resource disk2 = disk1;
+  disk2.mutable_provider_id()->CopyFrom(resourceProviderId);
+
+  Resources r1;
+  r1 += cpus;
+  r1 += disk2;
+
+  EXPECT_FALSE(r1.empty());
+  EXPECT_EQ(2u, r1.size());
+  EXPECT_TRUE(r1.contains(cpus));
+  EXPECT_TRUE(r1.contains(disk2));
+  EXPECT_FALSE(r1.contains(disk1));
+  EXPECT_EQ(4, r1.get<Value::Scalar>("cpus")->value());
+  EXPECT_EQ(1, r1.get<Value::Scalar>("disk")->value());
+
+  Resources r2;
+  r2 += disk2;
+  r2 += disk2;
+
+  EXPECT_FALSE(r2.empty());
+  EXPECT_EQ(1u, r2.size());
+  EXPECT_TRUE(r2.contains(disk2));
+  EXPECT_EQ(2, r2.get<Value::Scalar>("disk")->value());
+
+  EXPECT_EQ(Resources(disk2) + disk2, r2);
+
+  Resources r3;
+  r3 += disk1;
+  r3 += disk2;
+
+  EXPECT_FALSE(r3.empty());
+  EXPECT_EQ(2u, r3.size());
+  EXPECT_TRUE(r3.contains(disk1));
+  EXPECT_TRUE(r3.contains(disk2));
+  EXPECT_EQ(2, r3.get<Value::Scalar>("disk")->value());
+
+  EXPECT_EQ(Resources(disk1) + disk2, r3);
+}
+
+
+TEST(ResourceProviderIDTest, Subtraction)
+{
+  ResourceProviderID resourceProviderId;
+  resourceProviderId.set_value("RESOURCE_PROVIDER_ID");
+
+  Resource cpus = Resources::parse("cpus", "4", "*").get();
+  cpus.mutable_provider_id()->CopyFrom(resourceProviderId);
+
+  Resource disk1 = createDiskResource("1", "*", None(), None());
+
+  Resource disk2 = disk1;
+  disk2.mutable_provider_id()->CopyFrom(resourceProviderId);
+
+  ASSERT_TRUE(Resources(cpus).contains(cpus));
+  EXPECT_TRUE((Resources(cpus) - cpus).empty());
+
+  EXPECT_FALSE(Resources(cpus).contains(disk1));
+  EXPECT_FALSE(Resources(cpus).contains(disk2));
+
+  Resources r0;
+  r0 += cpus;
+  r0 += disk1;
+
+  ASSERT_TRUE(r0.contains(cpus));
+  ASSERT_TRUE(r0.contains(disk1));
+  EXPECT_EQ(Resources(cpus), r0 - disk1);
+  EXPECT_EQ(Resources(disk1), r0 - cpus);
+
+  Resources r1;
+  r1 += cpus;
+  r1 += disk2;
+
+  ASSERT_TRUE(r1.contains(cpus));
+  ASSERT_TRUE(r1.contains(disk2));
+  EXPECT_EQ(Resources(cpus), r1 - disk2);
+  EXPECT_EQ(Resources(disk2), r1 - cpus);
+
+  Resources r2;
+  r2 += disk2;
+  r2 += disk2;
+
+  ASSERT_TRUE(r2.contains(disk2));
+  EXPECT_EQ(Resources(disk2), r2 - disk2);
+}
+
+
+TEST(ResourceProviderIDTest, Equals)
+{
+  ResourceProviderID resourceProviderId;
+  resourceProviderId.set_value("RESOURCE_PROVIDER_ID");
+
+  Resource cpus  = Resources::parse("cpus", "1", "*").get();
+  cpus.mutable_provider_id()->CopyFrom(resourceProviderId);
+
+  Resource disk1 = createDiskResource("1", "*", None(), None());
+
+  Resource disk2 = disk1;
+  disk2.mutable_provider_id()->CopyFrom(resourceProviderId);
+
+  Resources r1 = cpus;
+  Resources r2 = disk1;
+  Resources r3 = disk2;
+  Resources r4 = r1 + disk1;
+  Resources r5 = r1 + disk2;
+
+  EXPECT_EQ(r1, r1);
+  EXPECT_NE(r1, r2);
+  EXPECT_NE(r1, r3);
+  EXPECT_NE(r2, r3);
+  EXPECT_EQ(r2, r2);
+  EXPECT_EQ(r3, r3);
+
+  EXPECT_NE(r4, r5);
+  EXPECT_EQ(r4, r4);
+  EXPECT_EQ(r5, r5);
+}
+
+
+TEST(ResourceProviderIDTest, Contains) {
+  ResourceProviderID resourceProviderId;
+  resourceProviderId.set_value("RESOURCE_PROVIDER_ID");
+
+  Resource cpus = Resources::parse("cpus", "1", "*").get();
+
+  Resource disk1 = createDiskResource("1", "*", None(), None());
+
+  Resource disk2 = disk1;
+  disk2.mutable_provider_id()->CopyFrom(resourceProviderId);
+
+  Resources r1 = disk1;
+  Resources r2 = disk2;
+  Resources r3 = Resources(cpus) + disk1;
+  Resources r4 = Resources(cpus) + disk2;
+
+  EXPECT_FALSE(r1.contains(r2));
+  EXPECT_FALSE(r2.contains(r1));
+  EXPECT_TRUE(r2.contains(r2));
+
+  EXPECT_TRUE(r3.contains(r1));
+  EXPECT_FALSE(r3.contains(r2));
+  EXPECT_FALSE(r4.contains(r1));
+  EXPECT_TRUE(r4.contains(r2));
+
+  EXPECT_FALSE(r3.contains(r4));
+  EXPECT_TRUE(r4.contains(r4));
+}
+
+
 TEST(ResourcesTest, FlattenRoles)
 {
   Resource cpus1 = Resources::parse("cpus", "1", "role1").get();
