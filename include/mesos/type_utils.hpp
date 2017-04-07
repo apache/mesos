@@ -309,6 +309,9 @@ std::ostream& operator<<(
     const ResourceProviderID& resourceProviderId);
 
 
+std::ostream& operator<<(std::ostream& stream, const RLimitInfo& rlimitInfo);
+
+
 std::ostream& operator<<(std::ostream& stream, const SlaveID& slaveId);
 
 
@@ -344,9 +347,6 @@ std::ostream& operator<<(std::ostream& stream, const Image::Type& imageType);
 
 
 std::ostream& operator<<(std::ostream& stream, const Secret::Type& secretType);
-
-
-std::ostream& operator<<(std::ostream& stream, const RLimitInfo& rlimitInfo);
 
 
 template <typename T>
