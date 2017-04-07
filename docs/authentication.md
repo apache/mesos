@@ -94,7 +94,14 @@ Mesos master and agent processes. For more information, refer to the
   to make HTTP requests to the read-write HTTP endpoints that support
   authentication. If `false` (the default), these endpoints can be used without
   authentication. Read-write endpoints are those which can be used to modify the
-  state of the agent.
+  state of the agent. Note that for backward compatibility reasons, the V1
+  executor API is not affected by this flag.
+
+* `--[no-]authenticate_http_executors` - If `true`, authentication is required
+  to make HTTP requests to the V1 executor API. If `false` (the default), that
+  API can be used without authentication. If this flag is `true` and custom
+  HTTP authenticators are not specified, then the default `JWT` authenticator is
+  loaded to handle executor authentication.
 
 * `--http_authenticators` - Specifies which HTTP authenticator module to use.
   The default is `basic`, but additional modules can be added using the
@@ -103,6 +110,45 @@ Mesos master and agent processes. For more information, refer to the
 * `--http_credentials` - The path to a text file which contains a list (in JSON
   format) of accepted credentials.  This may be optional depending on the
   authenticator being used.
+
+### Executor
+
+If HTTP executor authentication is enabled on the agent, then all requests from
+HTTP executors must be authenticated. This includes the default executor, HTTP
+command executors, and custom HTTP executors. By default, the agent's JSON web
+token (JWT) HTTP authenticator is loaded to handle executor authentication on
+both the executor and operator API endpoints. Note that command and custom
+executors not using the HTTP API will remain unauthenticated.
+
+When a secret key is loaded via the `--executor_secret_key` flag, the agent will
+generate a default JWT for each executor before it is launched. This token is
+passed into the executor's environment via the
+`MESOS_EXECUTOR_AUTHENTICATION_TOKEN` environment variable. In order to
+authenticate with the agent, the executor should place this token into the
+`Authorization` header of all its requests as follows:
+
+        Authorization: Bearer MESOS_EXECUTOR_AUTHENTICATION_TOKEN
+
+In order to upgrade an existing cluster to require executor authentication, the
+following procedure should be followed:
+
+1. Upgrade all agents, and provide each agent with a cryptographic key via the
+   `--executor_secret_key` flag. This key will be used to sign executor
+   authentication tokens using the HMAC-SHA256 procedure.
+
+2. Before executor authentication can be enabled successfully, all HTTP
+   executors must have executor authentication tokens in their environment and
+   support authentication. To accomplish this, executors which were already
+   running before the upgrade must be restarted. This could either be done all
+   at once, or the cluster may be left in this intermediate state while
+   executors gradually turn over.
+
+3. Once all running default/HTTP command executors have been launched by
+   upgraded agents, and any custom HTTP executors have been upgraded, the agent
+   processes can be restarted with the `--authenticate_http_executors` flag set.
+   This will enable required HTTP executor authentication, and since all
+   executors now have authentication tokens and support authentication, their
+   requests to the agent will authenticate successfully.
 
 ### Framework
 

@@ -389,6 +389,7 @@ The following environment variables are set by the agent that can be used by the
 * `MESOS_AGENT_ENDPOINT`: Agent endpoint (i.e., ip:port to be used by the executor to connect to the agent).
 * `MESOS_CHECKPOINT`: If set to true, denotes that framework has checkpointing enabled.
 * `MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD`: Amount of time the agent would wait for an executor to shut down (e.g., 60secs, 3mins etc.) after sending a `SHUTDOWN` event.
+* `MESOS_EXECUTOR_AUTHENTICATION_TOKEN`: The token the executor should use to authenticate with the agent. When executor authentication is enabled, the agent generates a JSON web token (JWT) that the executor can use to authenticate with the agent's default JWT authenticator.
 
 If `MESOS_CHECKPOINT` is set (i.e., if framework checkpointing is enabled), the following additional variables are also set that can be used by the executor for retrying upon a disconnection with the agent:
 
