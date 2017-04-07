@@ -201,6 +201,16 @@ public:
       const process::Future<Option<
           mesos::slave::ContainerTermination>>& termination);
 
+  MOCK_METHOD3(shutdownExecutor, void(
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId));
+
+  void unmocked_shutdownExecutor(
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
+
 private:
   Files files;
   MockGarbageCollector gc;

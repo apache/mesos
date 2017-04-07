@@ -172,7 +172,8 @@ public:
       const process::UPID& from,
       const KillTaskMessage& killTaskMessage);
 
-  void shutdownExecutor(
+  // Made 'virtual' for Slave mocking.
+  virtual void shutdownExecutor(
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);

@@ -143,6 +143,8 @@ MockSlave::MockSlave(
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_usage));
   EXPECT_CALL(*this, executorTerminated(_, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_executorTerminated));
+  EXPECT_CALL(*this, shutdownExecutor(_, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_shutdownExecutor));
 }
 
 
@@ -235,6 +237,15 @@ void MockSlave::unmocked_executorTerminated(
     const Future<Option<ContainerTermination>>& termination)
 {
   slave::Slave::executorTerminated(frameworkId, executorId, termination);
+}
+
+
+void MockSlave::unmocked_shutdownExecutor(
+    const UPID& from,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
+{
+  slave::Slave::shutdownExecutor(from, frameworkId, executorId);
 }
 
 } // namespace tests {
