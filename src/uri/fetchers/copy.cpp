@@ -95,10 +95,17 @@ Future<Nothing> CopyFetcherPlugin::fetch(
 
   VLOG(1) << "Copying '" << uri.path() << "' to '" << directory << "'";
 
+#ifndef __WINDOWS__
+  const char* copyCommand = "cp";
   const vector<string> argv = {"cp", "-a", uri.path(), directory};
+#else // __WINDOWS__
+  const char* copyCommand = os::Shell::name;
+  const vector<string> argv =
+    {os::Shell::arg0, os::Shell::arg1, "copy", "/Y", uri.path(), directory};
+#endif // __WINDOWS__
 
   Try<Subprocess> s = subprocess(
-      "cp",
+      copyCommand,
       argv,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
