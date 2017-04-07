@@ -615,6 +615,8 @@ Try<Nothing> DockerContainerizerProcess::unmountPersistentVolumes(
     return Error("Failed to get mount table: " + table.error());
   }
 
+  vector<string> unmountErrors;
+
   foreach (const fs::MountInfoTable::Entry& entry,
            adaptor::reverse(table.get().entries)) {
     // TODO(tnachen): We assume there is only one docker container
@@ -636,12 +638,29 @@ Try<Nothing> DockerContainerizerProcess::unmountPersistentVolumes(
         strings::contains(entry.target, containerId.value())) {
       LOG(INFO) << "Unmounting volume for container '" << containerId << "'";
 
-      Try<Nothing> unmount = fs::unmount(entry.target);
+      // TODO(jieyu): Use MNT_DETACH here to workaround an issue of
+      // incorrect handling of container destroy failures. Currently,
+      // if unmount fails there, the containerizer will still treat
+      // the container as terminated, and the agent will schedule the
+      // cleanup of the container's sandbox. Since the mount hasn't
+      // been removed in the sandbox, that'll result in data in the
+      // persistent volume being incorrectly deleted. Use MNT_DETACH
+      // here so that the mount point in the sandbox will be removed
+      // immediately.  See MESOS-7366 for more details.
+      Try<Nothing> unmount = fs::unmount(entry.target, MNT_DETACH);
       if (unmount.isError()) {
-        return Error("Failed to unmount volume '" + entry.target +
-                     "': " + unmount.error());
+        // NOTE: Instead of short circuit, we try to perform as many
+        // unmount as possible. We'll accumulate the errors together
+        // in the end.
+        unmountErrors.push_back(
+            "Failed to unmount volume '" + entry.target +
+            "': " + unmount.error());
       }
     }
+  }
+
+  if (!unmountErrors.empty()) {
+    return Error(strings::join(", ", unmountErrors));
   }
 #endif // __linux__
   return Nothing();
