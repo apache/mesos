@@ -111,6 +111,19 @@ Mesos master and agent processes. For more information, refer to the
   format) of accepted credentials.  This may be optional depending on the
   authenticator being used.
 
+### Multiple HTTP Authenticators
+
+Multiple HTTP authenticators may be loaded into the Mesos master and agent. In
+order to load multiple authenticators, specify them as a comma-separated list
+using the `--http_authenticators` flag. The authenticators will be called
+serially, and the result of the first successful authentication attempt will be
+returned.
+
+If you wish to specify the default basic HTTP authenticator in addition to
+custom authenticator modules, add the name `basic` to your authenticator list.
+To specify the default JWT HTTP authenticator in addition to custom
+authenticator modules, add the name `jwt` to your authenticator list.
+
 ### Executor
 
 If HTTP executor authentication is enabled on the agent, then all requests from
