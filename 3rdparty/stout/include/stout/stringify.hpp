@@ -43,6 +43,16 @@ std::string stringify(T t)
   return out.str();
 }
 
+
+// We provide an explicit overload for strings so we do not incur the overhead
+// of a stringstream in generic code (e.g., when stringifying containers of
+// strings below).
+inline std::string stringify(const std::string& str)
+{
+  return str;
+}
+
+
 #ifdef __WINDOWS__
 inline std::string stringify(const std::wstring& str)
 {
