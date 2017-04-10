@@ -24,7 +24,6 @@
 #include <boost/uuid/uuid_io.hpp>
 
 #include <stout/error.hpp>
-#include <stout/thread_local.hpp>
 #include <stout/try.hpp>
 
 #ifdef __WINDOWS__
@@ -43,7 +42,7 @@ struct UUID : boost::uuids::uuid
 public:
   static UUID random()
   {
-    static THREAD_LOCAL boost::uuids::random_generator* generator = nullptr;
+    static thread_local boost::uuids::random_generator* generator = nullptr;
 
     if (generator == nullptr) {
       generator = new boost::uuids::random_generator();
@@ -73,7 +72,7 @@ public:
   static Try<UUID> fromString(const std::string& s)
   {
     try {
-      // NOTE: We don't use THREAD_LOCAL for the `string_generator`
+      // NOTE: We don't use `thread_local` for the `string_generator`
       // (unlike for the `random_generator` above), because it is cheap
       // to construct one each time.
       boost::uuids::string_generator gen;

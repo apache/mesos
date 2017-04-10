@@ -26,7 +26,6 @@
 #include <stout/nothing.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
-#include <stout/thread_local.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/mkdir.hpp>
@@ -67,7 +66,7 @@ inline Try<std::string> mkdtemp(
   static const size_t maxAlphabetIndex = sizeof(alphabet) - 2;
 
   std::string postfix(postfixTemplate);
-  static THREAD_LOCAL std::mt19937 generator((std::random_device())());
+  static thread_local std::mt19937 generator((std::random_device())());
 
   for (int i = 0; i < postfixSize; ++i) {
     int index = generator() % maxAlphabetIndex;
