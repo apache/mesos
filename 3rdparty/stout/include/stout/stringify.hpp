@@ -33,7 +33,7 @@
 #include "set.hpp"
 
 template <typename T>
-std::string stringify(T t)
+std::string stringify(const T& t)
 {
   std::ostringstream out;
   out << t;
@@ -63,7 +63,6 @@ inline std::string stringify(const std::wstring& str)
 #endif // __WINDOWS__
 
 
-template <>
 inline std::string stringify(bool b)
 {
   return b ? "true" : "false";
