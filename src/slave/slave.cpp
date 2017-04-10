@@ -117,6 +117,7 @@ using mesos::executor::Call;
 
 using mesos::master::detector::MasterDetector;
 
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerTermination;
 using mesos::slave::QoSController;
 using mesos::slave::QoSCorrection;
@@ -2686,6 +2687,8 @@ void Slave::launchExecutor(
   }
 
   // Tell the containerizer to launch the executor.
+  // NOTE: We make a copy of the executor info because we may mutate
+  // it with some default fields and resources.
   ExecutorInfo executorInfo_ = executor->info;
 
   // Populate the command info for default executor. We modify the ExecutorInfo
@@ -2711,6 +2714,41 @@ void Slave::launchExecutor(
 
   executorInfo_.mutable_resources()->CopyFrom(resources);
 
+  // Add the default container info to the executor info.
+  // TODO(jieyu): Rename the flag to be default_mesos_container_info.
+  if (!executorInfo_.has_container() &&
+      flags.default_container_info.isSome()) {
+    executorInfo_.mutable_container()->CopyFrom(
+        flags.default_container_info.get());
+  }
+
+  // Bundle all the container launch fields together.
+  ContainerConfig containerConfig;
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo_);
+  containerConfig.mutable_command_info()->CopyFrom(executorInfo_.command());
+  containerConfig.mutable_resources()->CopyFrom(executorInfo_.resources());
+  containerConfig.set_directory(executor->directory);
+
+  if (executor->user.isSome()) {
+    containerConfig.set_user(executor->user.get());
+  }
+
+  if (executor->isCommandExecutor()) {
+    if (taskInfo.isSome()) {
+      containerConfig.mutable_task_info()->CopyFrom(taskInfo.get());
+
+      if (taskInfo.get().has_container()) {
+        containerConfig.mutable_container_info()
+          ->CopyFrom(taskInfo.get().container());
+      }
+    }
+  } else {
+    if (executorInfo_.has_container()) {
+      containerConfig.mutable_container_info()
+        ->CopyFrom(executorInfo_.container());
+    }
+  }
+
   // Prepare environment variables for the executor.
   map<string, string> environment = executorEnvironment(
       flags,
@@ -2721,48 +2759,33 @@ void Slave::launchExecutor(
       authenticationToken,
       framework->info.checkpoint());
 
-  // Launch the container.
-  Future<bool> launch;
-  if (!executor->isCommandExecutor()) {
-    // If the executor is _not_ a command executor, this means that
-    // the task will include the executor to run. The actual task to
-    // run will be enqueued and subsequently handled by the executor
-    // when it has registered to the slave.
-    launch = containerizer->launch(
-        executor->containerId,
-        None(),
-        executorInfo_,
-        executor->directory,
-        executor->user,
+  // Prepare the filename of the pidfile, for checkpoint-enabled frameworks.
+  Option<string> pidCheckpointPath = None();
+  if (framework->info.checkpoint()){
+    pidCheckpointPath = slave::paths::getForkedPidPath(
+        slave::paths::getMetaRootDir(flags.work_dir),
         info.id(),
-        environment,
-        framework->info.checkpoint());
-  } else {
-    // An executor has _not_ been provided by the task and will
-    // instead define a command and/or container to run. Right now,
-    // these tasks will require an executor anyway and the slave
-    // creates a command executor. However, it is up to the
-    // containerizer how to execute those tasks and the generated
-    // executor info works as a placeholder.
-    // TODO(nnielsen): Obsolete the requirement for executors to run
-    // one-off tasks.
-    launch = containerizer->launch(
-        executor->containerId,
-        taskInfo,
-        executorInfo_,
-        executor->directory,
-        executor->user,
-        info.id(),
-        environment,
-        framework->info.checkpoint());
+        framework->id(),
+        executor->id,
+        executor->containerId);
   }
 
-  launch.onAny(defer(self(),
-                     &Self::executorLaunched,
-                     frameworkId,
-                     executor->id,
-                     executor->containerId,
-                     lambda::_1));
+  LOG(INFO) << "Launching container " << executor->containerId
+            << " for executor '" << executor->id
+            << "' of framework " << framework->id();
+
+  // Launch the container.
+  containerizer->launch(
+      executor->containerId,
+      containerConfig,
+      environment,
+      pidCheckpointPath)
+    .onAny(defer(self(),
+                 &Self::executorLaunched,
+                 frameworkId,
+                 executor->id,
+                 executor->containerId,
+                 lambda::_1));
 
   // Make sure the executor registers within the given timeout.
   delay(flags.executor_registration_timeout,

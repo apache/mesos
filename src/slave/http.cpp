@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <list>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -78,6 +79,7 @@ using mesos::authorization::createSubject;
 using mesos::internal::recordio::Reader;
 
 using mesos::slave::ContainerClass;
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerTermination;
 
 using process::AUTHENTICATION;
@@ -116,6 +118,7 @@ using process::metrics::internal::MetricsProcess;
 using ::recordio::Decoder;
 
 using std::list;
+using std::map;
 using std::string;
 using std::tie;
 using std::tuple;
@@ -2327,13 +2330,26 @@ Future<Response> Slave::Http::_launchNestedContainer(
   }
 #endif
 
+  ContainerConfig containerConfig;
+  containerConfig.mutable_command_info()->CopyFrom(commandInfo);
+
+  if (user.isSome()) {
+    containerConfig.set_user(user.get());
+  }
+
+  if (containerInfo.isSome()) {
+    containerConfig.mutable_container_info()->CopyFrom(containerInfo.get());
+  }
+
+  if (containerClass.isSome()) {
+    containerConfig.set_container_class(containerClass.get());
+  }
+
   Future<bool> launched = slave->containerizer->launch(
       containerId,
-      commandInfo,
-      containerInfo,
-      user,
-      slave->info.id(),
-      containerClass);
+      containerConfig,
+      map<string, string>(),
+      None());
 
   // TODO(bmahler): The containerizers currently require that
   // the caller calls destroy if the launch fails. See MESOS-6214.
