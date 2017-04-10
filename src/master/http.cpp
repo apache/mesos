@@ -3116,7 +3116,7 @@ string Master::Http::STATESUMMARY_HELP()
 {
   return HELP(
     TLDR(
-        "Summary of state of all tasks and registered frameworks in cluster."),
+        "Summary of agents, tasks, and registered frameworks in cluster."),
     DESCRIPTION(
         "Returns 200 OK when a summary of the master's state was queried",
         "successfully.",
@@ -3124,7 +3124,7 @@ string Master::Http::STATESUMMARY_HELP()
         "current master is not the leader.",
         "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
         "found.",
-        "This endpoint gives a summary of the state of all tasks and",
+        "This endpoint gives a summary of the agents, tasks, and",
         "registered frameworks in the cluster as a JSON object.",
         "The information shown might be filtered based on the user",
         "accessing the endpoint."),
