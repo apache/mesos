@@ -13,12 +13,15 @@ Information about state of master.
 
 ### DESCRIPTION ###
 Returns 200 OK when the state of the master was queried successfully.
+
 Returns 307 TEMPORARY_REDIRECT redirect to the leading master when
 current master is not the leader.
+
 Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
 found.
+
 This endpoint shows information about the frameworks, tasks,
-executors and agents running in the cluster as a JSON object.
+executors, and agents running in the cluster as a JSON object.
 The information shown might be filtered based on the user
 accessing the endpoint.
 

@@ -9,7 +9,7 @@ layout: documentation
 >        /master/health
 
 ### TL;DR; ###
-Health check of the Master.
+Health status of the Master.
 
 ### DESCRIPTION ###
 Returns 200 OK iff the Master is healthy.

@@ -13,10 +13,13 @@ Tears down a running framework by shutting down all tasks/executors and removing
 
 ### DESCRIPTION ###
 Returns 200 OK if the framework was torn down successfully.
+
 Returns 307 TEMPORARY_REDIRECT redirect to the leading master when
 current master is not the leader.
+
 Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
 found.
+
 Please provide a "frameworkId" value designating the running
 framework to tear down.
 

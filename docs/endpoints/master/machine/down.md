@@ -13,10 +13,13 @@ Brings a set of machines down.
 
 ### DESCRIPTION ###
 Returns 200 OK when the operation was successful.
+
 Returns 307 TEMPORARY_REDIRECT redirect to the leading master when
 current master is not the leader.
+
 Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
 found.
+
 POST: Validates the request body as JSON and transitions
   the list of machines into DOWN mode.  Currently, only
   machines in DRAINING mode are allowed to be brought down.
