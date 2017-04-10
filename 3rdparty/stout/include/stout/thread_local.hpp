@@ -13,17 +13,6 @@
 #ifndef __STOUT_THREAD_LOCAL_HPP__
 #define __STOUT_THREAD_LOCAL_HPP__
 
-// A wrapper around the thread local storage attribute. The default
-// clang on OSX does not support the c++11 standard `thread_local`
-// intentionally until a higher performance implementation is
-// released. See https://devforums.apple.com/message/1079348#1079348
-// Until then, we use `__thread` on OSX instead.
-// We required that THREAD_LOCAL is only used with POD types as this
-// is a requirement of `__thread`.
-#ifdef __APPLE__
-#define THREAD_LOCAL __thread
-#else
 #define THREAD_LOCAL thread_local
-#endif
 
 #endif // __STOUT_THREAD_LOCAL_HPP__
