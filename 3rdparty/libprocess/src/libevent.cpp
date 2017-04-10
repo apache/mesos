@@ -24,7 +24,6 @@
 #include <process/once.hpp>
 
 #include <stout/synchronized.hpp>
-#include <stout/thread_local.hpp>
 
 #include "event_loop.hpp"
 #include "libevent.hpp"
@@ -39,7 +38,7 @@ std::queue<lambda::function<void()>>* functions =
   new std::queue<lambda::function<void()>>();
 
 
-THREAD_LOCAL bool* _in_event_loop_ = nullptr;
+thread_local bool* _in_event_loop_ = nullptr;
 
 
 void async_function(evutil_socket_t socket, short which, void* arg)

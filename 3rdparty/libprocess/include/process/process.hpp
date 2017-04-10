@@ -35,7 +35,6 @@
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/synchronized.hpp>
-#include <stout/thread_local.hpp>
 
 namespace process {
 
@@ -682,7 +681,7 @@ inline bool wait(const ProcessBase* process, const Duration& duration)
 
 
 // Per thread process pointer.
-extern THREAD_LOCAL ProcessBase* __process__;
+extern thread_local ProcessBase* __process__;
 
 // NOTE: Methods in this namespace should only be used in tests to
 // inject arbitrary events.

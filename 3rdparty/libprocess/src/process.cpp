@@ -107,7 +107,6 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/synchronized.hpp>
-#include <stout/thread_local.hpp>
 
 #include "authenticator_manager.hpp"
 #include "config.hpp"
@@ -617,11 +616,11 @@ PID<Help> help;
 // Global logging.
 PID<Logging> _logging;
 
-// Per thread process pointer.
-THREAD_LOCAL ProcessBase* __process__ = nullptr;
+// Per-thread process pointer.
+thread_local ProcessBase* __process__ = nullptr;
 
-// Per thread executor pointer.
-THREAD_LOCAL Executor* _executor_ = nullptr;
+// Per-thread executor pointer.
+thread_local Executor* _executor_ = nullptr;
 
 namespace metrics {
 namespace internal {

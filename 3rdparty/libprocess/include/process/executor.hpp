@@ -17,8 +17,6 @@
 #include <process/id.hpp>
 #include <process/process.hpp>
 
-#include <stout/thread_local.hpp>
-
 namespace process {
 
 // Provides an abstraction that can take a standard function object
@@ -67,7 +65,7 @@ private:
 
 // Per thread executor pointer. We use a pointer to lazily construct the
 // actual executor.
-extern THREAD_LOCAL Executor* _executor_;
+extern thread_local Executor* _executor_;
 
 #define __executor__                                                    \
   (_executor_ == nullptr ? _executor_ = new Executor() : _executor_)
