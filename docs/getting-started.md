@@ -68,11 +68,11 @@ Following are the instructions for stock Ubuntu 16.04. If you are using a differ
     # Install other Mesos dependencies.
     $ sudo apt-get -y install build-essential python-dev python-virtualenv libcurl4-nss-dev libsasl2-dev libsasl2-modules maven libapr1-dev libsvn-dev zlib1g-dev
 
-### Mac OS X 10.10 (Yosemite), Mac OS X 10.11 (El Capitan), macOS 10.12 (Sierra)
+### Mac OS X 10.11 (El Capitan), macOS 10.12 (Sierra)
 
-Following are the instructions for stock Mac OS X Yosemite and El Capitan. If you are using a different OS, please install the packages accordingly.
+Following are the instructions for Mac OS X El Capitan. When building Mesos with the Apple-provided toolchain, the Command Line Tools from XCode >= 8.0 are required; XCode 8 requires Mac OS X 10.11.5 or newer.
 
-    # Install Command Line Tools.
+    # Install Command Line Tools. The Command Line Tools from XCode >= 8.0 are required.
     $ xcode-select --install
 
     # Install Homebrew.
