@@ -194,7 +194,6 @@ nobase_include_HEADERS =			\
   stout/subcommand.hpp				\
   stout/svn.hpp					\
   stout/synchronized.hpp			\
-  stout/thread_local.hpp			\
   stout/try.hpp					\
   stout/tests/environment.hpp				\
   stout/tests/utils.hpp				\
