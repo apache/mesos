@@ -26,10 +26,11 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
-#include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
+
+#include "slave/containerizer/containerizer.hpp"
 
 namespace mesos {
 namespace internal {
@@ -55,21 +56,9 @@ public:
 
   virtual process::Future<bool> launch(
       const ContainerID& containerId,
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
+      const mesos::slave::ContainerConfig& containerConfig,
       const std::map<std::string, std::string>& environment,
-      bool checkpoint);
-
-  virtual process::Future<bool> launch(
-      const ContainerID& containerId,
-      const CommandInfo& commandInfo,
-      const Option<ContainerInfo>& containerInfo,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
-      const Option<mesos::slave::ContainerClass>& containerClass = None());
+      const Option<std::string>& pidCheckpointPath);
 
   virtual process::Future<process::http::Connection> attach(
       const ContainerID& containerId);

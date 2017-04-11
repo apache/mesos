@@ -43,6 +43,7 @@ using std::string;
 using std::vector;
 
 using mesos::slave::ContainerClass;
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerTermination;
 
 namespace mesos {
@@ -66,21 +67,9 @@ public:
 
   Future<bool> launch(
       const ContainerID& containerId,
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const string& directory,
-      const Option<string>& user,
-      const SlaveID& slaveId,
+      const ContainerConfig& config,
       const map<string, string>& environment,
-      bool checkpoint);
-
-  Future<bool> launch(
-      const ContainerID& containerId,
-      const CommandInfo& commandInfo,
-      const Option<ContainerInfo>& containerInfo,
-      const Option<string>& user,
-      const SlaveID& slaveId,
-      const Option<ContainerClass>& containerClass);
+      const Option<std::string>& pidCheckpointPath);
 
   Future<http::Connection> attach(
       const ContainerID& containerId);
@@ -114,16 +103,13 @@ private:
 
   Future<bool> _launch(
       const ContainerID& containerId,
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const string& directory,
-      const Option<string>& user,
-      const SlaveID& slaveId,
+      const ContainerConfig& config,
       const map<string, string>& environment,
-      bool checkpoint,
+      const Option<std::string>& pidCheckpointPath,
       vector<Containerizer*>::iterator containerizer,
       bool launched);
 
+  // Continuation for nested containers.
   Future<bool> _launch(
       const ContainerID& containerId,
       bool launched);
@@ -184,43 +170,16 @@ Future<Nothing> ComposingContainerizer::recover(
 
 Future<bool> ComposingContainerizer::launch(
     const ContainerID& containerId,
-    const Option<TaskInfo>& taskInfo,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
+    const ContainerConfig& containerConfig,
     const map<string, string>& environment,
-    bool checkpoint)
+    const Option<std::string>& pidCheckpointPath)
 {
   return dispatch(process,
                   &ComposingContainerizerProcess::launch,
                   containerId,
-                  taskInfo,
-                  executorInfo,
-                  directory,
-                  user,
-                  slaveId,
+                  containerConfig,
                   environment,
-                  checkpoint);
-}
-
-
-Future<bool> ComposingContainerizer::launch(
-    const ContainerID& containerId,
-    const CommandInfo& commandInfo,
-    const Option<ContainerInfo>& containerInfo,
-    const Option<string>& user,
-    const SlaveID& slaveId,
-    const Option<ContainerClass>& containerClass)
-{
-  return dispatch(process,
-                  &ComposingContainerizerProcess::launch,
-                  containerId,
-                  commandInfo,
-                  containerInfo,
-                  user,
-                  slaveId,
-                  containerClass);
+                  pidCheckpointPath);
 }
 
 
@@ -351,13 +310,9 @@ Future<Nothing> ComposingContainerizerProcess::___recover()
 
 Future<bool> ComposingContainerizerProcess::_launch(
     const ContainerID& containerId,
-    const Option<TaskInfo>& taskInfo,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
+    const ContainerConfig& containerConfig,
     const map<string, string>& environment,
-    bool checkpoint,
+    const Option<std::string>& pidCheckpointPath,
     vector<Containerizer*>::iterator containerizer,
     bool launched)
 {
@@ -424,24 +379,16 @@ Future<bool> ComposingContainerizerProcess::_launch(
 
   return (*containerizer)->launch(
       containerId,
-      taskInfo,
-      executorInfo,
-      directory,
-      user,
-      slaveId,
+      containerConfig,
       environment,
-      checkpoint)
+      pidCheckpointPath)
     .then(defer(
         self(),
         &Self::_launch,
         containerId,
-        taskInfo,
-        executorInfo,
-        directory,
-        user,
-        slaveId,
+        containerConfig,
         environment,
-        checkpoint,
+        pidCheckpointPath,
         containerizer,
         lambda::_1));
 }
@@ -449,85 +396,61 @@ Future<bool> ComposingContainerizerProcess::_launch(
 
 Future<bool> ComposingContainerizerProcess::launch(
     const ContainerID& containerId,
-    const Option<TaskInfo>& taskInfo,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
+    const ContainerConfig& containerConfig,
     const map<string, string>& environment,
-    bool checkpoint)
+    const Option<std::string>& pidCheckpointPath)
 {
   if (containers_.contains(containerId)) {
     return Failure("Duplicate container found");
   }
 
+  Container* container = new Container();
+  container->state = LAUNCHING;
+  containers_[containerId] = container;
+
+  // For nested containers, use the containerizer that launched the
+  // root container. This code path uses a different continuation
+  // function because there is no need to try other containerizers.
+  if (containerId.has_parent()) {
+    ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
+    if (!containers_.contains(rootContainerId)) {
+      return Failure(
+          "Root container " + stringify(rootContainerId) + " not found");
+    }
+
+    Containerizer* containerizer =
+      containers_.at(rootContainerId)->containerizer;
+
+    container->containerizer = containerizer;
+
+    return containerizer->launch(
+        containerId,
+        containerConfig,
+        environment,
+        pidCheckpointPath)
+      .then(defer(self(),
+                  &Self::_launch,
+                  containerId,
+                  lambda::_1));
+  }
+
   // Try each containerizer. If none of them handle the
   // TaskInfo/ExecutorInfo then return a Failure.
   vector<Containerizer*>::iterator containerizer = containerizers_.begin();
-
-  Container* container = new Container();
-  container->state = LAUNCHING;
   container->containerizer = *containerizer;
-  containers_[containerId] = container;
 
   return (*containerizer)->launch(
       containerId,
-      taskInfo,
-      executorInfo,
-      directory,
-      user,
-      slaveId,
+      containerConfig,
       environment,
-      checkpoint)
+      pidCheckpointPath)
     .then(defer(self(),
                 &Self::_launch,
                 containerId,
-                taskInfo,
-                executorInfo,
-                directory,
-                user,
-                slaveId,
+                containerConfig,
                 environment,
-                checkpoint,
+                pidCheckpointPath,
                 containerizer,
-                lambda::_1));
-}
-
-
-Future<bool> ComposingContainerizerProcess::launch(
-          const ContainerID& containerId,
-          const CommandInfo& commandInfo,
-          const Option<ContainerInfo>& containerInfo,
-          const Option<string>& user,
-          const SlaveID& slaveId,
-          const Option<ContainerClass>& containerClass)
-{
-  ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
-
-  if (!containers_.contains(rootContainerId)) {
-    return Failure(
-        "Root container " + stringify(rootContainerId) + " not found");
-  }
-
-  // Use the containerizer that launched the root container to launch
-  // the nested container.
-  Containerizer* containerizer = containers_.at(rootContainerId)->containerizer;
-
-  Container* container = new Container();
-  container->state = LAUNCHING;
-  container->containerizer = containerizer;
-  containers_[containerId] = container;
-
-  return containerizer->launch(
-      containerId,
-      commandInfo,
-      containerInfo,
-      user,
-      slaveId,
-      containerClass)
-    .then(defer(self(),
-                &Self::_launch,
-                containerId,
                 lambda::_1));
 }
 
