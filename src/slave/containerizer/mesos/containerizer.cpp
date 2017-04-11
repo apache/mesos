@@ -493,63 +493,16 @@ Future<Nothing> MesosContainerizer::recover(
 
 Future<bool> MesosContainerizer::launch(
     const ContainerID& containerId,
-    const Option<TaskInfo>& taskInfo,
-    const ExecutorInfo& executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
+    const ContainerConfig& containerConfig,
     const map<string, string>& environment,
-    bool checkpoint)
+    const Option<std::string>& pidCheckpointPath)
 {
-  // Need to disambiguate for the compiler.
-  Future<bool> (MesosContainerizerProcess::*launch)(
-      const ContainerID&,
-      const Option<TaskInfo>&,
-      const ExecutorInfo&,
-      const string&,
-      const Option<string>&,
-      const SlaveID&,
-      const map<string, string>&,
-      bool) = &MesosContainerizerProcess::launch;
-
   return dispatch(process.get(),
-                  launch,
+                  &MesosContainerizerProcess::launch,
                   containerId,
-                  taskInfo,
-                  executorInfo,
-                  directory,
-                  user,
-                  slaveId,
+                  containerConfig,
                   environment,
-                  checkpoint);
-}
-
-
-Future<bool> MesosContainerizer::launch(
-    const ContainerID& containerId,
-    const CommandInfo& commandInfo,
-    const Option<ContainerInfo>& containerInfo,
-    const Option<string>& user,
-    const SlaveID& slaveId,
-    const Option<ContainerClass>& containerClass)
-{
-  // Need to disambiguate for the compiler.
-  Future<bool> (MesosContainerizerProcess::*launch)(
-      const ContainerID&,
-      const CommandInfo&,
-      const Option<ContainerInfo>&,
-      const Option<string>&,
-      const SlaveID&,
-      const Option<ContainerClass>&) = &MesosContainerizerProcess::launch;
-
-  return dispatch(process.get(),
-                  launch,
-                  containerId,
-                  commandInfo,
-                  containerInfo,
-                  user,
-                  slaveId,
-                  containerClass);
+                  pidCheckpointPath);
 }
 
 
@@ -991,99 +944,117 @@ Future<Nothing> MesosContainerizerProcess::__recover(
 }
 
 
-// Launching an executor involves the following steps:
+// Launching an container involves the following steps:
 // 1. Call prepare on each isolator.
-// 2. Fork the executor. The forked child is blocked from exec'ing until it has
-//    been isolated.
-// 3. Isolate the executor. Call isolate with the pid for each isolator.
-// 4. Fetch the executor.
-// 5. Exec the executor. The forked child is signalled to continue. It will
-//    first execute any preparation commands from isolators and then exec the
-//    executor.
+// 2. Fork a helper process. The forked helper is blocked from exec'ing
+//    until it has been isolated.
+// 3. Isolate the helper's pid; e.g. call `isolate` for each isolator.
+// 4. Fetch any URIs.
+// 5. Signal the helper process to continue. It will first execute any
+//    preparation commands from isolators and then exec the starting command.
 Future<bool> MesosContainerizerProcess::launch(
     const ContainerID& containerId,
-    const Option<TaskInfo>& taskInfo,
-    const ExecutorInfo& _executorInfo,
-    const string& directory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
+    const ContainerConfig& _containerConfig,
     const map<string, string>& environment,
-    bool checkpoint)
+    const Option<std::string>& pidCheckpointPath)
 {
-  CHECK(!containerId.has_parent());
-
   if (containers_.contains(containerId)) {
-    return Failure("Container already started");
+    return Failure(
+        (containerId.has_parent() ? "Nested container" : "Container") +
+        stringify(containerId) + " already started");
   }
 
-  if (taskInfo.isSome() &&
-      taskInfo.get().has_container() &&
-      taskInfo.get().container().type() != ContainerInfo::MESOS) {
+  if (_containerConfig.has_container_info() &&
+      _containerConfig.container_info().type() != ContainerInfo::MESOS) {
     return false;
   }
 
-  // NOTE: We make a copy of the executor info because we may mutate
-  // it with default container info.
-  ExecutorInfo executorInfo = _executorInfo;
+  // NOTE: We make a copy of the ContainerConfig because we may need
+  // to modify it based on the parent container (for nested containers).
+  ContainerConfig containerConfig = _containerConfig;
 
-  if (executorInfo.has_container() &&
-      executorInfo.container().type() != ContainerInfo::MESOS) {
-    return false;
-  }
-
-  // Add the default container info to the executor info.
-  // TODO(jieyu): Rename the flag to be default_mesos_container_info.
-  if (!executorInfo.has_container() &&
-      flags.default_container_info.isSome()) {
-    executorInfo.mutable_container()->CopyFrom(
-        flags.default_container_info.get());
-  }
-
-  LOG(INFO) << "Starting container " << containerId
-            << " for executor '" << executorInfo.executor_id()
-            << "' of framework " << executorInfo.framework_id();
-
-  ContainerConfig containerConfig;
-  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
-  containerConfig.mutable_command_info()->CopyFrom(executorInfo.command());
-  containerConfig.mutable_resources()->CopyFrom(executorInfo.resources());
-  containerConfig.set_directory(directory);
-
-  if (user.isSome()) {
-    containerConfig.set_user(user.get());
-  }
-
-  if (taskInfo.isSome()) {
-    // Command task case.
-    containerConfig.mutable_task_info()->CopyFrom(taskInfo.get());
-
-    if (taskInfo->has_container()) {
-      ContainerInfo* containerInfo = containerConfig.mutable_container_info();
-      containerInfo->CopyFrom(taskInfo->container());
+  // For nested containers, we must perform some extra validation
+  // (i.e. does the parent exist?) and create the sandbox directory
+  // based on the parent's sandbox.
+  if (containerId.has_parent()) {
+    if (containerConfig.has_task_info() ||
+        containerConfig.has_executor_info()) {
+      return Failure(
+          "Nested containers may not supply a TaskInfo/ExecutorInfo");
     }
-  } else {
-    // Other cases.
-    if (executorInfo.has_container()) {
-      ContainerInfo* containerInfo = containerConfig.mutable_container_info();
-      containerInfo->CopyFrom(executorInfo.container());
+
+    if (pidCheckpointPath.isSome()) {
+      return Failure("Nested containers may not be checkpointed");
+    }
+
+    const ContainerID& parentContainerId = containerId.parent();
+
+    if (!containers_.contains(parentContainerId)) {
+      return Failure(
+          "Parent container " + stringify(parentContainerId) +
+          " does not exist");
+    }
+
+    if (containers_[parentContainerId]->state == DESTROYING) {
+      return Failure(
+          "Parent container " + stringify(parentContainerId) +
+          " is in 'DESTROYING' state");
+    }
+
+    const ContainerID rootContainerId =
+      protobuf::getRootContainerId(containerId);
+
+    CHECK(containers_.contains(rootContainerId));
+    if (containers_[rootContainerId]->directory.isNone()) {
+      return Failure(
+          "Unexpected empty sandbox directory for root container " +
+          stringify(rootContainerId));
+    }
+
+    const string directory = containerizer::paths::getSandboxPath(
+        containers_[rootContainerId]->directory.get(),
+        containerId);
+
+    Try<Nothing> mkdir = os::mkdir(directory);
+    if (mkdir.isError()) {
+      return Failure(
+          "Failed to create nested sandbox directory '" +
+          directory + "': " + mkdir.error());
+    }
+
+#ifndef __WINDOWS__
+    if (containerConfig.has_user()) {
+      LOG(INFO) << "Trying to chown '" << directory << "' to user '"
+                << containerConfig.user() << "'";
+
+      Try<Nothing> chown = os::chown(containerConfig.user(), directory);
+      if (chown.isError()) {
+        LOG(WARNING)
+          << "Failed to chown sandbox directory '" << directory
+          << "'. This may be due to attempting to run the container "
+          << "as a nonexistent user on the agent; see the description"
+          << " for the `--switch_user` flag for more information: "
+          << chown.error();
+      }
+    }
+#endif // __WINDOWS__
+
+    // Modify the sandbox directory in the ContainerConfig.
+    // TODO(josephw): Should we validate that this value
+    // is not set for nested containers?
+    containerConfig.set_directory(directory);
+
+    // TODO(jieyu): This is currently best effort. After the agent fails
+    // over, 'executor_info' won't be set in root parent container's
+    // 'config'. Consider populating 'executor_info' in recover path.
+    if (containers_[rootContainerId]->config.has_executor_info()) {
+      containerConfig.mutable_executor_info()->CopyFrom(
+          containers_[rootContainerId]->config.executor_info());
     }
   }
 
-  return launch(containerId,
-                containerConfig,
-                environment,
-                slaveId,
-                checkpoint);
-}
+  LOG(INFO) << "Starting container " << containerId;
 
-
-Future<bool> MesosContainerizerProcess::launch(
-    const ContainerID& containerId,
-    const ContainerConfig& containerConfig,
-    const map<string, string>& environment,
-    const SlaveID& slaveId,
-    bool checkpoint)
-{
   // Before we launch the container, we first create the container
   // runtime directory to hold internal checkpoint information about
   // the container.
@@ -1146,8 +1117,7 @@ Future<bool> MesosContainerizerProcess::launch(
                   containerId,
                   lambda::_1,
                   environment,
-                  slaveId,
-                  checkpoint));
+                  pidCheckpointPath));
   }
 
   container->provisioning = provisioner->provision(
@@ -1166,8 +1136,7 @@ Future<bool> MesosContainerizerProcess::launch(
                     containerId,
                     lambda::_1,
                     environment,
-                    slaveId,
-                    checkpoint));
+                    pidCheckpointPath));
     }));
 }
 
@@ -1251,8 +1220,7 @@ Future<Nothing> MesosContainerizerProcess::prepare(
 
 
 Future<Nothing> MesosContainerizerProcess::fetch(
-    const ContainerID& containerId,
-    const SlaveID& slaveId)
+    const ContainerID& containerId)
 {
   if (!containers_.contains(containerId)) {
     return Failure("Container destroyed during isolating");
@@ -1270,18 +1238,13 @@ Future<Nothing> MesosContainerizerProcess::fetch(
 
   const string directory = container->config.directory();
 
-  Option<string> user;
-  if (container->config.has_user()) {
-    user = container->config.user();
-  }
-
   return fetcher->fetch(
       containerId,
       container->config.command_info(),
       directory,
-      user,
-      slaveId,
-      flags)
+      container->config.has_user()
+        ? container->config.user()
+        : Option<string>::none())
     .then([=]() -> Future<Nothing> {
       if (HookManager::hooksAvailable()) {
         HookManager::slavePostFetchHook(containerId, directory);
@@ -1295,8 +1258,7 @@ Future<bool> MesosContainerizerProcess::_launch(
     const ContainerID& containerId,
     const Option<ContainerIO>& containerIO,
     const map<string, string>& environment,
-    const SlaveID& slaveId,
-    bool checkpoint)
+    const Option<std::string>& pidCheckpointPath)
 {
   if (!containers_.contains(containerId)) {
     return Failure("Container destroyed during preparing");
@@ -1756,23 +1718,16 @@ Future<bool> MesosContainerizerProcess::_launch(
   container->pid = pid;
 
   // Checkpoint the forked pid if requested by the agent.
-  if (checkpoint) {
-    const string& path = slave::paths::getForkedPidPath(
-        slave::paths::getMetaRootDir(flags.work_dir),
-        slaveId,
-        container->config.executor_info().framework_id(),
-        container->config.executor_info().executor_id(),
-        containerId);
-
+  if (pidCheckpointPath.isSome()) {
     LOG(INFO) << "Checkpointing container's forked pid " << pid
-              << " to '" << path << "'";
+              << " to '" << pidCheckpointPath.get() << "'";
 
     Try<Nothing> checkpointed =
-      slave::state::checkpoint(path, stringify(pid));
+      slave::state::checkpoint(pidCheckpointPath.get(), stringify(pid));
 
     if (checkpointed.isError()) {
       LOG(ERROR) << "Failed to checkpoint container's forked pid to '"
-                 << path << "': " << checkpointed.error();
+                 << pidCheckpointPath.get() << "': " << checkpointed.error();
 
       return Failure("Could not checkpoint container's pid");
     }
@@ -1809,8 +1764,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   return isolate(containerId, pid)
     .then(defer(self(),
                 &Self::fetch,
-                containerId,
-                slaveId))
+                containerId))
     .then(defer(self(), &Self::exec, containerId, pipes[1]))
     .onAny([pipes]() { os::close(pipes[0]); })
     .onAny([pipes]() { os::close(pipes[1]); });
@@ -1900,104 +1854,6 @@ Future<bool> MesosContainerizerProcess::exec(
   containers_.at(containerId)->state = RUNNING;
 
   return true;
-}
-
-
-Future<bool> MesosContainerizerProcess::launch(
-    const ContainerID& containerId,
-    const CommandInfo& commandInfo,
-    const Option<ContainerInfo>& containerInfo,
-    const Option<string>& user,
-    const SlaveID& slaveId,
-    const Option<ContainerClass>& containerClass)
-{
-  CHECK(containerId.has_parent());
-
-  if (containers_.contains(containerId)) {
-    return Failure(
-        "Nested container " + stringify(containerId) + " already started");
-  }
-
-  const ContainerID& parentContainerId = containerId.parent();
-  if (!containers_.contains(parentContainerId)) {
-    return Failure(
-        "Parent container " + stringify(parentContainerId) +
-        " does not exist");
-  }
-
-  if (containers_[parentContainerId]->state == DESTROYING) {
-    return Failure(
-        "Parent container " + stringify(parentContainerId) +
-        " is in 'DESTROYING' state");
-  }
-
-  LOG(INFO) << "Starting nested container " << containerId;
-
-  const ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
-
-  CHECK(containers_.contains(rootContainerId));
-  if (containers_[rootContainerId]->directory.isNone()) {
-    return Failure(
-        "Unexpected empty sandbox directory for root container " +
-        stringify(rootContainerId));
-  }
-
-  const string directory = containerizer::paths::getSandboxPath(
-      containers_[rootContainerId]->directory.get(),
-      containerId);
-
-  Try<Nothing> mkdir = os::mkdir(directory);
-  if (mkdir.isError()) {
-    return Failure(
-        "Failed to create nested sandbox directory '" +
-        directory + "': " + mkdir.error());
-  }
-
-#ifndef __WINDOWS__
-  if (user.isSome()) {
-    LOG(INFO) << "Trying to chown '" << directory << "' to user '"
-              << user.get() << "'";
-
-    Try<Nothing> chown = os::chown(user.get(), directory);
-    if (chown.isError()) {
-      LOG(WARNING) << "Failed to chown sandbox directory '" << directory
-                   << "'. This may be due to attempting to run the container "
-                   << "as a nonexistent user on the agent; see the description"
-                   << " for the `--switch_user` flag for more information: "
-                   << chown.error();
-    }
-  }
-#endif // __WINDOWS__
-
-  ContainerConfig containerConfig;
-  containerConfig.mutable_command_info()->CopyFrom(commandInfo);
-  containerConfig.set_directory(directory);
-
-  if (user.isSome()) {
-    containerConfig.set_user(user.get());
-  }
-
-  if (containerInfo.isSome()) {
-    containerConfig.mutable_container_info()->CopyFrom(containerInfo.get());
-  }
-
-  if (containerClass.isSome()) {
-    containerConfig.set_container_class(containerClass.get());
-  }
-
-  // TODO(jieyu): This is currently best effort. After the agent fails
-  // over, 'executor_info' won't be set in root parent container's
-  // 'config'. Consider populating 'executor_info' in recover path.
-  if (containers_[rootContainerId]->config.has_executor_info()) {
-    containerConfig.mutable_executor_info()->CopyFrom(
-        containers_[rootContainerId]->config.executor_info());
-  }
-
-  return launch(containerId,
-                containerConfig,
-                map<string, string>(),
-                slaveId,
-                false);
 }
 
 
