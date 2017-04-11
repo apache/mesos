@@ -699,7 +699,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::TEARDOWN_FRAMEWORK:
         foreach (
             const ACL::TeardownFramework& acl, acls.teardown_frameworks()) {
@@ -711,7 +710,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::RUN_TASK:
         foreach (const ACL::RunTask& acl, acls.run_tasks()) {
           GenericACL acl_;
@@ -722,7 +720,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::RESERVE_RESOURCES:
         foreach (const ACL::ReserveResources& acl, acls.reserve_resources()) {
           GenericACL acl_;
@@ -733,7 +730,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::UNRESERVE_RESOURCES:
         foreach (
             const ACL::UnreserveResources& acl, acls.unreserve_resources()) {
@@ -745,7 +741,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::CREATE_VOLUME:
         foreach (const ACL::CreateVolume& acl, acls.create_volumes()) {
           GenericACL acl_;
@@ -756,7 +751,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::DESTROY_VOLUME:
         foreach (const ACL::DestroyVolume& acl, acls.destroy_volumes()) {
           GenericACL acl_;
@@ -767,7 +761,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::GET_QUOTA:
         foreach (const ACL::GetQuota& acl, acls.get_quotas()) {
           GenericACL acl_;
@@ -778,7 +771,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::UPDATE_QUOTA: {
         foreach (const ACL::UpdateQuota& acl, acls.update_quotas()) {
           GenericACL acl_;
@@ -789,7 +781,6 @@ private:
         }
 
         return acls_;
-        break;
       }
       case authorization::VIEW_ROLE:
         foreach (const ACL::ViewRole& acl, acls.view_roles()) {
@@ -801,7 +792,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::UPDATE_WEIGHT:
         foreach (const ACL::UpdateWeight& acl, acls.update_weights()) {
           GenericACL acl_;
@@ -812,7 +802,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::GET_ENDPOINT_WITH_PATH:
         foreach (const ACL::GetEndpoint& acl, acls.get_endpoints()) {
           GenericACL acl_;
@@ -823,7 +812,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::ACCESS_MESOS_LOG:
         foreach (const ACL::AccessMesosLog& acl, acls.access_mesos_logs()) {
           GenericACL acl_;
@@ -834,7 +822,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::VIEW_FLAGS:
         foreach (const ACL::ViewFlags& acl, acls.view_flags()) {
           GenericACL acl_;
@@ -845,7 +832,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::ACCESS_SANDBOX:
         foreach (const ACL::AccessSandbox& acl, acls.access_sandboxes()) {
           GenericACL acl_;
@@ -856,7 +842,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::ATTACH_CONTAINER_INPUT:
         foreach (const ACL::AttachContainerInput& acl,
             acls.attach_containers_input()) {
@@ -868,7 +853,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::ATTACH_CONTAINER_OUTPUT:
         foreach (const ACL::AttachContainerOutput& acl,
             acls.attach_containers_output()) {
@@ -880,7 +864,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::KILL_NESTED_CONTAINER:
         foreach (const ACL::KillNestedContainer& acl,
             acls.kill_nested_containers()) {
@@ -892,7 +875,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::WAIT_NESTED_CONTAINER:
         foreach (const ACL::WaitNestedContainer& acl,
             acls.wait_nested_containers()) {
@@ -904,7 +886,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::REMOVE_NESTED_CONTAINER:
         foreach (const ACL::RemoveNestedContainer& acl,
             acls.remove_nested_containers()) {
@@ -916,7 +897,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::VIEW_FRAMEWORK:
         foreach (const ACL::ViewFramework& acl, acls.view_frameworks()) {
           GenericACL acl_;
@@ -927,7 +907,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::VIEW_TASK:
         foreach (const ACL::ViewTask& acl, acls.view_tasks()) {
           GenericACL acl_;
@@ -938,7 +917,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::VIEW_EXECUTOR:
         foreach (const ACL::ViewExecutor& acl, acls.view_executors()) {
           GenericACL acl_;
@@ -949,7 +927,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::SET_LOG_LEVEL:
         foreach (const ACL::SetLogLevel& acl, acls.set_log_level()) {
           GenericACL acl_;
@@ -960,7 +937,6 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::VIEW_CONTAINER:
         foreach (const ACL::ViewContainer& acl, acls.view_containers()) {
           GenericACL acl_;
@@ -971,16 +947,13 @@ private:
         }
 
         return acls_;
-        break;
       case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
       case authorization::LAUNCH_NESTED_CONTAINER:
         return Error("Extracting ACLs for launching nested containers requires "
                      "a specialized function");
-        break;
       case authorization::UNKNOWN:
         // Cannot generate acls for an unknown action.
         return None();
-        break;
     }
     UNREACHABLE();
   }
