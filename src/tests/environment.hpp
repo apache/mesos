@@ -24,6 +24,8 @@
 
 #include <stout/try.hpp>
 
+#include <stout/tests/environment.hpp>
+
 #include "tests/flags.hpp"
 
 namespace mesos {
@@ -31,7 +33,7 @@ namespace internal {
 namespace tests {
 
 // Used to set up and manage the test environment.
-class Environment : public ::testing::Environment {
+class Environment : public stout::internal::tests::Environment {
 public:
   Environment(const Flags& flags);
 
