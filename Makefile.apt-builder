@@ -1,0 +1,8 @@
+apt-builder-fetch:
+	#no-op, the repo is it
+
+apt-builder-deps:
+	sudo apt-get install zookeeperd default-jre python-setuptools python-protobuf curl pip
+
+apt-builder-build:
+	mesos-deb-packaging/build_mesos
