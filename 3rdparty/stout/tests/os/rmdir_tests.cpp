@@ -285,7 +285,7 @@ TEST_F(RmdirTest, RemoveDirectoryWithDeviceFile)
 // MESOS-5881.
 // This test verifies that `rmdir` can remove a directory with a
 // symlink that has no target.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(RmdirTest, RemoveDirectoryNoTargetSymbolicLink)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RmdirTest, SYMLINK_RmDirNoTargetSymbolicLink)
 {
   const string newDirectory = path::join(os::getcwd(), "newDirectory");
   ASSERT_SOME(os::mkdir(newDirectory));
@@ -301,7 +301,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RmdirTest, RemoveDirectoryNoTargetSymbolicLink)
 
 // This test verifies that `rmdir` can remove a directory with a
 // "hanging" symlink whose target has been deleted.
-TEST_F(RmdirTest, RemoveDirectoryHangingSymlink)
+TEST_F(RmdirTest, SYMLINK_RemoveDirectoryHangingSymlink)
 {
   const string newDirectory = path::join(os::getcwd(), "newDirectory");
   ASSERT_SOME(os::mkdir(newDirectory));
@@ -321,7 +321,7 @@ TEST_F(RmdirTest, RemoveDirectoryHangingSymlink)
 
 // This test verifies that `rmdir` will only remove the symbolic link and not
 // the target directory.
-TEST_F(RmdirTest, RemoveDirectoryWithSymbolicLinkTargetDirectory)
+TEST_F(RmdirTest, SYMLINK_RemoveDirectoryWithSymbolicLinkTargetDirectory)
 {
   const string newDirectory = path::join(os::getcwd(), "newDirectory");
   ASSERT_SOME(os::mkdir(newDirectory));
@@ -344,7 +344,7 @@ TEST_F(RmdirTest, RemoveDirectoryWithSymbolicLinkTargetDirectory)
 
 // This test verifies that `rmdir` will only remove the symbolic link and not
 // the target file.
-TEST_F(RmdirTest, RemoveDirectoryWithSymbolicLinkTargetFile)
+TEST_F(RmdirTest, SYMLINK_RemoveDirectoryWithSymbolicLinkTargetFile)
 {
   const string newDirectory = path::join(os::getcwd(), "newDirectory");
   ASSERT_SOME(os::mkdir(newDirectory));

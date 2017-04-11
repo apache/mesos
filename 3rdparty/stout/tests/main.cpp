@@ -20,6 +20,11 @@
 
 #include <stout/os/socket.hpp> // For `wsa_*` on Windows.
 
+#include <stout/tests/environment.hpp>
+
+using stout::internal::tests::Environment;
+using stout::internal::tests::TestFilter;
+
 
 #ifdef __WINDOWS__
 // A no-op parameter validator. We use this to prevent the Windows
@@ -60,6 +65,10 @@ int main(int argc, char** argv)
   // paramaters to these functions, we disable this for testing.
   _set_invalid_parameter_handler(noop_invalid_parameter_handler);
 #endif // __WINDOWS__
+
+  vector<std::shared_ptr<TestFilter>> filters;
+  Environment* environment = new Environment(filters);
+  testing::AddGlobalTestEnvironment(environment);
 
   const int test_results = RUN_ALL_TESTS();
 

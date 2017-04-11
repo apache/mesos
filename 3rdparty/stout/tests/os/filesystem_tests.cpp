@@ -179,7 +179,7 @@ TEST_F(FsTest, Touch)
 }
 
 
-TEST_F(FsTest, Symlink)
+TEST_F(FsTest, SYMLINK_Symlink)
 {
   const string temp_path = os::getcwd();
   const string link = path::join(temp_path, "sym.link");
@@ -198,7 +198,7 @@ TEST_F(FsTest, Symlink)
 }
 
 
-TEST_F(FsTest, Rm)
+TEST_F(FsTest, SYMLINK_Rm)
 {
   const string tmpdir = os::getcwd();
 

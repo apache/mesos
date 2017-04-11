@@ -212,7 +212,7 @@ TEST_F(OsTest, Nonblock)
 // Tests all four combinations of following a link or not and of a file
 // or a link as argument. Also tests that an error is returned for a
 // non-existing file.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Size)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, SYMLINK_Size)
 {
   const string file = path::join(os::getcwd(), UUID::random().toString());
 
@@ -754,7 +754,7 @@ TEST_F(OsTest, User)
 }
 
 
-TEST_F(OsTest, Chown)
+TEST_F(OsTest, SYMLINK_Chown)
 {
   using os::stat::DO_NOT_FOLLOW_SYMLINK;
 
@@ -979,7 +979,7 @@ TEST_F(OsTest, Mknod)
 // TODO(hausdorff): Look into enabling this test on Windows. Currently it is
 // not possible to create a symlink on Windows unless the target exists. See
 // MESOS-5881.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Realpath)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, SYMLINK_Realpath)
 {
   // Create a file.
   const Try<string> _testFile = os::mktemp();
