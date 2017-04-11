@@ -24,7 +24,6 @@ nobase_include_HEADERS =			\
   stout/duration.hpp				\
   stout/dynamiclibrary.hpp			\
   stout/elf.hpp					\
-  stout/environment.hpp				\
   stout/error.hpp				\
   stout/errorbase.hpp				\
   stout/exit.hpp				\
@@ -197,6 +196,7 @@ nobase_include_HEADERS =			\
   stout/synchronized.hpp			\
   stout/thread_local.hpp			\
   stout/try.hpp					\
+  stout/tests/environment.hpp				\
   stout/tests/utils.hpp				\
   stout/unimplemented.hpp			\
   stout/unreachable.hpp				\
