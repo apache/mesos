@@ -34,3 +34,30 @@ when you are done.
 
 **NOTE:** The virtual environment will also setup bash
 autocomplete for all `mesos` commands.
+
+
+## Running tests
+
+To run the unit tests developed for the Mesos CLI, use
+`mesos-cli-tests`:
+
+```
+$ ./bootstrap
+
+...
+
+Setup complete!
+
+To begin working, simply activate your virtual environment,
+run the CLI, and then deactivate the virtual environment
+when you are done.
+
+    $ source activate
+    $ mesos-cli-tests
+
+Running the Mesos CLI unit tests
+
+...
+
+OK
+```
