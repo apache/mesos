@@ -372,6 +372,10 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     propagatedFlags["runtime_dir"] =
       path::join(flags.runtime_dir, "agents", stringify(i));
 
+    // Use a different fetcher cache directory for each agent.
+    propagatedFlags["fetcher_cache_dir"] =
+      path::join(os::temp(), "mesos", "fetch", "agents", stringify(i));
+
     slave::Flags slaveFlags;
     Try<flags::Warnings> load = slaveFlags.load(
         propagatedFlags,
@@ -407,7 +411,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     garbageCollectors->push_back(new GarbageCollector());
     statusUpdateManagers->push_back(new StatusUpdateManager(slaveFlags));
-    fetchers->push_back(new Fetcher());
+    fetchers->push_back(new Fetcher(slaveFlags));
 
     Try<ResourceEstimator*> resourceEstimator =
       ResourceEstimator::create(slaveFlags.resource_estimator);

@@ -445,7 +445,7 @@ int main(int argc, char** argv)
   }
 #endif // __linux__
 
-  Fetcher* fetcher = new Fetcher();
+  Fetcher* fetcher = new Fetcher(flags);
 
   // Initialize SecretResolver.
   Try<SecretResolver*> secretResolver =

@@ -36,8 +36,6 @@
 
 #include "hdfs/hdfs.hpp"
 
-#include "slave/slave.hpp"
-
 #include "slave/containerizer/fetcher.hpp"
 
 using std::list;
@@ -68,8 +66,15 @@ static const string FILE_URI_LOCALHOST = "file://localhost";
 static const string CACHE_FILE_NAME_PREFIX = "c";
 
 
-Fetcher::Fetcher() : process(new FetcherProcess())
+Fetcher::Fetcher(const Flags& flags) : process(new FetcherProcess(flags))
 {
+  if (os::exists(flags.fetcher_cache_dir)) {
+    Try<Nothing> rmdir = os::rmdir(flags.fetcher_cache_dir, true);
+    CHECK_SOME(rmdir)
+      << "Could not delete fetcher cache directory '"
+      << flags.fetcher_cache_dir << "': " + rmdir.error();
+  }
+
   spawn(process.get());
 }
 
@@ -85,34 +90,6 @@ Fetcher::~Fetcher()
 {
   terminate(process.get());
   process::wait(process.get());
-}
-
-
-Try<Nothing> Fetcher::recover(const SlaveID& slaveId, const Flags& flags)
-{
-  // Good enough for now, simple, least-effort recovery.
-  VLOG(1) << "Clearing fetcher cache";
-
-  string cacheDirectory = paths::getSlavePath(flags.fetcher_cache_dir, slaveId);
-  Result<string> path = os::realpath(cacheDirectory);
-  if (path.isError()) {
-    LOG(ERROR) << "Malformed fetcher cache directory path '" << cacheDirectory
-               << "', error: " + path.error();
-
-    return Error(path.error());
-  }
-
-  if (path.isSome() && os::exists(path.get())) {
-    Try<Nothing> rmdir = os::rmdir(path.get(), true);
-    if (rmdir.isError()) {
-      LOG(ERROR) << "Could not delete fetcher cache directory '"
-                 << cacheDirectory << "', error: " + rmdir.error();
-
-      return rmdir;
-    }
-  }
-
-  return Nothing();
 }
 
 
@@ -258,18 +235,14 @@ Future<Nothing> Fetcher::fetch(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const string& sandboxDirectory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
-    const Flags& flags)
+    const Option<string>& user)
 {
   return dispatch(process.get(),
                   &FetcherProcess::fetch,
                   containerId,
                   commandInfo,
                   sandboxDirectory,
-                  user,
-                  slaveId,
-                  flags);
+                  user);
 }
 
 
@@ -346,9 +319,7 @@ Future<Nothing> FetcherProcess::fetch(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const string& sandboxDirectory,
-    const Option<string>& user,
-    const SlaveID& slaveId,
-    const Flags& flags)
+    const Option<string>& user)
 {
   VLOG(1) << "Starting to fetch URIs for container: " << containerId
           << ", directory: " << sandboxDirectory;
@@ -368,7 +339,7 @@ Future<Nothing> FetcherProcess::fetch(
     commandUser = commandInfo.user();
   }
 
-  string cacheDirectory = paths::getSlavePath(flags.fetcher_cache_dir, slaveId);
+  string cacheDirectory = flags.fetcher_cache_dir;
   if (commandUser.isSome()) {
     // Segregating per-user cache directories.
     cacheDirectory = path::join(cacheDirectory, commandUser.get());
@@ -436,8 +407,7 @@ Future<Nothing> FetcherProcess::fetch(
                 containerId,
                 sandboxDirectory,
                 cacheDirectory,
-                commandUser,
-                flags);
+                commandUser);
 }
 
 
@@ -447,8 +417,7 @@ Future<Nothing> FetcherProcess::_fetch(
     const ContainerID& containerId,
     const string& sandboxDirectory,
     const string& cacheDirectory,
-    const Option<string>& user,
-    const Flags& flags)
+    const Option<string>& user)
 {
   // Get out all of the futures we need to wait for so we can wait on
   // them together via 'await'.
@@ -498,8 +467,7 @@ Future<Nothing> FetcherProcess::_fetch(
                      containerId,
                      sandboxDirectory,
                      cacheDirectory,
-                     user,
-                     flags);
+                     user);
     }));
 }
 
@@ -509,8 +477,7 @@ Future<Nothing> FetcherProcess::__fetch(
     const ContainerID& containerId,
     const string& sandboxDirectory,
     const string& cacheDirectory,
-    const Option<string>& user,
-    const Flags& flags)
+    const Option<string>& user)
 {
   // Now construct the FetcherInfo based on which URIs we're using
   // the cache for and which ones we are bypassing the cache.
@@ -553,7 +520,7 @@ Future<Nothing> FetcherProcess::__fetch(
     info.set_frameworks_home(flags.frameworks_home);
   }
 
-  return run(containerId, sandboxDirectory, user, info, flags)
+  return run(containerId, sandboxDirectory, user, info)
     .repair(defer(self(), [=](const Future<Nothing>& future) {
       LOG(ERROR) << "Failed to run mesos-fetcher: " << future.failure();
 
@@ -630,29 +597,20 @@ static off_t delta(
 
 
 // For testing only.
-// TODO(bernd-mesos): After refactoring slave/containerizer,fetcher so
-// that flags and slave ID get injected, replace this with two functions
-// one of which returns a list of cache file paths, the other the number
-// of entries in the cache table.
-Try<list<Path>> FetcherProcess::cacheFiles(
-    const SlaveID& slaveId,
-    const Flags& flags)
+Try<list<Path>> FetcherProcess::cacheFiles()
 {
   list<Path> result;
 
-  const string cacheDirectory =
-    slave::paths::getSlavePath(flags.fetcher_cache_dir, slaveId);
-
-  if (!os::exists(cacheDirectory)) {
+  if (!os::exists(flags.fetcher_cache_dir)) {
     return result;
   }
 
   const Try<list<string>> find =
-    os::find(cacheDirectory, CACHE_FILE_NAME_PREFIX);
+    os::find(flags.fetcher_cache_dir, CACHE_FILE_NAME_PREFIX);
 
   if (find.isError()) {
     return Error("Could not access cache directory '" +
-                 cacheDirectory + "' with error: " + find.error());
+                 flags.fetcher_cache_dir + "' with error: " + find.error());
   }
 
   transform(find.get().begin(),
@@ -724,8 +682,7 @@ Future<Nothing> FetcherProcess::run(
     const ContainerID& containerId,
     const string& sandboxDirectory,
     const Option<string>& user,
-    const FetcherInfo& info,
-    const Flags& flags)
+    const FetcherInfo& info)
 {
   // Before we fetch let's make sure we create 'stdout' and 'stderr'
   // files into which we can redirect the output of the mesos-fetcher

@@ -186,18 +186,15 @@ mesos::internal::slave::Flags::Flags()
       "Size of the fetcher cache in Bytes.",
       DEFAULT_FETCHER_CACHE_SIZE);
 
-  // By default the fetcher cache directory is held inside the work
-  // directory, so everything can be deleted or archived in one swoop,
-  // in particular during testing. However, a typical production
-  // scenario is to use a separate cache volume. First, it is not meant
-  // to be backed up. Second, you want to avoid that sandbox directories
-  // and the cache directory can interfere with each other in
-  // unpredictable ways by occupying shared space. So it is recommended
-  // to set the cache directory explicitly.
   add(&Flags::fetcher_cache_dir,
       "fetcher_cache_dir",
-      "Parent directory for fetcher cache directories\n"
-      "(one subdirectory per agent).",
+      "Directory for the fetcher cache. The agent will clear this directory\n"
+      "on startup. It is recommended to set this value to a separate volume\n"
+      "for several reasons:\n"
+      "  * The cache directories are transient and not meant to be\n"
+      "    backed up. Upon restarting the agent, the cache is always empty.\n"
+      "  * The cache and container sandboxes can potentially interfere with\n"
+      "    each other when occupying a shared space (i.e. disk contention).",
       path::join(os::temp(), "mesos", "fetch"));
 
   add(&Flags::work_dir,

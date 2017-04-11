@@ -25,8 +25,8 @@
 
 #include <mesos/fetcher/fetcher.hpp>
 
-#include <process/id.hpp>
 #include <process/future.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 #include <process/subprocess.hpp>
 
@@ -79,18 +79,12 @@ public:
 
   static bool isNetUri(const std::string& uri);
 
-  Fetcher();
+  Fetcher(const Flags& flags);
 
   // This is only public for tests.
   Fetcher(const process::Owned<FetcherProcess>& process);
 
   virtual ~Fetcher();
-
-  // TODO(bernd-mesos): Inject these parameters at Fetcher creation time.
-  // Then also inject the fetcher into the slave at creation time. Then
-  // it will be possible to make this an instance method instead of a
-  // static one for the slave to call during startup or recovery.
-  static Try<Nothing> recover(const SlaveID& slaveId, const Flags& flags);
 
   // Download the URIs specified in the command info and place the
   // resulting files into the given sandbox directory. Chmod said files
@@ -101,9 +95,7 @@ public:
       const ContainerID& containerId,
       const CommandInfo& commandInfo,
       const std::string& sandboxDirectory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
-      const Flags& flags);
+      const Option<std::string>& user);
 
   // Best effort to kill the fetcher subprocess associated with the
   // indicated container. Do nothing if no such subprocess exists.
@@ -117,7 +109,9 @@ private:
 class FetcherProcess : public process::Process<FetcherProcess>
 {
 public:
-  FetcherProcess() : ProcessBase(process::ID::generate("fetcher")) {}
+  FetcherProcess(const Flags& _flags)
+    : ProcessBase(process::ID::generate("fetcher")),
+      flags(_flags) {}
 
   virtual ~FetcherProcess();
 
@@ -125,9 +119,7 @@ public:
       const ContainerID& containerId,
       const CommandInfo& commandInfo,
       const std::string& sandboxDirectory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
-      const Flags& flags);
+      const Option<std::string>& user);
 
   // Runs the mesos-fetcher, creating a "stdout" and "stderr" file
   // in the given directory, using these for trace output.
@@ -135,8 +127,7 @@ public:
       const ContainerID& containerId,
       const std::string& sandboxDirectory,
       const Option<std::string>& user,
-      const mesos::fetcher::FetcherInfo& info,
-      const Flags& flags);
+      const mesos::fetcher::FetcherInfo& info);
 
   // Best effort attempt to kill the external mesos-fetcher process
   // running on behalf of the given container ID, if any.
@@ -297,14 +288,11 @@ public:
       const ContainerID& containerId,
       const std::string& sandboxDirectory,
       const std::string& cacheDirectory,
-      const Option<std::string>& user,
-      const Flags& flags);
+      const Option<std::string>& user);
 
   // Returns a list of cache files on disk for the given slave
   // (for all users combined). For testing.
-  // TODO(bernd-mesos): Remove the parameters after slave/containerizer
-  // refactoring for injection of these.
-  Try<std::list<Path>> cacheFiles(const SlaveID& slaveId, const Flags& flags);
+  Try<std::list<Path>> cacheFiles();
 
   // Returns the number of cache entries for the given slave (for all
   // users combined). For testing.
@@ -321,8 +309,7 @@ private:
       const ContainerID& containerId,
       const std::string& sandboxDirectory,
       const std::string& cacheDirectory,
-      const Option<std::string>& user,
-      const Flags& flags);
+      const Option<std::string>& user);
 
   // Calls Cache::reserve() and returns a ready entry future if successful,
   // else Failure. Claims the space and assigns the entry's size to this
@@ -330,6 +317,8 @@ private:
   process::Future<std::shared_ptr<Cache::Entry>> reserveCacheSpace(
       const Try<Bytes>& requestedSpace,
       const std::shared_ptr<Cache::Entry>& entry);
+
+  Flags flags;
 
   Cache cache;
 

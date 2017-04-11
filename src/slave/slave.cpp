@@ -1125,14 +1125,6 @@ void Slave::registered(
       LOG(INFO) << "Registered with master " << master.get()
                 << "; given agent ID " << slaveId;
 
-      // TODO(bernd-mesos): Make this an instance method call, see comment
-      // in "fetcher.hpp"".
-      Try<Nothing> recovered = Fetcher::recover(slaveId, flags);
-      if (recovered.isError()) {
-        LOG(FATAL) << "Could not initialize fetcher cache: "
-                   << recovered.error();
-      }
-
       state = RUNNING;
 
       // Cancel the pending registration timer to avoid spurious attempts
@@ -5861,13 +5853,6 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
                    << slaveState->errors;
 
       metrics.recovery_errors += slaveState->errors;
-    }
-
-    // TODO(bernd-mesos): Make this an instance method call, see comment
-    // in "fetcher.hpp"".
-    Try<Nothing> recovered = Fetcher::recover(slaveState->id, flags);
-    if (recovered.isError()) {
-      return Failure(recovered.error());
     }
 
     // Recover the frameworks.
