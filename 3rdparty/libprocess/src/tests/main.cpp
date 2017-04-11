@@ -27,6 +27,11 @@
 #include <stout/os/signals.hpp>
 #endif // __WINDOWS__
 
+#include <stout/tests/environment.hpp>
+
+using stout::internal::tests::Environment;
+using stout::internal::tests::TestFilter;
+
 
 // NOTE: We use RAW_LOG instead of LOG because RAW_LOG doesn't
 // allocate any memory or grab locks. And according to
@@ -60,6 +65,10 @@ int main(int argc, char** argv)
   // results in a stack trace otherwise.
   os::signals::reset(SIGTERM);
 #endif // __WINDOWS__
+
+  vector<std::shared_ptr<TestFilter>> filters;
+  Environment* environment = new Environment(filters);
+  testing::AddGlobalTestEnvironment(environment);
 
   // Add the libprocess test event listeners.
   ::testing::TestEventListeners& listeners =
