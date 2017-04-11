@@ -800,6 +800,11 @@ TEST_F(RoleTest, Validate)
   EXPECT_NONE(roles::validate("foo-bar"));
   EXPECT_NONE(roles::validate("foo.bar"));
   EXPECT_NONE(roles::validate("foo..bar"));
+  EXPECT_NONE(roles::validate("..."));
+  EXPECT_NONE(roles::validate("foo/bar"));
+  EXPECT_NONE(roles::validate("foo/.bar"));
+  EXPECT_NONE(roles::validate("foo/bar/baz"));
+  EXPECT_NONE(roles::validate("a/b/c/d/e/f/g/h"));
 
   EXPECT_SOME(roles::validate(""));
   EXPECT_SOME(roles::validate("."));
@@ -807,9 +812,25 @@ TEST_F(RoleTest, Validate)
   EXPECT_SOME(roles::validate("-foo"));
   EXPECT_SOME(roles::validate("/"));
   EXPECT_SOME(roles::validate("/foo"));
+  EXPECT_SOME(roles::validate("foo/"));
+  EXPECT_SOME(roles::validate("foo//bar"));
+  EXPECT_SOME(roles::validate("foo/bar/"));
   EXPECT_SOME(roles::validate("foo bar"));
   EXPECT_SOME(roles::validate("foo\tbar"));
   EXPECT_SOME(roles::validate("foo\nbar"));
+
+  EXPECT_SOME(roles::validate("./."));
+  EXPECT_SOME(roles::validate("../.."));
+  EXPECT_SOME(roles::validate("./foo"));
+  EXPECT_SOME(roles::validate("../foo"));
+  EXPECT_SOME(roles::validate("foo/."));
+  EXPECT_SOME(roles::validate("foo/.."));
+  EXPECT_SOME(roles::validate("foo/./bar"));
+  EXPECT_SOME(roles::validate("foo/../bar"));
+  EXPECT_SOME(roles::validate("foo/-bar"));
+  EXPECT_SOME(roles::validate("foo/*"));
+  EXPECT_SOME(roles::validate("foo/*/bar"));
+  EXPECT_SOME(roles::validate("*/foo"));
 
   EXPECT_NONE(roles::validate({"foo", "bar", "*"}));
 

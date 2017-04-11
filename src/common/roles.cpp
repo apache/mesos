@@ -19,6 +19,7 @@
 #include <vector>
 #include <string>
 
+#include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/option.hpp>
@@ -54,10 +55,9 @@ Try<vector<string>> parse(const string& text)
 // \x0c is form feed (whitespace);
 // \x0d is carriage return (whitespace);
 // \x20 is space (whitespace);
-// \x2f is slash ('/');
 // \x7f is backspace (del);
 static const string* INVALID_CHARACTERS =
-  new string("\x09\x0a\x0b\x0c\x0d\x20\x2f\x7f");
+  new string("\x09\x0a\x0b\x0c\x0d\x20\x7f");
 
 
 Option<Error> validate(const string& role)
@@ -68,24 +68,51 @@ Option<Error> validate(const string& role)
     return None();
   }
 
-  if (role.empty()) {
-    return Error("Empty role name is invalid");
+  if (strings::startsWith(role, '/')) {
+    return Error("Role '" + role + "' cannot start with a slash");
+  }
+
+  if (strings::endsWith(role, '/')) {
+    return Error("Role '" + role + "' cannot end with a slash");
+  }
+
+  if (strings::contains(role, "//")) {
+    return Error("Role '" + role + "' cannot contain two adjacent slashes");
+  }
+
+  // Validate each component in the role path.
+  vector<string> components = strings::tokenize(role, "/");
+  if (components.empty()) {
+    return Error("Role names cannot be the empty string");
   }
 
   static const string* dot = new string(".");
   static const string* dotdot = new string("..");
-  if (role == *dot) {
-    return Error("Role name '.' is invalid");
-  } else if (role == *dotdot) {
-    return Error("Role name '..' is invalid");
-  } else if (strings::startsWith(role, '-')) {
-    return Error("Role name '" + role + "' is invalid "
-                 "because it starts with a dash");
-  }
 
-  if (role.find_first_of(*INVALID_CHARACTERS) != string::npos) {
-    return Error("Role name '" + role + "' is invalid "
-                 "because it contains slash, backspace or whitespace");
+  foreach (const string& component, components) {
+    CHECK(!component.empty()); // `tokenize` does not return empty tokens.
+
+    if (component == *dot) {
+      return Error("Role '" + role + "' cannot include '.' as a component");
+    }
+
+    if (component == *dotdot) {
+      return Error("Role '" + role + "' cannot include '..' as a component");
+    }
+
+    if (component == *star) {
+      return Error("Role '" + role + "' cannot include '*' as a component");
+    }
+
+    if (strings::startsWith(component, '-')) {
+      return Error("Role component '" + component + "' is invalid "
+                   "because it starts with a dash");
+    }
+
+    if (component.find_first_of(*INVALID_CHARACTERS) != string::npos) {
+      return Error("Role component '" + component + "' is invalid "
+                   "because it contains backspace or whitespace");
+    }
   }
 
   return None();
