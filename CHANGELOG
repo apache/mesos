@@ -922,6 +922,16 @@ All Issues:
   * [MESOS-5929] - Total cluster resources on master Mesos UI should have better spacing.
 
 
+Release Notes - Mesos - Version 1.0.4 (WIP)
+-------------------------------------
+* This is a bug fix release.
+
+All Issues:
+** Bug
+    * [MESOS-6606] - Reject optimized builds with libcxx before 3.9
+    * [MESOS-7008] - Quota not recovered from registry in empty cluster.
+
+
 Release Notes - Mesos - Version 1.0.3
 -------------------------------------
 * This is a bug fix release.
@@ -933,7 +943,6 @@ All Issues:
     * [MESOS-6621] - SSL downgrade path will CHECK-fail when using both temporary and persistent sockets
     * [MESOS-6676] - Always re-link with scheduler during re-registration.
     * [MESOS-6917] - Segfault when the executor sets an invalid UUID when sending a status update.
-    * [MESOS-7008] - Quota not recovered from registry in empty cluster.
 
 
 Release Notes - Mesos - Version 1.0.2
