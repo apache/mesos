@@ -60,7 +60,7 @@ class LinterBase(object):
         '''
         exclude_file_regex = re.compile(self.exclude_files)
         source_criteria_regex = re.compile(self.source_files)
-        for root, dirs, files in os.walk(root_dir):
+        for root, _, files in os.walk(root_dir):
             for name in files:
                 path = os.path.join(root, name)
                 if exclude_file_regex.search(path) is not None:
@@ -268,8 +268,8 @@ class PyLinter(LinterBase):
             ['. {virtualenv_dir}/bin/activate; \
              PYTHONPATH={lib_dir}:{bin_dir} pylint --rcfile={config} --ignore={ignore} {files}'.\
              format(virtualenv_dir=os.path.join(cli_dir, '.virtualenv'),
-                    lib_dir=os.path.join(cli_dir,'lib'),
-                    bin_dir=os.path.join(cli_dir,'bin'),
+                    lib_dir=os.path.join(cli_dir, 'lib'),
+                    bin_dir=os.path.join(cli_dir, 'bin'),
                     config=os.path.join(cli_dir, 'pylint.config'),
                     ignore=os.path.join(cli_dir, 'bin', 'mesos'),
                     files=source_files)],
@@ -292,7 +292,7 @@ class PyLinter(LinterBase):
 
         basenames = []
         if file_list:
-            basenames = [os.path.basename(file) for file in file_list]
+            basenames = [os.path.basename(path) for path in file_list]
 
         if 'pip-requirements.txt' in basenames:
             print 'The "pip-requirements.txt" file has changed.'
@@ -329,16 +329,16 @@ class PyLinter(LinterBase):
 
         if p.returncode != 0:
             sys.stderr.write(output)
-            sys.exit(1);
+            sys.exit(1)
 
     def main(self, file_list):
-       '''
-       Override main to rebuild our virtualenv if necessary.
-       '''
-       if self.__should_build_virtualenv(file_list):
-           self.__build_virtualenv()
+        '''
+        Override main to rebuild our virtualenv if necessary.
+        '''
+        if self.__should_build_virtualenv(file_list):
+            self.__build_virtualenv()
 
-       return super(PyLinter, self).main(file_list)
+        return super(PyLinter, self).main(file_list)
 
 
 if __name__ == '__main__':
