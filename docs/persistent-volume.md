@@ -406,7 +406,7 @@ volumes:
   time. For example, suppose a volume is created on an agent and then the
   agent's host machine is rebooted. When the agent registers with Mesos after
   the reboot, it will be assigned a new AgentID---but it will retain the same
-  volume it had previouly. Hence, frameworks should not assume that using the
+  volume it had previously. Hence, frameworks should not assume that using the
   pair <AgentID, VolumeID> is a stable way to identify a volume in a cluster.
 
 * Attempts to dynamically reserve resources or create persistent volumes might
