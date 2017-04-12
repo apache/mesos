@@ -296,12 +296,15 @@ class PyLinter(LinterBase):
 
         if 'pip-requirements.txt' in basenames:
             print 'The "pip-requirements.txt" file has changed.'
-            print 'Rebuilding virtualenv ...'
             return True
 
         if 'mesos.bash_completion' in basenames:
             print 'The "mesos.bash_completion" file has changed.'
-            print 'Rebuilding virtualenv ...'
+            return True
+
+        # NOTE: If the file list is empty, we are linting the entire codebase.
+        # We should always rebuild the virtualenv in this case.
+        if len(file_list) <= 0:
             return True
 
         return False
@@ -311,6 +314,8 @@ class PyLinter(LinterBase):
         Rebuild the virtualenv.
         '''
         cli_dir = os.path.abspath(self.source_dirs[0])
+
+        print 'Rebuilding virtualenv ...'
 
         p = subprocess.Popen(
             [os.path.join(cli_dir, 'bootstrap')],
