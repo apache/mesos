@@ -368,7 +368,9 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
 
 
 #ifdef __linux__
-class ProvisionerDockerPullerTest : public MesosTest {};
+class ProvisionerDockerPullerTest
+  : public MesosTest,
+    public WithParamInterface<string> {};
 
 
 // This test verifies that local docker image can be pulled and
@@ -448,9 +450,22 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_LocalPullerSimpleCommand)
 }
 
 
+// For official Docker images, users can omit the 'library/' prefix
+// when specifying the repository name (e.g., 'busybox'). The registry
+// puller normalize docker official images if necessary.
+INSTANTIATE_TEST_CASE_P(
+    ImageAlpine,
+    ProvisionerDockerPullerTest,
+    ::testing::ValuesIn(vector<string>({
+        "alpine", // Verifies the normalization of the Docker repository name.
+        "library/alpine",
+        "quay.io/coreos/alpine-sh",
+        "registry.cn-hangzhou.aliyuncs.com/acs-sample/alpine"})));
+
+
 // TODO(jieyu): This is a ROOT test because of MESOS-4757. Remove the
 // ROOT restriction after MESOS-4757 is resolved.
-TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_SimpleCommand)
+TEST_P(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_SimpleCommand)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -498,7 +513,7 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_SimpleCommand)
 
   Image image;
   image.set_type(Image::DOCKER);
-  image.mutable_docker()->set_name("library/alpine");
+  image.mutable_docker()->set_name(GetParam());
 
   ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
