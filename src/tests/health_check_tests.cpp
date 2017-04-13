@@ -2146,9 +2146,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
+#ifndef USE_SSL_SOCKET
+  // Disable operator API authentication for the default executor. Executor
+  // authentication currently has SSL as a dependency, so we cannot require
+  // executors to authenticate with the agent operator API if Mesos was not
+  // built with SSL support.
   flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
 
   Fetcher fetcher;
 
