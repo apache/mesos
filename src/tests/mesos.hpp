@@ -99,6 +99,11 @@ namespace tests {
 constexpr char READONLY_HTTP_AUTHENTICATION_REALM[] = "test-readonly-realm";
 constexpr char READWRITE_HTTP_AUTHENTICATION_REALM[] = "test-readwrite-realm";
 constexpr char DEFAULT_TEST_ROLE[] = "default-role";
+constexpr char DEFAULT_EXECUTOR_SECRET_KEY[] =
+  "72kUKUFtghAjNbIOvLzfF2RxNBfeM64Bri8g9WhpyaunwqRB/yozHAqSnyHbddAV"
+  "PcWRQlrJAt871oWgSH+n52vMZ3aVI+AFMzXSo8+sUfMk83IGp0WJefhzeQsjDlGH"
+  "GYQgCAuGim0BE2X5U+lEue8s697uQpAO8L/FFRuDH2s";
+
 
 // Forward declarations.
 class MockExecutor;

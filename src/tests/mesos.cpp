@@ -212,7 +212,25 @@ slave::Flags MesosTest::CreateSlaveFlags()
   // Executor authentication currently has SSL as a dependency, so we
   // cannot enable it if Mesos was not built with SSL support.
   flags.authenticate_http_executors = true;
-  flags.executor_secret_key = "secret_key";
+
+  {
+    // Create a secret key for executor authentication.
+    const string path = path::join(directory.get(), "executor_secret_key");
+
+    Try<int_fd> fd = os::open(
+        path,
+        O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+        S_IRUSR | S_IWUSR | S_IRGRP);
+
+    CHECK_SOME(fd);
+
+    CHECK_SOME(os::write(fd.get(), DEFAULT_EXECUTOR_SECRET_KEY))
+      << "Failed to write executor secret key to '" << path << "'";
+
+    CHECK_SOME(os::close(fd.get()));
+
+    flags.executor_secret_key = path;
+  }
 #endif // USE_SSL_SOCKET
 
   {
