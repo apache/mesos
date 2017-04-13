@@ -206,19 +206,16 @@ static Future<http::Response> curl(
 
 // TODO(jieyu): Add a comment here.
 static Future<int> download(
-    const URI& uri,
-    const string& directory,
+    const string& uri,
+    const string& blobPath,
     const http::Headers& headers = http::Headers())
 {
-  const string output = path::join(directory, Path(uri.path()).basename());
-
   vector<string> argv = {
     "curl",
     "-s",                 // Don't show progress meter or error messages.
     "-S",                 // Make curl show an error message if it fails.
-    "-L",                 // Follow HTTP 3xx redirects.
-    "-w", "%{http_code}", // Display HTTP response code on stdout.
-    "-o", output          // Write output to the file.
+    "-w", "%{http_code}\n%{redirect_url}", // Display HTTP response code and the redirected URL. // NOLINT(whitespace/line_length)
+    "-o", blobPath        // Write output to the file.
   };
 
   // Add additional headers.
@@ -227,7 +224,7 @@ static Future<int> download(
     argv.push_back(key + ": " + value);
   }
 
-  argv.push_back(strings::trim(stringify(uri)));
+  argv.push_back(uri);
 
   // TODO(jieyu): Kill the process if discard is called.
   Try<Subprocess> s = subprocess(
@@ -245,7 +242,7 @@ static Future<int> download(
       s.get().status(),
       io::read(s.get().out().get()),
       io::read(s.get().err().get()))
-    .then([](const tuple<
+    .then([=](const tuple<
         Future<Option<int>>,
         Future<string>,
         Future<string>>& t) -> Future<int> {
@@ -278,14 +275,39 @@ static Future<int> download(
             (output.isFailed() ? output.failure() : "discarded"));
       }
 
+      vector<string> tokens = strings::tokenize(output.get(), "\n", 2);
+      if (tokens.empty()) {
+        return Failure("Unexpected 'curl' output: " + output.get());
+      }
+
       // Parse the output and get the HTTP response code.
-      Try<int> code = numify<int>(output.get());
+      Try<int> code = numify<int>(tokens[0]);
       if (code.isError()) {
-        return Failure("Unexpected output from 'curl': " + output.get());
+        return Failure(
+            "Unexpected HTTP response code from 'curl': " + tokens[0]);
+      }
+
+      // If there are two tokens, it means that the redirect url
+      // exists in the stdout and the request to download the blob
+      // is already authenticated.
+      if (tokens.size() == 2) {
+        // Headers are not attached because the request is already
+        // authenticated.
+        return download(tokens[1], blobPath);
       }
 
       return code.get();
     });
+}
+
+
+static Future<int> download(
+    const URI& uri,
+    const string& directory,
+    const http::Headers& headers = http::Headers())
+{
+  const string blobPath = path::join(directory, Path(uri.path()).basename());
+  return download(strings::trim(stringify(uri)), blobPath, headers);
 }
 
 //-------------------------------------------------------------------
