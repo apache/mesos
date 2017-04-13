@@ -121,7 +121,7 @@ public:
       const ::URL& _agent,
       const string& _sandboxDirectory,
       const string& _launcherDirectory,
-      const Option<string>& _authenticationToken)
+      const Option<string>& _authorizationHeader)
     : ProcessBase(process::ID::generate("default-executor")),
       state(DISCONNECTED),
       contentType(ContentType::PROTOBUF),
@@ -135,7 +135,7 @@ public:
       agent(_agent),
       sandboxDirectory(_sandboxDirectory),
       launcherDirectory(_launcherDirectory),
-      authenticationToken(_authenticationToken) {}
+      authorizationHeader(_authorizationHeader) {}
 
   virtual ~DefaultExecutor() = default;
 
@@ -509,7 +509,8 @@ protected:
               defer(self(), &Self::taskCheckUpdated, taskId, lambda::_1),
               taskId,
               containerId,
-              agent);
+              agent,
+              authorizationHeader);
 
         if (checker.isError()) {
           // TODO(anand): Should we send a TASK_FAILED instead?
@@ -529,7 +530,8 @@ protected:
               defer(self(), &Self::taskHealthUpdated, lambda::_1),
               taskId,
               containerId,
-              agent);
+              agent,
+              authorizationHeader);
 
         if (healthChecker.isError()) {
           // TODO(anand): Should we send a TASK_FAILED instead?
@@ -1197,8 +1199,8 @@ private:
     request.headers = {{"Accept", stringify(contentType)},
                        {"Content-Type", stringify(contentType)}};
 
-    if (authenticationToken.isSome()) {
-      request.headers["Authorization"] = "Bearer " + authenticationToken.get();
+    if (authorizationHeader.isSome()) {
+      request.headers["Authorization"] = authorizationHeader.get();
     }
 
     // Only pipeline requests when there is an active connection.
@@ -1296,7 +1298,7 @@ private:
   const ::URL agent; // Agent API URL.
   const string sandboxDirectory;
   const string launcherDirectory;
-  const Option<string> authenticationToken;
+  const Option<string> authorizationHeader;
 
   LinkedHashMap<UUID, Call::Update> unacknowledgedUpdates;
 
@@ -1403,10 +1405,10 @@ int main(int argc, char** argv)
   }
   sandboxDirectory = value.get();
 
-  Option<string> authenticationToken;
+  Option<string> authorizationHeader;
   value = os::getenv("MESOS_EXECUTOR_AUTHENTICATION_TOKEN");
   if (value.isSome()) {
-    authenticationToken = value.get();
+    authorizationHeader = "Bearer " + value.get();
   }
 
   Owned<mesos::internal::DefaultExecutor> executor(
@@ -1416,7 +1418,7 @@ int main(int argc, char** argv)
           agent,
           sandboxDirectory,
           flags.launcher_dir,
-          authenticationToken));
+          authorizationHeader));
 
   process::spawn(executor.get());
   process::wait(executor.get());
