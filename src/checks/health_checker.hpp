@@ -95,6 +95,8 @@ public:
    * @param taskId The TaskID of the target task.
    * @param taskContainerId The ContainerID of the target task.
    * @param agentURL The URL of the agent.
+   * @param authorizationHeader The authorization header the health checker
+   *     should use to authenticate with the agent operator API.
    * @return A `HealthChecker` object or an error if `create` fails.
    *
    * @todo A better approach would be to return a stream of updates, e.g.,
@@ -106,7 +108,8 @@ public:
       const lambda::function<void(const TaskHealthStatus&)>& callback,
       const TaskID& taskId,
       const ContainerID& taskContainerId,
-      const process::http::URL& agentURL);
+      const process::http::URL& agentURL,
+      const Option<std::string>& authorizationHeader);
 
 
   ~HealthChecker();
@@ -134,6 +137,7 @@ public:
       const std::vector<std::string>& _namespaces,
       const Option<ContainerID>& _taskContainerId,
       const Option<process::http::URL>& _agentURL,
+      const Option<std::string>& authorizationHeader,
       bool _commandCheckViaAgent);
 
   virtual ~HealthCheckerProcess() {}
@@ -227,6 +231,7 @@ private:
   const std::vector<std::string> namespaces;
   const Option<ContainerID> taskContainerId;
   const Option<process::http::URL> agentURL;
+  const Option<std::string> authorizationHeader;
   const bool commandCheckViaAgent;
 
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;

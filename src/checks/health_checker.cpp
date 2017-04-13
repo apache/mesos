@@ -154,6 +154,7 @@ Try<Owned<HealthChecker>> HealthChecker::create(
       namespaces,
       None(),
       None(),
+      None(),
       false));
 
   return Owned<HealthChecker>(new HealthChecker(process));
@@ -166,7 +167,8 @@ Try<Owned<HealthChecker>> HealthChecker::create(
     const lambda::function<void(const TaskHealthStatus&)>& callback,
     const TaskID& taskId,
     const ContainerID& taskContainerId,
-    const process::http::URL& agentURL)
+    const process::http::URL& agentURL,
+    const Option<string>& authorizationHeader)
 {
   // Validate the 'HealthCheck' protobuf.
   Option<Error> error = validation::healthCheck(check);
@@ -183,6 +185,7 @@ Try<Owned<HealthChecker>> HealthChecker::create(
       {},
       taskContainerId,
       agentURL,
+      authorizationHeader,
       true));
 
   return Owned<HealthChecker>(new HealthChecker(process));
@@ -225,6 +228,7 @@ HealthCheckerProcess::HealthCheckerProcess(
     const vector<string>& _namespaces,
     const Option<ContainerID>& _taskContainerId,
     const Option<process::http::URL>& _agentURL,
+    const Option<string>& _authorizationHeader,
     bool _commandCheckViaAgent)
   : ProcessBase(process::ID::generate("health-checker")),
     check(_check),
@@ -235,6 +239,7 @@ HealthCheckerProcess::HealthCheckerProcess(
     namespaces(_namespaces),
     taskContainerId(_taskContainerId),
     agentURL(_agentURL),
+    authorizationHeader(_authorizationHeader),
     commandCheckViaAgent(_commandCheckViaAgent),
     consecutiveFailures(0),
     initializing(true),
@@ -535,6 +540,10 @@ Future<Nothing> HealthCheckerProcess::nestedCommandHealthCheck()
     request.headers = {{"Accept", stringify(ContentType::PROTOBUF)},
                        {"Content-Type", stringify(ContentType::PROTOBUF)}};
 
+    if (authorizationHeader.isSome()) {
+      request.headers["Authorization"] = authorizationHeader.get();
+    }
+
     process::http::request(request, false)
       .onFailed(defer(self(),
                       [this, promise](const string& failure) {
@@ -620,6 +629,10 @@ void HealthCheckerProcess::__nestedCommandHealthCheck(
   request.headers = {{"Accept", stringify(ContentType::RECORDIO)},
                      {"Message-Accept", stringify(ContentType::PROTOBUF)},
                      {"Content-Type", stringify(ContentType::PROTOBUF)}};
+
+  if (authorizationHeader.isSome()) {
+    request.headers["Authorization"] = authorizationHeader.get();
+  }
 
   // TODO(alexr): Use a lambda named capture for
   // this cached value once it is available.
@@ -767,6 +780,10 @@ Future<Option<int>> HealthCheckerProcess::waitNestedContainer(
   request.body = serialize(ContentType::PROTOBUF, evolve(call));
   request.headers = {{"Accept", stringify(ContentType::PROTOBUF)},
                      {"Content-Type", stringify(ContentType::PROTOBUF)}};
+
+  if (authorizationHeader.isSome()) {
+    request.headers["Authorization"] = authorizationHeader.get();
+  }
 
   return process::http::request(request, false)
     .repair([containerId](const Future<Response>& future) {
