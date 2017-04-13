@@ -291,7 +291,29 @@ void Slave::initialize()
   Option<string> secretKey;
 #ifdef USE_SSL_SOCKET
   if (flags.executor_secret_key.isSome()) {
-    secretKey = flags.executor_secret_key.get();
+    Try<string> secretKey_ = os::read(flags.executor_secret_key.get());
+
+    if (secretKey_.isError()) {
+      EXIT(EXIT_FAILURE) << "Failed to read the file specified by "
+                         << "--executor_secret_key";
+    }
+
+    // TODO(greggomann): Factor the following code out into a common helper,
+    // since we also do this when loading credentials.
+    Try<os::Permissions> permissions =
+      os::permissions(flags.executor_secret_key.get());
+    if (permissions.isError()) {
+      LOG(WARNING) << "Failed to stat executor secret key file '"
+                   << flags.executor_secret_key.get()
+                   << "': " << permissions.error();
+    } else if (permissions.get().others.rwx) {
+      LOG(WARNING) << "Permissions on executor secret key file '"
+                   << flags.executor_secret_key.get()
+                   << "' are too open; it is recommended that your"
+                   << " key file is NOT accessible by others";
+    }
+
+    secretKey = secretKey_.get();
     secretGenerator = new JWTSecretGenerator(secretKey.get());
   }
 

@@ -1418,8 +1418,9 @@ in memory. (default: 150)
     --executor_secret_key=VALUE
   </td>
   <td>
-The key used when generating executor secrets. This flag is only
-available when Mesos is built with SSL support.
+Path to a file containing the key used when generating executor
+secrets. This flag is only available when Mesos is built with SSL
+support.
   </td>
 </tr>
 <tr>

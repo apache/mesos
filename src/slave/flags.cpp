@@ -345,8 +345,9 @@ mesos::internal::slave::Flags::Flags()
 #ifdef USE_SSL_SOCKET
   add(&Flags::executor_secret_key,
       "executor_secret_key",
-      "The key used when generating executor secrets. This flag is only\n"
-      "available when Mesos is built with SSL support.");
+      "Path to a file containing the key used when generating executor\n"
+      "secrets. This flag is only available when Mesos is built with SSL\n"
+      "support.");
 #endif // USE_SSL_SOCKET
 
   add(&Flags::gc_delay,
