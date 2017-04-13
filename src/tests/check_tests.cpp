@@ -878,7 +878,24 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
 
 
 // These are check tests with the default executor.
-class DefaultExecutorCheckTest : public CheckTest {};
+class DefaultExecutorCheckTest : public CheckTest
+{
+protected:
+  slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags flags = CheckTest::CreateSlaveFlags();
+
+#ifndef USE_SSL_SOCKET
+    // Disable operator API authentication for the default executor. Executor
+    // authentication currently has SSL as a dependency, so we cannot require
+    // executors to authenticate with the agent operator API if Mesos was not
+    // built with SSL support.
+    flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
+
+    return flags;
+  }
+};
 
 
 // Verifies that a command check is supported by the default executor,
@@ -895,9 +912,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
 
   Fetcher fetcher;
 
@@ -1091,9 +1106,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
 
   Fetcher fetcher;
 
@@ -1254,9 +1267,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, CommandCheckTimeout)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
 
   Fetcher fetcher;
 
@@ -1404,9 +1415,7 @@ TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
 
   Fetcher fetcher;
 
@@ -1593,12 +1602,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, HTTPCheckDelivered)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Disable AuthN on the agent.
-  slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
-
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), CreateSlaveFlags());
   ASSERT_SOME(agent);
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
