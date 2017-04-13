@@ -139,6 +139,7 @@ public:
       const vector<string>& _namespaces,
       const Option<ContainerID>& _taskContainerId,
       const Option<http::URL>& _agentURL,
+      const Option<string>& _authorizationHeader,
       bool _commandCheckViaAgent);
 
   void pause();
@@ -203,6 +204,7 @@ private:
   const vector<string> namespaces;
   const Option<ContainerID> taskContainerId;
   const Option<http::URL> agentURL;
+  const Option<std::string> authorizationHeader;
   const bool commandCheckViaAgent;
 
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
@@ -237,6 +239,7 @@ Try<Owned<Checker>> Checker::create(
       namespaces,
       None(),
       None(),
+      None(),
       false));
 
   return Owned<Checker>(new Checker(process));
@@ -248,7 +251,8 @@ Try<Owned<Checker>> Checker::create(
     const lambda::function<void(const CheckStatusInfo&)>& callback,
     const TaskID& taskId,
     const ContainerID& taskContainerId,
-    const http::URL& agentURL)
+    const http::URL& agentURL,
+    const Option<string>& authorizationHeader)
 {
   // Validate the `CheckInfo` protobuf.
   Option<Error> error = validation::checkInfo(check);
@@ -264,6 +268,7 @@ Try<Owned<Checker>> Checker::create(
       {},
       taskContainerId,
       agentURL,
+      authorizationHeader,
       true));
 
   return Owned<Checker>(new Checker(process));
@@ -304,6 +309,7 @@ CheckerProcess::CheckerProcess(
     const vector<string>& _namespaces,
     const Option<ContainerID>& _taskContainerId,
     const Option<http::URL>& _agentURL,
+    const Option<std::string>& _authorizationHeader,
     bool _commandCheckViaAgent)
   : ProcessBase(process::ID::generate("checker")),
     check(_check),
@@ -313,6 +319,7 @@ CheckerProcess::CheckerProcess(
     namespaces(_namespaces),
     taskContainerId(_taskContainerId),
     agentURL(_agentURL),
+    authorizationHeader(_authorizationHeader),
     commandCheckViaAgent(_commandCheckViaAgent),
     paused(false)
 {
@@ -589,6 +596,10 @@ Future<int> CheckerProcess::nestedCommandCheck()
     request.headers = {{"Accept", stringify(ContentType::PROTOBUF)},
                        {"Content-Type", stringify(ContentType::PROTOBUF)}};
 
+    if (authorizationHeader.isSome()) {
+      request.headers["Authorization"] = authorizationHeader.get();
+    }
+
     http::request(request, false)
       .onFailed(defer(self(),
                       [this, promise](const string& failure) {
@@ -672,6 +683,10 @@ void CheckerProcess::__nestedCommandCheck(
   request.headers = {{"Accept", stringify(ContentType::RECORDIO)},
                      {"Message-Accept", stringify(ContentType::PROTOBUF)},
                      {"Content-Type", stringify(ContentType::PROTOBUF)}};
+
+  if (authorizationHeader.isSome()) {
+    request.headers["Authorization"] = authorizationHeader.get();
+  }
 
   // TODO(alexr): Use a lambda named capture for
   // this cached value once it is available.
@@ -815,6 +830,10 @@ Future<Option<int>> CheckerProcess::waitNestedContainer(
   request.body = serialize(ContentType::PROTOBUF, evolve(call));
   request.headers = {{"Accept", stringify(ContentType::PROTOBUF)},
                      {"Content-Type", stringify(ContentType::PROTOBUF)}};
+
+  if (authorizationHeader.isSome()) {
+    request.headers["Authorization"] = authorizationHeader.get();
+  }
 
   return http::request(request, false)
     .repair([containerId](const Future<http::Response>& future) {

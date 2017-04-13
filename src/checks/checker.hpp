@@ -80,6 +80,8 @@ public:
    * @param taskId The TaskID of the target task.
    * @param taskContainerId The ContainerID of the target task.
    * @param agentURL The URL of the agent.
+   * @param authorizationHeader The authorization header the checker should use
+   *     to authenticate with the agent operator API.
    * @return A `Checker` object or an error if `create` fails.
    *
    * @todo A better approach would be to return a stream of updates, e.g.,
@@ -90,7 +92,8 @@ public:
       const lambda::function<void(const CheckStatusInfo&)>& callback,
       const TaskID& taskId,
       const ContainerID& taskContainerId,
-      const process::http::URL& agentURL);
+      const process::http::URL& agentURL,
+      const Option<std::string>& authorizationHeader);
 
   ~Checker();
 
