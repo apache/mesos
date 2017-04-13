@@ -483,6 +483,7 @@ string getPersistentVolumePath(
     case Resource::DiskInfo::Source::PATH: {
       // For `PATH` we mount a directory inside the `root`.
       CHECK(volume.disk().source().has_path());
+      CHECK(volume.disk().source().path().has_root());
       return getPersistentVolumePath(
           volume.disk().source().path().root(),
           volume.role(),
@@ -491,6 +492,7 @@ string getPersistentVolumePath(
     case Resource::DiskInfo::Source::MOUNT: {
       // For `MOUNT` we map straight onto the root of the mount.
       CHECK(volume.disk().source().has_mount());
+      CHECK(volume.disk().source().mount().has_root());
       return volume.disk().source().mount().root();
     }
     case Resource::DiskInfo::Source::UNKNOWN:

@@ -402,6 +402,12 @@ void Slave::initialize()
         // For `PATH` sources we create them if they do not exist.
         CHECK(source.has_path());
 
+        if (!source.path().has_root()) {
+          EXIT(EXIT_FAILURE)
+            << "PATH disk root directory is not specified "
+            << "'" << resource << "'";
+        }
+
         Try<Nothing> mkdir = os::mkdir(source.path().root(), true);
 
         if (mkdir.isError()) {
@@ -413,6 +419,12 @@ void Slave::initialize()
       }
       case Resource::DiskInfo::Source::MOUNT: {
         CHECK(source.has_mount());
+
+        if (!source.mount().has_root()) {
+          EXIT(EXIT_FAILURE)
+            << "MOUNT disk root directory is not specified "
+            << "'" << resource << "'";
+        }
 
         // For `MOUNT` sources we fail if they don't exist.
         // On Linux we test the mount table for existence.

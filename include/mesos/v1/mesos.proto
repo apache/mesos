@@ -997,7 +997,7 @@ message Resource {
       // can be shared and carved up as necessary between frameworks.
       message Path {
         // Path to the folder (e.g., /mnt/raid/disk0).
-        required string root = 1;
+        optional string root = 1;
       }
 
       // A mounted file-system set up by the Agent administrator. This
@@ -1005,7 +1005,7 @@ message Resource {
       // partial amount of this disk.
       message Mount {
         // Path to mount point (e.g., /mnt/raid/disk0).
-        required string root = 1;
+        optional string root = 1;
       }
 
       required Type type = 1;
