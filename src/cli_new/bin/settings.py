@@ -40,7 +40,9 @@ except Exception:
 PROJECT_DIR = os.path.join(os.path.dirname(__file__), os.pardir)
 
 # The builtin plugins.
-PLUGINS = []
+PLUGINS = [
+    os.path.join(PROJECT_DIR, "lib/mesos/plugins", "config")
+]
 
 MESOS_CLI_DEFAULT_CONFIG_PATH = os.path.join(
     os.path.expanduser("~"), ".mesos/config.toml")
