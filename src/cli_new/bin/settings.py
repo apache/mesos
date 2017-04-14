@@ -20,9 +20,8 @@ of updating the default configuration from reading environment variables or
 parsing a configuration file.
 """
 
-import json
 import os
-import sys
+import toml
 
 from cli.exceptions import CLIException
 
@@ -37,35 +36,41 @@ try:
 except Exception:
     VERSION = "Development"
 
+# The top-level directory of this project.
+PROJECT_DIR = os.path.join(os.path.dirname(__file__), os.pardir)
 
 # The builtin plugins.
 PLUGINS = []
 
+MESOS_CLI_DEFAULT_CONFIG_PATH = os.path.join(
+    os.path.expanduser("~"), ".mesos/config.toml")
 
-# Allow extra plugins to be pulled in from a configuration file.
-if os.environ.get("MESOS_CLI_CONFIG_FILE"):
-    try:
-        CONFIG_FILE = open(os.environ["MESOS_CLI_CONFIG_FILE"])
-    except Exception as exception:
-        sys.exit("Unable to open configuration file '{config}': {error}"
-                 .format(config=os.environ.get("MESOS_CLI_CONFIG_FILE"),
-                         error=str(exception)))
+# Load the configuration file path for the CLI.
+if os.environ.get("MESOS_CLI_CONFIG"):
+    MESOS_CLI_CONFIG_PATH = os.environ["MESOS_CLI_CONFIG"]
+else:
+    MESOS_CLI_CONFIG_PATH = MESOS_CLI_DEFAULT_CONFIG_PATH
 
-    try:
-        CONFIG_DATA = json.load(CONFIG_FILE)
-    except Exception as exception:
-        raise CLIException("Error loading config file as JSON: {error}"
+# Load the configuration file as a TOML file.
+try:
+    CONFIG_DATA = toml.load(MESOS_CLI_CONFIG_PATH)
+except Exception as exception:
+    if MESOS_CLI_CONFIG_PATH is not MESOS_CLI_DEFAULT_CONFIG_PATH:
+        raise CLIException("Error loading config file as TOML: {error}"
                            .format(error=exception))
+    else:
+        CONFIG_DATA = {}
 
-    if "plugins" in CONFIG_DATA:
-        if not isinstance(CONFIG_DATA["plugins"], list):
-            raise CLIException("'plugins' field must be a list")
+# Allow extra plugins to be pulled in from the configuration file.
+if "plugins" in CONFIG_DATA:
+    if not isinstance(CONFIG_DATA["plugins"], list):
+        raise CLIException("Unable to parse config file '{path}': 'plugins' "
+                           "field must be a list"
+                           .format(path=MESOS_CLI_CONFIG_PATH))
 
-        PLUGINS.extend(CONFIG_DATA["plugins"])
-
-
-# Allow extra plugins to be pulled in from the environment.
-# The `MESOS_CLI_PLUGINS` environment variable is a ":" separated
-# list of paths to each plugin. All paths must be absolute.
-if os.environ.get("MESOS_CLI_PLUGINS"):
-    PLUGINS += filter(None, os.environ.get("MESOS_CLI_PLUGINS").split(":"))
+    for plugin in CONFIG_DATA["plugins"]:
+        if os.path.exists(plugin):
+            PLUGINS.append(plugin)
+        else:
+            raise CLIException("Plugin path not found: {path}"
+                               .format(path=plugin))

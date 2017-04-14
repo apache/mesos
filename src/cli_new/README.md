@@ -61,3 +61,23 @@ Running the Mesos CLI unit tests
 
 OK
 ```
+
+
+## Setting up your configuration
+
+In order to use this tool, you will need to create a
+configuration file in your home directory under
+`~/.mesos/config.toml`. A template for this config can be
+seen below:
+
+```
+# The `plugins` is an array listing the absolute paths of the
+# plugins you want to add to the CLI.
+plugins = [
+  "</absolute/path/to/plugin-1/directory>",
+  "</absolute/path/to/plugin-2/directory>"
+]
+```
+
+You can override the location of this configuration file using
+the environment variable `MESOS_CLI_CONFIG`.
