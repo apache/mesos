@@ -16,10 +16,13 @@
 
 #include "common/validation.hpp"
 
+#include <limits.h>
+
 #include <algorithm>
 #include <cctype>
 
 #include <stout/foreach.hpp>
+#include <stout/stringify.hpp>
 
 #include <stout/os/constants.hpp>
 
@@ -43,6 +46,12 @@ Option<Error> validateID(const string& id)
 
   if (id.empty()) {
     return Error("ID must be non-empty");
+  }
+
+  if (id.length() > NAME_MAX) {
+    return Error(
+        "ID must not be greater than " +
+        stringify(NAME_MAX) + " characters");
   }
 
   if (std::any_of(id.begin(), id.end(), invalidCharacter)) {
