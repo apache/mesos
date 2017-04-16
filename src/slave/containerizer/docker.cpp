@@ -358,6 +358,24 @@ DockerContainerizerProcess::Container::create(
     ContainerInfo::DockerInfo dockerInfo;
     dockerInfo.set_image(flags.docker_mesos_image.get());
 
+    // `--pid=host` is required for `mesos-docker-executor` to find
+    // the pid of the task in `/proc` when running
+    // `mesos-docker-executor` in a separate docker container.
+    Parameter* pidParameter = dockerInfo.add_parameters();
+    pidParameter ->set_key("pid");
+    pidParameter->set_value("host");
+
+    // `--cap-add=SYS_ADMIN` and `--cap-add=SYS_PTRACE` are required
+    // for `mesos-docker-executor` to enter the namespaces of the task
+    // during health checking when running `mesos-docker-executor` in a
+    // separate docker container.
+    Parameter* capAddParameter = dockerInfo.add_parameters();
+    capAddParameter->set_key("cap-add");
+    capAddParameter->set_value("SYS_ADMIN");
+    capAddParameter = dockerInfo.add_parameters();
+    capAddParameter->set_key("cap-add");
+    capAddParameter->set_value("SYS_PTRACE");
+
     newContainerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
     // NOTE: We do not set the optional `taskEnvironment` here as
