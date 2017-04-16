@@ -16,10 +16,13 @@
 
 #include "common/validation.hpp"
 
+#include <limits.h>
+
 #include <algorithm>
 #include <cctype>
 
 #include <stout/foreach.hpp>
+#include <stout/stringify.hpp>
 #include <stout/unreachable.hpp>
 
 #include <stout/os/constants.hpp>
@@ -37,13 +40,19 @@ Option<Error> validateID(const string& id)
     return Error("ID must not be empty");
   }
 
+  if (id.length() > NAME_MAX) {
+    return Error(
+        "ID must not be greater than " +
+        stringify(NAME_MAX) + " characters");
+  }
+
   // The ID cannot be exactly these special path components.
   if (id == "." || id == "..") {
     return Error("'" + id + "' is disallowed");
   }
 
   // Rules on invalid characters in the ID:
-  // - Control charaters are obviously not allowed.
+  // - Control characters are obviously not allowed.
   // - Slashes are disallowed as IDs are likely mapped to directories in Mesos.
   auto invalidCharacter = [](char c) {
     return iscntrl(c) ||
