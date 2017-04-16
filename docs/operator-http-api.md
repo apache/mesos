@@ -282,7 +282,7 @@ Content-Type: application/json
 ### GET_METRICS
 
 This call gives the snapshot of current metrics to the end user. If `timeout` is
-set in the call, it would be used to determine the maximum amount of time the
+set in the call, it will be used to determine the maximum amount of time the
 API will take to respond. If the timeout is exceeded, some metrics may not be
 included in the response.
 
@@ -887,8 +887,8 @@ Content-Type: application/json
 
 ### READ_FILE
 
-Reads data from a file. This call takes path of the file to be read in the
-master, offset to start reading position and length for the maximum number of
+Reads data from a file on the master. This call takes the path of the
+file to be read, the offset to start reading, and the maximum number of
 bytes to read.
 
 ```
@@ -1729,7 +1729,7 @@ HTTP/1.1 202 Accepted
 
 ### GET_MASTER
 
-This call retrieves the information on master.
+This call retrieves information about the master.
 
 ```
 GET_MASTER HTTP Request (JSON):
