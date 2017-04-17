@@ -332,10 +332,6 @@ Option<Error> validate(const ImageManifest& manifest)
     return Error("'history' field size must be at least one");
   }
 
-  if (manifest.signatures_size() <= 0) {
-    return Error("'signatures' field size must be at least one");
-  }
-
   // Verify that blobSum and v1Compatibility numbers are equal.
   if (manifest.fslayers_size() != manifest.history_size()) {
     return Error("The size of 'fsLayers' should be equal "
