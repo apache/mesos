@@ -930,6 +930,7 @@ Release Notes - Mesos - Version 1.0.4 (WIP)
 
 All Issues:
 ** Bug
+    * [MESOS-2537] - AC_ARG_ENABLED checks are broken
     * [MESOS-6606] - Reject optimized builds with libcxx before 3.9
     * [MESOS-7008] - Quota not recovered from registry in empty cluster.
     * [MESOS-7366] - Agent sandbox gc could accidentally delete the entire persistent volume content.
