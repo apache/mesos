@@ -16,6 +16,7 @@
 
 #include <gmock/gmock.h>
 
+#include <stout/duration.hpp>
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>
 #include <stout/os.hpp>
@@ -474,6 +475,10 @@ TEST_P(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_SimpleCommand)
   flags.isolation = "docker/runtime,filesystem/linux";
   flags.image_providers = "docker";
 
+  // Image pulling time may be long, depending on the location of
+  // the registry server.
+  flags.executor_registration_timeout = Minutes(3);
+
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
@@ -527,7 +532,7 @@ TEST_P(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_SimpleCommand)
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  AWAIT_READY_FOR(statusRunning, Minutes(3));
   EXPECT_EQ(task.task_id(), statusRunning->task_id());
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
