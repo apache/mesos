@@ -1153,6 +1153,27 @@ effect only when the <code>--cgroups_net_cls_primary_handle</code> is set.
 </tr>
 <tr>
   <td>
+    --cgroups_whitelist_devices
+  </td>
+  <td>
+JSON array representing the devices that will be additionally
+whitelisted by cgroups devices subsystem. This will take effect
+only when <code>cgroups/devices</code> is set in <code>--isolation</code> flag.
+<p/>
+Example:
+<pre><code>[
+  {
+    "path": "/path/to/device",
+    "read_access": true,
+    "write_access": false,
+    "mknod_access": false
+  }
+]
+</code></pre>
+  </td>
+</tr>
+<tr>
+  <td>
     --cgroups_root=VALUE
   </td>
   <td>

@@ -14,12 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 #include <process/id.hpp>
 
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
-
-#include "linux/cgroups.hpp"
+#include <stout/os.hpp>
 
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/devices.hpp"
 
@@ -30,6 +31,7 @@ using process::Future;
 using process::Owned;
 
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -63,15 +65,98 @@ Try<Owned<Subsystem>> DevicesSubsystem::create(
     const Flags& flags,
     const string& hierarchy)
 {
-  return Owned<Subsystem>(new DevicesSubsystem(flags, hierarchy));
+  vector<cgroups::devices::Entry> whitelistDeviceEntries;
+
+  foreach (const char* _entry, DEFAULT_WHITELIST_ENTRIES) {
+    Try<cgroups::devices::Entry> entry =
+      cgroups::devices::Entry::parse(_entry);
+
+    CHECK_SOME(entry);
+    whitelistDeviceEntries.push_back(entry.get());
+  }
+
+  if (flags.cgroups_whitelist_devices.isSome()) {
+    foreach (const JSON::Value& value,
+             flags.cgroups_whitelist_devices.get().values) {
+      if (!value.is<JSON::Object>()) {
+        return Error(
+            "Failed to parse whitelist devices '" +
+            stringify(flags.cgroups_whitelist_devices.get()) +
+            "' in flag --cgroups_whitelist_devices");
+      }
+
+      JSON::Object object = value.as<JSON::Object>();
+
+      Result<JSON::String> path = object.at<JSON::String>("path");
+      if (!path.isSome()) {
+        return Error("Malformed whitelist device entry '" +
+                     stringify(object) + "'");
+      }
+
+      Result<JSON::Boolean> _readAccess =
+        object.at<JSON::Boolean>("read_access");
+
+      Result<JSON::Boolean> _writeAccess =
+        object.at<JSON::Boolean>("write_access");
+
+      Result<JSON::Boolean> _mknodAccess =
+        object.at<JSON::Boolean>("mknod_access");
+
+      bool readAccess = (_readAccess.isSome() && _readAccess->value);
+      bool writeAccess = (_readAccess.isSome() && _readAccess->value);
+      bool mknodAccess = (_readAccess.isSome() && _readAccess->value);
+
+      if (!(readAccess || writeAccess || mknodAccess)) {
+        return Error("Could not whitelist device '" + path->value
+                     + "' without any access privileges");
+      }
+
+      Try<dev_t> device = os::stat::rdev(path->value);
+      if (device.isError()) {
+        return Error("Failed to obtain device ID for '" + path->value +
+                     "': " + device.error());
+      }
+
+      Try<mode_t> mode = os::stat::mode(path->value);
+      if (mode.isError()) {
+        return Error("Failed to obtain device mode for '" + path->value +
+                     "': " + mode.error());
+      }
+
+      Entry::Selector::Type type;
+      if (S_ISBLK(mode.get())) {
+          type = Entry::Selector::Type::BLOCK;
+      } else if (S_ISCHR(mode.get())) {
+          type = Entry::Selector::Type::CHARACTER;
+      } else {
+          return Error("Failed to determine device type for '" + path->value +
+                       "'");
+      }
+
+      cgroups::devices::Entry entry;
+      entry.selector.type = type;
+      entry.selector.major = major(device.get());
+      entry.selector.minor = minor(device.get());
+      entry.access.read = readAccess;
+      entry.access.write = writeAccess;
+      entry.access.mknod = mknodAccess;
+
+      whitelistDeviceEntries.push_back(entry);
+    }
+  }
+
+  return Owned<Subsystem>(
+      new DevicesSubsystem(flags, hierarchy, whitelistDeviceEntries));
 }
 
 
 DevicesSubsystem::DevicesSubsystem(
     const Flags& _flags,
-    const string& _hierarchy)
+    const string& _hierarchy,
+    const vector<cgroups::devices::Entry>& _whitelistDeviceEntries)
   : ProcessBase(process::ID::generate("cgroups-devices-subsystem")),
-    Subsystem(_flags, _hierarchy) {}
+    Subsystem(_flags, _hierarchy),
+    whitelistDeviceEntries(_whitelistDeviceEntries) {}
 
 
 Future<Nothing> DevicesSubsystem::recover(
@@ -127,20 +212,12 @@ Future<Nothing> DevicesSubsystem::prepare(
     return Failure("Failed to deny all devices: " + deny.error());
   }
 
-  foreach (const char* _entry, DEFAULT_WHITELIST_ENTRIES) {
-    Try<cgroups::devices::Entry> entry =
-      cgroups::devices::Entry::parse(_entry);
-
-    CHECK_SOME(entry);
-
-    Try<Nothing> allow = cgroups::devices::allow(
-        hierarchy,
-        cgroup,
-        entry.get());
+  foreach (const cgroups::devices::Entry& entry, whitelistDeviceEntries) {
+    Try<Nothing> allow = cgroups::devices::allow(hierarchy, cgroup, entry);
 
     if (allow.isError()) {
-      return Failure("Failed to whitelist default device "
-                     "'" + stringify(entry.get()) + "': " + allow.error());
+      return Failure("Failed to whitelist device "
+                     "'" + stringify(entry) + "': " + allow.error());
     }
   }
 
