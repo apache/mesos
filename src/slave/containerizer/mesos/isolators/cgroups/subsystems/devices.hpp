@@ -18,14 +18,11 @@
 #define __CGROUPS_ISOLATOR_SUBSYSTEMS_DEVICES_HPP__
 
 #include <string>
-#include <vector>
 
 #include <process/owned.hpp>
 
 #include <stout/hashset.hpp>
 #include <stout/try.hpp>
-
-#include "linux/cgroups.hpp"
 
 #include "slave/flags.hpp"
 
@@ -66,13 +63,9 @@ public:
       const std::string& cgroup);
 
 private:
-  DevicesSubsystem(
-      const Flags& flags,
-      const std::string& hierarchy,
-      const std::vector<cgroups::devices::Entry>& whitelistDeviceEntries);
+  DevicesSubsystem(const Flags& flags, const std::string& hierarchy);
 
   hashset<ContainerID> containerIds;
-  std::vector<cgroups::devices::Entry> whitelistDeviceEntries;
 };
 
 } // namespace slave {
