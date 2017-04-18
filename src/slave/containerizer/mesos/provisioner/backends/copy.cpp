@@ -147,60 +147,83 @@ Future<Nothing> CopyBackendProcess::_provision(
   vector<string> whiteouts;
   for (FTSENT *node = ::fts_read(tree);
        node != nullptr; node = ::fts_read(tree)) {
-    if (node->fts_info != FTS_F) {
-      continue;
-    }
-
-    if (!strings::startsWith(node->fts_name, docker::spec::WHITEOUT_PREFIX)) {
-      continue;
-    }
-
     string ftsPath = string(node->fts_path);
-    Path whiteout = Path(ftsPath.substr(layer.length() + 1));
 
-    // Keep the relative paths of the whiteout files, we will
-    // remove them from rootfs after layer is copied to rootfs.
-    whiteouts.push_back(whiteout.string());
+    if (node->fts_info == FTS_DNR ||
+        node->fts_info == FTS_ERR ||
+        node->fts_info == FTS_NS) {
+      return Failure(
+          "Failed to read '" + ftsPath + "': " + os::strerror(node->fts_errno));
+    }
 
-    if (node->fts_name == string(docker::spec::WHITEOUT_OPAQUE_PREFIX)) {
-      const string path = path::join(rootfs, Path(whiteout).dirname());
+    // Skip the postorder visit of a directory.
+    // See the manpage of fts_read in the following link:
+    //   http://man7.org/linux/man-pages/man3/fts_read.3.html
+    if (node->fts_info == FTS_DP) {
+      continue;
+    }
 
-      // Remove the entries under the directory labeled
-      // as opaque whiteout from rootfs.
-      Try<Nothing> rmdir = os::rmdir(path, true, false);
-      if (rmdir.isError()) {
-        ::fts_close(tree);
-        return Failure(
-            "Failed to remove the entries under the directory labeled as"
-            " opaque whiteout '" + path + "': " + rmdir.error());
+    if (ftsPath == layer) {
+      continue;
+    }
+
+    string layerPath = ftsPath.substr(layer.length() + 1);
+    string rootfsPath = path::join(rootfs, layerPath);
+    Option<string> removePath;
+
+    // Handle whiteout files.
+    if (node->fts_info == FTS_F &&
+        strings::startsWith(node->fts_name, docker::spec::WHITEOUT_PREFIX)) {
+      Path whiteout = Path(layerPath);
+
+      // Keep the absolute paths of the whiteout files, we will
+      // remove them from rootfs after layer is copied to rootfs.
+      whiteouts.push_back(rootfsPath);
+
+      if (node->fts_name == string(docker::spec::WHITEOUT_OPAQUE_PREFIX)) {
+        removePath = path::join(rootfs, whiteout.dirname());
+      } else {
+        removePath = path::join(
+            rootfs,
+            whiteout.dirname(),
+            whiteout.basename().substr(strlen(docker::spec::WHITEOUT_PREFIX)));
       }
-    } else {
-      const string path = path::join(
-          rootfs,
-          whiteout.dirname(),
-          whiteout.basename().substr(strlen(docker::spec::WHITEOUT_PREFIX)));
+    }
 
-      // The file/directory labeled as whiteout may have already been
-      // removed with the code above due to its parent directory labeled
-      // as opaque whiteout, so here we need to check if it still exists
-      // before trying to remove it.
-      if (os::exists(path)) {
-        if (os::stat::isdir(path)) {
-          Try<Nothing> rmdir = os::rmdir(path);
-          if (rmdir.isError()) {
-            ::fts_close(tree);
-            return Failure(
-                "Failed to remove the directory labeled as whiteout '" +
-                path + "': " + rmdir.error());
-          }
-        } else {
-          Try<Nothing> rm = os::rm(path);
-          if (rm.isError()) {
-            ::fts_close(tree);
-            return Failure(
-                "Failed to remove the file labeled as whiteout '" +
-                path + "': " + rm.error());
-          }
+    // Handle overwriting between directories and non-directories.
+    // Note: If a symbolic link is overwritten by a directory, the
+    // symbolic link must be removed before the directory is traversed
+    // so the following case won't cause a security issue:
+    //   ROOTFS: /bad@ -> /usr
+    //   LAYER:  /bad/bin/.wh.wh.opq
+    bool ftsIsDir = node->fts_info == FTS_D || node->fts_info == FTS_DC;
+    if (os::exists(rootfsPath) && os::stat::isdir(rootfsPath) != ftsIsDir) {
+      removePath = rootfsPath;
+    }
+
+    // The file/directory referred to by removePath may be empty or have
+    // already been removed because its parent directory is labeled as
+    // opaque whiteout or overwritten by a file, so here we need to
+    // check if it exists before trying to remove it.
+    if (removePath.isSome() && os::exists(removePath.get())) {
+      if (os::stat::isdir(removePath.get())) {
+        // It is OK to remove the entire directory labeled as opaque
+        // whiteout, since the same directory exists in this layer and
+        // will be copied back to rootfs.
+        Try<Nothing> rmdir = os::rmdir(removePath.get());
+        if (rmdir.isError()) {
+          ::fts_close(tree);
+          return Failure(
+              "Failed to remove directory '" +
+              removePath.get() + "': " + rmdir.error());
+        }
+      } else {
+        Try<Nothing> rm = os::rm(removePath.get());
+        if (rm.isError()) {
+          ::fts_close(tree);
+          return Failure(
+              "Failed to remove file '" +
+              removePath.get() + "': " + rm.error());
         }
       }
     }
@@ -258,7 +281,7 @@ Future<Nothing> CopyBackendProcess::_provision(
 
       // Remove the whiteout files from rootfs.
       foreach (const string whiteout, whiteouts) {
-        Try<Nothing> rm = os::rm(path::join(rootfs, whiteout));
+        Try<Nothing> rm = os::rm(whiteout);
         if (rm.isError()) {
           return Failure(
               "Failed to remove whiteout file '" +
