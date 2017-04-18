@@ -369,14 +369,14 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
 
 
 #ifdef __linux__
-class ProvisionerDockerPullerTest
+class ProvisionerDockerTest
   : public MesosTest,
     public WithParamInterface<string> {};
 
 
 // This test verifies that local docker image can be pulled and
 // provisioned correctly, and shell command should be executed.
-TEST_F(ProvisionerDockerPullerTest, ROOT_LocalPullerSimpleCommand)
+TEST_F(ProvisionerDockerTest, ROOT_LocalPullerSimpleCommand)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -456,7 +456,7 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_LocalPullerSimpleCommand)
 // puller normalize docker official images if necessary.
 INSTANTIATE_TEST_CASE_P(
     ImageAlpine,
-    ProvisionerDockerPullerTest,
+    ProvisionerDockerTest,
     ::testing::ValuesIn(vector<string>({
         "alpine", // Verifies the normalization of the Docker repository name.
         "library/alpine",
@@ -466,7 +466,7 @@ INSTANTIATE_TEST_CASE_P(
 
 // TODO(jieyu): This is a ROOT test because of MESOS-4757. Remove the
 // ROOT restriction after MESOS-4757 is resolved.
-TEST_P(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_SimpleCommand)
+TEST_P(ProvisionerDockerTest, ROOT_INTERNET_CURL_SimpleCommand)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -548,7 +548,7 @@ TEST_P(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_SimpleCommand)
 // This test verifies that the scratch based docker image (that
 // only contain a single binary and its dependencies) can be
 // launched correctly.
-TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_ScratchImage)
+TEST_F(ProvisionerDockerTest, ROOT_INTERNET_CURL_ScratchImage)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -619,7 +619,7 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_ScratchImage)
 }
 
 
-class ProvisionerDockerWhiteoutTest
+class ProvisionerDockerBackendTest
   : public MesosTest,
     public WithParamInterface<string>
 {
@@ -646,13 +646,13 @@ public:
 
 INSTANTIATE_TEST_CASE_P(
     BackendFlag,
-    ProvisionerDockerWhiteoutTest,
-    ::testing::ValuesIn(ProvisionerDockerWhiteoutTest::parameters()));
+    ProvisionerDockerBackendTest,
+    ::testing::ValuesIn(ProvisionerDockerBackendTest::parameters()));
 
 
 // This test verifies that a docker image containing whiteout files
 // will be processed correctly by copy, aufs and overlay backends.
-TEST_P(ProvisionerDockerWhiteoutTest, ROOT_INTERNET_CURL_Whiteout)
+TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_Whiteout)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -731,41 +731,10 @@ TEST_P(ProvisionerDockerWhiteoutTest, ROOT_INTERNET_CURL_Whiteout)
 }
 
 
-class ProvisionerDockerOverwriteTest
-  : public MesosTest,
-    public WithParamInterface<string>
-{
-public:
-  // Returns the supported backends.
-  static vector<string> parameters()
-  {
-    vector<string> backends = {COPY_BACKEND};
-
-    Try<bool> aufsSupported = fs::supported("aufs");
-    if (aufsSupported.isSome() && aufsSupported.get()) {
-      backends.push_back(AUFS_BACKEND);
-    }
-
-    Try<bool> overlayfsSupported = fs::supported("overlayfs");
-    if (overlayfsSupported.isSome() && overlayfsSupported.get()) {
-      backends.push_back(OVERLAY_BACKEND);
-    }
-
-    return backends;
-  }
-};
-
-
-INSTANTIATE_TEST_CASE_P(
-    BackendFlag,
-    ProvisionerDockerOverwriteTest,
-    ::testing::ValuesIn(ProvisionerDockerOverwriteTest::parameters()));
-
-
 // This test verifies that the provisioner correctly overwrites a
 // directory in underlying layers with a with a regular file or symbolic
 // link of the same name in an upper layer, and vice versa.
-TEST_P(ProvisionerDockerOverwriteTest, ROOT_INTERNET_CURL_Overwrite)
+TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_Overwrite)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -850,7 +819,7 @@ TEST_P(ProvisionerDockerOverwriteTest, ROOT_INTERNET_CURL_Overwrite)
 
 // This test verifies that Docker image can be pulled from the
 // repository by digest.
-TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_ImageDigest)
+TEST_F(ProvisionerDockerTest, ROOT_INTERNET_CURL_ImageDigest)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -934,7 +903,7 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_ImageDigest)
 // command runs as the specified user 'nobody' and the sandbox of
 // the command task is writtable by the specified user. It also
 // verifies that stdout/stderr are owned by the specified user.
-TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_CommandTaskUser)
+TEST_F(ProvisionerDockerTest, ROOT_INTERNET_CURL_CommandTaskUser)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1020,7 +989,7 @@ TEST_F(ProvisionerDockerPullerTest, ROOT_INTERNET_CURL_CommandTaskUser)
 // directory still survives. The recursive `provisioner::destroy()`
 // can make sure that a child container is always cleaned up
 // before its parent container.
-TEST_F(ProvisionerDockerPullerTest, ROOT_RecoverNestedOnReboot)
+TEST_F(ProvisionerDockerTest, ROOT_RecoverNestedOnReboot)
 {
   const string directory = path::join(os::getcwd(), "archives");
 
