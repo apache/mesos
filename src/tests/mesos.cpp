@@ -347,6 +347,18 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
 
 Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     MasterDetector* detector,
+    const string& id,
+    const Option<slave::Flags>& flags)
+{
+  return cluster::Slave::start(
+      detector,
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+      id);
+}
+
+
+Try<Owned<cluster::Slave>> MesosTest::StartSlave(
+    MasterDetector* detector,
     slave::Containerizer* containerizer,
     const string& id,
     const Option<slave::Flags>& flags)
