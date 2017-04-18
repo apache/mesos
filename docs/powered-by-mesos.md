@@ -11,6 +11,7 @@ layout: documentation
 * [Allegro](http://allegro.pl)
 * [Altocloud](http://www.altocloud.com/)
 * [Apple](http://www.apple.com)
+* [Astronomer](http://www.astronomer.io)
 * [Artirix](http://www.artirix.com)
 * [Arukas](https://arukas.io)
 * [Astronomer](http://www.astronomer.io)
