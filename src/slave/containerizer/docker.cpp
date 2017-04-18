@@ -362,7 +362,7 @@ DockerContainerizerProcess::Container::create(
     // the pid of the task in `/proc` when running
     // `mesos-docker-executor` in a separate docker container.
     Parameter* pidParameter = dockerInfo.add_parameters();
-    pidParameter ->set_key("pid");
+    pidParameter->set_key("pid");
     pidParameter->set_value("host");
 
     // `--cap-add=SYS_ADMIN` and `--cap-add=SYS_PTRACE` are required
