@@ -5944,7 +5944,7 @@ void Master::_reregisterSlave(
       send(slave->pid, message);
 
       // The framework's tasks should not be stored in the master's
-      // in-memory state, because they were not re-added filtered above.
+      // in-memory state, because they were not re-added above.
       CHECK(!slave->tasks.contains(framework.id()));
     } else if (isCompletedFramework(framework.id())) {
       LOG(INFO) << "Shutting down framework " << framework.id()
