@@ -188,15 +188,25 @@ Future<Nothing> CopyBackendProcess::_provision(
       }
     }
 
-    // Handle overwriting between directories and non-directories.
-    // Note: If a symbolic link is overwritten by a directory, the
-    // symbolic link must be removed before the directory is traversed
-    // so the following case won't cause a security issue:
-    //   ROOTFS: /bad@ -> /usr
-    //   LAYER:  /bad/bin/.wh.wh.opq
-    bool ftsIsDir = node->fts_info == FTS_D || node->fts_info == FTS_DC;
-    if (os::exists(rootfsPath) && os::stat::isdir(rootfsPath) != ftsIsDir) {
-      removePath = rootfsPath;
+    if (os::exists(rootfsPath)) {
+      bool ftsIsDir = node->fts_info == FTS_D || node->fts_info == FTS_DC;
+      if (os::stat::isdir(rootfsPath) != ftsIsDir) {
+        // Handle overwriting between a directory and a non-directory.
+        // Note: If a symlink is overwritten by a directory, the symlink
+        // must be removed before the directory is traversed so the
+        // following case won't cause a security issue:
+        //   ROOTFS: /bad@ -> /usr
+        //   LAYER:  /bad/bin/.wh.wh.opq
+        removePath = rootfsPath;
+      } else if (os::stat::islink(rootfsPath)) {
+        // Handle overwriting a symlink with a regular file.
+        // Note: The symlink must be removed, or 'cp' would follow the
+        // link and overwrite the target instead of the link itself,
+        // which would cause a security issue in the following case:
+        //   ROOTFS: /bad@ -> /usr/bin/python
+        //   LAYER:  /bad is a malicious executable
+        removePath = rootfsPath;
+      }
     }
 
     // The file/directory referred to by removePath may be empty or have
