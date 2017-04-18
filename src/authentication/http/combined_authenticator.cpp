@@ -288,10 +288,20 @@ Future<AuthenticationResult> CombinedAuthenticatorProcess::authenticate(
           return combineFailed(results);
         }
 
+        // Instead of capturing `authenticator` we capture the scheme by copy,
+        // since that's all we need. This avoids an issue during teardown of the
+        // authenticator: if the `CombinedAuthenticator` is destroyed before the
+        // callback below executes, the `authenticator` reference here could be
+        // the last remaining reference to that authenticator. Capturing this
+        // reference could cause the authenticator's destructor to be called
+        // from within its own context when the callback completes, leading to a
+        // deadlock. See MESOS-7065.
+        const string scheme = authenticator.get()->scheme();
+
         return authenticator.get()->authenticate(request)
           .then(defer(
               self_,
-              [&results, authenticator](const AuthenticationResult& result)
+              [&results, scheme](const AuthenticationResult& result)
                   -> ControlFlow<AuthenticationResult> {
                 // Validate that exactly 1 member is set.
                 size_t count =
@@ -300,8 +310,7 @@ Future<AuthenticationResult> CombinedAuthenticatorProcess::authenticate(
                   (result.forbidden.isSome()    ? 1 : 0);
 
                 if (count != 1) {
-                  LOG(WARNING) << "HTTP authenticator for scheme '"
-                               << authenticator.get()->scheme()
+                  LOG(WARNING) << "HTTP authenticator for scheme '" << scheme
                                << "' returned a result with " << count
                                << " members set, which is an error";
                   return Continue();
@@ -313,17 +322,13 @@ Future<AuthenticationResult> CombinedAuthenticatorProcess::authenticate(
                 }
 
                 // Authentication unsuccessful; append the result and continue.
-                results.push_back(make_pair(
-                    authenticator.get()->scheme(),
-                    result));
+                results.push_back(make_pair(scheme, result));
                 return Continue();
               }))
-          .repair([&results, authenticator](
+          .repair([&results, scheme](
               const Future<ControlFlow<AuthenticationResult>>& failedResult)
                   -> ControlFlow<AuthenticationResult> {
-            results.push_back(make_pair(
-                authenticator.get()->scheme(),
-                Error(failedResult.failure())));
+            results.push_back(make_pair(scheme, Error(failedResult.failure())));
             return Continue();
           });
       });
