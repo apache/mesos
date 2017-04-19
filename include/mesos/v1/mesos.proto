@@ -256,7 +256,7 @@ message FrameworkInfo {
   //
   // NOTE: The implmentation for supporting `roles`
   // is not complete, DO NOT USE the `roles` field.
-  optional string role = 6 [default = "*", deprecated=true];
+  optional string role = 6 [default = "*"];
   repeated string roles = 12; // EXPERIMENTAL.
 
   // Used to indicate the current host from which the scheduler is
