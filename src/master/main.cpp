@@ -37,7 +37,7 @@
 #ifndef __WINDOWS__
 #include <mesos/state/log.hpp>
 #endif // __WINDOWS__
-#include <mesos/state/protobuf.hpp>
+#include <mesos/state/state.hpp>
 #include <mesos/state/storage.hpp>
 
 #include <mesos/zookeeper/detector.hpp>
@@ -392,8 +392,7 @@ int main(int argc, char** argv)
 
   CHECK_NOTNULL(storage);
 
-  mesos::state::protobuf::State* state =
-    new mesos::state::protobuf::State(storage);
+  mesos::state::State* state = new mesos::state::State(storage);
   Registrar* registrar =
     new Registrar(flags, state, READONLY_HTTP_AUTHENTICATION_REALM);
 

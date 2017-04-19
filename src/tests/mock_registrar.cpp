@@ -18,7 +18,7 @@
 
 #include <gmock/gmock.h>
 
-#include <mesos/state/protobuf.hpp>
+#include <mesos/state/state.hpp>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -46,7 +46,7 @@ namespace tests {
 
 MockRegistrar::MockRegistrar(
     const master::Flags& flags,
-    mesos::state::protobuf::State* state,
+    mesos::state::State* state,
     const Option<string>& authenticationRealm)
   : Registrar(flags, state, authenticationRealm)
 {

@@ -34,7 +34,7 @@
 
 #include <mesos/state/in_memory.hpp>
 #include <mesos/state/log.hpp>
-#include <mesos/state/protobuf.hpp>
+#include <mesos/state/state.hpp>
 #include <mesos/state/storage.hpp>
 
 #include <mesos/zookeeper/url.hpp>
@@ -123,7 +123,7 @@ private:
   process::Owned<mesos::master::detector::MasterDetector> detector;
   process::Owned<mesos::log::Log> log;
   process::Owned<mesos::state::Storage> storage;
-  process::Owned<mesos::state::protobuf::State> state;
+  process::Owned<mesos::state::State> state;
 public:
   // Exposed for testing and mocking purposes. We always use a
   // `MockRegistrar` in case the test case wants to inspect how the

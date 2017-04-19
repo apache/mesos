@@ -19,7 +19,7 @@
 
 #include <mesos/type_utils.hpp>
 
-#include <mesos/state/protobuf.hpp>
+#include <mesos/state/state.hpp>
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
@@ -44,8 +44,8 @@
 #include "master/registrar.hpp"
 #include "master/registry.hpp"
 
-using mesos::state::protobuf::State;
-using mesos::state::protobuf::Variable;
+using mesos::state::State;
+using mesos::state::Variable;
 
 using process::dispatch;
 using process::spawn;
@@ -89,9 +89,9 @@ public:
       const Option<string>& _authenticationRealm)
     : ProcessBase(process::ID::generate("registrar")),
       metrics(*this),
+      state(_state),
       updating(false),
       flags(_flags),
-      state(_state),
       authenticationRealm(_authenticationRealm) {}
 
   virtual ~RegistrarProcess() {}
@@ -108,19 +108,20 @@ protected:
           "/registry",
           authenticationRealm.get(),
           registryHelp(),
-          &RegistrarProcess::registry);
+          &RegistrarProcess::getRegistry);
     } else {
       route(
           "/registry",
           registryHelp(),
-          lambda::bind(&RegistrarProcess::registry, this, lambda::_1, None()));
+          lambda::bind(
+              &RegistrarProcess::getRegistry, this, lambda::_1, None()));
     }
   }
 
 private:
   // HTTP handlers.
   // /registrar(N)/registry
-  Future<Response> registry(
+  Future<Response> getRegistry(
       const Request& request,
       const Option<Principal>&);
   static string registryHelp();
@@ -186,8 +187,8 @@ private:
 
   Future<double> _registry_size_bytes()
   {
-    if (variable.isSome()) {
-      return variable.get().get().ByteSize();
+    if (registry.isSome()) {
+      return registry->ByteSize();
     }
 
     return Failure("Not recovered yet");
@@ -196,14 +197,15 @@ private:
   // Continuations.
   void _recover(
       const MasterInfo& info,
-      const Future<Variable<Registry>>& recovery);
+      const Future<Variable>& recovery);
   void __recover(const Future<bool>& recover);
   Future<bool> _apply(Owned<Operation> operation);
 
   // Helper for updating state (performing store).
   void update();
   void _update(
-      const Future<Option<Variable<Registry>>>& store,
+      const Future<Option<Variable>>& store,
+      const Owned<Registry>& updatedRegistry,
       deque<Owned<Operation>> operations);
 
   // Fails all pending operations and transitions the Registrar
@@ -212,12 +214,24 @@ private:
   // performing more State storage operations.
   void abort(const string& message);
 
-  Option<Variable<Registry>> variable;
+  // TODO(ipronin): We use the "untyped" `State` class here and perform
+  // the protobuf (de)serialization manually within the Registrar, because
+  // the use of `protobuf::State` incurs a dramatic peformance cost from
+  // protobuf copying. We should explore using `protobuf::State`, which will
+  // require move support and other copy elimination to maintain the
+  // performance of the current approach.
+  State* state;
+
+  // Per the TODO above, we store both serialized and deserialized versions
+  // of the `Registry` protobuf. If we're able to move to `protobuf::State`,
+  // we could just store a single `protobuf::state::Variable<Registry>`.
+  Option<Variable> variable;
+  Option<Registry> registry;
+
   deque<Owned<Operation>> operations;
   bool updating; // Used to signify fetching (recovering) or storing.
 
   const Flags flags;
-  State* state;
 
   // Used to compose our operations with recovery.
   Option<Owned<Promise<Registry>>> recovered;
@@ -256,14 +270,14 @@ void fail(deque<Owned<Operation>>* operations, const string& message)
 }
 
 
-Future<Response> RegistrarProcess::registry(
+Future<Response> RegistrarProcess::getRegistry(
     const Request& request,
     const Option<Principal>&)
 {
   JSON::Object result;
 
-  if (variable.isSome()) {
-    result = JSON::protobuf(variable.get().get());
+  if (registry.isSome()) {
+    result = JSON::protobuf(registry.get());
   }
 
   return OK(result, request.url.query.get("jsonp"));
@@ -331,10 +345,10 @@ Future<Registry> RegistrarProcess::recover(const MasterInfo& info)
     VLOG(1) << "Recovering registrar";
 
     metrics.state_fetch.start();
-    state->fetch<Registry>("registry")
+    state->fetch("registry")
       .after(flags.registry_fetch_timeout,
              lambda::bind(
-                 &timeout<Variable<Registry>>,
+                 &timeout<Variable>,
                  "fetch",
                  flags.registry_fetch_timeout,
                  lambda::_1))
@@ -349,7 +363,7 @@ Future<Registry> RegistrarProcess::recover(const MasterInfo& info)
 
 void RegistrarProcess::_recover(
     const MasterInfo& info,
-    const Future<Variable<Registry>>& recovery)
+    const Future<Variable>& recovery)
 {
   updating = false;
 
@@ -358,24 +372,38 @@ void RegistrarProcess::_recover(
   if (!recovery.isReady()) {
     recovered.get()->fail("Failed to recover registrar: " +
         (recovery.isFailed() ? recovery.failure() : "discarded"));
-  } else {
-    Duration elapsed = metrics.state_fetch.stop();
-
-    LOG(INFO) << "Successfully fetched the registry"
-              << " (" << Bytes(recovery.get().get().ByteSize()) << ")"
-              << " in " << elapsed;
-
-    // Save the registry.
-    variable = recovery.get();
-
-    // Perform the Recover operation to add the new MasterInfo.
-    Owned<Operation> operation(new Recover(info));
-    operations.push_back(operation);
-    operation->future()
-      .onAny(defer(self(), &Self::__recover, lambda::_1));
-
-    update();
+    return;
   }
+
+  // Deserialize the registry.
+  Try<Registry> deserialized =
+    ::protobuf::deserialize<Registry>(recovery->value());
+  if (deserialized.isError()) {
+    recovered.get()->fail("Failed to recover registrar: " +
+                          deserialized.error());
+    return;
+  }
+
+  Duration elapsed = metrics.state_fetch.stop();
+
+  LOG(INFO) << "Successfully fetched the registry"
+            << " (" << Bytes(deserialized->ByteSize()) << ")"
+            << " in " << elapsed;
+
+  // Save the registry.
+  variable = recovery.get();
+
+  // Workaround for immovable protobuf messages.
+  registry = Option<Registry>(Registry());
+  registry->Swap(&deserialized.get());
+
+  // Perform the Recover operation to add the new MasterInfo.
+  Owned<Operation> operation(new Recover(info));
+  operations.push_back(operation);
+  operation->future()
+    .onAny(defer(self(), &Self::__recover, lambda::_1));
+
+  update();
 }
 
 
@@ -397,7 +425,8 @@ void RegistrarProcess::__recover(const Future<bool>& recover)
     // the Registry with the latest MasterInfo.
     // Set the promise and un-gate any pending operations.
     CHECK_SOME(variable);
-    recovered.get()->set(variable.get().get());
+    CHECK_SOME(registry);
+    recovered.get()->set(registry.get());
   }
 }
 
@@ -446,18 +475,19 @@ void RegistrarProcess::update()
 
   updating = true;
 
-  // Create a snapshot of the current registry.
-  Registry registry = variable.get().get();
+  // Create a snapshot of the current registry. We use an `Owned` here
+  // to avoid copying, since protobuf doesn't suppport move construction.
+  auto updatedRegistry = Owned<Registry>(new Registry(registry.get()));
 
   // Create the 'slaveIDs' accumulator.
   hashset<SlaveID> slaveIDs;
-  foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
+  foreach (const Registry::Slave& slave, updatedRegistry->slaves().slaves()) {
     slaveIDs.insert(slave.info().id());
   }
 
   foreach (Owned<Operation>& operation, operations) {
     // No need to process the result of the operation.
-    (*operation)(&registry, &slaveIDs);
+    (*operation)(updatedRegistry.get(), &slaveIDs);
   }
 
   LOG(INFO) << "Applied " << operations.size() << " operations in "
@@ -465,14 +495,25 @@ void RegistrarProcess::update()
 
   // Perform the store, and time the operation.
   metrics.state_store.start();
-  state->store(variable.get().mutate(registry))
+
+  // Serialize updated registry.
+  Try<string> serialized = ::protobuf::serialize(*updatedRegistry);
+  if (serialized.isError()) {
+    string message = "Failed to update registry: " + serialized.error();
+    fail(&operations, message);
+    abort(message);
+    return;
+  }
+
+  state->store(variable->mutate(serialized.get()))
     .after(flags.registry_store_timeout,
            lambda::bind(
-               &timeout<Option<Variable<Registry>>>,
+               &timeout<Option<Variable>>,
                "store",
                flags.registry_store_timeout,
                lambda::_1))
-    .onAny(defer(self(), &Self::_update, lambda::_1, operations));
+    .onAny(defer(
+        self(), &Self::_update, lambda::_1, updatedRegistry, operations));
 
   // Clear the operations, _update will transition the Promises!
   operations.clear();
@@ -480,7 +521,8 @@ void RegistrarProcess::update()
 
 
 void RegistrarProcess::_update(
-    const Future<Option<Variable<Registry>>>& store,
+    const Future<Option<Variable>>& store,
+    const Owned<Registry>& updatedRegistry,
     deque<Owned<Operation>> applied)
 {
   updating = false;
@@ -508,6 +550,7 @@ void RegistrarProcess::_update(
   LOG(INFO) << "Successfully updated the registry in " << elapsed;
 
   variable = store.get().get();
+  registry->Swap(updatedRegistry.get());
 
   // Remove the operations.
   while (!applied.empty()) {

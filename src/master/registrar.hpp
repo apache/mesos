@@ -19,7 +19,7 @@
 
 #include <mesos/mesos.hpp>
 
-#include <mesos/state/protobuf.hpp>
+#include <mesos/state/state.hpp>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -92,7 +92,7 @@ class Registrar
 {
 public:
   Registrar(const Flags& flags,
-            mesos::state::protobuf::State* state,
+            mesos::state::State* state,
             const Option<std::string>& authenticationRealm = None());
   virtual ~Registrar();
 

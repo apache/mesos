@@ -254,7 +254,7 @@ Try<process::Owned<Master>> Master::start(
   }
 
   // Instantiate some other master dependencies.
-  master->state.reset(new mesos::state::protobuf::State(master->storage.get()));
+  master->state.reset(new mesos::state::State(master->storage.get()));
   master->registrar.reset(new MockRegistrar(
       flags, master->state.get(), master::READONLY_HTTP_AUTHENTICATION_REALM));
 

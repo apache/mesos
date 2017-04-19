@@ -29,7 +29,7 @@
 #include <mesos/log/log.hpp>
 
 #include <mesos/state/log.hpp>
-#include <mesos/state/protobuf.hpp>
+#include <mesos/state/state.hpp>
 #include <mesos/state/storage.hpp>
 
 #include <process/clock.hpp>
@@ -113,8 +113,8 @@ using namespace mesos::internal::master::weights;
 using mesos::http::authentication::BasicAuthenticatorFactory;
 
 using mesos::state::LogStorage;
+using mesos::state::State;
 using mesos::state::Storage;
-using mesos::state::protobuf::State;
 
 using state::Entry;
 
