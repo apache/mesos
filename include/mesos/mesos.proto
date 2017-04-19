@@ -262,11 +262,8 @@ message FrameworkInfo {
   // `roles` and the default unset `role`, we require that
   // frameworks set the `MULTI_ROLE` capability if
   // setting the `roles` field.
-  //
-  // NOTE: The implmentation for supporting `roles`
-  // is not complete, DO NOT USE the `roles` field.
   optional string role = 6 [default = "*", deprecated=true];
-  repeated string roles = 12; // EXPERIMENTAL.
+  repeated string roles = 12;
 
   // Used to indicate the current host from which the scheduler is
   // registered in the Mesos Web UI. If set to an empty string Mesos
