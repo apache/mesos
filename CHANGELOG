@@ -41,6 +41,7 @@ All Issues:
   * [MESOS-7383] - Docker executor logs possibly sensitive parameters.
   * [MESOS-7350] - Failed to pull image from Nexus Registry due to signature missing.
   * [MESOS-5028] - Copy provisioner cannot replace directory with symlink.
+  * [MESOS-7346] - Agent crashes if the task name is too long.
 
 
 Release Notes - Mesos - Version 1.2.0
