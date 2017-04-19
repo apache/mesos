@@ -33,6 +33,7 @@ layout: documentation
 * [Criteo](http://www.criteo.com)
 * [CRP-Gabriel Lippmann](http://www.crpgl.lu)
 * [Daemon](http://www.daemon.com.au)
+* [Dangdang](https://www.dangdang.com)
 * [DataMan](http://www.dataman-inc.com)
 * [Delivery Hero Holding GmbH](http://www.deliveryhero.com)
 * [Devicescape](http://www.devicescape.com)
