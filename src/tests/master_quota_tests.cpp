@@ -1481,7 +1481,9 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequestsWithoutPrincipal)
 
 // This test checks that quota can be successfully set, queried, and
 // removed on a child role.
-TEST_F(MasterQuotaTest, ChildRole)
+//
+// TODO(neilc): Re-enable this test when MESOS-7402 is fixed.
+TEST_F(MasterQuotaTest, DISABLED_ChildRole)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1570,7 +1572,9 @@ TEST_F(MasterQuotaTest, ChildRole)
 
 // This test checks that attempting to set quota on a child role is
 // rejected if the child's parent does not have quota set.
-TEST_F(MasterQuotaTest, ChildRoleWithNoParentQuota)
+//
+// TODO(neilc): Re-enable this test when MESOS-7402 is fixed.
+TEST_F(MasterQuotaTest, DISABLED_ChildRoleWithNoParentQuota)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1599,7 +1603,9 @@ TEST_F(MasterQuotaTest, ChildRoleWithNoParentQuota)
 
 // This test checks that a request to set quota for a child role is
 // rejected if it exceeds the parent role's quota.
-TEST_F(MasterQuotaTest, ChildRoleExceedsParentQuota)
+//
+// TODO(neilc): Re-enable this test when MESOS-7402 is fixed.
+TEST_F(MasterQuotaTest, DISABLED_ChildRoleExceedsParentQuota)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1644,7 +1650,9 @@ TEST_F(MasterQuotaTest, ChildRoleExceedsParentQuota)
 // This test checks that a request to set quota for a child role is
 // rejected if it would result in the parent role's quota being
 // smaller than the sum of the quota of its children.
-TEST_F(MasterQuotaTest, ChildRoleSumExceedsParentQuota)
+//
+// TODO(neilc): Re-enable this test when MESOS-7402 is fixed.
+TEST_F(MasterQuotaTest, DISABLED_ChildRoleSumExceedsParentQuota)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1703,7 +1711,9 @@ TEST_F(MasterQuotaTest, ChildRoleSumExceedsParentQuota)
 // This test checks that a request to delete quota for a parent role
 // is rejected since this would result in the child role's quota
 // exceeding the parent role's quota.
-TEST_F(MasterQuotaTest, ChildRoleDeleteParentQuota)
+//
+// TODO(neilc): Re-enable this test when MESOS-7402 is fixed.
+TEST_F(MasterQuotaTest, DISABLED_ChildRoleDeleteParentQuota)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1761,7 +1771,9 @@ TEST_F(MasterQuotaTest, ChildRoleDeleteParentQuota)
 // child roles should not be double-counted with the quota on the
 // child's parent role. In other words, the total quota'd resources in
 // the cluster is the sum of the quota on the top-level roles.
-TEST_F(MasterQuotaTest, ClusterCapacityWithNestedRoles)
+//
+// TODO(neilc): Re-enable this test when MESOS-7402 is fixed.
+TEST_F(MasterQuotaTest, DISABLED_ClusterCapacityWithNestedRoles)
 {
   TestAllocator<> allocator;
   EXPECT_CALL(allocator, initialize(_, _, _, _));

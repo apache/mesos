@@ -512,6 +512,15 @@ Future<http::Response> Master::QuotaHandler::_set(
     }
   }
 
+  // Setting quota on a nested role is temporarily disabled.
+  //
+  // TODO(neilc): Remove this check when MESOS-7402 is fixed.
+  bool nestedRole = strings::contains(quotaInfo.role(), "/");
+  if (nestedRole) {
+    return BadRequest("Setting quota on nested role '" +
+                      quotaInfo.role() + "' is not supported yet");
+  }
+
   // The force flag is used to overwrite the `capacityHeuristic` check.
   const bool forced = quotaRequest.force();
 

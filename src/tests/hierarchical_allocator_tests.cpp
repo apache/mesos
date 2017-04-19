@@ -4594,6 +4594,99 @@ TEST_F(HierarchicalAllocatorTest, NestedRoleQuotaAllocateToParent)
 }
 
 
+// This test checks that when quota resources are allocated to a
+// nested role, those resources are also counted against the quota of
+// the parent role as well.
+//
+// TODO(neilc): Re-enable this test when MESOS-7402 is fixed.
+TEST_F(HierarchicalAllocatorTest, DISABLED_NestedQuotaAccounting)
+{
+  Clock::pause();
+
+  initialize();
+
+  const string PARENT_ROLE = "x/b";
+  const string CHILD_ROLE = "x/b/c";
+  const string NON_QUOTA_ROLE = "aaa";
+
+  // Create `framework1` in the non-quota role.
+  FrameworkInfo framework1 = createFrameworkInfo({NON_QUOTA_ROLE});
+  allocator->addFramework(framework1.id(), framework1, {}, true);
+
+  // Set quota for parent role.
+  const Quota parentQuota = createQuota(PARENT_ROLE, "cpus:3;mem:300");
+  allocator->setQuota(PARENT_ROLE, parentQuota);
+
+  // Create `framework2` in the parent role.
+  FrameworkInfo framework2 = createFrameworkInfo({PARENT_ROLE});
+  allocator->addFramework(framework2.id(), framework2, {}, true);
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:200");
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  // `framework2` will be offered all of the resources on `agent1`.
+  {
+    Allocation expected = Allocation(
+        framework2.id(),
+        {{PARENT_ROLE, {{agent1.id(), agent1.resources()}}}});
+
+    AWAIT_EXPECT_EQ(expected, allocations.get());
+  }
+
+  // Set quota for child role.
+  const Quota childQuota = createQuota(CHILD_ROLE, "cpus:1;mem:100");
+  allocator->setQuota(CHILD_ROLE, childQuota);
+
+  // Create `framework3` in the child role.
+  FrameworkInfo framework3 = createFrameworkInfo({CHILD_ROLE});
+  allocator->addFramework(framework3.id(), framework3, {}, true);
+
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:100");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  // `framework3` will be offered all of the resources on `agent2`.
+  {
+    Allocation expected = Allocation(
+        framework3.id(),
+        {{CHILD_ROLE, {{agent2.id(), agent2.resources()}}}});
+
+    AWAIT_EXPECT_EQ(expected, allocations.get());
+  }
+
+  SlaveInfo agent3 = createSlaveInfo("cpus:1;mem:100");
+  allocator->addSlave(
+      agent3.id(),
+      agent3,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent3.resources(),
+      {});
+
+  // Quota of both frameworks are satisfied at this point, therefore
+  // resources of agent3 should follow the rule of fair share and be
+  // offered to `framework1`.
+  {
+    Allocation expected = Allocation(
+        framework1.id(),
+        {{PARENT_ROLE, {{agent3.id(), agent3.resources()}}}});
+
+    AWAIT_EXPECT_EQ(expected, allocations.get());
+  }
+}
+
+
 class HierarchicalAllocatorTestWithParam
   : public HierarchicalAllocatorTestBase,
     public WithParamInterface<bool> {};
