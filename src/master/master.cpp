@@ -1311,10 +1311,7 @@ void Master::exited(const UPID& pid)
     }
   }
 
-  if (slaves.registered.contains(pid)) {
-    Slave* slave = slaves.registered.get(pid);
-    CHECK_NOTNULL(slave);
-
+  if (Slave* slave = slaves.registered.get(pid)) {
     LOG(INFO) << "Agent " << *slave << " disconnected";
 
     if (slave->connected) {
@@ -5272,7 +5269,9 @@ void Master::executorMessage(
 
   // The slave should (re-)register with the master before
   // forwarding executor messages.
-  if (!slaves.registered.contains(slaveId)) {
+  Slave* slave = slaves.registered.get(slaveId);
+
+  if (slave == nullptr) {
     LOG(WARNING) << "Ignoring executor message"
                  << " from executor '" << executorId << "'"
                  << " of framework " << frameworkId
@@ -5280,9 +5279,6 @@ void Master::executorMessage(
     metrics->invalid_executor_to_framework_messages++;
     return;
   }
-
-  Slave* slave = slaves.registered.get(slaveId);
-  CHECK_NOTNULL(slave);
 
   Framework* framework = getFramework(frameworkId);
 
@@ -5403,10 +5399,7 @@ void Master::registerSlave(
   }
 
   // Check if this slave is already registered (because it retries).
-  if (slaves.registered.contains(from)) {
-    Slave* slave = slaves.registered.get(from);
-    CHECK_NOTNULL(slave);
-
+  if (Slave* slave = slaves.registered.get(from)) {
     if (!slave->connected) {
       // The slave was previously disconnected but it is now trying
       // to register as a new slave. This could happen if the slave
@@ -5592,9 +5585,7 @@ void Master::reregisterSlave(
     return;
   }
 
-  Slave* slave = slaves.registered.get(slaveInfo.id());
-
-  if (slave != nullptr) {
+  if (Slave* slave = slaves.registered.get(slaveInfo.id())) {
     CHECK(!slaves.recovered.contains(slaveInfo.id()));
 
     // NOTE: This handles the case where a slave tries to
@@ -6103,14 +6094,14 @@ void Master::updateSlave(
     return;
   }
 
-  if (!slaves.registered.contains(slaveId)) {
+  Slave* slave = slaves.registered.get(slaveId);
+
+  if (slave == nullptr) {
     LOG(WARNING)
       << "Ignoring update of agent with total oversubscribed resources "
       << oversubscribedResources << " on unknown agent " << slaveId;
     return;
   }
-
-  Slave* slave = CHECK_NOTNULL(slaves.registered.get(slaveId));
 
   LOG(INFO) << "Received update of agent " << *slave << " with total"
             << " oversubscribed resources " << oversubscribedResources;
@@ -6170,7 +6161,7 @@ void Master::updateUnavailability(
       // The slave should be registered if it is in the machines mapping.
       CHECK(slaves.registered.contains(slaveId));
 
-      Slave* slave = CHECK_NOTNULL(slaves.registered.get(slaveId));
+      Slave* slave = slaves.registered.get(slaveId);
 
       if (unavailability.isSome()) {
         // TODO(jmlvanre): Add stream operator for unavailability.
@@ -6367,7 +6358,9 @@ void Master::exitedExecutor(
     return;
   }
 
-  if (!slaves.registered.contains(slaveId)) {
+  Slave* slave = slaves.registered.get(slaveId);
+
+  if (slave == nullptr) {
     LOG(WARNING) << "Ignoring exited executor '" << executorId
                  << "' of framework " << frameworkId
                  << " on unknown agent " << slaveId;
@@ -6376,9 +6369,6 @@ void Master::exitedExecutor(
 
   // Only update master's internal data structures here for proper
   // accounting. The TASK_LOST updates are handled by the slave.
-
-  Slave* slave = slaves.registered.get(slaveId);
-  CHECK_NOTNULL(slave);
 
   if (!slave->hasExecutor(frameworkId, executorId)) {
     LOG(WARNING) << "Ignoring unknown exited executor '" << executorId
@@ -6425,25 +6415,25 @@ void Master::shutdown(
 
   // TODO(vinod): Add a metric for executor shutdowns.
 
-  if (!slaves.registered.contains(shutdown.slave_id())) {
-    LOG(WARNING) << "Unable to shutdown executor '" << shutdown.executor_id()
-                 << "' of framework " << framework->id()
-                 << " of unknown agent " << shutdown.slave_id();
-    return;
-  }
-
   const SlaveID& slaveId = shutdown.slave_id();
   const ExecutorID& executorId = shutdown.executor_id();
+  const FrameworkID& frameworkId = framework->id();
 
   Slave* slave = slaves.registered.get(slaveId);
-  CHECK_NOTNULL(slave);
+
+  if (slave == nullptr) {
+    LOG(WARNING) << "Unable to shutdown executor '" << executorId
+                 << "' of framework " << frameworkId
+                 << " of unknown agent " << slaveId;
+    return;
+  }
 
   LOG(INFO) << "Processing SHUTDOWN call for executor '" << executorId
             << "' of framework " << *framework << " on agent " << slaveId;
 
   ShutdownExecutorMessage message;
   message.mutable_executor_id()->CopyFrom(executorId);
-  message.mutable_framework_id()->CopyFrom(framework->id());
+  message.mutable_framework_id()->CopyFrom(frameworkId);
   send(slave->pid, message);
 }
 
@@ -6973,7 +6963,9 @@ void Master::offer(
     foreachpair (const SlaveID& slaveId,
                  const Resources& offered,
                  resources.at(role)) {
-      if (!slaves.registered.contains(slaveId)) {
+      Slave* slave = slaves.registered.get(slaveId);
+
+      if (slave == nullptr) {
         LOG(WARNING)
           << "Master returning resources offered to framework " << *framework
           << " because agent " << slaveId << " is not valid";
@@ -6981,9 +6973,6 @@ void Master::offer(
         allocator->recoverResources(frameworkId, slaveId, offered, None());
         continue;
       }
-
-      Slave* slave = slaves.registered.get(slaveId);
-      CHECK_NOTNULL(slave);
 
       // This could happen if the allocator dispatched 'Master::offer' before
       // the slave was deactivated in the allocator.
@@ -7120,15 +7109,14 @@ void Master::inverseOffer(
   foreachpair (const SlaveID& slaveId,
                const UnavailableResources& unavailableResources,
                resources) {
-    if (!slaves.registered.contains(slaveId)) {
+    Slave* slave = slaves.registered.get(slaveId);
+
+    if (slave == nullptr) {
       LOG(INFO)
         << "Master ignoring inverse offers to framework " << *framework
         << " because agent " << slaveId << " is not valid";
       continue;
     }
-
-    Slave* slave = slaves.registered.get(slaveId);
-    CHECK_NOTNULL(slave);
 
     // This could happen if the allocator dispatched 'Master::inverseOffer'
     // before the slave was deactivated in the allocator.
