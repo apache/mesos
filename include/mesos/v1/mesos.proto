@@ -2189,6 +2189,7 @@ message Volume {
       // TODO(gyliu513): Add HOST_PATH and IMAGE as volume source type.
       DOCKER_VOLUME = 1;
       SANDBOX_PATH = 2;
+      SECRET = 3;
     }
 
     message DockerVolume {
@@ -2231,6 +2232,10 @@ message Volume {
     optional DockerVolume docker_volume = 2;
 
     optional SandboxPath sandbox_path = 3;
+
+    // The volume/secret isolator uses the secret-fetcher module (third-party or
+    // internal) downloads the secret and makes it available at container_path.
+    optional Secret secret = 4;
   }
 
   optional Source source = 5;
