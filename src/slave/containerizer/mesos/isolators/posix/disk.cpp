@@ -261,6 +261,8 @@ Future<Nothing> PosixDiskIsolatorProcess::update(
   // Remove paths that we no longer interested in.
   foreach (const string& path, info->paths.keys()) {
     if (!quotas.contains(path)) {
+      // Cancel the usage collection as we are no longer interested.
+      info->paths[path].usage.discard();
       info->paths.erase(path);
     }
   }
