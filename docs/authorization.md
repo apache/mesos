@@ -25,6 +25,26 @@ briefly discusses how to implement a custom authorizer; this section is not
 directed at operators but at engineers who wish to build their own authorizer
 back end.
 
+## HTTP Executor Authorization
+
+When the agent's `--authenticate_http_executors` flag is set, HTTP executors are
+required to authenticate with the HTTP executor API. When they do so, a simple
+implicit authorization rule is applied. In plain language, the rule states that
+executors can only perform actions on themselves. More specifically, an
+executor's authenticated principal must contain claims with keys `fid`, `eid`,
+and `cid`, with values equal to the currently-running executor's framework ID,
+executor ID, and container ID, respectively. By default, an authentication token
+containing these claims is injected into the executor's environment (see the
+[authentication documentation](authentication.md) for more information).
+
+Similarly, when the agent's `--authenticate_http_readwrite` flag is set, HTTP
+executor's are required to authenticate with the HTTP operator API when making
+calls such as `LAUNCH_NESTED_CONTAINER`. In this case, executor authorization is
+performed via the loaded authorizer module, if present. The default Mesos local
+authorizer applies a simple implicit authorization rule, requiring that the
+executor's principal contain a claim with key `cid` and a value equal to the
+currently-running executor's container ID.
+
 ## Local Authorizer
 
 ### Role vs. Principal
