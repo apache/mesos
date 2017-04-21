@@ -891,6 +891,13 @@ protected:
     // executors to authenticate with the agent operator API if Mesos was not
     // built with SSL support.
     flags.authenticate_http_readwrite = false;
+
+    // Set permissive ACLs in the agent so that the local authorizer will be
+    // loaded and implicit executor authorization will be tested.
+    ACLs acls;
+    acls.set_permissive(true);
+
+    flags.acls = acls;
 #endif // USE_SSL_SOCKET
 
     return flags;
