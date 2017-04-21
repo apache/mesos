@@ -1079,6 +1079,7 @@ process::Future<bool> LocalAuthorizer::authorized(
       request.object().has_executor_info() ||
       request.object().has_quota_info() ||
       request.object().has_weight_info() ||
+      request.object().has_container_id() ||
       request.object().has_resource())));
 
   typedef Future<bool> (LocalAuthorizerProcess::*F)(

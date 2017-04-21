@@ -54,6 +54,7 @@ message Object {
   optional WeightInfo weight_info = 7;
   optional Resource resource = 8;
   optional CommandInfo command_info = 9;
+  optional ContainerID container_id = 10;
 }
 
 
