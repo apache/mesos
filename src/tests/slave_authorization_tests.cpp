@@ -38,6 +38,7 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 #include "tests/module.hpp"
+#include "tests/resources_utils.hpp"
 
 namespace http = process::http;
 
@@ -477,6 +478,92 @@ TYPED_TEST(SlaveAuthorizerTest, AuthorizeRunTaskOnAgent)
   driver.stop();
   driver.join();
 }
+
+
+
+// Since executor authentication currently has SSL as a dependency, it does not
+// make sense to test executor authorization when Mesos has not been built with
+// SSL. In that case, no executor principal will be available on which to
+// perform authorization, so we disable the following tests.
+#ifdef USE_SSL_SOCKET
+class ExecutorAuthorizationTest : public MesosTest {};
+
+
+// This test verifies that a task group is launched on the agent if the executor
+// provides a valid authentication token specifying its own ContainerID.
+TEST_F(ExecutorAuthorizationTest, RunTaskGroup)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start an agent with permissive ACLs so that a task can be launched.
+  ACLs acls;
+  acls.set_permissive(true);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.acls = acls;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+
+  Offer offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:0.5;mem:32").get(),
+      "sleep 1000");
+
+  Future<TaskStatus> status;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  Resources executorResources =
+    allocatedResources(Resources::parse("cpus:0.1;mem:32;disk:32").get(), "*");
+
+  ExecutorInfo executor;
+  executor.mutable_executor_id()->set_value("default");
+  executor.set_type(ExecutorInfo::DEFAULT);
+  executor.mutable_framework_id()->CopyFrom(frameworkId.get());
+  executor.mutable_resources()->CopyFrom(executorResources);
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task);
+
+  driver.acceptOffers({offer.id()}, {LAUNCH_GROUP(executor, taskGroup)});
+
+  AWAIT_READY(status);
+
+  ASSERT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
+
+  driver.stop();
+  driver.join();
+}
+#endif // USE_SSL_SOCKET
 
 
 // Parameterized fixture for agent-specific authorization tests. The
