@@ -47,7 +47,7 @@ struct Principal
 
   Principal(
       const Option<std::string>& _value,
-      const std::map<std::string, std::string>& _claims)
+      const hashmap<std::string, std::string>& _claims)
     : value(_value), claims(_claims) {}
 
   bool operator==(const Principal& that) const
@@ -66,7 +66,7 @@ struct Principal
   }
 
   Option<std::string> value;
-  std::map<std::string, std::string> claims;
+  hashmap<std::string, std::string> claims;
 };
 
 
