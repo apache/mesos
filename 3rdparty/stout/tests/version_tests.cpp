@@ -30,20 +30,64 @@ using std::vector;
 // Verify version comparison operations.
 TEST(VersionTest, Comparison)
 {
-  Version version1(0, 10, 4);
-  Version version2(0, 20, 3);
-  Try<Version> version3 = Version::parse("0.20.3");
+  const vector<string> inputs = {
+    "0.0.0",
+    "0.2.3",
+    "0.9.9",
+    "0.10.4",
+    "0.20.3",
+    "1.0.0-alpha",
+    "1.0.0-alpha.1",
+    "1.0.0-alpha.-02",
+    "1.0.0-alpha.-1",
+    "1.0.0-alpha.1-1",
+    "1.0.0-alpha.beta",
+    "1.0.0-beta",
+    "1.0.0-beta.2",
+    "1.0.0-beta.11",
+    "1.0.0-rc.1",
+    "1.0.0-rc.1.2",
+    "1.0.0",
+    "1.0.1",
+    "2.0.0"
+  };
 
-  EXPECT_EQ(version2, version3.get());
-  EXPECT_NE(version1, version2);
-  EXPECT_LT(version1, version2);
-  EXPECT_LE(version1, version2);
-  EXPECT_LE(version2, version3.get());
-  EXPECT_GT(version2, version1);
-  EXPECT_GE(version2, version1);
-  EXPECT_GE(version3.get(), version1);
+  vector<Version> versions;
 
-  EXPECT_EQ(stringify(version2), "0.20.3");
+  foreach (const string& input, inputs) {
+    Try<Version> version = Version::parse(input);
+    ASSERT_SOME(version);
+
+    versions.push_back(version.get());
+  }
+
+  // Check that `versions` is in ascending order.
+  for (size_t i = 0; i < versions.size(); i++) {
+    EXPECT_FALSE(versions[i] < versions[i])
+      << "Expected " << versions[i] << " < " << versions[i] << " to be false";
+
+    for (size_t j = i + 1; j < versions.size(); j++) {
+      EXPECT_TRUE(versions[i] < versions[j])
+        << "Expected " << versions[i] << " < " << versions[j];
+
+      EXPECT_FALSE(versions[j] < versions[i])
+        << "Expected " << versions[i] << " < " << versions[j] << " to be false";
+    }
+  }
+}
+
+
+// Verify that build metadata labels are ignored when determining
+// equality and ordering between versions.
+TEST(VersionTest, BuildMetadataComparison)
+{
+  Version plain = Version(1, 2, 3);
+  Version buildMetadata = Version(1, 2, 3, {}, {"abc"});
+
+  EXPECT_TRUE(plain == buildMetadata);
+  EXPECT_FALSE(plain != buildMetadata);
+  EXPECT_FALSE(plain < buildMetadata);
+  EXPECT_FALSE(plain > buildMetadata);
 }
 
 
@@ -57,11 +101,30 @@ TEST(VersionTest, ParseValid)
   typedef pair<Version, string> ExpectedValue;
 
   const map<string, ExpectedValue> testCases = {
-    // Prerelease labels are currently accepted but ignored.
-    {"1.20.3-rc1", {Version(1, 20, 3), "1.20.3"}},
     {"1.20.3", {Version(1, 20, 3), "1.20.3"}},
     {"1.20", {Version(1, 20, 0), "1.20.0"}},
-    {"1", {Version(1, 0, 0), "1.0.0"}}
+    {"1", {Version(1, 0, 0), "1.0.0"}},
+    {"1.20.3-rc1", {Version(1, 20, 3, {"rc1"}), "1.20.3-rc1"}},
+    {"1.20.3--", {Version(1, 20, 3, {"-"}), "1.20.3--"}},
+    {"1.20.3+-.-", {Version(1, 20, 3, {}, {"-", "-"}), "1.20.3+-.-"}},
+    {"1.0.0-alpha.1", {Version(1, 0, 0, {"alpha", "1"}), "1.0.0-alpha.1"}},
+    {"1.0.0-alpha+001",
+     {Version(1, 0, 0, {"alpha"}, {"001"}), "1.0.0-alpha+001"}},
+    {"1.0.0-alpha.-123",
+     {Version(1, 0, 0, {"alpha", "-123"}), "1.0.0-alpha.-123"}},
+    {"1+20130313144700",
+     {Version(1, 0, 0, {}, {"20130313144700"}), "1.0.0+20130313144700"}},
+    {"1.0.0-beta+exp.sha.5114f8",
+     {Version(1, 0, 0, {"beta"}, {"exp", "sha", "5114f8"}),
+      "1.0.0-beta+exp.sha.5114f8"}},
+    {"1.0.0--1", {Version(1, 0, 0, {"-1"}), "1.0.0--1"}},
+    {"1.0.0-----1", {Version(1, 0, 0, {"----1"}), "1.0.0-----1"}},
+    {"1-2-3+4-5",
+     {Version(1, 0, 0, {"2-3"}, {"4-5"}), "1.0.0-2-3+4-5"}},
+    {"1-2-3.4+5.6-7",
+     {Version(1, 0, 0, {"2-3", "4"}, {"5", "6-7"}), "1.0.0-2-3.4+5.6-7"}},
+    {"1-2.-3+4.-5",
+     {Version(1, 0, 0, {"2", "-3"}, {"4", "-5"}), "1.0.0-2.-3+4.-5"}}
   };
 
   foreachpair (const string& input, const ExpectedValue& expected, testCases) {
@@ -87,8 +150,29 @@ TEST(VersionTest, ParseInvalid)
     "a",
     "1.",
     ".1.2",
+    "0.1.-2",
+    "0.-1.2",
     "0.1.2.3",
-    "-1.1.2"
+    "-1.1.2",
+    "01.2.3",
+    "1.02.3",
+    "1.2.03",
+    "1.1.2-",
+    "1.1.2+",
+    "1.1.2-+",
+    "1.1.2-.",
+    "1.1.2+.",
+    "1.1.2-foo..",
+    "1.1.2-.foo",
+    "1.1.2+",
+    "1.1.2+foo..",
+    "1.1.2+.foo",
+    "1.1.2-al^pha",
+    "1.1.2+exp;",
+    "1.1.2-alpha.001",
+    "-foo",
+    "+foo",
+    u8"1.0.0-b\u00e9ta"
   };
 
   foreach (const string& input, inputs) {
