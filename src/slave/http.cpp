@@ -619,6 +619,40 @@ string Slave::Http::EXECUTOR_HELP() {
 }
 
 
+// TODO(greggomann): Remove this function when implicit executor authorization
+// is moved into the authorizer. See MESOS-7399.
+Option<Error> verifyExecutorClaims(
+    const Principal& principal,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId) {
+  if (!(principal.claims.contains("fid") &&
+        principal.claims.at("fid") == frameworkId.value())) {
+    return Error(
+        "Authenticated principal '" + stringify(principal) + "' does not "
+        "contain an 'fid' claim with the framework ID " +
+        stringify(frameworkId) + ", which is set in the call");
+  }
+
+  if (!(principal.claims.contains("eid") &&
+        principal.claims.at("eid") == executorId.value())) {
+    return Error(
+        "Authenticated principal '" + stringify(principal) + "' does not "
+        "contain an 'eid' claim with the executor ID " +
+        stringify(executorId) + ", which is set in the call");
+  }
+
+  if (!(principal.claims.contains("cid") &&
+        principal.claims.at("cid") == containerId.value())) {
+    return Error(
+        "Authenticated principal '" + stringify(principal) + "' does not "
+        "contain a 'cid' claim with the correct active ContainerID");
+  }
+
+  return None();
+}
+
+
 Future<Response> Slave::Http::executor(
     const Request& request,
     const Option<Principal>& principal) const
@@ -705,6 +739,20 @@ Future<Response> Slave::Http::executor(
   Executor* executor = framework->getExecutor(call.executor_id());
   if (executor == nullptr) {
     return BadRequest("Executor cannot be found");
+  }
+
+  // TODO(greggomann): Move this implicit executor authorization
+  // into the authorizer. See MESOS-7399.
+  if (principal.isSome()) {
+    error = verifyExecutorClaims(
+        principal.get(),
+        call.framework_id(),
+        call.executor_id(),
+        executor->containerId);
+
+    if (error.isSome()) {
+      return Forbidden(error->message);
+    }
   }
 
   if (executor->state == Executor::REGISTERING &&
