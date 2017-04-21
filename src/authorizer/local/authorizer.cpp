@@ -1058,10 +1058,11 @@ process::Future<bool> LocalAuthorizer::authorized(
   const authorization::Request& request)
 {
   // Request sanity checks.
-  // A set `subject` should always come with a set `value`.
+  // A set `subject` should always come with a set `value` or `claims`.
   CHECK(
     !request.has_subject() ||
-    (request.has_subject() && request.subject().has_value()));
+    request.subject().has_value() ||
+    request.subject().has_claims());
 
   // A set `action` is mandatory.
   CHECK(request.has_action());
