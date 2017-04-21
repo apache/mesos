@@ -161,18 +161,20 @@ enum Action {
   // is the entire set of flags.
   VIEW_FLAGS = 18;
 
-  // This action will always set the `ExecutorInfo`, `FrameworkInfo` fields
-  // and optionally a `CommandInfo` if available.
+  // This action will always set the `ExecutorInfo`, `FrameworkInfo`, and
+  // `ContainerID` fields and optionally a `CommandInfo` if available.
   LAUNCH_NESTED_CONTAINER = 19;
 
-  // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
+  // This action will set objects of type `ExecutorInfo`, `FrameworkInfo`, and
+  // `ContainerID`.
   KILL_NESTED_CONTAINER = 20;
 
-  // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
+  // This action will set objects of type `ExecutorInfo`, `FrameworkInfo`, and
+  // `ContainerID`.
   WAIT_NESTED_CONTAINER = 21;
 
-  // This action will always set the `ExecutorInfo`, `FrameworkInfo` fields
-  // and optionally a `CommandInfo` if available.
+  // This action will always set the `ExecutorInfo`, `FrameworkInfo`, and
+  // `ContainerID` fields and optionally a `CommandInfo` if available.
   LAUNCH_NESTED_CONTAINER_SESSION = 22;
 
   // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
@@ -188,7 +190,8 @@ enum Action {
   // either allowed to change the log level or he is unauthorized.
   SET_LOG_LEVEL = 26;
 
-  // This action will set objects of type `ExecutorInfo` and `FrameworkInfo`.
+  // This action will set objects of type `ExecutorInfo`, `FrameworkInfo`, and
+  // `ContainerID`.
   REMOVE_NESTED_CONTAINER = 27;
 }
 

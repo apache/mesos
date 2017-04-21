@@ -2252,6 +2252,7 @@ Future<Response> Slave::Http::_launchNestedContainer(
   object.executor_info = &(executor->info);
   object.framework_info = &(framework->info);
   object.command_info = &(commandInfo);
+  object.container_id = &(containerId);
 
   Try<bool> approved = approver.get()->approved(object);
 
@@ -2340,6 +2341,7 @@ Future<Response> Slave::Http::waitNestedContainer(
       ObjectApprover::Object object;
       object.executor_info = &(executor->info);
       object.framework_info = &(framework->info);
+      object.container_id = &(containerId);
 
       Try<bool> approved = waitApprover.get()->approved(object);
 
@@ -2414,6 +2416,7 @@ Future<Response> Slave::Http::killNestedContainer(
       ObjectApprover::Object object;
       object.executor_info = &(executor->info);
       object.framework_info = &(framework->info);
+      object.container_id = &(containerId);
 
       Try<bool> approved = killApprover.get()->approved(object);
 
@@ -2473,6 +2476,7 @@ Future<Response> Slave::Http::removeNestedContainer(
       ObjectApprover::Object object;
       object.executor_info = &(executor->info);
       object.framework_info = &(framework->info);
+      object.container_id = &(containerId);
 
       Try<bool> approved = removeApprover.get()->approved(object);
 
@@ -2928,6 +2932,7 @@ Future<Response> Slave::Http::attachContainerOutput(
       ObjectApprover::Object object;
       object.executor_info = &(executor->info);
       object.framework_info = &(framework->info);
+      object.container_id = &(containerId);
 
       Try<bool> approved = attachOutputApprover.get()->approved(object);
 

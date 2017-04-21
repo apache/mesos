@@ -335,6 +335,9 @@ public:
                      object->framework_info->has_user()) {
             aclObject.add_values(object->framework_info->user());
             aclObject.set_type(mesos::ACL::Entity::SOME);
+          } else if (object->container_id != nullptr) {
+            aclObject.add_values(object->container_id->value());
+            aclObject.set_type(mesos::ACL::Entity::SOME);
           }
 
           break;
@@ -538,6 +541,40 @@ private:
 };
 
 
+class LocalImplicitExecutorObjectApprover : public ObjectApprover
+{
+public:
+  LocalImplicitExecutorObjectApprover(const ContainerID& subject)
+    : subject_(subject) {}
+
+  // Executors are permitted to perform an action when the root ContainerID in
+  // the object is equal to the ContainerID that was extracted from the
+  // subject's claims.
+  virtual Try<bool> approved(
+      const Option<ObjectApprover::Object>& object) const noexcept override
+  {
+    return object.isSome() &&
+           object->container_id != nullptr &&
+           subject_ == protobuf::getRootContainerId(*object->container_id);
+  }
+
+private:
+  const ContainerID subject_;
+};
+
+
+// Implementation of the ObjectApprover interface denying all objects.
+class RejectingObjectApprover : public ObjectApprover
+{
+public:
+  virtual Try<bool> approved(
+      const Option<ObjectApprover::Object>& object) const noexcept override
+  {
+    return false;
+  }
+};
+
+
 class LocalAuthorizerProcess : public ProtobufProcess<LocalAuthorizerProcess>
 {
 public:
@@ -573,7 +610,12 @@ public:
 
   Future<bool> authorized(const authorization::Request& request)
   {
-    return getObjectApprover(request.subject(), request.action())
+    Option<authorization::Subject> subject;
+    if (request.has_subject()) {
+      subject = request.subject();
+    }
+
+    return getObjectApprover(subject, request.action())
       .then([=](const Owned<ObjectApprover>& objectApprover) -> Future<bool> {
         Option<ObjectApprover::Object> object = None();
         if (request.has_object()) {
@@ -645,20 +687,65 @@ public:
         acls.permissive()));
   }
 
+  Future<Owned<ObjectApprover>> getImplicitExecutorObjectApprover(
+      const Option<authorization::Subject>& subject,
+      const authorization::Action& action)
+  {
+    CHECK(subject.isSome() &&
+          subject->has_claims() &&
+          !subject->has_value() &&
+          (action == authorization::LAUNCH_NESTED_CONTAINER ||
+           action == authorization::WAIT_NESTED_CONTAINER ||
+           action == authorization::KILL_NESTED_CONTAINER ||
+           action == authorization::LAUNCH_NESTED_CONTAINER_SESSION ||
+           action == authorization::REMOVE_NESTED_CONTAINER ||
+           action == authorization::ATTACH_CONTAINER_OUTPUT));
+
+    Option<ContainerID> subjectContainerId;
+    foreach (const Label& claim, subject->claims().labels()) {
+      if (claim.key() == "cid" && claim.has_value()) {
+        subjectContainerId = ContainerID();
+        subjectContainerId->set_value(claim.value());
+        break;
+      }
+    }
+
+    if (subjectContainerId.isNone()) {
+      // If the subject's claims do not include a ContainerID,
+      // we deny all objects.
+      return Owned<ObjectApprover>(new RejectingObjectApprover());
+    }
+
+    return Owned<ObjectApprover>(new LocalImplicitExecutorObjectApprover(
+        subjectContainerId.get()));
+  }
+
   Future<Owned<ObjectApprover>> getObjectApprover(
       const Option<authorization::Subject>& subject,
       const authorization::Action& action)
   {
-    // Implementation of the ObjectApprover interface denying all objects.
-    class RejectingObjectApprover : public ObjectApprover
-    {
-    public:
-      virtual Try<bool> approved(
-          const Option<ObjectApprover::Object>& object) const noexcept override
-      {
-        return false;
-      }
-    };
+    // We return the `LocalImplicitExecutorObjectApprover` only for subjects and
+    // actions which it knows how to handle. This means the subject should have
+    // claims but no value, and the action should be one of the actions used by
+    // the default executor.
+    if (subject.isSome() &&
+        subject->has_claims() &&
+        !subject->has_value() &&
+        (action == authorization::LAUNCH_NESTED_CONTAINER ||
+         action == authorization::WAIT_NESTED_CONTAINER ||
+         action == authorization::KILL_NESTED_CONTAINER ||
+         action == authorization::LAUNCH_NESTED_CONTAINER_SESSION ||
+         action == authorization::REMOVE_NESTED_CONTAINER ||
+         action == authorization::ATTACH_CONTAINER_OUTPUT)) {
+      return getImplicitExecutorObjectApprover(subject, action);
+    }
+
+    // Currently, implicit executor authorization is the only case which handles
+    // subjects that do not have the `value` field set. If the previous case was
+    // not true and `value` is not set, then we should fail all requests.
+    if (subject.isSome() && !subject->has_value()) {
+      return Owned<ObjectApprover>(new RejectingObjectApprover());
+    }
 
     if (action == authorization::LAUNCH_NESTED_CONTAINER ||
         action == authorization::LAUNCH_NESTED_CONTAINER_SESSION) {
