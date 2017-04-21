@@ -709,7 +709,12 @@ private:
   {
     StreamingResponseDecoder* decoder = (StreamingResponseDecoder*) p->data;
 
-    CHECK_SOME(decoder->writer);
+    // This can happen if the callback `on_headers_complete()` had failed
+    // earlier (e.g., due to invalid status code).
+    if (decoder->writer.isNone()) {
+      CHECK(decoder->failure);
+      return 1;
+    }
 
     http::Pipe::Writer writer = decoder->writer.get(); // Remove const.
     writer.close();
@@ -1007,7 +1012,12 @@ private:
   {
     StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
 
-    CHECK_SOME(decoder->writer);
+    // This can happen if the callback `on_headers_complete()` had failed
+    // earlier (e.g., due to invalid query parameters).
+    if (decoder->writer.isNone()) {
+      CHECK(decoder->failure);
+      return 1;
+    }
 
     http::Pipe::Writer writer = decoder->writer.get(); // Remove const.
 
