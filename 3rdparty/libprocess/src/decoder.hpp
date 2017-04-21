@@ -205,6 +205,7 @@ private:
       http_parser_parse_url(decoder->url.data(), decoder->url.size(), 0, &url);
 
     if (parse_url != 0) {
+      decoder->failure = true;
       return parse_url;
     }
 
@@ -231,6 +232,7 @@ private:
       http::query::decode(decoder->query);
 
     if (decoded.isError()) {
+      decoder->failure = true;
       return 1;
     }
 
@@ -242,6 +244,7 @@ private:
     if (encoding.isSome() && encoding.get() == "gzip") {
       Try<std::string> decompressed = gzip::decompress(decoder->request->body);
       if (decompressed.isError()) {
+        decoder->failure = true;
         return 1;
       }
       decoder->request->body = decompressed.get();
@@ -435,7 +438,6 @@ private:
         http::Status::string(decoder->parser.status_code);
     } else {
       decoder->failure = true;
-
       return 1;
     }
 
@@ -666,7 +668,6 @@ private:
         http::Status::string(decoder->parser.status_code);
     } else {
       decoder->failure = true;
-
       return 1;
     }
 
@@ -919,6 +920,7 @@ private:
       http_parser_parse_url(decoder->url.data(), decoder->url.size(), 0, &url);
 
     if (parse_url != 0) {
+      decoder->failure = true;
       return parse_url;
     }
 
@@ -945,6 +947,7 @@ private:
       http::query::decode(decoder->query);
 
     if (decoded.isError()) {
+      decoder->failure = true;
       return 1;
     }
 
@@ -986,6 +989,7 @@ private:
         decoder->decompressor->decompress(std::string(data, length));
 
       if (decompressed.isError()) {
+        decoder->failure = true;
         return 1;
       }
 
@@ -1010,6 +1014,7 @@ private:
     if (decoder->decompressor.get() != nullptr &&
         !decoder->decompressor->finished()) {
       writer.fail("Failed to decompress body");
+      decoder->failure = true;
       return 1;
     }
 
