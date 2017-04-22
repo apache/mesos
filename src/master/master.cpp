@@ -5420,6 +5420,9 @@ void Master::registerSlave(
     return;
   }
 
+  LOG(INFO) << "Received register agent message from "
+            << from << " (" << slaveInfo.hostname() << ")";
+
   slaves.registering.insert(from);
 
   // Note that the principal may be empty if authentication is not
@@ -5677,6 +5680,10 @@ void Master::reregisterSlave(
       << slaveInfo.hostname() << ") as re-registration is already in progress";
     return;
   }
+
+  LOG(INFO) << "Received re-register agent message from agent "
+            << slaveInfo.id() << " at " << from << " ("
+            << slaveInfo.hostname() << ")";
 
   slaves.reregistering.insert(slaveInfo.id());
 
