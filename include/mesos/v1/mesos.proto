@@ -1178,6 +1178,14 @@ message SNMPStatistics {
 }
 
 
+message DiskStatistics {
+  optional Resource.DiskInfo.Source source = 1;
+  optional Resource.DiskInfo.Persistence persistence = 2;
+  optional uint64 limit_bytes = 3;
+  optional uint64 used_bytes = 4;
+}
+
+
 /**
  * A snapshot of resource usage statistics.
  */
@@ -1251,6 +1259,9 @@ message ResourceStatistics {
   // Disk Usage Information for executor working directory.
   optional uint64 disk_limit_bytes = 26;
   optional uint64 disk_used_bytes = 27;
+
+  // Per disk (resource) statistics.
+  repeated DiskStatistics disk_statistics = 43;
 
   // Perf statistics.
   optional PerfStatistics perf = 13;

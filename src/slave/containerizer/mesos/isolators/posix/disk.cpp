@@ -388,22 +388,46 @@ Future<ResourceStatistics> PosixDiskIsolatorProcess::usage(
     return Failure("Unknown container");
   }
 
-  // TODO(hartem): Report volume usage  as well (MESOS-4263).
   ResourceStatistics result;
 
   const Owned<Info>& info = infos[containerId];
 
-  if (info->paths.contains(info->directory)) {
-    Option<Bytes> quota = info->paths[info->directory].quota.disk();
+  foreachpair (const string& path,
+               const Info::PathInfo& pathInfo,
+               info->paths) {
+    DiskStatistics *statistics = result.add_disk_statistics();
+
+    Option<Bytes> quota = pathInfo.quota.disk();
     CHECK_SOME(quota);
 
-    result.set_disk_limit_bytes(quota.get().bytes());
+    statistics->set_limit_bytes(quota->bytes());
+    if (path == info->directory) {
+      result.set_disk_limit_bytes(quota->bytes());
+    }
 
     // NOTE: There may be a large delay (# of containers * interval)
     // until an initial cached value is returned here!
-    if (info->paths[info->directory].lastUsage.isSome()) {
-      result.set_disk_used_bytes(
-          info->paths[info->directory].lastUsage.get().bytes());
+    if (pathInfo.lastUsage.isSome()) {
+      statistics->set_used_bytes(pathInfo.lastUsage->bytes());
+      if (path == info->directory) {
+        result.set_disk_used_bytes(pathInfo.lastUsage->bytes());
+      }
+    }
+
+    // Set meta information for persistent volumes.
+    if (path != info->directory) {
+      // TODO(jieyu): For persistent volumes, validate that there is
+      // only one Resource object associated with it.
+      Resource resource = *pathInfo.quota.begin();
+
+      if (resource.has_disk() && resource.disk().has_source()) {
+        statistics->mutable_source()->CopyFrom(resource.disk().source());
+      }
+
+      if (resource.has_disk() && resource.disk().has_persistence()) {
+        statistics->mutable_persistence()->CopyFrom(
+            resource.disk().persistence());
+      }
     }
   }
 
