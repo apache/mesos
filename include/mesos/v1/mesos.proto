@@ -1046,6 +1046,7 @@ message Resource {
   optional SharedInfo shared = 10;
 }
 
+
 /**
  * When the network bandwidth caps are enabled and the container
  * is over its limit, outbound packets may be either delayed or
