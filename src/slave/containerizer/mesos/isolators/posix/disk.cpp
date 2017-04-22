@@ -280,6 +280,11 @@ Future<Bytes> PosixDiskIsolatorProcess::collect(
   const Owned<Info>& info = infos[containerId];
 
   // Volume paths to exclude from sandbox disk usage calculation.
+  //
+  // TODO(jieyu): The 'excludes' list might change when a new
+  // persistent volume is added to the list. That might result in the
+  // 'du' process to incorrectly include the disk usage of the newly
+  // added persistent volume to the usage of the sandbox.
   vector<string> excludes;
   if (path == info->directory) {
     foreachkey (const string& exclude, info->paths) {
