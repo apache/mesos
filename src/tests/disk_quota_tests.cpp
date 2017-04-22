@@ -449,6 +449,8 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem,disk/du";
 
+  flags.resources = strings::format("disk(%s):10", DEFAULT_TEST_ROLE).get();
+
   // NOTE: We can't pause the clock because we need the reaper to reap
   // the 'du' subprocess.
   flags.container_disk_watch_interval = Milliseconds(1);
@@ -469,10 +471,16 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
 
   ASSERT_SOME(slave);
 
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+
   MockScheduler sched;
 
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -488,22 +496,48 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
 
   const Offer& offer = offers.get()[0];
 
+  Resource volume = createPersistentVolume(
+      Megabytes(4),
+      DEFAULT_TEST_ROLE,
+      "id1",
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
+
+  Resources taskResources = Resources::parse("cpus:1;mem:128").get();
+
+  taskResources += createDiskResource(
+      "3",
+      DEFAULT_TEST_ROLE,
+      None(),
+      None());
+
+  taskResources += volume;
+
   // Create a task that uses 2MB disk.
   TaskInfo task = createTask(
       offer.slave_id(),
-      Resources::parse("cpus:1;mem:128;disk:3").get(),
-      "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 1000");
+      taskResources,
+      "dd if=/dev/zero of=file bs=1048576 count=2 && "
+      "dd if=/dev/zero of=path1/file bs=1048576 count=2 && "
+      "sleep 1000");
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
-  driver.launchTasks(offer.id(), {task});
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(volume),
+       LAUNCH({task})});
 
-  AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status->task_id());
-  EXPECT_EQ(TASK_RUNNING, status->state());
+  AWAIT_READY(status1);
+  EXPECT_EQ(task.task_id(), status1->task_id());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
 
@@ -523,6 +557,27 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
 
     if (usage->has_disk_used_bytes()) {
       EXPECT_LE(usage->disk_used_bytes(), usage->disk_limit_bytes());
+    }
+
+    ASSERT_EQ(2u, usage->disk_statistics().size());
+
+    bool done = true;
+    foreach (const DiskStatistics& statistics, usage->disk_statistics()) {
+      ASSERT_TRUE(statistics.has_limit_bytes());
+      EXPECT_EQ(
+          statistics.has_persistence() ? Megabytes(4) : Megabytes(3),
+          statistics.limit_bytes());
+
+      if (!statistics.has_used_bytes()) {
+        done = false;
+      } else {
+        EXPECT_GT(
+            statistics.has_persistence() ? Megabytes(4) : Megabytes(3),
+            statistics.used_bytes());
+      }
+    }
+
+    if (done) {
       break;
     }
 
@@ -531,6 +586,12 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
     os::sleep(Milliseconds(1));
     elapsed += Milliseconds(1);
   }
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(task.task_id(), status2->task_id());
+  EXPECT_EQ(TASK_KILLED, status2->state());
 
   driver.stop();
   driver.join();
