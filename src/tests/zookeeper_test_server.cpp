@@ -127,7 +127,7 @@ int ZooKeeperTestServer::startNetwork()
   if (!started) {
     connectionFactory = new NIOServerCnxnFactory();
 
-    // We use '-1' to allow an unlimited number of connections for his
+    // We use '-1' to allow an unlimited number of connections for this
     // connection factory instance.
     connectionFactory->configure(java::net::InetSocketAddress(port), -1);
 
