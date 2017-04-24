@@ -71,4 +71,4 @@ The notion of the group of leader candidates is implemented in `Group`. This abs
 * Session Expiration
 * ZNode creation, deletion, updates
 
-We also explicitly timeout our sessions when disconnected from ZooKeeper for a specified amount of time. See `MASTER_CONTENDER_ZK_SESSION_TIMEOUT` and `MASTER_DETECTOR_ZK_SESSION_TIMEOUT`. This is because the ZooKeeper client libraries only notify of session expiration upon reconnection. These timeouts are of particular interest for network partitions.
+We also explicitly timeout our sessions when disconnected from ZooKeeper for a specified amount of time. See `--zk_session_timeout` configuration option. This is because the ZooKeeper client libraries only notify of session expiration upon reconnection. These timeouts are of particular interest for network partitions.
