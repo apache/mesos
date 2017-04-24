@@ -46,7 +46,10 @@ class ZooKeeperMasterDetector : public MasterDetector
 public:
   // Creates a detector which uses ZooKeeper to determine (i.e.,
   // elect) a leading master.
-  explicit ZooKeeperMasterDetector(const zookeeper::URL& url);
+  explicit ZooKeeperMasterDetector(
+      const zookeeper::URL& url,
+      const Duration& sessionTimeout = MASTER_DETECTOR_ZK_SESSION_TIMEOUT);
+
   // Used for testing purposes.
   explicit ZooKeeperMasterDetector(process::Owned<zookeeper::Group> group);
   virtual ~ZooKeeperMasterDetector();

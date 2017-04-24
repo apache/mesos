@@ -56,7 +56,10 @@ class ZooKeeperMasterDetectorProcess
   : public Process<ZooKeeperMasterDetectorProcess>
 {
 public:
-  explicit ZooKeeperMasterDetectorProcess(const zookeeper::URL& url);
+  explicit ZooKeeperMasterDetectorProcess(
+      const zookeeper::URL& url,
+      const Duration& sessionTimeout);
+
   explicit ZooKeeperMasterDetectorProcess(Owned<Group> group);
   ~ZooKeeperMasterDetectorProcess();
 
@@ -86,12 +89,12 @@ private:
 };
 
 
-// TODO(benh): Get ZooKeeper timeout from configuration.
 ZooKeeperMasterDetectorProcess::ZooKeeperMasterDetectorProcess(
-    const zookeeper::URL& url)
+    const zookeeper::URL& url,
+    const Duration& sessionTimeout)
   : ZooKeeperMasterDetectorProcess(Owned<Group>(
     new Group(url.servers,
-              MASTER_DETECTOR_ZK_SESSION_TIMEOUT,
+              sessionTimeout,
               url.path,
               url.authentication))) {}
 
@@ -263,9 +266,11 @@ void ZooKeeperMasterDetectorProcess::fetched(
 }
 
 
-ZooKeeperMasterDetector::ZooKeeperMasterDetector(const zookeeper::URL& url)
+ZooKeeperMasterDetector::ZooKeeperMasterDetector(
+    const zookeeper::URL& url,
+    const Duration& sessionTimeout)
 {
-  process = new ZooKeeperMasterDetectorProcess(url);
+  process = new ZooKeeperMasterDetectorProcess(url, sessionTimeout);
   spawn(process);
 }
 

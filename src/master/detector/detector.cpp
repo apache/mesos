@@ -45,7 +45,8 @@ namespace detector {
 
 Try<MasterDetector*> MasterDetector::create(
     const Option<string>& zk_,
-    const Option<string>& masterDetectorModule_)
+    const Option<string>& masterDetectorModule_,
+    const Option<Duration>& zkSessionTimeout_)
 {
   if (masterDetectorModule_.isSome()) {
     return modules::ModuleManager::create<MasterDetector>(
@@ -67,7 +68,9 @@ Try<MasterDetector*> MasterDetector::create(
       return Error(
           "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
     }
-    return new ZooKeeperMasterDetector(url.get());
+    return new ZooKeeperMasterDetector(
+        url.get(),
+        zkSessionTimeout_.getOrElse(MASTER_DETECTOR_ZK_SESSION_TIMEOUT));
   } else if (strings::startsWith(zk, "file://")) {
     // Load the configuration out of a file. While Mesos and related
     // programs always use <stout/flags> to process the command line

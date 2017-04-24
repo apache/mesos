@@ -46,7 +46,10 @@ class ZooKeeperMasterContenderProcess
   : public Process<ZooKeeperMasterContenderProcess>
 {
 public:
-  explicit ZooKeeperMasterContenderProcess(const zookeeper::URL& url);
+  explicit ZooKeeperMasterContenderProcess(
+      const zookeeper::URL& url,
+      const Duration& sessionTimeout);
+
   explicit ZooKeeperMasterContenderProcess(Owned<zookeeper::Group> group);
   virtual ~ZooKeeperMasterContenderProcess();
 
@@ -68,9 +71,11 @@ private:
 };
 
 
-ZooKeeperMasterContender::ZooKeeperMasterContender(const zookeeper::URL& url)
+ZooKeeperMasterContender::ZooKeeperMasterContender(
+    const zookeeper::URL& url,
+    const Duration& sessionTimeout)
 {
-  process = new ZooKeeperMasterContenderProcess(url);
+  process = new ZooKeeperMasterContenderProcess(url, sessionTimeout);
   spawn(process);
 }
 
@@ -103,9 +108,10 @@ Future<Future<Nothing>> ZooKeeperMasterContender::contend()
 
 
 ZooKeeperMasterContenderProcess::ZooKeeperMasterContenderProcess(
-    const zookeeper::URL& url)
+    const zookeeper::URL& url,
+    const Duration& sessionTimeout)
   : ZooKeeperMasterContenderProcess(Owned<Group>(
-    new Group(url, MASTER_CONTENDER_ZK_SESSION_TIMEOUT))) {}
+    new Group(url, sessionTimeout))) {}
 
 
 ZooKeeperMasterContenderProcess::ZooKeeperMasterContenderProcess(

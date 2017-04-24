@@ -23,6 +23,7 @@
 
 #include <process/future.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
@@ -55,7 +56,8 @@ public:
    */
   static Try<MasterDetector*> create(
       const Option<std::string>& zk,
-      const Option<std::string>& masterDetectorModule = None());
+      const Option<std::string>& masterDetectorModule = None(),
+      const Option<Duration>& zkSessionTimeout = None());
 
   virtual ~MasterDetector() = 0;
 

@@ -23,6 +23,7 @@
 
 #include <process/future.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
@@ -58,7 +59,8 @@ public:
    */
   static Try<MasterContender*> create(
       const Option<std::string>& zk,
-      const Option<std::string>& masterContenderModule = None());
+      const Option<std::string>& masterContenderModule = None(),
+      const Option<Duration>& zkSessionTimeout = None());
 
   /**
    * Note that the contender's membership, if obtained, is scheduled

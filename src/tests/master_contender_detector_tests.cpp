@@ -469,7 +469,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
 
   ASSERT_SOME(url);
 
-  ZooKeeperMasterContender contender(url.get());
+  Duration sessionTimeout = Seconds(15);
+
+  ZooKeeperMasterContender contender(url.get(), sessionTimeout);
 
   PID<Master> pid;
   pid.address.ip = net::IP(10000000);
@@ -483,7 +485,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
   AWAIT_READY(contended);
   Future<Nothing> lostCandidacy = contended.get();
 
-  ZooKeeperMasterDetector detector(url.get());
+  ZooKeeperMasterDetector detector(url.get(), sessionTimeout);
 
   Future<Option<MasterInfo>> leader = detector.detect();
   AWAIT_READY(leader);
@@ -497,7 +499,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
   // We may need to advance multiple times because we could have
   // advanced the clock before the timer in Group starts.
   while (lostCandidacy.isPending() || leader.isPending()) {
-    Clock::advance(MASTER_CONTENDER_ZK_SESSION_TIMEOUT);
+    Clock::advance(sessionTimeout);
     Clock::settle();
   }
 
