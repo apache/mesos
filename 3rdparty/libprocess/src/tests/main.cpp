@@ -12,6 +12,9 @@
 
 #include <signal.h>
 
+#include <memory>
+#include <vector>
+
 #include <glog/logging.h>
 #include <glog/raw_logging.h>
 
@@ -32,6 +35,8 @@
 using stout::internal::tests::Environment;
 using stout::internal::tests::TestFilter;
 
+using std::shared_ptr;
+using std::vector;
 
 // NOTE: We use RAW_LOG instead of LOG because RAW_LOG doesn't
 // allocate any memory or grab locks. And according to
