@@ -50,6 +50,8 @@ We categorize the changes as follows:
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
     <ul style="padding-left:10px;">
       <li>R <a href="1-3-x-setquota-removequota-acl">--acls (set_quotas and remove_quotas)</a></li>
+      <li>A <a href="#1-3-x-executor-authentication">authenticate_http_executors</a></li>
+      <li>A <a href="#1-3-x-executor-authentication">executor_secret_key</a></li>
     </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
@@ -279,6 +281,9 @@ We categorize the changes as follows:
 
 <a name="1-3-x-allocator-interface-change"></a>
 * Implementors of allocator modules have to provide new implementation functionality to satisfy the `MULTI_ROLE` framework capability. Also, the interface has changed.
+
+<a name="1-3-x-executor-authentication"></a>
+* New Agent flags authenticate_http_executors and executor_secret_key: Used to enable required HTTP executor authentication and set the key file used for generation and authentication of HTTP executor tokens. Note that enabling these flags after upgrade is disruptive to HTTP executors that were launched before the upgrade. For more information on the recommended upgrade procedure when enabling these flags, see the [authentication documentation](docs/authentication.md).
 
 ## Upgrading from 1.1.x to 1.2.x ##
 
