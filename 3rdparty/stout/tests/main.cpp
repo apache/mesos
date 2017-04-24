@@ -30,6 +30,9 @@
 
 #include <stout/tests/environment.hpp>
 
+using stout::internal::tests::Environment;
+using stout::internal::tests::TestFilter;
+
 using std::make_shared;
 using std::shared_ptr;
 using std::string;

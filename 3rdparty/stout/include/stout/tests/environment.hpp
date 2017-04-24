@@ -25,6 +25,10 @@
 
 #include <stout/strings.hpp>
 
+namespace stout {
+namespace internal {
+namespace tests {
+
 class TestFilter
 {
 public:
@@ -132,5 +136,9 @@ public:
     ::testing::GTEST_FLAG(filter) = enabled_tests + "-" + disabled_tests;
   }
 };
+
+} // namespace tests {
+} // namespace internal {
+} // namespace stout {
 
 #endif // __STOUT_TESTS_ENVIRONMENT_HPP__
