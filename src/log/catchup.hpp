@@ -38,7 +38,7 @@ namespace log {
 // this function can provide a hint on the proposal number that will
 // be used for Paxos. This could potentially save us a few Paxos
 // rounds. However, if the user has no idea what proposal number to
-// use, he can just use none. We also allow the user to specify a
+// use, they can just use none. We also allow the user to specify a
 // timeout for the catch-up operation on each position and retry the
 // operation if timeout happens. This can help us tolerate network
 // blips.

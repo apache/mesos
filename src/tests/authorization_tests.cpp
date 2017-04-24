@@ -2410,8 +2410,8 @@ TYPED_TEST(AuthorizationTest, LaunchNestedContainerSessions)
 
   {
     // "foo" principal cannot launch sessions as commands in any parent
-    // container. He may still get to launch container sessions if he
-    // is allowed launch nested container sessions whose executors are
+    // container. They may still get to launch container sessions if they
+    // are allowed to launch nested container sessions whose executors are
     // running as a given user for which "foo" has permissions and the
     // session uses a `container_info` instead of a `command_info`.
     mesos::ACL::LaunchNestedContainerSessionAsUser* acl =
@@ -3015,8 +3015,8 @@ TYPED_TEST(AuthorizationTest, LaunchNestedContainers)
 
   {
     // "foo" principal cannot launch nested containers as commands
-    // under any parent container. He may still get to launch nested
-    // container if he is allowed to do so for executors which run as
+    // under any parent container. They may still get to launch nested
+    // container if they are allowed to do so for executors which run as
     // a given user for which "foo" has permissions and the session
     // uses a `container_info` instead of a `command_info`.
     mesos::ACL::LaunchNestedContainerAsUser* acl =

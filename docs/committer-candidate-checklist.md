@@ -29,7 +29,7 @@ Demonstrated by: <input type="text"/>
 * Knowledge and activity breadth and depth in the Mesos project as well as areas where the candidate could be a maintainer:
 <input type="text"/>
 
-* Can the candidate be trusted to act the right way outside of known areas where he/she has already demonstrated committer-level expertise and behavior:
+* Can the candidate be trusted to act the right way outside of known areas where they have already demonstrated committer-level expertise and behavior:
 <input type="text"/>
 
 * High quality source code.

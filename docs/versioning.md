@@ -40,7 +40,7 @@ Once an issue is deemed critical, it will be fixed in only those **affected** re
 
 Patch releases are normally done once **a month**.
 
-If a particular issue is affecting a user and the user cannot wait until the next scheduled patch release, he/she can request an off-schedule patch release for a specific supported version. This should be done by sending an email to the dev list.
+If a particular issue is affecting a user and the user cannot wait until the next scheduled patch release, they can request an off-schedule patch release for a specific supported version. This should be done by sending an email to the dev list.
 
 ## Upgrades
 

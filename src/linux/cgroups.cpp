@@ -1200,7 +1200,7 @@ public:
   // call to 'listen' returns a failure, all subsequent calls to
   // 'listen' will return failures as well (in that case, the user
   // should consider terminate this process and create a new one if
-  // he/she still wants to monitor the events).
+  // they still want to monitor the events).
   // TODO(chzhcn): If the user discards the returned future, currently
   // we do not do anything. Consider a better discard semantics here.
   Future<uint64_t> listen()
