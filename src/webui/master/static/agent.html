@@ -88,30 +88,68 @@
           <tr>
             <td></td>
             <td class="text-right">Used</td>
+            <td class="text-right">Allocated</td>
+            <td class="text-right">Available</td>
             <td class="text-right">Total</td>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td>CPUs</td>
-            <td class="text-right">{{monitor.statistics.cpus_total_usage | number}}</td>
-            <td class="text-right">{{state.resources.cpus | number}}</td>
+            <td class="text-right">
+              {{monitor.statistics.cpus_total_usage | number}}
+            </td>
+            <td class="text-right">
+              {{state.allocated_resources.cpus | number}}
+            </td>
+            <td class="text-right">
+              {{state.resources.cpus - state.allocated_resources.cpus | number}}
+            </td>
+            <td class="text-right">
+              {{state.resources.cpus | number}}
+            </td>
           </tr>
           <tr>
             <td>GPUs</td>
-            <td class="text-right">N/A</td>
-            <td class="text-right">{{state.resources.gpus | number}}</td>
+            <td class="text-right">
+              N/A
+            </td>
+            <td class="text-right">
+              {{state.allocated_resources.gpus | number}}
+            </td>
+            <td class="text-right">
+              {{state.resources.gpus - state.allocated_resources.gpus | number}}
+            </td>
+            <td class="text-right">
+              {{state.resources.gpus | number}}
+            </td>
           </tr>
           <tr>
             <td>Memory</td>
-            <td class="text-right">{{monitor.statistics.mem_rss_bytes | dataSize}}</td>
+            <td class="text-right">
+              {{monitor.statistics.mem_rss_bytes | dataSize}}
+            </td>
+            <td class="text-right">
+              {{state.allocated_resources.mem * (1024 * 1024) | dataSize}}
+            </td>
+            <td class="text-right">
+              {{(state.resources.mem - state.allocated_resources.mem) * (1024 * 1024) | dataSize}}
+            </td>
             <td class="text-right">
               {{state.resources.mem * (1024 * 1024) | dataSize}}
             </td>
           </tr>
           <tr>
             <td>Disk</td>
-            <td class="text-right">{{monitor.statistics.disk_used_bytes | dataSize}}</td>
+            <td class="text-right">
+              {{monitor.statistics.disk_used_bytes | dataSize}}
+            </td>
+            <td class="text-right">
+              {{state.allocated_resources.disk * (1024 * 1024) | dataSize}}
+            </td>
+            <td class="text-right">
+              {{(state.resources.disk - state.allocated_resources.disk) * (1024 * 1024) | dataSize}}
+            </td>
             <td class="text-right">
               {{state.resources.disk * (1024 * 1024) | dataSize}}
             </td>

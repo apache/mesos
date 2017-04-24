@@ -645,6 +645,21 @@
             }
           });
 
+          $scope.state.allocated_resources = {};
+          $scope.state.allocated_resources.cpus = 0;
+          $scope.state.allocated_resources.gpus = 0;
+          $scope.state.allocated_resources.mem = 0;
+          $scope.state.allocated_resources.disk = 0;
+
+          // Currently the agent does not expose the total allocated
+          // resources across all frameworks, so we sum manually.
+          _.each($scope.state.frameworks, function(framework) {
+            $scope.state.allocated_resources.cpus += framework.cpus;
+            $scope.state.allocated_resources.gpus += framework.gpus;
+            $scope.state.allocated_resources.mem += framework.mem;
+            $scope.state.allocated_resources.disk += framework.disk;
+          });
+
           $('#agent').show();
         })
         .error(function(reason) {
