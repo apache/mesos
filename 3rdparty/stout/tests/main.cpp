@@ -36,8 +36,8 @@ using std::string;
 using std::vector;
 
 
-// Attempt to create a symlink. If not possible, disable all unit tests
-// that rely on the creation of symlinks.
+// Attempt to create a symlink. If creating a symlink fails, disable
+// all unit tests that rely on the creation of symlinks.
 class SymlinkFilter : public TestFilter
 {
 public:
@@ -57,7 +57,7 @@ public:
     if (!can_create_symlinks) {
       std::cerr
         << "-------------------------------------------------------------\n"
-        << "Not able to create Symlinks, so no symlink tests will be run\n"
+        << "Unable to create symlinks, so no symlink tests will be run\n"
         << "-------------------------------------------------------------"
         << std::endl;
     }

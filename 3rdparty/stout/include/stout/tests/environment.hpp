@@ -42,8 +42,10 @@ public:
     if (strings::contains(test->test_case_name(), pattern) ||
         strings::contains(test->name(), pattern)) {
       return true;
-    } else if (test->type_param() != nullptr &&
-               strings::contains(test->type_param(), pattern)) {
+    }
+
+    if (test->type_param() != nullptr &&
+        strings::contains(test->type_param(), pattern)) {
       return true;
     }
 
@@ -61,6 +63,7 @@ static std::vector<std::string> disabled(
 
   for (int i = 0; i < unitTest->total_test_case_count(); i++) {
     const ::testing::TestCase* testCase = unitTest->GetTestCase(i);
+
     for (int j = 0; j < testCase->total_test_count(); j++) {
       const ::testing::TestInfo* test = testCase->GetTestInfo(j);
 
@@ -126,8 +129,7 @@ public:
     disabled_tests += strings::join(":", disabled(unitTest, filters));
 
     // Now update the gtest flag.
-    ::testing::GTEST_FLAG(filter) =
-      enabled_tests + "-" + disabled_tests;
+    ::testing::GTEST_FLAG(filter) = enabled_tests + "-" + disabled_tests;
   }
 };
 
