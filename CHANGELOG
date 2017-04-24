@@ -504,6 +504,7 @@ All Issues:
   * [MESOS-5028] - Copy provisioner cannot replace directory with symlink.
   * [MESOS-5172] - Registry puller cannot fetch blobs correctly from http Redirect 3xx urls.
   * [MESOS-6327] - Large docker images causes container launch failures: Too many levels of symbolic links.
+  * [MESOS-7119] - Mesos master crash while accepting inverse offer.
   * [MESOS-7152] - The agent may be flapping after the machine reboots due to provisioner recover.
   * [MESOS-7197] - Requesting tiny amount of CPU crashes master.
   * [MESOS-7210] - HTTP health check doesn't work when mesos runs with --docker_mesos_image.
