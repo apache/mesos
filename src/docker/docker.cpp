@@ -808,7 +808,7 @@ Future<Option<int>> Docker::run(
 
   string cmd = strings::join(" ", argv);
 
-  LOG(INFO) << "Running " << cmd;
+  VLOG(1) << "Running " << cmd;
 
   map<string, string> environment = os::environment();
 
