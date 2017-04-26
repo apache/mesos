@@ -2362,8 +2362,9 @@ Encoder* SocketManager::next(int_fd s)
           Try<Nothing> shutdown = socket.shutdown();
           if (shutdown.isError()) {
             LOG(ERROR) << "Failed to shutdown socket with fd " << socket.get()
-                       << ", address " << (socket.address().isSome() ?
-                       << stringify(socket.address().get()) : "N/A")
+                       << ", address " << (socket.address().isSome()
+                                             ? stringify(socket.address().get())
+                                             : "N/A")
                        << ": " << shutdown.error();
           }
         }
@@ -2447,8 +2448,9 @@ void SocketManager::close(int_fd s)
       Try<Nothing> shutdown = socket.shutdown();
       if (shutdown.isError()) {
         LOG(ERROR) << "Failed to shutdown socket with fd " << socket.get()
-                   << ", address " << (socket.address().isSome() ?
-                   << stringify(socket.address().get()) : "N/A")
+                   << ", address " << (socket.address().isSome()
+                                         ? stringify(socket.address().get())
+                                         : "N/A")
                    << ": " << shutdown.error();
       }
     }
