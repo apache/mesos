@@ -21,8 +21,14 @@
 #include <mesos/roles.hpp>
 
 #include <process/clock.hpp>
+#include <process/future.hpp>
+#include <process/gtest.hpp>
+#include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
+
+#include <stout/none.hpp>
+#include <stout/nothing.hpp>
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
@@ -39,10 +45,13 @@ using std::vector;
 using google::protobuf::RepeatedPtrField;
 
 using process::Clock;
+using process::Failure;
 using process::Future;
 using process::Owned;
 using process::PID;
 
+using process::http::Accepted;
+using process::http::Headers;
 using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
@@ -866,6 +875,185 @@ TEST_F(RoleTest, EndpointBadAuthentication)
     createBasicAuthHeaders(badCredential));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
+}
+
+
+// This test confirms that our handling of peristent volumes from hierarchical
+// roles does not cause leaking of volumes. Since hierarchical roles contain
+// literal `/` an implementation not taking this into account could map the name
+// of a hierarchical role `A/B` onto a directory hierarchy `A/B`. If the
+// persistent volume with persistence id `ID` and role `ROLE` is mapped to a
+// path `ROLE/ID`, it becomes impossible to distinguish the last component of a
+// hierarchical role from a persistence id.
+//
+// This performs the following checks:
+//
+// 1) Run two tasks with volumes whose role and id overlap on the file system in
+// the naive implementation. The tasks should not be able to see each others
+// volumes.
+//
+// 2) Destroy the previously created volumes in an order such that the in the
+// naive implementation less nested volume is destroyed first. This should not
+// destroy the more nested volume (e.g., since it is not created as a
+// subdirectory).
+TEST_F(RoleTest, VolumesInOverlappingHierarchies)
+{
+  constexpr char PATH[] = "path";
+  constexpr Megabytes DISK_SIZE(1);
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Capture the SlaveID so we can use it in create/destroy volumes API calls.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  const SlaveID slaveId = slaveRegisteredMessage->slave_id();
+
+  // Helper function which starts a framework in a role and creates a
+  // persistent volume with the given id. The framework creates a task
+  // using the volume and makes sure that no volumes from other roles
+  // are leaked into the volume.
+  auto runTask = [&master, &PATH, DISK_SIZE](
+      const string& role, const string& id) {
+    FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+    frameworkInfo.set_role(role);
+
+    MockScheduler sched;
+    MesosSchedulerDriver driver(
+        &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+    EXPECT_CALL(sched, registered(&driver, _, _));
+
+    Future<vector<Offer>> offers;
+    EXPECT_CALL(sched, resourceOffers(&driver, _))
+      .WillOnce(FutureArg<1>(&offers))
+      .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+    driver.start();
+
+    AWAIT_READY(offers);
+
+    ASSERT_FALSE(offers->empty());
+
+    // Create a reserved disk. We only create a small disk so
+    // we have remaining disk to offer to other frameworks.
+    Resource unreservedDisk = Resources::parse("disk", "1", "*").get();
+    Resource reservedDisk = unreservedDisk;
+    reservedDisk.set_role(role);
+    reservedDisk.mutable_reservation()->CopyFrom(
+        createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+
+    // Create a persistent volume on the reserved disk.
+    Resource volume = createPersistentVolume(
+        createDiskResource(
+            stringify(DISK_SIZE.megabytes()), role, None(), None()),
+        id,
+        PATH,
+        None(),
+        frameworkInfo.principal());
+    volume.mutable_reservation()->CopyFrom(reservedDisk.reservation());
+    volume.set_role(reservedDisk.role());
+
+    // Create a task which uses the volume and checks that
+    // it contains no files leaked from another role.
+    const Offer& offer = offers.get()[0];
+
+    Resources cpusMem =
+      Resources(offer.resources()).filter([](const Resource& r) {
+        return r.name() == "cpus" || r.name() == "mem";
+      });
+
+    Resources taskResources = cpusMem + volume;
+
+    // Create a task confirming that the directory `path` is empty.
+    // Note that we do not explicitly confirm that `path` exists here.
+    TaskInfo task = createTask(
+        offer.slave_id(),
+        taskResources,
+        "! (ls -Av path | grep -q .)");
+
+    // We expect two status updates for the task.
+    Future<TaskStatus> status1, status2;
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillOnce(FutureArg<1>(&status1))
+      .WillOnce(FutureArg<1>(&status2));
+
+    // Accept the offer.
+    driver.acceptOffers(
+        {offer.id()},
+        {RESERVE(reservedDisk), CREATE(volume), LAUNCH({task})});
+
+    AWAIT_READY(status1);
+
+    EXPECT_EQ(task.task_id(), status1->task_id());
+    EXPECT_EQ(TASK_RUNNING, status1->state());
+
+    AWAIT_READY(status2);
+
+    EXPECT_EQ(task.task_id(), status2->task_id());
+    EXPECT_EQ(TASK_FINISHED, status2->state())
+      << "Task for role '" << role << "' and id '" << id << "' did not succeed";
+
+    driver.stop();
+    driver.join();
+  };
+
+  // Helper function to destroy a volume with given role and id.
+  auto destroyVolume = [&slaveId, &master, &PATH, DISK_SIZE](
+      const string& role, const string& id) {
+    Resource volume = createPersistentVolume(
+        DISK_SIZE,
+        role,
+        id,
+        PATH,
+        None(),
+        None(),
+        DEFAULT_CREDENTIAL.principal());
+
+    volume.mutable_reservation()->set_principal(DEFAULT_CREDENTIAL.principal());
+
+    v1::master::Call destroyVolumesCall;
+    destroyVolumesCall.set_type(v1::master::Call::DESTROY_VOLUMES);
+
+    v1::master::Call::DestroyVolumes* destroyVolumes =
+      destroyVolumesCall.mutable_destroy_volumes();
+    destroyVolumes->add_volumes()->CopyFrom(evolve(volume));
+    destroyVolumes->mutable_agent_id()->CopyFrom(evolve(slaveId));
+
+    constexpr ContentType CONTENT_TYPE = ContentType::PROTOBUF;
+
+    Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(CONTENT_TYPE);
+
+    return process::http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(CONTENT_TYPE, destroyVolumesCall),
+        stringify(CONTENT_TYPE));
+  };
+
+  // Run two tasks. In the naive storage scheme of volumes from hierarchical
+  // role frameworks, the first volume would be created under paths
+  // `a/b/c/d/id/` and the second one under `a/b/c/d/`. The second task would in
+  // that case incorrectly see a directory `id` in its persistent volume.
+  runTask("a/b/c/d", "id");
+  runTask("a/b/c", "d");
+
+  // Destroy both volumes. Even though the role `a/b/c` is a prefix of the role
+  // `a/b/c/d`, destroying the former role's volume `d` should not interfere
+  // with the latter's volume `id`.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Accepted().status, destroyVolume("a/b/c", "d"));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      Accepted().status, destroyVolume("a/b/c/d", "id"));
 }
 
 }  // namespace tests {

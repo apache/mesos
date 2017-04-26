@@ -450,7 +450,24 @@ string getPersistentVolumePath(
     const string& role,
     const string& persistenceId)
 {
-  return path::join(rootDir, "volumes", "roles", role, persistenceId);
+  // Role names might contain literal `/` if the role is part of a
+  // role hierarchy. Since `/` is not allowed in a directory name
+  // under Linux, we could either represent such sub-roles with
+  // sub-directories, or encode the `/` with some other identifier.
+  // To clearly distinguish artifacts in a volume from subroles we
+  // choose to encode `/` in role names as ` ` (literal space) as
+  // opposed to using subdirectories. Whitespace is not allowed as
+  // part of a role name. Also, practically all modern filesystems can
+  // use ` ` in filenames. There are some limitations in auxilary
+  // tooling which are not relevant here, e.g., many shell constructs
+  // require quotes around filesnames containing ` `; containers using
+  // persistent volumes would not see the ` ` as the role-related part
+  // of the path would not be part of a mapping into the container
+  // sandbox.
+  string serializableRole = strings::replace(role, "/", " ");
+
+  return path::join(
+      rootDir, "volumes", "roles", serializableRole, persistenceId);
 }
 
 
