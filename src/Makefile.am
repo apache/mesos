@@ -653,6 +653,8 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/authenticator.hpp			\
   $(top_srcdir)/include/mesos/module/authorizer.hpp			\
   $(top_srcdir)/include/mesos/module/container_logger.hpp		\
+  $(top_srcdir)/include/mesos/module/contender.hpp			\
+  $(top_srcdir)/include/mesos/module/detector.hpp			\
   $(top_srcdir)/include/mesos/module/hook.hpp				\
   $(top_srcdir)/include/mesos/module/hook.proto				\
   $(top_srcdir)/include/mesos/module/http_authenticator.hpp		\
@@ -661,9 +663,8 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/module.proto			\
   $(top_srcdir)/include/mesos/module/qos_controller.hpp			\
   $(top_srcdir)/include/mesos/module/resource_estimator.hpp		\
-  $(top_srcdir)/include/mesos/module/contender.hpp			\
-  $(top_srcdir)/include/mesos/module/detector.hpp			\
-  $(top_srcdir)/include/mesos/module/secret_generator.hpp
+  $(top_srcdir)/include/mesos/module/secret_generator.hpp		\
+  $(top_srcdir)/include/mesos/module/secret_resolver.hpp
 
 nodist_module_HEADERS =							\
   ../include/mesos/module/hook.pb.h					\
@@ -722,6 +723,11 @@ nodist_agent_HEADERS =							\
   ../include/mesos/agent/agent.pb.h					\
   ../include/mesos/slave/containerizer.pb.h				\
   ../include/mesos/slave/oversubscription.pb.h
+
+secretdir = $(pkgincludedir)/secret
+
+secret_HEADERS =							\
+  $(top_srcdir)/include/mesos/secret/resolver.hpp
 
 statedir = $(pkgincludedir)/state
 

@@ -99,6 +99,20 @@ struct Module;
 template <typename T>
 const char* kind();
 
+// Each module "kind" specialization extends ModuleBase to provide a `create()`
+// method that returns a pointer to an object of the given module "kind".
+//   template <> struct Module<mesos::SecretResolver> : ModuleBase {
+//     Module(..., T* (*_create)(const Parameters&))
+//       : ModuleBase(...), create(_create) {...}
+//     T* (*create)(const Parameters&);
+//   };
+
+// TODO(kapil): Update module interface to return a managed pointer instead of
+// returning raw pointers. This would allow the caller to manage the lifecycle
+// of the dynamically-allocated object. We should also allow passing
+// master/agent flags during module initialization. E.g.,
+//   unique_ptr<T> (*create)(const Parameters&, const Flags&);
+
 } // namespace modules {
 } // namespace mesos {
 
