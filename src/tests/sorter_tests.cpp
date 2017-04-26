@@ -1532,7 +1532,7 @@ TEST_P(Sorter_BENCHMARK_Test, FullSort)
 }
 
 
-class HSorter_BENCHMARK_Test
+class HierarchicalSorter_BENCHMARK_Test
   : public ::testing::Test,
     public ::testing::WithParamInterface<
         std::tr1::tuple<size_t, std::tr1::tuple<size_t, size_t>>> {};
@@ -1540,47 +1540,44 @@ class HSorter_BENCHMARK_Test
 
 INSTANTIATE_TEST_CASE_P(
     AgentAndClientCount,
-    HSorter_BENCHMARK_Test,
+    HierarchicalSorter_BENCHMARK_Test,
     ::testing::Combine(
       ::testing::Values(1000U, 5000U, 10000U, 20000U, 30000U, 50000U),
       ::testing::Values(
-          // ~1000 clients with various depth & breadth.
-          std::tr1::tuple<size_t, size_t>{3U, 32U},   // 1056
-          std::tr1::tuple<size_t, size_t>{7U, 3U},    // 1092
-          std::tr1::tuple<size_t, size_t>{10U, 2U}))  // 1022
+          // ~1000 clients with different heights and branching factors.
+          std::tr1::tuple<size_t, size_t>{3U, 32U},   // 1056 clients.
+          std::tr1::tuple<size_t, size_t>{7U, 3U},    // 1092 clients.
+          std::tr1::tuple<size_t, size_t>{10U, 2U}))  // 1022 clients.
     );
 
 
 // This benchmark simulates sorting a hierarchy of clients that have
-// different amount of allocations. The hierarchy is determined by
-// depth and breadth, where depth represents height of tree including
-// root, breadth represents number of children of each internal node.
-TEST_P(HSorter_BENCHMARK_Test, FullSort)
+// different amount of allocations. The shape of the hierarchy is
+// determined by two parameters: height (depth of the hierarchy
+// including the root node) and branching factor (number of children
+// of each internal node).
+TEST_P(HierarchicalSorter_BENCHMARK_Test, FullSort)
 {
   const size_t agentCount = std::tr1::get<0>(GetParam());
   const std::tr1::tuple<size_t, size_t> tuple = std::tr1::get<1>(GetParam());
-  const size_t clientDepth = std::tr1::get<0>(tuple);
-  const size_t clientBreadth = std::tr1::get<1>(tuple);
+  const size_t treeHeight = std::tr1::get<0>(tuple);
+  const size_t branchingFactor = std::tr1::get<1>(tuple);
 
   vector<SlaveID> agents;
   agents.reserve(agentCount);
 
   // Compute total number of clients in a tree of given depth and
   // breadth, including root node.
-  std::function<size_t (size_t, size_t)> totalClients =
-    [&totalClients](size_t depth, size_t breadth) -> size_t {
-      if (depth == 0) {
-        return 0;
+  std::function<size_t (size_t)> totalClients =
+    [&totalClients, branchingFactor](size_t depth) -> size_t {
+      if (depth == 0 || depth == 1) {
+        return depth;
       }
 
-      if (depth == 1) {
-        return 1;
-      }
-
-      return 1 + breadth * totalClients(depth - 1, breadth);
+      return 1 + branchingFactor * totalClients(depth - 1);
     };
 
-  const size_t clientCount = totalClients(clientDepth, clientBreadth) - 1;
+  const size_t clientCount = totalClients(treeHeight) - 1;
 
   vector<string> clients;
   clients.reserve(clientCount);
@@ -1590,18 +1587,16 @@ TEST_P(HSorter_BENCHMARK_Test, FullSort)
 
   watch.start();
   {
-    // Build the tree of given depth and breadth in depth-first fashion.
+    // Build a tree of given depth and branching factor in depth-first fashion.
     std::function<void (string, size_t)> buildTree =
-      [&buildTree, &sorter, &clients, &clientBreadth](
+      [&buildTree, &sorter, &clients, branchingFactor](
           string path, size_t depth) {
         if (depth == 0) {
           return;
         }
 
-        if (depth > 1) {
-          for (size_t i = 0; i < clientBreadth; i++) {
-            buildTree(path + stringify(i) + "/", depth - 1);
-          }
+        for (size_t i = 0; i < branchingFactor; i++) {
+          buildTree(path + stringify(i) + "/", depth - 1);
         }
 
         const string client = strings::remove(path, "/", strings::SUFFIX);
@@ -1611,7 +1606,7 @@ TEST_P(HSorter_BENCHMARK_Test, FullSort)
         }
       };
 
-    buildTree("", clientDepth);
+    buildTree("", treeHeight);
   }
   watch.stop();
 
@@ -1637,8 +1632,7 @@ TEST_P(HSorter_BENCHMARK_Test, FullSort)
   cout << "Added " << agentCount << " agents in "
        << watch.elapsed() << endl;
 
-  Resources allocated = Resources::parse(
-      "cpus:16;mem:2014;disk:1024").get();
+  Resources allocated = Resources::parse("cpus:16;mem:2014;disk:1024").get();
 
   // TODO(gyliu513): Parameterize the number of range for the fragment.
   Try<::mesos::Value::Ranges> ranges = fragment(createRange(31000, 32000), 100);
