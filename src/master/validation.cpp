@@ -228,6 +228,105 @@ Option<Error> validate(
 }
 
 } // namespace call {
+
+namespace message {
+
+Option<Error> reregisterSlave(
+    const SlaveInfo& slaveInfo,
+    const vector<Task>& tasks,
+    const vector<Resource>& resources,
+    const vector<ExecutorInfo>& executorInfos,
+    const vector<FrameworkInfo>& frameworkInfos)
+{
+  hashset<FrameworkID> frameworkIDs;
+  hashset<ExecutorID> executorIDs;
+
+  foreach (const Resource& resource, resources) {
+    Option<Error> error = Resources::validate(resource);
+    if (error.isSome()) {
+      return error.get();
+    }
+  }
+
+  foreach (const FrameworkInfo& framework, frameworkInfos) {
+    Option<Error> error = validation::framework::validate(framework);
+    if (error.isSome()) {
+      return error.get();
+    }
+
+    if (frameworkIDs.contains(framework.id())) {
+      return Error("Framework has a duplicate FrameworkID: '" +
+                  stringify(framework.id()) + "'");
+    }
+
+    frameworkIDs.insert(framework.id());
+  }
+
+  foreach (const ExecutorInfo& executor, executorInfos) {
+    Option<Error> error = validation::executor::validate(executor);
+    if (error.isSome()) {
+      return error.get();
+    }
+
+    // We don't use internal::validateResources() here because
+    // that includes the validateAllocatedToSingleRole() check,
+    // which is not valid for agent re-registration.
+    error = Resources::validate(executor.resources());
+    if (error.isSome()) {
+      return error.get();
+    }
+
+    if (!frameworkIDs.contains(executor.framework_id())) {
+      return Error("Executor has an invalid FrameworkID '" +
+                   stringify(executor.framework_id()) + "'");
+    }
+
+    if (executor.has_executor_id()) {
+      if (executorIDs.contains(executor.executor_id())) {
+        return Error("Executor has a duplicate ExecutorID '" +
+                     stringify(executor.executor_id()) + "'");
+      }
+
+      executorIDs.insert(executor.executor_id());
+    }
+  }
+
+  foreach (const Task& task, tasks) {
+    Option<Error> error = common::validation::validateTaskID(task.task_id());
+    if (error.isSome()) {
+      return Error("Task has an invalid TaskID: " + error->message);
+    }
+
+    if (task.slave_id() != slaveInfo.id()) {
+      return Error("Task has an invalid SlaveID '" +
+                   stringify(task.slave_id()) + "'");
+    }
+
+    if (!frameworkIDs.contains(task.framework_id())) {
+      return Error("Task has an invalid FrameworkID '" +
+                   stringify(task.framework_id()) + "'");
+    }
+
+    // Command Executors don't send the executor ID in the task because it
+    // is generated on the agent (see Slave::doReliableRegistration). Only
+    // running tasks ought to have executors.
+    if (task.has_executor_id() && task.state() == TASK_RUNNING) {
+      if (!executorIDs.contains(task.executor_id())) {
+        return Error("Task has an invalid ExecutorID '" +
+                     stringify(task.executor_id()) + "'");
+      }
+    }
+
+    error = resource::validate(task.resources());
+    if (error.isSome()) {
+      return Error("Task uses invalid resources: " + error->message);
+    }
+  }
+
+  return None();
+}
+
+} // namespace message {
 } // namespace master {
 
 
@@ -827,19 +926,20 @@ Option<Error> validate(
   CHECK_NOTNULL(framework);
   CHECK_NOTNULL(slave);
 
-  vector<lambda::function<Option<Error>()>> validators = {
-    lambda::bind(internal::validateType, executor),
-    lambda::bind(internal::validateExecutorID, executor),
+  Option<Error> error = executor::validate(executor);
+  if (error.isSome()) {
+    return error;
+  }
+
+  const vector<lambda::function<Option<Error>()>> executorValidators = {
     lambda::bind(internal::validateFrameworkID, executor, framework),
-    lambda::bind(internal::validateShutdownGracePeriod, executor),
     lambda::bind(internal::validateResources, executor),
     lambda::bind(
         internal::validateCompatibleExecutorInfo, executor, framework, slave),
-    lambda::bind(internal::validateCommandInfo, executor)
   };
 
-  foreach (const lambda::function<Option<Error>()>& validator, validators) {
-    Option<Error> error = validator();
+  foreach (const auto& validator, executorValidators) {
+    error = validator();
     if (error.isSome()) {
       return error;
     }
@@ -849,6 +949,27 @@ Option<Error> validate(
 }
 
 } // namespace internal {
+
+Option<Error> validate(const ExecutorInfo& executor)
+{
+  const vector<lambda::function<Option<Error>(const ExecutorInfo&)>>
+      executorValidators = {
+    internal::validateType,
+    internal::validateExecutorID,
+    internal::validateShutdownGracePeriod,
+    internal::validateCommandInfo,
+  };
+
+  foreach (const auto& validator, executorValidators) {
+    Option<Error> error = validator(executor);
+    if (error.isSome()) {
+      return error.get();
+    }
+  }
+
+  return None();
+}
+
 } // namespace executor {
 
 

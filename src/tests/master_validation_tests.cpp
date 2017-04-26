@@ -3726,6 +3726,60 @@ TEST_F(FrameworkInfoValidationTest, RoleChangeWithMultiRoleMasterFailover)
   }
 }
 
+
+class RegisterSlaveValidationTest : public MesosTest {};
+
+
+TEST_F(RegisterSlaveValidationTest, DropInvalidReregistration)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  // Wait until the master acknowledges the slave registration.
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Drop and capture the slave's ReregisterSlaveMessage.
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    DROP_PROTOBUF(ReregisterSlaveMessage(), slave.get()->pid, _);
+
+  // Simulate a new master detected event on the slave,
+  // so that the slave will do a re-registration.
+  detector.appoint(master.get()->pid);
+
+  AWAIT_READY(reregisterSlaveMessage);
+
+  // Now that we have a valid ReregisterSlaveMessage, tweak it to
+  // fail validation.
+  ReregisterSlaveMessage message = reregisterSlaveMessage.get();
+
+  Task* task = message.add_tasks();
+  task->set_name(UUID::random().toString());
+  task->mutable_slave_id()->set_value(UUID::random().toString());
+  task->mutable_task_id()->set_value(UUID::random().toString());
+  task->mutable_framework_id()->set_value(UUID::random().toString());
+  task->mutable_executor_id()->set_value(UUID::random().toString());
+  task->set_state(TASK_RUNNING);
+
+  // We expect the master to drop the ReregisterSlaveMessage, so it
+  // will not send any more SlaveReregisteredMessage responses.
+  EXPECT_NO_FUTURE_PROTOBUFS(SlaveReregisteredMessage(), _, _);
+
+  // Send the modified message to the master.
+  process::post(slave.get()->pid, master->get()->pid, message);
+
+  // Settle the clock to retire in-flight messages.
+  Clock::pause();
+  Clock::settle();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

@@ -17,6 +17,8 @@
 #ifndef __MASTER_VALIDATION_HPP__
 #define __MASTER_VALIDATION_HPP__
 
+#include <vector>
+
 #include <google/protobuf/repeated_field.h>
 
 #include <mesos/mesos.hpp>
@@ -52,6 +54,17 @@ Option<Error> validate(
     const Option<process::http::authentication::Principal>& principal = None());
 
 } // namespace call {
+
+namespace message {
+
+Option<Error> reregisterSlave(
+    const SlaveInfo& slaveInfo,
+    const std::vector<Task>& tasks,
+    const std::vector<Resource>& resources,
+    const std::vector<ExecutorInfo>& executorInfos,
+    const std::vector<FrameworkInfo>& frameworkInfos);
+
+} // namespace message {
 } // namespace master {
 
 
@@ -130,6 +143,9 @@ Option<Error> validateType(const ExecutorInfo& executor);
 Option<Error> validateResources(const ExecutorInfo& executor);
 
 } // namespace internal {
+
+Option<Error> validate(const ExecutorInfo& executor);
+
 } // namespace executor {
 
 

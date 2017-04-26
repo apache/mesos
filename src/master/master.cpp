@@ -5567,6 +5567,16 @@ void Master::reregisterSlave(
     return;
   }
 
+  Option<Error> error = validation::master::message::reregisterSlave(
+      slaveInfo, tasks, checkpointedResources, executorInfos, frameworks);
+
+  if (error.isSome()) {
+    LOG(WARNING) << "Dropping re-registration of agent at " << from
+                 << " because it sent an invalid re-registration: "
+                 << error->message;
+    return;
+  }
+
   MachineID machineId;
   machineId.set_hostname(slaveInfo.hostname());
   machineId.set_ip(stringify(from.address.ip));
