@@ -3780,6 +3780,46 @@ TEST_F(RegisterSlaveValidationTest, DropInvalidReregistration)
   Clock::settle();
 }
 
+
+TEST_F(RegisterSlaveValidationTest, DropInvalidRegistration)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Drop and capture the slave's RegisterSlaveMessage.
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    DROP_PROTOBUF(RegisterSlaveMessage(), _, _);
+
+  // We expect the master to drop the RegisterSlaveMessage, so it
+  // will never send any SlaveRegisteredMessage responses.
+  EXPECT_NO_FUTURE_PROTOBUFS(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  // Now that we have a valid RegisterSlaveMessage, tweak it to
+  // fail validation by setting an invalid slave ID,
+  RegisterSlaveMessage message = registerSlaveMessage.get();
+
+  SlaveInfo* slaveInfo = message.mutable_slave();
+  slaveInfo->mutable_id()->set_value(
+      strings::join(
+          "/../",
+          UUID::random().toString(),
+          UUID::random().toString(),
+          UUID::random().toString()));
+
+  // Send the modified message to the master.
+  process::post(slave.get()->pid, master->get()->pid, message);
+
+  // Settle the clock to retire in-flight messages.
+  Clock::pause();
+  Clock::settle();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

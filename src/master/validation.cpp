@@ -231,6 +231,51 @@ Option<Error> validate(
 
 namespace message {
 
+static Option<Error> validateSlaveInfo(const SlaveInfo& slaveInfo)
+{
+  if (slaveInfo.has_id()) {
+    Option<Error> error = common::validation::validateSlaveID(slaveInfo.id());
+    if (error.isSome()) {
+      return error.get();
+    }
+  }
+
+  Option<Error> error = Resources::validate(slaveInfo.resources());
+  if (error.isSome()) {
+    return error.get();
+  }
+
+  return None();
+}
+
+
+Option<Error> registerSlave(
+    const SlaveInfo& slaveInfo,
+    const vector<Resource>& checkpointedResources)
+{
+  Option<Error> error = validateSlaveInfo(slaveInfo);
+  if (error.isSome()) {
+    return error.get();
+  }
+
+  if (!checkpointedResources.empty()) {
+    if (!slaveInfo.has_checkpoint() || !slaveInfo.checkpoint()) {
+      return Error(
+          "Checkpointed resources provided when checkpointing is not enabled");
+    }
+  }
+
+  foreach (const Resource& resource, checkpointedResources) {
+    error = Resources::validate(resource);
+    if (error.isSome()) {
+      return error.get();
+    }
+  }
+
+  return None();
+}
+
+
 Option<Error> reregisterSlave(
     const SlaveInfo& slaveInfo,
     const vector<Task>& tasks,
@@ -240,6 +285,11 @@ Option<Error> reregisterSlave(
 {
   hashset<FrameworkID> frameworkIDs;
   hashset<ExecutorID> executorIDs;
+
+  Option<Error> error = validateSlaveInfo(slaveInfo);
+  if (error.isSome()) {
+    return error.get();
+  }
 
   foreach (const Resource& resource, resources) {
     Option<Error> error = Resources::validate(resource);

@@ -5380,6 +5380,16 @@ void Master::registerSlave(
     return;
   }
 
+  Option<Error> error = validation::master::message::registerSlave(
+      slaveInfo, checkpointedResources);
+
+  if (error.isSome()) {
+    LOG(WARNING) << "Dropping registration of agent at " << from
+                 << " because it sent an invalid registration: "
+                 << error->message;
+    return;
+  }
+
   MachineID machineId;
   machineId.set_hostname(slaveInfo.hostname());
   machineId.set_ip(stringify(from.address.ip));

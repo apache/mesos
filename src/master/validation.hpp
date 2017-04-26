@@ -57,6 +57,10 @@ Option<Error> validate(
 
 namespace message {
 
+Option<Error> registerSlave(
+    const SlaveInfo& slaveInfo,
+    const std::vector<Resource>& checkpointedResources);
+
 Option<Error> reregisterSlave(
     const SlaveInfo& slaveInfo,
     const std::vector<Task>& tasks,
