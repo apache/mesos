@@ -32,5 +32,5 @@ else (NOT WIN32)
 
   # The latest release of ZK, 3.4.7, does not compile on Windows. Therefore, we
   # pick a recent commit that does until the next release stabilizes.
-  set(ZOOKEEPER_VERSION "06d3f3f")
+  set(ZOOKEEPER_VERSION "3.5.2-alpha")
 endif (NOT WIN32)

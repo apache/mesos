@@ -1,0 +1,729 @@
+diff --git c/src/c/CMakeLists.txt w/src/c/CMakeLists.txt
+new file mode 100644
+index 000000000..85e500e05
+--- /dev/null
++++ w/src/c/CMakeLists.txt
+@@ -0,0 +1,204 @@
++cmake_minimum_required(VERSION 3.6)
++
++project(zookeeper VERSION 3.5.2)
++set(email user@zookeeper.apache.org)
++set(description "zookeeper C client")
++
++# general options
++include_directories(include tests generated ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
++if(UNIX)
++  add_compile_options(-Wall -fPIC)
++elseif(WIN32)
++  add_compile_options(/W3)
++endif()
++add_definitions(-DUSE_STATIC_LIB)
++
++# TODO: Enable /WX and /W4 on Windows. Currently there are ~1000 warnings.
++# TODO: Add Solaris support.
++# TODO: Add debug configuration.
++# TODO: Add a shared library option.
++
++# Sync API option
++option(WANT_SYNCAPI "Enables Sync API support" ON)
++if(WANT_SYNCAPI)
++  add_definitions(-DTHREADED)
++  if(WIN32)
++    add_compile_options(/MT)
++  endif()
++endif()
++
++# CppUnit option
++option(WANT_CPPUNIT "Enables CppUnit" ON)
++
++# header checks
++function(to_have in out)
++  string(TOUPPER ${in} str)
++  string(REGEX REPLACE "/|\\." "_" str ${str})
++  set(${out} "HAVE_${str}" PARENT_SCOPE)
++endfunction()
++
++# include file checks
++foreach(f generated/zookeeper.jute.h generated/zookeeper.jute.c)
++  if(EXISTS "${CMAKE_SOURCE_DIR}/${f}")
++    to_have(${f} name)
++    set(${name} 1)
++  else()
++    message(FATAL_ERROR
++      "jute files are missing!\n"
++      "Please run 'ant compile_jute' while in the zookeeper top level directory.")
++  endif()
++endforeach()
++
++include(CheckIncludeFile)
++set(check_headers
++  arpa/inet.h
++  dlfcn.h
++  fcntl.h
++  inttypes.h
++  memory.h
++  netdb.h
++  netinet/in.h
++  stdint.h
++  stdlib.h
++  string.h
++  strings.h
++  sys/socket.h
++  sys/stat.h
++  sys/time.h
++  sys/types.h
++  unistd.h
++  sys/utsname.h)
++
++foreach(f ${check_headers})
++  to_have(${f} name)
++  check_include_file(${f} ${name})
++endforeach()
++
++# function checks
++include(CheckFunctionExists)
++set(check_functions
++  getcwd
++  gethostbyname
++  gethostname
++  getlogin
++  getpwuid_r
++  gettimeofday
++  getuid
++  memmove
++  memset
++  poll
++  socket
++  strchr
++  strdup
++  strerror
++  strtol)
++
++foreach(fn ${check_functions})
++  to_have(${fn} name)
++  check_function_exists(${fn} ${name})
++endforeach()
++
++# library checks
++set(check_libraries rt m pthread)
++foreach(lib ${check_libraries})
++  to_have("lib${lib}" name)
++  find_library(${name} ${lib})
++endforeach()
++
++# IPv6 check
++include(CheckStructHasMember)
++check_struct_has_member("struct sockaddr_in6" sin6_addr "netinet/in.h" ZOO_IPV6_ENABLED)
++
++# configure
++configure_file(cmake_config.h.in config.h)
++
++# hashtable library
++set(hashtable_sources src/hashtable/hashtable_itr.c src/hashtable/hashtable.c)
++add_library(hashtable STATIC ${hashtable_sources})
++
++# zookeeper library
++set(zookeeper_sources
++  src/zookeeper.c
++  src/recordio.c
++  generated/zookeeper.jute.c
++  src/zk_log.c
++  src/zk_hashtable.c
++  src/addrvec.c)
++
++if(WANT_SYNCAPI)
++  list(APPEND zookeeper_sources src/mt_adaptor.c)
++else()
++  list(APPEND zookeeper_sources src/st_adaptor.c)
++endif()
++
++if(WIN32)
++  list(APPEND zookeeper_sources src/winport.c)
++endif()
++
++add_library(zookeeper STATIC ${zookeeper_sources})
++target_link_libraries(zookeeper PUBLIC hashtable)
++if(UNIX)
++  target_link_libraries(zookeeper PUBLIC m rt)
++elseif(WIN32)
++  target_link_libraries(zookeeper PUBLIC wsock32 Ws2_32)
++endif()
++
++if(WANT_SYNCAPI AND NOT WIN32)
++  target_link_libraries(zookeeper PUBLIC pthread)
++endif()
++# TODO: Specify symbols to export.
++
++# cli executable
++add_executable(cli src/cli.c)
++target_link_libraries(cli zookeeper)
++
++# load_gen executable
++if(WANT_SYNCAPI AND NOT WIN32)
++  add_executable(load_gen src/load_gen.c)
++  target_link_libraries(load_gen zookeeper)
++endif()
++
++# tests
++set(test_sources
++  tests/TestDriver.cc
++  tests/LibCMocks.cc
++  tests/LibCSymTable.cc
++  tests/MocksBase.cc
++  tests/ZKMocks.cc
++  tests/Util.cc
++  tests/ThreadingUtil.cc
++  tests/TestZookeeperInit.cc
++  tests/TestZookeeperClose.cc
++  tests/TestReconfig.cc
++  tests/TestReconfigServer.cc
++  tests/TestClientRetry.cc
++  tests/TestOperations.cc
++  tests/TestMulti.cc
++  tests/TestWatchers.cc
++  tests/TestClient.cc
++  tests/ZooKeeperQuorumServer.cc
++  tests/TestReadOnlyClient.cc)
++
++if(WANT_SYNCAPI)
++  list(APPEND test_sources tests/PthreadMocks.cc)
++endif()
++
++if(WANT_CPPUNIT)
++  add_executable(zktest ${test_sources})
++  target_compile_definitions(zktest
++    PRIVATE -DZKSERVER_CMD="${CMAKE_SOURCE_DIR}/tests/zkServer.sh")
++  target_link_libraries(zktest zookeeper cppunit dl)
++
++  file(STRINGS tests/wrappers.opt symbol_wrappers)
++  if(WANT_SYNCAPI)
++    file(STRINGS tests/wrappers-mt.opt symbol_wrappers_mt)
++  endif()
++
++  target_link_libraries(zktest ${symbol_wrappers} ${symbol_wrappers_mt})
++
++  enable_testing()
++  add_test(NAME zktest_runner COMMAND zktest)
++  set_property(TEST zktest_runner PROPERTY ENVIRONMENT
++    "ZKROOT=${CMAKE_SOURCE_DIR}/../.."
++    "CLASSPATH=$CLASSPATH:$CLOVER_HOME/lib/clover.jar")
++endif()
+diff --git c/src/c/cmake_config.h.in w/src/c/cmake_config.h.in
+new file mode 100644
+index 000000000..5f945033e
+--- /dev/null
++++ w/src/c/cmake_config.h.in
+@@ -0,0 +1,136 @@
++#ifndef CONFIG_H_
++#define CONFIG_H_
++
++/* Define to 1 if you have the <arpa/inet.h> header file. */
++#cmakedefine HAVE_ARPA_INET_H 1
++
++/* Define to 1 if you have the <dlfcn.h> header file. */
++#cmakedefine HAVE_DLFCN_H 1
++
++/* Define to 1 if you have the <fcntl.h> header file. */
++#cmakedefine HAVE_FCNTL_H 1
++
++/* Define to 1 if you have the file `generated/zookeeper.jute.c'. */
++#cmakedefine HAVE_GENERATED_ZOOKEEPER_JUTE_C 1
++
++/* Define to 1 if you have the file `generated/zookeeper.jute.h'. */
++#cmakedefine HAVE_GENERATED_ZOOKEEPER_JUTE_H 1
++
++/* Define to 1 if you have the `getcwd' function. */
++#cmakedefine HAVE_GETCWD 1
++
++/* Define to 1 if you have the `gethostbyname' function. */
++#cmakedefine HAVE_GETHOSTBYNAME 1
++
++/* Define to 1 if you have the `gethostname' function. */
++#cmakedefine HAVE_GETHOSTNAME 1
++
++/* Define to 1 if you have the `getlogin' function. */
++#cmakedefine HAVE_GETLOGIN 1
++
++/* Define to 1 if you have the `getpwuid_r' function. */
++#cmakedefine HAVE_GETPWUID_R 1
++
++/* Define to 1 if you have the `gettimeofday' function. */
++#cmakedefine HAVE_GETTIMEOFDAY 1
++
++/* Define to 1 if you have the `getuid' function. */
++#cmakedefine HAVE_GETUID 1
++
++/* Define to 1 if you have the <inttypes.h> header file. */
++#cmakedefine HAVE_INTTYPES_H 1
++
++/* Define to 1 if you have the `rt' library (-lrt). */
++#cmakedefine HAVE_LIBRT 1
++
++/* Define to 1 if you have the `memmove' function. */
++#cmakedefine HAVE_MEMMOVE 1
++
++/* Define to 1 if you have the <memory.h> header file. */
++#cmakedefine HAVE_MEMORY_H 1
++
++/* Define to 1 if you have the `memset' function. */
++#cmakedefine HAVE_MEMSET 1
++
++/* Define to 1 if you have the <netdb.h> header file. */
++#cmakedefine HAVE_NETDB_H 1
++
++/* Define to 1 if you have the <netinet/in.h> header file. */
++#cmakedefine HAVE_NETINET_IN_H 1
++
++/* Define to 1 if you have the `poll' function. */
++#cmakedefine HAVE_POLL 1
++
++/* Define to 1 if you have the `socket' function. */
++#cmakedefine HAVE_SOCKET 1
++
++/* Define to 1 if you have the <stdint.h> header file. */
++#cmakedefine HAVE_STDINT_H 1
++
++/* Define to 1 if you have the <stdlib.h> header file. */
++#cmakedefine HAVE_STDLIB_H 1
++
++/* Define to 1 if you have the `strchr' function. */
++#cmakedefine HAVE_STRCHR 1
++
++/* Define to 1 if you have the `strdup' function. */
++#cmakedefine HAVE_STRDUP 1
++
++/* Define to 1 if you have the `strerror' function. */
++#cmakedefine HAVE_STRERROR 1
++
++/* Define to 1 if you have the <strings.h> header file. */
++#cmakedefine HAVE_STRINGS_H 1
++
++/* Define to 1 if you have the <string.h> header file. */
++#cmakedefine HAVE_STRING_H 1
++
++/* Define to 1 if you have the `strtol' function. */
++#cmakedefine HAVE_STRTOL 1
++
++/* Define to 1 if you have the <sys/socket.h> header file. */
++#cmakedefine HAVE_SYS_SOCKET_H 1
++
++/* Define to 1 if you have the <sys/stat.h> header file. */
++#cmakedefine HAVE_SYS_STAT_H 1
++
++/* Define to 1 if you have the <sys/time.h> header file. */
++#cmakedefine HAVE_SYS_TIME_H 1
++
++/* Define to 1 if you have the <sys/types.h> header file. */
++#cmakedefine HAVE_SYS_TYPES_H 1
++
++/* Define to 1 if you have the <sys/utsname.h> header file. */
++#cmakedefine HAVE_SYS_UTSNAME_H 1
++
++/* Define to 1 if you have the <unistd.h> header file. */
++#cmakedefine HAVE_UNISTD_H 1
++
++/* Define to 1 if IPv6 support is available. */
++#cmakedefine ZOO_IPV6_ENABLED 1
++
++/* poll() second argument type */
++#define POLL_NFDS_TYPE nfds_t
++
++/* Name of package */
++#define PACKAGE "${PROJECT_NAME}"
++
++/* Define to the address where bug reports for this package should be sent. */
++#define PACKAGE_BUGREPORT "${email}"
++
++/* Define to the full name of this package. */
++#define PACKAGE_NAME "${description}"
++
++/* Define to the full name and version of this package. */
++#define PACKAGE_STRING "${description} ${PROJECT_VERSION}"
++
++/* Define to the one symbol short name of this package. */
++#define PACKAGE_TARNAME "${PROJECT_NAME}"
++
++/* Define to the version of this package. */
++#define PACKAGE_VERSION "${PROJECT_VERSION}"
++
++/* Version number of package */
++#define VERSION "${PROJECT_VERSION}"
++
++#endif
+diff --git c/src/c/include/winconfig.h w/src/c/include/winconfig.h
+index ed33aa6e5..725d1624b 100644
+--- c/src/c/include/winconfig.h
++++ w/src/c/include/winconfig.h
+@@ -1,164 +1,15 @@
+-/* Define to 1 if you have the <arpa/inet.h> header file. */
+-#undef HAVE_ARPA_INET_H
+-
+-/* Define to 1 if you have the <dlfcn.h> header file. */
+-#undef HAVE_DLFCN_H
+-
+-/* Define to 1 if you have the <fcntl.h> header file. */
+-#undef HAVE_FCNTL_H
+-
+-/* Define to 1 if you have the file `generated/zookeeper.jute.c'. */
+-#define HAVE_GENERATED_ZOOKEEPER_JUTE_C 1
+-
+-/* Define to 1 if you have the file `generated/zookeeper.jute.h'. */
+-#define HAVE_GENERATED_ZOOKEEPER_JUTE_H 1
+-
+-/* Define to 1 if you have the `getcwd' function. */
+-#undef HAVE_GETCWD
+-
+-/* Define to 1 if you have the `gethostbyname' function. */
+-#undef HAVE_GETHOSTBYNAME
+-
+-/* Define to 1 if you have the `gethostname' function. */
+-#define HAVE_GETHOSTNAME 1
+-
+-/* Define to 1 if you have the `getlogin' function. */
+-#undef HAVE_GETLOGIN
+-
+-/* Define to 1 if you have the `getpwuid_r' function. */
+-#undef HAVE_GETPWUID_R
+-
+-/* Define to 1 if you have the `gettimeofday' function. */
+-#undef HAVE_GETTIMEOFDAY
+-
+-/* Define to 1 if you have the `getuid' function. */
+-#undef HAVE_GETUID
+-
+-/* Define to 1 if you have the <inttypes.h> header file. */
+-#undef HAVE_INTTYPES_H
+-
+-/* Define to 1 if you have the `memmove' function. */
+-#undef HAVE_MEMMOVE
+-
+-/* Define to 1 if you have the <memory.h> header file. */
+-#undef HAVE_MEMORY_H
+-
+-/* Define to 1 if you have the `memset' function. */
+-#undef HAVE_MEMSET
+-
+-/* Define to 1 if you have the <netdb.h> header file. */
+-#undef HAVE_NETDB_H
+-
+-/* Define to 1 if you have the <netinet/in.h> header file. */
+-#undef HAVE_NETINET_IN_H
+-
+-/* Define to 1 if you have the `poll' function. */
+-#undef HAVE_POLL
+-
+-/* Define to 1 if you have the `socket' function. */
+-#undef HAVE_SOCKET
+-
+-/* Define to 1 if you have the <stdint.h> header file. */
+-#undef HAVE_STDINT_H
+-
+-/* Define to 1 if you have the <stdlib.h> header file. */
+-#define HAVE_STDLIB_H 1
+-
+-/* Define to 1 if you have the `strchr' function. */
+-#define HAVE_STRCHR 1
+-
+-/* Define to 1 if you have the `strdup' function. */
+-#define HAVE_STRDUP 1
+-
+-/* Define to 1 if you have the `strerror' function. */
+-#define HAVE_STRERROR 1
+-
+-/* Define to 1 if you have the <strings.h> header file. */
+-#undef HAVE_STRINGS_H
+-
+-/* Define to 1 if you have the <string.h> header file. */
+-#undef HAVE_STRING_H
+-
+-/* Define to 1 if you have the `strtol' function. */
+-#undef HAVE_STRTOL
+-
+-/* Define to 1 if you have the <sys/socket.h> header file. */
+-#undef HAVE_SYS_SOCKET_H
+-
+-/* Define to 1 if you have the <sys/stat.h> header file. */
+-#undef HAVE_SYS_STAT_H
+-
+-/* Define to 1 if you have the <sys/time.h> header file. */
+-#undef HAVE_SYS_TIME_H
+-
+-/* Define to 1 if you have the <sys/types.h> header file. */
+-#undef HAVE_SYS_TYPES_H
+-
+-/* Define to 1 if you have the <sys/utsname.h> header file. */
+-#undef HAVE_SYS_UTSNAME_H
+-
+-/* Define to 1 if you have the <unistd.h> header file. */
+-#undef HAVE_UNISTD_H
+-
+-/* Define to the sub-directory in which libtool stores uninstalled libraries.
+-   */
+-#define LT_OBJDIR
+-
+-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+-/* #undef NO_MINUS_C_MINUS_O */
+-
+-/* Name of package */
+-#define PACKAGE "c-client-src"
+-
+-/* Define to the address where bug reports for this package should be sent. */
+-#define PACKAGE_BUGREPORT "user@zookeeper.apache.org"
+-
+-/* Define to the full name of this package. */
+-#define PACKAGE_NAME "zookeeper C client"
+-
+-/* Define to the full name and version of this package. */
+-#define PACKAGE_STRING "zookeeper C client 3.5.2 win32"
+-
+-/* Define to the one symbol short name of this package. */
+-#define PACKAGE_TARNAME "c-client-src"
+-
+-/* Define to the home page for this package. */
+-#define PACKAGE_URL ""
+-
+-/* Define to the version of this package. */
+-#define PACKAGE_VERSION "3.5.2"
+-
+-/* poll() second argument type */
+-#define POLL_NFDS_TYPE
+-
+-/* Define to 1 if you have the ANSI C header files. */
+-#define STDC_HEADERS
+-
+-/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+-#define TIME_WITH_SYS_TIME
+-
+-/* Version number of package */
+-#define VERSION "3.5.2"
+-
+-/* Define to empty if `const' does not conform to ANSI C. */
+-/* #undef const */
++#ifndef WINCONFIG_H_
++#define WINCONFIG_H_
+ 
+ /* Define to `__inline__' or `__inline' if that's what the C compiler
+    calls it, or to nothing if 'inline' is not supported under any name.  */
+ #ifndef __cplusplus
+ #define inline __inline
+ #endif
+-#ifdef WIN32
++
+ #define __attribute__(x)
+ #define __func__ __FUNCTION__
+ 
+-#ifndef _WIN32_WINNT_NT4
+-#define _WIN32_WINNT_NT4 0x0400
+-#endif
+-
+-#define NTDDI_VERSION _WIN32_WINNT_NT4
+-#define _WIN32_WINNT _WIN32_WINNT_NT4
+-
+ #define _CRT_SECURE_NO_WARNINGS
+ #define WIN32_LEAN_AND_MEAN
+ #include <Windows.h>
+@@ -171,12 +22,17 @@
+ #undef max
+ 
+ #include <errno.h>
++#include <stdlib.h>
+ 
+ #define strtok_r strtok_s
+ #define localtime_r(a,b) localtime_s(b,a)
+ #define get_errno() errno=GetLastError()
+-#define random rand
++
++inline int __cdecl random() { return rand(); }
++
++#if ((defined(_MSC_VER) && _MSC_VER < 1900) || !defined(_MSC_VER))
+ #define snprintf _snprintf
++#endif
+ 
+ #define ACL ZKACL  // Conflict with windows API
+ 
+@@ -192,5 +48,6 @@
+ #define EINPROGRESS WSAEINPROGRESS
+ #endif
+ 
+-typedef int pid_t;
++typedef DWORD pid_t;
++
+ #endif
+diff --git c/src/c/include/winstdint.h w/src/c/include/winstdint.h
+index d02608a59..2470199e5 100644
+--- c/src/c/include/winstdint.h
++++ w/src/c/include/winstdint.h
+@@ -100,16 +100,6 @@ typedef uint16_t  uint_least16_t;
+ typedef uint32_t  uint_least32_t;
+ typedef uint64_t  uint_least64_t;
+ 
+-// 7.18.1.3 Fastest minimum-width integer types
+-typedef int8_t    int_fast8_t;
+-typedef int16_t   int_fast16_t;
+-typedef int32_t   int_fast32_t;
+-typedef int64_t   int_fast64_t;
+-typedef uint8_t   uint_fast8_t;
+-typedef uint16_t  uint_fast16_t;
+-typedef uint32_t  uint_fast32_t;
+-typedef uint64_t  uint_fast64_t;
+-
+ // 7.18.1.4 Integer types capable of holding object pointers
+ #ifdef _WIN64 // [
+    typedef signed __int64    intptr_t;
+@@ -126,7 +116,7 @@ typedef uint64_t  uintmax_t;
+ 
+ // 7.18.2 Limits of specified-width integer types
+ 
+-#if !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS) // [   See footnote 220 at page 257 and footnote 221 at page 259
++#if (_MSC_VER < 1900) && (!defined(__cplusplus) || defined(__STDC_LIMIT_MACROS)) // [   See footnote 220 at page 257 and footnote 221 at page 259
+ 
+ // 7.18.2.1 Limits of exact-width integer types
+ #define INT8_MIN     ((int8_t)_I8_MIN)
+@@ -223,7 +213,7 @@ typedef uint64_t  uintmax_t;
+ 
+ // 7.18.4 Limits of other integer types
+ 
+-#if !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS) // [   See footnote 224 at page 260
++#if (_MSC_VER < 1900) && (!defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS)) // [   See footnote 224 at page 260
+ 
+ // 7.18.4.1 Macros for minimum-width integer constants
+ 
+diff --git c/src/c/include/zookeeper.h w/src/c/include/zookeeper.h
+index 18a203d75..f51ab7512 100644
+--- c/src/c/include/zookeeper.h
++++ w/src/c/include/zookeeper.h
+@@ -20,12 +20,17 @@
+ #define ZOOKEEPER_H_
+ 
+ #include <stdlib.h>
+-#ifndef WIN32
++
++#include "config.h"
++
++#ifdef HAVE_SYS_SOCKET_H
+ #include <sys/socket.h>
++#endif
++
++#ifdef HAVE_SYS_TIME_H
+ #include <sys/time.h>
+-#else
+-#include "winconfig.h"
+ #endif
++
+ #include <stdio.h>
+ #include <ctype.h>
+ 
+diff --git c/src/c/src/load_gen.c w/src/c/src/load_gen.c
+index b062af6dd..886fe1b3e 100644
+--- c/src/c/src/load_gen.c
++++ w/src/c/src/load_gen.c
+@@ -19,13 +19,9 @@
+ #include <zookeeper.h>
+ #include "zookeeper_log.h"
+ #include <errno.h>
+-#ifndef WIN32
+ #ifdef THREADED 
+ #include <pthread.h>
+ #endif
+-#else
+-#include "win32port.h"
+-#endif
+ #include <string.h>
+ #include <stdlib.h>
+ 
+diff --git c/src/c/src/mt_adaptor.c w/src/c/src/mt_adaptor.c
+index fe4792a17..38cced425 100644
+--- c/src/c/src/mt_adaptor.c
++++ w/src/c/src/mt_adaptor.c
+@@ -19,7 +19,7 @@
+ #define THREADED
+ #endif
+ 
+-#ifndef DLL_EXPORT
++#if !defined(DLL_EXPORT) && !defined(USE_STATIC_LIB)
+ #  define USE_STATIC_LIB
+ #endif
+ 
+@@ -375,8 +375,7 @@ void *do_io(void *v)
+         int interest;
+         int timeout;
+         int maxfd=1;
+-        int rc;
+-        
++
+         zookeeper_interest(zh, &fd, &interest, &tv);
+         if (fd != -1) {
+             fds[1].fd=fd;
+@@ -449,7 +448,7 @@ void *do_io(void *v)
+ 
+ #endif
+         // dispatch zookeeper events
+-        rc = zookeeper_process(zh, interest);
++        zookeeper_process(zh, interest);
+         // check the current state of the zhandle and terminate 
+         // if it is_unrecoverable()
+         if(is_unrecoverable(zh))
+diff --git c/src/c/src/zk_log.c w/src/c/src/zk_log.c
+index afe030097..009234a2a 100644
+--- c/src/c/src/zk_log.c
++++ w/src/c/src/zk_log.c
+@@ -16,7 +16,7 @@
+  * limitations under the License.
+  */
+ 
+-#ifndef DLL_EXPORT
++#if !defined(DLL_EXPORT) && !defined(USE_STATIC_LIB)
+ #  define USE_STATIC_LIB
+ #endif
+ 
+diff --git c/src/c/src/zookeeper.c w/src/c/src/zookeeper.c
+index 7549d4897..b4079861f 100644
+--- c/src/c/src/zookeeper.c
++++ w/src/c/src/zookeeper.c
+@@ -16,7 +16,7 @@
+  * limitations under the License.
+  */
+ 
+-#ifndef DLL_EXPORT
++#if !defined(DLL_EXPORT) && !defined(USE_STATIC_LIB)
+ #  define USE_STATIC_LIB
+ #endif
+ 
+@@ -41,18 +41,33 @@
+ #include <stdarg.h>
+ #include <limits.h>
+ 
+-#ifndef _WIN32
++#ifdef HAVE_SYS_TIME_H
+ #include <sys/time.h>
++#endif
++
++#ifdef HAVE_SYS_SOCKET_H
+ #include <sys/socket.h>
++#endif
++
++#ifdef HAVE_POLL
+ #include <poll.h>
++#endif
++
++#ifdef HAVE_NETINET_IN_H
+ #include <netinet/in.h>
+ #include <netinet/tcp.h>
++#endif
++
++#ifdef HAVE_ARPA_INET_H
+ #include <arpa/inet.h>
++#endif
++
++#ifdef HAVE_NETDB_H
+ #include <netdb.h>
++#endif
++
++#ifdef HAVE_UNISTD_H
+ #include <unistd.h> // needed for _POSIX_MONOTONIC_CLOCK
+-#include "config.h"
+-#else
+-#include "winstdint.h"
+ #endif
+ 
+ #ifdef HAVE_SYS_UTSNAME_H

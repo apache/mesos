@@ -366,50 +366,40 @@ elseif (WIN32)
 endif (NOT WIN32)
 
 
-# Define build/patch/configure commands for third-party libs.
-#############################################################
-if (NOT WIN32)
-  set(ZOOKEEPER_CONFIG_CMD  cd ${ZOOKEEPER_C_ROOT} && ./configure --enable-shared=no --with-pic --srcdir=. --prefix=${ZOOKEEPER_LIB})
-  set(ZOOKEEPER_BUILD_CMD   cd ${ZOOKEEPER_C_ROOT} && make)
-  set(ZOOKEEPER_INSTALL_CMD cd ${ZOOKEEPER_C_ROOT} && make install)
-
-  PATCH_CMD(
-    ${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch
-    ZOOKEEPER_PATCH_CMD)
-elseif (WIN32)
-  # Set the patch command which will utilize patch.exe in temp location for no elevation prompt
-  # NOTE: We do not specify the `--binary` patch option here because the
-  # files being modified are extracted with CRLF (Windows) line endings
-  # already. The `--binary` option will instead fail to apply the patch.
-  set(
-    ZOOKEEPER_PATCH_CMD
-    ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch)
-
-  VS_BUILD_CMD(
-    ZOOKEEPER
-    ${ZOOKEEPER_C_ROOT}/zookeeper-vs2015.sln
-    ${CMAKE_BUILD_TYPE}
-    ${ZOOKEEPER_C_ROOT}
-    "zookeeper"
-    )
-
-  set(ZOOKEEPER_CONFIG_CMD  ${CMAKE_NOOP})
-  set(ZOOKEEPER_INSTALL_CMD ${CMAKE_NOOP})
-endif (NOT WIN32)
-
-
 # Third-party libraries. Tell the build system how to pull in and build third-
 # party libraries at compile time, using the ExternalProject_Add macro.
 ##############################################################################
-ExternalProject_Add(
-  ${ZOOKEEPER_TARGET}
-  PREFIX            ${ZOOKEEPER_CMAKE_ROOT}
-  PATCH_COMMAND     ${ZOOKEEPER_PATCH_CMD}
-  CONFIGURE_COMMAND ${ZOOKEEPER_CONFIG_CMD}
-  BUILD_COMMAND     ${ZOOKEEPER_BUILD_CMD}
-  INSTALL_COMMAND   ${ZOOKEEPER_INSTALL_CMD}
-  URL               ${ZOOKEEPER_URL}
-  )
+if (NOT WIN32)
+  # NOTE: `ExternalProject_Add` is used separately because older versions
+  # of CMake used on Linux do not understand the `SOURCE_SUBDIR` command.
+  PATCH_CMD(
+    ${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch
+    ZOOKEEPER_PATCH_CMD)
+
+  ExternalProject_Add(
+    ${ZOOKEEPER_TARGET}
+    PREFIX            ${ZOOKEEPER_CMAKE_ROOT}
+    PATCH_COMMAND     ${ZOOKEEPER_PATCH_CMD}
+    CONFIGURE_COMMAND cd ${ZOOKEEPER_C_ROOT} && ./configure --enable-shared=no --with-pic --srcdir=. --prefix=${ZOOKEEPER_LIB}
+    BUILD_COMMAND     cd ${ZOOKEEPER_C_ROOT} && make
+    INSTALL_COMMAND   cd ${ZOOKEEPER_C_ROOT} && make install
+    URL               ${ZOOKEEPER_URL}
+    )
+elseif (WIN32)
+  ExternalProject_Add(
+    ${ZOOKEEPER_TARGET}
+    PREFIX            ${ZOOKEEPER_CMAKE_ROOT}
+    # Set the patch command which will utilize patch.exe in temp location for no elevation prompt
+    # NOTE: We do not specify the `--binary` patch option here because the
+    # files being modified are extracted with CRLF (Windows) line endings
+    # already. The `--binary` option will instead fail to apply the patch.
+    PATCH_COMMAND     ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch
+    SOURCE_SUBDIR     src/c
+    CMAKE_ARGS        -DWANT_CPPUNIT=0
+    INSTALL_COMMAND   ${CMAKE_NOOP}
+    URL               ${ZOOKEEPER_URL}
+    )
+endif (NOT WIN32)
 
 if (NOT WIN32)
   set(LEVELDB_CONFIG_CMD  cd ${LEVELDB_ROOT} && ./configure --prefix=${LEVELDB_ROOT}-lib)
