@@ -932,6 +932,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   posix/rlimits.cpp							\
   sched/sched.cpp							\
   scheduler/scheduler.cpp						\
+  secret/resolver.cpp							\
   slave/constants.cpp							\
   slave/container_logger.cpp						\
   slave/flags.cpp							\
