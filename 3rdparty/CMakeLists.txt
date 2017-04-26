@@ -16,55 +16,45 @@
 
 include(ExternalProject)
 
+# Define sources of third-party dependencies.
+#############################################
+if (REBUNDLED)
+  set(FETCH_URL ${CMAKE_CURRENT_SOURCE_DIR})
+else (REBUNDLED)
+  set(FETCH_URL ${3RDPARTY_DEPENDENCIES})
+endif (REBUNDLED)
+
+
 # DEPENDENCIES FOR THE PROCESS LIBRARY AND STOUT.
 #
 # Downloads, configures, and compiles the third-party libraries for the process
-# library (located in `3rdparty/`).
+# library (located in `3rdparty/`, i.e. not the `mesos-3rdparty` repository).
 ###############################################################################
-
-# Define sources of third-party dependencies.
-#############################################
-set(UPSTREAM_URL ${3RDPARTY_DEPENDENCIES})
-set(REBUNDLED_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-if (REBUNDLED)
-  set(BOOST_URL       ${REBUNDLED_DIR}/boost-${BOOST_VERSION}.tar.gz)
-  set(ELFIO_URL       ${REBUNDLED_DIR}/elfio-${ELFIO_VERSION}.tar.gz)
-  set(GLOG_URL        ${REBUNDLED_DIR}/glog-${GLOG_VERSION}.tar.gz)
-  set(PICOJSON_URL    ${REBUNDLED_DIR}/picojson-${PICOJSON_VERSION}.tar.gz)
-  set(NVML_URL        ${REBUNDLED_DIR}/nvml-${NVML_VERSION}.tar.gz)
-  set(HTTP_PARSER_URL ${REBUNDLED_DIR}/http-parser-${HTTP_PARSER_VERSION}.tar.gz)
-  set(LIBEV_URL       ${REBUNDLED_DIR}/libev-${LIBEV_VERSION}.tar.gz)
-else (REBUNDLED)
-  set(BOOST_URL       ${UPSTREAM_URL}/boost-${BOOST_VERSION}.tar.gz)
-  set(ELFIO_URL       ${UPSTREAM_URL}/elfio-${ELFIO_VERSION}.tar.gz)
-  set(GLOG_URL        ${UPSTREAM_URL}/glog-${GLOG_VERSION}.tar.gz)
-  set(PICOJSON_URL    ${UPSTREAM_URL}/picojson-${PICOJSON_VERSION}.tar.gz)
-  set(NVML_URL        ${UPSTREAM_URL}/nvml-${NVML_VERSION}.tar.gz)
-  set(HTTP_PARSER_URL ${UPSTREAM_URL}/http-parser-${HTTP_PARSER_VERSION}.tar.gz)
-  set(LIBEV_URL       ${UPSTREAM_URL}/libev-${LIBEV_VERSION}.tar.gz)
-endif (REBUNDLED)
+set(BOOST_URL       ${FETCH_URL}/boost-${BOOST_VERSION}.tar.gz)
+set(ELFIO_URL       ${FETCH_URL}/elfio-${ELFIO_VERSION}.tar.gz)
+set(GLOG_URL        ${FETCH_URL}/glog-${GLOG_VERSION}.tar.gz)
+set(HTTP_PARSER_URL ${FETCH_URL}/http-parser-${HTTP_PARSER_VERSION}.tar.gz)
+set(PICOJSON_URL    ${FETCH_URL}/picojson-${PICOJSON_VERSION}.tar.gz)
+set(NVML_URL        ${FETCH_URL}/nvml-${NVML_VERSION}.tar.gz)
+set(LIBEV_URL       ${FETCH_URL}/libev-${LIBEV_VERSION}.tar.gz)
 
 # NOTE: libevent doesn't come rebundled, so this URL is always the same. But,
 # it's only downloaded if `ENABLE_LIBEVENT` is set.
-set(LIBEVENT_URL ${UPSTREAM_URL}/libevent-release-${LIBEVENT_VERSION}.tar.gz)
+set(LIBEVENT_URL ${3RDPARTY_DEPENDENCIES}/libevent-release-${LIBEVENT_VERSION}.tar.gz)
 
 if (WIN32)
-  # TODO(hausdorff): (MESOS-3394) Upgrade Windows to use glog v0.3.5 when they
-  # release it, as that will contain fixes that will allow us to build glog on
-  # Windows, as well as build using CMake directly. For now, we simply point
-  # Windows builds at a commit hash in the glog history that has all the
-  # functionality we want.
-  #
-  # Finally, for our third-party libraries, MSVC 1800 and 1900 are not
-  # linker-compatible, so it's important for us to be able to build glog
-  # (as well as all the other third-party dependencies) on MSVC 1900.
-  #
-  # [1] https://github.com/google/glog/pull/43
-  set(GLOG_URL   ${UPSTREAM_URL}/glog-da816ea70.tar.gz)
-  set(CURL_URL   ${UPSTREAM_URL}/curl-${CURL_VERSION}.tar.gz)
-  set(LIBAPR_URL ${UPSTREAM_URL}/libapr-${LIBAPR_VERSION}.tar.gz)
-  set(ZLIB_URL   ${UPSTREAM_URL}/zlib-${ZLIB_VERSION}.tar.gz)
+  # NOTE: These dependencies are only rebundled on Windows because they
+  # are available as installable packages on Linux; so they live
+  # exclusively in the 3rdparty repo.
+  set(CURL_URL   ${3RDPARTY_DEPENDENCIES}/curl-${CURL_VERSION}.tar.gz)
+  set(LIBAPR_URL ${3RDPARTY_DEPENDENCIES}/libapr-${LIBAPR_VERSION}.tar.gz)
+  set(ZLIB_URL   ${3RDPARTY_DEPENDENCIES}/zlib-${ZLIB_VERSION}.tar.gz)
+
+  # NOTE: The Windows version of Glog is patched and only available in the
+  # 3rdparty repo, not the local repo.
+  set(GLOG_URL   ${3RDPARTY_DEPENDENCIES}/glog-${GLOG_VERSION}.tar.gz)
 endif (WIN32)
+
 
 # Define build/patch/configure commands for third-party libs.
 #############################################################
@@ -94,7 +84,7 @@ if (NOT WIN32)
   set(GLOG_INSTALL_CMD make install)
   # Patch glog to deal with a problem that appears when compiling on clang
   # under the C++11 standard. cf. MESOS-860, MESOS-966.
-  PATCH_CMD(${MESOS_3RDPARTY_SRC}/glog-0.3.3.patch GLOG_PATCH_CMD)
+  PATCH_CMD(${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch GLOG_PATCH_CMD)
 
   # NOTE: `libev` is "installed" into a lib directory, see "NOTE: (fix for
   # MESOS-3250)" comment above for explanation.
@@ -107,7 +97,7 @@ if (NOT WIN32)
   set(LIBEVENT_INSTALL_CMD mkdir -p ${LIBEVENT_LIB_ROOT} && cp -r ${LIBEVENT_ROOT}-build/lib/. ${LIBEVENT_LIB_DIR} && cp -r ${LIBEVENT_ROOT}-build/include/. ${LIBEVENT_INCLUDE_DIR} && cp -r ${LIBEVENT_ROOT}/include/. ${LIBEVENT_INCLUDE_DIR})
 elseif (WIN32)
   set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
-  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/glog-da816ea70.patch)
+  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch)
 
   set(LIBEVENT_INSTALL_CMD ${CMAKE_NOOP})
 
@@ -157,6 +147,7 @@ if (NOT WIN32)
     -DCMAKE_C_FLAGS=-fPIC
     )
 endif (NOT WIN32)
+
 
 # Third-party libraries. Tell the build system how to pull in and build third-
 # party libraries at compile time, using the ExternalProject_Add macro.
@@ -252,6 +243,7 @@ if (WIN32)
     )
 endif (WIN32)
 
+
 # Windows third-party libraries. Windows has no package manager, so we download
 # them here.
 ###############################################################################
@@ -283,7 +275,6 @@ endif (WIN32)
 # Downloads, configures, and compiles the third-party libraries for the process
 # library tests (located in `3rdparty/`).
 ###############################################################################
-
 list(
   APPEND CMAKE_MODULE_PATH
   ${CMAKE_SOURCE_DIR}/3rdparty/stout/cmake
@@ -291,21 +282,14 @@ list(
 include(StoutConfigure)
 include(StoutTestsConfigure)
 
-if (REBUNDLED)
-  set(GMOCK_URL    ${REBUNDLED_DIR}/gmock-${GMOCK_VERSION}.tar.gz)
-  set(PROTOBUF_URL ${REBUNDLED_DIR}/protobuf-${PROTOBUF_VERSION}.tar.gz)
-else (REBUNDLED)
-  set(GMOCK_URL    ${UPSTREAM_URL}/gmock-${GMOCK_VERSION}.tar.gz)
-  set(PROTOBUF_URL ${UPSTREAM_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
-endif (REBUNDLED)
-
-if (WIN32)
-  # TODO(hausdorff): (MESOS-3453) this is a patched version of the protobuf
-  # library that compiles on Windows. We need to either send this as a PR back
-  # to the protobuf project, or we need to apply these changes to our existing
-  # protobuf tarball in the patch step.
-  set(PROTOBUF_URL ${UPSTREAM_URL}/protobuf-3.0.0-beta-2.tar.gz)
-endif (WIN32)
+set(GMOCK_URL    ${FETCH_URL}/gmock-${GMOCK_VERSION}.tar.gz)
+# NOTE: The Windows version of protobuf is patched and only available in the
+# 3rdparty repo, not the local repo.
+if (NOT WIN32)
+  set(PROTOBUF_URL ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
+elseif (WIN32)
+  set(PROTOBUF_URL ${3RDPARTY_DEPENDENCIES}/protobuf-${PROTOBUF_VERSION}.tar.gz)
+endif (NOT WIN32)
 
 # NOTE: `gmock` is "installed" into a lib directory, see "NOTE: (fix for
 # MESOS-3250)" comment above for explanation.
@@ -316,7 +300,7 @@ elseif (WIN32)
 endif (NOT WIN32)
 
 if (NOT WIN32)
-  PATCH_CMD(${MESOS_3RDPARTY_SRC}/protobuf-2.6.1.patch PROTOBUF_PATCH_CMD)
+  PATCH_CMD(${MESOS_3RDPARTY_SRC}/protobuf-${PROTOBUF_VERSION}.patch PROTOBUF_PATCH_CMD)
   set(PROTOBUF_CONFIG_CMD  ${PROTOBUF_ROOT}/src/../configure --prefix=${PROTOBUF_LIB_ROOT})
   set(PROTOBUF_BUILD_CMD   make)
   set(PROTOBUF_INSTALL_CMD make install)
@@ -365,7 +349,6 @@ add_subdirectory(stout/tests)
 #
 # Builds, configures, and compiles the process library and assorted tests.
 ##########################################################################
-
 add_subdirectory(libprocess)
 
 
@@ -373,28 +356,15 @@ add_subdirectory(libprocess)
 #
 # Downloads, configures, and compiles the third-party libraries for the mesos.
 ###################################################
+set(LEVELDB_URL   ${FETCH_URL}/leveldb-${LEVELDB_VERSION}.tar.gz)
+# NOTE: The Windows version of ZooKeeper is patched and only available in the
+# 3rdparty repo, not the local repo.
+if (NOT WIN32)
+  set(ZOOKEEPER_URL ${FETCH_URL}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
+elseif (WIN32)
+  set(ZOOKEEPER_URL ${3RDPARTY_DEPENDENCIES}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
+endif (NOT WIN32)
 
-# Define sources of third-party dependencies.
-#############################################
-set(UPSTREAM_URL ${3RDPARTY_DEPENDENCIES})
-
-set(REBUNDLED_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
-if (REBUNDLED)
-  set(LEVELDB_URL   ${REBUNDLED_DIR}/leveldb-${LEVELDB_VERSION}.tar.gz)
-  set(ZOOKEEPER_URL ${REBUNDLED_DIR}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
-else (REBUNDLED)
-  set(LEVELDB_URL   ${UPSTREAM_URL}/leveldb-${LEVELDB_VERSION}.tar.gz)
-  set(ZOOKEEPER_URL ${UPSTREAM_URL}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
-endif (REBUNDLED)
-
-if (WIN32)
-  # Similar to glog, on Windows, we use a different version of ZK. We'll
-  # eventually want to upgrade the Mesos project but for now this version of ZK
-  # does not come rebundled in the Mesos repository, so we need to get it from
-  # our canonical package mirror.
-  set(ZOOKEEPER_URL ${UPSTREAM_URL}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
-endif (WIN32)
 
 # Define build/patch/configure commands for third-party libs.
 #############################################################
@@ -426,6 +396,7 @@ elseif (WIN32)
   set(ZOOKEEPER_CONFIG_CMD  ${CMAKE_NOOP})
   set(ZOOKEEPER_INSTALL_CMD ${CMAKE_NOOP})
 endif (NOT WIN32)
+
 
 # Third-party libraries. Tell the build system how to pull in and build third-
 # party libraries at compile time, using the ExternalProject_Add macro.

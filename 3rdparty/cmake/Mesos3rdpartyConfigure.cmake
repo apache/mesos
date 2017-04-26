@@ -20,13 +20,11 @@ set(MESOS_3RDPARTY_SRC ${CMAKE_SOURCE_DIR}/3rdparty)
 set(MESOS_3RDPARTY_BIN ${CMAKE_BINARY_DIR}/3rdparty)
 
 if (NOT WIN32)
-  EXTERNAL("leveldb"   ${LEVELDB_VERSION}   "${MESOS_3RDPARTY_BIN}")
-  EXTERNAL("zookeeper" ${ZOOKEEPER_VERSION} "${MESOS_3RDPARTY_BIN}")
-elseif (WIN32)
-  # The latest release of ZK, 3.4.7, does not compile on Windows. Therefore, we
-  # pick a recent commit that does until the next release stabilizes.
-  EXTERNAL("zookeeper" "06d3f3f" "${MESOS_3RDPARTY_BIN}")
+  # LevelDB does not build on Windows.
+  EXTERNAL("leveldb" ${LEVELDB_VERSION} "${MESOS_3RDPARTY_BIN}")
 endif (NOT WIN32)
+
+EXTERNAL("zookeeper" ${ZOOKEEPER_VERSION} "${MESOS_3RDPARTY_BIN}")
 
 # Intermediate convenience variables for oddly-structured directories.
 set(ZOOKEEPER_C_ROOT ${ZOOKEEPER_ROOT}/src/c)

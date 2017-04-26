@@ -112,28 +112,27 @@ if (WIN32 AND HAS_AUTHENTICATION)
     "`-DHAS_AUTHENTICATION=0` as an argument when you run CMake.")
 endif (WIN32 AND HAS_AUTHENTICATION)
 
-# If 'REBUNDLED' is set to FALSE, this will cause Mesos to build against
-# the specified dependency repository.  This is especially useful for
-# Windows builds, because building on MSVC 1900 requires newer versions
-# of ZK, glog, and libevent, than the ones bundled in the Mesos repository.
+# If 'REBUNDLED' is set to FALSE, this will cause Mesos to build against the
+# specified dependency repository. This is especially useful for Windows
+# builds, because building on MSVC 1900 requires newer versions of some
+# dependencies than the ones bundled in the Mesos repository.
 set(
   3RDPARTY_DEPENDENCIES "https://github.com/3rdparty/mesos-3rdparty/raw/master"
   CACHE STRING
     "URL or filesystem path with a fork of the canonical 3rdparty repository")
 
-if (REBUNDLED AND ENABLE_LIBEVENT)
-  message(
-    WARNING
-    "Both `ENABLE_LIBEVENT` and `REBUNDLED` (set to TRUE by default) flags "
-    "have been set.  Libevent does not come rebundled in Mesos, so it will "
-    "be downloaded.")
-endif (REBUNDLED AND ENABLE_LIBEVENT)
-
 if (WIN32 AND REBUNDLED)
   message(
     WARNING
-    "The current supported version of ZK does not compile on Windows, and does "
-    "not come rebundled in the Mesos repository.  It will be downloaded from "
+    "On Windows, the required versions of:\n"
+    "  * ZooKeeper\n"
+    "  * protobuf\n"
+    "  * glog\n"
+    "  * libevent\n"
+    "  * curl\n"
+    "  * libapr\n"
+    "  * zlib\n"
+    "do not come rebundled in the Mesos repository.  They will be downloaded from "
     "the Internet, even though the `REBUNDLED` flag was set.")
 endif (WIN32 AND REBUNDLED)
 
