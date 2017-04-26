@@ -947,6 +947,9 @@ void on_accept(const Future<Socket>& socket)
           size,
           socket.get(),
           decoder));
+  } else {
+     LOG(ERROR) << "Failed to accept socket: "
+                << (socket.isFailed() ? socket.failure() : "future discarded");
   }
 
   // NOTE: `__s__` may be cleaned up during `process::finalize`.
