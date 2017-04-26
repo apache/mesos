@@ -503,6 +503,13 @@ public:
         CaseInsensitiveHash,
         CaseInsensitiveEqual>::get(key);
   }
+
+  Headers operator+(const Headers& that) const
+  {
+    Headers result = *this;
+    result.insert(that.begin(), that.end());
+    return result;
+  }
 };
 
 
