@@ -769,7 +769,7 @@ TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_Overwrite)
   // We are using the docker image 'chhsiao/overwrite' to verify that:
   //   1. The '/merged' directory is merged.
   //   2. All '/replaced*' files/directories are correctly overwritten.
-  //   3. The '/bar' symlink and '/baz' file are correctly overwritten.
+  //   3. The '/foo', '/bar' and '/baz' files are correctly overwritten.
   // See more details in the following link:
   //   https://hub.docker.com/r/chhsiao/overwrite/
   CommandInfo command = createCommandInfo(
@@ -802,6 +802,16 @@ TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_Overwrite)
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
+  // Create a non-empty file 'abc' in the agent's work directory on the
+  // host filesystem. This file is symbolically linked by
+  //   '/xyz -> ../../../../../../../abc'
+  // in the 2nd layer of the testing image during provisioning.
+  // For more details about the provisioner directory please see:
+  //   https://github.com/apache/mesos/blob/master/src/slave/containerizer/mesos/provisioner/paths.hpp#L34-L48 // NOLINT
+  const string hostFile = flags.work_dir + "/abc";
+  os::shell("echo abc > " + hostFile);
+  ASSERT_SOME(os::shell("test -s " + hostFile));
+
   driver.launchTasks(offer.id(), {task});
 
   AWAIT_READY_FOR(statusRunning, Seconds(60));
@@ -811,6 +821,10 @@ TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_Overwrite)
   AWAIT_READY(statusFinished);
   EXPECT_EQ(task.task_id(), statusFinished->task_id());
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  // The non-empty file should not be overwritten by the empty file
+  // '/xyz' in the 3rd layer of the testing image during provisioning.
+  EXPECT_SOME(os::shell("test -s " + hostFile));
 
   driver.stop();
   driver.join();
