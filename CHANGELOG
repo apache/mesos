@@ -6,6 +6,7 @@ All Issues:
 ** Bug
   * [MESOS-2537] - AC_ARG_ENABLED checks are broken.
   * [MESOS-5028] - Copy provisioner cannot replace directory with symlink.
+  * [MESOS-5172] - Registry puller cannot fetch blobs correctly from http Redirect 3xx urls.
   * [MESOS-7197] - Requesting tiny amount of CPU crashes master.
   * [MESOS-7210] - HTTP health check doesn't work when mesos runs with --docker_mesos_image.
   * [MESOS-7237] - Enabling cgroups_limit_swap can lead to "invalid argument" error.
