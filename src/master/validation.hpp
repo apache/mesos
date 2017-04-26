@@ -57,6 +57,13 @@ Option<Error> validate(
 
 namespace message {
 
+// Validation helpers for internal Mesos protocol messages. This is a
+// best-effort validation, intended to prevent trivial attacks on the
+// protocol in deployments where the network between master and agents
+// is not secured. The longer term remedy for this is to make security
+// guarantees at the libprocess level that would prevent arbitrary UPID
+// impersonation (MESOS-7424).
+
 Option<Error> registerSlave(
     const SlaveInfo& slaveInfo,
     const std::vector<Resource>& checkpointedResources);
