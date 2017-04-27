@@ -463,7 +463,7 @@ void Slave::initialize()
 
         if (!foundEntry) {
           EXIT(EXIT_FAILURE)
-            << "Failed to found mount '" << realpath.get()
+            << "Failed to find mount '" << realpath.get()
             << "' in /proc/mounts";
         }
 #else // __linux__
