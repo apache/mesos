@@ -609,6 +609,128 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 }
 
 
+// Verifies that a task and its command check has the same working directory.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    CommandExecutorCheckTest,
+    CommandCheckSharesWorkDirWithTask)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
+  ASSERT_SOME(agent);
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  subscribe(&mesos, frameworkInfo);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  Future<Event::Update> updateTaskRunning;
+  Future<Event::Update> updateCheckResult;
+
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&updateTaskRunning))
+    .WillOnce(FutureArg<1>(&updateCheckResult))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  v1::Resources resources =
+      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  const string filename = "nested_inherits_work_dir";
+
+  v1::TaskInfo taskInfo =
+    v1::createTask(agentId, resources, "touch " + filename + " && sleep 10000");
+
+  v1::CheckInfo* checkInfo = taskInfo.mutable_check();
+  checkInfo->set_type(v1::CheckInfo::COMMAND);
+  checkInfo->set_delay_seconds(0);
+  checkInfo->set_interval_seconds(0);
+
+  v1::CommandInfo* checkCommand =
+    checkInfo->mutable_command()->mutable_command();
+  checkCommand->set_value("ls " + filename);
+
+  launchTask(&mesos, offer, taskInfo);
+
+  AWAIT_READY(updateTaskRunning);
+  const v1::TaskStatus& taskRunning = updateTaskRunning->status();
+
+  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
+
+  acknowledge(&mesos, frameworkId, taskRunning);
+
+  AWAIT_READY(updateCheckResult);
+  const v1::TaskStatus& checkResult = updateCheckResult->status();
+
+  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+      checkResult.reason());
+  EXPECT_TRUE(checkResult.check_status().command().has_exit_code());
+
+  // There is a race between the task creating a file and the command check
+  // verifying the file exists, and hence the file might not have been created
+  // at the time the first check runs. However, we still expect a successful
+  // command check and hence an extra status update.
+  if (checkResult.check_status().command().exit_code() != 0)
+  {
+    // Inject an expectation for the extra status update we expect.
+    Future<v1::scheduler::Event::Update> updateCheckResult2;
+    EXPECT_CALL(*scheduler, update(_, _))
+      .WillOnce(FutureArg<1>(&updateCheckResult2))
+      .RetiresOnSaturation();
+
+    // Acknowledge (to be able to get the next update).
+    acknowledge(&mesos, frameworkId, checkResult);
+
+    AWAIT_READY(updateCheckResult2);
+    const v1::TaskStatus& checkResult2 = updateCheckResult2->status();
+
+    ASSERT_EQ(TASK_RUNNING, checkResult2.state());
+    ASSERT_EQ(
+        v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+        checkResult2.reason());
+    EXPECT_TRUE(checkResult.check_status().command().has_exit_code());
+    EXPECT_EQ(0, checkResult2.check_status().command().exit_code());
+  }
+}
+
+
 // Verifies that when a command check times out after a successful check,
 // an empty check status update is delivered.
 TEST_F(CommandExecutorCheckTest, CommandCheckTimeout)
@@ -1134,11 +1256,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, TCPCheckDelivered)
 // 2. COMMAND check's status change is delivered. TODO(alexr): When check
 //    mocking is available, ensure only status changes are delivered.
 // 3. COMMAND check sees env vars set for the command itself.
-// 4. COMMAND check times out.
-// 5. COMMAND check and health check do not shadow each other; upon
+// 4. COMMAND check shares working directory with the task.
+// 5. COMMAND check times out.
+// 6. COMMAND check and health check do not shadow each other; upon
 //    reconciliation both statuses are available.
-// 6. HTTP check works and is delivered.
-// 7. TCP check works and is delivered.
+// 7. HTTP check works and is delivered.
+// 8. TCP check works and is delivered.
 
 
 // These are check tests with the default executor.
@@ -1660,6 +1783,173 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   EXPECT_TRUE(checkResult.check_status().command().has_exit_code());
   EXPECT_EQ(envValue, checkResult.check_status().command().exit_code());
+
+  // Cleanup all mesos launched containers.
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+
+  EXPECT_CALL(*scheduler, disconnected(_));
+
+  teardown(&mesos, frameworkId);
+
+  foreach (const ContainerID& containerId, containerIds.get()) {
+    AWAIT_READY(containerizer->wait(containerId));
+  }
+}
+
+
+// Verifies that a task and its command check has the same working directory.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    DefaultExecutorCheckTest,
+    CommandCheckSharesWorkDirWithTask)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher;
+
+  // We have to explicitly create a `Containerizer` in non-local mode,
+  // because `LaunchNestedContainerSession` (used by command checks)
+  // tries to start a IO switchboard, which doesn't work in local mode yet.
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(agent);
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  const v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_resources()->CopyFrom(resources);
+  executorInfo.mutable_shutdown_grace_period()->set_nanoseconds(
+      Seconds(10).ns());
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore teardown reconnections, see MESOS-6033.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  subscribe(&mesos, frameworkInfo);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  Future<Event::Update> updateTaskRunning;
+  Future<Event::Update> updateCheckResult;
+
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&updateTaskRunning))
+    .WillOnce(FutureArg<1>(&updateCheckResult))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  // Default executor delegates launching both the task and its check to the
+  // agent. To avoid a race, we explicitly synchronize.
+  Try<std::array<int, 2>> pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
+
+  const std::array<int, 2>& pipes = pipes_.get();
+
+  const string filename = "nested_inherits_work_dir";
+
+  // NOTE: We use a non-shell command here to use 'bash -c' to execute
+  // the 'echo', which deals with the file descriptor, because of a bug
+  // in ubuntu dash. Multi-digit file descriptor is not supported in
+  // ubuntu dash, which executes the shell command.
+  v1::CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/bin/bash");
+  command.add_arguments("bash");
+  command.add_arguments("-c");
+  command.add_arguments(
+      "touch " + filename + ";echo running >&" +
+      stringify(pipes[1]) + ";sleep 1000");
+
+  v1::TaskInfo taskInfo = v1::createTask(agentId, resources, command);
+
+  v1::CheckInfo* checkInfo = taskInfo.mutable_check();
+  checkInfo->set_type(v1::CheckInfo::COMMAND);
+  checkInfo->set_delay_seconds(0);
+  checkInfo->set_interval_seconds(0);
+
+  // NOTE: We use a non-shell command here to use 'bash -c' to execute
+  // the 'read', which deals with the file descriptor, because of a bug
+  // in ubuntu dash. Multi-digit file descriptor is not supported in
+  // ubuntu dash, which executes the shell command.
+  v1::CommandInfo* checkCommand =
+    checkInfo->mutable_command()->mutable_command();
+  checkCommand->set_shell(false);
+  checkCommand->set_value("/bin/bash");
+  checkCommand->add_arguments("bash");
+  checkCommand->add_arguments("-c");
+  checkCommand->add_arguments(
+      "read INPUT <&" + stringify(pipes[0]) + ";ls " + filename);
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(taskInfo);
+
+  launchTaskGroup(&mesos, offer, executorInfo, taskGroup);
+
+  AWAIT_READY(updateTaskRunning);
+  const v1::TaskStatus& taskRunning = updateTaskRunning->status();
+
+  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
+
+  acknowledge(&mesos, frameworkId, taskRunning);
+
+  AWAIT_READY(updateCheckResult);
+  const v1::TaskStatus& checkResult = updateCheckResult->status();
+
+  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+      checkResult.reason());
+
+  EXPECT_TRUE(checkResult.check_status().command().has_exit_code());
+  EXPECT_EQ(0, checkResult.check_status().command().exit_code());
 
   // Cleanup all mesos launched containers.
   Future<hashset<ContainerID>> containerIds = containerizer->containers();
