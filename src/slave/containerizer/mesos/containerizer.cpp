@@ -1497,7 +1497,8 @@ Future<bool> MesosContainerizerProcess::_launch(
     launchInfo.set_rootfs(container->config.rootfs());
   }
 
-  // Determine the working directory for the container.
+  // Determine the working directory for the container. It is set to container
+  // sandbox, i.e., MESOS_SANDBOX, unless one of the isolators overrides it.
   if (launchInfo.has_rootfs()) {
     if (!launchInfo.has_working_directory()) {
       launchInfo.set_working_directory(flags.sandbox_directory);
