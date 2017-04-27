@@ -521,12 +521,25 @@ Future<Nothing> DockerFetcherPluginProcess::__fetch(
   // digests for pulling images that were pushed with Docker 1.10+ to
   // Registry 2.3+.
   Option<string> contentType = response.headers.get("Content-Type");
-  if (contentType.isSome() &&
-      !strings::startsWith(
+  if (contentType.isSome()) {
+    // NOTE: Docker support the following three media type for V2
+    // schema 1 manifest:
+    // 1. application/vnd.docker.distribution.manifest.v1+json
+    // 2. application/vnd.docker.distribution.manifest.v1+prettyjws
+    // 3. application/json
+    // For more details, see:
+    // https://docs.docker.com/registry/spec/manifest-v2-1/
+    bool isV2Schema1 =
+      strings::startsWith(
           contentType.get(),
-          "application/vnd.docker.distribution.manifest.v1")) {
-    return Failure(
-        "Unsupported manifest MIME type: " + contentType.get());
+          "application/vnd.docker.distribution.manifest.v1") ||
+      strings::startsWith(
+          contentType.get(),
+          "application/json");
+
+    if (!isV2Schema1) {
+      return Failure("Unsupported manifest MIME type: " + contentType.get());
+    }
   }
 
   Try<spec::v2::ImageManifest> manifest = spec::v2::parse(response.body);
