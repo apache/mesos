@@ -477,7 +477,7 @@ TEST_P(ProvisionerDockerTest, ROOT_INTERNET_CURL_SimpleCommand)
 
   // Image pulling time may be long, depending on the location of
   // the registry server.
-  flags.executor_registration_timeout = Minutes(3);
+  flags.executor_registration_timeout = Minutes(10);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
@@ -532,7 +532,7 @@ TEST_P(ProvisionerDockerTest, ROOT_INTERNET_CURL_SimpleCommand)
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY_FOR(statusRunning, Minutes(3));
+  AWAIT_READY_FOR(statusRunning, Minutes(10));
   EXPECT_EQ(task.task_id(), statusRunning->task_id());
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
