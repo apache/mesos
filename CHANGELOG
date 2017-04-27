@@ -61,6 +61,7 @@ All Issues:
   * [MESOS-7263] - User supplied task environment variables cause warnings in sandbox stdout.
   * [MESOS-7264] - Possibly duplicate environment variables should not leak values to the sandbox.
   * [MESOS-7265] - Containerizer startup may cause sensitive data to leak into sandbox logs.
+  * [MESOS-7272] - Unified containerizer does not support docker registry version < 2.3.
   * [MESOS-7366] - Agent sandbox gc could accidentally delete the entire persistent volume content.
   * [MESOS-7383] - Docker executor logs possibly sensitive parameters.
   * [MESOS-7350] - Failed to pull image from Nexus Registry due to signature missing.
@@ -520,7 +521,6 @@ All Issues:
   * [MESOS-7210] - HTTP health check doesn't work when mesos runs with --docker_mesos_image.
   * [MESOS-7237] - Enabling cgroups_limit_swap can lead to "invalid argument" error.
   * [MESOS-7265] - Containerizer startup may cause sensitive data to leak into sandbox logs.
-  * [MESOS-7272] - Unified containerizer does not support docker registry version < 2.3.
   * [MESOS-7350] - Failed to pull image from Nexus Registry due to signature missing.
   * [MESOS-7366] - Agent sandbox gc could accidentally delete the entire persistent volume content.
   * [MESOS-7383] - Docker executor logs possibly sensitive parameters.
