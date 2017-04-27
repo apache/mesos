@@ -49,7 +49,8 @@ We categorize the changes as follows:
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
     <ul style="padding-left:10px;">
-      <li>R <a href="1-3-x-setquota-removequota-acl">--acls (set_quotas and remove_quotas)</a></li>
+      <li>R <a href="#1-3-x-setquota-removequota-acl">--acls (set_quotas and remove_quotas)</a></li>
+      <li>R <a href="#1-3-x-shutdown-framework-acl">--acls (shutdown_frameworks)</a></li>
       <li>A <a href="#1-3-x-executor-authentication">authenticate_http_executors</a></li>
       <li>A <a href="#1-3-x-executor-authentication">executor_secret_key</a></li>
     </ul>
@@ -271,7 +272,9 @@ We categorize the changes as follows:
 ## Upgrading from 1.2.x to 1.3.x ##
 
 <a name="1-3-x-setquota-removequota-acl"></a>
-* Support for deprecated ACLs `set_quotas` and `remove_quotas` has been removed from the local authorizer. Before upgrading the Mesos binaries, consolidate the ACLs used under `set_quotas` and `remove_quotes` under their replacemente ACL `update_quotas`. After consolidation of the ACLs, the binaries could be safely replaced.
+* Support for deprecated ACLs `set_quotas` and `remove_quotas` has been removed from the local authorizer. Before upgrading the Mesos binaries, consolidate the ACLs used under `set_quotas` and `remove_quotes` under their replacement ACL `update_quotas`. After consolidation of the ACLs, the binaries could be safely replaced.
+<a name="1-3-x-shutdown-framework-acl"></a>
+* Support for deprecated ACL `shutdown_frameworks` has been removed from the local authorizer. Before upgrading the Mesos binaries, replace all instances of the ACL `shutdown_frameworks` with the newer ACL `teardown_frameworks`. After updating the ACLs, the binaries can be safely replaced.
 
 <a name="1-3-x-framework-info-role"></a>
 * Support for multi-role frameworks deprecates the `FrameworkInfo.role` field in favor of `FrameworkInfo.roles` and the `MULTI_ROLE` capability. Frameworks using the new field can continue to use a single role.

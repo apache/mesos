@@ -213,51 +213,6 @@ TEST_F(TeardownTest, GoodACLs)
   driver.join();
 }
 
-
-// Testing route with deprecated (but still good) ACLs.
-// This ACL/test will be removed at the end of the deprecation cycle on 0.27.
-TEST_F(TeardownTest, GoodDeprecatedACLs)
-{
-  // Setup ACLs so that the default principal can teardown the
-  // framework.
-  ACLs acls;
-  mesos::ACL::ShutdownFramework* acl = acls.add_shutdown_frameworks();
-  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  acl->mutable_framework_principals()->add_values(
-      DEFAULT_CREDENTIAL.principal());
-
-  master::Flags flags = CreateMasterFlags();
-  flags.acls = acls;
-
-  Try<Owned<cluster::Master>> master = StartMaster(flags);
-  ASSERT_SOME(master);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
-
-  Future<FrameworkID> frameworkId;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
-
-  ASSERT_EQ(DRIVER_RUNNING, driver.start());
-
-  AWAIT_READY(frameworkId);
-
-  Future<Response> response = process::http::post(
-      master.get()->pid,
-      "teardown",
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      "frameworkId=" + frameworkId->value());
-
-  AWAIT_READY(response);
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-
-  driver.stop();
-  driver.join();
-}
-
-
 // Testing route with bad ACLs.
 TEST_F(TeardownTest, BadACLs)
 {

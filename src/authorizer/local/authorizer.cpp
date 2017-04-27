@@ -727,33 +727,6 @@ public:
   LocalAuthorizerProcess(const ACLs& _acls)
     : ProcessBase(process::ID::generate("local-authorizer")), acls(_acls) {}
 
-  virtual void initialize()
-  {
-    // TODO(arojas): Remove the following two if blocks once
-    // ShutdownFramework reaches the end of deprecation cycle
-    // which started with 0.27.0.
-    if (acls.shutdown_frameworks_size() > 0 &&
-        acls.teardown_frameworks_size() > 0) {
-      LOG(WARNING) << "ACLs defined for both ShutdownFramework and "
-                   << "TeardownFramework; only the latter will be used";
-      return;
-    }
-
-    // Move contents of `acls.shutdown_frameworks` to
-    // `acls.teardown_frameworks`
-    if (acls.shutdown_frameworks_size() > 0) {
-      LOG(WARNING) << "ShutdownFramework ACL is deprecated; please use "
-                   << "TeardownFramework";
-      foreach (const ACL::ShutdownFramework& acl, acls.shutdown_frameworks()) {
-        ACL::TeardownFramework* teardown = acls.add_teardown_frameworks();
-        teardown->mutable_principals()->CopyFrom(acl.principals());
-        teardown->mutable_framework_principals()->CopyFrom(
-            acl.framework_principals());
-      }
-    }
-    acls.clear_shutdown_frameworks();
-  }
-
   Future<bool> authorized(const authorization::Request& request)
   {
     Option<authorization::Subject> subject;
