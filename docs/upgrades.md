@@ -286,7 +286,7 @@ We categorize the changes as follows:
 * Implementors of allocator modules have to provide new implementation functionality to satisfy the `MULTI_ROLE` framework capability. Also, the interface has changed.
 
 <a name="1-3-x-executor-authentication"></a>
-* New Agent flags authenticate_http_executors and executor_secret_key: Used to enable required HTTP executor authentication and set the key file used for generation and authentication of HTTP executor tokens. Note that enabling these flags after upgrade is disruptive to HTTP executors that were launched before the upgrade. For more information on the recommended upgrade procedure when enabling these flags, see the [authentication documentation](docs/authentication.md).
+* New Agent flags authenticate_http_executors and executor_secret_key: Used to enable required HTTP executor authentication and set the key file used for generation and authentication of HTTP executor tokens. Note that enabling these flags after upgrade is disruptive to HTTP executors that were launched before the upgrade. For more information on the recommended upgrade procedure when enabling these flags, see the [authentication documentation](authentication.md).
 
 ## Upgrading from 1.1.x to 1.2.x ##
 
