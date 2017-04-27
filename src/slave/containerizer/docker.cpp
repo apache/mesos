@@ -121,13 +121,15 @@ Option<ContainerID> parse(const Docker::Container& container)
   }
 
   if (name.isSome()) {
-    // For Mesos version < 0.23.0, the docker container name format
-    // was DOCKER_NAME_PREFIX + containerId, and starting with 0.23.0
-    // it is changed to DOCKER_NAME_PREFIX + slaveId +
-    // DOCKER_NAME_SEPERATOR + containerId.
+    // For Mesos versions 0.23 to 1.3 (inclusive), the docker
+    // container name format was:
+    //   DOCKER_NAME_PREFIX + SlaveID + DOCKER_NAME_SEPERATOR + ContainerID.
+    //
+    // In versions <= 0.22 or >= 1.4, the name format is:
+    //   DOCKER_NAME_PREFIX + ContainerID.
+    //
     // To be backward compatible during upgrade, we still have to
-    // support the previous format.
-    // TODO(tnachen): Remove this check after deprecation cycle.
+    // support all formats.
     if (!strings::contains(name.get(), DOCKER_NAME_SEPERATOR)) {
       ContainerID id;
       id.set_value(name.get());
@@ -383,7 +385,7 @@ DockerContainerizerProcess::Container::create(
     // from a hook. This hook is called after `Container::create`.
     ::mesos::internal::docker::Flags dockerExecutorFlags = dockerFlags(
       flags,
-      Container::name(slaveId, stringify(id)),
+      Container::name(id),
       containerWorkdir,
       None());
 
@@ -923,16 +925,18 @@ Future<Nothing> DockerContainerizerProcess::_recover(
     const list<Docker::Container>& _containers)
 {
   if (state.isSome()) {
-    // Although the slave checkpoints executor pids, before 0.23
-    // docker containers without custom executors didn't record the
-    // container type in the executor info, therefore the Docker
-    // containerizer doesn't know if it should recover that container
-    // as it could be launched from another containerizer. The
-    // workaround is to reconcile running Docker containers and see
-    // if we can find an known container that matches the
-    // checkpointed container id.
-    // TODO(tnachen): Remove this explicit reconciliation 0.24.
-    hashset<ContainerID> existingContainers;
+    // This mapping of ContainerIDs to running Docker container names
+    // is established for two reasons:
+    //   * Docker containers launched by Mesos versions prior to 0.23
+    //     did not checkpoint the container type, so the Docker
+    //     Containerizer does not know if it should recover that
+    //     container or not.
+    //   * The naming scheme of Docker containers changed in Mesos
+    //     versions 0.23 and 1.4. The Docker Containerizer code needs
+    //     to use the name of the container when interacting with the
+    //     Docker CLI, rather than generating the container name
+    //     based on the current version's scheme.
+    hashmap<ContainerID, string> existingContainers;
 
     // Tracks all the task containers that launched an executor in
     // a docker container.
@@ -941,7 +945,13 @@ Future<Nothing> DockerContainerizerProcess::_recover(
     foreach (const Docker::Container& container, _containers) {
       Option<ContainerID> id = parse(container);
       if (id.isSome()) {
-        existingContainers.insert(id.get());
+        // NOTE: The container name returned by `docker inspect` may
+        // sometimes be prefixed with a forward slash. While this is
+        // technically part of the container name, subsequent calls
+        // to the Docker CLI do not expect the prefix.
+        existingContainers[id.get()] = strings::remove(
+            container.name, "/", strings::PREFIX);
+
         if (strings::contains(container.name, ".executor")) {
           executorContainers.insert(id.get());
         }
@@ -1022,6 +1032,10 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         container->state = Container::RUNNING;
         container->launchesExecutorContainer =
           executorContainers.contains(containerId);
+
+        if (existingContainers.contains(containerId)) {
+          container->containerName = existingContainers.at(containerId);
+        }
 
         pid_t pid = run.get().forkedPid.get();
 
@@ -1183,7 +1197,7 @@ Future<bool> DockerContainerizerProcess::launch(
     f = HookManager::slavePreLaunchDockerTaskExecutorDecorator(
         taskInfo,
         executorInfo,
-        container.get()->name(),
+        container.get()->containerName,
         container.get()->directory,
         flags.sandbox_directory,
         container.get()->environment)
@@ -1299,7 +1313,7 @@ Future<bool> DockerContainerizerProcess::_launch(
       }));
   }
 
-  string containerName = container->name();
+  string containerName = container->containerName;
 
   if (container->executorName().isSome()) {
     // Launch the container with the executor name as we expect the
@@ -1539,7 +1553,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
     // Prepare the flags to pass to the mesos docker executor process.
     ::mesos::internal::docker::Flags launchFlags = dockerFlags(
         flags,
-        container->name(),
+        container->containerName,
         container->directory,
         container->taskEnvironment);
 
@@ -1662,7 +1676,7 @@ Future<Nothing> DockerContainerizerProcess::update(
     return __update(containerId, _resources, container->pid.get());
   }
 
-  return docker->inspect(containers_.at(containerId)->name())
+  return docker->inspect(containers_.at(containerId)->containerName)
     .then(defer(self(), &Self::_update, containerId, _resources, lambda::_1));
 #else
   return Nothing();
@@ -1909,7 +1923,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
     return collectUsage(container->pid.get());
   }
 
-  return docker->inspect(container->name())
+  return docker->inspect(container->containerName)
     .then(defer(
       self(),
       [this, containerId, collectUsage]
@@ -2257,7 +2271,7 @@ void DockerContainerizerProcess::_destroy(
     // container should be destroyed forcefully.
     // The `after` fallback should remain as a precaution against the docker
     // stop command hanging.
-    docker->stop(container->name(), flags.docker_stop_timeout)
+    docker->stop(container->containerName, flags.docker_stop_timeout)
       .after(
           flags.docker_stop_timeout + DOCKER_FORCE_KILL_TIMEOUT,
           defer(self(), &Self::destroyTimeout, containerId, lambda::_1))
@@ -2303,7 +2317,7 @@ void DockerContainerizerProcess::__destroy(
       flags.docker_remove_delay,
       self(),
       &Self::remove,
-      container->name(),
+      container->containerName,
       container->executorName());
 
     delete container;
@@ -2374,7 +2388,7 @@ void DockerContainerizerProcess::____destroy(
     flags.docker_remove_delay,
     self(),
     &Self::remove,
-    container->name(),
+    container->containerName,
     container->executorName());
 
   delete container;

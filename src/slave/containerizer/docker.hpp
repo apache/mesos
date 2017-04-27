@@ -45,8 +45,9 @@ namespace slave {
 // created by Mesos from those created manually.
 extern const std::string DOCKER_NAME_PREFIX;
 
-// Separator used to compose docker container name, which is made up
-// of slave ID and container ID.
+// Separator used to compose docker container name, which consists
+// of the name prefix, ContainerID, and possibly the SlaveID depending
+// on the version of Mesos used to create the container.
 extern const std::string DOCKER_NAME_SEPERATOR;
 
 // Directory that stores all the symlinked sandboxes that is mapped
@@ -315,10 +316,9 @@ private:
         bool checkpoint,
         const Flags& flags);
 
-    static std::string name(const SlaveID& slaveId, const std::string& id)
+    static std::string name(const ContainerID& id)
     {
-      return DOCKER_NAME_PREFIX + slaveId.value() + DOCKER_NAME_SEPERATOR +
-        stringify(id);
+      return DOCKER_NAME_PREFIX + stringify(id);
     }
 
     Container(const ContainerID& id)
@@ -348,6 +348,7 @@ private:
         checkpoint(checkpoint),
         symlinked(symlinked),
         flags(flags),
+        containerName(name(id)),
         launchesExecutorContainer(launchesExecutorContainer)
     {
       // NOTE: The task's resources are included in the executor's
@@ -392,15 +393,10 @@ private:
       }
     }
 
-    std::string name()
-    {
-      return name(slaveId, stringify(id));
-    }
-
     Option<std::string> executorName()
     {
       if (launchesExecutorContainer) {
-        return name() + DOCKER_NAME_SEPERATOR + "executor";
+        return containerName + DOCKER_NAME_SEPERATOR + "executor";
       } else {
         return None();
       }
@@ -476,6 +472,12 @@ private:
     bool checkpoint;
     bool symlinked;
     const Flags flags;
+
+    // The string used to refer to this container via the Docker CLI.
+    // This name is either computed by concatenating the DOCKER_NAME_PREFIX
+    // and the ContainerID; or during recovery, by taking the recovered
+    // container's name.
+    std::string containerName;
 
     // Promise for future returned from wait().
     process::Promise<mesos::slave::ContainerTermination> termination;
