@@ -1392,7 +1392,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   // TODO(klueska): Remove the check below once we have a good way of
   // setting the sandbox directory for DEBUG containers.
   if (!container->config.has_container_class() ||
-       container->config.container_class() != ContainerClass::DEBUG) {
+      container->config.container_class() != ContainerClass::DEBUG) {
     // TODO(jieyu): Consider moving this to filesystem isolator.
     //
     // NOTE: For the command executor case, although it uses the host
@@ -1419,8 +1419,7 @@ Future<bool> MesosContainerizerProcess::_launch(
   // NOTE: Command task is a special case. Even if the container
   // config has a root filesystem, the executor container still uses
   // the host filesystem.
-  if (!container->config.has_task_info() &&
-       container->config.has_rootfs()) {
+  if (!container->config.has_task_info() && container->config.has_rootfs()) {
     launchInfo.set_rootfs(container->config.rootfs());
   }
 
