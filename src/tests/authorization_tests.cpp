@@ -885,6 +885,135 @@ TYPED_TEST(AuthorizationTest, PrincipalNotOfferedAnyRoleRestrictive)
 }
 
 
+// Checks that the behavior of the authorizer is correct when using
+// hierarchical roles while registering frameworks.
+TYPED_TEST(AuthorizationTest, RegisterFrameworkHierarchical)
+{
+  ACLs acls;
+
+  {
+    // "elizabeth-ii" principal can register frameworks with role
+    // `king` and its nested ones.
+    mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // "charles" principal can register frameworks with just roles
+    // nested under `king`.
+    mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // "j-welby" principal register frameworks with just role 'king'.
+    mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // No other principal can register frameworks in any role.
+    mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // `elizabeth-ii` has full permissions for the `king` role as well as all
+  // its nested roles. She should be able to register frameworks in the next
+  // three blocks.
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->mutable_framework_info()->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+        ->mutable_framework_info()->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+        ->mutable_framework_info()->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // `charles` doesn't have permissions for the `king` role, so the first
+  // test should fail. However he has permissions for `king`'s nested roles
+  // so the next two tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->mutable_framework_info()->set_role("king");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->mutable_framework_info()->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+        ->mutable_framework_info()->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // `j-welby` only has permissions for the role `king` itself, but not
+  // for its nested roles, therefore only the first of the following three
+  // tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->mutable_framework_info()->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+        ->mutable_framework_info()->set_role("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::REGISTER_FRAMEWORK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+        ->mutable_framework_info()->set_role("king/prince/duke");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+}
+
 // Tests the authorization of ACLs used for dynamic reservation of resources.
 TYPED_TEST(AuthorizationTest, Reserve)
 {
@@ -903,6 +1032,31 @@ TYPED_TEST(AuthorizationTest, Reserve)
     mesos::ACL::ReserveResources* acl = acls.add_reserve_resources();
     acl->mutable_principals()->add_values("baz");
     acl->mutable_roles()->add_values("ads");
+  }
+
+  {
+    // Principal "elizabeth-ii" can reserve for the "king" role and its
+    // nested ones.
+    mesos::ACL::ReserveResources* acl = acls.add_reserve_resources();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // Principal "charles" can reserve for any role below the "king/" role.
+    // Not in "king" itself.
+    mesos::ACL::ReserveResources* acl = acls.add_reserve_resources();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // Principal "j-welby" can reserve only for the "king" role but not
+    // in any nested one.
+    mesos::ACL::ReserveResources* acl = acls.add_reserve_resources();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
   }
 
   {
@@ -1023,6 +1177,87 @@ TYPED_TEST(AuthorizationTest, Reserve)
     request.set_action(authorization::RESERVE_RESOURCES);
     request.mutable_subject()->set_value("zelda");
     request.mutable_object()->mutable_resource()->set_role("ads");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // `elizabeth-ii` has full permissions for the `king` role as well as all
+  // its nested roles. She should be able to reserve resources in the next
+  // three blocks.
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->mutable_resource()->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->mutable_resource()->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->mutable_resource()->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // `charles` doesn't have permissions for the `king` role, so the first
+  // test should fail. However he has permissions for `king`'s nested roles
+  // so the next two tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->mutable_resource()->set_role("king");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->mutable_resource()->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->mutable_resource()->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // `j-welby` only has permissions for the role `king` itself, but not
+  // for its nested roles, therefore only the first of the following three
+  // tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->mutable_resource()->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->mutable_resource()->set_role("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESERVE_RESOURCES);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->mutable_resource()->set_role("king/prince/duke");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -1230,6 +1465,38 @@ TYPED_TEST(AuthorizationTest, CreateVolume)
   }
 
   {
+    // Principal "elizabeth-ii" can create volumes for the "king" role and its
+    // nested ones.
+    mesos::ACL::CreateVolume* acl = acls.add_create_volumes();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // Principal "charles" can create volumes for any role below the "king/"
+    // role. Not in "king" itself.
+    mesos::ACL::CreateVolume* acl = acls.add_create_volumes();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // Principal "j-welby" can create volumes only for the "king" role but
+    // not in any nested one.
+    mesos::ACL::CreateVolume* acl = acls.add_create_volumes();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // No other principals can create volumes.
+    mesos::ACL::CreateVolume* acl = acls.add_create_volumes();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
     // No other principals can create volumes.
     mesos::ACL::CreateVolume* acl = acls.add_create_volumes();
     acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
@@ -1323,6 +1590,87 @@ TYPED_TEST(AuthorizationTest, CreateVolume)
     request.set_action(authorization::CREATE_VOLUME);
     request.mutable_subject()->set_value("zelda");
     request.mutable_object()->mutable_resource()->set_role("panda");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // `elizabeth-ii` has full permissions for the `king` role as well as all
+  // its nested roles. She should be able to create volumes in the next
+  // three blocks.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->mutable_resource()->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->mutable_resource()->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->mutable_resource()->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // `charles` doesn't have permissions for the `king` role, so the first
+  // test should fail. However he has permissions for `king`'s nested roles
+  // so the next two tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->mutable_resource()->set_role("king");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->mutable_resource()->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->mutable_resource()->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // `j-welby` only has permissions for the role `king` itself, but not
+  // for its nested roles, therefore only the first of the following three
+  // tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->mutable_resource()->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->mutable_resource()->set_role("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_VOLUME);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->mutable_resource()->set_role("king/prince/duke");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -1515,6 +1863,31 @@ TYPED_TEST(AuthorizationTest, UpdateQuota)
   }
 
   {
+    // Principal "elizabeth-ii" can update quotas for the "king" role and its
+    // nested ones.
+    mesos::ACL::UpdateQuota* acl = acls.add_update_quotas();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // Principal "charles" can update quotas for any role below the "king/"
+    // role. Not in "king" itself.
+    mesos::ACL::UpdateQuota* acl = acls.add_update_quotas();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // Principal "j-welby" can update quotas only for the "king" role but
+    // not in any nested one.
+    mesos::ACL::UpdateQuota* acl = acls.add_update_quotas();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
     // No other principal can update quotas.
     mesos::ACL::UpdateQuota* acl = acls.add_update_quotas();
     acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
@@ -1569,6 +1942,90 @@ TYPED_TEST(AuthorizationTest, UpdateQuota)
     request.set_action(authorization::UPDATE_QUOTA);
     request.mutable_subject()->set_value("jeff");
     request.mutable_object()->mutable_quota_info()->set_role("prod");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // `elizabeth-ii` has full permissions for the `king` role as well as all
+  // its nested roles. She should be able to update quotas in the next
+  // three blocks.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->mutable_quota_info()->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->mutable_quota_info()->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+        ->mutable_quota_info()->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // `charles` doesn't have permissions for the `king` role, so the first
+  // test should fail. However he has permissions for `king`'s nested roles
+  // so the next two tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->mutable_quota_info()->set_role("king");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->mutable_quota_info()->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+        ->mutable_quota_info()->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // `j-welby` only has permissions for the role `king` itself, but not
+  // for its nested roles, therefore only the first of the following three
+  // tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->mutable_quota_info()->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->mutable_quota_info()->set_role("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_QUOTA);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+        ->mutable_quota_info()->set_role("king/prince/duke");
     AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
@@ -3941,6 +4398,31 @@ TYPED_TEST(AuthorizationTest, ViewRole)
   }
 
   {
+    // "elizabeth-ii" principal can view info about the `king` role and
+    // all its nested ones.
+    mesos::ACL::ViewRole* acl = acls.add_view_roles();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // "charles" can only view info about `king`'s nested roles, but not
+    // the role `king` itself.
+    mesos::ACL::ViewRole* acl = acls.add_view_roles();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // "j-welby" can only view info about the `king` role itself
+    // but not its nested roles.
+    mesos::ACL::ViewRole* acl = acls.add_view_roles();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
     // No other principal can view any role.
     mesos::ACL::ViewRole* acl = acls.add_view_roles();
     acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
@@ -3979,6 +4461,431 @@ TYPED_TEST(AuthorizationTest, ViewRole)
     request.mutable_object()->set_value("bar");
 
     AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // `elizabeth-ii` has full permissions for the `king` role as well as all
+  // its nested roles. She should be able to view roles in the next
+  // three blocks.
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->set_value("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->set_value("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->set_value("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // `charles` doesn't have permissions for the `king` role, so the first
+  // test should fail. However he has permissions for `king`'s nested roles
+  // so the next two tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->set_value("king");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->set_value("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->set_value("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // `j-welby` only has permissions for the role `king` itself, but not
+  // for its nested roles, therefore only the first of the following three
+  // tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->set_value("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->set_value("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_ROLE);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->set_value("king/prince/duke");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+}
+
+
+// This tests the authorization of requests to UpdateWeight.
+TYPED_TEST(AuthorizationTest, UpdateWeight)
+{
+  // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal can update weights of `ANY` role.
+    mesos::ACL::UpdateWeight* acl = acls.add_update_weights();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // "bar" principal can update the weight of role `bar`.
+    mesos::ACL::UpdateWeight* acl = acls.add_update_weights();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_roles()->add_values("bar");
+  }
+
+  {
+    // "elizabeth-ii" principal can update weights of role `king` and
+    // its nested ones.
+    mesos::ACL::UpdateWeight* acl = acls.add_update_weights();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // "charles" principal can update weights of just roles nested
+    // under `king`.
+    mesos::ACL::UpdateWeight* acl = acls.add_update_weights();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // "j-welby" principal can update the weight of just role 'king'.
+    mesos::ACL::UpdateWeight* acl = acls.add_update_weights();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // No other principal can update any weights.
+    mesos::ACL::UpdateWeight* acl = acls.add_update_weights();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Check that principal "foo" can update weights of any role.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "bar" cannot update the weight of role `foo`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("foo");
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "bar" can update the weight of role `bar`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("bar");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "elizabeth-ii" can update the weight of role `king`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->set_value("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "elizabeth-ii" can update the weight of role
+  // `king/prince`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->set_value("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "elizabeth-ii" can update the weight of role
+  // `king/prince/duke`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->set_value("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "charles" cannot update the weight of role `king`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->set_value("king");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "charles" can update the weight of role `king/prince`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->set_value("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "charles" can update the weight of role
+  // `king/prince/duke`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->set_value("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "j-welby" can update the weight of role `king`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->set_value("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "j-welby" cannot update the weight of role
+  // `king/prince`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->set_value("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "j-welby" cannot update the weight of role
+  // `king/prince/duke`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_WEIGHT);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->set_value("king/prince/duke");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+}
+
+
+// This tests the authorization of requests to GetQuota.
+TYPED_TEST(AuthorizationTest, GetQuota)
+{
+  // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal can get quotas of `ANY` role.
+    mesos::ACL::GetQuota* acl = acls.add_get_quotas();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // "bar" principal can get the quota of role `bar`.
+    mesos::ACL::GetQuota* acl = acls.add_get_quotas();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_roles()->add_values("bar");
+  }
+
+  {
+    // "elizabeth-ii" principal can view quotas of role `king` and its
+    // nested ones.
+    mesos::ACL::GetQuota* acl = acls.add_get_quotas();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // "charles" principal can view quotas of just roles nested under `king`.
+    mesos::ACL::GetQuota* acl = acls.add_get_quotas();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // "j-welby" principal can view the quotas of just role 'king'.
+    mesos::ACL::GetQuota* acl = acls.add_get_quotas();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // No other principal can view any quota.
+    mesos::ACL::GetQuota* acl = acls.add_get_quotas();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Check that principal "foo" can view quotas of any role.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "bar" cannot view quotas of role `foo`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("foo");
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "bar" can view the quotas of role `bar`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("bar");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "elizabeth-ii" can view the quotas of role `king`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->set_value("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "elizabeth-ii" can view the quotas of role
+  // `king/prince`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->set_value("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "elizabeth-ii" can view the quota of role
+  // `king/prince/duke`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()->set_value("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "charles" cannot view the quota of role `king`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->set_value("king");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "charles" can view the quota of role `king/prince`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->set_value("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "charles" can view the quota of role
+  // `king/prince/duke`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()->set_value("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "j-welby" can view the quota of role `king`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->set_value("king");
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "j-welby" cannot view the quota of role
+  // `king/prince`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->set_value("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  // Check that principal "j-welby" cannot view the quota of role
+  // `king/prince/duke`.
+  {
+    authorization::Request request;
+    request.set_action(authorization::GET_QUOTA);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()->set_value("king/prince/duke");
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
   }
 }
 
