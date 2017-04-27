@@ -491,7 +491,7 @@ vector<string> DRFSorter::sort()
   vector<string> result;
 
   std::function<void (const Node*)> listClients =
-      [this, &listClients, &result](const Node* node) {
+      [&listClients, &result](const Node* node) {
     if (node->active) {
       result.push_back(node->clientPath());
     }
