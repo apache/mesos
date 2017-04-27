@@ -310,7 +310,7 @@ using the following logic table:
     +---------+--------------+------------------------------------------+
 
 The provisioner backend can be specified through the agent flag
-`--provisioner_image_backend`. If not set, Mesos will select the best
+`--image_provisioner_backend`. If not set, Mesos will select the best
 backend automatically for the users/operators. The selection logic is
 as following:
 
