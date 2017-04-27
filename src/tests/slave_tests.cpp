@@ -5399,7 +5399,7 @@ TEST_F(SlaveTest, RunTaskGroupFailedSecretGeneration)
   ASSERT_NE(0, offers->offers().size());
 
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "");
 
@@ -5600,7 +5600,7 @@ TEST_F(SlaveTest, RunTaskGroupInvalidExecutorSecret)
   ASSERT_NE(0, offers->offers().size());
 
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "");
 
@@ -5810,7 +5810,7 @@ TEST_F(SlaveTest, RunTaskGroupReferenceTypeSecret)
   ASSERT_NE(0, offers->offers().size());
 
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "");
 
@@ -6020,7 +6020,7 @@ TEST_F(SlaveTest, RunTaskGroupGenerateSecretAfterShutdown)
   ASSERT_NE(0, offers->offers().size());
 
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "");
 
@@ -6247,7 +6247,7 @@ TEST_F(SlaveTest, RestartSlaveRequireExecutorAuthentication)
     .WillOnce(FutureArg<1>(&update));
 
   const v1::Offer offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   v1::Resources resources =
     v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();

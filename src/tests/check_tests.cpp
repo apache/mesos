@@ -285,7 +285,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<Event::Update> updateTaskRunning;
   Future<Event::Update> updateCheckResult;
@@ -434,7 +434,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckStatusChange)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<Event::Update> updateTaskRunning;
   Future<Event::Update> updateCheckResult;
@@ -554,7 +554,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<Event::Update> updateTaskRunning;
   Future<Event::Update> updateCheckResult;
@@ -656,7 +656,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckTimeout)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<Event::Update> updateTaskRunning;
   Future<Event::Update> updateCheckResult;
@@ -761,7 +761,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<Event::Update> updateTaskRunning;
   Future<Event::Update> updateCheckResult;
@@ -910,7 +910,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<v1::scheduler::Event::Update> updateTaskRunning;
   Future<v1::scheduler::Event::Update> updateCheckResult;
@@ -1043,7 +1043,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, TCPCheckDelivered)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<v1::scheduler::Event::Update> updateTaskRunning;
   Future<v1::scheduler::Event::Update> updateCheckResult;
@@ -1252,7 +1252,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<Event::Update> updateTaskRunning;
   Future<Event::Update> updateCheckResult;
@@ -1446,7 +1446,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<Event::Update> updateTaskRunning;
   Future<Event::Update> updateCheckResult;
@@ -1607,7 +1607,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<Event::Update> updateTaskRunning;
   Future<Event::Update> updateCheckResult;
@@ -1753,7 +1753,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, CommandCheckTimeout)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<Event::Update> updateTaskRunning;
   Future<Event::Update> updateCheckResult;
@@ -1901,7 +1901,7 @@ TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<Event::Update> updateTaskRunning;
   Future<Event::Update> updateCheckResult;
@@ -2071,7 +2071,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, HTTPCheckDelivered)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<v1::scheduler::Event::Update> updateTaskRunning;
   Future<v1::scheduler::Event::Update> updateCheckResult;
@@ -2220,7 +2220,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, TCPCheckDelivered)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
   const v1::Offer& offer = offers->offers(0);
-  const v1::AgentID agentId = offer.agent_id();
+  const v1::AgentID& agentId = offer.agent_id();
 
   Future<v1::scheduler::Event::Update> updateTaskRunning;
   Future<v1::scheduler::Event::Update> updateCheckResult;
