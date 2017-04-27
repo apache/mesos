@@ -896,7 +896,9 @@ TEST_F(RoleTest, EndpointBadAuthentication)
 // naive implementation less nested volume is destroyed first. This should not
 // destroy the more nested volume (e.g., since it is not created as a
 // subdirectory).
-TEST_F(RoleTest, VolumesInOverlappingHierarchies)
+//
+// TODO(bbannier): Figure out a way to run the test command on Windows.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, VolumesInOverlappingHierarchies)
 {
   constexpr char PATH[] = "path";
   constexpr Megabytes DISK_SIZE(1);
