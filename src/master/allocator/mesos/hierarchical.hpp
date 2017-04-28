@@ -302,9 +302,6 @@ protected:
 
     std::set<std::string> roles;
 
-    // Whether the framework suppresses offers.
-    bool suppressed;
-
     protobuf::framework::Capabilities capabilities;
 
     // Active offer and inverse offer filters for the framework.

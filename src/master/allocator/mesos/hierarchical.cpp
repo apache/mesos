@@ -127,7 +127,6 @@ private:
 HierarchicalAllocatorProcess::Framework::Framework(
     const FrameworkInfo& frameworkInfo)
   : roles(protobuf::framework::getRoles(frameworkInfo)),
-    suppressed(false),
     capabilities(frameworkInfo.capabilities()) {}
 
 
@@ -371,10 +370,6 @@ void HierarchicalAllocatorProcess::deactivateFramework(
   // HierarchicalAllocatorProcess::expire.
   framework.offerFilters.clear();
   framework.inverseOfferFilters.clear();
-
-  // Clear the suppressed flag to make sure the framework can be offered
-  // resources immediately after getting activated.
-  framework.suppressed = false;
 
   LOG(INFO) << "Deactivated framework " << frameworkId;
 }
@@ -1206,7 +1201,6 @@ void HierarchicalAllocatorProcess::suppressOffers(
   CHECK(frameworks.contains(frameworkId));
 
   Framework& framework = frameworks.at(frameworkId);
-  framework.suppressed = true;
 
   // Deactivating the framework in the sorter is fine as long as
   // SUPPRESS is not parameterized. When parameterization is added,
@@ -1238,16 +1232,12 @@ void HierarchicalAllocatorProcess::reviveOffers(
   const set<string>& roles =
     role.isSome() ? set<string>{role.get()} : framework.roles;
 
-  if (framework.suppressed) {
-    framework.suppressed = false;
-
-    // Activating the framework in the sorter on REVIVE is fine as long as
-    // SUPPRESS is not parameterized. When parameterization is added,
-    // we may need to differentiate between the cases here.
-    foreach (const string& role, roles) {
-      CHECK(frameworkSorters.contains(role));
-      frameworkSorters.at(role)->activate(frameworkId.value());
-    }
+  // Activating the framework in the sorter on REVIVE is fine as long as
+  // SUPPRESS is not parameterized. When parameterization is added,
+  // we may need to differentiate between the cases here.
+  foreach (const string& role, roles) {
+    CHECK(frameworkSorters.contains(role));
+    frameworkSorters.at(role)->activate(frameworkId.value());
   }
 
   // We delete each actual `OfferFilter` when
