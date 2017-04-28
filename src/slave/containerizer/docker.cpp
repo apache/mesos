@@ -280,32 +280,7 @@ DockerContainerizerProcess::Container::create(
     bool checkpoint,
     const Flags& flags)
 {
-  // Before we do anything else we first make sure the stdout/stderr
-  // files exist and have the right file ownership.
-  Try<Nothing> touch = os::touch(path::join(directory, "stdout"));
 
-  if (touch.isError()) {
-    return Error("Failed to touch 'stdout': " + touch.error());
-  }
-
-  touch = os::touch(path::join(directory, "stderr"));
-
-  if (touch.isError()) {
-    return Error("Failed to touch 'stderr': " + touch.error());
-  }
-
-  // NOTE: `os::chown` has no meaningful interpretation on Windows. This is
-  // safe to `#ifdef` out because we don't compile the user flag on Windows, so
-  // this should always be `None`.
-#ifndef __WINDOWS__
-  if (user.isSome()) {
-    Try<Nothing> chown = os::chown(user.get(), directory);
-
-    if (chown.isError()) {
-      return Error("Failed to chown: " + chown.error());
-    }
-  }
-#endif // __WINDOWS__
 
   string dockerSymlinkPath = path::join(
       paths::getSlavePath(flags.work_dir, slaveId),
