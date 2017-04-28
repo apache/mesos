@@ -399,8 +399,6 @@ void Framework::trackUnderRole(const string& role)
 
   CHECK(!isTrackedUnderRole(role));
 
-  CHECK(roles.count(role) > 0);
-
   if (!master->roles.contains(role)) {
     master->roles[role] = new Role(role);
   }
