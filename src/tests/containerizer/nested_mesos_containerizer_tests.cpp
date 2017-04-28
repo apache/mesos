@@ -543,6 +543,170 @@ TEST_F(NestedMesosContainerizerTest,
 }
 
 
+// This test verifies that a debug container shares the working
+// directory with its parent even after agent failover.
+TEST_F(NestedMesosContainerizerTest,
+       ROOT_CGROUPS_DebugNestedContainerInheritsWorkingDirectory)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Fetcher fetcher;
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  // Use a pipe to synchronize with the top-level container.
+  Try<std::array<int, 2>> pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
+
+  const std::array<int, 2>& pipes = pipes_.get();
+
+  const string filename = "nested_inherits_work_dir";
+
+  // NOTE: We use a non-shell command here to use 'bash -c' to execute
+  // the 'echo', which deals with the file descriptor, because of a bug
+  // in ubuntu dash. Multi-digit file descriptor is not supported in
+  // ubuntu dash, which executes the shell command.
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/bin/bash");
+  command.add_arguments("bash");
+  command.add_arguments("-c");
+  command.add_arguments(
+      "touch " + filename + ";echo running >&" +
+      stringify(pipes[1]) + ";sleep 1000");
+
+  ExecutorInfo executor = createExecutorInfo("executor", command, "cpus:1");
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<bool> launch = containerizer->launch(
+      containerId,
+      None(),
+      executor,
+      directory.get(),
+      None(),
+      state.id,
+      map<string, string>(),
+      true); // TODO(benh): Ever want to test not checkpointing?
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  // Wait for the parent container to start running its task
+  // before launching a debug container inside it.
+  AWAIT_READY(process::io::poll(pipes[0], process::io::READ));
+  close(pipes[1]);
+  close(pipes[0]);
+
+  Future<ContainerStatus> status = containerizer->status(containerId);
+  AWAIT_READY(status);
+  ASSERT_TRUE(status->has_executor_pid());
+
+  pid_t pid = status->executor_pid();
+
+  // Launch a nested debug container that access the file created by its parent.
+  {
+    ContainerID nestedContainerId;
+    nestedContainerId.mutable_parent()->CopyFrom(containerId);
+    nestedContainerId.set_value(UUID::random().toString());
+
+    Future<bool> launchNested = containerizer->launch(
+        nestedContainerId,
+        createCommandInfo("ls " + filename),
+        None(),
+        None(),
+        state.id,
+        ContainerClass::DEBUG);
+
+    AWAIT_ASSERT_TRUE(launchNested);
+
+    Future<Option<ContainerTermination>> waitNested = containerizer->wait(
+        nestedContainerId);
+
+    AWAIT_READY(waitNested);
+    ASSERT_SOME(waitNested.get());
+    ASSERT_TRUE(waitNested.get()->has_status());
+    EXPECT_WEXITSTATUS_EQ(0, waitNested.get()->status());
+  }
+
+  // Force a delete on the containerizer to emulate recovery.
+  containerizer.reset();
+
+  create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  containerizer.reset(create.get());
+
+  Try<SlaveState> slaveState = createSlaveState(
+      containerId,
+      pid,
+      executor,
+      state.id,
+      flags.work_dir);
+
+  ASSERT_SOME(slaveState);
+
+  state = slaveState.get();
+  AWAIT_READY(containerizer->recover(state));
+
+  // Launch a nested debug container that access the file created by its parent.
+  {
+    ContainerID nestedContainerId;
+    nestedContainerId.mutable_parent()->CopyFrom(containerId);
+    nestedContainerId.set_value(UUID::random().toString());
+
+    Future<bool> launchNested = containerizer->launch(
+        nestedContainerId,
+        createCommandInfo("ls " + filename),
+        None(),
+        None(),
+        state.id,
+        ContainerClass::DEBUG);
+
+    AWAIT_ASSERT_TRUE(launchNested);
+
+    Future<Option<ContainerTermination>> waitNested = containerizer->wait(
+        nestedContainerId);
+
+    AWAIT_READY(waitNested);
+    ASSERT_SOME(waitNested.get());
+    ASSERT_TRUE(waitNested.get()->has_status());
+    EXPECT_WEXITSTATUS_EQ(0, waitNested.get()->status());
+  }
+
+  // Destroy the containerizer with all associated containers.
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  containerizer->destroy(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+}
+
+
 TEST_F(NestedMesosContainerizerTest,
        ROOT_CGROUPS_LaunchNestedDebugCheckPidNamespace)
 {

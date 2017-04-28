@@ -184,9 +184,10 @@ message ContainerLaunchInfo {
   // a command task.
   optional CommandInfo command = 5;
 
-  // The working directory for the container. It is set to container
-  // sandbox, i.e., Mesos sandbox, unless one of the isolators overrides
-  // it *and* the container defines an image.
+  // The working directory for the container. For non-DEBUG containers,
+  // it is set to container sandbox, i.e., Mesos sandbox, unless one of
+  // the isolators overrides it *and* the container defines an image.
+  // DEBUG containers inherit working directory from their parent.
   optional string working_directory = 6;
 
   // (Linux only) The capabilities requested for the container.

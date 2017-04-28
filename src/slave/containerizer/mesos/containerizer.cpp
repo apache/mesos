@@ -1497,9 +1497,21 @@ Future<bool> MesosContainerizerProcess::_launch(
     launchInfo.set_rootfs(container->config.rootfs());
   }
 
-  // Determine the working directory for the container. It is set to container
-  // sandbox, i.e., MESOS_SANDBOX, unless one of the isolators overrides it.
-  if (launchInfo.has_rootfs()) {
+  // For a non-DEBUG container, working directory is set to container sandbox,
+  // i.e., MESOS_SANDBOX, unless one of the isolators overrides it. DEBUG
+  // containers set their working directory to their parent working directory.
+  if (container->config.has_container_class() &&
+      container->config.container_class() == ContainerClass::DEBUG) {
+    // DEBUG containers must have a parent.
+    CHECK(containerId.has_parent());
+
+    if (containers_[containerId.parent()]->launchInfo.isSome()) {
+      launchInfo.set_working_directory(
+          containers_[containerId.parent()]->launchInfo->working_directory());
+    } else {
+      launchInfo.clear_working_directory();
+    }
+  } else if (launchInfo.has_rootfs()) {
     if (!launchInfo.has_working_directory()) {
       launchInfo.set_working_directory(flags.sandbox_directory);
     }
@@ -1516,14 +1528,6 @@ Future<bool> MesosContainerizerProcess::_launch(
     }
 
     launchInfo.set_working_directory(container->config.directory());
-  }
-
-  // TODO(klueska): Debug containers should set their working
-  // directory to their sandbox directory (once we know how to set
-  // that properly).
-  if (container->config.has_container_class() &&
-      container->config.container_class() == ContainerClass::DEBUG) {
-    launchInfo.clear_working_directory();
   }
 
   // Determine the user to launch the container as.
