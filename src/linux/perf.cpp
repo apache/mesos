@@ -300,35 +300,24 @@ Future<hashmap<string, mesos::PerfStatistics>> sample(
   Future<string> output = perf->output();
   spawn(perf, true);
 
-  auto parse = [start, duration](
-      const tuple<Version, string> values) ->
-      Future<hashmap<string, mesos::PerfStatistics>> {
-    const Version& version = std::get<0>(values);
-    const string& output = std::get<1>(values);
-
-    // Check that the version is supported.
-    if (!supported(version)) {
-      return Failure("Perf " + stringify(version) + " is not supported");
-    }
-
-    Try<hashmap<string, mesos::PerfStatistics>> result =
-      perf::parse(output, version);
-
-    if (result.isError()) {
-      return Failure("Failed to parse perf sample: " + result.error());
-    }
-
-    foreachvalue (mesos::PerfStatistics& statistics, result.get()) {
-      statistics.set_timestamp(start.secs());
-      statistics.set_duration(duration.secs());
-    }
-
-    return result.get();
-  };
-
   // TODO(pbrett): Don't wait for these forever!
-  return process::collect(perf::version(), output)
-    .then(parse);
+  return output
+    .then([start, duration](const string output)
+        -> Future<hashmap<string, mesos::PerfStatistics>> {
+      Try<hashmap<string, mesos::PerfStatistics>> result =
+        perf::parse(output);
+
+      if (result.isError()) {
+        return Failure("Failed to parse perf sample: " + result.error());
+      }
+
+      foreachvalue (mesos::PerfStatistics& statistics, result.get()) {
+        statistics.set_timestamp(start.secs());
+        statistics.set_duration(duration.secs());
+      }
+
+      return result.get();
+    });
 }
 
 
@@ -362,7 +351,7 @@ struct Sample
 
   // Convert a single line of perf output in CSV format (using
   // PERF_DELIMITER as a separator) to a sample.
-  static Try<Sample> parse(const string& line, const Version& version)
+  static Try<Sample> parse(const string& line)
   {
     // We use strings::split to separate the tokens
     // because the unit field can be empty.
@@ -398,13 +387,12 @@ struct Sample
 
 
 Try<hashmap<string, mesos::PerfStatistics>> parse(
-    const string& output,
-    const Version& version)
+    const string& output)
 {
   hashmap<string, mesos::PerfStatistics> statistics;
 
   foreach (const string& line, strings::tokenize(output, "\n")) {
-    Try<Sample> sample = Sample::parse(line, version);
+    Try<Sample> sample = Sample::parse(line);
 
     if (sample.isError()) {
       return Error("Failed to parse perf sample line '" + line + "': " +
