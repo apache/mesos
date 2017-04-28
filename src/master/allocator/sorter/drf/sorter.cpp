@@ -150,10 +150,9 @@ void DRFSorter::add(const string& clientPath)
 
   // `current` is the newly created node associated with the last
   // element of the path. `current` should be an inactive node with no
-  // children; activate it now.
+  // children.
   CHECK(current->children.empty());
   CHECK(!current->active);
-  current->active = true;
 
   // Add a new entry to the lookup table. The full path of the newly
   // added client should not already exist in `clients`.

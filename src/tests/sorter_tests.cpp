@@ -54,11 +54,13 @@ TEST(SorterTest, DRFSorter)
   EXPECT_EQ(vector<string>({}), sorter.sort());
 
   sorter.add("a");
+  sorter.activate("a");
   Resources aResources = Resources::parse("cpus:5;mem:5").get();
   sorter.allocated("a", slaveId, aResources);
 
   Resources bResources = Resources::parse("cpus:6;mem:6").get();
   sorter.add("b");
+  sorter.activate("b");
   sorter.allocated("b", slaveId, bResources);
 
   // shares: a = .05, b = .06
@@ -66,10 +68,12 @@ TEST(SorterTest, DRFSorter)
 
   Resources cResources = Resources::parse("cpus:1;mem:1").get();
   sorter.add("c");
+  sorter.activate("c");
   sorter.allocated("c", slaveId, cResources);
 
   Resources dResources = Resources::parse("cpus:3;mem:1").get();
   sorter.add("d");
+  sorter.activate("d");
   sorter.allocated("d", slaveId, dResources);
 
   // shares: a = .05, b = .06, c = .01, d = .03
@@ -85,6 +89,7 @@ TEST(SorterTest, DRFSorter)
 
   Resources eResources = Resources::parse("cpus:1;mem:5").get();
   sorter.add("e");
+  sorter.activate("e");
   sorter.allocated("e", slaveId, eResources);
 
   Resources removedResources = Resources::parse("cpus:50;mem:0").get();
@@ -100,6 +105,7 @@ TEST(SorterTest, DRFSorter)
 
   Resources fResources = Resources::parse("cpus:5;mem:1").get();
   sorter.add("f");
+  sorter.activate("f");
   sorter.allocated("f", slaveId, fResources);
 
   Resources cResources2 = Resources::parse("cpus:0;mem:15").get();
@@ -138,10 +144,12 @@ TEST(SorterTest, WDRFSorter)
   sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
 
   sorter.add("a");
+  sorter.activate("a");
 
   sorter.allocated("a", slaveId, Resources::parse("cpus:5;mem:5").get());
 
   sorter.add("b");
+  sorter.activate("b");
   sorter.updateWeight("b", 2);
   sorter.allocated("b", slaveId, Resources::parse("cpus:6;mem:6").get());
 
@@ -149,12 +157,14 @@ TEST(SorterTest, WDRFSorter)
   EXPECT_EQ(vector<string>({"b", "a"}), sorter.sort());
 
   sorter.add("c");
+  sorter.activate("c");
   sorter.allocated("c", slaveId, Resources::parse("cpus:4;mem:4").get());
 
   // shares: a = .05, b = .03, c = .04
   EXPECT_EQ(vector<string>({"b", "c", "a"}), sorter.sort());
 
   sorter.add("d");
+  sorter.activate("d");
   sorter.updateWeight("d", 10);
   sorter.allocated("d", slaveId, Resources::parse("cpus:10;mem:20").get());
 
@@ -171,6 +181,7 @@ TEST(SorterTest, WDRFSorter)
   EXPECT_EQ(vector<string>({"c", "d", "a"}), sorter.sort());
 
   sorter.add("e");
+  sorter.activate("e");
   sorter.updateWeight("e", 0.1);
   sorter.allocated("e", slaveId, Resources::parse("cpus:1;mem:1").get());
 
@@ -195,9 +206,11 @@ TEST(SorterTest, WDRFSorterUpdateWeight)
   sorter.add(slaveId, totalResources);
 
   sorter.add("a");
+  sorter.activate("a");
   sorter.allocated("a", slaveId, Resources::parse("cpus:5;mem:5").get());
 
   sorter.add("b");
+  sorter.activate("b");
   sorter.allocated("b", slaveId, Resources::parse("cpus:6;mem:6").get());
 
   // shares: a = .05, b = .06
@@ -229,6 +242,11 @@ TEST(SorterTest, CountAllocations)
   sorter.add("c");
   sorter.add("d");
   sorter.add("e");
+  sorter.activate("a");
+  sorter.activate("b");
+  sorter.activate("c");
+  sorter.activate("d");
+  sorter.activate("e");
 
   // Everyone is allocated the same amount of resources; "c" gets
   // three distinct allocations, "d" gets two, and all other clients
@@ -302,12 +320,14 @@ TEST(SorterTest, ShallowHierarchy)
   sorter.add(slaveId, totalResources);
 
   sorter.add("a/a");
+  sorter.activate("a/a");
 
   Resources aResources = Resources::parse("cpus:5;mem:5").get();
   sorter.allocated("a/a", slaveId, aResources);
 
   Resources bResources = Resources::parse("cpus:6;mem:6").get();
   sorter.add("b/b");
+  sorter.activate("b/b");
   sorter.allocated("b/b", slaveId, bResources);
 
   // shares: a/a = .05, b/b = .06
@@ -315,10 +335,12 @@ TEST(SorterTest, ShallowHierarchy)
 
   Resources cResources = Resources::parse("cpus:1;mem:1").get();
   sorter.add("c/c");
+  sorter.activate("c/c");
   sorter.allocated("c/c", slaveId, cResources);
 
   Resources dResources = Resources::parse("cpus:3;mem:1").get();
   sorter.add("d/d");
+  sorter.activate("d/d");
   sorter.allocated("d/d", slaveId, dResources);
 
   // shares: a/a = .05, b/b = .06, c/c = .01, d/d = .03
@@ -334,6 +356,7 @@ TEST(SorterTest, ShallowHierarchy)
 
   Resources eResources = Resources::parse("cpus:1;mem:5").get();
   sorter.add("e/e");
+  sorter.activate("e/e");
   sorter.allocated("e/e", slaveId, eResources);
 
   Resources removedResources = Resources::parse("cpus:50;mem:0").get();
@@ -349,6 +372,7 @@ TEST(SorterTest, ShallowHierarchy)
 
   Resources fResources = Resources::parse("cpus:5;mem:1").get();
   sorter.add("f/f");
+  sorter.activate("f/f");
   sorter.allocated("f/f", slaveId, fResources);
 
   Resources cResources2 = Resources::parse("cpus:0;mem:15").get();
@@ -391,11 +415,13 @@ TEST(SorterTest, DeepHierarchy)
   sorter.add(slaveId, totalResources);
 
   sorter.add("a/a/a/a/a");
+  sorter.activate("a/a/a/a/a");
   Resources aResources = Resources::parse("cpus:5;mem:5").get();
   sorter.allocated("a/a/a/a/a", slaveId, aResources);
 
   Resources bResources = Resources::parse("cpus:6;mem:6").get();
   sorter.add("b/b/b/b");
+  sorter.activate("b/b/b/b");
   sorter.allocated("b/b/b/b", slaveId, bResources);
 
   // shares: a/a/a/a/a = .05, b/b/b/b = .06
@@ -403,10 +429,12 @@ TEST(SorterTest, DeepHierarchy)
 
   Resources cResources = Resources::parse("cpus:1;mem:1").get();
   sorter.add("c/c/c");
+  sorter.activate("c/c/c");
   sorter.allocated("c/c/c", slaveId, cResources);
 
   Resources dResources = Resources::parse("cpus:3;mem:1").get();
   sorter.add("d/d");
+  sorter.activate("d/d");
   sorter.allocated("d/d", slaveId, dResources);
 
   // shares: a/a/a/a/a = .05, b/b/b/b = .06, c/c/c = .01, d/d = .03
@@ -423,6 +451,7 @@ TEST(SorterTest, DeepHierarchy)
 
   Resources eResources = Resources::parse("cpus:1;mem:5").get();
   sorter.add("e/e/e/e/e/e");
+  sorter.activate("e/e/e/e/e/e");
   sorter.allocated("e/e/e/e/e/e", slaveId, eResources);
 
   Resources removedResources = Resources::parse("cpus:50;mem:0").get();
@@ -439,6 +468,7 @@ TEST(SorterTest, DeepHierarchy)
 
   Resources fResources = Resources::parse("cpus:5;mem:1").get();
   sorter.add("f/f");
+  sorter.activate("f/f");
   sorter.allocated("f/f", slaveId, fResources);
 
   Resources cResources2 = Resources::parse("cpus:0;mem:15").get();
@@ -483,6 +513,9 @@ TEST(SorterTest, HierarchicalAllocation)
   sorter.add("a");
   sorter.add("b/c");
   sorter.add("b/d");
+  sorter.activate("a");
+  sorter.activate("b/c");
+  sorter.activate("b/d");
 
   EXPECT_EQ(3, sorter.count());
   EXPECT_TRUE(sorter.contains("a"));
@@ -529,6 +562,7 @@ TEST(SorterTest, HierarchicalAllocation)
   EXPECT_EQ(vector<string>({"b/d", "b/c", "a"}), sorter.sort());
 
   sorter.add("b/e/f");
+  sorter.activate("b/e/f");
 
   EXPECT_FALSE(sorter.contains("b/e"));
   EXPECT_TRUE(sorter.contains("b/e/f"));
@@ -561,6 +595,7 @@ TEST(SorterTest, HierarchicalAllocation)
   EXPECT_EQ(vector<string>({"b/c", "b/d", "a"}), sorter.sort());
 
   sorter.add("b/e/f");
+  sorter.activate("b/e/f");
   sorter.allocated("b/e/f", slaveId, fResources);
 
   // Shares: b/c = 0.01, b/d = 0.03, b/e/f = 0.035, a = 0.08.
@@ -582,10 +617,12 @@ TEST(SorterTest, AddChildToLeaf)
   sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
 
   sorter.add("a");
+  sorter.activate("a");
   sorter.allocated(
       "a", slaveId, Resources::parse("cpus:10;mem:10").get());
 
   sorter.add("b");
+  sorter.activate("b");
   sorter.allocated(
       "b", slaveId, Resources::parse("cpus:6;mem:6").get());
 
@@ -596,6 +633,7 @@ TEST(SorterTest, AddChildToLeaf)
   // sibling) against "a/c".
 
   sorter.add("a/c");
+  sorter.activate("a/c");
   sorter.allocated(
       "a/c", slaveId, Resources::parse("cpus:5;mem:5").get());
 
@@ -613,6 +651,7 @@ TEST(SorterTest, AddChildToLeaf)
   // Re-add the "a" client with the same resources. The client order
   // should revert to its previous value.
   sorter.add("a");
+  sorter.activate("a");
   sorter.allocated(
       "a", slaveId, Resources::parse("cpus:10;mem:10").get());
 
@@ -649,22 +688,26 @@ TEST(SorterTest, AddChildToInternal)
   sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
 
   sorter.add("x/a");
+  sorter.activate("x/a");
   sorter.allocated(
       "x/a", slaveId, Resources::parse("cpus:10;mem:10").get());
 
   sorter.add("x/b");
+  sorter.activate("x/b");
   sorter.allocated(
       "x/b", slaveId, Resources::parse("cpus:6;mem:6").get());
 
   EXPECT_EQ(vector<string>({"x/b", "x/a"}), sorter.sort());
 
   sorter.add("x");
+  sorter.activate("x");
   sorter.allocated(
       "x", slaveId, Resources::parse("cpus:7;mem:7").get());
 
   EXPECT_EQ(vector<string>({"x/b", "x", "x/a"}), sorter.sort());
 
   sorter.add("z");
+  sorter.activate("z");
   sorter.allocated(
       "z", slaveId, Resources::parse("cpus:20;mem:20").get());
 
@@ -688,10 +731,12 @@ TEST(SorterTest, AddChildToInactiveLeaf)
   sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
 
   sorter.add("a");
+  sorter.activate("a");
   sorter.allocated(
       "a", slaveId, Resources::parse("cpus:10;mem:10").get());
 
   sorter.add("b");
+  sorter.activate("b");
   sorter.allocated(
       "b", slaveId, Resources::parse("cpus:6;mem:6").get());
 
@@ -700,6 +745,7 @@ TEST(SorterTest, AddChildToInactiveLeaf)
   EXPECT_EQ(vector<string>({"b"}), sorter.sort());
 
   sorter.add("a/c");
+  sorter.activate("a/c");
   sorter.allocated(
       "a/c", slaveId, Resources::parse("cpus:5;mem:5").get());
 
@@ -720,14 +766,17 @@ TEST(SorterTest, RemoveLeafCollapseParent)
   sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
 
   sorter.add("a");
+  sorter.activate("a");
   sorter.allocated(
       "a", slaveId, Resources::parse("cpus:10;mem:10").get());
 
   sorter.add("b");
+  sorter.activate("b");
   sorter.allocated(
       "b", slaveId, Resources::parse("cpus:6;mem:6").get());
 
   sorter.add("a/c");
+  sorter.activate("a/c");
   sorter.allocated(
       "a/c", slaveId, Resources::parse("cpus:5;mem:5").get());
 
@@ -752,14 +801,17 @@ TEST(SorterTest, RemoveLeafCollapseParentInactive)
   sorter.add(slaveId, Resources::parse("cpus:100;mem:100").get());
 
   sorter.add("a");
+  sorter.activate("a");
   sorter.allocated(
       "a", slaveId, Resources::parse("cpus:10;mem:10").get());
 
   sorter.add("b");
+  sorter.activate("b");
   sorter.allocated(
       "b", slaveId, Resources::parse("cpus:6;mem:6").get());
 
   sorter.add("a/c");
+  sorter.activate("a/c");
   sorter.allocated(
       "a/c", slaveId, Resources::parse("cpus:5;mem:5").get());
 
@@ -789,6 +841,8 @@ TEST(SorterTest, ChangeWeightOnSubtree)
 
   sorter.add("a/x");
   sorter.add("b/y");
+  sorter.activate("a/x");
+  sorter.activate("b/y");
 
   EXPECT_EQ(vector<string>({"a/x", "b/y"}), sorter.sort());
 
@@ -801,18 +855,21 @@ TEST(SorterTest, ChangeWeightOnSubtree)
   EXPECT_EQ(vector<string>({"b/y", "a/x"}), sorter.sort());
 
   sorter.add("b/z");
+  sorter.activate("b/z");
   sorter.allocated(
       "b/z", slaveId, Resources::parse("cpus:5;mem:5").get());
 
   EXPECT_EQ(vector<string>({"b/z", "b/y", "a/x"}), sorter.sort());
 
   sorter.add("b");
+  sorter.activate("b");
   sorter.allocated(
       "b", slaveId, Resources::parse("cpus:4;mem:4").get());
 
   EXPECT_EQ(vector<string>({"a/x", "b", "b/z", "b/y"}), sorter.sort());
 
   sorter.add("a/zz");
+  sorter.activate("a/zz");
   sorter.allocated(
       "a/zz", slaveId, Resources::parse("cpus:2;mem:2").get());
 
@@ -832,6 +889,8 @@ TEST(SorterTest, SplitResourceShares)
 
   sorter.add("a");
   sorter.add("b");
+  sorter.activate("a");
+  sorter.activate("b");
 
   Resource disk1 = Resources::parse("disk", "5", "*").get();
   disk1.mutable_disk()->mutable_persistence()->set_id("ID2");
@@ -865,6 +924,8 @@ TEST(SorterTest, UpdateAllocation)
 
   sorter.add("a");
   sorter.add("b");
+  sorter.activate("a");
+  sorter.activate("b");
 
   sorter.add(slaveId, Resources::parse("cpus:10;mem:10;disk:10").get());
 
@@ -900,6 +961,8 @@ TEST(SorterTest, UpdateAllocationNestedClient)
 
   sorter.add("a/x");
   sorter.add("b/y");
+  sorter.activate("a/x");
+  sorter.activate("b/y");
 
   sorter.add(slaveId, Resources::parse("cpus:10;mem:10;disk:10").get());
 
@@ -942,6 +1005,7 @@ TEST(SorterTest, MultipleSlaves)
   slaveB.set_value("agentB");
 
   sorter.add("framework");
+  sorter.activate("framework");
 
   Resources slaveResources =
     Resources::parse("cpus:2;mem:512;ports:[31000-32000]").get();
@@ -974,6 +1038,7 @@ TEST(SorterTest, MultipleSlavesUpdateAllocation)
   slaveB.set_value("agentB");
 
   sorter.add("framework");
+  sorter.activate("framework");
 
   Resources slaveResources =
     Resources::parse("cpus:2;mem:512;disk:10;ports:[31000-32000]").get();
@@ -1014,6 +1079,8 @@ TEST(SorterTest, UpdateTotal)
 
   sorter.add("a");
   sorter.add("b");
+  sorter.activate("a");
+  sorter.activate("b");
 
   sorter.add(slaveId, Resources::parse("cpus:10;mem:100").get());
 
@@ -1052,6 +1119,8 @@ TEST(SorterTest, MultipleSlavesUpdateTotal)
 
   sorter.add("a");
   sorter.add("b");
+  sorter.activate("a");
+  sorter.activate("b");
 
   sorter.add(slaveA, Resources::parse("cpus:5;mem:50").get());
   sorter.add(slaveB, Resources::parse("cpus:5;mem:50").get());
@@ -1088,6 +1157,8 @@ TEST(SorterTest, RevocableResources)
 
   sorter.add("a");
   sorter.add("b");
+  sorter.activate("a");
+  sorter.activate("b");
 
   // Create a total resource pool of 10 revocable cpus and 10 cpus and
   // 100 MB mem.
@@ -1137,11 +1208,13 @@ TEST(SorterTest, SharedResources)
 
   // Verify sort() works when shared resources are in the allocations.
   sorter.add("a");
+  sorter.activate("a");
   Resources aResources = Resources::parse("cpus:5;mem:5").get();
   aResources += sharedDisk;
   sorter.allocated("a", slaveId, aResources);
 
   sorter.add("b");
+  sorter.activate("b");
   Resources bResources = Resources::parse("cpus:6;mem:6").get();
   sorter.allocated("b", slaveId, bResources);
 
@@ -1149,6 +1222,7 @@ TEST(SorterTest, SharedResources)
   EXPECT_EQ(vector<string>({"b", "a"}), sorter.sort());
 
   sorter.add("c");
+  sorter.activate("c");
   Resources cResources = Resources::parse("cpus:1;mem:1").get();
   cResources += sharedDisk;
   sorter.allocated("c", slaveId, cResources);
@@ -1167,6 +1241,7 @@ TEST(SorterTest, SharedResources)
   EXPECT_EQ(vector<string>({"b", "c"}), sorter.sort());
 
   sorter.add("d");
+  sorter.activate("d");
   Resources dResources = Resources::parse("cpus:1;mem:5").get();
   dResources += sharedDisk;
   sorter.allocated("d", slaveId, dResources);
@@ -1228,11 +1303,13 @@ TEST(SorterTest, SameDominantSharedResourcesAcrossClients)
   // Add 2 clients each with the same shared disk, but with varying
   // cpus and mem.
   sorter.add("b");
+  sorter.activate("b");
   Resources bResources = Resources::parse("cpus:5;mem:20").get();
   bResources += sharedDisk;
   sorter.allocated("b", slaveId, bResources);
 
   sorter.add("c");
+  sorter.activate("c");
   Resources cResources = Resources::parse("cpus:10;mem:6").get();
   cResources += sharedDisk;
   sorter.allocated("c", slaveId, cResources);
@@ -1242,6 +1319,7 @@ TEST(SorterTest, SameDominantSharedResourcesAcrossClients)
 
   // Add 3rd client with the same shared resource.
   sorter.add("a");
+  sorter.activate("a");
   Resources aResources = Resources::parse("cpus:50;mem:40").get();
   aResources += sharedDisk;
   sorter.allocated("a", slaveId, aResources);
@@ -1273,11 +1351,13 @@ TEST(SorterTest, SameSharedResourcesSameClient)
 
   // Verify sort() works when shared resources are in the allocations.
   sorter.add("a");
+  sorter.activate("a");
   Resources aResources = Resources::parse("cpus:2;mem:2").get();
   aResources += sharedDisk;
   sorter.allocated("a", slaveId, aResources);
 
   sorter.add("b");
+  sorter.activate("b");
   Resources bResources = Resources::parse("cpus:6;mem:6").get();
   sorter.allocated("b", slaveId, bResources);
 
@@ -1317,6 +1397,7 @@ TEST(SorterTest, SharedResourcesUnallocated)
   // Allocate 3 copies of shared resources to client 'a', but allocate no
   // shared resource to client 'b'.
   sorter.add("a");
+  sorter.activate("a");
   Resources aResources = Resources::parse("cpus:2;mem:2").get();
   aResources += sharedDisk;
   aResources += sharedDisk;
@@ -1324,6 +1405,7 @@ TEST(SorterTest, SharedResourcesUnallocated)
   sorter.allocated("a", slaveId, aResources);
 
   sorter.add("b");
+  sorter.activate("b");
   Resources bResources = Resources::parse("cpus:6;mem:6").get();
   sorter.allocated("b", slaveId, bResources);
 

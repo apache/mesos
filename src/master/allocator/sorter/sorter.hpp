@@ -56,8 +56,9 @@ public:
   virtual void initialize(
       const Option<std::set<std::string>>& fairnessExcludeResourceNames) = 0;
 
-  // Adds a client to allocate resources to. A client
-  // may be a user or a framework.
+  // Adds a client to allocate resources to.
+  // A client may be a user or a framework.
+  // This function will not activate the client.
   virtual void add(const std::string& client) = 0;
 
   // Removes a client.

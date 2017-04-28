@@ -241,6 +241,9 @@ void HierarchicalAllocatorProcess::addFramework(
 
   foreach (const string& role, framework.roles) {
     trackFrameworkUnderRole(frameworkId, role);
+
+    CHECK(frameworkSorters.contains(role));
+    frameworkSorters.at(role)->activate(frameworkId.value());
   }
 
   // TODO(bmahler): Validate that the reserved resources have the
@@ -470,6 +473,9 @@ void HierarchicalAllocatorProcess::addSlave(
       // track the framework under the role.
       if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
         trackFrameworkUnderRole(frameworkId, role);
+
+        CHECK(frameworkSorters.contains(role));
+        frameworkSorters.at(role)->activate(frameworkId.value());
       }
 
       // TODO(bmahler): Validate that the reserved resources have the
@@ -1277,6 +1283,7 @@ void HierarchicalAllocatorProcess::setQuota(
   // allocation group.
   quotas[role] = quota;
   quotaRoleSorter->add(role);
+  quotaRoleSorter->activate(role);
 
   // Copy allocation information for the quota'ed role.
   if (roleSorter->contains(role)) {
@@ -2219,6 +2226,7 @@ void HierarchicalAllocatorProcess::trackFrameworkUnderRole(
     roles[role] = {};
     CHECK(!roleSorter->contains(role));
     roleSorter->add(role);
+    roleSorter->activate(role);
 
     CHECK(!frameworkSorters.contains(role));
     frameworkSorters.insert({role, Owned<Sorter>(frameworkSorterFactory())});
