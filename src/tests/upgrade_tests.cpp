@@ -69,6 +69,7 @@ using std::initializer_list;
 using std::vector;
 
 using testing::_;
+using testing::Eq;
 using testing::AtMost;
 
 namespace mesos {

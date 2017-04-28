@@ -473,9 +473,6 @@ void HierarchicalAllocatorProcess::addSlave(
       // track the framework under the role.
       if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
         trackFrameworkUnderRole(frameworkId, role);
-
-        CHECK(frameworkSorters.contains(role));
-        frameworkSorters.at(role)->activate(frameworkId.value());
       }
 
       // TODO(bmahler): Validate that the reserved resources have the
