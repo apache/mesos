@@ -1195,7 +1195,7 @@ void HierarchicalAllocatorProcess::recoverResources(
 
 void HierarchicalAllocatorProcess::suppressOffers(
     const FrameworkID& frameworkId,
-    const Option<string>& role)
+    const set<string>& roles_)
 {
   CHECK(initialized);
   CHECK(frameworks.contains(frameworkId));
@@ -1205,8 +1205,7 @@ void HierarchicalAllocatorProcess::suppressOffers(
   // Deactivating the framework in the sorter is fine as long as
   // SUPPRESS is not parameterized. When parameterization is added,
   // we have to differentiate between the cases here.
-  const set<string>& roles =
-    role.isSome() ? set<string>{role.get()} : framework.roles;
+  const set<string>& roles = roles_.empty() ? framework.roles : roles_;
 
   foreach (const string& role, roles) {
     CHECK(frameworkSorters.contains(role));
@@ -1220,7 +1219,7 @@ void HierarchicalAllocatorProcess::suppressOffers(
 
 void HierarchicalAllocatorProcess::reviveOffers(
     const FrameworkID& frameworkId,
-    const Option<string>& role)
+    const set<string>& roles_)
 {
   CHECK(initialized);
   CHECK(frameworks.contains(frameworkId));
@@ -1229,8 +1228,7 @@ void HierarchicalAllocatorProcess::reviveOffers(
   framework.offerFilters.clear();
   framework.inverseOfferFilters.clear();
 
-  const set<string>& roles =
-    role.isSome() ? set<string>{role.get()} : framework.roles;
+  const set<string>& roles = roles_.empty() ? framework.roles : roles_;
 
   // Activating the framework in the sorter on REVIVE is fine as long as
   // SUPPRESS is not parameterized. When parameterization is added,

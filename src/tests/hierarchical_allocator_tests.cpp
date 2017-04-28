@@ -3333,7 +3333,7 @@ TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
       None());
 
   // Suppress offers and disconnect framework.
-  allocator->suppressOffers(framework.id(), None());
+  allocator->suppressOffers(framework.id(), {});
   allocator->deactivateFramework(framework.id());
 
   // Advance the clock and trigger a background allocation cycle.
@@ -3392,7 +3392,7 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
 
   // Here the revival is totally unnecessary but we should tolerate the
   // framework's redundant REVIVE calls.
-  allocator->reviveOffers(framework.id(), None());
+  allocator->reviveOffers(framework.id(), {});
 
   // Settle to ensure that the dispatched allocation is executed.
   Clock::settle();
@@ -3407,7 +3407,7 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
       allocatedResources(agent.resources(), "role1"),
       None());
 
-  allocator->suppressOffers(framework.id(), None());
+  allocator->suppressOffers(framework.id(), {});
 
   // Advance the clock and trigger a background allocation cycle.
   Clock::advance(flags.allocation_interval);
@@ -3417,7 +3417,7 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffers)
   EXPECT_TRUE(allocation.isPending());
 
   // Revive again and this time it should work.
-  allocator->reviveOffers(framework.id(), None());
+  allocator->reviveOffers(framework.id(), {});
 
   // Framework will be offered all of agent's resources again after
   // reviving offers.
@@ -4228,7 +4228,7 @@ TEST_F(HierarchicalAllocatorTest, ReviveOffers)
   Future<Allocation> allocation = allocations.get();
   EXPECT_TRUE(allocation.isPending());
 
-  allocator->reviveOffers(framework.id(), None());
+  allocator->reviveOffers(framework.id(), {});
 
   // Framework will be offered all of agent's resources again
   // after reviving offers.
@@ -4254,7 +4254,7 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffersWithMultiRole)
   FrameworkInfo framework = createFrameworkInfo({"role1", "role2"});
 
   allocator->addFramework(framework.id(), framework, {}, true);
-  allocator->suppressOffers(framework.id(), "role1");
+  allocator->suppressOffers(framework.id(), {"role1"});
 
   // Total cluster resources will become cpus=2, mem=1024.
   SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
@@ -4289,7 +4289,7 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffersWithMultiRole)
 
   // Revive offers for role1, after which the agent's resources
   // should be offered to it.
-  allocator->reviveOffers(framework.id(), "role1");
+  allocator->reviveOffers(framework.id(), {"role1"});
 
   expected = Allocation(
       framework.id(),
@@ -5389,7 +5389,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, SuppressOffers)
     // 'frameworkCount % allocationsCount' of frameworks not suppressed. For
     // the purposes of the benchmark this is not an issue.
     for (size_t j = 0; j < frameworkCount / allocationsCount; ++j) {
-      allocator->suppressOffers(frameworks[suppressCount].id(), None());
+      allocator->suppressOffers(frameworks[suppressCount].id(), {});
       ++suppressCount;
     }
 
@@ -5584,7 +5584,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AllocatorBacklog)
   // events. The allocator doesn't have more resources to allocate
   // but still incurs the overhead of additional allocation runs.
   for (size_t i = 0; i < frameworkCount; i++) {
-    allocator->reviveOffers(frameworks.at(i).id(), None());
+    allocator->reviveOffers(frameworks.at(i).id(), {});
   }
 
   // Wait for all the `reviveOffers` operations to be processed.

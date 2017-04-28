@@ -357,7 +357,7 @@ public:
   void reviveOffers(
       const process::UPID& from,
       const FrameworkID& frameworkId,
-      const std::string& role);
+      const std::vector<std::string>& role);
 
   void killTask(
       const process::UPID& from,

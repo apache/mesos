@@ -279,12 +279,12 @@ message RescindInverseOfferMessage {
  * Used by the pre-Event/Call Mesos scheduler driver.
  * See scheduler::Call::Revive.
  *
- * NOTE: There is no optional `role` field in V0 API as we will eventually
- * move to V1 API.
+ * NOTE: There is no `roles` field in V0 API as we will
+ * eventually move to V1 API.
  */
 message ReviveOffersMessage {
   required FrameworkID framework_id = 1;
-  optional string role = 2;
+  repeated string roles = 2;
 }
 
 

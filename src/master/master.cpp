@@ -821,7 +821,7 @@ void Master::initialize()
   install<ReviveOffersMessage>(
       &Master::reviveOffers,
       &ReviveOffersMessage::framework_id,
-      &ReviveOffersMessage::role);
+      &ReviveOffersMessage::roles);
 
   install<KillTaskMessage>(
       &Master::killTask,
@@ -3301,34 +3301,33 @@ void Master::suppress(
 
   ++metrics->messages_suppress_offers;
 
-  const Option<string> role =
-    suppress.has_role() ? Option<string>(suppress.role()) : None();
+  set<string> roles;
 
-  // Validate role if it is set. We need to make sure the role is valid
-  // and also one of the framework roles.
-  if (role.isSome()) {
-    // There maybe cases that the framework developer set an invalid role
-    // when constructing `scheduler::Call::Suppress`.
-    Option<Error> roleError = roles::validate(role.get());
+  // Validate the roles, if provided. We need to make sure the
+  // roles is valid and also contained within the framework roles.
+  // Note that if a single role is invalid, we drop the entire
+  // call and do not suppress the valid roles.
+  foreach (const string& role, suppress.roles()) {
+    Option<Error> roleError = roles::validate(role);
     if (roleError.isSome()) {
       drop(framework,
            suppress,
-           "suppression role is invalid: " + roleError->message);
-
+           "suppression role '" + role + "' is invalid: " + roleError->message);
       return;
     }
 
-    if (framework->roles.count(role.get()) == 0) {
+    if (framework->roles.count(role) == 0) {
       drop(framework,
            suppress,
-           "suppression role " + role.get() + " is not one"
+           "suppression role '" + role + "' is not one"
            " of the frameworks's subscribed roles");
-
       return;
     }
+
+    roles.insert(role);
   }
 
-  allocator->suppressOffers(framework->id(), role);
+  allocator->suppressOffers(framework->id(), roles);
 }
 
 
@@ -4906,7 +4905,7 @@ void Master::declineInverseOffers(
 void Master::reviveOffers(
     const UPID& from,
     const FrameworkID& frameworkId,
-    const string& role)
+    const vector<string>& roles)
 {
   Framework* framework = getFramework(frameworkId);
 
@@ -4925,8 +4924,8 @@ void Master::reviveOffers(
   }
 
   scheduler::Call::Revive call;
-  if (!role.empty()) {
-    call.set_role(role);
+  foreach (const string& role, roles) {
+    call.add_roles(role);
   }
 
   revive(framework, call);
@@ -4943,32 +4942,33 @@ void Master::revive(
 
   ++metrics->messages_revive_offers;
 
-  const Option<string> role =
-    revive.has_role() ? Option<string>(revive.role()) : None();
+  set<string> roles;
 
-  // Validate role if it is set. We need to make sure the role is valid
-  // and also one of the framework roles.
-  if (role.isSome()) {
-    Option<Error> roleError = roles::validate(role.get());
+  // Validate the roles, if provided. We need to make sure the
+  // roles is valid and also contained within the framework roles.
+  // Note that if a single role is invalid, we drop the entire
+  // call and do not suppress the valid roles.
+  foreach (const string& role, revive.roles()) {
+    Option<Error> roleError = roles::validate(role);
     if (roleError.isSome()) {
       drop(framework,
            revive,
-           "revive role is invalid: " + roleError->message);
-
+           "revive role '" + role + "' is invalid: " + roleError->message);
       return;
     }
 
-    if (framework->roles.count(role.get()) == 0) {
+    if (framework->roles.count(role) == 0) {
       drop(framework,
            revive,
-           "revive role " + role.get() + " is not one"
+           "revive role '" + role + "' is not one"
            " of the frameworks's subscribed roles");
-
       return;
     }
+
+    roles.insert(role);
   }
 
-  allocator->reviveOffers(framework->id(), role);
+  allocator->reviveOffers(framework->id(), roles);
 }
 
 

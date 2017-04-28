@@ -290,11 +290,11 @@ message Call {
     optional Filters filters = 2;
   }
 
-  // Revive offers for a specified role. If role is unset, the
-  // `REVIVE` call will revive offers for all of the roles the
-  // framework is subscribed to.
+  // Revive offers for the specified roles. If `roles` is empty,
+  // the `REVIVE` call will revive offers for all of the roles
+  // the framework is currently subscribed to.
   message Revive {
-    optional string role = 1;
+    repeated string roles = 1;
   }
 
   // Kills a specific task. If the scheduler has a custom executor,
@@ -379,11 +379,11 @@ message Call {
     repeated mesos.v1.Request requests = 1;
   }
 
-  // Suppress offers for a specified role. If role is unset, the
-  // `SUPPRESS` call will suppress offers for all of the roles the
-  // framework is subscribed to.
+  // Suppress offers for the specified roles. If `roles` is empty,
+  // the `SUPPRESS` call will suppress offers for all of the roles
+  // the framework is currently subscribed to.
   message Suppress {
-    optional string role = 1;
+    repeated string roles = 1;
   }
 
   // Identifies who generated this call. Master assigns a framework id

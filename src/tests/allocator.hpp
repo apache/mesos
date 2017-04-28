@@ -453,11 +453,11 @@ public:
 
   MOCK_METHOD2(suppressOffers, void(
       const FrameworkID&,
-      const Option<std::string>&));
+      const std::set<std::string>&));
 
   MOCK_METHOD2(reviveOffers, void(
       const FrameworkID&,
-      const Option<std::string>&));
+      const std::set<std::string>&));
 
   MOCK_METHOD2(setQuota, void(
       const std::string&,

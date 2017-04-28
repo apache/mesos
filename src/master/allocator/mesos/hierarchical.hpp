@@ -190,11 +190,11 @@ public:
 
   void suppressOffers(
       const FrameworkID& frameworkId,
-      const Option<std::string>& role);
+      const std::set<std::string>& roles);
 
   void reviveOffers(
       const FrameworkID& frameworkId,
-      const Option<std::string>& role);
+      const std::set<std::string>& roles);
 
   void setQuota(
       const std::string& role,

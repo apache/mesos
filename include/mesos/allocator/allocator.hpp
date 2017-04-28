@@ -350,27 +350,23 @@ public:
    * Suppresses offers.
    *
    * Informs the allocator to stop sending offers to this framework for the
-   * specified role. If the role is not specified, we will stop sending offers
-   * to this framework for all of its roles.
-   *
-   * @param role The optional role parameter allows frameworks with multiple
-   *     roles to do fine-grained suppression.
+   * specified roles. If `roles` is an empty set, we will stop sending offers
+   * to this framework for all of the framework's subscribed roles.
    */
   virtual void suppressOffers(
       const FrameworkID& frameworkId,
-      const Option<std::string>& role) = 0;
+      const std::set<std::string>& roles) = 0;
 
   /**
-   * Revives offers to this framework for the specified role. This is
+   * Revives offers to this framework for the specified roles. This is
    * invoked by a framework when it wishes to receive filtered resources
-   * immediately or get itself out of a suppressed state.
-   *
-   * @param role The optional role parameter allows frameworks with multiple
-   *     roles to do fine-grained revival.
+   * immediately or get itself out of a suppressed state. If `roles` is
+   * an empty set, it is treated as being set to all of the framework's
+   * subscribed roles.
    */
   virtual void reviveOffers(
       const FrameworkID& frameworkId,
-      const Option<std::string>& role) = 0;
+      const std::set<std::string>& roles) = 0;
 
   /**
    * Informs the allocator to set quota for the given role.
