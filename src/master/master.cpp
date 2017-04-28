@@ -4340,15 +4340,21 @@ void Master::_accept(
         // rescind those offers.
         foreach (Offer* offer, utils::copy(slave->offers)) {
           const Resources& offered = offer->resources();
+
           foreach (const Resource& volume, operation.destroy().volumes()) {
             if (offered.contains(volume)) {
               allocator->recoverResources(
                   offer->framework_id(),
                   offer->slave_id(),
-                  offer->resources(),
+                  offered,
                   None());
 
               removeOffer(offer, true);
+
+              // This offer may contain other volumes that are being destroyed.
+              // However, we have already rescinded it, so we should move on
+              // to the next offer.
+              break;
             }
           }
         }

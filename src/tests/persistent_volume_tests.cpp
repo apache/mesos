@@ -1062,15 +1062,27 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
 
   Offer offer1 = offers1.get()[0];
 
-  // 2. framework1 CREATEs a shared volume, and LAUNCHes a task with a subset
+  // 2. framework1 CREATEs 2 shared volumes, and LAUNCHes a task with a subset
   //    of resources from the offer.
-  Resource volume = createPersistentVolume(
-      getDiskResource(Megabytes(2048)),
+  Resource volume1 = createPersistentVolume(
+      getDiskResource(Megabytes(2048), 1),
       "id1",
       "path1",
       None(),
       frameworkInfo1.principal(),
       true); // Shared volume.
+
+  Resource volume2 = createPersistentVolume(
+      getDiskResource(Megabytes(2048), 2),
+      "id2",
+      "path2",
+      None(),
+      frameworkInfo1.principal(),
+      true); // Shared volume.
+
+  Resources allVolumes;
+  allVolumes += volume1;
+  allVolumes += volume2;
 
   // Create a task which uses a portion of the offered resources, so that
   // the remaining resources can be offered to framework2. It's not important
@@ -1081,7 +1093,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
       Resources::parse("cpus:1;mem:128").get(),
       "sleep 1000");
 
-  // Expect an offer containing the persistent volume.
+  // Expect an offer containing the persistent volumes.
   EXPECT_CALL(sched1, resourceOffers(&driver1, _))
     .WillOnce(FutureArg<1>(&offers1))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -1093,7 +1105,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
 
   driver1.acceptOffers(
       {offer1.id()},
-      {CREATE(volume),
+      {CREATE(allVolumes),
        LAUNCH({task})},
       filters);
 
@@ -1125,10 +1137,12 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
   Offer offer2 = offers2.get()[0];
 
   EXPECT_TRUE(Resources(offer2.resources()).contains(
-      allocatedResources(volume, frameworkInfo2.role())));
+      allocatedResources(volume1, frameworkInfo2.role())));
+  EXPECT_TRUE(Resources(offer2.resources()).contains(
+      allocatedResources(volume2, frameworkInfo2.role())));
 
   // 4. framework1 kills the task which results in an offer to framework1
-  //    with the shared volume. At this point, both frameworks will have
+  //    with the shared volumes. At this point, both frameworks will have
   //    the shared resource in their pending offers.
   EXPECT_CALL(sched1, statusUpdate(_, _))
     .WillOnce(DoDefault());
@@ -1148,17 +1162,19 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
   offer1 = offers1.get()[0];
 
   EXPECT_TRUE(Resources(offer1.resources()).contains(
-      allocatedResources(volume, frameworkInfo1.role())));
+      allocatedResources(volume1, frameworkInfo1.role())));
+  EXPECT_TRUE(Resources(offer1.resources()).contains(
+      allocatedResources(volume2, frameworkInfo1.role())));
 
-  // 5. DESTROY the shared volume via framework2 which would result in
-  //    framework1 being rescinded the offer.
+  // 5. DESTROY both the shared volumes via framework2 which would result
+  //    in framework1 being rescinded the offer.
   Future<Nothing> rescinded;
   EXPECT_CALL(sched1, offerRescinded(&driver1, _))
     .WillOnce(FutureSatisfy(&rescinded));
 
   driver2.acceptOffers(
       {offer2.id()},
-      {DESTROY(volume)},
+      {DESTROY(allVolumes)},
       filters);
 
   AWAIT_READY(rescinded);
