@@ -25,6 +25,7 @@
 namespace unix = process::network::unix;
 #endif // __WINDOWS__
 
+using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerTermination;
 
 using std::list;
@@ -340,6 +341,43 @@ Try<vector<ContainerID>> getContainerIds(const string& runtimeDir)
   };
 
   return helper(None());
+}
+
+
+string getContainerLaunchInfoPath(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getRuntimePath(runtimeDir, containerId),
+      CONTAINER_LAUNCH_INFO_FILE);
+}
+
+
+Result<ContainerLaunchInfo> getContainerLaunchInfo(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  const string path = getContainerLaunchInfoPath(
+      runtimeDir, containerId);
+
+  if (!os::exists(path)) {
+    // This is possible because we don't atomically create the
+    // directory and write the 'CONTAINER_LAUNCH_INFO_FILE' file
+    // and thus we might terminate/restart after we've created
+    // the directory but before we've written the file.
+    return None();
+  }
+
+  const Result<ContainerLaunchInfo>& containerLaunchInfo =
+    ::protobuf::read<ContainerLaunchInfo>(path);
+
+  if (containerLaunchInfo.isError()) {
+    return Error(
+        "Failed to read ContainerLaunchInfo: " + containerLaunchInfo.error());
+  }
+
+  return containerLaunchInfo;
 }
 
 

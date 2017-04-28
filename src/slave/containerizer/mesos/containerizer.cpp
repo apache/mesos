@@ -909,6 +909,26 @@ Future<Nothing> MesosContainerizerProcess::__recover(
     const list<ContainerState>& recovered,
     const hashset<ContainerID>& orphans)
 {
+  // Recover containers' launch information.
+  foreach (const ContainerState& run, recovered) {
+    const ContainerID& containerId = run.container_id();
+
+    // Attempt to read container's launch information.
+    Result<ContainerLaunchInfo> containerLaunchInfo =
+      containerizer::paths::getContainerLaunchInfo(
+          flags.runtime_dir, containerId);
+
+    if (containerLaunchInfo.isError()) {
+      return Failure(
+          "Failed to recover launch information of container '" +
+          stringify(containerId) + "': " + containerLaunchInfo.error());
+    }
+
+    if (containerLaunchInfo.isSome()) {
+      containers_[containerId]->launchInfo = containerLaunchInfo.get();
+    }
+  }
+
   foreach (const ContainerState& run, recovered) {
     const ContainerID& containerId = run.container_id();
 
@@ -1498,6 +1518,25 @@ Future<bool> MesosContainerizerProcess::_launch(
     launchInfo.set_user("root");
   }
 
+  // Store container's launch information for future access.
+  container->launchInfo = launchInfo;
+
+  // Checkpoint container's launch information.
+  const string launchInfoPath =
+    containerizer::paths::getContainerLaunchInfoPath(
+        flags.runtime_dir, containerId);
+
+  Try<Nothing> checkpointed = slave::state::checkpoint(
+      launchInfoPath, launchInfo);
+
+  if (checkpointed.isError()) {
+    LOG(ERROR) << "Failed to checkpoint container's launch information to '"
+               << launchInfoPath << "': " << checkpointed.error();
+
+    return Failure("Could not checkpoint container's launch information: " +
+                   checkpointed.error());
+  }
+
   // Use a pipe to block the child until it's been isolated.
   // The `pipes` array is captured later in a lambda.
   Try<std::array<int_fd, 2>> pipes_ = os::pipe();
@@ -1657,8 +1696,7 @@ Future<bool> MesosContainerizerProcess::_launch(
       containerizer::paths::getRuntimePath(flags.runtime_dir, containerId),
       containerizer::paths::PID_FILE);
 
-  Try<Nothing> checkpointed =
-    slave::state::checkpoint(pidPath, stringify(pid));
+  checkpointed = slave::state::checkpoint(pidPath, stringify(pid));
 
   if (checkpointed.isError()) {
     return Failure("Failed to checkpoint the container pid to"

@@ -44,6 +44,7 @@ constexpr char SOCKET_FILE[] = "socket";
 constexpr char FORCE_DESTROY_ON_RECOVERY_FILE[] = "force_destroy_on_recovery";
 constexpr char IO_SWITCHBOARD_DIRECTORY[] = "io_switchboard";
 constexpr char CONTAINER_DIRECTORY[] = "containers";
+constexpr char CONTAINER_LAUNCH_INFO_FILE[] = "launch_info";
 
 
 enum Mode
@@ -155,6 +156,19 @@ Result<mesos::slave::ContainerTermination> getContainerTermination(
 // is inserted before its children).
 Try<std::vector<ContainerID>> getContainerIds(
     const std::string& runtimeDir);
+
+
+// The helper method to get the container launch information path.
+std::string getContainerLaunchInfoPath(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
+// The helper method to get the container launch information
+// at the moment it was launched.
+Result<mesos::slave::ContainerLaunchInfo> getContainerLaunchInfo(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
 
 
 // The helper method to get the sandbox path.

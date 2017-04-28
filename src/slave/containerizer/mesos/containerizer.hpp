@@ -358,6 +358,17 @@ private:
     // is only used during the launch of a container.
     mesos::slave::ContainerConfig config;
 
+    // Container's information at the moment it was launched. For example,
+    // used to bootstrap the launch information of future child DEBUG
+    // containers. Checkpointed and restored on recovery. Optional because
+    // it is not set for orphan containers.
+    //
+    // NOTE: Some of these data, may change during the container lifetime,
+    // e.g., the working directory. Such changes are not be captured here,
+    // which might be problematic, e.g., for DEBUG containers relying on
+    // some data in parent working directory.
+    Option<mesos::slave::ContainerLaunchInfo> launchInfo;
+
     State state;
 
     // Used when `status` needs to be collected from isolators
