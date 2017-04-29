@@ -47,7 +47,7 @@ namespace docker {
 namespace volume {
 
 constexpr Duration MOUNT_TIMEOUT = Seconds(120);
-constexpr Duration UNMOUNT_TIMEOUT = Seconds(120);
+constexpr Duration UNMOUNT_TIMEOUT = Minutes(10);
 
 Try<Owned<DriverClient>> DriverClient::create(
     const string& dvdcli)
