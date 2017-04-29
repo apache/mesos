@@ -645,3 +645,5 @@ Const expression constructors allow object initialization at compile time provid
 ~~~
 
   C++11 does not provide `constexpr string` or `constexpr` containers in the STL and hence `constexpr` cannot be used for any class using stout's Error() class.
+
+* `enum class`.
