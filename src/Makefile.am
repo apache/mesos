@@ -1618,7 +1618,8 @@ nobase_dist_pkgdata_DATA +=						\
   webui/master/static/fonts/glyphicons-halflings-regular.eot		\
   webui/master/static/fonts/glyphicons-halflings-regular.svg		\
   webui/master/static/fonts/glyphicons-halflings-regular.ttf		\
-  webui/master/static/fonts/glyphicons-halflings-regular.woff
+  webui/master/static/fonts/glyphicons-halflings-regular.woff		\
+  webui/master/static/fonts/glyphicons-halflings-regular.woff2
 
 # Need to distribute/install third-party javascript.
 nobase_dist_pkgdata_DATA +=						\
