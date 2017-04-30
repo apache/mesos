@@ -14,12 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 #include <process/id.hpp>
 
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
-
-#include "linux/cgroups.hpp"
+#include <stout/os.hpp>
 
 #include "slave/containerizer/mesos/isolators/cgroups/subsystems/devices.hpp"
 
@@ -30,6 +31,7 @@ using process::Future;
 using process::Owned;
 
 using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -63,15 +65,76 @@ Try<Owned<Subsystem>> DevicesSubsystem::create(
     const Flags& flags,
     const string& hierarchy)
 {
-  return Owned<Subsystem>(new DevicesSubsystem(flags, hierarchy));
+  vector<cgroups::devices::Entry> whitelistDeviceEntries;
+
+  foreach (const char* _entry, DEFAULT_WHITELIST_ENTRIES) {
+    Try<cgroups::devices::Entry> entry =
+      cgroups::devices::Entry::parse(_entry);
+
+    CHECK_SOME(entry);
+    whitelistDeviceEntries.push_back(entry.get());
+  }
+
+  if (flags.allowed_devices.isSome()) {
+    foreach (const DeviceAccess& device_access,
+             flags.allowed_devices->allowed_devices()) {
+      string path = device_access.device().path();
+      const DeviceAccess_Access access = device_access.access();
+      bool readAccess = (access.has_read() && access.read());
+      bool writeAccess = (access.has_write() && access.write());
+      bool mknodAccess = (access.has_mknod() && access.mknod());
+
+      if (!(readAccess || writeAccess || mknodAccess)) {
+        return Error("Could not whitelist device '" + path +
+                     "' without any access privileges");
+      }
+
+      Try<dev_t> device = os::stat::rdev(path);
+      if (device.isError()) {
+        return Error("Failed to obtain device ID for '" + path +
+                     "': " + device.error());
+      }
+
+      Try<mode_t> mode = os::stat::mode(path);
+      if (mode.isError()) {
+        return Error("Failed to obtain device mode for '" + path +
+                     "': " + mode.error());
+      }
+
+      Entry::Selector::Type type;
+      if (S_ISBLK(mode.get())) {
+          type = Entry::Selector::Type::BLOCK;
+      } else if (S_ISCHR(mode.get())) {
+          type = Entry::Selector::Type::CHARACTER;
+      } else {
+          return Error("Failed to determine device type for '" + path +
+                       "'");
+      }
+
+      cgroups::devices::Entry entry;
+      entry.selector.type = type;
+      entry.selector.major = major(device.get());
+      entry.selector.minor = minor(device.get());
+      entry.access.read = readAccess;
+      entry.access.write = writeAccess;
+      entry.access.mknod = mknodAccess;
+
+      whitelistDeviceEntries.push_back(entry);
+    }
+  }
+
+  return Owned<Subsystem>(
+      new DevicesSubsystem(flags, hierarchy, whitelistDeviceEntries));
 }
 
 
 DevicesSubsystem::DevicesSubsystem(
     const Flags& _flags,
-    const string& _hierarchy)
+    const string& _hierarchy,
+    const vector<cgroups::devices::Entry>& _whitelistDeviceEntries)
   : ProcessBase(process::ID::generate("cgroups-devices-subsystem")),
-    Subsystem(_flags, _hierarchy) {}
+    Subsystem(_flags, _hierarchy),
+    whitelistDeviceEntries(_whitelistDeviceEntries) {}
 
 
 Future<Nothing> DevicesSubsystem::recover(
@@ -127,20 +190,12 @@ Future<Nothing> DevicesSubsystem::prepare(
     return Failure("Failed to deny all devices: " + deny.error());
   }
 
-  foreach (const char* _entry, DEFAULT_WHITELIST_ENTRIES) {
-    Try<cgroups::devices::Entry> entry =
-      cgroups::devices::Entry::parse(_entry);
-
-    CHECK_SOME(entry);
-
-    Try<Nothing> allow = cgroups::devices::allow(
-        hierarchy,
-        cgroup,
-        entry.get());
+  foreach (const cgroups::devices::Entry& entry, whitelistDeviceEntries) {
+    Try<Nothing> allow = cgroups::devices::allow(hierarchy, cgroup, entry);
 
     if (allow.isError()) {
-      return Failure("Failed to whitelist default device "
-                     "'" + stringify(entry.get()) + "': " + allow.error());
+      return Failure("Failed to whitelist device "
+                     "'" + stringify(entry) + "': " + allow.error());
     }
   }
 

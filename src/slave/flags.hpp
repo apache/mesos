@@ -99,6 +99,7 @@ public:
   bool cgroups_cpu_enable_pids_and_tids_count;
   Option<std::string> cgroups_net_cls_primary_handle;
   Option<std::string> cgroups_net_cls_secondary_handles;
+  Option<DeviceWhitelist> allowed_devices;
   Option<std::string> agent_subsystems;
   Option<std::vector<unsigned int>> nvidia_gpu_devices;
   Option<std::string> perf_events;

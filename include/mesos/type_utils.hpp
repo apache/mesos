@@ -269,6 +269,11 @@ std::ostream& operator<<(
 
 std::ostream& operator<<(
     std::ostream& stream,
+    const DeviceWhitelist& deviceWhitelist);
+
+
+std::ostream& operator<<(
+    std::ostream& stream,
     const CheckStatusInfo& checkStatusInfo);
 
 
@@ -369,6 +374,10 @@ inline std::ostream& operator<<(
 std::ostream& operator<<(
     std::ostream& stream,
     const hashmap<std::string, std::string>& map);
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const ::google::protobuf::Message& map);
 
 } // namespace mesos {
 

@@ -2735,3 +2735,30 @@ message FileInfo {
   // Group ID of owner.
   optional string gid = 7;
 }
+
+
+/**
+ * Describes information abount a device.
+ */
+message Device {
+  required string path = 1;
+}
+
+
+/**
+ * Describes a device whitelist entry that expose from host to container.
+ */
+message DeviceAccess {
+  message Access {
+    optional bool read = 1;
+    optional bool write = 2;
+    optional bool mknod = 3;
+  }
+  required Device device = 1;
+  required Access access = 2;
+}
+
+
+message DeviceWhitelist {
+   repeated DeviceAccess allowed_devices = 1;
+}

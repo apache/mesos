@@ -1153,6 +1153,48 @@ effect only when the <code>--cgroups_net_cls_primary_handle</code> is set.
 </tr>
 <tr>
   <td>
+    --allowed_devices
+  </td>
+  <td>
+JSON object representing the devices that will be additionally
+whitelisted by cgroups devices subsystem. Noted that the following
+devices always be whitelisted by default:
+<pre><code>  * /dev/console
+  * /dev/tty0
+  * /dev/tty1
+  * /dev/pts/*
+  * /dev/ptmx
+  * /dev/net/tun
+  * /dev/null
+  * /dev/zero
+  * /dev/full
+  * /dev/tty
+  * /dev/urandom
+  * /dev/random
+</code></pre>
+This flag will take effect only when <code>cgroups/devices</code> is set in
+<code>--isolation</code> flag.
+<p/>
+Example:
+<pre><code>{
+  "allowed_devices": [
+    {
+      "device": {
+        "path": "/path/to/device"
+      },
+      "access": {
+        "read": true,
+        "write": false,
+        "mknod": false
+      }
+    }
+  ]
+}
+</code></pre>
+  </td>
+</tr>
+<tr>
+  <td>
     --cgroups_root=VALUE
   </td>
   <td>
