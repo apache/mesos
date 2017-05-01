@@ -339,7 +339,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 
   // Shut down the executor manually so that it doesn't hang around
   // after the test finishes.
-  process::post(libprocessPid, ShutdownExecutorMessage());
+  process::post(slave.get()->pid, libprocessPid, ShutdownExecutorMessage());
 
   driver.stop();
   driver.join();
@@ -2346,7 +2346,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   Future<Option<int>> executorStatus = process::reap(pid.get());
 
   // Shut down the executor manually and wait until it's been reaped.
-  process::post(executorPid, ShutdownExecutorMessage());
+  process::post(slave.get()->pid, executorPid, ShutdownExecutorMessage());
 
   AWAIT_READY(executorStatus);
 
@@ -2601,7 +2601,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   // We shut down the executor here so that a shutting down slave
   // does not spend too much time waiting for the executor to exit.
-  process::post(executorPid, ShutdownExecutorMessage());
+  process::post(slave.get()->pid, executorPid, ShutdownExecutorMessage());
 
   Clock::pause();
 
