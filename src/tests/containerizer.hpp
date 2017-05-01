@@ -84,27 +84,13 @@ public:
       recover,
       process::Future<Nothing>(const Option<slave::state::SlaveState>&));
 
-  MOCK_METHOD8(
+  MOCK_METHOD4(
       launch,
       process::Future<bool>(
           const ContainerID&,
-          const Option<TaskInfo>&,
-          const ExecutorInfo&,
-          const std::string&,
-          const Option<std::string>&,
-          const SlaveID&,
+          const mesos::slave::ContainerConfig&,
           const std::map<std::string, std::string>&,
-          bool checkpoint));
-
-  MOCK_METHOD6(
-      launch,
-      process::Future<bool>(
-          const ContainerID& containerId,
-          const CommandInfo& commandInfo,
-          const Option<ContainerInfo>& containerInfo,
-          const Option<std::string>& user,
-          const SlaveID& slaveId,
-          const Option<mesos::slave::ContainerClass>& containerClass));
+          const Option<std::string>&));
 
   MOCK_METHOD1(
       attach,
@@ -150,21 +136,9 @@ private:
 
   process::Future<bool> _launch(
       const ContainerID& containerId,
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
+      const mesos::slave::ContainerConfig& containerConfig,
       const std::map<std::string, std::string>& environment,
-      bool checkpoint);
-
-  process::Future<bool> _launch(
-      const ContainerID& containerId,
-      const CommandInfo& commandInfo,
-      const Option<ContainerInfo>& containerInfo,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
-      const Option<mesos::slave::ContainerClass>& containerClass = None());
+      const Option<std::string>& pidCheckpointPath);
 
   process::Future<process::http::Connection> _attach(
       const ContainerID& containerId);

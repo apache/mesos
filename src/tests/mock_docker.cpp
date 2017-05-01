@@ -98,7 +98,7 @@ MockDockerContainerizerProcess::MockDockerContainerizerProcess(
   : slave::DockerContainerizerProcess(
       flags, fetcher, logger, docker, nvidia)
 {
-  EXPECT_CALL(*this, fetch(_, _))
+  EXPECT_CALL(*this, fetch(_))
     .WillRepeatedly(Invoke(this, &MockDockerContainerizerProcess::_fetch));
 
   EXPECT_CALL(*this, pull(_))

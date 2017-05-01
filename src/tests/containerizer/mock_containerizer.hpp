@@ -46,27 +46,13 @@ public:
       process::Future<Nothing>(
           const Option<slave::state::SlaveState>&));
 
-  MOCK_METHOD8(
+  MOCK_METHOD4(
       launch,
       process::Future<bool>(
           const ContainerID&,
-          const Option<TaskInfo>&,
-          const ExecutorInfo&,
-          const std::string&,
-          const Option<std::string>&,
-          const SlaveID&,
+          const mesos::slave::ContainerConfig&,
           const std::map<std::string, std::string>&,
-          bool));
-
-  MOCK_METHOD6(
-      launch,
-      process::Future<bool>(
-          const ContainerID&,
-          const CommandInfo&,
-          const Option<ContainerInfo>&,
-          const Option<std::string>&,
-          const SlaveID&,
-          const Option<mesos::slave::ContainerClass>&));
+          const Option<std::string>&));
 
   MOCK_METHOD1(
       attach,

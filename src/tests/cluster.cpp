@@ -413,7 +413,7 @@ Try<process::Owned<Slave>> Slave::start(
     slave->containerizer = containerizer.get();
   } else {
     // Create a new fetcher.
-    slave->fetcher.reset(new slave::Fetcher());
+    slave->fetcher.reset(new slave::Fetcher(flags));
 
     Try<slave::Containerizer*> _containerizer =
       slave::Containerizer::create(flags, true, slave->fetcher.get());

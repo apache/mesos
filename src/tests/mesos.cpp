@@ -506,12 +506,13 @@ MockExecutor::MockExecutor(const ExecutorID& _id) : id(_id) {}
 MockExecutor::~MockExecutor() {}
 
 
-MockFetcherProcess::MockFetcherProcess()
+MockFetcherProcess::MockFetcherProcess(const slave::Flags& flags)
+  : slave::FetcherProcess(flags)
 {
   // Set up default behaviors, calling the original methods.
-  EXPECT_CALL(*this, _fetch(_, _, _, _, _, _))
+  EXPECT_CALL(*this, _fetch(_, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockFetcherProcess::unmocked__fetch));
-  EXPECT_CALL(*this, run(_, _, _, _, _))
+  EXPECT_CALL(*this, run(_, _, _, _))
     .WillRepeatedly(Invoke(this, &MockFetcherProcess::unmocked_run));
 }
 
@@ -552,16 +553,14 @@ Future<Nothing> MockFetcherProcess::unmocked__fetch(
     const ContainerID& containerId,
     const string& sandboxDirectory,
     const string& cacheDirectory,
-    const Option<string>& user,
-    const slave::Flags& flags)
+    const Option<string>& user)
 {
   return slave::FetcherProcess::_fetch(
       entries,
       containerId,
       sandboxDirectory,
       cacheDirectory,
-      user,
-      flags);
+      user);
 }
 
 
@@ -569,15 +568,13 @@ Future<Nothing> MockFetcherProcess::unmocked_run(
     const ContainerID& containerId,
     const string& sandboxDirectory,
     const Option<string>& user,
-    const FetcherInfo& info,
-    const slave::Flags& flags)
+    const FetcherInfo& info)
 {
   return slave::FetcherProcess::run(
       containerId,
       sandboxDirectory,
       user,
-      info,
-      flags);
+      info);
 }
 
 

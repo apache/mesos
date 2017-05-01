@@ -153,24 +153,20 @@ public:
     // NOTE: See TestContainerizer::setup for why we use
     // 'EXPECT_CALL' and 'WillRepeatedly' here instead of
     // 'ON_CALL' and 'WillByDefault'.
-    EXPECT_CALL(*this, launch(_, _, _, _, _, _, _, _))
+    EXPECT_CALL(*this, launch(_, _, _, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_launch));
 
     EXPECT_CALL(*this, update(_, _))
       .WillRepeatedly(Invoke(this, &MockDockerContainerizer::_update));
   }
 
-  MOCK_METHOD8(
+  MOCK_METHOD4(
       launch,
       process::Future<bool>(
           const ContainerID&,
-          const Option<TaskInfo>&,
-          const ExecutorInfo&,
-          const std::string&,
-          const Option<std::string>&,
-          const SlaveID&,
+          const mesos::slave::ContainerConfig&,
           const std::map<std::string, std::string>&,
-          bool checkpoint));
+          const Option<std::string>&));
 
   MOCK_METHOD2(
       update,
@@ -182,23 +178,15 @@ public:
   // use &slave::DockerContainerizer::launch with 'Invoke').
   process::Future<bool> _launch(
       const ContainerID& containerId,
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
+      const mesos::slave::ContainerConfig& containerConfig,
       const std::map<std::string, std::string>& environment,
-      bool checkpoint)
+      const Option<std::string>& pidCheckpointPath)
   {
     return slave::DockerContainerizer::launch(
         containerId,
-        taskInfo,
-        executorInfo,
-        directory,
-        user,
-        slaveId,
+        containerConfig,
         environment,
-        checkpoint);
+        pidCheckpointPath);
   }
 
   process::Future<Nothing> _update(
@@ -226,21 +214,17 @@ public:
 
   virtual ~MockDockerContainerizerProcess();
 
-  MOCK_METHOD2(
+  MOCK_METHOD1(
       fetch,
-      process::Future<Nothing>(
-          const ContainerID& containerId,
-          const SlaveID& slaveId));
+      process::Future<Nothing>(const ContainerID&));
 
   MOCK_METHOD1(
       pull,
-      process::Future<Nothing>(const ContainerID& containerId));
+      process::Future<Nothing>(const ContainerID&));
 
-  process::Future<Nothing> _fetch(
-      const ContainerID& containerId,
-      const SlaveID& slaveId)
+  process::Future<Nothing> _fetch(const ContainerID& containerId)
   {
-    return slave::DockerContainerizerProcess::fetch(containerId, slaveId);
+    return slave::DockerContainerizerProcess::fetch(containerId);
   }
 
   process::Future<Nothing> _pull(const ContainerID& containerId)

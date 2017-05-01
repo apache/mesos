@@ -2098,10 +2098,10 @@ using MockHTTPExecutor = tests::executor::MockHTTPExecutor<
 class MockFetcherProcess : public slave::FetcherProcess
 {
 public:
-  MockFetcherProcess();
+  MockFetcherProcess(const slave::Flags& flags);
   virtual ~MockFetcherProcess();
 
-  MOCK_METHOD6(_fetch, process::Future<Nothing>(
+  MOCK_METHOD5(_fetch, process::Future<Nothing>(
       const hashmap<
           CommandInfo::URI,
           Option<process::Future<std::shared_ptr<Cache::Entry>>>>&
@@ -2109,8 +2109,7 @@ public:
       const ContainerID& containerId,
       const std::string& sandboxDirectory,
       const std::string& cacheDirectory,
-      const Option<std::string>& user,
-      const slave::Flags& flags));
+      const Option<std::string>& user));
 
   process::Future<Nothing> unmocked__fetch(
       const hashmap<
@@ -2120,22 +2119,19 @@ public:
       const ContainerID& containerId,
       const std::string& sandboxDirectory,
       const std::string& cacheDirectory,
-      const Option<std::string>& user,
-      const slave::Flags& flags);
+      const Option<std::string>& user);
 
-  MOCK_METHOD5(run, process::Future<Nothing>(
+  MOCK_METHOD4(run, process::Future<Nothing>(
       const ContainerID& containerId,
       const std::string& sandboxDirectory,
       const Option<std::string>& user,
-      const mesos::fetcher::FetcherInfo& info,
-      const slave::Flags& flags));
+      const mesos::fetcher::FetcherInfo& info));
 
   process::Future<Nothing> unmocked_run(
       const ContainerID& containerId,
       const std::string& sandboxDirectory,
       const Option<std::string>& user,
-      const mesos::fetcher::FetcherInfo& info,
-      const slave::Flags& flags);
+      const mesos::fetcher::FetcherInfo& info);
 };
 
 
