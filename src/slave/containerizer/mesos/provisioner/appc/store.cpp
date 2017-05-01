@@ -35,15 +35,23 @@
 #include "slave/containerizer/mesos/provisioner/appc/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/appc/store.hpp"
 
-using namespace process;
-
 namespace spec = appc::spec;
 
 using std::list;
 using std::string;
 using std::vector;
 
+using process::Failure;
+using process::Future;
 using process::Owned;
+using process::Process;
+using process::Promise;
+
+using process::defer;
+using process::dispatch;
+using process::spawn;
+using process::terminate;
+using process::wait;
 
 namespace mesos {
 namespace internal {

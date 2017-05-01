@@ -21,6 +21,7 @@
 
 #include <stout/error.hpp>
 #include <stout/option.hpp>
+#include <stout/try.hpp>
 
 #include <mesos/appc/spec.pb.h>
 

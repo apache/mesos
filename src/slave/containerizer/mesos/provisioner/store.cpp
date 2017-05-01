@@ -28,9 +28,9 @@
 
 #include "slave/containerizer/mesos/provisioner/docker/store.hpp"
 
-using namespace process;
-
 using std::string;
+
+using process::Owned;
 
 namespace mesos {
 namespace internal {
