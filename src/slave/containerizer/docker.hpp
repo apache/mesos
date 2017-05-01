@@ -88,13 +88,9 @@ public:
 
   virtual process::Future<bool> launch(
       const ContainerID& containerId,
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
+      const mesos::slave::ContainerConfig& containerConfig,
       const std::map<std::string, std::string>& environment,
-      bool checkpoint);
+      const Option<std::string>& pidCheckpointPath);
 
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
@@ -140,13 +136,9 @@ public:
 
   virtual process::Future<bool> launch(
       const ContainerID& containerId,
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const Option<std::string>& user,
-      const SlaveID& slaveId,
+      const mesos::slave::ContainerConfig& containerConfig,
       const std::map<std::string, std::string>& environment,
-      bool checkpoint);
+      const Option<std::string>& pidCheckpointPath);
 
   // force = true causes the containerizer to update the resources
   // for the container, even if they match what it has cached.
@@ -168,9 +160,7 @@ public:
       const ContainerID& containerId,
       bool killed = true); // process is either killed or reaped.
 
-  virtual process::Future<Nothing> fetch(
-      const ContainerID& containerId,
-      const SlaveID& slaveId);
+  virtual process::Future<Nothing> fetch(const ContainerID& containerId);
 
   virtual process::Future<Nothing> pull(const ContainerID& containerId);
 
@@ -188,10 +178,7 @@ private:
 
   process::Future<bool> _launch(
       const ContainerID& containerId,
-      const Option<TaskInfo>& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const std::string& directory,
-      const SlaveID& slaveId);
+      const mesos::slave::ContainerConfig& containerConfig);
 
   process::Future<Nothing> _recover(
       const Option<state::SlaveState>& state,
@@ -307,13 +294,9 @@ private:
   {
     static Try<Container*> create(
         const ContainerID& id,
-        const Option<TaskInfo>& taskInfo,
-        const ExecutorInfo& executorInfo,
-        const std::string& directory,
-        const Option<std::string>& user,
-        const SlaveID& slaveId,
+        const mesos::slave::ContainerConfig& containerConfig,
         const std::map<std::string, std::string>& environment,
-        bool checkpoint,
+        const Option<std::string>& pidCheckpointPath,
         const Flags& flags);
 
     static std::string name(const ContainerID& id)
@@ -324,30 +307,23 @@ private:
     Container(const ContainerID& id)
       : state(FETCHING), id(id) {}
 
-    Container(const ContainerID& id,
-              const Option<TaskInfo>& taskInfo,
-              const ExecutorInfo& executorInfo,
-              const std::string& directory,
-              const Option<std::string>& user,
-              const SlaveID& slaveId,
-              bool checkpoint,
-              bool symlinked,
-              const Flags& flags,
-              const Option<CommandInfo>& _command,
-              const Option<ContainerInfo>& _container,
-              const std::map<std::string, std::string>& _environment,
-              bool launchesExecutorContainer)
+    Container(
+        const ContainerID& _id,
+        const mesos::slave::ContainerConfig& _containerConfig,
+        const std::map<std::string, std::string>& _environment,
+        const Option<std::string>& _pidCheckpointPath,
+        bool symlinked,
+        const std::string& containerWorkDir,
+        const Option<CommandInfo>& _command,
+        const Option<ContainerInfo>& _container,
+        bool launchesExecutorContainer)
       : state(FETCHING),
-        id(id),
-        task(taskInfo),
-        executor(executorInfo),
+        id(_id),
+        containerConfig(_containerConfig),
+        pidCheckpointPath(_pidCheckpointPath),
         environment(_environment),
-        directory(directory),
-        user(user),
-        slaveId(slaveId),
-        checkpoint(checkpoint),
         symlinked(symlinked),
-        flags(flags),
+        containerWorkDir(containerWorkDir),
         containerName(name(id)),
         launchesExecutorContainer(launchesExecutorContainer)
     {
@@ -361,26 +337,24 @@ private:
       // perfect check because an executor might always have a subset
       // of it's resources that match a task, nevertheless, it's
       // better than nothing).
-      resources = executor.resources();
+      resources = containerConfig.resources();
 
-      if (task.isSome()) {
-        CHECK(resources.contains(task.get().resources()));
+      if (containerConfig.has_task_info()) {
+        CHECK(resources.contains(containerConfig.task_info().resources()));
       }
 
       if (_command.isSome()) {
         command = _command.get();
-      } else if (task.isSome()) {
-        command = task.get().command();
       } else {
-        command = executor.command();
+        command = containerConfig.command_info();
       }
 
       if (_container.isSome()) {
         container = _container.get();
-      } else if (task.isSome()) {
-        container = task.get().container();
       } else {
-        container = executor.container();
+        // NOTE: The existence of this field is checked in
+        // DockerContainerizerProcess::launch.
+        container = containerConfig.container_info();
       }
     }
 
@@ -389,7 +363,7 @@ private:
       if (symlinked) {
         // The sandbox directory is a symlink, remove it at container
         // destroy.
-        os::rm(directory);
+        os::rm(containerWorkDir);
       }
     }
 
@@ -404,20 +378,22 @@ private:
 
     std::string image() const
     {
-      if (task.isSome()) {
-        return task.get().container().docker().image();
+      if (containerConfig.has_task_info()) {
+        return containerConfig.task_info().container().docker().image();
       }
 
-      return executor.container().docker().image();
+      return containerConfig.executor_info().container().docker().image();
     }
 
     bool forcePullImage() const
     {
-      if (task.isSome()) {
-        return task.get().container().docker().force_pull_image();
+      if (containerConfig.has_task_info()) {
+        return containerConfig.task_info()
+          .container().docker().force_pull_image();
       }
 
-      return executor.container().docker().force_pull_image();
+      return containerConfig.executor_info()
+        .container().docker().force_pull_image();
     }
 
     // The DockerContainerizer needs to be able to properly clean up
@@ -452,26 +428,32 @@ private:
       DESTROYING = 5
     } state;
 
+    // Copies of the parameters sent to `Container::create`.
     const ContainerID id;
-    const Option<TaskInfo> task;
-    const ExecutorInfo executor;
+    const mesos::slave::ContainerConfig containerConfig;
+    const Option<std::string> pidCheckpointPath;
+
+    // A copy of the parameter sent to `Container::create`.
+    // NOTE: This may be modified further by hooks.
+    std::map<std::string, std::string> environment;
+
+    // The sandbox directory for the container. This holds the
+    // symlinked path if symlinked boolean is true.
+    // TODO(josephw): The symlink path does not persist across failovers,
+    // so we will not delete the symlink if the agent restarts. This results
+    // in gradually leaking hanging symlinks.
+    bool symlinked;
+    std::string containerWorkDir;
+
+    // Copies of the fields in `containerConfig`, except when the
+    // container is a command task and the agent is launched with
+    // the --docker_mesos_image flag.
     ContainerInfo container;
     CommandInfo command;
-    std::map<std::string, std::string> environment;
 
     // Environment variables that the command executor should pass
     // onto a docker-ized task. This is set by a hook.
     Option<std::map<std::string, std::string>> taskEnvironment;
-
-    // The sandbox directory for the container. This holds the
-    // symlinked path if symlinked boolean is true.
-    std::string directory;
-
-    const Option<std::string> user;
-    SlaveID slaveId;
-    bool checkpoint;
-    bool symlinked;
-    const Flags flags;
 
     // The string used to refer to this container via the Docker CLI.
     // This name is either computed by concatenating the DOCKER_NAME_PREFIX
