@@ -197,6 +197,7 @@ set(AGENT_SRC
 if (NOT WIN32)
   set(AGENT_SRC
     ${AGENT_SRC}
+    slave/containerizer/mesos/isolators/environment_secret.cpp
     slave/containerizer/mesos/isolators/docker/volume/driver.cpp
     slave/containerizer/mesos/isolators/docker/volume/paths.cpp
     slave/containerizer/mesos/isolators/filesystem/posix.cpp

@@ -587,6 +587,10 @@ protected:
     if (taskEnvironment.isSome()) {
       foreach (const Environment::Variable& variable,
                taskEnvironment->variables()) {
+        // Skip overwriting if the variable is unresolved secret.
+        if (variable.type() == Environment::Variable::SECRET) {
+          continue;
+        }
         const string& name = variable.name();
         if (environment.contains(name) &&
             environment[name].value() != variable.value()) {
@@ -599,6 +603,10 @@ protected:
     if (command.has_environment()) {
       foreach (const Environment::Variable& variable,
                command.environment().variables()) {
+        // Skip overwriting if the variable is unresolved secret.
+        if (variable.type() == Environment::Variable::SECRET) {
+          continue;
+        }
         const string& name = variable.name();
         if (environment.contains(name) &&
             environment[name].value() != variable.value()) {
