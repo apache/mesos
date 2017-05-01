@@ -18,6 +18,8 @@
 
 #include <mesos/module/isolator.hpp>
 
+#include <mesos/secret/resolver.hpp>
+
 #include <mesos/slave/isolator.hpp>
 
 #include <process/collect.hpp>
@@ -145,6 +147,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     const Flags& flags,
     bool local,
     Fetcher* fetcher,
+    SecretResolver* secretResolver,
     const Option<NvidiaComponents>& nvidia)
 {
   // Modify `flags` based on the deprecated `isolation` flag (and then

@@ -958,6 +958,13 @@ mesos::internal::slave::Flags::Flags()
       "A comma-separated list of hook modules to be\n"
       "installed inside the agent.");
 
+  add(&Flags::secret_resolver,
+      "secret_resolver",
+      "The name of the secret resolver module to use for resolving\n"
+      "environment and file-based secrets. If this flag is not specified,\n"
+      "the default behavior is to resolve value-based secrets and error on\n"
+      "reference-based secrets.");
+
   add(&Flags::resource_estimator,
       "resource_estimator",
       "The name of the resource estimator to use for oversubscription.");

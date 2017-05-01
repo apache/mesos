@@ -29,6 +29,9 @@
 #include <mesos/module/authorizer.hpp>
 #include <mesos/module/contender.hpp>
 #include <mesos/module/detector.hpp>
+#include <mesos/module/secret_resolver.hpp>
+
+#include <mesos/secret/resolver.hpp>
 
 #include <mesos/slave/resource_estimator.hpp>
 
@@ -438,8 +441,20 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
       slaveFlags.launcher = "posix";
     }
 
-    Try<Containerizer*> containerizer =
-      Containerizer::create(slaveFlags, true, fetchers->back());
+    // Initialize SecretResolver.
+    Try<SecretResolver*> secretResolver =
+      mesos::SecretResolver::create(slaveFlags.secret_resolver);
+
+    if (secretResolver.isError()) {
+      EXIT(EXIT_FAILURE)
+        << "Failed to initialize secret resolver: " << secretResolver.error();
+    }
+
+    Try<Containerizer*> containerizer = Containerizer::create(
+        slaveFlags,
+        true,
+        fetchers->back(),
+        secretResolver.get());
 
     if (containerizer.isError()) {
       EXIT(EXIT_FAILURE)

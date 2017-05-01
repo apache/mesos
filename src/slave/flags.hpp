@@ -154,6 +154,7 @@ public:
 #endif // USE_SSL_SOCKET
   Option<Path> http_credentials;
   Option<std::string> hooks;
+  Option<std::string> secret_resolver;
   Option<std::string> resource_estimator;
   Option<std::string> qos_controller;
   Duration qos_correction_interval_min;

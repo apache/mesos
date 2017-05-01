@@ -27,6 +27,9 @@
 #include <mesos/mesos.hpp>
 
 #include <mesos/module/anonymous.hpp>
+#include <mesos/module/secret_resolver.hpp>
+
+#include <mesos/secret/resolver.hpp>
 
 #include <mesos/slave/resource_estimator.hpp>
 
@@ -84,6 +87,7 @@ using mesos::slave::QoSController;
 using mesos::slave::ResourceEstimator;
 
 using mesos::Authorizer;
+using mesos::SecretResolver;
 using mesos::SlaveInfo;
 
 using process::Owned;
@@ -233,7 +237,7 @@ int main(int argc, char** argv)
   //   contender/detector might depend upon anonymous modules.
   // * Hooks.
   // * Systemd support (if it exists).
-  // * Fetcher and Containerizer.
+  // * Fetcher, SecretResolver, and Containerizer.
   // * Master detector.
   // * Authorizer.
   // * Garbage collector.
@@ -446,8 +450,17 @@ int main(int argc, char** argv)
 
   Fetcher* fetcher = new Fetcher();
 
+  // Initialize SecretResolver.
+  Try<SecretResolver*> secretResolver =
+    mesos::SecretResolver::create(flags.secret_resolver);
+
+  if (secretResolver.isError()) {
+    EXIT(EXIT_FAILURE)
+        << "Failed to initialize secret resolver: " << secretResolver.error();
+  }
+
   Try<Containerizer*> containerizer =
-    Containerizer::create(flags, false, fetcher);
+    Containerizer::create(flags, false, fetcher, secretResolver.get());
 
   if (containerizer.isError()) {
     EXIT(EXIT_FAILURE)

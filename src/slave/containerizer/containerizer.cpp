@@ -18,6 +18,8 @@
 #include <set>
 #include <vector>
 
+#include <mesos/secret/resolver.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/owned.hpp>
 
@@ -208,7 +210,8 @@ Try<Resources> Containerizer::resources(const Flags& flags)
 Try<Containerizer*> Containerizer::create(
     const Flags& flags,
     bool local,
-    Fetcher* fetcher)
+    Fetcher* fetcher,
+    SecretResolver* secretResolver)
 {
   // Get the set of containerizer types.
   const vector<string> _types = strings::split(flags.containerizers, ",");
@@ -277,8 +280,8 @@ Try<Containerizer*> Containerizer::create(
 
   foreach (const string& type, containerizerTypes) {
     if (type == "mesos") {
-      Try<MesosContainerizer*> containerizer =
-        MesosContainerizer::create(flags, local, fetcher, nvidia);
+      Try<MesosContainerizer*> containerizer = MesosContainerizer::create(
+          flags, local, fetcher, secretResolver, nvidia);
       if (containerizer.isError()) {
         return Error("Could not create MesosContainerizer: " +
                      containerizer.error());
