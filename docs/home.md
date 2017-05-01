@@ -20,7 +20,7 @@ layout: documentation
 * [Authorization](authorization.md)
 * [Configuration](configuration.md) and [CMake configuration](configuration-cmake.md) for command-line arguments.
 * [Container Image](container-image.md) for supporting container images in Mesos containerizer.
-* [Containerizer](containerizer.md) for containerizer overview and use cases.
+* [Containerizers](containerizers.md) for containerizer overview and use cases.
   * [Containerizer Internals](containerizer-internals.md) for implementation details of containerizers.
   * [Docker Containerizer](docker-containerizer.md) for launching a Docker image as a Task, or as an Executor.
   * [Mesos Containerizer](mesos-containerizer.md) default containerizer, supports both Linux and POSIX systems.

@@ -1,9 +1,9 @@
 ---
-title: Apache Mesos - Containerizer
+title: Apache Mesos - Containerizers
 layout: documentation
 ---
 
-# Containerizer
+# Containerizers
 
 ## Motivation
 
