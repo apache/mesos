@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <mesos/secret/resolver.hpp>
+
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
@@ -31,7 +33,8 @@ namespace docker {
 
 Try<Owned<Puller>> Puller::create(
     const Flags& flags,
-    const Shared<uri::Fetcher>& fetcher)
+    const Shared<uri::Fetcher>& fetcher,
+    SecretResolver* secretResolver)
 {
   // TODO(tnachen): Support multiple registries in the puller.
   if (strings::startsWith(flags.docker_registry, "/")) {
@@ -43,7 +46,9 @@ Try<Owned<Puller>> Puller::create(
     return puller.get();
   }
 
-  Try<Owned<Puller>> puller = RegistryPuller::create(flags, fetcher);
+  Try<Owned<Puller>> puller =
+    RegistryPuller::create(flags, fetcher, secretResolver);
+
   if (puller.isError()) {
     return Error("Failed to create registry puller: " + puller.error());
   }

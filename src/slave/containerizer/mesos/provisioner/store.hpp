@@ -26,6 +26,8 @@
 
 #include <mesos/docker/v1.hpp>
 
+#include <mesos/secret/resolver.hpp>
+
 #include <process/future.hpp>
 #include <process/owned.hpp>
 
@@ -58,7 +60,8 @@ class Store
 {
 public:
   static Try<hashmap<Image::Type, process::Owned<Store>>> create(
-      const Flags& flags);
+      const Flags& flags,
+      SecretResolver* secretResolver = nullptr);
 
   virtual ~Store() {}
 

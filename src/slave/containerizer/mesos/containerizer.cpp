@@ -258,7 +258,9 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     return Error("Failed to create launcher: " + launcher.error());
   }
 
-  Try<Owned<Provisioner>> _provisioner = Provisioner::create(flags_);
+  Try<Owned<Provisioner>> _provisioner =
+    Provisioner::create(flags_, secretResolver);
+
   if (_provisioner.isError()) {
     return Error("Failed to create provisioner: " + _provisioner.error());
   }

@@ -25,6 +25,8 @@
 
 #include <mesos/docker/v1.hpp>
 
+#include <mesos/secret/resolver.hpp>
+
 #include <mesos/slave/isolator.hpp> // For ContainerState.
 
 #include <stout/nothing.hpp>
@@ -70,7 +72,9 @@ class Provisioner
 {
 public:
   // Create the provisioner based on the specified flags.
-  static Try<process::Owned<Provisioner>> create(const Flags& flags);
+  static Try<process::Owned<Provisioner>> create(
+      const Flags& flags,
+      SecretResolver* secretResolver = nullptr);
 
   // Available only for testing.
   explicit Provisioner(process::Owned<ProvisionerProcess> process);

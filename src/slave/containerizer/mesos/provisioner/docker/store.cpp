@@ -19,6 +19,10 @@
 
 #include <glog/logging.h>
 
+#include <mesos/docker/spec.hpp>
+
+#include <mesos/secret/resolver.hpp>
+
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
 #include <stout/os.hpp>
@@ -27,8 +31,6 @@
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
-
-#include <mesos/docker/spec.hpp>
 
 #include "slave/containerizer/mesos/provisioner/constants.hpp"
 #include "slave/containerizer/mesos/provisioner/utils.hpp"
@@ -111,7 +113,9 @@ private:
 };
 
 
-Try<Owned<slave::Store>> Store::create(const Flags& flags)
+Try<Owned<slave::Store>> Store::create(
+    const Flags& flags,
+    SecretResolver* secretResolver)
 {
   // TODO(jieyu): We should inject URI fetcher from top level, instead
   // of creating it here.
@@ -127,7 +131,9 @@ Try<Owned<slave::Store>> Store::create(const Flags& flags)
     return Error("Failed to create the URI fetcher: " + fetcher.error());
   }
 
-  Try<Owned<Puller>> puller = Puller::create(flags, fetcher->share());
+  Try<Owned<Puller>> puller =
+    Puller::create(flags, fetcher->share(), secretResolver);
+
   if (puller.isError()) {
     return Error("Failed to create Docker puller: " + puller.error());
   }

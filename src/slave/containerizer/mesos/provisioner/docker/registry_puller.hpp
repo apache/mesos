@@ -24,6 +24,8 @@
 
 #include <mesos/uri/fetcher.hpp>
 
+#include <mesos/secret/resolver.hpp>
+
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 
 #include "slave/flags.hpp"
@@ -44,7 +46,8 @@ class RegistryPuller : public Puller
 public:
   static Try<process::Owned<Puller>> create(
       const Flags& flags,
-      const process::Shared<uri::Fetcher>& fetcher);
+      const process::Shared<uri::Fetcher>& fetcher,
+      SecretResolver* secretResolver);
 
   ~RegistryPuller();
 

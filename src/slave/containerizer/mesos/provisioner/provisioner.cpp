@@ -22,6 +22,8 @@
 
 #include <mesos/docker/spec.hpp>
 
+#include <mesos/secret/resolver.hpp>
+
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
@@ -146,7 +148,9 @@ static Try<Nothing> validateBackend(
 }
 
 
-Try<Owned<Provisioner>> Provisioner::create(const Flags& flags)
+Try<Owned<Provisioner>> Provisioner::create(
+    const Flags& flags,
+    SecretResolver* secretResolver)
 {
   const string _rootDir = slave::paths::getProvisionerDir(flags.work_dir);
 
@@ -166,7 +170,9 @@ Try<Owned<Provisioner>> Provisioner::create(const Flags& flags)
 
   CHECK_SOME(rootDir); // Can't be None since we just created it.
 
-  Try<hashmap<Image::Type, Owned<Store>>> stores = Store::create(flags);
+  Try<hashmap<Image::Type, Owned<Store>>> stores =
+    Store::create(flags, secretResolver);
+
   if (stores.isError()) {
     return Error("Failed to create image stores: " + stores.error());
   }

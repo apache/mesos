@@ -16,6 +16,8 @@
 
 #include <glog/logging.h>
 
+#include <mesos/secret/resolver.hpp>
+
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
@@ -62,7 +64,8 @@ public:
   RegistryPullerProcess(
       const string& _storeDir,
       const http::URL& _defaultRegistryUrl,
-      const Shared<uri::Fetcher>& _fetcher);
+      const Shared<uri::Fetcher>& _fetcher,
+      SecretResolver* _secretResolver);
 
   Future<vector<string>> pull(
       const spec::ImageReference& reference,
@@ -98,12 +101,14 @@ private:
   const http::URL defaultRegistryUrl;
 
   Shared<uri::Fetcher> fetcher;
+  SecretResolver* secretResolver;
 };
 
 
 Try<Owned<Puller>> RegistryPuller::create(
     const Flags& flags,
-    const Shared<uri::Fetcher>& fetcher)
+    const Shared<uri::Fetcher>& fetcher,
+    SecretResolver* secretResolver)
 {
   Try<http::URL> defaultRegistryUrl = http::URL::parse(flags.docker_registry);
   if (defaultRegistryUrl.isError()) {
@@ -119,7 +124,8 @@ Try<Owned<Puller>> RegistryPuller::create(
       new RegistryPullerProcess(
           flags.docker_store_dir,
           defaultRegistryUrl.get(),
-          fetcher));
+          fetcher,
+          secretResolver));
 
   return Owned<Puller>(new RegistryPuller(process));
 }
@@ -156,11 +162,13 @@ Future<vector<string>> RegistryPuller::pull(
 RegistryPullerProcess::RegistryPullerProcess(
     const string& _storeDir,
     const http::URL& _defaultRegistryUrl,
-    const Shared<uri::Fetcher>& _fetcher)
+    const Shared<uri::Fetcher>& _fetcher,
+    SecretResolver* _secretResolver)
   : ProcessBase(process::ID::generate("docker-provisioner-registry-puller")),
     storeDir(_storeDir),
     defaultRegistryUrl(_defaultRegistryUrl),
-    fetcher(_fetcher) {}
+    fetcher(_fetcher),
+    secretResolver(_secretResolver) {}
 
 
 static spec::ImageReference normalize(
