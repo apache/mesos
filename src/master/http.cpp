@@ -2374,6 +2374,17 @@ Future<Response> Master::Http::slaves(
                 }
               });
 
+
+          Resources unreservedResources = slave->totalResources.unreserved();
+
+          writer->field(
+              "unreserved_resources_full",
+              [&unreservedResources](JSON::ArrayWriter* writer) {
+                foreach (const Resource& resource, unreservedResources) {
+                  writer->element(JSON::Protobuf(resource));
+                }
+              });
+
           Resources usedResources = Resources::sum(slave->usedResources);
 
           writer->field(

@@ -1960,8 +1960,8 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
 }
 
 
-// This tests that dynamic reservations and persistent volumes are
-// reflected in the "/slaves" master endpoint.
+// This tests that unreserved resources, dynamic reservations and persistent
+// volumes are reflected in the "/slaves" master endpoint.
 TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
 {
   TestAllocator<> allocator;
@@ -2154,6 +2154,50 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
 
   ASSERT_SOME(expectedReserved);
 
+  Try<JSON::Value> expectedUnreserved = JSON::parse(
+      R"~(
+      [
+        {
+          "name": "cpus",
+          "role": "*",
+          "scalar": {
+            "value": 3.0
+          },
+          "type": "SCALAR"
+        },
+        {
+          "name": "mem",
+          "role": "*",
+          "scalar": {
+            "value": 1536.0
+          },
+          "type": "SCALAR"
+        },
+        {
+          "name": "disk",
+          "role": "*",
+          "scalar": {
+            "value": 3072.0
+          },
+          "type": "SCALAR"
+        },
+        {
+          "name": "ports",
+          "ranges": {
+            "range": [
+              {
+                "begin": 31000,
+                "end": 32000
+              }
+            ]
+          },
+          "role": "*",
+          "type": "RANGES"
+        }
+      ])~");
+
+  ASSERT_SOME(expectedUnreserved);
+
   Try<JSON::Value> expectedUsed = JSON::parse(
       R"~(
       [
@@ -2299,6 +2343,9 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
 
   JSON::Value reservedValue = slaveObject.values["reserved_resources_full"];
   EXPECT_EQ(expectedReserved.get(), reservedValue);
+
+  JSON::Value unreservedValue = slaveObject.values["unreserved_resources_full"];
+  EXPECT_EQ(expectedUnreserved.get(), unreservedValue);
 
   JSON::Value usedValue = slaveObject.values["used_resources_full"];
   EXPECT_EQ(expectedUsed.get(), usedValue);
