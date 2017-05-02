@@ -711,7 +711,7 @@ TEST_F(IOSwitchboardTest, ContainerAttach)
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -744,13 +744,9 @@ TEST_F(IOSwitchboardTest, ContainerAttach)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executorInfo,
-      directory.get(),
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executorInfo, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -777,7 +773,7 @@ TEST_F(IOSwitchboardTest, OutputRedirectionWithTTY)
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -813,13 +809,9 @@ TEST_F(IOSwitchboardTest, OutputRedirectionWithTTY)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executorInfo,
-      directory.get(),
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executorInfo, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -842,7 +834,7 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -871,13 +863,9 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executorInfo,
-      directory.get(),
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executorInfo, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -887,11 +875,12 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
 
   launch = containerizer->launch(
       childContainerId,
-      createCommandInfo("sleep 1000"),
-      None(),
-      None(),
-      state.id,
-      mesos::slave::ContainerClass::DEBUG);
+      createContainerConfig(
+          createCommandInfo("sleep 1000"),
+          None(),
+          mesos::slave::ContainerClass::DEBUG),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -937,7 +926,7 @@ TEST_F(IOSwitchboardTest, DISABLED_RecoverThenKillSwitchboardContainerDestroyed)
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -1058,7 +1047,7 @@ TEST_F(IOSwitchboardTest, ContainerAttachAfterSlaveRestart)
   flags.launcher = "posix";
   flags.isolation = "posix/cpu";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 

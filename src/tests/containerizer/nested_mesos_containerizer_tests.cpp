@@ -173,7 +173,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNested)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -197,13 +197,12 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNested)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+          directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -214,10 +213,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNested)
 
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo("exit 42"),
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(createCommandInfo("exit 42")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -249,7 +247,7 @@ TEST_F(NestedMesosContainerizerTest,
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -282,13 +280,14 @@ TEST_F(NestedMesosContainerizerTest,
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      slave::paths::getForkedPidPath(
+          slave::paths::getMetaRootDir(flags.work_dir),
+          state.id,
+          executor.framework_id(),
+          executor.executor_id(),
+          containerId));
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -307,11 +306,12 @@ TEST_F(NestedMesosContainerizerTest,
 
     Future<bool> launchNested = containerizer->launch(
         nestedContainerId,
-        createCommandInfo("exit $" + envKey),
-        None(),
-        None(),
-        state.id,
-        ContainerClass::DEBUG);
+        createContainerConfig(
+            createCommandInfo("exit $" + envKey),
+            None(),
+            ContainerClass::DEBUG),
+        map<string, string>(),
+        None());
 
     AWAIT_ASSERT_TRUE(launchNested);
 
@@ -340,11 +340,12 @@ TEST_F(NestedMesosContainerizerTest,
 
     Future<bool> launchNested = containerizer->launch(
         nestedContainerId,
-        nestedCommand,
-        None(),
-        None(),
-        state.id,
-        ContainerClass::DEBUG);
+        createContainerConfig(
+            nestedCommand,
+            None(),
+            ContainerClass::DEBUG),
+        map<string, string>(),
+        None());
 
     AWAIT_ASSERT_TRUE(launchNested);
 
@@ -390,11 +391,12 @@ TEST_F(NestedMesosContainerizerTest,
 
     Future<bool> launchNested = containerizer->launch(
         nestedContainerId,
-        createCommandInfo("exit $" + envKey),
-        None(),
-        None(),
-        state.id,
-        ContainerClass::DEBUG);
+        createContainerConfig(
+            createCommandInfo("exit $" + envKey),
+            None(),
+            ContainerClass::DEBUG),
+        map<string, string>(),
+        None());
 
     AWAIT_ASSERT_TRUE(launchNested);
 
@@ -428,7 +430,7 @@ TEST_F(NestedMesosContainerizerTest,
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -472,13 +474,12 @@ TEST_F(NestedMesosContainerizerTest,
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(
+          None(),
+          executor,
+          directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -509,11 +510,12 @@ TEST_F(NestedMesosContainerizerTest,
 
     Future<bool> launchNested = containerizer->launch(
         nestedContainerId,
-        nestedCommand,
-        None(),
-        None(),
-        state.id,
-        ContainerClass::DEBUG);
+        createContainerConfig(
+            nestedCommand,
+            None(),
+            ContainerClass::DEBUG),
+        map<string, string>(),
+        None());
 
     AWAIT_ASSERT_TRUE(launchNested);
 
@@ -549,7 +551,7 @@ TEST_F(NestedMesosContainerizerTest,
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -596,13 +598,17 @@ TEST_F(NestedMesosContainerizerTest,
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(
+          None(),
+          executor,
+          directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      slave::paths::getForkedPidPath(
+          slave::paths::getMetaRootDir(flags.work_dir),
+          state.id,
+          executor.framework_id(),
+          executor.executor_id(),
+          containerId));
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -626,11 +632,12 @@ TEST_F(NestedMesosContainerizerTest,
 
     Future<bool> launchNested = containerizer->launch(
         nestedContainerId,
-        createCommandInfo("ls " + filename),
-        None(),
-        None(),
-        state.id,
-        ContainerClass::DEBUG);
+        createContainerConfig(
+            createCommandInfo("ls " + filename),
+            None(),
+            ContainerClass::DEBUG),
+        map<string, string>(),
+        None());
 
     AWAIT_ASSERT_TRUE(launchNested);
 
@@ -675,11 +682,12 @@ TEST_F(NestedMesosContainerizerTest,
 
     Future<bool> launchNested = containerizer->launch(
         nestedContainerId,
-        createCommandInfo("ls " + filename),
-        None(),
-        None(),
-        state.id,
-        ContainerClass::DEBUG);
+        createContainerConfig(
+            createCommandInfo("ls " + filename),
+            None(),
+            ContainerClass::DEBUG),
+        map<string, string>(),
+        None());
 
     AWAIT_ASSERT_TRUE(launchNested);
 
@@ -711,7 +719,7 @@ TEST_F(NestedMesosContainerizerTest,
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -735,13 +743,12 @@ TEST_F(NestedMesosContainerizerTest,
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+          directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -764,14 +771,13 @@ TEST_F(NestedMesosContainerizerTest,
   // 6) `ps`
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo(
+      createContainerConfig(createCommandInfo(
           "PS_LINES=`ps | wc -l`;"
           "if [ ${PS_LINES} -ne 6 ]; then"
           "  exit ${PS_LINES};"
-          "fi;"),
-      None(),
-      None(),
-      state.id);
+          "fi;")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -790,15 +796,16 @@ TEST_F(NestedMesosContainerizerTest,
   // We expect to see much more than 6 lines of output from `ps`.
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo(
-          "PS_LINES=`ps | wc -l`;"
-          "if [ ${PS_LINES} -le 6 ]; then"
-          "  exit ${PS_LINES};"
-          "fi;"),
-      None(),
-      None(),
-      state.id,
-      ContainerClass::DEBUG);
+      createContainerConfig(
+          createCommandInfo(
+              "PS_LINES=`ps | wc -l`;"
+              "if [ ${PS_LINES} -le 6 ]; then"
+              "  exit ${PS_LINES};"
+              "fi;"),
+          None(),
+          ContainerClass::DEBUG),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -832,7 +839,7 @@ TEST_F(NestedMesosContainerizerTest,
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -914,15 +921,16 @@ TEST_F(NestedMesosContainerizerTest,
   // image (but not on the host filesystem).
   Future<bool> launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo(
-          "LINES=`ls -la /etc/alpine-release | wc -l`;"
-          "if [ ${LINES} -ne 1 ]; then"
-          "  exit 1;"
-          "fi;"),
-      None(),
-      None(),
-      statusRunning->slave_id(),
-      ContainerClass::DEBUG);
+      createContainerConfig(
+          createCommandInfo(
+              "LINES=`ls -la /etc/alpine-release | wc -l`;"
+              "if [ ${LINES} -ne 1 ]; then"
+              "  exit 1;"
+              "fi;"),
+          None(),
+          ContainerClass::DEBUG),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -946,7 +954,7 @@ TEST_F(NestedMesosContainerizerTest,
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -975,13 +983,14 @@ TEST_F(NestedMesosContainerizerTest,
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory.get(),
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      slave::paths::getForkedPidPath(
+          slave::paths::getMetaRootDir(flags.work_dir),
+          state.id,
+          executor.framework_id(),
+          executor.executor_id(),
+          containerId));
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -998,11 +1007,12 @@ TEST_F(NestedMesosContainerizerTest,
 
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo("sleep 1000"),
-      None(),
-      None(),
-      state.id,
-      ContainerClass::DEBUG);
+      createContainerConfig(
+          createCommandInfo("sleep 1000"),
+          None(),
+          ContainerClass::DEBUG),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1062,7 +1072,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyNested)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -1086,13 +1096,12 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyNested)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+          directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1103,10 +1112,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyNested)
 
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo("sleep 1000"),
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(createCommandInfo("sleep 1000")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1141,7 +1149,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyParent)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -1165,13 +1173,12 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyParent)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+          directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1182,10 +1189,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyParent)
 
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo("sleep 1000"),
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(createCommandInfo("sleep 1000")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1218,7 +1224,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentExit)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -1260,13 +1266,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentExit)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   close(pipes[0]); // We're never going to read.
 
@@ -1279,10 +1281,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentExit)
 
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo("sleep 1000"),
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(createCommandInfo("sleep 1000")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1317,7 +1318,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentSigterm)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -1361,13 +1362,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentSigterm)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1380,10 +1377,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentSigterm)
 
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo("sleep 1000"),
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(createCommandInfo("sleep 1000")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1427,7 +1423,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNested)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -1456,13 +1452,14 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNested)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory.get(),
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      slave::paths::getForkedPidPath(
+          slave::paths::getMetaRootDir(flags.work_dir),
+          state.id,
+          executor.framework_id(),
+          executor.executor_id(),
+          containerId));
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1479,10 +1476,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNested)
 
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo("sleep 1000"),
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(createCommandInfo("sleep 1000")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1557,7 +1553,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverLauncherOrphans)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -1608,7 +1604,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNestedLauncherOrphans)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -1637,13 +1633,14 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNestedLauncherOrphans)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory.get(),
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      slave::paths::getForkedPidPath(
+          slave::paths::getMetaRootDir(flags.work_dir),
+          state.id,
+          executor.framework_id(),
+          executor.executor_id(),
+          containerId));
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1730,7 +1727,7 @@ TEST_F(NestedMesosContainerizerTest,
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -1802,7 +1799,7 @@ TEST_F(NestedMesosContainerizerTest,
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -1831,13 +1828,14 @@ TEST_F(NestedMesosContainerizerTest,
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory.get(),
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      slave::paths::getForkedPidPath(
+          slave::paths::getMetaRootDir(flags.work_dir),
+          state.id,
+          executor.framework_id(),
+          executor.executor_id(),
+          containerId));
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1941,7 +1939,7 @@ TEST_F(NestedMesosContainerizerTest,
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -1970,13 +1968,14 @@ TEST_F(NestedMesosContainerizerTest,
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory.get(),
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      slave::paths::getForkedPidPath(
+          slave::paths::getMetaRootDir(flags.work_dir),
+          state.id,
+          executor.framework_id(),
+          executor.executor_id(),
+          containerId));
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -1993,10 +1992,9 @@ TEST_F(NestedMesosContainerizerTest,
 
   launch = containerizer->launch(
       nestedContainerId1,
-      createCommandInfo("sleep 1000"),
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(createCommandInfo("sleep 1000")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -2101,7 +2099,7 @@ TEST_F(NestedMesosContainerizerTest,
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -2187,7 +2185,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_WaitAfterDestroy)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -2198,8 +2196,6 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_WaitAfterDestroy)
 
   Owned<MesosContainerizer> containerizer(create.get());
 
-  SlaveID slaveId = SlaveID();
-
   // Launch a top-level container.
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
@@ -2209,13 +2205,12 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_WaitAfterDestroy)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
-      directory.get(),
-      None(),
-      slaveId,
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+          directory.get()),
       map<string, string>(),
-      true);
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -2226,10 +2221,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_WaitAfterDestroy)
 
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo("exit 42"),
-      None(),
-      None(),
-      slaveId);
+      createContainerConfig(createCommandInfo("exit 42")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -2278,7 +2272,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_AgentEnvironmentNotLeaked)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -2302,13 +2296,12 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_AgentEnvironmentNotLeaked)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+          directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -2336,10 +2329,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_AgentEnvironmentNotLeaked)
 
   launch = containerizer->launch(
       nestedContainerId,
-      command,
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(command),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -2368,7 +2360,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNestedThreeLevels)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -2392,13 +2384,12 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNestedThreeLevels)
 
   Future<bool> launch = containerizer->launch(
       level1ContainerId,
-      None(),
-      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+          directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -2408,10 +2399,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNestedThreeLevels)
 
   launch = containerizer->launch(
       level2ContainerId,
-      createCommandInfo("sleep 1000"),
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(createCommandInfo("sleep 1000")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -2421,10 +2411,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNestedThreeLevels)
 
   launch = containerizer->launch(
       level3ContainerId,
-      createCommandInfo("exit 42"),
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(createCommandInfo("exit 42")),
+      map<string, string>(),
+      None());
 
   Future<Option<ContainerTermination>> wait =
     containerizer->wait(level3ContainerId);
@@ -2451,7 +2440,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_Remove)
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -2475,13 +2464,12 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_Remove)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+          directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -2492,10 +2480,9 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_Remove)
 
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo("true"),
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(createCommandInfo("true")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -2542,7 +2529,7 @@ TEST_F(NestedMesosContainerizerTest,
   flags.launcher = "linux";
   flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -2566,13 +2553,12 @@ TEST_F(NestedMesosContainerizerTest,
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      createExecutorInfo("executor", "sleep 1000", "cpus:1"),
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+          directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to test not checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -2583,10 +2569,9 @@ TEST_F(NestedMesosContainerizerTest,
 
   launch = containerizer->launch(
       nestedContainerId,
-      createCommandInfo("true"),
-      None(),
-      None(),
-      state.id);
+      createContainerConfig(createCommandInfo("true")),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 

@@ -54,7 +54,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedVolume)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "volume/sandbox_path";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
@@ -80,13 +80,9 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedVolume)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory.get(),
-      None(),
-      state.id,
+      createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
-      true); // TODO(benh): Ever want to check not-checkpointing?
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -110,10 +106,11 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedVolume)
 
   launch = containerizer->launch(
       nestedContainerId1,
-      createCommandInfo("touch parent/file; sleep 1000"),
-      containerInfo,
-      None(),
-      state.id);
+      createContainerConfig(
+          createCommandInfo("touch parent/file; sleep 1000"),
+          containerInfo),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -123,11 +120,12 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedVolume)
 
   launch = containerizer->launch(
       nestedContainerId2,
-      createCommandInfo(
-        "while true; do if [ -f parent/file ]; then exit 0; fi; done"),
-      containerInfo,
-      None(),
-      state.id);
+      createContainerConfig(
+          createCommandInfo(
+            "while true; do if [ -f parent/file ]; then exit 0; fi; done"),
+          containerInfo),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
