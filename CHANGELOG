@@ -2,7 +2,6 @@ Release Notes - Mesos - Version 1.3.0 (WIP)
 -------------------------------------------
 This release contains the following new features:
 
-
   * [MESOS-1763] - Support for frameworks to receive resources for multiple
     roles. This allows "multi-user" frameworks to leverage the role-based
     resource allocation in mesos. Prior to this support, one had to run
@@ -39,14 +38,238 @@ This release contains the following new features:
     (e.g. new employees join, new teams are formed, employees leave, teams
     are disbanded, etc).
 
-Deprecations:
-  * [MESOS-7259] - Remove deprecated ACLs `SetQuota` and `RemoveQuota`
+Deprecations/Removals:
+  * [MESOS-7259] - Remove deprecated ACLs `SetQuota` and `RemoveQuota`.
     This change is only applicable to the local authorizer since internally
     these acls were being translated to the `UPDATE_QUOTA` action.
 
   * [MESOS-7320] - Remove deprecated ACL `ShutdownFramework`.
     This change is only applicable to the local authorizer since internally
     these acls were being translated to the `TEARDOWN_FRAMEWORK` action.
+
+Unresolved Critical Issues:
+  * [MESOS-1625] - Extra trailing CRLF being sent after the HTTP body in libprocess.
+  * [MESOS-1718] - Command executor can overcommit the agent.
+  * [MESOS-2554] - Slave flaps when using --slave_subsystems that are not used for isolation.
+  * [MESOS-2774] - SIGSEGV received during process::MessageEncoder::encode().
+  * [MESOS-2842] - Update FrameworkInfo.principal on framework re-registration.
+  * [MESOS-3533] - Unable to find and run URIs files.
+  * [MESOS-3747] - HTTP Scheduler API no longer allows FrameworkInfo.user to be empty string.
+  * [MESOS-3794] - Master should not store arbitrarily sized data in ExecutorInfo.
+  * [MESOS-4259] - mesos HA can't delete the the redundant container on failure slave node.
+  * [MESOS-4297] - Executor does not shutdown when framework teardown.
+  * [MESOS-4642] - Mesos Agent Json API can dump binary data from log files out as invalid JSON.
+  * [MESOS-4996] - 'containerizer->update' will always fail after killing a docker container.
+  * [MESOS-5352] - Docker volume isolator cleanup can be blocked by first cleanup failure.
+  * [MESOS-5396] - After failover, master does not remove agents with same UPID.
+  * [MESOS-5849] - Agent sandboxes on Windows surpass the 260 character path length limit.
+  * [MESOS-5859] - Some tasks are always in staged state.
+  * [MESOS-5989] - Libevent SSL Socket downgrade code accesses uninitialized memory / assumes single peek is sufficient.
+  * [MESOS-5995] - Protobuf JSON deserialisation does not accept numbers formated as strings.
+  * [MESOS-6356] - ASF CI has interleaved logging.
+  * [MESOS-6615] - Running mesos-slave in the docker that leave many zombie process.
+  * [MESOS-6623] - Re-enable tests impacted by request streaming support.
+  * [MESOS-6632] - ContainerLogger might leak FD if container launch fails.
+  * [MESOS-6780] - ContentType/AgentAPIStreamingTest.AttachContainerInput test fails reliably.
+  * [MESOS-6784] - IOSwitchboardTest.KillSwitchboardContainerDestroyed is flaky.
+  * [MESOS-6804] - Running 'tty' inside a debug container that has a tty reports "Not a tty".
+  * [MESOS-6843] - Fetcher should not assume stdout/stderr in the sandbox.
+  * [MESOS-6913] - AgentAPIStreamingTest.AttachInputToNestedContainerSession fails on Mac OS.
+  * [MESOS-6974] - DefaultExecutorTest.CommitSuicideOnTaskFailure test is flaky.
+  * [MESOS-6986] - `abort` in `DRFSorter::add`.
+  * [MESOS-7017] - HTTP API responses can crash the master.
+  * [MESOS-7082] - ROOT_DOCKER_DockerAndMesosContainerizers/DefaultExecutorTest.KillTask/0 is flaky.
+  * [MESOS-7099] - Quota can be exceeded due to coarse-grained offer technique.
+  * [MESOS-7215] - Race condition on re-registration of non-partition-aware frameworks.
+  * [MESOS-7298] - Fetcher caches files with world-readable permissions.
+  * [MESOS-7362] - GPU support can't work when run spark.
+  * [MESOS-7374] - Running DOCKER images in Mesos Container Runtime without `linux/filesystem` isolation enabled renders host unusable.
+  * [MESOS-7378] - Build failure with missing gnu_dev_major and gnu_dev_minor symbols.
+  * [MESOS-7381] - Flaky tests in NestedMesosContainerizerTest.
+  * [MESOS-7386] - Executor not cleaning up existing running docker containers if external logrotate/logger processes die/killed.
+  * [MESOS-7389] - Mesos 1.2.0 crashes with pre-1.0 Mesos agents.
+
+Feature Graduations:
+  * [MESOS-2449] - Support group of tasks (Pod) constructs and API in Mesos.
+  * [MESOS-4641] - Support Container Network Interface (CNI).
+  * [MESOS-6419] - Teardown unregistered frameworks.
+
+All Experimental Features:
+  * [MESOS-2533] - Support HTTP checks in Mesos.
+  * [MESOS-3094] - Mesos on Windows.
+  * [MESOS-3421] - Support sharing of resources across task instances.
+  * [MESOS-3567] - Support TCP checks in Mesos.
+  * [MESOS-4312] - Porting Mesos on Power (ppc64le).
+  * [MESOS-4355] - Implement isolator for Docker volume.
+  * [MESOS-4791] - Operator API v1.
+  * [MESOS-4828] - XFS disk quota isolator.
+  * [MESOS-5275] - Add capabilities support for mesos containerizer.
+  * [MESOS-5344] - Partition-aware Mesos frameworks.
+  * [MESOS-5788] - Added JAVA API adapter for seamless transition to new scheduler API.
+  * [MESOS-5931] - Support auto backend in Mesos Containerizer.
+  * [MESOS-6014] - Added port mapping CNI plugin.
+  * [MESOS-6077] - Added a default (task group) executor.
+  * [MESOS-6375] - **NEW** Support hierarchical resource allocation roles.
+  * [MESOS-6402] - rlimit support for Mesos containerizer.
+  * [MESOS-6460] - Container Attach/Exec.
+  * [MESOS-6758] - Support docker registry that requires basic auth.
+  * [MESOS-6906] - Introduce a general non-interpreting task check.
+
+All Resolved Issues:
+
+** Bug
+  * [MESOS-4245] - Add `dist` target to CMake solution.
+  * [MESOS-4263] - Report volume usage through ResourceStatistics.
+  * [MESOS-5028] - Copy provisioner cannot replace directory with symlink.
+  * [MESOS-5172] - Registry puller cannot fetch blobs correctly from http Redirect 3xx urls.
+  * [MESOS-5288] - Update leveldb patch file to suport s390x.
+  * [MESOS-5880] - Semantics of `environment` differ across Windows and POSIX.
+  * [MESOS-6134] - Port CFS quota support to Docker Containerizer using command executor.
+  * [MESOS-6138] - Add 'syntax=proto2' to all .proto files in Mesos.
+  * [MESOS-6327] - Large docker images causes container launch failures: Too many levels of symbolic links.
+  * [MESOS-6560] - The default stout stringify always copies its argument.
+  * [MESOS-6606] - Reject optimized builds with libcxx before 3.9.
+  * [MESOS-6720] - Check that `PreferredToolArchitecture` is set to `x64` on Windows before building.
+  * [MESOS-6730] - Reserve operation should validate reserved resource role against resource allocationInfo role.
+  * [MESOS-6731] - Create a test filter for stout tests that use `symlink` on Windows, as they will fail if not run as admin.
+  * [MESOS-6732] - XFS disk isolator should check whether quotas are enabled.
+  * [MESOS-6742] - Adding support for s390x architecture.
+  * [MESOS-6815] - Enable glog stack traces when we call things like `ABORT` on Windows.
+  * [MESOS-6858] - network/cni isolator generates incomplete resolv.conf.
+  * [MESOS-6868] - Transition Windows away from `os::killtree`.
+  * [MESOS-6892] - Reconsider process creation primitives on Windows.
+  * [MESOS-6907] - FutureTest.After3 is flaky.
+  * [MESOS-6951] - Docker containerizer: mangled environment when env value contains LF byte.
+  * [MESOS-6953] - A compromised mesos-master node can execute code as root on agents.
+  * [MESOS-6982] - PerfTest.Version fails on recent Arch Linux.
+  * [MESOS-7022] - Update framework authorization to support multiple roles.
+  * [MESOS-7029] - FaultToleranceTest.FrameworkReregister is flaky.
+  * [MESOS-7035] - Add test for framework upgrading to MULTI_ROLE with tasks running.
+  * [MESOS-7049] - CgroupsAnyHierarchyWithPerfEventTest.ROOT_CGROUPS_PERF_PerfTest is broken on Fedora 25.
+  * [MESOS-7097] - Framework credentials can be used to register as an agent.
+  * [MESOS-7133] - mesos-fetcher fails with openssl-related output.
+  * [MESOS-7135] - Outstanding offers to a dropped framework role should be rescinded.
+  * [MESOS-7146] - OSX broken due to wrong configuration of LevelDB after update.
+  * [MESOS-7158] - Add `role` to task/executor to indicate allocation role of their resources.
+  * [MESOS-7165] - Agents should be able to upgrade to be MULTI_ROLE capable.
+  * [MESOS-7172] - CMake does not incrementally recompile.
+  * [MESOS-7182] - Couple of MULTI_ROLE related tests are flaky.
+  * [MESOS-7197] - Requesting tiny amount of CPU crashes master.
+  * [MESOS-7208] - Persistent volume ownership is set to root when task is running with non-root user.
+  * [MESOS-7210] - HTTP health check doesn't work when mesos runs with --docker_mesos_image.
+  * [MESOS-7225] - Tasks launched via the default executor cannot access disk resource volumes.
+  * [MESOS-7236] - Base64 encoding/decoding (via stout) behaves differently on Windows.
+  * [MESOS-7237] - Enabling cgroups_limit_swap can lead to "invalid argument" error.
+  * [MESOS-7248] - RemoveNestedContainer returns unsupported.
+  * [MESOS-7255] - New mesos-style.py linter behavior breaks commiting when virtualenv is not installed.
+  * [MESOS-7259] - Remove deprecated ACLs `SetQuota` and `RemoveQuota`.
+  * [MESOS-7261] - maintenance.html is missing during packaging.
+  * [MESOS-7263] - User supplied task environment variables cause warnings in sandbox stdout.
+  * [MESOS-7264] - Possibly duplicate environment variables should not leak values to the sandbox.
+  * [MESOS-7265] - Containerizer startup may cause sensitive data to leak into sandbox logs.
+  * [MESOS-7270] - Java V1 Framwork Test failed on macOS.
+  * [MESOS-7272] - Unified containerizer does not support docker registry version < 2.3.
+  * [MESOS-7280] - Unified containerizer provisions docker image error with COPY backend.
+  * [MESOS-7281] - Backwards incompatible UpdateFrameworkMessage handling.
+  * [MESOS-7287] - Fix post-reviews.py to find `rbt.cmd` on Windows.
+  * [MESOS-7300] - Mesos failed to build on Windows due to error C2440: 'return': cannot convert from 'Error' to 'bool'.
+  * [MESOS-7311] - CopyFetcherPluginTest.FetchExistingFile.
+  * [MESOS-7316] - Upgrading Mesos to 1.2.0 results in some information missing from the `/flags` endpoint.
+  * [MESOS-7323] - Framework role tracking in allocator results in framework treated as active incorrectly.
+  * [MESOS-7340] - Log HTTP accesses to the /files endpoint.
+  * [MESOS-7346] - Agent crashes if the task name is too long.
+  * [MESOS-7348] - Network isolator crashes agent on startup when network interface cannot be found.
+  * [MESOS-7350] - Failed to pull image from Nexus Registry due to signature missing.
+  * [MESOS-7363] - Improver master robustness against duplicate UPIDs.
+  * [MESOS-7365] - Compile error with recent glibc.
+  * [MESOS-7372] - Improve agent re-registration robustness.
+  * [MESOS-7400] - The mesos master crashes due to an incorrect invariant check in the decoder.
+  * [MESOS-7427] - Registry puller cannot fetch manifests from Amazon ECR: 405 Unsupported.
+  * [MESOS-7430] - Per-role Suppress call implementation is broken.
+  * [MESOS-7453] - glyphicons-halflings-regular.woff2 is missing in WebUI.
+  * [MESOS-7456] - Compilation error on recent glibc in cgroups device subsystem.
+
+** Documentation
+  * [MESOS-7005] - Add executor authentication documentation.
+  * [MESOS-7324] - Update documentation to reflect the addition of multi-role framework support.
+
+** Epic
+  * [MESOS-1763] - Add support for frameworks to receive resources for multiple roles.
+  * [MESOS-6365] - Executor authentication.
+  * [MESOS-6627] - Allow frameworks to modify the role(s) they are subscribed to.
+
+** Improvement
+  * [MESOS-970] - Upgrade bundled leveldb to 1.19.
+  * [MESOS-5186] - mesos.interface: Allow using protobuf 3.x.
+  * [MESOS-5992] - Complete the list of API Calls on the Operator HTTP API Doc.
+  * [MESOS-6280] - Task group executor should support command health checks.
+  * [MESOS-6304] - Add authentication support to the default executor.
+  * [MESOS-6523] - Agent cgroup assignment should precede agent initialization.
+  * [MESOS-6906] - Introduce a general non-interpreting task check.
+  * [MESOS-7021] - Consistent symlink behavior for os::stat accessors.
+  * [MESOS-7074] - port_mapping isolator: do not depend on /sys/class/net/<ifname>/speed.
+  * [MESOS-7101] - ExamplesTest.PersistentVolumeFramework failed on ASF CI.
+  * [MESOS-7120] - Add an Agent API call to cleanup nested container artifacts.
+  * [MESOS-7226] - Introduce precompiled headers (on Windows).
+  * [MESOS-7249] - Default executor does not support general checks.
+  * [MESOS-7256] - Replace Boost Type Traits leftovers with STL.
+  * [MESOS-7274] - Health checker does not support pause / resume.
+  * [MESOS-7275] - General checker does not support TCP checks.
+  * [MESOS-7276] - General checker does not support pause / resume.
+  * [MESOS-7277] - General checker does not support command checks via agent.
+  * [MESOS-7376] - Reduce copying of the Registry to improve Registrar performance.
+  * [MESOS-7387] - ZK master contender and detector don't respect zk_session_timeout option.
+
+** Task
+  * [MESOS-3139] - Incorporate CMake into standard documentation.
+  * [MESOS-5418] - Test case: Escape containerizer command line on Windows.
+  * [MESOS-6022] - unit-test for port-mapper CNI plugin.
+  * [MESOS-6032] - Add infrastructure for unit tests in the new python-based CLI.
+  * [MESOS-6123] - Implement GET_AGENT call in v1 agent API.
+  * [MESOS-6447] - Display role weight / role quota information in the webui.
+  * [MESOS-6636] - Validate that tasks / executors / reservations / volumes do not mix Resource.allocation_info.roles.
+  * [MESOS-6637] - Validate that schedulers cannot perform operations on offers with different allocation roles.
+  * [MESOS-6657] - Update the webui to reflect that frameworks have multiple roles.
+  * [MESOS-6691] - Enable SSL in Mesos builds.
+  * [MESOS-6762] - Update release notes for multi-role changes.
+  * [MESOS-6791] - Allow to specific the device whitelist entries in cgroup devices subsystem.
+  * [MESOS-6808] - Refactor Docker::run to only take docker cli parameters.
+  * [MESOS-6855] - Add `role` section to response of /state endpoint.
+  * [MESOS-6886] - Add authorization tests for debug API handlers.
+  * [MESOS-6940] - Do not send offers to MULTI_ROLE schedulers if agent does not have MULTI_ROLE capability.
+  * [MESOS-6967] - Ensure offer operations can be applied for MULTI_ROLE and non-MULTI_ROLE frameworks.
+  * [MESOS-6992] - Remove validation against "/" characters in roles to support hierarchical roles.
+  * [MESOS-6995] - Update the webui to reflect hierarchical roles.
+  * [MESOS-6996] - Add a 'Secret' protobuf message.
+  * [MESOS-6997] - Add the SecretGenerator module interface.
+  * [MESOS-6998] - Add authentication support to agent's '/v1/executor' endpoint.
+  * [MESOS-6999] - Add agent support for generating and passing executor secrets.
+  * [MESOS-7000] - Implement a JWT SecretGenerator.
+  * [MESOS-7001] - Implement a JWT authenticator.
+  * [MESOS-7003] - Introduce a 'Principal' type.
+  * [MESOS-7004] - Enable multiple HTTP authenticator modules.
+  * [MESOS-7009] - Add a 'secret' field to the 'Environment' message.
+  * [MESOS-7011] - Add an '--executor_secret_key' flag to the agent.
+  * [MESOS-7013] - Update the authorizer interface for executor authentication.
+  * [MESOS-7014] - Add implicit executor authorization to local authorizer.
+  * [MESOS-7024] - Update the allocator to handle hierarchical roles.
+  * [MESOS-7026] - Update authorization / authorization-filtering to handle hierarchical roles.
+  * [MESOS-7037] - Prevent setting quota on nested roles not contained by parent role quota.
+  * [MESOS-7038] - Update quota cluster capacity heuristic for hierarchical roles.
+  * [MESOS-7039] - Prevent quota removal that violates parent role-child role quota containment.
+  * [MESOS-7047] - Update agent for hierarchical roles.
+  * [MESOS-7048] - Remove adjustment code within Resources::apply.
+  * [MESOS-7061] - Re-persist tasks/executors with allocation info during agent recovery.
+  * [MESOS-7063] - Add a test for a MULTI_ROLE master re-registering an old agent.
+  * [MESOS-7269] - Migrate setting in config.py to a TOML file.
+  * [MESOS-7282] - Create a table abstraction for the Mesos CLI.
+  * [MESOS-7320] - Remove deprecated ACL `ShutdownFramework`.
+  * [MESOS-7336] - Add resource provider API protobuf.
+  * [MESOS-7339] - Add authorization to agent executor API.
+  * [MESOS-7377] - Add authentication to the checker and health checker libraries.
+  * [MESOS-7391] - Add deprecation warning for Visual Studio 14 2015.
+  * [MESOS-7395] - Benchmark performance of hierarchical roles.
+  * [MESOS-7439] - Bump the default timeout value for docker volume driver unmount operation.
 
 
 Release Notes - Mesos - Version 1.2.1 (WIP)
