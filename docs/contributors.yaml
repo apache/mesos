@@ -160,6 +160,14 @@
   jira_user: benjaminhindman
   reviewboard_user: benjaminhindman
 
+- name: Benno Evers
+  affiliations:
+    - {organization: Yandex}
+  emails:
+    - bennoe@yandex-team.ru
+  jira_user: bennoe
+  reviewboard_user: bennoe
+
 - name: Bernd Mathiske
   affiliations:
     - {organization: Mesosphere}
