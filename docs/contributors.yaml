@@ -75,6 +75,14 @@
   jira_user: anandmazumdar
   reviewboard_user: anandmazumdar
 
+- name: Andrei Budnik
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - abudnik@mesosphere.com
+  jira_user: abudnik
+  reviewboard_user: abudnik
+
 - name: Andrew Schwartzmeyer
   affiliations:
     - {organization: Microsoft}
