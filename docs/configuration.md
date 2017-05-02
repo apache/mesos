@@ -1378,10 +1378,13 @@ The amount of time to wait before removing docker containers
     --docker_socket=VALUE
   </td>
   <td>
-The UNIX socket path to be mounted into the docker executor container
-to provide docker CLI access to the docker daemon. This must be the
-path used by the agent's docker image.
-(default: /var/run/docker.sock)
+Resource used by the agent and the executor to provide CLI access to the
+Docker daemon. On Unix, this is typically a path to a socket, such as
+<code>/var/run/docker.sock</code>. On Windows this must be a named pipe,
+such as <code>//./pipe/docker_engine</code>. <b>NOTE</b>: This must be the path
+used by the Docker image used to run the agent. (default:
+//./pipe/docker_engine on Windows; /var/run/docker.sock on other
+platforms).
   </td>
 </tr>
 <tr>
@@ -1611,7 +1614,7 @@ Strategy for provisioning container rootfs from images, e.g., <code>aufs</code>,
 Isolation mechanisms to use, e.g., <code>posix/cpu,posix/mem</code>, or
 <code>cgroups/cpu,cgroups/mem</code>, or network/port_mapping
 (configure with flag: <code>--with-network-isolator</code> to enable),
-or `gpu/nvidia` for nvidia specific gpu isolation, or load an alternate
+or <code>gpu/nvidia</code> for nvidia specific gpu isolation, or load an alternate
 isolator module using the <code>--modules</code> flag. Note that this
 flag is only relevant for the Mesos Containerizer.
 (default: posix/cpu,posix/mem)
@@ -1654,13 +1657,13 @@ conjunction with <code>--master</code>.
     --nvidia_gpu_devices=VALUE
   </td>
   <td>
-A comma-separated list of Nvidia GPU devices. When `gpus` is specified
-in the `--resources` flag, this flag determines which GPU devices will
+A comma-separated list of Nvidia GPU devices. When <code>gpus</code> is specified
+in the <code>--resources</code> flag, this flag determines which GPU devices will
 be made available. The devices should be listed as numbers that
 correspond to Nvidia's NVML device enumeration (as seen by running the
-command `nvidia-smi` on an Nvidia GPU equipped system). The GPUs
-listed will only be isolated if the `--isolation` flag contains the
-string `gpu/nvidia`.
+command <code>nvidia-smi</code> on an Nvidia GPU equipped system). The GPUs
+listed will only be isolated if the <code>--isolation</code> flag contains the
+string <code>gpu/nvidia</code>.
   </td>
 </tr>
 <tr>
