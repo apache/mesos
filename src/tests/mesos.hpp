@@ -1083,6 +1083,67 @@ inline CommandInfo createCommandInfo(
 }
 
 
+// Almost a direct snippet of code at the bottom of `Slave::launchExecutor`.
+inline mesos::slave::ContainerConfig createContainerConfig(
+    const Option<TaskInfo>& taskInfo,
+    const ExecutorInfo& executorInfo,
+    const std::string& sandboxDirectory,
+    const Option<std::string>& user = None())
+{
+  mesos::slave::ContainerConfig containerConfig;
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig.mutable_command_info()->CopyFrom(executorInfo.command());
+  containerConfig.mutable_resources()->CopyFrom(executorInfo.resources());
+  containerConfig.set_directory(sandboxDirectory);
+
+  if (user.isSome()) {
+    containerConfig.set_user(user.get());
+  }
+
+  if (taskInfo.isSome()) {
+    containerConfig.mutable_task_info()->CopyFrom(taskInfo.get());
+
+    if (taskInfo.get().has_container()) {
+      containerConfig.mutable_container_info()
+        ->CopyFrom(taskInfo.get().container());
+    }
+  } else {
+    if (executorInfo.has_container()) {
+      containerConfig.mutable_container_info()
+        ->CopyFrom(executorInfo.container());
+    }
+  }
+
+  return containerConfig;
+}
+
+
+// Almost a direct snippet of code in `Slave::Http::_launchNestedContainer`.
+inline mesos::slave::ContainerConfig createContainerConfig(
+    const CommandInfo& commandInfo,
+    const Option<ContainerInfo>& containerInfo = None(),
+    const Option<mesos::slave::ContainerClass>& containerClass = None(),
+    const Option<std::string>& user = None())
+{
+  mesos::slave::ContainerConfig containerConfig;
+  containerConfig.mutable_command_info()->CopyFrom(commandInfo);
+
+  if (user.isSome()) {
+    containerConfig.set_user(user.get());
+  }
+
+  if (containerInfo.isSome()) {
+    containerConfig.mutable_container_info()->CopyFrom(containerInfo.get());
+  }
+
+  if (containerClass.isSome()) {
+    containerConfig.set_container_class(containerClass.get());
+  }
+
+  return containerConfig;
+}
+
+
 template <typename... Args>
 inline Image createDockerImage(Args&&... args)
 {
