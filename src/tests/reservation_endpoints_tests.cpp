@@ -1632,9 +1632,9 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
 }
 
 
-// This test verifies that dynamic reservations are reflected in the
-// agent's "/state" endpoint. Separately exposing reservations from
-// the agent's endpoint is necessary because it's not a guarantee that
+// This test verifies that unreserved resources and dynamic reservations are
+// reflected in the agent's "/state" endpoint. Separately exposing reservations
+// from the agent's endpoint is necessary because it's not a guarantee that
 // it matches the master's versions.
 TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
 {
@@ -1774,6 +1774,52 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
         DEFAULT_CREDENTIAL.principal()).get()).get();
 
     EXPECT_EQ(expected, state.values["reserved_resources_full"]);
+  }
+
+  {
+    JSON::Value expected = JSON::parse(
+        R"~(
+        [
+          {
+            "name": "cpus",
+            "role": "*",
+            "scalar": {
+              "value": 3.0
+            },
+            "type": "SCALAR"
+          },
+          {
+            "name": "mem",
+            "role": "*",
+            "scalar": {
+              "value": 1536.0
+            },
+            "type": "SCALAR"
+          },
+          {
+            "name": "disk",
+            "role": "*",
+            "scalar": {
+              "value": 3072.0
+            },
+            "type": "SCALAR"
+          },
+          {
+            "name": "ports",
+            "ranges": {
+              "range": [
+                {
+                  "begin": 31000,
+                  "end": 32000
+                }
+              ]
+            },
+            "role": "*",
+            "type": "RANGES"
+          }
+        ])~").get();
+
+    EXPECT_EQ(expected, state.values["unreserved_resources_full"]);
   }
 }
 

@@ -1300,6 +1300,14 @@ Future<Response> Slave::Http::state(
               }
             });
 
+        writer->field(
+            "unreserved_resources_full",
+            [&totalResources](JSON::ArrayWriter* writer) {
+              foreach (const Resource& resource, totalResources.unreserved()) {
+                writer->element(JSON::Protobuf(resource));
+              }
+            });
+
         writer->field("attributes", Attributes(slave->info.attributes()));
 
         if (slave->master.isSome()) {
