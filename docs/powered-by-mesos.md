@@ -81,6 +81,7 @@ layout: documentation
 * [PayPal](https://www.paypal.com)
 * [Piksel](http://www.piksel.com)
 * [Pinkbike](http://www.pinkbike.com)
+* [Pinterest](https://www.pinterest.com)
 * [ProfitStars](http://www.profitstars.com)
 * [Qubit](http://www.qubitproducts.com)
 * [Qunar](http://www.qunar.com)
