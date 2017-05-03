@@ -71,6 +71,7 @@ All Issues:
   * [MESOS-7350] - Failed to pull image from Nexus Registry due to signature missing.
   * [MESOS-7346] - Agent crashes if the task name is too long.
   * [MESOS-7400] - The mesos crashes due to an incorrect invariant check in the decoder.
+  * [MESOS-7453] - glyphicons-halflings-regular.woff2 is missing in WebUI.
 
 
 Release Notes - Mesos - Version 1.2.0
