@@ -6740,19 +6740,17 @@ double Slave::_resources_total(const string& name)
 
 double Slave::_resources_used(const string& name)
 {
-  double used = 0.0;
+  // We use `Resources` arithmetic to accummulate the resources since the
+  // `+=` operator de-duplicates the same shared resources across executors.
+  Resources used;
 
   foreachvalue (Framework* framework, frameworks) {
     foreachvalue (Executor* executor, framework->executors) {
-      foreach (const Resource& resource, executor->resources.nonRevocable()) {
-        if (resource.name() == name && resource.type() == Value::SCALAR) {
-          used += resource.scalar().value();
-        }
-      }
+      used += executor->resources.nonRevocable();
     }
   }
 
-  return used;
+  return used.get<Value::Scalar>(name).getOrElse(Value::Scalar()).value();
 }
 
 
@@ -6786,19 +6784,17 @@ double Slave::_resources_revocable_total(const string& name)
 
 double Slave::_resources_revocable_used(const string& name)
 {
-  double used = 0.0;
+  // We use `Resources` arithmetic to accummulate the resources since the
+  // `+=` operator de-duplicates the same shared resources across executors.
+  Resources used;
 
   foreachvalue (Framework* framework, frameworks) {
     foreachvalue (Executor* executor, framework->executors) {
-      foreach (const Resource& resource, executor->resources.revocable()) {
-        if (resource.name() == name && resource.type() == Value::SCALAR) {
-          used += resource.scalar().value();
-        }
-      }
+      used += executor->resources.revocable();
     }
   }
 
-  return used;
+  return used.get<Value::Scalar>(name).getOrElse(Value::Scalar()).value();
 }
 
 

@@ -9079,13 +9079,16 @@ double Master::_resources_used(const string& name)
   double used = 0.0;
 
   foreachvalue (Slave* slave, slaves.registered) {
+    // We use `Resources` arithmetic to accummulate the resources since the
+    // `+=` operator de-duplicates the same shared resources across frameworks.
+    Resources slaveUsed;
+
     foreachvalue (const Resources& resources, slave->usedResources) {
-      foreach (const Resource& resource, resources.nonRevocable()) {
-        if (resource.name() == name && resource.type() == Value::SCALAR) {
-          used += resource.scalar().value();
-        }
-      }
+      slaveUsed += resources.nonRevocable();
     }
+
+    used +=
+      slaveUsed.get<Value::Scalar>(name).getOrElse(Value::Scalar()).value();
   }
 
   return used;
@@ -9125,13 +9128,16 @@ double Master::_resources_revocable_used(const string& name)
   double used = 0.0;
 
   foreachvalue (Slave* slave, slaves.registered) {
+    // We use `Resources` arithmetic to accummulate the resources since the
+    // `+=` operator de-duplicates the same shared resources across frameworks.
+    Resources slaveUsed;
+
     foreachvalue (const Resources& resources, slave->usedResources) {
-      foreach (const Resource& resource, resources.revocable()) {
-        if (resource.name() == name && resource.type() == Value::SCALAR) {
-          used += resource.scalar().value();
-        }
-      }
+      slaveUsed += resources.revocable();
     }
+
+    used +=
+      slaveUsed.get<Value::Scalar>(name).getOrElse(Value::Scalar()).value();
   }
 
   return used;
