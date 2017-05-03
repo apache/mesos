@@ -61,7 +61,8 @@ public:
   process::Future<std::vector<std::string>> pull(
       const ::docker::spec::ImageReference& reference,
       const std::string& directory,
-      const std::string& backend);
+      const std::string& backend,
+      const Option<Secret>& config = None());
 
 private:
   RegistryPuller(process::Owned<RegistryPullerProcess> _process);

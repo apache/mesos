@@ -279,23 +279,25 @@ class MockPuller : public Puller
 public:
   MockPuller()
   {
-    EXPECT_CALL(*this, pull(_, _, _))
+    EXPECT_CALL(*this, pull(_, _, _, _))
       .WillRepeatedly(Invoke(this, &MockPuller::unmocked_pull));
   }
 
   virtual ~MockPuller() {}
 
-  MOCK_METHOD3(
+  MOCK_METHOD4(
       pull,
       Future<vector<string>>(
           const spec::ImageReference&,
           const string&,
-          const string&));
+          const string&,
+          const Option<Secret>&));
 
   Future<vector<string>> unmocked_pull(
       const spec::ImageReference& reference,
       const string& directory,
-      const string& backend)
+      const string& backend,
+      const Option<Secret>& config)
   {
     // TODO(gilbert): Allow return list to be overridden.
     return vector<string>();
@@ -317,7 +319,7 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
   Future<string> directory;
   Promise<vector<string>> promise;
 
-  EXPECT_CALL(*puller, pull(_, _, _))
+  EXPECT_CALL(*puller, pull(_, _, _, _))
     .WillOnce(testing::DoAll(FutureSatisfy(&pull),
                              FutureArg<1>(&directory),
                              Return(promise.future())));

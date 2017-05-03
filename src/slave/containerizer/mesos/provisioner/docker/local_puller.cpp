@@ -122,7 +122,8 @@ LocalPuller::~LocalPuller()
 Future<vector<string>> LocalPuller::pull(
     const spec::ImageReference& reference,
     const string& directory,
-    const string& backend)
+    const string& backend,
+    const Option<Secret>& config)
 {
   return dispatch(
       process.get(),

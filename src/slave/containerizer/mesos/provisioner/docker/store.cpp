@@ -88,6 +88,7 @@ public:
 private:
   Future<Image> _get(
       const spec::ImageReference& reference,
+      const Option<Secret>& config,
       const Option<Image>& image,
       const string& backend);
 
@@ -225,13 +226,21 @@ Future<ImageInfo> StoreProcess::get(
   }
 
   return metadataManager->get(reference.get(), image.cached())
-    .then(defer(self(), &Self::_get, reference.get(), lambda::_1, backend))
+    .then(defer(self(),
+                &Self::_get,
+                reference.get(),
+                image.docker().has_config()
+                  ? image.docker().config()
+                  : Option<Secret>(),
+                lambda::_1,
+                backend))
     .then(defer(self(), &Self::__get, lambda::_1, backend));
 }
 
 
 Future<Image> StoreProcess::_get(
     const spec::ImageReference& reference,
+    const Option<Secret>& config,
     const Option<Image>& image,
     const string& backend)
 {
@@ -279,7 +288,11 @@ Future<Image> StoreProcess::_get(
   if (!pulling.contains(name)) {
     Owned<Promise<Image>> promise(new Promise<Image>());
 
-    Future<Image> future = puller->pull(reference, staging.get(), backend)
+    Future<Image> future = puller->pull(
+        reference,
+        staging.get(),
+        backend,
+        config)
       .then(defer(self(),
                   &Self::moveLayers,
                   staging.get(),

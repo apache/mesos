@@ -70,7 +70,8 @@ public:
   Future<vector<string>> pull(
       const spec::ImageReference& reference,
       const string& directory,
-      const string& backend);
+      const string& backend,
+      const Option<Secret>& config);
 
 private:
   Future<vector<string>> _pull(
@@ -148,14 +149,16 @@ RegistryPuller::~RegistryPuller()
 Future<vector<string>> RegistryPuller::pull(
     const spec::ImageReference& reference,
     const string& directory,
-    const string& backend)
+    const string& backend,
+    const Option<Secret>& config)
 {
   return dispatch(
       process.get(),
       &RegistryPullerProcess::pull,
       reference,
       directory,
-      backend);
+      backend,
+      config);
 }
 
 
@@ -209,7 +212,8 @@ static spec::ImageReference normalize(
 Future<vector<string>> RegistryPullerProcess::pull(
     const spec::ImageReference& _reference,
     const string& directory,
-    const string& backend)
+    const string& backend,
+    const Option<Secret>& config)
 {
   spec::ImageReference reference = normalize(_reference, defaultRegistryUrl);
 
