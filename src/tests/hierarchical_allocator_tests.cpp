@@ -4481,14 +4481,15 @@ TEST_F(HierarchicalAllocatorTest, NestedRoleQuota)
   Future<Allocation> allocation = allocations.get();
   EXPECT_TRUE(allocation.isPending());
 
+  // Set quota for `CHILD_ROLE2`.
+  const Quota childQuota = createQuota(CHILD_ROLE2, "cpus:1;mem:512");
+  allocator->setQuota(CHILD_ROLE2, childQuota);
+
   // Create `framework3` in CHILD_ROLE2, which is a child role of
   // PARENT_ROLE. CHILD_ROLE2 has quota, so in the current
   // implementation, it will be offered resources.
   FrameworkInfo framework3 = createFrameworkInfo({CHILD_ROLE2});
   allocator->addFramework(framework3.id(), framework3, {}, true);
-
-  const Quota childQuota = createQuota(CHILD_ROLE2, "cpus:1;mem:512");
-  allocator->setQuota(CHILD_ROLE2, childQuota);
 
   {
     Allocation expected = Allocation(
