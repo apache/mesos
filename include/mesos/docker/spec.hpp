@@ -42,75 +42,58 @@ constexpr char WHITEOUT_PREFIX[] = ".wh.";
 constexpr char WHITEOUT_OPAQUE_PREFIX[] = ".wh..wh..opq";
 
 
-/**
- * Parse the docker image reference. Docker expects the image
- * reference to be in the following format:
- *   [REGISTRY_HOST[:REGISTRY_PORT]/]REPOSITORY[:TAG|@TYPE:DIGEST]
- *
- * This format is inherently ambiguous when dealing with repository
- * names that include forward slashes. To disambiguate, the docker
- * code looks for '.', or ':', or 'localhost' to decide if the first
- * component is a registry or a repository name. For more detail,
- * drill into the implementation of docker pull.
- *
- * See docker implementation:
- * https://github.com/docker/distribution/blob/master/reference/reference.go
- */
+// Parse the docker image reference. Docker expects the image
+// reference to be in the following format:
+//   [REGISTRY_HOST[:REGISTRY_PORT]/]REPOSITORY[:TAG|@TYPE:DIGEST]
+//
+// This format is inherently ambiguous when dealing with repository
+// names that include forward slashes. To disambiguate, the docker
+// code looks for '.', or ':', or 'localhost' to decide if the first
+// component is a registry or a repository name. For more detail,
+// drill into the implementation of docker pull.
+//
+// See docker implementation:
+// https://github.com/docker/distribution/blob/master/reference/reference.go
 Try<ImageReference> parseImageReference(const std::string& s);
 
 
 std::ostream& operator<<(std::ostream& stream, const ImageReference& reference);
 
 
-/**
- * Returns the port of a docker registry.
- */
+// Returns the port of a docker registry.
 Result<int> getRegistryPort(const std::string& registry);
 
 
-/**
- * Returns the scheme of a docker registry.
- */
+// Returns the scheme of a docker registry.
 Try<std::string> getRegistryScheme(const std::string& registry);
 
 
-/**
- * Returns the host of a docker registry.
- */
+// Returns the host of a docker registry.
 std::string getRegistryHost(const std::string& registry);
 
 
-/**
- * Returns the hashmap<registry_URL, spec::DockerConfigAuth> by
- * parsing the docker config file.
- */
+// Returns the hashmap<registry_URL, spec::DockerConfigAuth> by
+// parsing the docker config file.
 Try<hashmap<std::string, Config::Auth>> parseAuthConfig(
     const JSON::Object& _config);
 
-/**
- * Find the host from a docker config auth url.
- */
+
+// Find the host from a docker config auth url.
 std::string parseAuthUrl(const std::string& _url);
 
 
 namespace v1 {
 
-/**
- * Validates if the specified docker v1 image manifest conforms to the
- * Docker v1 spec. Returns the error if the validation fails.
- */
+// Validates if the specified docker v1 image manifest conforms to the
+// Docker v1 spec. Returns the error if the validation fails.
 Option<Error> validate(const ImageManifest& manifest);
 
 
-/**
- * Returns the docker v1 image manifest from the given JSON object.
- */
+// Returns the docker v1 image manifest from the given JSON object.
 Try<ImageManifest> parse(const JSON::Object& json);
 
 
-/**
- * Returns the docker v1 image manifest from the given string.
- */
+// Returns the docker v1 image manifest from the given string.
 Try<ImageManifest> parse(const std::string& s);
 
 } // namespace v1 {
@@ -118,22 +101,16 @@ Try<ImageManifest> parse(const std::string& s);
 
 namespace v2 {
 
-/**
- * Validates if the specified v2 image manifest conforms to the Docker
- * v2 spec. Returns the error if the validation fails.
- */
+// Validates if the specified v2 image manifest conforms to the Docker
+// v2 spec. Returns the error if the validation fails.
 Option<Error> validate(const ImageManifest& manifest);
 
 
-/**
- * Returns the docker v2 image manifest from the given JSON object.
- */
+// Returns the docker v2 image manifest from the given JSON object.
 Try<ImageManifest> parse(const JSON::Object& json);
 
 
-/**
- * Returns the docker v2 image manifest from the given string.
- */
+// Returns the docker v2 image manifest from the given string.
 Try<ImageManifest> parse(const std::string& s);
 
 } // namespace v2 {
