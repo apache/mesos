@@ -188,6 +188,10 @@ message ContainerLaunchInfo {
   // it is set to container sandbox, i.e., Mesos sandbox, unless one of
   // the isolators overrides it *and* the container defines an image.
   // DEBUG containers inherit working directory from their parent.
+  //
+  // NOTE: For the command executor case, this points to the executor
+  // working directory in the host filesystem, which may be different
+  // from the task working directory when task defines an image.
   optional string working_directory = 6;
 
   // (Linux only) The capabilities requested for the container.

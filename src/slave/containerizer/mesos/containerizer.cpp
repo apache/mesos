@@ -1499,23 +1499,68 @@ Future<bool> MesosContainerizerProcess::_launch(
 
   // For a non-DEBUG container, working directory is set to container sandbox,
   // i.e., MESOS_SANDBOX, unless one of the isolators overrides it. DEBUG
-  // containers set their working directory to their parent working directory.
+  // containers set their working directory to their parent working directory,
+  // with the command executor being a special case (see below).
+  //
+  // TODO(alexr): Determining working directory is a convoluted process. We
+  // should either simplify the logic or extract it into a helper routine.
   if (container->config.has_container_class() &&
       container->config.container_class() == ContainerClass::DEBUG) {
     // DEBUG containers must have a parent.
     CHECK(containerId.has_parent());
 
     if (containers_[containerId.parent()]->launchInfo.isSome()) {
-      launchInfo.set_working_directory(
-          containers_[containerId.parent()]->launchInfo->working_directory());
+      // TODO(alexr): Remove this once we no longer support executorless
+      // command tasks in favor of default executor.
+      if (containers_[containerId.parent()]->config.has_task_info()) {
+        // For the command executor case, even if the task itself has a root
+        // filesystem, the executor container still uses the host filesystem,
+        // hence `ContainerLaunchInfo.working_directory`, which points to the
+        // executor working directory in the host filesystem, may be different
+        // from the task working directory when task defines an image. Fall back
+        // to the sandbox directory if task working directory is not present.
+        if (containers_[containerId.parent()]->config.has_rootfs()) {
+          // We can extract the task working directory from the flag being
+          // passed to the command executor.
+          foreach (
+              const string& flag,
+              containers_[containerId.parent()]
+                ->launchInfo->command().arguments()) {
+            if (strings::startsWith(flag, "--working_directory=")) {
+              launchInfo.set_working_directory(strings::remove(
+                  flag, "--working_directory=", strings::PREFIX));
+              break;
+            }
+          }
+
+          // If "--working_directory" argument is not found, default to the
+          // sandbox directory.
+          if (!launchInfo.has_working_directory()) {
+            launchInfo.set_working_directory(flags.sandbox_directory);
+          }
+        } else {
+          // Parent is command executor, but the task does not define an image.
+          launchInfo.set_working_directory(containers_[containerId.parent()]
+            ->launchInfo->working_directory());
+        }
+      } else {
+        // Parent is a non-command task.
+        launchInfo.set_working_directory(
+            containers_[containerId.parent()]->launchInfo->working_directory());
+      }
     } else {
+      // Working directory cannot be determined, because
+      // parent working directory is unknown.
       launchInfo.clear_working_directory();
     }
   } else if (launchInfo.has_rootfs()) {
+    // Non-DEBUG container which defines an image.
     if (!launchInfo.has_working_directory()) {
       launchInfo.set_working_directory(flags.sandbox_directory);
     }
   } else {
+    // Non-DEBUG container which does not define an image.
+    //
     // NOTE: If the container shares the host filesystem, we should
     // not allow them to 'cd' into an arbitrary directory because
     // that'll create security issues.
