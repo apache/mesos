@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 
 #include <process/id.hpp>
 
