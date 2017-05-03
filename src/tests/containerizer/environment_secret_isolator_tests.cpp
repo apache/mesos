@@ -85,8 +85,8 @@ TEST_F(EnvironmentSecretIsolatorTest, ResolveSecret)
 
   const string commandString = strings::format(
       "env; test \"$%s\" = \"%s\"",
-      string(SECRET_ENV_NAME),
-      string(SECRET_VALUE));
+      SECRET_ENV_NAME,
+      SECRET_VALUE).get();
 
   CommandInfo command;
   command.set_value(commandString);

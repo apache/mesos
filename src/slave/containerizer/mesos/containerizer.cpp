@@ -71,6 +71,7 @@
 #include "slave/containerizer/mesos/isolators/posix/disk.hpp"
 #include "slave/containerizer/mesos/isolators/posix/rlimits.hpp"
 #include "slave/containerizer/mesos/isolators/volume/sandbox_path.hpp"
+#include "slave/containerizer/mesos/isolators/volume/secret.hpp"
 
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
@@ -336,6 +337,11 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"volume/image",
       [&provisioner] (const Flags& flags) -> Try<Isolator*> {
         return VolumeImageIsolatorProcess::create(flags, provisioner);
+      }},
+
+    {"volume/secret",
+      [secretResolver] (const Flags& flags) -> Try<Isolator*> {
+        return VolumeSecretIsolatorProcess::create(flags, secretResolver);
       }},
 
     {"gpu/nvidia",

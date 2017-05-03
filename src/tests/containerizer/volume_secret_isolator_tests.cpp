@@ -1,0 +1,263 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include <map>
+#include <set>
+#include <string>
+
+#include <mesos/secret/resolver.hpp>
+
+#include <process/future.hpp>
+#include <process/gtest.hpp>
+
+#include <stout/gtest.hpp>
+
+#include "tests/mesos.hpp"
+
+#include "tests/containerizer/docker_archive.hpp"
+
+using process::Future;
+using process::Owned;
+
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::MesosContainerizer;
+
+using mesos::internal::slave::state::SlaveState;
+
+using mesos::slave::ContainerTermination;
+
+using std::map;
+using std::string;
+
+namespace mesos {
+namespace internal {
+namespace tests {
+
+const char SECRET_VALUE[] = "password";
+
+
+enum FS_TYPE {
+  WITH_ROOTFS,
+  WITHOUT_ROOTFS
+};
+
+
+enum CONTAINER_LAUNCH_STATUS {
+  CONTAINER_LAUNCH_FAILURE,
+  CONTAINER_LAUNCH_SUCCESS
+};
+
+
+class VolumeSecretIsolatorTest :
+  public MesosTest,
+  public ::testing::WithParamInterface<std::tr1::tuple<
+      const char*, const char*, enum FS_TYPE, enum CONTAINER_LAUNCH_STATUS>>
+
+{
+protected:
+  virtual void SetUp()
+  {
+    const char* prefix = std::tr1::get<0>(GetParam());
+    const char* path = std::tr1::get<1>(GetParam());
+    secretContainerPath = string(prefix) + string(path);
+
+    fsType = std::tr1::get<2>(GetParam());
+    expectedContainerLaunchStatus = std::tr1::get<3>(GetParam());
+
+    volume.set_mode(Volume::RW);
+    volume.set_container_path(secretContainerPath);
+
+    Volume::Source* source = volume.mutable_source();
+    source->set_type(Volume::Source::SECRET);
+
+    // Request a secret.
+    Secret* secret = source->mutable_secret();
+    secret->set_type(Secret::VALUE);
+    secret->mutable_value()->set_data(SECRET_VALUE);
+
+    MesosTest::SetUp();
+  }
+
+  string secretContainerPath;
+  bool expectedContainerLaunchStatus;
+  bool fsType;
+
+  Volume volume;
+};
+
+
+static const char* paths[] = {
+  "my_secret",
+  "some/my_secret",
+  "etc/my_secret",
+  "etc/some/my_secret"
+};
+
+
+INSTANTIATE_TEST_CASE_P(
+    SecretTestTypeWithoutRootFSRelativePath,
+    VolumeSecretIsolatorTest,
+    ::testing::Combine(::testing::Values(""),
+                       ::testing::ValuesIn(paths),
+                       ::testing::Values(WITHOUT_ROOTFS),
+                       ::testing::Values(CONTAINER_LAUNCH_SUCCESS)));
+
+
+INSTANTIATE_TEST_CASE_P(
+    SecretTestTypeWithoutRootFSNonExisitingAbsolutePath,
+    VolumeSecretIsolatorTest,
+    ::testing::Combine(::testing::Values("/"),
+                       ::testing::ValuesIn(paths),
+                       ::testing::Values(WITHOUT_ROOTFS),
+                       ::testing::Values(CONTAINER_LAUNCH_FAILURE)));
+
+
+INSTANTIATE_TEST_CASE_P(
+    SecretTestTypeWithoutRootFSExistingAbsolutePath,
+    VolumeSecretIsolatorTest,
+    ::testing::Combine(::testing::Values(""),
+                       ::testing::Values("/bin/touch"),
+                       ::testing::Values(WITHOUT_ROOTFS),
+                       ::testing::Values(CONTAINER_LAUNCH_SUCCESS)));
+
+
+INSTANTIATE_TEST_CASE_P(
+    SecretTestTypeWithRootFS,
+    VolumeSecretIsolatorTest,
+    ::testing::Combine(::testing::Values("", "/"),
+                       ::testing::ValuesIn(paths),
+                       ::testing::Values(WITH_ROOTFS),
+                       ::testing::Values(CONTAINER_LAUNCH_SUCCESS)));
+
+
+TEST_P(VolumeSecretIsolatorTest, ROOT_SecretInVolumeWithRootFilesystem)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,volume/secret";
+
+  if (fsType == WITH_ROOTFS) {
+    const string registry = path::join(sandbox.get(), "registry");
+    AWAIT_READY(DockerArchive::create(registry, "test_image_rootfs"));
+    AWAIT_READY(DockerArchive::create(registry, "test_image_volume"));
+
+    flags.isolation += ",volume/image,docker/runtime";
+    flags.docker_registry = registry;
+    flags.docker_store_dir = path::join(sandbox.get(), "store");
+    flags.image_providers = "docker";
+  }
+
+  Fetcher fetcher;
+
+  Try<SecretResolver*> secretResolver = SecretResolver::create();
+  EXPECT_SOME(secretResolver);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher,
+      secretResolver.get());
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ContainerInfo containerInfo;
+  if (fsType == WITH_ROOTFS) {
+    containerInfo = createContainerInfo(
+        "test_image_rootfs",
+        {createVolumeFromDockerImage(
+            "rootfs", "test_image_volume", Volume::RW)});
+  } else {
+    containerInfo.set_type(ContainerInfo::MESOS);
+  }
+
+  containerInfo.add_volumes()->CopyFrom(volume);
+
+  CommandInfo command = createCommandInfo(
+      "secret=$(cat " + secretContainerPath + "); "
+      "test \"$secret\" = \"" + string(SECRET_VALUE) + "\" && sleep 1000");
+
+  ExecutorInfo executor = createExecutorInfo("test_executor", command);
+  executor.mutable_container()->CopyFrom(containerInfo);
+
+  string directory = path::join(flags.work_dir, "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<bool> launch = containerizer->launch(
+      containerId,
+      None(),
+      executor,
+      directory,
+      None(),
+      SlaveID(),
+      map<string, string>(),
+      false);
+
+  if (expectedContainerLaunchStatus == CONTAINER_LAUNCH_FAILURE) {
+    AWAIT_FAILED(launch);
+    return;
+  }
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  // Now launch nested container.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(UUID::random().toString());
+
+  CommandInfo nestedCommand = createCommandInfo(
+      "secret=$(cat " + secretContainerPath + "); "
+      "test \"$secret\" = \"" + string(SECRET_VALUE) + "\"");
+
+  launch = containerizer->launch(
+      nestedContainerId,
+      nestedCommand,
+      containerInfo,
+      None(),
+      state.id);
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  // Wait for nested container.
+  Future<Option<ContainerTermination>> wait = containerizer->wait(
+      nestedContainerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  // Now wait for parent container.
+  wait = containerizer->wait(containerId);
+  containerizer->destroy(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+}
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {
