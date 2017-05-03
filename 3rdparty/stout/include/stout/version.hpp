@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -111,10 +112,10 @@ struct Version
                    " components allowed");
     }
 
-    int versionNumbers[maxNumericComponents] = {0};
+    uint32_t versionNumbers[maxNumericComponents] = {0};
 
     for (size_t i = 0; i < numericComponents.size(); i++) {
-      Try<int> result = parseNumericIdentifier(numericComponents[i]);
+      Try<uint32_t> result = parseNumericIdentifier(numericComponents[i]);
       if (result.isError()) {
         return Error("Invalid version component '" + numericComponents[i] + "'"
                      ": " + result.error());
@@ -137,9 +138,9 @@ struct Version
 
   // Construct a new Version. The `_prerelease` and `_build` arguments
   // contain lists of prerelease and build identifiers, respectively.
-  Version(int _majorVersion,
-          int _minorVersion,
-          int _patchVersion,
+  Version(uint32_t _majorVersion,
+          uint32_t _minorVersion,
+          uint32_t _patchVersion,
           const std::vector<std::string>& _prerelease = {},
           const std::vector<std::string>& _build = {})
     : majorVersion(_majorVersion),
@@ -230,8 +231,9 @@ struct Version
     for (size_t i = 0; i < minPrereleaseSize; i++) {
       // Check whether the two prerelease identifiers can be converted
       // to numbers.
-      Try<int> identifier = parseNumericIdentifier(prerelease.at(i));
-      Try<int> otherIdentifier = parseNumericIdentifier(other.prerelease.at(i));
+      Try<uint32_t> identifier = parseNumericIdentifier(prerelease.at(i));
+      Try<uint32_t> otherIdentifier =
+        parseNumericIdentifier(other.prerelease.at(i));
 
       if (identifier.isSome() && otherIdentifier.isSome()) {
         // Both identifiers are numeric.
@@ -279,9 +281,9 @@ struct Version
       std::ostream& stream,
       const Version& version);
 
-  const int majorVersion;
-  const int minorVersion;
-  const int patchVersion;
+  const uint32_t majorVersion;
+  const uint32_t minorVersion;
+  const uint32_t patchVersion;
   const std::vector<std::string> prerelease;
   const std::vector<std::string> build;
 
@@ -346,25 +348,25 @@ private:
   // Checks whether the input string is numeric and contains a leading
   // zero. Note that "0" by itself is not considered a "leading zero".
   static bool hasLeadingZero(const std::string& identifier) {
-    Try<int> numericIdentifier = parseNumericIdentifier(identifier);
+    Try<uint32_t> numericIdentifier = parseNumericIdentifier(identifier);
 
     return numericIdentifier.isSome() &&
       numericIdentifier.get() != 0 &&
       strings::startsWith(identifier, '0');
   }
 
-  // Attempt to parse the given string as a numeric identifier.
-  // According to the SemVer spec, identifiers that begin with hyphens
-  // are considered non-numeric.
+  // Try to parse the given string as a numeric identifier. According
+  // to the SemVer spec, identifiers that begin with hyphens are
+  // considered non-numeric.
   //
   // TODO(neilc): Consider adding a variant of `numify<T>` that only
   // supports non-negative inputs.
-  static Try<int> parseNumericIdentifier(const std::string& identifier) {
+  static Try<uint32_t> parseNumericIdentifier(const std::string& identifier) {
     if (strings::startsWith(identifier, '-')) {
       return Error("Contains leading hyphen");
     }
 
-    return numify<int>(identifier);
+    return numify<uint32_t>(identifier);
   }
 };
 
