@@ -83,7 +83,8 @@ private:
   Future<vector<string>> __pull(
       const spec::ImageReference& reference,
       const string& directory,
-      const string& backend);
+      const string& backend,
+      const Option<Secret::Value>& config);
 
   Future<vector<string>> ___pull(
     const spec::ImageReference& reference,
@@ -96,7 +97,8 @@ private:
     const spec::ImageReference& reference,
     const string& directory,
     const spec::v2::ImageManifest& manifest,
-    const string& backend);
+    const string& backend,
+    const Option<Secret::Value>& config);
 
   RegistryPullerProcess(const RegistryPullerProcess&) = delete;
   RegistryPullerProcess& operator=(const RegistryPullerProcess&) = delete;
@@ -287,14 +289,15 @@ Future<vector<string>> RegistryPullerProcess::_pull(
           << "' to '" << directory << "'";
 
   return fetcher->fetch(manifestUri, directory)
-    .then(defer(self(), &Self::__pull, reference, directory, backend));
+    .then(defer(self(), &Self::__pull, reference, directory, backend, config));
 }
 
 
 Future<vector<string>> RegistryPullerProcess::__pull(
     const spec::ImageReference& reference,
     const string& directory,
-    const string& backend)
+    const string& backend,
+    const Option<Secret::Value>& config)
 {
   Try<string> _manifest = os::read(path::join(directory, "manifest"));
   if (_manifest.isError()) {
@@ -315,7 +318,7 @@ Future<vector<string>> RegistryPullerProcess::__pull(
     return Failure("'fsLayers' and 'history' have different size in manifest");
   }
 
-  return fetchBlobs(reference, directory, manifest.get(), backend)
+  return fetchBlobs(reference, directory, manifest.get(), backend, config)
     .then(defer(self(),
                 &Self::___pull,
                 reference,
@@ -430,7 +433,8 @@ Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
     const spec::ImageReference& reference,
     const string& directory,
     const spec::v2::ImageManifest& manifest,
-    const string& backend)
+    const string& backend,
+    const Option<Secret::Value>& config)
 {
   // First, find all the blobs that need to be fetched.
   //
