@@ -2144,16 +2144,14 @@ message Image {
     // NOTE: This is not encrypted, therefore framework and operators
     // should enable SSL when passing this information.
     //
-    // This is field is never used in Mesos before and is deprecated
-    // since Mesos 1.3. Please use the `Secret::Value` field `config`
-    // below (see MESOS-7088 for details).
+    // This field has never been used in Mesos before and is
+    // deprecated since Mesos 1.3. Please use `config` below
+    // (see MESOS-7088 for details).
     optional Credential credential = 2 [deprecated = true]; // Since 1.3.
 
-    // The UTF-8 character encoded byte data, which is expected as
-    // a docker config file in JSON format. This field is used for
-    // supporting docker private registry credential per container.
-    // Users can specify different docker config files for pulling
-    // their private images from different registries.
+    // Docker config containing credentails to authenticate with
+    // docker registry. The secret is expected to be a docker
+    // config file in JSON format with UTF-8 character encoding.
     optional Secret config = 3;
   }
 
