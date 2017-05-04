@@ -520,7 +520,7 @@ void Slave::initialize()
 
   // Initialize `totalResources` with `info.resources`, checkpointed
   // resources will be applied later during recovery.
-  totalResources = resources.get();
+  totalResources = info.resources();
 
   LOG(INFO) << "Agent resources: " << info.resources();
 
