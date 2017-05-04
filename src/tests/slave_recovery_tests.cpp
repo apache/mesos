@@ -175,7 +175,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -355,7 +355,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -438,7 +438,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_ReconnectHTTPExecutor)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.http_command_executor = true;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -536,7 +536,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_ROOT_CGROUPS_ReconnectDefaultExecutor)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.authenticate_http_readwrite = false;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -724,7 +724,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -814,7 +814,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoverUnregisteredHTTPExecutor)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.http_command_executor = true;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -930,7 +930,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -1042,7 +1042,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTaskUnregisteredExecutor)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -1147,7 +1147,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.http_command_executor = true;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -1294,7 +1294,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -1424,7 +1424,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.recovery_timeout = Milliseconds(1);
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -1516,7 +1516,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -1606,7 +1606,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.http_command_executor = true;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -1711,7 +1711,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -1812,7 +1812,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -1925,7 +1925,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -2021,7 +2021,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_KillTaskWithHTTPExecutor)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.http_command_executor = true;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -2140,7 +2140,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -2260,7 +2260,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.strict = false;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -2407,7 +2407,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.strict = false;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -2541,7 +2541,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -2660,7 +2660,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlaveSIGUSR1)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -2766,7 +2766,7 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -2885,7 +2885,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -2985,7 +2985,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -3127,7 +3127,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -3296,7 +3296,7 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -3446,7 +3446,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -3585,7 +3585,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
   ASSERT_SOME(_containerizer);
@@ -3772,7 +3772,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   // cgroups isolation is involved.
   flags1.isolation = "filesystem/posix,posix/mem,posix/cpu";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags1);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -3954,7 +3954,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
 
   // Expect the launch but don't do anything.
   Future<Nothing> launch;
-  EXPECT_CALL(containerizer1, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer1, launch(_, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&launch),
                     Return(Future<bool>())));
 
@@ -4018,7 +4018,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -4119,7 +4119,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.isolation = "cgroups/cpu,cgroups/mem";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -4223,7 +4223,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   slave::Flags flags = this->CreateSlaveFlags();
   flags.isolation = "cgroups/cpu,cgroups/mem,filesystem/linux,namespaces/pid";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);

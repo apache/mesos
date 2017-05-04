@@ -1849,8 +1849,6 @@ public:
     ContainerizerTest<MesosContainerizer>::TearDown();
   }
 
-  Fetcher fetcher;
-
   // Name of the host eth0 and lo.
   string eth0;
   string lo;
@@ -1874,6 +1872,8 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
   // is consistent with the launchers we use for other containerizers
   // we create in this test. Also, this will bypass MESOS-2554.
   slaveFlags.isolation = "cgroups/cpu,cgroups/mem";
+
+  Fetcher fetcher(slaveFlags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(slaveFlags, true, &fetcher);
@@ -2049,6 +2049,8 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   // NOTE: We add 'cgroups/cpu,cgroups/mem' to bypass MESOS-2554.
   flags.isolation = "cgroups/cpu,cgroups/mem,network/port_mapping";
 
+  Fetcher fetcher(flags);
+
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
 
@@ -2174,6 +2176,8 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "network/port_mapping";
 
+  Fetcher fetcher(flags);
+
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
 
@@ -2261,6 +2265,8 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
 
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "network/port_mapping";
+
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);

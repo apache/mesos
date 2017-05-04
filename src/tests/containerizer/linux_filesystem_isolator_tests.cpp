@@ -69,11 +69,7 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class LinuxFilesystemIsolatorTest : public MesosTest
-{
-protected:
-  Fetcher fetcher;
-};
+class LinuxFilesystemIsolatorTest : public MesosTest {};
 
 
 // This test verifies that the root filesystem of the container is
@@ -88,6 +84,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
   flags.docker_registry = registry;
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
+
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -110,13 +108,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch);
 
@@ -142,6 +136,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
 
+  Fetcher fetcher(flags);
+
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
 
@@ -164,13 +160,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch);
 
@@ -205,6 +197,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
 
+  Fetcher fetcher(flags);
+
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
 
@@ -228,13 +222,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch);
 
@@ -263,6 +253,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
 
+  Fetcher fetcher(flags);
+
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
 
@@ -289,13 +281,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHost)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch);
 
@@ -321,6 +309,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHost)
   flags.docker_registry = registry;
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
+
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -348,13 +338,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHost)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY_FOR(launch, Seconds(60));
 
@@ -380,6 +366,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
   flags.docker_registry = registry;
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
+
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -407,13 +395,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch);
 
@@ -439,6 +423,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
   flags.docker_registry = registry;
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
+
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -466,13 +452,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY_FOR(launch, Seconds(60));
 
@@ -497,6 +479,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
   flags.docker_registry = registry;
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
+
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -533,13 +517,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch);
 
@@ -566,6 +546,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
   flags.docker_registry = registry;
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
+
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -600,13 +582,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch);
 
@@ -634,6 +612,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
   flags.docker_registry = registry;
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
+
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -674,13 +654,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
 
   Future<bool> launch1 = containerizer->launch(
       containerId1,
-      None(),
-      executor1,
-      directory1,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor1, directory1),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch1);
 
@@ -695,13 +671,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
 
   Future<bool> launch2 = containerizer->launch(
       containerId2,
-      None(),
-      executor2,
-      directory2,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor2, directory2),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch1);
 
@@ -819,6 +791,8 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeMountPointCleanup)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "filesystem/linux";
 
+  Fetcher fetcher(flags);
+
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
 
@@ -852,13 +826,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeMountPointCleanup)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch);
 
@@ -1192,6 +1162,8 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   flags.docker_registry = registry;
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
+
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);

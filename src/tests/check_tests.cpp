@@ -1311,7 +1311,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We have to explicitly create a `Containerizer` in non-local mode,
   // because `LaunchNestedContainerSession` (used by command checks)
@@ -1505,7 +1505,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We have to explicitly create a `Containerizer` in non-local mode,
   // because `LaunchNestedContainerSession` (used by command checks)
@@ -1666,7 +1666,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We have to explicitly create a `Containerizer` in non-local mode,
   // because `LaunchNestedContainerSession` (used by command checks)
@@ -1811,7 +1811,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We have to explicitly create a `Containerizer` in non-local mode,
   // because `LaunchNestedContainerSession` (used by command checks)
@@ -1979,7 +1979,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, CommandCheckTimeout)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We have to explicitly create a `Containerizer` in non-local mode,
   // because `LaunchNestedContainerSession` (used by command checks)
@@ -2127,7 +2127,7 @@ TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We have to explicitly create a `Containerizer` in non-local mode,
   // because `LaunchNestedContainerSession` (used by command checks)

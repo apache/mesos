@@ -289,7 +289,7 @@ TEST_F(CniIsolatorTest, ROOT_VerifyCheckpointedInfo)
   flags.network_cni_plugins_dir = cniPluginDir;
   flags.network_cni_config_dir = cniConfigDir;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);

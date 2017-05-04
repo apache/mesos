@@ -72,7 +72,7 @@ TEST_P(CpuIsolatorTest, ROOT_UserCpuUsage)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = GetParam();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -163,7 +163,7 @@ TEST_P(CpuIsolatorTest, ROOT_SystemCpuUsage)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = GetParam();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);

@@ -61,7 +61,6 @@ protected:
   }
 
   bool nesting;
-  Fetcher fetcher;
 };
 
 
@@ -84,6 +83,8 @@ TEST_P(VolumeImageIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
   flags.docker_registry = registry;
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
+
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -114,13 +115,9 @@ TEST_P(VolumeImageIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -133,10 +130,9 @@ TEST_P(VolumeImageIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
 
     launch = containerizer->launch(
         nestedContainerId,
-        command,
-        container,
-        None(),
-        SlaveID());
+        createContainerConfig(command, container),
+        map<string, string>(),
+        None());
 
     AWAIT_ASSERT_TRUE(launch);
 
@@ -176,6 +172,8 @@ TEST_P(VolumeImageIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
 
+  Fetcher fetcher(flags);
+
   Try<MesosContainerizer*> create =
     MesosContainerizer::create(flags, true, &fetcher);
 
@@ -207,13 +205,9 @@ TEST_P(VolumeImageIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 
@@ -226,10 +220,9 @@ TEST_P(VolumeImageIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
 
     launch = containerizer->launch(
         nestedContainerId,
-        command,
-        container,
-        None(),
-        SlaveID());
+        createContainerConfig(command, container),
+        map<string, string>(),
+        None());
 
     AWAIT_ASSERT_TRUE(launch);
 

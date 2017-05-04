@@ -151,6 +151,8 @@ protected:
       const slave::Flags& flags,
       const Owned<DriverClient>& mockClient)
   {
+    fetcher.reset(new Fetcher(flags));
+
     Try<Isolator*> linuxIsolator_ =
       LinuxFilesystemIsolatorProcess::create(flags);
 
@@ -199,7 +201,7 @@ protected:
     Try<MesosContainerizer*> containerizer = MesosContainerizer::create(
         flags,
         true,
-        &fetcher,
+        fetcher.get(),
         std::move(launcher),
         provisioner->share(),
         {std::move(linuxIsolator),
@@ -214,7 +216,7 @@ protected:
   }
 
 private:
-  Fetcher fetcher;
+  Owned<Fetcher> fetcher;
 };
 
 

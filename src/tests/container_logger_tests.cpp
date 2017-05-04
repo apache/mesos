@@ -147,7 +147,7 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
   // We'll need access to these flags later.
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We use an actual containerizer + executor since we want something to run.
   Try<MesosContainerizer*> _containerizer =
@@ -248,7 +248,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
   // Use the non-default container logger that rotates logs.
   flags.container_logger = LOGROTATE_CONTAINER_LOGGER_NAME;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We use an actual containerizer + executor since we want something to run.
   Try<MesosContainerizer*> _containerizer =
@@ -398,7 +398,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_CustomRotateOptions)
   // Use the non-default container logger that rotates logs.
   flags.container_logger = LOGROTATE_CONTAINER_LOGGER_NAME;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We use an actual containerizer + executor since we want something to run.
   Try<MesosContainerizer*> _containerizer =
@@ -505,7 +505,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
   // Use the non-default container logger that rotates logs.
   flags.container_logger = LOGROTATE_CONTAINER_LOGGER_NAME;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We use an actual containerizer + executor since we want something to run.
   Try<MesosContainerizer*> _containerizer =
@@ -629,7 +629,7 @@ TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
       flags.work_dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
   ASSERT_SOME(chmod);
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We use an actual containerizer + executor since we want something to run.
   Try<MesosContainerizer*> _containerizer =

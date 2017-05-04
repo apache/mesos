@@ -71,8 +71,10 @@ public:
     slave::Flags flags = CreateSlaveFlags();
     flags.isolation = isolation;
 
+    fetcher.reset(new Fetcher(flags));
+
     Try<MesosContainerizer*> _containerizer =
-      MesosContainerizer::create(flags, false, &fetcher);
+      MesosContainerizer::create(flags, false, fetcher.get());
 
     if (_containerizer.isError()) {
       return Error(_containerizer.error());
@@ -94,7 +96,7 @@ public:
   }
 
   string directory;
-  Fetcher fetcher;
+  Owned<Fetcher> fetcher;
   ContainerID containerId;
 };
 
@@ -111,13 +113,12 @@ TEST_F(NamespacesIsolatorTest, ROOT_PidNamespace)
 
   process::Future<bool> launch = containerizer.get()->launch(
       containerId,
-      None(),
-      createExecutorInfo("executor", command),
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", command),
+          directory),
       std::map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch);
   ASSERT_TRUE(launch.get());
@@ -178,13 +179,12 @@ TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespace)
 
   process::Future<bool> launch = containerizer.get()->launch(
       containerId,
-      None(),
-      createExecutorInfo("executor", command),
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", command),
+          directory),
       std::map<string, string>(),
-      false);
+      None());
 
   AWAIT_READY(launch);
   ASSERT_TRUE(launch.get());

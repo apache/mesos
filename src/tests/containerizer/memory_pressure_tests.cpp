@@ -84,7 +84,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
   // We only care about memory cgroup for this test.
   flags.isolation = "cgroups/mem";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -201,7 +201,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
   // We only care about memory cgroup for this test.
   flags.isolation = "cgroups/mem";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);

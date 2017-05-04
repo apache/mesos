@@ -510,9 +510,10 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Fetcher fetcher;
-  Owned<MasterDetector> detector = master.get()->createDetector();
   slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher(flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -606,11 +607,11 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatisticsNoEnforce)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Fetcher fetcher;
-  Owned<MasterDetector> detector = master.get()->createDetector();
-
   slave::Flags flags = CreateSlaveFlags();
   flags.enforce_container_disk_quota = false;
+
+  Fetcher fetcher(flags);
+  Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -707,7 +708,7 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
 

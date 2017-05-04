@@ -95,6 +95,7 @@ using mesos::internal::protobuf::createLabel;
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerTermination;
 
 using mesos::v1::scheduler::Call;
@@ -327,7 +328,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ShutdownUnregisteredExecutor)
   // be created.
   flags.isolation = "posix/cpu,posix/mem";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
@@ -439,7 +440,7 @@ TEST_F(SlaveTest, ExecutorTimeoutCausedBySlowFetch)
   slave::Flags flags = CreateSlaveFlags();
   flags.hadoop_home = hadoopPath;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer = MesosContainerizer::create(
       flags, true, &fetcher);
@@ -628,7 +629,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithArguments)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
@@ -909,7 +910,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
@@ -963,13 +964,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   slaveID.set_value(UUID::random().toString());
   Future<bool> launch = containerizer->launch(
       containerId,
-      task,
-      executor,
-      sandbox.get(),
-      "nobody",
-      slaveID,
+      createContainerConfig(task, executor, sandbox.get(), "nobody"),
       map<string, string>(),
-      false);
+      None());
   AWAIT_READY(launch);
 
   // TODO(spikecurtis): With agent capabilities (MESOS-3362), the
@@ -996,7 +993,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
@@ -1096,7 +1093,7 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "posix/cpu,posix/mem";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
@@ -1423,7 +1420,7 @@ TEST_F(SlaveTest, MetricsSlaveLaunchErrors)
   JSON::Object snapshot = Metrics();
   EXPECT_EQ(0, snapshot.values["slave/container_launch_errors"]);
 
-  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer, launch(_, _, _, _))
     .WillOnce(Return(Failure("Injected failure")));
 
   Future<TaskStatus> failureUpdate;
@@ -4908,7 +4905,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, HTTPSchedulerSlaveRestart)
 
   slave::Flags flags = this->CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);
@@ -6624,9 +6621,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, DefaultExecutorCommandInfo)
   AWAIT_READY(offers);
   EXPECT_NE(0, offers->offers().size());
 
-  Future<ExecutorInfo> executorInfo_;
-  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
-    .WillOnce(DoAll(FutureArg<2>(&executorInfo_),
+  Future<ContainerConfig> containerConfig;
+  EXPECT_CALL(containerizer, launch(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<1>(&containerConfig),
                     Return(Future<bool>())));
 
   const v1::Offer& offer = offers->offers(0);
@@ -6658,13 +6655,16 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, DefaultExecutorCommandInfo)
     mesos.send(call);
   }
 
-  AWAIT_READY(executorInfo_);
+  AWAIT_READY(containerConfig);
 
   // TODO(anand): Add a `strings::contains()` check to ensure
   // `MESOS_DEFAULT_EXECUTOR` is present in the command when
   // we add the executable for default executor.
-  ASSERT_TRUE(executorInfo_->has_command());
-  EXPECT_EQ(frameworkInfo.user(), executorInfo_->command().user());
+  ASSERT_TRUE(containerConfig->has_executor_info());
+  ASSERT_TRUE(containerConfig->executor_info().has_command());
+  EXPECT_EQ(
+      frameworkInfo.user(),
+      containerConfig->executor_info().command().user());
 }
 
 

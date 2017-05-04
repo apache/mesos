@@ -287,10 +287,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
     VerifySlaveExecutorEnvironmentDecorator)
 {
   const string& directory = os::getcwd(); // We're inside a temporary sandbox.
-  Fetcher fetcher;
+
+  slave::Flags flags = CreateSlaveFlags();
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(CreateSlaveFlags(), false, &fetcher);
+    MesosContainerizer::create(flags, false, &fetcher);
 
   ASSERT_SOME(_containerizer);
   Owned<MesosContainerizer> containerizer(_containerizer.get());
@@ -305,7 +307,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   SlaveID slaveId = SlaveID();
 
   std::map<string, string> environment = executorEnvironment(
-      CreateSlaveFlags(),
+      flags,
       executorInfo,
       directory,
       slaveId,
@@ -318,13 +320,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   // command validates the hook.
   process::Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executorInfo,
-      directory,
-      None(),
-      slaveId,
+      createContainerConfig(None(), executorInfo, directory),
       environment,
-      false);
+      None());
 
   AWAIT_READY(launch);
   ASSERT_TRUE(launch.get());
@@ -652,7 +650,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -704,7 +702,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&containerizer,
                            &MockDockerContainerizer::_launch)));
@@ -761,7 +759,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -856,7 +854,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -921,7 +919,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   tasks.push_back(task);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&containerizer,
                            &MockDockerContainerizer::_launch)));
@@ -982,7 +980,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, ROOT_DOCKER_VerifySlavePostFetchHook)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);

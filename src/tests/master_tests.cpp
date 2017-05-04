@@ -6353,7 +6353,7 @@ TEST_F(MasterTest, AgentRestartNoReregister)
   slave::Flags agentFlags = CreateSlaveFlags();
   agentFlags.credential = None();
 
-  mesos::internal::slave::Fetcher fetcher;
+  mesos::internal::slave::Fetcher fetcher(agentFlags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(agentFlags, true, &fetcher);
@@ -6550,7 +6550,7 @@ TEST_F(MasterTest, AgentRestartNoReregisterRateLimit)
   ASSERT_SOME(master);
 
   slave::Flags agentFlags = CreateSlaveFlags();
-  mesos::internal::slave::Fetcher fetcher;
+  mesos::internal::slave::Fetcher fetcher(agentFlags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(agentFlags, true, &fetcher);

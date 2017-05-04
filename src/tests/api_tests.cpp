@@ -3623,7 +3623,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, NestedContainerLaunchFalse)
 
   {
     // Return false here to indicate "unsupported".
-    EXPECT_CALL(containerizer, launch(_, _, _, _, _, _))
+    EXPECT_CALL(containerizer, launch(_, _, _, _))
       .WillOnce(Return(Future<bool>(false)));
 
     v1::agent::Call call;
@@ -4055,7 +4055,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, LaunchNestedContainerSession)
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
@@ -4167,7 +4167,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> mesosContainerizer =
     MesosContainerizer::create(flags, false, &fetcher);
@@ -4272,7 +4272,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
@@ -4389,7 +4389,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
@@ -4693,7 +4693,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
     acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
   }
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
@@ -5056,7 +5056,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPIStreamingTest,
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);
@@ -5300,7 +5300,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, false, &fetcher);

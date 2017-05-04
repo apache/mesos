@@ -54,7 +54,7 @@ TEST_F(EnvironmentSecretIsolatorTest, ResolveSecret)
 
   mesos::internal::slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
   Try<SecretResolver*> secretResolver = SecretResolver::create();
   EXPECT_SOME(secretResolver);
 

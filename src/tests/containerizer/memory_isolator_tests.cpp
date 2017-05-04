@@ -72,7 +72,7 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = GetParam();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> _containerizer =
     MesosContainerizer::create(flags, true, &fetcher);

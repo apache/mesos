@@ -159,7 +159,7 @@ TEST_P(VolumeSecretIsolatorTest, ROOT_SecretInVolumeWithRootFilesystem)
     flags.image_providers = "docker";
   }
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<SecretResolver*> secretResolver = SecretResolver::create();
   EXPECT_SOME(secretResolver);
@@ -206,13 +206,9 @@ TEST_P(VolumeSecretIsolatorTest, ROOT_SecretInVolumeWithRootFilesystem)
 
   Future<bool> launch = containerizer->launch(
       containerId,
-      None(),
-      executor,
-      directory,
-      None(),
-      SlaveID(),
+      createContainerConfig(None(), executor, directory),
       map<string, string>(),
-      false);
+      None());
 
   if (expectedContainerLaunchStatus == CONTAINER_LAUNCH_FAILURE) {
     AWAIT_FAILED(launch);
@@ -232,10 +228,9 @@ TEST_P(VolumeSecretIsolatorTest, ROOT_SecretInVolumeWithRootFilesystem)
 
   launch = containerizer->launch(
       nestedContainerId,
-      nestedCommand,
-      containerInfo,
-      None(),
-      state.id);
+      createContainerConfig(nestedCommand, containerInfo),
+      map<string, string>(),
+      None());
 
   AWAIT_ASSERT_TRUE(launch);
 

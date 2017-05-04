@@ -545,7 +545,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
 
   slave::Flags agentFlags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(agentFlags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(agentFlags.container_logger);
@@ -597,7 +597,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
       containerInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&containerizer,
                            &MockDockerContainerizer::_launch)));
@@ -818,7 +818,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   slave::Flags agentFlags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(agentFlags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(agentFlags.container_logger);
@@ -889,7 +889,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
       containerInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&containerizer,
                            &MockDockerContainerizer::_launch)));
@@ -1841,7 +1841,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   slave::Flags agentFlags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(agentFlags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(agentFlags.container_logger);
@@ -1906,7 +1906,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   task.mutable_health_check()->CopyFrom(healthCheck);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&containerizer,
                            &MockDockerContainerizer::_launch)));
@@ -1972,7 +1972,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   slave::Flags agentFlags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(agentFlags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(agentFlags.container_logger);
@@ -2039,7 +2039,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   task.mutable_health_check()->CopyFrom(healthCheck);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&containerizer,
                            &MockDockerContainerizer::_launch)));
@@ -2108,7 +2108,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   slave::Flags agentFlags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(agentFlags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(agentFlags.container_logger);
@@ -2173,7 +2173,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   task.mutable_health_check()->CopyFrom(healthCheck);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&containerizer,
                            &MockDockerContainerizer::_launch)));
@@ -2247,7 +2247,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   flags.acls = acls;
 #endif // USE_SSL_SOCKET
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // We have to explicitly create a `Containerizer` in non-local mode,
   // because `LaunchNestedContainerSession` (used by command health

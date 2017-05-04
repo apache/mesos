@@ -85,7 +85,7 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
 
   Promise<bool> launchPromise;
 
-  EXPECT_CALL(*mockContainerizer1, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(*mockContainerizer1, launch(_, _, _, _))
     .WillOnce(Return(launchPromise.future()));
 
   Future<Nothing> destroy;
@@ -96,13 +96,9 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
 
   Future<bool> launched = containerizer.launch(
       containerId,
-      taskInfo,
-      executorInfo,
-      "dir",
-      "user",
-      slaveId,
+      createContainerConfig(taskInfo, executorInfo, "dir", "user"),
       environment,
-      false);
+      None());
 
   Resources resources = Resources::parse("cpus:1;mem:256").get();
 
@@ -110,7 +106,7 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
 
   Future<bool> destroyed = containerizer.destroy(containerId);
 
-  EXPECT_CALL(*mockContainerizer2, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(*mockContainerizer2, launch(_, _, _, _))
     .Times(0);
 
   // We make sure the destroy is being called on the first containerizer.
@@ -155,7 +151,7 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
 
   Promise<bool> launchPromise;
 
-  EXPECT_CALL(*mockContainerizer1, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(*mockContainerizer1, launch(_, _, _, _))
     .WillOnce(Return(launchPromise.future()));
 
   Future<Nothing> destroy;
@@ -166,13 +162,9 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
 
   Future<bool> launched = containerizer.launch(
       containerId,
-      taskInfo,
-      executorInfo,
-      "dir",
-      "user",
-      slaveId,
+      createContainerConfig(taskInfo, executorInfo, "dir", "user"),
       environment,
-      false);
+      None());
 
   Resources resources = Resources::parse("cpus:1;mem:256").get();
 
@@ -180,7 +172,7 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
 
   Future<bool> destroyed = containerizer.destroy(containerId);
 
-  EXPECT_CALL(*mockContainerizer2, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(*mockContainerizer2, launch(_, _, _, _))
     .Times(0);
 
   // We make sure the destroy is being called on the first containerizer.
@@ -221,7 +213,7 @@ TEST_F(ComposingContainerizerTest, DestroyAfterLaunchLoop)
 
   Promise<bool> launchPromise;
 
-  EXPECT_CALL(*mockContainerizer1, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(*mockContainerizer1, launch(_, _, _, _))
     .WillOnce(Return(launchPromise.future()));
 
   Future<Nothing> destroy;
@@ -232,13 +224,9 @@ TEST_F(ComposingContainerizerTest, DestroyAfterLaunchLoop)
 
   Future<bool> launched = containerizer.launch(
       containerId,
-      taskInfo,
-      executorInfo,
-      "dir",
-      "user",
-      slaveId,
+      createContainerConfig(taskInfo, executorInfo, "dir", "user"),
       environment,
-      false);
+      None());
 
   Resources resources = Resources::parse("cpus:1;mem:256").get();
 
