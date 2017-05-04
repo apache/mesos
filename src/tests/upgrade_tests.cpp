@@ -282,27 +282,20 @@ TEST_F(UpgradeTest, UpgradeSlaveIntoMultiRole)
   // re-registration later.
   StandaloneMasterDetector detector(master.get()->pid);
 
-  // Start a slave.
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(&detector, slaveFlags);
-  ASSERT_SOME(slave);
-
   // Drop subsequent `ReregisterSlaveMessage`s to prevent a race condition
   // where an unspoofed retry reaches master before the spoofed one.
-  DROP_PROTOBUFS(RegisterSlaveMessage(), slave.get()->pid, master.get()->pid);
+  DROP_PROTOBUFS(RegisterSlaveMessage(), _, master.get()->pid);
 
   Future<RegisterSlaveMessage> registerSlaveMessage =
-    DROP_PROTOBUF(
-        RegisterSlaveMessage(),
-        slave.get()->pid,
-        master.get()->pid);
+    DROP_PROTOBUF(RegisterSlaveMessage(), _, master.get()->pid);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(
-        SlaveRegisteredMessage(),
-        master.get()->pid,
-        slave.get()->pid);
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  // Start a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
 
   Clock::advance(slaveFlags.authentication_backoff_factor);
   Clock::advance(slaveFlags.registration_backoff_factor);
@@ -531,6 +524,258 @@ TEST_F(UpgradeTest, MultiRoleSchedulerUpgrade)
 
   driver2.stop();
   driver2.join();
+}
+
+
+// Checks that resources of an agent will be offered to non-hierarchical roles
+// before/after being upgraded to support HIERARCHICAL_ROLE. We first strip
+// HIERARCHICAL_ROLE capability in `registerSlaveMessage` to spoof an old agent.
+// Then we simulate a master detection event to trigger agent re-registration.
+// Before/after 'upgrade', resources of the agent should be offered to
+// non-hierarchical roles.
+TEST_F(UpgradeTest, UpgradeAgentIntoHierarchicalRoleForNonHierarchicalRole)
+{
+  Clock::pause();
+
+  // Start a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a StandaloneMasterDetector to enable the agent to trigger
+  // re-registration later.
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  // Drop subsequent `ReregisterSlaveMessage`s to prevent a race condition
+  // where an unspoofed retry reaches master before the spoofed one.
+  DROP_PROTOBUFS(RegisterSlaveMessage(), _, master.get()->pid);
+
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    DROP_PROTOBUF(RegisterSlaveMessage(), _, master.get()->pid);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  // Start a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  protobuf::slave::Capabilities capabilities(
+      registerSlaveMessage->agent_capabilities());
+
+  EXPECT_TRUE(capabilities.hierarchicalRole);
+
+  // Strip HIERARCHICAL_ROLE capability.
+  capabilities.hierarchicalRole = false;
+
+  RegisterSlaveMessage strippedRegisterSlaveMessage =
+    registerSlaveMessage.get();
+  strippedRegisterSlaveMessage.mutable_agent_capabilities()->CopyFrom(
+      capabilities.toRepeatedPtrField());
+
+  // Prevent this from being dropped per the DROP_PROTOBUFS above.
+  FUTURE_PROTOBUF(
+      RegisterSlaveMessage(),
+      slave.get()->pid,
+      master.get()->pid);
+
+  process::post(
+      slave.get()->pid,
+      master.get()->pid,
+      strippedRegisterSlaveMessage);
+
+  Clock::settle();
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("foo");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  Clock::settle();
+
+  AWAIT_READY(registered);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  Offer offer = offers->front();
+
+  // We want to be receive an offer for the remainder immediately.
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  driver.declineOffer(offer.id(), filters);
+
+  // Simulate a new master detected event on the agent,
+  // so that the agent will do a re-registration.
+  detector.appoint(None());
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  detector.appoint(master.get()->pid);
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  Clock::settle();
+
+  // We should be able to receive offers after
+  // agent capabilities being updated.
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Checks that resources of an agent will be offered to hierarchical roles after
+// being upgraded to support HIERARCHICAL_ROLE. We first strip HIERARCHICAL_ROLE
+// capability in `registerSlaveMessage` to spoof an old agent. Then we simulate
+// a master detection event to trigger agent re-registration. After 'upgrade',
+// resources of the agent should be offered to hierarchical roles.
+TEST_F(UpgradeTest, UpgradeAgentIntoHierarchicalRoleForHierarchicalRole)
+{
+  Clock::pause();
+
+  // Start a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Create a StandaloneMasterDetector to enable the agent to trigger
+  // re-registration later.
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  // Start a slave.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Drop subsequent `ReregisterSlaveMessage`s to prevent a race condition
+  // where an unspoofed retry reaches master before the spoofed one.
+  DROP_PROTOBUFS(RegisterSlaveMessage(), slave.get()->pid, master.get()->pid);
+
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    DROP_PROTOBUF(
+        RegisterSlaveMessage(),
+        slave.get()->pid,
+        master.get()->pid);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(
+        SlaveRegisteredMessage(),
+        master.get()->pid,
+        slave.get()->pid);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  protobuf::slave::Capabilities capabilities(
+      registerSlaveMessage->agent_capabilities());
+
+  EXPECT_TRUE(capabilities.hierarchicalRole);
+
+  // Strip HIERARCHICAL_ROLE capability.
+  capabilities.hierarchicalRole = false;
+
+  RegisterSlaveMessage strippedRegisterSlaveMessage =
+    registerSlaveMessage.get();
+  strippedRegisterSlaveMessage.mutable_agent_capabilities()->CopyFrom(
+      capabilities.toRepeatedPtrField());
+
+  // Prevent this from being dropped per the DROP_PROTOBUFS above.
+  FUTURE_PROTOBUF(
+      RegisterSlaveMessage(),
+      slave.get()->pid,
+      master.get()->pid);
+
+  process::post(
+      slave.get()->pid,
+      master.get()->pid,
+      strippedRegisterSlaveMessage);
+
+  Clock::settle();
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("foo/bar");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // We don't expect scheduler to receive any offer because agent is not
+  // HIERARCHICAL_ROLE capable.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .Times(0);
+
+  driver.start();
+
+  Clock::settle();
+
+  AWAIT_READY(registered);
+
+  // Simulate a new master detected event on the agent,
+  // so that the agent will do a re-registration.
+  detector.appoint(None());
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  detector.appoint(master.get()->pid);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  Clock::settle();
+
+  // Now that the agent has advertised support for hierarchical roles, the
+  // framework should receive an offer for its resources.
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  driver.stop();
+  driver.join();
 }
 
 } // namespace tests {

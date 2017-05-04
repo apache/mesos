@@ -2113,6 +2113,10 @@ bool HierarchicalAllocatorProcess::isFiltered(
   const Framework& framework = frameworks.at(frameworkId);
   const Slave& slave = slaves.at(slaveId);
 
+  // TODO(mpark): Consider moving these filter logic out and into the master,
+  // since they are not specific to the hierarchical allocator but rather are
+  // global allocation constraints.
+
   // Prevent offers from non-MULTI_ROLE agents to be allocated
   // to MULTI_ROLE frameworks.
   if (framework.capabilities.multiRole &&
@@ -2121,6 +2125,16 @@ bool HierarchicalAllocatorProcess::isFiltered(
       << "Implicitly filtering agent " << slaveId << " from framework"
       << frameworkId << " because the framework is MULTI_ROLE capable"
       << " but the agent is not";
+
+    return true;
+  }
+
+  // Prevent offers from non-HIERARCHICAL_ROLE agents to be allocated
+  // to hierarchical roles.
+  if (!slave.capabilities.hierarchicalRole && strings::contains(role, "/")) {
+    LOG(WARNING) << "Implicitly filtering agent " << slaveId << " from role"
+                 << role << " because the role is hierarchical but the agent "
+                 << "is not HIERARCHICAL_ROLE capable";
 
     return true;
   }
