@@ -1697,7 +1697,7 @@ Option<Resources> Resources::find(const Resource& target) const
 // Overloaded operators.
 /////////////////////////////////////////////////
 
-Resources::operator const RepeatedPtrField<Resource>() const
+Resources::operator RepeatedPtrField<Resource>() const
 {
   RepeatedPtrField<Resource> all;
   foreach(const Resource& resource, resources) {

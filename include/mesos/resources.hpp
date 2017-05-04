@@ -525,7 +525,7 @@ public:
   // a protocol buffer field.
   // Note that the google::protobuf::RepeatedPtrField<Resource> is
   // generated at runtime.
-  operator const google::protobuf::RepeatedPtrField<Resource>() const;
+  operator google::protobuf::RepeatedPtrField<Resource>() const;
 
   bool operator==(const Resources& that) const;
   bool operator!=(const Resources& that) const;
