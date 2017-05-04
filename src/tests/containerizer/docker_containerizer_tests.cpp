@@ -62,6 +62,7 @@ using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
 
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerTermination;
 
@@ -84,12 +85,9 @@ namespace tests {
 class DockerContainerizerTest : public MesosTest
 {
 public:
-  static string containerName(
-      const SlaveID& slaveId,
-      const ContainerID& containerId)
+  static string containerName(const ContainerID& containerId)
   {
-    return slave::DOCKER_NAME_PREFIX + slaveId.value() +
-      slave::DOCKER_NAME_SEPERATOR + containerId.value();
+    return slave::DOCKER_NAME_PREFIX + containerId.value();
   }
 
   enum ContainerState
@@ -100,12 +98,11 @@ public:
 
   static bool exists(
       const process::Shared<Docker>& docker,
-      const SlaveID& slaveId,
       const ContainerID& containerId,
       ContainerState state = ContainerState::EXISTS)
   {
     Duration waited = Duration::zero();
-    string expectedName = containerName(slaveId, containerId);
+    string expectedName = containerName(containerId);
 
     do {
       Future<Docker::Container> inspect = docker->inspect(expectedName);
@@ -185,7 +182,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -225,8 +222,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
-
-  const SlaveID& slaveId = offer.slave_id();
 
   TaskInfo task;
   task.set_name("");
@@ -256,7 +251,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   task.mutable_executor()->CopyFrom(executorInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -275,7 +270,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
-  ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
+  ASSERT_TRUE(exists(docker, containerId.get()));
 
   Future<Option<ContainerTermination>> termination =
     dockerContainerizer.wait(containerId.get());
@@ -287,7 +282,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   EXPECT_SOME(termination.get());
 
   ASSERT_FALSE(
-    exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
+    exists(docker, containerId.get(), ContainerState::RUNNING));
 }
 
 
@@ -313,7 +308,7 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -353,8 +348,6 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
   ASSERT_NE(0u, offers->size());
 
   const Offer& offer = offers.get()[0];
-
-  const SlaveID& slaveId = offer.slave_id();
 
   TaskInfo task;
   task.set_name("");
@@ -385,7 +378,7 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
   task.mutable_executor()->CopyFrom(executorInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -404,7 +397,7 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
-  ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
+  ASSERT_TRUE(exists(docker, containerId.get()));
 
   Future<Option<ContainerTermination>> termination =
     dockerContainerizer.wait(containerId.get());
@@ -416,7 +409,7 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
   EXPECT_SOME(termination.get());
 
   ASSERT_FALSE(
-    exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
+    exists(docker, containerId.get(), ContainerState::RUNNING));
 }
 #endif // __linux__
 
@@ -433,7 +426,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -474,8 +467,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 
   const Offer& offer = offers.get()[0];
 
-  const SlaveID& slaveId = offer.slave_id();
-
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
@@ -497,7 +488,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -557,7 +548,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   ASSERT_EQ(1, statusRunning->container_status().network_infos().size());
   EXPECT_EQ(1, statusRunning->container_status().network_infos(0).ip_addresses().size()); // NOLINT(whitespace/line_length)
 
-  ASSERT_TRUE(exists(docker, slaveId, containerId.get()));
+  ASSERT_TRUE(exists(docker, containerId.get()));
 
   Future<Option<ContainerTermination>> termination =
     dockerContainerizer.wait(containerId.get());
@@ -569,7 +560,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   EXPECT_SOME(termination.get());
 
   ASSERT_FALSE(
-    exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
+    exists(docker, containerId.get(), ContainerState::RUNNING));
 }
 
 
@@ -585,7 +576,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -626,8 +617,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
 
   const Offer& offer = offers.get()[0];
 
-  const SlaveID& slaveId = offer.slave_id();
-
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
@@ -649,7 +638,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -665,7 +654,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   ASSERT_TRUE(
-    exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
+    exists(docker, containerId.get(), ContainerState::RUNNING));
 
   Future<TaskStatus> statusKilled;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -687,7 +676,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   EXPECT_EQ(0, termination.get()->status());
 
   ASSERT_FALSE(
-    exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
+    exists(docker, containerId.get(), ContainerState::RUNNING));
 
   driver.stop();
   driver.join();
@@ -708,7 +697,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -756,8 +745,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
 
   const Offer& offer = offers.get()[0];
 
-  const SlaveID& slaveId = offer.slave_id();
-
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
@@ -779,7 +766,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -795,7 +782,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   ASSERT_TRUE(
-    exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
+    exists(docker, containerId.get(), ContainerState::RUNNING));
 
   Future<TaskStatus> statusKilling, statusKilled;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -817,7 +804,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
   EXPECT_SOME(termination.get());
 
   ASSERT_FALSE(
-    exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
+    exists(docker, containerId.get(), ContainerState::RUNNING));
 
   driver.stop();
   driver.join();
@@ -838,7 +825,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
 
   Shared<Docker> docker(mockDocker);
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -901,7 +888,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -984,7 +971,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -1025,8 +1012,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 
   const Offer& offer = offers.get()[0];
 
-  const SlaveID& slaveId = offer.slave_id();
-
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
@@ -1048,7 +1033,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -1066,9 +1051,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   ASSERT_TRUE(
-    exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
+    exists(docker, containerId.get(), ContainerState::RUNNING));
 
-  string name = containerName(slaveId, containerId.get());
+  string name = containerName(containerId.get());
 
   Future<Docker::Container> inspect = docker->inspect(name);
 
@@ -1148,7 +1133,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -1168,8 +1153,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
   ContainerID reapedContainerId;
   reapedContainerId.set_value(UUID::random().toString());
 
-  string container1 = containerName(slaveId, containerId);
-  string container2 = containerName(slaveId, reapedContainerId);
+  string container1 = containerName(containerId);
+  string container2 = containerName(reapedContainerId);
 
   // Clean up artifacts if containers still exists.
   ASSERT_TRUE(docker->rm(container1, true).await(Seconds(30)));
@@ -1213,9 +1198,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
   Future<Option<int>> orphanRun = docker->run(orphanOptions.get());
 
   ASSERT_TRUE(
-    exists(docker, slaveId, containerId, ContainerState::RUNNING));
+    exists(docker, containerId, ContainerState::RUNNING));
   ASSERT_TRUE(
-    exists(docker, slaveId, reapedContainerId, ContainerState::RUNNING));
+    exists(docker, reapedContainerId, ContainerState::RUNNING));
 
   Future<Docker::Container> inspect = docker->inspect(container2);
   AWAIT_READY(inspect);
@@ -1280,7 +1265,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -1296,19 +1281,16 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
   SlaveID slaveId;
   slaveId.set_value("s1");
 
-  SlaveID oldSlaveId;
-  oldSlaveId.set_value("old-agent-id");
-
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
   ContainerID orphanContainerId;
   orphanContainerId.set_value(UUID::random().toString());
 
-  string container1 = containerName(slaveId, containerId);
+  string container1 = containerName(containerId);
 
   // Start the orphan container with the old slave id.
-  string container2 = containerName(oldSlaveId, orphanContainerId);
+  string container2 = containerName(orphanContainerId);
 
   // Clean up artifacts if containers still exists.
   ASSERT_TRUE(docker->rm(container1, true).await(Seconds(30)));
@@ -1353,10 +1335,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
   Future<Option<int>> orphanRun = docker->run(orphanOptions.get());
 
   ASSERT_TRUE(
-    exists(docker, slaveId, containerId, ContainerState::RUNNING));
+    exists(docker, containerId, ContainerState::RUNNING));
 
   ASSERT_TRUE(
-    exists(docker, oldSlaveId, orphanContainerId, ContainerState::RUNNING));
+    exists(docker, orphanContainerId, ContainerState::RUNNING));
 
   SlaveState slaveState;
   slaveState.id = slaveId;
@@ -1403,7 +1385,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
 
   AWAIT_READY(termination2);
   EXPECT_NONE(termination2.get());
-  ASSERT_FALSE(exists(docker, oldSlaveId, orphanContainerId));
+  ASSERT_FALSE(exists(docker, orphanContainerId));
 
   AWAIT_EXPECT_WEXITSTATUS_EQ(128 + SIGKILL, orphanRun);
 }
@@ -1420,7 +1402,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -1482,7 +1464,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverMalformedUUID)
   slave::Flags flags = CreateSlaveFlags();
   flags.docker_kill_orphans = true;
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -1500,7 +1482,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverMalformedUUID)
   ContainerID containerId;
   containerId.set_value("malformedUUID");
 
-  string container = containerName(slaveId, containerId);
+  string container = containerName(containerId);
 
   // Clean up container if it still exists.
   ASSERT_TRUE(docker->rm(container, true).await(Seconds(30)));
@@ -1528,7 +1510,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverMalformedUUID)
   Future<Option<int>> run = docker->run(runOptions.get());
 
   ASSERT_TRUE(
-    exists(docker, slaveId, containerId, ContainerState::RUNNING));
+    exists(docker, containerId, ContainerState::RUNNING));
 
   SlaveState slaveState;
   slaveState.id = slaveId;
@@ -1550,7 +1532,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverMalformedUUID)
 
   // The container should still exist and should not get killed
   // by containerizer recovery.
-  ASSERT_TRUE(exists(docker, slaveId, containerId));
+  ASSERT_TRUE(exists(docker, containerId));
 }
 
 
@@ -1570,7 +1552,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = "cpu:2;mem:2048;disk(role1):2048";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -1614,8 +1596,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
 
   const Offer& offer = offers.get()[0];
 
-  const SlaveID& slaveId = offer.slave_id();
-
   Resource volume = createPersistentVolume(
     Megabytes(64),
     "role1",
@@ -1653,10 +1633,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
   filters.set_refuse_seconds(0);
 
   Future<ContainerID> containerId;
-  Future<string> directory;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  Future<ContainerConfig> containerConfig;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
-                    FutureArg<3>(&directory),
+                    FutureArg<1>(&containerConfig),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
 
@@ -1673,7 +1653,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
       filters);
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(directory);
+  AWAIT_READY(containerConfig);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
@@ -1690,7 +1670,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
   EXPECT_SOME(termination.get());
 
   ASSERT_FALSE(
-    exists(docker, slaveId, containerId.get(), ContainerState::RUNNING));
+    exists(docker, containerId.get(), ContainerState::RUNNING));
 
   const string& volumePath = getPersistentVolumePath(
       flags.work_dir,
@@ -1703,8 +1683,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
 
   // Verify that the persistent volume is unmounted.
   foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
-    EXPECT_FALSE(
-        strings::contains(entry.target, path::join(directory.get(), "path1")));
+    EXPECT_FALSE(strings::contains(
+        entry.target,
+        path::join(containerConfig->directory(), "path1")));
   }
 }
 
@@ -1724,7 +1705,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = "cpu:2;mem:2048;disk(role1):2048";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -1806,10 +1787,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  Future<string> directory;
-  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  Future<ContainerConfig> containerConfig;
+  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
-                    FutureArg<3>(&directory),
+                    FutureArg<1>(&containerConfig),
                     Invoke(dockerContainerizer.get(),
                            &MockDockerContainerizer::_launch)));
 
@@ -1824,7 +1805,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
       filters);
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(directory);
+  AWAIT_READY(containerConfig);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
@@ -1863,8 +1844,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
   // Verify that the recovered container's persistent volume is
   // unmounted.
   foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
-    EXPECT_FALSE(
-        strings::contains(entry.target, path::join(directory.get(), "path1")));
+    EXPECT_FALSE(strings::contains(
+        entry.target,
+        path::join(containerConfig->directory(), "path1")));
   }
 
   driver.stop();
@@ -1887,7 +1869,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = "cpu:2;mem:2048;disk(role1):2048";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -1969,10 +1951,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  Future<string> directory;
-  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  Future<ContainerConfig> containerConfig;
+  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
-                    FutureArg<3>(&directory),
+                    FutureArg<1>(&containerConfig),
                     Invoke(dockerContainerizer.get(),
                            &MockDockerContainerizer::_launch)));
 
@@ -1987,7 +1969,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
       filters);
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(directory);
+  AWAIT_READY(containerConfig);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
@@ -2028,8 +2010,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
   // Verify that the orphaned container's persistent volume is
   // unmounted.
   foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
-    EXPECT_FALSE(
-        strings::contains(entry.target, path::join(directory.get(), "path1")));
+    EXPECT_FALSE(strings::contains(
+        entry.target,
+        path::join(containerConfig->directory(), "path1")));
   }
 
   driver.stop();
@@ -2037,7 +2020,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
 
   slave->reset();
 
-  EXPECT_FALSE(exists(docker, offer.slave_id(), containerId.get()));
+  EXPECT_FALSE(exists(docker, containerId.get()));
 }
 #endif // __linux__
 
@@ -2054,7 +2037,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -2132,10 +2115,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  Future<string> directory;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  Future<ContainerConfig> containerConfig;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
-                    FutureArg<3>(&directory),
+                    FutureArg<1>(&containerConfig),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
 
@@ -2149,7 +2132,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(directory);
+  AWAIT_READY(containerConfig);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
@@ -2157,7 +2140,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
 
   // Now check that the proper output is in stderr and stdout (which
   // might also contain other things, hence the use of a UUID).
-  Try<string> read = os::read(path::join(directory.get(), "stderr"));
+  Try<string> read =
+    os::read(path::join(containerConfig->directory(), "stderr"));
+
   ASSERT_SOME(read);
 
   vector<string> lines = strings::split(read.get(), "\n");
@@ -2165,7 +2150,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   EXPECT_TRUE(containsLine(lines, "err" + uuid));
   EXPECT_FALSE(containsLine(lines, "out" + uuid));
 
-  read = os::read(path::join(directory.get(), "stdout"));
+  read = os::read(path::join(containerConfig->directory(), "stdout"));
   ASSERT_SOME(read);
 
   lines = strings::split(read.get(), "\n");
@@ -2192,7 +2177,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -2264,10 +2249,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  Future<string> directory;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  Future<ContainerConfig> containerConfig;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
-                    FutureArg<3>(&directory),
+                    FutureArg<1>(&containerConfig),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
 
@@ -2281,13 +2266,15 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(directory);
+  AWAIT_READY(containerConfig);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
-  Try<string> read = os::read(path::join(directory.get(), "stdout"));
+  Try<string> read =
+    os::read(path::join(containerConfig->directory(), "stdout"));
+
   ASSERT_SOME(read);
 
   vector<string> lines = strings::split(read.get(), "\n");
@@ -2297,7 +2284,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   // command from the image which is 'inky'.
   EXPECT_TRUE(containsLine(lines, "inky"));
 
-  read = os::read(path::join(directory.get(), "stderr"));
+  read = os::read(path::join(containerConfig->directory(), "stderr"));
   ASSERT_SOME(read);
 
   lines = strings::split(read.get(), "\n");
@@ -2323,7 +2310,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -2397,10 +2384,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  Future<string> directory;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  Future<ContainerConfig> containerConfig;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
-                    FutureArg<3>(&directory),
+                    FutureArg<1>(&containerConfig),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
 
@@ -2414,14 +2401,16 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(directory);
+  AWAIT_READY(containerConfig);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   // Now check that the proper output is in stderr and stdout.
-  Try<string> read = os::read(path::join(directory.get(), "stdout"));
+  Try<string> read =
+    os::read(path::join(containerConfig->directory(), "stdout"));
+
   ASSERT_SOME(read);
 
   vector<string> lines = strings::split(read.get(), "\n");
@@ -2432,7 +2421,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   EXPECT_TRUE(containsLine(lines, uuid));
   EXPECT_FALSE(containsLine(lines, "inky"));
 
-  read = os::read(path::join(directory.get(), "stderr"));
+  read = os::read(path::join(containerConfig->directory(), "stderr"));
   ASSERT_SOME(read);
 
   lines = strings::split(read.get(), "\n");
@@ -2459,7 +2448,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -2534,10 +2523,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  Future<string> directory;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  Future<ContainerConfig> containerConfig;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
-                    FutureArg<3>(&directory),
+                    FutureArg<1>(&containerConfig),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
 
@@ -2551,14 +2540,16 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(directory);
+  AWAIT_READY(containerConfig);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY_FOR(statusFinished, Seconds(60));
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   // Now check that the proper output is in stderr and stdout.
-  Try<string> read = os::read(path::join(directory.get(), "stdout"));
+  Try<string> read =
+    os::read(path::join(containerConfig->directory(), "stdout"));
+
   ASSERT_SOME(read);
 
   vector<string> lines = strings::split(read.get(), "\n");
@@ -2569,7 +2560,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   EXPECT_TRUE(containsLine(lines, uuid));
   EXPECT_FALSE(containsLine(lines, "inky"));
 
-  read = os::read(path::join(directory.get(), "stderr"));
+  read = os::read(path::join(containerConfig->directory(), "stderr"));
   ASSERT_SOME(read);
 
   lines = strings::split(read.get(), "\n");
@@ -2597,7 +2588,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // This is owned by the containerizer, so we'll need one per containerizer.
   Try<ContainerLogger*> logger =
@@ -2665,7 +2656,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(dockerContainerizer.get(),
                            &MockDockerContainerizer::_launch)));
@@ -2720,7 +2711,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   AWAIT_READY(status);
   ASSERT_EQ(TASK_RUNNING, status->state());
 
-  ASSERT_TRUE(exists(docker, offer.slave_id(), containerId.get()));
+  ASSERT_TRUE(exists(docker, containerId.get()));
 
   Future<Option<ContainerTermination>> termination =
     dockerContainerizer->wait(containerId.get());
@@ -2758,7 +2749,7 @@ TEST_F(DockerContainerizerTest,
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   // This is owned by the containerizer, so we'll need one per containerizer.
   Try<ContainerLogger*> logger =
@@ -2833,10 +2824,8 @@ TEST_F(DockerContainerizerTest,
   task.mutable_executor()->CopyFrom(executorInfo);
 
   Future<ContainerID> containerId;
-  Future<SlaveID> slaveId;
-  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
-                    FutureArg<5>(&slaveId),
                     Invoke(dockerContainerizer.get(),
                            &MockDockerContainerizer::_launch)));
 
@@ -2863,7 +2852,6 @@ TEST_F(DockerContainerizerTest,
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(containerId);
-  AWAIT_READY(slaveId);
 
   AWAIT_READY(executorLaunched);
   AWAIT_READY(statusUpdateMessage1);
@@ -2908,7 +2896,7 @@ TEST_F(DockerContainerizerTest,
   AWAIT_READY(status);
   ASSERT_EQ(TASK_RUNNING, status->state());
 
-  ASSERT_TRUE(exists(docker, slaveId.get(), containerId.get()));
+  ASSERT_TRUE(exists(docker, containerId.get()));
 
   driver.stop();
   driver.join();
@@ -2932,7 +2920,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = "cpus:1;mem:1024;ports:[10000-10000]";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -3011,10 +2999,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  Future<string> directory;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  Future<ContainerConfig> containerConfig;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
-                    FutureArg<3>(&directory),
+                    FutureArg<1>(&containerConfig),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
 
@@ -3028,13 +3016,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(directory);
+  AWAIT_READY(containerConfig);
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   ASSERT_TRUE(
     exists(docker,
-           offer.slave_id(),
            containerId.get(),
            ContainerState::RUNNING));
 
@@ -3051,7 +3038,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   // Now check that the proper output is in stdout.
-  Try<string> read = os::read(path::join(directory.get(), "stdout"));
+  Try<string> read =
+    os::read(path::join(containerConfig->directory(), "stdout"));
+
   ASSERT_SOME(read);
 
   const vector<string> lines = strings::split(read.get(), "\n");
@@ -3087,7 +3076,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -3149,7 +3138,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -3165,7 +3154,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
-  ASSERT_TRUE(exists(docker, offer.slave_id(), containerId.get()));
+  ASSERT_TRUE(exists(docker, containerId.get()));
 
   Future<Option<ContainerTermination>> termination =
     dockerContainerizer.wait(containerId.get());
@@ -3190,7 +3179,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -3213,14 +3202,14 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
   Future<Nothing> fetch;
 
   // We want to pause the fetch call to simulate a long fetch time.
-  EXPECT_CALL(*process, fetch(_, _))
+  EXPECT_CALL(*process, fetch(_))
     .WillOnce(DoAll(FutureSatisfy(&fetch),
                     Return(promise.future())));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &dockerContainerizer);
+    StartSlave(detector.get(), &dockerContainerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -3270,7 +3259,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
     .WillOnce(FutureArg<1>(&statusFailed));
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -3307,7 +3296,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -3327,7 +3316,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
       (Owned<DockerContainerizerProcess>(process)));
 
   Future<Nothing> fetch;
-  EXPECT_CALL(*process, fetch(_, _))
+  EXPECT_CALL(*process, fetch(_))
     .WillOnce(DoAll(FutureSatisfy(&fetch),
                     Return(Nothing())));
 
@@ -3340,7 +3329,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &dockerContainerizer);
+    StartSlave(detector.get(), &dockerContainerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -3390,7 +3379,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
     .WillOnce(FutureArg<1>(&statusFailed));
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -3422,7 +3411,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyUnknownContainer)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<DockerContainerizer*> create =
     DockerContainerizer::create(flags, &fetcher);
@@ -3453,7 +3442,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -3475,7 +3464,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &dockerContainerizer);
+    StartSlave(detector.get(), &dockerContainerizer, flags);
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
@@ -3528,7 +3517,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
     .WillOnce(FutureArg<1>(&statusGone));
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -3565,7 +3554,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -3587,7 +3576,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &dockerContainerizer);
+    StartSlave(detector.get(), &dockerContainerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -3636,12 +3625,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
     .WillOnce(FutureArg<1>(&statusFailed));
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
 
-  EXPECT_CALL(*process, fetch(_, _))
+  EXPECT_CALL(*process, fetch(_))
     .WillOnce(Return(Failure("some error from fetch")));
 
   driver.launchTasks(offers.get()[0].id(), {task});
@@ -3676,7 +3665,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -3698,7 +3687,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &dockerContainerizer);
+    StartSlave(detector.get(), &dockerContainerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -3747,7 +3736,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
     .WillOnce(FutureArg<1>(&statusFailed));
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -3787,7 +3776,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
 
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -3818,7 +3807,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &dockerContainerizer);
+    StartSlave(detector.get(), &dockerContainerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -3875,7 +3864,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
     .WillOnce(FutureArg<1>(&statusFailed));
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -3906,7 +3895,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_WaitUnknownContainer)
 {
   slave::Flags flags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<DockerContainerizer*> create =
     DockerContainerizer::create(flags, &fetcher);
@@ -3941,7 +3930,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToRunning)
 
   slave::Flags agentFlags = CreateSlaveFlags();
 
-  Fetcher fetcher;
+  Fetcher fetcher(agentFlags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(agentFlags.container_logger);
@@ -4021,7 +4010,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToRunning)
   task.mutable_kill_policy()->CopyFrom(killPolicy);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(containerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(containerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&containerizer,
                            &MockDockerContainerizer::_launch)));
@@ -4088,7 +4077,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
   flags.cgroups_enable_cfs = true;
   flags.resources = "cpus:1;mem:128";
 
-  Fetcher fetcher;
+  Fetcher fetcher(flags);
 
   Try<ContainerLogger*> logger =
     ContainerLogger::create(flags.container_logger);
@@ -4150,7 +4139,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
-  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _, _, _, _, _))
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<0>(&containerId),
                     Invoke(&dockerContainerizer,
                            &MockDockerContainerizer::_launch)));
@@ -4169,7 +4158,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
 
   // Find cgroups cpu hierarchy of the container and verifies
   // quota is set.
-  string name = containerName(offer.slave_id(), containerId.get());
+  string name = containerName(containerId.get());
   Future<Docker::Container> inspect = docker->inspect(name);
   AWAIT_READY(inspect);
 
