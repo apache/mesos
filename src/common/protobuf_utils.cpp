@@ -656,7 +656,8 @@ bool operator==(const Capabilities& left, const Capabilities& right)
   // TODO(bmahler): Use reflection-based equality to avoid breaking
   // as new capabilities are added. Note that it needs to be set-based
   // equality.
-  return left.multiRole == right.multiRole;
+  return left.multiRole == right.multiRole &&
+         left.hierarchicalRole == right.hierarchicalRole;
 }
 
 

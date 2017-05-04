@@ -189,10 +189,10 @@ TEST_F(UpgradeTest, ReregisterOldAgentWithMultiRoleMaster)
 
   AWAIT_READY(reregisterSlaveMessage);
 
-  EXPECT_EQ(1u, reregisterSlaveMessage->agent_capabilities_size());
-  EXPECT_EQ(
-      SlaveInfo::Capability::MULTI_ROLE,
-      reregisterSlaveMessage->agent_capabilities(0).type());
+  protobuf::slave::Capabilities capabilities(
+      reregisterSlaveMessage->agent_capabilities());
+
+  EXPECT_TRUE(capabilities.multiRole);
 
   // Strip allocation_info and MULTI_ROLE capability.
   ReregisterSlaveMessage strippedReregisterSlaveMessage =
@@ -309,10 +309,10 @@ TEST_F(UpgradeTest, UpgradeSlaveIntoMultiRole)
 
   AWAIT_READY(registerSlaveMessage);
 
-  EXPECT_EQ(1u, registerSlaveMessage->agent_capabilities_size());
-  EXPECT_EQ(
-      SlaveInfo::Capability::MULTI_ROLE,
-      registerSlaveMessage->agent_capabilities(0).type());
+  protobuf::slave::Capabilities capabilities(
+      registerSlaveMessage->agent_capabilities());
+
+  EXPECT_TRUE(capabilities.multiRole);
 
   // Strip MULTI_ROLE capability.
   RegisterSlaveMessage strippedRegisterSlaveMessage =

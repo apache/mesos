@@ -197,6 +197,9 @@ struct Capabilities
         case SlaveInfo::Capability::MULTI_ROLE:
           multiRole = true;
           break;
+        case SlaveInfo::Capability::HIERARCHICAL_ROLE:
+          hierarchicalRole = true;
+          break;
         // If adding another case here be sure to update the
         // equality operator.
       }
@@ -205,6 +208,7 @@ struct Capabilities
 
   // See mesos.proto for the meaning of agent capabilities.
   bool multiRole = false;
+  bool hierarchicalRole = false;
 
   google::protobuf::RepeatedPtrField<SlaveInfo::Capability>
   toRepeatedPtrField() const
@@ -212,6 +216,9 @@ struct Capabilities
     google::protobuf::RepeatedPtrField<SlaveInfo::Capability> result;
     if (multiRole) {
       result.Add()->set_type(SlaveInfo::Capability::MULTI_ROLE);
+    }
+    if (hierarchicalRole) {
+      result.Add()->set_type(SlaveInfo::Capability::HIERARCHICAL_ROLE);
     }
 
     return result;

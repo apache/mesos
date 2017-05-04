@@ -35,10 +35,19 @@ Duration DEFAULT_MASTER_PING_TIMEOUT()
 
 vector<SlaveInfo::Capability> AGENT_CAPABILITIES()
 {
-  SlaveInfo::Capability multiRoleCapability;
-  multiRoleCapability.set_type(SlaveInfo::Capability::MULTI_ROLE);
+  SlaveInfo::Capability::Type types[] = {
+    SlaveInfo::Capability::MULTI_ROLE,
+    SlaveInfo::Capability::HIERARCHICAL_ROLE
+  };
 
-  return {multiRoleCapability};
+  vector<SlaveInfo::Capability> result;
+  foreach (SlaveInfo::Capability::Type type, types) {
+    SlaveInfo::Capability capability;
+    capability.set_type(type);
+    result.push_back(capability);
+  }
+
+  return result;
 }
 
 } // namespace slave {

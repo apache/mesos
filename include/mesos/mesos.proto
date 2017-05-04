@@ -805,6 +805,15 @@ message SlaveInfo {
       // This expresses the ability for the agent to be able
       // to launch tasks of a 'multi-role' framework.
       MULTI_ROLE = 1;
+
+      // This expresses the ability for the agent to be able to launch
+      // tasks, reserve resources, and create volumes using resources
+      // allocated to a 'hierarchical-role'.
+      // NOTE: This capability is required specifically for creating
+      // volumes because a hierchical role includes '/' (slashes) in them.
+      // Agents with this capability know to transform the '/' (slashes)
+      // into ' ' (spaces).
+      HIERARCHICAL_ROLE = 2;
     }
 
     // Enum fields should be optional, see: MESOS-4997.
