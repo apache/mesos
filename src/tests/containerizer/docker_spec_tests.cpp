@@ -199,28 +199,26 @@ TEST_F(DockerSpecTest, GetRegistrySpec)
 // for new docker config file format (e.g., ~/.docker/config.json).
 TEST_F(DockerSpecTest, ParseDockerConfig)
 {
-  Try<JSON::Object> config = JSON::parse<JSON::Object>(
-      R"~(
-      {
-        "auths": {
-          "https://index.docker.io/v1/": {
-            "auth": "bWVzb3M6dGVzdA==",
-            "email": "user@example.com"
-          },
-          "localhost:5000": {
-            "auth": "dW5pZmllZDpjb250YWluZXJpemVy",
-            "email": "user@example.com"
-          }
+  string config =
+    R"~(
+    {
+      "auths": {
+        "https://index.docker.io/v1/": {
+          "auth": "bWVzb3M6dGVzdA==",
+          "email": "user@example.com"
         },
-        "HttpHeaders": {
-          "User-Agent": "Docker-Client/1.10.2 (linux)"
+        "localhost:5000": {
+          "auth": "dW5pZmllZDpjb250YWluZXJpemVy",
+          "email": "user@example.com"
         }
-      })~");
-
-  ASSERT_SOME(config);
+      },
+      "HttpHeaders": {
+        "User-Agent": "Docker-Client/1.10.2 (linux)"
+      }
+    })~";
 
   Try<hashmap<string, spec::Config::Auth>> map =
-    spec::parseAuthConfig(config.get());
+    spec::parseAuthConfig(config);
 
   EXPECT_EQ("bWVzb3M6dGVzdA==",
             map.get()["https://index.docker.io/v1/"].auth());
@@ -237,27 +235,25 @@ TEST_F(DockerSpecTest, ParseDockerConfig)
 // for old docker config file format (e.g., ~/.dockercfg).
 TEST_F(DockerSpecTest, ParseDockercfg)
 {
-  Try<JSON::Object> dockercfg = JSON::parse<JSON::Object>(
-      R"~(
-      {
-        "quay.io": {
-          "auth": "cXVheTp0ZXN0",
-          "email": "user@example.com"
-        },
-        "https://index.docker.io/v1/": {
-          "auth": "cHJpdmF0ZTpyZWdpc3RyeQ==",
-          "email": "user@example.com"
-        },
-        "https://192.168.0.1:5050": {
-          "auth": "aXA6YWRkcmVzcw==",
-          "email": "user@example.com"
-        }
-      })~");
-
-  ASSERT_SOME(dockercfg);
+  string dockercfg =
+    R"~(
+    {
+      "quay.io": {
+        "auth": "cXVheTp0ZXN0",
+        "email": "user@example.com"
+      },
+      "https://index.docker.io/v1/": {
+        "auth": "cHJpdmF0ZTpyZWdpc3RyeQ==",
+        "email": "user@example.com"
+      },
+      "https://192.168.0.1:5050": {
+        "auth": "aXA6YWRkcmVzcw==",
+        "email": "user@example.com"
+      }
+    })~";
 
   Try<hashmap<string, spec::Config::Auth>> map =
-    spec::parseAuthConfig(dockercfg.get());
+    spec::parseAuthConfig(dockercfg);
 
   EXPECT_EQ("cXVheTp0ZXN0", map.get()["quay.io"].auth());
   EXPECT_EQ("user@example.com", map.get()["quay.io"].email());

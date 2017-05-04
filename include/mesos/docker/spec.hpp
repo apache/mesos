@@ -73,9 +73,14 @@ std::string getRegistryHost(const std::string& registry);
 
 
 // Returns the hashmap<registry_URL, spec::DockerConfigAuth> by
-// parsing the docker config file.
+// parsing the docker config file from a JSON object.
 Try<hashmap<std::string, Config::Auth>> parseAuthConfig(
     const JSON::Object& _config);
+
+
+// Returns the hashmap<registry_URL, spec::DockerConfigAuth> by
+// parsing the docker config file from a string.
+Try<hashmap<std::string, Config::Auth>> parseAuthConfig(const std::string& s);
 
 
 // Find the host from a docker config auth url.

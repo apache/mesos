@@ -197,6 +197,17 @@ Try<hashmap<string, Config::Auth>> parseAuthConfig(
 }
 
 
+Try<hashmap<string, Config::Auth>> parseAuthConfig(const string& s)
+{
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(s);
+  if (json.isError()) {
+    return Error("JSON parse failed: " + json.error());
+  }
+
+  return parseAuthConfig(json.get());
+}
+
+
 string parseAuthUrl(const string& _url)
 {
   string url = _url;
