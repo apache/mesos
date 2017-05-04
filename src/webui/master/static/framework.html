@@ -37,8 +37,8 @@
           <m-timestamp value="{{framework.registered_time * 1000}}"></m-timestamp>
         </dd>
         <dt>Re-registered:</dt>
-        <dd ng-show="!framework.reregistered_time">-</dd>
-        <dd ng-show="framework.reregistered_time">
+        <dd ng-if="!framework.reregistered_time">-</dd>
+        <dd ng-if="framework.reregistered_time">
           <m-timestamp value="{{framework.reregistered_time * 1000}}"></m-timestamp>
         </dd>
         <dt>Active tasks:</dt>
