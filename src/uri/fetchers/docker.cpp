@@ -328,6 +328,7 @@ private:
       const URI& uri,
       const string& directory,
       const URI& manifestUri,
+      const http::Headers& manifestHeaders,
       const http::Response& response);
 
   Future<Nothing> __fetch(
@@ -468,12 +469,22 @@ Future<Nothing> DockerFetcherPluginProcess::fetch(
 
   URI manifestUri = getManifestUri(uri);
 
-  return curl(manifestUri)
+  // Request a Version 2 Schema 1 manifest. The MIME type of a Schema 1
+  // manifest is described in the following link:
+  // https://docs.docker.com/registry/spec/manifest-v2-1/
+  // Note: The 'Accept' header is required for Amazon ECR. See:
+  // https://forums.aws.amazon.com/message.jspa?messageID=780440
+  http::Headers manifestHeaders = {
+    {"Accept", "application/vnd.docker.distribution.manifest.v1+json"}
+  };
+
+  return curl(manifestUri, manifestHeaders)
     .then(defer(self(),
                 &Self::_fetch,
                 uri,
                 directory,
                 manifestUri,
+                manifestHeaders,
                 lambda::_1));
 }
 
@@ -482,13 +493,14 @@ Future<Nothing> DockerFetcherPluginProcess::_fetch(
     const URI& uri,
     const string& directory,
     const URI& manifestUri,
+    const http::Headers& manifestHeaders,
     const http::Response& response)
 {
   if (response.code == http::Status::UNAUTHORIZED) {
     return getAuthHeader(manifestUri, response)
       .then(defer(self(), [=](
           const http::Headers& authHeaders) -> Future<Nothing> {
-        return curl(manifestUri, authHeaders)
+        return curl(manifestUri, manifestHeaders + authHeaders)
           .then(defer(self(),
                       &Self::__fetch,
                       uri,
