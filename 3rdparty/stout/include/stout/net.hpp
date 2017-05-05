@@ -213,8 +213,7 @@ inline Try<std::string> hostname()
     return ErrnoError();
   }
 
-  // TODO(evelinad): Add AF_UNSPEC when we will support IPv6.
-  struct addrinfo hints = createAddrInfo(SOCK_STREAM, AF_INET, AI_CANONNAME);
+  struct addrinfo hints = createAddrInfo(SOCK_STREAM, AF_UNSPEC, AI_CANONNAME);
   struct addrinfo* result = nullptr;
 
   int error = getaddrinfo(host, nullptr, &hints, &result);
@@ -251,20 +250,35 @@ inline Try<std::string> getHostname(const IP& ip)
       memcpy(&storage, &addr, sizeof(addr));
       break;
     }
+    case AF_INET6: {
+      struct sockaddr_in6 addr;
+      memset(&addr, 0, sizeof(addr));
+      addr.sin6_family = AF_INET6;
+      addr.sin6_addr = ip.in6().get();
+      addr.sin6_port = 0;
+
+      memcpy(&storage, &addr, sizeof(addr));
+      break;
+    }
     default: {
       ABORT("Unsupported family type: " + stringify(ip.family()));
     }
   }
 
   char hostname[MAXHOSTNAMELEN];
+  socklen_t length;
+
+  if (ip.family() == AF_INET) {
+    length = sizeof(struct sockaddr_in);
+  } else if (ip.family() == AF_INET6) {
+    length = sizeof(struct sockaddr_in6);
+  } else {
+    return Error("Unknown address family: " + stringify(ip.family()));
+  }
 
   int error = getnameinfo(
       (struct sockaddr*) &storage,
-#ifdef __FreeBSD__
-      sizeof(struct sockaddr_in),
-#else
-      sizeof(storage),
-#endif
+      length,
       hostname,
       MAXHOSTNAMELEN,
       nullptr,
@@ -305,7 +319,7 @@ inline Try<std::set<std::string>> links()
 
 // Returns a Try of the IP for the provided hostname or an error if no IP is
 // obtained.
-inline Try<IP> getIP(const std::string& hostname, int family)
+inline Try<IP> getIP(const std::string& hostname, int family = AF_UNSPEC)
 {
   struct addrinfo hints = createAddrInfo(SOCK_STREAM, family, 0);
   struct addrinfo* result = nullptr;

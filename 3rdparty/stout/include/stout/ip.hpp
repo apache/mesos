@@ -43,7 +43,9 @@
 
 #include <sys/types.h>
 
+#include <algorithm>
 #include <iostream>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -78,7 +80,8 @@ public:
   //   10.0.0.1
   //   192.168.1.100
   //   172.158.1.23
-  static Try<IP> parse(const std::string& value, int family);
+  //   2001:db8:85a3::8a2e:370:7334
+  static Try<IP> parse(const std::string& value, int family = AF_UNSPEC);
 
   // Creates an IP from a struct sockaddr_storage.
   static Try<IP> create(const struct sockaddr_storage& _storage);
@@ -95,13 +98,22 @@ public:
      storage_.in_ = _storage;
   }
 
+  // Creates an IP from struct in6_addr. Note that by standard, struct
+  // in_addr stores the IP address in network order.
+  explicit IP(const struct in6_addr& _storage)
+    : family_(AF_INET6)
+  {
+     clear();
+     storage_.in6_ = _storage;
+  }
+
   // Creates an IP from a 32 bit unsigned integer. Note that the
   // integer stores the IP address in host order.
-  explicit IP(uint32_t _storage)
+  explicit IP(uint32_t _ip)
     : family_(AF_INET)
   {
      clear();
-     storage_.in_.s_addr = htonl(_storage);
+     storage_.in_.s_addr = htonl(_ip);
   }
 
   // Returns the family type.
@@ -116,7 +128,17 @@ public:
     if (family_ == AF_INET) {
       return storage_.in_;
     } else {
-      return Error("Unsupported family type: " + stringify(family_));
+      return Error("Cannot create in_addr from family: " + stringify(family_));
+    }
+  }
+
+  // Returns the struct in6_addr storage.
+  Try<struct in6_addr> in6() const
+  {
+    if (family_ == AF_INET6) {
+      return storage_.in6_;
+    } else {
+      return Error("Cannot create in6_addr from family: " + stringify(family_));
     }
   }
 
@@ -126,6 +148,8 @@ public:
     switch (family_) {
       case AF_INET:
         return storage_.in_.s_addr == htonl(INADDR_LOOPBACK);
+      case AF_INET6:
+        return !memcmp(&storage_.in6_.s6_addr, &in6addr_loopback.s6_addr, 16);
       default:
         UNREACHABLE();
     }
@@ -137,6 +161,8 @@ public:
     switch (family_) {
       case AF_INET:
         return storage_.in_.s_addr == htonl(INADDR_ANY);
+      case AF_INET6:
+        return !memcmp(&storage_.in6_.s6_addr, &in6addr_any.s6_addr, 16);
       default:
         UNREACHABLE();
     }
@@ -185,6 +211,7 @@ private:
   union Storage
   {
     struct in_addr in_;
+    struct in6_addr in6_;
   };
 
   int family_;
@@ -196,15 +223,35 @@ inline Try<IP> IP::parse(const std::string& value, int family)
 {
   Storage storage;
   switch (family) {
-    case AF_INET: {
-      if (inet_pton(AF_INET, value.c_str(), &storage.in_) == 0) {
-        return Error("Failed to parse the IP");
-      }
+  case AF_INET: {
+    if (inet_pton(AF_INET, value.c_str(), &storage.in_) == 1) {
       return IP(storage.in_);
     }
-    default: {
-      return Error("Unsupported family type: " + stringify(family));
+
+    return Error("Failed to parse IPv4: " + value);
+  }
+  case AF_INET6: {
+    if (inet_pton(AF_INET6, value.c_str(), &storage.in6_) == 1) {
+      return IP(storage.in6_);
     }
+
+    return Error("Failed to parse IPv6: " + value);
+  }
+  case AF_UNSPEC: {
+    Try<IP> ip4 = parse(value, AF_INET);
+    if (ip4.isSome()) {
+      return ip4;
+    }
+
+    Try<IP> ip6 = parse(value, AF_INET6);
+    if (ip6.isSome()) {
+      return ip6;
+    }
+
+    return Error("Failed to parse IP as either IPv4 or IPv6:" + value);
+  }
+  default:
+    return Error("Unsupported family type: " + stringify(family));
   }
 }
 
@@ -227,27 +274,37 @@ inline Try<IP> IP::create(const struct sockaddr_storage& _storage)
   // Note that casting in the reverse direction (`const sockaddr*` to
   // `const sockaddr_storage*`) would NOT be safe, since the former might
   // not be aligned appropriately.
-  const auto* addr = reinterpret_cast<const struct sockaddr*>(&_storage);
+  const struct sockaddr* addr =
+    reinterpret_cast<const struct sockaddr*>(&_storage);
+
   return create(*addr);
 }
 
 
-inline Try<IP> IP::create(const struct sockaddr& _storage)
+inline Try<IP> IP::create(const struct sockaddr& addr)
 {
-  switch (_storage.sa_family) {
+  switch (addr.sa_family) {
     case AF_INET: {
-      const auto* addr = reinterpret_cast<const struct sockaddr_in*>(&_storage);
-      return IP(addr->sin_addr);
+      const struct sockaddr_in& addr4 =
+        reinterpret_cast<const struct sockaddr_in&>(addr);
+
+      return IP(addr4.sin_addr);
+    }
+    case AF_INET6: {
+      const struct sockaddr_in6& addr6 =
+        reinterpret_cast<const struct sockaddr_in6&>(addr);
+
+      return IP(addr6.sin6_addr);
     }
     default: {
-      return Error("Unsupported family type: " + stringify(_storage.sa_family));
+      return Error("Unsupported family type: " + stringify(addr.sa_family));
     }
   }
 }
 
 
 // Returns the string representation of the given IP using the
-// canonical dot-decimal form. For example: "10.0.0.1".
+// canonical form, for example: "10.0.0.1" or "fe80::1".
 inline std::ostream& operator<<(std::ostream& stream, const IP& ip)
 {
   switch (ip.family()) {
@@ -257,12 +314,18 @@ inline std::ostream& operator<<(std::ostream& stream, const IP& ip)
       if (inet_ntop(AF_INET, &in, buffer, sizeof(buffer)) == nullptr) {
         // We do not expect inet_ntop to fail because all parameters
         // passed in are valid.
-        ABORT("Failed to get human-readable IP for " +
+        ABORT("Failed to get human-readable IPv4 for " +
               stringify(ntohl(in.s_addr)) + ": " + os::strerror(errno));
       }
-
-      stream << buffer;
-      return stream;
+      return stream << buffer;
+    }
+    case AF_INET6: {
+      char buffer[INET6_ADDRSTRLEN];
+      struct in6_addr in6 = ip.in6().get();
+      if (inet_ntop(AF_INET6, &in6, buffer, sizeof(buffer)) == nullptr) {
+        ABORT("Failed to get human-readable IPv6: " + os::strerror(errno));
+      }
+      return stream << buffer;
     }
     default: {
       UNREACHABLE();
@@ -279,13 +342,16 @@ public:
   // Returns the IPv4 network for loopback (i.e., 127.0.0.1/8).
   static IPNetwork LOOPBACK_V4();
 
+  // Returns the IPv6 network for loopback (i.e. ::1/128)
+  static IPNetwork LOOPBACK_V6();
+
   // Creates an IP network from the given string that has the
-  // dot-decimal format with subnet prefix).
+  // IP address in canonical format with subnet prefix.
   // For example:
   //   10.0.0.1/8
   //   192.168.1.100/24
-  //   172.158.1.23
-  static Try<IPNetwork> parse(const std::string& value, int family);
+  //   fe80::3/64
+  static Try<IPNetwork> parse(const std::string& value, int family = AF_UNSPEC);
 
   // Creates an IP network from the given IP address and netmask.
   // Returns error if the netmask is not valid (e.g., not contiguous).
@@ -313,7 +379,18 @@ public:
   {
     switch (netmask_.family()) {
       case AF_INET: {
-        return bits::countSetBits(ntohl(netmask_.in().get().s_addr));
+        return bits::countSetBits(netmask_.in().get().s_addr);
+      }
+      case AF_INET6: {
+        struct in6_addr in6 = netmask_.in6().get();
+
+        int prefix = std::accumulate(
+          std::begin(in6.s6_addr),
+          std::end(in6.s6_addr),
+          0,
+          [](int acc, uint8_t c) { return acc + bits::countSetBits(c); });
+
+        return prefix;
       }
       default: {
         UNREACHABLE();
@@ -372,6 +449,12 @@ inline IPNetwork IPNetwork::LOOPBACK_V4()
 }
 
 
+inline IPNetwork IPNetwork::LOOPBACK_V6()
+{
+  return parse("::1/128", AF_INET6).get();
+}
+
+
 inline Try<IPNetwork> IPNetwork::create(const IP& address, const IP& netmask)
 {
   if (address.family() != netmask.family()) {
@@ -385,15 +468,35 @@ inline Try<IPNetwork> IPNetwork::create(const IP& address, const IP& netmask)
     case AF_INET: {
       uint32_t mask = ntohl(netmask.in().get().s_addr);
       if (((~mask + 1) & (~mask)) != 0) {
-        return Error("Netmask is not valid");
+        return Error("IPv4 netmask is not valid");
       }
+      break;
+    }
+    case AF_INET6: {
+      in6_addr mask = netmask.in6().get();
 
-      return IPNetwork(address, netmask);
+      uint8_t testMask = 0xff;
+      for (int i = 0; i < 16; i++) {
+        if (mask.s6_addr[i] != testMask) {
+          if (testMask == 0) {
+            return Error("IPv6 netmask is not valid");
+          }
+
+          if (((uint8_t)(~mask.s6_addr[i] + 1) & (~mask.s6_addr[i])) != 0) {
+            return Error("IPv6 netmask is not valid");
+          }
+
+          testMask = 0;
+        }
+      }
+      break;
     }
     default: {
       UNREACHABLE();
     }
   }
+
+  return IPNetwork(address, netmask);
 }
 
 
@@ -406,7 +509,7 @@ inline Try<IPNetwork> IPNetwork::create(const IP& address, int prefix)
   switch (address.family()) {
     case AF_INET: {
       if (prefix > 32) {
-        return Error("Subnet prefix is larger than 32");
+        return Error("IPv4 subnet prefix is larger than 32");
       }
 
       // Avoid left-shifting by 32 bits when prefix is 0.
@@ -414,6 +517,28 @@ inline Try<IPNetwork> IPNetwork::create(const IP& address, int prefix)
       if (prefix > 0) {
         mask = 0xffffffff << (32 - prefix);
       }
+
+      return IPNetwork(address, IP(mask));
+    }
+    case AF_INET6: {
+      if (prefix > 128) {
+        return Error("IPv6 subnet prefix is larger than 128");
+      }
+
+      in6_addr mask;
+      memset(&mask, 0, sizeof(mask));
+
+      int i = 0;
+      while (prefix >= 8) {
+        mask.s6_addr[i++] = 0xff;
+        prefix -= 8;
+      }
+
+      if (prefix > 0) {
+        uint8_t _mask = 0xff << (8 - prefix);
+        mask.s6_addr[i] = _mask;
+      }
+
       return IPNetwork(address, IP(mask));
     }
     default: {
@@ -430,7 +555,7 @@ inline Result<IPNetwork> IPNetwork::fromLinkDevice(
 #if !defined(__linux__) && !defined(__APPLE__) && !defined(__FreeBSD__)
   return Error("Not implemented");
 #else
-  if (family != AF_INET) {
+  if (family != AF_INET && family != AF_INET6) {
     return Error("Unsupported family type: " + stringify(family));
   }
 
@@ -467,8 +592,10 @@ inline Result<IPNetwork> IPNetwork::fromLinkDevice(
 
         // Note that this is the case where netmask is not specified.
         // We've seen such cases when VPN is used. In that case, a
-        // default /32 prefix is used.
-        Try<IPNetwork> network = IPNetwork::create(address, 32);
+        // default /32 prefix for IPv4 and /64 for IPv6 is used.
+        int prefix = (family == AF_INET ? 32 : 64);
+
+        Try<IPNetwork> network = IPNetwork::create(address, prefix);
         if (network.isError()) {
           return Error(network.error());
         }
@@ -490,7 +617,7 @@ inline Result<IPNetwork> IPNetwork::fromLinkDevice(
 
 
 // Returns the string representation of the given IP network using the
-// canonical dot-decimal form with prefix. For example: "10.0.0.1/8".
+// canonical form with prefix. For example: "10.0.0.1/8".
 inline std::ostream& operator<<(std::ostream& stream, const IPNetwork& network)
 {
   stream << network.address() << "/" << network.prefix();
@@ -517,6 +644,11 @@ struct hash<net::IP>
       case AF_INET:
         boost::hash_combine(seed, htonl(ip.in().get().s_addr));
         return seed;
+      case AF_INET6: {
+        in6_addr in6 = ip.in6().get();
+        boost::hash_range(seed, std::begin(in6.s6_addr), std::end(in6.s6_addr));
+        return seed;
+      }
       default:
         UNREACHABLE();
     }
