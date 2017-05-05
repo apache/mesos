@@ -7,8 +7,8 @@ All Issues:
   * [MESOS-1987] - Add support for SemVer build and prerelease labels to stout.
   * [MESOS-5028] - Copy provisioner cannot replace directory with symlink.
   * [MESOS-5172] - Registry puller cannot fetch blobs correctly from http Redirect 3xx urls.
-  * [MESOS-6976] - Disallow (re-)registration attempts by old agents.
   * [MESOS-6951] - Docker containerizer: mangled environment when env value contains LF byte.
+  * [MESOS-6976] - Disallow (re-)registration attempts by old agents.
   * [MESOS-7197] - Requesting tiny amount of CPU crashes master.
   * [MESOS-7208] - Persistent volume ownership is set to root when task is running with non-root user
   * [MESOS-7210] - HTTP health check doesn't work when mesos runs with --docker_mesos_image.
