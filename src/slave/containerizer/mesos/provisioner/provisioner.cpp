@@ -218,7 +218,7 @@ Try<Owned<Provisioner>> Provisioner::create(const Flags& flags)
     // list is a priority list, meaning that we favor backends in the
     // front of the list.
     vector<string> backendNames = {
-#ifdef __linux
+#ifdef __linux__
       OVERLAY_BACKEND,
       AUFS_BACKEND,
 #endif // __linux__
