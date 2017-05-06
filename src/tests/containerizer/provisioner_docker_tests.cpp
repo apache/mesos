@@ -808,8 +808,8 @@ TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_Overwrite)
   // in the 2nd layer of the testing image during provisioning.
   // For more details about the provisioner directory please see:
   //   https://github.com/apache/mesos/blob/master/src/slave/containerizer/mesos/provisioner/paths.hpp#L34-L48 // NOLINT
-  const string hostFile = flags.work_dir + "/abc";
-  os::shell("echo abc > " + hostFile);
+  const string hostFile = path::join(flags.work_dir, "abc");
+  ASSERT_SOME(os::write(hostFile, "abc"));
   ASSERT_SOME(os::shell("test -s " + hostFile));
 
   driver.launchTasks(offer.id(), {task});
