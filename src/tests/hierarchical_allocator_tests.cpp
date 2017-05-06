@@ -742,11 +742,18 @@ TEST_F(HierarchicalAllocatorTest, NestedRoleDRF)
   //   a/b share = 1 (cpus=2, mem=1024)
   //     framework1 share = 1
 
-  // Add a new slave, along with two new frameworks in roles "a/c" and
-  // "d/e". We expect the new slave's resources to be offered to "d/e"
-  // rather than "a/c", since the role subtree under "a" has more
-  // resources than the "d" subtree.
+  // Add two new frameworks in roles "a/c" and "d/e".
+  FrameworkInfo framework2 = createFrameworkInfo({"a/c"});
+  allocator->addFramework(framework2.id(), framework2, {}, true);
 
+  FrameworkInfo framework3 = createFrameworkInfo({"d/e"});
+  allocator->addFramework(framework3.id(), framework3, {}, true);
+
+  // Add a new slave. The new slave's resources should be offered to
+  // the framework in role "d/e" rather than the framework in role
+  // "a/c", since the role subtree under "a" has more resources than
+  // the "d" subtree.
+  //
   // Total cluster resources will become cpus=3, mem=1536.
   SlaveInfo slave2 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
@@ -756,12 +763,6 @@ TEST_F(HierarchicalAllocatorTest, NestedRoleDRF)
       None(),
       slave2.resources(),
       {});
-
-  FrameworkInfo framework2 = createFrameworkInfo({"a/c"});
-  allocator->addFramework(framework2.id(), framework2, {}, true);
-
-  FrameworkInfo framework3 = createFrameworkInfo({"d/e"});
-  allocator->addFramework(framework3.id(), framework3, {}, true);
 
   {
     Allocation expected = Allocation(
@@ -780,11 +781,14 @@ TEST_F(HierarchicalAllocatorTest, NestedRoleDRF)
   //   d/e share = 0.333333 (cpus=1, mem=512)
   //     framework3 share = 1
 
-  // Add a new slave and a new framework in the role "d/f". The new
-  // slave's resources should be allocated to the new framework (and
-  // not the framework in "a/c"), because the "d" subtree has fewer
-  // allocated resources than the "a" subtree.
+  // Add a new framework in the role "d/f".
+  FrameworkInfo framework4 = createFrameworkInfo({"d/f"});
+  allocator->addFramework(framework4.id(), framework4, {}, true);
 
+  // Add a new slave. The new slave's resources should be allocated to
+  // the framework in "d/f" (and not the framework in "a/c"), because the
+  // "d" subtree has fewer allocated resources than the "a" subtree.
+  //
   // Total cluster resources will become cpus=5, mem=2560.
   SlaveInfo slave3 = createSlaveInfo("cpus:2;mem:1024;disk:0");
   allocator->addSlave(
@@ -794,9 +798,6 @@ TEST_F(HierarchicalAllocatorTest, NestedRoleDRF)
       None(),
       slave3.resources(),
       {});
-
-  FrameworkInfo framework4 = createFrameworkInfo({"d/f"});
-  allocator->addFramework(framework4.id(), framework4, {}, true);
 
   {
     Allocation expected = Allocation(
