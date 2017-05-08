@@ -298,6 +298,7 @@ All Issues:
   * [MESOS-7389] - Mesos 1.2.0 crashes with pre-1.0 Mesos agents.
   * [MESOS-7400] - The mesos crashes due to an incorrect invariant check in the decoder.
   * [MESOS-7427] - Registry puller cannot fetch manifests from Amazon ECR: 405 Unsupported.
+  * [MESOS-7429] - Allow isolators to inject task-specific environment variables.
   * [MESOS-7453] - glyphicons-halflings-regular.woff2 is missing in WebUI.
 
 
