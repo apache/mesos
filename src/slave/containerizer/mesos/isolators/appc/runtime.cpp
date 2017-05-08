@@ -116,9 +116,7 @@ Future<Option<ContainerLaunchInfo>> AppcRuntimeIsolatorProcess::prepare(
     CommandInfo executorCommand = containerConfig.executor_info().command();
 
     if (environment.isSome()) {
-      executorCommand.add_arguments(
-          "--task_environment=" +
-          stringify(JSON::protobuf(environment.get())));
+      launchInfo.mutable_task_environment()->CopyFrom(environment.get());
     }
 
     // Pass working directory to command executor as a flag.
