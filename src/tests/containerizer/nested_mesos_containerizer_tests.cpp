@@ -357,7 +357,7 @@ TEST_F(NestedMesosContainerizerTest,
 
 
 TEST_F(NestedMesosContainerizerTest,
-       ROOT_CGROUPS_CURL_INTERNET_LaunchNestedDebugCheckMntNamespace)
+       ROOT_CGROUPS_INTERNET_CURL_LaunchNestedDebugCheckMntNamespace)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
