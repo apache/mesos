@@ -161,6 +161,8 @@ message ContainerLaunchInfo {
   // The additional preparation commands to execute before
   // executing the command.
   repeated CommandInfo pre_exec_commands = 1;
+
+  // The environment set for the container.
   optional Environment environment = 2;
 
   // (Linux only) The root filesystem for the container.
@@ -196,6 +198,12 @@ message ContainerLaunchInfo {
 
   // (POSIX only) The slave path of the pseudo terminal.
   optional string tty_slave_path = 14;
+
+  // The environment specific for command tasks. Gets merged with
+  // 'environment' and the 'command' `Environment`.
+  // TODO(tillt): Remove this once we no longer support the old style
+  // command task (i.e., that uses mesos-execute).
+  optional Environment task_environment = 15;
 }
 
 
