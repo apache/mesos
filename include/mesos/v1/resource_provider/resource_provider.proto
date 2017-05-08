@@ -29,9 +29,24 @@ message Event {
     // is UNKNOWN. This enables enum values to be added
     // in a backwards-compatible way. See: MESOS-4997.
     UNKNOWN = 0;
+
+    SUBSCRIBED = 1;   // See 'Subscribed' below.
+    OPERATION = 2;    // See 'Operation' below.
+  }
+
+  // First event received by the resource provider when it subscribes
+  // to the master.
+  message Subscribed {
+  }
+
+  // Received when the master wants to send an operation to the
+  // resource provider.
+  message Operation {
   }
 
   optional Type type = 1;
+  optional Subscribed subscribed = 2;
+  optional Operation operation = 3;
 }
 
 
@@ -42,7 +57,20 @@ message Call {
     // is UNKNOWN. This enables enum values to be added
     // in a backwards-compatible way. See: MESOS-4997.
     UNKNOWN = 0;
+
+    SUBSCRIBE = 1;    // See 'Subscribe' below.
+    UPDATE = 2;       // See 'Update' below.
+  }
+
+  // Request to subscribe with the master.
+  message Subscribe {
+  }
+
+  // Notify the master about the status of an operation.
+  message Update {
   }
 
   optional Type type = 1;
+  optional Subscribe subscribe = 2;
+  optional Update update = 3;
 }
