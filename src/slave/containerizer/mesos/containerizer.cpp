@@ -1339,6 +1339,32 @@ Future<bool> MesosContainerizerProcess::_launch(
     launchInfo.mutable_command()->CopyFrom(container->config.command_info());
   }
 
+  // For command tasks specifically, we should add the task_environment
+  // flag to the launch command of the command executor.
+  // TODO(tillt): Remove this once we no longer support the old style
+  // command task (i.e., that uses mesos-execute).
+  if (container->config.has_task_info() && launchInfo.has_task_environment()) {
+    hashmap<string, string> commandTaskEnvironment;
+
+    foreach (const Environment::Variable& variable,
+             launchInfo.task_environment().variables()) {
+      const string& name = variable.name();
+      const string& value = variable.value();
+      if (commandTaskEnvironment.contains(name) &&
+          commandTaskEnvironment[name] != value) {
+        LOG(WARNING) << "Overwriting environment variable '" << name << "' "
+                     << "for container " << containerId;
+      }
+      // TODO(tillt): Consider making this 'secret' aware.
+      commandTaskEnvironment[name] = value;
+    }
+
+    if (!commandTaskEnvironment.empty()) {
+      launchInfo.mutable_command()->add_arguments(
+          "--task_environment=" + string(jsonify(commandTaskEnvironment)));
+    }
+  }
+
   // For the command executor case, we should add the rootfs flag to
   // the launch command of the command executor.
   // TODO(jieyu): Remove this once we no longer support the old style
