@@ -17,6 +17,7 @@
 syntax = "proto2";
 
 import "mesos/mesos.proto";
+import "mesos/resource_provider/resource_provider.proto";
 
 package mesos.internal;
 
@@ -597,6 +598,36 @@ message CheckpointResourcesMessage {
 message UpdateSlaveMessage {
   required SlaveID slave_id = 1;
   repeated Resource oversubscribed_resources = 2;
+}
+
+
+/**
+ * A wrapper message that is sent for a local resource provider Call
+ * by the agent to the master. The agent serves as a proxy between the
+ * local resource provider and the master.
+ */
+message ResourceProviderCallMessage {
+  required resource_provider.Call call = 1;
+
+  // This field will be set for the initial 'Subscribe' Call where the
+  // resource provider ID hasn't been assigned yet. This 'uuid' will
+  // be echoed back in the corresponding 'Subscribed' Event, allowing
+  // the agent to tell which resource provider the Event is for.
+  optional bytes uuid = 2;
+}
+
+
+/**
+ * A wrapper message that is sent for a local resource provider Event
+ * by the master to the agent. The agent serves as a proxy between the
+ * local resource provider and the master.
+ */
+message ResourceProviderEventMessage {
+  required ResourceProviderID resource_provider_id = 1;
+  required resource_provider.Event event = 2;
+
+  // See the comments in 'ResourceProviderCallMessage'.
+  optional bytes uuid = 3;
 }
 
 
