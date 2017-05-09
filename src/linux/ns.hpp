@@ -86,7 +86,7 @@ inline int setns(int fd, int nstype)
 {
 #ifdef SYS_setns
   return ::syscall(SYS_setns, fd, nstype);
-#elif __x86_64__
+#elif defined(__x86_64__)
   // A workaround for those hosts that have an old glibc (older than
   // 2.14) but have a new kernel. The magic number '308' here is the
   // syscall number for 'setns' on x86_64 architecture.

@@ -120,7 +120,7 @@ mesos::internal::slave::Flags::Flags()
       "launcher if it's running as root on Linux.",
 #ifdef __linux__
       LinuxLauncher::available() ? "linux" : "posix"
-#elif __WINDOWS__
+#elif defined(__WINDOWS__)
       "windows"
 #else
       "posix"
