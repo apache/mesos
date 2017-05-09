@@ -1562,8 +1562,8 @@ Future<bool> MesosContainerizerProcess::_launch(
     Try<pid_t> mountNamespaceTarget = getMountNamespaceTarget(parentPid);
     if (mountNamespaceTarget.isError()) {
       return Failure(
-          "Cannot get target mount namespace from "
-          "process " + stringify(parentPid));
+          "Cannot get target mount namespace from process " +
+          stringify(parentPid) + ": " + mountNamespaceTarget.error());
     }
 
     launchFlags.namespace_mnt_target = mountNamespaceTarget.get();
