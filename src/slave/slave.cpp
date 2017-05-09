@@ -4994,21 +4994,28 @@ ExecutorInfo Slave::getExecutorInfo(
       "cpus:" + stringify(DEFAULT_EXECUTOR_CPUS) + ";" +
       "mem:" + stringify(DEFAULT_EXECUTOR_MEM.megabytes())).get();
 
-  // Inject the task's allocation role into the executor's resources.
+  // If the task has an allocation role, we inject it into
+  // the executor as well. Note that old masters will not
+  // ensure the allocation info is set, and the agent will
+  // inject this later, when storing the task/executor.
   Option<string> role = None();
   foreach (const Resource& resource, task.resources()) {
-    CHECK(resource.has_allocation_info());
-
-    if (role.isNone()) {
+    if (role.isNone() && resource.has_allocation_info()) {
       role = resource.allocation_info().role();
     }
 
-    CHECK_EQ(role.get(), resource.allocation_info().role());
+    // Check that the roles are consistent.
+    Option<string> otherRole = resource.has_allocation_info()
+        ? Option<string>(resource.allocation_info().role()) : None();
+
+    CHECK(role == otherRole)
+      << (role.isSome() ? role.get() : "None")
+      << " vs " << (otherRole.isSome() ? otherRole.get() : "None");
   }
 
-  CHECK_SOME(role);
-
-  executorOverhead.allocate(role.get());
+  if (role.isSome()) {
+    executorOverhead.allocate(role.get());
+  }
 
   executor.mutable_resources()->CopyFrom(executorOverhead);
 
