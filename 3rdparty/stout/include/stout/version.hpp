@@ -299,7 +299,7 @@ private:
       return Error("Empty identifier");
     }
 
-    auto alphaNumericOrHyphen = [](char c) -> bool {
+    auto alphaNumericOrHyphen = [](unsigned char c) -> bool {
       return std::isalnum(c) || c == '-';
     };
 
