@@ -41,6 +41,7 @@ set(STOUT_ROOT_TESTS_SRC
   numify_tests.cpp
   option_tests.cpp
   os_tests.cpp
+  path_tests.cpp
   protobuf_tests.pb.h
   protobuf_tests.proto
   recordio_tests.cpp
@@ -56,7 +57,6 @@ set(STOUT_ROOT_TESTS_SRC
 if (NOT WIN32)
   set(STOUT_ROOT_TESTS_SRC
     ${STOUT_ROOT_TESTS_SRC}
-    path_tests.cpp
     protobuf_tests.cpp
     protobuf_tests.pb.cc
     svn_tests.cpp
