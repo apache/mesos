@@ -207,6 +207,7 @@ All Resolved Issues:
   * [MESOS-7453] - glyphicons-halflings-regular.woff2 is missing in WebUI.
   * [MESOS-7456] - Compilation error on recent glibc in cgroups device subsystem.
   * [MESOS-7464] - Recent Docker versions cannot be parsed by stout.
+  * [MESOS-7471] - Provisioner recover should not always assume 'rootfses' dir exists.
   * [MESOS-7478] - Pre-1.2.x master does not work with 1.2.x agent.
   * [MESOS-7484] - VersionTest.ParseInvalid aborts on Windows.
 
