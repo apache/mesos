@@ -820,6 +820,18 @@ message SlaveInfo {
 
 
 /**
+ * Describes a resource provider. Note that the 'id' field is only available
+ * after a resource provider is registered with the master, and is made
+ * available here to facilitate re-registration.
+ */
+message ResourceProviderInfo {
+  optional ResourceProviderID id = 1;
+  repeated Attribute attributes = 2;
+  repeated Resource resources = 3;
+}
+
+
+/**
  * Describes an Attribute or Resource "value". A value is described
  * using the standard protocol buffer "union" trick.
  */
