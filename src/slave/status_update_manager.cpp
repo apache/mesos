@@ -669,9 +669,10 @@ StatusUpdateStream::StatusUpdateStream(
         taskId);
 
     // Create the base updates directory, if it doesn't exist.
-    Try<Nothing> directory = os::mkdir(Path(path.get()).dirname());
+    const string& dirName = Path(path.get()).dirname();
+    Try<Nothing> directory = os::mkdir(dirName);
     if (directory.isError()) {
-      error = "Failed to create " + Path(path.get()).dirname();
+      error = "Failed to create '" + dirName + "': " + directory.error();
       return;
     }
 
@@ -686,7 +687,8 @@ StatusUpdateStream::StatusUpdateStream(
         S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
     if (result.isError()) {
-      error = "Failed to open '" + path.get() + "' for status updates";
+      error = "Failed to open '" + path.get() +
+              "' for status updates: " + result.error();
       return;
     }
 
