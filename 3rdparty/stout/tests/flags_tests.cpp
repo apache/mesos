@@ -978,9 +978,10 @@ TEST(FlagsTest, JSON)
 class FlagsFileTest : public TemporaryDirectoryTest {};
 
 
-// TODO(hausdorff): Enable this test on Windows. Currently `flags::parse`
-// assumes filesystems are rooted at '/'. See MESOS-5937.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(FlagsFileTest, JSONFile)
+#ifndef __WINDOWS__
+// This tests deprecated code that pre-dates Windows support for Mesos.
+// Hence, we should not build or enable this test on Windows.
+TEST_F(FlagsFileTest, JSONFile)
 {
   class TestFlags : public virtual FlagsBase
   {
@@ -1015,6 +1016,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FlagsFileTest, JSONFile)
 
   ASSERT_SOME_EQ(object, flags.json);
 }
+#endif // __WINDOWS__
 
 
 TEST_F(FlagsFileTest, FilePrefix)

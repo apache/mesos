@@ -87,12 +87,15 @@ inline Try<net::IP> parse(const std::string& value)
 template <>
 inline Try<JSON::Object> parse(const std::string& value)
 {
+#ifndef __WINDOWS__
   // A value that already starts with 'file://' will properly be
   // loaded from the file and put into 'value' but if it starts with
   // '/' we need to explicitly handle it for backwards compatibility
   // reasons (because we used to handle it before we introduced the
   // 'fetch' mechanism for flags that first fetches the data from URIs
   // such as 'file://').
+  //
+  // NOTE: Because this code is deprecated, it is not supported on Windows.
   if (strings::startsWith(value, "/")) {
     LOG(WARNING) << "Specifying an absolute filename to read a command line "
                     "option out of without using 'file:// is deprecated and "
@@ -106,6 +109,7 @@ inline Try<JSON::Object> parse(const std::string& value)
     }
     return JSON::parse<JSON::Object>(read.get());
   }
+#endif // __WINDOWS__
   return JSON::parse<JSON::Object>(value);
 }
 
@@ -113,12 +117,15 @@ inline Try<JSON::Object> parse(const std::string& value)
 template <>
 inline Try<JSON::Array> parse(const std::string& value)
 {
+#ifndef __WINDOWS__
   // A value that already starts with 'file://' will properly be
   // loaded from the file and put into 'value' but if it starts with
   // '/' we need to explicitly handle it for backwards compatibility
   // reasons (because we used to handle it before we introduced the
   // 'fetch' mechanism for flags that first fetches the data from URIs
   // such as 'file://').
+  //
+  // NOTE: Because this code is deprecated, it is not supported on Windows.
   if (strings::startsWith(value, "/")) {
     LOG(WARNING) << "Specifying an absolute filename to read a command line "
                     "option out of without using 'file:// is deprecated and "
@@ -132,6 +139,7 @@ inline Try<JSON::Array> parse(const std::string& value)
     }
     return JSON::parse<JSON::Array>(read.get());
   }
+#endif // __WINDOWS__
   return JSON::parse<JSON::Array>(value);
 }
 
