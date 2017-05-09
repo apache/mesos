@@ -205,8 +205,9 @@ bool operator==(const Resource::DiskInfo& left, const Resource::DiskInfo& right)
     return false;
   }
 
-  if (left.has_persistence()) {
-    return left.persistence().id() == right.persistence().id();
+  if (left.has_persistence() &&
+      left.persistence().id() != right.persistence().id()) {
+    return false;
   }
 
   return true;
