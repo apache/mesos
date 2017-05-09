@@ -217,7 +217,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     } else {
       return Error("Unknown or unsupported launcher: " + flags_.launcher);
     }
-#elif __WINDOWS__
+#elif defined(__WINDOWS__)
     if (flags_.launcher != "windows") {
       return Error("Unsupported launcher: " + flags_.launcher);
     }
