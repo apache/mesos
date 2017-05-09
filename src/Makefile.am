@@ -423,19 +423,15 @@ java/generated/org/apache/mesos/scheduler/Protos.java: $(SCHEDULER_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
-java/generated/org/apache/mesos/v1/executor/Protos.java: $(V1_EXECUTOR_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
-
-java/generated/org/apache/mesos/v1/quota/Protos.java: $(V1_QUOTA_PROTO)
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
-
 java/generated/org/apache/mesos/v1/agent/Protos.java: $(V1_AGENT_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
 java/generated/org/apache/mesos/v1/allocator/Protos.java: $(V1_ALLOCATOR_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
+java/generated/org/apache/mesos/v1/executor/Protos.java: $(V1_EXECUTOR_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
@@ -448,6 +444,10 @@ java/generated/org/apache/mesos/v1/master/Protos.java: $(V1_MASTER_PROTO)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
 java/generated/org/apache/mesos/v1/Protos.java: $(V1_MESOS_PROTO)
+	$(MKDIR_P) $(@D)
+	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
+
+java/generated/org/apache/mesos/v1/quota/Protos.java: $(V1_QUOTA_PROTO)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --java_out=java/generated $^
 
