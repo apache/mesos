@@ -198,6 +198,7 @@ All Resolved Issues:
   * [MESOS-7430] - Per-role Suppress call implementation is broken.
   * [MESOS-7453] - glyphicons-halflings-regular.woff2 is missing in WebUI.
   * [MESOS-7456] - Compilation error on recent glibc in cgroups device subsystem.
+  * [MESOS-7478] - Pre-1.2.x master does not work with 1.2.x agent.
 
 ** Documentation
   * [MESOS-7005] - Add executor authentication documentation.
