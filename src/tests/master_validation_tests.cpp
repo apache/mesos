@@ -3732,6 +3732,8 @@ class RegisterSlaveValidationTest : public MesosTest {};
 
 TEST_F(RegisterSlaveValidationTest, DropInvalidReregistration)
 {
+  Clock::pause();
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -3739,9 +3741,12 @@ TEST_F(RegisterSlaveValidationTest, DropInvalidReregistration)
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
 
   StandaloneMasterDetector detector(master.get()->pid);
-
-  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
 
   // Wait until the master acknowledges the slave registration.
   AWAIT_READY(slaveRegisteredMessage);
@@ -3753,6 +3758,9 @@ TEST_F(RegisterSlaveValidationTest, DropInvalidReregistration)
   // Simulate a new master detected event on the slave,
   // so that the slave will do a re-registration.
   detector.appoint(master.get()->pid);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
 
   AWAIT_READY(reregisterSlaveMessage);
 
@@ -3776,7 +3784,6 @@ TEST_F(RegisterSlaveValidationTest, DropInvalidReregistration)
   process::post(slave.get()->pid, master->get()->pid, message);
 
   // Settle the clock to retire in-flight messages.
-  Clock::pause();
   Clock::settle();
 }
 
@@ -3794,9 +3801,15 @@ TEST_F(RegisterSlaveValidationTest, DropInvalidRegistration)
   // will never send any SlaveRegisteredMessage responses.
   EXPECT_NO_FUTURE_PROTOBUFS(SlaveRegisteredMessage(), _, _);
 
+  Clock::pause();
+
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
 
   AWAIT_READY(registerSlaveMessage);
 
@@ -3816,7 +3829,6 @@ TEST_F(RegisterSlaveValidationTest, DropInvalidRegistration)
   process::post(slave.get()->pid, master->get()->pid, message);
 
   // Settle the clock to retire in-flight messages.
-  Clock::pause();
   Clock::settle();
 }
 
