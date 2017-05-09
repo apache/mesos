@@ -27,6 +27,9 @@ Mesos User Groups (MUGs) are responsible for organizing local meetups, hackathon
 * [Bangalore](http://www.meetup.com/Bangalore-Mesos-User-Group/)
 * [Pune](http://www.meetup.com/Pune-Mesos-Users-Group/)
 
+### Japan
+* [Tokyo](https://mesos.connpass.com/)
+
 ### Netherlands
 * [Amsterdam](http://www.meetup.com/Mesos-Amsterdam/)
 
