@@ -465,10 +465,7 @@ TEST_F(NestedMesosContainerizerTest,
   command.add_arguments(
       "echo $MESOS_SANDBOX >&" + stringify(pipes[1]) + ";" + "sleep 1000");
 
-  ExecutorInfo executor;
-  executor.mutable_executor_id()->set_value("executor");
-  executor.mutable_command()->CopyFrom(command);
-  executor.mutable_resources()->CopyFrom(Resources::parse("cpus:1").get());
+  ExecutorInfo executor = createExecutorInfo("executor", command, "cpus:1");
 
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
@@ -1256,10 +1253,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentExit)
   command.add_arguments("-c");
   command.add_arguments("read key <&" + stringify(pipes[0]));
 
-  ExecutorInfo executor;
-  executor.mutable_executor_id()->set_value("executor");
-  executor.mutable_command()->CopyFrom(command);
-  executor.mutable_resources()->CopyFrom(Resources::parse("cpus:1").get());
+  ExecutorInfo executor = createExecutorInfo("executor", command, "cpus:1");
 
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
@@ -1360,10 +1354,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentSigterm)
   command.add_arguments(
       "echo running >&" + stringify(pipes[1]) + ";" + "sleep 1000");
 
-  ExecutorInfo executor;
-  executor.mutable_executor_id()->set_value("executor");
-  executor.mutable_command()->CopyFrom(command);
-  executor.mutable_resources()->CopyFrom(Resources::parse("cpus:1").get());
+  ExecutorInfo executor = createExecutorInfo("executor", command, "cpus:1");
 
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
