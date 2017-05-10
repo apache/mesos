@@ -30,7 +30,14 @@
 
 // This class provides convenience routines for working with version
 // numbers.  We support the SemVer 2.0.0 (http://semver.org) format,
-// with minor extensions.
+// with two differences:
+//
+//   (1) Numeric components with leading zeros are allowed.
+//
+//   (2) Missing version components are allowed and treated as zero.
+//
+// TODO(neilc): Consider providing a "strict" variant that does not
+// allow these extensions.
 //
 // Ideally, the version components would be called simply "major",
 // "minor", and "patch". However, GNU libstdc++ already defines these
@@ -42,11 +49,6 @@ struct Version
   //   <major>[.<minor>[.<patch>]][-prerelease][+build]
   //
   // Missing `minor` or `patch` components are treated as zero.
-  // Allowing some version numbers to be omitted is an extension to
-  // SemVer, albeit one that several other SemVer libraries implement.
-  //
-  // TODO(neilc): Consider providing a "strict" variant that does not
-  // allow version numbers to be omitted.
   //
   // `prerelease` is a prerelease label (e.g., "beta", "rc.1");
   // `build` is a build metadata label. Both `prerelease` and `build`
@@ -69,9 +71,7 @@ struct Version
     if (buildParts.size() == 2) {
       const std::string& buildString = buildParts.back();
 
-      // NOTE: Build metadata identifiers can contain leading zeros
-      // (unlike numeric prerelease identifiers; see below).
-      Try<std::vector<std::string>> parsed = parseLabel(buildString, false);
+      Try<std::vector<std::string>> parsed = parseLabel(buildString);
       if (parsed.isError()) {
         return Error("Invalid build label: " + parsed.error());
       }
@@ -92,8 +92,7 @@ struct Version
     if (prereleaseParts.size() == 2) {
       const std::string& prereleaseString = prereleaseParts.back();
 
-      // Prerelease identifiers cannot contain leading zeros.
-      Try<std::vector<std::string>> parsed = parseLabel(prereleaseString, true);
+      Try<std::vector<std::string>> parsed = parseLabel(prereleaseString);
       if (parsed.isError()) {
         return Error("Invalid prerelease label: " + parsed.error());
       }
@@ -119,11 +118,6 @@ struct Version
       if (result.isError()) {
         return Error("Invalid version component '" + numericComponents[i] + "'"
                      ": " + result.error());
-      }
-
-      if (hasLeadingZero(numericComponents[i])) {
-        return Error("Invalid version component '" + numericComponents[i] + "'"
-                     ": cannot contain leading zero");
       }
 
       versionNumbers[i] = result.get();
@@ -153,11 +147,11 @@ struct Version
         // valid prerelease and build identifiers.
 
         foreach (const std::string& identifier, prerelease) {
-          CHECK_NONE(validateIdentifier(identifier, true));
+          CHECK_NONE(validateIdentifier(identifier));
         }
 
         foreach (const std::string& identifier, build) {
-          CHECK_NONE(validateIdentifier(identifier, false));
+          CHECK_NONE(validateIdentifier(identifier));
         }
       }
 
@@ -290,10 +284,9 @@ struct Version
 private:
   // Check that a string contains a valid identifier. An identifier is
   // a non-empty string; each character must be an ASCII alphanumeric
-  // or hyphen.
-  static Option<Error> validateIdentifier(
-      const std::string& identifier,
-      bool rejectLeadingZero)
+  // or hyphen. We allow leading zeros in numeric identifiers, which
+  // inconsistent with the SemVer spec.
+  static Option<Error> validateIdentifier(const std::string& identifier)
   {
     if (identifier.empty()) {
       return Error("Empty identifier");
@@ -311,23 +304,13 @@ private:
                    "'" + stringify(*firstInvalid) + "'");
     }
 
-    // If requested, disallow identifiers that contain a leading
-    // zero. Note that this only applies to numeric identifiers, and
-    // that zero-valued identifiers are allowed.
-    if (rejectLeadingZero && hasLeadingZero(identifier)) {
-      return Error("Identifier contains leading zero");
-    }
-
     return None();
   }
 
   // Parse a string containing a series of dot-separated identifiers
   // into a vector of strings; each element of the vector contains a
-  // single identifier. If `rejectLeadingZeros` is true, we reject any
-  // numeric identifier in the label that contains a leading zero.
-  static Try<std::vector<std::string>> parseLabel(
-      const std::string& label,
-      bool rejectLeadingZeros)
+  // single identifier.
+  static Try<std::vector<std::string>> parseLabel(const std::string& label)
   {
     if (label.empty()) {
       return Error("Empty label");
@@ -336,23 +319,13 @@ private:
     std::vector<std::string> identifiers = strings::split(label, ".");
 
     foreach (const std::string& identifier, identifiers) {
-      Option<Error> error = validateIdentifier(identifier, rejectLeadingZeros);
+      Option<Error> error = validateIdentifier(identifier);
       if (error.isSome()) {
         return error.get();
       }
     }
 
     return identifiers;
-  }
-
-  // Checks whether the input string is numeric and contains a leading
-  // zero. Note that "0" by itself is not considered a "leading zero".
-  static bool hasLeadingZero(const std::string& identifier) {
-    Try<uint32_t> numericIdentifier = parseNumericIdentifier(identifier);
-
-    return numericIdentifier.isSome() &&
-      numericIdentifier.get() != 0 &&
-      strings::startsWith(identifier, '0');
   }
 
   // Try to parse the given string as a numeric identifier. According

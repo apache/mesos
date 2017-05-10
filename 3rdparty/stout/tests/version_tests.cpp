@@ -124,7 +124,13 @@ TEST(VersionTest, ParseValid)
     {"1-2-3.4+5.6-7",
      {Version(1, 0, 0, {"2-3", "4"}, {"5", "6-7"}), "1.0.0-2-3.4+5.6-7"}},
     {"1-2.-3+4.-5",
-     {Version(1, 0, 0, {"2", "-3"}, {"4", "-5"}), "1.0.0-2.-3+4.-5"}}
+     {Version(1, 0, 0, {"2", "-3"}, {"4", "-5"}), "1.0.0-2.-3+4.-5"}},
+    // Allow leading zeros: in violation of the SemVer spec, but we
+    // tolerate it for compatibility with common practice (e.g., Docker).
+    {"01.2.3", {Version(1, 2, 3), "1.2.3"}},
+    {"1.02.3", {Version(1, 2, 3), "1.2.3"}},
+    {"1.2.03", {Version(1, 2, 3), "1.2.3"}},
+    {"1.2.3-alpha.001", {Version(1, 2, 3, {"alpha", "001"}), "1.2.3-alpha.001"}}
   };
 
   foreachpair (const string& input, const ExpectedValue& expected, testCases) {
@@ -152,11 +158,8 @@ TEST(VersionTest, ParseInvalid)
     ".1.2",
     "0.1.-2",
     "0.-1.2",
-    "0.1.2.3",
+    "1.2.3.4",
     "-1.1.2",
-    "01.2.3",
-    "1.02.3",
-    "1.2.03",
     "1.1.2-",
     "1.1.2+",
     "1.1.2-+",
@@ -169,7 +172,6 @@ TEST(VersionTest, ParseInvalid)
     "1.1.2+.foo",
     "1.1.2-al^pha",
     "1.1.2+exp;",
-    "1.1.2-alpha.001",
     "-foo",
     "+foo",
     u8"1.0.0-b\u00e9ta"
