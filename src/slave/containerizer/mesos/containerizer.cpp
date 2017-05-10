@@ -1360,8 +1360,15 @@ Future<bool> MesosContainerizerProcess::_launch(
     }
 
     if (!commandTaskEnvironment.empty()) {
+      Environment taskEnvironment;
+      foreachpair (
+          const string& name, const string& value, commandTaskEnvironment) {
+        Environment::Variable* variable = taskEnvironment.add_variables();
+        variable->set_name(name);
+        variable->set_value(value);
+      }
       launchInfo.mutable_command()->add_arguments(
-          "--task_environment=" + string(jsonify(commandTaskEnvironment)));
+          "--task_environment=" + stringify(JSON::protobuf(taskEnvironment)));
     }
   }
 
