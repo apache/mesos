@@ -94,7 +94,6 @@ Unresolved Critical Issues:
   * [MESOS-7298] - Fetcher caches files with world-readable permissions.
   * [MESOS-7362] - GPU support can't work when run spark.
   * [MESOS-7374] - Running DOCKER images in Mesos Container Runtime without `linux/filesystem` isolation enabled renders host unusable.
-  * [MESOS-7378] - Build failure with missing gnu_dev_major and gnu_dev_minor symbols.
   * [MESOS-7381] - Flaky tests in NestedMesosContainerizerTest.
   * [MESOS-7386] - Executor not cleaning up existing running docker containers if external logrotate/logger processes die/killed.
 
@@ -194,6 +193,7 @@ All Resolved Issues:
   * [MESOS-7363] - Improver master robustness against duplicate UPIDs.
   * [MESOS-7365] - Compile error with recent glibc.
   * [MESOS-7372] - Improve agent re-registration robustness.
+  * [MESOS-7378] - Build failure with glibc 2.12.
   * [MESOS-7389] - Mesos 1.2.0 crashes with pre-1.0 Mesos agents.
   * [MESOS-7400] - The mesos master crashes due to an incorrect invariant check in the decoder.
   * [MESOS-7427] - Registry puller cannot fetch manifests from Amazon ECR: 405 Unsupported.
