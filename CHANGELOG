@@ -97,7 +97,6 @@ Unresolved Critical Issues:
   * [MESOS-7378] - Build failure with missing gnu_dev_major and gnu_dev_minor symbols.
   * [MESOS-7381] - Flaky tests in NestedMesosContainerizerTest.
   * [MESOS-7386] - Executor not cleaning up existing running docker containers if external logrotate/logger processes die/killed.
-  * [MESOS-7389] - Mesos 1.2.0 crashes with pre-1.0 Mesos agents.
 
 Feature Graduations:
   * [MESOS-2449] - Support group of tasks (Pod) constructs and API in Mesos.
@@ -128,6 +127,7 @@ All Experimental Features:
 All Resolved Issues:
 
 ** Bug
+  * [MESOS-1987] - Add support for SemVer build and prerelease labels to stout.
   * [MESOS-4245] - Add `dist` target to CMake solution.
   * [MESOS-4263] - Report volume usage through ResourceStatistics.
   * [MESOS-5028] - Copy provisioner cannot replace directory with symlink.
@@ -151,6 +151,7 @@ All Resolved Issues:
   * [MESOS-6907] - FutureTest.After3 is flaky.
   * [MESOS-6951] - Docker containerizer: mangled environment when env value contains LF byte.
   * [MESOS-6953] - A compromised mesos-master node can execute code as root on agents.
+  * [MESOS-6976] - Disallow (re-)registration attempts by old agents.
   * [MESOS-6982] - PerfTest.Version fails on recent Arch Linux.
   * [MESOS-7022] - Update framework authorization to support multiple roles.
   * [MESOS-7029] - FaultToleranceTest.FrameworkReregister is flaky.
@@ -193,12 +194,15 @@ All Resolved Issues:
   * [MESOS-7363] - Improver master robustness against duplicate UPIDs.
   * [MESOS-7365] - Compile error with recent glibc.
   * [MESOS-7372] - Improve agent re-registration robustness.
+  * [MESOS-7389] - Mesos 1.2.0 crashes with pre-1.0 Mesos agents.
   * [MESOS-7400] - The mesos master crashes due to an incorrect invariant check in the decoder.
   * [MESOS-7427] - Registry puller cannot fetch manifests from Amazon ECR: 405 Unsupported.
   * [MESOS-7430] - Per-role Suppress call implementation is broken.
   * [MESOS-7453] - glyphicons-halflings-regular.woff2 is missing in WebUI.
   * [MESOS-7456] - Compilation error on recent glibc in cgroups device subsystem.
+  * [MESOS-7464] - Recent Docker versions cannot be parsed by stout.
   * [MESOS-7478] - Pre-1.2.x master does not work with 1.2.x agent.
+  * [MESOS-7484] - VersionTest.ParseInvalid aborts on Windows.
 
 ** Documentation
   * [MESOS-7005] - Add executor authentication documentation.
