@@ -23,7 +23,13 @@
 #include <linux/limits.h>
 #include <linux/unistd.h>
 
+// This header include must be enclosed in an `extern "C"` block to
+// workaround a bug in glibc <= 2.12 (see MESOS-7378).
+//
+// TODO(neilc): Remove this when we no longer support glibc <= 2.12.
+extern "C" {
 #include <sys/sysmacros.h>
+}
 
 #include <list>
 #include <set>
