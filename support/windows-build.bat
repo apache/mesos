@@ -17,8 +17,10 @@ REM limitations under the License.
 @echo on
 
 REM NOTE: Before you run this script, you must have the Visual Studio
-REM environment variables set up. Visual Studio provides a script to do
-REM this at `/path/to/Visual Studio 14/VC/vcvarsall.bat`.
+REM environment variables set up. Visual Studio provides a script to do this,
+REM depending on the version of Visual Studio installed:
+REM /path/to/Visual Studio 14/VC/vcvarsall.bat
+REM /path/to/Microsoft Visual Studio/2017/Community/VC/Auxiliary/Build/vcvars64.bat
 
 REM NOTE: Batch doesn't have any way of exiting upon failing a command.
 REM The best we can do is add this line after every command that matters:
@@ -49,37 +51,26 @@ REM Generate the Visual Studio solution.
 REM You can pass in other flags by setting `OTHER_CMAKE_OPTIONS` before
 REM calling the script. For example, the ASF CI will add `-DPATCHEXE_PATH=...`
 REM because the path to GNU Patch is not the default.
-cmake .. -G "Visual Studio 14 2015 Win64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 %OTHER_CMAKE_OPTIONS%
+if not defined CMAKE_GENERATOR (set CMAKE_GENERATOR=Visual Studio 15 2017 Win64)
+cmake .. -G "%CMAKE_GENERATOR%" -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 %OTHER_CMAKE_OPTIONS%
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-REM NOTE: We set the environment variable `PreferredToolArchitecture`
-REM to work around some known issues in Visual Studio's linking step.
-REM Without this variable set, MSVC may take hours/days to link
-REM and may sometimes erroneously fail to find the library to link against.
-SET PreferredToolArchitecture=x64
-
-REM NOTE: The build option `/m` tells Visual Studio to build projects in
-REM parallel if possible.
-
-REM NOTE: Specifying a build "target" is done via the build option `/t`.
-REM Multiple targets can be specified with semi-comma separation.
-
 REM Build and run the stout tests.
-msbuild Mesos.sln /m /t:stout-tests
+cmake --build . --target stout-tests --config Debug
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 "3rdparty/stout/tests/Debug/stout-tests.exe"
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM Build and run the libprocess tests.
-msbuild Mesos.sln /m /t:libprocess-tests
+cmake --build . --target libprocess-tests --config Debug
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 "3rdparty/libprocess/src/tests/Debug/libprocess-tests.exe"
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-REM Build everything else.
-msbuild Mesos.sln /m
+REM Build and run the mesos tests.
+cmake --build . --target mesos-tests --config Debug
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM Due to how Mesos uses and creates symlinks, the next test suite
@@ -89,12 +80,11 @@ REM See: https://technet.microsoft.com/en-us/library/bb490711.aspx
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo Administrator permissions not detected.  Skipping Mesos tests...
-    exit /b 0
+) else (
+    REM Run mesos tests.
+    "src/mesos-tests.exe" --verbose
+    if %errorlevel% neq 0 exit /b %errorlevel%
 )
-
-REM Run mesos tests.
-"src/mesos-tests.exe" --verbose
-if %errorlevel% neq 0 exit /b %errorlevel%
 
 goto :eof
 
