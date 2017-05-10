@@ -74,11 +74,6 @@ if (WIN32)
         echo "ERROR: Environment variable 'PreferredToolArchitecture' must be set to 'x64', see MESOS-6720 for details" 1>&2 && EXIT 1
       )
     )
-
-  # Speed up incremental linking for the VS compiler/linker, for more info, see:
-  # https://blogs.msdn.microsoft.com/vcblog/2014/11/12/speeding-up-the-incremental-developer-build-scenario/
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:inline")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /debug:FASTLINK")
 endif (WIN32)
 
 
@@ -239,6 +234,12 @@ string(COMPARE EQUAL ${CMAKE_SYSTEM_NAME} "Linux" LINUX)
 # WINDOWS CONFIGURATION.
 ########################
 if (WIN32)
+  # Speed up incremental linking for the VS compiler/linker, for more info, see:
+  # https://blogs.msdn.microsoft.com/vcblog/2014/11/12/speeding-up-the-incremental-developer-build-scenario/
+  foreach(t EXE SHARED STATIC MODULE)
+    string(APPEND CMAKE_${t}_LINKER_FLAGS_DEBUG " /debug:fastlink")
+  endforeach()
+
   # COFF/PE and friends are somewhat limited in the number of sections they
   # allow for an object file. We use this to avoid those problems.
   set(CMAKE_CXX_FLAGS
