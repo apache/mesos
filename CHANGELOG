@@ -18,10 +18,10 @@ All Issues:
   * [MESOS-7264] - Possibly duplicate environment variables should not leak values to the sandbox.
   * [MESOS-7265] - Containerizer startup may cause sensitive data to leak into sandbox logs.
   * [MESOS-7272] - Unified containerizer does not support docker registry version < 2.3.
+  * [MESOS-7346] - Agent crashes if the task name is too long.
+  * [MESOS-7350] - Failed to pull image from Nexus Registry due to signature missing.
   * [MESOS-7366] - Agent sandbox gc could accidentally delete the entire persistent volume content.
   * [MESOS-7383] - Docker executor logs possibly sensitive parameters.
-  * [MESOS-7350] - Failed to pull image from Nexus Registry due to signature missing.
-  * [MESOS-7346] - Agent crashes if the task name is too long.
   * [MESOS-7389] - Mesos 1.2.0 crashes with pre-1.0 Mesos agents.
   * [MESOS-7400] - The mesos crashes due to an incorrect invariant check in the decoder.
   * [MESOS-7427] - Registry puller cannot fetch manifests from Amazon ECR: 405 Unsupported.
