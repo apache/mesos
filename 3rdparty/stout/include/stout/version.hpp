@@ -38,11 +38,6 @@
 //
 // TODO(neilc): Consider providing a "strict" variant that does not
 // allow these extensions.
-//
-// Ideally, the version components would be called simply "major",
-// "minor", and "patch". However, GNU libstdc++ already defines these
-// as macros for compatibility reasons (man 3 makedev for more
-// information) implicitly included in every compilation.
 struct Version
 {
   // Expect the string in the following format:
@@ -55,6 +50,11 @@ struct Version
   // consist of one or more dot-separated identifiers. An identifier
   // is a non-empty string containing ASCII alphanumeric characters or
   // hyphens.
+  //
+  // Ideally, the version components would be called simply "major",
+  // "minor", and "patch". However, GNU libstdc++ already defines
+  // these as macros for compatibility reasons (man 3 makedev for more
+  // information) implicitly included in every compilation.
   static Try<Version> parse(const std::string& input)
   {
     // The input string consists of the numeric components, optionally
