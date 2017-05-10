@@ -570,10 +570,6 @@ add_dependencies(
   ${AGENT_DEPENDENCIES}
   )
 
-if (WIN32)
-  add_dependencies(${MESOS_TARGET} ${ENSURE_TOOL_ARCH})
-endif (WIN32)
-
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
 target_link_libraries(${MESOS_LIBS_TARGET} ${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})

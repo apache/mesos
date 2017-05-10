@@ -60,19 +60,14 @@ if (WIN32)
   # libmesos to occasionally take hours, and one that causes us to be able to
   # fail to open the `mesos-x.lib` file. These have been confirmed as bugs with
   # the MSVC backend team by hausdorff.
-  set(
-    ENSURE_TOOL_ARCH ensure_tool_arch
-    CACHE STRING "Ensures %PreferredToolArchitecture% == x64. See MESOS-6720.")
-
-  # NOTE: The "ERROR:" at the beginning of this message allows Visual Studio to
-  # pick up the error message and print it in the "Error List" pane.
-  ADD_CUSTOM_TARGET(
-    ${ENSURE_TOOL_ARCH} ALL
-    COMMAND
-      IF NOT "%PreferredToolArchitecture%" == "x64" (
-        echo "ERROR: Environment variable 'PreferredToolArchitecture' must be set to 'x64', see MESOS-6720 for details" 1>&2 && EXIT 1
-      )
-    )
+  set(PREFERRED_TOOLSET "host=x64")
+  if (NOT CMAKE_GENERATOR_TOOLSET MATCHES ${PREFERRED_TOOLSET})
+    message(
+      FATAL_ERROR
+      "The x64 toolset MUST be used. See MESOS-6720 for details. "
+      "Please use `cmake -T ${PREFERRED_TOOLSET}`."
+  )
+  endif (NOT CMAKE_GENERATOR_TOOLSET MATCHES ${PREFERRED_TOOLSET})
 endif (WIN32)
 
 
