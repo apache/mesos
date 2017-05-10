@@ -288,7 +288,10 @@ Future<vector<string>> RegistryPullerProcess::_pull(
           << "' from '" << manifestUri
           << "' to '" << directory << "'";
 
-  return fetcher->fetch(manifestUri, directory)
+  return fetcher->fetch(
+      manifestUri,
+      directory,
+      config.isSome() ? config->data() : Option<string>())
     .then(defer(self(), &Self::__pull, reference, directory, backend, config));
 }
 
@@ -504,7 +507,10 @@ Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
           port);
     }
 
-    futures.push_back(fetcher->fetch(blobUri, directory));
+    futures.push_back(fetcher->fetch(
+        blobUri,
+        directory,
+        config.isSome() ? config->data() : Option<string>()));
   }
 
   return collect(futures)

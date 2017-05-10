@@ -105,26 +105,28 @@ Fetcher::Fetcher(const vector<Owned<Plugin>>& plugins)
 
 Future<Nothing> Fetcher::fetch(
     const URI& uri,
-    const string& directory) const
+    const string& directory,
+    const Option<string>& data) const
 {
   if (!pluginsByScheme.contains(uri.scheme())) {
     return Failure("Scheme '" + uri.scheme() + "' is not supported");
   }
 
-  return pluginsByScheme.at(uri.scheme())->fetch(uri, directory);
+  return pluginsByScheme.at(uri.scheme())->fetch(uri, directory, data);
 }
 
 
 Future<Nothing> Fetcher::fetch(
     const URI& uri,
     const string& directory,
-    const string& name) const
+    const string& name,
+    const Option<string>& data) const
 {
   if (!pluginsByName.contains(name)) {
     return Failure("Plugin  '" + name + "' is not registered.");
   }
 
-  return pluginsByName.at(name)->fetch(uri, directory);
+  return pluginsByName.at(name)->fetch(uri, directory, data);
 }
 
 } // namespace uri {

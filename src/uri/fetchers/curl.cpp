@@ -79,7 +79,8 @@ string CurlFetcherPlugin::name() const
 
 Future<Nothing> CurlFetcherPlugin::fetch(
     const URI& uri,
-    const string& directory) const
+    const string& directory,
+    const Option<string>& data) const
 {
   // TODO(jieyu): Validate the given URI.
 

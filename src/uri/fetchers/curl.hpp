@@ -44,7 +44,8 @@ public:
 
   virtual process::Future<Nothing> fetch(
       const URI& uri,
-      const std::string& directory) const;
+      const std::string& directory,
+      const Option<std::string>& data = None()) const;
 
 private:
   CurlFetcherPlugin() {}

@@ -378,7 +378,10 @@ public:
     : ProcessBase(process::ID::generate("docker-fetcher-plugin")),
       auths(_auths) {}
 
-  Future<Nothing> fetch(const URI& uri, const string& directory);
+  Future<Nothing> fetch(
+      const URI& uri,
+      const string& directory,
+      const Option<string>& data);
 
 private:
   Future<Nothing> _fetch(
@@ -489,7 +492,8 @@ string DockerFetcherPlugin::name() const
 
 Future<Nothing> DockerFetcherPlugin::fetch(
     const URI& uri,
-    const string& directory) const
+    const string& directory,
+    const Option<string>& data) const
 {
   return dispatch(
       process.get(),

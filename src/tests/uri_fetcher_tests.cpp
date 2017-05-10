@@ -143,7 +143,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CurlFetcherPluginTest, CURL_InvokeFetchByName)
   Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
   ASSERT_SOME(fetcher);
 
-  AWAIT_READY(fetcher.get()->fetch(uri, os::getcwd(), "curl"));
+  AWAIT_READY(fetcher.get()->fetch(uri, os::getcwd(), "curl", None()));
 
   EXPECT_TRUE(os::exists(path::join(os::getcwd(), "test")));
 }
@@ -258,7 +258,7 @@ TEST_F(HadoopFetcherPluginTest, InvokeFetchByName)
 
   string dir = path::join(os::getcwd(), "dir");
 
-  AWAIT_READY(fetcher.get()->fetch(uri, dir, "hadoop"));
+  AWAIT_READY(fetcher.get()->fetch(uri, dir, "hadoop", None()));
 
   EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
 }
@@ -364,7 +364,9 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_InvokeFetchByName)
 
   string dir = path::join(os::getcwd(), "dir");
 
-  AWAIT_READY_FOR(fetcher.get()->fetch(uri, dir, "docker"), Seconds(60));
+  AWAIT_READY_FOR(
+      fetcher.get()->fetch(uri, dir, "docker", None()),
+      Seconds(60));
 
   Try<string> _manifest = os::read(path::join(dir, "manifest"));
   ASSERT_SOME(_manifest);
@@ -440,7 +442,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CopyFetcherPluginTest, InvokeFetchByName)
 
   const string dir = path::join(os::getcwd(), "dir");
 
-  AWAIT_READY(fetcher.get()->fetch(uri, dir, "copy"));
+  AWAIT_READY(fetcher.get()->fetch(uri, dir, "copy", None()));
 
   // Validate the fetched file's content.
   EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
