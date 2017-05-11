@@ -215,9 +215,6 @@ protected:
   void pause();
   void resume();
 
-  // Callback for doing batch allocations.
-  void batch();
-
   // Allocate any allocatable resources from all known agents.
   process::Future<Nothing> allocate();
 
