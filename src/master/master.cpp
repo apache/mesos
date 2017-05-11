@@ -6208,8 +6208,6 @@ void Master::___reregisterSlave(
     recoverFramework(frameworkInfo);
   }
 
-  // NOTE: Here we always send the message. Slaves whose version are
-  // less than 0.22.0 will drop it silently which is OK.
   LOG(INFO) << "Sending updated checkpointed resources "
             << slave->checkpointedResources
             << " to agent " << *slave;
