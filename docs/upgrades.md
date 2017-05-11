@@ -46,6 +46,9 @@ We categorize the changes as follows:
   1.2.x
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+    <ul style="padding-left:10px;">
+      <li>R <a href="#1-2-1-disallow-old-agents">Prevent registration by old Mesos agents</a></li>
+    </ul>
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
     <ul style="padding-left:10px;">
@@ -239,6 +242,9 @@ We categorize the changes as follows:
 </table>
 
 ## Upgrading from 1.1.x to 1.2.x ##
+
+<a name="1-2-1-disallow-old-agents"></a>
+* In Mesos 1.2.1, the master will no longer allow 0.x agents to register. Interoperability between 1.1+ masters and 0.x agents has never been supported; however, it was not explicitly disallowed, either. Starting with Mesos 1.2.1, registration attempts by 0.x agents will be ignored. **NOTE:** This applies only when upgrading to Mesos 1.2.1. Mesos 1.2.0 does not implement this behavior.
 
 <a name="1-2-x-heartbeat-flag"></a>
 * New Agent flag http_heartbeat_interval: This flag sets a heartbeat interval for messages to be sent over persistent connections made against the agent HTTP API. Currently, this only applies to the LAUNCH_NESTED_CONTAINER_SESSION and ATTACH_CONTAINER_OUTPUT calls. (default: 30secs)
