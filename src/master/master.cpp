@@ -7573,16 +7573,8 @@ void Master::reconcileKnownSlave(
   // for resources. First we index the executors for fast lookup below.
   multihashmap<FrameworkID, ExecutorID> slaveExecutors;
   foreach (const ExecutorInfo& executor, executors) {
-    // TODO(bmahler): The slave ensures the framework id is set in the
-    // framework info when re-registering. This can be killed in 0.15.0
-    // as we've added code in 0.14.0 to ensure the framework id is set
-    // in the scheduler driver.
-    if (!executor.has_framework_id()) {
-      LOG(ERROR) << "Agent " << *slave
-                 << " re-registered with executor '" << executor.executor_id()
-                 << "' without setting the framework id";
-      continue;
-    }
+    // Master validates that `framework_id` is set during task launch.
+    CHECK(executor.has_framework_id());
     slaveExecutors.put(executor.framework_id(), executor.executor_id());
   }
 
