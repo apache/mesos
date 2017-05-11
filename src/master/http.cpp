@@ -1451,28 +1451,9 @@ Future<Response> Master::Http::frameworks(
               }
             });
 
-        // Model all unregistered frameworks. Such frameworks are only
-        // possible if the cluster contains pre-1.0 agents.
-        //
-        // TODO(neilc): Remove this once we break compatibility with
-        // pre-1.0 agents.
-        //
-        // TODO(vinod): Need to filter these frameworks based on authorization!
-        // See TODO in `state()` for further details.
-        writer->field("unregistered_frameworks", [this](
-            JSON::ArrayWriter* writer) {
-          // Find unregistered frameworks.
-          hashset<FrameworkID> frameworkIds;
-          foreachvalue (const Slave* slave, master->slaves.registered) {
-            foreachkey (const FrameworkID& frameworkId, slave->tasks) {
-              if (!master->frameworks.registered.contains(frameworkId) &&
-                  !frameworkIds.contains(frameworkId)) {
-                writer->element(frameworkId.value());
-                frameworkIds.insert(frameworkId);
-              }
-            }
-          }
-        });
+        // Unregistered frameworks are no longer possible. We emit an
+        // empty array for the sake of backward compatibility.
+        writer->field("unregistered_frameworks", [](JSON::ArrayWriter*) {});
       };
 
       return OK(jsonify(frameworks), request.url.query.get("jsonp"));
@@ -1677,36 +1658,6 @@ mesos::master::Response::GetExecutors Master::Http::_getExecutors(
 
         executor->mutable_executor_info()->CopyFrom(executorInfo);
         executor->mutable_slave_id()->CopyFrom(slaveId);
-      }
-    }
-  }
-
-  // Orphan executors. Such executors are only possible if the cluster
-  // contains pre-1.0 agents.
-  //
-  // TODO(neilc): Remove this once we break compatibility with pre-1.0
-  // agents.
-  foreachvalue (const Slave* slave, master->slaves.registered) {
-    typedef hashmap<ExecutorID, ExecutorInfo> ExecutorMap;
-    foreachpair (const FrameworkID& frameworkId,
-                 const ExecutorMap& executors,
-                 slave->executors) {
-      foreachvalue (const ExecutorInfo& executorInfo, executors) {
-        if (!master->frameworks.registered.contains(frameworkId)) {
-          // If authorization is enabled, do not show any orphaned
-          // executors. We need the executor's FrameworkInfo to
-          // authorize it, but if we had its FrameworkInfo, it would
-          // not be orphaned.
-          if (master->authorizer.isSome()) {
-            continue;
-          }
-
-          mesos::master::Response::GetExecutors::Executor* executor =
-            getExecutors.add_orphan_executors();
-
-          executor->mutable_executor_info()->CopyFrom(executorInfo);
-          executor->mutable_slave_id()->CopyFrom(slave->id);
-        }
       }
     }
   }
@@ -2871,56 +2822,13 @@ Future<Response> Master::Http::state(
               }
             });
 
-        // Model all of the orphan tasks. Such tasks are only possible
-        // if the cluster contains pre-1.0 agents.
-        //
-        // TODO(neilc): Remove this once we break compatibility with
-        // pre-1.0 agents.
-        writer->field("orphan_tasks", [this](
-            JSON::ArrayWriter* writer) {
-          foreachvalue (const Slave* slave, master->slaves.registered) {
-            typedef hashmap<TaskID, Task*> TaskMap;
-            foreachvalue (const TaskMap& tasks, slave->tasks) {
-              foreachvalue (const Task* task, tasks) {
-                const FrameworkID& frameworkId = task->framework_id();
-                if (!master->frameworks.registered.contains(frameworkId)) {
-                  // If authorization is enabled, do not show any
-                  // orphan tasks. We need the task's FrameworkInfo to
-                  // authorize it, but if we had its FrameworkInfo, it
-                  // would not be an orphan.
-                  if (master->authorizer.isSome()) {
-                    continue;
-                  }
+        // Orphan tasks are no longer possible. We emit an empty array
+        // for the sake of backward compatibility.
+        writer->field("orphan_tasks", [](JSON::ArrayWriter*) {});
 
-                  writer->element(*task);
-                }
-              }
-            }
-          }
-        });
-
-        // Model all unregistered frameworks. Such frameworks are only
-        // possible if the cluster contains pre-1.0 agents.
-        //
-        // TODO(neilc): Remove this once we break compatibility with
-        // pre-1.0 agents.
-        //
-        // TODO(vinod): Need to filter these frameworks based on authorization!
-        // See the TODO above for "orphan_tasks" for further details.
-        writer->field("unregistered_frameworks", [this](
-            JSON::ArrayWriter* writer) {
-          // Find unregistered frameworks.
-          hashset<FrameworkID> frameworkIds;
-          foreachvalue (const Slave* slave, master->slaves.registered) {
-            foreachkey (const FrameworkID& frameworkId, slave->tasks) {
-              if (!master->frameworks.registered.contains(frameworkId) &&
-                  !frameworkIds.contains(frameworkId)) {
-                writer->element(frameworkId.value());
-                frameworkIds.insert(frameworkId);
-              }
-            }
-          }
-        });
+        // Unregistered frameworks are no longer possible. We emit an
+        // empty array for the sake of backward compatibility.
+        writer->field("unregistered_frameworks", [](JSON::ArrayWriter*) {});
       };
 
       return OK(jsonify(state), request.url.query.get("jsonp"));
@@ -4069,31 +3977,6 @@ mesos::master::Response::GetTasks Master::Http::_getTasks(
       }
 
       getTasks.add_completed_tasks()->CopyFrom(*task);
-    }
-  }
-
-  // Orphan tasks. Such tasks are only possible if the cluster
-  // contains pre-1.0 agents.
-  //
-  // TODO(neilc): Remove this once we break compatibility with pre-1.0
-  // agents.
-  foreachvalue (const Slave* slave, master->slaves.registered) {
-    typedef hashmap<TaskID, Task*> TaskMap;
-    foreachvalue (const TaskMap& tasks, slave->tasks) {
-      foreachvalue (const Task* task, tasks) {
-        const FrameworkID& frameworkId = task->framework_id();
-        if (!master->frameworks.registered.contains(frameworkId)) {
-          // If authorization is enabled, do not show any orphan
-          // tasks. We need the task's FrameworkInfo to authorize it,
-          // but if we had its FrameworkInfo, it would not be an
-          // orphan.
-          if (master->authorizer.isSome()) {
-            continue;
-          }
-
-          getTasks.add_orphan_tasks()->CopyFrom(*task);
-        }
-      }
     }
   }
 
