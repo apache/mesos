@@ -93,11 +93,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, FileURI)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value("file://" + testFile);
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
   AWAIT_READY(fetch);
 
   EXPECT_TRUE(os::exists(localFile));
@@ -131,16 +130,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, ROOT_RootProtectedFileURI)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value("file://" + testFile);
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   AWAIT_FAILED(fetcher.fetch(
       containerId,
       commandInfo,
       os::getcwd(),
-      None(),
-      slaveId,
-      flags));
+      None()));
 }
 #endif // __WINDOWS__
 
@@ -165,11 +161,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, CustomOutputFileSubdirectory)
   uri->set_value("file://" + testFile);
   uri->set_output_file(customOutputFile);
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
   AWAIT_READY(fetch);
 
   EXPECT_TRUE(os::exists(localFile));
@@ -201,11 +196,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, AbsoluteCustomSubdirectoryFails)
   uri->set_value("file://" + testFile);
   uri->set_output_file(customOutputFile);
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
   AWAIT_FAILED(fetch);
 
   EXPECT_FALSE(os::exists(localFile));
@@ -238,11 +232,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, InvalidUser)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value("file://" + testFile);
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
   AWAIT_FAILED(fetch);
 
   // See FetcherProcess::fetch(), the message must mention "chown" in
@@ -272,11 +265,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, NonExistingFile)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value("file://" + testFile);
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
   AWAIT_FAILED(fetch);
 
   // See FetcherProcess::run().
@@ -298,11 +290,10 @@ TEST_F(FetcherTest, MalformedURI)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value("lala://nopath");
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
   AWAIT_FAILED(fetch);
 
   // See Fetcher::basename().
@@ -330,11 +321,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, AbsoluteFilePath)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(testPath);
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
   AWAIT_READY(fetch);
 
   EXPECT_TRUE(os::exists(localFile));
@@ -361,22 +351,22 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, RelativeFilePath)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value("test");
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher badFetcher(flags);
 
   // The first run must fail, because we have not set frameworks_home yet.
 
-  Future<Nothing> fetch1 = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  Future<Nothing> fetch1 = badFetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None());
   AWAIT_FAILED(fetch1);
 
   EXPECT_FALSE(os::exists(localFile));
 
   // The next run must succeed due to this flag.
   flags.frameworks_home = fromDir;
+  Fetcher goodFetcher(flags);
 
-  Future<Nothing> fetch2 = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+  Future<Nothing> fetch2 = goodFetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None());
   AWAIT_READY(fetch2);
 
   EXPECT_TRUE(os::exists(localFile));
@@ -442,14 +432,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, OSNetUriTest)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(stringify(url));
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   EXPECT_CALL(*http.process, test(_))
     .WillOnce(Return(http::OK()));
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
 
   AWAIT_READY(fetch);
 
@@ -489,15 +478,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, OSNetUriSpaceTest)
   // Add whitespace characters to the beginning of the URL.
   uri->set_value("\r\n\t " + stringify(url));
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   // Verify that the intended endpoint is hit.
   EXPECT_CALL(*http.process, test(_))
     .WillOnce(Return(http::OK()));
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
 
   AWAIT_READY(fetch);
 
@@ -525,11 +513,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, FileLocalhostURI)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(path::join("file://localhost", testFile));
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
   AWAIT_READY(fetch);
 
   EXPECT_TRUE(os::exists(localFile));
@@ -557,11 +544,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, NoExtractNotExecutable)
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
   AWAIT_READY(fetch);
 
   string basename = Path(path.get()).basename();
@@ -596,11 +582,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, NoExtractExecutable)
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
 
   AWAIT_READY(fetch);
 
@@ -647,11 +632,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, ExtractNotExecutable)
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
 
   AWAIT_READY(fetch);
 
@@ -699,11 +683,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, ExtractTar)
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
 
   AWAIT_READY(fetch);
 
@@ -737,11 +720,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, ExtractGzipFile)
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
 
   AWAIT_READY(fetch);
 
@@ -785,16 +767,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, UNZIP_ExtractFile)
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
       containerId,
       commandInfo,
       os::getcwd(),
-      None(),
-      slaveId,
-      flags);
+      None());
 
   AWAIT_READY(fetch);
 
@@ -839,16 +818,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, UNZIP_ExtractInvalidFile)
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
       containerId,
       commandInfo,
       os::getcwd(),
-      None(),
-      slaveId,
-      flags);
+      None());
 
   AWAIT_FAILED(fetch);
 
@@ -897,16 +873,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
       containerId,
       commandInfo,
       os::getcwd(),
-      None(),
-      slaveId,
-      flags);
+      None());
 
   AWAIT_READY(fetch);
 
@@ -941,11 +914,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, UseCustomOutputFile)
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
 
   AWAIT_READY(fetch);
 
@@ -981,11 +953,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, CustomGzipOutputFile)
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
 
   AWAIT_READY(fetch);
 
@@ -1072,11 +1043,10 @@ TEST_F(FetcherTest, HdfsURI)
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(path::join("hdfs://localhost", testFile));
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
 
   AWAIT_READY(fetch);
 
@@ -1126,11 +1096,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, SSLEnvironmentSpillover)
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
 
-  Fetcher fetcher;
-  SlaveID slaveId;
+  Fetcher fetcher(flags);
 
   Future<Nothing> fetch = fetcher.fetch(
-      containerId, commandInfo, os::getcwd(), None(), slaveId, flags);
+      containerId, commandInfo, os::getcwd(), None());
 
   // The mesos-fetcher runnable will fail initializing libprocess if
   // the SSL environment spilled over. Such failure would cause it to
