@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # This is a wrapper script for the MPI launcher framework.
 #
