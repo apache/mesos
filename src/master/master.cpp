@@ -6081,11 +6081,10 @@ void Master::__reregisterSlave(
   vector<Task> recoveredTasks;
   foreach (const Task& task, tasks) {
     const FrameworkID& frameworkId = task.framework_id();
-    Framework* framework = getFramework(frameworkId);
 
     // Don't re-add tasks whose framework has been shutdown at the
     // master. Such frameworks will be shutdown on the agent below.
-    if (isCompletedFramework(task.framework_id())) {
+    if (isCompletedFramework(frameworkId)) {
       continue;
     }
 
@@ -6093,6 +6092,7 @@ void Master::__reregisterSlave(
     if (partitionAwareFrameworks.contains(frameworkId)) {
       recoveredTasks.push_back(task);
 
+      Framework* framework = getFramework(frameworkId);
       if (framework != nullptr) {
         framework->unreachableTasks.erase(task.task_id());
       }
