@@ -6446,14 +6446,8 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
 
   LOG(INFO) << "Status update " << update << " from agent " << *slave;
 
-  // We ensure that the uuid of task status matches the update's uuid, in case
-  // the task status uuid is not set by the slave.
-  //
-  // TODO(vinod): This can be `CHECK(update.status().has_uuid())` from 0.27.0
-  // since a >= 0.26.0 slave will always correctly set task status uuid.
-  if (update.has_uuid()) {
-    update.mutable_status()->set_uuid(update.uuid());
-  }
+  // Agents >= 0.26 should always correctly set task status uuid.
+  CHECK(update.status().has_uuid());
 
   bool validStatusUpdate = true;
 
