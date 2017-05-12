@@ -31,6 +31,18 @@ news:
     date: November 10, 2016
     blog: mesos-1-1-0-released
     target_version: 1.1.0
+  - title: Mesos 1.0.4 is released!
+    date: May 3, 2017
+    blog: mesos-1-0-4-released
+    target_version: 1.0.4
+  - title: Mesos 1.0.3 is released!
+    date: February 6, 2017
+    blog: mesos-1-0-3-released
+    target_version: 1.0.3
+  - title: Mesos 1.0.2 is released!
+    date: November 15, 2016
+    blog: mesos-1-0-2-released
+    target_version: 1.0.2
   - title: Mesos 1.0.1 is released!
     date: August 23, 2016
     blog: mesos-1-0-1-released
