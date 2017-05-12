@@ -285,10 +285,10 @@ public:
 class Days : public Duration
 {
 public:
-  explicit Days(int64_t days)
+  explicit constexpr Days(int64_t days)
     : Duration(days, DAYS) {}
 
-  Days(const Duration& d) : Duration(d) {}
+  constexpr Days(const Duration& d) : Duration(d) {}
 
   double value() const { return this->days(); }
 
