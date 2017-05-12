@@ -1887,10 +1887,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   // Default executor delegates launching both the task and its check to the
   // agent. To avoid a race, we explicitly synchronize.
-  Try<std::array<int, 2>> pipes_ = os::pipe();
+  Try<std::array<int_fd, 2>> pipes_ = os::pipe();
   ASSERT_SOME(pipes_);
 
-  const std::array<int, 2>& pipes = pipes_.get();
+  const std::array<int_fd, 2>& pipes = pipes_.get();
 
   const string filename = "nested_inherits_work_dir";
 
