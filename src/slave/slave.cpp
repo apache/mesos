@@ -381,8 +381,12 @@ void Slave::initialize()
   }
 
   // Ensure slave work directory exists.
-  CHECK_SOME(os::mkdir(flags.work_dir))
-    << "Failed to create agent work directory '" << flags.work_dir << "'";
+  Try<Nothing> mkdir = os::mkdir(flags.work_dir);
+  if (mkdir.isError()) {
+    EXIT(EXIT_FAILURE)
+      << "Failed to create agent work directory '" << flags.work_dir << "': "
+      << mkdir.error();
+  }
 
   Try<Resources> resources = Containerizer::resources(flags);
   if (resources.isError()) {
@@ -495,7 +499,7 @@ void Slave::initialize()
       Try<string> result = net::getHostname(self().address.ip);
 
       if (result.isError()) {
-        LOG(FATAL) << "Failed to get hostname: " << result.error();
+        EXIT(EXIT_FAILURE) << "Failed to get hostname: " << result.error();
       }
 
       hostname = result.get();
