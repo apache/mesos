@@ -3836,8 +3836,7 @@ void Master::accept(
             "Task launched with invalid offers: " + error.get().message,
             TaskStatus::REASON_INVALID_OFFERS);
 
-        if (protobuf::frameworkHasCapability(
-                framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+        if (framework->capabilities.partitionAware) {
           metrics->tasks_dropped++;
         } else {
           metrics->tasks_lost++;
@@ -4063,8 +4062,7 @@ void Master::_accept(
             slave == nullptr ? "Agent removed" : "Agent disconnected",
             reason);
 
-        if (protobuf::frameworkHasCapability(
-                framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+        if (framework->capabilities.partitionAware) {
           metrics->tasks_dropped++;
         } else {
           metrics->tasks_lost++;
@@ -6736,8 +6734,7 @@ void Master::_markUnreachable(
     CHECK_NOTNULL(framework);
 
     TaskState newTaskState = TASK_UNREACHABLE;
-    if (!protobuf::frameworkHasCapability(
-            framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+    if (!framework->capabilities.partitionAware) {
       newTaskState = TASK_LOST;
     }
 
@@ -7008,8 +7005,7 @@ void Master::_reconcileTasks(
       // the framework does not have the PARTITION_AWARE capability,
       // send TASK_LOST for backward compatibility.
       TaskState taskState = TASK_UNKNOWN;
-      if (!protobuf::frameworkHasCapability(
-              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      if (!framework->capabilities.partitionAware) {
         taskState = TASK_LOST;
       }
 
@@ -7035,8 +7031,7 @@ void Master::_reconcileTasks(
       const TimeInfo& unreachableTime = slaves.unreachable[slaveId.get()];
 
       TaskState taskState = TASK_UNREACHABLE;
-      if (!protobuf::frameworkHasCapability(
-              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      if (!framework->capabilities.partitionAware) {
         taskState = TASK_LOST;
       }
 
@@ -7060,8 +7055,7 @@ void Master::_reconcileTasks(
       // framework does not have the PARTITION_AWARE capability, send
       // TASK_LOST for backward compatibility.
       TaskState taskState = TASK_UNKNOWN;
-      if (!protobuf::frameworkHasCapability(
-              framework->info, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      if (!framework->capabilities.partitionAware) {
         taskState = TASK_LOST;
       }
 
