@@ -68,6 +68,11 @@ Option<Error> validate(const string& role)
     return None();
   }
 
+  // TODO(neilc): Remove this restriction when MESOS-7505 is fixed.
+  if (role.find_first_of('/') != string::npos) {
+    return Error("Role '" + role + "' cannot contain a slash");
+  }
+
   if (strings::startsWith(role, '/')) {
     return Error("Role '" + role + "' cannot start with a slash");
   }
