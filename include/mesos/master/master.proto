@@ -360,7 +360,7 @@ message Response {
     // `recovered` field set to true.
     //
     // TODO(neilc): Remove this field in Mesos 2.0.
-    repeated FrameworkInfo recovered_frameworks = 3;
+    repeated FrameworkInfo recovered_frameworks = 3 [deprecated=true];
   }
 
   // Lists information about all the executors known to the master at the
@@ -378,7 +378,7 @@ message Response {
     // empty.
     //
     // TODO(neilc): Remove this field in Mesos 2.0.
-    repeated Executor orphan_executors = 2;
+    repeated Executor orphan_executors = 2 [deprecated=true];
   }
 
   // Lists information about all the tasks known to the master at the current
@@ -411,7 +411,7 @@ message Response {
     // empty.
     //
     // TODO(neilc): Remove this field in Mesos 2.0.
-    repeated Task orphan_tasks = 4;
+    repeated Task orphan_tasks = 4 [deprecated=true];
   }
 
   // Provides information about every role that is on the role whitelist (if
