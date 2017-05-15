@@ -31,16 +31,6 @@ This release contains the following new features:
     container. See 'docs/authorization.md' for more information on these
     implicit authorization rules.
 
-  * [MESOS-6375] - **Experimental** Support for hierarchical roles. A
-    role can now have one or more "child" roles. This makes it easier to
-    use roles to represent the hierarchical structure commonly found in
-    organizations. Support for hierarchical roles is experimental:
-    currently, quota cannot be set on a nested (child) role, and the
-    behavior of resource reservations for role hierarchies is expected
-    to change (presently, making a reservation to a role reserves the
-    resource for that exact role; in a future Mesos release, this will
-    instead reserve the resource for the sub-tree rooted at the role).
-
   * [MESOS-6627] - Support for frameworks to modify the role(s) they are
     subscribed to. This is essential to supporting "multi-user" frameworks
     (see MESOS-1763) in that roles are expected to come and go over time
@@ -122,7 +112,6 @@ All Experimental Features:
   * [MESOS-5931] - Support auto backend in Mesos Containerizer.
   * [MESOS-6014] - Added port mapping CNI plugin.
   * [MESOS-6077] - Added a default (task group) executor.
-  * [MESOS-6375] - **NEW** Support hierarchical resource allocation roles.
   * [MESOS-6402] - rlimit support for Mesos containerizer.
   * [MESOS-6460] - Container Attach/Exec.
   * [MESOS-6758] - Support docker registry that requires basic auth.
