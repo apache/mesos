@@ -32,33 +32,29 @@ class Flags : public virtual logging::Flags
 public:
   Flags()
   {
-    // `work_dir` is passed from here to the agents/master.
-    // This is necessary because `work_dir` is a required flag
-    // in agents/master and without this, the load call for their
-    // flags will spit out an error unless they have an env
-    // variable for the `work_dir` explicitly set.
-    // Since local mode is used strictly for non-production
-    // purposes, it is the one case where we deem it acceptable
-    // to set a default value for `work_dir`.
     add(&Flags::work_dir,
         "work_dir",
         "Path of the master/agent work directory. This is where the\n"
-        "persistent information of the cluster will be stored.\n"
-        "Note that locations like `/tmp` which are cleaned\n"
-        "automatically are not suitable for the work directory\n"
-        "when running in production, since long-running masters\n"
-        "and agents could lose data when cleanup occurs.\n"
-        "(Example: `/var/lib/mesos`)",
+        "persistent information of the cluster will be stored.\n\n"
+        "NOTE: Locations like `/tmp` which are cleaned automatically\n"
+        "are not suitable for the work directory when running in\n"
+        "production, since long-running masters and agents could lose\n"
+        "data when cleanup occurs. Local mode is used explicitly for\n"
+        "non-production purposes, so this is the only case where having\n"
+        "a default `work_dir` flag is acceptable.\n"
+        "(Example: `/var/lib/mesos`)\n\n"
+        "Individual work directories for each master and agent will be\n"
+        "nested underneath the given work directory:\n"
+        "root (`work_dir` flag)\n"
+        "|-- agents\n"
+        "|   |-- 0\n"
+        "|   |   |-- fetch (--fetcher_cache_dir)\n"
+        "|   |   |-- run   (--runtime_dir)\n"
+        "|   |   |-- work  (--work_dir)\n"
+        "|   |-- 1\n"
+        "|   |   ...\n"
+        "|-- master",
         path::join(os::temp(), "mesos", "work"));
-
-    add(&Flags::runtime_dir,
-        "runtime_dir",
-        "Path of the agent runtime directory. This is where runtime\n"
-        "data is stored by an agent that it needs to persist across\n"
-        "crashes (but not across reboots). This directory will be\n"
-        "cleared on reboot.\n"
-        "(Example: `/var/run/mesos`)",
-        path::join(os::temp(), "mesos", "runtime"));
 
     add(&Flags::num_slaves,
         "num_slaves",
@@ -67,7 +63,6 @@ public:
   }
 
   std::string work_dir;
-  std::string runtime_dir;
   int num_slaves;
 };
 

@@ -364,17 +364,15 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     // environment variables explicitly set.
     map<string, string> propagatedFlags;
 
-    // Use a different work directory for each agent.
+    // Use a different work/runtime/fetcher-cache directory for each agent.
     propagatedFlags["work_dir"] =
-      path::join(flags.work_dir, "agents", stringify(i));
+      path::join(flags.work_dir, "agents", stringify(i), "work");
 
-    // Use a different runtime directory for each agent.
     propagatedFlags["runtime_dir"] =
-      path::join(flags.runtime_dir, "agents", stringify(i));
+      path::join(flags.work_dir, "agents", stringify(i), "run");
 
-    // Use a different fetcher cache directory for each agent.
     propagatedFlags["fetcher_cache_dir"] =
-      path::join(os::temp(), "mesos", "fetch", "agents", stringify(i));
+      path::join(flags.work_dir, "agents", stringify(i), "fetch");
 
     slave::Flags slaveFlags;
     Try<flags::Warnings> load = slaveFlags.load(
