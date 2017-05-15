@@ -206,7 +206,7 @@ if (NOT WIN32)
       "flag. Please use a different C++ compiler.")
   endif (NOT COMPILER_SUPPORTS_CXX11)
 
-  string(APPEND CMAKE_CXX_FLAGS " -std=c++11")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
   # Directory structure for some build artifacts.
   # This is defined for use in tests.
@@ -236,15 +236,15 @@ if (WIN32)
 
   # COFF/PE and friends are somewhat limited in the number of sections they
   # allow for an object file. We use this to avoid those problems.
-  string(APPEND CMAKE_CXX_FLAGS
-    " /bigobj -DGOOGLE_GLOG_DLL_DECL= -DCURL_STATICLIB /vd2")
+  set(CMAKE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} /bigobj -DGOOGLE_GLOG_DLL_DECL= -DCURL_STATICLIB /vd2")
 
   # Enable multi-threaded compilation.
-  string(APPEND CMAKE_CXX_FLAGS " /MP")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
   # Build against the multi-threaded, static version of the runtime library.
-  string(APPEND CMAKE_CXX_FLAGS_DEBUG " /MTd")
-  string(APPEND CMAKE_CXX_FLAGS_RELEASE " /MT")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
 
   # Convenience flags to simplify Windows support in C++ source; used to
   # `#ifdef` out some platform-specific parts of Mesos.  We choose to define
