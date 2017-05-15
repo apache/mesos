@@ -6165,15 +6165,10 @@ void Master::___reregisterSlave(
   CHECK_NOTNULL(slave);
 
   // Send the latest framework pids to the slave.
-  hashset<FrameworkID> ids;
-
   foreach (const FrameworkInfo& frameworkInfo, frameworks) {
     CHECK(frameworkInfo.has_id());
-    ids.insert(frameworkInfo.id());
-  }
+    Framework* framework = getFramework(frameworkInfo.id());
 
-  foreach (const FrameworkID& frameworkId, ids) {
-    Framework* framework = getFramework(frameworkId);
     if (framework != nullptr) {
       UpdateFrameworkMessage message;
       message.mutable_framework_id()->CopyFrom(framework->id());
@@ -6185,25 +6180,24 @@ void Master::___reregisterSlave(
       message.set_pid(framework->pid.getOrElse(UPID()));
 
       send(slave->pid, message);
-    }
-  }
+    } else {
+      // The agent is running a framework that the master doesn't know
+      // about. Recover the framework using the `FrameworkInfo`
+      // supplied by the agent.
 
-  // If the agent is running any frameworks the master doesn't know
-  // about, recover the framework using the `FrameworkInfo` supplied
-  // by the agent. We don't recover frameworks that have already
-  // completed at the master.
-  foreach (const FrameworkInfo& frameworkInfo, frameworks) {
-    if (getFramework(frameworkInfo.id()) != nullptr) {
-      continue;
-    }
-    if (isCompletedFramework(frameworkInfo.id())) {
-      continue;
-    }
+      // We skip recovering the framework if it has already been
+      // marked completed at the master. In this situation, the master
+      // has already told the agent to shutdown the framework in
+      // `__reregisterSlave`.
+      if (isCompletedFramework(frameworkInfo.id())) {
+        continue;
+      }
 
-    LOG(INFO) << "Recovering framework " << frameworkInfo.id()
-              << " from re-registering agent " << *slave;
+      LOG(INFO) << "Recovering framework " << frameworkInfo.id()
+                << " from re-registering agent " << *slave;
 
-    recoverFramework(frameworkInfo);
+      recoverFramework(frameworkInfo);
+    }
   }
 
   LOG(INFO) << "Sending updated checkpointed resources "
