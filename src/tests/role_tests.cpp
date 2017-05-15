@@ -878,7 +878,7 @@ TEST_F(RoleTest, EndpointBadAuthentication)
 }
 
 
-// This test confirms that our handling of peristent volumes from hierarchical
+// This test confirms that our handling of persistent volumes from hierarchical
 // roles does not cause leaking of volumes. Since hierarchical roles contain
 // literal `/` an implementation not taking this into account could map the name
 // of a hierarchical role `A/B` onto a directory hierarchy `A/B`. If the

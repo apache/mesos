@@ -3164,7 +3164,7 @@ TEST_F(MasterTest, RecoveredFramework)
 
 // This test verifies that a framework that has not yet re-registered
 // after a master failover doesn't show up multiple times in
-// "frameworks" when quering "/state" or "/frameworks" endpoints. This
+// "frameworks" when querying "/state" or "/frameworks" endpoints. This
 // is to catch any regressions for MESOS-4973 and MESOS-6461.
 TEST_F(MasterTest, OrphanTasksMultipleAgents)
 {
@@ -6780,7 +6780,7 @@ TEST_F(MasterTest, TaskWithTinyResources)
 }
 
 
-// This test ensures that when a paritioned agent comes back with tasks that
+// This test ensures that when a partitioned agent comes back with tasks that
 // are allocated to a role that a framework is no longer subscribed to,
 // the framework is re-tracked under the role, but still does not receive
 // any offers with resources allocated to that role.
