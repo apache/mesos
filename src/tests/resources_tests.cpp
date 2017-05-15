@@ -2563,6 +2563,26 @@ TEST(ResourcesOperationTest, CreateSharedPersistentVolume)
 }
 
 
+TEST(ResourcesOperationTest, DestroySharedPersistentVolumeMultipleCopies)
+{
+  Resources total = Resources::parse("cpus:1;mem:512;disk(role):800").get();
+  Resource volume1 = createDiskResource(
+      "200", "role", "1", "path", None(), true);
+
+  // Add 2 copies of the shared volume.
+  total += volume1;
+  total += volume1;
+
+  // DESTROY of the shared volume should fail since there are multiple
+  // shared copies in `total`.
+  Offer::Operation destroy1;
+  destroy1.set_type(Offer::Operation::DESTROY);
+  destroy1.mutable_destroy()->add_volumes()->CopyFrom(volume1);
+
+  EXPECT_ERROR(total.apply(destroy1));
+}
+
+
 TEST(ResourcesOperationTest, FlattenResources)
 {
   Resources unreservedCpus = Resources::parse("cpus:1").get();

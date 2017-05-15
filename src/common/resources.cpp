@@ -1411,6 +1411,15 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
               "Invalid DESTROY Operation: Persistent volume does not exist");
         }
 
+        result.subtract(volume);
+
+        if (result.contains(volume)) {
+          return Error(
+              "Invalid DESTROY Operation: Persistent volume " +
+              stringify(volume) + " cannot be removed due to additional " +
+              "shared copies");
+        }
+
         // Strip persistence and volume from the disk info so that we
         // can subtract it from the original resources.
         Resource stripped = volume;
@@ -1426,7 +1435,6 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
         // return the resource to non-shared state after destroy.
         stripped.clear_shared();
 
-        result.subtract(volume);
         result.add(stripped);
       }
       break;
