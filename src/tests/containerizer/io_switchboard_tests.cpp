@@ -167,15 +167,15 @@ TEST_F(IOSwitchboardServerTest, RedirectLog)
   Try<int> nullFd = os::open(os::DEV_NULL, O_RDWR);
   ASSERT_SOME(nullFd);
 
-  Try<std::array<int, 2>> stdoutPipe_ = os::pipe();
+  Try<std::array<int_fd, 2>> stdoutPipe_ = os::pipe();
   ASSERT_SOME(stdoutPipe_);
 
-  const std::array<int, 2>& stdoutPipe = stdoutPipe_.get();
+  const std::array<int_fd, 2>& stdoutPipe = stdoutPipe_.get();
 
-  Try<std::array<int, 2>> stderrPipe_ = os::pipe();
+  Try<std::array<int_fd, 2>> stderrPipe_ = os::pipe();
   ASSERT_SOME(stderrPipe_);
 
-  const std::array<int, 2>& stderrPipe = stderrPipe_.get();
+  const std::array<int_fd, 2>& stderrPipe = stderrPipe_.get();
 
   string stdoutPath = path::join(sandbox.get(), "stdout");
   Try<int> stdoutFd = os::open(
@@ -363,10 +363,10 @@ TEST_F(IOSwitchboardServerTest, SendHeartbeat)
   // We use a pipe in this test to prevent the switchboard from
   // reading EOF on its `stdoutFromFd` until we are ready for the
   // switchboard to terminate.
-  Try<std::array<int, 2>> stdoutPipe_ = os::pipe();
+  Try<std::array<int_fd, 2>> stdoutPipe_ = os::pipe();
   ASSERT_SOME(stdoutPipe_);
 
-  const std::array<int, 2>& stdoutPipe = stdoutPipe_.get();
+  const std::array<int_fd, 2>& stdoutPipe = stdoutPipe_.get();
 
   Try<int> nullFd = os::open(os::DEV_NULL, O_RDWR);
   ASSERT_SOME(nullFd);
@@ -470,10 +470,10 @@ TEST_F(IOSwitchboardServerTest, AttachInput)
   // We use a pipe in this test to prevent the switchboard from
   // reading EOF on its `stdoutFromFd` until we are ready for the
   // switchboard to terminate.
-  Try<std::array<int, 2>> stdoutPipe_ = os::pipe();
+  Try<std::array<int_fd, 2>> stdoutPipe_ = os::pipe();
   ASSERT_SOME(stdoutPipe_);
 
-  const std::array<int, 2>& stdoutPipe = stdoutPipe_.get();
+  const std::array<int_fd, 2>& stdoutPipe = stdoutPipe_.get();
 
   Try<int> nullFd = os::open(os::DEV_NULL, O_RDWR);
   ASSERT_SOME(nullFd);
@@ -601,10 +601,10 @@ TEST_F(IOSwitchboardServerTest, ReceiveHeartbeat)
   // We use a pipe in this test to prevent the switchboard from
   // reading EOF on its `stdoutFromFd` until we are ready for the
   // switchboard to terminate.
-  Try<std::array<int, 2>> stdoutPipe_ = os::pipe();
+  Try<std::array<int_fd, 2>> stdoutPipe_ = os::pipe();
   ASSERT_SOME(stdoutPipe_);
 
-  const std::array<int, 2>& stdoutPipe = stdoutPipe_.get();
+  const std::array<int_fd, 2>& stdoutPipe = stdoutPipe_.get();
 
   Try<int> nullFd = os::open(os::DEV_NULL, O_RDWR);
   ASSERT_SOME(nullFd);
