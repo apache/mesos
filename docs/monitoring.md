@@ -945,6 +945,19 @@ the registrar, which is the persistent store for masters.
   </td>
   <td>Gauge</td>
 </tr>
+<tr>
+  <td>
+  <code>registrar/log/ensemble_size</code>
+  </td>
+  <td>
+    The number of masters in the ensemble (cluster) that the current master
+    communicates with (including itself) to form the replicated log quorum.
+    It's imperative that this number is always less than `--quorum * 2` to
+    prevent split-brain. It's also important that it should be greater than
+    or equal to `--quorum` to maintain availability.
+  </td>
+  <td>Gauge</td>
+</tr>
 </table>
 
 #### Allocator
