@@ -15,39 +15,46 @@
 
 #include <stdlib.h>
 
-#include <iostream> // For std::cerr.
 #include <ostream>
-#include <sstream>
-#include <string>
+
+#include <glog/logging.h>
 
 #include <stout/attributes.hpp>
 
 
-// Exit takes an exit status and provides a stream for output prior to
-// exiting. This is like glog's LOG(FATAL) or CHECK, except that it
-// does _not_ print a stack trace.
+// Exit takes an exit status and provides a glog stream for output
+// prior to exiting. This is like glog's LOG(FATAL) or CHECK, except
+// that it does _not_ print a stack trace.
 //
 // Ex: EXIT(EXIT_FAILURE) << "Cgroups are not present in this system.";
-#define EXIT(status) __Exit(status).stream()
+#define EXIT(status) __Exit(__FILE__, __LINE__, status).stream()
 
 
 struct __Exit
 {
-  __Exit(int _status) : status(_status) {}
+  __Exit(const char* file, int line, int _status)
+    : status(_status),
+      message(
+          file,
+          line,
+          _status == EXIT_SUCCESS ? google::GLOG_INFO : google::GLOG_ERROR)
+  {
+    stream() << "EXIT with status " << _status << ": ";
+  }
 
   NORETURN ~__Exit()
   {
-    std::cerr << out.str() << std::endl;
+    message.Flush();
     exit(status);
   }
 
   std::ostream& stream()
   {
-    return out;
+    return message.stream();
   }
 
-  std::ostringstream out;
   const int status;
+  google::LogMessage message;
 };
 
 
