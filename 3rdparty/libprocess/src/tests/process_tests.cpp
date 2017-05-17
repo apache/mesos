@@ -124,11 +124,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Spawn)
+TEST(ProcessTest, THREADSAFE_Spawn)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   SpawnProcess process;
 
   EXPECT_CALL(process, initialize());
@@ -157,11 +154,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Dispatch)
+TEST(ProcessTest, THREADSAFE_Dispatch)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   DispatchProcess process;
 
   EXPECT_CALL(process, func0());
@@ -193,11 +187,8 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Dispatch)
 }
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Defer1)
+TEST(ProcessTest, THREADSAFE_Defer1)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   DispatchProcess process;
 
   EXPECT_CALL(process, func0());
@@ -291,11 +282,8 @@ private:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Defer2)
+TEST(ProcessTest, THREADSAFE_Defer2)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   DeferProcess process;
 
   PID<DeferProcess> pid = spawn(process);
@@ -326,11 +314,8 @@ void set(T* t1, const T& t2)
 }
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Defer3)
+TEST(ProcessTest, THREADSAFE_Defer3)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   std::atomic_bool bool1(false);
   std::atomic_bool bool2(false);
 
@@ -361,11 +346,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Handlers)
+TEST(ProcessTest, THREADSAFE_Handlers)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   HandlersProcess process;
 
   Future<Nothing> func;
@@ -387,11 +369,8 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Handlers)
 
 // Tests DROP_MESSAGE and DROP_DISPATCH and in particular that an
 // event can get dropped before being processed.
-// NOTE: GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Expect)
+TEST(ProcessTest, THREADSAFE_Expect)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   HandlersProcess process;
 
   EXPECT_CALL(process, func(_, _))
@@ -419,11 +398,8 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Expect)
 
 
 // Tests the FutureArg<N> action.
-// NOTE: GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Action)
+TEST(ProcessTest, THREADSAFE_Action)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   HandlersProcess process;
 
   PID<HandlersProcess> pid = spawn(&process);
@@ -467,11 +443,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Inheritance)
+TEST(ProcessTest, THREADSAFE_Inheritance)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   DerivedProcess process;
 
   EXPECT_CALL(process, func())
@@ -498,11 +471,8 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Inheritance)
 }
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Thunk)
+TEST(ProcessTest, THREADSAFE_Thunk)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   struct Thunk
   {
     static int run(int i)
@@ -544,11 +514,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Delegate)
+TEST(ProcessTest, THREADSAFE_Delegate)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   DelegateeProcess delegatee;
   DelegatorProcess delegator(delegatee.self());
 
@@ -578,11 +545,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Delay)
+TEST(ProcessTest, THREADSAFE_Delay)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Clock::pause();
 
   std::atomic_bool timeoutCalled(false);
@@ -618,11 +582,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Order)
+TEST(ProcessTest, THREADSAFE_Order)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Clock::pause();
 
   TimeoutProcess process1;
@@ -674,11 +635,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Donate)
+TEST(ProcessTest, THREADSAFE_Donate)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   DonateProcess process;
   spawn(process);
 
@@ -1171,11 +1129,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Settle)
+TEST(ProcessTest, THREADSAFE_Settle)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   Clock::pause();
   SettleProcess process;
   spawn(process);
@@ -1187,11 +1142,8 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Settle)
 }
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Pid)
+TEST(ProcessTest, THREADSAFE_Pid)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   TimeoutProcess process;
 
   PID<TimeoutProcess> pid = process;
@@ -1223,11 +1175,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Listener)
+TEST(ProcessTest, THREADSAFE_Listener)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   MultipleListenerProcess process;
 
   EXPECT_CALL(process, event1());
@@ -1252,11 +1201,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Executor)
+TEST(ProcessTest, THREADSAFE_Executor)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   std::atomic_bool event1Called(false);
   std::atomic_bool event2Called(false);
 
@@ -1301,11 +1247,8 @@ public:
 };
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Remote)
+TEST(ProcessTest, THREADSAFE_Remote)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   RemoteProcess process;
   spawn(process);
 
@@ -1337,11 +1280,8 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Remote)
 
 
 // Like the 'remote' test but uses http::connect.
-// NOTE: GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Http1)
+TEST(ProcessTest, THREADSAFE_Http1)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   RemoteProcess process;
   spawn(process);
 
@@ -1390,11 +1330,8 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Http1)
 
 // Like 'http1' but uses the 'Libprocess-From' header. We can
 // also use http::post here since we expect a 202 response.
-// NOTE: GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Http2)
+TEST(ProcessTest, THREADSAFE_Http2)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   RemoteProcess process;
   spawn(process);
 
@@ -1503,11 +1440,8 @@ static string itoa2(int* const& i)
 }
 
 
-// GTEST_IS_THREADSAFE is not defined on Windows. See MESOS-5903.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Async)
+TEST(ProcessTest, THREADSAFE_Async)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   // Non-void functions with different no.of args.
   EXPECT_EQ(1, async(&foo).get());
   EXPECT_EQ(10, async(&foo1, 10).get());

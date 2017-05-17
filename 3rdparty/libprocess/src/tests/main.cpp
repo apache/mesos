@@ -13,6 +13,7 @@
 #include <signal.h>
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <glog/logging.h>
@@ -32,8 +33,33 @@
 
 #include <stout/tests/environment.hpp>
 
+using std::make_shared;
+using std::shared_ptr;
+using std::string;
+using std::vector;
+
 using stout::internal::tests::Environment;
 using stout::internal::tests::TestFilter;
+
+
+class ThreadsafeFilter : public TestFilter
+{
+public:
+  ThreadsafeFilter()
+#if GTEST_IS_THREADSAFE
+    : is_threadsafe(true) {}
+#else
+    : is_threadsafe(false) {}
+#endif
+
+  bool disable(const ::testing::TestInfo* test) const override
+  {
+    return matches(test, "THREADSAFE_") && !is_threadsafe;
+  }
+
+private:
+  const bool is_threadsafe;
+};
 
 using std::shared_ptr;
 using std::vector;
@@ -71,7 +97,7 @@ int main(int argc, char** argv)
   os::signals::reset(SIGTERM);
 #endif // __WINDOWS__
 
-  vector<std::shared_ptr<TestFilter>> filters;
+  vector<shared_ptr<TestFilter>> filters = {make_shared<ThreadsafeFilter>()};
   Environment* environment = new Environment(filters);
   testing::AddGlobalTestEnvironment(environment);
 

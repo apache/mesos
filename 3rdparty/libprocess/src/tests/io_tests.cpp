@@ -33,10 +33,8 @@ using std::string;
 
 class IOTest: public TemporaryDirectoryTest {};
 
-TEST_F(IOTest, Poll)
+TEST_F(IOTest, THREADSAFE_Poll)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   int pipes[2];
   ASSERT_NE(-1, pipe(pipes));
 
@@ -57,10 +55,8 @@ TEST_F(IOTest, Poll)
 }
 
 
-TEST_F(IOTest, Read)
+TEST_F(IOTest, THREADSAFE_Read)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   int pipes[2];
   char data[3];
 
@@ -178,10 +174,8 @@ TEST_F(IOTest, BufferedRead)
 }
 
 
-TEST_F(IOTest, Write)
+TEST_F(IOTest, THREADSAFE_Write)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   int pipes[2];
 
   // Create a blocking pipe.
@@ -219,10 +213,8 @@ TEST_F(IOTest, Write)
 }
 
 
-TEST_F(IOTest, DISABLED_BlockingWrite)
+TEST_F(IOTest, DISABLED_THREADSAFE_BlockingWrite)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   int pipes[2];
 
   // Create a nonblocking pipe.
@@ -294,10 +286,8 @@ TEST_F(IOTest, DISABLED_BlockingWrite)
 }
 
 
-TEST_F(IOTest, Redirect)
+TEST_F(IOTest, THREADSAFE_Redirect)
 {
-  ASSERT_TRUE(GTEST_IS_THREADSAFE);
-
   // Start by checking that using "invalid" file descriptors fails.
   AWAIT_EXPECT_FAILED(io::redirect(-1, 0));
   AWAIT_EXPECT_FAILED(io::redirect(0, -1));
