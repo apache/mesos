@@ -45,7 +45,7 @@ include versions.am
 BOOST = boost-$(BOOST_VERSION)
 ELFIO = elfio-$(ELFIO_VERSION)
 GLOG = glog-$(GLOG_VERSION)
-GOOGLETEST = googletest-release-${GOOGLETEST_VERSION}
+GOOGLETEST = googletest-release-$(GOOGLETEST_VERSION)
 GMOCK = $(GOOGLETEST)/googlemock
 GPERFTOOLS = gperftools-$(GPERFTOOLS_VERSION)
 GTEST = $(GOOGLETEST)/googletest
