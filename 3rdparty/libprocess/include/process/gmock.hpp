@@ -24,11 +24,6 @@
 #include <stout/nothing.hpp>
 #include <stout/synchronized.hpp>
 
-// NOTE: The gmock library relies on std::tr1::tuple. The gmock
-// library provides multiple possible 'tuple' implementations but it
-// still uses std::tr1::tuple as the "type" name, hence our use of it
-// in this file.
-
 
 #define FUTURE_MESSAGE(name, from, to)          \
   process::FutureMessage(name, from, to)
@@ -74,7 +69,7 @@ ACTION_TEMPLATE(PromiseArg,
   // WillRepeatedly). We won't be able to set it a second time but at
   // least we won't get a segmentation fault. We could also consider
   // warning users if they attempted to set it more than once.
-  promise->set(std::tr1::get<k>(args));
+  promise->set(std::get<k>(args));
   delete promise;
 }
 
@@ -98,7 +93,7 @@ ACTION_TEMPLATE(PromiseArgField,
   // WillRepeatedly). We won't be able to set it a second time but at
   // least we won't get a segmentation fault. We could also consider
   // warning users if they attempted to set it more than once.
-  promise->set(*(std::tr1::get<k>(args).*field));
+  promise->set(*(std::get<k>(args).*field));
   delete promise;
 }
 
@@ -323,7 +318,7 @@ private:
 
 MATCHER_P3(MessageMatcher, name, from, to, "")
 {
-  const MessageEvent& event = ::std::tr1::get<0>(arg);
+  const MessageEvent& event = ::std::get<0>(arg);
   return (testing::Matcher<std::string>(name).Matches(event.message->name) &&
           testing::Matcher<UPID>(from).Matches(event.message->from) &&
           testing::Matcher<UPID>(to).Matches(event.message->to));
@@ -335,7 +330,7 @@ MATCHER_P3(MessageMatcher, name, from, to, "")
 // https://developers.google.com/protocol-buffers/docs/techniques#union.
 MATCHER_P4(UnionMessageMatcher, message, unionType, from, to, "")
 {
-  const process::MessageEvent& event = ::std::tr1::get<0>(arg);
+  const process::MessageEvent& event = ::std::get<0>(arg);
   message_type message;
 
   return (testing::Matcher<std::string>(message.GetTypeName()).Matches(
@@ -349,7 +344,7 @@ MATCHER_P4(UnionMessageMatcher, message, unionType, from, to, "")
 
 MATCHER_P2(DispatchMatcher, pid, method, "")
 {
-  const DispatchEvent& event = ::std::tr1::get<0>(arg);
+  const DispatchEvent& event = ::std::get<0>(arg);
   return (testing::Matcher<UPID>(pid).Matches(event.pid) &&
           event.functionType.isSome() &&
           *event.functionType.get() == typeid(method));
@@ -358,7 +353,7 @@ MATCHER_P2(DispatchMatcher, pid, method, "")
 
 MATCHER_P3(HttpMatcher, message, path, deserializer, "")
 {
-  const HttpEvent& event = ::std::tr1::get<0>(arg);
+  const HttpEvent& event = ::std::get<0>(arg);
 
   Try<message_type> message_ = deserializer(event.request->body);
   if (message_.isError()) {
@@ -373,7 +368,7 @@ MATCHER_P3(HttpMatcher, message, path, deserializer, "")
 // "union" trick.
 MATCHER_P4(UnionHttpMatcher, message, unionType, path, deserializer, "")
 {
-  const HttpEvent& event = ::std::tr1::get<0>(arg);
+  const HttpEvent& event = ::std::get<0>(arg);
 
   Try<message_type> message_ = deserializer(event.request->body);
   if (message_.isError()) {

@@ -31,9 +31,10 @@ include ../../versions.am
 
 BOOST = boost-$(BOOST_VERSION)
 GLOG = glog-$(GLOG_VERSION)
-GMOCK = gmock-$(GMOCK_VERSION)
+GOOGLETEST = googletest-release-$(GOOGLETEST_VERSION)
+GMOCK = $(GOOGLETEST)/googlemock
 GPERFTOOLS = gperftools-$(GPERFTOOLS_VERSION)
-GTEST = $(GMOCK)/gtest
+GTEST = $(GOOGLETEST)/googletest
 HTTP_PARSER = http-parser-$(HTTP_PARSER_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
@@ -42,7 +43,7 @@ PICOJSON = picojson-$(PICOJSON_VERSION)
 EXTRA_DIST =		\
   $(BOOST).tar.gz	\
   $(GLOG).tar.gz	\
-  $(GMOCK).tar.gz	\
+  $(GOOGLETEST).tar.gz	\
   $(GPERFTOOLS).tar.gz	\
   $(HTTP_PARSER).tar.gz	\
   $(LIBEV).tar.gz	\
@@ -70,7 +71,7 @@ EXTRA_DIST +=		\
 CLEAN_EXTRACTED =	\
   $(BOOST)		\
   $(GLOG)		\
-  $(GMOCK)		\
+  $(GOOGLETEST)		\
   $(GPERFTOOLS)		\
   $(HTTP_PARSER)	\
   $(LIBEV)		\
@@ -177,7 +178,7 @@ libgmock_la_CPPFLAGS =			\
   -I$(GTEST)/include -I$(GTEST) -I$(GTEST)/src	\
   -I$(GMOCK)/include -I$(GMOCK) -I$(GMOCK)/src
 
-  gmock_sources.cc: $(GMOCK)-stamp
+  gmock_sources.cc: $(GOOGLETEST)-stamp
 
 $(GMOCK)-build-stamp: libgmock.la
 	touch $@
