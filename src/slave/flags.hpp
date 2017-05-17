@@ -127,7 +127,7 @@ public:
   std::string docker_socket;
   Option<JSON::Object> docker_config;
 
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
   uint16_t ephemeral_ports_per_container;
   Option<std::string> eth0_name;
   Option<std::string> lo_name;

@@ -187,6 +187,11 @@ AC_ARG_ENABLE([debug],
                               option won't change them]),
               [], [enable_debug=no])
 
+AC_ARG_ENABLE([port-mapping-isolator],
+              AS_HELP_STRING([--enable-port-mapping-isolator],
+                             [enable port mapping isolator]),
+              [], [enable_port_mapping_isolator=yes])
+
 AC_ARG_ENABLE([java],
               AS_HELP_STRING([--disable-java],
                              [don't build Java bindings]),
@@ -334,12 +339,11 @@ AC_ARG_WITH([libprocess],
                            [specify where to locate the libprocess library]),
             [], [])
 
-# TODO(MESOS-4991): Since network-isolator is an optional feature, it should
-# be enabled with --enable-network-isolator.
 AC_ARG_WITH([network-isolator],
             AS_HELP_STRING([--with-network-isolator],
                            [builds the network isolator]),
-            [], [with_network_isolator=no])
+            [AC_MSG_WARN(["--with-network-isolator is being depreciated, please use --enable-port-mapping-isolator instead."])],
+            [enable_port_mapping_isolator=yes])
 
 AC_ARG_WITH([nl],
             AS_HELP_STRING([--with-nl=@<:@DIR@:>@],
@@ -1270,7 +1274,7 @@ AM_CONDITIONAL([WITH_BUNDLED_LIBPROCESS], [test "x$with_bundled_libprocess" = "x
 
 
 # Perform necessary configuration for network isolator.
-if test "x$with_network_isolator" = "xyes"; then
+if test "x$enable_port_mapping_isolator" = "xyes"; then
   if test -n "`echo $with_nl`"; then
     CPPFLAGS="-I${with_nl}/include/libnl3 $CPPFLAGS"
     LDFLAGS="-L${with_nl}/lib $LDFLAGS"
@@ -1342,11 +1346,11 @@ https://github.com/thom311/libnl/releases
 -------------------------------------------------------------------
   ])])
 
-  AC_DEFINE([WITH_NETWORK_ISOLATOR])
+  AC_DEFINE([ENABLE_PORT_MAPPING_ISOLATOR])
 fi
 
-AM_CONDITIONAL([WITH_NETWORK_ISOLATOR],
-               [test "x$with_network_isolator" = "xyes"])
+AM_CONDITIONAL([ENABLE_PORT_MAPPING_ISOLATOR],
+               [test "x$enable_port_mapping_isolator" = "xyes"])
 
 
 # If the user has asked not to include the bundled NVML headers for

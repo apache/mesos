@@ -7203,7 +7203,7 @@ void Master::offer(
         continue;
       }
 
-  #ifdef WITH_NETWORK_ISOLATOR
+  #ifdef ENABLE_PORT_MAPPING_ISOLATOR
       // TODO(dhamon): This flag is required as the static allocation of
       // ephemeral ports leads to a maximum number of containers that can
       // be created on each slave. Once MESOS-1654 is fixed and ephemeral
@@ -7225,7 +7225,7 @@ void Master::offer(
           continue;
         }
       }
-  #endif // WITH_NETWORK_ISOLATOR
+  #endif // ENABLE_PORT_MAPPING_ISOLATOR
 
       // TODO(vinod): Split regular and revocable resources into
       // separate offers, so that rescinding offers with revocable

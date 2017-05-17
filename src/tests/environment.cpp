@@ -57,7 +57,7 @@
 #include "linux/perf.hpp"
 #endif
 
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
 #include "linux/routing/utils.hpp"
 #endif
 
@@ -67,7 +67,7 @@
 #include "tests/flags.hpp"
 #include "tests/utils.hpp"
 
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
 using namespace routing;
 #endif
 
@@ -434,7 +434,7 @@ class NetworkIsolatorTestFilter : public TestFilter
 public:
   NetworkIsolatorTestFilter()
   {
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
     Try<Nothing> check = routing::check();
     if (check.isError()) {
       std::cerr
@@ -452,7 +452,7 @@ public:
   {
     if (matches(test, "PortMappingIsolatorTest") ||
         matches(test, "PortMappingMesosTest")) {
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
       return !portMappingError.isNone();
 #else
       return true;

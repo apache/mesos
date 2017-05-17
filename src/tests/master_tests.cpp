@@ -3545,7 +3545,7 @@ TEST_F(MasterTest, IgnoreEphemeralPortsResource)
 }
 
 
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
 TEST_F(MasterTest, MaxExecutorsPerSlave)
 {
   master::Flags flags = CreateMasterFlags();
@@ -3583,7 +3583,7 @@ TEST_F(MasterTest, MaxExecutorsPerSlave)
   driver.stop();
   driver.join();
 }
-#endif  // WITH_NETWORK_ISOLATOR
+#endif  // ENABLE_PORT_MAPPING_ISOLATOR
 
 
 // This test verifies that when the Framework has not responded to

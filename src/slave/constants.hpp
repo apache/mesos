@@ -95,7 +95,7 @@ constexpr double DEFAULT_EXECUTOR_CPUS = 0.1;
 // Default memory resource given to a command executor.
 constexpr Bytes DEFAULT_EXECUTOR_MEM = Megabytes(32);
 
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
 // Default number of ephemeral ports allocated to a container by the
 // network isolator.
 constexpr uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER = 1024;

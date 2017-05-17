@@ -1299,7 +1299,7 @@ else
 EXTRA_DIST += $(MESOS_LINUX_FILES)
 endif
 
-if WITH_NETWORK_ISOLATOR
+if ENABLE_PORT_MAPPING_ISOLATOR
 libmesos_no_3rdparty_la_SOURCES += $(MESOS_NETWORK_ISOLATOR_FILES)
 else
 EXTRA_DIST += $(MESOS_NETWORK_ISOLATOR_FILES)
@@ -1525,7 +1525,7 @@ mesos_io_switchboard_SOURCES =	\
 mesos_io_switchboard_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_io_switchboard_LDADD = libmesos.la $(LDADD)
 
-if WITH_NETWORK_ISOLATOR
+if ENABLE_PORT_MAPPING_ISOLATOR
 pkglibexec_PROGRAMS += mesos-network-helper
 mesos_network_helper_SOURCES = slave/containerizer/mesos/isolators/network/helper.cpp
 mesos_network_helper_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -2407,7 +2407,7 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/volume_image_isolator_tests.cpp
 endif
 
-if WITH_NETWORK_ISOLATOR
+if ENABLE_PORT_MAPPING_ISOLATOR
 mesos_tests_SOURCES +=						\
   tests/containerizer/port_mapping_tests.cpp			\
   tests/containerizer/routing_tests.cpp

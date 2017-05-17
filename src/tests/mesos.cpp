@@ -35,7 +35,7 @@
 #include "linux/cgroups.hpp"
 #endif
 
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
 #include "linux/routing/utils.hpp"
 #endif
 
@@ -62,7 +62,7 @@ using testing::Invoke;
 
 using namespace process;
 
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
 using namespace routing;
 #endif
 
@@ -611,7 +611,7 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
   flags.isolation = "posix/cpu,posix/mem";
 #endif
 
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
   if (user.get() == "root" && routing::check().isSome()) {
     flags.isolation = strings::join(
         ",",

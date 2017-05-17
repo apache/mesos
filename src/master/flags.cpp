@@ -359,7 +359,7 @@ mesos::internal::master::Flags::Flags()
       "  \"aggregate_default_qps\": 33.3\n"
       "}");
 
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
   add(&Flags::max_executors_per_agent,
       "max_executors_per_agent",
       flags::DeprecatedName("max_executors_per_slave"),
@@ -367,7 +367,7 @@ mesos::internal::master::Flags::Flags()
       "monitoring/isolation technique imposes an implicit resource\n"
       "acquisition on each executor (# ephemeral ports), as a result\n"
       "one can only run a certain number of executors on each agent.");
-#endif // WITH_NETWORK_ISOLATOR
+#endif // ENABLE_PORT_MAPPING_ISOLATOR
 
   // TODO(karya): When we have optimistic offers, this will only
   // benefit frameworks that accidentally lose an offer.

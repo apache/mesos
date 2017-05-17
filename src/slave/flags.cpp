@@ -738,7 +738,7 @@ mesos::internal::slave::Flags::Flags()
       "policy instead.",
       Seconds(0));
 
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
   add(&Flags::ephemeral_ports_per_container,
       "ephemeral_ports_per_container",
       "Number of ephemeral ports allocated to a container by the network\n"
@@ -802,7 +802,7 @@ mesos::internal::slave::Flags::Flags()
       "isolator.",
       false);
 
-#endif // WITH_NETWORK_ISOLATOR
+#endif // ENABLE_PORT_MAPPING_ISOLATOR
 
   add(&Flags::network_cni_plugins_dir,
       "network_cni_plugins_dir",

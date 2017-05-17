@@ -110,9 +110,9 @@ public:
   // If set, its output is expected to be a valid parseable IP string.
   Option<std::string> ip_discovery_command;
 
-#ifdef WITH_NETWORK_ISOLATOR
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
   Option<size_t> max_executors_per_agent;
-#endif  // WITH_NETWORK_ISOLATOR
+#endif  // ENABLE_PORT_MAPPING_ISOLATOR
 };
 
 } // namespace master {
