@@ -31,15 +31,16 @@ include ../../versions.am
 
 BOOST = boost-$(BOOST_VERSION)
 GLOG = glog-$(GLOG_VERSION)
-GMOCK = gmock-$(GMOCK_VERSION)
-GTEST = $(GMOCK)/gtest
+GOOGLETEST = googletest-release-$(GOOGLETEST_VERSION)
+GMOCK = $(GOOGLETEST)/googlemock
+GTEST = $(GOOGLETEST)/googletest
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
 
 EXTRA_DIST =		\
   $(BOOST).tar.gz	\
   $(GLOG).tar.gz	\
-  $(GMOCK).tar.gz	\
+  $(GOOGLETEST).tar.gz	\
   $(PROTOBUF).tar.gz	\
   $(PICOJSON).tar.gz
 

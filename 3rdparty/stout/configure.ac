@@ -690,9 +690,6 @@ case "$host_os" in
     if test "x$ax_cv_cxx_compiler_vendor" = "xclang"; then
       CXXFLAGS="$CXXFLAGS -stdlib=libc++"
     fi
-
-    # GTEST on OSX needs its own tr1 tuple.
-    CXXFLAGS="$CXXFLAGS -DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_LANG_CXX11"
     ;;
   freebsd* )
     # If we're using clang, we need to pass -stdlib=libc++ too.

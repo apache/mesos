@@ -37,26 +37,19 @@ set(
 
 # COMPILER CONFIGURATION.
 #########################
-EXTERNAL("gmock" ${GMOCK_VERSION} "${MESOS_3RDPARTY_BIN}")
-
-if (APPLE)
-  # GTEST on OSX needs its own tr1 tuple.
-  add_definitions(-DGTEST_USE_OWN_TR1_TUPLE=1 -DGTEST_LANG_CXX11)
-endif (APPLE)
-
-set(GTEST_SRC ${GMOCK_ROOT}/gtest)
+EXTERNAL("googletest" ${GOOGLETEST_VERSION} "${MESOS_3RDPARTY_BIN}")
 
 # Convenience variables for include directories of third-party dependencies.
-set(GMOCK_INCLUDE_DIR ${GMOCK_ROOT}/include)
-set(GTEST_INCLUDE_DIR ${GTEST_SRC}/include)
+set(GMOCK_INCLUDE_DIR ${GOOGLETEST_ROOT}/googlemock/include)
+set(GTEST_INCLUDE_DIR ${GOOGLETEST_ROOT}/googletest/include)
 
 # Convenience variables for `lib` directories of built third-party dependencies.
 if (WIN32)
-  set(GMOCK_LIB_DIR ${GMOCK_ROOT}-build/${CMAKE_BUILD_TYPE})
-  set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/${CMAKE_BUILD_TYPE})
+  set(GMOCK_LIB_DIR ${GOOGLETEST_ROOT}-build/googlemock/${CMAKE_BUILD_TYPE})
+  set(GTEST_LIB_DIR ${GOOGLETEST_ROOT}-build/googlemock/gtest/${CMAKE_BUILD_TYPE})
 else (WIN32)
-  set(GMOCK_LIB_DIR ${GMOCK_ROOT}-lib/lib/)
-  set(GTEST_LIB_DIR ${GMOCK_ROOT}-build/gtest/lib/.libs)
+  set(GMOCK_LIB_DIR ${GOOGLETEST_ROOT}-lib/lib)
+  set(GTEST_LIB_DIR ${GOOGLETEST_ROOT}-lib/lib/gtest)
 endif (WIN32)
 
 # Convenience variables for "lflags", the symbols we pass to CMake to generate
@@ -70,8 +63,7 @@ set(GTEST_LFLAG gtest)
 set(STOUT_TEST_DEPENDENCIES
   ${STOUT_TEST_DEPENDENCIES}
   ${STOUT_DEPENDENCIES}
-  ${GMOCK_TARGET}
-  ${GTEST_TARGET}
+  ${GOOGLETEST_TARGET}
   )
 
 # DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
