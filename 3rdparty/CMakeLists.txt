@@ -282,7 +282,7 @@ list(
 include(StoutConfigure)
 include(StoutTestsConfigure)
 
-set(GMOCK_URL    ${FETCH_URL}/gmock-${GMOCK_VERSION}.tar.gz)
+set(GOOGLETEST_URL ${FETCH_URL}/googletest-release-${GOOGLETEST_VERSION}.tar.gz)
 # NOTE: The Windows version of protobuf is patched and only available in the
 # 3rdparty repo, not the local repo.
 if (NOT WIN32)
@@ -291,12 +291,12 @@ elseif (WIN32)
   set(PROTOBUF_URL ${3RDPARTY_DEPENDENCIES}/protobuf-${PROTOBUF_VERSION}.tar.gz)
 endif (NOT WIN32)
 
-# NOTE: `gmock` is "installed" into a lib directory, see "NOTE: (fix for
+# NOTE: `googletest` is "installed" into a lib directory, see "NOTE: (fix for
 # MESOS-3250)" comment above for explanation.
 if (NOT WIN32)
-  set(GMOCK_INSTALL_CMD mkdir -p ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/. ${GMOCK_ROOT}-lib/lib && cp -r ${GMOCK_ROOT}-build/gtest/. ${GMOCK_ROOT}-lib/lib)
+  set(GOOGLETEST_INSTALL_CMD mkdir -p ${GOOGLETEST_ROOT}-lib/lib && cp -r ${GOOGLETEST_ROOT}-build/googlemock/. ${GOOGLETEST_ROOT}-lib/lib)
 elseif (WIN32)
-  set(GMOCK_INSTALL_CMD ${CMAKE_NOOP})
+  set(GOOGLETEST_INSTALL_CMD ${CMAKE_NOOP})
 endif (NOT WIN32)
 
 if (NOT WIN32)
@@ -313,17 +313,17 @@ endif (NOT WIN32)
 # NOTE: An implicit consequence of the following code is that on non-Windows
 # platforms, gmock and gtest are assumed to be CMake projects, and are thus
 # configured and built using default CMake commands. The reason is that on
-# non-Windows platforms, we choose to set `GMOCK_CONFIG_CMD` and
-# `GMOCK_BUILD_CMD` with stub commands, which cause CMake to "fall back" to
+# non-Windows platforms, we choose to set `GOOGLETEST_CONFIG_CMD` and
+# `GOOGLETEST_BUILD_CMD` with stub commands, which cause CMake to "fall back" to
 # trying to build them with CMake.
 ExternalProject_Add(
-  ${GMOCK_TARGET}
-  PREFIX            ${GMOCK_CMAKE_ROOT}
+  ${GOOGLETEST_TARGET}
+  PREFIX            ${GOOGLETEST_CMAKE_ROOT}
   CMAKE_ARGS        -DBUILD_SHARED_LIBS=FALSE
-  CONFIGURE_COMMAND ${GMOCK_CONFIG_CMD}
-  BUILD_COMMAND     ${GMOCK_BUILD_CMD}
-  INSTALL_COMMAND   ${GMOCK_INSTALL_CMD}
-  URL               ${GMOCK_URL}
+  CONFIGURE_COMMAND ${GOOGLETEST_CONFIG_CMD}
+  BUILD_COMMAND     ${GOOGLETEST_BUILD_CMD}
+  INSTALL_COMMAND   ${GOOGLETEST_INSTALL_CMD}
+  URL               ${GOOGLETEST_URL}
   )
 
 ExternalProject_Add(

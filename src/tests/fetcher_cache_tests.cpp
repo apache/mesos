@@ -479,7 +479,7 @@ ACTION_TEMPLATE(PushIndexedTaskStatus,
                 HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_1_VALUE_PARAMS(tasks))
 {
-  const TaskStatus& taskStatus = ::std::tr1::get<k>(args);
+  const TaskStatus& taskStatus = ::std::get<k>(args);
   Try<int> taskId = numify<int>(taskStatus.task_id().value());
   ASSERT_SOME(taskId);
   Queue<TaskStatus> queue = (tasks)[taskId.get()].statusQueue;

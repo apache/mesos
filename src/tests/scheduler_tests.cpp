@@ -1828,7 +1828,7 @@ TEST_P(SchedulerReconcileTasks_BENCHMARK_Test, SchedulerDriver)
 // or disabled.
 class SchedulerSSLTest
   : public MesosTest,
-    public WithParamInterface<std::tr1::tuple<ContentType, string>>
+    public WithParamInterface<std::tuple<ContentType, string>>
 {
 // These test setup/teardown methods are only needed when compiled with SSL.
 #ifdef USE_SSL_SOCKET
@@ -1837,7 +1837,7 @@ protected:
   {
     MesosTest::SetUp();
 
-    if (std::tr1::get<1>(GetParam()) == "https") {
+    if (std::get<1>(GetParam()) == "https") {
       generate_keys_and_certs();
       set_environment_variables({
           {"LIBPROCESS_SSL_ENABLED", "true"},
@@ -1918,7 +1918,7 @@ TEST_P(SchedulerSSLTest, RunTaskAndTeardown)
     .WillOnce(FutureSatisfy(&connected))
     .WillRepeatedly(Return()); // Ignore future invocations.
 
-  ContentType contentType = std::tr1::get<0>(GetParam());
+  ContentType contentType = std::get<0>(GetParam());
 
   v1::scheduler::TestMesos mesos(master.get()->pid, contentType, scheduler);
 

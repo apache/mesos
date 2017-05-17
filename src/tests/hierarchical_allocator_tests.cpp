@@ -4805,7 +4805,7 @@ TEST_P(HierarchicalAllocatorTestWithParam, AllocateSharedResources)
 
 class HierarchicalAllocator_BENCHMARK_Test
   : public HierarchicalAllocatorTestBase,
-    public WithParamInterface<std::tr1::tuple<size_t, size_t>> {};
+    public WithParamInterface<std::tuple<size_t, size_t>> {};
 
 
 // The Hierarchical Allocator benchmark tests are parameterized
@@ -4823,8 +4823,8 @@ INSTANTIATE_TEST_CASE_P(
 // add a framework after the slaves are added.
 TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
 {
-  size_t slaveCount = std::tr1::get<0>(GetParam());
-  size_t frameworkCount = std::tr1::get<1>(GetParam());
+  size_t slaveCount = std::get<0>(GetParam());
+  size_t frameworkCount = std::get<1>(GetParam());
 
   vector<SlaveInfo> slaves;
   slaves.reserve(slaveCount);
@@ -4938,8 +4938,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
 // subsequent offers.
 TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
 {
-  size_t slaveCount = std::tr1::get<0>(GetParam());
-  size_t frameworkCount = std::tr1::get<1>(GetParam());
+  size_t slaveCount = std::get<0>(GetParam());
+  size_t frameworkCount = std::get<1>(GetParam());
 
   // Pause the clock because we want to manually drive the allocations.
   Clock::pause();
@@ -5092,8 +5092,8 @@ static Labels createLabels(
 // TODO(neilc): Refactor to reduce code duplication with `DeclineOffers` test.
 TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
 {
-  size_t slaveCount = std::tr1::get<0>(GetParam());
-  size_t frameworkCount = std::tr1::get<1>(GetParam());
+  size_t slaveCount = std::get<0>(GetParam());
+  size_t frameworkCount = std::get<1>(GetParam());
 
   // Pause the clock because we want to manually drive the allocations.
   Clock::pause();
@@ -5266,8 +5266,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
 // on allocation times.
 TEST_P(HierarchicalAllocator_BENCHMARK_Test, SuppressOffers)
 {
-  size_t agentCount = std::tr1::get<0>(GetParam());
-  size_t frameworkCount = std::tr1::get<1>(GetParam());
+  size_t agentCount = std::get<0>(GetParam());
+  size_t frameworkCount = std::get<1>(GetParam());
 
   // Pause the clock because we want to manually drive the allocations.
   Clock::pause();
@@ -5423,8 +5423,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, SuppressOffers)
 // TODO(bmahler): Add allocations to this benchmark.
 TEST_P(HierarchicalAllocator_BENCHMARK_Test, Metrics)
 {
-  size_t slaveCount = std::tr1::get<0>(GetParam());
-  size_t frameworkCount = std::tr1::get<1>(GetParam());
+  size_t slaveCount = std::get<0>(GetParam());
+  size_t frameworkCount = std::get<1>(GetParam());
 
   // Pause the clock because we want to manually drive the allocations.
   Clock::pause();
@@ -5503,8 +5503,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, Metrics)
 // batching (MESOS-6904).
 TEST_P(HierarchicalAllocator_BENCHMARK_Test, AllocatorBacklog)
 {
-  size_t agentCount = std::tr1::get<0>(GetParam());
-  size_t frameworkCount = std::tr1::get<1>(GetParam());
+  size_t agentCount = std::get<0>(GetParam());
+  size_t frameworkCount = std::get<1>(GetParam());
 
   // Pause the clock because we want to manually drive the allocations.
   Clock::pause();

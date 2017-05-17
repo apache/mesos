@@ -191,7 +191,7 @@ class CppLinter(LinterBase):
                    os.path.join('3rdparty', 'libprocess'),
                    os.path.join('3rdparty', 'stout')]
 
-    exclude_files = '(protobuf\-2\.4\.1|gmock\-1\.6\.0|glog\-0\.3\.3|boost\-1\.53\.0|libev\-4\.15|java/jni|\.pb\.cc|\.pb\.h|\.md|\.virtualenv)'
+    exclude_files = '(protobuf\-2\.4\.1|googletest\-release\-1\.8\.0|glog\-0\.3\.3|boost\-1\.53\.0|libev\-4\.15|java/jni|\.pb\.cc|\.pb\.h|\.md|\.virtualenv)'
 
     source_files = '\.(cpp|hpp|cc|h)$'
 
@@ -248,7 +248,7 @@ class PyLinter(LinterBase):
 
     source_dirs = ['src/cli_new']
 
-    exclude_files = '(protobuf\-2\.4\.1|gmock\-1\.6\.0|glog\-0\.3\.3|boost\-1\.53\.0|libev\-4\.15|java/jni|\.virtualenv)'
+    exclude_files = '(protobuf\-2\.4\.1|googletest\-release\-1\.8\.0|glog\-0\.3\.3|boost\-1\.53\.0|libev\-4\.15|java/jni|\.virtualenv)'
 
     source_files = '\.(py)$'
 

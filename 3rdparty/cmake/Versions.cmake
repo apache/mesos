@@ -1,7 +1,7 @@
 set(BOOST_VERSION       "1.53.0")
 set(CURL_VERSION        "7.43.0")
 set(ELFIO_VERSION       "3.2")
-set(GMOCK_VERSION       "1.7.0")
+set(GOOGLETEST_VERSION  "1.8.0")
 set(HTTP_PARSER_VERSION "2.6.2")
 set(LEVELDB_VERSION     "1.19")
 set(LIBAPR_VERSION      "1.5.2")

@@ -1467,7 +1467,7 @@ TEST(SorterTest, RemoveSharedResources)
 
 class Sorter_BENCHMARK_Test
   : public ::testing::Test,
-    public ::testing::WithParamInterface<std::tr1::tuple<size_t, size_t>> {};
+    public ::testing::WithParamInterface<std::tuple<size_t, size_t>> {};
 
 
 // The sorter benchmark tests are parameterized by
@@ -1485,8 +1485,8 @@ INSTANTIATE_TEST_CASE_P(
 // different amount of allocations.
 TEST_P(Sorter_BENCHMARK_Test, FullSort)
 {
-  size_t agentCount = std::tr1::get<0>(GetParam());
-  size_t clientCount = std::tr1::get<1>(GetParam());
+  size_t agentCount = std::get<0>(GetParam());
+  size_t clientCount = std::get<1>(GetParam());
 
   cout << "Using " << agentCount << " agents and "
        << clientCount << " clients" << endl;
@@ -1617,7 +1617,7 @@ TEST_P(Sorter_BENCHMARK_Test, FullSort)
 class HierarchicalSorter_BENCHMARK_Test
   : public ::testing::Test,
     public ::testing::WithParamInterface<
-        std::tr1::tuple<size_t, std::tr1::tuple<size_t, size_t>>> {};
+        std::tuple<size_t, std::tuple<size_t, size_t>>> {};
 
 
 INSTANTIATE_TEST_CASE_P(
@@ -1627,9 +1627,9 @@ INSTANTIATE_TEST_CASE_P(
       ::testing::Values(1000U, 5000U, 10000U, 20000U, 30000U, 50000U),
       ::testing::Values(
           // ~1000 clients with different heights and branching factors.
-          std::tr1::tuple<size_t, size_t>{3U, 32U},   // 1056 clients.
-          std::tr1::tuple<size_t, size_t>{7U, 3U},    // 1092 clients.
-          std::tr1::tuple<size_t, size_t>{10U, 2U}))  // 1022 clients.
+          std::tuple<size_t, size_t>{3U, 32U},   // 1056 clients.
+          std::tuple<size_t, size_t>{7U, 3U},    // 1092 clients.
+          std::tuple<size_t, size_t>{10U, 2U}))  // 1022 clients.
     );
 
 
@@ -1640,10 +1640,10 @@ INSTANTIATE_TEST_CASE_P(
 // of each internal node).
 TEST_P(HierarchicalSorter_BENCHMARK_Test, FullSort)
 {
-  const size_t agentCount = std::tr1::get<0>(GetParam());
-  const std::tr1::tuple<size_t, size_t> tuple = std::tr1::get<1>(GetParam());
-  const size_t treeHeight = std::tr1::get<0>(tuple);
-  const size_t branchingFactor = std::tr1::get<1>(tuple);
+  const size_t agentCount = std::get<0>(GetParam());
+  const std::tuple<size_t, size_t> tuple = std::get<1>(GetParam());
+  const size_t treeHeight = std::get<0>(tuple);
+  const size_t branchingFactor = std::get<1>(tuple);
 
   vector<SlaveID> agents;
   agents.reserve(agentCount);

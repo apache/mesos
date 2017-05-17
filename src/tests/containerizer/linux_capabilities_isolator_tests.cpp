@@ -167,7 +167,7 @@ ACTION_TEMPLATE(PushTaskStatus,
                 HAS_1_TEMPLATE_PARAMS(int, k),
                 AND_1_VALUE_PARAMS(statuses))
 {
-  statuses->put(std::tr1::get<k>(args));
+  statuses->put(std::get<k>(args));
 }
 
 
