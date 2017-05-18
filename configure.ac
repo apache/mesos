@@ -189,8 +189,8 @@ AC_ARG_ENABLE([debug],
 
 AC_ARG_ENABLE([port-mapping-isolator],
               AS_HELP_STRING([--enable-port-mapping-isolator],
-                             [enable port mapping isolator]),
-              [], [enable_port_mapping_isolator=yes])
+                             [enable port mapping network isolator]),
+              [], [enable_port_mapping_isolator=no])
 
 AC_ARG_ENABLE([java],
               AS_HELP_STRING([--disable-java],
@@ -342,8 +342,9 @@ AC_ARG_WITH([libprocess],
 AC_ARG_WITH([network-isolator],
             AS_HELP_STRING([--with-network-isolator],
                            [builds the network isolator]),
-            [AC_MSG_WARN(["--with-network-isolator is being depreciated, please use --enable-port-mapping-isolator instead."])],
-            [enable_port_mapping_isolator=yes])
+            [AC_MSG_WARN([--with-network-isolator is being deprecated, please use --enable-port-mapping-isolator instead.]);
+             enable_port_mapping_isolator=yes],
+            [])
 
 AC_ARG_WITH([nl],
             AS_HELP_STRING([--with-nl=@<:@DIR@:>@],
