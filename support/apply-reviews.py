@@ -153,7 +153,7 @@ def fetch_patch():
   if platform.system() == 'Windows':
     r = urllib2.urlopen(patch_url(), context=ssl_create_default_context())
 
-    with open('%s.patch' % patch_id(), 'w') as patch:
+    with open('%s.patch' % patch_id(), 'wb') as patch:
       patch.write(r.read())
   else:
     # NOTE: SSL contexts are only supported in Python 2.7.9+. The version
