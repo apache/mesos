@@ -148,7 +148,7 @@ static void signalSafeWriteStatus(int status)
 // enable this forwarding.
 static void signalHandler(int sig)
 {
-  // If we dn't yet have a container pid, we treat
+  // If we don't yet have a container pid, we treat
   // receiving a signal like a failure and exit.
   if (containerPid.isNone()) {
     exitWithSignal(sig);
@@ -185,7 +185,7 @@ static Try<Nothing> installSignalHandlers()
     // available on a system. However, Darwin, Linux, and BSD differ
     // on their interpretation of of the value of NSIG. Linux, for
     // example, sets it to 65, where Darwin sets it to 32. The reason
-    // for the discrepency is that Linux includes the real-time
+    // for the discrepancy is that Linux includes the real-time
     // signals in this count, where Darwin does not. However, even on
     // linux, we are not able to arbitrarily install signal handlers
     // for all the real-time signals -- they must have not been
@@ -698,7 +698,7 @@ int MesosContainerizerLaunch::execute()
   // If we have `containerStatusFd` set, then we need to fork-exec the
   // command we are launching and checkpoint its status on exit. We
   // use fork-exec directly (as opposed to `process::subprocess()`) to
-  // avoid intializing libprocess for this simple helper binary.
+  // avoid initializing libprocess for this simple helper binary.
   //
   // TODO(klueska): Once we move the majority of `process::subprocess()`
   // into stout, update the code below to use it.
