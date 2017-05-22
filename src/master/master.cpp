@@ -5475,6 +5475,7 @@ void Master::_registerSlave(
 
   if (authorizationError.isSome()) {
     LOG(WARNING) << "Refusing registration of agent at " << pid
+                 << " (" << slaveInfo.hostname() << ")"
                  << ": " << authorizationError.get();
 
     ShutdownMessage message;
@@ -5762,7 +5763,8 @@ void Master::_reregisterSlave(
   }
 
   if (authorizationError.isSome()) {
-    LOG(WARNING) << "Refusing re-registration of agent at " << pid
+    LOG(WARNING) << "Refusing re-registration of agent " << slaveInfo.id()
+                 << " at " << pid << " (" << slaveInfo.hostname() << ")"
                  << ": " << authorizationError.get();
 
     ShutdownMessage message;
