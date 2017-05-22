@@ -5486,6 +5486,9 @@ void Master::_registerSlave(
     return;
   }
 
+  VLOG(1) << "Authorized registration of agent at " << pid
+          << " (" << slaveInfo.hostname() << ")";
+
   MachineID machineId;
   machineId.set_hostname(slaveInfo.hostname());
   machineId.set_ip(stringify(pid.address.ip));
@@ -5608,6 +5611,9 @@ void Master::__registerSlave(
     slaves.registering.erase(pid);
     return;
   }
+
+  VLOG(1) << "Admitted agent " << slaveInfo.id() << " at " << pid
+          << " (" << slaveInfo.hostname() << ")";
 
   MachineID machineId;
   machineId.set_hostname(slaveInfo.hostname());
@@ -5774,6 +5780,9 @@ void Master::_reregisterSlave(
     slaves.reregistering.erase(slaveInfo.id());
     return;
   }
+
+  VLOG(1) << "Authorized re-registration of agent " << slaveInfo.id()
+          << " at " << pid << " (" << slaveInfo.hostname() << ")";
 
   MachineID machineId;
   machineId.set_hostname(slaveInfo.hostname());
@@ -5943,7 +5952,8 @@ void Master::__reregisterSlave(
   // `MarkSlaveReachable` registry operation should never fail.
   CHECK(readmit.get());
 
-  // Re-admission succeeded.
+  VLOG(1) << "Re-admitted agent " << slaveInfo.id() << " at " << pid
+          << " (" << slaveInfo.hostname() << ")";
 
   // Ensure we don't remove the slave for not re-registering after
   // we've recovered it from the registry.
