@@ -193,6 +193,14 @@
   jira_user: drcrallen
   reviewboard_user: drcrallen
 
+- name: Chun-Hung Hsiao
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - chhsiao@mesosphere.io
+  jira_user: chhsia0
+  reviewboard_user: chhsia0
+
 - name: Daniel Pravat
   affiliations:
     - {organization: Microsoft}
