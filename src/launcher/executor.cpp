@@ -345,7 +345,7 @@ protected:
         None(),
         None(),
         None(),
-        None(),
+        TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
         None(),
         healthStatus.healthy());
 
@@ -916,6 +916,8 @@ private:
 
     // Indicate that a kill occurred due to a failing health check.
     if (killed && killedByHealthCheck) {
+      // TODO(abudnik): Consider specifying appropriate status update reason,
+      // saying that the task was killed due to a failing health check.
       status.set_healthy(false);
     }
 

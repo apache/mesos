@@ -793,6 +793,8 @@ protected:
 
     // Indicate that a task has been unhealthy upon termination.
     if (unhealthy) {
+      // TODO(abudnik): Consider specifying appropriate status update reason,
+      // saying that the task was killed due to a failing health check.
       taskStatus.set_healthy(false);
     }
 
@@ -1093,7 +1095,7 @@ protected:
         None(),
         None(),
         None(),
-        None(),
+        TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
         None(),
         healthStatus.healthy());
 

@@ -318,6 +318,9 @@ TEST_F(HealthCheckTest, HealthyTask)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -473,6 +476,9 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -612,6 +618,9 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -694,6 +703,9 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->healthy());
 
   driver.stop();
@@ -759,14 +771,23 @@ TEST_F(HealthCheckTest, HealthStatusChange)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->healthy());
 
   AWAIT_READY(statusUnhealthy);
   EXPECT_EQ(TASK_RUNNING, statusUnhealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusUnhealthy->reason());
   EXPECT_FALSE(statusUnhealthy->healthy());
 
   AWAIT_READY(statusHealthyAgain);
   EXPECT_EQ(TASK_RUNNING, statusHealthyAgain->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthyAgain->reason());
   EXPECT_TRUE(statusHealthyAgain->healthy());
 
   driver.stop();
@@ -891,14 +912,23 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 
   AWAIT_READY(statusUnhealthy);
   EXPECT_EQ(TASK_RUNNING, statusUnhealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusUnhealthy->reason());
   EXPECT_FALSE(statusUnhealthy->healthy());
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->healthy());
 
   AWAIT_READY(statusUnhealthyAgain);
   EXPECT_EQ(TASK_RUNNING, statusUnhealthyAgain->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusUnhealthyAgain->reason());
   EXPECT_FALSE(statusUnhealthyAgain->healthy());
 
   // Check the temporary file created in host still
@@ -983,18 +1013,30 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
 
   AWAIT_READY(status1);
   EXPECT_EQ(TASK_RUNNING, status1->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      status1->reason());
   EXPECT_FALSE(status1->healthy());
 
   AWAIT_READY(status2);
   EXPECT_EQ(TASK_RUNNING, status2->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      status2->reason());
   EXPECT_FALSE(status2->healthy());
 
   AWAIT_READY(status3);
   EXPECT_EQ(TASK_RUNNING, status3->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      status3->reason());
   EXPECT_FALSE(status3->healthy());
 
   AWAIT_READY(status4);
   EXPECT_EQ(TASK_RUNNING, status4->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      status4->reason());
   EXPECT_FALSE(status4->healthy());
 
   AWAIT_READY(statusKilled);
@@ -1054,6 +1096,9 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->healthy());
 
   driver.stop();
@@ -1170,6 +1215,9 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
 
   AWAIT_READY(statusUnhealthy);
   EXPECT_EQ(TASK_RUNNING, statusUnhealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusUnhealthy->reason());
   EXPECT_FALSE(statusUnhealthy->healthy());
 
   AWAIT_READY(statusKilled);
@@ -1239,11 +1287,17 @@ TEST_F(HealthCheckTest, HealthyToUnhealthyTransitionWithinGracePeriod)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
   AWAIT_READY(statusUnhealthy);
   EXPECT_EQ(TASK_RUNNING, statusUnhealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusUnhealthy->reason());
   EXPECT_TRUE(statusUnhealthy->has_healthy());
   EXPECT_FALSE(statusUnhealthy->healthy());
 
@@ -1323,6 +1377,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTP)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -1408,6 +1465,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -1485,6 +1545,9 @@ TEST_F(HealthCheckTest, HealthyTaskViaTCP)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -1570,6 +1633,9 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaHTTPWithContainerImage)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -1658,6 +1724,9 @@ TEST_F(HealthCheckTest,
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -1747,6 +1816,9 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaTCPWithContainerImage)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -1854,6 +1926,9 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTP)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -1984,6 +2059,9 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTPS)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -2113,6 +2191,9 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaTCP)
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy->has_healthy());
   EXPECT_TRUE(statusHealthy->healthy());
 
@@ -2247,6 +2328,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   AWAIT_READY(statusHealthy);
   EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
   EXPECT_TRUE(statusHealthy.get().has_healthy());
   EXPECT_TRUE(statusHealthy.get().healthy());
 

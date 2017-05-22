@@ -327,6 +327,7 @@ protected:
     status.mutable_task_id()->CopyFrom(healthStatus.task_id());
     status.set_healthy(healthStatus.healthy());
     status.set_state(TASK_RUNNING);
+    status.set_reason(TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED);
 
     if (containerNetworkInfo.isSome()) {
       status.mutable_container_status()->add_network_infos()->CopyFrom(
@@ -482,6 +483,8 @@ private:
     taskStatus.set_state(state);
     taskStatus.set_message(message);
     if (killed && killedByHealthCheck) {
+      // TODO(abudnik): Consider specifying appropriate status update reason,
+      // saying that the task was killed due to a failing health check.
       taskStatus.set_healthy(false);
     }
 

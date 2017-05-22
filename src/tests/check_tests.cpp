@@ -952,6 +952,9 @@ TEST_F(CommandExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   const v1::TaskStatus& healthResult = updateHealthResult->status();
 
   ASSERT_EQ(TASK_RUNNING, healthResult.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      healthResult.reason());
   EXPECT_EQ(taskInfo.task_id(), healthResult.task_id());
   EXPECT_TRUE(healthResult.has_healthy());
   EXPECT_TRUE(healthResult.healthy());
@@ -2257,6 +2260,9 @@ TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   const v1::TaskStatus& healthResult = updateHealthResult->status();
 
   ASSERT_EQ(TASK_RUNNING, healthResult.state());
+  ASSERT_EQ(
+      v1::TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      healthResult.reason());
   EXPECT_EQ(taskInfo.task_id(), healthResult.task_id());
   EXPECT_TRUE(healthResult.has_healthy());
   EXPECT_TRUE(healthResult.healthy());
