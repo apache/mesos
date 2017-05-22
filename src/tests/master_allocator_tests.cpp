@@ -1802,9 +1802,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
 
 // Checks that accepting offers and launching tasks works as expected
 // with nested roles.
-//
-// TODO(neilc): Re-enable this when MESOS-7505 is fixed.
-TYPED_TEST(MasterAllocatorTest, DISABLED_NestedRoles)
+TYPED_TEST(MasterAllocatorTest, NestedRoles)
 {
   Clock::pause();
 
