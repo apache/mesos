@@ -1330,7 +1330,9 @@ TEST(ProcessTest, THREADSAFE_Http1)
 
 // Like 'http1' but uses the 'Libprocess-From' header. We can
 // also use http::post here since we expect a 202 response.
-TEST(ProcessTest, THREADSAFE_Http2)
+//
+// TODO(neilc): This test currently does not work on Windows (MESOS-7527).
+TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, THREADSAFE_Http2)
 {
   RemoteProcess process;
   spawn(process);
