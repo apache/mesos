@@ -455,6 +455,7 @@ set(WATCHER_SRC
 
 set(WIN32_SRC
   ${WIN32_SRC}
+  slave/containerizer/mesos/isolators/environment_secret.cpp
   slave/containerizer/mesos/isolators/filesystem/posix.cpp
   slave/containerizer/mesos/isolators/filesystem/windows.cpp
   )
