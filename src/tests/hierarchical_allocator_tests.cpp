@@ -5501,6 +5501,156 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, SuppressOffers)
 }
 
 
+// This benchmark measures allocator performance when almost all
+// frameworks are suppressed.
+TEST_P(HierarchicalAllocator_BENCHMARK_Test, ExtremeSuppressOffers)
+{
+  size_t agentCount = std::get<0>(GetParam());
+  size_t frameworkCount = std::get<1>(GetParam());
+
+  // Pause the clock because we want to manually drive the allocations.
+  Clock::pause();
+
+  struct OfferedResources
+  {
+    FrameworkID   frameworkId;
+    SlaveID       slaveId;
+    Resources     resources;
+  };
+
+  vector<OfferedResources> offers;
+
+  auto offerCallback = [&offers](
+      const FrameworkID& frameworkId,
+      const hashmap<string, hashmap<SlaveID, Resources>>& resources_)
+  {
+    foreachkey (const string& role, resources_) {
+      foreachpair (const SlaveID& slaveId,
+                   const Resources& resources,
+                   resources_.at(role)) {
+        offers.push_back(OfferedResources{frameworkId, slaveId, resources});
+      }
+    }
+  };
+
+  cout << "Using " << agentCount << " agents and "
+       << frameworkCount << " frameworks" << endl;
+
+  master::Flags flags;
+  initialize(flags, offerCallback);
+
+  vector<FrameworkInfo> frameworks;
+  frameworks.reserve(frameworkCount);
+
+  Stopwatch watch;
+  watch.start();
+
+  for (size_t i = 0; i < frameworkCount; i++) {
+    frameworks.push_back(createFrameworkInfo({"*"}));
+    allocator->addFramework(frameworks[i].id(), frameworks[i], {}, true);
+  }
+
+  // Wait for all the `addFramework` operations to be processed.
+  Clock::settle();
+
+  watch.stop();
+
+  cout << "Added " << frameworkCount << " frameworks"
+       << " in " << watch.elapsed() << endl;
+
+  vector<SlaveInfo> agents;
+  agents.reserve(agentCount);
+
+  const Resources agentResources = Resources::parse(
+      "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
+
+  // Each agent has a portion of its resources allocated to a single
+  // framework. We round-robin through the frameworks when allocating.
+  Resources allocation = Resources::parse("cpus:16;mem:1024;disk:1024").get();
+
+  Try<::mesos::Value::Ranges> ranges = fragment(createRange(31000, 32000), 16);
+  ASSERT_SOME(ranges);
+  ASSERT_EQ(16, ranges->range_size());
+
+  allocation += createPorts(ranges.get());
+  allocation.allocate("*");
+
+  watch.start();
+
+  for (size_t i = 0; i < agentCount; i++) {
+    agents.push_back(createSlaveInfo(agentResources));
+
+    hashmap<FrameworkID, Resources> used;
+    used[frameworks[i % frameworkCount].id()] = allocation;
+
+    allocator->addSlave(
+        agents[i].id(),
+        agents[i],
+        AGENT_CAPABILITIES(),
+        None(),
+        agents[i].resources(),
+        used);
+  }
+
+  // Wait for all the `addSlave` operations to be processed.
+  Clock::settle();
+
+  watch.stop();
+
+  cout << "Added " << agentCount << " agents"
+       << " in " << watch.elapsed() << endl;
+
+  // Now perform allocations. Each time we trigger an allocation run, we
+  // increase the number of frameworks that are suppressing offers. To
+  // ensure the test can run in a timely manner, we always perform a
+  // fixed number of allocations.
+  //
+  // TODO(jjanco): Parameterize this test by allocationsCount, not an arbitrary
+  // number. Batching reduces loop size, lowering time to test completion.
+  size_t allocationsCount = 5;
+
+  // Suppress offers for 99% of frameworks.
+  size_t suppressCount = static_cast<size_t>(frameworkCount * 0.99);
+  CHECK(suppressCount < frameworkCount);
+
+  for (size_t i = 0; i < suppressCount; i++) {
+    allocator->suppressOffers(frameworks[i].id(), {});
+  }
+
+  for (size_t i = 0; i < allocationsCount; ++i) {
+    // Recover resources with no filters because we want to test the
+    // effect of suppression alone.
+    foreach (const OfferedResources& offer, offers) {
+      allocator->recoverResources(
+          offer.frameworkId,
+          offer.slaveId,
+          offer.resources,
+          None());
+    }
+
+    // Wait for all declined offers to be processed.
+    Clock::settle();
+    offers.clear();
+
+    watch.start();
+
+    // Advance the clock and trigger a batch allocation.
+    Clock::advance(flags.allocation_interval);
+    Clock::settle();
+
+    watch.stop();
+
+    cout << "allocate() took " << watch.elapsed()
+         << " to make " << offers.size() << " offers with "
+         << suppressCount << " out of "
+         << frameworkCount << " frameworks suppressing offers"
+         << endl;
+  }
+
+  Clock::resume();
+}
+
+
 // Measures the processing time required for the allocator metrics.
 //
 // TODO(bmahler): Add allocations to this benchmark.
