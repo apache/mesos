@@ -937,6 +937,22 @@ TEST_F(ROOT_XFS_QuotaTest, CheckQuotaEnabled)
   EXPECT_SOME_EQ(true, xfs::isQuotaEnabled(mountPoint.get()));
 }
 
+
+TEST(XFS_QuotaTest, BasicBlocks)
+{
+  // 0 is the same for blocks and bytes.
+  EXPECT_EQ(BasicBlocks(0).bytes(), Bytes(0u));
+
+  EXPECT_EQ(BasicBlocks(1).bytes(), Bytes(512));
+
+  // A partial block should round up.
+  EXPECT_EQ(Bytes(512), BasicBlocks(Bytes(128)).bytes());
+  EXPECT_EQ(Bytes(1024), BasicBlocks(Bytes(513)).bytes());
+
+  EXPECT_EQ(BasicBlocks(1), BasicBlocks(1));
+  EXPECT_EQ(BasicBlocks(1), BasicBlocks(Bytes(512)));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

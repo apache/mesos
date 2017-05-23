@@ -59,11 +59,6 @@ namespace mesos {
 namespace internal {
 namespace xfs {
 
-// The quota API defines space limits in terms of in basic
-// blocks (512 bytes).
-static constexpr Bytes BASIC_BLOCK_SIZE = Bytes(512u);
-
-
 // Although XFS itself doesn't define any invalid project IDs,
 // we need a way to know whether or not a project ID was assigned
 // so we use 0 as our sentinel value.
@@ -154,12 +149,13 @@ static Try<Nothing> setProjectQuota(
   quota.d_id = projectId;
   quota.d_flags = FS_PROJ_QUOTA;
 
-  // Set both the hard and the soft limit to the same quota, just
-  // for consistency. Functionally all we need is the hard quota.
+  // Set both the hard and the soft limit to the same quota. Functionally
+  // all we need is the hard limit. The soft limit has no effect when it
+  // is the same as the hard limit but we set it for explicitness.
   quota.d_fieldmask = FS_DQ_BSOFT | FS_DQ_BHARD;
 
-  quota.d_blk_hardlimit = limit.bytes() / BASIC_BLOCK_SIZE.bytes();
-  quota.d_blk_softlimit = limit.bytes() / BASIC_BLOCK_SIZE.bytes();
+  quota.d_blk_hardlimit = BasicBlocks(limit).blocks();
+  quota.d_blk_softlimit = BasicBlocks(limit).blocks();
 
   if (::quotactl(QCMD(Q_XSETQLIM, PRJQUOTA),
                  devname.get().c_str(),
@@ -250,8 +246,8 @@ Result<QuotaInfo> getProjectQuota(
   }
 
   QuotaInfo info;
-  info.limit = BASIC_BLOCK_SIZE * quota.d_blk_hardlimit;
-  info.used =  BASIC_BLOCK_SIZE * quota.d_bcount;
+  info.limit = BasicBlocks(quota.d_blk_hardlimit).bytes();
+  info.used = BasicBlocks(quota.d_bcount).bytes();
 
   return info;
 }
@@ -266,10 +262,10 @@ Try<Nothing> setProjectQuota(
     return nonProjectError();
   }
 
-  // A 0 limit deletes the quota record. Since the limit is in basic
-  // blocks that effectively means > 512 bytes.
-  if (limit < BASIC_BLOCK_SIZE) {
-    return Error("Quota limit must be >= " + stringify(BASIC_BLOCK_SIZE));
+  // A 0 limit deletes the quota record. If that's desired, the
+  // caller should use clearProjectQuota().
+  if (limit == 0) {
+    return Error( "Quota limit must be greater than 0");
   }
 
   return internal::setProjectQuota(path, projectId, limit);

@@ -37,6 +37,38 @@ struct QuotaInfo
 };
 
 
+// Quota operations are defined in terms of basic blocks (512 byte units).
+class BasicBlocks
+{
+public:
+  // Convert from Bytes to basic blocks. Note that we round up since a partial
+  // block costs a full block to store on disk.
+  explicit BasicBlocks(const Bytes& bytes)
+    : blockCount((bytes.bytes() + BASIC_BLOCK_SIZE - 1) / BASIC_BLOCK_SIZE) {}
+
+  explicit constexpr BasicBlocks(uint64_t _blockCount)
+    : blockCount(_blockCount) {}
+
+  bool operator==(const BasicBlocks& that) const
+  {
+    return blockCount == that.blockCount;
+  }
+
+  bool operator!=(const BasicBlocks& that) const
+  {
+    return blockCount != that.blockCount;
+  }
+
+  uint64_t blocks() const { return blockCount; }
+  Bytes bytes() const { return Bytes(BASIC_BLOCK_SIZE) * blockCount; }
+
+private:
+  uint64_t blockCount;
+
+  static constexpr unsigned BASIC_BLOCK_SIZE = 512;
+};
+
+
 inline bool operator==(const QuotaInfo& left, const QuotaInfo& right)
 {
   return left.limit == right.limit && left.used == right.used;
