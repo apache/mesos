@@ -72,6 +72,7 @@ public:
 
 private:
   XfsDiskIsolatorProcess(
+      xfs::QuotaPolicy quotaPolicy,
       const std::string& workDir,
       const IntervalSet<prid_t>& projectIds);
 
@@ -91,6 +92,7 @@ private:
     const prid_t projectId;
   };
 
+  xfs::QuotaPolicy quotaPolicy;
   const std::string workDir;
   const IntervalSet<prid_t> totalProjectIds;
   IntervalSet<prid_t> freeProjectIds;

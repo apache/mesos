@@ -69,6 +69,12 @@ private:
 };
 
 
+enum class QuotaPolicy {
+  ENFORCING,
+  ACCOUNTING,
+};
+
+
 inline bool operator==(const QuotaInfo& left, const QuotaInfo& right)
 {
   return left.limit == right.limit && left.used == right.used;

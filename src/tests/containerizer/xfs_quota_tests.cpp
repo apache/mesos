@@ -32,8 +32,6 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
-#include <stout/os/constants.hpp>
-
 #include "linux/fs.hpp"
 
 #include "master/master.hpp"
@@ -170,6 +168,7 @@ public:
     // don't mind that other flags refer to a different temp directory.
     flags.work_dir = mountPoint.get();
     flags.isolation = "disk/xfs";
+    flags.enforce_container_disk_quota = true;
     return flags;
   }
 
@@ -441,6 +440,69 @@ TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuota)
 }
 
 
+// This is the same logic as DiskUsageExceedsQuota except we turn off disk quota
+// enforcement, so exceeding the quota should be allowed.
+TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuotaNoEnforce)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.enforce_container_disk_quota = false;
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers->empty());
+
+  const Offer& offer = offers.get()[0];
+
+  // Create a task which requests 1MB disk, but actually uses more
+  // than 2MB disk.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:1").get(),
+      "dd if=/dev/zero of=file bs=1048576 count=2");
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(task.task_id(), status1->task_id());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
+
+  // We expect the task to succeed even though it exceeded
+  // the disk quota.
+  AWAIT_READY(status2);
+  EXPECT_EQ(task.task_id(), status2->task_id());
+  EXPECT_EQ(TASK_FINISHED, status2->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // Verify that we can get accurate resource statistics from the XFS
 // disk isolator.
 TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
@@ -528,7 +590,106 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
     }
 
     ASSERT_FALSE(timeout.expired());
-    os::sleep(Milliseconds(1));
+    os::sleep(Milliseconds(100));
+  }
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This is the same logic as ResourceStatistics, except the task should
+// be allowed to exceed the disk quota, and usage statistics should report
+// that the quota was exceeded.
+TEST_F(ROOT_XFS_QuotaTest, ResourceStatisticsNoEnforce)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Fetcher fetcher;
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.enforce_container_disk_quota = false;
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers->empty());
+
+  Offer offer = offers.get()[0];
+
+  // Create a task that uses 4MB of 3MB disk and fails if it can't
+  // write the full amount.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:3").get(),
+      "dd if=/dev/zero of=file bs=1048576 count=4 && sleep 1000");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
+
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers->size());
+
+  ContainerID containerId = *(containers->begin());
+  Duration diskTimeout = Seconds(5);
+  Timeout timeout = Timeout::in(diskTimeout);
+
+  while (true) {
+    Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
+    AWAIT_READY(usage);
+
+    ASSERT_TRUE(usage->has_disk_limit_bytes());
+    EXPECT_EQ(Megabytes(3), Bytes(usage->disk_limit_bytes()));
+
+    if (usage->has_disk_used_bytes()) {
+      if (usage->disk_used_bytes() >= Megabytes(4).bytes()) {
+        break;
+      }
+    }
+
+    // The stopping condition for this test is that the isolator is
+    // able to report that we wrote the full amount of data without
+    // being constrained by the task disk limit.
+    EXPECT_LE(usage->disk_used_bytes(), Megabytes(4).bytes());
+
+    ASSERT_FALSE(timeout.expired())
+      << "Used " << Bytes(usage->disk_used_bytes())
+      << " of expected " << Megabytes(4)
+      << " within the " << diskTimeout << " timeout";
+
+    os::sleep(Milliseconds(100));
   }
 
   driver.stop();
