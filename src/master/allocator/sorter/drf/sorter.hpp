@@ -125,7 +125,7 @@ private:
   // Resources (by name) that will be excluded from fair sharing.
   Option<std::set<std::string>> fairnessExcludeResourceNames;
 
-  // If true, sort() will recalculate all shares.
+  // If true, sort() will recalculate all shares and resort the tree.
   bool dirty = false;
 
   // The root node in the sorter tree.
@@ -246,6 +246,19 @@ struct DRFSorter::Node
   Kind kind;
 
   Node* parent;
+
+  // Pointers to the child nodes. `children` is only non-empty if
+  // `kind` is INTERNAL_NODE. Two ordering invariants are maintained
+  // on the `children` vector:
+  //
+  // (1) All inactive leaves are stored at the end of the vector; that
+  // is, each `children` vector consists of zero or more active leaves
+  // and internal nodes, followed by zero or more inactive leaves. This
+  // means that code that only wants to iterate over active children
+  // can stop when the first inactive leaf is observed.
+  //
+  // (2) If the tree is not dirty, the active leaves and internal
+  // nodes are kept sorted by DRF share.
   std::vector<Node*> children;
 
   // If this node represents a sorter client, this returns the path of
@@ -279,6 +292,7 @@ struct DRFSorter::Node
 
   void removeChild(const Node* child)
   {
+    // Sanity check: ensure we are removing an extant node.
     auto it = std::find(children.begin(), children.end(), child);
     CHECK(it != children.end());
 
@@ -287,10 +301,19 @@ struct DRFSorter::Node
 
   void addChild(Node* child)
   {
+    // Sanity check: don't allow duplicates to be inserted.
     auto it = std::find(children.begin(), children.end(), child);
     CHECK(it == children.end());
 
-    children.push_back(child);
+    // If we're inserting an inactive leaf, place it at the end of the
+    // `children` vector; otherwise, place it at the beginning. This
+    // maintains ordering invariant (1) above. It is up to the caller
+    // to maintain invariant (2) -- e.g., by marking the tree dirty.
+    if (child->kind == INACTIVE_LEAF) {
+      children.push_back(child);
+    } else {
+      children.insert(children.begin(), child);
+    }
   }
 
   // Allocation for a node.
