@@ -135,7 +135,6 @@ using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
-using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerIO;
 using mesos::slave::ContainerState;
 using mesos::slave::ContainerTermination;
