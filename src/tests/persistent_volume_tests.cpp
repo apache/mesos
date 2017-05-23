@@ -1955,7 +1955,7 @@ TEST_P(PersistentVolumeTest, SlaveRecovery)
   Clock::settle();
 
   // Ensure the slave considers itself recovered.
-  Clock::advance(slave::EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::advance(slaveFlags.executor_reregistration_timeout);
 
   Clock::resume();
 

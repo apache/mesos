@@ -701,7 +701,7 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
   AWAIT_READY(reregisterExecutorMessage);
 
   // Ensure the slave considers itself recovered.
-  Clock::advance(slave::EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::advance(flags.executor_reregistration_timeout);
 
   // NOTE: We resume the clock because we need the reaper to reap the
   // 'du' subprocess.
