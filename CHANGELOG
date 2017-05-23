@@ -199,6 +199,7 @@ All Resolved Issues:
   * [MESOS-7471] - Provisioner recover should not always assume 'rootfses' dir exists.
   * [MESOS-7478] - Pre-1.2.x master does not work with 1.2.x agent.
   * [MESOS-7484] - VersionTest.ParseInvalid aborts on Windows.
+  * [MESOS-7538] - Don't validate re-registrations that are going to be dropped.
 
 ** Documentation
   * [MESOS-7005] - Add executor authentication documentation.
