@@ -45,13 +45,13 @@ namespace allocator {
 
 
 DRFSorter::DRFSorter()
-  : root(new Node("", nullptr)) {}
+  : root(new Node("", Node::INTERNAL, nullptr)) {}
 
 
 DRFSorter::DRFSorter(
     const UPID& allocator,
     const string& metricsPrefix)
-  : root(new Node("", nullptr)),
+  : root(new Node("", Node::INTERNAL, nullptr)),
     metrics(Metrics(allocator, *this, metricsPrefix)) {}
 
 
@@ -112,7 +112,7 @@ void DRFSorter::add(const string& clientPath)
 
       // Create a node under `parent`. This internal node will take
       // the place of `current` in the tree.
-      Node* internal = new Node(current->name, parent);
+      Node* internal = new Node(current->name, Node::INTERNAL, parent);
       parent->addChild(internal);
       internal->allocation = current->allocation;
 
@@ -131,28 +131,34 @@ void DRFSorter::add(const string& clientPath)
     }
 
     // Now actually add a new child to `current`.
-    Node* newChild = new Node(element, current);
+    Node* newChild = new Node(element, Node::INTERNAL, current);
     current->addChild(newChild);
 
     current = newChild;
     lastCreatedNode = newChild;
   }
 
+  CHECK(current->kind == Node::INTERNAL);
+
   // `current` is the node associated with the last element of the
   // path. If we didn't add `current` to the tree above, create a leaf
   // node now. For example, if the tree contains "a/b" and we add a
   // new client "a", we want to create a new leaf node "a/." here.
   if (current != lastCreatedNode) {
-    Node* newChild = new Node(".", current);
+    Node* newChild = new Node(".", Node::INACTIVE_LEAF, current);
     current->addChild(newChild);
     current = newChild;
+  } else {
+    // If we created `current` in the loop above, it was marked an
+    // `INTERNAL` node. It should actually be an inactive leaf node.
+    current->kind = Node::INACTIVE_LEAF;
   }
 
   // `current` is the newly created node associated with the last
   // element of the path. `current` should be an inactive node with no
   // children.
   CHECK(current->children.empty());
-  CHECK(!current->active);
+  CHECK(current->kind == Node::INACTIVE_LEAF);
 
   // Add a new entry to the lookup table. The full path of the newly
   // added client should not already exist in `clients`.
@@ -223,10 +229,12 @@ void DRFSorter::remove(const string& clientPath)
 
       if (child->name == ".") {
         CHECK(child->children.empty());
+        CHECK(child->kind == Node::ACTIVE_LEAF ||
+              child->kind == Node::INACTIVE_LEAF);
         CHECK(clients.contains(current->path));
         CHECK_EQ(child, clients.at(current->path));
 
-        current->active = child->active;
+        current->kind = child->kind;
         current->removeChild(child);
 
         clients[current->path] = current;
@@ -250,14 +258,14 @@ void DRFSorter::remove(const string& clientPath)
 void DRFSorter::activate(const string& clientPath)
 {
   Node* client = CHECK_NOTNULL(find(clientPath));
-  client->active = true;
+  client->kind = Node::ACTIVE_LEAF;
 }
 
 
 void DRFSorter::deactivate(const string& clientPath)
 {
   Node* client = CHECK_NOTNULL(find(clientPath));
-  client->active = false;
+  client->kind = Node::INACTIVE_LEAF;
 }
 
 
@@ -491,7 +499,7 @@ vector<string> DRFSorter::sort()
 
   std::function<void (const Node*)> listClients =
       [&listClients, &result](const Node* node) {
-    if (node->active) {
+    if (node->kind == Node::ACTIVE_LEAF) {
       result.push_back(node->clientPath());
     }
 
@@ -562,13 +570,19 @@ double DRFSorter::findWeight(const Node* node) const
 
 DRFSorter::Node* DRFSorter::find(const string& clientPath) const
 {
-  Option<Node*> client = clients.get(clientPath);
+  Option<Node*> client_ = clients.get(clientPath);
 
-  if (client.isNone()) {
+  if (client_.isNone()) {
     return nullptr;
   }
 
-  return client.get();
+  Node* client = client_.get();
+
+  CHECK(client->kind == Node::ACTIVE_LEAF ||
+        client->kind == Node::INACTIVE_LEAF);
+  CHECK(client->children.empty());
+
+  return client;
 }
 
 } // namespace allocator {

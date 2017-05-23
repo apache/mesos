@@ -195,8 +195,19 @@ private:
 // and "c", and leaf nodes for the clients "a/b" and "c/d".
 struct DRFSorter::Node
 {
-  Node(const std::string& _name, Node* _parent)
-    : name(_name), share(0), active(false), parent(_parent)
+  // Indicates whether a node is an active leaf node, an inactive leaf
+  // node, or an internal node. Sorter clients always correspond to
+  // leaf nodes, and only leaf nodes can be activated or deactivated.
+  // The root node is always an "internal" node.
+  enum Kind
+  {
+    ACTIVE_LEAF,
+    INACTIVE_LEAF,
+    INTERNAL
+  };
+
+  Node(const std::string& _name, Kind _kind, Node* _parent)
+    : name(_name), share(0), kind(_kind), parent(_parent)
   {
     // Compute the node's path. Three cases:
     //
@@ -232,11 +243,7 @@ struct DRFSorter::Node
 
   double share;
 
-  // True if this node represents an active sorter client. False if
-  // this node represents an inactive sorter client or an internal node.
-  //
-  // TODO(neilc): Replace this with a three-valued enum?
-  bool active;
+  Kind kind;
 
   Node* parent;
   std::vector<Node*> children;
@@ -253,6 +260,7 @@ struct DRFSorter::Node
   std::string clientPath() const
   {
     if (name == ".") {
+      CHECK(kind == ACTIVE_LEAF || kind == INACTIVE_LEAF);
       return CHECK_NOTNULL(parent)->path;
     }
 
