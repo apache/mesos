@@ -75,6 +75,7 @@ public:
   Duration authentication_backoff_factor;
   Option<JSON::Object> executor_environment_variables;
   Duration executor_registration_timeout;
+  Duration executor_reregistration_timeout;
   Duration executor_shutdown_grace_period;
   Duration gc_delay;
   double gc_disk_headroom;
