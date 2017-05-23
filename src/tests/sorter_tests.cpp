@@ -605,6 +605,54 @@ TEST(SorterTest, HierarchicalAllocation)
 }
 
 
+// This test checks that the sorted list of clients returned by the
+// sorter iterates over the client tree in the correct order.
+TEST(SorterTest, HierarchicalIterationOrder)
+{
+  DRFSorter sorter;
+
+  SlaveID slaveId;
+  slaveId.set_value("agentId");
+
+  Resources totalResources = Resources::parse("cpus:100;mem:100").get();
+  sorter.add(slaveId, totalResources);
+
+  sorter.add("a/b");
+  sorter.add("c");
+  sorter.add("d");
+  sorter.add("d/e");
+
+  sorter.activate("a/b");
+  sorter.activate("c");
+  sorter.activate("d");
+  sorter.activate("d/e");
+
+  // Shares: a/b = 0, c = 0, d = 0, d/e = 0
+  EXPECT_EQ(vector<string>({"a/b", "c", "d", "d/e"}), sorter.sort());
+
+  Resources cResources = Resources::parse("cpus:8;mem:8").get();
+  sorter.allocated("c", slaveId, cResources);
+
+  // Shares: a/b = 0, d = 0, d/e = 0, c = 0.08.
+  EXPECT_EQ(vector<string>({"a/b", "d", "d/e", "c"}), sorter.sort());
+
+  Resources dResources = Resources::parse("cpus:3;mem:3").get();
+  sorter.allocated("d", slaveId, dResources);
+
+  Resources deResources = Resources::parse("cpus:2;mem:2").get();
+  sorter.allocated("d/e", slaveId, deResources);
+
+  // Shares: a/b = 0, d/e = 0.02, d = 0.03, c = 0.08.
+  EXPECT_EQ(vector<string>({"a/b", "d/e", "d", "c"}), sorter.sort());
+
+  Resources abResources = Resources::parse("cpus:6;mem:6").get();
+  sorter.allocated("a/b", slaveId, abResources);
+
+  // Shares: d/e = 0.02, d = 0.03, a/b = 0.06, c = 0.08.
+  EXPECT_EQ(vector<string>({"d/e", "d", "a/b", "c"}), sorter.sort());
+}
+
+
 // This test checks what happens when a new sorter client is added as
 // a child of what was previously a leaf node.
 TEST(SorterTest, AddChildToLeaf)
