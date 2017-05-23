@@ -989,6 +989,43 @@ TEST(SorterTest, UpdateAllocationNestedClient)
 }
 
 
+// This test checks that the sorter correctly reports allocation
+// information about inactive clients.
+TEST(SorterTest, AllocationForInactiveClient)
+{
+  DRFSorter sorter;
+
+  SlaveID slaveId;
+  slaveId.set_value("agentId");
+
+  sorter.add(slaveId, Resources::parse("cpus:10;mem:10").get());
+
+  sorter.add("a");
+  sorter.add("b");
+
+  // Leave client "a" inactive.
+  sorter.activate("b");
+
+  sorter.allocated("a", slaveId, Resources::parse("cpus:2;mem:2").get());
+  sorter.allocated("b", slaveId, Resources::parse("cpus:3;mem:3").get());
+
+  hashmap<string, Resources> clientAllocation = sorter.allocation(slaveId);
+  EXPECT_EQ(2u, clientAllocation.size());
+  EXPECT_EQ(Resources::parse("cpus:2;mem:2").get(), clientAllocation.at("a"));
+  EXPECT_EQ(Resources::parse("cpus:3;mem:3").get(), clientAllocation.at("b"));
+
+  hashmap<SlaveID, Resources> agentAllocation1 = sorter.allocation("a");
+  EXPECT_EQ(1u, agentAllocation1.size());
+  EXPECT_EQ(
+      Resources::parse("cpus:2;mem:2").get(), agentAllocation1.at(slaveId));
+
+  hashmap<SlaveID, Resources> agentAllocation2 = sorter.allocation("b");
+  EXPECT_EQ(1u, agentAllocation2.size());
+  EXPECT_EQ(
+      Resources::parse("cpus:3;mem:3").get(), agentAllocation2.at(slaveId));
+}
+
+
 // We aggregate resources from multiple slaves into the sorter.
 // Since non-scalar resources don't aggregate well across slaves,
 // we need to keep track of the SlaveIDs of the resources. This
