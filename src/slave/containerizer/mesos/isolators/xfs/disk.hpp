@@ -72,7 +72,7 @@ public:
 
 private:
   XfsDiskIsolatorProcess(
-      const Flags& flags,
+      const std::string& workDir,
       const IntervalSet<prid_t>& projectIds);
 
   // Take the next project ID from the unallocated pool.
@@ -91,7 +91,7 @@ private:
     const prid_t projectId;
   };
 
-  const Flags flags;
+  const std::string workDir;
   const IntervalSet<prid_t> totalProjectIds;
   IntervalSet<prid_t> freeProjectIds;
   hashmap<ContainerID, process::Owned<Info>> infos;

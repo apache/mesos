@@ -157,15 +157,15 @@ Try<Isolator*> XfsDiskIsolatorProcess::create(const Flags& flags)
   }
 
   return new MesosIsolator(Owned<MesosIsolatorProcess>(
-      new XfsDiskIsolatorProcess(flags, totalProjectIds.get())));
+      new XfsDiskIsolatorProcess(flags.work_dir, totalProjectIds.get())));
 }
 
 
 XfsDiskIsolatorProcess::XfsDiskIsolatorProcess(
-    const Flags& _flags,
+    const std::string& _workDir,
     const IntervalSet<prid_t>& projectIds)
   : ProcessBase(process::ID::generate("xfs-disk-isolator")),
-    flags(_flags),
+    workDir(_workDir),
     totalProjectIds(projectIds),
     freeProjectIds(projectIds)
 {
@@ -188,7 +188,7 @@ Future<Nothing> XfsDiskIsolatorProcess::recover(
   // for project IDs that we have not recovered and make a best effort to
   // remove all the corresponding on-disk state.
   Try<list<string>> sandboxes = os::glob(path::join(
-      paths::getSandboxRootDir(flags.work_dir),
+      paths::getSandboxRootDir(workDir),
       "*",
       "frameworks",
       "*",
