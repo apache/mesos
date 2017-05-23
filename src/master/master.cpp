@@ -5687,6 +5687,14 @@ void Master::reregisterSlave(
     return;
   }
 
+  if (slaves.reregistering.contains(slaveInfo.id())) {
+    LOG(INFO)
+      << "Ignoring re-register agent message from agent "
+      << slaveInfo.id() << " at " << from << " ("
+      << slaveInfo.hostname() << ") as re-registration is already in progress";
+    return;
+  }
+
   Option<Error> error = validation::master::message::reregisterSlave(
       slaveInfo, tasks, checkpointedResources, executorInfos, frameworks);
 
@@ -5694,14 +5702,6 @@ void Master::reregisterSlave(
     LOG(WARNING) << "Dropping re-registration of agent at " << from
                  << " because it sent an invalid re-registration: "
                  << error->message;
-    return;
-  }
-
-  if (slaves.reregistering.contains(slaveInfo.id())) {
-    LOG(INFO)
-      << "Ignoring re-register agent message from agent "
-      << slaveInfo.id() << " at " << from << " ("
-      << slaveInfo.hostname() << ") as re-registration is already in progress";
     return;
   }
 
