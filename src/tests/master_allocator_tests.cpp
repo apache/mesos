@@ -218,16 +218,16 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
 
-  slave::Flags flags1 = this->CreateSlaveFlags();
-  flags1.resources = Some("cpus:2;mem:1024");
+  slave::Flags slaveFlags = this->CreateSlaveFlags();
+  slaveFlags.resources = Some("cpus:2;mem:1024");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Try<Owned<cluster::Slave>> slave1 =
-    this->StartSlave(detector.get(), &containerizer, flags1);
-  ASSERT_SOME(slave1);
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), &containerizer, slaveFlags);
+  ASSERT_SOME(slave);
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
@@ -322,15 +322,16 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
   ASSERT_SOME(master);
 
-  slave::Flags flags1 = this->CreateSlaveFlags();
-  flags1.resources = Some("cpus:2;mem:1024");
+  slave::Flags slaveFlags = this->CreateSlaveFlags();
+  slaveFlags.resources = Some("cpus:2;mem:1024");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Try<Owned<cluster::Slave>> slave1 = this->StartSlave(detector.get(), flags1);
-  ASSERT_SOME(slave1);
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_user("user1");
@@ -487,7 +488,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   EXPECT_CALL(sched1, resourceOffers(_, _))
     .WillRepeatedly(DeclineOffers()); // For subsequent offers.
 
-  // Initially, all of slave1's resources are available.
+  // Initially, all of the slave's resources are available.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 256, "*"));
 
