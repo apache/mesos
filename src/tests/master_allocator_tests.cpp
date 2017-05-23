@@ -208,6 +208,8 @@ TYPED_TEST(MasterAllocatorTest, SingleFramework)
 // reoffered appropriately.
 TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
 {
+  Clock::pause();
+
   TestAllocator<TypeParam> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
@@ -221,13 +223,21 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   slave::Flags slaveFlags = this->CreateSlaveFlags();
   slaveFlags.resources = Some("cpus:2;mem:1024");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
+  Future<Nothing> addSlave;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureSatisfy(&addSlave)));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
     this->StartSlave(detector.get(), &containerizer, slaveFlags);
   ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(addSlave);
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
@@ -236,13 +246,6 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   EXPECT_CALL(allocator, addFramework(_, _, _, _));
 
   EXPECT_CALL(sched1, registered(_, _, _));
-
-  // We decline offers that we aren't expecting so that the resources
-  // get aggregated. Note that we need to do this _first_ and
-  // _separate_ from the expectation below so that this expectation is
-  // checked last and matches all possible offers.
-  EXPECT_CALL(sched1, resourceOffers(_, _))
-    .WillRepeatedly(DeclineOffers());
 
   // The first offer will contain all of the slave's resources, since
   // this is the only framework running so far. Launch a task that
@@ -267,7 +270,8 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
 
   // We need to wait until the allocator knows about the unused
   // resources to start the second framework so that we get the
-  // expected offer.
+  // expected offer. Because the clock is paused, a batch allocation
+  // will not occur in the time before the second framework registers.
   AWAIT_READY(recoverResources);
 
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
