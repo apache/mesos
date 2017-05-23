@@ -332,6 +332,22 @@ mesos::internal::slave::Flags::Flags()
       "shutting it down (e.g., 60secs, 3mins, etc)",
       EXECUTOR_REGISTRATION_TIMEOUT);
 
+  add(&Flags::executor_reregistration_timeout,
+      "executor_reregistration_timeout",
+      "The timeout within which an executor is expected to re-register after\n"
+      "the agent has restarted, before the agent considers it gone and shuts\n"
+      "it down. Note that currently, the agent will not re-register with the\n"
+      "master until this timeout has elapsed (see MESOS-7539).",
+      EXECUTOR_REREGISTRATION_TIMEOUT,
+      [](const Duration& value) -> Option<Error> {
+        if (value > MAX_EXECUTOR_REREGISTRATION_TIMEOUT) {
+          return Error("Expected `--executor_reregistration_timeout` "
+                       "to be not more than " +
+                       stringify(MAX_EXECUTOR_REREGISTRATION_TIMEOUT));
+        }
+        return None();
+      });
+
   add(&Flags::executor_shutdown_grace_period,
       "executor_shutdown_grace_period",
       "Default amount of time to wait for an executor to shut down\n"

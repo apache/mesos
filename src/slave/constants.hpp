@@ -30,7 +30,16 @@ namespace slave {
 // details in MESOS-1023.
 
 constexpr Duration EXECUTOR_REGISTRATION_TIMEOUT = Minutes(1);
-constexpr Duration EXECUTOR_REREGISTER_TIMEOUT = Seconds(2);
+constexpr Duration EXECUTOR_REREGISTRATION_TIMEOUT = Seconds(2);
+
+// The maximum timeout within which an executor can re-register.
+// Note that this value has to be << 'MIN_AGENT_REREGISTER_TIMEOUT'
+// declared in 'master/constants.hpp'; since agent recovery will only
+// complete after this timeout has elapsed, this ensures that the
+// agent can re-register with the master before it is marked
+// unreachable and its tasks are transitioned to TASK_UNREACHABLE or
+// TASK_LOST.
+constexpr Duration MAX_EXECUTOR_REREGISTRATION_TIMEOUT = Seconds(15);
 
 // The default amount of time to wait for the executor to
 // shut down before destroying the container.
