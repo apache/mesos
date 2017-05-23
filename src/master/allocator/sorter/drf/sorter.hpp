@@ -267,6 +267,16 @@ struct DRFSorter::Node
     return path;
   }
 
+  bool isLeaf() const
+  {
+    if (kind == ACTIVE_LEAF || kind == INACTIVE_LEAF) {
+      CHECK(children.empty());
+      return true;
+    }
+
+    return false;
+  }
+
   void removeChild(const Node* child)
   {
     auto it = std::find(children.begin(), children.end(), child);
