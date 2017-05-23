@@ -1402,6 +1402,7 @@ Future<Nothing> HierarchicalAllocatorProcess::allocate(
   allocationCandidates |= slaveIds;
 
   if (allocation.isNone() || !allocation->isPending()) {
+    metrics.allocation_run_latency.start();
     allocation = dispatch(self(), &Self::_allocate);
   }
 
@@ -1409,7 +1410,10 @@ Future<Nothing> HierarchicalAllocatorProcess::allocate(
 }
 
 
-Nothing HierarchicalAllocatorProcess::_allocate() {
+Nothing HierarchicalAllocatorProcess::_allocate()
+{
+  metrics.allocation_run_latency.stop();
+
   if (paused) {
     VLOG(1) << "Skipped allocation because the allocator is paused";
 

@@ -973,70 +973,70 @@ and resource allocations in the allocator.
   <td>
   <code>allocator/mesos/allocation_run_ms</code>
   </td>
-  <td>Allocation algorithm latency in ms</td>
+  <td>Time spent in allocation algorithm in ms</td>
   <td>Gauge</td>
 </tr>
 <tr>
   <td>
   <code>allocator/mesos/allocation_run_ms/count</code>
   </td>
-  <td>Number of allocation algorithm latency measurements in the window</td>
+  <td>Number of allocation algorithm time measurements in the window</td>
   <td>Gauge</td>
 </tr>
 <tr>
   <td>
   <code>allocator/mesos/allocation_run_ms/max</code>
   </td>
-  <td>Maximum allocation algorithm latency in ms</td>
+  <td>Maximum time spent in allocation algorithm in ms</td>
   <td>Gauge</td>
 </tr>
 <tr>
   <td>
   <code>allocator/mesos/allocation_run_ms/min</code>
   </td>
-  <td>Minimum allocation algorithm latency in ms</td>
+  <td>Minimum time spent in allocation algorithm in ms</td>
   <td>Gauge</td>
 </tr>
 <tr>
   <td>
   <code>allocator/mesos/allocation_run_ms/p50</code>
   </td>
-  <td>Median allocation algorithm latency in ms</td>
+  <td>Median time spent in allocation algorithm in ms</td>
   <td>Gauge</td>
 </tr>
 <tr>
   <td>
   <code>allocator/mesos/allocation_run_ms/p90</code>
   </td>
-  <td>90th percentile allocation algorithm latency in ms</td>
+  <td>90th percentile of time spent in allocation algorithm in ms</td>
   <td>Gauge</td>
 </tr>
 <tr>
   <td>
   <code>allocator/mesos/allocation_run_ms/p95</code>
   </td>
-  <td>95th percentile allocation algorithm latency in ms</td>
+  <td>95th percentile of time spent in allocation algorithm in ms</td>
   <td>Gauge</td>
 </tr>
 <tr>
   <td>
   <code>allocator/mesos/allocation_run_ms/p99</code>
   </td>
-  <td>99th percentile allocation algorithm latency in ms</td>
+  <td>99th percentile of time spent in allocation algorithm in ms</td>
   <td>Gauge</td>
 </tr>
 <tr>
   <td>
   <code>allocator/mesos/allocation_run_ms/p999</code>
   </td>
-  <td>99.9th percentile allocation algorithm latency in ms</td>
+  <td>99.9th percentile of time spent in allocation algorithm in ms</td>
   <td>Gauge</td>
 </tr>
 <tr>
   <td>
   <code>allocator/mesos/allocation_run_ms/p9999</code>
   </td>
-  <td>99.99th percentile allocation algorithm latency in ms</td>
+  <td>99.99th percentile of time spent in allocation algorithm in ms</td>
   <td>Gauge</td>
 </tr>
 <tr>
@@ -1045,6 +1045,76 @@ and resource allocations in the allocator.
   </td>
   <td>Number of times the allocation algorithm has run</td>
   <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/allocation_run_latency_ms</code>
+  </td>
+  <td>Allocation batch latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/allocation_run_latency_ms/count</code>
+  </td>
+  <td>Number of allocation batch latency measurements in the window</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/allocation_run_latency_ms/max</code>
+  </td>
+  <td>Maximum allocation batch latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/allocation_run_latency_ms/min</code>
+  </td>
+  <td>Minimum allocation batch latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/allocation_run_latency_ms/p50</code>
+  </td>
+  <td>Median allocation batch latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/allocation_run_latency_ms/p90</code>
+  </td>
+  <td>90th percentile allocation batch latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/allocation_run_latency_ms/p95</code>
+  </td>
+  <td>95th percentile allocation batch latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/allocation_run_latency_ms/p99</code>
+  </td>
+  <td>99th percentile allocation batch latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/allocation_run_latency_ms/p999</code>
+  </td>
+  <td>99.9th percentile allocation batch latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>allocator/mesos/allocation_run_latency_ms/p9999</code>
+  </td>
+  <td>99.99th percentile allocation batch latency in ms</td>
+  <td>Gauge</td>
 </tr>
 <tr>
   <td>

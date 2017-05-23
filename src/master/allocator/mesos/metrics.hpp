@@ -66,8 +66,11 @@ struct Metrics
   // Number of times the allocation algorithm has run.
   process::metrics::Counter allocation_runs;
 
-  // Latency of the allocation algorithm.
+  // Time spent in the allocation algorithm.
   process::metrics::Timer<Milliseconds> allocation_run;
+
+  // The latency of allocation runs due to the batching of allocation requests.
+  process::metrics::Timer<Milliseconds> allocation_run_latency;
 
   // Gauges for the total amount of each resource in the cluster.
   std::vector<process::metrics::Gauge> resources_total;

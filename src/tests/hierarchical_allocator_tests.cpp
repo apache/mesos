@@ -3575,6 +3575,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HierarchicalAllocatorTest, AllocationRunsMetric)
 
   ++allocations; // Adding a framework triggers allocations.
 
+  // Allocation count is set based on adding an agent and a framework.
   expected.values = { {"allocator/mesos/allocation_runs", allocations} };
 
   metrics = Metrics();
@@ -3661,6 +3662,88 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   JSON::Number timing = value.as<JSON::Number>();
   ASSERT_EQ(JSON::Number::FLOATING, timing.type);
   EXPECT_GT(timing.as<double>(), 0.0);
+
+  // The statistics should be generated.
+  foreach (const string& statistic, statistics) {
+    EXPECT_EQ(1u, values.count(statistic))
+      << "Expected " << statistic << " to be present";
+  }
+}
+
+
+// This test checks that the allocation run latency
+// metrics are reported in the metrics endpoint.
+// TODO(xujyan): This test is structurally similar to
+// `AllocationRunTimerMetrics` above. Consider a refactor.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HierarchicalAllocatorTest,
+    AllocationRunLatencyMetrics)
+{
+  Clock::pause();
+
+  initialize();
+
+  // These time series statistics will be generated
+  // once at least 2 allocation runs occur.
+  auto statistics = {
+    "allocator/mesos/allocation_run_latency_ms/count",
+    "allocator/mesos/allocation_run_latency_ms/min",
+    "allocator/mesos/allocation_run_latency_ms/max",
+    "allocator/mesos/allocation_run_latency_ms/p50",
+    "allocator/mesos/allocation_run_latency_ms/p95",
+    "allocator/mesos/allocation_run_latency_ms/p99",
+    "allocator/mesos/allocation_run_latency_ms/p999",
+    "allocator/mesos/allocation_run_latency_ms/p9999",
+  };
+
+  JSON::Object metrics = Metrics();
+  map<string, JSON::Value> values = metrics.values;
+
+  EXPECT_EQ(0u, values.count("allocator/mesos/allocation_run_latency_ms"));
+
+  // No allocation latency statistics should appear.
+  foreach (const string& statistic, statistics) {
+    EXPECT_EQ(0u, values.count(statistic))
+      << "Expected " << statistic << " to be absent";
+  }
+
+  // Allow the allocation timer to measure time.
+  Clock::resume();
+
+  // Trigger at least two calls to allocate to generate the window statistics.
+  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(
+      agent.id(),
+      agent,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent.resources(),
+      {});
+
+  // Wait for the allocation triggered by `addSlave()` to complete.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  FrameworkInfo framework = createFrameworkInfo({"role1"});
+  allocator->addFramework(framework.id(), framework, {}, true);
+
+  // Wait for the allocation triggered by `addFramework()` to complete.
+  AWAIT_READY(allocations.get());
+
+  metrics = Metrics();
+  values = metrics.values;
+
+  // A non-zero measurement should be present.
+  EXPECT_EQ(1u, values.count("allocator/mesos/allocation_run_latency_ms"));
+
+  JSON::Value value =
+    metrics.values["allocator/mesos/allocation_run_latency_ms"];
+  ASSERT_TRUE(value.is<JSON::Number>()) << value.which();
+
+  JSON::Number timing = value.as<JSON::Number>();
+  ASSERT_EQ(JSON::Number::FLOATING, timing.type);
+  EXPECT_GE(timing.as<double>(), 0.0);
 
   // The statistics should be generated.
   foreach (const string& statistic, statistics) {
