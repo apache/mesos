@@ -6110,7 +6110,7 @@ TEST_F(MasterTest, AgentRestartNoReregister)
 
   // The agent waits for the executor reregister timeout to expire,
   // even if all executors have re-reregistered.
-  Clock::advance(slave::EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::advance(agentFlags.executor_reregistration_timeout);
   Clock::settle();
 
   // Agent will try to re-register after completing recovery; prevent
@@ -6141,7 +6141,7 @@ TEST_F(MasterTest, AgentRestartNoReregister)
     .WillOnce(FutureArg<1>(&unreachableStatus));
 
   Duration elapsedTime =
-    masterFlags.agent_ping_timeout + slave::EXECUTOR_REREGISTER_TIMEOUT;
+    masterFlags.agent_ping_timeout + agentFlags.executor_reregistration_timeout;
 
   Duration remainingReregisterTime =
     masterFlags.agent_reregister_timeout - elapsedTime;
