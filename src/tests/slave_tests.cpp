@@ -4583,7 +4583,7 @@ TEST_F(SlaveTest, HTTPSchedulerSlaveRestart)
   Clock::settle();
 
   // Ensure the slave considers itself recovered.
-  Clock::advance(slave::EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::advance(flags.executor_reregistration_timeout);
 
   Clock::resume();
 

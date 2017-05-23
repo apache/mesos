@@ -1952,7 +1952,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
   AWAIT_READY(_recover1);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::advance(slaveFlags.executor_reregistration_timeout);
 
   AWAIT_READY(slaveReregisteredMessage1);
 
@@ -2001,7 +2001,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
   AWAIT_READY(_recover2);
 
   Clock::settle(); // Wait for slave to schedule reregister timeout.
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::advance(slaveFlags.executor_reregistration_timeout);
 
   AWAIT_READY(slaveReregisteredMessage2);
 
