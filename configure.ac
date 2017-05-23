@@ -205,6 +205,11 @@ AC_ARG_ENABLE([debug],
                               option won't change them]),
               [], [enable_debug=no])
 
+AC_ARG_ENABLE([grpc],
+              AS_HELP_STRING([--enable-grpc],
+                             [enable grpc support]),
+              [], [enable_grpc=no])
+
 AC_ARG_ENABLE([port-mapping-isolator],
               AS_HELP_STRING([--enable-port-mapping-isolator],
                              [enable port mapping network isolator]),
@@ -330,6 +335,13 @@ AC_ARG_WITH([gmock],
                             package in lieu of an installed version at a
                             location prefixed by the given path]),
             [without_bundled_gmock=yes], [])
+
+AC_ARG_WITH([grpc],
+            AS_HELP_STRING([--with-grpc@<:@=DIR@:>@],
+                           [excludes building and using the bundled grpc
+                            package in lieu of an installed version at a
+                            location prefixed by the given path]),
+            [without_bundled_grpc=yes], [])
 
 AC_ARG_WITH([http-parser],
             AS_HELP_STRING([--with-http-parser@<:@=DIR@:>@],
@@ -1463,8 +1475,11 @@ AM_CONDITIONAL([WITH_BUNDLED_NVML],
 # CPPFLAGS while extending it by /include and to LDFLAGS while
 # extending it by /lib.
 if test -n "`echo $with_protobuf`"; then
-  CPPFLAGS="$CPPFLAGS -isystem ${with_protobuf}/include"
-  LDFLAGS="$LDFLAGS -L${with_protobuf}/lib"
+  PROTOBUF_CPPFLAGS="-isystem ${with_protobuf}/include"
+  PROTOBUF_LINKERFLAGS="-L${with_protobuf}/lib"
+
+  CPPFLAGS="$PROTOBUF_CPPFLAGS $CPPFLAGS"
+  LDFLAGS="$PROTOBUF_LINKERFLAGS $LDFLAGS"
 fi
 
 # Check if user has asked us to use a preinstalled protobuf, or if
@@ -1541,8 +1556,11 @@ fi
 AM_CONDITIONAL([WITH_BUNDLED_PROTOBUF],
                [test "x$with_bundled_protobuf" = "xyes"])
 
+AC_SUBST([PROTOBUF_CPPFLAGS])
 AC_SUBST([PROTOBUF_JAR])
+AC_SUBST([PROTOBUF_LINKERFLAGS])
 AC_SUBST([PROTOCOMPILER])
+
 
 if test -n "`echo $with_libev`"; then
   CPPFLAGS="$CPPFLAGS -isystem ${with_libev}/include"
@@ -1728,8 +1746,11 @@ if test -z "`echo $with_ssl`" &&
 fi
 
 if test -n "`echo $with_ssl`"; then
-  CPPFLAGS="-isystem ${with_ssl}/include $CPPFLAGS"
-  LDFLAGS="-L${with_ssl}/lib $LDFLAGS"
+  SSL_CPPFLAGS="-isystem ${with_ssl}/include"
+  SSL_LINKERFLAGS="-L${with_ssl}/lib"
+
+  CPPFLAGS="$SSL_CPPFLAGS $CPPFLAGS"
+  LDFLAGS="$SSL_LINKERFLAGS $LDFLAGS"
 fi
 
 AC_CHECK_LIB([crypto], [RAND_poll], [found_crypto=yes])
@@ -1782,6 +1803,9 @@ libevent_openssl version 2+ headers are required for an SSL-enabled build.
 fi
 
 AM_CONDITIONAL([ENABLE_SSL], [test x"$enable_ssl" = "xyes"])
+
+AC_SUBST([SSL_CPPFLAGS])
+AC_SUBST([SSL_LINKERFLAGS])
 
 
 # Check if user has asked us to use a preinstalled stout, or if
@@ -1928,6 +1952,97 @@ libz headers are required for Mesos to build.
 
 AC_SUBST([ZLIB_CPPFLAGS])
 AC_SUBST([ZLIB_LINKERFLAGS])
+
+
+# Check if grpc prefix path was supplied and if so, add it to the
+# CPPFLAGS and LDFLAGS with respective /include and /lib path suffixes.
+if test -n "`echo $with_grpc`"; then
+  if test "x$without_bundled_protobuf" != "xyes"; then
+    AC_MSG_ERROR([protobuf not specified
+-------------------------------------------------------------------
+You have requested the use of a non-bundled grpc without specifying
+the protobuf library it uses. This is prohibited to avoid using
+conflicting versions of protobuf libraries. Please specify the
+location of protobuf used by grpc by providing a prefix path via
+--with-protobuf=DIR.
+-------------------------------------------------------------------
+    ])
+  fi
+
+  CPPFLAGS="$CPPFLAGS -isystem ${with_grpc}/include"
+  LDFLAGS="$LDFLAGS -L${with_grpc}/lib"
+fi
+
+if test "x$enable_grpc" = "xyes"; then
+  # Check if user has asked us to use a preinstalled grpc, or if they
+  # asked us to ignore all bundled libraries while compiling and linking.
+  if test "x$without_bundled_grpc" = "xyes" || \
+     test "x$enable_bundled" != "xyes"; then
+    # Use the system default prefix if not specified.
+    if test -n "`echo $with_grpc`"; then
+      GRPCPREFIX="${with_grpc}"
+    elif test "x$enable_bundled" != "xyes"; then
+      GRPCPREFIX="/usr"
+    fi
+
+    # Check if headers and library were located.
+    saved_LIBS="$LIBS"
+    LIBS="-lgrpc++ -lgrpc -lgpr $LIBS"
+    AC_LANG_PUSH([C++])
+    AC_CHECK_HEADERS([grpc++/grpc++.h],
+                     [AC_LINK_IFELSE(
+                         [AC_LANG_PROGRAM([#include <grpc++/grpc++.h>],
+                                          [grpc::Version();])],
+                         [found_grpc=yes],
+                         [found_grpc=no])],
+                     [found_grpc=no])
+    AC_LANG_POP()
+    LIBS="$saved_LIBS"
+
+    if test "x$found_grpc" = "xyes"; then
+      with_bundled_grpc=no
+
+      AC_CHECK_TOOL([GRPC_CXX_PLUGIN_TEST],
+                    [grpc_cpp_plugin],
+                    [],
+                    [$GRPCPREFIX/bin])
+
+      if test -z "`echo $GRPC_CXX_PLUGIN_TEST`"; then
+        AC_MSG_ERROR([grpc_cpp_plugin not found in PATH])
+      fi
+
+      GRPC_CXX_PLUGIN="$GRPCPREFIX/bin/grpc_cpp_plugin"
+
+    else
+      AC_MSG_ERROR([cannot find grpc
+-------------------------------------------------------------------
+You have requested the use of a non-bundled grpc but no suitable
+grpc could be found.
+
+You may want specify the location of grpc by providing a prefix
+path via --with-grpc=DIR, or check that the path you provided is
+correct if you are already doing this.
+-------------------------------------------------------------------
+      ])
+    fi
+  else
+    if test "x$found_ssl" != "xyes"; then
+      AC_MSG_ERROR([cannot find libssl
+-------------------------------------------------------------------
+libssl is required for gRPC to build.
+-------------------------------------------------------------------
+      ])
+    fi
+
+    with_bundled_grpc=yes
+  fi
+fi
+
+AM_CONDITIONAL([ENABLE_GRPC], [test "x$enable_grpc" = "xyes"])
+AM_CONDITIONAL([WITH_BUNDLED_GRPC],
+               [test "x$with_bundled_grpc" = "xyes"])
+
+AC_SUBST([GRPC_CXX_PLUGIN])
 
 
 # Check if ZooKeeper prefix path was supplied and if so, add it to

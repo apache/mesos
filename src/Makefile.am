@@ -39,6 +39,7 @@ GLOG = 3rdparty/glog-$(GLOG_VERSION)
 GOOGLETEST = 3rdparty/googletest-release-$(GOOGLETEST_VERSION)
 GMOCK = $(GOOGLETEST)/googlemock
 GTEST = $(GOOGLETEST)/googletest
+GRPC = 3rdparty/grpc-$(GRPC_VERSION)
 PROTOBUF = 3rdparty/protobuf-$(PROTOBUF_VERSION)
 PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
 NVML = 3rdparty/nvml-$(NVML_VERSION)
@@ -171,6 +172,19 @@ LIB_GLOG = ../$(GLOG)/libglog.la
 else
 LIB_GLOG = -lglog
 LDADD += -lglog
+endif
+
+if ENABLE_GRPC
+if WITH_BUNDLED_GRPC
+LIB_GRPC = ../$(GRPC)/libs/opt/libgrpc++.a	\
+           ../$(GRPC)/libs/opt/libgrpc.a	\
+           ../$(GRPC)/libs/opt/libgpr.a		\
+           -lssl -lcrypto
+GRPC_CPP_PLUGIN = ../$(GRPC)/bins/opt/grpc_cpp_plugin
+else
+LIB_GRPC = -lgrpc++ -lgrpc -lgpr -lssl -lcrypto
+GRPC_CPP_PLUGIN = @GRPC_CXX_PLUGIN@
+endif
 endif
 
 if WITH_BUNDLED_LEVELDB
@@ -1509,6 +1523,7 @@ libmesos_la_LIBTOOLFLAGS = --tag=CXX
 libmesos_la_LIBADD =							\
   libmesos_no_3rdparty.la						\
   $(LIB_GLOG)								\
+  $(LIB_GRPC)								\
   $(LIB_LEVELDB)							\
   $(LIB_PROCESS)							\
   $(LIB_PROTOBUF)							\

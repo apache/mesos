@@ -38,6 +38,8 @@ CONFIGURE_ARGS = @CONFIGURE_ARGS@ --enable-shared=no --with-pic --srcdir=.
 CONFIGURE_ARGS += --prefix=/
 
 # Set up building flags for non-bundled libraries.
+SSL_INCLUDE_FLAGS = @SSL_CPPFLAGS@
+SSL_LINKER_FLAGS = @SSL_LINKERFLAGS@
 ZLIB_INCLUDE_FLAGS = @ZLIB_CPPFLAGS@
 ZLIB_LINKER_FLAGS = @ZLIB_LINKERFLAGS@
 
@@ -53,6 +55,7 @@ GLOG = glog-$(GLOG_VERSION)
 GOOGLETEST = googletest-release-$(GOOGLETEST_VERSION)
 GMOCK = $(GOOGLETEST)/googlemock
 GPERFTOOLS = gperftools-$(GPERFTOOLS_VERSION)
+GRPC = grpc-$(GRPC_VERSION)
 GTEST = $(GOOGLETEST)/googletest
 HTTP_PARSER = http-parser-$(HTTP_PARSER_VERSION)
 LEVELDB = leveldb-$(LEVELDB_VERSION)
@@ -72,6 +75,7 @@ EXTRA_DIST =			\
   $(GLOG).tar.gz		\
   $(GOOGLETEST).tar.gz		\
   $(GPERFTOOLS).tar.gz		\
+  $(GRPC).tar.gz		\
   $(HTTP_PARSER).tar.gz		\
   $(LEVELDB).tar.gz		\
   $(LIBEV).tar.gz		\
@@ -87,6 +91,10 @@ EXTRA_DIST =			\
 # compiling with clang (and C++11); see MESOS-860, MESOS-966.
 EXTRA_DIST +=		\
   $(GLOG).patch
+
+# We patch grpc for CMake compilation issues.
+EXTRA_DIST +=		\
+  $(GRPC).patch
 
 # We need to patch leveldb to prevent it from linking to snappy and
 # tcmalloc; see MESOS-1054, MESOS-1624.
@@ -108,6 +116,7 @@ CLEAN_EXTRACTED =		\
   $(GLOG)			\
   $(GOOGLETEST)			\
   $(GPERFTOOLS)			\
+  $(GRPC)			\
   $(HTTP_PARSER)		\
   $(LEVELDB)			\
   $(LIBEV)			\
@@ -280,6 +289,47 @@ $(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp
 	touch $@
 ALL_LOCAL += $(PROTOBUF)/src/libprotobuf.la
 ALL_LOCAL += $(PROTOBUF)/src/protoc
+
+PROTOBUF_INCLUDE_FLAGS = -I$(abs_builddir)/$(PROTOBUF)/src
+PROTOBUF_LINKER_FLAGS = -L$(abs_builddir)/$(PROTOBUF)/src/.libs
+PROTOC = $(abs_builddir)/$(PROTOBUF)/src/protoc
+else
+$(PROTOBUF)-build-stamp:
+	touch $@
+
+PROTOBUF_INCLUDE_FLAGS = @PROTOBUF_CPPFLAGS@
+PROTOBUF_LINKER_FLAGS = @PROTOBUF_LINKERFLAGS@
+PROTOC = @PROTOCOMPILER@
+endif
+
+if ENABLE_GRPC
+if WITH_BUNDLED_GRPC
+LIB_GRPC = $(GRPC)/libs/opt/libgrpc++.a		\
+           $(GRPC)/libs/opt/libgrpc.a		\
+           $(GRPC)/libs/opt/libgpr.a
+
+$(LIB_GRPC): $(GRPC)-build-stamp
+
+$(GRPC)-build-stamp: $(GRPC)-stamp		\
+                     $(PROTOBUF)-build-stamp
+	cd $(GRPC) &&				\
+	  CPPFLAGS="$(PROTOBUF_INCLUDE_FLAGS)	\
+	            $(SSL_INCLUDE_FLAGS)	\
+	            $(ZLIB_INCLUDE_FLAGS)"	\
+	  LDFLAGS="$(PROTOBUF_LINKER_FLAGS)	\
+	           $(SSL_LINKER_FLAGS)		\
+	           $(ZLIB_LINKER_FLAGS)"	\
+	  $(MAKE) $(AM_MAKEFLAGS)		\
+	          HAS_PKG_CONFIG=false		\
+	          NO_PROTOC=false		\
+	          PROTOC=$(PROTOC)
+	touch $@
+
+ALL_LOCAL += $(LIB_GRPC)
+else
+$(GRPC)-build-stamp:
+	touch $@
+endif
 endif
 
 # Convenience library for gmock/gtest.
