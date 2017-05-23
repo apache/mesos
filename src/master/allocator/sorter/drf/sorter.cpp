@@ -99,13 +99,7 @@ void DRFSorter::add(const string& clientPath)
     // leaf node into an internal node, we need to create an
     // additional child node: `current` must have been associated with
     // a client and clients must always be associated with leaf nodes.
-    //
-    // There are two exceptions: if `current` is the root node or it
-    // was just created by the current `add()` call, it does not
-    // correspond to a client, so we don't create an extra child.
-    if (current->children.empty() &&
-        current != root &&
-        current != lastCreatedNode) {
+    if (current->isLeaf()) {
       Node* parent = CHECK_NOTNULL(current->parent);
 
       parent->removeChild(current);
@@ -122,8 +116,9 @@ void DRFSorter::add(const string& clientPath)
       // `internal`.
       current->name = ".";
       current->parent = internal;
-      internal->addChild(current);
       current->path = strings::join("/", parent->path, current->name);
+
+      internal->addChild(current);
 
       CHECK_EQ(internal->path, current->clientPath());
 
@@ -155,8 +150,7 @@ void DRFSorter::add(const string& clientPath)
   }
 
   // `current` is the newly created node associated with the last
-  // element of the path. `current` should be an inactive node with no
-  // children.
+  // element of the path. `current` should be an inactive leaf node.
   CHECK(current->children.empty());
   CHECK(current->kind == Node::INACTIVE_LEAF);
 
@@ -228,9 +222,7 @@ void DRFSorter::remove(const string& clientPath)
       Node* child = *(current->children.begin());
 
       if (child->name == ".") {
-        CHECK(child->children.empty());
-        CHECK(child->kind == Node::ACTIVE_LEAF ||
-              child->kind == Node::INACTIVE_LEAF);
+        CHECK(child->isLeaf());
         CHECK(clients.contains(current->path));
         CHECK_EQ(child, clients.at(current->path));
 
@@ -578,9 +570,7 @@ DRFSorter::Node* DRFSorter::find(const string& clientPath) const
 
   Node* client = client_.get();
 
-  CHECK(client->kind == Node::ACTIVE_LEAF ||
-        client->kind == Node::INACTIVE_LEAF);
-  CHECK(client->children.empty());
+  CHECK(client->isLeaf());
 
   return client;
 }
