@@ -4971,9 +4971,9 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   // Add the slaves, use round-robin to choose which framework
   // to allocate a slice of the slave's resources to.
   for (size_t i = 0; i < slaves.size(); i++) {
-    hashmap<FrameworkID, Resources> used;
-
-    used[frameworks[i % frameworkCount].id()] = allocation;
+    hashmap<FrameworkID, Resources> used = {
+      {frameworks[i % frameworkCount].id(), allocation}
+    };
 
     allocator->addSlave(
         slaves[i].id(),
@@ -5096,10 +5096,12 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, DeclineOffers)
   for (size_t i = 0; i < slaveCount; i++) {
     slaves.push_back(createSlaveInfo(agentResources));
 
-    // Add some used resources on each slave. Let's say there are 16 tasks, each
-    // is allocated 1 cpu and a random port from the port range.
-    hashmap<FrameworkID, Resources> used;
-    used[frameworks[i % frameworkCount].id()] = allocation;
+    // Add some used resources on each slave. Let's say there are 16 tasks;
+    // each is allocated 1 cpu and a random port from the port range.
+    hashmap<FrameworkID, Resources> used = {
+      {frameworks[i % frameworkCount].id(), allocation}
+    };
+
     allocator->addSlave(
         slaves[i].id(),
         slaves[i],
@@ -5289,8 +5291,10 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
 
     // Add some used resources on each slave. Let's say there are 16 tasks, each
     // is allocated 1 cpu and a random port from the port range.
-    hashmap<FrameworkID, Resources> used;
-    used[frameworks[i % frameworkCount].id()] = _allocation;
+    hashmap<FrameworkID, Resources> used = {
+      {frameworks[i % frameworkCount].id(), _allocation}
+    };
+
     allocator->addSlave(
         slaves[i].id(),
         slaves[i],
@@ -5424,8 +5428,9 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, SuppressOffers)
   for (size_t i = 0; i < agentCount; i++) {
     agents.push_back(createSlaveInfo(agentResources));
 
-    hashmap<FrameworkID, Resources> used;
-    used[frameworks[i % frameworkCount].id()] = allocation;
+    hashmap<FrameworkID, Resources> used = {
+      {frameworks[i % frameworkCount].id(), allocation}
+    };
 
     allocator->addSlave(
         agents[i].id(),
@@ -5454,7 +5459,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, SuppressOffers)
   size_t allocationsCount = 5;
   size_t suppressCount = 0;
 
-  for (size_t i = 0; i < allocationsCount; ++i) {
+  for (size_t i = 0; i < allocationsCount; i++) {
     // Recover resources with no filters because we want to test the
     // effect of suppression alone.
     foreach (const OfferedResources& offer, offers) {
@@ -5580,8 +5585,9 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ExtremeSuppressOffers)
   for (size_t i = 0; i < agentCount; i++) {
     agents.push_back(createSlaveInfo(agentResources));
 
-    hashmap<FrameworkID, Resources> used;
-    used[frameworks[i % frameworkCount].id()] = allocation;
+    hashmap<FrameworkID, Resources> used = {
+      {frameworks[i % frameworkCount].id(), allocation}
+    };
 
     allocator->addSlave(
         agents[i].id(),
@@ -5617,7 +5623,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ExtremeSuppressOffers)
     allocator->suppressOffers(frameworks[i].id(), {});
   }
 
-  for (size_t i = 0; i < allocationsCount; ++i) {
+  for (size_t i = 0; i < allocationsCount; i++) {
     // Recover resources with no filters because we want to test the
     // effect of suppression alone.
     foreach (const OfferedResources& offer, offers) {
