@@ -164,7 +164,7 @@ void execute(const string& script)
     // TODO(xujyan): Enable agent authN and authZ by default in example tests.
     mesos::ACL::RegisterAgent* registerAgent = acls.add_register_agents();
     registerAgent->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
-    registerAgent->mutable_agent()->set_type(mesos::ACL::Entity::ANY);
+    registerAgent->mutable_agents()->set_type(mesos::ACL::Entity::ANY);
 
     const string& aclsPath = path::join(directory.get(), "acls");
 

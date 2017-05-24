@@ -4898,14 +4898,14 @@ TYPED_TEST(AuthorizationTest, RegisterAgent)
     // "foo" principal can register as an agent.
     mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
     acl->mutable_principals()->add_values("foo");
-    acl->mutable_agent()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_agents()->set_type(mesos::ACL::Entity::ANY);
   }
 
   {
     // Nobody else can register as an agent.
     mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
     acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
-    acl->mutable_agent()->set_type(mesos::ACL::Entity::NONE);
+    acl->mutable_agents()->set_type(mesos::ACL::Entity::NONE);
   }
 
   Try<Authorizer*> create = TypeParam::create(parameterize(acls));
@@ -4936,7 +4936,7 @@ TYPED_TEST(AuthorizationTest, RegisterAgent)
 
     mesos::ACL::RegisterAgent* acl = invalid.add_register_agents();
     acl->mutable_principals()->add_values("foo");
-    acl->mutable_agent()->add_values("yoda");
+    acl->mutable_agents()->add_values("yoda");
 
     Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
     EXPECT_ERROR(create);

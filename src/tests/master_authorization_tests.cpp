@@ -2339,7 +2339,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedToRegisterAndReregisterAgent)
   ACLs acls;
   mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
   acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  acl->mutable_agent()->set_type(ACL::Entity::ANY);
+  acl->mutable_agents()->set_type(ACL::Entity::ANY);
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
@@ -2378,7 +2378,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedToRegisterAgent)
   ACLs acls;
   mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
   acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  acl->mutable_agent()->set_type(ACL::Entity::NONE);
+  acl->mutable_agents()->set_type(ACL::Entity::NONE);
 
   master::Flags flags = CreateMasterFlags();
   flags.acls = acls;
@@ -2405,7 +2405,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedToReregisterAgent)
   ACLs acls;
   mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
   acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  acl->mutable_agent()->set_type(ACL::Entity::ANY);
+  acl->mutable_agents()->set_type(ACL::Entity::ANY);
 
   master::Flags flags = CreateMasterFlags();
   flags.acls = acls;
@@ -2428,7 +2428,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedToReregisterAgent)
   master->reset();
 
   // The new master doesn't allow this agent principal to re-register.
-  acl->mutable_agent()->set_type(ACL::Entity::NONE);
+  acl->mutable_agents()->set_type(ACL::Entity::NONE);
   flags.acls = acls;
 
   Future<Message> shutdownMessage =
