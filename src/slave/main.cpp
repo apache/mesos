@@ -268,8 +268,7 @@ int main(int argc, char** argv)
   // TODO(marco): this pattern too should be abstracted away
   // in FlagsBase; I have seen it at least 15 times.
   if (load.isError()) {
-    cerr << flags.usage(load.error()) << endl;
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE) << flags.usage(load.error());
   }
 
   // Check that agent's version has the expected format (SemVer).
@@ -283,15 +282,13 @@ int main(int argc, char** argv)
   }
 
   if (flags.master.isNone() && flags.master_detector.isNone()) {
-    cerr << flags.usage("Missing required option `--master` or "
-                        "`--master_detector`.") << endl;
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE) << flags.usage(
+        "Missing required option `--master` or `--master_detector`");
   }
 
   if (flags.master.isSome() && flags.master_detector.isSome()) {
-    cerr << flags.usage("Only one of --master or --master_detector options "
-                        "should be specified.");
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE) << flags.usage(
+        "Only one of `--master` or `--master_detector` should be specified");
   }
 
   // Initialize libprocess.
@@ -519,18 +516,16 @@ int main(int argc, char** argv)
     ResourceEstimator::create(flags.resource_estimator);
 
   if (resourceEstimator.isError()) {
-    cerr << "Failed to create resource estimator: "
-         << resourceEstimator.error() << endl;
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE) << "Failed to create resource estimator: "
+                       << resourceEstimator.error();
   }
 
   Try<QoSController*> qosController =
     QoSController::create(flags.qos_controller);
 
   if (qosController.isError()) {
-    cerr << "Failed to create QoS Controller: "
-         << qosController.error() << endl;
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE) << "Failed to create QoS Controller: "
+                       << qosController.error();
   }
 
   Slave* slave = new Slave(
