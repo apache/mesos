@@ -291,7 +291,7 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
 
   const Offer& offer = offers.get()[0];
 
-  // Create a task that requests a 1 MB persistent volume but atempts
+  // Create a task that requests a 1 MB persistent volume but attempts
   // to use 2MB.
   Resources volume = createPersistentVolume(
       Megabytes(1),

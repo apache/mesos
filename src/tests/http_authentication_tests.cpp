@@ -342,7 +342,7 @@ AuthenticationResult createCombinedForbidden(
 //
 // Note: This test relies on the order of invocation of the installed
 // authenticators. If the `CombinedAuthenticator` is changed in the future to
-// call them in a different order, this test must be udpated.
+// call them in a different order, this test must be updated.
 TEST(CombinedAuthenticatorTest, MultipleAuthenticators)
 {
   // Create two mock HTTP authenticators to install.

@@ -384,7 +384,7 @@ TEST_F(UpgradeTest, UpgradeSlaveIntoMultiRole)
   Clock::settle();
 
   // We should be able to receive offers after
-  // agent capabilities being udpated.
+  // agent capabilities being updated.
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 

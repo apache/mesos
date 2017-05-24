@@ -84,7 +84,7 @@ namespace tests {
  * @param name Appc image name.
  * @param arch Machine architecture(e.g, x86, amd64).
  * @param os Operating system(e.g, linux).
- * @return Appc protobuff message object.
+ * @return Appc protobuf message object.
  */
 static Image::Appc getAppcImage(
     const string& name,
@@ -664,7 +664,7 @@ public:
   }
 
 private:
-  // TODO(jojy): Currently hard-codes the images dierctory name.
+  // TODO(jojy): Currently hard-codes the images directory name.
   // Consider parameterizing the directory name. This could be done
   // by removing the 'const' ness of the variable and adding mutator.
   const string imagesDirName;

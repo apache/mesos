@@ -206,7 +206,7 @@ TEST_F(ReservationTest, ReserveTwiceWithDoubleValue)
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   // We use the filter explicitly here so that the resources will not
-  // be filtered (default would be 5 seconods).
+  // be filtered (default would be 5 seconds).
   Filters filters;
   filters.set_refuse_seconds(0);
 

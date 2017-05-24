@@ -305,7 +305,7 @@ public:
 };
 
 
-// This tests the store to pull the same image simutanuously.
+// This tests the store to pull the same image simultaneously.
 // This test verifies that the store only calls the puller once
 // when multiple requests for the same image is in flight.
 TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
@@ -917,7 +917,7 @@ TEST_F(ProvisionerDockerTest, ROOT_INTERNET_CURL_ImageDigest)
 
 // This test verifies that if a container image is specified, the
 // command runs as the specified user 'nobody' and the sandbox of
-// the command task is writtable by the specified user. It also
+// the command task is writeable by the specified user. It also
 // verifies that stdout/stderr are owned by the specified user.
 TEST_F(ProvisionerDockerTest, ROOT_INTERNET_CURL_CommandTaskUser)
 {
