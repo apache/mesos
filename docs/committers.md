@@ -223,6 +223,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>joris@apache.org</td>
     </tr>
     <tr>
+      <td>-8</td>
+      <td>Gilbert Song</td>
+      <td>Mesosphere</td>
+      <td></td>
+      <td>gilbert@apache.org</td>
+    </tr>
+    <tr>
       <td>-5</td>
       <td>Timothy St Clair</td>
       <td>Redhat</td>
