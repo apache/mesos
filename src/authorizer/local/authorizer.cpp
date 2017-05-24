@@ -1242,7 +1242,7 @@ private:
         foreach (const ACL::RegisterAgent& acl, acls.register_agents()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
-          acl_.objects = acl.agent();
+          acl_.objects = acl.agents();
 
           acls_.push_back(acl_);
         }
@@ -1337,9 +1337,9 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
   }
 
   foreach (const ACL::RegisterAgent& acl, acls.register_agents()) {
-    if (acl.agent().type() == ACL::Entity::SOME) {
+    if (acl.agents().type() == ACL::Entity::SOME) {
       return Error(
-          "acls.register_agents.agent type must be either NONE or ANY");
+          "acls.register_agents type must be either NONE or ANY");
     }
   }
 
