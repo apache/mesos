@@ -159,6 +159,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${BOOST_URL}
+  URL_HASH          ${BOOST_HASH}
   )
 
 ExternalProject_Add(
@@ -168,6 +169,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${ELFIO_URL}
+  URL_HASH          ${ELFIO_HASH}
   )
 
 # The patch, configure, build, and install commands are stubbed out on Windows
@@ -183,7 +185,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${GLOG_BUILD_CMD}
   INSTALL_COMMAND   ${GLOG_INSTALL_CMD}
   URL               ${GLOG_URL}
-  DOWNLOAD_NAME     glog-${GLOG_VERSION}.tar.gz
+  URL_HASH          ${GLOG_HASH}
   )
 
 ExternalProject_Add(
@@ -193,6 +195,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${PICOJSON_URL}
+  URL_HASH          ${PICOJSON_HASH}
   )
 
 ExternalProject_Add(
@@ -202,6 +205,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${NVML_URL}
+  URL_HASH          ${NVML_HASH}
   )
 
 ExternalProject_Add(
@@ -211,6 +215,7 @@ ExternalProject_Add(
   PATCH_COMMAND     ${HTTP_PARSER_PATCH_CMD}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${HTTP_PARSER_URL}
+  URL_HASH          ${HTTP_PARSER_HASH}
   )
 
 if (NOT ENABLE_LIBEVENT)
@@ -222,6 +227,7 @@ if (NOT ENABLE_LIBEVENT)
     BUILD_COMMAND     ${LIBEV_BUILD_CMD}
     INSTALL_COMMAND   ${LIBEV_INSTALL_CMD}
     URL               ${LIBEV_URL}
+    URL_HASH          ${LIBEV_HASH}
     )
 elseif (ENABLE_LIBEVENT)
   ExternalProject_Add(
@@ -230,6 +236,7 @@ elseif (ENABLE_LIBEVENT)
     CMAKE_ARGS      ${LIBEVENT_CMAKE_ARGS}
     INSTALL_COMMAND ${LIBEVENT_INSTALL_CMD}
     URL             ${LIBEVENT_URL}
+    URL_HASH        ${LIBEVENT_HASH}
     )
 endif (NOT ENABLE_LIBEVENT)
 
@@ -240,6 +247,7 @@ if (WIN32)
     CMAKE_ARGS      -DBUILD_SHARED_LIBS=OFF
     INSTALL_COMMAND ${LIBAPR_INSTALL_CMD}
     URL             ${LIBAPR_URL}
+    URL_HASH        ${LIBAPR_HASH}
     )
 endif (WIN32)
 
@@ -257,6 +265,7 @@ if (WIN32)
     BUILD_COMMAND     msbuild /p:RuntimeLibrary=MT_StaticDebug lib/libcurl.vcxproj
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${CURL_URL}
+    URL_HASH          ${CURL_HASH}
   )
 
   ExternalProject_Add(
@@ -266,6 +275,7 @@ if (WIN32)
     BUILD_COMMAND   ${GLOG_BUILD_CMD}
     INSTALL_COMMAND ${CMAKE_NOOP}
     URL             ${ZLIB_URL}
+    URL_HASH        ${ZLIB_HASH}
   )
 endif (WIN32)
 
@@ -324,6 +334,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${GOOGLETEST_BUILD_CMD}
   INSTALL_COMMAND   ${GOOGLETEST_INSTALL_CMD}
   URL               ${GOOGLETEST_URL}
+  URL_HASH          ${GOOGLETEST_HASH}
   )
 
 ExternalProject_Add(
@@ -335,6 +346,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${PROTOBUF_BUILD_CMD}
   INSTALL_COMMAND   ${PROTOBUF_INSTALL_CMD}
   URL               ${PROTOBUF_URL}
+  URL_HASH          ${PROTOBUF_HASH}
   )
 
 
@@ -384,6 +396,7 @@ if (NOT WIN32)
     BUILD_COMMAND     cd ${ZOOKEEPER_C_ROOT} && make
     INSTALL_COMMAND   cd ${ZOOKEEPER_C_ROOT} && make install
     URL               ${ZOOKEEPER_URL}
+    URL_HASH          ${ZOOKEEPER_HASH}
     )
 elseif (WIN32)
   ExternalProject_Add(
@@ -398,6 +411,7 @@ elseif (WIN32)
     CMAKE_ARGS        -DWANT_CPPUNIT=0
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${ZOOKEEPER_URL}
+    URL_HASH          ${ZOOKEEPER_HASH}
     )
 endif (NOT WIN32)
 
@@ -417,5 +431,6 @@ if (NOT WIN32)
     BUILD_COMMAND     ${LEVELDB_BUILD_CMD}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${LEVELDB_URL}
+    URL_HASH          ${LEVELDB_HASH}
     )
 endif (NOT WIN32)
