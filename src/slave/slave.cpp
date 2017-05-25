@@ -4010,7 +4010,7 @@ void Slave::reregisterExecutor(
     return;
   }
 
-  Framework* framework = frameworks[frameworkId];
+  Framework* framework = frameworks.at(frameworkId);
 
   CHECK(framework->state == Framework::RUNNING ||
         framework->state == Framework::TERMINATING)
