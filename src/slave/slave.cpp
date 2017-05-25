@@ -3988,6 +3988,10 @@ void Slave::reregisterExecutor(
         state == RUNNING || state == TERMINATING)
     << state;
 
+  LOG(INFO) << "Received re-registration message from"
+            << " executor '" << executorId << "'"
+            << " of framework " << frameworkId;
+
   if (state == TERMINATING) {
     LOG(WARNING) << "Shutting down executor '" << executorId << "'"
                  << " of framework " << frameworkId
