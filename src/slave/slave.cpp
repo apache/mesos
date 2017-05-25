@@ -4017,9 +4017,9 @@ void Slave::reregisterExecutor(
     << framework->state;
 
   if (framework->state == Framework::TERMINATING) {
-    LOG(WARNING) << "Shutting down executor '" << executorId
-                 << "' as the framework " << frameworkId
-                 << " is terminating";
+    LOG(WARNING) << "Shutting down executor '" << executorId << "'"
+                 << " of framework " << frameworkId
+                 << " because the framework is terminating";
 
     reply(ShutdownExecutorMessage());
     return;
