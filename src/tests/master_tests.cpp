@@ -623,16 +623,18 @@ TEST_F(MasterTest, EndpointsForHalfRemovedSlave)
   // Drop all the PONGs to simulate slave partition.
   DROP_PROTOBUFS(PongSlaveMessage(), _, _);
 
+  Clock::pause();
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
   slave::Flags agentFlags = CreateSlaveFlags();
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), agentFlags);
   ASSERT_SOME(slave);
 
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
-
-  Clock::pause();
   Clock::advance(agentFlags.registration_backoff_factor);
+
   AWAIT_READY(slaveRegisteredMessage);
 
   // Now advance through the PINGs.
