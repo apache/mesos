@@ -5634,6 +5634,8 @@ TEST_F(MasterTest, MaxCompletedTasksPerFrameworkFlag)
   const size_t totalTasksPerFramework = 2;
   const size_t maxTasksPerFrameworkArray[] = {0, 1, 2};
 
+  Clock::pause();
+
   foreach (const size_t maxTasksPerFramework, maxTasksPerFrameworkArray) {
     master::Flags masterFlags = CreateMasterFlags();
     masterFlags.max_completed_tasks_per_framework = maxTasksPerFramework;
@@ -5645,10 +5647,17 @@ TEST_F(MasterTest, MaxCompletedTasksPerFrameworkFlag)
     TestContainerizer containerizer(&exec);
     EXPECT_CALL(exec, registered(_, _, _, _));
 
+    Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+      FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
     Owned<MasterDetector> detector = master.get()->createDetector();
+    slave::Flags agentFlags = CreateSlaveFlags();
     Try<Owned<cluster::Slave>> slave =
-      StartSlave(detector.get(), &containerizer);
+      StartSlave(detector.get(), &containerizer, agentFlags);
     ASSERT_SOME(slave);
+
+    Clock::advance(agentFlags.registration_backoff_factor);
+    AWAIT_READY(slaveRegisteredMessage);
 
     MockScheduler sched;
     MesosSchedulerDriver schedDriver(
@@ -5667,6 +5676,9 @@ TEST_F(MasterTest, MaxCompletedTasksPerFrameworkFlag)
     AWAIT_READY(schedRegistered);
 
     for (size_t i = 0; i < totalTasksPerFramework; i++) {
+      // Trigger a batch allocation.
+      Clock::advance(masterFlags.allocation_interval);
+
       Future<Offer> offer = offers.get();
       AWAIT_READY(offer);
 
