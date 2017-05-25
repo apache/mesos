@@ -14,10 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __MESOS_RESOURCE_PROVIDER_HPP__
-#define __MESOS_RESOURCE_PROVIDER_HPP__
+#ifndef __MESOS_RESOURCE_PROVIDER_PROTO_HPP__
+#define __MESOS_RESOURCE_PROVIDER_PROTO_HPP__
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/resource_provider/resource_provider.pb.h>
 
-#endif // __MESOS_RESOURCE_PROVIDER_HPP__
+#endif // __MESOS_RESOURCE_PROVIDER_PROTO_HPP__
