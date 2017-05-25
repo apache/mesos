@@ -4022,7 +4022,14 @@ void Slave::reregisterExecutor(
   }
 
   Executor* executor = framework->getExecutor(executorId);
-  CHECK_NOTNULL(executor);
+
+  if (executor == nullptr) {
+    LOG(WARNING) << "Shutting down unknown executor '" << executorId << "'"
+                 << " of framework " << frameworkId;
+
+    reply(ShutdownExecutorMessage());
+    return;
+  }
 
   switch (executor->state) {
     case Executor::TERMINATING:
