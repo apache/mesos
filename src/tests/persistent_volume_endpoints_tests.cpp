@@ -46,8 +46,6 @@ using std::vector;
 
 using google::protobuf::RepeatedPtrField;
 
-using mesos::internal::master::DEFAULT_ALLOCATION_INTERVAL;
-using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
