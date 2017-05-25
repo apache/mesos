@@ -3419,11 +3419,14 @@ void Slave::reregisterExecutor(
     return;
   }
 
-  LOG(INFO) << "Re-registering executor '" << executorId
-            << "' of framework " << frameworkId;
+  if (!frameworks.contains(frameworkId)) {
+    LOG(WARNING) << "Shutting down executor '" << executorId << "'"
+                 << " of framework " << frameworkId
+                 << " because the framework is unknown";
 
-  CHECK(frameworks.contains(frameworkId))
-    << "Unknown framework " << frameworkId;
+    reply(ShutdownExecutorMessage());
+    return;
+  }
 
   Framework* framework = frameworks[frameworkId];
 
