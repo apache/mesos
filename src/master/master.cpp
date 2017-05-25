@@ -2173,7 +2173,7 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
     // A different node has been elected as the leading master.
     LOG(INFO) << "The newly elected leader is "
               << (leader.isSome()
-                  ? (leader.get().pid() + " with id " + leader.get().id())
+                  ? (leader->pid() + " with id " + leader->id())
                   : "None");
 
     if (wasElected) {

@@ -2781,7 +2781,7 @@ Future<Response> Master::Http::state(
 
         // TODO(haosdent): Deprecated this in favor of `leader_info` below.
         if (master->leader.isSome()) {
-          writer->field("leader", master->leader.get().pid());
+          writer->field("leader", master->leader->pid());
         }
 
         if (master->leader.isSome()) {
