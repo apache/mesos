@@ -153,6 +153,7 @@ stout_tests_SOURCES =			\
   tests/numify_tests.cpp		\
   tests/option_tests.cpp		\
   tests/os_tests.cpp			\
+  tests/os/copyfile_tests.cpp		\
   tests/os/env_tests.cpp		\
   tests/os/filesystem_tests.cpp		\
   tests/os/process_tests.cpp		\
