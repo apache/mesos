@@ -206,7 +206,7 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
     return Nothing();
   }
 
-  foreachvalue (const FrameworkState& framework, state.get().frameworks) {
+  foreachvalue (const FrameworkState& framework, state->frameworks) {
     foreachvalue (const ExecutorState& executor, framework.executors) {
       LOG(INFO) << "Recovering executor '" << executor.id
                 << "' of framework " << framework.id;
@@ -232,7 +232,7 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
       Option<RunState> run = executor.runs.get(latest);
       CHECK_SOME(run);
 
-      if (run.get().completed) {
+      if (run->completed) {
         VLOG(1) << "Skipping recovering updates of"
                 << " executor '" << executor.id
                 << "' of framework " << framework.id
@@ -241,7 +241,7 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
         continue;
       }
 
-      foreachvalue (const TaskState& task, run.get().tasks) {
+      foreachvalue (const TaskState& task, run->tasks) {
         // No updates were ever received for this task!
         // This means either:
         // 1) the executor never received this task or
@@ -254,7 +254,7 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
 
         // Create a new status update stream.
         StatusUpdateStream* stream = createStatusUpdateStream(
-            task.id, framework.id, state.get().id, true, executor.id, latest);
+            task.id, framework.id, state->id, true, executor.id, latest);
 
         // Replay the stream.
         Try<Nothing> replay = stream->replay(task.updates, task.acks);
@@ -473,7 +473,7 @@ void StatusUpdateManagerProcess::timeout(const Duration& duration)
       CHECK_NOTNULL(stream);
       if (!stream->pending.empty()) {
         CHECK_SOME(stream->timeout);
-        if (stream->timeout.get().expired()) {
+        if (stream->timeout->expired()) {
           const StatusUpdate& update = stream->pending.front();
           LOG(WARNING) << "Resending status update " << update;
 

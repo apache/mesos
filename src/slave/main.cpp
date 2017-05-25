@@ -184,7 +184,7 @@ static Try<Nothing> assignCgroups(const slave::Flags& flags)
     // isolators/cgroups/perf.cpp. Consider moving ancillary
     // processes to a different cgroup, e.g., moving 'docker log' to
     // the container's cgroup.
-    if (!processes.get().empty()) {
+    if (!processes->empty()) {
       // For each process, we print its pid as well as its command
       // to help triaging.
       vector<string> infos;
@@ -193,7 +193,7 @@ static Try<Nothing> assignCgroups(const slave::Flags& flags)
 
         // Only print the command if available.
         if (proc.isSome()) {
-          infos.push_back(stringify(pid) + " '" + proc.get().command + "'");
+          infos.push_back(stringify(pid) + " '" + proc->command + "'");
         } else {
           infos.push_back(stringify(pid));
         }

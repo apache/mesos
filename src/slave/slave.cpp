@@ -256,7 +256,7 @@ void Slave::initialize()
     } else {
       credential = _credential.get();
       LOG(INFO) << "Agent using credential for: "
-                << credential.get().principal();
+                << credential->principal();
     }
   }
 
@@ -458,7 +458,7 @@ void Slave::initialize()
         }
 
         bool foundEntry = false;
-        foreach (const fs::MountTable::Entry& entry, mountTable.get().entries) {
+        foreach (const fs::MountTable::Entry& entry, mountTable->entries) {
           if (entry.dir == realpath.get()) {
             foundEntry = true;
             break;
@@ -911,13 +911,13 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
     LOG(INFO) << "Re-detecting master";
     latest = None();
     master = None();
-  } else if (_master.get().isNone()) {
+  } else if (_master->isNone()) {
     LOG(INFO) << "Lost leading master";
     latest = None();
     master = None();
   } else {
     latest = _master.get();
-    master = UPID(_master.get().get().pid());
+    master = UPID(latest->pid());
 
     LOG(INFO) << "New master detected at " << master.get();
 
@@ -5767,17 +5767,17 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
   // NOTE: 'resourcesState' is None if the slave rootDir does not
   // exist or the resources checkpoint file cannot be found.
   if (resourcesState.isSome()) {
-    if (resourcesState.get().errors > 0) {
+    if (resourcesState->errors > 0) {
       LOG(WARNING) << "Errors encountered during resources recovery: "
-                   << resourcesState.get().errors;
+                   << resourcesState->errors;
 
-      metrics.recovery_errors += resourcesState.get().errors;
+      metrics.recovery_errors += resourcesState->errors;
     }
 
-    checkpointedResources = resourcesState.get().resources;
+    checkpointedResources = resourcesState->resources;
 
-    if (resourcesState.get().target.isSome()) {
-      Resources targetResources = resourcesState.get().target.get();
+    if (resourcesState->target.isSome()) {
+      Resources targetResources = resourcesState->target.get();
 
       // Sync the checkpointed resources from the target (which was
       // only created when there are pending changes in the
@@ -5835,44 +5835,44 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
     totalResources = _totalResources.get();
   }
 
-  if (slaveState.isSome() && slaveState.get().info.isSome()) {
+  if (slaveState.isSome() && slaveState->info.isSome()) {
     // Check for SlaveInfo compatibility.
     // TODO(vinod): Also check for version compatibility.
     // NOTE: We set the 'id' field in 'info' from the recovered slave,
     // as a hack to compare the info created from options/flags with
     // the recovered info.
-    info.mutable_id()->CopyFrom(slaveState.get().id);
+    info.mutable_id()->CopyFrom(slaveState->id);
     if (flags.recover == "reconnect" &&
-        !(info == slaveState.get().info.get())) {
+        !(info == slaveState->info.get())) {
       return Failure(strings::join(
           "\n",
           "Incompatible agent info detected.",
           "------------------------------------------------------------",
-          "Old agent info:\n" + stringify(slaveState.get().info.get()),
+          "Old agent info:\n" + stringify(slaveState->info.get()),
           "------------------------------------------------------------",
           "New agent info:\n" + stringify(info),
           "------------------------------------------------------------"));
     }
 
-    info = slaveState.get().info.get(); // Recover the slave info.
+    info = slaveState->info.get(); // Recover the slave info.
 
-    if (slaveState.get().errors > 0) {
+    if (slaveState->errors > 0) {
       LOG(WARNING) << "Errors encountered during agent recovery: "
-                   << slaveState.get().errors;
+                   << slaveState->errors;
 
-      metrics.recovery_errors += slaveState.get().errors;
+      metrics.recovery_errors += slaveState->errors;
     }
 
     // TODO(bernd-mesos): Make this an instance method call, see comment
     // in "fetcher.hpp"".
-    Try<Nothing> recovered = Fetcher::recover(slaveState.get().id, flags);
+    Try<Nothing> recovered = Fetcher::recover(slaveState->id, flags);
     if (recovered.isError()) {
       return Failure(recovered.error());
     }
 
     // Recover the frameworks.
     foreachvalue (const FrameworkState& frameworkState,
-                  slaveState.get().frameworks) {
+                  slaveState->frameworks) {
       recoverFramework(frameworkState, injectedExecutors, injectedTasks);
     }
   }
@@ -7109,18 +7109,18 @@ void Framework::recoverExecutor(
       info.checkpoint());
 
   // Recover the libprocess PID if possible for PID based executors.
-  if (run.get().http.isSome()) {
-    if (!run.get().http.get()) {
+  if (run->http.isSome()) {
+    if (!run->http.get()) {
       // When recovering in non-strict mode, the assumption is that the
       // slave can die after checkpointing the forked pid but before the
       // libprocess pid. So, it is not possible for the libprocess pid
       // to exist but not the forked pid. If so, it is a really bad
       // situation (e.g., disk corruption).
-      CHECK_SOME(run.get().forkedPid)
+      CHECK_SOME(run->forkedPid)
         << "Failed to get forked pid for executor " << state.id
         << " of framework " << id();
 
-      executor->pid = run.get().libprocessPid.get();
+      executor->pid = run->libprocessPid.get();
     } else {
       // We set the PID to None() to signify that this is a HTTP based
       // executor.
@@ -7133,7 +7133,7 @@ void Framework::recoverExecutor(
   }
 
   // And finally recover all the executor's tasks.
-  foreachvalue (const TaskState& taskState, run.get().tasks) {
+  foreachvalue (const TaskState& taskState, run->tasks) {
     executor->recoverTask(
         taskState,
         tasksToRecheckpoint.contains(taskState.id));
@@ -7167,13 +7167,13 @@ void Framework::recoverExecutor(
   // If the latest run of the executor was completed (i.e., terminated
   // and all updates are acknowledged) in the previous run, we
   // transition its state to 'TERMINATED' and gc the directories.
-  if (run.get().completed) {
+  if (run->completed) {
     ++slave->metrics.executors_terminated;
 
     executor->state = Executor::TERMINATED;
 
-    CHECK_SOME(run.get().id);
-    const ContainerID& runId = run.get().id.get();
+    CHECK_SOME(run->id);
+    const ContainerID& runId = run->id.get();
 
     // GC the executor run's work directory.
     const string path = paths::getExecutorRunPath(
@@ -7353,7 +7353,7 @@ void Executor::recoverTask(const TaskState& state, bool recheckpointTask)
   // slave was down, the executor resources we capture here is an
   // upper-bound. The actual resources needed (for live tasks) by
   // the isolator will be calculated when the executor re-registers.
-  resources += state.info.get().resources();
+  resources += state.info->resources();
 
   // Read updates to get the latest state of the task.
   foreach (const StatusUpdate& update, state.updates) {
@@ -7503,7 +7503,7 @@ void Executor::closeHttpConnection()
 {
   CHECK_SOME(http);
 
-  if (!http.get().close()) {
+  if (!http->close()) {
     LOG(WARNING) << "Failed to close HTTP pipe for " << *this;
   }
 
@@ -7550,7 +7550,7 @@ map<string, string> executorEnvironment(
   if (flags.executor_environment_variables.isSome()) {
     foreachpair (const string& key,
                  const JSON::Value& value,
-                 flags.executor_environment_variables.get().values) {
+                 flags.executor_environment_variables->values) {
       // See slave/flags.cpp where we validate each value is a string.
       CHECK(value.is<JSON::String>());
       environment[key] = value.as<JSON::String>().value;

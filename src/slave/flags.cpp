@@ -315,7 +315,7 @@ mesos::internal::slave::Flags::Flags()
       "}",
       [](const Option<JSON::Object>& object) -> Option<Error> {
         if (object.isSome()) {
-          foreachvalue (const JSON::Value& value, object.get().values) {
+          foreachvalue (const JSON::Value& value, object->values) {
             if (!value.is<JSON::String>()) {
               return Error("`executor_environment_variables` must "
                            "only contain string values");

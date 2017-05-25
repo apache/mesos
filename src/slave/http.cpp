@@ -412,7 +412,7 @@ Future<Response> Slave::Http::api(
 
     Option<Error> error = validation::agent::call::validate(call);
     if (error.isSome()) {
-      return Error("Failed to validate agent::Call: " + error.get().message);
+      return Error("Failed to validate agent::Call: " + error->message);
     }
 
     return call;
@@ -705,8 +705,7 @@ Future<Response> Slave::Http::executor(
   Option<Error> error = validation::executor::call::validate(call);
 
   if (error.isSome()) {
-    return BadRequest("Failed to validate Executor::Call: " +
-                      error.get().message);
+    return BadRequest("Failed to validate Executor::Call: " + error->message);
   }
 
   ContentType acceptType;
@@ -1312,7 +1311,7 @@ Future<Response> Slave::Http::state(
 
         if (slave->master.isSome()) {
           Try<string> hostname =
-            net::getHostname(slave->master.get().address.ip);
+            net::getHostname(slave->master->address.ip);
 
           if (hostname.isSome()) {
             writer->field("master_hostname", hostname.get());

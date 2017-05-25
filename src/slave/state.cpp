@@ -193,7 +193,7 @@ Try<SlaveState> SlaveState::recover(
     }
 
     state.frameworks[frameworkId] = framework.get();
-    state.errors += framework.get().errors;
+    state.errors += framework->errors;
   }
 
   return state;
@@ -269,7 +269,7 @@ Try<FrameworkState> FrameworkState::recover(
     }
   }
 
-  if (pid.get().empty()) {
+  if (pid->empty()) {
     // This could happen if the slave died after opening the file for
     // writing but before it checkpointed anything.
     LOG(WARNING) << "Found empty framework pid file '" << path << "'";
@@ -302,7 +302,7 @@ Try<FrameworkState> FrameworkState::recover(
     }
 
     state.executors[executorId] = executor.get();
-    state.errors += executor.get().errors;
+    state.errors += executor->errors;
   }
 
   return state;
@@ -364,7 +364,7 @@ Try<ExecutorState> ExecutorState::recover(
       }
 
       state.runs[containerId] = run.get();
-      state.errors += run.get().errors;
+      state.errors += run->errors;
     }
   }
 
@@ -465,7 +465,7 @@ Try<RunState> RunState::recover(
     }
 
     state.tasks[taskId] = task.get();
-    state.errors += task.get().errors;
+    state.errors += task->errors;
   }
 
   // Read the forked pid.
@@ -493,7 +493,7 @@ Try<RunState> RunState::recover(
     }
   }
 
-  if (pid.get().empty()) {
+  if (pid->empty()) {
     // This could happen if the slave died after opening the file for
     // writing but before it checkpointed anything.
     LOG(WARNING) << "Found empty executor forked pid file '" << path << "'";
@@ -529,7 +529,7 @@ Try<RunState> RunState::recover(
       }
     }
 
-    if (pid.get().empty()) {
+    if (pid->empty()) {
       // This could happen if the slave died after opening the file for
       // writing but before it checkpointed anything.
       LOG(WARNING) << "Found empty executor libprocess pid file '" << path
@@ -645,10 +645,10 @@ Try<TaskState> TaskState::recover(
       break;
     }
 
-    if (record.get().type() == StatusUpdateRecord::UPDATE) {
-      state.updates.push_back(record.get().update());
+    if (record->type() == StatusUpdateRecord::UPDATE) {
+      state.updates.push_back(record->update());
     } else {
-      state.acks.insert(UUID::fromBytes(record.get().uuid()).get());
+      state.acks.insert(UUID::fromBytes(record->uuid()).get());
     }
   }
 
