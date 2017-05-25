@@ -1169,7 +1169,7 @@ void Slave::registered(
     }
     case RUNNING:
       // Already registered!
-      if (!(info.id() == slaveId)) {
+      if (info.id() != slaveId) {
        EXIT(EXIT_FAILURE)
          << "Registered but got wrong id: " << slaveId
          << " (expected: " << info.id() << "). Committing suicide";
@@ -1216,7 +1216,7 @@ void Slave::reregistered(
 
   CHECK_SOME(master);
 
-  if (!(info.id() == slaveId)) {
+  if (info.id() != slaveId) {
     EXIT(EXIT_FAILURE)
       << "Re-registered but got wrong id: " << slaveId
       << " (expected: " << info.id() << "). Committing suicide";
@@ -1618,7 +1618,7 @@ void Slave::run(
             << " for framework " << frameworkId;
 
   foreach (const TaskInfo& _task, tasks) {
-    if (!(_task.slave_id() == info.id())) {
+    if (_task.slave_id() != info.id()) {
       LOG(WARNING)
         << "Agent " << info.id() << " ignoring running "
         << taskOrTaskGroup(_task, taskGroup) << " because "
@@ -6005,7 +6005,7 @@ void Slave::__recover(const Future<Nothing>& future)
       // registers with the master) or if it is an old work directory.
       SlaveID slaveId;
       slaveId.set_value(entry);
-      if (!info.has_id() || !(slaveId == info.id())) {
+      if (!info.has_id() || slaveId != info.id()) {
         LOG(INFO) << "Garbage collecting old agent " << slaveId;
 
         // NOTE: We update the modification time of the slave work/meta

@@ -5060,7 +5060,7 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
     return;
   }
 
-  if (slaveId.isSome() && !(slaveId.get() == task->slave_id())) {
+  if (slaveId.isSome() && slaveId.get() != task->slave_id()) {
     LOG(WARNING) << "Cannot kill task " << taskId << " of agent "
                  << slaveId.get() << " of framework " << *framework
                  << " because it belongs to different agent "
