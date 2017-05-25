@@ -4149,10 +4149,6 @@ void Slave::reregisterExecutor(
       // should be shutdown if it hasn't received any tasks.
       break;
     }
-    default:
-      LOG(FATAL) << "Executor " << *executor << " is in unexpected state "
-                 << executor->state;
-      break;
   }
 }
 
