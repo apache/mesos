@@ -7104,6 +7104,112 @@ TEST_F(SlaveTest, ShutdownV0ExecutorIfItReregistersWithoutReconnect)
   driver.join();
 }
 
+
+// This ensures that if the executor reconnect retry is enabled,
+// re-registrations from PID-based V0 executors are ignored when
+// already (re-)registered.
+//
+// TODO(bmahler): It should be simpler to write a test that
+// follows a standard recipe (e.g. bring up a mock executor).
+TEST_F(SlaveTest, IgnoreV0ExecutorIfItReregistersWithoutReconnect)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  agentFlags.executor_reregistration_timeout = Seconds(2);
+  agentFlags.executor_reregistration_retry_interval = Seconds(1);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, agentFlags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true); // Enable checkpointing.
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Advance the clock to trigger both agent registration and a batch
+  // allocation.
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers->size());
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  // Capture the agent and executor PIDs.
+  Future<Message> registerExecutorMessage =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  TaskInfo task;
+  task.set_name("test-task");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers->at(0).slave_id());
+  task.mutable_resources()->MergeFrom(offers->at(0).resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  driver.launchTasks(offers->at(0).id(), {task});
+
+  AWAIT_READY(registerExecutorMessage);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status->state());
+
+  // Now spoof an executor re-registration, it should be ignored
+  // and the agent should not respond.
+  EXPECT_NO_FUTURE_PROTOBUFS(ExecutorReregisteredMessage(), _, _);
+
+  Future<Nothing> executorShutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&executorShutdown));
+
+  UPID executorPid = registerExecutorMessage->from;
+  UPID agentPid = registerExecutorMessage->to;
+
+  ReregisterExecutorMessage reregisterExecutorMessage;
+  reregisterExecutorMessage.mutable_executor_id()->CopyFrom(
+      task.executor().executor_id());
+  reregisterExecutorMessage.mutable_framework_id()->CopyFrom(
+      frameworkId);
+
+  process::post(executorPid, agentPid, reregisterExecutorMessage);
+
+  Clock::settle();
+  EXPECT_TRUE(executorShutdown.isPending());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
