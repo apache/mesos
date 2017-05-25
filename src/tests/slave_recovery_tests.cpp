@@ -803,6 +803,116 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 }
 
 
+// This ensures that when the executor reconnect retry is enabled,
+// the agent will retry the reconnect messages until the executor
+// responds. We then ensure that any duplicate re-registration
+// messages coming from the executor are ignored.
+TYPED_TEST(SlaveRecoveryTest, ReconnectExecutorRetry)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Fetcher fetcher(flags);
+
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  Future<TaskStatus> statusUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusUpdate));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers->size());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+
+  // Pause the clock to ensure the agent does not retry the
+  // status update. We will ensure the acknowledgement is
+  // checkpointed before we terminate the agent.
+  Clock::pause();
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusUpdate);
+  EXPECT_EQ(TASK_RUNNING, statusUpdate->state());
+
+  // Ensure the acknowledgement is checkpointed.
+  Clock::settle();
+
+  slave.get()->terminate();
+
+  // We drop the first re-registration message to emulate
+  // a half-open connection closing for "old" executors
+  // that do not have the fix for MESOS-7057.
+  Future<ReregisterExecutorMessage> reregisterExecutorMessage =
+    DROP_PROTOBUF(ReregisterExecutorMessage(), _, _);
+
+  // Restart the slave (use same flags) with a new containerizer.
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
+
+  flags.executor_reregistration_timeout = Seconds(5);
+  flags.executor_reregistration_retry_interval = Seconds(1);
+
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  // The first attempt by the executor to re-register is dropped
+  // so that the agent will retry the reconnect.
+  AWAIT_READY(reregisterExecutorMessage);
+
+  // Now trigger the retry and let the second response through.
+  reregisterExecutorMessage =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+
+  Clock::advance(flags.executor_reregistration_retry_interval.get());
+
+  AWAIT_READY(reregisterExecutorMessage);
+
+  // Now ensure that further retries do not occur, since the
+  // executor is already re-registered.
+  EXPECT_NO_FUTURE_PROTOBUFS(ReregisterExecutorMessage(), _, _);
+
+  Clock::advance(flags.executor_reregistration_retry_interval.get());
+  Clock::settle();
+
+  // We have to resume the clock to ensure that the containerizer
+  // can reap the executor pid (i.e. the reaper requires a resumed
+  // clock).
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
+
 // The slave is stopped before the HTTP based command executor is
 // registered. When it comes back up with recovery=reconnect, make
 // sure the executor is killed and the task is transitioned to LOST.
