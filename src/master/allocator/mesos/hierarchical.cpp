@@ -1674,6 +1674,21 @@ void HierarchicalAllocatorProcess::__allocate()
           break;
         }
 
+        // When reservation refinements are present, old frameworks without the
+        // RESERVATION_REFINEMENT capability won't be able to understand the
+        // new format. While it's possible to translate the refined reservations
+        // into the old format by "hiding" the intermediate reservations in the
+        // "stack", this leads to ambiguity when processing RESERVE / UNRESERVE
+        // operations. This is due to the loss of information when we drop the
+        // intermediatereservations. Therefore, for now we simply filter out
+        // resources with refined reservations if the framework does not have
+        // the capability.
+        if (!framework.capabilities.reservationRefinement) {
+          resources = resources.filter([](const Resource& resource) {
+            return !Resources::hasRefinedReservations(resource);
+          });
+        }
+
         // If the framework filters these resources, ignore. The unallocated
         // part of the quota will not be allocated to other roles.
         if (isFiltered(frameworkId, role, slaveId, resources)) {
@@ -1846,6 +1861,21 @@ void HierarchicalAllocatorProcess::__allocate()
         // Remove revocable resources if the framework has not opted for them.
         if (!framework.capabilities.revocableResources) {
           resources = resources.nonRevocable();
+        }
+
+        // When reservation refinements are present, old frameworks without the
+        // RESERVATION_REFINEMENT capability won't be able to understand the
+        // new format. While it's possible to translate the refined reservations
+        // into the old format by "hiding" the intermediate reservations in the
+        // "stack", this leads to ambiguity when processing RESERVE / UNRESERVE
+        // operations. This is due to the loss of information when we drop the
+        // intermediatereservations. Therefore, for now we simply filter out
+        // resources with refined reservations if the framework does not have
+        // the capability.
+        if (!framework.capabilities.reservationRefinement) {
+          resources = resources.filter([](const Resource& resource) {
+            return !Resources::hasRefinedReservations(resource);
+          });
         }
 
         // If the resources are not allocatable, ignore. We cannot break
