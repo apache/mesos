@@ -383,10 +383,6 @@ std::ostream& operator<<(
     std::ostream& stream,
     const hashmap<std::string, std::string>& map);
 
-std::ostream& operator<<(
-    std::ostream& stream,
-    const ::google::protobuf::Message& map);
-
 } // namespace mesos {
 
 namespace std {
