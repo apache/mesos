@@ -1427,7 +1427,8 @@ INSTANTIATE_TEST_CASE_P(
 
 // This test verifies that the default executor can be launched using
 // reserved persistent resources which can be accessed by its tasks.
-TEST_P(PersistentVolumeDefaultExecutor, ROOT_PersistentResources)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    PersistentVolumeDefaultExecutor, ROOT_PersistentResources)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1569,7 +1570,8 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_PersistentResources)
 
 // This test verifies that the default executor mounts the persistent volume
 // in the task container when it is set on a task in the task group.
-TEST_P(PersistentVolumeDefaultExecutor, ROOT_TaskSandboxPersistentVolume)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    PersistentVolumeDefaultExecutor, ROOT_TaskSandboxPersistentVolume)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

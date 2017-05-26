@@ -900,7 +900,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfoForTaskWithContainer)
 // MesosContainerizer would fail the launch.
 //
 // TODO(jieyu): Move this test to the mesos containerizer tests.
-TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -986,7 +986,8 @@ TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
 // This test runs a command without the command user field set. The
 // command will verify the assumption that the command is run as the
 // slave user (in this case, root).
-TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+  SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

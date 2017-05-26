@@ -526,7 +526,7 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
 
 // This test creates a healthy task using the Docker executor and
 // verifies that the healthy status is reported to the scheduler.
-TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
 {
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));
@@ -715,7 +715,7 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
 
 // This test creates a task whose health flaps, and verifies that the
 // health status updates are sent to the framework scheduler.
-TEST_F(HealthCheckTest, HealthStatusChange)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthStatusChange)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -798,7 +798,8 @@ TEST_F(HealthCheckTest, HealthStatusChange)
 // This test creates a task that uses the Docker executor and whose
 // health flaps. It then verifies that the health status updates are
 // sent to the framework scheduler.
-TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 {
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));
@@ -1829,7 +1830,8 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaTCPWithContainerImage)
 
 // Tests a healthy docker task via HTTP. To emulate a task responsive
 // to HTTP health checks, starts Netcat in the docker "alpine" image.
-TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTP)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTP)
 {
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));
@@ -1959,7 +1961,8 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTP)
 // Tests a healthy docker task via HTTPS. To emulate a task responsive
 // to HTTPS health checks, starts an HTTPS server in the docker
 // "haosdent/https-server" image.
-TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTPS)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTPS)
 {
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));
@@ -2094,7 +2097,8 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaHTTPS)
 //
 // NOTE: This test is almost identical to ROOT_DOCKER_DockerHealthyTaskViaHTTP
 // with the difference being TCP health check.
-TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaTCP)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HealthCheckTest, ROOT_DOCKER_DockerHealthyTaskViaTCP)
 {
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));

@@ -639,7 +639,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, VerifySlaveTaskStatusDecorator)
 
 // This test verifies that the slave pre-launch docker environment
 // decorator can attach environment variables to a task exclusively.
-TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerTaskExecutorDecorator)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+  HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerTaskExecutorDecorator)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -747,7 +748,8 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerTaskExecutorDecorator)
 // This test verifies that the slave pre-launch docker validator hook can check
 // labels on a task and subsequently prevent the task from being launched
 // if a specific label is present.
-TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerValidator)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+  HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerValidator)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -841,7 +843,8 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerValidator)
 // directory. When the docker container launched, the sandbox directory
 // is mounted to the docker container. We validate the hook by verifying
 // the "foo" file exists in the docker container or not.
-TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+  HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -965,7 +968,7 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePreLaunchDockerHook)
 // will try to delete that file in the sandbox directory. We validate
 // the hook by verifying that "post_fetch_hook" file does not exist in
 // the sandbox when container is running.
-TEST_F(HookTest, ROOT_DOCKER_VerifySlavePostFetchHook)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, ROOT_DOCKER_VerifySlavePostFetchHook)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1074,8 +1077,7 @@ TEST_F(HookTest, ROOT_DOCKER_VerifySlavePostFetchHook)
 // Test that the changes made by the resources decorator hook are correctly
 // propagated to the resource offer.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    HookTest,
-    VerifySlaveResourcesAndAttributesDecorator)
+    HookTest, VerifySlaveResourcesAndAttributesDecorator)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

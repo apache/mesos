@@ -265,7 +265,7 @@ class DockerFilter : public TestFilter
 public:
   DockerFilter()
   {
-#ifdef __linux__
+#if defined(__linux__) || defined(__WINDOWS__)
     Try<Owned<Docker>> docker = Docker::create(
         flags.docker,
         flags.docker_socket);
@@ -274,8 +274,8 @@ public:
       dockerError = docker.error();
     }
 #else
-    dockerError = Error("Docker tests not supported on non-Linux systems");
-#endif // __linux__
+    dockerError = Error("Docker tests are not supported on this platform");
+#endif // __linux__ || __WINDOWS__
 
     if (dockerError.isSome()) {
       std::cerr
@@ -618,8 +618,8 @@ public:
   bool disable(const ::testing::TestInfo* test) const
   {
 #ifdef __WINDOWS__
-    // On Windows, `root` does not exist, so we cannot run `ROOT_` tests.
-    return matches(test, "ROOT_");
+    // On Windows, tests are expected to be run as Administrator.
+    return false;
 #else
     Result<string> user = os::user();
     CHECK_SOME(user);

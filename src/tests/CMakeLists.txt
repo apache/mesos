@@ -144,6 +144,11 @@ set(MESOS_TESTS_SRC
   common/type_utils_tests.cpp
   )
 
+set(MESOS_TESTS_SRC
+  ${MESOS_TESTS_SRC}
+  containerizer/docker_tests.cpp
+  )
+
 if (NOT WIN32)
   set(MESOS_TESTS_SRC
     ${MESOS_TESTS_SRC}
@@ -192,7 +197,6 @@ if (NOT WIN32)
     containerizer/cpu_isolator_tests.cpp
     containerizer/docker_containerizer_tests.cpp
     containerizer/docker_spec_tests.cpp
-    containerizer/docker_tests.cpp
     containerizer/environment_secret_isolator_tests.cpp
     containerizer/io_switchboard_tests.cpp
     containerizer/isolator_tests.cpp
