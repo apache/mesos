@@ -285,6 +285,31 @@ TEST(ProtobufUtilTest, AgentCapabilities)
   ASSERT_TRUE(capabilities.multiRole);
 }
 
+
+// Test large message evolve.
+// Before protobuf 3.3.0, this test would fail due to the 64MB limit
+// imposed by older version of protobuf.
+TEST(ProtobufUtilTest, LargeMessageEvolve)
+{
+  string data =
+    "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do "
+    "eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim "
+    "ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut "
+    "aliquip ex ea commodo consequat. Duis aute irure dolor in "
+    "reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
+    "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in "
+    "culpa qui officia deserunt mollit anim id est laborum.";
+
+  while (Bytes(data.size()) < Megabytes(70)) {
+    data.append(data);
+  }
+
+  ExecutorInfo executorInfo_;
+  executorInfo_.set_data(data);
+
+  evolve(executorInfo_);
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
