@@ -345,6 +345,28 @@ mesos::internal::slave::Flags::Flags()
         return None();
       });
 
+  // TODO(bmahler): Remove this once v0 executors are no longer supported.
+  add(&Flags::executor_reregistration_retry_interval,
+      "executor_reregistration_retry_interval",
+      "For PID-based executors, how long the agent waits before retrying\n"
+      "the reconnect message sent to the executor during recovery.\n"
+      "NOTE: Do not use this unless you understand the following\n"
+      "(see MESOS-5332): PID-based executors using Mesos libraries >= 1.1.2\n"
+      "always re-link with the agent upon receiving the reconnect message.\n"
+      "This avoids the executor replying on a half-open TCP connection to\n"
+      "the old agent (possible if netfilter is dropping packets,\n"
+      "see: MESOS-7057). However, PID-based executors using Mesos\n"
+      "libraries < 1.1.2 do not re-link and are therefore prone to\n"
+      "replying on a half-open connection after the agent restarts. If we\n"
+      "only send a single reconnect message, these \"old\" executors will\n"
+      "reply on their half-open connection and receive a RST; without any\n"
+      "retries, they will fail to reconnect and be killed by the agent once\n"
+      "the executor re-registration timeout elapses. To ensure these \"old\"\n"
+      "executors can reconnect in the presence of netfilter dropping\n"
+      "packets, we introduced optional retries of the reconnect message.\n"
+      "This results in \"old\" executors correctly establishing a link\n"
+      "when processing the second reconnect message.");
+
   add(&Flags::executor_shutdown_grace_period,
       "executor_shutdown_grace_period",
       "Default amount of time to wait for an executor to shut down\n"

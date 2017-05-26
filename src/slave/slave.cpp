@@ -35,6 +35,7 @@
 
 #include <mesos/module/authenticatee.hpp>
 
+#include <process/after.hpp>
 #include <process/async.hpp>
 #include <process/check.hpp>
 #include <process/collect.hpp>
@@ -43,6 +44,7 @@
 #include <process/dispatch.hpp>
 #include <process/http.hpp>
 #include <process/id.hpp>
+#include <process/loop.hpp>
 #include <process/reap.hpp>
 #include <process/time.hpp>
 
@@ -131,9 +133,13 @@ using std::set;
 using std::string;
 using std::vector;
 
+using process::after;
 using process::async;
 using process::wait; // Necessary on some OS's to disambiguate.
+using process::Break;
 using process::Clock;
+using process::Continue;
+using process::ControlFlow;
 using process::Failure;
 using process::Future;
 using process::Owned;
@@ -3982,10 +3988,11 @@ void Slave::reregisterExecutor(
         state == RUNNING || state == TERMINATING)
     << state;
 
-  if (state != RECOVERING) {
-    LOG(WARNING) << "Shutting down executor '" << executorId
-                 << "' of framework " << frameworkId
-                 << " because the agent is not in recovery mode";
+  if (state == TERMINATING) {
+    LOG(WARNING) << "Shutting down executor '" << executorId << "'"
+                 << " of framework " << frameworkId
+                 << " because the agent is terminating";
+
     reply(ShutdownExecutorMessage());
     return;
   }
@@ -4019,11 +4026,37 @@ void Slave::reregisterExecutor(
     case Executor::TERMINATED:
       // TERMINATED is possible if the executor forks, the parent process
       // terminates and the child process (driver) tries to register!
-    case Executor::RUNNING:
       LOG(WARNING) << "Shutting down executor " << *executor
                    << " because it is in unexpected state " << executor->state;
       reply(ShutdownExecutorMessage());
       break;
+
+    case Executor::RUNNING:
+      if (flags.executor_reregistration_retry_interval.isNone()) {
+        // Previously, when an executor sends a re-registration while
+        // in the RUNNING state, we would shut the executor down. We
+        // preserve that behavior when the optional reconnect retry
+        // is not enabled.
+        LOG(WARNING) << "Shutting down executor " << *executor
+                     << " because it is in unexpected state "
+                     << executor->state;
+        reply(ShutdownExecutorMessage());
+      } else {
+        // When the agent is configured to retry the reconnect requests
+        // to executors, we ignore any further re-registrations. This
+        // is because we can't easily handle re-registering libprocess
+        // based executors in the steady state, and we plan to move to
+        // only allowing v1 HTTP executors (where re-subscription in
+        // the steady state is supported). Also, ignoring this message
+        // ensures that any executors mimicking the libprocess protocol
+        // do not have any illusion of being able to re-register without
+        // an agent restart (hopefully they will commit suicide if they
+        // fail to re-register).
+        LOG(WARNING) << "Ignoring executor re-registration message from "
+                     << *executor << " because it is already registered";
+      }
+      break;
+
     case Executor::REGISTERING: {
       executor->state = Executor::RUNNING;
 
@@ -5927,6 +5960,62 @@ Future<Nothing> Slave::_recover()
           ReconnectExecutorMessage message;
           message.mutable_slave_id()->MergeFrom(info.id());
           send(executor->pid.get(), message);
+
+          // PID-based executors using Mesos libraries >= 1.1.2 always
+          // re-link with the agent upon receiving the reconnect message.
+          // This avoids the executor replying on a half-open TCP
+          // connection to the old agent (possible if netfilter is
+          // dropping packets, see: MESOS-7057). However, PID-based
+          // executors using Mesos libraries < 1.1.2 do not re-link
+          // and are therefore prone to replying on a half-open connection
+          // after the agent restarts. If we only send a single reconnect
+          // message, these "old" executors will reply on their half-open
+          // connection and receive a RST; without any retries, they will
+          // fail to reconnect and be killed by the agent once the executor
+          // re-registration timeout elapses. To ensure these "old"
+          // executors can reconnect in the presence of netfilter dropping
+          // packets, we introduced optional retries of the reconnect
+          // message. This results in "old" executors correctly establishing
+          // a link when processing the second reconnect message.
+          if (flags.executor_reregistration_retry_interval.isSome()) {
+            const Duration& retryInterval =
+              flags.executor_reregistration_retry_interval.get();
+
+            const FrameworkID& frameworkId = framework->id();
+            const ExecutorID& executorId = executor->id;
+
+            process::loop(
+                self(),
+                [retryInterval]() {
+                  return after(retryInterval);
+                },
+                [this, frameworkId, executorId, message](Nothing)
+                    -> ControlFlow<Nothing> {
+                  if (state != RECOVERING) {
+                    return Break();
+                  }
+
+                  Framework* framework = getFramework(frameworkId);
+                  if (framework == nullptr) {
+                    return Break();
+                  }
+
+                  Executor* executor = framework->getExecutor(executorId);
+                  if (executor == nullptr) {
+                    return Break();
+                  }
+
+                  if (executor->state != Executor::REGISTERING) {
+                    return Break();
+                  }
+
+                  LOG(INFO) << "Re-sending reconnect request to executor "
+                            << *executor;
+
+                  send(executor->pid.get(), message);
+                  return Continue();
+                });
+          }
         } else if (executor->pid.isNone()) {
           LOG(INFO) << "Waiting for executor " << *executor
                     << " to subscribe";
