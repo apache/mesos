@@ -82,6 +82,14 @@ bool operator==(
     const Resource::ReservationInfo& left,
     const Resource::ReservationInfo& right)
 {
+  if (left.type() != right.type()) {
+    return false;
+  }
+
+  if (left.role() != right.role()) {
+    return false;
+  }
+
   if (left.has_principal() != right.has_principal()) {
     return false;
   }
@@ -222,9 +230,7 @@ bool operator!=(const Resource::DiskInfo& left, const Resource::DiskInfo& right)
 
 bool operator==(const Resource& left, const Resource& right)
 {
-  if (left.name() != right.name() ||
-      left.type() != right.type() ||
-      left.role() != right.role()) {
+  if (left.name() != right.name() || left.type() != right.type()) {
     return false;
   }
 
@@ -238,13 +244,15 @@ bool operator==(const Resource& left, const Resource& right)
     return false;
   }
 
-  // Check ReservationInfo.
-  if (left.has_reservation() != right.has_reservation()) {
+  // Check the stack of ReservationInfo.
+  if (left.reservations_size() != right.reservations_size()) {
     return false;
   }
 
-  if (left.has_reservation() && left.reservation() != right.reservation()) {
-    return false;
+  for (int i = 0; i < left.reservations_size(); ++i) {
+    if (left.reservations(i) != right.reservations(i)) {
+      return false;
+    }
   }
 
   // Check DiskInfo.
@@ -311,9 +319,7 @@ static bool addable(const Resource& left, const Resource& right)
   }
 
   // Now, we verify if the two non-shared resources can be added.
-  if (left.name() != right.name() ||
-      left.type() != right.type() ||
-      left.role() != right.role()) {
+  if (left.name() != right.name() || left.type() != right.type()) {
     return false;
   }
 
@@ -327,13 +333,15 @@ static bool addable(const Resource& left, const Resource& right)
     return false;
   }
 
-  // Check ReservationInfo.
-  if (left.has_reservation() != right.has_reservation()) {
+  // Check the stack of ReservationInfo.
+  if (left.reservations_size() != right.reservations_size()) {
     return false;
   }
 
-  if (left.has_reservation() && left.reservation() != right.reservation()) {
-    return false;
+  for (int i = 0; i < left.reservations_size(); ++i) {
+    if (left.reservations(i) != right.reservations(i)) {
+      return false;
+    }
   }
 
   // Check DiskInfo.
@@ -398,9 +406,7 @@ static bool subtractable(const Resource& left, const Resource& right)
   }
 
   // Now, we verify if the two non-shared resources can be subtracted.
-  if (left.name() != right.name() ||
-      left.type() != right.type() ||
-      left.role() != right.role()) {
+  if (left.name() != right.name() || left.type() != right.type()) {
     return false;
   }
 
@@ -414,13 +420,15 @@ static bool subtractable(const Resource& left, const Resource& right)
     return false;
   }
 
-  // Check ReservationInfo.
-  if (left.has_reservation() != right.has_reservation()) {
+  // Check the stack of ReservationInfo.
+  if (left.reservations_size() != right.reservations_size()) {
     return false;
   }
 
-  if (left.has_reservation() && left.reservation() != right.reservation()) {
-    return false;
+  for (int i = 0; i < left.reservations_size(); ++i) {
+    if (left.reservations(i) != right.reservations(i)) {
+      return false;
+    }
   }
 
   // Check DiskInfo.
