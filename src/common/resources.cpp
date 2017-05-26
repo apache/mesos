@@ -623,7 +623,7 @@ Try<Resources> Resources::parse(
   Resources result;
 
   // Validate individual Resource objects.
-  foreach(const Resource& resource, resources.get()) {
+  foreach (const Resource& resource, resources.get()) {
     // If invalid, propgate error instead of skipping the resource.
     Option<Error> error = Resources::validate(resource);
     if (error.isSome()) {
@@ -1698,7 +1698,7 @@ Option<Resources> Resources::find(const Resource& target) const
 Resources::operator RepeatedPtrField<Resource>() const
 {
   RepeatedPtrField<Resource> all;
-  foreach(const Resource& resource, resources) {
+  foreach (const Resource& resource, resources) {
     all.Add()->CopyFrom(resource);
   }
 
