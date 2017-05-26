@@ -43,7 +43,7 @@ def _create_module(module_name):
     # libev.a and libprofiler.a).
     glog = os.path.join('3rdparty', 'glog-0.3.3')
     gperftools = os.path.join('3rdparty', 'gperftools-2.5')
-    protobuf = os.path.join('3rdparty', 'protobuf-2.6.1')
+    protobuf = os.path.join('3rdparty', 'protobuf-3.3.0')
 
     # Build the list of source files. Note that each source must be
     # relative to our current directory (where this script lives).
