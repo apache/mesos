@@ -78,6 +78,7 @@ public:
   Option<JSON::Object> executor_environment_variables;
   Duration executor_registration_timeout;
   Duration executor_reregistration_timeout;
+  Option<Duration> executor_reregistration_retry_interval;
   Duration executor_shutdown_grace_period;
 #ifdef USE_SSL_SOCKET
   Option<Path> executor_secret_key;
