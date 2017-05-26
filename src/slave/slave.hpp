@@ -402,6 +402,13 @@ public:
   process::Future<Nothing> _recoverContainerizer(
       const Option<state::SlaveState>& state);
 
+  // Sends a `ReconnectExecutorMessage` to the specified executor,
+  // retrying if necessary.
+  void retryReconnectExecutor(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ReconnectExecutorMessage& message);
+
   // This is called when recovery finishes.
   // Made 'virtual' for Slave mocking.
   virtual void __recover(const process::Future<Nothing>& future);
