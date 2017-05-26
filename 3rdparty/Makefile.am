@@ -95,11 +95,6 @@ EXTRA_DIST +=		\
 EXTRA_DIST +=		\
   $(LIBEV).patch
 
-# We include an upstream patch for protobuf in order to avoid
-# signed/unsigned comparisons.
-EXTRA_DIST +=		\
-  $(PROTOBUF).patch
-
 # We need to patch ZooKeeper in order to get 3.4.8 to compile on PPC LE.
 EXTRA_DIST +=		\
   $(ZOOKEEPER).patch
