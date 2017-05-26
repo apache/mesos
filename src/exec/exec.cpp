@@ -317,6 +317,12 @@ protected:
       return;
     }
 
+    if (!connected) {
+      VLOG(1) << "Ignoring run task message for task " << task.task_id()
+              << " because the driver is disconnected!";
+      return;
+    }
+
     CHECK(!tasks.contains(task.task_id()))
       << "Unexpected duplicate task " << task.task_id();
 
@@ -371,6 +377,14 @@ protected:
       return;
     }
 
+    if (!connected) {
+      VLOG(1) << "Ignoring status update acknowledgement "
+              << uuid_.get() << " for task " << taskId
+              << " of framework " << frameworkId
+              << " because the driver is disconnected!";
+      return;
+    }
+
     VLOG(1) << "Executor received status update acknowledgement "
             << uuid_.get() << " for task " << taskId
             << " of framework " << frameworkId;
@@ -390,6 +404,12 @@ protected:
   {
     if (aborted.load()) {
       VLOG(1) << "Ignoring framework message because the driver is aborted!";
+      return;
+    }
+
+    if (!connected) {
+      VLOG(1) << "Ignoring framework message because "
+              << "the driver is disconnected!";
       return;
     }
 
