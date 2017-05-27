@@ -5,6 +5,7 @@ Release Notes - Mesos - Version 1.2.2
 All Issues:
 ** Bug
   * [MESOS-7540] - Add an agent flag for executor re-registration timeout.
+  * [MESOS-7569] - Allow "old" executors with half-open connections to be preserved during agent upgrade / restart.
 
 
 Release Notes - Mesos - Version 1.2.1
