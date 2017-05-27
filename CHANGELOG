@@ -294,6 +294,7 @@ Release Notes - Mesos - Version 1.2.2
 
 All Issues:
 ** Bug
+  * [MESOS-7540] - Add an agent flag for executor re-registration timeout.
   * [MESOS-7546] - WAIT_NESTED_CONTAINER sometimes returns 404.
 
 
