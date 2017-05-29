@@ -47,7 +47,7 @@ Following are the instructions for stock Ubuntu 14.04. If you are using a differ
     $ sudo apt-get install -y autoconf libtool
 
     # Install other Mesos dependencies.
-    $ sudo apt-get -y install build-essential python-dev python-virtualenv libcurl4-nss-dev libsasl2-dev libsasl2-modules maven libapr1-dev libsvn-dev
+    $ sudo apt-get -y install build-essential python-dev python-six python-virtualenv libcurl4-nss-dev libsasl2-dev libsasl2-modules maven libapr1-dev libsvn-dev
 
 ### Ubuntu 16.04
 
@@ -66,7 +66,7 @@ Following are the instructions for stock Ubuntu 16.04. If you are using a differ
     $ sudo apt-get install -y autoconf libtool
 
     # Install other Mesos dependencies.
-    $ sudo apt-get -y install build-essential python-dev python-virtualenv libcurl4-nss-dev libsasl2-dev libsasl2-modules maven libapr1-dev libsvn-dev zlib1g-dev
+    $ sudo apt-get -y install build-essential python-dev python-six python-virtualenv libcurl4-nss-dev libsasl2-dev libsasl2-modules maven libapr1-dev libsvn-dev zlib1g-dev
 
 ### Mac OS X 10.11 (El Capitan), macOS 10.12 (Sierra)
 
@@ -157,7 +157,7 @@ Following are the instructions for stock CentOS 6.6. If you are using a differen
     $ sudo yum install -y devtoolset-2-toolchain
 
     # Install other Mesos dependencies.
-    $ sudo yum install -y apache-maven python-devel python-virtualenv java-1.7.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel
+    $ sudo yum install -y apache-maven python-devel python-six python-virtualenv java-1.7.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel
 
     # Enter a shell with 'devtoolset-2' enabled.
     $ scl enable devtoolset-2 bash
@@ -208,7 +208,7 @@ Following are the instructions for stock CentOS 7.1. If you are using a differen
     $ sudo yum groupinstall -y "Development Tools"
 
     # Install other Mesos dependencies.
-    $ sudo yum install -y apache-maven python-devel python-virtualenv java-1.8.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel
+    $ sudo yum install -y apache-maven python-devel python-six python-virtualenv java-1.8.0-openjdk-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-util-devel
 
 ### Windows
 
