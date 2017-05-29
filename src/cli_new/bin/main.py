@@ -49,7 +49,7 @@ See 'mesos help <command>' for more information on a specific command.
 """
 
 
-def autocomplete(cmds, plugins, current_word, argv):
+def autocomplete(cmds, plugins, argv):
     """
     Perform autocomplete for the given input arguments. If not
     completing a top level command (or "help"), this function passes
@@ -58,6 +58,8 @@ def autocomplete(cmds, plugins, current_word, argv):
     """
 
     option = "default"
+    current_word = argv[0]
+    argv = argv[1:]
 
     if len(argv) > 0 and argv[0] == "help":
         argv = argv[1:]
@@ -101,9 +103,6 @@ def main(argv):
     # Use the meta-command `__autocomplete__` to perform
     # autocompletion on the remaining arguments.
     if cmd == "__autocomplete__":
-        current_word = argv[0]
-        argv = argv[1:]
-
         option = "default"
         comp_words = []
 
@@ -112,7 +111,7 @@ def main(argv):
         # passing the erroring stack trace back as the list of words
         # to complete on.
         try:
-            option, comp_words = autocomplete(cmds, plugins, current_word, argv)
+            option, comp_words = autocomplete(cmds, plugins, argv)
         except Exception:
             pass
 
