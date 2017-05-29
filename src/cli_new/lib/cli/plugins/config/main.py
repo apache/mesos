@@ -18,10 +18,12 @@
 The config plugin.
 """
 
+import os
 import sys
 
 import cli
 
+from cli.exceptions import CLIException
 from cli.plugins import PluginBase
 from cli.util import Table
 
@@ -45,6 +47,12 @@ class Config(PluginBase):
             "flags": {},
             "short_help": "Print the plugins that can be used.",
             "long_help": "Print the plugins that can be used."
+        },
+        "show": {
+            "arguments": [],
+            "flags": {},
+            "short_help": "Show the contents of the configuration file.",
+            "long_help": "Show the contents of the configuration file."
         }
     }
 
@@ -68,3 +76,23 @@ class Config(PluginBase):
                 cli.util.get_module(plugins, plugin).SHORT_HELP
             ])
         sys.stdout.write("{}\n".format(plugins_table))
+
+    def show(self, argv):
+        """
+        Show the contents of the configuration file.
+        """
+        # pylint: disable=unused-argument
+        config_file = self.config.path
+        if not os.path.isfile(config_file):
+            raise CLIException("Unable to show the config file,"
+                               " '{path}' does not exist"
+                               .format(path=config_file))
+
+        with open(config_file, 'r') as stream:
+            try:
+                sys.stdout.write("{stream}\n"
+                                 .format(stream=stream.read().rstrip()))
+            except Exception as exception:
+                raise CLIException("Unable to read config file '{path}':"
+                                   " {error}"
+                                   .format(path=config_file, error=exception))
