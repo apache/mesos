@@ -47,9 +47,7 @@ class Config(object):
 
     def plugins(self):
         """
-        Parse and load the builtin plugins and the ones in the configuration
-        file. If this method is called using 'mesos config plugins', it
-        displays the plugins that can be used.
+        Parse the plugins listed in the configuration file and return them.
         """
         # Allow extra plugins to be pulled in from the configuration file.
         if "plugins" in self.data:
