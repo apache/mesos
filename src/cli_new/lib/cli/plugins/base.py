@@ -79,7 +79,7 @@ class PluginBase(object):
     def __module_reference__(self):
         return sys.modules[self.__module__]
 
-    def __init__(self, config):
+    def __init__(self, settings, config):
         # pylint: disable=C0103
         self.PLUGIN_NAME = PLUGIN_NAME
         self.PLUGIN_CLASS = PLUGIN_CLASS
@@ -99,6 +99,7 @@ class PluginBase(object):
         if hasattr(module, "USAGE"):
             self.USAGE = getattr(module, "USAGE")
 
+        self.settings = settings
         self.config = config
 
     def __autocomplete__(self, command, current_word, argv):

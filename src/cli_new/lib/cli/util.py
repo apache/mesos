@@ -152,6 +152,21 @@ def format_subcommands_help(cmd):
     return (arguments, short_help, long_help, flag_string)
 
 
+def join_plugin_paths(settings, config):
+    """
+    Return all the plugin paths combined
+    from both settings and the config file.
+    """
+    builtin_paths = settings.PLUGINS
+
+    try:
+        config_paths = config.plugins()
+    except Exception as exception:
+        raise CLIException("Error: {error}.".format(error=str(exception)))
+
+    return builtin_paths + config_paths
+
+
 class Table(object):
     """
     Defines a custom table structure for printing to the terminal.

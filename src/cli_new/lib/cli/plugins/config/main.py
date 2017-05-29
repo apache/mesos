@@ -20,7 +20,6 @@ The config plugin.
 
 import sys
 
-import settings
 import cli
 
 from cli.plugins import PluginBase
@@ -59,10 +58,13 @@ class Config(PluginBase):
         plugins_table = Table(["NAME", "DESCRIPTION"])
 
         # Load the plugins
-        loaded_plugins = cli.util.import_modules(settings.PLUGINS, "plugins")
-        for plugin in loaded_plugins:
+        plugins = cli.util.import_modules(
+            cli.util.join_plugin_paths(self.settings, self.config),
+            "plugins")
+
+        for plugin in plugins:
             plugins_table.add_row([
-                cli.util.get_module(loaded_plugins, plugin).PLUGIN_NAME,
-                cli.util.get_module(loaded_plugins, plugin).SHORT_HELP
+                cli.util.get_module(plugins, plugin).PLUGIN_NAME,
+                cli.util.get_module(plugins, plugin).SHORT_HELP
             ])
         sys.stdout.write("{}\n".format(plugins_table))

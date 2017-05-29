@@ -23,6 +23,7 @@ import sys
 import settings
 
 import cli
+
 from cli.docopt import docopt
 from cli.exceptions import CLIException
 
@@ -49,7 +50,7 @@ See 'mesos help <command>' for more information on a specific command.
 """
 
 
-def autocomplete(cmds, plugins, argv):
+def autocomplete(cmds, plugins, config, argv):
     """
     Perform autocomplete for the given input arguments. If not
     completing a top level command (or "help"), this function passes
@@ -72,7 +73,9 @@ def autocomplete(cmds, plugins, argv):
     plugin = cli.util.get_module(plugins, argv[0])
     plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
 
-    return plugin_class(settings).__autocomplete_base__(current_word, argv[1:])
+    return plugin_class(settings, config).__autocomplete_base__(
+        current_word,
+        argv[1:])
 
 
 def main(argv):
@@ -80,8 +83,12 @@ def main(argv):
     This is the main function for the Mesos CLI.
     """
 
-    # Initialize the various plugins.
-    plugins = cli.util.import_modules(settings.PLUGINS, "plugins")
+    # Load the CLI config.
+    config = cli.config.Config()
+
+    plugins = cli.util.import_modules(
+        cli.util.join_plugin_paths(settings, config),
+        "plugins")
 
     cmds = {
         cli.util.get_module(plugins, plugin).PLUGIN_NAME:
@@ -111,7 +118,7 @@ def main(argv):
         # passing the erroring stack trace back as the list of words
         # to complete on.
         try:
-            option, comp_words = autocomplete(cmds, plugins, argv)
+            option, comp_words = autocomplete(cmds, plugins, config, argv)
         except Exception:
             pass
 
@@ -124,7 +131,7 @@ def main(argv):
         if len(argv) > 0 and argv[0] in cmds:
             plugin = cli.util.get_module(plugins, argv[0])
             plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
-            plugin_class(settings).main(argv[1:] + ["--help"])
+            plugin_class(settings, config).main(argv[1:] + ["--help"])
         else:
             main(["--help"])
 
@@ -132,7 +139,7 @@ def main(argv):
     elif cmd in cmds.keys():
         plugin = cli.util.get_module(plugins, cmd)
         plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
-        plugin_class(settings).main(argv)
+        plugin_class(settings, config).main(argv)
 
     # Print help information if no commands match.
     else:
