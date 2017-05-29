@@ -15,7 +15,7 @@
 # limitations under the License.
 
 """
-Mesos Module
+Mesos CLI Module
 """
 
 from . import config
