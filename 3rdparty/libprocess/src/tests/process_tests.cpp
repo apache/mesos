@@ -1238,7 +1238,7 @@ TEST(ProcessTest, THREADSAFE_Executor)
 class RemoteProcess : public Process<RemoteProcess>
 {
 public:
-  RemoteProcess()
+  RemoteProcess() : ProcessBase(process::ID::generate("remote"))
   {
     install("handler", &RemoteProcess::handler);
   }
