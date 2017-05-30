@@ -3416,6 +3416,10 @@ class OneWayPartitionTest : public MesosTest {};
 // will re-register with the master.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToSlave)
 {
+  // Pausing the clock ensures that the agent does not attempt to
+  // register multiple times (see MESOS-7596 for context).
+  Clock::pause();
+
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -3432,6 +3436,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToSlave)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), agentFlags);
   ASSERT_SOME(slave);
 
+  Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage);
 
   AWAIT_READY(ping);
@@ -3439,8 +3444,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToSlave)
 
   Future<Nothing> deactivateSlave =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
-
-  Clock::pause();
 
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected. The slave should not notice
