@@ -508,6 +508,18 @@ private:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
+  void sendExecutorTerminatedStatusUpdate(
+      const TaskID& taskId,
+      const process::Future<Option<
+          mesos::slave::ContainerTermination>>& termination,
+      const FrameworkID& frameworkId,
+      const Executor* executor);
+
+  // Forwards the current total of oversubscribed resources.
+  void forwardOversubscribed();
+  void _forwardOversubscribed(
+      const process::Future<Resources>& oversubscribable);
+
   // Gauge methods.
   double _frameworks_active()
   {
@@ -542,18 +554,6 @@ private:
   double _resources_revocable_total(const std::string& name);
   double _resources_revocable_used(const std::string& name);
   double _resources_revocable_percent(const std::string& name);
-
-  void sendExecutorTerminatedStatusUpdate(
-      const TaskID& taskId,
-      const process::Future<Option<
-          mesos::slave::ContainerTermination>>& termination,
-      const FrameworkID& frameworkId,
-      const Executor* executor);
-
-  // Forwards the current total of oversubscribed resources.
-  void forwardOversubscribed();
-  void _forwardOversubscribed(
-      const process::Future<Resources>& oversubscribable);
 
   const Flags flags;
 

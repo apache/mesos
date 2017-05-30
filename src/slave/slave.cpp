@@ -6585,126 +6585,6 @@ Future<ResourceUsage> Slave::usage()
 }
 
 
-// TODO(dhamon): Move these to their own metrics.hpp|cpp.
-double Slave::_tasks_staging()
-{
-  double count = 0.0;
-  foreachvalue (Framework* framework, frameworks) {
-    typedef hashmap<TaskID, TaskInfo> TaskMap;
-    foreachvalue (const TaskMap& tasks, framework->pending) {
-      count += tasks.size();
-    }
-
-    foreachvalue (Executor* executor, framework->executors) {
-      count += executor->queuedTasks.size();
-
-      foreachvalue (Task* task, executor->launchedTasks) {
-        if (task->state() == TASK_STAGING) {
-          count++;
-        }
-      }
-    }
-  }
-  return count;
-}
-
-
-double Slave::_tasks_starting()
-{
-  double count = 0.0;
-  foreachvalue (Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      foreachvalue (Task* task, executor->launchedTasks) {
-        if (task->state() == TASK_STARTING) {
-          count++;
-        }
-      }
-    }
-  }
-  return count;
-}
-
-
-double Slave::_tasks_running()
-{
-  double count = 0.0;
-  foreachvalue (Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      foreachvalue (Task* task, executor->launchedTasks) {
-        if (task->state() == TASK_RUNNING) {
-          count++;
-        }
-      }
-    }
-  }
-  return count;
-}
-
-
-double Slave::_tasks_killing()
-{
-  double count = 0.0;
-  foreachvalue (Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      foreachvalue (Task* task, executor->launchedTasks) {
-        if (task->state() == TASK_KILLING) {
-          count++;
-        }
-      }
-    }
-  }
-  return count;
-}
-
-
-double Slave::_executors_registering()
-{
-  double count = 0.0;
-  foreachvalue (Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      if (executor->state == Executor::REGISTERING) {
-        count++;
-      }
-    }
-  }
-  return count;
-}
-
-
-double Slave::_executors_running()
-{
-  double count = 0.0;
-  foreachvalue (Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      if (executor->state == Executor::RUNNING) {
-        count++;
-      }
-    }
-  }
-  return count;
-}
-
-
-double Slave::_executors_terminating()
-{
-  double count = 0.0;
-  foreachvalue (Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      if (executor->state == Executor::TERMINATING) {
-        count++;
-      }
-    }
-  }
-  return count;
-}
-
-
-double Slave::_executor_directory_max_allowed_age_secs()
-{
-  return executorDirectoryMaxAllowedAge.secs();
-}
-
-
 // As a principle, we do not need to re-authorize actions that have already
 // been authorized by the master. However, we re-authorize the RUN_TASK action
 // on the agent even though the master has already authorized it because:
@@ -6877,6 +6757,126 @@ void Slave::sendExecutorTerminatedStatusUpdate(
       reason,
       executor->id),
       UPID());
+}
+
+
+// TODO(dhamon): Move these to their own metrics.hpp|cpp.
+double Slave::_tasks_staging()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    typedef hashmap<TaskID, TaskInfo> TaskMap;
+    foreachvalue (const TaskMap& tasks, framework->pending) {
+      count += tasks.size();
+    }
+
+    foreachvalue (Executor* executor, framework->executors) {
+      count += executor->queuedTasks.size();
+
+      foreachvalue (Task* task, executor->launchedTasks) {
+        if (task->state() == TASK_STAGING) {
+          count++;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+
+double Slave::_tasks_starting()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      foreachvalue (Task* task, executor->launchedTasks) {
+        if (task->state() == TASK_STARTING) {
+          count++;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+
+double Slave::_tasks_running()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      foreachvalue (Task* task, executor->launchedTasks) {
+        if (task->state() == TASK_RUNNING) {
+          count++;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+
+double Slave::_tasks_killing()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      foreachvalue (Task* task, executor->launchedTasks) {
+        if (task->state() == TASK_KILLING) {
+          count++;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+
+double Slave::_executors_registering()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      if (executor->state == Executor::REGISTERING) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+
+double Slave::_executors_running()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      if (executor->state == Executor::RUNNING) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+
+double Slave::_executors_terminating()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      if (executor->state == Executor::TERMINATING) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+
+double Slave::_executor_directory_max_allowed_age_secs()
+{
+  return executorDirectoryMaxAllowedAge.secs();
 }
 
 
