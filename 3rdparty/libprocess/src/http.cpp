@@ -1349,8 +1349,12 @@ struct Connection::Data
 };
 
 
-Connection::Connection(const network::Socket& s)
-  : data(std::make_shared<Connection::Data>(s)) {}
+Connection::Connection(
+    const network::Socket& s,
+    const network::Address& _localAddress,
+    const network::Address& _peerAddress)
+  : localAddress(_localAddress), peerAddress(_peerAddress),
+    data(std::make_shared<Connection::Data>(s)) {}
 
 
 Future<Response> Connection::send(
@@ -1405,8 +1409,14 @@ Future<Connection> connect(const network::Address& address, Scheme scheme)
   }
 
   return socket->connect(address)
-    .then([socket]() {
-      return Connection(socket.get());
+    .then([socket, address]() -> Future<Connection> {
+      Try<network::Address> localAddress = socket->address();
+      if (localAddress.isError()) {
+        return Failure("Failed to get socket's local address: " +
+            localAddress.error());
+      }
+
+      return Connection(socket.get(), localAddress.get(), address);
     });
 }
 

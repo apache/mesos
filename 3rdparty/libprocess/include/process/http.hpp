@@ -960,8 +960,15 @@ public:
   bool operator==(const Connection& c) const { return data == c.data; }
   bool operator!=(const Connection& c) const { return !(*this == c); }
 
+  const network::Address localAddress;
+  const network::Address peerAddress;
+
 private:
-  Connection(const network::Socket& s);
+  Connection(
+      const network::Socket& s,
+      const network::Address& _localAddress,
+      const network::Address& _peerAddress);
+
   friend Future<Connection> connect(
       const network::Address& address, Scheme scheme);
   friend Future<Connection> connect(const URL&);
