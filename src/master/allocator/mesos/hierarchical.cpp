@@ -1187,7 +1187,7 @@ void HierarchicalAllocatorProcess::recoverResources(
     //
     // Because the next periodic allocation goes through a dispatch
     // after `allocationInterval`, we do the same for `expire()`
-    // (with a hepler `_expire()`) to achieve the above.
+    // (with a helper `_expire()`) to achieve the above.
     //
     // TODO(alexr): If we allocated upon resource recovery
     // (MESOS-3078), we would not need to increase the timeout here.
