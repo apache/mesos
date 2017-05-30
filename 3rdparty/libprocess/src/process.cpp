@@ -1153,9 +1153,9 @@ bool initialize(
     __address__.port = flags.advertise_port.get();
   }
 
-  // Lookup hostname if missing ip or if ip is 0.0.0.0 in case we
-  // actually have a valid external ip address. Note that we need only
-  // one ip address, so that other processes can send and receive and
+  // Resolve the hostname if ip is 0.0.0.0 in case we actually have
+  // a valid external IP address. Note that we need only one IP
+  // address, so that other processes can send and receive and
   // don't get confused as to whom they are sending to.
   if (__address__.ip.isAny()) {
     char hostname[512];
@@ -1164,7 +1164,7 @@ bool initialize(
       PLOG(FATAL) << "Failed to initialize, gethostname";
     }
 
-    // Lookup IP address of local hostname.
+    // Lookup an IP address of local hostname, taking the first result.
     Try<net::IP> ip = net::getIP(hostname, __address__.ip.family());
 
     if (ip.isError()) {
