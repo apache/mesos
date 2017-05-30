@@ -293,13 +293,7 @@ include(StoutConfigure)
 include(StoutTestsConfigure)
 
 set(GOOGLETEST_URL ${FETCH_URL}/googletest-release-${GOOGLETEST_VERSION}.tar.gz)
-# NOTE: The Windows version of protobuf is patched and only available in the
-# 3rdparty repo, not the local repo.
-if (NOT WIN32)
-  set(PROTOBUF_URL ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
-elseif (WIN32)
-  set(PROTOBUF_URL ${3RDPARTY_DEPENDENCIES}/protobuf-${PROTOBUF_VERSION}.tar.gz)
-endif (NOT WIN32)
+set(PROTOBUF_URL ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
 
 # NOTE: `googletest` is "installed" into a lib directory, see "NOTE: (fix for
 # MESOS-3250)" comment above for explanation.
