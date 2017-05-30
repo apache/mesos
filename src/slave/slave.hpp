@@ -476,6 +476,9 @@ private:
 
   friend struct Metrics;
 
+  Slave(const Slave&) = delete;
+  Slave& operator=(const Slave&) = delete;
+
   void _authenticate();
   void authenticationTimeout(process::Future<bool> future);
 
@@ -504,9 +507,6 @@ private:
       const Option<process::http::authentication::Principal>& principal,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
-
-  Slave(const Slave&) = delete;
-  Slave& operator=(const Slave&) = delete;
 
   // Gauge methods.
   double _frameworks_active()
