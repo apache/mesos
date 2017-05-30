@@ -88,6 +88,7 @@
 // constant in the Windows SDK.
 #ifdef __WINDOWS__
 #undef REGISTERING
+#undef REGISTERED
 #endif // __WINDOWS__
 
 namespace mesos {
@@ -741,16 +742,6 @@ public:
 
   // Returns the task group associated with the task.
   Option<TaskGroupInfo> getQueuedTaskGroup(const TaskID& taskId);
-
-// Undefine NetBios preprocessor macros used by the `State` enum.
-#ifdef REGISTERING
-#undef REGISTERING
-#endif // REGISTERING
-
-#ifdef REGISTERED
-#undef REGISTERED
-#endif // REGISTERED
-
 
   enum State
   {
