@@ -1161,8 +1161,7 @@ bool initialize(
     char hostname[512];
 
     if (gethostname(hostname, sizeof(hostname)) < 0) {
-      LOG(FATAL) << "Failed to initialize, gethostname: "
-                 << os::hstrerror(h_errno);
+      PLOG(FATAL) << "Failed to initialize, gethostname";
     }
 
     // Lookup IP address of local hostname.
