@@ -835,8 +835,8 @@ public:
   Option<mesos::slave::ContainerTermination> pendingTermination;
 
 private:
-  Executor(const Executor&);              // No copying.
-  Executor& operator=(const Executor&); // No assigning.
+  Executor(const Executor&) = delete;
+  Executor& operator=(const Executor&) = delete;
 
   bool commandExecutor;
 };
@@ -929,8 +929,8 @@ public:
   }
 
 private:
-  Framework(const Framework&);              // No copying.
-  Framework& operator=(const Framework&); // No assigning.
+  Framework(const Framework&) = delete;
+  Framework& operator=(const Framework&) = delete;
 };
 
 
