@@ -742,10 +742,6 @@ public:
   // Returns the task group associated with the task.
   Option<TaskGroupInfo> getQueuedTaskGroup(const TaskID& taskId);
 
-  friend std::ostream& operator<<(
-      std::ostream& stream,
-      const Executor& executor);
-
 // Undefine NetBios preprocessor macros used by the `State` enum.
 #ifdef REGISTERING
 #undef REGISTERING
