@@ -504,8 +504,8 @@ private:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
-  Slave(const Slave&);              // No copying.
-  Slave& operator=(const Slave&); // No assigning.
+  Slave(const Slave&) = delete;
+  Slave& operator=(const Slave&) = delete;
 
   // Gauge methods.
   double _frameworks_active()
