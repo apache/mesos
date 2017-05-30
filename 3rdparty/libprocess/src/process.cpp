@@ -559,6 +559,7 @@ private:
   std::atomic_bool finalizing;
 };
 
+static internal::Flags* flags = new internal::Flags();
 
 // Synchronization primitives for `initialize`.
 // See documentation in `initialize` for how they are used.
@@ -1097,11 +1098,10 @@ bool initialize(
   __address__ = Address::ANY_ANY();
 
   // Fetch and parse the libprocess environment variables.
-  internal::Flags flags;
-  Try<flags::Warnings> load = flags.load("LIBPROCESS_");
+  Try<flags::Warnings> load = flags->load("LIBPROCESS_");
 
   if (load.isError()) {
-    EXIT(EXIT_FAILURE) << flags.usage(load.error());
+    EXIT(EXIT_FAILURE) << flags->usage(load.error());
   }
 
   // Log any flag warnings.
@@ -1109,12 +1109,12 @@ bool initialize(
     LOG(WARNING) << warning.message;
   }
 
-  if (flags.ip.isSome()) {
-    __address__.ip = flags.ip.get();
+  if (flags->ip.isSome()) {
+    __address__.ip = flags->ip.get();
   }
 
-  if (flags.port.isSome()) {
-    __address__.port = flags.port.get();
+  if (flags->port.isSome()) {
+    __address__.port = flags->port.get();
   }
 
   // Create a "server" socket for communicating.
@@ -1145,12 +1145,12 @@ bool initialize(
   __address__ = bind.get();
 
   // If advertised IP and port are present, use them instead.
-  if (flags.advertise_ip.isSome()) {
-    __address__.ip = flags.advertise_ip.get();
+  if (flags->advertise_ip.isSome()) {
+    __address__.ip = flags->advertise_ip.get();
   }
 
-  if (flags.advertise_port.isSome()) {
-    __address__.port = flags.advertise_port.get();
+  if (flags->advertise_port.isSome()) {
+    __address__.port = flags->advertise_port.get();
   }
 
   // Resolve the hostname if ip is 0.0.0.0 in case we actually have
@@ -1342,6 +1342,9 @@ void finalize(bool finalize_wsa)
   // NOTE: This variable is necessary for process communication, so it
   // cannot be cleared until after the `ProcessManager` is deleted.
   __address__ = Address::ANY_ANY();
+
+  // Finally, reset the Flags to defaults.
+  *flags = internal::Flags();
 
 #ifdef __WINDOWS__
   if (finalize_wsa && !net::wsa_cleanup()) {
