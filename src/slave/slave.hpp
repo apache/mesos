@@ -100,8 +100,9 @@ namespace slave {
 
 // Some forward declarations.
 class StatusUpdateManager;
-struct Executor;
-struct Framework;
+class Executor;
+class Framework;
+
 struct HttpConnection;
 
 
@@ -469,11 +470,11 @@ public:
       const ContainerID& containerId);
 
 private:
-  friend struct Executor;
-  friend struct Framework;
-  friend struct Metrics;
-
+  friend class Executor;
+  friend class Framework;
   friend class Http;
+
+  friend struct Metrics;
 
   void _authenticate();
   void authenticationTimeout(process::Future<bool> future);
@@ -683,8 +684,9 @@ std::ostream& operator<<(std::ostream& stream, const Executor& executor);
 
 
 // Information describing an executor.
-struct Executor
+class Executor
 {
+public:
   Executor(
       Slave* slave,
       const FrameworkID& frameworkId,
@@ -845,8 +847,9 @@ private:
 
 
 // Information about a framework.
-struct Framework
+class Framework
 {
+public:
   Framework(
       Slave* slave,
       const Flags& slaveFlags,
