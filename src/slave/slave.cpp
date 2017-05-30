@@ -171,6 +171,12 @@ static string taskOrTaskGroup(
     const Option<TaskGroupInfo>& taskGroup);
 
 
+// Returns the command info for default executor.
+static CommandInfo defaultExecutorCommandInfo(
+    const std::string& launcherDir,
+    const Option<std::string>& user);
+
+
 Slave::Slave(const string& id,
              const slave::Flags& _flags,
              MasterDetector* _detector,
@@ -7791,35 +7797,6 @@ map<string, string> executorEnvironment(
 }
 
 
-CommandInfo defaultExecutorCommandInfo(
-    const string& launcherDir,
-    const Option<string>& user)
-{
-  Result<string> path = os::realpath(
-      path::join(launcherDir, MESOS_DEFAULT_EXECUTOR));
-
-  CommandInfo commandInfo;
-  if (path.isSome()) {
-    commandInfo.set_shell(false);
-    commandInfo.set_value(path.get());
-    commandInfo.add_arguments(MESOS_DEFAULT_EXECUTOR);
-    commandInfo.add_arguments("--launcher_dir=" + launcherDir);
-  } else {
-    commandInfo.set_shell(true);
-    commandInfo.set_value(
-        "echo '" +
-        (path.isError() ? path.error() : "No such file or directory") +
-        "'; exit 1");
-  }
-
-  if (user.isSome()) {
-    commandInfo.set_user(user.get());
-  }
-
-  return commandInfo;
-}
-
-
 ostream& operator<<(ostream& stream, const Executor& executor)
 {
   stream << "'" << executor.id << "' of framework " << executor.frameworkId;
@@ -7889,6 +7866,35 @@ static string taskOrTaskGroup(
   }
 
   return out.str();
+}
+
+
+static CommandInfo defaultExecutorCommandInfo(
+    const string& launcherDir,
+    const Option<string>& user)
+{
+  Result<string> path = os::realpath(
+      path::join(launcherDir, MESOS_DEFAULT_EXECUTOR));
+
+  CommandInfo commandInfo;
+  if (path.isSome()) {
+    commandInfo.set_shell(false);
+    commandInfo.set_value(path.get());
+    commandInfo.add_arguments(MESOS_DEFAULT_EXECUTOR);
+    commandInfo.add_arguments("--launcher_dir=" + launcherDir);
+  } else {
+    commandInfo.set_shell(true);
+    commandInfo.set_value(
+        "echo '" +
+        (path.isError() ? path.error() : "No such file or directory") +
+        "'; exit 1");
+  }
+
+  if (user.isSome()) {
+    commandInfo.set_user(user.get());
+  }
+
+  return commandInfo;
 }
 
 } // namespace slave {
