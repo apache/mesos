@@ -96,7 +96,6 @@ namespace mesos {
 class Authorizer;
 
 namespace internal {
-
 namespace slave {
 
 // Some forward declarations.
@@ -104,6 +103,7 @@ class StatusUpdateManager;
 struct Executor;
 struct Framework;
 struct HttpConnection;
+
 
 class Slave : public ProtobufProcess<Slave>
 {
@@ -195,10 +195,10 @@ public:
   void checkpointResources(const std::vector<Resource>& checkpointedResources);
 
   void subscribe(
-    HttpConnection http,
-    const executor::Call::Subscribe& subscribe,
-    Framework* framework,
-    Executor* executor);
+      HttpConnection http,
+      const executor::Call::Subscribe& subscribe,
+      Framework* framework,
+      Executor* executor);
 
   void registerExecutor(
       const process::UPID& from,
