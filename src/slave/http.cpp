@@ -67,6 +67,7 @@
 #include "mesos/mesos.hpp"
 #include "mesos/resources.hpp"
 
+#include "slave/http.hpp"
 #include "slave/slave.hpp"
 #include "slave/validation.hpp"
 
@@ -326,7 +327,7 @@ struct FrameworkWriter
 };
 
 
-string Slave::Http::API_HELP()
+string Http::API_HELP()
 {
   return HELP(
     TLDR(
@@ -337,7 +338,7 @@ string Slave::Http::API_HELP()
 }
 
 
-Future<Response> Slave::Http::api(
+Future<Response> Http::api(
     const Request& request,
     const Option<Principal>& principal) const
 {
@@ -507,7 +508,7 @@ Future<Response> Slave::Http::api(
 }
 
 
-Future<Response> Slave::Http::_api(
+Future<Response> Http::_api(
     const mesos::agent::Call& call,
     Option<Owned<Reader<mesos::agent::Call>>>&& reader,
     const RequestMediaTypes& mediaTypes,
@@ -603,7 +604,7 @@ Future<Response> Slave::Http::_api(
 }
 
 
-string Slave::Http::EXECUTOR_HELP() {
+string Http::EXECUTOR_HELP() {
   return HELP(
     TLDR(
         "Endpoint for the Executor HTTP API."),
@@ -656,12 +657,12 @@ Option<Error> verifyExecutorClaims(
 }
 
 
-Future<Response> Slave::Http::executor(
+Future<Response> Http::executor(
     const Request& request,
     const Option<Principal>& principal) const
 {
   if (!slave->recoveryInfo.reconnect) {
-    CHECK(slave->state == RECOVERING);
+    CHECK_EQ(slave->state, Slave::RECOVERING);
     return ServiceUnavailable("Agent has not finished recovery");
   }
 
@@ -807,7 +808,7 @@ Future<Response> Slave::Http::executor(
 }
 
 
-string Slave::Http::FLAGS_HELP()
+string Http::FLAGS_HELP()
 {
   return HELP(
     TLDR("Exposes the agent's flag configuration."),
@@ -819,7 +820,7 @@ string Slave::Http::FLAGS_HELP()
 }
 
 
-Future<Response> Slave::Http::flags(
+Future<Response> Http::flags(
     const Request& request,
     const Option<Principal>& principal) const
 {
@@ -854,7 +855,7 @@ Future<Response> Slave::Http::flags(
 }
 
 
-JSON::Object Slave::Http::_flags() const
+JSON::Object Http::_flags() const
 {
   JSON::Object object;
 
@@ -873,7 +874,7 @@ JSON::Object Slave::Http::_flags() const
 }
 
 
-Future<Response> Slave::Http::getFlags(
+Future<Response> Http::getFlags(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -910,7 +911,7 @@ Future<Response> Slave::Http::getFlags(
 }
 
 
-string Slave::Http::HEALTH_HELP()
+string Http::HEALTH_HELP()
 {
   return HELP(
     TLDR(
@@ -922,13 +923,13 @@ string Slave::Http::HEALTH_HELP()
 }
 
 
-Future<Response> Slave::Http::health(const Request& request) const
+Future<Response> Http::health(const Request& request) const
 {
   return OK();
 }
 
 
-Future<Response> Slave::Http::getHealth(
+Future<Response> Http::getHealth(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -944,7 +945,7 @@ Future<Response> Slave::Http::getHealth(
 }
 
 
-Future<Response> Slave::Http::getVersion(
+Future<Response> Http::getVersion(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -957,7 +958,7 @@ Future<Response> Slave::Http::getVersion(
 }
 
 
-Future<Response> Slave::Http::getMetrics(
+Future<Response> Http::getMetrics(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -989,7 +990,7 @@ Future<Response> Slave::Http::getMetrics(
 }
 
 
-Future<Response> Slave::Http::getLoggingLevel(
+Future<Response> Http::getLoggingLevel(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -1005,7 +1006,7 @@ Future<Response> Slave::Http::getLoggingLevel(
 }
 
 
-Future<Response> Slave::Http::setLoggingLevel(
+Future<Response> Http::setLoggingLevel(
     const mesos::agent::Call& call,
     ContentType /*contentType*/,
     const Option<Principal>& principal) const
@@ -1048,7 +1049,7 @@ Future<Response> Slave::Http::setLoggingLevel(
 }
 
 
-Future<Response> Slave::Http::listFiles(
+Future<Response> Http::listFiles(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -1096,7 +1097,7 @@ Future<Response> Slave::Http::listFiles(
 }
 
 
-string Slave::Http::STATE_HELP() {
+string Http::STATE_HELP() {
   return HELP(
     TLDR(
         "Information about state of the Agent."),
@@ -1198,7 +1199,7 @@ string Slave::Http::STATE_HELP() {
 }
 
 
-Future<Response> Slave::Http::state(
+Future<Response> Http::state(
     const Request& request,
     const Option<Principal>& principal) const
 {
@@ -1390,7 +1391,7 @@ Future<Response> Slave::Http::state(
 }
 
 
-Future<Response> Slave::Http::getFrameworks(
+Future<Response> Http::getFrameworks(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -1424,7 +1425,7 @@ Future<Response> Slave::Http::getFrameworks(
 }
 
 
-mesos::agent::Response::GetFrameworks Slave::Http::_getFrameworks(
+mesos::agent::Response::GetFrameworks Http::_getFrameworks(
     const Owned<ObjectApprover>& frameworksApprover) const
 {
   mesos::agent::Response::GetFrameworks getFrameworks;
@@ -1452,7 +1453,7 @@ mesos::agent::Response::GetFrameworks Slave::Http::_getFrameworks(
 }
 
 
-Future<Response> Slave::Http::getExecutors(
+Future<Response> Http::getExecutors(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -1497,7 +1498,7 @@ Future<Response> Slave::Http::getExecutors(
 }
 
 
-mesos::agent::Response::GetExecutors Slave::Http::_getExecutors(
+mesos::agent::Response::GetExecutors Http::_getExecutors(
     const Owned<ObjectApprover>& frameworksApprover,
     const Owned<ObjectApprover>& executorsApprover) const
 {
@@ -1553,7 +1554,7 @@ mesos::agent::Response::GetExecutors Slave::Http::_getExecutors(
 }
 
 
-Future<Response> Slave::Http::getTasks(
+Future<Response> Http::getTasks(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -1607,7 +1608,7 @@ Future<Response> Slave::Http::getTasks(
 }
 
 
-mesos::agent::Response::GetTasks Slave::Http::_getTasks(
+mesos::agent::Response::GetTasks Http::_getTasks(
     const Owned<ObjectApprover>& frameworksApprover,
     const Owned<ObjectApprover>& tasksApprover,
     const Owned<ObjectApprover>& executorsApprover) const
@@ -1731,7 +1732,7 @@ mesos::agent::Response::GetTasks Slave::Http::_getTasks(
 }
 
 
-Future<Response> Slave::Http::getAgent(
+Future<Response> Http::getAgent(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -1748,7 +1749,7 @@ Future<Response> Slave::Http::getAgent(
 }
 
 
-Future<Response> Slave::Http::getState(
+Future<Response> Http::getState(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -1801,7 +1802,7 @@ Future<Response> Slave::Http::getState(
 }
 
 
-mesos::agent::Response::GetState Slave::Http::_getState(
+mesos::agent::Response::GetState Http::_getState(
     const Owned<ObjectApprover>& frameworksApprover,
     const Owned<ObjectApprover>& tasksApprover,
     const Owned<ObjectApprover>& executorsApprover) const
@@ -1821,7 +1822,7 @@ mesos::agent::Response::GetState Slave::Http::_getState(
 }
 
 
-string Slave::Http::STATISTICS_HELP()
+string Http::STATISTICS_HELP()
 {
   return HELP(
       TLDR(
@@ -1862,7 +1863,7 @@ string Slave::Http::STATISTICS_HELP()
 }
 
 
-Future<Response> Slave::Http::statistics(
+Future<Response> Http::statistics(
     const Request& request,
     const Option<Principal>& principal) const
 {
@@ -1899,7 +1900,7 @@ Future<Response> Slave::Http::statistics(
 }
 
 
-Response Slave::Http::_statistics(
+Response Http::_statistics(
     const ResourceUsage& usage,
     const Request& request) const
 {
@@ -1924,7 +1925,7 @@ Response Slave::Http::_statistics(
 }
 
 
-string Slave::Http::CONTAINERS_HELP()
+string Http::CONTAINERS_HELP()
 {
   return HELP(
       TLDR(
@@ -1971,7 +1972,7 @@ string Slave::Http::CONTAINERS_HELP()
 }
 
 
-Future<Response> Slave::Http::containers(
+Future<Response> Http::containers(
     const Request& request,
     const Option<Principal>& principal) const
 {
@@ -2003,7 +2004,7 @@ Future<Response> Slave::Http::containers(
 }
 
 
-Future<Response> Slave::Http::getContainers(
+Future<Response> Http::getContainers(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -2045,7 +2046,7 @@ Future<Response> Slave::Http::getContainers(
 }
 
 
-Future<Response> Slave::Http::_containers(
+Future<Response> Http::_containers(
     const Request& request,
     const Option<Principal>& principal) const
 {
@@ -2082,7 +2083,7 @@ Future<Response> Slave::Http::_containers(
 }
 
 
-Future<JSON::Array> Slave::Http::__containers(
+Future<JSON::Array> Http::__containers(
     Option<Owned<ObjectApprover>> approver) const
 {
   Owned<list<JSON::Object>> metadata(new list<JSON::Object>());
@@ -2188,7 +2189,7 @@ Future<JSON::Array> Slave::Http::__containers(
 }
 
 
-Try<string> Slave::Http::extractEndpoint(const process::http::URL& url) const
+Try<string> Http::extractEndpoint(const process::http::URL& url) const
 {
   // Paths are of the form "/slave(n)/endpoint". We're only interested
   // in the part after "/slave(n)" and tokenize the path accordingly.
@@ -2206,7 +2207,7 @@ Try<string> Slave::Http::extractEndpoint(const process::http::URL& url) const
 }
 
 
-Future<Response> Slave::Http::readFile(
+Future<Response> Http::readFile(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -2256,7 +2257,7 @@ Future<Response> Slave::Http::readFile(
 }
 
 
-Future<Response> Slave::Http::launchNestedContainer(
+Future<Response> Http::launchNestedContainer(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -2290,7 +2291,7 @@ Future<Response> Slave::Http::launchNestedContainer(
 }
 
 
-Future<Response> Slave::Http::_launchNestedContainer(
+Future<Response> Http::_launchNestedContainer(
     const ContainerID& containerId,
     const CommandInfo& commandInfo,
     const Option<ContainerInfo>& containerInfo,
@@ -2375,7 +2376,7 @@ Future<Response> Slave::Http::_launchNestedContainer(
 }
 
 
-Future<Response> Slave::Http::waitNestedContainer(
+Future<Response> Http::waitNestedContainer(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -2450,7 +2451,7 @@ Future<Response> Slave::Http::waitNestedContainer(
 }
 
 
-Future<Response> Slave::Http::killNestedContainer(
+Future<Response> Http::killNestedContainer(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -2511,7 +2512,7 @@ Future<Response> Slave::Http::killNestedContainer(
 }
 
 
-Future<Response> Slave::Http::removeNestedContainer(
+Future<Response> Http::removeNestedContainer(
     const mesos::agent::Call& call,
     ContentType acceptType,
     const Option<Principal>& principal) const
@@ -2573,7 +2574,7 @@ Future<Response> Slave::Http::removeNestedContainer(
 }
 
 
-Future<Response> Slave::Http::_attachContainerInput(
+Future<Response> Http::_attachContainerInput(
     const mesos::agent::Call& call,
     Owned<Reader<mesos::agent::Call>>&& decoder,
     const RequestMediaTypes& mediaTypes) const
@@ -2642,7 +2643,7 @@ Future<Response> Slave::Http::_attachContainerInput(
 }
 
 
-Future<Response> Slave::Http::attachContainerInput(
+Future<Response> Http::attachContainerInput(
     const mesos::agent::Call& call,
     Owned<Reader<mesos::agent::Call>>&& decoder,
     const RequestMediaTypes& mediaTypes,
@@ -2731,7 +2732,7 @@ Future<Nothing> connect(Pipe::Reader reader, Pipe::Writer writer)
 }
 
 
-Future<Response> Slave::Http::launchNestedContainerSession(
+Future<Response> Http::launchNestedContainerSession(
     const mesos::agent::Call& call,
     const RequestMediaTypes& mediaTypes,
     const Option<Principal>& principal) const
@@ -2863,7 +2864,7 @@ Future<Response> Slave::Http::launchNestedContainerSession(
 }
 
 
-Future<Response> Slave::Http::_attachContainerOutput(
+Future<Response> Http::_attachContainerOutput(
     const mesos::agent::Call& call,
     const RequestMediaTypes& mediaTypes) const
 {
@@ -2966,7 +2967,7 @@ Future<Response> Slave::Http::_attachContainerOutput(
 }
 
 
-Future<Response> Slave::Http::attachContainerOutput(
+Future<Response> Http::attachContainerOutput(
     const mesos::agent::Call& call,
     const RequestMediaTypes& mediaTypes,
     const Option<Principal>& principal) const

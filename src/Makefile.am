@@ -1069,6 +1069,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/constants.hpp							\
   slave/flags.hpp							\
   slave/gc.hpp								\
+  slave/http.hpp							\
   slave/metrics.hpp							\
   slave/paths.hpp							\
   slave/posix_signalhandler.hpp						\
