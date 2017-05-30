@@ -4882,6 +4882,26 @@ Executor* Slave::getExecutor(
 }
 
 
+Executor* Slave::getExecutor(const ContainerID& containerId) const
+{
+  const ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
+
+  // Locate the executor (for now we just loop since we don't
+  // index based on container id and this likely won't have a
+  // significant performance impact due to the low number of
+  // executors per-agent).
+  foreachvalue (Framework* framework, frameworks) {
+    foreachvalue (Executor* executor, framework->executors) {
+      if (rootContainerId == executor->containerId) {
+        return executor;
+      }
+    }
+  }
+
+  return nullptr;
+}
+
+
 ExecutorInfo Slave::getExecutorInfo(
     const FrameworkInfo& frameworkInfo,
     const TaskInfo& task) const
@@ -6943,6 +6963,15 @@ Framework::Framework(
     completedExecutors(slaveFlags.max_completed_executors_per_framework) {}
 
 
+Framework::~Framework()
+{
+  // We own the non-completed executor pointers, so they need to be deleted.
+  foreachvalue (Executor* executor, executors) {
+    delete executor;
+  }
+}
+
+
 void Framework::checkpointFramework() const
 {
   // Checkpoint the framework info.
@@ -6965,15 +6994,6 @@ void Framework::checkpointFramework() const
           << " to '" << path << "'";
 
   CHECK_SOME(state::checkpoint(path, pid.getOrElse(UPID())));
-}
-
-
-Framework::~Framework()
-{
-  // We own the non-completed executor pointers, so they need to be deleted.
-  foreachvalue (Executor* executor, executors) {
-    delete executor;
-  }
 }
 
 
@@ -7066,18 +7086,6 @@ Executor* Framework::addExecutor(const ExecutorInfo& executorInfo)
 }
 
 
-void Framework::destroyExecutor(const ExecutorID& executorId)
-{
-  if (executors.contains(executorId)) {
-    Executor* executor = executors[executorId];
-    executors.erase(executorId);
-
-    // Pass ownership of the executor pointer.
-    completedExecutors.push_back(Owned<Executor>(executor));
-  }
-}
-
-
 Executor* Framework::getExecutor(const ExecutorID& executorId) const
 {
   if (executors.contains(executorId)) {
@@ -7101,44 +7109,15 @@ Executor* Framework::getExecutor(const TaskID& taskId) const
 }
 
 
-// Return `true` if `task` was a pending task of this framework
-// before the removal; `false` otherwise.
-bool Framework::removePendingTask(
-    const TaskInfo& task,
-    const ExecutorInfo& executorInfo)
+void Framework::destroyExecutor(const ExecutorID& executorId)
 {
-  const ExecutorID executorId = executorInfo.executor_id();
+  if (executors.contains(executorId)) {
+    Executor* executor = executors[executorId];
+    executors.erase(executorId);
 
-  if (pending.contains(executorId) &&
-      pending.at(executorId).contains(task.task_id())) {
-    pending.at(executorId).erase(task.task_id());
-    if (pending.at(executorId).empty()) {
-      pending.erase(executorId);
-    }
-    return true;
+    // Pass ownership of the executor pointer.
+    completedExecutors.push_back(Owned<Executor>(executor));
   }
-
-  return false;
-}
-
-
-Executor* Slave::getExecutor(const ContainerID& containerId) const
-{
-  const ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
-
-  // Locate the executor (for now we just loop since we don't
-  // index based on container id and this likely won't have a
-  // significant performance impact due to the low number of
-  // executors per-agent).
-  foreachvalue (Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      if (rootContainerId == executor->containerId) {
-        return executor;
-      }
-    }
-  }
-
-  return nullptr;
 }
 
 
@@ -7321,6 +7300,27 @@ bool Framework::hasTask(const TaskID& taskId)
         executor->terminatedTasks.contains(taskId)) {
       return true;
     }
+  }
+
+  return false;
+}
+
+
+// Return `true` if `task` was a pending task of this framework
+// before the removal; `false` otherwise.
+bool Framework::removePendingTask(
+    const TaskInfo& task,
+    const ExecutorInfo& executorInfo)
+{
+  const ExecutorID executorId = executorInfo.executor_id();
+
+  if (pending.contains(executorId) &&
+      pending.at(executorId).contains(task.task_id())) {
+    pending.at(executorId).erase(task.task_id());
+    if (pending.at(executorId).empty()) {
+      pending.erase(executorId);
+    }
+    return true;
   }
 
   return false;

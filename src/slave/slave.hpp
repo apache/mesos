@@ -854,24 +854,26 @@ public:
 
   ~Framework();
 
+  void checkpointFramework() const;
+
+  const FrameworkID id() const { return info.id(); }
+
   Executor* addExecutor(const ExecutorInfo& executorInfo);
-  void destroyExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const ExecutorID& executorId) const;
   Executor* getExecutor(const TaskID& taskId) const;
+
+  void destroyExecutor(const ExecutorID& executorId);
 
   void recoverExecutor(
       const state::ExecutorState& state,
       bool recheckpointExecutor,
       const hashset<TaskID>& tasksToRecheckpoint);
 
-  void checkpointFramework() const;
   bool hasTask(const TaskID& taskId);
 
   bool removePendingTask(
       const TaskInfo& task,
       const ExecutorInfo& executorInfo);
-
-  const FrameworkID id() const { return info.id(); }
 
   enum State
   {
