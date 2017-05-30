@@ -1263,9 +1263,12 @@ TEST(ProcessTest, THREADSAFE_Remote)
 
   AWAIT_READY(socket.connect(process.self().address));
 
+  Try<Address> sender = socket.address();
+  ASSERT_SOME(sender);
+
   Message message;
   message.name = "handler";
-  message.from = UPID();
+  message.from = UPID("sender", sender.get());
   message.to = process.self();
 
   const string data = MessageEncoder::encode(&message);
@@ -1296,6 +1299,11 @@ TEST(ProcessTest, THREADSAFE_Http1)
 
   http::Connection connection = connect.get();
 
+  Try<process::network::Address> address = connection.localAddress;
+  ASSERT_SOME(address);
+
+  UPID from("sender", process::network::convert<Address>(address.get()).get());
+
   Future<UPID> pid;
   Future<string> body;
   EXPECT_CALL(process, handler(_, _))
@@ -1305,7 +1313,7 @@ TEST(ProcessTest, THREADSAFE_Http1)
   http::Request request;
   request.method = "POST";
   request.url = url;
-  request.headers["User-Agent"] = "libprocess/";
+  request.headers["User-Agent"] = "libprocess/" + stringify(from);
   request.body = "hello world";
 
   // Send the libprocess request. Note that we will not
@@ -1317,7 +1325,7 @@ TEST(ProcessTest, THREADSAFE_Http1)
   ASSERT_EQ("hello world", body.get());
 
   AWAIT_READY(pid);
-  ASSERT_EQ(UPID(), pid.get());
+  ASSERT_EQ(from, pid.get());
 
   EXPECT_TRUE(response.isPending());
 
@@ -1350,7 +1358,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, THREADSAFE_Http2)
   Try<Address> address = socket.address();
   ASSERT_SOME(address);
 
-  UPID from("", address.get());
+  UPID from("", process.self().address.ip, address->port);
 
   ASSERT_SOME(socket.listen(1));
 
@@ -1698,10 +1706,12 @@ TEST(ProcessTest, PercentEncodedURLs)
   EXPECT_CALL(process, handler1(_, _))
     .WillOnce(FutureSatisfy(&handler1));
 
+  UPID from("sender", process.self().address.ip, 99);
+
   http::Request request;
   request.method = "POST";
   request.url = url;
-  request.headers["User-Agent"] = "libprocess/";
+  request.headers["User-Agent"] = "libprocess/" + stringify(from);
 
   // Send the libprocess request. Note that we will not
   // receive a 202 due to the use of the `User-Agent`
