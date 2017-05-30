@@ -951,12 +951,6 @@ std::ostream& operator<<(std::ostream& stream, Executor::State state);
 std::ostream& operator<<(std::ostream& stream, Framework::State state);
 std::ostream& operator<<(std::ostream& stream, Slave::State state);
 
-
-// Needed for logging task/task group.
-std::string taskOrTaskGroup(
-    const Option<TaskInfo>& task,
-    const Option<TaskGroupInfo>& taskGroup);
-
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

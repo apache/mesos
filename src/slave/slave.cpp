@@ -161,6 +161,14 @@ namespace slave {
 
 using namespace state;
 
+// Forward declarations.
+
+// Needed for logging task/task group.
+static string taskOrTaskGroup(
+    const Option<TaskInfo>& task,
+    const Option<TaskGroupInfo>& taskGroup);
+
+
 Slave::Slave(const string& id,
              const slave::Flags& _flags,
              MasterDetector* _detector,
@@ -7861,7 +7869,7 @@ std::ostream& operator<<(std::ostream& stream, Slave::State state)
 }
 
 
-string taskOrTaskGroup(
+static string taskOrTaskGroup(
     const Option<TaskInfo>& task,
     const Option<TaskGroupInfo>& taskGroup)
 {
