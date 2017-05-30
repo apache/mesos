@@ -7807,14 +7807,14 @@ std::ostream& operator<<(std::ostream& stream, const Executor& executor)
 }
 
 
-std::ostream& operator<<(std::ostream& stream, Slave::State state)
+std::ostream& operator<<(std::ostream& stream, Executor::State state)
 {
   switch (state) {
-    case Slave::RECOVERING:   return stream << "RECOVERING";
-    case Slave::DISCONNECTED: return stream << "DISCONNECTED";
-    case Slave::RUNNING:      return stream << "RUNNING";
-    case Slave::TERMINATING:  return stream << "TERMINATING";
-    default:                  return stream << "UNKNOWN";
+    case Executor::REGISTERING: return stream << "REGISTERING";
+    case Executor::RUNNING:     return stream << "RUNNING";
+    case Executor::TERMINATING: return stream << "TERMINATING";
+    case Executor::TERMINATED:  return stream << "TERMINATED";
+    default:                    return stream << "UNKNOWN";
   }
 }
 
@@ -7829,14 +7829,14 @@ std::ostream& operator<<(std::ostream& stream, Framework::State state)
 }
 
 
-std::ostream& operator<<(std::ostream& stream, Executor::State state)
+std::ostream& operator<<(std::ostream& stream, Slave::State state)
 {
   switch (state) {
-    case Executor::REGISTERING: return stream << "REGISTERING";
-    case Executor::RUNNING:     return stream << "RUNNING";
-    case Executor::TERMINATING: return stream << "TERMINATING";
-    case Executor::TERMINATED:  return stream << "TERMINATED";
-    default:                    return stream << "UNKNOWN";
+    case Slave::RECOVERING:   return stream << "RECOVERING";
+    case Slave::DISCONNECTED: return stream << "DISCONNECTED";
+    case Slave::RUNNING:      return stream << "RUNNING";
+    case Slave::TERMINATING:  return stream << "TERMINATING";
+    default:                  return stream << "UNKNOWN";
   }
 }
 

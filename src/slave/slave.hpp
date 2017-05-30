@@ -963,9 +963,9 @@ CommandInfo defaultExecutorCommandInfo(
     const Option<std::string>& user);
 
 
-std::ostream& operator<<(std::ostream& stream, Slave::State state);
-std::ostream& operator<<(std::ostream& stream, Framework::State state);
 std::ostream& operator<<(std::ostream& stream, Executor::State state);
+std::ostream& operator<<(std::ostream& stream, Framework::State state);
+std::ostream& operator<<(std::ostream& stream, Slave::State state);
 
 
 // Needed for logging task/task group.
