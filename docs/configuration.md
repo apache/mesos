@@ -2117,6 +2117,23 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
+      LIBPROCESS_REQUIRE_PEER_ADDRESS_IP_MATCH
+    </td>
+    <td>
+      If set, the IP address portion of the libprocess UPID in
+      incoming messages is required to match the IP address
+      of the socket from which the message was sent. This can be a
+      security enhancement since it prevents unauthorized senders
+      impersonating other libprocess actors. This check may
+      break configurations that require setting LIBPROCESS_IP,
+      or LIBPROCESS_ADVERTISE_IP. Additionally, multi-homed
+      configurations may be affected since the address on
+      which libprocess is listening may not match the address from
+      which libprocess connects to other actors.
+    </td>
+  </tr>
+  <tr>
+    <td>
       LIBPROCESS_ENABLE_PROFILER
     </td>
     <td>
