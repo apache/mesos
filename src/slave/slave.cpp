@@ -128,8 +128,10 @@ using mesos::slave::ResourceEstimator;
 using std::find;
 using std::list;
 using std::map;
+using std::ostream;
 using std::ostringstream;
 using std::set;
+using std::shared_ptr;
 using std::string;
 using std::vector;
 
@@ -1493,7 +1495,7 @@ void Slave::doReliableRegistration(Duration maxBackoff)
           completedFramework_->add_tasks()->CopyFrom(*task);
         }
 
-        foreach (const std::shared_ptr<Task>& task, executor->completedTasks) {
+        foreach (const shared_ptr<Task>& task, executor->completedTasks) {
           VLOG(2) << "Reregistering completed task " << task->task_id();
           completedFramework_->add_tasks()->CopyFrom(*task);
         }
@@ -2953,7 +2955,7 @@ void Slave::killTask(
       // send a TASK_KILLED update for all tasks in the group.
       Option<TaskGroupInfo> taskGroup = executor->getQueuedTaskGroup(taskId);
 
-      std::list<StatusUpdate> updates;
+      list<StatusUpdate> updates;
       if (taskGroup.isSome()) {
         foreach (const TaskInfo& task, taskGroup->tasks()) {
           updates.push_back(protobuf::createStatusUpdate(
@@ -3010,7 +3012,7 @@ void Slave::killTask(
         // send a TASK_KILLED update for all the other tasks.
         Option<TaskGroupInfo> taskGroup = executor->getQueuedTaskGroup(taskId);
 
-        std::list<StatusUpdate> updates;
+        list<StatusUpdate> updates;
         if (taskGroup.isSome()) {
           foreach (const TaskInfo& task, taskGroup->tasks()) {
             updates.push_back(protobuf::createStatusUpdate(
@@ -7417,7 +7419,7 @@ void Executor::completeTask(const TaskID& taskId)
     << "Failed to find terminated task " << taskId;
 
   Task* task = terminatedTasks[taskId];
-  completedTasks.push_back(std::shared_ptr<Task>(task));
+  completedTasks.push_back(shared_ptr<Task>(task));
   terminatedTasks.erase(taskId);
 }
 
@@ -7818,7 +7820,7 @@ CommandInfo defaultExecutorCommandInfo(
 }
 
 
-std::ostream& operator<<(std::ostream& stream, const Executor& executor)
+ostream& operator<<(ostream& stream, const Executor& executor)
 {
   stream << "'" << executor.id << "' of framework " << executor.frameworkId;
 
@@ -7835,7 +7837,7 @@ std::ostream& operator<<(std::ostream& stream, const Executor& executor)
 }
 
 
-std::ostream& operator<<(std::ostream& stream, Executor::State state)
+ostream& operator<<(ostream& stream, Executor::State state)
 {
   switch (state) {
     case Executor::REGISTERING: return stream << "REGISTERING";
@@ -7847,7 +7849,7 @@ std::ostream& operator<<(std::ostream& stream, Executor::State state)
 }
 
 
-std::ostream& operator<<(std::ostream& stream, Framework::State state)
+ostream& operator<<(ostream& stream, Framework::State state)
 {
   switch (state) {
     case Framework::RUNNING:     return stream << "RUNNING";
@@ -7857,7 +7859,7 @@ std::ostream& operator<<(std::ostream& stream, Framework::State state)
 }
 
 
-std::ostream& operator<<(std::ostream& stream, Slave::State state)
+ostream& operator<<(ostream& stream, Slave::State state)
 {
   switch (state) {
     case Slave::RECOVERING:   return stream << "RECOVERING";
