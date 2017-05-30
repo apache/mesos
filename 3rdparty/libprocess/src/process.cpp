@@ -135,6 +135,8 @@ using process::http::authentication::AuthenticatorManager;
 
 using process::http::authorization::AuthorizationCallbacks;
 
+namespace inet = process::network::inet;
+
 using process::network::inet::Address;
 using process::network::inet::Socket;
 
@@ -211,12 +213,27 @@ struct Flags : public virtual flags::FlagsBase
 
           return None();
         });
+
+    add(&Flags::require_peer_address_ip_match,
+        "require_peer_address_ip_match",
+        "If set, the IP address portion of the libprocess UPID in\n"
+        "incoming messages is required to match the IP address of\n"
+        "the socket from which the message was sent. This can be a\n"
+        "security enhancement since it prevents unauthorized senders\n"
+        "impersonating other libprocess actors. This check may\n"
+        "break configurations that require setting LIBPROCESS_IP,\n"
+        "or LIBPROCESS_ADVERTISE_IP. Additionally, multi-homed\n"
+        "configurations may be affected since the address on which\n"
+        "libprocess is listening may not match the address from\n"
+        "which libprocess connects to other actors.\n",
+        false);
   }
 
   Option<net::IP> ip;
   Option<net::IP> advertise_ip;
   Option<int> port;
   Option<int> advertise_port;
+  bool require_peer_address_ip_match;
 };
 
 } // namespace internal {
@@ -2854,6 +2871,35 @@ void ProcessManager::handle(
         }
 
         Message* message = CHECK_NOTNULL(future.get());
+
+        // Verify that the UPID this peer is claiming is on the same IP
+        // address the peer is sending from.
+        if (flags->require_peer_address_ip_match) {
+          CHECK_SOME(request->client);
+
+          // If the client address is not an IP address (e.g. coming
+          // from a domain socket), we also reject the message.
+          Try<inet::Address> client_ip_address =
+            network::convert<inet::Address>(request->client.get());
+
+          if (client_ip_address.isError() ||
+              message->from.address.ip != client_ip_address->ip) {
+            Response response = BadRequest(
+                "UPID IP address validation failed: Message from " +
+                stringify(message->from) + " was sent from IP " +
+                stringify(request->client.get()));
+
+            dispatch(proxy, &HttpProxy::enqueue, response, *request);
+
+            VLOG(1) << "Returning '" << response.status << "'"
+                    << " for '" << request->url.path << "'"
+                    << ": " << response.body;
+
+            delete request;
+            delete message;
+            return;
+          }
+        }
 
         // TODO(benh): Use the sender PID when delivering in order to
         // capture happens-before timing relationships for testing.
