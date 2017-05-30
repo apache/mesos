@@ -7307,6 +7307,26 @@ void Framework::recoverExecutor(
 }
 
 
+bool Framework::hasTask(const TaskID& taskId)
+{
+  foreachkey (const ExecutorID& executorId, pending) {
+    if (pending[executorId].contains(taskId)) {
+      return true;
+    }
+  }
+
+  foreachvalue (Executor* executor, executors) {
+    if (executor->queuedTasks.contains(taskId) ||
+        executor->launchedTasks.contains(taskId) ||
+        executor->terminatedTasks.contains(taskId)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 Executor::Executor(
     Slave* _slave,
     const FrameworkID& _frameworkId,

@@ -865,6 +865,7 @@ public:
       const hashset<TaskID>& tasksToRecheckpoint);
 
   void checkpointFramework() const;
+  bool hasTask(const TaskID& taskId);
 
   bool removePendingTask(
       const TaskInfo& task,
@@ -908,25 +909,6 @@ public:
   hashmap<ExecutorID, Executor*> executors;
 
   boost::circular_buffer<process::Owned<Executor>> completedExecutors;
-
-  bool hasTask(const TaskID& taskId)
-  {
-    foreachkey (const ExecutorID& executorId, pending) {
-      if (pending[executorId].contains(taskId)) {
-        return true;
-      }
-    }
-
-    foreachvalue (Executor* executor, executors) {
-      if (executor->queuedTasks.contains(taskId) ||
-          executor->launchedTasks.contains(taskId) ||
-          executor->terminatedTasks.contains(taskId)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
 
 private:
   Framework(const Framework&) = delete;
