@@ -101,19 +101,15 @@ protected:
 
 
 // These tests are parameterized by the containerizers enabled on the agent.
-//
-// TODO(gkleiman): The version of gtest currently used by Mesos doesn't support
-// passing `::testing::Values` a single value. Update these calls once we
-// upgrade to a newer version.
 INSTANTIATE_TEST_CASE_P(
     MesosContainerizer,
     DefaultExecutorTest,
-    ::testing::ValuesIn(vector<string>({"mesos"})));
+    ::testing::Values("mesos"));
 
 INSTANTIATE_TEST_CASE_P(
     ROOT_DOCKER_DockerAndMesosContainerizers,
     DefaultExecutorTest,
-    ::testing::ValuesIn(vector<string>({"docker,mesos"})));
+    ::testing::Values("docker,mesos"));
 
 
 // This test verifies that the default executor can launch a task group.
