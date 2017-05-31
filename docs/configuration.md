@@ -587,7 +587,7 @@ Note that if the flag <code>--authorizers</code> is provided with a value
 different than the default <code>local</code>, the ACLs
 passed through the <code>--acls</code> flag will be ignored.
 <p/>
-Currently there's no support for multiple authorizers. (default: local)
+Currently there is no support for multiple authorizers. (default: local)
   </td>
 </tr>
 <tr>

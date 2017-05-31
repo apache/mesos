@@ -509,7 +509,7 @@ mesos::internal::master::Flags::Flags()
       "different than the default `" + string(DEFAULT_AUTHORIZER) + "`, the\n"
       "ACLs passed through the `--acls` flag will be ignored.\n"
       "\n"
-      "Currently there's no support for multiple authorizers.",
+      "Currently there is no support for multiple authorizers.",
       DEFAULT_AUTHORIZER);
 
   add(&Flags::http_authenticators,
