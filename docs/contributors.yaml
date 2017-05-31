@@ -602,6 +602,14 @@
   jira_user: qianzhang
   reviewboard_user: qianzhang
 
+- name: Quinn Leng
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - qleng@mesosphere.io
+  jira_user: quinn.leng.666@gmail.com
+  reviewboard_user: quinn.leng
+
 - name: Ronald Petty
   affiliations:
     - {organization: RX-M}
