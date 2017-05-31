@@ -177,6 +177,10 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   flags.launcher_dir = getLauncherDir();
 
+  flags.appc_store_dir = path::join(directory.get(), "store", "appc");
+
+  flags.docker_store_dir = path::join(directory.get(), "store", "docker");
+
   {
 #ifdef HAS_AUTHENTICATION
     // Create a default credential file for master/agent authentication.
