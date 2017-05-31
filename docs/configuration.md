@@ -120,63 +120,6 @@ Show the help message and exit. (default: false)
 </tr>
 <tr>
   <td>
-    --http_authenticators=VALUE
-  </td>
-  <td>
-HTTP authenticator implementation to use when handling requests to
-authenticated endpoints. Use the default
-<code>basic</code>, or load an alternate
-HTTP authenticator module using <code>--modules</code>.
-(default: basic, or basic and JWT if executor authentication is enabled)
-  </td>
-</tr>
-<tr>
-  <td>
-    --ip=VALUE
-  </td>
-  <td>
-IP address to listen on. This cannot be used in conjunction
-with <code>--ip_discovery_command</code>. (master default: 5050; agent default: 5051)
-  </td>
-</tr>
-<tr>
-  <td>
-    --ip_discovery_command=VALUE
-  </td>
-  <td>
-Optional IP discovery binary: if set, it is expected to emit
-the IP address which the master/agent will try to bind to.
-Cannot be used in conjunction with <code>--ip</code>.
-  </td>
-</tr>
-<tr>
-  <td>
-    --modules_dir=VALUE
-  </td>
-  <td>
-Directory path of the module manifest files. The manifest files are processed in
-alphabetical order. (See <code>--modules</code> for more information on module
-manifest files) Cannot be used in conjunction with <code>--modules</code>.
-  </td>
-</tr>
-<tr>
-  <td>
-    --port=VALUE
-  </td>
-  <td>
-Port to listen on.
-  </td>
-</tr>
-<tr>
-  <td>
-    --[no-]version
-  </td>
-  <td>
-Show version and exit. (default: false)
-  </td>
-</tr>
-<tr>
-  <td>
     --hooks=VALUE
   </td>
   <td>
@@ -205,6 +148,37 @@ Whether we should execute a lookup to find out the server's hostname,
 if not explicitly set (via, e.g., <code>--hostname</code>).
 True by default; if set to <code>false</code> it will cause Mesos
 to use the IP address, unless the hostname is explicitly set. (default: true)
+  </td>
+</tr>
+<tr>
+  <td>
+    --http_authenticators=VALUE
+  </td>
+  <td>
+HTTP authenticator implementation to use when handling requests to
+authenticated endpoints. Use the default
+<code>basic</code>, or load an alternate
+HTTP authenticator module using <code>--modules</code>.
+(default: basic, or basic and JWT if executor authentication is enabled)
+  </td>
+</tr>
+<tr>
+  <td>
+    --ip=VALUE
+  </td>
+  <td>
+IP address to listen on. This cannot be used in conjunction
+with <code>--ip_discovery_command</code>. (master default: 5050; agent default: 5051)
+  </td>
+</tr>
+<tr>
+  <td>
+    --ip_discovery_command=VALUE
+  </td>
+  <td>
+Optional IP discovery binary: if set, it is expected to emit
+the IP address which the master/agent will try to bind to.
+Cannot be used in conjunction with <code>--ip</code>.
   </td>
 </tr>
 <tr>
@@ -252,6 +226,32 @@ Example:
   ]
 }</code></pre>
 <p/> Cannot be used in conjunction with --modules_dir.
+  </td>
+</tr>
+<tr>
+  <td>
+    --modules_dir=VALUE
+  </td>
+  <td>
+Directory path of the module manifest files. The manifest files are processed in
+alphabetical order. (See <code>--modules</code> for more information on module
+manifest files) Cannot be used in conjunction with <code>--modules</code>.
+  </td>
+</tr>
+<tr>
+  <td>
+    --port=VALUE
+  </td>
+  <td>
+Port to listen on.
+  </td>
+</tr>
+<tr>
+  <td>
+    --[no-]version
+  </td>
+  <td>
+Show version and exit. (default: false)
   </td>
 </tr>
 </table>
