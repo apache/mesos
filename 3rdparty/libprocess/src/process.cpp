@@ -576,7 +576,7 @@ private:
   std::atomic_bool finalizing;
 };
 
-static internal::Flags* flags = new internal::Flags();
+static internal::Flags* libprocess_flags = new internal::Flags();
 
 // Synchronization primitives for `initialize`.
 // See documentation in `initialize` for how they are used.
@@ -1115,10 +1115,10 @@ bool initialize(
   __address__ = Address::ANY_ANY();
 
   // Fetch and parse the libprocess environment variables.
-  Try<flags::Warnings> load = flags->load("LIBPROCESS_");
+  Try<flags::Warnings> load = libprocess_flags->load("LIBPROCESS_");
 
   if (load.isError()) {
-    EXIT(EXIT_FAILURE) << flags->usage(load.error());
+    EXIT(EXIT_FAILURE) << libprocess_flags->usage(load.error());
   }
 
   // Log any flag warnings.
@@ -1126,12 +1126,12 @@ bool initialize(
     LOG(WARNING) << warning.message;
   }
 
-  if (flags->ip.isSome()) {
-    __address__.ip = flags->ip.get();
+  if (libprocess_flags->ip.isSome()) {
+    __address__.ip = libprocess_flags->ip.get();
   }
 
-  if (flags->port.isSome()) {
-    __address__.port = flags->port.get();
+  if (libprocess_flags->port.isSome()) {
+    __address__.port = libprocess_flags->port.get();
   }
 
   // Create a "server" socket for communicating.
@@ -1162,12 +1162,12 @@ bool initialize(
   __address__ = bind.get();
 
   // If advertised IP and port are present, use them instead.
-  if (flags->advertise_ip.isSome()) {
-    __address__.ip = flags->advertise_ip.get();
+  if (libprocess_flags->advertise_ip.isSome()) {
+    __address__.ip = libprocess_flags->advertise_ip.get();
   }
 
-  if (flags->advertise_port.isSome()) {
-    __address__.port = flags->advertise_port.get();
+  if (libprocess_flags->advertise_port.isSome()) {
+    __address__.port = libprocess_flags->advertise_port.get();
   }
 
   // Resolve the hostname if ip is 0.0.0.0 in case we actually have
@@ -1361,7 +1361,7 @@ void finalize(bool finalize_wsa)
   __address__ = Address::ANY_ANY();
 
   // Finally, reset the Flags to defaults.
-  *flags = internal::Flags();
+  *libprocess_flags = internal::Flags();
 
 #ifdef __WINDOWS__
   if (finalize_wsa && !net::wsa_cleanup()) {
@@ -2874,7 +2874,7 @@ void ProcessManager::handle(
 
         // Verify that the UPID this peer is claiming is on the same IP
         // address the peer is sending from.
-        if (flags->require_peer_address_ip_match) {
+        if (libprocess_flags->require_peer_address_ip_match) {
           CHECK_SOME(request->client);
 
           // If the client address is not an IP address (e.g. coming
