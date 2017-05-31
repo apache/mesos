@@ -460,6 +460,22 @@ mesos::internal::master::Flags::Flags()
       "  http://www.mail-archive.com/dev@mesos.apache.org/msg35631.html\n"
       "  https://issues.apache.org/jira/browse/MESOS-5377");
 
+  add(&Flags::filter_gpu_resources,
+      "filter_gpu_resources",
+      "When set to true, this flag will cause the mesos master to\n"
+      "filter all offers from agents with GPU resources by only sending\n"
+      "them to frameworks that opt into the `GPU_RESOURCES` framework\n"
+      "capability. When set to false, this flag will cause the master\n"
+      "to not filter offers from agents with GPU resources, and\n"
+      "indiscriminately send them to all frameworks whether they set\n"
+      "the `GPU_RESOURCES` capability or not. This flag is meant as a\n"
+      "temporary workaround towards the eventual deprecation of the\n"
+      "`GPU_RESOURCES` capability. Please see the following for more\n"
+      "information:\n"
+      "  https://www.mail-archive.com/dev@mesos.apache.org/msg37571.html\n"
+      "  https://issues.apache.org/jira/browse/MESOS-7576",
+      true);
+
   add(&Flags::hooks,
       "hooks",
       "A comma-separated list of hook modules to be\n"

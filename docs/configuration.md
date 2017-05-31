@@ -631,6 +631,23 @@ sharing implementation currently has limitations. E.g. See the problem of
 </tr>
 <tr>
   <td>
+    --[no_]filter_gpu_resources
+  </td>
+  <td>
+When set to true, this flag will cause the mesos master to filter all offers
+from agents with GPU resources by only sending them to frameworks that opt into
+the 'GPU_RESOURCES' framework capability. When set to false, this flag will
+cause the master to not filter offers from agents with GPU resources, and
+indiscriminately send them to all frameworks whether they set the
+'GPU_RESOURCES' capability or not.  This flag is meant as a temporary workaround
+towards the eventual deprecation of the 'GPU_RESOURCES' capability. Please see
+the following for more information:
+    <a href="https://www.mail-archive.com/dev@mesos.apache.org/msg37571.html">msg37571</a>
+    <a href="https://issues.apache.org/jira/browse/MESOS-7576">MESOS-7576</a>
+  </td>
+</tr>
+<tr>
+  <td>
     --framework_sorter=VALUE
   </td>
   <td>

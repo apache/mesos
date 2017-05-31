@@ -933,7 +933,7 @@ TEST_P(MasterAPITest, ReserveResources)
 {
   TestAllocator<> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
 
   // Set a low allocation interval to speed up this test.
   master::Flags flags = MesosTest::CreateMasterFlags();
@@ -1025,7 +1025,7 @@ TEST_P(MasterAPITest, UnreserveResources)
 {
   TestAllocator<> allocator;
 
-  EXPECT_CALL(allocator, initialize(_, _, _, _));
+  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
 
   // Set a low allocation interval to speed up this test.
   master::Flags flags = MesosTest::CreateMasterFlags();

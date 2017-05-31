@@ -81,6 +81,7 @@ public:
   std::string authenticators;
   std::string allocator;
   Option<std::set<std::string>> fair_sharing_excluded_resource_names;
+  bool filter_gpu_resources;
   Option<std::string> hooks;
   Duration agent_ping_timeout;
   size_t max_agent_ping_timeouts;
