@@ -921,7 +921,7 @@ mesos::internal::slave::Flags::Flags()
       "modules_dir",
       "Directory path of the module manifest files.\n"
       "The manifest files are processed in alphabetical order.\n"
-      "(See --modules for more information on module manifest files)\n"
+      "(See --modules for more information on module manifest files).\n"
       "Cannot be used in conjunction with --modules.\n");
 
   add(&Flags::authenticatee,
@@ -946,7 +946,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::http_authenticators,
       "http_authenticators",
       "HTTP authenticator implementation to use when handling requests to\n"
-      "authenticated endpoints. Use the default\n"
+      "authenticated endpoints. Use the default "
       "`" + string(DEFAULT_BASIC_HTTP_AUTHENTICATOR) + "`, or load an\n"
       "alternate HTTP authenticator module using `--modules`.");
 

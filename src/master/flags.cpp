@@ -171,23 +171,21 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::whitelist,
       "whitelist",
       "Path to a file which contains a list of agents (one per line) to\n"
-      "advertise offers for. The file is watched, and periodically re-read to\n"
-      "refresh the agent whitelist. By default there is no whitelist / all\n"
-      "machines are accepted. Path could be of the form\n"
+      "advertise offers for. The file is watched and periodically re-read to\n"
+      "refresh the agent whitelist. By default there is no whitelist: all\n"
+      "machines are accepted. Path can be of the form\n"
       "`file:///path/to/file` or `/path/to/file`.\n");
 
   add(&Flags::user_sorter,
       "user_sorter",
-      "Policy to use for allocating resources\n"
-      "between users. May be one of:\n"
+      "Policy to use for allocating resources between users. May be one of:\n"
       "  dominant_resource_fairness (drf)",
       "drf");
 
   add(&Flags::framework_sorter,
       "framework_sorter",
-      "Policy to use for allocating resources\n"
-      "between a given user's frameworks. Options\n"
-      "are the same as for user_allocator.",
+      "Policy to use for allocating resources between a given user's\n"
+      "frameworks. Options are the same as for `--user_sorter`.",
       "drf");
 
   add(&Flags::allocation_interval,
@@ -433,7 +431,7 @@ mesos::internal::master::Flags::Flags()
       "modules_dir",
       "Directory path of the module manifest files.\n"
       "The manifest files are processed in alphabetical order.\n"
-      "(See --modules for more information on module manifest files)\n"
+      "(See --modules for more information on module manifest files).\n"
       "Cannot be used in conjunction with --modules.\n");
 
   add(&Flags::authenticators,
@@ -531,7 +529,7 @@ mesos::internal::master::Flags::Flags()
   add(&Flags::http_authenticators,
       "http_authenticators",
       "HTTP authenticator implementation to use when handling requests to\n"
-      "authenticated endpoints. Use the default\n"
+      "authenticated endpoints. Use the default "
       "`" + string(DEFAULT_BASIC_HTTP_AUTHENTICATOR) + "`, or load an\n"
       "alternate HTTP authenticator module using `--modules`.\n"
       "\n"
@@ -631,7 +629,7 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::zk,
       "zk",
-      "ZooKeeper URL (used for leader election amongst masters)\n"
+      "ZooKeeper URL (used for leader election amongst masters).\n"
       "May be one of:\n"
       "  `zk://host1:port1,host2:port2,.../path`\n"
       "  `zk://username:password@host1:port1,host2:port2,.../path`\n"

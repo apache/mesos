@@ -7,8 +7,8 @@ layout: documentation
 # Mesos Configuration
 
 The Mesos master and agent can take a variety of configuration options
-through command-line arguments, or environment variables. A list of
-the available options can be seen by running `mesos-master --help` or
+through command-line arguments or environment variables. A list of the
+available options can be seen by running `mesos-master --help` or
 `mesos-agent --help`. Each option can be set in two ways:
 
 * By passing it to the binary using `--option_name=value`, either
@@ -156,9 +156,8 @@ to use the IP address, unless the hostname is explicitly set. (default: true)
   </td>
   <td>
 HTTP authenticator implementation to use when handling requests to
-authenticated endpoints. Use the default
-<code>basic</code>, or load an alternate
-HTTP authenticator module using <code>--modules</code>.
+authenticated endpoints. Use the default <code>basic</code>, or load an
+alternate HTTP authenticator module using <code>--modules</code>.
 (default: basic, or basic and JWT if executor authentication is enabled)
   </td>
 </tr>
@@ -235,7 +234,7 @@ Example:
   <td>
 Directory path of the module manifest files. The manifest files are processed in
 alphabetical order. (See <code>--modules</code> for more information on module
-manifest files) Cannot be used in conjunction with <code>--modules</code>.
+manifest files). Cannot be used in conjunction with <code>--modules</code>.
   </td>
 </tr>
 <tr>
@@ -275,7 +274,7 @@ For more about logging, see the [logging documentation](logging.md).
     --[no-]quiet
   </td>
   <td>
-Disable logging to stderr (default: false)
+Disable logging to stderr. (default: false)
   </td>
 </tr>
 <tr>
@@ -316,7 +315,7 @@ written to <code>--log_dir</code>, if specified. (default: INFO)
   </td>
   <td>
 Whether the master/agent should initialize Google logging for the
-Mesos scheduler and executor drivers, in same way as described here.
+scheduler and executor drivers, in the same way as described here.
 The scheduler/executor drivers have separate logs and do not get
 written to the master/agent logs.
 <p/>
@@ -386,7 +385,7 @@ lose data when cleanup occurs. (Example: <code>/var/lib/mesos/master</code>)
     --zk=VALUE
   </td>
   <td>
-ZooKeeper URL (used for leader election amongst masters)
+ZooKeeper URL (used for leader election amongst masters).
 May be one of:
 <pre><code>zk://host1:port1,host2:port2,.../path
 zk://username:password@host1:port1,host2:port2,.../path
@@ -651,9 +650,9 @@ the following for more information:
     --framework_sorter=VALUE
   </td>
   <td>
-Policy to use for allocating resources
-between a given user's frameworks. Options
-are the same as for user_allocator. (default: drf)
+Policy to use for allocating resources between a given user's
+frameworks. Options are the same as for <code>--user_sorter</code>.
+(default: drf)
   </td>
 </tr>
 <tr>
@@ -848,8 +847,7 @@ Can root submit frameworks? (default: true)
     --user_sorter=VALUE
   </td>
   <td>
-Policy to use for allocating resources
-between users. May be one of:
+Policy to use for allocating resources between users. May be one of:
   dominant_resource_fairness (drf) (default: drf)
   </td>
 </tr>
@@ -879,9 +877,9 @@ using the <code>/weights</code> HTTP endpoint.
   </td>
   <td>
 Path to a file which contains a list of agents (one per line) to
-advertise offers for. The file is watched, and periodically re-read to
-refresh the agent whitelist. By default there is no whitelist / all
-machines are accepted. Path could be of the form
+advertise offers for. The file is watched and periodically re-read to
+refresh the agent whitelist. By default there is no whitelist: all
+machines are accepted. Path can be of the form
 <code>file:///path/to/file</code> or <code>/path/to/file</code>.
   </td>
 </tr>
