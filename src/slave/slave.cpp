@@ -5113,7 +5113,7 @@ void Slave::executorLaunched(
                << "' for executor '" << executorId
                << "' of framework " << frameworkId
                << " failed to start: "
-               << (future.isFailed() ? future.failure() : " future discarded");
+               << (future.isFailed() ? future.failure() : "future discarded");
 
     ++metrics.container_launch_errors;
 
