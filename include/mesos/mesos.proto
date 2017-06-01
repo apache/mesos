@@ -342,10 +342,7 @@ message FrameworkInfo {
       // expect that "single-tenant" schedulers eventually
       // provide this and move away from the deprecated
       // `role` field.
-      //
-      // NOTE: The implementation for supporting multiple
-      // roles is not complete, DO NOT USE THIS.
-      MULTI_ROLE = 6; // EXPERIMENTAL.
+      MULTI_ROLE = 6;
     }
 
     // Enum fields should be optional, see: MESOS-4997.
@@ -807,10 +804,7 @@ message SlaveInfo {
 
       // This expresses the ability for the agent to be able
       // to launch tasks of a 'multi-role' framework.
-      //
-      // NOTE: The implementation for supporting multiple
-      // roles is not complete, DO NOT USE THIS.
-      MULTI_ROLE = 1; // EXPERIMENTAL.
+      MULTI_ROLE = 1;
     }
 
     // Enum fields should be optional, see: MESOS-4997.
@@ -926,8 +920,6 @@ message Resource {
   // frameworks. Frameworks that are not MULTI_ROLE capable can
   // continue to assume that the offered resources are allocated
   // to their role.
-  //
-  // NOTE: Implementation of this is in-progress, DO NOT USE!
   message AllocationInfo {
     // If set, this resource is allocated to a role. Note that in the
     // future, this may be unset and the scheduler may be responsible
@@ -1472,8 +1464,6 @@ message Offer {
   // roles managed by the scheduler. (Therefore, each
   // `Offer.resources[i].allocation_info` will match the
   // top level `Offer.allocation_info`).
-  //
-  // NOTE: Implementation of this is in-progress, DO NOT USE!
   optional Resource.AllocationInfo allocation_info = 10;
 
   // Defines an operation that can be performed against offers.
