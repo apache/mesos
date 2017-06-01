@@ -37,6 +37,7 @@
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+#include <stout/uri.hpp>
 
 #include <stout/os/permissions.hpp>
 
@@ -114,7 +115,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, FileURI)
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
-  uri->set_value("file://" + testFile);
+  uri->set_value(uri::from_path(testFile));
 
   Fetcher fetcher(flags);
 

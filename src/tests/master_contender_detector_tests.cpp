@@ -37,6 +37,7 @@
 #include <stout/nothing.hpp>
 #include <stout/path.hpp>
 #include <stout/try.hpp>
+#include <stout/uri.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -109,8 +110,7 @@ TEST_F(MasterContenderDetectorTest, File)
   const string& path = path::join(flags.work_dir, "master");
   ASSERT_SOME(os::write(path, stringify(master.get()->pid)));
 
-  Try<MasterDetector*> _detector =
-    MasterDetector::create("file://" + path);
+  Try<MasterDetector*> _detector = MasterDetector::create(uri::from_path(path));
 
   ASSERT_SOME(_detector);
 

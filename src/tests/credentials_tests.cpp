@@ -18,6 +18,8 @@
 
 #include <gmock/gmock.h>
 
+#include <stout/uri.hpp>
+
 #include <process/gmock.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -91,7 +93,8 @@ TEST_F(CredentialsTest, AuthenticatedSlaveText)
 
   ASSERT_SOME(os::close(fd.get()));
 
-  map<string, Option<string>> values{{"credentials", Some("file://" + path)}};
+  map<string, Option<string>> values{
+    {"credentials", Some(uri::from_path(path))}};
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.load(values, true);
@@ -144,7 +147,8 @@ TEST_F(CredentialsTest, AuthenticatedSlaveJSON)
 
   ASSERT_SOME(os::close(fd.get()));
 
-  map<string, Option<string>> values{{"credentials", Some("file://" + path)}};
+  map<string, Option<string>> values{
+    {"credentials", Some(uri::from_path(path))}};
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.load(values, true);
