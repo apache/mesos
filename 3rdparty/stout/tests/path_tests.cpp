@@ -220,6 +220,26 @@ TEST(PathTest, Comparison)
 }
 
 
+TEST(PathTest, FromURI)
+{
+#ifdef __WINDOWS__
+  const std::string absolute_path = "C:\\somedir\\somefile";
+#else
+  const std::string absolute_path = "/somedir/somefile";
+#endif // __WINDOWS__
+
+  EXPECT_EQ("", path::from_uri(""));
+  EXPECT_EQ(absolute_path, path::from_uri(absolute_path));
+  EXPECT_EQ(absolute_path, path::from_uri("file://" + absolute_path));
+
+#ifdef __WINDOWS__
+  EXPECT_EQ(absolute_path, path::from_uri("file://C:/somedir/somefile"));
+  EXPECT_EQ(absolute_path, path::from_uri("C:/somedir/somefile"));
+  EXPECT_EQ(absolute_path, path::from_uri("C:\\somedir\\somefile"));
+#endif // __WINDOWS__
+}
+
+
 class PathFileTest : public TemporaryDirectoryTest {};
 
 

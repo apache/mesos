@@ -173,6 +173,7 @@ stout_tests_SOURCES =			\
   tests/subcommand_tests.cpp		\
   tests/svn_tests.cpp			\
   tests/try_tests.cpp			\
+  tests/uri_tests.cpp			\
   tests/uuid_tests.cpp			\
   tests/variant_tests.cpp		\
   tests/version_tests.cpp

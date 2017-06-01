@@ -51,6 +51,7 @@ set(STOUT_ROOT_TESTS_SRC
   strings_tests.cpp
   subcommand_tests.cpp
   try_tests.cpp
+  uri_tests.cpp
   uuid_tests.cpp
   variant_tests.cpp
   version_tests.cpp)

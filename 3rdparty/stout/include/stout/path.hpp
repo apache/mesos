@@ -25,6 +25,33 @@
 
 namespace path {
 
+// Converts a fully formed URI to a filename for the platform.
+//
+// On all platforms, the optional "file://" prefix is removed if it
+// exists.
+//
+// On Windows, this also converts "/" characters to "\" characters.
+// The Windows file system APIs don't work with "/" in the filename
+// when using long paths (although they do work fine if the file
+// path happens to be short).
+//
+// NOTE: Currently, Mesos uses URIs and files somewhat interchangably.
+// For compatibility, lack of "file://" prefix is not considered an
+// error.
+inline std::string from_uri(const std::string& uri)
+{
+  // Remove the optional "file://" if it exists.
+  // TODO(coffler): Remove the `hostname` component.
+  const std::string path = strings::remove(uri, "file://", strings::PREFIX);
+
+#ifndef __WINDOWS__
+  return path;
+#else
+  return strings::replace(path, "/", "\\");
+#endif // __WINDOWS__
+}
+
+
 // Base case.
 inline std::string join(
     const std::string& path1,
