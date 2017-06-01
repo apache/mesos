@@ -402,15 +402,53 @@ committers to learn about areas of the code that they are unfamiliar with.
   <thead>
     <tr>
       <th>Component</th>
+      <th>Subcomponent</th>
       <th>Maintainers (alphabetical)</th>
     </tr>
     <tbody>
       <tr>
         <td>Mesos Containerizer</td>
+        <td></td>
         <td>Ian Downes, Jie Yu</td>
       </tr>
       <tr>
+        <td></td>
+        <td>Image Provisioner</td>
+        <td>Gilbert Song, Jie Yu</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>IO Switchboard</td>
+        <td>Kevin Klues, Jie Yu</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>Launcher</td>
+        <td>Benjamin Hindman, Jie Yu</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>Cgroups Isolator</td>
+        <td>Haosdent, Gilbert Song, Jie Yu</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>CNI Isolator</td>
+        <td>Avinash Sridharan (cc), Jie Yu, Qian Zhang</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>Nvidia GPU Isolator</td>
+        <td>Kevin Klues</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>XFS Isolator</td>
+        <td>Yan Xu, James Peach (cc)</td>
+      </tr>
+      <tr>
         <td>Docker Containerizer</td>
+        <td></td>
         <td>Tim Chen, Benjamin Hindman</td>
       </tr>
     </tbody>
