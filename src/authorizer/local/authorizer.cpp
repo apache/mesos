@@ -233,7 +233,15 @@ public:
         case authorization::UNRESERVE_RESOURCES:
           aclObject.set_type(mesos::ACL::Entity::SOME);
           if (object->resource) {
-            aclObject.add_values(object->resource->reservation().principal());
+            if (object->resource->reservations_size() > 0) {
+              // Check for principal in "post-reservation-refinement" format.
+              aclObject.add_values(
+                  object->resource->reservations().rbegin()->principal());
+            } else {
+              // Check for principal in "pre-reservation-refinement" format.
+              aclObject.add_values(
+                  object->resource->reservation().principal());
+            }
           } else if (object->value) {
             aclObject.add_values(*(object->value));
           } else {
@@ -557,7 +565,14 @@ public:
         case authorization::RESERVE_RESOURCES: {
           entityObject.set_type(ACL::Entity::SOME);
           if (object->resource) {
-            entityObject.add_values(object->resource->role());
+            if (object->resource->reservations_size() > 0) {
+              // Check for role in "post-reservation-refinement" format.
+              entityObject.add_values(
+                  object->resource->reservations().rbegin()->role());
+            } else {
+              // Check for role in "pre-reservation-refinement" format.
+              entityObject.add_values(object->resource->role());
+            }
           } else if (object->value) {
             entityObject.add_values(*(object->value));
           } else {
