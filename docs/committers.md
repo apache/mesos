@@ -386,7 +386,7 @@ committers to learn about areas of the code that they are unfamiliar with.
     </tr>
     <tr>
       <td>WebUI</td>
-      <td>Haosdent Huang</td>
+      <td>Haosdent Huang, Benjamin Mahler</td>
     </tr>
     <tr>
       <td>Project Website</td>
