@@ -50,17 +50,18 @@
 #include <stout/bytes.hpp>
 #include <stout/error.hpp>
 #include <stout/ip.hpp>
-#ifdef __WINDOWS__
-#include <stout/windows/net.hpp>
-#else
-#include <stout/posix/net.hpp>
-#endif // __WINDOWS__
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/int_fd.hpp>
 #include <stout/os/open.hpp>
+
+#ifdef __WINDOWS__
+#include <stout/windows/net.hpp>
+#else
+#include <stout/posix/net.hpp>
+#endif // __WINDOWS__
 
 
 // Network utilities.
@@ -290,30 +291,6 @@ inline Try<std::string> getHostname(const IP& ip)
   }
 
   return std::string(hostname);
-}
-
-
-// Returns the names of all the link devices in the system.
-inline Try<std::set<std::string>> links()
-{
-#if !defined(__linux__) && !defined(__APPLE__) && !defined(__FreeBSD__)
-  return Error("Not implemented");
-#else
-  struct ifaddrs* ifaddr = nullptr;
-  if (getifaddrs(&ifaddr) == -1) {
-    return ErrnoError();
-  }
-
-  std::set<std::string> names;
-  for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
-    if (ifa->ifa_name != nullptr) {
-      names.insert(ifa->ifa_name);
-    }
-  }
-
-  freeifaddrs(ifaddr);
-  return names;
-#endif
 }
 
 

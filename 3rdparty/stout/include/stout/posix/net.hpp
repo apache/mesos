@@ -15,6 +15,7 @@
 
 #include <unistd.h>
 
+#include <set>
 #include <string>
 
 #include <stout/error.hpp>
@@ -23,6 +24,26 @@
 
 
 namespace net {
+
+// Returns the names of all the link devices in the system.
+inline Try<std::set<std::string>> links()
+{
+  struct ifaddrs* ifaddr = nullptr;
+  if (getifaddrs(&ifaddr) == -1) {
+    return ErrnoError();
+  }
+
+  std::set<std::string> names;
+  for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
+    if (ifa->ifa_name != nullptr) {
+      names.insert(ifa->ifa_name);
+    }
+  }
+
+  freeifaddrs(ifaddr);
+  return names;
+}
+
 
 // Returns a `Try` of the result of attempting to set the `hostname`.
 inline Try<Nothing> setHostname(const std::string& hostname)

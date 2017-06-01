@@ -13,15 +13,56 @@
 #ifndef __STOUT_WINDOWS_NET_HPP__
 #define __STOUT_WINDOWS_NET_HPP__
 
+#include <iphlpapi.h>
+#pragma comment(lib, "IPHLPAPI.lib")
+
+#include <set>
 #include <string>
+#include <vector>
 
 #include <stout/error.hpp>
+#include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
 
 
 namespace net {
+
+// Returns the names of all the link devices in the system.
+//
+// NOTE: On Windows, the device names are GUID's which are not easily
+// accessible via any command line tools.
+//
+// NOTE: This function only returns IPv4 info and does not return any
+// info about the loopback interface.
+inline Try<std::set<std::string>> links()
+{
+  DWORD result;
+  ULONG size = 0;
+
+  // Make an initial call to GetAdaptersInfo to get structure size.
+  if (GetAdaptersInfo(nullptr, &size) != ERROR_BUFFER_OVERFLOW) {
+    return WindowsError("Calling GetAdaptersInfo returned unexpected result");
+  }
+
+  std::set<std::string> names;
+  std::vector<IP_ADAPTER_INFO> adapter_info(size / sizeof(IP_ADAPTER_INFO));
+  result = GetAdaptersInfo(
+      static_cast<PIP_ADAPTER_INFO>(adapter_info.data()),
+      &size);
+
+  if (result != NO_ERROR) {
+    return WindowsError(result, "GetAdaptersInfo failed");
+  }
+
+  foreach (const IP_ADAPTER_INFO& ip_adapter, adapter_info) {
+    names.insert(ip_adapter.AdapterName);
+  }
+
+  return names;
+}
+
 
 // Returns a `Try` of the result of attempting to set the `hostname`.
 inline Try<Nothing> setHostname(const std::string& hostname)
