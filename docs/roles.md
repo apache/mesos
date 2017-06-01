@@ -64,18 +64,31 @@ recommended practice is to only use ACLs to define which roles can be used; the
 ## Associating frameworks with roles
 
 A framework specifies which roles it would like to subscribe to when it
-subscribes with the master.
-
-As a framework developer, you must specify the roles you would like to
-subscribe to via the `FrameworkInfo.roles` field.
+subscribes with the master. This is done via the `roles` field in
+`FrameworkInfo`. A framework can also change which roles it is
+subscribed to by re-registering with an updated `FrameworkInfo`.
 
 As a user, you can typically specify which role(s) a framework will
 subscribe to when you start the framework. How to do this depends on the
 user interface of the framework you're using. For example, a single user
-scheduler might take a `--mesos_role` command-line flag, and a multi-user
+scheduler might take a `--mesos_role` command-line flag and a multi-user
 scheduler might take a `--mesos-roles` command-line flag or sync with
-the organization's LDAP system to automatically adjust which roles it
-is subscribed to as the organization's structure changes.
+the organization's LDAP system to automatically adjust which roles it is
+subscribed to as the organization's structure changes.
+
+### Subscribing to multiple roles
+
+As noted above, a framework can subscribe to multiple roles
+simultaneously. Frameworks that want to do this must opt-in to the
+`MULTI_ROLE` capability.
+
+When a framework is offered resources, those resources are associated
+with exactly _one_ of the roles it has subscribed to; the framework can
+determine which role an offer is for by consulting the
+`allocation_info.role` field in the `Offer` or the
+`allocation_info.role` field in each offered `Resource` (in the current
+implementation, all the resources in a single `Offer` will be allocated
+to the same role).
 
 <a id="roles-multiple-frameworks"></a>
 ### Multiple frameworks in the same role
@@ -118,7 +131,7 @@ should use the `FrameworkInfo.roles` field, which does not assign a default of
 `*`, but frameworks can still specify `*` explicitly if desired. Frameworks
 and operators cannot make reservations to the `*` role.
 
-## Invalid role
+## Invalid role names
 
 A role name must be a valid directory name, so it cannot:
 
