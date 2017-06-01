@@ -40,7 +40,8 @@ all-recursive: src/python/setup.py			\
 
 # Standard stuff.
 EXTRA_DIST += bootstrap LICENSE NOTICE README.md	\
-	support/atexit.sh support/colors.sh
+	support/atexit.sh support/colors.sh		\
+	support/mesos-gtest-runner.py
 
 # On install, pip fetches and installs all missing dependencies. When running
 # distcheck, this behavior ends up installing files that we are not able to
