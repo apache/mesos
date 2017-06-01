@@ -1022,15 +1022,32 @@ cgroup.
     --allowed_capabilities=VALUE
   </td>
   <td>
-The value needs to be a JSON-formatted string of Linux capabilities
-that the agent should allow. Note that if no Linux capabilities
-isolation is enabled (<code>linux/capabilities</code> is not present
-in the arguments to <code>--isolation</code>), this flags is ignored.
+JSON representation of system capabilities that the operator allows for
+tasks run in containers launched by the containerizer (currently only
+supported by the Mesos Containerizer). This set overrides the default
+capabilities requested by the framework.
+<p/>
+The net capability for a task running in the container will be:
+<pre><code>((F & A) & U)</code>
+  where F = capabilities requested by the framework.
+        A = allowed capabilities specified by this flag.
+        U = permitted capabilities for the agent process.
+</pre>
+To set capabilities the agent should have the <code>SETPCAP</code> capability.
+<p/>
+This flag is effective iff <code>capabilities</code> isolation is enabled.
+When <code>capabilities</code> isolation is enabled, the absence of this flag
+implies that the operator intends to allow ALL capabilities.
 <p/>
 Example:
-<pre><code>{
-"capabilities": [NET_RAW, MKNOD]
-}</code></pre>
+<pre><code>
+{
+  "capabilities": [
+    "NET_RAW",
+    "SYS_ADMIN"
+  ]
+}
+</code></pre>
   </td>
 </tr>
 <tr>
@@ -1638,7 +1655,7 @@ Strategy for provisioning container rootfs from images, e.g., <code>aufs</code>,
   </td>
   <td>
 Isolation mechanisms to use, e.g., <code>posix/cpu,posix/mem</code>, or
-<code>cgroups/cpu,cgroups/mem</code>, or network/port_mapping
+<code>cgroups/cpu,cgroups/mem</code>, or <code>network/port_mapping</code>
 (configure with flag: <code>--with-network-isolator</code> to enable),
 or <code>gpu/nvidia</code> for nvidia specific gpu isolation, or load an alternate
 isolator module using the <code>--modules</code> flag. Note that this
