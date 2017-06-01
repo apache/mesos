@@ -869,7 +869,7 @@ Option<Error> validateCompatibleExecutorInfo(
       slave->executors.at(framework->id()).at(executorId);
   }
 
-  if (executorInfo.isSome() && !(executor == executorInfo.get())) {
+  if (executorInfo.isSome() && executor != executorInfo.get()) {
     return Error(
         "ExecutorInfo is not compatible with existing ExecutorInfo"
         " with same ExecutorID).\n"
