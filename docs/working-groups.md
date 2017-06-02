@@ -4,3 +4,19 @@ layout: documentation
 ---
 
 # Working Groups
+
+A working group is a group of people who are interested in actively participating in specific area of the project.
+Below are some of the expectations from a working group:
+
+* Should have at least one lead who is responsible for organizing and driving the work group meetings.
+* Should have regular (online) meetings that are open to public, recorded and archived.
+* Should maintain meeting notes that are shared with the <dev@mesos.apache.org> list regularly.
+* Should have a corresponding slack channel (also publicly archived) where synchronous discussions take place.
+
+## Mailing List
+
+Please use the <dev@mesos.apache.org> list for discussions.
+We don't use separate mailing lists for each working group.
+In order to distinguish emails for a specific working group, please tag the email subject with the working group name like the following:
+
+    [XXX WG] YOUR SUBJECT HERE
