@@ -160,7 +160,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/killtree.hpp			\
   stout/os/windows/mkdtemp.hpp			\
   stout/os/windows/pagesize.hpp			\
-  stout/os/windows/pipe.hpp				\
+  stout/os/windows/pipe.hpp			\
   stout/os/windows/read.hpp			\
   stout/os/windows/rename.hpp			\
   stout/os/windows/rm.hpp			\
@@ -180,6 +180,7 @@ nobase_include_HEADERS =			\
   stout/protobuf.hpp				\
   stout/posix/dynamiclibrary.hpp		\
   stout/posix/fs.hpp				\
+  stout/posix/ip.hpp				\
   stout/posix/net.hpp				\
   stout/posix/os.hpp				\
   stout/recordio.hpp				\
@@ -195,7 +196,7 @@ nobase_include_HEADERS =			\
   stout/svn.hpp					\
   stout/synchronized.hpp			\
   stout/try.hpp					\
-  stout/tests/environment.hpp				\
+  stout/tests/environment.hpp			\
   stout/tests/utils.hpp				\
   stout/unimplemented.hpp			\
   stout/unreachable.hpp				\
@@ -207,5 +208,6 @@ nobase_include_HEADERS =			\
   stout/windows/error.hpp			\
   stout/windows/format.hpp			\
   stout/windows/fs.hpp				\
+  stout/windows/ip.hpp				\
   stout/windows/net.hpp				\
   stout/windows/os.hpp

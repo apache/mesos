@@ -548,74 +548,6 @@ inline Try<IPNetwork> IPNetwork::create(const IP& address, int prefix)
 }
 
 
-inline Result<IPNetwork> IPNetwork::fromLinkDevice(
-    const std::string& name,
-    int family)
-{
-#if !defined(__linux__) && !defined(__APPLE__) && !defined(__FreeBSD__)
-  return Error("Not implemented");
-#else
-  if (family != AF_INET && family != AF_INET6) {
-    return Error("Unsupported family type: " + stringify(family));
-  }
-
-  struct ifaddrs* ifaddr = nullptr;
-  if (getifaddrs(&ifaddr) == -1) {
-    return ErrnoError();
-  }
-
-  // Indicates whether the link device is found or not.
-  bool found = false;
-
-  for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
-    if (ifa->ifa_name != nullptr && !strcmp(ifa->ifa_name, name.c_str())) {
-      found = true;
-
-      if (ifa->ifa_addr != nullptr && ifa->ifa_addr->sa_family == family) {
-        IP address = IP::create(*ifa->ifa_addr).get();
-
-        if (ifa->ifa_netmask != nullptr &&
-            ifa->ifa_netmask->sa_family == family) {
-          IP netmask = IP::create(*ifa->ifa_netmask).get();
-
-          freeifaddrs(ifaddr);
-
-          Try<IPNetwork> network = IPNetwork::create(address, netmask);
-          if (network.isError()) {
-            return Error(network.error());
-          }
-
-          return network.get();
-        }
-
-        freeifaddrs(ifaddr);
-
-        // Note that this is the case where netmask is not specified.
-        // We've seen such cases when VPN is used. In that case, a
-        // default /32 prefix for IPv4 and /64 for IPv6 is used.
-        int prefix = (family == AF_INET ? 32 : 64);
-
-        Try<IPNetwork> network = IPNetwork::create(address, prefix);
-        if (network.isError()) {
-          return Error(network.error());
-        }
-
-        return network.get();
-      }
-    }
-  }
-
-  freeifaddrs(ifaddr);
-
-  if (!found) {
-    return Error("Cannot find the link device");
-  }
-
-  return None();
-#endif
-}
-
-
 // Returns the string representation of the given IP network using the
 // canonical form with prefix. For example: "10.0.0.1/8".
 inline std::ostream& operator<<(std::ostream& stream, const IPNetwork& network)
@@ -656,5 +588,14 @@ struct hash<net::IP>
 };
 
 } // namespace std {
+
+
+// NOTE: These headers are placed here because the platform specific code
+// requires classes defined in this file.
+#ifdef __WINDOWS__
+#include <stout/windows/ip.hpp>
+#else
+#include <stout/posix/ip.hpp>
+#endif // __WINDOWS__
 
 #endif // __STOUT_IP_HPP__
