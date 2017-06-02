@@ -7340,7 +7340,7 @@ TEST_F(SlaveTest, DisconnectedExecutorDropsMessages)
 
 // This test verifies that the 'executor_reregistration_timeout' agent flag
 // successfully extends the timeout within which an executor can re-register.
-TEST_F(SlaveTest, ExecutorReregistrationTimeoutFlag)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
 {
   Clock::pause();
 
