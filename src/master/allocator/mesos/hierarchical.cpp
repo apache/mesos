@@ -1128,7 +1128,7 @@ void HierarchicalAllocatorProcess::recoverResources(
   if (slaves.contains(slaveId)) {
     Slave& slave = slaves.at(slaveId);
 
-    CHECK(slave.allocated.contains(resources));
+    CHECK(slave.allocated.contains(resources))
       << slave.allocated << " does not contain " << resources;
 
     slave.allocated -= resources;
