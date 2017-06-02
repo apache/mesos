@@ -5,16 +5,18 @@ layout: documentation
 
 # Persistent Volumes
 
-Mesos provides a mechanism to create a persistent volume from disk
-resources. When launching a task, you can create a volume that exists outside
-the task's sandbox and will persist on the node even after the task dies or
+Mesos supports creating persistent volumes from disk resources. When
+launching a task, you can create a volume that exists outside the
+task's sandbox and will persist on the node even after the task dies or
 completes. When the task exits, its resources -- including the persistent volume
 -- can be offered back to the framework, so that the framework can launch the
 same task again, launch a recovery task, or launch a new task that consumes the
-previous task's output as its input. Persistent volumes enable stateful services
-such as HDFS and Cassandra to store their data within Mesos rather than having
-to resort to workarounds (e.g., writing task state to a distributed filesystem
-that is mounted at a well-known location outside the task's sandbox).
+previous task's output as its input.
+
+Persistent volumes enable stateful services such as HDFS and Cassandra
+to store their data within Mesos rather than having to resort to
+workarounds (e.g., writing task state to a distributed filesystem that
+is mounted at a well-known location outside the task's sandbox).
 
 ## Usage
 
@@ -33,15 +35,15 @@ Persistent volumes can also be created on isolated and auxiliary disks by
 reserving [multiple disk resources](multiple-disk.md).
 
 By default, a persistent volume cannot be shared between tasks running
-being managed by different executors: that is, once a task is launched
-using a persistent volume, that volume will not appear in any resource
-offers until the task has finished running. _Shared_ volumes are a type
-of persistent volumes that can be accessed by multiple tasks at the same
-agent simultaneously; see the documentation on
-[shared volumes](shared-resources.md) for more information.
+under different executors: that is, once a task is launched using a
+persistent volume, that volume will not appear in any resource offers
+until the task has finished running. _Shared_ volumes are a type of
+persistent volumes that can be accessed by multiple tasks at the same
+agent simultaneously; see the documentation on [shared
+volumes](shared-resources.md) for more information.
 
-Persistent volumes can be created by __operators__ and authorized
-__frameworks__. By default, frameworks and operators can create volumes for _any_
+Persistent volumes can be created by __operators__ and __frameworks__.
+By default, frameworks and operators can create volumes for _any_
 role and destroy _any_ persistent volume. [Authorization](authorization.md)
 allows this behavior to be limited so that volumes can only be created for
 particular roles and only particular volumes can be destroyed. For these
@@ -65,13 +67,13 @@ point used for a separate storage device.
 In the following sections, we will walk through examples of each of the
 interfaces described above.
 
-## Framework Scheduler API
+## Framework API
 
 <a name="offer-operation-create"></a>
 ### `Offer::Operation::Create`
 
 A framework can create volumes through the resource offer cycle.  Suppose we
-receive a resource offer with 2048 MB of dynamically reserved disk.
+receive a resource offer with 2048 MB of dynamically reserved disk:
 
     {
       "id" : <offer_id>,
@@ -229,7 +231,7 @@ specifies the persistent volumes to be destroyed.
       }
     }
 
-If this request succeeds, the persistent volume will be destroyed, and all the
+If this request succeeds, the persistent volume will be destroyed, and all
 files and directories associated with the volume will be deleted. However, the
 disk resources will still be reserved. As such, a subsequent resource offer will
 contain the following reserved disk resources:
@@ -259,9 +261,9 @@ create another persistent volume or can be unreserved.
 
 As described above, persistent volumes can be created by a framework scheduler
 as part of the resource offer cycle. Persistent volumes can also be created and
-destroyed by sending HTTP requests to the `/create-volumes` and
-`/destroy-volumes` endpoints, respectively. This capability is intended for use
-by operators and administrative tools.
+destroyed using the [/create-volumes](endpoints/master/create-volumes.md) and
+[/destroy-volumes](endpoints/master/destroy-volumes.md) endpoints, respectively.
+This capability is intended for use by operators and administrative tools.
 
 ### `/create-volumes`
 
@@ -358,6 +360,11 @@ To destroy the volume created above, we can send an HTTP POST to the master's
          ]' \
          -X POST http://<ip>:<port>/master/destroy-volumes
 
+Note that the `volume` JSON in the `/destroy-volumes` request must
+_exactly_ match the definition of the volume. The JSON definition of a
+volume can be found via the `reserved_resources_full` key in the
+master's [/slaves](endpoints/master/slaves.md) endpoint (see below).
+
 The user receives one of the following HTTP responses:
 
 * `202 Accepted`: Request accepted (see below).
@@ -371,8 +378,8 @@ all of the volumes must be on the same agent.
 
 This endpoint returns the 202 ACCEPTED HTTP status code, which indicates that
 the destroy operation has been validated successfully by the master. The
-request is then forwarded asynchronously to the Mesos agent where the reserved
-resources are located. That asynchronous message may not be delivered or
+request is then forwarded asynchronously to the Mesos agent where the
+volumes are located. That asynchronous message may not be delivered or
 destroying the volumes at the agent might fail, in which case no volumes will
 be destroyed. To determine if a destroy operation has succeeded, the user can
 examine the state of the appropriate Mesos agent (e.g., via the agent's
@@ -381,11 +388,11 @@ examine the state of the appropriate Mesos agent (e.g., via the agent's
 ## Listing Persistent Volumes
 
 Information about the persistent volumes at each agent in the cluster can be
-found by querying the [/slaves](endpoints/master/slaves.md) master endpoint
-(under the `reserved_resources_full` key).
+found by querying the [/slaves](endpoints/master/slaves.md) master endpoint,
+under the `reserved_resources_full` key.
 
 The same information can also be found in the [/state](endpoints/slave/state.md)
-endpoint on the agent (under the `reserved_resources_full` key). The agent
+agent endpoint (under the `reserved_resources_full` key). The agent
 endpoint is useful to confirm if changes to persistent volumes have been
 propagated to the agent (which can fail in the event of network partition or
 master/agent restarts).
@@ -395,13 +402,15 @@ master/agent restarts).
 Some suggestions to keep in mind when building applications that use persistent
 volumes:
 
-* A single `acceptOffers` call can be used to both create a new dynamic
-  reservation (via `Offer::Operation::Reserve`) and create a new persistent
-  volume on those newly reserved resources (via `Offer::Operation::Create`).
+* A single `acceptOffers` call make a dynamic reservation (via
+  `Offer::Operation::Reserve`) and create a new persistent volume on the
+  newly reserved resources (via `Offer::Operation::Create`). However,
+  these operations are not executed atomically (i.e., either operation
+  or both operations could fail).
 
 * Volume IDs must be unique per role on each agent. However, it is strongly
   recommended that frameworks use globally unique volume IDs, to avoid potential
-  confusion between volumes on different agents that use the same volume
+  confusion between volumes on different agents with the same volume
   ID. Note also that the agent ID where a volume resides might change over
   time. For example, suppose a volume is created on an agent and then the
   agent's host machine is rebooted. When the agent registers with Mesos after
@@ -434,7 +443,7 @@ volumes:
   2. To check whether a resource offer includes the effect of a dynamic
      reservation, applications _cannot_ check for the presence of a "reservation
      ID" or similar value (because reservations do not have IDs). Instead,
-     applications should examine the resource offer and check it contains
+     applications should examine the resource offer and check that it contains
      sufficient reserved resources for the application's role. If it does not,
      the application should make additional reservation requests as necessary.
 
@@ -493,6 +502,6 @@ endpoints for creating and destroying volumes. Mesos 0.28 introduced support for
 [multiple disk resources](multiple-disk.md), and also enhanced the `/slaves`
 master endpoint to include detailed information about persistent volumes and
 dynamic reservations. Mesos 1.0 changed the semantics of destroying a volume:
-in previous releases, destroying a volume would remove the Mesos-level metadata,
+in previous releases, destroying a volume would remove the Mesos-level metadata
 but would not remove the volume's data from the agent's filesystem. Mesos 1.1
 introduced support for [shared persistent volumes](shared-resources.md).
