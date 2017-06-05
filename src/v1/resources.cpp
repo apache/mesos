@@ -355,7 +355,7 @@ static bool addable(const Resource& left, const Resource& right)
     return false;
   }
 
-  // Check ResourceProvider.
+  // Check ResourceProviderID.
   if (left.has_provider_id() != right.has_provider_id()) {
     return false;
   }
@@ -441,7 +441,7 @@ static bool subtractable(const Resource& left, const Resource& right)
     return false;
   }
 
-  // Check ResourceProvider.
+  // Check ResourceProviderID.
   if (left.has_provider_id() != right.has_provider_id()) {
     return false;
   }
@@ -459,7 +459,8 @@ static bool contains(const Resource& left, const Resource& right)
 {
   // NOTE: This is a necessary condition for 'contains'.
   // 'subtractable' will verify name, role, type, ReservationInfo,
-  // DiskInfo, SharedInfo and RevocableInfo compatibility.
+  // DiskInfo, SharedInfo, RevocableInfo, and ResourceProviderID
+  // compatibility.
   if (!subtractable(left, right)) {
     return false;
   }
