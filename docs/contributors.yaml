@@ -752,3 +752,12 @@
     - xingzhou@cn.ibm.com
   jira_user: dongdong
   reviewboard_user: dongdong
+  
+- name: Hubert Asamer
+  affiliations:
+    - {organization: DLR}
+  emails:
+    - hubert.asamer@dlr.de
+    - hubert.asamer@gmx.at
+  jira_user: asamerh4
+  reviewboard_user: asamerh4
