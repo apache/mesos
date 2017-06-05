@@ -236,6 +236,11 @@ message Call {
     // See the comments below on 'framework_id' on the semantics for
     // 'framework_info.id'.
     required FrameworkInfo framework_info = 1;
+
+    // List of suppressed roles for which the framework does not wish to be
+    // offered resources. The framework can decide to suppress all or a subset
+    // of roles the framework (re)registers as.
+    repeated string suppressed_roles = 2;
   }
 
   // Accepts an offer, performing the specified operations

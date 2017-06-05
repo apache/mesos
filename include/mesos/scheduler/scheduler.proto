@@ -245,6 +245,14 @@ message Call {
     // uses this field to know when it needs to send FrameworkRegisteredMessage
     // vs FrameworkReregisteredMessage.
     optional bool force = 2;
+
+    // List of suppressed roles for which the framework does not wish to be
+    // offered resources. The framework can decide to suppress all or a subset
+    // of roles the framework (re)registers as.
+    //
+    // Note: This field is not set by scheduler driver, so will always be
+    // empty. It is added here for transformation from `v1::Call::Subscribe`.
+    repeated string suppressed_roles = 3;
   }
 
   // Accepts an offer, performing the specified operations
