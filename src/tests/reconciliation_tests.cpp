@@ -495,7 +495,7 @@ TEST_F(ReconciliationTest, RecoveredAgent)
   // Do reconciliation before the agent has attempted to reregister.
   // This should not yield any results.
   Future<mesos::scheduler::Call> reconcileCall = FUTURE_CALL(
-      mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _ , _);
+      mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _, _);
 
   // Reconcile for a random task ID on the slave.
   TaskStatus status;
@@ -598,7 +598,7 @@ TEST_F(ReconciliationTest, RecoveredAgentReregistrationInProgress)
       dynamic_cast<master::MarkSlaveReachable*>(reregister->get()));
 
   Future<mesos::scheduler::Call> reconcileCall = FUTURE_CALL(
-      mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _ , _);
+      mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _, _);
 
   // Reconcile for a random task ID on the slave.
   TaskStatus status;
@@ -828,7 +828,7 @@ TEST_F(ReconciliationTest, ImplicitTerminalTask)
     .Times(AtMost(1));
 
   Future<mesos::scheduler::Call> reconcileCall = FUTURE_CALL(
-      mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _ , _);
+      mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _, _);
 
   Clock::pause();
 

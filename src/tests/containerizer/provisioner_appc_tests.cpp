@@ -783,7 +783,7 @@ TEST_F(AppcImageFetcherTest, CURL_SimpleHttpFetch)
   // Appc Image to be fetched.
   const string discoverableImageName = strings::format(
       "%s/TestAppcImageServer/%s",
-      stringify(server.self().address) ,
+      stringify(server.self().address),
       imageName).get();
 
   Image::Appc appc = getAppcImage(discoverableImageName);

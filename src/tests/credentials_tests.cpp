@@ -74,7 +74,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlave)
 // backwards compatibility.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlaveText)
 {
-  string path =  path::join(os::getcwd(), "credentials");
+  string path = path::join(os::getcwd(), "credentials");
 
   Try<int_fd> fd = os::open(
       path,
@@ -118,7 +118,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlaveText)
 // protobuf tools assistance.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(CredentialsTest, AuthenticatedSlaveJSON)
 {
-  string path =  path::join(os::getcwd(), "credentials");
+  string path = path::join(os::getcwd(), "credentials");
 
   Try<int_fd> fd = os::open(
       path,

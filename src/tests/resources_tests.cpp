@@ -958,7 +958,7 @@ TEST(ResourcesTest, BadResourcesNotAllocatable)
 TEST(ResourcesTest, ScalarEquals)
 {
   Resource cpus = Resources::parse("cpus", "3", "*").get();
-  Resource mem =  Resources::parse("mem", "3072", "*").get();
+  Resource mem  = Resources::parse("mem", "3072", "*").get();
 
   Resources r1;
   r1 += cpus;
@@ -982,10 +982,10 @@ TEST(ResourcesTest, ScalarEquals)
 TEST(ResourcesTest, ScalarSubset)
 {
   Resource cpus1 = Resources::parse("cpus", "1", "*").get();
-  Resource mem1 =  Resources::parse("mem", "3072", "*").get();
+  Resource mem1  = Resources::parse("mem", "3072", "*").get();
 
   Resource cpus2 = Resources::parse("cpus", "1", "*").get();
-  Resource mem2 =  Resources::parse("mem", "4096", "*").get();
+  Resource mem2  = Resources::parse("mem", "4096", "*").get();
 
   Resources r1;
   r1 += cpus1;
@@ -1630,7 +1630,7 @@ TEST(ResourceProviderIDTest, Equals)
   ResourceProviderID resourceProviderId;
   resourceProviderId.set_value("RESOURCE_PROVIDER_ID");
 
-  Resource cpus  = Resources::parse("cpus", "1", "*").get();
+  Resource cpus = Resources::parse("cpus", "1", "*").get();
   cpus.mutable_provider_id()->CopyFrom(resourceProviderId);
 
   Resource disk1 = createDiskResource("1", "*", None(), None());

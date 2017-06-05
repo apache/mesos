@@ -108,7 +108,7 @@ public:
 
     EXPECT_SOME_EQ(
         "foo 123",
-        os::read(path::join(layerPath1 , "temp")));
+        os::read(path::join(layerPath1, "temp")));
 
     EXPECT_SOME_EQ(
         "bar 456",

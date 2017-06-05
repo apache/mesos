@@ -206,7 +206,7 @@ TEST_F(IOSwitchboardServerTest, RedirectLog)
 
   ASSERT_SOME(server);
 
-  Future<Nothing> runServer  = server.get()->run();
+  Future<Nothing> runServer = server.get()->run();
 
   string data =
     "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do "

@@ -178,7 +178,7 @@ Try<Modules> getModulesFromJson(
 }
 
 
-// Test that a module library gets loaded,  and its contents
+// Test that a module library gets loaded, and its contents
 // version-verified. The provided test library matches the current
 // Mesos version exactly.
 TEST_F(ModuleTest, ExampleModuleLoadTest)

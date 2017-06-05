@@ -156,7 +156,7 @@ TEST_F(MesosSchedulerDriverTest, DropAckIfStopCalledBeforeAbort)
   EXPECT_NO_FUTURE_CALLS(
       mesos::scheduler::Call(),
       mesos::scheduler::Call::ACKNOWLEDGE,
-      _ ,
+      _,
       master.get()->pid);
 
   EXPECT_CALL(exec, registered(_, _, _, _));
@@ -221,7 +221,7 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgements)
   EXPECT_NO_FUTURE_CALLS(
       mesos::scheduler::Call(),
       mesos::scheduler::Call::ACKNOWLEDGE,
-      _ ,
+      _,
       master.get()->pid);
 
   EXPECT_CALL(exec, registered(_, _, _, _));
@@ -290,7 +290,7 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgementsMasterGeneratedUpdate)
   EXPECT_NO_FUTURE_CALLS(
       mesos::scheduler::Call(),
       mesos::scheduler::Call::ACKNOWLEDGE,
-      _ ,
+      _,
       master.get()->pid);
 
   driver.start();
@@ -357,7 +357,7 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgementsUnsetSlaveID)
   EXPECT_NO_FUTURE_CALLS(
       mesos::scheduler::Call(),
       mesos::scheduler::Call::ACKNOWLEDGE,
-      _ ,
+      _,
       master.get()->pid);
 
   driver.start();

@@ -583,7 +583,7 @@ TEST_F(CgroupsAnyHierarchyWithCpuMemoryTest, ROOT_CGROUPS_Listen)
     << "enabled, but feel free to disable this test.\n"
     << "-------------------------------------------------------------";
 
-  const Bytes limit =  Megabytes(64);
+  const Bytes limit = Megabytes(64);
 
   ASSERT_SOME(cgroups::memory::limit_in_bytes(
       hierarchy, TEST_CGROUPS_ROOT, limit));

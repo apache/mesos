@@ -2386,7 +2386,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedToRegisterAgent)
   Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
-  Future<Message> shutdownMessage  =
+  Future<Message> shutdownMessage =
     FUTURE_MESSAGE(Eq(ShutdownMessage ().GetTypeName()), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();

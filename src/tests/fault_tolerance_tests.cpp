@@ -1624,7 +1624,7 @@ TEST_F(FaultToleranceTest, IgnoreKillTaskFromUnregisteredFramework)
   // Drop the framework error message from the master to simulate
   // a partitioned framework.
   Future<FrameworkErrorMessage> frameworkErrorMessage =
-    DROP_PROTOBUF(FrameworkErrorMessage(), _ , _);
+    DROP_PROTOBUF(FrameworkErrorMessage(), _, _);
 
   driver2.start();
 

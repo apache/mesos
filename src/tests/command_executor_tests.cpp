@@ -473,7 +473,7 @@ TEST_F(HTTPCommandExecutorTest, ExplicitAcknowledgements)
   EXPECT_NO_FUTURE_CALLS(
       mesos::scheduler::Call(),
       mesos::scheduler::Call::ACKNOWLEDGE,
-      _ ,
+      _,
       master.get()->pid);
 
   driver.launchTasks(offers->front().id(), {task});
