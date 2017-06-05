@@ -132,8 +132,10 @@ private:
 
 
 HierarchicalAllocatorProcess::Framework::Framework(
-    const FrameworkInfo& frameworkInfo)
+    const FrameworkInfo& frameworkInfo,
+    const set<string>& _suppressedRoles)
   : roles(protobuf::framework::getRoles(frameworkInfo)),
+    suppressedRoles(_suppressedRoles),
     capabilities(frameworkInfo.capabilities()) {}
 
 
@@ -250,12 +252,13 @@ void HierarchicalAllocatorProcess::addFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
     const hashmap<SlaveID, Resources>& used,
-    bool active)
+    bool active,
+    const set<string>& suppressedRoles)
 {
   CHECK(initialized);
   CHECK(!frameworks.contains(frameworkId));
 
-  frameworks.insert({frameworkId, Framework(frameworkInfo)});
+  frameworks.insert({frameworkId, Framework(frameworkInfo, suppressedRoles)});
 
   const Framework& framework = frameworks.at(frameworkId);
 
@@ -263,7 +266,12 @@ void HierarchicalAllocatorProcess::addFramework(
     trackFrameworkUnderRole(frameworkId, role);
 
     CHECK(frameworkSorters.contains(role));
-    frameworkSorters.at(role)->activate(frameworkId.value());
+
+    if (suppressedRoles.count(role)) {
+      frameworkSorters.at(role)->deactivate(frameworkId.value());
+    } else {
+      frameworkSorters.at(role)->activate(frameworkId.value());
+    }
   }
 
   // TODO(bmahler): Validate that the reserved resources have the
@@ -355,9 +363,17 @@ void HierarchicalAllocatorProcess::activateFramework(
 
   const Framework& framework = frameworks.at(frameworkId);
 
+  // Activate all roles for this framework except the roles that
+  // are marked as deactivated.
+  // Note: A subset of framework roles can be deactivated if the
+  // role is specified in `suppressed_roles` during framework
+  // (re)registration, or via a subsequent `SUPPRESS` call.
   foreach (const string& role, framework.roles) {
     CHECK(frameworkSorters.contains(role));
-    frameworkSorters.at(role)->activate(frameworkId.value());
+
+    if (!framework.suppressedRoles.count(role)) {
+      frameworkSorters.at(role)->activate(frameworkId.value());
+    }
   }
 
   LOG(INFO) << "Activated framework " << frameworkId;
@@ -398,7 +414,8 @@ void HierarchicalAllocatorProcess::deactivateFramework(
 
 void HierarchicalAllocatorProcess::updateFramework(
     const FrameworkID& frameworkId,
-    const FrameworkInfo& frameworkInfo)
+    const FrameworkInfo& frameworkInfo,
+    const set<string>& suppressedRoles)
 {
   CHECK(initialized);
   CHECK(frameworks.contains(frameworkId));
@@ -407,16 +424,26 @@ void HierarchicalAllocatorProcess::updateFramework(
 
   set<string> oldRoles = framework.roles;
   set<string> newRoles = protobuf::framework::getRoles(frameworkInfo);
+  set<string> oldSuppressedRoles = framework.suppressedRoles;
 
-  const set<string> removedRoles = [&]() {
+  // The roles which are candidates for deactivation are the roles that are
+  // removed, as well as the roles which have moved from non-suppressed
+  // to suppressed mode.
+  const set<string> rolesToDeactivate = [&]() {
     set<string> result = oldRoles;
     foreach (const string& role, newRoles) {
       result.erase(role);
     }
+
+    foreach (const string& role, oldRoles) {
+      if (!oldSuppressedRoles.count(role) && suppressedRoles.count(role)) {
+        result.insert(role);
+      }
+    }
     return result;
   }();
 
-  foreach (const string& role, removedRoles) {
+  foreach (const string& role, rolesToDeactivate) {
     CHECK(frameworkSorters.contains(role));
     frameworkSorters.at(role)->deactivate(frameworkId.value());
 
@@ -431,15 +458,29 @@ void HierarchicalAllocatorProcess::updateFramework(
     }
   }
 
-  const set<string> addedRoles = [&]() {
+  // The roles which are candidates for activation are the roles that are
+  // added, as well as the roles which have moved from suppressed to
+  // non-suppressed mode.
+  //
+  // TODO(anindya_sinha): We should activate the roles only if the
+  // framework is active (instead of always).
+  const set<string> rolesToActivate = [&]() {
     set<string> result = newRoles;
     foreach (const string& role, oldRoles) {
       result.erase(role);
     }
+
+    foreach (const string& role, newRoles) {
+      if (!suppressedRoles.count(role) && oldSuppressedRoles.count(role)) {
+        result.insert(role);
+      } else if (suppressedRoles.count(role)) {
+        result.erase(role);
+      }
+    }
     return result;
   }();
 
-  foreach (const string& role, addedRoles) {
+  foreach (const string& role, rolesToActivate) {
     // NOTE: It's possible that we're already tracking this framework
     // under the role because a framework can unsubscribe from a role
     // while it still has resources allocated to the role.
@@ -452,6 +493,7 @@ void HierarchicalAllocatorProcess::updateFramework(
   }
 
   framework.roles = newRoles;
+  framework.suppressedRoles = suppressedRoles;
   framework.capabilities = frameworkInfo.capabilities();
 }
 
@@ -1231,7 +1273,9 @@ void HierarchicalAllocatorProcess::suppressOffers(
 
   foreach (const string& role, roles) {
     CHECK(frameworkSorters.contains(role));
+
     frameworkSorters.at(role)->deactivate(frameworkId.value());
+    framework.suppressedRoles.insert(role);
   }
 
   LOG(INFO) << "Suppressed offers for roles " << stringify(roles)
@@ -1257,7 +1301,9 @@ void HierarchicalAllocatorProcess::reviveOffers(
   // we may need to differentiate between the cases here.
   foreach (const string& role, roles) {
     CHECK(frameworkSorters.contains(role));
+
     frameworkSorters.at(role)->activate(frameworkId.value());
+    framework.suppressedRoles.erase(role);
   }
 
   // We delete each actual `OfferFilter` when

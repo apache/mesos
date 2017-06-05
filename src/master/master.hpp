@@ -587,14 +587,18 @@ protected:
       const std::vector<Task>& tasks);
 
   // Add a framework.
-  void addFramework(Framework* framework);
+  void addFramework(
+      Framework* framework,
+      const std::set<std::string>& suppressedRoles);
 
   // Recover a framework from its `FrameworkInfo`. This happens after
   // master failover, when an agent running one of the framework's
   // tasks re-registers or when the framework itself re-registers,
   // whichever happens first. The result of this function is a
   // registered, inactive framework with state `RECOVERED`.
-  void recoverFramework(const FrameworkInfo& info);
+  void recoverFramework(
+      const FrameworkInfo& info,
+      const std::set<std::string>& suppressedRoles);
 
   // Transition a framework from `RECOVERED` to `CONNECTED` state and
   // activate it. This happens at most once after master failover, the
@@ -604,7 +608,8 @@ protected:
       Framework* framework,
       const FrameworkInfo& frameworkInfo,
       const Option<process::UPID>& pid,
-      const Option<HttpConnection>& http);
+      const Option<HttpConnection>& http,
+      const std::set<std::string>& suppressedRoles);
 
   // Replace the scheduler for a framework with a new process ID, in
   // the event of a scheduler failover.
@@ -626,7 +631,8 @@ protected:
 
   void updateFramework(
       Framework* framework,
-      const FrameworkInfo& frameworkInfo);
+      const FrameworkInfo& frameworkInfo,
+      const std::set<std::string>& suppressedRoles);
 
   void disconnect(Framework* framework);
   void deactivate(Framework* framework, bool rescind);
@@ -874,6 +880,7 @@ private:
       HttpConnection http,
       const FrameworkInfo& frameworkInfo,
       bool force,
+      const std::set<std::string>& suppressedRoles,
       const process::Future<bool>& authorized);
 
   void subscribe(
@@ -884,6 +891,7 @@ private:
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       bool force,
+      const std::set<std::string>& suppressedRoles,
       const process::Future<bool>& authorized);
 
   // Subscribes a client to the 'api/vX' endpoint.

@@ -2538,6 +2538,24 @@ void Master::subscribe(
     }
   }
 
+  // Ensure each of the suppressed role is contained in the list of roles.
+  set<string> frameworkRoles = protobuf::framework::getRoles(frameworkInfo);
+  set<string> suppressedRoles = set<string>(
+      subscribe.suppressed_roles().begin(), subscribe.suppressed_roles().end());
+
+  if (validationError.isNone()) {
+    // The suppressed roles must be contained within the list of all
+    // roles for the framwork.
+    foreach (const string& role, suppressedRoles) {
+      if (!frameworkRoles.count(role)) {
+        validationError = Error("Suppressed role '" + role +
+                                "' is not contained in the list of roles");
+
+        break;
+      }
+    }
+  }
+
   // TODO(vinod): Deprecate this in favor of authorization.
   if (validationError.isNone() &&
       frameworkInfo.user() == "root" && !flags.root_submissions) {
@@ -2580,6 +2598,7 @@ void Master::subscribe(
       HttpConnection,
       const FrameworkInfo&,
       bool,
+      const set<string>&,
       const Future<bool>&) = &Self::_subscribe;
 
   authorizeFramework(frameworkInfo)
@@ -2588,6 +2607,7 @@ void Master::subscribe(
                  http,
                  frameworkInfo,
                  subscribe.force(),
+                 suppressedRoles,
                  lambda::_1));
 }
 
@@ -2596,6 +2616,7 @@ void Master::_subscribe(
     HttpConnection http,
     const FrameworkInfo& frameworkInfo,
     bool force,
+    const set<string>& suppressedRoles,
     const Future<bool>& authorized)
 {
   CHECK(!authorized.isDiscarded());
@@ -2636,7 +2657,7 @@ void Master::_subscribe(
 
     Framework* framework = new Framework(this, flags, frameworkInfo_, http);
 
-    addFramework(framework);
+    addFramework(framework, suppressedRoles);
 
     FrameworkRegisteredMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id());
@@ -2659,7 +2680,7 @@ void Master::_subscribe(
     // Furthermore, no agents have re-registered running one of this
     // framework's tasks. Reconstruct a `Framework` object from the
     // supplied `FrameworkInfo`.
-    recoverFramework(frameworkInfo);
+    recoverFramework(frameworkInfo, suppressedRoles);
 
     framework = getFramework(frameworkInfo.id());
   }
@@ -2670,15 +2691,15 @@ void Master::_subscribe(
     // The framework has previously been registered with this master;
     // it may or may not currently be connected.
 
-    updateFramework(framework, frameworkInfo);
+    updateFramework(framework, frameworkInfo, suppressedRoles);
     framework->reregisteredTime = Clock::now();
 
     // Always failover the old framework connection. See MESOS-4712 for details.
     failoverFramework(framework, http);
   } else {
     // The framework has not yet re-registered after master failover.
-    Try<Nothing> activate =
-      activateRecoveredFramework(framework, frameworkInfo, None(), http);
+    Try<Nothing> activate = activateRecoveredFramework(
+        framework, frameworkInfo, None(), http, suppressedRoles);
 
     if (activate.isError()) {
       LOG(INFO) << "Could not update FrameworkInfo of framework '"
@@ -2768,6 +2789,24 @@ void Master::subscribe(
     }
   }
 
+  // Ensure each of the suppressed role is contained in the list of roles.
+  set<string> frameworkRoles = protobuf::framework::getRoles(frameworkInfo);
+  set<string> suppressedRoles = set<string>(
+      subscribe.suppressed_roles().begin(), subscribe.suppressed_roles().end());
+
+  if (validationError.isNone()) {
+    // The suppressed roles must be contained within the list of all
+    // roles for the framwork.
+    foreach (const string& role, suppressedRoles) {
+      if (!frameworkRoles.count(role)) {
+        validationError = Error("Suppressed role '" + role +
+                                "' is not contained in the list of roles");
+
+        break;
+      }
+    }
+  }
+
   // TODO(vinod): Deprecate this in favor of authorization.
   if (validationError.isNone() &&
       frameworkInfo.user() == "root" && !flags.root_submissions) {
@@ -2829,6 +2868,7 @@ void Master::subscribe(
       const UPID&,
       const FrameworkInfo&,
       bool,
+      const set<string>&,
       const Future<bool>&) = &Self::_subscribe;
 
   authorizeFramework(frameworkInfo)
@@ -2837,6 +2877,7 @@ void Master::subscribe(
                  from,
                  frameworkInfo,
                  subscribe.force(),
+                 suppressedRoles,
                  lambda::_1));
 }
 
@@ -2845,6 +2886,7 @@ void Master::_subscribe(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
     bool force,
+    const set<string>& suppressedRoles,
     const Future<bool>& authorized)
 {
   CHECK(!authorized.isDiscarded());
@@ -2913,7 +2955,7 @@ void Master::_subscribe(
 
     Framework* framework = new Framework(this, flags, frameworkInfo_, from);
 
-    addFramework(framework);
+    addFramework(framework, suppressedRoles);
 
     FrameworkRegisteredMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id());
@@ -2947,7 +2989,7 @@ void Master::_subscribe(
     // Furthermore, no agents have re-registered running one of this
     // framework's tasks. Reconstruct a `Framework` object from the
     // supplied `FrameworkInfo`.
-    recoverFramework(frameworkInfo);
+    recoverFramework(frameworkInfo, suppressedRoles);
 
     framework = getFramework(frameworkInfo.id());
   }
@@ -2979,7 +3021,7 @@ void Master::_subscribe(
     // It is now safe to update the framework fields since the request is now
     // guaranteed to be successful. We use the fields passed in during
     // re-registration.
-    updateFramework(framework, frameworkInfo);
+    updateFramework(framework, frameworkInfo, suppressedRoles);
 
     framework->reregisteredTime = Clock::now();
 
@@ -3042,8 +3084,8 @@ void Master::_subscribe(
     }
   } else {
     // The framework has not yet re-registered after master failover.
-    Try<Nothing> activate =
-      activateRecoveredFramework(framework, frameworkInfo, from, None());
+    Try<Nothing> activate = activateRecoveredFramework(
+        framework, frameworkInfo, from, None(), suppressedRoles);
 
     if (activate.isError()) {
       LOG(INFO) << "Could not update FrameworkInfo of framework '"
@@ -6197,7 +6239,7 @@ void Master::___reregisterSlave(
       LOG(INFO) << "Recovering framework " << frameworkInfo.id()
                 << " from re-registering agent " << *slave;
 
-      recoverFramework(frameworkInfo);
+      recoverFramework(frameworkInfo, {});
     }
   }
 
@@ -6238,13 +6280,14 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
 
 void Master::updateFramework(
     Framework* framework,
-    const FrameworkInfo& frameworkInfo)
+    const FrameworkInfo& frameworkInfo,
+    const set<string>& suppressedRoles)
 {
   LOG(INFO) << "Updating info for framework " << framework->id();
 
   // NOTE: The allocator takes care of activating/deactivating
   // the frameworks from the added/removed roles, respectively.
-  allocator->updateFramework(framework->id(), frameworkInfo);
+  allocator->updateFramework(framework->id(), frameworkInfo, suppressedRoles);
 
   // First, remove the offers allocated to roles being removed.
   foreach (Offer* offer, utils::copy(framework->offers)) {
@@ -7631,7 +7674,9 @@ void Master::reconcileKnownSlave(
 }
 
 
-void Master::addFramework(Framework* framework)
+void Master::addFramework(
+    Framework* framework,
+    const set<string>& suppressedRoles)
 {
   CHECK_NOTNULL(framework);
 
@@ -7660,7 +7705,8 @@ void Master::addFramework(Framework* framework)
       framework->id(),
       framework->info,
       framework->usedResources,
-      framework->active());
+      framework->active(),
+      suppressedRoles);
 
   // Export framework metrics if a principal is specified in `FrameworkInfo`.
 
@@ -7686,7 +7732,9 @@ void Master::addFramework(Framework* framework)
 }
 
 
-void Master::recoverFramework(const FrameworkInfo& info)
+void Master::recoverFramework(
+    const FrameworkInfo& info,
+    const set<string>& suppressedRoles)
 {
   CHECK(!frameworks.registered.contains(info.id()));
 
@@ -7708,7 +7756,7 @@ void Master::recoverFramework(const FrameworkInfo& info)
     }
   }
 
-  addFramework(framework);
+  addFramework(framework, suppressedRoles);
 }
 
 
@@ -7716,7 +7764,8 @@ Try<Nothing> Master::activateRecoveredFramework(
     Framework* framework,
     const FrameworkInfo& frameworkInfo,
     const Option<UPID>& pid,
-    const Option<HttpConnection>& http)
+    const Option<HttpConnection>& http,
+    const set<string>& suppressedRoles)
 {
   // Exactly one of `pid` or `http` must be provided.
   CHECK(pid.isSome() != http.isSome());
@@ -7728,7 +7777,7 @@ Try<Nothing> Master::activateRecoveredFramework(
   CHECK(framework->pid.isNone());
   CHECK(framework->http.isNone());
 
-  updateFramework(framework, frameworkInfo);
+  updateFramework(framework, frameworkInfo, suppressedRoles);
 
   // Updating `registeredTime` here is debatable: ideally,
   // `registeredTime` would be the time at which the framework first

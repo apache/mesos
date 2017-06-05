@@ -113,7 +113,8 @@ public:
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const hashmap<SlaveID, Resources>& used,
-      bool active);
+      bool active,
+      const std::set<std::string>& suppressedRoles);
 
   void removeFramework(
       const FrameworkID& frameworkId);
@@ -126,7 +127,8 @@ public:
 
   void updateFramework(
       const FrameworkID& frameworkId,
-      const FrameworkInfo& frameworkInfo);
+      const FrameworkInfo& frameworkInfo,
+      const std::set<std::string>& suppressedRoles);
 
   void addSlave(
       const SlaveID& slaveId,
@@ -296,9 +298,13 @@ protected:
 
   struct Framework
   {
-    explicit Framework(const FrameworkInfo& frameworkInfo);
+    explicit Framework(
+        const FrameworkInfo& frameworkInfo,
+        const std::set<std::string>& _suppressedRoles);
 
     std::set<std::string> roles;
+
+    std::set<std::string> suppressedRoles;
 
     protobuf::framework::Capabilities capabilities;
 

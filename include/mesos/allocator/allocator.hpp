@@ -124,12 +124,15 @@ public:
    *     unknown agents are added later in `addSlave()`.
    *
    * @param active Whether the framework is initially activated.
+   *
+   * @param suppressedRoles List of suppressed roles for this framework.
    */
   virtual void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
       const hashmap<SlaveID, Resources>& used,
-      bool active) = 0;
+      bool active,
+      const std::set<std::string>& suppressedRoles) = 0;
 
   /**
    * Removes a framework from the Mesos cluster. It is up to an allocator to
@@ -165,7 +168,8 @@ public:
    */
   virtual void updateFramework(
       const FrameworkID& frameworkId,
-      const FrameworkInfo& frameworkInfo) = 0;
+      const FrameworkInfo& frameworkInfo,
+      const std::set<std::string>& suppressedRoles) = 0;
 
   /**
    * Adds or re-adds an agent to the Mesos cluster. It is invoked when a

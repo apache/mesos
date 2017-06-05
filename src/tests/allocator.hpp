@@ -39,7 +39,7 @@ namespace tests {
 
 // The following actions make up for the fact that DoDefault
 // cannot be used inside a DoAll, for example:
-// EXPECT_CALL(allocator, addFramework(_, _, _, _))
+// EXPECT_CALL(allocator, addFramework(_, _, _, _, _))
 //   .WillOnce(DoAll(InvokeAddFramework(&allocator),
 //                   FutureSatisfy(&addFramework)));
 
@@ -57,7 +57,7 @@ ACTION_P(InvokeRecover, allocator)
 
 ACTION_P(InvokeAddFramework, allocator)
 {
-  allocator->real->addFramework(arg0, arg1, arg2, arg3);
+  allocator->real->addFramework(arg0, arg1, arg2, arg3, arg4);
 }
 
 
@@ -81,7 +81,7 @@ ACTION_P(InvokeDeactivateFramework, allocator)
 
 ACTION_P(InvokeUpdateFramework, allocator)
 {
-  allocator->real->updateFramework(arg0, arg1);
+  allocator->real->updateFramework(arg0, arg1, arg2);
 }
 
 
@@ -239,9 +239,9 @@ public:
     EXPECT_CALL(*this, recover(_, _))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, addFramework(_, _, _, _))
+    ON_CALL(*this, addFramework(_, _, _, _, _))
       .WillByDefault(InvokeAddFramework(this));
-    EXPECT_CALL(*this, addFramework(_, _, _, _))
+    EXPECT_CALL(*this, addFramework(_, _, _, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, removeFramework(_))
@@ -259,9 +259,9 @@ public:
     EXPECT_CALL(*this, deactivateFramework(_))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, updateFramework(_, _))
+    ON_CALL(*this, updateFramework(_, _, _))
       .WillByDefault(InvokeUpdateFramework(this));
-    EXPECT_CALL(*this, updateFramework(_, _))
+    EXPECT_CALL(*this, updateFramework(_, _, _))
       .WillRepeatedly(DoDefault());
 
     ON_CALL(*this, addSlave(_, _, _, _, _, _))
@@ -372,11 +372,12 @@ public:
       const int expectedAgentCount,
       const hashmap<std::string, Quota>&));
 
-  MOCK_METHOD4(addFramework, void(
+  MOCK_METHOD5(addFramework, void(
       const FrameworkID&,
       const FrameworkInfo&,
       const hashmap<SlaveID, Resources>&,
-      bool active));
+      bool active,
+      const std::set<std::string>&));
 
   MOCK_METHOD1(removeFramework, void(
       const FrameworkID&));
@@ -387,9 +388,10 @@ public:
   MOCK_METHOD1(deactivateFramework, void(
       const FrameworkID&));
 
-  MOCK_METHOD2(updateFramework, void(
+  MOCK_METHOD3(updateFramework, void(
       const FrameworkID&,
-      const FrameworkInfo&));
+      const FrameworkInfo&,
+      const std::set<std::string>&));
 
   MOCK_METHOD6(addSlave, void(
       const SlaveID&,

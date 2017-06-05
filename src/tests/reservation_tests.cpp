@@ -566,7 +566,7 @@ TEST_F(ReservationTest, DropReserveTooLarge)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
 
   driver.start();
 
@@ -659,7 +659,7 @@ TEST_F(ReservationTest, DropReserveStaticReservation)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
 
   driver.start();
 
@@ -2175,7 +2175,7 @@ TEST_F(ReservationTest, DropReserveWithInvalidRole)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  EXPECT_CALL(allocator, addFramework(_, _, _, _));
+  EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
 
   driver.start();
 
