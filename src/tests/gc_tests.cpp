@@ -555,6 +555,18 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 
   ASSERT_TRUE(os::exists(executorDir));
 
+  const string& latestDir = slave::paths::getExecutorLatestRunPath(
+      flags.work_dir, slaveId, frameworkId.get(), DEFAULT_EXECUTOR_ID);
+
+  process::UPID latest("files", process::address());
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      process::http::OK().status,
+      process::http::get(
+          latest,
+          "browse",
+          "path=" + latestDir,
+          createBasicAuthHeaders(DEFAULT_CREDENTIAL)));
+
   Clock::pause();
 
   // Kiling the executor will cause the slave to schedule its
@@ -591,6 +603,14 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
           files,
           "browse",
           "path=" + executorDir,
+          createBasicAuthHeaders(DEFAULT_CREDENTIAL)));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      process::http::NotFound().status,
+      process::http::get(
+          latest,
+          "browse",
+          "path=" + latestDir,
           createBasicAuthHeaders(DEFAULT_CREDENTIAL)));
 
   Clock::resume();
