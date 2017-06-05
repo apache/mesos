@@ -1437,6 +1437,87 @@ TEST_P(SchedulerTest, Suppress)
 }
 
 
+TEST_P(SchedulerTest, NoOffersWithAllRolesSuppressed)
+{
+  master::Flags flags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  ContentType contentType = GetParam();
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .Times(0);  // No offers extended since all roles are suppressed.
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
+    subscribe->add_suppressed_roles(frameworkInfo.role());
+
+    mesos.send(call);
+  }
+
+  // Since the framework is subscribed with its role being suppressed, no
+  // offers should be received by the framework.
+  Clock::pause();
+  Clock::advance(flags.allocation_interval);
+  Clock::resume();
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // On revival the scheduler should get an offer.
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::REVIVE);
+
+    v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+    Call::Revive* revive = call.mutable_revive();
+    revive->add_roles(frameworkInfo.role());
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+}
+
+
 TEST_P(SchedulerTest, Message)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
