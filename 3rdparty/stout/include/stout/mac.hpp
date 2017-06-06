@@ -13,9 +13,6 @@
 #ifndef __STOUT_MAC_HPP__
 #define __STOUT_MAC_HPP__
 
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
-#include <ifaddrs.h>
-#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -47,13 +44,13 @@
 #include <iostream>
 #include <string>
 
-#include "abort.hpp"
-#include "error.hpp"
-#include "none.hpp"
-#include "result.hpp"
-#include "stringify.hpp"
-#include "strings.hpp"
-#include "try.hpp"
+#include <stout/abort.hpp>
+#include <stout/error.hpp>
+#include <stout/none.hpp>
+#include <stout/result.hpp>
+#include <stout/stringify.hpp>
+#include <stout/strings.hpp>
+#include <stout/try.hpp>
 
 
 // Network utilities.
@@ -176,72 +173,15 @@ inline std::ostream& operator<<(std::ostream& stream, const MAC& mac)
   return stream << buffer;
 }
 
-
-// Returns the MAC address of a given link device. The link device is
-// specified using its name (e.g., eth0). Returns error if the link
-// device is not found. Returns none if the link device is found, but
-// does not have a MAC address (e.g., loopback).
-inline Result<MAC> mac(const std::string& name)
-{
-#if !defined(__linux__) && !defined(__APPLE__) && !defined(__FreeBSD__)
-  return Error("Not implemented");
-#else
-  struct ifaddrs* ifaddr = nullptr;
-  if (getifaddrs(&ifaddr) == -1) {
-    return ErrnoError();
-  }
-
-  // Indicates whether the link device is found or not.
-  bool found = false;
-
-  for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
-    if (ifa->ifa_name != nullptr && !strcmp(ifa->ifa_name, name.c_str())) {
-      found = true;
-
-# if defined(__linux__)
-     if (ifa->ifa_addr != nullptr && ifa->ifa_addr->sa_family == AF_PACKET) {
-        struct sockaddr_ll* link = (struct sockaddr_ll*) ifa->ifa_addr;
-
-        if (link->sll_halen == 6) {
-          struct ether_addr* addr = (struct ether_addr*) link->sll_addr;
-          MAC mac(addr->ether_addr_octet);
-
-          // Ignore if the address is 0 so that the results are
-          // consistent on both OSX and Linux.
-          if (stringify(mac) == "00:00:00:00:00:00") {
-            continue;
-          }
-
-          freeifaddrs(ifaddr);
-          return mac;
-        }
-      }
-# elif defined(__APPLE__)
-      if (ifa->ifa_addr != nullptr && ifa->ifa_addr->sa_family == AF_LINK) {
-        struct sockaddr_dl* link = (struct sockaddr_dl*) ifa->ifa_addr;
-
-        if (link->sdl_type == IFT_ETHER && link->sdl_alen == 6) {
-          struct ether_addr* addr = (struct ether_addr*) LLADDR(link);
-          MAC mac(addr->octet);
-
-          freeifaddrs(ifaddr);
-          return mac;
-        }
-      }
-# endif
-    }
-  }
-
-  freeifaddrs(ifaddr);
-
-  if (!found) {
-    return Error("Cannot find the link device");
-  }
-
-  return None();
-#endif
-}
-
 } // namespace net {
+
+
+// NOTE: These headers are placed here because the platform specific code
+// requires classes defined in this file.
+#ifdef __WINDOWS__
+#include <stout/windows/mac.hpp>
+#else
+#include <stout/posix/mac.hpp>
+#endif // __WINDOWS__
 
 #endif // __STOUT_MAC_HPP__

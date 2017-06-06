@@ -181,6 +181,7 @@ nobase_include_HEADERS =			\
   stout/posix/dynamiclibrary.hpp		\
   stout/posix/fs.hpp				\
   stout/posix/ip.hpp				\
+  stout/posix/mac.hpp				\
   stout/posix/net.hpp				\
   stout/posix/os.hpp				\
   stout/recordio.hpp				\
@@ -209,5 +210,6 @@ nobase_include_HEADERS =			\
   stout/windows/format.hpp			\
   stout/windows/fs.hpp				\
   stout/windows/ip.hpp				\
+  stout/windows/mac.hpp				\
   stout/windows/net.hpp				\
   stout/windows/os.hpp
