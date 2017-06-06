@@ -50,6 +50,8 @@ namespace paths {
 // The file system layout is as follows:
 //
 //   root ('--work_dir' flag)
+//   |-- containers
+//   |   |-- <container_id> (sandbox)
 //   |-- slaves
 //   |   |-- latest (symlink)
 //   |   |-- <slave_id>
@@ -135,6 +137,15 @@ std::string getSlaveInfoPath(
 std::string getSlavePath(
     const std::string& rootDir,
     const SlaveID& slaveId);
+
+
+Try<std::list<std::string>> getContainerPaths(
+    const std::string& rootDir);
+
+
+std::string getContainerPath(
+    const std::string& rootDir,
+    const ContainerID& containerId);
 
 
 Try<std::list<std::string>> getFrameworkPaths(

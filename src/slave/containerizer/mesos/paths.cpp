@@ -284,6 +284,26 @@ Result<ContainerTermination> getContainerTermination(
 }
 
 
+string getStandaloneContainerMarkerPath(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getRuntimePath(runtimeDir, containerId),
+      STANDALONE_MARKER_FILE);
+}
+
+
+bool isStandaloneContainer(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  const string path = getStandaloneContainerMarkerPath(runtimeDir, containerId);
+
+  return os::exists(path);
+}
+
+
 Try<vector<ContainerID>> getContainerIds(const string& runtimeDir)
 {
   lambda::function<Try<vector<ContainerID>>(const Option<ContainerID>&)> helper;

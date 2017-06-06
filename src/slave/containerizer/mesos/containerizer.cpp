@@ -661,9 +661,10 @@ Future<Nothing> MesosContainerizerProcess::recover(
 {
   LOG(INFO) << "Recovering containerizer";
 
-  // Gather the executor run states that we will attempt to recover.
+  // Gather the container states that we will attempt to recover.
   list<ContainerState> recoverable;
   if (state.isSome()) {
+    // Gather the latest run of checkpointed executors.
     foreachvalue (const FrameworkState& framework, state.get().frameworks) {
       foreachvalue (const ExecutorState& executor, framework.executors) {
         if (executor.info.isNone()) {
@@ -743,11 +744,9 @@ Future<Nothing> MesosContainerizerProcess::recover(
     }
   }
 
-  // Recover the executor containers from 'SlaveState'.
-  hashset<ContainerID> alive;
+  // Recover the containers from 'SlaveState'.
   foreach (const ContainerState& state, recoverable) {
     const ContainerID& containerId = state.container_id();
-    alive.insert(containerId);
 
     // Contruct the structure for containers from the 'SlaveState'
     // first, to maintain the children list in the container.
@@ -767,6 +766,13 @@ Future<Nothing> MesosContainerizerProcess::recover(
   hashset<ContainerID> orphans;
 
   // Recover the containers from the runtime directory.
+  //
+  // NOTE: The returned vector guarantees that parent containers
+  // will always appear before their child containers (if any).
+  // This is particularly important for containers nested underneath
+  // standalone containers, because standalone containers are only
+  // added to the list of recoverable containers in the following loop,
+  // whereas normal parent containers are added in the prior loop.
   Try<vector<ContainerID>> containerIds =
     containerizer::paths::getContainerIds(flags.runtime_dir);
 
@@ -781,7 +787,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
   // that we aggregate with any orphans that get returned from
   // calling `launcher->recover`.
   foreach (const ContainerID& containerId, containerIds.get()) {
-    if (alive.contains(containerId)) {
+    if (containers_.contains(containerId)) {
       continue;
     }
 
@@ -806,7 +812,11 @@ Future<Nothing> MesosContainerizerProcess::recover(
       return Failure("Failed to get container pid: " + pid.error());
     }
 
-    // Determine the sandbox if this is a nested container.
+    // Determine the sandbox if this is a nested or standalone container.
+    const bool isStandaloneContainer =
+      containerizer::paths::isStandaloneContainer(
+          flags.runtime_dir, containerId);
+
     Option<string> directory;
     if (containerId.has_parent()) {
       const ContainerID& rootContainerId =
@@ -818,6 +828,8 @@ Future<Nothing> MesosContainerizerProcess::recover(
             containers_[rootContainerId]->directory.get(),
             containerId);
       }
+    } else if (isStandaloneContainer) {
+      directory = slave::paths::getContainerPath(flags.work_dir, containerId);
     }
 
     Owned<Container> container(new Container());
@@ -838,19 +850,22 @@ Future<Nothing> MesosContainerizerProcess::recover(
 
     containers_[containerId] = container;
 
-    // Add recoverable nested containers to the list of 'ContainerState'.
-    //
     // TODO(klueska): The final check in the if statement makes sure
     // that this container was not marked for forcible destruction on
     // recover. We currently only support 'destroy-on-recovery'
     // semantics for nested `DEBUG` containers. If we ever support it
     // on other types of containers, we may need duplicate this logic
     // elsewhere.
-    if (containerId.has_parent() &&
-        alive.contains(protobuf::getRootContainerId(containerId)) &&
-        pid.isSome() &&
-        !containerizer::paths::getContainerForceDestroyOnRecovery(
-            flags.runtime_dir, containerId)) {
+    const bool isRecoverableNestedContainer =
+      containerId.has_parent() &&
+      (containers_.contains(protobuf::getRootContainerId(containerId))) &&
+      pid.isSome() &&
+      !containerizer::paths::getContainerForceDestroyOnRecovery(
+          flags.runtime_dir, containerId);
+
+    // Add recoverable nested containers or standalone containers
+    // to the list of 'ContainerState'.
+    if (isRecoverableNestedContainer || isStandaloneContainer) {
       CHECK_SOME(directory);
       ContainerState state =
         protobuf::slave::createContainerState(
@@ -1165,6 +1180,24 @@ Future<bool> MesosContainerizerProcess::launch(
     if (checkpointed.isError()) {
       return Failure("Failed to checkpoint file to mark DEBUG container"
                      " as 'destroy-on-recovery'");
+    }
+  }
+
+  // If we are launching a standalone container, checkpoint a file to
+  // mark it as a standalone container. Nested containers launched
+  // under a standalone container are treated as nested containers
+  // (_not_ as both standalone and nested containers).
+  if (!containerId.has_parent() &&
+      !containerConfig.has_task_info() &&
+      !containerConfig.has_executor_info()) {
+    const string path =
+      containerizer::paths::getStandaloneContainerMarkerPath(
+          flags.runtime_dir, containerId);
+
+    Try<Nothing> checkpointed = slave::state::checkpoint(path, "");
+    if (checkpointed.isError()) {
+      return Failure(
+          "Failed to checkpoint file to mark container as standalone");
     }
   }
 

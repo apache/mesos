@@ -59,6 +59,7 @@ namespace paths {
 //           |   |-- socket
 //           |-- launch_info
 //           |-- pid
+//           |-- standalone.marker
 //           |-- status
 //           |-- termination
 
@@ -71,6 +72,7 @@ constexpr char FORCE_DESTROY_ON_RECOVERY_FILE[] = "force_destroy_on_recovery";
 constexpr char IO_SWITCHBOARD_DIRECTORY[] = "io_switchboard";
 constexpr char CONTAINER_DIRECTORY[] = "containers";
 constexpr char CONTAINER_LAUNCH_INFO_FILE[] = "launch_info";
+constexpr char STANDALONE_MARKER_FILE[] = "standalone.marker";
 
 
 enum Mode
@@ -162,6 +164,20 @@ bool getContainerForceDestroyOnRecovery(
 
 // The helper method to read the container termination state.
 Result<mesos::slave::ContainerTermination> getContainerTermination(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
+// The helper method to get the standalone container marker path.
+std::string getStandaloneContainerMarkerPath(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
+// The helper method to check if the given container is a standalone
+// container or not. This is determined by the existence (or not) of
+// a marker file in the container's runtime metadata directory.
+bool isStandaloneContainer(
     const std::string& runtimeDir,
     const ContainerID& containerId);
 

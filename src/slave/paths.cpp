@@ -66,6 +66,7 @@ const char RESOURCES_INFO_FILE[] = "resources.info";
 const char RESOURCES_TARGET_FILE[] = "resources.target";
 
 
+const char CONTAINERS_DIR[] = "containers";
 const char SLAVES_DIR[] = "slaves";
 const char FRAMEWORKS_DIR[] = "frameworks";
 const char EXECUTORS_DIR[] = "executors";
@@ -154,6 +155,21 @@ string getSlavePath(
     const SlaveID& slaveId)
 {
   return path::join(rootDir, SLAVES_DIR, stringify(slaveId));
+}
+
+
+Try<list<string>> getContainerPaths(
+    const string& rootDir)
+{
+  return fs::list(path::join(rootDir, CONTAINERS_DIR, "*"));
+}
+
+
+string getContainerPath(
+    const string& rootDir,
+    const ContainerID& containerId)
+{
+  return path::join(rootDir, CONTAINERS_DIR, stringify(containerId));
 }
 
 
