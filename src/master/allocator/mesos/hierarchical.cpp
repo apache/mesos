@@ -171,16 +171,15 @@ void HierarchicalAllocatorProcess::initialize(
   // Start a loop to run allocation periodically.
   PID<HierarchicalAllocatorProcess> _self = self();
 
-  loop(None(), // Use `None` so we iterate outside the allocator process.
-       [_allocationInterval]() {
-         return after(_allocationInterval);
-       },
-       [_self, this](const Nothing&) {
-         return dispatch(_self, [this]() { return allocate(); })
-           .then([]() -> ControlFlow<Nothing> {
-             return Continue();
-           });
-       });
+  loop(
+      None(), // Use `None` so we iterate outside the allocator process.
+      [_allocationInterval]() {
+        return after(_allocationInterval);
+      },
+      [_self](const Nothing&) {
+        return dispatch(_self, &HierarchicalAllocatorProcess::allocate)
+          .then([]() -> ControlFlow<Nothing> { return Continue(); });
+      });
 }
 
 
