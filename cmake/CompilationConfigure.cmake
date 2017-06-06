@@ -44,17 +44,6 @@ if (ENABLE_PRECOMPILED_HEADERS)
   set(COTIRE_VERBOSE ${VERBOSE})
 endif (ENABLE_PRECOMPILED_HEADERS)
 
-# Enable optimization?
-option(ENABLE_OPTIMIZE "Enable optimization" TRUE)
-if (ENABLE_OPTIMIZE)
-  if (WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2")
-  else (WIN32)
-    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -O2")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
-  endif (WIN32)
-endif (ENABLE_OPTIMIZE)
-
 if (WIN32)
   # In MSVC 1900, there are two bugs in the linker, one that causes linking
   # libmesos to occasionally take hours, and one that causes us to be able to
