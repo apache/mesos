@@ -19,11 +19,6 @@
 option(VERBOSE "Enable verbose CMake statements and compilation output" ON)
 set(CMAKE_VERBOSE_MAKEFILE ${VERBOSE})
 
-option(ENABLE_DEBUG "Set default build configuration to debug" ON)
-if (ENABLE_DEBUG)
-  set(CMAKE_BUILD_TYPE Debug)
-endif (ENABLE_DEBUG)
-
 option(BUILD_SHARED_LIBS "Build shared libraries." OFF)
 
 option(ENABLE_PRECOMPILED_HEADERS
