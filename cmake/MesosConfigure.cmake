@@ -57,20 +57,6 @@ include(CompilationConfigure)
 include(Mesos3rdpartyConfigure)
 include(Process3rdpartyConfigure)
 
-# Generate a batch script that will build Mesos. Any project referencing Mesos
-# can then build it by calling this script.
-if (WIN32)
-  VS_BUILD_CMD(
-      MESOS
-      ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.sln
-      ${CMAKE_BUILD_TYPE}
-      ""
-      "")
-
-  string(REPLACE ";" " " MESOS_BUILD_CMD "${MESOS_BUILD_CMD}")
-  file(WRITE ${CMAKE_BINARY_DIR}/make.bat ${MESOS_BUILD_CMD})
-endif (WIN32)
-
 if (WIN32)
   set(MESOS_DEFAULT_LIBRARY_LINKAGE "STATIC")
 else (WIN32)

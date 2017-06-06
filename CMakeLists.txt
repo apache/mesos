@@ -54,7 +54,6 @@ include(Common)
 include(External)
 include(PatchCommand)
 include(Versions)
-include(VsBuildCommand)
 include(cotire)
 
 # Configuration.
