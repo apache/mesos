@@ -36,7 +36,7 @@ cmake -DCMAKE_BUILD_TYPE=Release \
 cmake --build 3rdparty --target boost-1.53.0 -- -j $(nproc)
 cmake --build 3rdparty --target elfio-3.2 -- -j $(nproc)
 cmake --build 3rdparty --target glog-0.3.3 -- -j $(nproc)
-cmake --build 3rdparty --target googletest-release-1.8.0 -- -j $(nproc)
+cmake --build 3rdparty --target googletest-1.8.0 -- -j $(nproc)
 cmake --build 3rdparty --target http_parser-2.6.2 -- -j $(nproc)
 
 # TODO(mpark): The `|| true` is a hack to try both `libev` and `libevent` and
