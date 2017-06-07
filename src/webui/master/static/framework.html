@@ -43,15 +43,56 @@
         </dd>
         <dt>Active tasks:</dt>
         <dd>{{framework.tasks.length | number}}</dd>
-        <dt>CPUs:</dt>
-        <dd>{{framework.resources.cpus | number}}</dd>
-        <dt>GPUs:</dt>
-        <dd>{{framework.resources.gpus | number}}</dd>
-        <dt>Mem:</dt>
-        <dd>{{framework.resources.mem * (1024 * 1024) | dataSize}}</dd>
-        <dt>Disk:</dt>
-        <dd>{{framework.resources.disk * (1024 * 1024) | dataSize}}</dd>
       </dl>
+
+      <h4>Resources</h4>
+      <table class="table table-condensed">
+        <thead>
+          <tr>
+            <td></td>
+            <td class="text-right">Allocated</td>
+            <td class="text-right">Offered</td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CPUs</td>
+            <td class="text-right">
+              {{framework.used_resources.cpus | number}}
+            </td>
+            <td class="text-right">
+              {{framework.offered_resources.cpus | number}}
+            </td>
+          </tr>
+          <tr>
+            <td>GPUs</td>
+            <td class="text-right">
+              {{framework.used_resources.gpus | number}}
+            </td>
+            <td class="text-right">
+              {{framework.offered_resources.gpus | number}}
+            </td>
+          </tr>
+          <tr>
+            <td>Memory</td>
+            <td class="text-right">
+              {{framework.used_resources.mem * (1024 * 1024) | dataSize}}
+            </td>
+            <td class="text-right">
+              {{framework.offered_resources.mem * (1024 * 1024) | dataSize}}
+            </td>
+          </tr>
+          <tr>
+            <td>Disk</td>
+            <td class="text-right">
+              {{framework.used_resources.mem * (1024 * 1024) | dataSize}}
+            </td>
+            <td class="text-right">
+              {{framework.offered_resources.mem * (1024 * 1024) | dataSize}}
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
