@@ -752,3 +752,11 @@
     - xingzhou@cn.ibm.com
   jira_user: dongdong
   reviewboard_user: dongdong
+  
+- name: Zhongbo Tian
+  affiliations:
+    - {organization: Douban}
+  emails:
+    - windreamer@gmail.com
+  jira_user: windreamer
+  reviewboard_user: windreamer
