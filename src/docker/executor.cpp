@@ -730,14 +730,14 @@ int main(int argc, char** argv)
   // Load flags from environment and command line.
   Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
 
-  if (load.isError()) {
-    cerr << flags.usage(load.error()) << endl;
-    return EXIT_FAILURE;
-  }
-
   if (flags.help) {
     cout << flags.usage() << endl;
     return EXIT_SUCCESS;
+  }
+
+  if (load.isError()) {
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
   }
 
   mesos::internal::logging::initialize(argv[0], flags, true); // Catch signals.
