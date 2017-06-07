@@ -7217,21 +7217,27 @@ TEST_F(SlaveTest, DisconnectedExecutorDropsMessages)
 {
   Clock::pause();
 
-  master::Flags masterFlags = this->CreateMasterFlags();
-
-  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  slave::Flags slaveFlags = this->CreateSlaveFlags();
+  slave::Flags slaveFlags = CreateSlaveFlags();
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
   Try<Owned<cluster::Slave>> slave =
-    this->StartSlave(detector.get(), &containerizer, slaveFlags);
+    StartSlave(detector.get(), &containerizer, slaveFlags);
   ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveRegisteredMessage);
 
   // Enable checkpointing for the framework so that the executor continues
   // running after agent termination.
@@ -7246,21 +7252,17 @@ TEST_F(SlaveTest, DisconnectedExecutorDropsMessages)
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
 
-  Clock::advance(masterFlags.allocation_interval);
-  Clock::advance(slaveFlags.registration_backoff_factor);
-
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
-  FrameworkID frameworkId = offers.get()[0].framework_id();
+  FrameworkID frameworkId = offers->front().framework_id();
 
   TaskInfo runningTask =
-    createTask(offers.get()[0], "sleep 1000", DEFAULT_EXECUTOR_ID);
+    createTask(offers->front(), "sleep 1000", DEFAULT_EXECUTOR_ID);
 
   // Capture the executor registration message to get the executor's pid.
   Future<Message> registerExecutor =
@@ -7283,7 +7285,7 @@ TEST_F(SlaveTest, DisconnectedExecutorDropsMessages)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusUpdate));
 
-  driver.launchTasks(offers.get()[0].id(), {runningTask});
+  driver.launchTasks(offers->front().id(), {runningTask});
 
   AWAIT_READY(registerExecutor);
   UPID executorPid = registerExecutor->from;
@@ -7310,7 +7312,7 @@ TEST_F(SlaveTest, DisconnectedExecutorDropsMessages)
   Clock::settle();
 
   TaskInfo droppedTask =
-    createTask(offers.get()[0], "sleep 1000", DEFAULT_EXECUTOR_ID);
+    createTask(offers->front(), "sleep 1000", DEFAULT_EXECUTOR_ID);
 
   RunTaskMessage runTaskMessage;
   runTaskMessage.mutable_framework_id()->CopyFrom(frameworkId);
@@ -7344,13 +7346,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
 {
   Clock::pause();
 
-  master::Flags masterFlags = this->CreateMasterFlags();
-
-  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   // Set the executor re-register timeout to a value greater than the default.
-  slave::Flags slaveFlags = this->CreateSlaveFlags();
+  slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.executor_reregistration_timeout = Seconds(15);
 
   Fetcher fetcher(slaveFlags);
@@ -7362,9 +7363,16 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
   Try<Owned<cluster::Slave>> slave =
-    this->StartSlave(detector.get(), containerizer.get(), slaveFlags);
+    StartSlave(detector.get(), containerizer.get(), slaveFlags);
   ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveRegisteredMessage);
 
   // Enable checkpointing for the framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
@@ -7378,24 +7386,20 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
 
-  Clock::advance(masterFlags.allocation_interval);
-  Clock::advance(slaveFlags.registration_backoff_factor);
-
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+  TaskInfo task = createTask(offers->front(), "sleep 1000");
 
   Future<TaskStatus> statusUpdate1;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusUpdate1));
 
-  driver.launchTasks(offers.get()[0].id(), {task});
+  driver.launchTasks(offers->front().id(), {task});
 
   AWAIT_READY(statusUpdate1);
   ASSERT_EQ(TASK_RUNNING, statusUpdate1->state());
@@ -7420,7 +7424,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
   ASSERT_SOME(_containerizer);
   containerizer.reset(_containerizer.get());
 
-  slave = this->StartSlave(detector.get(), containerizer.get(), slaveFlags);
+  slave = StartSlave(detector.get(), containerizer.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   // Ensure that the executor attempts to re-register, so that we can capture
@@ -7446,8 +7450,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
   AWAIT_READY(slaveReregistered);
 
   // Perform reconciliation to verify that the task has not been transitioned to
-  // TASK_LOST or TASK_UNREACHABLE, as would occur if the agent had been deemed
-  // unreachable.
+  // TASK_LOST, as would occur if the agent had been deemed unreachable.
   vector<TaskStatus> statuses;
 
   TaskStatus status;
@@ -7458,15 +7461,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
 
   Future<TaskStatus> statusUpdate2;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&statusUpdate2))
-    .WillRepeatedly(Return()); // Ignore subsequent updates.
+    .WillOnce(FutureArg<1>(&statusUpdate2));
 
   driver.reconcileTasks(statuses);
 
   AWAIT_READY(statusUpdate2);
-  ASSERT_EQ(TASK_RUNNING, statusUpdate2->state());
-  ASSERT_EQ(TaskStatus::SOURCE_MASTER, statusUpdate2->source());
-  ASSERT_EQ(TaskStatus::REASON_RECONCILIATION, statusUpdate2->reason());
+  EXPECT_EQ(TASK_RUNNING, statusUpdate2->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, statusUpdate2->source());
+  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, statusUpdate2->reason());
 
   driver.stop();
   driver.join();
