@@ -398,6 +398,10 @@ set(POSIX_SRC
   posix/rlimits.cpp
   )
 
+set(RESOURCE_PROVIDER_SRC
+  resource_provider/driver.cpp
+  )
+
 set(SCHEDULER_SRC
   sched/sched.cpp
   scheduler/scheduler.cpp

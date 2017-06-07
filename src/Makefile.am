@@ -774,6 +774,7 @@ v1_HEADERS =								\
   $(top_srcdir)/include/mesos/v1/mesos.hpp				\
   $(top_srcdir)/include/mesos/v1/mesos.proto				\
   $(top_srcdir)/include/mesos/v1/resources.hpp				\
+  $(top_srcdir)/include/mesos/v1/resource_provider.hpp			\
   $(top_srcdir)/include/mesos/v1/scheduler.hpp				\
   $(top_srcdir)/include/mesos/v1/values.hpp
 
@@ -943,6 +944,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   module/manager.cpp							\
   oci/spec.cpp								\
   posix/rlimits.cpp							\
+  resource_provider/driver.cpp						\
   sched/sched.cpp							\
   scheduler/scheduler.cpp						\
   secret/resolver.cpp							\
