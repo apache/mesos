@@ -111,7 +111,7 @@ public:
       const FrameworkInfo& _frameworkInfo,
       const SlaveInfo& slaveInfo)
   {
-    cout << "Registered docker executor on " << slaveInfo.hostname() << endl;
+    LOG(INFO) << "Registered docker executor on " << slaveInfo.hostname();
     driver = _driver;
     frameworkInfo = _frameworkInfo;
   }
@@ -120,12 +120,12 @@ public:
       ExecutorDriver* driver,
       const SlaveInfo& slaveInfo)
   {
-    cout << "Re-registered docker executor on " << slaveInfo.hostname() << endl;
+    LOG(INFO) << "Re-registered docker executor on " << slaveInfo.hostname();
   }
 
   void disconnected(ExecutorDriver* driver)
   {
-    cout << "Disconnected from the agent" << endl;
+    LOG(INFO) << "Disconnected from the agent";
   }
 
   void launchTask(ExecutorDriver* driver, const TaskInfo& task)
@@ -151,7 +151,7 @@ public:
       killPolicy = task.kill_policy();
     }
 
-    cout << "Starting task " << taskId.get() << endl;
+    LOG(INFO) << "Starting task " << taskId.get();
 
     CHECK(task.has_container());
     CHECK(task.has_command());
@@ -243,8 +243,8 @@ public:
       }));
 
     inspect.onFailed(defer(self(), [=](const string& failure) {
-      cerr << "Failed to inspect container '" << containerName << "'"
-           << ": " << failure << endl;
+      LOG(ERROR) << "Failed to inspect container '" << containerName << "'"
+                 << ": " << failure;
 
       // TODO(bmahler): This is fatal, try to shut down cleanly.
       // Since we don't have a container id, we can only discard
@@ -259,7 +259,7 @@ public:
 
   void killTask(ExecutorDriver* driver, const TaskID& taskId)
   {
-    cout << "Received killTask for task " << taskId.value() << endl;
+    LOG(INFO) << "Received killTask for task " << taskId.value();
 
     // Using shutdown grace period as a default is backwards compatible
     // with the `stop_timeout` flag, deprecated in 1.0.
@@ -276,7 +276,7 @@ public:
 
   void shutdown(ExecutorDriver* driver)
   {
-    cout << "Shutting down" << endl;
+    LOG(INFO) << "Shutting down";
 
     // Currently, 'docker->run' uses the reaper internally, hence we need
     // to account for the reap interval. We also leave a small buffer of
@@ -318,8 +318,8 @@ protected:
       return;
     }
 
-    cout << "Received task health update, healthy: "
-         << stringify(healthStatus.healthy()) << endl;
+    LOG(INFO) << "Received task health update, healthy: "
+              << stringify(healthStatus.healthy());
 
     // TODO(alexr): Use `protobuf::createTaskStatus()`
     // instead of manually setting fields.
@@ -533,8 +533,8 @@ private:
         docker->validateVersion(Version(1, 3, 0));
 
       if (validateVersion.isError()) {
-        cerr << "Unable to launch health check process: "
-             << validateVersion.error() << endl;
+        LOG(ERROR) << "Unable to launch health check process: "
+                   << validateVersion.error();
         return;
       }
 
@@ -585,8 +585,8 @@ private:
 
     if (_checker.isError()) {
       // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
-      cerr << "Failed to create health checker: "
-           << _checker.error() << endl;
+      LOG(ERROR) << "Failed to create health checker: "
+                 << _checker.error();
     } else {
       checker = _checker.get();
     }
@@ -735,6 +735,11 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
+  }
+
   mesos::internal::logging::initialize(argv[0], flags, true); // Catch signals.
 
   // Log any flag warnings (after logging is initialized).
@@ -744,29 +749,22 @@ int main(int argc, char** argv)
 
   VLOG(1) << stringify(flags);
 
-  if (flags.help) {
-    cout << flags.usage() << endl;
-    return EXIT_SUCCESS;
-  }
-
   if (flags.docker.isNone()) {
-    cerr << flags.usage("Missing required option --docker") << endl;
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE) << flags.usage("Missing required option --docker");
   }
 
   if (flags.container.isNone()) {
-    cerr << flags.usage("Missing required option --container") << endl;
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE) << flags.usage("Missing required option --container");
   }
 
   if (flags.sandbox_directory.isNone()) {
-    cerr << flags.usage("Missing required option --sandbox_directory") << endl;
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE)
+      << flags.usage("Missing required option --sandbox_directory");
   }
 
   if (flags.mapped_directory.isNone()) {
-    cerr << flags.usage("Missing required option --mapped_directory") << endl;
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE)
+      << flags.usage("Missing required option --mapped_directory");
   }
 
   map<string, string> taskEnvironment;
@@ -776,9 +774,8 @@ int main(int argc, char** argv)
       JSON::parse<JSON::Object>(flags.task_environment.get());
 
     if (json.isError()) {
-      cerr << flags.usage("Failed to parse --task_environment: " + json.error())
-           << endl;
-      return EXIT_FAILURE;
+      EXIT(EXIT_FAILURE)
+        << flags.usage("Failed to parse --task_environment: " + json.error());
     }
 
     // Convert from JSON to map.
@@ -787,11 +784,8 @@ int main(int argc, char** argv)
         const JSON::Value& value,
         json->values) {
       if (!value.is<JSON::String>()) {
-        cerr << flags.usage(
-            "Value of key '" + key +
-            "' in --task_environment is not a string")
-             << endl;
-        return EXIT_FAILURE;
+        EXIT(EXIT_FAILURE) << flags.usage(
+            "Value of key '" + key + "' in --task_environment is not a string");
       }
 
       // Save the parsed and validated key/value.
@@ -811,9 +805,9 @@ int main(int argc, char** argv)
   if (value.isSome()) {
     Try<Duration> parse = Duration::parse(value.get());
     if (parse.isError()) {
-      cerr << "Failed to parse value '" << value.get() << "'"
-           << " of 'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD': " << parse.error();
-      return EXIT_FAILURE;
+      EXIT(EXIT_FAILURE)
+        << "Failed to parse value '" << value.get() << "'"
+        << " of 'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD': " << parse.error();
     }
 
     shutdownGracePeriod = parse.get();
@@ -828,8 +822,7 @@ int main(int argc, char** argv)
   }
 
   if (flags.launcher_dir.isNone()) {
-    cerr << flags.usage("Missing required option --launcher_dir") << endl;
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE) << flags.usage("Missing required option --launcher_dir");
   }
 
   // The 2nd argument for docker create is set to false so we skip
@@ -841,8 +834,8 @@ int main(int argc, char** argv)
       false);
 
   if (docker.isError()) {
-    cerr << "Unable to create docker abstraction: " << docker.error() << endl;
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE)
+      << "Unable to create docker abstraction: " << docker.error();
   }
 
   Owned<mesos::internal::docker::DockerExecutor> executor(

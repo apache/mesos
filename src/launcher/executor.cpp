@@ -166,12 +166,12 @@ public:
 
   void received(const Event& event)
   {
-    cout << "Received " << event.type() << " event" << endl;
+    LOG(INFO) << "Received " << event.type() << " event";
 
     switch (event.type()) {
       case Event::SUBSCRIBED: {
-        cout << "Subscribed executor on "
-             << event.subscribed().slave_info().hostname() << endl;
+        LOG(INFO) << "Subscribed executor on "
+                  << event.subscribed().slave_info().hostname();
 
         frameworkInfo = event.subscribed().framework_info();
         state = SUBSCRIBED;
@@ -184,7 +184,7 @@ public:
       }
 
       case Event::LAUNCH_GROUP: {
-        cerr << "LAUNCH_GROUP event is not supported" << endl;
+        LOG(ERROR) << "LAUNCH_GROUP event is not supported";
         // Shut down because this is unexpected; `LAUNCH_GROUP` event
         // should only ever go to a group-capable default executor and
         // not the command executor.
@@ -238,7 +238,7 @@ public:
       }
 
       case Event::ERROR: {
-        cerr << "Error: " << event.error().message() << endl;
+        LOG(ERROR) << "Error: " << event.error().message();
         break;
       }
 
@@ -300,7 +300,7 @@ protected:
       return;
     }
 
-    cout << "Received check update '" << checkStatus << "'" << endl;
+    LOG(INFO) << "Received check update '" << checkStatus << "'";
 
     // Use the previous task status to preserve all attached information.
     CHECK_SOME(lastTaskStatus);
@@ -333,8 +333,8 @@ protected:
       return;
     }
 
-    cout << "Received task health update, healthy: "
-         << stringify(healthStatus.healthy()) << endl;
+    LOG(INFO) << "Received task health update, healthy: "
+              << stringify(healthStatus.healthy());
 
     // Use the previous task status to preserve all attached information.
     CHECK_SOME(lastTaskStatus);
@@ -465,7 +465,7 @@ protected:
         path::join(launcherDir, MESOS_CONTAINERIZER),
         MesosContainerizerLaunch::NAME).get();
 
-    cout << "Running '" << commandString << "'" << endl;
+    LOG(INFO) << "Running '" << commandString << "'";
 
     // Fork the child using launcher.
     vector<string> argv(2);
@@ -594,7 +594,7 @@ protected:
         const string& name = variable.name();
         if (environment.contains(name) &&
             environment[name].value() != variable.value()) {
-          cout << "Overwriting environment variable '" << name << "'" << endl;
+          LOG(INFO) << "Overwriting environment variable '" << name << "'";
         }
         environment[name] = variable;
       }
@@ -610,7 +610,7 @@ protected:
         const string& name = variable.name();
         if (environment.contains(name) &&
             environment[name].value() != variable.value()) {
-          cout << "Overwriting environment variable '" << name << "'" << endl;
+          LOG(INFO) << "Overwriting environment variable '" << name << "'";
         }
         environment[name] = variable;
       }
@@ -621,7 +621,7 @@ protected:
       launchEnvironment.add_variables()->CopyFrom(variable);
     }
 
-    cout << "Starting task " << taskId.get() << endl;
+    LOG(INFO) << "Starting task " << taskId.get();
 
     pid = launchTaskSubprocess(
         command,
@@ -633,7 +633,7 @@ protected:
         workingDirectory,
         capabilities);
 
-    cout << "Forked command at " << pid << endl;
+    LOG(INFO) << "Forked command at " << pid;
 
     if (task.has_check()) {
       vector<string> namespaces;
@@ -659,7 +659,7 @@ protected:
 
       if (_checker.isError()) {
         // TODO(alexr): Consider ABORT and return a TASK_FAILED here.
-        cerr << "Failed to create checker: " << _checker.error() << endl;
+        LOG(ERROR) << "Failed to create checker: " << _checker.error();
       } else {
         checker = _checker.get();
       }
@@ -689,8 +689,8 @@ protected:
 
       if (_healthChecker.isError()) {
         // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
-        cerr << "Failed to create health checker: "
-             << _healthChecker.error() << endl;
+        LOG(ERROR) << "Failed to create health checker: "
+                   << _healthChecker.error();
       } else {
         healthChecker = _healthChecker.get();
       }
@@ -722,15 +722,15 @@ protected:
       gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
     }
 
-    cout << "Received kill for task " << _taskId.value()
-         << " with grace period of " << gracePeriod << endl;
+    LOG(INFO) << "Received kill for task " << _taskId.value()
+              << " with grace period of " << gracePeriod;
 
     kill(_taskId, gracePeriod);
   }
 
   void shutdown()
   {
-    cout << "Shutting down" << endl;
+    LOG(INFO) << "Shutting down";
 
     // NOTE: We leave a small buffer of time to do the forced kill, otherwise
     // the agent may destroy the container before we can send `TASK_KILLED`.
@@ -801,8 +801,8 @@ private:
         ? gracePeriod - elapsed
         : Duration::zero();
 
-      cout << "Rescheduling escalation to SIGKILL in " << remaining
-           << " from now" << endl;
+      LOG(INFO) << "Rescheduling escalation to SIGKILL in " << remaining
+                << " from now";
 
       Clock::cancel(killGracePeriodTimer.get());
       killGracePeriodTimer = delay(
@@ -837,25 +837,25 @@ private:
       // Now perform signal escalation to begin killing the task.
       CHECK_GT(pid, 0);
 
-      cout << "Sending SIGTERM to process tree at pid " << pid << endl;
+      LOG(INFO) << "Sending SIGTERM to process tree at pid " << pid;
 
       Try<std::list<os::ProcessTree>> trees =
         os::killtree(pid, SIGTERM, true, true);
 
       if (trees.isError()) {
-        cerr << "Failed to kill the process tree rooted at pid " << pid
-             << ": " << trees.error() << endl;
+        LOG(ERROR) << "Failed to kill the process tree rooted at pid " << pid
+                   << ": " << trees.error();
 
         // Send SIGTERM directly to process 'pid' as it may not have
         // received signal before os::killtree() failed.
         os::kill(pid, SIGTERM);
       } else {
-        cout << "Sent SIGTERM to the following process trees:\n"
-             << stringify(trees.get()) << endl;
+        LOG(INFO) << "Sent SIGTERM to the following process trees:\n"
+                  << stringify(trees.get());
       }
 
-      cout << "Scheduling escalation to SIGKILL in " << gracePeriod
-           << " from now" << endl;
+      LOG(INFO) << "Scheduling escalation to SIGKILL in " << gracePeriod
+                << " from now";
 
       killGracePeriodTimer =
         delay(gracePeriod, self(), &Self::escalated, gracePeriod);
@@ -912,7 +912,7 @@ private:
       message = "Command " + WSTRINGIFY(status);
     }
 
-    cout << message << " (pid: " << pid << ")" << endl;
+    LOG(INFO) << message << " (pid: " << pid << ")";
 
     CHECK_SOME(taskId);
 
@@ -951,8 +951,8 @@ private:
       return;
     }
 
-    cout << "Process " << pid << " did not terminate after " << timeout
-         << ", sending SIGKILL to process tree at " << pid << endl;
+    LOG(INFO) << "Process " << pid << " did not terminate after " << timeout
+              << ", sending SIGKILL to process tree at " << pid;
 
     // TODO(nnielsen): Sending SIGTERM in the first stage of the
     // shutdown may leave orphan processes hanging off init. This
@@ -962,16 +962,16 @@ private:
       os::killtree(pid, SIGKILL, true, true);
 
     if (trees.isError()) {
-      cerr << "Failed to kill the process tree rooted at pid "
-           << pid << ": " << trees.error() << endl;
+      LOG(ERROR) << "Failed to kill the process tree rooted at pid "
+                 << pid << ": " << trees.error();
 
       // Process 'pid' may not have received signal before
       // os::killtree() failed. To make sure process 'pid' is reaped
       // we send SIGKILL directly.
       os::kill(pid, SIGKILL);
     } else {
-      cout << "Killed the following process trees:\n" << stringify(trees.get())
-           << endl;
+      LOG(INFO) << "Killed the following process trees:\n"
+                << stringify(trees.get());
     }
   }
 
@@ -1132,7 +1132,7 @@ private:
 } // namespace mesos {
 
 
-class Flags : public virtual flags::FlagsBase
+class Flags : public virtual mesos::internal::logging::Flags
 {
 public:
   Flags()
@@ -1212,6 +1212,8 @@ int main(int argc, char** argv)
     return EXIT_SUCCESS;
   }
 
+  mesos::internal::logging::initialize(argv[0], flags, true); // Catch signals.
+
   // Log any flag warnings (after logging is initialized).
   foreach (const flags::Warning& warning, load->warnings) {
     LOG(WARNING) << warning.message;
@@ -1242,9 +1244,9 @@ int main(int argc, char** argv)
   if (value.isSome()) {
     Try<Duration> parse = Duration::parse(value.get());
     if (parse.isError()) {
-      cerr << "Failed to parse value '" << value.get() << "'"
-           << " of 'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD': " << parse.error();
-      return EXIT_FAILURE;
+      EXIT(EXIT_FAILURE)
+        << "Failed to parse value '" << value.get() << "'"
+        << " of 'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD': " << parse.error();
     }
 
     shutdownGracePeriod = parse.get();
