@@ -63,8 +63,6 @@ using process::http::Response;
 using process::http::Unauthorized;
 
 using testing::_;
-using testing::DoAll;
-using testing::Eq;
 using testing::Return;
 
 namespace mesos {

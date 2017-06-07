@@ -34,7 +34,6 @@
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
-#include "tests/allocator.hpp"
 #include "tests/mesos.hpp"
 #include "tests/resources_utils.hpp"
 #include "tests/utils.hpp"
@@ -64,7 +63,6 @@ using process::http::Response;
 using process::http::Unauthorized;
 
 using testing::_;
-using testing::DoAll;
 
 namespace mesos {
 namespace internal {
