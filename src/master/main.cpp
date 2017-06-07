@@ -252,6 +252,7 @@ int main(int argc, char** argv)
                        << "`main()` was not the function's first invocation";
   }
 
+  // TODO(alexr): This should happen before we start using glog, see MESOS-7586.
   logging::initialize(argv[0], flags, true); // Catch signals.
 
   // Log any flag warnings (after logging is initialized).
