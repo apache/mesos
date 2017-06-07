@@ -1366,6 +1366,11 @@ int main(int argc, char** argv)
 
   mesos::internal::logging::initialize(argv[0], flags, true); // Catch signals.
 
+  // Log any flag warnings (after logging is initialized).
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
+  }
+
   Option<string> value = os::getenv("MESOS_FRAMEWORK_ID");
   if (value.isNone()) {
     EXIT(EXIT_FAILURE)
