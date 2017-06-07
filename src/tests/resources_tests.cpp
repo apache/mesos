@@ -2491,6 +2491,19 @@ TEST(ResourcesOperationTest, StrippedResourcesReserved)
 }
 
 
+TEST(ResourcesOperationTest, StrippedResourcesResourceProvider)
+{
+  Resource plain = Resources::parse("cpus", "1", "*").get();
+
+  Resource provided = plain;
+  provided.mutable_provider_id()->set_value("RESOURCE_PROVIDER_ID");
+
+  Resources stripped = Resources(provided).createStrippedScalarQuantity();
+
+  EXPECT_EQ(Resources(plain), stripped);
+}
+
+
 TEST(ResourcesOperationTest, StrippedResourcesNonScalar)
 {
   Resources ports = Resources::parse("ports:[10000-20000, 30000-50000]").get();

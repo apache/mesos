@@ -1264,6 +1264,7 @@ Resources Resources::createStrippedScalarQuantity() const
   foreach (const Resource& resource, resources) {
     if (resource.type() == Value::SCALAR) {
       Resource scalar = resource;
+      scalar.clear_provider_id();
       scalar.clear_allocation_info();
       scalar.clear_reservation();
       scalar.clear_disk();
