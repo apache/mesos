@@ -146,6 +146,7 @@ set(MESOS_TESTS_SRC
 
 set(MESOS_TESTS_SRC
   ${MESOS_TESTS_SRC}
+  containerizer/containerizer_tests.cpp
   containerizer/docker_tests.cpp
   )
 
