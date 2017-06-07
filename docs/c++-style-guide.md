@@ -347,19 +347,6 @@ Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
 [] () { ...; };
 ~~~
 
-  * Prefer default capture by value, explicit capture by value, then capture by reference. To avoid dangling-pointer bugs, *never* use default capture by reference:
-
-~~~{.cpp}
-// 1: OK.
-[=]() { ... }; // Default capture by value.
-[n]() { ... }; // Explicit capture by value.
-[&n]() { ... }; // Explicit capture by reference.
-[=, &n]() { ... }; // Default capture by value, explicit capture by reference.
-
-// 2: Don't use.
-[&]() { ... }; // Default capture by reference.
-~~~
-
   * Use `mutable` only when absolutely necessary.
 
 ~~~{.cpp}
