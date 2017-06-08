@@ -138,7 +138,7 @@ endif (WIN32)
 if (NOT WIN32)
   set(PROTOC ${PROTOBUF_LIB_ROOT}/bin/protoc)
 else (NOT WIN32)
-  set(PROTOC ${PROTOBUF_ROOT}-build/${CMAKE_BUILD_TYPE}/protoc.exe)
+  set(PROTOC ${PROTOBUF_ROOT}-build/$<CONFIG>/protoc.exe)
 endif (NOT WIN32)
 
 # Configure the process library, the last of our third-party libraries.
