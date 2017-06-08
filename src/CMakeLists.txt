@@ -400,6 +400,7 @@ set(POSIX_SRC
 
 set(RESOURCE_PROVIDER_SRC
   resource_provider/driver.cpp
+  resource_provider/manager.cpp
   resource_provider/storage/provider.cpp
   )
 
