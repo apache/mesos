@@ -331,16 +331,6 @@ elseif (WIN32)
   set(GOOGLETEST_INSTALL_CMD ${CMAKE_NOOP})
 endif (NOT WIN32)
 
-if (NOT WIN32)
-  set(PROTOBUF_CONFIG_CMD  ${PROTOBUF_ROOT}/src/../configure --prefix=${PROTOBUF_LIB_ROOT})
-  set(PROTOBUF_BUILD_CMD   make)
-  set(PROTOBUF_INSTALL_CMD make install)
-elseif (WIN32)
-  set(PROTOBUF_CONFIG_CMD  cmake -G ${CMAKE_GENERATOR} ../protobuf-${PROTOBUF_VERSION}/cmake -DBUILD_SHARED_LIBS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=ON -Dprotobuf_BUILD_TESTS=OFF)
-  set(PROTOBUF_BUILD_CMD   msbuild protobuf.sln)
-  set(PROTOBUF_INSTALL_CMD ${CMAKE_NOOP})
-endif (NOT WIN32)
-
 # NOTE: An implicit consequence of the following code is that on non-Windows
 # platforms, gmock and gtest are assumed to be CMake projects, and are thus
 # configured and built using default CMake commands. The reason is that on
@@ -358,16 +348,29 @@ ExternalProject_Add(
   URL_HASH          ${GOOGLETEST_HASH}
   )
 
-ExternalProject_Add(
-  ${PROTOBUF_TARGET}
-  PREFIX            ${PROTOBUF_CMAKE_ROOT}
-  CMAKE_ARGS        -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} -DCMAKE_CXX_FLAGS_DEBUG="/MTd"
-  CONFIGURE_COMMAND ${PROTOBUF_CONFIG_CMD}
-  BUILD_COMMAND     ${PROTOBUF_BUILD_CMD}
-  INSTALL_COMMAND   ${PROTOBUF_INSTALL_CMD}
-  URL               ${PROTOBUF_URL}
-  URL_HASH          ${PROTOBUF_HASH}
-  )
+if (NOT WIN32)
+  # NOTE: `ExternalProject_Add` is used separately because older versions
+  # of CMake used on Linux do not understand the `SOURCE_SUBDIR` command.
+  ExternalProject_Add(
+    ${PROTOBUF_TARGET}
+    PREFIX            ${PROTOBUF_CMAKE_ROOT}
+    CONFIGURE_COMMAND ${PROTOBUF_ROOT}/configure --prefix=${PROTOBUF_LIB_ROOT}
+    BUILD_COMMAND     make
+    INSTALL_COMMAND   make install
+    URL               ${PROTOBUF_URL}
+    URL_HASH          ${PROTOBUF_HASH}
+    )
+else ()
+  ExternalProject_Add(
+    ${PROTOBUF_TARGET}
+    PREFIX            ${PROTOBUF_CMAKE_ROOT}
+    SOURCE_SUBDIR     cmake
+    CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-Dprotobuf_BUILD_TESTS=OFF
+    INSTALL_COMMAND   ${CMAKE_NOOP}
+    URL               ${PROTOBUF_URL}
+    URL_HASH          ${PROTOBUF_HASH}
+    )
+endif ()
 
 
 # BUILDING THE STOUT TESTS.
