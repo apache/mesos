@@ -408,17 +408,29 @@ if (NOT WIN32)
     ${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch
     ZOOKEEPER_PATCH_CMD)
 
+  # NOTE: ZooKeeper's `configure` script must be run with within the
+  # correct directory or it  will fail to find necessary files, hence the `cd`.
+  set(ZOOKEEPER_CONFIG_CMD cd ${ZOOKEEPER_C_ROOT} && ./configure)
+  if (BUILD_SHARED_LIBS)
+    set(ZOOKEEPER_CONFIG_CMD ${ZOOKEEPER_CONFIG_CMD} --enable-shared=yes --enable-static=no)
+  else ()
+    set(ZOOKEEPER_CONFIG_CMD ${ZOOKEEPER_CONFIG_CMD} --enable-shared=no --enable-static=yes)
+  endif ()
+
+  # NOTE: The `--with-pic` does not mean compile with `-fPIC`.
+  set(ZOOKEEPER_CONFIG_CMD ${ZOOKEEPER_CONFIG_CMD} --with-pic --srcdir=${ZOOKEEPER_C_ROOT} --prefix=${ZOOKEEPER_LIB})
+
   ExternalProject_Add(
     ${ZOOKEEPER_TARGET}
     PREFIX            ${ZOOKEEPER_CMAKE_ROOT}
     PATCH_COMMAND     ${ZOOKEEPER_PATCH_CMD}
-    CONFIGURE_COMMAND cd ${ZOOKEEPER_C_ROOT} && ./configure --enable-shared=no --with-pic --srcdir=. --prefix=${ZOOKEEPER_LIB}
+    CONFIGURE_COMMAND ${ZOOKEEPER_CONFIG_CMD}
     BUILD_COMMAND     cd ${ZOOKEEPER_C_ROOT} && make
     INSTALL_COMMAND   cd ${ZOOKEEPER_C_ROOT} && make install
     URL               ${ZOOKEEPER_URL}
     URL_HASH          ${ZOOKEEPER_HASH}
     )
-elseif (WIN32)
+else ()
   ExternalProject_Add(
     ${ZOOKEEPER_TARGET}
     PREFIX            ${ZOOKEEPER_CMAKE_ROOT}
@@ -428,12 +440,12 @@ elseif (WIN32)
     # already. The `--binary` option will instead fail to apply the patch.
     PATCH_COMMAND     ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch
     SOURCE_SUBDIR     src/c
-    CMAKE_ARGS        -DWANT_CPPUNIT=0
+    CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-DWANT_CPPUNIT=OFF
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${ZOOKEEPER_URL}
     URL_HASH          ${ZOOKEEPER_HASH}
     )
-endif (NOT WIN32)
+endif ()
 
 if (NOT WIN32)
   set(LEVELDB_CONFIG_CMD  cd ${LEVELDB_ROOT} && ./configure --prefix=${LEVELDB_ROOT}-lib)

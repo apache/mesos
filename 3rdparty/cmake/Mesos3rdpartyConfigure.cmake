@@ -39,14 +39,19 @@ set(ZOOKEEPER_INCLUDE_DIR ${ZOOKEEPER_C_ROOT}/include)
 if (NOT WIN32)
   set(ZOOKEEPER_LIB_DIR ${ZOOKEEPER_LIB})
 else (NOT WIN32)
-  set(ZOOKEEPER_LIB_DIR ${ZOOKEEPER_ROOT}-build/${CMAKE_BUILD_TYPE})
+  set(ZOOKEEPER_LIB_DIR ${ZOOKEEPER_ROOT}-build)
 endif (NOT WIN32)
 
 # Convenience variables for "lflags", the symbols we pass to CMake to generate
 # things like `-L/path/to/glog` or `-lglog`.
 if (NOT WIN32)
   set(LEVELDB_LFLAG   ${LEVELDB_ROOT}/out-static/libleveldb.a)
-  set(ZOOKEEPER_LFLAG ${ZOOKEEPER_LIB}/lib/libzookeeper_mt.a)
+
+  if (BUILD_SHARED_LIBS)
+    set(ZOOKEEPER_LFLAG ${ZOOKEEPER_LIB}/lib/libzookeeper_mt${CMAKE_SHARED_LIBRARY_SUFFIX})
+  else ()
+    set(ZOOKEEPER_LFLAG ${ZOOKEEPER_LIB}/lib/libzookeeper_mt.a)
+  endif ()
 else (NOT WIN32)
   set(ZOOKEEPER_LFLAG zookeeper hashtable)
 endif (NOT WIN32)
