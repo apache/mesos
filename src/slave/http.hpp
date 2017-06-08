@@ -81,6 +81,7 @@ public:
 
   static std::string API_HELP();
   static std::string EXECUTOR_HELP();
+  static std::string RESOURCE_PROVIDER_HELP();
   static std::string FLAGS_HELP();
   static std::string HEALTH_HELP();
   static std::string STATE_HELP();

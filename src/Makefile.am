@@ -2340,6 +2340,7 @@ mesos_tests_SOURCES =						\
   tests/reservation_endpoints_tests.cpp				\
   tests/reservation_tests.cpp					\
   tests/resource_offers_tests.cpp				\
+  tests/resource_provider_http_api_tests.cpp			\
   tests/resources_tests.cpp					\
   tests/resources_utils.cpp					\
   tests/role_tests.cpp						\

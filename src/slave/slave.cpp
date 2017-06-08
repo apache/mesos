@@ -696,6 +696,15 @@ void Slave::initialize()
           return http.executor(request, principal);
         });
 
+  route("/api/v1/resource_provider",
+        READWRITE_HTTP_AUTHENTICATION_REALM,
+        Http::RESOURCE_PROVIDER_HELP(),
+        [this](const process::http::Request& request,
+               const Option<Principal>& principal) {
+          logRequest(request);
+          return resourceProviderManager.api(request, principal);
+        });
+
   // TODO(ijimenez): Remove this endpoint at the end of the
   // deprecation cycle on 0.26.
   route("/state.json",

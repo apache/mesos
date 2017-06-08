@@ -75,6 +75,8 @@
 
 #include "messages/messages.hpp"
 
+#include "resource_provider/manager.hpp"
+
 #include "slave/constants.hpp"
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/flags.hpp"
@@ -640,6 +642,8 @@ private:
   // The most recent estimate of the total amount of oversubscribed
   // (allocated and oversubscribable) resources.
   Option<Resources> oversubscribedResources;
+
+  ResourceProviderManager resourceProviderManager;
 
 protected:
   // Made protected for testing purposes.
