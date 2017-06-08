@@ -19,6 +19,7 @@
 set(STOUT ${MESOS_3RDPARTY_SRC}/stout)
 
 EXTERNAL("boost"       ${BOOST_VERSION}       "${MESOS_3RDPARTY_BIN}")
+EXTERNAL("glog"        ${GLOG_VERSION}        "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("elfio"       ${ELFIO_VERSION}       "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("picojson"    ${PICOJSON_VERSION}    "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("http_parser" ${HTTP_PARSER_VERSION} "${MESOS_3RDPARTY_BIN}")
@@ -28,20 +29,13 @@ EXTERNAL("libapr"      ${LIBAPR_VERSION}      "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("nvml"        ${NVML_VERSION}        "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("protobuf"    ${PROTOBUF_VERSION}    "${MESOS_3RDPARTY_BIN}")
 
-if (NOT WIN32)
-  EXTERNAL("glog" ${GLOG_VERSION} "${MESOS_3RDPARTY_BIN}")
-elseif (WIN32)
-  # Glog 0.3.3 does not compile out of the box on Windows.
-  # Therefore, we require a specific commit on glog master.
-  EXTERNAL("glog" "da816ea70" "${MESOS_3RDPARTY_BIN}")
-
+if (WIN32)
   # NOTE: We expect cURL and zlib exist on Unix (usually pulled in with a
   # package manager), but Windows has no package manager, so we have to go
   # get it.
   EXTERNAL("curl" ${CURL_VERSION} "${MESOS_3RDPARTY_BIN}")
-
   EXTERNAL("zlib" ${ZLIB_VERSION} "${MESOS_3RDPARTY_BIN}")
-endif (NOT WIN32)
+endif ()
 
 # Intermediate convenience variables for oddly-structured directories.
 set(GLOG_LIB_ROOT     ${GLOG_ROOT}-lib/lib)
