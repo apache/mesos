@@ -609,6 +609,14 @@ ostream& operator<<(
 }
 
 
+ostream& operator<<(
+    ostream& stream,
+    const ResourceProviderInfo& resourceProviderInfo)
+{
+  return stream << JSON::protobuf(resourceProviderInfo);
+}
+
+
 ostream& operator<<(ostream& stream, const RLimitInfo& rlimitInfo)
 {
   return stream << JSON::protobuf(rlimitInfo);

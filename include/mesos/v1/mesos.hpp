@@ -313,6 +313,11 @@ std::ostream& operator<<(
     const ResourceProviderID& resourceProviderId);
 
 
+std::ostream& operator<<(
+    std::ostream& stream,
+    const ResourceProviderInfo& resourceProviderInfo);
+
+
 std::ostream& operator<<(std::ostream& stream, const AgentID& agentId);
 
 
