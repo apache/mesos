@@ -108,14 +108,23 @@ if (WIN32)
   # the library names are generated correctly.
   set(CURL_LFLAG     libcurl)
 
-  # Windows requires a static build of zlib.
-  set(ZLIB_LFLAG     zlibstaticd)
-
   set(PROTOBUF_LFLAG libprotobuf)
 
   # The generator expression below appends the letter "d"
   # when building the Debug configuration.
   string(APPEND PROTOBUF_LFLAG $<$<CONFIG:Debug>:d>)
+
+  # Zlib generates different libraries depending on the linkage
+  # and configuration.  i.e.:
+  #   * For a static Debug build: `zlibstaticd`.
+  #   * For a shared Release build: `zlib`.
+  set(ZLIB_LFLAG zlib)
+
+  if (NOT BUILD_SHARED_LIBS)
+    string(APPEND ZLIB_LFLAG static)
+  endif ()
+
+  string(APPEND ZLIB_LFLAG $<$<CONFIG:Debug>:d>)
 
   # Windows requires Dbghelp.lib when linking to glog.
   # NOTE: CMake's dependency graph does not pull in the `Dbghelp` library
