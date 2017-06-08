@@ -45,8 +45,8 @@ set(GTEST_INCLUDE_DIR ${GOOGLETEST_ROOT}/googletest/include)
 
 # Convenience variables for `lib` directories of built third-party dependencies.
 if (WIN32)
-  set(GMOCK_LIB_DIR ${GOOGLETEST_ROOT}-build/googlemock/${CMAKE_BUILD_TYPE})
-  set(GTEST_LIB_DIR ${GOOGLETEST_ROOT}-build/googlemock/gtest/${CMAKE_BUILD_TYPE})
+  set(GMOCK_LIB_DIR ${GOOGLETEST_ROOT}-build/googlemock)
+  set(GTEST_LIB_DIR ${GOOGLETEST_ROOT}-build/googlemock/gtest)
 else (WIN32)
   set(GMOCK_LIB_DIR ${GOOGLETEST_ROOT}-lib/lib)
   set(GTEST_LIB_DIR ${GOOGLETEST_ROOT}-lib/lib/gtest)
