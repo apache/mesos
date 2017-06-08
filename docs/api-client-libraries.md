@@ -62,6 +62,11 @@ run into any issues, file them with the library maintainers.*
   PyMesos</a></td>
   <td>Python</td>
 </tr>
+<tr>
+  <td><a href="https://github.com/ondrej-smola/mesos-go-http">
+  mesos-go-http</a></td>
+  <td>Go</td>
+</tr>
 </table>
 
 ## Executor API
