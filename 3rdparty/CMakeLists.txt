@@ -292,12 +292,11 @@ if (WIN32)
 
   ExternalProject_Add(
     ${ZLIB_TARGET}
-    PREFIX          ${ZLIB_CMAKE_ROOT}
-    CMAKE_ARGS      -DBUILD_SHARED_LIBS=OFF
-    BUILD_COMMAND   ${GLOG_BUILD_CMD}
-    INSTALL_COMMAND ${CMAKE_NOOP}
-    URL             ${ZLIB_URL}
-    URL_HASH        ${ZLIB_HASH}
+    PREFIX            ${ZLIB_CMAKE_ROOT}
+    CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
+    INSTALL_COMMAND   ${CMAKE_NOOP}
+    URL               ${ZLIB_URL}
+    URL_HASH          ${ZLIB_HASH}
   )
 endif (WIN32)
 
