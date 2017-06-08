@@ -220,9 +220,9 @@ string(COMPARE EQUAL ${CMAKE_SYSTEM_NAME} "Linux" LINUX)
 if (WIN32)
   # Speed up incremental linking for the VS compiler/linker, for more info, see:
   # https://blogs.msdn.microsoft.com/vcblog/2014/11/12/speeding-up-the-incremental-developer-build-scenario/
-  foreach(t EXE SHARED STATIC MODULE)
-    string(APPEND CMAKE_${t}_LINKER_FLAGS_DEBUG " /debug:fastlink")
-  endforeach()
+  foreach (type EXE SHARED STATIC MODULE)
+    string(APPEND CMAKE_${type}_LINKER_FLAGS_DEBUG " /debug:fastlink")
+  endforeach ()
 
   # COFF/PE and friends are somewhat limited in the number of sections they
   # allow for an object file. We use this to avoid those problems.
