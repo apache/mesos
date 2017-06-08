@@ -42,7 +42,7 @@
 
 if (ENABLE_SSL)
   find_package(OpenSSL REQUIRED)
-endif (ENABLE_SSL)
+endif ()
 
 set(PROCESS_PACKAGE_VERSION 0.0.1)
 set(PROCESS_PACKAGE_SOVERSION 0)
@@ -63,7 +63,7 @@ macro(GROUP_PROCESS_HEADERS)
     "${PROCESS_INCLUDE_DIR}/process"
     "${PROCESS_INCLUDE_DIR}/process"
     "*.h*")
-endmacro(GROUP_PROCESS_HEADERS)
+endmacro()
 
 # Define process library dependencies. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
@@ -76,16 +76,16 @@ set(PROCESS_DEPENDENCIES
 
 if (NOT ENABLE_LIBEVENT)
   set(PROCESS_DEPENDENCIES ${PROCESS_DEPENDENCIES} ${LIBEV_TARGET})
-elseif (ENABLE_LIBEVENT)
+else ()
   set(PROCESS_DEPENDENCIES ${PROCESS_DEPENDENCIES} ${LIBEVENT_TARGET})
-endif (NOT ENABLE_LIBEVENT)
+endif ()
 
 if (WIN32)
   set(PROCESS_DEPENDENCIES
     ${PROCESS_DEPENDENCIES}
     ${GZIP_TARGET}
     )
-endif (WIN32)
+endif ()
 
 # Define third-party include directories. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux).
@@ -107,30 +107,30 @@ if (NOT ENABLE_LIBEVENT)
     ${PROCESS_3RDPARTY_INCLUDE_DIRS}
     ${LIBEV_INCLUDE_DIR}
     )
-elseif (ENABLE_LIBEVENT)
+else ()
   set(PROCESS_3RDPARTY_INCLUDE_DIRS
     ${PROCESS_3RDPARTY_INCLUDE_DIRS}
     ${LIBEVENT_INCLUDE_DIR}
     )
-endif (NOT ENABLE_LIBEVENT)
+endif ()
 
 if (ENABLE_SSL)
   set(PROCESS_3RDPARTY_INCLUDE_DIRS
     ${PROCESS_3RDPARTY_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
     )
-endif (ENABLE_SSL)
+endif ()
 
 if (HAS_GPERFTOOLS)
   set(PROCESS_3RDPARTY_INCLUDE_DIRS ${PROCESS_3RDPARTY_INCLUDE_DIRS} ${GPERFTOOLS_INCLUDE_DIR})
-endif (HAS_GPERFTOOLS)
+endif ()
 
 if (WIN32)
   set(PROCESS_3RDPARTY_INCLUDE_DIRS
     ${PROCESS_3RDPARTY_INCLUDE_DIRS}
     ${ZLIB_INCLUDE_DIR}
   )
-endif (WIN32)
+endif ()
 
 # Define third-party lib install directories. Used to tell the compiler
 # toolchain where to find our third party libs (e.g., -L/path/to/glog on
@@ -144,16 +144,16 @@ set(PROCESS_LIB_DIRS
 
 if (NOT ENABLE_LIBEVENT)
   set(PROCESS_LIB_DIRS ${PROCESS_LIB_DIRS} ${LIBEV_LIB_DIR})
-elseif (ENABLE_LIBEVENT)
+else ()
   set(PROCESS_LIB_DIRS ${PROCESS_LIB_DIRS} ${LIBEVENT_LIB_DIR})
-endif (NOT ENABLE_LIBEVENT)
+endif ()
 
 if (WIN32)
   set(PROCESS_LIB_DIRS
     ${PROCESS_LIB_DIRS}
     ${ZLIB_LIB_DIR}
     )
-endif (WIN32)
+endif ()
 
 # Define third-party libs. Used to generate flags that the linker uses to
 # include our third-party libs (e.g., -lglog on Linux).
@@ -171,20 +171,20 @@ if (WIN32)
     ${PROCESS_LIBS}
     userenv
     )
-endif (WIN32)
+endif ()
 
 if (NOT ENABLE_LIBEVENT)
   set(PROCESS_LIBS ${PROCESS_LIBS} ${LIBEV_LFLAG})
-elseif (ENABLE_LIBEVENT)
+else ()
   set(PROCESS_LIBS ${PROCESS_LIBS} ${LIBEVENT_LFLAG})
-endif (NOT ENABLE_LIBEVENT)
+endif ()
 
 if (ENABLE_SSL)
   set(PROCESS_LIBS
     ${PROCESS_LIBS}
     ${OPENSSL_LIBRARIES}
     )
-endif (ENABLE_SSL)
+endif ()
 
 if (NOT WIN32)
   find_package(ZLIB REQUIRED)
@@ -195,11 +195,11 @@ if (NOT WIN32)
   # folders individually.
   if (LINUX)
     set(PROCESS_LIBS ${PROCESS_LIBS} rt)
-  endif (LINUX)
+  endif ()
 
   set(PROCESS_LIBS
     ${PROCESS_LIBS}
     ${ZLIB_LIBRARIES}
     pthread
     )
-endif (NOT WIN32)
+endif ()

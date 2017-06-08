@@ -22,12 +22,12 @@ if (WIN32)
     ${PROCESS_SRC}
     subprocess_windows.cpp
     )
-else (WIN32)
+else ()
   set(PROCESS_SRC
     ${PROCESS_SRC}
     subprocess_posix.cpp
     )
-endif (WIN32)
+endif ()
 
 set(PROCESS_SRC
   ${PROCESS_SRC}
@@ -68,14 +68,14 @@ if (ENABLE_LIBEVENT)
     libevent.cpp
     libevent_poll.cpp
     )
-else (ENABLE_LIBEVENT)
+else ()
   set(PROCESS_SRC
     ${PROCESS_SRC}
     libev.hpp
     libev.cpp
     libev_poll.cpp
     )
-endif (ENABLE_LIBEVENT)
+endif ()
 
 if (ENABLE_SSL)
   set(PROCESS_SRC
@@ -91,8 +91,8 @@ if (ENABLE_SSL)
       ${PROCESS_SRC}
       libevent_ssl_socket.cpp
       )
-  endif (ENABLE_LIBEVENT)
-endif (ENABLE_SSL)
+  endif ()
+endif ()
 
 # INCLUDE DIRECTIVES FOR PROCESS LIBRARY (generates, e.g., -I/path/to/thing
 # on Linux).
@@ -109,14 +109,14 @@ link_directories(${PROCESS_LIB_DIRS})
 #######################################################################
 if (WIN32)
   add_library(${PROCESS_TARGET} STATIC ${PROCESS_SRC})
-else (WIN32)
+else ()
   add_library(${PROCESS_TARGET} SHARED ${PROCESS_SRC})
 
   set_target_properties(
     ${PROCESS_TARGET} PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE
     )
-endif (WIN32)
+endif ()
 
 GROUP_STOUT_HEADERS()
 GROUP_PROCESS_HEADERS()

@@ -64,11 +64,11 @@ if (WIN32)
     ${LIBEVENT_ROOT}/include
     ${LIBEVENT_ROOT}-build/include)
   set(ZLIB_INCLUDE_DIR     ${ZLIB_ROOT} ${ZLIB_ROOT}-build)
-else (WIN32)
+else ()
   set(GLOG_INCLUDE_DIR     ${GLOG_LIB_ROOT}/include)
   set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_LIB_ROOT}/include)
   set(LIBEVENT_INCLUDE_DIR ${LIBEVENT_LIB_ROOT}/include)
-endif (WIN32)
+endif ()
 
 # Convenience variables for `lib` directories of built third-party dependencies.
 set(LIBEV_LIB_DIR       ${LIBEV_ROOT}-build/.libs)
@@ -80,12 +80,12 @@ if (WIN32)
   set(LIBEVENT_LIB_DIR    ${LIBEVENT_ROOT}-build/lib)
   set(PROTOBUF_LIB_DIR    ${PROTOBUF_ROOT}-build)
   set(ZLIB_LIB_DIR        ${ZLIB_ROOT}-build)
-else (WIN32)
+else ()
   set(HTTP_PARSER_LIB_DIR ${HTTP_PARSER_ROOT}-build)
   set(GLOG_LIB_DIR        ${GLOG_LIB_ROOT}/lib)
   set(LIBEVENT_LIB_DIR    ${LIBEVENT_LIB_ROOT}/lib)
   set(PROTOBUF_LIB_DIR    ${PROTOBUF_LIB_ROOT}/lib)
-endif (WIN32)
+endif ()
 
 # Convenience variables for "lflags", the symbols we pass to CMake to generate
 # things like `-L/path/to/glog` or `-lglog`.
@@ -127,19 +127,19 @@ if (WIN32)
   # to the build system directly (such as, as a git submodule), glog's
   # targets would be inherited.
   set(GLOG_LFLAG     glog Dbghelp)
-else (WIN32)
+else ()
   set(CURL_LFLAG     curl)
   set(DL_LFLAG       dl)
   set(PROTOBUF_LFLAG protobuf)
   set(SASL_LFLAG     sasl2)
-endif (WIN32)
+endif ()
 
 # Convenience variable for `protoc`, the Protobuf compiler.
 if (NOT WIN32)
   set(PROTOC ${PROTOBUF_LIB_ROOT}/bin/protoc)
-else (NOT WIN32)
+else ()
   set(PROTOC ${PROTOBUF_ROOT}-build/$<CONFIG>/protoc.exe)
-endif (NOT WIN32)
+endif ()
 
 # Configure the process library, the last of our third-party libraries.
 #######################################################################
