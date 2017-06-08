@@ -45,6 +45,7 @@ public:
   Option<std::string> hostname;
   bool hostname_lookup;
   Option<std::string> resources;
+  Option<std::string> resource_provider_config_dir;
   std::string isolation;
   std::string launcher;
 

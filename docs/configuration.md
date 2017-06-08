@@ -1893,6 +1893,27 @@ Example JSON:
 </tr>
 <tr>
   <td>
+    --resource_provider_config_dir=VALUE
+  </td>
+  <td>
+Path to a directory that contains local resource provider configs.
+Each file in the config dir should contain a JSON object representing
+a <code>ResourceProviderInfo</code> object. Each local resource
+provider provides resources that are local to the agent. It is also
+responsible for handling operations on the resources it provides.
+Please note that <code>resources</code> field might not need to be
+specified if the resource provider determines the resources
+automatically.
+<p/>
+Example config file in this directory:
+<pre><code>{
+  "type": "org.mesos.apache.rp.local.storage",
+  "name": "lvm"
+}</code></pre>
+  </td>
+</tr>
+<tr>
+  <td>
     --[no-]revocable_cpu_low_priority
   </td>
   <td>

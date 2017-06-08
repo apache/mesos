@@ -94,6 +94,22 @@ mesos::internal::slave::Flags::Flags()
       "  }\n"
       "]");
 
+  add(&Flags::resource_provider_config_dir,
+      "resource_provider_config_dir",
+      "Path to a directory that contains local resource provider configs.\n"
+      "Each file in the config dir should contain a JSON object representing\n"
+      "a `ResourceProviderInfo` object. Each local resource provider provides\n"
+      "resources that are local to the agent. It is also responsible for\n"
+      "handling operations on the resources it provides. Please note that\n"
+      "`resources` field might not need to be specified if the resource\n"
+      "provider determines the resources automatically.\n"
+      "\n"
+      "Example config file in this directory:\n"
+      "{\n"
+      "  \"type\": \"org.mesos.apache.rp.local.storage\",\n"
+      "  \"name\": \"lvm\"\n"
+      "}");
+
   add(&Flags::isolation,
       "isolation",
       "Isolation mechanisms to use, e.g., `posix/cpu,posix/mem` (or \n"
