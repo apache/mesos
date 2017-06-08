@@ -57,12 +57,12 @@ include(CompilationConfigure)
 include(Mesos3rdpartyConfigure)
 include(Process3rdpartyConfigure)
 
-if (WIN32)
-  set(MESOS_DEFAULT_LIBRARY_LINKAGE "STATIC")
-else (WIN32)
+if (BUILD_SHARED_LIBS)
   set(MESOS_DEFAULT_LIBRARY_LINKAGE "SHARED")
   set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
-endif (WIN32)
+else ()
+  set(MESOS_DEFAULT_LIBRARY_LINKAGE "STATIC")
+endif ()
 
 # DEFINE DIRECTORY STRUCTURE MESOS PROJECT.
 ###########################################

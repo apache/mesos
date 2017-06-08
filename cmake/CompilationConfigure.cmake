@@ -19,7 +19,13 @@
 option(VERBOSE "Enable verbose CMake statements and compilation output" ON)
 set(CMAKE_VERBOSE_MAKEFILE ${VERBOSE})
 
-option(BUILD_SHARED_LIBS "Build shared libraries." OFF)
+if (NOT WIN32)
+  set(DEFAULT_BUILD_SHARED_LIBS ON)
+else ()
+  set(DEFAULT_BUILD_SHARED_LIBS OFF)
+endif ()
+
+option(BUILD_SHARED_LIBS "Build shared libraries." ${DEFAULT_BUILD_SHARED_LIBS})
 
 option(ENABLE_PRECOMPILED_HEADERS
   "Enable auto-generated precompiled headers using cotire" ${WIN32})
