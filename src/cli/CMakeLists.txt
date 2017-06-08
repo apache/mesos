@@ -40,4 +40,4 @@ target_link_libraries(${MESOS_EXECUTE_TARGET} ${MESOS_LIBS_TARGET})
 add_dependencies(${MESOS_TARGET} ${MESOS_EXECUTE_TARGET})
 add_dependencies(${MESOS_EXECUTE_TARGET} ${MESOS_LIBS_TARGET})
 
-endif (NOT WIN32)
+endif ()

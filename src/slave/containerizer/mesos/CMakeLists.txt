@@ -32,7 +32,7 @@ if (NOT WIN32)
     isolators/network/cni/plugins/port_mapper/main.cpp
     isolators/network/cni/plugins/port_mapper/port_mapper.cpp
     )
-endif (NOT WIN32)
+endif ()
 
 # THE CONTAINERIZER EXECUTABLE.
 ###############################
@@ -40,7 +40,7 @@ add_executable(${MESOS_CONTAINERIZER} ${CONTAINERIZER_EXECUTABLE_SRC})
 if (NOT WIN32)
   add_executable(${MESOS_IO_SWITCHBOARD} ${MESOS_IO_SWITCHBOARD_SRC})
   add_executable(${MESOS_CNI_PORT_MAPPER} ${MESOS_CNI_PORT_MAPPER_SRC})
-endif (NOT WIN32)
+endif ()
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
@@ -55,7 +55,7 @@ if (NOT WIN32)
     ${MESOS_CNI_PORT_MAPPER}
     ${AGENT_LIBS}
     ${MESOS_LIBS_TARGET})
-endif (NOT WIN32)
+endif ()
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
 ####################################################################
@@ -63,10 +63,10 @@ add_dependencies(${MESOS_TARGET} ${MESOS_CONTAINERIZER})
 if (NOT WIN32)
   add_dependencies(${MESOS_TARGET} ${MESOS_IO_SWITCHBOARD})
   add_dependencies(${MESOS_TARGET} ${MESOS_CNI_PORT_MAPPER})
-endif (NOT WIN32)
+endif ()
 
 add_dependencies(${MESOS_CONTAINERIZER} ${MESOS_LIBS_TARGET})
 if (NOT WIN32)
   add_dependencies(${MESOS_IO_SWITCHBOARD} ${MESOS_LIBS_TARGET})
   add_dependencies(${MESOS_CNI_PORT_MAPPER} ${MESOS_LIBS_TARGET})
-endif (NOT WIN32)
+endif ()

@@ -77,10 +77,10 @@ if (NOT WIN32)
     ${LEVELDB_LFLAG}
     ${SASL_LFLAG}
     )
-endif (NOT WIN32)
+endif ()
 
 if (NOT ENABLE_LIBEVENT)
   set(MASTER_LIBS ${MASTER_LIBS} ${LIBEV_LFLAG})
-elseif (ENABLE_LIBEVENT)
+else ()
   set(MASTER_LIBS ${MASTER_LIBS} ${LIBEVENT_LFLAG})
-endif (NOT ENABLE_LIBEVENT)
+endif ()

@@ -34,7 +34,7 @@ if (NOT WIN32 AND ENABLE_PRECOMPILED_HEADERS)
   message(
     FATAL_ERROR
     "Precompiled headers are only supported on Windows.  See MESOS-7322.")
-endif (NOT WIN32 AND ENABLE_PRECOMPILED_HEADERS)
+endif ()
 
 if (ENABLE_PRECOMPILED_HEADERS)
   # By default Cotire generates both precompiled headers and a "unity" build.
@@ -43,7 +43,7 @@ if (ENABLE_PRECOMPILED_HEADERS)
   # and read. We disable "unity" builds for now.
   set(COTIRE_ADD_UNITY_BUILD FALSE)
   set(COTIRE_VERBOSE ${VERBOSE})
-endif (ENABLE_PRECOMPILED_HEADERS)
+endif ()
 
 if (WIN32)
   # In MSVC 1900, there are two bugs in the linker, one that causes linking
@@ -57,8 +57,8 @@ if (WIN32)
       "The x64 toolset MUST be used. See MESOS-6720 for details. "
       "Please use `cmake -T ${PREFERRED_TOOLSET}`."
   )
-  endif (NOT CMAKE_GENERATOR_TOOLSET MATCHES ${PREFERRED_TOOLSET})
-endif (WIN32)
+  endif ()
+endif ()
 
 
 # 3RDPARTY OPTIONS.
@@ -89,7 +89,7 @@ if (WIN32 AND HAS_AUTHENTICATION)
     "Windows builds of Mesos currently do not support agent to master "
     "authentication. To build without this capability, pass "
     "`-DHAS_AUTHENTICATION=0` as an argument when you run CMake.")
-endif (WIN32 AND HAS_AUTHENTICATION)
+endif ()
 
 # If 'REBUNDLED' is set to FALSE, this will cause Mesos to build against the
 # specified dependency repository. This is especially useful for Windows
@@ -113,7 +113,7 @@ if (WIN32 AND REBUNDLED)
     "  * zlib\n"
     "do not come rebundled in the Mesos repository.  They will be downloaded from "
     "the Internet, even though the `REBUNDLED` flag was set.")
-endif (WIN32 AND REBUNDLED)
+endif ()
 
 if (WIN32 AND (NOT ENABLE_LIBEVENT))
   message(
@@ -121,13 +121,13 @@ if (WIN32 AND (NOT ENABLE_LIBEVENT))
     "Windows builds of Mesos currently do not support libev, the default event "
     "loop used by Mesos.  To opt into using libevent, pass "
     "`-DENABLE_LIBEVENT=1` as an argument when you run CMake.")
-endif (WIN32 AND (NOT ENABLE_LIBEVENT))
+endif ()
 
 if (ENABLE_SSL AND (NOT ENABLE_LIBEVENT))
   message(
     FATAL_ERROR
     "'ENABLE_SSL' currently requires 'ENABLE_LIBEVENT'.")
-endif (ENABLE_SSL AND (NOT ENABLE_LIBEVENT))
+endif ()
 
 
 # SYSTEM CHECKS.
@@ -144,7 +144,7 @@ if (NOT (CMAKE_SIZEOF_VOID_P EQUAL 8))
     "    `cmake -G \"Visual Studio 15 2017 Win64\"`.\n"
     "  * OS X: add `x86_64` to the `CMAKE_OSX_ARCHITECTURES`:\n"
     "    `cmake -DCMAKE_OSX_ARCHITECTURES=x86_64`.\n")
-endif (NOT (CMAKE_SIZEOF_VOID_P EQUAL 8))
+endif ()
 
 # Make sure C++ 11 features we need are supported.
 # This is split into two cases: Windows and "other platforms".
@@ -163,7 +163,7 @@ if (WIN32)
       "Mesos is deprecating support for ${CMAKE_GENERATOR}. "
       "Please use ${PREFERRED_GENERATOR}."
   )
-  endif (NOT CMAKE_GENERATOR MATCHES ${PREFERRED_GENERATOR})
+  endif ()
 
   # We don't support compilation against mingw headers (which, e.g., Clang on
   # Windows does at this point), because this is likely to cost us more effort
@@ -173,7 +173,7 @@ if (WIN32)
       FATAL_ERROR
       "Mesos does not support compiling on Windows with "
       "${CMAKE_CXX_COMPILER_ID}. Please use MSVC.")
-  endif (NOT CMAKE_CXX_COMPILER_ID MATCHES MSVC)
+  endif ()
 
   # MSVC 1900 supports C++11; earlier versions don't. So, warn if you try to
   # use anything else.
@@ -182,8 +182,8 @@ if (WIN32)
       FATAL_ERROR
       "Mesos does not support compiling on MSVC versions earlier than 1900. "
       "Please use MSVC 1900 (included with Visual Studio 2015 or later).")
-  endif (${MSVC_VERSION} LESS 1900)
-endif (WIN32)
+  endif ()
+endif ()
 
 
 # POSIX CONFIGURATION.
@@ -194,7 +194,7 @@ if (NOT WIN32)
       FATAL_ERROR
       "The compiler ${CMAKE_CXX_COMPILER} does not support the `-std=c++11` "
       "flag. Please use a different C++ compiler.")
-  endif (NOT COMPILER_SUPPORTS_CXX11)
+  endif ()
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
@@ -207,7 +207,7 @@ if (NOT WIN32)
   set(LIBEXEC_INSTALL_DIR     ${EXEC_INSTALL_PREFIX}/libexec)
   set(PKG_LIBEXEC_INSTALL_DIR ${LIBEXEC_INSTALL_DIR}/mesos)
   set(LIB_INSTALL_DIR         ${EXEC_INSTALL_PREFIX}/libmesos)
-endif (NOT WIN32)
+endif ()
 
 
 # LINUX CONFIGURATION.
@@ -275,7 +275,7 @@ if (WIN32)
   # [1] https://google-glog.googlecode.com/svn/trunk/doc/glog.html#windows
   # [2] https://code.google.com/p/google-glog/source/browse/trunk/src/windows/glog/logging.h?r=113
   list(APPEND MESOS_CPPFLAGS -DNOGDI -DNOMINMAX)
-endif (WIN32)
+endif ()
 
 # GLOBAL CONFIGURATION.
 #######################
@@ -285,7 +285,7 @@ if (HAS_AUTHENTICATION)
   # symbol, and our intention is to only define it if the CMake variable
   # `HAS_AUTHENTICATION` is set.
   list(APPEND MESOS_CPPFLAGS -DHAS_AUTHENTICATION=1)
-endif (HAS_AUTHENTICATION)
+endif ()
 
 # Enable the INT64 support for PicoJSON.
 # NOTE: PicoJson requires __STDC_FORMAT_MACROS to be defined before importing
@@ -303,21 +303,21 @@ list(APPEND MESOS_CPPFLAGS
 
 if (ENABLE_SSL)
   list(APPEND MESOS_CPPFLAGS -DUSE_SSL_SOCKET=1)
-endif (ENABLE_SSL)
+endif ()
 
 # Calculate some build information.
 string(TIMESTAMP BUILD_DATE "%Y-%m-%d %H:%M:%S UTC" UTC)
 if (WIN32)
   string(TIMESTAMP BUILD_TIME "%s" UTC)
   set(BUILD_USER "$ENV{USERNAME}")
-else (WIN32)
+else ()
   execute_process(
     COMMAND date +%s
     OUTPUT_VARIABLE BUILD_TIME
     OUTPUT_STRIP_TRAILING_WHITESPACE
     )
   set(BUILD_USER "$ENV{USER}")
-endif (WIN32)
+endif ()
 
 # Emit the BUILD_DATE, BUILD_TIME, and BUILD_USER variables into a file.
 # This will be updated each time `cmake` is run.

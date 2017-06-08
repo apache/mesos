@@ -18,9 +18,9 @@
 ####################
 if (NOT WIN32)
   cmake_minimum_required(VERSION 2.8.10)
-else (NOT WIN32)
+else ()
   cmake_minimum_required(VERSION 3.8.0)
-endif (NOT WIN32)
+endif ()
 
 project(Mesos)
 set(MESOS_MAJOR_VERSION 1)

@@ -20,9 +20,9 @@ include(ExternalProject)
 #############################################
 if (REBUNDLED)
   set(FETCH_URL ${CMAKE_CURRENT_SOURCE_DIR})
-else (REBUNDLED)
+else ()
   set(FETCH_URL ${3RDPARTY_DEPENDENCIES})
-endif (REBUNDLED)
+endif ()
 
 
 # DEPENDENCIES FOR THE PROCESS LIBRARY AND STOUT.
@@ -53,7 +53,7 @@ if (WIN32)
   # NOTE: The Windows version of Glog is patched and only available in the
   # 3rdparty repo, not the local repo.
   set(GLOG_URL   ${3RDPARTY_DEPENDENCIES}/glog-${GLOG_VERSION}.tar.gz)
-endif (WIN32)
+endif ()
 
 # This `CMAKE_FORWARD_ARGS` variable is sent as the `CMAKE_ARGS` argument to
 # the `ExternalProject_Add` macro (along with any per-project arguments), and
@@ -260,7 +260,7 @@ elseif (ENABLE_LIBEVENT)
     URL               ${LIBEVENT_URL}
     URL_HASH          ${LIBEVENT_HASH}
     )
-endif (NOT ENABLE_LIBEVENT)
+endif ()
 
 if (WIN32)
   ExternalProject_Add(
@@ -271,7 +271,7 @@ if (WIN32)
     URL               ${LIBAPR_URL}
     URL_HASH          ${LIBAPR_HASH}
     )
-endif (WIN32)
+endif ()
 
 
 # Windows third-party libraries. Windows has no package manager, so we download
@@ -298,7 +298,7 @@ if (WIN32)
     URL               ${ZLIB_URL}
     URL_HASH          ${ZLIB_HASH}
   )
-endif (WIN32)
+endif ()
 
 
 # DEPENDENCIES FOR THE PROCESS LIBRARY TESTS AND STOUT TESTS.
@@ -320,9 +320,9 @@ set(PROTOBUF_URL ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
 # MESOS-3250)" comment above for explanation.
 if (NOT WIN32)
   set(GOOGLETEST_INSTALL_CMD mkdir -p ${GOOGLETEST_ROOT}-lib/lib && cp -r ${GOOGLETEST_ROOT}-build/googlemock/. ${GOOGLETEST_ROOT}-lib/lib)
-elseif (WIN32)
+else ()
   set(GOOGLETEST_INSTALL_CMD ${CMAKE_NOOP})
-endif (NOT WIN32)
+endif ()
 
 ExternalProject_Add(
   ${GOOGLETEST_TARGET}
@@ -383,9 +383,9 @@ set(LEVELDB_URL   ${FETCH_URL}/leveldb-${LEVELDB_VERSION}.tar.gz)
 # 3rdparty repo, not the local repo.
 if (NOT WIN32)
   set(ZOOKEEPER_URL ${FETCH_URL}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
-elseif (WIN32)
+else ()
   set(ZOOKEEPER_URL ${3RDPARTY_DEPENDENCIES}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
-endif (NOT WIN32)
+endif ()
 
 
 # Third-party libraries. Tell the build system how to pull in and build third-
@@ -454,4 +454,4 @@ if (NOT WIN32)
     URL               ${LEVELDB_URL}
     URL_HASH          ${LEVELDB_HASH}
     )
-endif (NOT WIN32)
+endif ()

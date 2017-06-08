@@ -22,7 +22,7 @@ set(MESOS_3RDPARTY_BIN ${CMAKE_BINARY_DIR}/3rdparty)
 if (NOT WIN32)
   # LevelDB does not build on Windows.
   EXTERNAL("leveldb" ${LEVELDB_VERSION} "${MESOS_3RDPARTY_BIN}")
-endif (NOT WIN32)
+endif ()
 
 EXTERNAL("zookeeper" ${ZOOKEEPER_VERSION} "${MESOS_3RDPARTY_BIN}")
 
@@ -38,9 +38,9 @@ set(ZOOKEEPER_INCLUDE_DIR ${ZOOKEEPER_C_ROOT}/include)
 # Convenience variables for `lib` directories of built third-party dependencies.
 if (NOT WIN32)
   set(ZOOKEEPER_LIB_DIR ${ZOOKEEPER_LIB})
-else (NOT WIN32)
+else ()
   set(ZOOKEEPER_LIB_DIR ${ZOOKEEPER_ROOT}-build)
-endif (NOT WIN32)
+endif ()
 
 # Convenience variables for "lflags", the symbols we pass to CMake to generate
 # things like `-L/path/to/glog` or `-lglog`.
@@ -52,9 +52,9 @@ if (NOT WIN32)
   else ()
     set(ZOOKEEPER_LFLAG ${ZOOKEEPER_LIB}/lib/libzookeeper_mt.a)
   endif ()
-else (NOT WIN32)
+else ()
   set(ZOOKEEPER_LFLAG zookeeper hashtable)
-endif (NOT WIN32)
+endif ()
 
 # Configure Windows use of the GNU patch utility;
 # we attempt to find it in its default location,
@@ -82,7 +82,7 @@ if (WIN32)
       "to apply updates. You may get it from "
       "http://gnuwin32.sourceforge.net/packages/patch.htm"
       )
-  else (NOT EXISTS ${GNUWIN32_PATCH_EXECUTABLE})
+  else ()
     message(
       STATUS
       "GnuWin32 patch.exe exists at: "
@@ -126,5 +126,5 @@ if (WIN32)
     add_custom_command(
       OUTPUT   patch.exe
       COMMAND  ${APPLY_PATCH_MANIFEST_COMMAND})
-  endif (NOT EXISTS ${GNUWIN32_PATCH_EXECUTABLE})
-endif (WIN32)
+  endif ()
+endif ()

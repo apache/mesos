@@ -32,7 +32,7 @@ if (NOT WIN32)
   set(GLOG_HASH         "SHA256=FBF90C2285BA0561DB7A40F8A4EEFB9AA963E7D399BD450363E959929FE849D0")
   set(ZOOKEEPER_VERSION "3.4.8")
   set(ZOOKEEPER_HASH    "SHA256=F10A0B51F45C4F64C1FE69EF713ABF9EB9571BC7385A82DA892E83BB6C965E90")
-else (NOT WIN32)
+else ()
   # TODO(hausdorff): (MESOS-3394) Upgrade Windows to use glog v0.3.5 when they
   # release it, as that will contain fixes that will allow us to build glog on
   # Windows, as well as build using CMake directly. For now, we simply point
@@ -45,4 +45,4 @@ else (NOT WIN32)
   # pick a recent commit that does until the next release stabilizes.
   set(ZOOKEEPER_VERSION "3.5.2-alpha")
   set(ZOOKEEPER_HASH    "SHA256=E4997EE78AAB27628876BCB7BA7FCE8369BA162B1F50D9270A0ED865D11B8310")
-endif (NOT WIN32)
+endif ()

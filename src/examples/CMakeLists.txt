@@ -66,7 +66,7 @@ if (NOT WIN32)
   add_library(${TEST_MASTER_DETECTOR}    SHARED EXCLUDE_FROM_ALL ${TEST_MASTER_DETECTOR_SRC})
   add_library(${TEST_QOS_CONTROLLER}     SHARED EXCLUDE_FROM_ALL ${TEST_QOS_CONTROLLER_SRC})
   add_library(${TEST_RESOURCE_ESTIMATOR} SHARED EXCLUDE_FROM_ALL ${TEST_RESOURCE_ESTIMATOR_SRC})
-endif (NOT WIN32)
+endif ()
 
 
 # Build the example frameworks and executors.
@@ -87,7 +87,7 @@ if (NOT WIN32)
   add_executable(${TEST_FRAMEWORK}                ${TEST_FRAMEWORK_SRC})
   add_executable(${TEST_HTTP_EXECUTOR}            ${TEST_HTTP_EXECUTOR_SRC})
   add_executable(${TEST_HTTP_FRAMEWORK}           ${TEST_HTTP_FRAMEWORK_SRC})
-endif (NOT WIN32)
+endif ()
 
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
@@ -121,7 +121,7 @@ if (NOT WIN32)
   target_link_libraries(${TEST_FRAMEWORK}                ${MESOS_LIBS_TARGET})
   target_link_libraries(${TEST_HTTP_EXECUTOR}            ${MESOS_LIBS_TARGET})
   target_link_libraries(${TEST_HTTP_FRAMEWORK}           ${MESOS_LIBS_TARGET})
-endif (NOT WIN32)
+endif ()
 
 
 # ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
@@ -155,4 +155,4 @@ if (NOT WIN32)
   add_dependencies(${TEST_FRAMEWORK}                ${MESOS_LIBS_TARGET})
   add_dependencies(${TEST_HTTP_EXECUTOR}            ${MESOS_LIBS_TARGET})
   add_dependencies(${TEST_HTTP_FRAMEWORK}           ${MESOS_LIBS_TARGET})
-endif (NOT WIN32)
+endif ()

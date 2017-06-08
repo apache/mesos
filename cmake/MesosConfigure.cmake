@@ -137,7 +137,7 @@ if (NOT WIN32)
   set(
     MESOS_CNI_PORT_MAPPER mesos-cni-port-mapper
     CACHE STRING "Target for the CNI port-mapper plugin")
-endif (NOT WIN32)
+endif ()
 
 set(
   MESOS_MASTER mesos-master
@@ -202,6 +202,6 @@ if (NOT WIN32)
     file(COPY "${CMAKE_BINARY_DIR}/bin/tmp/${OUTPUT_BIN_FILE}"
       DESTINATION "${CMAKE_BINARY_DIR}/bin"
       FILE_PERMISSIONS WORLD_EXECUTE OWNER_READ OWNER_WRITE)
-  endforeach (BIN_FILE)
+  endforeach ()
   file(REMOVE_RECURSE "${CMAKE_BINARY_DIR}/bin/tmp")
-endif (NOT WIN32)
+endif ()
