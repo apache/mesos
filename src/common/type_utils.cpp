@@ -660,20 +660,6 @@ ostream& operator<<(ostream& stream, const TaskState& state)
 }
 
 
-ostream& operator<<(ostream& stream, const vector<TaskID>& taskIds)
-{
-  stream << "[ ";
-  for (auto it = taskIds.begin(); it != taskIds.end(); ++it) {
-    if (it != taskIds.begin()) {
-      stream << ", ";
-    }
-    stream << *it;
-  }
-  stream << " ]";
-  return stream;
-}
-
-
 ostream& operator<<(ostream& stream, const CheckInfo::Type& type)
 {
   return stream << CheckInfo::Type_Name(type);

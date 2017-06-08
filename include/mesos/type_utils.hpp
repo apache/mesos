@@ -343,11 +343,6 @@ std::ostream& operator<<(std::ostream& stream, const TaskInfo& task);
 std::ostream& operator<<(std::ostream& stream, const TaskState& state);
 
 
-std::ostream& operator<<(
-    std::ostream& stream,
-    const std::vector<TaskID>& taskIds);
-
-
 std::ostream& operator<<(std::ostream& stream, const CheckInfo::Type& type);
 
 
@@ -366,6 +361,23 @@ template <typename T>
 inline std::ostream& operator<<(
     std::ostream& stream,
     const google::protobuf::RepeatedPtrField<T>& messages)
+{
+  stream << "[ ";
+  for (auto it = messages.begin(); it != messages.end(); ++it) {
+    if (it != messages.begin()) {
+      stream << ", ";
+    }
+    stream << *it;
+  }
+  stream << " ]";
+  return stream;
+}
+
+
+template <typename T>
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const std::vector<T>& messages)
 {
   stream << "[ ";
   for (auto it = messages.begin(); it != messages.end(); ++it) {
