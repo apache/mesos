@@ -212,10 +212,12 @@ TEST_F(MetricsTest, THREADSAFE_Snapshot)
 
   Gauge gauge("test/gauge", defer(pid, &GaugeProcess::get));
   Gauge gaugeFail("test/gauge_fail", defer(pid, &GaugeProcess::fail));
+  Gauge gaugeConst("test/gauge_const", []() { return 99.0; });
   Counter counter("test/counter");
 
   AWAIT_READY(metrics::add(gauge));
   AWAIT_READY(metrics::add(gaugeFail));
+  AWAIT_READY(metrics::add(gaugeConst));
   AWAIT_READY(metrics::add(counter));
 
   // Advance the clock to avoid rate limit.
@@ -238,11 +240,16 @@ TEST_F(MetricsTest, THREADSAFE_Snapshot)
   EXPECT_EQ(1u, values.count("test/gauge"));
   EXPECT_FLOAT_EQ(42.0, values["test/gauge"].as<JSON::Number>().as<double>());
 
+  EXPECT_EQ(1u, values.count("test/gauge_const"));
+  EXPECT_FLOAT_EQ(
+      99.0, values["test/gauge_const"].as<JSON::Number>().as<double>());
+
   EXPECT_EQ(0u, values.count("test/gauge_fail"));
 
   // Remove the metrics and ensure they are no longer in the snapshot.
   AWAIT_READY(metrics::remove(gauge));
   AWAIT_READY(metrics::remove(gaugeFail));
+  AWAIT_READY(metrics::remove(gaugeConst));
   AWAIT_READY(metrics::remove(counter));
 
   // Advance the clock to avoid rate limit.
@@ -263,6 +270,7 @@ TEST_F(MetricsTest, THREADSAFE_Snapshot)
   EXPECT_EQ(0u, values.count("test/counter"));
   EXPECT_EQ(0u, values.count("test/gauge"));
   EXPECT_EQ(0u, values.count("test/gauge_fail"));
+  EXPECT_EQ(0u, values.count("test/gauge_const"));
 
   terminate(process);
   wait(process);

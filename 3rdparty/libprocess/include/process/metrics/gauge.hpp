@@ -13,10 +13,9 @@
 #ifndef __PROCESS_METRICS_GAUGE_HPP__
 #define __PROCESS_METRICS_GAUGE_HPP__
 
+#include <functional>
 #include <memory>
 #include <string>
-
-#include <process/defer.hpp>
 
 #include <process/metrics/metric.hpp>
 
@@ -30,8 +29,12 @@ class Gauge : public Metric
 public:
   // 'name' is the unique name for the instance of Gauge being constructed.
   // It will be the key exposed in the JSON endpoint.
-  // 'f' is the deferred object called when the Metric value is requested.
-  Gauge(const std::string& name, const Deferred<Future<double>()>& f)
+  //
+  // 'f' is the function that is called when the Metric value is requested.
+  // The user of `Gauge` must ensure that `f` is safe to execute up until
+  // the removal of the `Gauge` (via `process::metrics::remove(...)`) is
+  // complete.
+  Gauge(const std::string& name, const std::function<Future<double>()>& f)
     : Metric(name, None()), data(new Data(f)) {}
 
   virtual ~Gauge() {}
@@ -41,9 +44,9 @@ public:
 private:
   struct Data
   {
-    explicit Data(const Deferred<Future<double>()>& _f) : f(_f) {}
+    explicit Data(const std::function<Future<double>()>& _f) : f(_f) {}
 
-    const Deferred<Future<double>()> f;
+    const std::function<Future<double>()> f;
   };
 
   std::shared_ptr<Data> data;
