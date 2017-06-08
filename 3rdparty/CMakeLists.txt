@@ -55,6 +55,40 @@ if (WIN32)
   set(GLOG_URL   ${3RDPARTY_DEPENDENCIES}/glog-${GLOG_VERSION}.tar.gz)
 endif (WIN32)
 
+# This `CMAKE_FORWARD_ARGS` variable is sent as the `CMAKE_ARGS` argument to
+# the `ExternalProject_Add` macro (along with any per-project arguments), and
+# is used when the external project is configured as a CMake project.
+# If either the `CONFIGURE_COMMAND` or `BUILD_COMMAND` arguments of
+# `ExternalProject_Add` are used, then the `CMAKE_ARGS` argument will be
+# ignored.
+#
+# NOTE: The CMAKE_GENERATOR_TOOLSET is impliticly set by `ExternalProject_Add`,
+# and cannot be included twice.
+list(APPEND CMAKE_FORWARD_ARGS
+  # TODO(andschwa): Set the CMAKE_GENERATOR explicitly as an argmuent to
+  # `ExternalProject_Add`.
+  -G${CMAKE_GENERATOR}
+
+  -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
+  )
+
+# This only matters for single-configuration generators.
+# E.g. Makefile, but not Visual Studio.
+if (NOT "${CMAKE_BUILD_TYPE}" STREQUAL "")
+  list(APPEND CMAKE_FORWARD_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})
+endif ()
+
+foreach (lang C CXX)
+  list(APPEND CMAKE_FORWARD_ARGS
+    -DCMAKE_${lang}_FLAGS=${CMAKE_${lang}_FLAGS}
+    )
+
+  foreach (config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
+    list(APPEND CMAKE_FORWARD_ARGS
+      -DCMAKE_${lang}_FLAGS_${config}=${CMAKE_${lang}_FLAGS_${config}}
+      )
+  endforeach ()
+endforeach ()
 
 # Define build/patch/configure commands for third-party libs.
 #############################################################
@@ -205,6 +239,7 @@ ExternalProject_Add(
   PREFIX            ${HTTP_PARSER_CMAKE_ROOT}
   UPDATE_COMMAND    ${HTTP_PARSER_UPDATE_CMD}
   PATCH_COMMAND     ${HTTP_PARSER_PATCH_CMD}
+  CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${HTTP_PARSER_URL}
   URL_HASH          ${HTTP_PARSER_HASH}
@@ -215,6 +250,7 @@ if (NOT ENABLE_LIBEVENT)
     ${LIBEV_TARGET}
     PREFIX            ${LIBEV_CMAKE_ROOT}
     PATCH_COMMAND     ${LIBEV_PATCH_CMD}
+    CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
     CONFIGURE_COMMAND ${LIBEV_CONFIG_CMD}
     BUILD_COMMAND     ${LIBEV_BUILD_CMD}
     INSTALL_COMMAND   ${LIBEV_INSTALL_CMD}
