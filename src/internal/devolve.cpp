@@ -166,6 +166,18 @@ executor::Event devolve(const v1::executor::Event& event)
 }
 
 
+resource_provider::Call devolve(const v1::resource_provider::Call& call)
+{
+  return devolve<resource_provider::Call>(call);
+}
+
+
+resource_provider::Event devolve(const v1::resource_provider::Event& event)
+{
+  return devolve<resource_provider::Event>(event);
+}
+
+
 scheduler::Call devolve(const v1::scheduler::Call& call)
 {
   return devolve<scheduler::Call>(call);
