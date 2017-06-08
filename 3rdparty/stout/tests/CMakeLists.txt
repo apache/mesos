@@ -61,7 +61,7 @@ if (NOT WIN32)
     protobuf_tests.pb.cc
     svn_tests.cpp
     )
-endif (NOT WIN32)
+endif ()
 
 set(STOUT_OS_TESTS_SRC
   ${STOUT_OS_TESTS_SRC}
@@ -80,11 +80,11 @@ if (NOT WIN32)
     os/sendfile_tests.cpp
     os/signals_tests.cpp
     )
-endif (NOT WIN32)
+endif ()
 
 if (LINUX)
   set(STOUT_ROOT_TESTS_SRC ${STOUT_ROOT_TESTS_SRC} proc_tests.cpp)
-endif (LINUX)
+endif ()
 
 set(STOUT_TESTS_SRC
   ${STOUT_TESTS_SRC}

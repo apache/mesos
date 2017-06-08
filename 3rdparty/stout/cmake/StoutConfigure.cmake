@@ -25,7 +25,7 @@ if (NOT WIN32)
   # way is sure to be more hackish.
   find_package(Apr REQUIRED)
   find_package(Svn REQUIRED)
-endif (NOT WIN32)
+endif ()
 
 include(GroupSource)
 
@@ -45,7 +45,7 @@ macro(GROUP_STOUT_HEADERS)
     "${STOUT_INCLUDE_DIR}/stout"
     "${STOUT_INCLUDE_DIR}/stout"
     "*.h*")
-endmacro(GROUP_STOUT_HEADERS)
+endmacro()
 
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
@@ -66,7 +66,7 @@ if (WIN32)
     ${CURL_TARGET}
     ${ZLIB_TARGET}
     )
-endif (WIN32)
+endif ()
 
 # DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux).
@@ -89,7 +89,7 @@ if (WIN32)
     ${CURL_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIR}
     )
-endif (WIN32)
+endif ()
 
 set(STOUT_INCLUDE_DIRS
   ${STOUT_INCLUDE_DIRS}
@@ -112,7 +112,7 @@ if (WIN32)
     ${CURL_LIB_DIR}
     ${ZLIB_LIB_DIR}
     )
-endif (WIN32)
+endif ()
 
 # DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
 # include our third-party libs (e.g., -lglog on Linux).
@@ -135,13 +135,13 @@ if (WIN32)
     Mswsock
     Secur32
     )
-else (WIN32)
+else ()
   set(STOUT_LIBS
     ${STOUT_LIBS}
     ${DL_LFLAG}
     apr-1
     )
-endif (WIN32)
+endif ()
 
 # TODO(hausdorff): The `LINUX` flag comes from MesosConfigure; when we
 # port the bootstrap script to CMake, we should also copy this logic
@@ -149,4 +149,4 @@ endif (WIN32)
 # individually.
 if (LINUX)
   set(STOUT_LIBS ${STOUT_LIBS} rt)
-endif (LINUX)
+endif ()

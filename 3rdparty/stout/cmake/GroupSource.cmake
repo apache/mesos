@@ -106,5 +106,5 @@ function(GROUP_SOURCE GROUP_NAME ROOT_DIRECTORY RELATIVE_TO SOURCE_PATTERN)
       )
 
     source_group(${SOURCE_GROUP} FILES ${SOURCE_GROUP_FILES})
-  endforeach (SOURCE_FILE)
-endfunction(GROUP_SOURCE)
+  endforeach ()
+endfunction()

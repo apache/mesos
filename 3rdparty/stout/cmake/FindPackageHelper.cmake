@@ -36,7 +36,7 @@ function(FIND_PACKAGE_HELPER PACKAGE_NAME HEADER_FILE)
   # Return early if the package has already been found.
   if (${PACKAGE_NAME}_FOUND)
     return()
-  endif (${PACKAGE_NAME}_FOUND)
+  endif ()
 
   # Put the return variables in a known state (empty).
   unset(${PACKAGE_NAME}_INCLUDE_DIR)
@@ -60,7 +60,7 @@ function(FIND_PACKAGE_HELPER PACKAGE_NAME HEADER_FILE)
   # Error out if the header is not found.
   if (NOT ${${PACKAGE_NAME}_INCLUDE_DIR_FOUND})
     message(FATAL_ERROR "Could not find ${PACKAGE_NAME} header ${HEADER_FILE}")
-  endif (NOT ${${PACKAGE_NAME}_INCLUDE_DIR_FOUND})
+  endif ()
 
   # Search for all the libraries in the possible library directories.
   foreach (LIBRARY_NAME ${${PACKAGE_NAME}_LIBRARY_NAMES})
@@ -87,10 +87,10 @@ function(FIND_PACKAGE_HELPER PACKAGE_NAME HEADER_FILE)
     # Error out if any of the libraries are not found.
     if (NOT ${${PACKAGE_NAME}_LIB_PATH_FOUND})
       message(FATAL_ERROR "Could not find ${PACKAGE_NAME} library ${LIBRARY_NAME}")
-    endif (NOT ${${PACKAGE_NAME}_LIB_PATH_FOUND})
+    endif ()
 
     list(APPEND ${PACKAGE_NAME}_LIBS ${${PACKAGE_NAME}_LIB_PATH})
-  endforeach (LIBRARY_NAME ${PACKAGE_NAME}_LIBRARY_NAMES)
+  endforeach ()
 
   set(${PACKAGE_NAME}_FOUND 1 PARENT_SCOPE)
   message(STATUS "Found ${PACKAGE_NAME} library: ${${PACKAGE_NAME}_LIBS}")
