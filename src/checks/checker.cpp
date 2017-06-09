@@ -174,6 +174,7 @@ Checker::Checker(
           _agentURL,
           _authorizationHeader,
           None(),
+          name,
           _commandCheckViaAgent));
 
   spawn(process.get());

@@ -272,6 +272,7 @@ HealthChecker::HealthChecker(
           agentURL,
           authorizationHeader,
           scheme,
+          name,
           commandCheckViaAgent));
 
   spawn(process.get());

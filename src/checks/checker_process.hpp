@@ -54,6 +54,7 @@ public:
       const Option<process::http::URL>& _agentURL,
       const Option<std::string>& _authorizationHeader,
       const Option<std::string>& _scheme,
+      const std::string& _name,
       bool _commandCheckViaAgent);
 
   void pause();
@@ -136,6 +137,7 @@ private:
   const Option<std::string> authorizationHeader;
   const Option<std::string> scheme;
   const bool commandCheckViaAgent;
+  const std::string name;
 
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
 

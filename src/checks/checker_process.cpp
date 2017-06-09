@@ -137,6 +137,7 @@ CheckerProcess::CheckerProcess(
     const Option<http::URL>& _agentURL,
     const Option<string>& _authorizationHeader,
     const Option<string>& _scheme,
+    const std::string& _name,
     bool _commandCheckViaAgent)
   : ProcessBase(process::ID::generate("checker")),
     check(_check),
@@ -150,6 +151,7 @@ CheckerProcess::CheckerProcess(
     authorizationHeader(_authorizationHeader),
     scheme(_scheme),
     commandCheckViaAgent(_commandCheckViaAgent),
+    name(_name),
     paused(false)
 {
   Try<Duration> create = Duration::create(check.delay_seconds());
@@ -182,7 +184,7 @@ void CheckerProcess::initialize()
 
 void CheckerProcess::finalize()
 {
-  LOG(INFO) << "Checking for task '" << taskId << "' stopped";
+  LOG(INFO) << "Stopped " << name << " for task '" << taskId << "'";
 }
 
 
@@ -231,7 +233,8 @@ void CheckerProcess::scheduleNext(const Duration& duration)
 {
   CHECK(!paused);
 
-  VLOG(1) << "Scheduling check for task '" << taskId << "' in " << duration;
+  VLOG(1) << "Scheduling " << name << " for task '" << taskId << "' in "
+          << duration;
 
   delay(duration, self(), &Self::performCheck);
 }
@@ -240,7 +243,7 @@ void CheckerProcess::scheduleNext(const Duration& duration)
 void CheckerProcess::pause()
 {
   if (!paused) {
-    VLOG(1) << "Checking for task '" << taskId << "' paused";
+    VLOG(1) << "Paused " << name << " for task '" << taskId << "'";
 
     paused = true;
   }
@@ -250,7 +253,7 @@ void CheckerProcess::pause()
 void CheckerProcess::resume()
 {
   if (paused) {
-    VLOG(1) << "Checking for task '" << taskId << "' resumed";
+    VLOG(1) << "Resumed " << name << " for task '" << taskId << "'";
 
     paused = false;
 
@@ -265,7 +268,7 @@ void CheckerProcess::processCheckResult(
 {
   // `Checker` might have been paused while performing the check.
   if (paused) {
-    LOG(INFO) << "Ignoring " << check.type() << " check result for"
+    LOG(INFO) << "Ignoring " << name << " result for"
               << " task '" << taskId << "': checking is paused";
     return;
   }
@@ -279,8 +282,8 @@ void CheckerProcess::processCheckResult(
   //     failure will be silently ignored.
   if (result.isSome()) {
     // It was possible to perform the check.
-    VLOG(1) << "Performed " << check.type() << " check"
-            << " for task '" << taskId << "' in " << stopwatch.elapsed();
+    VLOG(1) << "Performed " << name << " for task '" << taskId << "' in "
+            << stopwatch.elapsed();
 
     updateCallback(result.get());
   } else if (result.isError()) {
@@ -314,7 +317,7 @@ Future<int> CheckerProcess::commandCheck()
 
   if (command.shell()) {
     // Use the shell variant.
-    VLOG(1) << "Launching COMMAND check '" << command.value() << "'"
+    VLOG(1) << "Launching " << name << " '" << command.value() << "'"
             << " for task '" << taskId << "'";
 
     s = process::subprocess(
@@ -329,7 +332,7 @@ Future<int> CheckerProcess::commandCheck()
     vector<string> argv(
         std::begin(command.arguments()), std::end(command.arguments()));
 
-    VLOG(1) << "Launching COMMAND check [" << command.value() << ", "
+    VLOG(1) << "Launching " << name << " [" << command.value() << ", "
             << strings::join(", ", argv) << "] for task '" << taskId << "'";
 
     s = process::subprocess(
@@ -350,18 +353,20 @@ Future<int> CheckerProcess::commandCheck()
   // TODO(alexr): Use lambda named captures for
   // these cached values once it is available.
   const pid_t commandPid = s->pid();
+  const string _name = name;
   const Duration timeout = checkTimeout;
   const TaskID _taskId = taskId;
 
   return s->status()
     .after(
         timeout,
-        [timeout, commandPid, _taskId](Future<Option<int>> future) {
+        [timeout, commandPid, _name, _taskId](Future<Option<int>> future)
+    {
       future.discard();
 
       if (commandPid != -1) {
         // Cleanup the external command process.
-        VLOG(1) << "Killing the COMMAND check process '" << commandPid
+        VLOG(1) << "Killing the " << _name << " process '" << commandPid
                 << "' for task '" << _taskId << "'";
 
         os::killtree(commandPid, SIGKILL);
@@ -386,7 +391,7 @@ Future<int> CheckerProcess::nestedCommandCheck()
   CHECK_SOME(taskContainerId);
   CHECK_SOME(agentURL);
 
-  VLOG(1) << "Launching COMMAND check for task '" << taskId << "'";
+  VLOG(1) << "Launching " << name << " for task '" << taskId << "'";
 
   // We don't want recoverable errors, e.g., the agent responding with
   // HTTP status code 503, to trigger a check failure.
@@ -422,9 +427,9 @@ Future<int> CheckerProcess::nestedCommandCheck()
       .onFailed(defer(self(),
                       [this, promise](const string& failure) {
         LOG(WARNING) << "Connection to remove the nested container '"
-                     << previousCheckContainerId.get()
-                     << "' used for the COMMAND check for task '"
-                     << taskId << "' failed: " << failure;
+                     << previousCheckContainerId.get() << "' used for the "
+                     << name << " for task '" << taskId << "' failed: "
+                     << failure;
 
         // Something went wrong while sending the request, we treat this
         // as a transient failure and discard the promise.
@@ -437,7 +442,7 @@ Future<int> CheckerProcess::nestedCommandCheck()
           LOG(WARNING) << "Received '" << response.status << "' ("
                        << response.body << ") while removing the nested"
                        << " container '" << previousCheckContainerId.get()
-                       << "' used for the COMMAND check for task '"
+                       << "' used for the " << name << " for task '"
                        << taskId << "'";
 
           promise->discard();
@@ -456,14 +461,15 @@ Future<int> CheckerProcess::nestedCommandCheck()
 
 void CheckerProcess::_nestedCommandCheck(shared_ptr<Promise<int>> promise)
 {
-  // TODO(alexr): Use a lambda named capture for
-  // this cached value once it is available.
+  // TODO(alexr): Use lambda named captures for
+  // these cached values once they are available.
   const TaskID _taskId = taskId;
+  const string _name = name;
 
   http::connect(agentURL.get())
-    .onFailed(defer(self(), [_taskId, promise](const string& failure) {
-      LOG(WARNING) << "Unable to establish connection with the agent to launch"
-                   << " COMMAND check for task '" << _taskId << "'"
+    .onFailed(defer(self(), [_taskId, _name, promise](const string& failure) {
+      LOG(WARNING) << "Unable to establish connection with the agent to launch "
+                   << _name << " for task '" << _taskId << "'"
                    << ": " << failure;
 
       // We treat this as a transient failure.
@@ -557,7 +563,7 @@ void CheckerProcess::___nestedCommandCheck(
     // The agent was unable to launch the check container,
     // we treat this as a transient failure.
     LOG(WARNING) << "Received '" << launchResponse.status << "' ("
-                 << launchResponse.body << ") while launching COMMAND check"
+                 << launchResponse.body << ") while launching " << name
                  << " for task '" << taskId << "'";
 
     promise->discard();
@@ -623,7 +629,7 @@ void CheckerProcess::nestedCommandCheckFailure(
     // This will allow us to recover from a blip. The executor will
     // pause the checker when it detects that the agent is not
     // available.
-    LOG(WARNING) << "Connection to the agent to launch COMMAND check"
+    LOG(WARNING) << "Connection to the agent to launch " << name
                  << " for task '" << taskId << "' failed: " << failure;
 
     promise->discard();
@@ -653,10 +659,14 @@ Future<Option<int>> CheckerProcess::waitNestedContainer(
     request.headers["Authorization"] = authorizationHeader.get();
   }
 
+  // TODO(alexr): Use a lambda named capture for
+  // this cached value once it is available.
+  const string _name = name;
+
   return http::request(request, false)
-    .repair([containerId](const Future<http::Response>& future) {
+    .repair([containerId, _name](const Future<http::Response>& future) {
       return Failure(
-          "Connection to wait for check container '" +
+          "Connection to wait for " + _name + " container '" +
           stringify(containerId) + "' failed: " + future.failure());
     })
     .then(defer(self(),
@@ -671,7 +681,8 @@ Future<Option<int>> CheckerProcess::_waitNestedContainer(
   if (httpResponse.code != http::Status::OK) {
     return Failure(
         "Received '" + httpResponse.status + "' (" + httpResponse.body +
-        ") while waiting on check container '" + stringify(containerId) + "'");
+        ") while waiting on " + name + " container '" +
+        stringify(containerId) + "'");
   }
 
   Try<agent::Response> response =
@@ -703,7 +714,7 @@ void CheckerProcess::processCommandCheckResult(
   // see MESOS-7242.
   if (future.isReady() && WIFEXITED(future.get())) {
     const int exitCode = WEXITSTATUS(future.get());
-    VLOG(1) << check.type() << " check for task '" << taskId << "'"
+    VLOG(1) << name << " for task '" << taskId << "'"
             << " returned: " << exitCode;
 
     CheckStatusInfo checkStatusInfo;
@@ -737,7 +748,8 @@ Future<int> CheckerProcess::httpCheck()
   const string url = _scheme + "://" + DEFAULT_DOMAIN + ":" +
                      stringify(http.port()) + path;
 
-  VLOG(1) << "Launching HTTP check '" << url << "' for task '" << taskId << "'";
+  VLOG(1) << "Launching " << name << " '" << url << "'"
+          << " for task '" << taskId << "'";
 
   const vector<string> argv = {
     HTTP_CHECK_COMMAND,
@@ -771,6 +783,7 @@ Future<int> CheckerProcess::httpCheck()
   // TODO(alexr): Use lambda named captures for
   // these cached values once it is available.
   const pid_t curlPid = s->pid();
+  const string _name = name;
   const Duration timeout = checkTimeout;
   const TaskID _taskId = taskId;
 
@@ -780,14 +793,15 @@ Future<int> CheckerProcess::httpCheck()
       process::io::read(s->err().get()))
     .after(
         timeout,
-        [timeout, curlPid, _taskId](Future<tuple<Future<Option<int>>,
-                                                 Future<string>,
-                                                 Future<string>>> future) {
+        [timeout, curlPid, _name, _taskId](Future<tuple<Future<Option<int>>,
+                                                        Future<string>,
+                                                        Future<string>>> future)
+    {
       future.discard();
 
       if (curlPid != -1) {
         // Cleanup the HTTP_CHECK_COMMAND process.
-        VLOG(1) << "Killing the HTTP check process " << curlPid
+        VLOG(1) << "Killing the " << _name << " process " << curlPid
                 << " for task '" << _taskId << "'";
 
         os::killtree(curlPid, SIGKILL);
@@ -859,7 +873,7 @@ void CheckerProcess::processHttpCheckResult(
   Result<CheckStatusInfo> result = None();
 
   if (future.isReady()) {
-    VLOG(1) << check.type() << " check for task '"
+    VLOG(1) << name << " for task '"
             << taskId << "' returned: " << future.get();
 
     CheckStatusInfo checkStatusInfo;
@@ -891,8 +905,8 @@ Future<bool> CheckerProcess::tcpCheck()
 
   const CheckInfo::Tcp& tcp = check.tcp();
 
-  VLOG(1) << "Launching TCP check for task '" << taskId << "' at port "
-          << tcp.port();
+  VLOG(1) << "Launching " << name << " for task '" << taskId << "'"
+          << " at port " << tcp.port();
 
   const string command = path::join(launcherDir, TCP_CHECK_COMMAND);
 
@@ -922,6 +936,7 @@ Future<bool> CheckerProcess::tcpCheck()
   // TODO(alexr): Use lambda named captures for
   // these cached values once they are available.
   pid_t commandPid = s->pid();
+  const string _name = name;
   const Duration timeout = checkTimeout;
   const TaskID _taskId = taskId;
 
@@ -930,16 +945,16 @@ Future<bool> CheckerProcess::tcpCheck()
       process::io::read(s->out().get()),
       process::io::read(s->err().get()))
     .after(
-        timeout,
-        [timeout, commandPid, _taskId](Future<tuple<Future<Option<int>>,
-                                                    Future<string>,
-                                                    Future<string>>> future)
+        timeout, [timeout, commandPid, _name, _taskId](
+            Future<tuple<Future<Option<int>>,
+            Future<string>,
+            Future<string>>> future)
     {
       future.discard();
 
       if (commandPid != -1) {
         // Cleanup the TCP_CHECK_COMMAND process.
-        VLOG(1) << "Killing the TCP check process " << commandPid
+        VLOG(1) << "Killing the " << _name << " process " << commandPid
                 << " for task '" << _taskId << "'";
 
         os::killtree(commandPid, SIGKILL);
@@ -998,8 +1013,8 @@ void CheckerProcess::processTcpCheckResult(
   Result<CheckStatusInfo> result = None();
 
   if (future.isReady()) {
-    VLOG(1) << check.type() << " check for task '"
-            << taskId << "' returned: " << stringify(future.get());
+    VLOG(1) << name << " for task '" << taskId << "'"
+            << " returned: " << stringify(future.get());
 
     CheckStatusInfo checkStatusInfo;
     checkStatusInfo.set_type(check.type());
