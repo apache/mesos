@@ -17,33 +17,25 @@
 #ifndef __HEALTH_CHECKER_HPP__
 #define __HEALTH_CHECKER_HPP__
 
-#include <memory>
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include <mesos/mesos.hpp>
 
-#include <process/future.hpp>
+#include <process/http.hpp>
 #include <process/owned.hpp>
-#include <process/pid.hpp>
-#include <process/process.hpp>
-#include <process/protobuf.hpp>
-#include <process/time.hpp>
 
-#include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/lambda.hpp>
-#include <stout/nothing.hpp>
-#include <stout/stopwatch.hpp>
+#include <stout/option.hpp>
+
+#include "checker_process.hpp"
 
 #include "messages/messages.hpp"
 
 namespace mesos {
 namespace internal {
 namespace checks {
-
-// Forward declarations.
-class HealthCheckerProcess;
 
 class HealthChecker
 {
@@ -53,9 +45,9 @@ public:
    * checking starts immediately after initialization.
    *
    * If the check is a command health check, the checker will fork a process,
-   * enter the task's namespaces, and execute the commmand.
+   * enter the task's namespaces, and execute the command.
    *
-   * @param check The protobuf message definition of health check.
+   * @param healthCheck The protobuf message definition of health check.
    * @param launcherDir A directory where Mesos helper binaries are located.
    * @param callback A callback HealthChecker uses to send health status
    *     updates to its owner (usually an executor).
@@ -73,7 +65,7 @@ public:
    * This class will then focus on interpreting and acting on the result.
    */
   static Try<process::Owned<HealthChecker>> create(
-      const HealthCheck& check,
+      const HealthCheck& healthCheck,
       const std::string& launcherDir,
       const lambda::function<void(const TaskHealthStatus&)>& callback,
       const TaskID& taskId,
@@ -88,7 +80,7 @@ public:
    * execution of the check to the Mesos agent via the
    * `LaunchNestedContainerSession` API call.
    *
-   * @param check The protobuf message definition of health check.
+   * @param healthCheck The protobuf message definition of health check.
    * @param launcherDir A directory where Mesos helper binaries are located.
    * @param callback A callback HealthChecker uses to send health status
    *     updates to its owner (usually an executor).
@@ -103,7 +95,7 @@ public:
    * `process::Stream<TaskHealthStatus>` rather than invoking a callback.
    */
   static Try<process::Owned<HealthChecker>> create(
-      const HealthCheck& check,
+      const HealthCheck& healthCheck,
       const std::string& launcherDir,
       const lambda::function<void(const TaskHealthStatus&)>& callback,
       const TaskID& taskId,
@@ -119,131 +111,33 @@ public:
   void resume();
 
 private:
-  explicit HealthChecker(process::Owned<HealthCheckerProcess> process);
-
-  process::Owned<HealthCheckerProcess> process;
-};
-
-
-class HealthCheckerProcess : public ProtobufProcess<HealthCheckerProcess>
-{
-public:
-  HealthCheckerProcess(
-      const HealthCheck& _check,
-      const std::string& _launcherDir,
-      const lambda::function<void(const TaskHealthStatus&)>& _callback,
+  HealthChecker(
+      const HealthCheck& _healthCheck,
       const TaskID& _taskId,
-      const Option<pid_t>& _taskPid,
-      const std::vector<std::string>& _namespaces,
-      const Option<ContainerID>& _taskContainerId,
-      const Option<process::http::URL>& _agentURL,
+      const lambda::function<void(const TaskHealthStatus&)>& _callback,
+      const std::string& launcherDir,
+      const Option<pid_t>& taskPid,
+      const std::vector<std::string>& namespaces,
+      const Option<ContainerID>& taskContainerId,
+      const Option<process::http::URL>& agentURL,
       const Option<std::string>& authorizationHeader,
-      bool _commandCheckViaAgent);
+      bool commandCheckViaAgent);
 
-  virtual ~HealthCheckerProcess() {}
-
-  void pause();
-  void resume();
-
-protected:
-  virtual void initialize() override;
-
-private:
-  void failure(const std::string& message);
+  void processCheckResult(const Try<CheckStatusInfo>& result);
+  void failure();
   void success();
 
-  void performSingleCheck();
-  void processCheckResult(
-      const Stopwatch& stopwatch,
-      const process::Future<Nothing>& future);
-
-  process::Future<Nothing> commandHealthCheck();
-
-  process::Future<Nothing> nestedCommandHealthCheck();
-
-  void _nestedCommandHealthCheck(
-      std::shared_ptr<process::Promise<Nothing>> promise);
-
-  void __nestedCommandHealthCheck(
-      std::shared_ptr<process::Promise<Nothing>> promise,
-      process::http::Connection connection);
-
-  void ___nestedCommandHealthCheck(
-      std::shared_ptr<process::Promise<Nothing>> promise,
-      const ContainerID& checkContainerId,
-      const process::http::Response& launchResponse);
-
-  void nestedCommandHealthCheckFailure(
-      std::shared_ptr<process::Promise<Nothing>> promise,
-      process::http::Connection connection,
-      ContainerID checkContainerId,
-      std::shared_ptr<bool> checkTimedOut,
-      const std::string& failure);
-
-  /**
-   * Waits for a container to be terminated.
-   *
-   * Waits for a container to be terminated via the Agent's
-   * `WaitNestedContainer` API call.
-   *
-   * @param containerID The `ContainerID` of the container that we want
-   * to wait for.
-   *
-   * @return The exit status as returned by the Agent.
-   */
-  process::Future<Option<int>> waitNestedContainer(
-      const ContainerID& containerId);
-
-  process::Future<Option<int>> _waitNestedContainer(
-      const ContainerID& containerId,
-      const process::http::Response& httpResponse);
-
-  process::Future<Nothing> httpHealthCheck();
-
-  process::Future<Nothing> _httpHealthCheck(
-      const std::tuple<
-          process::Future<Option<int>>,
-          process::Future<std::string>,
-          process::Future<std::string>>& t);
-
-  process::Future<Nothing> tcpHealthCheck();
-
-  process::Future<Nothing> _tcpHealthCheck(
-      const std::tuple<
-          process::Future<Option<int>>,
-          process::Future<std::string>,
-          process::Future<std::string>>& t);
-
-  void scheduleNext(const Duration& duration);
-
-  HealthCheck check;
-  Duration checkDelay;
-  Duration checkInterval;
-  Duration checkGracePeriod;
-  Duration checkTimeout;
-
-  // Contains a binary for TCP health checks.
-  const std::string launcherDir;
-
-  const lambda::function<void(const TaskHealthStatus&)> healthUpdateCallback;
+  const HealthCheck healthCheck;
+  const lambda::function<void(const TaskHealthStatus&)> callback;
+  const std::string name;
+  const process::Time startTime;
   const TaskID taskId;
-  const Option<pid_t> taskPid;
-  const std::vector<std::string> namespaces;
-  const Option<ContainerID> taskContainerId;
-  const Option<process::http::URL> agentURL;
-  const Option<std::string> authorizationHeader;
-  const bool commandCheckViaAgent;
 
-  Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
-
+  Duration checkGracePeriod;
   uint32_t consecutiveFailures;
-  process::Time startTime;
   bool initializing;
-  bool paused;
 
-  // Contains the ID of the most recently terminated nested container
-  // that was used to perform a COMMAND health check.
-  Option<ContainerID> previousCheckContainerId;
+  process::Owned<CheckerProcess> process;
 };
 
 

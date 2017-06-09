@@ -135,7 +135,8 @@ CheckerProcess::CheckerProcess(
     const vector<string>& _namespaces,
     const Option<ContainerID>& _taskContainerId,
     const Option<http::URL>& _agentURL,
-    const Option<std::string>& _authorizationHeader,
+    const Option<string>& _authorizationHeader,
+    const Option<string>& _scheme,
     bool _commandCheckViaAgent)
   : ProcessBase(process::ID::generate("checker")),
     check(_check),
@@ -147,6 +148,7 @@ CheckerProcess::CheckerProcess(
     taskContainerId(_taskContainerId),
     agentURL(_agentURL),
     authorizationHeader(_authorizationHeader),
+    scheme(_scheme),
     commandCheckViaAgent(_commandCheckViaAgent),
     paused(false)
 {
@@ -730,9 +732,9 @@ Future<int> CheckerProcess::httpCheck()
 
   const CheckInfo::Http& http = check.http();
 
-  const string scheme = DEFAULT_HTTP_SCHEME;
+  const string _scheme = scheme.isSome() ? scheme.get() : DEFAULT_HTTP_SCHEME;
   const string path = http.has_path() ? http.path() : "";
-  const string url = scheme + "://" + DEFAULT_DOMAIN + ":" +
+  const string url = _scheme + "://" + DEFAULT_DOMAIN + ":" +
                      stringify(http.port()) + path;
 
   VLOG(1) << "Launching HTTP check '" << url << "' for task '" << taskId << "'";

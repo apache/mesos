@@ -40,6 +40,9 @@ namespace checks {
 class CheckerProcess : public ProtobufProcess<CheckerProcess>
 {
 public:
+  // TODO(gkleiman): Instead of passing an optional scheme as a parameter,
+  // consider introducing a global `TLSInfo` protobuf and using it in HTTP
+  // checks. See MESOS-7356.
   CheckerProcess(
       const CheckInfo& _check,
       const std::string& _launcherDir,
@@ -50,6 +53,7 @@ public:
       const Option<ContainerID>& _taskContainerId,
       const Option<process::http::URL>& _agentURL,
       const Option<std::string>& _authorizationHeader,
+      const Option<std::string>& _scheme,
       bool _commandCheckViaAgent);
 
   void pause();
@@ -130,6 +134,7 @@ private:
   const Option<ContainerID> taskContainerId;
   const Option<process::http::URL> agentURL;
   const Option<std::string> authorizationHeader;
+  const Option<std::string> scheme;
   const bool commandCheckViaAgent;
 
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;

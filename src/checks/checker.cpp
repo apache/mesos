@@ -173,6 +173,7 @@ Checker::Checker(
           _taskContainerId,
           _agentURL,
           _authorizationHeader,
+          None(),
           _commandCheckViaAgent));
 
   spawn(process.get());
