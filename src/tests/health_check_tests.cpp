@@ -221,6 +221,32 @@ TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
     EXPECT_SOME(validate);
   }
 
+  // Duration parameters must be non-negative.
+  {
+    HealthCheck healthCheckProto;
+
+    healthCheckProto.set_type(HealthCheck::HTTP);
+    healthCheckProto.mutable_http()->set_port(8080);
+
+    healthCheckProto.set_delay_seconds(-1.0);
+    Option<Error> validate = validation::healthCheck(healthCheckProto);
+    EXPECT_SOME(validate);
+
+    healthCheckProto.set_delay_seconds(0.0);
+    healthCheckProto.set_interval_seconds(-1.0);
+    validate = validation::healthCheck(healthCheckProto);
+    EXPECT_SOME(validate);
+
+    healthCheckProto.set_interval_seconds(0.0);
+    healthCheckProto.set_timeout_seconds(-1.0);
+    validate = validation::healthCheck(healthCheckProto);
+    EXPECT_SOME(validate);
+
+    healthCheckProto.set_timeout_seconds(0.0);
+    validate = validation::healthCheck(healthCheckProto);
+    EXPECT_NONE(validate);
+  }
+
   // Command health check must specify an actual command in `command.value`.
   {
     HealthCheck healthCheckProto;

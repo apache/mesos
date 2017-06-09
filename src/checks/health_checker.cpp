@@ -370,19 +370,19 @@ void HealthChecker::success()
 
 namespace validation {
 
-Option<Error> healthCheck(const HealthCheck& check)
+Option<Error> healthCheck(const HealthCheck& healthCheck)
 {
-  if (!check.has_type()) {
+  if (!healthCheck.has_type()) {
     return Error("HealthCheck must specify 'type'");
   }
 
-  switch (check.type()) {
+  switch (healthCheck.type()) {
     case HealthCheck::COMMAND: {
-      if (!check.has_command()) {
+      if (!healthCheck.has_command()) {
         return Error("Expecting 'command' to be set for COMMAND health check");
       }
 
-      const CommandInfo& command = check.command();
+      const CommandInfo& command = healthCheck.command();
 
       if (!command.has_value()) {
         string commandType =
@@ -398,15 +398,16 @@ Option<Error> healthCheck(const HealthCheck& check)
             "Health check's `CommandInfo` is invalid: " + error->message);
       }
 
+      // TODO(alexr): Make sure irrelevant fields, e.g., `uris` are not set.
+
       break;
     }
-
     case HealthCheck::HTTP: {
-      if (!check.has_http()) {
+      if (!healthCheck.has_http()) {
         return Error("Expecting 'http' to be set for HTTP health check");
       }
 
-      const HealthCheck::HTTPCheckInfo& http = check.http();
+      const HealthCheck::HTTPCheckInfo& http = healthCheck.http();
 
       if (http.has_scheme() &&
           http.scheme() != "http" &&
@@ -423,20 +424,37 @@ Option<Error> healthCheck(const HealthCheck& check)
 
       break;
     }
-
     case HealthCheck::TCP: {
-      if (!check.has_tcp()) {
+      if (!healthCheck.has_tcp()) {
         return Error("Expecting 'tcp' to be set for TCP health check");
       }
 
       break;
     }
-
     case HealthCheck::UNKNOWN: {
       return Error(
-          "'" + HealthCheck::Type_Name(check.type()) + "'"
+          "'" + HealthCheck::Type_Name(healthCheck.type()) + "'"
           " is not a valid health check type");
     }
+  }
+
+  if (healthCheck.has_delay_seconds() && healthCheck.delay_seconds() < 0.0) {
+    return Error("Expecting 'delay_seconds' to be non-negative");
+  }
+
+  if (healthCheck.has_grace_period_seconds() &&
+      healthCheck.grace_period_seconds() < 0.0) {
+    return Error("Expecting 'grace_period_seconds' to be non-negative");
+  }
+
+  if (healthCheck.has_interval_seconds() &&
+      healthCheck.interval_seconds() < 0.0) {
+    return Error("Expecting 'interval_seconds' to be non-negative");
+  }
+
+  if (healthCheck.has_timeout_seconds() &&
+      healthCheck.timeout_seconds() < 0.0) {
+    return Error("Expecting 'timeout_seconds' to be non-negative");
   }
 
   return None();
