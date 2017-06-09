@@ -528,7 +528,7 @@ message HealthCheck {
   optional uint32 consecutive_failures = 5 [default = 3];
 
   // Amount of time after the task is launched during which health check
-  // failures are ignored. Once the a check succeeds for the first time,
+  // failures are ignored. Once a check succeeds for the first time,
   // the grace period does not apply anymore. Note that it includes
   // `delay_seconds`, i.e., setting `grace_period_seconds` < `delay_seconds`
   // has no effect.
