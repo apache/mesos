@@ -30,12 +30,11 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
+#include "checker_process.hpp"
+
 namespace mesos {
 namespace internal {
 namespace checks {
-
-// Forward declarations.
-class CheckerProcess;
 
 class Checker
 {
@@ -45,7 +44,7 @@ public:
    * starts immediately after initialization.
    *
    * If the check is a COMMAND check, the checker will fork a process, enter
-   * the task's namespaces, and execute the commmand.
+   * the task's namespaces, and execute the command.
    *
    * @param check The protobuf message definition of a check.
    * @param launcherDir A directory where Mesos helper binaries are located.
@@ -112,8 +111,26 @@ public:
   void resume();
 
 private:
-  explicit Checker(process::Owned<CheckerProcess> process);
+  Checker(
+      const CheckInfo& _check,
+      const std::string& _launcherDir,
+      const lambda::function<void(const CheckStatusInfo&)>& _callback,
+      const TaskID& _taskId,
+      const Option<pid_t>& taskPid,
+      const std::vector<std::string>& _namespaces,
+      const Option<ContainerID>& _taskContainerId,
+      const Option<process::http::URL>& _agentURL,
+      const Option<std::string>& _authorizationHeader,
+      bool _commandCheckViaAgent);
 
+  void processCheckResult(const Try<CheckStatusInfo>& result);
+
+  const CheckInfo check;
+  const lambda::function<void(const CheckStatusInfo&)> callback;
+  const std::string name;
+  const TaskID taskId;
+
+  CheckStatusInfo previousCheckStatus;
   process::Owned<CheckerProcess> process;
 };
 
