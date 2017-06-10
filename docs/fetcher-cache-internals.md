@@ -61,7 +61,7 @@ This figure illustrates the different states which a cache entry can be in.
 
 ![Fetcher Cache State](images/fetch_state.jpg)
 
-While a cache entry is referenced it cannot be evicted by a the current or any other concurrent fetch attempt in order to make space for a download of a new cache file.
+While a cache entry is referenced it cannot be evicted by the current or any other concurrent fetch attempt in order to make space for a download of a new cache file.
 
 The two blue states are essentially the same: no cache file exists. The two green disk states on the right are also the same.
 

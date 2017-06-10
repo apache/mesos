@@ -43,7 +43,7 @@ static const char MESOS_EXECUTORS_SLICE[] = "mesos_executors.slice";
 
 /**
  * A hook that is executed in the parent process. It migrates the pid
- * of the child process into a the `MESOS_EXECUTORS_SLICE` in order to
+ * of the child process into the `MESOS_EXECUTORS_SLICE` in order to
  * extend its life beyond that of the agent.
  *
  * @return Nothing if successful, otherwise Error.
