@@ -175,6 +175,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/write.hpp			\
   stout/os/windows/xattr.hpp			\
   stout/path.hpp				\
+  stout/overload.hpp				\
   stout/preprocessor.hpp			\
   stout/proc.hpp				\
   stout/protobuf.hpp				\
@@ -194,14 +195,16 @@ nobase_include_HEADERS =			\
   stout/subcommand.hpp				\
   stout/svn.hpp					\
   stout/synchronized.hpp			\
+  stout/tests/environment.hpp			\
+  stout/tests/utils.hpp				\
   stout/thread_local.hpp			\
   stout/try.hpp					\
-  stout/tests/environment.hpp				\
-  stout/tests/utils.hpp				\
+  stout/traits.hpp				\
   stout/unimplemented.hpp			\
   stout/unreachable.hpp				\
   stout/utils.hpp				\
   stout/uuid.hpp				\
+  stout/variant.hpp				\
   stout/version.hpp				\
   stout/windows.hpp				\
   stout/windows/dynamiclibrary.hpp		\
