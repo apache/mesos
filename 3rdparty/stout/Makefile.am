@@ -165,6 +165,7 @@ stout_tests_SOURCES =			\
   tests/svn_tests.cpp			\
   tests/try_tests.cpp			\
   tests/uuid_tests.cpp			\
+  tests/variant_tests.cpp		\
   tests/version_tests.cpp
 
 if OS_LINUX

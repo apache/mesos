@@ -41,6 +41,9 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
+// TODO(benh): Replace the use of boost::variant here with our wrapper
+// `Variant`.
+
 namespace JSON {
 
 // Implementation of the JavaScript Object Notation (JSON) grammar
