@@ -13,7 +13,11 @@
 #ifndef __DECODER_HPP__
 #define __DECODER_HPP__
 
+// `http_parser.h` defines an enum `flags` which conflicts
+// with, e.g., a namespace in stout. Rename it with a macro.
+#define flags http_parser_flags
 #include <http_parser.h>
+#undef flags
 
 #include <glog/logging.h>
 
