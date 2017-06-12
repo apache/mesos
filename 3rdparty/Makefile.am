@@ -82,10 +82,6 @@ EXTRA_DIST =		\
 EXTRA_DIST +=		\
   $(GLOG).patch
 
-# We patch http-parser to avoid a name collision with our `flags` namespace.
-EXTRA_DIST +=		\
-  $(HTTP_PARSER).patch
-
 # We need to patch leveldb to prevent it from linking to snappy and
 # tcmalloc; see MESOS-1054, MESOS-1624.
 EXTRA_DIST +=		\
