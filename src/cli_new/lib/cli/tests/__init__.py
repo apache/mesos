@@ -15,21 +15,9 @@
 # limitations under the License.
 
 """
-This is the main executable of the mesos-cli unit tests.
+Mesos CLI unit tests module.
 """
 
-import unittest
-
-from termcolor import colored
-
-from cli.tests import CLITestCase
-
-# pylint: disable=unused-import
-# We import the tests that we want to run.
-from cli.tests import TestInfrastructure
-
-if __name__ == '__main__':
-    CLITestCase.MESOS_BUILD_DIR = CLITestCase.default_mesos_build_dir()
-
-    print colored("Running the Mesos CLI unit tests", "yellow")
-    unittest.main(verbosity=2, testRunner=unittest.TextTestRunner)
+# pylint: disable=W0401
+from .base import *
+from .tests import *

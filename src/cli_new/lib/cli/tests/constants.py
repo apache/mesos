@@ -15,21 +15,11 @@
 # limitations under the License.
 
 """
-This is the main executable of the mesos-cli unit tests.
+A collection of constants useful for the CLI unit tests.
 """
 
-import unittest
+DEFAULT_MASTER_IP = "127.0.0.1"
+DEFAULT_MASTER_PORT = "9090"
 
-from termcolor import colored
-
-from cli.tests import CLITestCase
-
-# pylint: disable=unused-import
-# We import the tests that we want to run.
-from cli.tests import TestInfrastructure
-
-if __name__ == '__main__':
-    CLITestCase.MESOS_BUILD_DIR = CLITestCase.default_mesos_build_dir()
-
-    print colored("Running the Mesos CLI unit tests", "yellow")
-    unittest.main(verbosity=2, testRunner=unittest.TextTestRunner)
+DEFAULT_AGENT_IP = "127.0.0.1"
+DEFAULT_AGENT_PORT = "9091"
