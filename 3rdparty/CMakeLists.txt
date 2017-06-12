@@ -277,13 +277,20 @@ endif ()
 # them here.
 ###############################################################################
 if (WIN32)
+  set(CURL_CMAKE_ARGS ${CMAKE_FORWARD_ARGS} -DBUILD_CURL_TESTS=OFF)
+
+  # NOTE: curl does not respect BUILD_SHARED_LIBS.
+  if (NOT BUILD_SHARED_LIBS)
+    # This is both a CMake argument, and a pre-processor definition.
+    list(APPEND CURL_CMAKE_ARGS -DCURL_STATICLIB=ON)
+  endif ()
+
   # TODO(hausdorff): maybe try to incorporate this into findpackage for Windows
   ExternalProject_Add(
     ${CURL_TARGET}
     PREFIX            ${CURL_CMAKE_ROOT}
-    CMAKE_ARGS        -DBUILD_CURL_TESTS=OFF -DCURL_STATICLIB=ON -DCMAKE_C_FLAGS_DEBUG="/MTd"
     PATCH_COMMAND     ${CMAKE_NOOP}
-    BUILD_COMMAND     msbuild /p:RuntimeLibrary=MT_StaticDebug lib/libcurl.vcxproj
+    CMAKE_ARGS        ${CURL_CMAKE_ARGS}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${CURL_URL}
     URL_HASH          ${CURL_HASH}
