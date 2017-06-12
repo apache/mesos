@@ -21,7 +21,6 @@ Config class to manage the configuration file.
 import os
 import toml
 
-import settings
 from cli.exceptions import CLIException
 
 
@@ -31,7 +30,7 @@ class Config(object):
     one method for each element that can be specified in the config file.
     """
 
-    def __init__(self):
+    def __init__(self, settings):
         # Load the configuration file path for the CLI.
         if os.environ.get("MESOS_CLI_CONFIG"):
             self.path = os.environ["MESOS_CLI_CONFIG"]

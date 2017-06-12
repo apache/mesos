@@ -84,7 +84,7 @@ def main(argv):
     """
 
     # Load the CLI config.
-    config = cli.config.Config()
+    config = cli.config.Config(settings)
 
     plugins = cli.util.import_modules(
         cli.util.join_plugin_paths(settings, config),
