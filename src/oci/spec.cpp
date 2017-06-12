@@ -360,7 +360,7 @@ Try<Configuration> parse(const string& s)
   }
 
   Try<Configuration> configuration =
-      protobuf::parse<Configuration>(json.get());
+    protobuf::parse<Configuration>(json.get());
 
   if (configuration.isError()) {
     return Error("Protobuf parse failed: " + configuration.error());
