@@ -83,7 +83,7 @@ TEST_F(ProcessTest, Process)
 
 #ifndef __WINDOWS__
   // NOTE: `getsid` does not have a meaningful interpretation on Windows.
-  EXPECT_EQ(getsid(getpid()), process.get().session.get());
+  EXPECT_EQ(getsid(0), process.get().session.get());
 #endif // __WINDOWS__
 
   ASSERT_SOME(process.get().rss);
@@ -139,7 +139,7 @@ TEST_F(ProcessTest, Processes)
 
 #ifndef __WINDOWS__
       // NOTE: `getsid` does not have a meaningful interpretation on Windows.
-      EXPECT_EQ(getsid(getpid()), process.session.get());
+      EXPECT_EQ(getsid(0), process.session.get());
 #endif // __WINDOWS__
 
       ASSERT_SOME(process.rss);
