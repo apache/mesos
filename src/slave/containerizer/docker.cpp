@@ -2082,8 +2082,6 @@ Future<bool> DockerContainerizerProcess::destroy(
       .then([]() { return true; });
   }
 
-  LOG(INFO) << "Destroying container " << containerId;
-
   // It's possible that destroy is getting called before
   // DockerContainerizer::launch has completed (i.e., after we've
   // returned a future but before we've completed the fetching of the
@@ -2160,6 +2158,7 @@ Future<bool> DockerContainerizerProcess::destroy(
   }
 
   CHECK(container->state == Container::RUNNING);
+  LOG(INFO) << "Destroying container " << containerId << " in RUNNING state";
 
   container->state = Container::DESTROYING;
 
