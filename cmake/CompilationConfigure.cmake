@@ -228,18 +228,38 @@ if (WIN32)
   # allow for an object file. We use this to avoid those problems.
   string(APPEND CMAKE_CXX_FLAGS " /bigobj -DGOOGLE_GLOG_DLL_DECL= /vd2")
 
-  # TODO(andschwa): Define this closer to its usage; anything that includes
-  # `curl.h` has to set this so that the declspec is correct.
-  if (NOT BUILD_SHARED_LIBS)
+  # Build against the multi-threaded version of the C runtime library (CRT).
+  if (BUILD_SHARED_LIBS)
+    message(WARNING "Building with shared libraries is a work-in-progress.")
+
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
+    # Use dynamic CRT.
+    set(CRT " /MD")
+  else ()
+    # Use static CRT.
+    set(CRT " /MT")
+
+    # TODO(andschwa): Define this closer to its usage; anything that includes
+    # `curl.h` has to set this so that the declspec is correct.
     string(APPEND CMAKE_CXX_FLAGS " -DCURL_STATICLIB")
   endif ()
 
-  # Enable multi-threaded compilation.
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+  # NOTE: We APPEND ${CRT} rather than REPLACE so it gets picked up by
+  # dependencies.
+  foreach (lang C CXX)
+    # Enable multi-threaded compilation.
+    # NOTE: We do not add CRT here because dependencies will use it incorrectly.
+    string(APPEND CMAKE_${lang}_FLAGS " /MP")
 
-  # Build against the multi-threaded, static version of the runtime library.
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+    # Debug library for debug configuration.
+    string(APPEND CMAKE_${lang}_FLAGS_DEBUG "${CRT}d")
+
+    # All other configurations.
+    foreach (config RELEASE RELWITHDEBINFO MINSIZEREL)
+      string(APPEND CMAKE_${lang}_FLAGS_${config} ${CRT})
+    endforeach ()
+  endforeach ()
 
   # Convenience flags to simplify Windows support in C++ source; used to
   # `#ifdef` out some platform-specific parts of Mesos.  We choose to define
