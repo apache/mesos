@@ -420,7 +420,7 @@ Future<Nothing> DockerContainerizerProcess::fetch(
       containerId,
       container->command,
       container->containerWorkDir,
-      None());
+      container->user);
 }
 
 
