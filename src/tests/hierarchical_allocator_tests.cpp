@@ -4498,6 +4498,69 @@ TEST_F(HierarchicalAllocatorTest, DisproportionateQuotaVsAllocation)
 }
 
 
+// This test ensures that resources reserved to ancestor roles can be offered
+// to their descendants. Since both quota and fair-share stages perform
+// reservation allocations, we use a quota'd role to test both cases.
+TEST_F(HierarchicalAllocatorTest, OfferAncestorReservationsToDescendantChild)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  const string ROLE{"a/b/c"};
+
+  initialize();
+
+  const Quota quota = createQuota(ROLE, "cpus:1;mem:512");
+  allocator->setQuota(ROLE, quota);
+
+  FrameworkInfo framework = createFrameworkInfo({ROLE});
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  SlaveInfo agent1 = createSlaveInfo("cpus(a):1;mem(a):512;disk(a):0;");
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  {
+    // All the resources of agent1 are offered, and this
+    // should satisfy the quota of ROLE.
+    Allocation expected = Allocation(
+        framework.id(),
+        {{ROLE, {{agent1.id(), agent1.resources()}}}});
+
+    AWAIT_EXPECT_EQ(expected, allocations.get());
+  }
+
+
+  SlaveInfo agent2 = createSlaveInfo(
+      "cpus:2;mem:1024;disk:0;"
+      "cpus(a/b):4;mem(a/b):2048;disk(a/b):0");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  {
+    // Since quota of ROLE is already satisfied by agent1,
+    // we expect only reserved resource of agent2 is offered.
+    Allocation expected = Allocation(
+        framework.id(),
+        {{ROLE, {{agent2.id(), Resources(agent2.resources()).reserved()}}}});
+
+    AWAIT_EXPECT_EQ(expected, allocations.get());
+  }
+}
+
+
 // This test checks that quota guarantees work as expected when a
 // nested role is created as a child of an existing quota'd role.
 TEST_F(HierarchicalAllocatorTest, NestedRoleQuota)
