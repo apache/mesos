@@ -2162,6 +2162,55 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
           "allocation_info": {
             "role": "role1"
           },
+          "name": "cpus",
+          "role": "*",
+          "scalar": {
+            "value": 3.0
+          },
+          "type": "SCALAR"
+        },
+        {
+          "allocation_info": {
+            "role": "role1"
+          },
+          "name": "mem",
+          "role": "*",
+          "scalar": {
+            "value": 1536.0
+          },
+          "type": "SCALAR"
+        },
+        {
+          "allocation_info": {
+            "role": "role1"
+          },
+          "name": "disk",
+          "role": "*",
+          "scalar": {
+            "value": 3072.0
+          },
+          "type": "SCALAR"
+        },
+        {
+          "allocation_info": {
+            "role": "role1"
+          },
+          "name": "ports",
+          "ranges": {
+            "range": [
+              {
+                "begin": 31000,
+                "end": 32000
+              }
+            ]
+          },
+          "role": "*",
+          "type": "RANGES"
+        },
+        {
+          "allocation_info": {
+            "role": "role1"
+          },
           "disk": {
             "persistence": {
               "id": "id1",
@@ -2209,55 +2258,6 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "value": 960.0
           },
           "type": "SCALAR"
-        },
-        {
-          "allocation_info": {
-            "role": "role1"
-          },
-          "name": "cpus",
-          "role": "*",
-          "scalar": {
-            "value": 3.0
-          },
-          "type": "SCALAR"
-        },
-        {
-          "allocation_info": {
-            "role": "role1"
-          },
-          "name": "mem",
-          "role": "*",
-          "scalar": {
-            "value": 1536.0
-          },
-          "type": "SCALAR"
-        },
-        {
-          "allocation_info": {
-            "role": "role1"
-          },
-          "name": "disk",
-          "role": "*",
-          "scalar": {
-            "value": 3072.0
-          },
-          "type": "SCALAR"
-        },
-        {
-          "allocation_info": {
-            "role": "role1"
-          },
-          "name": "ports",
-          "ranges": {
-            "range": [
-              {
-                "begin": 31000,
-                "end": 32000
-              }
-            ]
-          },
-          "role": "*",
-          "type": "RANGES"
         }
       ])~");
 
