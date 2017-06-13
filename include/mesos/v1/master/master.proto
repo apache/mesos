@@ -359,8 +359,7 @@ message Response {
     // frameworks are now reported in the `frameworks` list with the
     // `recovered` field set to true.
     //
-    // TODO(neilc): Remove this field after a deprecation cycle starting
-    // in Mesos 1.2.
+    // TODO(neilc): Remove this field in Mesos 2.0.
     repeated FrameworkInfo recovered_frameworks = 3;
   }
 
