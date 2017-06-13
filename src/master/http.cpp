@@ -69,6 +69,7 @@
 #include "common/build.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
+#include "common/resources_utils.hpp"
 
 #include "internal/devolve.hpp"
 
@@ -2353,20 +2354,21 @@ Future<Response> Master::Http::slaves(
                              const Resources& resources,
                              reserved) {
                   writer->field(role, [&resources](JSON::ArrayWriter* writer) {
-                    foreach (const Resource& resource, resources) {
+                    foreach (Resource resource, resources) {
+                      convertResourceFormat(&resource, ENDPOINT);
                       writer->element(JSON::Protobuf(resource));
                     }
                   });
                 }
               });
 
-
           Resources unreservedResources = slave->totalResources.unreserved();
 
           writer->field(
               "unreserved_resources_full",
               [&unreservedResources](JSON::ArrayWriter* writer) {
-                foreach (const Resource& resource, unreservedResources) {
+                foreach (Resource resource, unreservedResources) {
+                  convertResourceFormat(&resource, ENDPOINT);
                   writer->element(JSON::Protobuf(resource));
                 }
               });
@@ -2376,7 +2378,8 @@ Future<Response> Master::Http::slaves(
           writer->field(
               "used_resources_full",
               [&usedResources](JSON::ArrayWriter* writer) {
-                foreach (const Resource& resource, usedResources) {
+                foreach (Resource resource, usedResources) {
+                  convertResourceFormat(&resource, ENDPOINT);
                   writer->element(JSON::Protobuf(resource));
                 }
               });
@@ -2386,7 +2389,8 @@ Future<Response> Master::Http::slaves(
           writer->field(
               "offered_resources_full",
               [&offeredResources](JSON::ArrayWriter* writer) {
-                foreach (const Resource& resource, offeredResources) {
+                foreach (Resource resource, offeredResources) {
+                  convertResourceFormat(&resource, ENDPOINT);
                   writer->element(JSON::Protobuf(resource));
                 }
               });

@@ -2030,6 +2030,10 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "scalar": {
               "value": 1.0
             },
+            "role": "role1",
+            "reservation": {
+              "principal": "test-principal"
+            },
             "reservations":[
               {
                 "principal": "test-principal",
@@ -2043,6 +2047,10 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "type": "SCALAR",
             "scalar": {
               "value": 512.0
+            },
+            "role": "role1",
+            "reservation": {
+              "principal": "test-principal"
             },
             "reservations": [
               {
@@ -2058,6 +2066,10 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "scalar": {
               "value": 960.0
             },
+            "role": "role1",
+            "reservation": {
+              "principal": "test-principal"
+            },
             "reservations": [
               {
                 "principal": "test-principal",
@@ -2071,6 +2083,10 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "type": "SCALAR",
             "scalar": {
               "value": 64.0
+            },
+            "role": "role1",
+            "reservation": {
+              "principal": "test-principal"
             },
             "reservations": [
               {
@@ -2100,6 +2116,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
       [
         {
           "name": "cpus",
+          "role": "*",
           "scalar": {
             "value": 3.0
           },
@@ -2107,6 +2124,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
         },
         {
           "name": "mem",
+          "role": "*",
           "scalar": {
             "value": 1536.0
           },
@@ -2114,6 +2132,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
         },
         {
           "name": "disk",
+          "role": "*",
           "scalar": {
             "value": 3072.0
           },
@@ -2121,6 +2140,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
         },
         {
           "name": "ports",
+          "role": "*",
           "ranges": {
             "range": [
               {
@@ -2143,6 +2163,10 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "role": "role1"
           },
           "name": "cpus",
+          "role": "role1",
+          "reservation": {
+            "principal": "test-principal"
+          },
           "reservations": [
             {
               "principal": "test-principal",
@@ -2160,6 +2184,10 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "role": "role1"
           },
           "name": "mem",
+          "role": "role1",
+          "reservation": {
+            "principal": "test-principal"
+          },
           "reservations": [
             {
               "principal": "test-principal",
@@ -2184,6 +2212,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "role": "role1"
           },
           "name": "cpus",
+          "role": "*",
           "scalar": {
             "value": 3.0
           },
@@ -2194,6 +2223,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "role": "role1"
           },
           "name": "mem",
+          "role": "*",
           "scalar": {
             "value": 1536.0
           },
@@ -2204,6 +2234,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "role": "role1"
           },
           "name": "disk",
+          "role": "*",
           "scalar": {
             "value": 3072.0
           },
@@ -2214,6 +2245,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "role": "role1"
           },
           "name": "ports",
+          "role": "*",
           "ranges": {
             "range": [
               {
@@ -2239,6 +2271,10 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             }
           },
           "name": "disk",
+          "role": "role1",
+          "reservation": {
+            "principal": "test-principal"
+          },
           "reservations": [
             {
               "principal": "test-principal",
@@ -2256,6 +2292,10 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "role": "role1"
           },
           "name": "mem",
+          "role": "role1",
+          "reservation": {
+            "principal": "test-principal"
+          },
           "reservations": [
             {
               "principal": "test-principal",
@@ -2273,6 +2313,10 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
             "role": "role1"
           },
           "name": "disk",
+          "role": "role1",
+          "reservation": {
+            "principal": "test-principal"
+          },
           "reservations": [
             {
               "principal": "test-principal",

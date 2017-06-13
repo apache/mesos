@@ -1630,6 +1630,10 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
               "scalar": {
                 "value": 1.0
               },
+              "role": "role1",
+              "reservation": {
+                "principal": "%s"
+              },
               "reservations": [
                 {
                   "principal": "%s",
@@ -1643,6 +1647,10 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
               "type": "SCALAR",
               "scalar": {
                 "value": 512.0
+              },
+              "role": "role1",
+              "reservation": {
+                "principal": "%s"
               },
               "reservations": [
                 {
@@ -1658,6 +1666,10 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
               "scalar": {
                 "value": 1024.0
               },
+              "role": "role1",
+              "reservation": {
+                "principal": "%s"
+              },
               "reservations": [
                 {
                   "principal": "%s",
@@ -1670,6 +1682,9 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
         })~",
         DEFAULT_CREDENTIAL.principal(), // Three occurrences of '%s' above.
         DEFAULT_CREDENTIAL.principal(),
+        DEFAULT_CREDENTIAL.principal(),
+        DEFAULT_CREDENTIAL.principal(),
+        DEFAULT_CREDENTIAL.principal(),
         DEFAULT_CREDENTIAL.principal()).get()).get();
 
     EXPECT_EQ(expected, state.values["reserved_resources_full"]);
@@ -1681,6 +1696,7 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
         [
           {
             "name": "cpus",
+            "role": "*",
             "scalar": {
               "value": 3.0
             },
@@ -1688,6 +1704,7 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
           },
           {
             "name": "mem",
+            "role": "*",
             "scalar": {
               "value": 1536.0
             },
@@ -1695,6 +1712,7 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
           },
           {
             "name": "disk",
+            "role": "*",
             "scalar": {
               "value": 3072.0
             },
@@ -1702,6 +1720,7 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
           },
           {
             "name": "ports",
+            "role": "*",
             "ranges": {
               "range": [
                 {

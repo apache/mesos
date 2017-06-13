@@ -61,6 +61,7 @@
 #include "common/build.hpp"
 #include "common/http.hpp"
 #include "common/recordio.hpp"
+#include "common/resources_utils.hpp"
 
 #include "internal/devolve.hpp"
 
@@ -1296,7 +1297,8 @@ Future<Response> Http::state(
                            const Resources& resources,
                            totalResources.reservations()) {
                 writer->field(role, [&resources](JSON::ArrayWriter* writer) {
-                  foreach (const Resource& resource, resources) {
+                  foreach (Resource resource, resources) {
+                    convertResourceFormat(&resource, ENDPOINT);
                     writer->element(JSON::Protobuf(resource));
                   }
                 });
@@ -1306,7 +1308,8 @@ Future<Response> Http::state(
         writer->field(
             "unreserved_resources_full",
             [&totalResources](JSON::ArrayWriter* writer) {
-              foreach (const Resource& resource, totalResources.unreserved()) {
+              foreach (Resource resource, totalResources.unreserved()) {
+                convertResourceFormat(&resource, ENDPOINT);
                 writer->element(JSON::Protobuf(resource));
               }
             });
