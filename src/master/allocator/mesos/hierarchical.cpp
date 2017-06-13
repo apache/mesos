@@ -1648,9 +1648,8 @@ void HierarchicalAllocatorProcess::__allocate()
         }
 
         // The resources we offer are the unreserved resources as well as the
-        // reserved resources for this particular role. This is necessary to
-        // ensure that we don't offer resources that are reserved for another
-        // role.
+        // reserved resources for this particular role and all its ancestors
+        // in the role hierarchy.
         //
         // NOTE: Currently, frameworks are allowed to have '*' role.
         // Calling reserved('*') returns an empty Resources object.
@@ -1660,8 +1659,7 @@ void HierarchicalAllocatorProcess::__allocate()
         // reserved resources are accounted towards the quota guarantee. If we
         // were to rely on stage 2 to offer them out, they would not be checked
         // against the quota guarantee.
-        Resources resources =
-          (available.unreserved() + available.reserved(role)).nonRevocable();
+        Resources resources = available.allocatableTo(role).nonRevocable();
 
         // It is safe to break here, because all frameworks under a role would
         // consider the same resources, so in case we don't have allocatable
@@ -1814,9 +1812,8 @@ void HierarchicalAllocatorProcess::__allocate()
         }
 
         // The resources we offer are the unreserved resources as well as the
-        // reserved resources for this particular role. This is necessary to
-        // ensure that we don't offer resources that are reserved for another
-        // role.
+        // reserved resources for this particular role and all its ancestors
+        // in the role hierarchy.
         //
         // NOTE: Currently, frameworks are allowed to have '*' role.
         // Calling reserved('*') returns an empty Resources object.
@@ -1827,9 +1824,9 @@ void HierarchicalAllocatorProcess::__allocate()
         // allocation algorithm in stage 1.
         //
         // TODO(mpark): Offer unreserved resources as revocable beyond quota.
-        Resources resources = available.reserved(role);
-        if (!quotas.contains(role)) {
-          resources += available.unreserved();
+        Resources resources = available.allocatableTo(role);
+        if (quotas.contains(role)) {
+          resources -= available.unreserved();
         }
 
         // It is safe to break here, because all frameworks under a role would
