@@ -148,7 +148,8 @@ void convertResourceFormat(Resource* resource, ResourceFormat format)
       }
 
       // Unreserved resources.
-      if (resource->role() == "*" && !resource->has_reservation()) {
+      if (resource->role() == "*") {
+        CHECK(!resource->has_reservation());
         resource->clear_role();
         return;
       }

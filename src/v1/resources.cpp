@@ -606,7 +606,12 @@ Try<Resource> Resources::parse(
 
   Value _value = result.get();
   resource.set_name(name);
-  resource.set_role(role);
+
+  if (role != "*") {
+    Resource::ReservationInfo* reservation = resource.add_reservations();
+    reservation->set_type(Resource::ReservationInfo::STATIC);
+    reservation->set_role(role);
+  }
 
   if (_value.type() == Value::SCALAR) {
     resource.set_type(Value::SCALAR);
@@ -642,14 +647,48 @@ Try<Resources> Resources::parse(
 
   Resources result;
 
-  // Validate individual Resource objects.
-  foreach (const Resource& resource, resources.get()) {
+  // Validate the Resource objects and convert them
+  // to the "post-reservation-refinement" format.
+  foreach (Resource resource, resources.get()) {
     // If invalid, propgate error instead of skipping the resource.
     Option<Error> error = Resources::validate(resource);
     if (error.isSome()) {
       return error.get();
     }
 
+    // Convert the resource to the "post-reservation-refinement" format.
+    if (resource.reservations_size() > 0) {
+      // In this case, we're either already in
+      // the "post-reservation-refinement" format,
+      // or we're in the "endpoint" format.
+
+      // We clear out the "pre-reservation-refinement" fields
+      // in case the resources are in the "endpoint" format.
+      resource.clear_role();
+      resource.clear_reservation();
+    } else if (resource.role() == "*") {
+      CHECK(!resource.has_reservation());
+      // Unreserved resources.
+      resource.clear_role();
+    } else {
+      // Resource with a single reservation.
+      Resource::ReservationInfo* reservation = resource.add_reservations();
+
+      // Check the `Resource.reservation` to determine whether
+      // we have a static or dynamic reservation.
+      if (!resource.has_reservation()) {
+        reservation->set_type(Resource::ReservationInfo::STATIC);
+      } else {
+        reservation->CopyFrom(resource.reservation());
+        resource.clear_reservation();
+        reservation->set_type(Resource::ReservationInfo::DYNAMIC);
+      }
+
+      reservation->set_role(resource.role());
+      resource.clear_role();
+    }
+
+    // Add the validated and converted resource to the result.
     result.add(resource);
   }
 
@@ -682,7 +721,10 @@ Try<vector<Resource>> Resources::fromJSON(
 
   foreach (Resource& resource, resourcesProtobuf.get()) {
     // Set the default role if none was specified.
-    if (!resource.has_role()) {
+    //
+    // NOTE: We rely on the fact that the result of this function is
+    // converted to the "post-reservation-refinement" format.
+    if (!resource.has_role() && resource.reservations_size() == 0) {
       resource.set_role(defaultRole);
     }
 

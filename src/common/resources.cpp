@@ -38,6 +38,8 @@
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
 
+#include "common/resources_utils.hpp"
+
 using std::map;
 using std::ostream;
 using std::set;
@@ -604,7 +606,12 @@ Try<Resource> Resources::parse(
 
   Value _value = result.get();
   resource.set_name(name);
-  resource.set_role(role);
+
+  if (role != "*") {
+    Resource::ReservationInfo* reservation = resource.add_reservations();
+    reservation->set_type(Resource::ReservationInfo::STATIC);
+    reservation->set_role(role);
+  }
 
   if (_value.type() == Value::SCALAR) {
     resource.set_type(Value::SCALAR);
@@ -640,13 +647,16 @@ Try<Resources> Resources::parse(
 
   Resources result;
 
-  // Validate individual Resource objects.
-  foreach (const Resource& resource, resources.get()) {
+  // Validate the Resource objects and convert them
+  // to the "post-reservation-refinement" format.
+  foreach (Resource resource, resources.get()) {
     // If invalid, propgate error instead of skipping the resource.
     Option<Error> error = Resources::validate(resource);
     if (error.isSome()) {
       return error.get();
     }
+
+    convertResourceFormat(&resource, POST_RESERVATION_REFINEMENT);
 
     result.add(resource);
   }
@@ -680,7 +690,10 @@ Try<vector<Resource>> Resources::fromJSON(
 
   foreach (Resource& resource, resourcesProtobuf.get()) {
     // Set the default role if none was specified.
-    if (!resource.has_role()) {
+    //
+    // NOTE: We rely on the fact that the result of this function is
+    // converted to the "post-reservation-refinement" format.
+    if (!resource.has_role() && resource.reservations_size() == 0) {
       resource.set_role(defaultRole);
     }
 
