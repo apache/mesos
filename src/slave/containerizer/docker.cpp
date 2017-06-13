@@ -420,7 +420,9 @@ Future<Nothing> DockerContainerizerProcess::fetch(
       containerId,
       container->command,
       container->containerWorkDir,
-      container->user);
+      container->containerConfig.has_user()
+        ? container->containerConfig.user()
+        : Option<string>::none());
 }
 
 
