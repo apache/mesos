@@ -62,6 +62,11 @@ run into any issues, file them with the library maintainers.*
   PyMesos</a></td>
   <td>Python</td>
 </tr>
+<tr>
+  <td><a href="https://github.com/osallou/python-mesos-http">
+  python-mesos-http</a></td>
+  <td>Python</td>
+</tr>
 </table>
 
 ## Executor API
