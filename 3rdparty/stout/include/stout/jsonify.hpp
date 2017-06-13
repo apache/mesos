@@ -39,12 +39,14 @@
 // argument dependent lookup. That is, we will search for, and use a free
 // function named `json` in the same namespace as `T`.
 //
+// NOTE: This relationship is similar to `boost::hash` and `hash_value`.
+//
 // IMPORTANT: The output stream must not be exception-enabled. This is because
 // the writer definitions below insert into the output stream in their
 // destructors.
 //
-// NOTE: This relationship is similar to `boost::hash` and `hash_value`.
-
+// Refer to https://github.com/apache/mesos/tree/master/3rdparty/stout#jsonify
+// for more information.
 
 // Forward declaration of `JSON::Proxy`.
 namespace JSON { class Proxy; }
@@ -445,6 +447,24 @@ private:
 };
 
 
+class NullWriter
+{
+public:
+  NullWriter(std::ostream* stream) : stream_(stream) {}
+
+  NullWriter(const NullWriter&) = delete;
+  NullWriter(NullWriter&&) = delete;
+
+  ~NullWriter() { *stream_ << "null"; }
+
+  NullWriter& operator=(const NullWriter&) = delete;
+  NullWriter& operator=(NullWriter&&) = delete;
+
+private:
+  std::ostream* stream_;
+};
+
+
 // `json` function for boolean.
 inline void json(BooleanWriter* writer, bool value) { writer->set(value); }
 
@@ -647,6 +667,10 @@ public:
         writer_.object_writer.~ObjectWriter();
         break;
       }
+      case NULL_WRITER: {
+        writer_.null_writer.~NullWriter();
+        break;
+      }
     }
   }
 
@@ -685,6 +709,13 @@ public:
     return &writer_.object_writer;
   }
 
+  operator NullWriter*() &&
+  {
+    new (&writer_.null_writer) NullWriter(stream_);
+    type_ = NULL_WRITER;
+    return &writer_.null_writer;
+  }
+
 private:
   enum Type
   {
@@ -692,7 +723,8 @@ private:
     NUMBER_WRITER,
     STRING_WRITER,
     ARRAY_WRITER,
-    OBJECT_WRITER
+    OBJECT_WRITER,
+    NULL_WRITER
   };
 
   union Writer
@@ -704,6 +736,7 @@ private:
     StringWriter string_writer;
     ArrayWriter array_writer;
     ObjectWriter object_writer;
+    NullWriter null_writer;
   };
 
   std::ostream* stream_;

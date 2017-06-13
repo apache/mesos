@@ -138,7 +138,7 @@ struct Number
 private:
   friend struct Value;
   friend struct Comparator;
-  friend std::ostream& operator<<(std::ostream& stream, const Number& number);
+  friend void json(NumberWriter* writer, const Number& number);
 
   union {
     double value;
@@ -665,71 +665,184 @@ inline bool operator!=(const Value& lhs, const Value& rhs)
   return !(lhs == rhs);
 }
 
+// The following are implementation of `json` customization points in order to
+// use `JSON::*` objects with `jsonify`. This also means that `JSON::*` objects
+// can be used within other `json` customization points.
+//
+// For example, we can use `jsonify` directly like this:
+//
+//   std::cout << jsonify(JSON::Boolean(true));
+//
+// or, for a user-defined class like this:
+//
+//   struct S
+//   {
+//     std::string name;
+//     JSON::Value payload;
+//   };
+//
+//   void json(ObjectWriter* writer, const S& s)
+//   {
+//     writer->field("name", s.name);
+//     writer->field("payload", s.payload);  // Printing out a `JSON::Value`!
+//   }
+//
+//   S s{"mpark", JSON::Boolean(true)};
+//   std::cout << jsonify(s);  // prints: {"name":"mpark","payload",true}
 
-inline std::ostream& operator<<(std::ostream& stream, const String& string)
+inline void json(BooleanWriter* writer, const Boolean& boolean)
 {
-  return stream << jsonify(string.value);
+  json(writer, boolean.value);
 }
 
 
-inline std::ostream& operator<<(std::ostream& stream, const Number& number)
+inline void json(StringWriter* writer, const String& string)
+{
+  json(writer, string.value);
+}
+
+
+inline void json(NumberWriter* writer, const Number& number)
 {
   switch (number.type) {
     case Number::FLOATING:
-      stream << jsonify(number.value);
+      json(writer, number.value);
       break;
     case Number::SIGNED_INTEGER:
-      stream << jsonify(number.signed_integer);
+      json(writer, number.signed_integer);
       break;
     case Number::UNSIGNED_INTEGER:
-      stream << jsonify(number.unsigned_integer);
+      json(writer, number.unsigned_integer);
       break;
   }
-  return stream;
 }
 
 
-// TODO(mpark): Extend `jsonify` to be usable for this implementation.
-inline std::ostream& operator<<(std::ostream& stream, const Object& object)
+inline void json(ObjectWriter* writer, const Object& object)
 {
-  stream << "{";
-  auto iterator = object.values.begin();
-  while (iterator != object.values.end()) {
-    stream << jsonify(iterator->first) << ":" << iterator->second;
-    if (++iterator != object.values.end()) {
-      stream << ",";
-    }
-  }
-  stream << "}";
-  return stream;
+  json(writer, object.values);
 }
 
 
-// TODO(mpark): Extend `jsonify` to be usable for this implementation.
-inline std::ostream& operator<<(std::ostream& stream, const Array& array)
+inline void json(ArrayWriter* writer, const Array& array)
 {
-  stream << "[";
-  auto iterator = array.values.begin();
-  while (iterator != array.values.end()) {
-    stream << *iterator;
-    if (++iterator != array.values.end()) {
-      stream << ",";
+  json(writer, array.values);
+}
+
+
+inline void json(NullWriter*, const Null&)
+{
+  // Do nothing here since `NullWriter` will always just print `null`.
+}
+
+
+// Since `JSON::Value` is a `boost::variant`, we don't know what type of writer
+// is required until we visit it. Therefore, we need an implementation of `json`
+// which takes a `WriterProxy&&` directly, and constructs the correct writer
+// after visitation.
+//
+// We'd prefer to implement this function similar to the below:
+//
+//    void json(WriterProxy&& writer, const Value& value)
+//    {
+//      struct {
+//        void operator()(const Number& value) const {
+//          json(std::move(writer), value);
+//        }
+//        void operator()(const String& value) const {
+//          json(std::move(writer), value);
+//        }
+//        /* ... */
+//      } visitor;
+//      boost::apply_visitor(visitor, value);
+//    }
+//
+// But, `json` is invoked with `WriterProxy` and something like `JSON::Boolean`.
+// The version sketched above would be ambiguous with the
+// `void json(BooleanWriter*, const Boolean&)` version because both overloads
+// involve a single implicit conversion. The `JSON::Boolean` overload has
+// a conversion from `WriterProxy` to `BoolWriter*` and the `JSON::Value`
+// overload has a conversion from `JSON::Boolean` to `JSON::Value`. In order to
+// prefer the overloads such as the one for `JSON::Boolean`, we disallow the
+// implicit conversion to `JSON::Value` by declaring as a template.
+//
+// TODO(mpark): Properly introduce a notion of deferred choice of writers.
+// For example, when trying to print a `variant<int, string>` as the value,
+// we could take something like a `Writer<Number, String>` which can be turned
+// into either a `NumberWriter*` or `StringWriter*`.
+template <
+    typename T,
+    typename std::enable_if<std::is_same<T, Value>::value, int>::type = 0>
+void json(WriterProxy&& writer, const T& value)
+{
+  struct
+  {
+    using result_type = void;
+
+    void operator()(const Boolean& value) const
+    {
+      json(std::move(writer_), value);
     }
-  }
-  stream << "]";
-  return stream;
+    void operator()(const String& value) const
+    {
+      json(std::move(writer_), value);
+    }
+    void operator()(const Number& value) const
+    {
+      json(std::move(writer_), value);
+    }
+    void operator()(const Object& value) const
+    {
+      json(std::move(writer_), value);
+    }
+    void operator()(const Array& value) const
+    {
+      json(std::move(writer_), value);
+    }
+    void operator()(const Null& value) const
+    {
+      json(std::move(writer_), value);
+    }
+
+    WriterProxy&& writer_;
+  } visitor{std::move(writer)};
+  boost::apply_visitor(visitor, value);
 }
 
 
 inline std::ostream& operator<<(std::ostream& stream, const Boolean& boolean)
 {
-  return stream << jsonify(boolean.value);
+  return stream << jsonify(boolean);
 }
 
 
-inline std::ostream& operator<<(std::ostream& stream, const Null&)
+inline std::ostream& operator<<(std::ostream& stream, const String& string)
 {
-  return stream << "null";
+  return stream << jsonify(string);
+}
+
+
+inline std::ostream& operator<<(std::ostream& stream, const Number& number)
+{
+  return stream << jsonify(number);
+}
+
+
+inline std::ostream& operator<<(std::ostream& stream, const Object& object)
+{
+  return stream << jsonify(object);
+}
+
+
+inline std::ostream& operator<<(std::ostream& stream, const Array& array)
+{
+  return stream << jsonify(array);
+}
+
+
+inline std::ostream& operator<<(std::ostream& stream, const Null& null)
+{
+  return stream << jsonify(null);
 }
 
 namespace internal {
