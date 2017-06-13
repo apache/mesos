@@ -26,7 +26,6 @@
 #include <stout/hashmap.hpp>
 
 #include "slave/flags.hpp"
-#include "slave/state.hpp"
 
 #include "slave/containerizer/mesos/isolator.hpp"
 
