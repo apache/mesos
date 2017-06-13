@@ -285,6 +285,15 @@ public:
       const Resource& resource,
       const Option<std::string>& role = None());
 
+  // Tests if the given Resource object is allocatable to the given role.
+  // A resource object is allocatable to 'role' if:
+  //   * it is reserved to an ancestor of that role in the hierarchy, OR
+  //   * it is reserved to 'role' itself, OR
+  //   * it is unreserved.
+  static bool isAllocatableTo(
+      const Resource& resource,
+      const std::string& role);
+
   // Tests if the given Resource object is unreserved.
   static bool isUnreserved(const Resource& resource);
 
@@ -379,6 +388,10 @@ public:
   // Note that the "*" role represents unreserved resources,
   // and will be ignored.
   Resources reserved(const Option<std::string>& role = None()) const;
+
+  // Returns resources allocatable to role. See `isAllocatableTo` for the
+  // definition of 'allocatableTo'.
+  Resources allocatableTo(const std::string& role) const;
 
   // Returns the unreserved resources.
   Resources unreserved() const;

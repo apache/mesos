@@ -915,6 +915,22 @@ bool Resources::isReserved(
 }
 
 
+bool Resources::isAllocatableTo(
+    const Resource& resource,
+    const std::string& role)
+{
+  if (isUnreserved(resource)) {
+    return true;
+  }
+
+  const vector<string> path = strings::tokenize(role, "/");
+  const vector<string> prefix = strings::tokenize(resource.role(), "/");
+
+  return path.size() >= prefix.size() &&
+         std::equal(prefix.begin(), prefix.end(), path.begin());
+}
+
+
 bool Resources::isUnreserved(const Resource& resource)
 {
   return resource.role() == "*" && !resource.has_reservation();
@@ -1160,6 +1176,12 @@ hashmap<string, Resources> Resources::reservations() const
 Resources Resources::reserved(const Option<string>& role) const
 {
   return filter(lambda::bind(isReserved, lambda::_1, role));
+}
+
+
+Resources Resources::allocatableTo(const string& role) const
+{
+  return filter(lambda::bind(isAllocatableTo, lambda::_1, role));
 }
 
 

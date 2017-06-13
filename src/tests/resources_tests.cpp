@@ -1529,6 +1529,34 @@ TEST(ResourcesTest, Reservations)
 }
 
 
+// This test verifies that we can get all resources allocatable to a role,
+// including reservations of itself, its ancestors, and unreserved resoruces.
+TEST(ResourcesTest, HierarchicalReservations)
+{
+  Resources unreserved = Resources::parse(
+      "cpus:1;mem:2;disk:4").get();
+  Resources grandfather = Resources::parse(
+      "cpus(a):2;mem(a):4;disk(a):8").get();
+  Resources father = Resources::parse(
+      "cpus(a/bx):4;mem(a/bx):8;disk(a/bx):16").get();
+  Resources uncle = Resources::parse(
+      "cpus(a/b):4;mem(a/b):8;disk(a/b):16").get();
+  Resources child = Resources::parse(
+      "cpus(a/bx/c):8;mem(a/bx/c):16;disk(a/bx/c):32").get();
+
+  Resources family = unreserved + grandfather + father + uncle + child;
+
+  EXPECT_EQ(unreserved, family.allocatableTo("*"));
+
+  EXPECT_EQ(grandfather + unreserved, family.allocatableTo("a"));
+
+  EXPECT_EQ(grandfather + father + unreserved, family.allocatableTo("a/bx"));
+
+  EXPECT_EQ(grandfather + father + child + unreserved,
+            family.allocatableTo("a/bx/c"));
+}
+
+
 TEST(ResourceProviderIDTest, Addition)
 {
   ResourceProviderID resourceProviderId;
@@ -2348,6 +2376,7 @@ TEST(DiskResourcesTest, SourceContains)
   EXPECT_FALSE(r8.contains(r7));
   EXPECT_FALSE(r8.contains(r7 + r7));
 }
+
 
 TEST(DiskResourcesTest, FilterPersistentVolumes)
 {
