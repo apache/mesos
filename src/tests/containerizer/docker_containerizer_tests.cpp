@@ -4190,6 +4190,152 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
 }
 #endif // __linux__
 
+
+// Run a task as non root while inheriting this ownership from the
+// framework supplied default user. Tests if the sandbox "stdout"
+// is correctly owned and writeable by the tasks user.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_Non_Root_Sandbox)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Shared<Docker> docker(
+      new MockDocker(tests::flags.docker, tests::flags.docker_socket));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.switch_user = true;
+
+  Fetcher fetcher(flags);
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+
+  FrameworkInfo framework;
+  framework.set_name("default");
+  framework.set_user("nobody");
+  framework.set_principal(DEFAULT_CREDENTIAL.principal());
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  // Start the task as a user without supplying an explicit command
+  // user. This should inherit the framework user for the task
+  // ownership.
+  CommandInfo* command = task.mutable_command();
+  command->set_value("echo \"foo\" && sleep 1000");
+
+  ContainerInfo* containerInfo = task.mutable_container();
+  containerInfo->set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo* dockerInfo = containerInfo->mutable_docker();
+  dockerInfo->set_image("alpine");
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  ASSERT_TRUE(exists(docker, containerId.get()));
+
+  Future<Option<ContainerTermination>> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
+
+  ASSERT_FALSE(
+    exists(docker, containerId.get(), ContainerState::RUNNING));
+
+  // Check that the sandbox was written to.
+  const string sandboxDirectory = slave::paths::getExecutorRunPath(
+      flags.work_dir,
+      slaveId,
+      frameworkId.get(),
+      statusRunning->executor_id(),
+      containerId.get());
+
+  ASSERT_TRUE(os::exists(sandboxDirectory));
+
+  // Check the sandbox "stdout" was written to.
+  const string stdoutPath = path::join(sandboxDirectory, "stdout");
+  ASSERT_TRUE(os::exists(stdoutPath));
+
+  // Check the sandbox "stdout" is owned by the framework default user.
+  struct stat stdoutStat;
+  ASSERT_GE(::stat(stdoutPath.c_str(), &stdoutStat), 0);
+
+  Result<uid_t> uid = os::getuid(framework.user());
+  ASSERT_SOME(uid);
+
+  ASSERT_EQ(stdoutStat.st_uid, uid.get());
+
+  // Validate that our task was able to log into the sandbox.
+  Result<string> stdout = os::read(stdoutPath);
+  ASSERT_SOME(stdout);
+
+  EXPECT_TRUE(strings::contains(stdout.get(), "foo"));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
