@@ -28,6 +28,19 @@ namespace mesos {
 namespace roles {
 
 /**
+ * Returns true iff `left` is a strict subrole of `right`. `left` is a strict
+ * subrole of `right` if `left` is not equal to `right`, and `left` is a
+ * descendant of `right` in the role hierarchy.
+ *
+ * Examples:
+ *   - `foo` is not a strict subrole of `foo`.
+ *   - `foo/bar` is a strict subrole of `foo`.
+ *   - `foobar` is not a strict subrole of `foo`.
+ */
+bool isStrictSubroleOf(const std::string& left, const std::string& right);
+
+
+/**
  * Parses Roles from text in the form "role1,role2,role3".
  *
  * @param text String to be parsed

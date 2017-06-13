@@ -32,6 +32,14 @@ using std::vector;
 namespace mesos {
 namespace roles {
 
+bool isStrictSubroleOf(const std::string& left, const std::string& right)
+{
+  return left.size() > right.size() &&
+         left[right.size()] == '/' &&
+         strings::startsWith(left, right);
+}
+
+
 // TODO(haosdent): Remove this function after we stop supporting `--roles`
 // flag in master.
 Try<vector<string>> parse(const string& text)
