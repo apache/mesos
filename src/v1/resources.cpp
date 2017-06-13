@@ -919,15 +919,9 @@ bool Resources::isAllocatableTo(
     const Resource& resource,
     const std::string& role)
 {
-  if (isUnreserved(resource)) {
-    return true;
-  }
-
-  const vector<string> path = strings::tokenize(role, "/");
-  const vector<string> prefix = strings::tokenize(resource.role(), "/");
-
-  return path.size() >= prefix.size() &&
-         std::equal(prefix.begin(), prefix.end(), path.begin());
+  return isUnreserved(resource) ||
+         role == resource.role() ||
+         roles::isStrictSubroleOf(role, resource.role());
 }
 
 
