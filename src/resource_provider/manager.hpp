@@ -21,6 +21,9 @@
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
+#include <process/queue.hpp>
+
+#include "resource_provider/message.hpp"
 
 namespace mesos {
 namespace internal {
@@ -45,6 +48,9 @@ public:
   process::Future<process::http::Response> api(
       const process::http::Request& request,
       const Option<process::http::authentication::Principal>& principal) const;
+
+  // Returns a stream of messages from the resource provider manager.
+  process::Queue<ResourceProviderMessage> messages() const;
 
 private:
   process::Owned<ResourceProviderManagerProcess> process;

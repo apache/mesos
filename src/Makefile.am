@@ -1084,6 +1084,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   resource_provider/daemon.hpp						\
   resource_provider/local.hpp						\
   resource_provider/manager.hpp						\
+  resource_provider/message.hpp						\
   resource_provider/storage/provider.hpp				\
   sched/constants.hpp							\
   sched/flags.hpp							\

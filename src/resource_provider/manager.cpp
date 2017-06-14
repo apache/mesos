@@ -29,6 +29,7 @@ using process::Future;
 using process::Owned;
 using process::Process;
 using process::ProcessBase;
+using process::Queue;
 
 using process::dispatch;
 using process::spawn;
@@ -50,6 +51,8 @@ public:
   Future<http::Response> api(
       const http::Request& request,
       const Option<Principal>& principal);
+
+  Queue<ResourceProviderMessage> messages;
 };
 
 
@@ -84,6 +87,12 @@ Future<http::Response> ResourceProviderManager::api(
       &ResourceProviderManagerProcess::api,
       request,
       principal);
+}
+
+
+Queue<ResourceProviderMessage> ResourceProviderManager::messages() const
+{
+  return process->messages;
 }
 
 } // namespace internal {
