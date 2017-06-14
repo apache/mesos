@@ -673,26 +673,20 @@ TEST_F(UpgradeTest, UpgradeAgentIntoHierarchicalRoleForHierarchicalRole)
   // re-registration later.
   StandaloneMasterDetector detector(master.get()->pid);
 
+  // Drop subsequent `ReregisterSlaveMessage`s to prevent a race condition
+  // where an unspoofed retry reaches master before the spoofed one.
+  DROP_PROTOBUFS(RegisterSlaveMessage(), _, master.get()->pid);
+
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    DROP_PROTOBUF(RegisterSlaveMessage(), _, master.get()->pid);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
   // Start a slave.
   slave::Flags slaveFlags = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
-
-  // Drop subsequent `ReregisterSlaveMessage`s to prevent a race condition
-  // where an unspoofed retry reaches master before the spoofed one.
-  DROP_PROTOBUFS(RegisterSlaveMessage(), slave.get()->pid, master.get()->pid);
-
-  Future<RegisterSlaveMessage> registerSlaveMessage =
-    DROP_PROTOBUF(
-        RegisterSlaveMessage(),
-        slave.get()->pid,
-        master.get()->pid);
-
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(
-        SlaveRegisteredMessage(),
-        master.get()->pid,
-        slave.get()->pid);
 
   Clock::advance(slaveFlags.authentication_backoff_factor);
   Clock::advance(slaveFlags.registration_backoff_factor);
