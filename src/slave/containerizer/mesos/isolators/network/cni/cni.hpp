@@ -229,6 +229,7 @@ public:
     Option<std::string> etc_hostname_path;
     Option<std::string> etc_resolv_conf;
     bool bind_host_files;
+    bool bind_readonly;
   };
 
   NetworkCniIsolatorSetup() : Subcommand(NAME) {}

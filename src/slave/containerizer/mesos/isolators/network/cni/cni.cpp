@@ -763,6 +763,7 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
     CHECK(infos[containerId]->rootfs.isSome());
 
     NetworkCniIsolatorSetup setup;
+    setup.flags.bind_readonly = true;
     setup.flags.pid = pid;
     setup.flags.rootfs = infos[containerId]->rootfs;
 
@@ -1779,6 +1780,12 @@ NetworkCniIsolatorSetup::Flags::Flags()
       "Bind mount the container's network files to the network files "
       "present on host filesystem",
       false);
+
+  add(&Flags::bind_readonly,
+      "bind_readonly",
+      "Bind mount the container's network files read-only to protect the "
+      "originals",
+      false);
 }
 
 
@@ -1914,6 +1921,20 @@ int NetworkCniIsolatorSetup::execute()
              << file << "': " << mount.error() << endl;
         return EXIT_FAILURE;
       }
+
+      if (flags.bind_readonly) {
+        mount = fs::mount(
+          source,
+          file,
+          None(),
+          MS_RDONLY | MS_REMOUNT | MS_BIND,
+          nullptr);
+        if (mount.isError()) {
+          cerr << "Failed to remount bind mount as readonly from '" << source
+               << "' to '" << file << "': " << mount.error() << endl;
+          return EXIT_FAILURE;
+        }
+      }
     }
 
     // Do the bind mount in the container filesystem.
@@ -1963,6 +1984,20 @@ int NetworkCniIsolatorSetup::execute()
         cerr << "Failed to bind mount from '" << source << "' to '"
              << target << "': " << mount.error() << endl;
         return EXIT_FAILURE;
+      }
+
+      if (flags.bind_readonly) {
+        mount = fs::mount(
+          source,
+          target,
+          None(),
+          MS_RDONLY | MS_REMOUNT | MS_BIND,
+          nullptr);
+        if (mount.isError()) {
+          cerr << "Failed to remount bind mount as readonly from '" << source
+               << "' to '" << target << "': " << mount.error() << endl;
+          return EXIT_FAILURE;
+        }
       }
     }
   }
