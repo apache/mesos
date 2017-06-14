@@ -1118,10 +1118,15 @@ Future<Response> Master::Http::_createVolumes(
   operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
 
   Option<Error> validate = validation::operation::validate(
-      operation.create(), slave->checkpointedResources, principal);
+      operation.create(),
+      slave->checkpointedResources,
+      principal,
+      slave->capabilities);
 
   if (validate.isSome()) {
-    return BadRequest("Invalid CREATE operation: " + validate.get().message);
+    return BadRequest(
+        "Invalid CREATE operation on agent " + stringify(*slave) + ": " +
+        validate.get().message);
   }
 
   return master->authorizeCreateVolume(operation.create(), principal)
@@ -2252,10 +2257,12 @@ Future<Response> Master::Http::_reserve(
   operation.mutable_reserve()->mutable_resources()->CopyFrom(resources);
 
   Option<Error> error = validation::operation::validate(
-      operation.reserve(), principal);
+      operation.reserve(), principal, slave->capabilities);
 
   if (error.isSome()) {
-    return BadRequest("Invalid RESERVE operation: " + error.get().message);
+    return BadRequest(
+        "Invalid RESERVE operation on agent " + stringify(*slave) + ": " +
+        error.get().message);
   }
 
   return master->authorizeReserveResources(operation.reserve(), principal)

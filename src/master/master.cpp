@@ -4195,10 +4195,16 @@ void Master::_accept(
 
         // Make sure this reserve operation is valid.
         Option<Error> error = validation::operation::validate(
-            operation.reserve(), principal, framework->info);
+            operation.reserve(),
+            principal,
+            slave->capabilities,
+            framework->info);
 
         if (error.isSome()) {
-          drop(framework, operation, error->message);
+          drop(
+              framework,
+              operation,
+              error->message + "; on agent " + stringify(*slave));
           continue;
         }
 
@@ -4311,10 +4317,14 @@ void Master::_accept(
             operation.create(),
             slave->checkpointedResources,
             principal,
+            slave->capabilities,
             framework->info);
 
         if (error.isSome()) {
-          drop(framework, operation, error->message);
+          drop(
+              framework,
+              operation,
+              error->message + "; on agent " + stringify(*slave));
           continue;
         }
 

@@ -33,6 +33,8 @@
 #include <stout/error.hpp>
 #include <stout/option.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 namespace mesos {
 namespace internal {
 namespace master {
@@ -261,6 +263,7 @@ namespace operation {
 Option<Error> validate(
     const Offer::Operation::Reserve& reserve,
     const Option<process::http::authentication::Principal>& principal,
+    const protobuf::slave::Capabilities& agentCapabilities,
     const Option<FrameworkInfo>& frameworkInfo = None());
 
 
@@ -278,6 +281,7 @@ Option<Error> validate(
     const Offer::Operation::Create& create,
     const Resources& checkpointedResources,
     const Option<process::http::authentication::Principal>& principal,
+    const protobuf::slave::Capabilities& agentCapabilities,
     const Option<FrameworkInfo>& frameworkInfo = None());
 
 
