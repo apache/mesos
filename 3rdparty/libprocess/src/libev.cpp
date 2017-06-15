@@ -157,6 +157,7 @@ void EventLoop::run()
   __in_event_loop__ = false;
 }
 
+
 void EventLoop::stop()
 {
   ev_async_send(loop, &shutdown_watcher);

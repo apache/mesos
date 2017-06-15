@@ -1971,6 +1971,7 @@ Option<int_fd> get_persistent_socket(const UPID& to)
   return socket_manager->get_persistent_socket(to);
 }
 
+
 Option<int_fd> SocketManager::get_persistent_socket(const UPID& to)
 {
   synchronized (mutex) {

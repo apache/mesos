@@ -52,6 +52,7 @@ TEST(TimeSeriesTest, Set)
   ASSERT_EQ(1, latest.get().data);
 }
 
+
 TEST(TimeSeriesTest, Sparsify)
 {
   // We have to pause the clock because this test often results
