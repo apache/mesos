@@ -419,29 +419,6 @@ public:
   // This must be called only when the resources are allocated!
   hashmap<std::string, Resources> allocations() const;
 
-  // Returns a Resources object with the same amount of each resource
-  // type as these Resources, but with all Resource objects marked as
-  // the specified (role, reservation) pair. This is used to cross
-  // reservation boundaries without affecting the actual resources.
-  // If the optional ReservationInfo is given, the resource's
-  // 'reservation' field is set. Otherwise, the resource's
-  // 'reservation' field is cleared.
-  // Returns an Error when the role is invalid or the reservation
-  // is set when the role is '*'.
-  //
-  // TODO(mpark): Switch over to using `(push|pop)Reservation` and remove this
-  //              once we change to the 'post-reservation-refinement' format.
-  Try<Resources> flatten(
-      const std::string& role,
-      const Option<Resource::ReservationInfo>& reservation = None()) const;
-
-  // Equivalent to `flatten("*")` except it returns a Resources directly
-  // because the result is always a valid in this case.
-  //
-  // TODO(mpark): Switch over to using `toUnreserved` and remove this once
-  //              we change to the 'post-reservation-refinement' format.
-  Resources flatten() const;
-
   // Returns a `Resources` object with the new reservation added to the back.
   // The new reservation must be a valid refinement of the current reservation.
   Resources pushReservation(const Resource::ReservationInfo& reservation) const;

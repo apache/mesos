@@ -1465,48 +1465,6 @@ hashmap<string, Resources> Resources::allocations() const
 }
 
 
-Try<Resources> Resources::flatten(
-    const string& role,
-    const Option<Resource::ReservationInfo>& reservation) const
-{
-  // Check role name.
-  Option<Error> error = roles::validate(role);
-  if (error.isSome()) {
-    return error.get();
-  }
-
-  // Checks for the invalid state of (role, reservation) pair.
-  if (role == "*" && reservation.isSome()) {
-    return Error(
-        "Invalid reservation: role \"*\" cannot be dynamically reserved");
-  }
-
-  Resources flattened;
-
-  foreach (Resource_ resource_, resources) {
-    // With the above checks, we are certain that `resource_` will
-    // remain valid after the modifications.
-    resource_.resource.set_role(role);
-    if (reservation.isNone()) {
-      resource_.resource.clear_reservation();
-    } else {
-      resource_.resource.mutable_reservation()->CopyFrom(reservation.get());
-    }
-    flattened.add(resource_);
-  }
-
-  return flattened;
-}
-
-
-Resources Resources::flatten() const
-{
-  Try<Resources> flattened = flatten("*");
-  CHECK_SOME(flattened);
-  return flattened.get();
-}
-
-
 Resources Resources::pushReservation(
     const Resource::ReservationInfo& reservation) const
 {
@@ -1627,14 +1585,14 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
               " dynamically reserved");
         }
 
-        Resources unreserved = Resources(reserved).flatten();
+        Resources resources = Resources(reserved).popReservation();
 
-        if (!result.contains(unreserved)) {
+        if (!result.contains(resources)) {
           return Error("Invalid RESERVE Operation: " + stringify(result) +
-                       " does not contain " + stringify(unreserved));
+                       " does not contain " + stringify(resources));
         }
 
-        result -= unreserved;
+        result -= resources;
         result.add(reserved);
       }
       break;
@@ -1660,10 +1618,10 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
                        " does not contain " + stringify(reserved));
         }
 
-        Resources unreserved = Resources(reserved).flatten();
+        Resources resources = Resources(reserved).popReservation();
 
         result.subtract(reserved);
-        result += unreserved;
+        result += resources;
       }
       break;
     }
@@ -1967,7 +1925,7 @@ Option<Resources> Resources::find(const Resource& target) const
 {
   Resources found;
   Resources total = *this;
-  Resources remaining = Resources(target).flatten();
+  Resources remaining = Resources(target).toUnreserved();
 
   // First look in the target role, then unreserved, then any remaining role.
   vector<lambda::function<bool(const Resource&)>> predicates;
@@ -1982,28 +1940,23 @@ Option<Resources> Resources::find(const Resource& target) const
 
   foreach (const auto& predicate, predicates) {
     foreach (const Resource_& resource_, total.filter(predicate)) {
-      // Need to flatten to ignore the roles in contains().
-      Resources flattened = Resources(resource_.resource).flatten();
+      // Need to `toUnreserved` to ignore the roles in contains().
+      Resources unreserved = Resources(resource_.resource).toUnreserved();
 
-      if (flattened.contains(remaining)) {
+      if (unreserved.contains(remaining)) {
         // The target has been found, return the result.
-        if (!resource_.resource.has_reservation()) {
-          Try<Resources> _flattened =
-            remaining.flatten(resource_.resource.role());
+        foreach (Resource_ r, remaining) {
+          r.resource.mutable_reservations()->CopyFrom(
+              resource_.resource.reservations());
 
-          CHECK_SOME(_flattened);
-          return found + _flattened.get();
-        } else {
-          Try<Resources> _flattened = remaining.flatten(
-              resource_.resource.role(), resource_.resource.reservation());
-
-          CHECK_SOME(_flattened);
-          return found + _flattened.get();
+          found.add(r);
         }
-      } else if (remaining.contains(flattened)) {
+
+        return found;
+      } else if (remaining.contains(unreserved)) {
         found.add(resource_);
         total.subtract(resource_);
-        remaining -= flattened;
+        remaining -= unreserved;
         break;
       }
     }

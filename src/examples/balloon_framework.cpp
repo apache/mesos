@@ -178,7 +178,8 @@ public:
       // If there is an active task, or if the offer is not
       // big enough, reject the offer.
       if (taskActive ||
-          !resources.flatten().contains(taskResources + executorResources)) {
+          !resources.toUnreserved().contains(
+              taskResources + executorResources)) {
         Filters filters;
         filters.set_refuse_seconds(600);
 

@@ -505,7 +505,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Resources total = available + offered;
-  Resources unreserved = total.flatten();
+  Resources unreserved = total.toUnreserved();
 
   Future<Response> response = process::http::post(
       master.get()->pid,

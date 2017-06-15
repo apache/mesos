@@ -1715,7 +1715,7 @@ TEST(ResourceProviderIDTest, Contains) {
 }
 
 
-TEST(ResourcesTest, FlattenRoles)
+TEST(ResourcesTest, ToUnreserved)
 {
   Resource cpus1 = Resources::parse("cpus", "1", "role1").get();
   Resource cpus2 = Resources::parse("cpus", "2", "role2").get();
@@ -1726,7 +1726,7 @@ TEST(ResourcesTest, FlattenRoles)
   r += cpus2;
   r += mem1;
 
-  EXPECT_EQ(r.flatten(), Resources::parse("cpus:3;mem:5").get());
+  EXPECT_EQ(r.toUnreserved(), Resources::parse("cpus:3;mem:5").get());
 }
 
 
@@ -2422,7 +2422,7 @@ TEST(ResourcesOperationTest, UnreserveResources)
 
   Resources reserved = reservedCpus + reservedMem;
 
-  Resources unreservedCpus1 = reservedCpus.flatten();
+  Resources unreservedCpus1 = reservedCpus.toUnreserved();
 
   EXPECT_SOME_EQ(reservedMem + unreservedCpus1,
                  reserved.apply(UNRESERVE(reservedCpus)));

@@ -153,7 +153,7 @@ public:
 
       // If we've already launched the task, or if the offer is not
       // big enough, reject the offer.
-      if (taskActive || !resources.flatten().contains(taskResources)) {
+      if (taskActive || !resources.toUnreserved().contains(taskResources)) {
         Filters filters;
         filters.set_refuse_seconds(600);
 

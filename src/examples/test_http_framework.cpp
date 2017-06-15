@@ -232,7 +232,7 @@ private:
       // Launch tasks.
       vector<TaskInfo> tasks;
       while (tasksLaunched < totalTasks &&
-             remaining.flatten().contains(taskResources)) {
+             remaining.toUnreserved().contains(taskResources)) {
         int taskId = tasksLaunched++;
 
         cout << "Launching task " << taskId << " using offer "

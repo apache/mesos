@@ -1676,7 +1676,7 @@ ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
     std::vector<TaskInfo> tasks;
     Resources remaining = offer.resources();
 
-    while (remaining.flatten().contains(taskResources) &&
+    while (remaining.toUnreserved().contains(taskResources) &&
            launched < numTasks) {
       TaskInfo task;
       task.set_name("TestTask");

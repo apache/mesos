@@ -246,7 +246,7 @@ protected:
         // No active executor running in the cluster.
         // Launch a new task with executor.
 
-        if (Resources(offer.resources()).flatten()
+        if (Resources(offer.resources()).toUnreserved()
             .contains(EXECUTOR_RESOURCES + taskResources)) {
           LOG(INFO)
             << "Starting executor and task " << tasksLaunched
@@ -262,7 +262,9 @@ protected:
         // Offer from the same agent that has an active executor.
         // Launch more tasks on that executor.
 
-        if (Resources(offer.resources()).flatten().contains(taskResources)) {
+        if (Resources(offer.resources())
+              .toUnreserved()
+              .contains(taskResources)) {
           LOG(INFO)
             << "Starting task " << tasksLaunched << " on " << offer.hostname();
 

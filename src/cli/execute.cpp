@@ -74,6 +74,7 @@ using mesos::v1::Image;
 using mesos::v1::Label;
 using mesos::v1::Labels;
 using mesos::v1::Offer;
+using mesos::v1::Resource;
 using mesos::v1::Resources;
 using mesos::v1::RLimitInfo;
 using mesos::v1::TaskGroupInfo;
@@ -492,7 +493,7 @@ protected:
         }
       }
 
-      if (!launched && offered.flatten().contains(requiredResources)) {
+      if (!launched && offered.toUnreserved().contains(requiredResources)) {
         TaskInfo _task;
         TaskGroupInfo _taskGroup;
 
@@ -501,12 +502,18 @@ protected:
           _task.mutable_agent_id()->MergeFrom(offer.agent_id());
 
           // Takes resources first from the specified role, then from '*'.
-          Try<Resources> flattened =
-            Resources(_task.resources()).flatten(frameworkInfo.role());
+          Option<Resources> resources = [&]() {
+            if (frameworkInfo.role() == "*") {
+              return offered.find(Resources(_task.resources()));
+            } else {
+              Resource::ReservationInfo reservation;
+              reservation.set_type(Resource::ReservationInfo::STATIC);
+              reservation.set_role(frameworkInfo.role());
 
-          // `frameworkInfo.role()` must be valid as it's allowed to register.
-          CHECK_SOME(flattened);
-          Option<Resources> resources = offered.find(flattened.get());
+              return offered.find(
+                  Resources(_task.resources()).pushReservation(reservation));
+            }
+          }();
 
           CHECK_SOME(resources);
 
@@ -516,13 +523,18 @@ protected:
             _task.mutable_agent_id()->MergeFrom(offer.agent_id());
 
             // Takes resources first from the specified role, then from '*'.
-            Try<Resources> flattened =
-              Resources(_task.resources()).flatten(frameworkInfo.role());
+            Option<Resources> resources = [&]() {
+              if (frameworkInfo.role() == "*") {
+                return offered.find(Resources(_task.resources()));
+              } else {
+                Resource::ReservationInfo reservation;
+                reservation.set_type(Resource::ReservationInfo::STATIC);
+                reservation.set_role(frameworkInfo.role());
 
-            // `frameworkInfo.role()` must be valid as it's allowed to
-            // register.
-            CHECK_SOME(flattened);
-            Option<Resources> resources = offered.find(flattened.get());
+                return offered.find(
+                    Resources(_task.resources()).pushReservation(reservation));
+              }
+            }();
 
             CHECK_SOME(resources);
 
