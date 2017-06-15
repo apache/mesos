@@ -2239,7 +2239,7 @@ TEST_F(ReservationTest, PreventUnreservingAlienResources)
 
   const string frameworkRole2 = "role2";
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo1.set_name("framework2");
+  frameworkInfo2.set_name("framework2");
   frameworkInfo2.set_role(frameworkRole2);
 
   master::Flags masterFlags = CreateMasterFlags();
