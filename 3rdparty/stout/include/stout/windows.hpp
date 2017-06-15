@@ -192,30 +192,36 @@ inline bool S_ISDIR(const int mode)
   return (mode & S_IFMT) == S_IFDIR; // Directory.
 }
 
+
 inline bool S_ISREG(const int mode)
 {
   return (mode & S_IFMT) == S_IFREG;  // File.
 }
+
 
 inline bool S_ISCHR(const int mode)
 {
   return (mode & S_IFMT) == S_IFCHR;  // Character device.
 }
 
+
 inline bool S_ISFIFO(const int mode)
 {
   return (mode & S_IFMT) == _S_IFIFO; // Pipe.
 }
+
 
 inline bool S_ISBLK(const int mode)
 {
   return false;                       // Block special device.
 }
 
+
 inline bool S_ISSOCK(const int mode)
 {
   return false;                       // Socket.
 }
+
 
 inline bool S_ISLNK(const int mode)
 {

@@ -44,6 +44,7 @@ TEST(DurationTest, Comparison)
   EXPECT_LT(Weeks(5217) - Nanoseconds(1), Weeks(5217));
 }
 
+
 TEST(DurationTest, ParseAndTry)
 {
   EXPECT_SOME_EQ(Hours(3), Duration::parse("3hrs"));
@@ -54,6 +55,7 @@ TEST(DurationTest, ParseAndTry)
   EXPECT_ERROR(Duration::create(10 * 1e9));
   EXPECT_ERROR(Duration::create(-10 * 1e9));
 }
+
 
 TEST(DurationTest, Arithmetic)
 {
@@ -110,6 +112,7 @@ TEST(DurationTest, OutputFormat)
   EXPECT_EQ("15250.2844524715weeks", stringify(Duration::max()));
   EXPECT_EQ("-15250.2844524715weeks", stringify(Duration::min()));
 }
+
 
 TEST(DurationTest, Timeval)
 {

@@ -407,6 +407,7 @@ inline Try<Duration> Duration::create(double seconds)
   return Nanoseconds(static_cast<int64_t>(seconds * SECONDS));
 }
 
+
 inline constexpr Duration Duration::max()
 {
   return Nanoseconds(std::numeric_limits<int64_t>::max());

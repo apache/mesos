@@ -115,12 +115,14 @@ inline os::WindowsFD accept(
   return ::accept(fd, addr, reinterpret_cast<int*>(addrlen));
 }
 
+
 inline int bind(
     const os::WindowsFD& fd, const sockaddr* addr, socklen_t addrlen)
 {
   CHECK_LE(addrlen, INT32_MAX);
   return ::bind(fd, addr, static_cast<int>(addrlen));
 }
+
 
 inline int connect(
     const os::WindowsFD& fd, const sockaddr* address, socklen_t addrlen)
@@ -129,6 +131,7 @@ inline int connect(
   return ::connect(fd, address, static_cast<int>(addrlen));
 }
 
+
 inline ssize_t send(
     const os::WindowsFD& fd, const void* buf, size_t len, int flags)
 {
@@ -136,6 +139,7 @@ inline ssize_t send(
   return ::send(
       fd, static_cast<const char*>(buf), static_cast<int>(len), flags);
 }
+
 
 inline ssize_t recv(const os::WindowsFD& fd, void* buf, size_t len, int flags)
 {

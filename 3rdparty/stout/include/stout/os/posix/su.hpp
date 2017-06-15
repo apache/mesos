@@ -315,6 +315,7 @@ inline Result<std::string> user(Option<uid_t> uid = None())
   }
 }
 
+
 inline Try<Nothing> su(const std::string& user)
 {
   Result<gid_t> gid = os::getgid(user);

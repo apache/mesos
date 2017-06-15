@@ -58,6 +58,7 @@ inline Result<Process> process(pid_t pid)
   return None();
 }
 
+
 inline Try<std::set<pid_t>> pids()
 {
   std::set<pid_t> result;
