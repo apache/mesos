@@ -24,6 +24,7 @@
 #include <process/clock.hpp>
 #include <process/owned.hpp>
 
+#include <stout/hashmap.hpp>
 #include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
 #include <stout/path.hpp>
@@ -2300,6 +2301,149 @@ TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
 
   foreach (const ContainerID& containerId, containerIds.get()) {
     AWAIT_READY(containerizer->wait(containerId));
+  }
+}
+
+
+// Verifies that task groups with multiple tasks, each one with a check,
+// are supported by the default executor and its status updates are delivered.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    DefaultExecutorCheckTest, MultipleTasksWithChecks)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Disable AuthN on the agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = false;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), flags);
+  ASSERT_SOME(agent);
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  const v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_resources()->CopyFrom(resources);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  subscribe(&mesos, frameworkInfo);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  Future<v1::scheduler::Event::Update> updates[4];
+
+  {
+    testing::InSequence dummy;
+    for (int i = 0; i < 4; i++) {
+      EXPECT_CALL(*scheduler, update(_, _))
+        .WillOnce(FutureArg<1>(&updates[i]));
+    }
+
+    EXPECT_CALL(*scheduler, update(_, _))
+      .WillRepeatedly(Return()); // Ignore subsequent updates.
+  }
+
+  v1::TaskInfo taskInfo1 =
+    v1::createTask(agentId, resources, SLEEP_COMMAND(10000));
+
+  v1::CheckInfo* checkInfo = taskInfo1.mutable_check();
+  checkInfo->set_type(v1::CheckInfo::TCP);
+  checkInfo->mutable_tcp()->set_port(getFreePort().get());
+  checkInfo->set_delay_seconds(0);
+  checkInfo->set_interval_seconds(0);
+  checkInfo->set_timeout_seconds(1);
+
+  v1::TaskInfo taskInfo2 =
+    v1::createTask(agentId, resources, SLEEP_COMMAND(10000));
+  taskInfo2.mutable_check()->CopyFrom(taskInfo1.check());
+
+  v1::TaskGroupInfo taskGroup = v1::createTaskGroupInfo({taskInfo1, taskInfo2});
+
+  launchTaskGroup(&mesos, offer, executorInfo, taskGroup);
+
+  enum class Stage { INITIAL, RUNNING, CHECKED };
+  hashmap<v1::TaskID, Stage> taskStages;
+  taskStages.put(taskInfo1.task_id(), Stage::INITIAL);
+  taskStages.put(taskInfo2.task_id(), Stage::INITIAL);
+
+  for (int i = 0; i < 4; i++ ) {
+    AWAIT_READY(updates[i]);
+
+    const v1::TaskStatus& taskStatus = updates[i]->status();
+
+    Option<Stage> taskStage = taskStages.get(taskStatus.task_id());
+    ASSERT_SOME(taskStage);
+
+    switch (taskStage.get()) {
+      case Stage::INITIAL: {
+        ASSERT_EQ(TASK_RUNNING, taskStatus.state());
+        ASSERT_TRUE(taskStatus.check_status().has_tcp());
+        ASSERT_FALSE(taskStatus.check_status().tcp().has_succeeded());
+
+        taskStages.put(taskStatus.task_id(), Stage::RUNNING);
+
+        break;
+      }
+      case Stage::RUNNING: {
+        ASSERT_EQ(TASK_RUNNING, taskStatus.state());
+        ASSERT_EQ(
+            v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+            taskStatus.reason());
+        ASSERT_TRUE(taskStatus.check_status().has_tcp());
+        ASSERT_TRUE(taskStatus.check_status().tcp().has_succeeded());
+
+        taskStages.put(taskStatus.task_id(), Stage::CHECKED);
+
+        break;
+      }
+      case Stage::CHECKED: {
+        FAIL() << "Unexpected task update: " << updates[1]->DebugString();
+        break;
+      }
+    }
+
+    // Acknowledge (to be able to get the next update).
+    acknowledge(&mesos, frameworkId, taskStatus);
   }
 }
 
