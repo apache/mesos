@@ -109,3 +109,21 @@ run into any issues, file them with the library maintainers.*
   <td>Python</td>
 </tr>
 </table>
+
+## Operator API
+
+### User Contributed
+
+*Note: These libraries are supported by their authors, so if you
+run into any issues, file them with the library maintainers.*
+
+<table class="table table-bordered">
+<thead>
+<tr><th>Name</th><th>Language</th>
+</thead>
+<tr>
+  <td><a href="https://github.com/tobilg/mesos-operator-api-client">
+  mesos-operator-api-client</a></td>
+  <td>JavaScript</td>
+</tr>
+</table>
