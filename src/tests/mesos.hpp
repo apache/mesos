@@ -575,6 +575,16 @@ inline TVolume createVolumeFromDockerImage(
 }
 
 
+template <typename TNetworkInfo>
+inline TNetworkInfo createNetworkInfo(
+    const std::string& networkName)
+{
+  TNetworkInfo info;
+  info.set_name(networkName);
+  return info;
+}
+
+
 template <typename TContainerInfo, typename TVolume, typename TImage>
 inline TContainerInfo createContainerInfo(
     const Option<std::string>& imageName = None(),
@@ -1166,6 +1176,13 @@ inline Volume createVolumeFromDockerImage(Args&&... args)
 }
 
 
+template <typename... Args>
+inline NetworkInfo createNetworkInfo(Args&&... args)
+{
+  return common::createNetworkInfo<NetworkInfo>(std::forward<Args>(args)...);
+}
+
+
 // We specify the argument to allow brace initialized construction.
 inline ContainerInfo createContainerInfo(
     const Option<std::string>& imageName = None(),
@@ -1367,6 +1384,14 @@ inline mesos::v1::Volume createVolumeFromDockerImage(Args&&... args)
 {
   return common::createVolumeFromDockerImage<
       mesos::v1::Volume, mesos::v1::Image>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::NetworkInfo createNetworkInfo(Args&&... args)
+{
+  return common::createNetworkInfo<mesos::v1::NetworkInfo>(
+      std::forward<Args>(args)...);
 }
 
 

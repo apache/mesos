@@ -16,6 +16,8 @@
 
 #include <gmock/gmock.h>
 
+#include <gtest/gtest.h>
+
 #include <process/clock.hpp>
 
 #include "slave/containerizer/fetcher.hpp"
@@ -35,7 +37,11 @@ using master::Master;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 
+using mesos::internal::tests::common::createNetworkInfo;
+
 using mesos::master::detector::MasterDetector;
+
+using mesos::v1::scheduler::Event;
 
 using process::Clock;
 using process::Future;
@@ -43,11 +49,14 @@ using process::Owned;
 
 using slave::Slave;
 
+using std::ostream;
 using std::set;
 using std::string;
 using std::vector;
 
 using testing::AtMost;
+using testing::DoAll;
+using testing::WithParamInterface;
 
 namespace mesos {
 namespace internal {
@@ -1211,6 +1220,197 @@ TEST_F(CniIsolatorTest, ROOT_INTERNET_VerifyResolverConfig)
 
   driver.stop();
   driver.join();
+}
+
+
+struct NetworkParam
+{
+  static NetworkParam host() { return NetworkParam(); }
+  static NetworkParam named(const string& name)
+  {
+    NetworkParam param;
+    param.networkInfo = v1::createNetworkInfo(name);
+    return param;
+  }
+
+  Option<mesos::v1::NetworkInfo> networkInfo;
+};
+
+
+ostream& operator<<(ostream& stream, const NetworkParam& param)
+{
+  if (param.networkInfo.isSome()) {
+    return stream << "Network '" << param.networkInfo->name() << "'";
+  } else {
+    return stream << "Host Network";
+  }
+}
+
+
+class DefaultExecutorCniTest
+  : public CniIsolatorTest,
+    public WithParamInterface<NetworkParam>
+{
+protected:
+  slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags flags = CniIsolatorTest::CreateSlaveFlags();
+
+    // Disable operator API authentication for the default executor.
+    flags.authenticate_http_readwrite = false;
+    flags.network_cni_plugins_dir = cniPluginDir;
+    flags.network_cni_config_dir = cniConfigDir;
+
+    return flags;
+  }
+};
+
+
+// These tests are parameterized by the network on which the container
+// is launched.
+//
+// TODO(asridharan): The version of gtest currently used by Mesos
+// doesn't support passing `::testing::Values` a single value. Update
+// these calls once we upgrade to a newer version.
+INSTANTIATE_TEST_CASE_P(
+    NetworkParam,
+    DefaultExecutorCniTest,
+    ::testing::Values(
+        NetworkParam::host(),
+        NetworkParam::named("__MESOS_TEST__")));
+
+
+// This test verifies that the default executor sets the correct
+// container IP when the container is launched on a host network or a
+// CNI network.
+//
+// NOTE: To use the default executor, we will need to use the v1
+// scheduler API.
+TEST_P(DefaultExecutorCniTest, ROOT_VerifyContainerIP)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Option<mesos::v1::NetworkInfo> networkInfo = GetParam().networkInfo;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(DoAll(v1::scheduler::SendSubscribe(frameworkInfo),
+                    FutureSatisfy(&connected)));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      "test_default_executor",
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT);
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  mesos::v1::ContainerInfo *container = executorInfo.mutable_container();
+  container->set_type(mesos::v1::ContainerInfo::MESOS);
+
+  if (networkInfo.isSome()) {
+    container->add_network_infos()->CopyFrom(networkInfo.get());
+  }
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0, offers->offers().size());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  // The command tests if the MESOS_CONTAINER_IP is the same as the
+  // `hostIPNetwork.address` which is what the mock CNI plugin would have
+  // setup for the container.
+  //
+  // If the container is running on the host network we set the IP to
+  // slave's PID, which is effectively the `LIBPROCESS_IP` that the
+  // `DefaultExecutor` is going to see. If, however, the container is
+  // running on a CNI network we choose the first non-loopback
+  // address as `hostIPNetwork` since the mock CNI plugin
+  // would set the container's IP to this address.
+  Try<net::IPNetwork> hostIPNetwork = net::IPNetwork::create(
+      slave.get()->pid.address.ip,
+      32);
+
+  if (networkInfo.isSome()) {
+    hostIPNetwork = getNonLoopbackIP();
+  }
+
+  ASSERT_SOME(hostIPNetwork);
+
+  string command = strings::format(
+      R"~(
+      #!/bin/sh
+      if [ x"$MESOS_CONTAINER_IP" = x"%s" ]; then
+        exit 0
+      else
+        exit 1
+      fi)~",
+      stringify(hostIPNetwork->address()),
+      stringify(hostIPNetwork->address())).get();
+
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId,
+      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
+      command);
+
+  Future<Event::Update> updateRunning;
+  Future<Event::Update> updateFinished;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateRunning),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
+    .WillOnce(FutureArg<1>(&updateFinished));
+
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
+
+  AWAIT_READY(updateRunning);
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
+
+  AWAIT_READY(updateFinished);
+  ASSERT_EQ(v1::TASK_FINISHED, updateFinished->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateFinished->status().task_id());
 }
 
 
