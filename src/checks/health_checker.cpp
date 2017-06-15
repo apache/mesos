@@ -351,6 +351,7 @@ void HealthChecker::failure()
   callback(taskHealthStatus);
 }
 
+
 void HealthChecker::success()
 {
   VLOG(1) << name << " for task '" << taskId << "' passed";

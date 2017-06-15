@@ -262,6 +262,7 @@ void CheckerProcess::resume()
   }
 }
 
+
 void CheckerProcess::processCheckResult(
     const Stopwatch& stopwatch,
     const Result<CheckStatusInfo>& result)

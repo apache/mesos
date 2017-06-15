@@ -229,6 +229,7 @@ TEST(HTTP, ModelRoleResources)
   EXPECT_EQ(expected.get(), object);
 }
 
+
 // This test ensures we don't break the API when it comes to JSON
 // representation of NetworkInfo.
 TEST(HTTP, SerializeNetworkInfo)

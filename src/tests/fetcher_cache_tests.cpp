@@ -1565,6 +1565,7 @@ TEST_F(FetcherCacheTest, FallbackFromEviction)
   EXPECT_EQ(1u, fetcherProcess->cacheFiles()->size());
 }
 
+
 // Tests LRU cache eviction strategy.
 TEST_F(FetcherCacheTest, RemoveLRUCacheEntries)
 {

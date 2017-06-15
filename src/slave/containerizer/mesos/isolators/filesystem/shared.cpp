@@ -67,6 +67,7 @@ Try<Isolator*> SharedFilesystemIsolatorProcess::create(const Flags& flags)
   return new MesosIsolator(process);
 }
 
+
 // We only need to implement the `prepare()` function in this
 // isolator. There is nothing to recover because we do not keep any
 // state and do not monitor filesystem usage or perform any action on

@@ -158,6 +158,7 @@ void GroupProcess::startConnection()
                        zk->getSessionId());
 }
 
+
 Future<Group::Membership> GroupProcess::join(
     const string& data,
     const Option<string>& label)

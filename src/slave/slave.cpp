@@ -230,6 +230,7 @@ Slave::~Slave()
   delete secretGenerator;
 }
 
+
 void Slave::signaled(int signal, int uid)
 {
   if (signal == SIGUSR1) {

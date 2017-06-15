@@ -349,6 +349,7 @@ bool ReplicaProcess::updatePromised(uint64_t promised)
   return true;
 }
 
+
 // When handling replicated log protocol requests, we handle errors in
 // three different ways:
 //

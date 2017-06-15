@@ -392,6 +392,7 @@ bool Framework::isTrackedUnderRole(const string& role) const
          master->roles.at(role)->frameworks.contains(id());
 }
 
+
 void Framework::trackUnderRole(const string& role)
 {
   CHECK(master->isWhitelistedRole(role))
@@ -404,6 +405,7 @@ void Framework::trackUnderRole(const string& role)
   }
   master->roles.at(role)->addFramework(this);
 }
+
 
 void Framework::untrackUnderRole(const string& role)
 {
@@ -2281,6 +2283,7 @@ void Master::drop(
                << " offer operation from framework " << *framework
                << ": " << message;
 }
+
 
 void Master::drop(
     Framework* framework,
@@ -9417,6 +9420,7 @@ void Slave::addExecutor(const FrameworkID& frameworkId,
   executors[frameworkId][executorInfo.executor_id()] = executorInfo;
   usedResources[frameworkId] += executorInfo.resources();
 }
+
 
 void Slave::removeExecutor(const FrameworkID& frameworkId,
                            const ExecutorID& executorId)

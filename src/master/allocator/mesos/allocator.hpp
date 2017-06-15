@@ -315,6 +315,7 @@ MesosAllocator<AllocatorProcess>::create()
   return CHECK_NOTNULL(allocator);
 }
 
+
 template <typename AllocatorProcess>
 MesosAllocator<AllocatorProcess>::MesosAllocator()
 {

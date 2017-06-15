@@ -261,6 +261,7 @@ Jvm::Env::Env(bool daemon)
   }
 }
 
+
 Jvm::Env::~Env()
 {
   if (detach) {

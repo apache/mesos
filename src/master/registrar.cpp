@@ -605,6 +605,7 @@ Future<bool> Registrar::apply(Owned<Operation> operation)
   return dispatch(process, &RegistrarProcess::apply, operation);
 }
 
+
 PID<RegistrarProcess> Registrar::pid() const
 {
   return process->self();

@@ -126,6 +126,7 @@ ZooKeeperMasterContenderProcess::~ZooKeeperMasterContenderProcess()
   delete contender;
 }
 
+
 void ZooKeeperMasterContenderProcess::initialize(const MasterInfo& _masterInfo)
 {
   masterInfo = _masterInfo;

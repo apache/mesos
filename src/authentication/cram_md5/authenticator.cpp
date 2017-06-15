@@ -458,6 +458,7 @@ void load(const std::map<string, string>& secrets)
   InMemoryAuxiliaryPropertyPlugin::load(properties);
 }
 
+
 void load(const Credentials& credentials)
 {
   std::map<string, string> secrets;

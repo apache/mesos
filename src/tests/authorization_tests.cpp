@@ -1014,6 +1014,7 @@ TYPED_TEST(AuthorizationTest, RegisterFrameworkHierarchical)
   }
 }
 
+
 // Tests the authorization of ACLs used for dynamic reservation of resources.
 TYPED_TEST(AuthorizationTest, Reserve)
 {

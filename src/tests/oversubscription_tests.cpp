@@ -1297,6 +1297,7 @@ TEST_F(OversubscriptionTest, UpdateAllocatorOnSchedulerFailover)
   EXPECT_EQ(DRIVER_STOPPED, driver1.join());
 }
 
+
 TEST_F(OversubscriptionTest, RemoveCapabilitiesOnSchedulerFailover)
 {
   // Start the master.

@@ -970,6 +970,7 @@ Future<Nothing> Docker::stop(
         remove));
 }
 
+
 Future<Nothing> Docker::_stop(
     const Docker& docker,
     const string& containerName,
@@ -1252,6 +1253,7 @@ Future<list<Docker::Container>> Docker::__ps(
 
   return promise->future();
 }
+
 
 // TODO(chenlily): Generalize functionality into a concurrency limiter
 // within libprocess.

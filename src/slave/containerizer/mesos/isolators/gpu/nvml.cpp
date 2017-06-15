@@ -199,6 +199,7 @@ Try<string> systemGetDriverVersion()
   return string(version);
 }
 
+
 Try<unsigned int> deviceGetCount()
 {
   if (nvml == nullptr) {

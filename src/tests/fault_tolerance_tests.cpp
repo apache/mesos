@@ -2016,6 +2016,7 @@ TEST_F(FaultToleranceTest, SplitBrainMasters)
   driver.join();
 }
 
+
 // This test verifies that when a framework re-registers with updated
 // FrameworkInfo, it gets updated in the master. The steps involved
 // are:

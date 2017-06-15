@@ -99,6 +99,7 @@ Future<Nothing> OverlayBackend::provision(
       backendDir);
 }
 
+
 Future<bool> OverlayBackend::destroy(
     const string& rootfs,
     const string& backendDir)

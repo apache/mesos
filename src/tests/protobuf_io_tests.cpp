@@ -133,6 +133,7 @@ TEST_F(ProtobufIOTest, Append)
   os::close(fd.get());
 }
 
+
 TEST_F(ProtobufIOTest, RepeatedPtrField)
 {
   const string file = ".protobuf_io_test_repeated_ptr_field";

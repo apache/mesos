@@ -305,6 +305,7 @@ TaskStatus HookManager::slaveTaskStatusDecorator(
   }
 }
 
+
 Resources HookManager::slaveResourcesDecorator(
     const SlaveInfo& slaveInfo)
 {
@@ -331,6 +332,7 @@ Resources HookManager::slaveResourcesDecorator(
     return slaveInfo_.resources();
   }
 }
+
 
 Attributes HookManager::slaveAttributesDecorator(
     const SlaveInfo& slaveInfo)
