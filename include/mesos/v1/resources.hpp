@@ -424,13 +424,30 @@ public:
   // 'reservation' field is cleared.
   // Returns an Error when the role is invalid or the reservation
   // is set when the role is '*'.
+  //
+  // TODO(mpark): Switch over to using `(push|pop)Reservation` and remove this
+  //              once we change to the 'post-reservation-refinement' format.
   Try<Resources> flatten(
       const std::string& role,
       const Option<Resource::ReservationInfo>& reservation = None()) const;
 
   // Equivalent to `flatten("*")` except it returns a Resources directly
   // because the result is always a valid in this case.
+  //
+  // TODO(mpark): Switch over to using `toUnreserved` and remove this once
+  //              we change to the 'post-reservation-refinement' format.
   Resources flatten() const;
+
+  // Returns a `Resources` object with the new reservation added to the back.
+  // The new reservation must be a valid refinement of the current reservation.
+  Resources pushReservation(const Resource::ReservationInfo& reservation) const;
+
+  // Returns a `Resources` object with the last reservation removed.
+  // Every resource in `Resources` must have `resource.reservations_size() > 0`.
+  Resources popReservation() const;
+
+  // Returns a `Resources` object with all of the reservations removed.
+  Resources toUnreserved() const;
 
   // Returns a Resources object that contains all the scalar resources
   // in this object, but with their AllocationInfo, ReservationInfo,

@@ -1330,6 +1330,48 @@ Resources Resources::flatten() const
 }
 
 
+Resources Resources::pushReservation(
+    const Resource::ReservationInfo& reservation) const
+{
+  Resources result;
+
+  foreach (Resource_ resource_, *this) {
+    resource_.resource.add_reservations()->CopyFrom(reservation);
+    CHECK_NONE(Resources::validate(resource_.resource));
+    result.add(resource_);
+  }
+
+  return result;
+}
+
+
+Resources Resources::popReservation() const
+{
+  Resources result;
+
+  foreach (Resource_ resource_, resources) {
+    CHECK_GE(resource_.resource.reservations_size(), 0);
+    resource_.resource.mutable_reservations()->RemoveLast();
+    result.add(resource_);
+  }
+
+  return result;
+}
+
+
+Resources Resources::toUnreserved() const
+{
+  Resources result;
+
+  foreach (Resource_ resource_, *this) {
+    resource_.resource.clear_reservations();
+    result.add(resource_);
+  }
+
+  return result;
+}
+
+
 Resources Resources::createStrippedScalarQuantity() const
 {
   Resources stripped;
