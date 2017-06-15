@@ -1,10 +1,11 @@
 ---
 layout: post
 title: Apache Mesos 1.3.0 Released
-permalink: /blog/mesos-1.3-0-released/
+permalink: /blog/mesos-1-3-0-released/
 published: true
 post_author:
-  display_name: Neil
+  display_name: Neil Conway
+  twitter: neil_conway
 tags: Release
 ---
 
