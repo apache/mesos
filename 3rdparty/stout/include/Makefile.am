@@ -199,7 +199,6 @@ nobase_include_HEADERS =			\
   stout/synchronized.hpp			\
   stout/tests/environment.hpp			\
   stout/tests/utils.hpp				\
-  stout/thread_local.hpp			\
   stout/try.hpp					\
   stout/traits.hpp				\
   stout/unimplemented.hpp			\
