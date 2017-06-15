@@ -81,6 +81,9 @@ using std::vector;
 namespace mesos {
 namespace internal {
 
+constexpr char MESOS_CONTAINER_IP[] = "MESOS_CONTAINER_IP";
+
+
 class DefaultExecutor : public ProtobufProcess<DefaultExecutor>
 {
 private:
@@ -366,6 +369,26 @@ protected:
     CHECK_EQ(SUBSCRIBED, state);
     CHECK_SOME(executorContainerId);
 
+    // Determine the container IP in order to set `MESOS_CONTAINER_IP`
+    // environment variable for each of the tasks being launched.
+    // Libprocess has already determined the IP address associated
+    // with this container network namespace in `process::initialize`
+    // and hence we can just use the IP assigned to the PID of this
+    // process as the IP address of the container.
+    //
+    // TODO(asridharan): This won't work when the framework sets the
+    // `LIBPROCESS_ADVERTISE_IP` which will end up overriding the IP
+    // address learnt during `process::initialize`, either through
+    // `LIBPROCESS_IP` or through hostname resolution. The correct
+    // approach would be to learn the allocated IP address directly
+    // from the agent and not rely on the resolution logic implemented
+    // in `process::initialize`.
+    Environment::Variable containerIP;
+    containerIP.set_name(MESOS_CONTAINER_IP);
+    containerIP.set_value(stringify(self().address.ip));
+
+    LOG(INFO) << "Setting 'MESOS_CONTAINER_IP' to: " << containerIP.value();
+
     list<ContainerID> containerIds;
     list<Future<Response>> responses;
 
@@ -426,6 +449,13 @@ protected:
         sandboxPath->set_type(Volume::Source::SandboxPath::PARENT);
         sandboxPath->set_path(executorVolume.container_path());
       }
+
+      // Set the `MESOS_CONTAINER_IP` for the task.
+      //
+      // TODO(asridharan): Document this API for consumption by tasks
+      // in the Mesos CNI and default-executor documentation.
+      CommandInfo *command = launch->mutable_command();
+      command->mutable_environment()->add_variables()->CopyFrom(containerIP);
 
       responses.push_back(post(connection.get(), call));
     }
