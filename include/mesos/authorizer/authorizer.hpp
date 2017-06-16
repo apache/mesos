@@ -55,7 +55,8 @@ public:
         weight_info(nullptr),
         resource(nullptr),
         command_info(nullptr),
-        container_id(nullptr) {}
+        container_id(nullptr),
+        machine_id(nullptr) {}
 
     Object(const authorization::Object& object)
       : value(object.has_value() ? &object.value() : nullptr),
@@ -71,7 +72,8 @@ public:
         command_info(
             object.has_command_info() ? &object.command_info() : nullptr),
         container_id(
-            object.has_container_id() ? &object.container_id() : nullptr) {}
+            object.has_container_id() ? &object.container_id() : nullptr),
+        machine_id(object.has_machine_id() ? &object.machine_id() : nullptr) {}
 
     const std::string* value;
     const FrameworkInfo* framework_info;
@@ -83,6 +85,7 @@ public:
     const Resource* resource;
     const CommandInfo* command_info;
     const ContainerID* container_id;
+    const MachineID* machine_id;
   };
 
   /**

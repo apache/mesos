@@ -55,6 +55,7 @@ message Object {
   optional Resource resource = 8;
   optional CommandInfo command_info = 9;
   optional ContainerID container_id = 10;
+  optional MachineID machine_id = 11;
 }
 
 
@@ -197,6 +198,21 @@ enum Action {
   // This action will not fill in any object fields, since a principal is
   // either allowed to register as an agent or is unauthorized.
   REGISTER_AGENT = 28;
+
+  // This action will set objects of type `MachineID`.
+  UPDATE_MAINTENANCE_SCHEDULE = 29;
+
+  // This action will set objects of type `MachineID`.
+  GET_MAINTENANCE_SCHEDULE = 30;
+
+  // This action will set objects of type `MachineID`.
+  START_MAINTENANCE = 31;
+
+  // This action will set objects of type `MachineID`.
+  STOP_MAINTENANCE = 32;
+
+  // This action will set objects of type `MachineID`.
+  GET_MAINTENANCE_STATUS = 33;
 }
 
 

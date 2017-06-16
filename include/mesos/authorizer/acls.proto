@@ -353,6 +353,57 @@ message ACL {
     // access.
     required Entity agents = 2;
   }
+
+  // Which principals are authorized to update the maintenance schedule.
+  message UpdateMaintenanceSchedule {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity machines = 2;
+  }
+
+  // Which principals are authorized to view the maintenance schedule.
+  message GetMaintenanceSchedule {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity machines = 2;
+  }
+
+  // Which principals are authorized to start maintenance on a machine.
+  message StartMaintenance {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity machines = 2;
+  }
+
+  // Which principals are authorized to stop maintenance on a machine.
+  message StopMaintenance {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity machines = 2;
+  }
+
+  // Which principals are authorized to get the maintenance status of a
+  // machine.
+  message GetMaintenanceStatus {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity machines = 2;
+  }
 }
 
 
@@ -418,4 +469,9 @@ message ACLs {
   repeated ACL.SetLogLevel set_log_level = 32;
   repeated ACL.RemoveNestedContainer remove_nested_containers = 33;
   repeated ACL.RegisterAgent register_agents = 34;
+  repeated ACL.UpdateMaintenanceSchedule update_maintenance_schedules = 35;
+  repeated ACL.GetMaintenanceSchedule get_maintenance_schedules = 36;
+  repeated ACL.StartMaintenance start_maintenances = 37;
+  repeated ACL.StopMaintenance stop_maintenances = 38;
+  repeated ACL.GetMaintenanceStatus get_maintenance_statuses = 39;
 }

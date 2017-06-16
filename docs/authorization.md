@@ -281,6 +281,48 @@ entries, each representing an authorizable action:
   </td>
   <td>(Re-)registration of agents.</td>
 </tr>
+<tr>
+  <td><code>get_maintenance_schedules</code></td>
+  <td>Operator username.</td>
+  <td>Implicitly given. A user should only use types ANY and NONE to allow/deny
+      access to the log.
+  </td>
+  <td>View the maintenance schedule of the machines used by Mesos.</td>
+</tr>
+<tr>
+  <td><code>update_maintenance_schedules</code></td>
+  <td>Operator username.</td>
+  <td>Implicitly given. A user should only use types ANY and NONE to allow/deny
+      access to the log.
+  </td>
+  <td>Modify the maintenance schedule of the machines used by Mesos.</td>
+</tr>
+<tr>
+  <td><code>start_maintenances</code></td>
+  <td>Operator username.</td>
+  <td>Implicitly given. A user should only use types ANY and NONE to allow/deny
+      access to the log.
+  </td>
+  <td>Starts maintenance on a machine. This will make a machine and its agents
+      unavailable.
+  </td>
+</tr>
+<tr>
+  <td><code>stop_maintenances</code></td>
+  <td>Operator username.</td>
+  <td>Implicitly given. A user should only use the types ANY and NONE to
+      allow/deny access to the log.
+  </td>
+  <td>Ends maintenance on a machine.</td>
+</tr>
+<tr>
+  <td><code>get_maintenance_statuses</code></td>
+  <td>Operator username.</td>
+  <td>Implicitly given. A user should only use the types ANY and NONE to
+      allow/deny access to the log.
+  </td>
+  <td>View if a machine is in maintenance or not.</td>
+</tr>
 </tbody>
 </table>
 
@@ -813,6 +855,7 @@ message Object {
   optional Task task = 3;
   optional TaskInfo task_info = 4;
   optional ExecutorInfo executor_info = 5;
+  optional MachineID machine_id = 11;
 }
 ```
 
@@ -849,6 +892,7 @@ struct Object
   const Task* task;
   const TaskInfo* task_info;
   const ExecutorInfo* executor_info;
+  const MachineID* machine_id;
 };
 ```
 

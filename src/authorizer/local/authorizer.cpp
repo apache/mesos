@@ -388,12 +388,14 @@ public:
           }
 
           break;
-        case authorization::SET_LOG_LEVEL:
-          aclObject.set_type(mesos::ACL::Entity::ANY);
-
-          break;
+        case authorization::GET_MAINTENANCE_SCHEDULE:
+        case authorization::GET_MAINTENANCE_STATUS:
         case authorization::REGISTER_AGENT:
-          aclObject.set_type(mesos::ACL::Entity::ANY);
+        case authorization::SET_LOG_LEVEL:
+        case authorization::START_MAINTENANCE:
+        case authorization::STOP_MAINTENANCE:
+        case authorization::UPDATE_MAINTENANCE_SCHEDULE:
+          aclObject.set_type(ACL::Entity::ANY);
 
           break;
         case authorization::CREATE_VOLUME:
@@ -644,21 +646,26 @@ public:
         case authorization::ATTACH_CONTAINER_OUTPUT:
         case authorization::DESTROY_VOLUME:
         case authorization::GET_ENDPOINT_WITH_PATH:
+        case authorization::GET_MAINTENANCE_SCHEDULE:
+        case authorization::GET_MAINTENANCE_STATUS:
         case authorization::KILL_NESTED_CONTAINER:
         case authorization::LAUNCH_NESTED_CONTAINER:
         case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
+        case authorization::REGISTER_AGENT:
         case authorization::REMOVE_NESTED_CONTAINER:
         case authorization::RUN_TASK:
         case authorization::SET_LOG_LEVEL:
+        case authorization::START_MAINTENANCE:
+        case authorization::STOP_MAINTENANCE:
         case authorization::TEARDOWN_FRAMEWORK:
         case authorization::UNRESERVE_RESOURCES:
+        case authorization::UPDATE_MAINTENANCE_SCHEDULE:
         case authorization::VIEW_CONTAINER:
         case authorization::VIEW_EXECUTOR:
         case authorization::VIEW_FLAGS:
         case authorization::VIEW_FRAMEWORK:
         case authorization::VIEW_TASK:
         case authorization::WAIT_NESTED_CONTAINER:
-        case authorization::REGISTER_AGENT:
         case authorization::UNKNOWN:
           UNREACHABLE();
       }
@@ -849,22 +856,27 @@ public:
       case authorization::ATTACH_CONTAINER_OUTPUT:
       case authorization::DESTROY_VOLUME:
       case authorization::GET_ENDPOINT_WITH_PATH:
+      case authorization::GET_MAINTENANCE_SCHEDULE:
+      case authorization::GET_MAINTENANCE_STATUS:
       case authorization::KILL_NESTED_CONTAINER:
       case authorization::LAUNCH_NESTED_CONTAINER:
       case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
+      case authorization::REGISTER_AGENT:
+      case authorization::REMOVE_NESTED_CONTAINER:
       case authorization::RUN_TASK:
       case authorization::SET_LOG_LEVEL:
+      case authorization::START_MAINTENANCE:
+      case authorization::STOP_MAINTENANCE:
       case authorization::TEARDOWN_FRAMEWORK:
       case authorization::UNKNOWN:
       case authorization::UNRESERVE_RESOURCES:
+      case authorization::UPDATE_MAINTENANCE_SCHEDULE:
       case authorization::VIEW_CONTAINER:
       case authorization::VIEW_EXECUTOR:
       case authorization::VIEW_FLAGS:
       case authorization::VIEW_FRAMEWORK:
       case authorization::VIEW_TASK:
       case authorization::WAIT_NESTED_CONTAINER:
-      case authorization::REMOVE_NESTED_CONTAINER:
-      case authorization::REGISTER_AGENT:
         UNREACHABLE();
     }
 
@@ -1010,19 +1022,24 @@ public:
       case authorization::ATTACH_CONTAINER_OUTPUT:
       case authorization::DESTROY_VOLUME:
       case authorization::GET_ENDPOINT_WITH_PATH:
+      case authorization::GET_MAINTENANCE_SCHEDULE:
+      case authorization::GET_MAINTENANCE_STATUS:
       case authorization::KILL_NESTED_CONTAINER:
+      case authorization::REGISTER_AGENT:
+      case authorization::REMOVE_NESTED_CONTAINER:
       case authorization::RUN_TASK:
       case authorization::SET_LOG_LEVEL:
+      case authorization::START_MAINTENANCE:
+      case authorization::STOP_MAINTENANCE:
       case authorization::TEARDOWN_FRAMEWORK:
       case authorization::UNRESERVE_RESOURCES:
+      case authorization::UPDATE_MAINTENANCE_SCHEDULE:
       case authorization::VIEW_CONTAINER:
       case authorization::VIEW_EXECUTOR:
       case authorization::VIEW_FLAGS:
       case authorization::VIEW_FRAMEWORK:
       case authorization::VIEW_TASK:
       case authorization::WAIT_NESTED_CONTAINER:
-      case authorization::REMOVE_NESTED_CONTAINER:
-      case authorization::REGISTER_AGENT:
       case authorization::UNKNOWN: {
         Result<vector<GenericACL>> genericACLs =
           createGenericACLs(action, acls);
@@ -1248,6 +1265,59 @@ private:
         }
 
         return acls_;
+      case authorization::UPDATE_MAINTENANCE_SCHEDULE:
+        foreach (const ACL::UpdateMaintenanceSchedule& acl,
+                 acls.update_maintenance_schedules()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.machines();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::GET_MAINTENANCE_SCHEDULE:
+        foreach (const ACL::GetMaintenanceSchedule& acl,
+                 acls.get_maintenance_schedules()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.machines();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::START_MAINTENANCE:
+        foreach (const ACL::StartMaintenance& acl, acls.start_maintenances()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.machines();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::STOP_MAINTENANCE:
+        foreach (const ACL::StopMaintenance& acl, acls.stop_maintenances()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.machines();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::GET_MAINTENANCE_STATUS:
+        foreach (const ACL::GetMaintenanceStatus& acl,
+                 acls.get_maintenance_statuses()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.machines();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
       case authorization::REGISTER_FRAMEWORK:
       case authorization::CREATE_VOLUME:
       case authorization::RESERVE_RESOURCES:
@@ -1340,6 +1410,42 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
     if (acl.agents().type() == ACL::Entity::SOME) {
       return Error(
           "acls.register_agents type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::UpdateMaintenanceSchedule& acl,
+           acls.update_maintenance_schedules()) {
+    if (acl.machines().type() == ACL::Entity::SOME) {
+      return Error(
+          "acls.update_maintenance_schedule type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::GetMaintenanceSchedule& acl,
+           acls.get_maintenance_schedules()) {
+    if (acl.machines().type() == ACL::Entity::SOME) {
+      return Error(
+          "acls.get_maintenance_schedule type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::StartMaintenance& acl, acls.start_maintenances()) {
+    if (acl.machines().type() == ACL::Entity::SOME) {
+      return Error("acls.start_maintenance type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::StopMaintenance& acl, acls.stop_maintenances()) {
+    if (acl.machines().type() == ACL::Entity::SOME) {
+      return Error("acls.stop_maintenance type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::GetMaintenanceStatus& acl,
+           acls.get_maintenance_statuses()) {
+    if (acl.machines().type() == ACL::Entity::SOME) {
+      return Error(
+          "acls.get_maintenance_status type must be either NONE or ANY");
     }
   }
 

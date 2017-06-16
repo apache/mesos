@@ -4944,6 +4944,297 @@ TYPED_TEST(AuthorizationTest, RegisterAgent)
   }
 }
 
+
+// This tests the authorization of requests to UpdateMaintenanceSchedule.
+TYPED_TEST(AuthorizationTest, UpdateMaintenanceSchedule)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal can update maintenance schedule.
+    mesos::ACL::UpdateMaintenanceSchedule* acl =
+      acls.add_update_maintenance_schedules();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can update maintenance schedule.
+    mesos::ACL::UpdateMaintenanceSchedule* acl =
+      acls.add_update_maintenance_schedules();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    // "foo" is allowed to update maintenance schedules.
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_MAINTENANCE_SCHEDULE);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // "bar" is not allowed to update maintenance schedules.
+    authorization::Request request;
+    request.set_action(authorization::UPDATE_MAINTENANCE_SCHEDULE);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // Test that no authorizer is created with invalid ACLs.
+    ACLs invalid;
+
+    mesos::ACL::UpdateMaintenanceSchedule* acl =
+      invalid.add_update_maintenance_schedules();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_machines()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
+
+// This tests the authorization of requests to GetMaintenanceSchedule.
+TYPED_TEST(AuthorizationTest, GetMaintenanceSchedule)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal can view the maintenance schedule of the whole cluster.
+    mesos::ACL::GetMaintenanceSchedule* acl =
+      acls.add_get_maintenance_schedules();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can view the maintenance schedule.
+    mesos::ACL::GetMaintenanceSchedule* acl =
+      acls.add_get_maintenance_schedules();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    // "foo" is allowed to view maintenance schedules. The request should
+    // succeed.
+    authorization::Request request;
+    request.set_action(authorization::GET_MAINTENANCE_SCHEDULE);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // "bar" is not allowed to view maintenance schedules. The request
+    // should fail.
+    authorization::Request request;
+    request.set_action(authorization::GET_MAINTENANCE_SCHEDULE);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // Test that no authorizer is created with invalid ACLs.
+    ACLs invalid;
+
+    mesos::ACL::GetMaintenanceSchedule* acl =
+      invalid.add_get_maintenance_schedules();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_machines()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
+
+// This tests the authorization of requests to StartMaintenance.
+TYPED_TEST(AuthorizationTest, StartMaintenance)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal can start maintenance.
+    mesos::ACL::StartMaintenance* acl = acls.add_start_maintenances();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can start maintenance.
+    mesos::ACL::StartMaintenance* acl = acls.add_start_maintenances();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    // "foo" is allowed to start maintenance mode in nodes. The
+    // request should succeed.
+    authorization::Request request;
+    request.set_action(authorization::START_MAINTENANCE);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // "bar" is not allowed to start maintenance mode in nodes. The
+    // request should fail.
+    authorization::Request request;
+    request.set_action(authorization::START_MAINTENANCE);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // Test that no authorizer is created with invalid ACLs.
+    ACLs invalid;
+
+    mesos::ACL::StartMaintenance* acl = invalid.add_start_maintenances();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_machines()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
+
+// This tests the authorization of requests to StopMaintenance.
+TYPED_TEST(AuthorizationTest, StopMaintenance)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal can stop maintenance.
+    mesos::ACL::StopMaintenance* acl = acls.add_stop_maintenances();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can stop maintenance.
+    mesos::ACL::StopMaintenance* acl = acls.add_stop_maintenances();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    // "foo" is allowed to stop maintenance on nodes. The request
+    // should succeed.
+    authorization::Request request;
+    request.set_action(authorization::STOP_MAINTENANCE);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // "bar" is not allowed to stop maintenance on nodes. The request
+    // should fail.
+    authorization::Request request;
+    request.set_action(authorization::STOP_MAINTENANCE);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // Test that no authorizer is created with invalid ACLs.
+    ACLs invalid;
+
+    mesos::ACL::StopMaintenance* acl = invalid.add_stop_maintenances();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_machines()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
+
+// This tests the authorization of requests to GetMaintenanceStatus.
+TYPED_TEST(AuthorizationTest, GetMaintenanceStatus)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal view the maintenance status of the whole cluster.
+    mesos::ACL::GetMaintenanceStatus* acl =
+      acls.add_get_maintenance_statuses();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can view the maintenance status.
+    mesos::ACL::GetMaintenanceStatus* acl =
+      acls.add_get_maintenance_statuses();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    // "foo" is allowed to view maintenance status. The request should
+    // succeed.
+    authorization::Request request;
+    request.set_action(authorization::GET_MAINTENANCE_STATUS);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // "bar" is not allowed to view maintenance status. The request should fail.
+    authorization::Request request;
+    request.set_action(authorization::GET_MAINTENANCE_STATUS);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer.get()->authorized(request));
+  }
+
+  {
+    // Test that no authorizer is created with invalid ACLs.
+    ACLs invalid;
+
+    mesos::ACL::GetMaintenanceStatus* acl =
+      invalid.add_get_maintenance_statuses();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_machines()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
