@@ -4343,14 +4343,17 @@ string Master::Http::MACHINE_DOWN_HELP()
         "POST: Validates the request body as JSON and transitions",
         "  the list of machines into DOWN mode.  Currently, only",
         "  machines in DRAINING mode are allowed to be brought down."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "The current principal must be allowed to bring down all the machines",
+        "in the request, otherwise the request will fail."));
 }
 
 
 // /master/machine/down endpoint handler.
 Future<Response> Master::Http::machineDown(
     const Request& request,
-    const Option<Principal>&) const
+    const Option<Principal>& principal) const
 {
   // When current master is not the leader, redirect to the leading master.
   if (!master->elected()) {
@@ -4373,12 +4376,28 @@ Future<Response> Master::Http::machineDown(
     return BadRequest(ids.error());
   }
 
-  return _startMaintenance(ids.get());
+  Future<Owned<ObjectApprover>> approver;
+
+  if (master->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = master->authorizer.get()->getObjectApprover(
+        subject, authorization::START_MAINTENANCE);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver.then(defer(
+      master->self(),
+      [this, ids](const Owned<ObjectApprover>& approver) {
+        return _startMaintenance(ids.get(), approver);
+      }));
 }
 
 
 Future<Response> Master::Http::_startMaintenance(
-    const RepeatedPtrField<MachineID>& machineIds) const
+    const RepeatedPtrField<MachineID>& machineIds,
+    const Owned<ObjectApprover>& approver) const
 {
   // Validate every machine in the list.
   Try<Nothing> isValid = maintenance::validation::machines(machineIds);
@@ -4399,6 +4418,16 @@ Future<Response> Master::Http::_startMaintenance(
       return BadRequest(
           "Machine '" + stringify(JSON::protobuf(id)) +
             "' is not in DRAINING mode and cannot be brought down");
+    }
+
+    ObjectApprover::Object object;
+    object.machine_id = &id;
+    Try<bool> approved = approver->approved(object);
+
+    if (approved.isError()) {
+      return InternalServerError("Authorization error: " + approved.error());
+    } else if (!approved.get()) {
+      return Forbidden();
     }
   }
 
@@ -4458,9 +4487,24 @@ Future<Response> Master::Http::startMaintenance(
   CHECK_EQ(mesos::master::Call::START_MAINTENANCE, call.type());
   CHECK(call.has_start_maintenance());
 
+  Future<Owned<ObjectApprover>> approver;
+
+  if (master->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = master->authorizer.get()->getObjectApprover(
+        subject, authorization::START_MAINTENANCE);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
   RepeatedPtrField<MachineID> machineIds = call.start_maintenance().machines();
 
-  return _startMaintenance(machineIds);
+  return approver.then(defer(
+      master->self(),
+      [this, machineIds](const Owned<ObjectApprover>& approver) {
+        return _startMaintenance(machineIds, approver);
+      }));
 }
 
 
@@ -4482,14 +4526,17 @@ string Master::Http::MACHINE_UP_HELP()
         "POST: Validates the request body as JSON and transitions",
         "  the list of machines into UP mode.  This also removes",
         "  the list of machines from the maintenance schedule."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "The current principal must be allowed to bring up all the machines",
+        "in the request, otherwise the request will fail."));
 }
 
 
 // /master/machine/up endpoint handler.
 Future<Response> Master::Http::machineUp(
     const Request& request,
-    const Option<Principal>&) const
+    const Option<Principal>& principal) const
 {
   // When current master is not the leader, redirect to the leading master.
   if (!master->elected()) {
@@ -4512,12 +4559,28 @@ Future<Response> Master::Http::machineUp(
     return BadRequest(ids.error());
   }
 
-  return _stopMaintenance(ids.get());
+  Future<Owned<ObjectApprover>> approver;
+
+  if (master->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = master->authorizer.get()->getObjectApprover(
+        subject, authorization::STOP_MAINTENANCE);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver.then(defer(
+      master->self(),
+      [this, ids](const Owned<ObjectApprover>& approver) {
+        return _stopMaintenance(ids.get(), approver);
+      }));
 }
 
 
 Future<Response> Master::Http::_stopMaintenance(
-    const RepeatedPtrField<MachineID>& machineIds) const
+    const RepeatedPtrField<MachineID>& machineIds,
+    const Owned<ObjectApprover>& approver) const
 {
   // Validate every machine in the list.
   Try<Nothing> isValid = maintenance::validation::machines(machineIds);
@@ -4537,6 +4600,16 @@ Future<Response> Master::Http::_stopMaintenance(
       return BadRequest(
           "Machine '" + stringify(JSON::protobuf(id)) +
             "' is not in DOWN mode and cannot be brought up");
+    }
+
+    ObjectApprover::Object object;
+    object.machine_id = &id;
+    Try<bool> approved = approver->approved(object);
+
+    if (approved.isError()) {
+      return InternalServerError("Authorization error: " + approved.error());
+    } else if (!approved.get()) {
+      return Forbidden();
     }
   }
 
@@ -4598,7 +4671,23 @@ Future<Response> Master::Http::stopMaintenance(
 
   RepeatedPtrField<MachineID> machineIds = call.stop_maintenance().machines();
 
-  return _stopMaintenance(machineIds);
+
+  Future<Owned<ObjectApprover>> approver;
+
+  if (master->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = master->authorizer.get()->getObjectApprover(
+        subject, authorization::STOP_MAINTENANCE);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver.then(defer(
+      master->self(),
+      [this, machineIds](const Owned<ObjectApprover>& approver) {
+        return _stopMaintenance(machineIds, approver);
+      }));
 }
 
 

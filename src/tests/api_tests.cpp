@@ -1374,7 +1374,25 @@ TEST_P(MasterAPITest, GetMaintenanceStatus)
 TEST_P(MasterAPITest, StartAndStopMaintenance)
 {
   // Set up a master.
-  Try<Owned<cluster::Master>> master = this->StartMaster();
+  master::Flags flags = CreateMasterFlags();
+
+  {
+    // Default principal 2 is not allowed to start maintenance in any machine.
+    mesos::ACL::StartMaintenance* acl =
+      flags.acls.get().add_start_maintenances();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // Default principal 2 is not allowed to stop maintenance in any machine.
+    mesos::ACL::StopMaintenance* acl =
+      flags.acls.get().add_stop_maintenances();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   ContentType contentType = GetParam();
@@ -1396,28 +1414,26 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
       createWindow({machine1, machine2}, unavailability),
       createWindow({machine3}, unavailability)
   });
+
   v1::maintenance::Schedule v1Schedule = evolve(schedule);
 
-  v1::master::Call v1UpdateScheduleCall;
-  v1UpdateScheduleCall.set_type(v1::master::Call::UPDATE_MAINTENANCE_SCHEDULE);
-  v1::master::Call_UpdateMaintenanceSchedule* maintenanceSchedule =
-    v1UpdateScheduleCall.mutable_update_maintenance_schedule();
-  maintenanceSchedule->mutable_schedule()->CopyFrom(v1Schedule);
+  {
+    v1::master::Call v1UpdateScheduleCall;
+    v1UpdateScheduleCall.set_type(
+        v1::master::Call::UPDATE_MAINTENANCE_SCHEDULE);
+    v1::master::Call_UpdateMaintenanceSchedule* maintenanceSchedule =
+      v1UpdateScheduleCall.mutable_update_maintenance_schedule();
+    maintenanceSchedule->mutable_schedule()->CopyFrom(v1Schedule);
 
-  Future<Nothing> v1UpdateScheduleResponse = http::post(
-      master.get()->pid,
-      "api/v1",
-      headers,
-      serialize(contentType, v1UpdateScheduleCall),
-      stringify(contentType))
-    .then([](const http::Response& response) -> Future<Nothing> {
-      if (response.status != http::OK().status) {
-        return Failure("Unexpected response status " + response.status);
-      }
-      return Nothing();
-    });
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1UpdateScheduleCall),
+        stringify(contentType));
 
-  AWAIT_READY(v1UpdateScheduleResponse);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
 
   // Start maintenance on machine3.
   v1::master::Call v1StartMaintenanceCall;
@@ -1426,20 +1442,33 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
     v1StartMaintenanceCall.mutable_start_maintenance();
   startMaintenance->add_machines()->CopyFrom(evolve(machine3));
 
-  Future<Nothing> v1StartMaintenanceResponse = http::post(
-      master.get()->pid,
-      "api/v1",
-      headers,
-      serialize(contentType, v1StartMaintenanceCall),
-      stringify(contentType))
-    .then([](const http::Response& response) -> Future<Nothing> {
-      if (response.status != http::OK().status) {
-        return Failure("Unexpected response status " + response.status);
-      }
-      return Nothing();
-    });
+  {
+    headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL_2);
+    headers["Accept"] = stringify(contentType);
 
-  AWAIT_READY(v1StartMaintenanceResponse);
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1StartMaintenanceCall),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Forbidden().status, response);
+  }
+
+  {
+    headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1StartMaintenanceCall),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
 
   // Stop maintenance on machine3.
   v1::master::Call v1StopMaintenanceCall;
@@ -1448,20 +1477,33 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
     v1StopMaintenanceCall.mutable_stop_maintenance();
   stopMaintenance->add_machines()->CopyFrom(evolve(machine3));
 
-  Future<Nothing> v1StopMaintenanceResponse = http::post(
-      master.get()->pid,
-      "api/v1",
-      headers,
-      serialize(contentType, v1StopMaintenanceCall),
-      stringify(contentType))
-    .then([](const http::Response& response) -> Future<Nothing> {
-      if (response.status != http::OK().status) {
-        return Failure("Unexpected response status " + response.status);
-      }
-      return Nothing();
-    });
+  {
+    headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL_2);
+    headers["Accept"] = stringify(contentType);
 
-  AWAIT_READY(v1StopMaintenanceResponse);
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1StopMaintenanceCall),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Forbidden().status, response);
+  }
+
+  {
+    headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1StopMaintenanceCall),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
 
   // Query maintenance schedule.
   v1::master::Call v1GetScheduleCall;

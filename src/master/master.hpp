@@ -1388,10 +1388,12 @@ private:
         const process::Owned<ObjectApprover>& approver) const;
 
     process::Future<process::http::Response> _startMaintenance(
-        const google::protobuf::RepeatedPtrField<MachineID>& machineIds) const;
+        const google::protobuf::RepeatedPtrField<MachineID>& machineIds,
+        const process::Owned<ObjectApprover>& approver) const;
 
     process::Future<process::http::Response> _stopMaintenance(
-        const google::protobuf::RepeatedPtrField<MachineID>& machineIds) const;
+        const google::protobuf::RepeatedPtrField<MachineID>& machineIds,
+        const process::Owned<ObjectApprover>& approver) const;
 
     process::Future<process::http::Response> _reserve(
         const SlaveID& slaveId,

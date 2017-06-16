@@ -79,6 +79,7 @@ using process::Time;
 using process::UPID;
 
 using process::http::BadRequest;
+using process::http::Forbidden;
 using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
@@ -729,7 +730,18 @@ TEST_F(MasterMaintenanceTest, EnterMaintenanceMode)
 TEST_F(MasterMaintenanceTest, BringDownMachines)
 {
   // Set up a master.
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+
+  {
+    // Default principal 2 is not allowed to start maintenance in any machine.
+    mesos::ACL::StartMaintenance* acl =
+      flags.acls.get().add_start_maintenances();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Set up a master.
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   // Extra machine used in this test.
@@ -778,8 +790,21 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
+  process::http::Headers headersFailure =
+    createBasicAuthHeaders(DEFAULT_CREDENTIAL_2);
+  headersFailure["Content-Type"] = "application/json";
+
   // Down machine1.
   machines = createMachineList({machine1});
+
+  response = process::http::post(
+      master.get()->pid,
+      "machine/down",
+      headersFailure,
+      stringify(machines));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
+
   response = process::http::post(
       master.get()->pid,
       "machine/down",
@@ -823,7 +848,17 @@ TEST_F(MasterMaintenanceTest, BringDownMachines)
 TEST_F(MasterMaintenanceTest, BringUpMachines)
 {
   // Set up a master.
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+
+  {
+    // Default principal 2 is not allowed to stop maintenance in any machine.
+    mesos::ACL::StopMaintenance* acl =
+      flags.acls.get().add_stop_maintenances();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   // Try to bring up an unscheduled machine.
@@ -868,6 +903,18 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
       stringify(machines));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  process::http::Headers headersFailure =
+    createBasicAuthHeaders(DEFAULT_CREDENTIAL_2);
+  headersFailure["Content-Type"] = "application/json";
+
+  response = process::http::post(
+      master.get()->pid,
+      "machine/up",
+      headersFailure,
+      stringify(machines));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 
   // Up machine3.
   response = process::http::post(
