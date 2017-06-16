@@ -4026,14 +4026,19 @@ string Master::Http::MAINTENANCE_SCHEDULE_HELP()
         "",
         "POST: Validates the request body as JSON",
         "and updates the maintenance schedule."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "POST: The current principal must be authorized to modify the",
+        "maintenance schedule of all the machines in the request. If the",
+        "principal is unauthorized to modify the schedule for at least one",
+        "machine, the whole request will fail."));
 }
 
 
 // /master/maintenance/schedule endpoint handler.
 Future<Response> Master::Http::maintenanceSchedule(
     const Request& request,
-    const Option<Principal>&) const
+    const Option<Principal>& principal) const
 {
   // When current master is not the leader, redirect to the leading master.
   if (!master->elected()) {
@@ -4064,7 +4069,7 @@ Future<Response> Master::Http::maintenanceSchedule(
     return BadRequest(protoSchedule.error());
   }
 
-  return _updateMaintenanceSchedule(protoSchedule.get());
+  return _updateMaintenanceSchedule(protoSchedule.get(), principal);
 }
 
 
@@ -4081,7 +4086,8 @@ mesos::maintenance::Schedule Master::Http::_getMaintenanceSchedule() const
 
 
 Future<Response> Master::Http::_updateMaintenanceSchedule(
-    const mesos::maintenance::Schedule& schedule) const
+    const mesos::maintenance::Schedule& schedule,
+    const Option<process::http::authentication::Principal>& principal) const
 {
   // Validate that the schedule only transitions machines between
   // `UP` and `DRAINING` modes.
@@ -4093,80 +4099,124 @@ Future<Response> Master::Http::_updateMaintenanceSchedule(
     return BadRequest(isValid.error());
   }
 
-  return master->registrar->apply(Owned<Operation>(
-      new maintenance::UpdateSchedule(schedule)))
-    .then(defer(master->self(), [=](bool result) -> Future<Response> {
-      // See the top comment in "master/maintenance.hpp" for why this check
-      // is here, and is appropriate.
-      CHECK(result);
+  Future<Owned<ObjectApprover>> approver;
 
-      // Update the master's local state with the new schedule.
-      // NOTE: We only add or remove differences between the current schedule
-      // and the new schedule.  This is because the `MachineInfo` struct
-      // holds more information than a maintenance schedule.
-      // For example, the `mode` field is not part of a maintenance schedule.
+  if (master->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
 
-      // TODO(josephw): allow more than one schedule.
+    approver = master->authorizer.get()->getObjectApprover(
+        subject, authorization::UPDATE_MAINTENANCE_SCHEDULE);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
 
-      // Put the machines in the updated schedule into a set.
-      // Save the unavailability, to help with updating some machines.
-      hashmap<MachineID, Unavailability> unavailabilities;
-      foreach (const mesos::maintenance::Window& window, schedule.windows()) {
-        foreach (const MachineID& id, window.machine_ids()) {
-          unavailabilities[id] = window.unavailability();
-        }
+  return approver.then(defer(
+      master->self(),
+      [this, schedule](const Owned<ObjectApprover>& approver) {
+        return __updateMaintenanceSchedule(schedule, approver);
+      }));
+}
+
+Future<Response> Master::Http::__updateMaintenanceSchedule(
+    const mesos::maintenance::Schedule& schedule,
+    const Owned<ObjectApprover>& approver) const
+{
+  foreach (const mesos::maintenance::Window& window, schedule.windows()) {
+    foreach (const MachineID& machine, window.machine_ids()) {
+      ObjectApprover::Object object;
+      object.machine_id = &machine;
+
+      Try<bool> approved = approver->approved(object);
+
+      if (approved.isError()) {
+        return InternalServerError("Authorization error: " + approved.error());
+      } else if (!approved.get()) {
+        return Forbidden();
       }
+    }
+  }
 
-      // NOTE: Copies are needed because `updateUnavailability()` in this loop
-      // modifies the container.
-      foreachkey (const MachineID& id, utils::copy(master->machines)) {
-        // Update the `unavailability` for each existing machine, except for
-        // machines going from `UP` to `DRAINING` (handled in the next loop).
-        // Each machine will only be touched by 1 of the 2 loops here to
-        // avoid sending inverse offer twice for a single machine since
-        // `updateUnavailability` will trigger an inverse offer.
-        // TODO(gyliu513): Merge this logic with `Master::updateUnavailability`,
-        // having it in two places results in more conditionals to handle.
-        if (unavailabilities.contains(id)) {
-          if (master->machines[id].info.mode() == MachineInfo::UP) {
-            continue;
-          }
-
-          master->updateUnavailability(id, unavailabilities[id]);
-          continue;
-        }
-
-        // Transition each removed machine back to the `UP` mode and remove the
-        // unavailability.
-        master->machines[id].info.set_mode(MachineInfo::UP);
-        master->updateUnavailability(id, None());
-      }
-
-      // Save each new machine, with the unavailability
-      // and starting in `DRAINING` mode.
-      foreach (const mesos::maintenance::Window& window, schedule.windows()) {
-        foreach (const MachineID& id, window.machine_ids()) {
-          if (master->machines.contains(id) &&
-              master->machines[id].info.mode() != MachineInfo::UP) {
-            continue;
-          }
-
-          MachineInfo info;
-          info.mutable_id()->CopyFrom(id);
-          info.set_mode(MachineInfo::DRAINING);
-
-          master->machines[id].info.CopyFrom(info);
-
-          master->updateUnavailability(id, window.unavailability());
-        }
-      }
-
-      // Replace the old schedule(s) with the new schedule.
-      master->maintenance.schedules.clear();
-      master->maintenance.schedules.push_back(schedule);
-
-      return OK();
+  return master->registrar
+    ->apply(Owned<Operation>(new maintenance::UpdateSchedule(schedule)))
+    .then(defer(master->self(), [this, schedule](bool result) {
+      return ___updateMaintenanceSchedule(schedule, result);
     }));
+}
+
+Future<Response> Master::Http::___updateMaintenanceSchedule(
+    const mesos::maintenance::Schedule& schedule,
+    bool applied) const
+{
+  // See the top comment in "master/maintenance.hpp" for why this check
+  // is here, and is appropriate.
+  CHECK(applied);
+
+  // Update the master's local state with the new schedule.
+  // NOTE: We only add or remove differences between the current schedule
+  // and the new schedule.  This is because the `MachineInfo` struct
+  // holds more information than a maintenance schedule.
+  // For example, the `mode` field is not part of a maintenance schedule.
+
+  // TODO(josephw): allow more than one schedule.
+
+  // Put the machines in the updated schedule into a set.
+  // Save the unavailability, to help with updating some machines.
+  hashmap<MachineID, Unavailability> unavailabilities;
+  foreach (const mesos::maintenance::Window& window, schedule.windows()) {
+    foreach (const MachineID& id, window.machine_ids()) {
+      unavailabilities[id] = window.unavailability();
+    }
+  }
+
+  // NOTE: Copies are needed because `updateUnavailability()` in this loop
+  // modifies the container.
+  foreachkey (const MachineID& id, utils::copy(master->machines)) {
+    // Update the `unavailability` for each existing machine, except for
+    // machines going from `UP` to `DRAINING` (handled in the next loop).
+    // Each machine will only be touched by 1 of the 2 loops here to
+    // avoid sending inverse offer twice for a single machine since
+    // `updateUnavailability` will trigger an inverse offer.
+    // TODO(gyliu513): Merge this logic with `Master::updateUnavailability`,
+    // having it in two places results in more conditionals to handle.
+    if (unavailabilities.contains(id)) {
+      if (master->machines[id].info.mode() == MachineInfo::UP) {
+        continue;
+      }
+
+      master->updateUnavailability(id, unavailabilities[id]);
+      continue;
+    }
+
+    // Transition each removed machine back to the `UP` mode and remove the
+    // unavailability.
+    master->machines[id].info.set_mode(MachineInfo::UP);
+    master->updateUnavailability(id, None());
+  }
+
+  // Save each new machine, with the unavailability
+  // and starting in `DRAINING` mode.
+  foreach (const mesos::maintenance::Window& window, schedule.windows()) {
+    foreach (const MachineID& id, window.machine_ids()) {
+      if (master->machines.contains(id) &&
+          master->machines[id].info.mode() != MachineInfo::UP) {
+        continue;
+      }
+
+      MachineInfo info;
+      info.mutable_id()->CopyFrom(id);
+      info.set_mode(MachineInfo::DRAINING);
+
+      master->machines[id].info.CopyFrom(info);
+
+      master->updateUnavailability(id, window.unavailability());
+    }
+  }
+
+  // Replace the old schedule(s) with the new schedule.
+  master->maintenance.schedules.clear();
+  master->maintenance.schedules.push_back(schedule);
+
+  return OK();
 }
 
 
@@ -4198,7 +4248,7 @@ Future<Response> Master::Http::updateMaintenanceSchedule(
   mesos::maintenance::Schedule schedule =
     call.update_maintenance_schedule().schedule();
 
-  return _updateMaintenanceSchedule(schedule);
+  return _updateMaintenanceSchedule(schedule, principal);
 }
 
 

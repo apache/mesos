@@ -92,6 +92,7 @@ namespace mesos {
 
 // Forward declarations.
 class Authorizer;
+class ObjectApprover;
 
 namespace internal {
 
@@ -1368,7 +1369,17 @@ private:
         const FrameworkID& id) const;
 
     process::Future<process::http::Response> _updateMaintenanceSchedule(
-        const mesos::maintenance::Schedule& schedule) const;
+        const mesos::maintenance::Schedule& schedule,
+        const Option<process::http::authentication::Principal>&
+            principal) const;
+
+    process::Future<process::http::Response> __updateMaintenanceSchedule(
+        const mesos::maintenance::Schedule& schedule,
+        const process::Owned<ObjectApprover>& approver) const;
+
+    process::Future<process::http::Response> ___updateMaintenanceSchedule(
+        const mesos::maintenance::Schedule& schedule,
+        bool applied) const;
 
     mesos::maintenance::Schedule _getMaintenanceSchedule() const;
 

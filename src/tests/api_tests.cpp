@@ -1157,12 +1157,18 @@ TEST_P(MasterAPITest, UnreserveResources)
 TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
 {
   // Set up a master.
-  Try<Owned<cluster::Master>> master = this->StartMaster();
-  ASSERT_SOME(master);
+  master::Flags flags = CreateMasterFlags();
 
-  ContentType contentType = GetParam();
-  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
-  headers["Accept"] = stringify(contentType);
+  {
+    // Default principal 2 is not allowed to update any maintenance schedule.
+    mesos::ACL::UpdateMaintenanceSchedule* acl =
+      flags.acls.get().add_update_maintenance_schedules();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
 
   // Generate `MachineID`s that can be used in this test.
   MachineID machine1;
@@ -1181,20 +1187,35 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
     v1UpdateScheduleCall.mutable_update_maintenance_schedule();
   maintenanceSchedule->mutable_schedule()->CopyFrom(v1Schedule);
 
-  Future<Nothing> v1UpdateScheduleResponse = http::post(
-      master.get()->pid,
-      "api/v1",
-      headers,
-      serialize(contentType, v1UpdateScheduleCall),
-      stringify(contentType))
-    .then([](const http::Response& response) -> Future<Nothing> {
-      if (response.status != http::OK().status) {
-        return Failure("Unexpected response status " + response.status);
-      }
-      return Nothing();
-    });
+  ContentType contentType = GetParam();
 
-  AWAIT_READY(v1UpdateScheduleResponse);
+  {
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL_2);
+    headers["Accept"] = stringify(contentType);
+
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1UpdateScheduleCall),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Forbidden().status, response);
+  }
+
+  {
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1UpdateScheduleCall),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
 
   // Query maintenance schedule.
   v1::master::Call v1GetScheduleCall;
