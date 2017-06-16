@@ -657,7 +657,8 @@ bool operator==(const Capabilities& left, const Capabilities& right)
   // as new capabilities are added. Note that it needs to be set-based
   // equality.
   return left.multiRole == right.multiRole &&
-         left.hierarchicalRole == right.hierarchicalRole;
+         left.hierarchicalRole == right.hierarchicalRole &&
+         left.reservationRefinement == right.reservationRefinement;
 }
 
 
