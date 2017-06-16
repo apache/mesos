@@ -1167,6 +1167,14 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
     acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
   }
 
+  {
+    // Default principal 2 is not allowed to view any maintenance schedule.
+    mesos::ACL::GetMaintenanceSchedule* acl =
+      flags.acls.get().add_get_maintenance_schedules();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
   Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
@@ -1221,22 +1229,46 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
   v1::master::Call v1GetScheduleCall;
   v1GetScheduleCall.set_type(v1::master::Call::GET_MAINTENANCE_SCHEDULE);
 
-  Future<v1::master::Response> v1GetScheduleResponse =
-    post(master.get()->pid, v1GetScheduleCall, contentType);
+  {
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL_2);
+    headers["Accept"] = stringify(contentType);
 
-  AWAIT_READY(v1GetScheduleResponse);
-  ASSERT_TRUE(v1GetScheduleResponse->IsInitialized());
-  ASSERT_EQ(
-      v1::master::Response::GET_MAINTENANCE_SCHEDULE,
-      v1GetScheduleResponse->type());
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1GetScheduleCall),
+        stringify(contentType));
 
-  // Verify maintenance schedule matches the expectation.
-  v1::maintenance::Schedule respSchedule =
-    v1GetScheduleResponse->get_maintenance_schedule().schedule();
-  ASSERT_EQ(1, respSchedule.windows().size());
-  ASSERT_EQ(2, respSchedule.windows(0).machine_ids().size());
-  ASSERT_EQ("Machine1", respSchedule.windows(0).machine_ids(0).hostname());
-  ASSERT_EQ("0.0.0.2", respSchedule.windows(0).machine_ids(1).ip());
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+    Future<v1::master::Response> v1Response =
+      deserialize<v1::master::Response>(contentType, response->body);
+
+    AWAIT_READY(v1Response);
+    v1::maintenance::Schedule schedule =
+      v1Response->get_maintenance_schedule().schedule();
+    ASSERT_EQ(0, schedule.windows().size());
+  }
+
+  {
+    Future<v1::master::Response> response =
+      post(master.get()->pid, v1GetScheduleCall, contentType);
+
+    AWAIT_READY(response);
+    ASSERT_TRUE(response->IsInitialized());
+    ASSERT_EQ(
+        v1::master::Response::GET_MAINTENANCE_SCHEDULE,
+        response->type());
+
+    // Verify maintenance schedule matches the expectation.
+    v1::maintenance::Schedule schedule =
+        response->get_maintenance_schedule().schedule();
+    ASSERT_EQ(1, schedule.windows().size());
+    ASSERT_EQ(2, schedule.windows(0).machine_ids().size());
+    ASSERT_EQ("Machine1", schedule.windows(0).machine_ids(0).hostname());
+    ASSERT_EQ("0.0.0.2", schedule.windows(0).machine_ids(1).ip());
+  }
 }
 
 

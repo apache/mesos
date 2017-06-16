@@ -4028,6 +4028,10 @@ string Master::Http::MAINTENANCE_SCHEDULE_HELP()
         "and updates the maintenance schedule."),
     AUTHENTICATION(true),
     AUTHORIZATION(
+        "GET: The response will contain only the maintenance schedule for",
+        "those machines the current principal is allowed to see. If none",
+        "an empty response will be returned.",
+        "",
         "POST: The current principal must be authorized to modify the",
         "maintenance schedule of all the machines in the request. If the",
         "principal is unauthorized to modify the schedule for at least one",
@@ -4051,8 +4055,27 @@ Future<Response> Master::Http::maintenanceSchedule(
 
   // JSON-ify and return the current maintenance schedule.
   if (request.method == "GET") {
-    const mesos::maintenance::Schedule schedule = _getMaintenanceSchedule();
-    return OK(JSON::protobuf(schedule), request.url.query.get("jsonp"));
+    Future<Owned<ObjectApprover>> approver;
+
+    if (master->authorizer.isSome()) {
+      Option<authorization::Subject> subject = createSubject(principal);
+
+      approver = master->authorizer.get()->getObjectApprover(
+          subject, authorization::GET_MAINTENANCE_SCHEDULE);
+    } else {
+      approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    }
+
+    Option<string> jsonp = request.url.query.get("jsonp");
+
+    return approver.then(defer(
+        master->self(),
+        [this, jsonp](
+            const Owned<ObjectApprover>& approver) -> Future<Response> {
+          const mesos::maintenance::Schedule schedule =
+            _getMaintenanceSchedule(approver);
+          return OK(JSON::protobuf(schedule), jsonp);
+        }));
   }
 
   // Parse the POST body as JSON.
@@ -4073,13 +4096,45 @@ Future<Response> Master::Http::maintenanceSchedule(
 }
 
 
-mesos::maintenance::Schedule Master::Http::_getMaintenanceSchedule() const
+mesos::maintenance::Schedule Master::Http::_getMaintenanceSchedule(
+    const Owned<ObjectApprover>& approver) const
 {
   // TODO(josephw): Return more than one schedule.
-  const mesos::maintenance::Schedule schedule =
-    master->maintenance.schedules.empty() ?
-      mesos::maintenance::Schedule() :
-      master->maintenance.schedules.front();
+  if (master->maintenance.schedules.empty()) {
+    return mesos::maintenance::Schedule();
+  }
+
+  mesos::maintenance::Schedule schedule;
+
+  foreach (const mesos::maintenance::Window& window,
+           master->maintenance.schedules.front().windows()) {
+    mesos::maintenance::Window window_;
+
+    foreach (const MachineID& machine_id, window.machine_ids()) {
+      ObjectApprover::Object object;
+      object.machine_id = &machine_id;
+
+      Try<bool> approved = approver->approved(object);
+
+      if (approved.isError()) {
+        LOG(WARNING) << "Error during MachineID authorization: "
+                     << approved.error();
+        // TODO(arojas): Consider exposing these errors to the caller.
+        continue;
+      }
+
+      if (!approved.get()) {
+        continue;
+      }
+
+      window_.add_machine_ids()->CopyFrom(machine_id);
+    }
+
+    if (window_.machine_ids_size() > 0) {
+      window_.mutable_unavailability()->CopyFrom(window.unavailability());
+      schedule.add_windows()->CopyFrom(window_);
+    }
+  }
 
   return schedule;
 }
@@ -4227,13 +4282,31 @@ Future<Response> Master::Http::getMaintenanceSchedule(
 {
   CHECK_EQ(mesos::master::Call::GET_MAINTENANCE_SCHEDULE, call.type());
 
-  mesos::master::Response response;
-  response.set_type(mesos::master::Response::GET_MAINTENANCE_SCHEDULE);
-  response.mutable_get_maintenance_schedule()->mutable_schedule()->CopyFrom(
-      _getMaintenanceSchedule());
+  Future<Owned<ObjectApprover>> approver;
 
-  return OK(serialize(contentType, evolve(response)),
-            stringify(contentType));
+  if (master->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = master->authorizer.get()->getObjectApprover(
+        subject, authorization::GET_MAINTENANCE_SCHEDULE);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver.then(defer(
+      master->self(),
+      [this, contentType](
+          const Owned<ObjectApprover>& approver) -> Future<Response> {
+        mesos::master::Response response;
+
+        response.set_type(mesos::master::Response::GET_MAINTENANCE_SCHEDULE);
+
+        response.mutable_get_maintenance_schedule()->mutable_schedule()
+          ->CopyFrom(_getMaintenanceSchedule(approver));
+
+        return OK(serialize(contentType, evolve(response)),
+                  stringify(contentType));
+      }));
 }
 
 

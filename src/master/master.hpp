@@ -1381,7 +1381,8 @@ private:
         const mesos::maintenance::Schedule& schedule,
         bool applied) const;
 
-    mesos::maintenance::Schedule _getMaintenanceSchedule() const;
+    mesos::maintenance::Schedule _getMaintenanceSchedule(
+        const process::Owned<ObjectApprover>& approver) const;
 
     process::Future<mesos::maintenance::ClusterStatus>
       _getMaintenanceStatus() const;
