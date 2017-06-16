@@ -735,7 +735,16 @@ TEST_P(MasterAPITest, GetLoggingLevel)
 // Test the logging level toggle and revert after specific toggle duration.
 TEST_P(MasterAPITest, SetLoggingLevel)
 {
-  Try<Owned<cluster::Master>> master = this->StartMaster();
+  master::Flags flags = CreateMasterFlags();
+
+  {
+    // Default principal 2 is not allowed to set the logging level.
+    mesos::ACL::SetLogLevel* acl = flags.acls.get().add_set_log_level();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_level()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(flags);
   ASSERT_SOME(master);
 
   // We capture the original logging level first; it would be used to verify
@@ -754,24 +763,37 @@ TEST_P(MasterAPITest, SetLoggingLevel)
   setLoggingLevel->mutable_duration()->set_nanoseconds(toggleDuration.ns());
 
   ContentType contentType = GetParam();
-  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
-  headers["Accept"] = stringify(contentType);
 
-  Future<Nothing> v1Response = http::post(
-      master.get()->pid,
-      "api/v1",
-      headers,
-      serialize(contentType, v1Call),
-      stringify(contentType))
-    .then([](const http::Response& response) -> Future<Nothing> {
-      if (response.status != http::OK().status) {
-        return Failure("Unexpected response status " + response.status);
-      }
-      return Nothing();
-    });
+  {
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL_2);
+    headers["Accept"] = stringify(contentType);
 
-  AWAIT_READY(v1Response);
-  ASSERT_EQ(toggleLevel, static_cast<uint32_t>(FLAGS_v));
+    Future<http::Response> v1Response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1Call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Forbidden().status, v1Response);
+  }
+
+  {
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    Future<http::Response> v1Response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1Call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, v1Response);
+
+    AWAIT_READY(v1Response);
+    ASSERT_EQ(toggleLevel, static_cast<uint32_t>(FLAGS_v));
+  }
 
   // Speedup the logging level revert.
   Clock::pause();

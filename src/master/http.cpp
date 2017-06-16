@@ -1998,10 +1998,32 @@ Future<Response> Master::Http::setLoggingLevel(
   Duration duration =
     Nanoseconds(call.set_logging_level().duration().nanoseconds());
 
-  return dispatch(process::logging(), &Logging::set_level, level, duration)
-      .then([]() -> Response {
-        return OK();
-      });
+  Future<Owned<ObjectApprover>> approver;
+
+  if (master->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = master->authorizer.get()->getObjectApprover(
+        subject, authorization::SET_LOG_LEVEL);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver.then([level, duration](const Owned<ObjectApprover>& approver)
+      -> Future<Response> {
+    Try<bool> approved = approver->approved((ObjectApprover::Object()));
+
+    if (approved.isError()) {
+      return InternalServerError("Authorization error: " + approved.error());
+    } else if (!approved.get()) {
+      return Forbidden();
+    }
+
+    return dispatch(process::logging(), &Logging::set_level, level, duration)
+        .then([]() -> Response {
+          return OK();
+        });
+  });
 }
 
 
