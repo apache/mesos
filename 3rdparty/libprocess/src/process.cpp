@@ -813,7 +813,7 @@ static Future<Message*> parse(const Request& request)
   Try<string> decode = http::decode(request.url.path.substr(1, index));
 
   if (decode.isError()) {
-    return Failure("Failed to decode URL path: " + decode.get());
+    return Failure("Failed to decode URL path: " + decode.error());
   }
 
   const UPID to(decode.get(), __address__);
