@@ -1384,8 +1384,8 @@ private:
     mesos::maintenance::Schedule _getMaintenanceSchedule(
         const process::Owned<ObjectApprover>& approver) const;
 
-    process::Future<mesos::maintenance::ClusterStatus>
-      _getMaintenanceStatus() const;
+    process::Future<mesos::maintenance::ClusterStatus> _getMaintenanceStatus(
+        const process::Owned<ObjectApprover>& approver) const;
 
     process::Future<process::http::Response> _startMaintenance(
         const google::protobuf::RepeatedPtrField<MachineID>& machineIds) const;

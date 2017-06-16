@@ -1276,7 +1276,17 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
 TEST_P(MasterAPITest, GetMaintenanceStatus)
 {
   // Set up a master.
-  Try<Owned<cluster::Master>> master = this->StartMaster();
+  master::Flags flags = CreateMasterFlags();
+
+  {
+    // Default principal 2 is not allowed to view any maintenance status.
+    mesos::ACL::GetMaintenanceStatus* acl =
+      flags.acls.get().add_get_maintenance_statuses();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   ContentType contentType = GetParam();
@@ -1319,20 +1329,42 @@ TEST_P(MasterAPITest, GetMaintenanceStatus)
   v1::master::Call v1GetStatusCall;
   v1GetStatusCall.set_type(v1::master::Call::GET_MAINTENANCE_STATUS);
 
-  Future<v1::master::Response> v1GetStatusResponse =
-    post(master.get()->pid, v1GetStatusCall, contentType);
+  {
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL_2);
+    headers["Accept"] = stringify(contentType);
 
-  AWAIT_READY(v1GetStatusResponse);
-  ASSERT_TRUE(v1GetStatusResponse->IsInitialized());
-  ASSERT_EQ(
-      v1::master::Response::GET_MAINTENANCE_STATUS,
-      v1GetStatusResponse->type());
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1GetStatusCall),
+        stringify(contentType));
 
-  // Verify maintenance status matches the expectation.
-  v1::maintenance::ClusterStatus status =
-    v1GetStatusResponse->get_maintenance_status().status();
-  ASSERT_EQ(2, status.draining_machines().size());
-  ASSERT_EQ(0, status.down_machines().size());
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+    Try<v1::master::Response> v1Response =
+      deserialize<v1::master::Response>(contentType, response->body);
+
+    v1::maintenance::ClusterStatus status =
+      v1Response->get_maintenance_status().status();
+    ASSERT_EQ(0, status.draining_machines().size());
+    ASSERT_EQ(0, status.down_machines().size());
+  }
+
+  {
+    Future<v1::master::Response> v1Response =
+      post(master.get()->pid, v1GetStatusCall, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_MAINTENANCE_STATUS, v1Response->type());
+
+    // Verify maintenance status matches the expectation.
+    v1::maintenance::ClusterStatus status =
+      v1Response->get_maintenance_status().status();
+    ASSERT_EQ(2, status.draining_machines().size());
+    ASSERT_EQ(0, status.down_machines().size());
+  }
 }
 
 

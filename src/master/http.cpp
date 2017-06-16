@@ -4623,14 +4623,18 @@ string Master::Http::MAINTENANCE_STATUS_HELP()
         "**NOTE**:",
         "Inverse offer responses are cleared if the master fails over.",
         "However, new inverse offers will be sent once the master recovers."),
-    AUTHENTICATION(true));
+    AUTHENTICATION(true),
+    AUTHORIZATION(
+        "The response will contain only the maintenance status for those",
+        "machines the current principal is allowed to see. If none, an empty",
+        "response will be returned."));
 }
 
 
 // /master/maintenance/status endpoint handler.
 Future<Response> Master::Http::maintenanceStatus(
     const Request& request,
-    const Option<Principal>&) const
+    const Option<Principal>& principal) const
 {
   // When current master is not the leader, redirect to the leading master.
   if (!master->elected()) {
@@ -4641,16 +4645,33 @@ Future<Response> Master::Http::maintenanceStatus(
     return MethodNotAllowed({"GET"}, request.method);
   }
 
-  return _getMaintenanceStatus()
-    .then([request](const mesos::maintenance::ClusterStatus& status)
-      -> Response {
-      return OK(JSON::protobuf(status), request.url.query.get("jsonp"));
+  Future<Owned<ObjectApprover>> approver;
+
+  if (master->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = master->authorizer.get()->getObjectApprover(
+        subject, authorization::GET_MAINTENANCE_STATUS);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  Option<string> jsonp = request.url.query.get("jsonp");
+
+  return approver
+    .then(defer(
+      master->self(),
+      [this](const Owned<ObjectApprover>& approver) {
+        return _getMaintenanceStatus(approver);
+      }))
+    .then([jsonp](const mesos::maintenance::ClusterStatus& status) -> Response {
+      return OK(JSON::protobuf(status), jsonp);
     });
 }
 
 
-Future<mesos::maintenance::ClusterStatus>
-  Master::Http::_getMaintenanceStatus() const
+Future<mesos::maintenance::ClusterStatus> Master::Http::_getMaintenanceStatus(
+    const Owned<ObjectApprover>& approver) const
 {
   return master->allocator->getInverseOfferStatuses()
     .then(defer(
@@ -4667,6 +4688,21 @@ Future<mesos::maintenance::ClusterStatus>
         const MachineID& id,
         const Machine& machine,
         master->machines) {
+      ObjectApprover::Object object;
+      object.machine_id = &id;
+      Try<bool> approved = approver->approved(object);
+
+      if (approved.isError()) {
+        LOG(WARNING) << "Error during MachineID authorization: "
+                     << approved.error();
+        // TODO(arojas): Consider exposing these errors to the caller.
+        continue;
+      }
+
+      if (!approved.get()) {
+        continue;
+      }
+
       switch (machine.info.mode()) {
         case MachineInfo::DRAINING: {
           mesos::maintenance::ClusterStatus::DrainingMachine* drainingMachine =
@@ -4712,17 +4748,33 @@ Future<Response> Master::Http::getMaintenanceStatus(
 {
   CHECK_EQ(mesos::master::Call::GET_MAINTENANCE_STATUS, call.type());
 
-  return _getMaintenanceStatus()
+  Future<Owned<ObjectApprover>> approver;
+
+  if (master->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = master->authorizer.get()->getObjectApprover(
+        subject, authorization::GET_MAINTENANCE_STATUS);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver
+    .then(defer(
+      master->self(),
+      [this](const Owned<ObjectApprover>& approver) {
+        return _getMaintenanceStatus(approver);
+      }))
     .then([contentType](const mesos::maintenance::ClusterStatus& status)
           -> Response {
-      mesos::master::Response response;
-      response.set_type(mesos::master::Response::GET_MAINTENANCE_STATUS);
-      response.mutable_get_maintenance_status()->mutable_status()
-        ->CopyFrom(status);
+        mesos::master::Response response;
+        response.set_type(mesos::master::Response::GET_MAINTENANCE_STATUS);
+        response.mutable_get_maintenance_status()->mutable_status()
+            ->CopyFrom(status);
 
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
-    });
+        return OK(serialize(contentType, evolve(response)),
+                  stringify(contentType));
+      });
 }
 
 

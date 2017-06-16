@@ -943,7 +943,18 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
 TEST_F(MasterMaintenanceTest, MachineStatus)
 {
   // Set up a master.
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags flags = CreateMasterFlags();
+
+  {
+    // Default principal 2 is not allowed to view any maintenance status.
+    mesos::ACL::GetMaintenanceStatus* acl =
+      flags.acls.get().add_get_maintenance_statuses();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Set up a master.
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
   ASSERT_SOME(master);
 
   // Try to stop maintenance on an unscheduled machine.
@@ -958,6 +969,25 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
+  // Get the maintenance statuses for unauthorized principal.
+  response = process::http::get(
+      master.get()->pid,
+      "maintenance/status",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  Try<JSON::Object> statuses_ = JSON::parse<JSON::Object>(response->body);
+
+  ASSERT_SOME(statuses_);
+  Try<maintenance::ClusterStatus> statuses =
+      ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
+
+  ASSERT_SOME(statuses);
+  ASSERT_EQ(0, statuses->draining_machines().size());
+  ASSERT_EQ(0, statuses->down_machines().size());
+
   // Get the maintenance statuses.
   response = process::http::get(
       master.get()->pid,
@@ -968,12 +998,10 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Check that both machines are draining.
-  Try<JSON::Object> statuses_ =
-    JSON::parse<JSON::Object>(response->body);
+  statuses_ = JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(statuses_);
-  Try<maintenance::ClusterStatus> statuses =
-    ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
+  statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
 
   ASSERT_SOME(statuses);
   ASSERT_EQ(2, statuses->draining_machines().size());
