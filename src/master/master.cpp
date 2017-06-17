@@ -3497,11 +3497,29 @@ Future<bool> Master::authorizeReserveResources(
   hashset<string> roles;
   list<Future<bool>> authorizations;
   foreach (const Resource& resource, reserve.resources()) {
-    if (!roles.contains(resource.role())) {
-      roles.insert(resource.role());
+    // NOTE: Since authorization happens __before__ validation and resource
+    // format conversion, we must look for roles that may appear in both
+    // "pre" and "post" reservation-refinement formats. This may not even be
+    // valid, but we rely on validation being performed aftewards.
+    string role;
+    if (resource.reservations_size() > 0) {
+      // Check for the role in the "post-reservation-refinement" format.
+      //
+      // If there is a stack of reservations, we only perform authorization
+      // for the most refined reservation, since we only support "pushing"
+      // one reservation at a time. That is, all of the previous reservations
+      // must have already been authorized.
+      role = resource.reservations().rbegin()->role();
+    } else {
+      // Check for the role in the "pre-reservation-refinement" format.
+      role = resource.role();
+    }
+
+    if (!roles.contains(role)) {
+      roles.insert(role);
 
       request.mutable_object()->mutable_resource()->CopyFrom(resource);
-      request.mutable_object()->set_value(resource.role());
+      request.mutable_object()->set_value(role);
       authorizations.push_back(authorizer.get()->authorized(request));
     }
   }
@@ -3551,16 +3569,24 @@ Future<bool> Master::authorizeUnreserveResources(
 
   list<Future<bool>> authorizations;
   foreach (const Resource& resource, unreserve.resources()) {
-    // NOTE: Since validation of this operation is performed after
-    // authorization, we must check here that this resource is
-    // dynamically reserved. If it isn't, the error will be caught
-    // during validation.
-    if (Resources::isDynamicallyReserved(resource) &&
-        resource.reservation().has_principal()) {
-      request.mutable_object()->mutable_resource()->CopyFrom(resource);
+    // NOTE: Since authorization happens __before__ validation and resource
+    // format conversion, we must look for the principal that may appear in
+    // both "pre" and "post" reservation-refinement formats. This may not be
+    // valid, but we rely on validation being performed later.
+    Option<string> principal;
+    if (resource.reservations_size() > 0 &&
+        resource.reservations().rbegin()->has_principal()) {
+      // Check for roles in the "post-reservation-refinement" format.
+      principal = resource.reservations().rbegin()->principal();
+    } else if (
+        resource.has_reservation() && resource.reservation().has_principal()) {
+      // Check for roles in the "pre-reservation-refinement" format.
+      principal = resource.reservation().principal();
+    }
 
-      request.mutable_object()->set_value(
-          resource.reservation().principal());
+    if (principal.isSome()) {
+      request.mutable_object()->mutable_resource()->CopyFrom(resource);
+      request.mutable_object()->set_value(principal.get());
 
       authorizations.push_back(authorizer.get()->authorized(request));
     }
@@ -3610,11 +3636,25 @@ Future<bool> Master::authorizeCreateVolume(
   hashset<string> roles;
   list<Future<bool>> authorizations;
   foreach (const Resource& volume, create.volumes()) {
-    if (!roles.contains(volume.role())) {
-      roles.insert(volume.role());
+    string role;
+    if (volume.reservations_size() > 0) {
+      // Check for role in the "post-reservation-refinement" format.
+      //
+      // If there is a stack of reservations, we only perform authorization
+      // for the most refined reservation, since we only support "pushing"
+      // one reservation at a time. That is, all of the previous reservations
+      // must have already been authorized.
+      role = volume.reservations().rbegin()->role();
+    } else {
+      // Check for role in the "pre-reservation-refinement" format.
+      role = volume.role();
+    }
+
+    if (!roles.contains(role)) {
+      roles.insert(role);
 
       request.mutable_object()->mutable_resource()->CopyFrom(volume);
-      request.mutable_object()->set_value(volume.role());
+      request.mutable_object()->set_value(role);
       authorizations.push_back(authorizer.get()->authorized(request));
     }
   }
@@ -3662,7 +3702,7 @@ Future<bool> Master::authorizeDestroyVolume(
     // NOTE: Since validation of this operation may be performed after
     // authorization, we must check here that this resource is a persistent
     // volume. If it isn't, the error will be caught during validation.
-    if (Resources::isPersistentVolume(volume)) {
+    if (volume.has_disk() && volume.disk().has_persistence()) {
       request.mutable_object()->mutable_resource()->CopyFrom(volume);
       request.mutable_object()->set_value(
           volume.disk().persistence().principal());
@@ -4162,7 +4202,9 @@ void Master::_accept(
   CHECK_READY(_authorizations);
   list<Future<bool>> authorizations = _authorizations.get();
 
-  foreach (const Offer::Operation& operation, accept.operations()) {
+  // We iterate by copy here since we call `convertResourceFormat` on it
+  // after validation which modifies the `Operation`.
+  foreach (Offer::Operation operation, accept.operations()) {
     switch (operation.type()) {
       // The RESERVE operation allows a principal to reserve resources.
       case Offer::Operation::RESERVE: {
@@ -4207,6 +4249,8 @@ void Master::_accept(
               error->message + "; on agent " + stringify(*slave));
           continue;
         }
+
+        convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
 
         // Test the given operation on the included resources.
         Try<Resources> resources = _offeredResources.apply(operation);
@@ -4262,6 +4306,8 @@ void Master::_accept(
           drop(framework, operation, error->message);
           continue;
         }
+
+        convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
 
         // Test the given operation on the included resources.
         Try<Resources> resources = _offeredResources.apply(operation);
@@ -4328,6 +4374,8 @@ void Master::_accept(
           continue;
         }
 
+        convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
+
         Try<Resources> resources = _offeredResources.apply(operation);
         if (resources.isError()) {
           drop(framework, operation, resources.error());
@@ -4384,6 +4432,8 @@ void Master::_accept(
           drop(framework, operation, error->message);
           continue;
         }
+
+        convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
 
         // If any offer from this slave contains a volume that needs
         // to be destroyed, we should process it, but we should also
@@ -4577,13 +4627,6 @@ void Master::_accept(
 
             _offeredResources -= consumed;
 
-            // TODO(bmahler): Consider updating this log message to
-            // indicate when the executor is also being launched.
-            LOG(INFO) << "Launching task " << task_.task_id()
-                      << " of framework " << *framework
-                      << " with resources " << task_.resources()
-                      << " on agent " << *slave;
-
             RunTaskMessage message;
             message.mutable_framework()->MergeFrom(framework->info);
 
@@ -4602,7 +4645,34 @@ void Master::_accept(
                       slave->info));
             }
 
-            send(slave->pid, message);
+            Try<Nothing> sendRunTaskMessage = Nothing();
+
+            if (!slave->capabilities.reservationRefinement) {
+              sendRunTaskMessage =
+                downgradeResources(message.mutable_task()->mutable_resources());
+
+              if (!sendRunTaskMessage.isError() &&
+                  message.mutable_task()->has_executor()) {
+                sendRunTaskMessage =
+                  downgradeResources(message.mutable_task()
+                                       ->mutable_executor()
+                                       ->mutable_resources());
+              }
+            }
+
+            if (sendRunTaskMessage.isError()) {
+              LOG(WARNING) << "Not launching task containing resources with"
+                           << " refined reservations, since agent " << *slave
+                           << " is not RESERVATION_REFINEMENT-capable";
+            } else {
+              // TODO(bmahler): Consider updating this log message to
+              // indicate when the executor is also being launched.
+              LOG(INFO) << "Launching task " << task_.task_id()
+                        << " of framework " << *framework << " with resources "
+                        << task_.resources() << " on agent " << *slave;
+
+              send(slave->pid, message);
+            }
           }
 
           _operation.mutable_launch()->add_task_infos()->CopyFrom(task);
@@ -4784,12 +4854,36 @@ void Master::_accept(
           }
         }
 
-        LOG(INFO) << "Launching task group " << stringify(taskIds)
-                  << " of framework " << *framework
-                  << " with resources " << totalResources
-                  << " on agent " << *slave;
+        Try<Nothing> sendRunTaskGroupMessage = Nothing();
 
-        send(slave->pid, message);
+        if (!slave->capabilities.reservationRefinement) {
+          sendRunTaskGroupMessage =
+            downgradeResources(message.mutable_executor()->mutable_resources());
+
+          foreach (
+              TaskInfo& task, *message.mutable_task_group()->mutable_tasks()) {
+            if (sendRunTaskGroupMessage.isError()) {
+              break;
+            }
+
+            sendRunTaskGroupMessage =
+              downgradeResources(task.mutable_resources());
+          }
+        }
+
+        if (sendRunTaskGroupMessage.isError()) {
+          LOG(WARNING) << "Not launching task group containing resources with"
+                       << " refined reservations, since agent " << *slave
+                       << " is not RESERVATION_REFINEMENT-capable: "
+                       << sendRunTaskGroupMessage.error();
+        } else {
+          LOG(INFO) << "Launching task group " << stringify(taskIds)
+                    << " of framework " << *framework << " with resources "
+                    << totalResources << " on agent " << *slave;
+
+          send(slave->pid, message);
+        }
+
         break;
       }
 
@@ -6051,6 +6145,9 @@ void Master::__reregisterSlave(
       injectAllocationInfo(
           task.mutable_resources(),
           frameworks_.at(task.framework_id()));
+
+      convertResourceFormat(
+          task.mutable_resources(), POST_RESERVATION_REFINEMENT);
     }
 
     foreach (ExecutorInfo& executor, adjustedExecutorInfos) {
@@ -6059,6 +6156,9 @@ void Master::__reregisterSlave(
       injectAllocationInfo(
           executor.mutable_resources(),
           frameworks_.at(executor.framework_id()));
+
+      convertResourceFormat(
+          executor.mutable_resources(), POST_RESERVATION_REFINEMENT);
     }
   }
 
@@ -6256,12 +6356,25 @@ void Master::___reregisterSlave(
     }
   }
 
+  CheckpointResourcesMessage message;
+
+  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
+
+  if (!slave->capabilities.reservationRefinement) {
+    Try<Nothing> result = downgradeResources(message.mutable_resources());
+    if (result.isError()) {
+      LOG(WARNING) << "Not sending updated checkpointed resouces "
+                   << slave->checkpointedResources
+                   << " with refined reservations, since agent " << *slave
+                   << " is not RESERVATION_REFINEMENT-capable.";
+
+      return;
+    }
+  }
+
   LOG(INFO) << "Sending updated checkpointed resources "
             << slave->checkpointedResources
             << " to agent " << *slave;
-
-  CheckpointResourcesMessage message;
-  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
 
   send(slave->pid, message);
 }
@@ -7293,6 +7406,11 @@ void Master::offer(
         if (resource.name() != "ephemeral_ports") {
           offer_.add_resources()->CopyFrom(resource);
         }
+      }
+
+      if (!framework->capabilities.reservationRefinement) {
+        convertResourceFormat(
+            offer_.mutable_resources(), PRE_RESERVATION_REFINEMENT);
       }
 
       // Add the offer *AND* the corresponding slave's PID.
@@ -8719,12 +8837,25 @@ void Master::_apply(Slave* slave, const Offer::Operation& operation) {
 
   slave->apply(operation);
 
-  LOG(INFO) << "Sending checkpointed resources "
+  CheckpointResourcesMessage message;
+
+  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
+
+  if (!slave->capabilities.reservationRefinement) {
+    Try<Nothing> result = downgradeResources(message.mutable_resources());
+    if (result.isError()) {
+      LOG(WARNING) << "Not sending updated checkpointed resouces "
+                   << slave->checkpointedResources
+                   << " with refined reservations, since agent " << *slave
+                   << " is not RESERVATION_REFINEMENT-capable.";
+
+      return;
+    }
+  }
+
+  LOG(INFO) << "Sending updated checkpointed resources "
             << slave->checkpointedResources
             << " to agent " << *slave;
-
-  CheckpointResourcesMessage message;
-  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
 
   send(slave->pid, message);
 }
@@ -9240,18 +9371,22 @@ void Master::subscribe(const HttpConnection& http)
 
 Slave::Slave(
     Master* const _master,
-    const SlaveInfo& _info,
+    SlaveInfo _info,
     const UPID& _pid,
     const MachineID& _machineId,
     const string& _version,
     const vector<SlaveInfo::Capability>& _capabilites,
     const Time& _registeredTime,
-    const Resources& _checkpointedResources,
+    vector<Resource> _checkpointedResources,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks)
   : master(_master),
     id(_info.id()),
-    info(_info),
+    info([&_info]() {
+      convertResourceFormat(
+          _info.mutable_resources(), POST_RESERVATION_REFINEMENT);
+      return _info;
+    }()),
     machineId(_machineId),
     pid(_pid),
     version(_version),
@@ -9259,14 +9394,18 @@ Slave::Slave(
     registeredTime(_registeredTime),
     connected(true),
     active(true),
-    checkpointedResources(_checkpointedResources),
+    checkpointedResources([&_checkpointedResources]() {
+      convertResourceFormat(
+          &_checkpointedResources, POST_RESERVATION_REFINEMENT);
+      return _checkpointedResources;
+    }()),
     observer(nullptr)
 {
   CHECK(_info.has_id());
 
   Try<Resources> resources = applyCheckpointedResources(
       info.resources(),
-      _checkpointedResources);
+      checkpointedResources);
 
   // NOTE: This should be validated during slave recovery.
   CHECK_SOME(resources);

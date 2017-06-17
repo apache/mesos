@@ -116,13 +116,13 @@ struct Role;
 struct Slave
 {
   Slave(Master* const _master,
-        const SlaveInfo& _info,
+        SlaveInfo _info,
         const process::UPID& _pid,
         const MachineID& _machineId,
         const std::string& _version,
         const std::vector<SlaveInfo::Capability>& _capabilites,
         const process::Time& _registeredTime,
-        const Resources& _checkpointedResources,
+        std::vector<Resource> _checkpointedResources,
         const std::vector<ExecutorInfo>& executorInfos =
           std::vector<ExecutorInfo>(),
         const std::vector<Task>& tasks =

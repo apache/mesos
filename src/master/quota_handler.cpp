@@ -472,6 +472,17 @@ Future<http::Response> Master::QuotaHandler::_set(
 
   QuotaInfo quotaInfo = create.get();
 
+  // Check that each guarantee/resource is valid.
+  Option<Error> validate = Resources::validate(quotaInfo.guarantee());
+  if (validate.isSome()) {
+    return BadRequest(
+        "Failed to validate set quota request:"
+        " QuotaInfo with invalid resource: " + validate->message);
+  }
+
+  convertResourceFormat(
+      quotaInfo.mutable_guarantee(), POST_RESERVATION_REFINEMENT);
+
   // Check that the `QuotaInfo` is a valid quota request.
   {
     Option<Error> error = quota::validation::quotaInfo(quotaInfo);
