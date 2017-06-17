@@ -30,3 +30,13 @@ and updates the maintenance schedule.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
+
+### AUTHORIZATION ###
+GET: The response will contain only the maintenance schedule for
+those machines the current principal is allowed to see. If none
+an empty response will be returned.
+
+POST: The current principal must be authorized to modify the
+maintenance schedule of all the machines in the request. If the
+principal is unauthorized to modify the schedule for at least one
+machine, the whole request will fail.

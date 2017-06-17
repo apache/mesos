@@ -31,3 +31,8 @@ However, new inverse offers will be sent once the master recovers.
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
+
+### AUTHORIZATION ###
+The response will contain only the maintenance status for those
+machines the current principal is allowed to see. If none, an empty
+response will be returned.

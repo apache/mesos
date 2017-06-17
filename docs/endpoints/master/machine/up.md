@@ -28,3 +28,7 @@ POST: Validates the request body as JSON and transitions
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is
 enabled.
+
+### AUTHORIZATION ###
+The current principal must be allowed to bring up all the machines
+in the request, otherwise the request will fail.
