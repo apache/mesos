@@ -508,8 +508,8 @@ static Option<Error> validateCommandLineResources(const Resources& resources)
           "Persistent volumes cannot be specified at the command line");
     } else if (Resources::isRevocable(resource)) {
       return Error(
-          "Revocable resources cannot be specified at the command line; do "
-          "not include a 'revocable' key in the resources JSON");
+          "Revocable resources cannot be specified at the command line; do"
+          " not include a 'revocable' key in the resources JSON");
     } else if (Resources::isDynamicallyReserved(resource)) {
       return Error(
           "Dynamic reservations cannot be specified at the command line; "
@@ -519,8 +519,8 @@ static Option<Error> validateCommandLineResources(const Resources& resources)
     if (nameTypes.contains(resource.name()) &&
         nameTypes[resource.name()] != resource.type()) {
       return Error(
-          "Resources with the same name ('" + resource.name() + "') but "
-          "different types are not allowed");
+          "Resources with the same name ('" + resource.name() + "') but"
+          " different types are not allowed");
     } else if (!nameTypes.contains(resource.name())) {
       nameTypes[resource.name()] = resource.type();
     }

@@ -1851,9 +1851,9 @@ Option<Error> validate(
         strings::contains(resource.role(), "/")) {
       return Error(
           "Resource " + stringify(resource) +
-          " with reservation for hierarchical role '" + resource.role() +
-          "' cannot be reserved on an agent without HIERARCHICAL_ROLE "
-          "capability");
+          " with reservation for hierarchical role '" + resource.role() + "'"
+          " cannot be reserved on an agent without HIERARCHICAL_ROLE"
+          " capability");
     }
 
     if (principal.isSome()) {
@@ -2025,9 +2025,9 @@ Option<Error> validate(
         strings::contains(volume.role(), "/")) {
       return Error(
           "Volume " + stringify(volume) +
-          " with reservation for hierarchical role '" + volume.role() +
-          "' cannot be reserved on an agent without HIERARCHICAL_ROLE "
-          "capability");
+          " with reservation for hierarchical role '" + volume.role() + "'"
+          " cannot be reserved on an agent without HIERARCHICAL_ROLE"
+          " capability");
     }
 
     // Ensure that the provided principals match. If `principal` is `None`,
