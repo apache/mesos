@@ -76,44 +76,65 @@ Future<Option<ContainerLaunchInfo>> LinuxCapabilitiesIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
-  // Determine the capabilities of the container that we want to
-  // launch. None() here means that we don't want to set capabilities
-  // for the container.
-  Option<CapabilityInfo> capabilities = None();
+  Option<CapabilityInfo> effective = None();
+  Option<CapabilityInfo> bounding = None();
 
+  // If effective capabilities are specified, those become
+  // both the effective and bounding sets, because we guarantee
+  // that the effective set is at least as restrictive as the
+  // bounding set.
   if (containerConfig.has_container_info() &&
       containerConfig.container_info().has_linux_info() &&
       containerConfig.container_info().linux_info().has_capability_info()) {
-    capabilities =
+    effective =
       containerConfig.container_info().linux_info().capability_info();
+
+    // TODO(jpeach): MESOS-7671: Let the framework specify a bounding
+    // capability set too.
   }
 
-  // If both the framework sets the capabilities for the container and
-  // the operator sets the allowed capabilities on the agent, we need
-  // to verify that the request from the framework is allowed.
-  if (capabilities.isSome() && flags.allowed_capabilities.isSome()) {
-    const set<Capability> requested = convert(capabilities.get());
-    const set<Capability> allowed = convert(flags.allowed_capabilities.get());
+  // If the framework didn't specify, use the operator effective set.
+  if (effective.isNone()) {
+    effective = flags.allowed_capabilities;
+  }
+
+  // TODO(jpeach): MESOS-7671: If the framework specified a bounding set,
+  // test it against flags.bounding_capabilities.
+
+  // If the framework didn't specify, use the operator bounding set and fall
+  // back to the effective set if necessary.
+  if (bounding.isNone()) {
+    bounding = flags.bounding_capabilities;
+  }
+
+  if (effective.isSome() && bounding.isNone()) {
+    bounding = effective;
+  }
+
+  // If the operator specified a bounding set, require effective task
+  // capabilities to be within that set.
+  if (effective.isSome()) {
+    CHECK_SOME(bounding);
+
+    const set<Capability> requested = convert(effective.get());
+    const set<Capability> allowed = convert(bounding.get());
 
     if ((requested & allowed).size() != requested.size()) {
       return Failure(
-          "Capabilities requested '" + stringify(requested) + "', "
+          "Requested capabilities '" + stringify(requested) + "', "
           "but only '" + stringify(allowed) + "' are allowed");
     }
   }
 
-  // If the framework does not set the capabilities and the operator
-  // sets the allowed capabilities, use that as the capabilities for
-  // the container.
-  if (capabilities.isNone() && flags.allowed_capabilities.isSome()) {
-    capabilities = flags.allowed_capabilities.get();
-  }
-
-  // If no capabilities need to be set for the container, we do not
-  // need to modify the container launch info.
-  if (capabilities.isNone()) {
+  // If no capabilities need to be set for the container, we do
+  // not need to modify the container launch info.
+  if (effective.isNone() && bounding.isNone()) {
     return None();
   }
+
+  // The bounding set is always present, but the effective set
+  // may be absent.
+  CHECK_SOME(bounding);
 
   ContainerLaunchInfo launchInfo;
 
@@ -137,14 +158,25 @@ Future<Option<ContainerLaunchInfo>> LinuxCapabilitiesIsolatorProcess::prepare(
     // behavior a user would expect from a root user.
     if (containerConfig.has_rootfs()) {
       launchInfo.mutable_command()->add_arguments(
-          "--effective_capabilities=" +
-          stringify(JSON::protobuf(capabilities.get())));
+          "--bounding_capabilities=" +
+          stringify(JSON::protobuf(bounding.get())));
+      if (effective.isSome()) {
+        launchInfo.mutable_command()->add_arguments(
+            "--effective_capabilities=" +
+            stringify(JSON::protobuf(effective.get())));
+      }
     } else {
-      launchInfo.mutable_effective_capabilities()->CopyFrom(capabilities.get());
+      launchInfo.mutable_bounding_capabilities()->CopyFrom(bounding.get());
+      if (effective.isSome()) {
+        launchInfo.mutable_effective_capabilities()->CopyFrom(effective.get());
+      }
     }
   } else {
     // Custom executor or nested container.
-    launchInfo.mutable_effective_capabilities()->CopyFrom(capabilities.get());
+    launchInfo.mutable_bounding_capabilities()->CopyFrom(bounding.get());
+    if (effective.isSome()) {
+      launchInfo.mutable_effective_capabilities()->CopyFrom(effective.get());
+    }
   }
 
   return launchInfo;

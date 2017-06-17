@@ -451,15 +451,18 @@ int MesosContainerizerLaunch::execute()
 
 #ifdef __linux__
   // Initialize capabilities support if necessary.
-  Try<Capabilities> capabilitiesManager = Error("Not initialized");
+  Option<Capabilities> capabilitiesManager = None();
 
-  if (launchInfo.has_effective_capabilities()) {
-    capabilitiesManager = Capabilities::create();
-    if (capabilitiesManager.isError()) {
+  if (launchInfo.has_effective_capabilities() ||
+      launchInfo.has_bounding_capabilities()) {
+    Try<Capabilities> _capabilitiesManager = Capabilities::create();
+    if (_capabilitiesManager.isError()) {
       cerr << "Failed to initialize capabilities support: "
-           << capabilitiesManager.error() << endl;
+           << _capabilitiesManager.error() << endl;
       exitWithStatus(EXIT_FAILURE);
     }
+
+    capabilitiesManager = _capabilitiesManager.get();
 
     // Prevent clearing of capabilities on `setuid`.
     if (uid.isSome()) {
@@ -472,7 +475,8 @@ int MesosContainerizerLaunch::execute()
     }
   }
 #else
-  if (launchInfo.has_effective_capabilities()) {
+  if (launchInfo.has_effective_capabilities() ||
+      launchInfo.has_bounding_capabilities()) {
     cerr << "Capabilities are not supported on non Linux system" << endl;
     exitWithStatus(EXIT_FAILURE);
   }
@@ -599,7 +603,7 @@ int MesosContainerizerLaunch::execute()
 #endif // __WINDOWS__
 
 #ifdef __linux__
-  if (launchInfo.has_effective_capabilities()) {
+  if (capabilitiesManager.isSome()) {
     Try<ProcessCapabilities> capabilities = capabilitiesManager->get();
     if (capabilities.isError()) {
       cerr << "Failed to get capabilities for the current process: "
@@ -607,9 +611,10 @@ int MesosContainerizerLaunch::execute()
       exitWithStatus(EXIT_FAILURE);
     }
 
-    // After 'setuid', 'effective' set is cleared. Since `SETPCAP` is
-    // required in the `effective` set of a process to change the
-    // bounding set, we need to restore it first.
+    // After 'setuid', the 'effective' set is cleared. Since `SETPCAP`
+    // is required in the `effective` set of a process to change the
+    // bounding set, we need to restore it first so we can make the
+    // final capability changes.
     capabilities->add(capabilities::EFFECTIVE, capabilities::SETPCAP);
 
     Try<Nothing> setPcap = capabilitiesManager->set(capabilities.get());
@@ -619,14 +624,35 @@ int MesosContainerizerLaunch::execute()
       exitWithStatus(EXIT_FAILURE);
     }
 
-    // Set up requested capabilities.
-    set<Capability> target = capabilities::convert(
-        launchInfo.effective_capabilities());
+    // If the task has any effective capabilities, grant them to all
+    // the capability sets.
+    if (launchInfo.has_effective_capabilities()) {
+      set<Capability> target =
+        capabilities::convert(launchInfo.effective_capabilities());
 
-    capabilities->set(capabilities::EFFECTIVE, target);
-    capabilities->set(capabilities::PERMITTED, target);
-    capabilities->set(capabilities::INHERITABLE, target);
-    capabilities->set(capabilities::BOUNDING, target);
+      capabilities->set(capabilities::EFFECTIVE, target);
+      capabilities->set(capabilities::PERMITTED, target);
+      capabilities->set(capabilities::INHERITABLE, target);
+      capabilities->set(capabilities::BOUNDING, target);
+    }
+
+    // If we also have bounding capabilities, apply that in preference to
+    // the effective capabilities.
+    if (launchInfo.has_bounding_capabilities()) {
+      set<Capability> bounding =
+        capabilities::convert(launchInfo.bounding_capabilities());
+
+      capabilities->set(capabilities::BOUNDING, bounding);
+    }
+
+    // Force the inherited set to be the same as the bounding set. If we
+    // are root and capabilities have not been specified, then this is a
+    // no-op. If capabilities have been specified, then we need to clip the
+    // inherited set to prevent file-based capabilities granting privileges
+    // outside the bounding set.
+    capabilities->set(
+        capabilities::INHERITABLE,
+        capabilities->get(capabilities::BOUNDING));
 
     Try<Nothing> set = capabilitiesManager->set(capabilities.get());
     if (set.isError()) {

@@ -186,6 +186,7 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "linux/capabilities";
   flags.allowed_capabilities = param.allowed;
+  flags.bounding_capabilities = param.allowed;
 
   if (param.useImage == TestParam::WITH_IMAGE) {
     const string registry = path::join(sandbox.get(), "registry");
@@ -304,16 +305,6 @@ INSTANTIATE_TEST_CASE_P(
         TestParam(
             set<Capability>(),
             None(),
-            TestParam::WITH_IMAGE,
-            TestParam::FAILURE),
-        TestParam(
-            set<Capability>({DAC_READ_SEARCH}),
-            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
-            TestParam::WITHOUT_IMAGE,
-            TestParam::FAILURE),
-        TestParam(
-            set<Capability>({DAC_READ_SEARCH}),
-            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             TestParam::WITH_IMAGE,
             TestParam::FAILURE),
         TestParam(
