@@ -18,34 +18,57 @@ list of currently exposed capabilities.
 ## Agent setup
 
 The Linux capabilities isolator is loaded when `linux/capabilities` is
-present in the agent's `--isolation` flag.
-Capabilities which should be allowed are passed with the
-`--effective_capabilities` flag. This isolator requires the
-`CAP_SETPCAP` capability so agent processes typically need to be
-started as root. A possible agent startup invocation could be
+present in the agent's `--isolation` flag.  This isolator requires the
+`CAP_SETPCAP` capability so agent processes typically need to be started
+as root.
+
+The `--effective_capabilities` flag specifies a set of capabilities that
+are always granted to tasks. If the running kernel (Linux 4.3 or later)
+supports ambient capabilities, these capabilities will be added to the
+effective capability set of the task when it is launched. Otherwise
+they must be re-acquired by arranging for the task to execute a file
+with the relevant file-based capabilities enabled.
+
+In the absence of capabilities specified by the scheduler, an empty list
+for `--effective_capabilities` signifies that all capabilities will
+be explicitly dropped.  If the `--effective_capabilities` flag is not
+present, the task will be launched with the default capabilities of the
+task user but the ambient capabilities will not be set.
+
+The `--bounding_capabilities` flag specifies an upper bound on the the
+capabilities a task is allowed to acquire or be granted.  Schedulers are
+not allowed to launch tasks with capabilities outside the set specified
+by the `--bounding_capabilities` flag.
+
+An empty list for `--bounding_capabilities` signifies that no capabilities
+are allowed, while an absent `--bounding_capabilities` flag signifies
+that all capabilities are allowed.
+
+A possible agent startup invocation could be
 
 ```{.console}
 sudo mesos-agent --master=<master ip> --ip=<agent ip>
   --work_dir=/var/lib/mesos
   --isolation=linux/capabilities[,other isolation flags]
   --effective_capabilities='{"capabilities":[NET_RAW,MKNOD]}'
+  --bounding_capabilities='{"capabilities":[NET_RAW,MKNOD,SYSLOG]}'
 ```
-
-An empty list for `--effective_capabilities` signifies that no
-capabilities are allowed, while an absent `--effective_capabilities`
-flag signifies that all capabilities are allowed.
 
 
 ## Task setup
 
-In order for a Mesos task to acquire allowed capabilities it needs to
-declare required capabilities in the `LinuxInfo` of its
+In order for a Mesos task to acquire effective capabilities it should
+declare the required capabilities in the `LinuxInfo` element of its
 `ContainerInfo`.
 
-A Mesos task can only request capabilities which are allowed for the
-agent; a task requesting unallowed capabilities will be rejected.
+A Mesos task can only request capabilities which are allowed according
+to the `--bounding_capabilities` flag of the agent; a task requesting
+other capabilities will be rejected. When the `--bounding_capabilities`
+flag is not present, all capability request will be granted.
 
-If an empty list of capabilities is given the Mesos task will drop all
-capabilities; if the optional `capability_info` field is not set the
-container will be able to acquire the capabilities of the Mesos task's
-user.
+If the optional `capability_info` field is not set, the value of the
+`--effective_capabilities` flag will be used to populate the task
+capabilities. If an empty list of capabilities is given, the Mesos task
+will drop all capabilities.  Note that the task will be unable to acquire
+capabilities not specified in the final `capability_info` even if the
+`--bounding_capabilities` flag would otherwise allow them.
