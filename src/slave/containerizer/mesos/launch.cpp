@@ -630,6 +630,7 @@ int MesosContainerizerLaunch::execute()
       set<Capability> target =
         capabilities::convert(launchInfo.effective_capabilities());
 
+      capabilities->set(capabilities::AMBIENT, target);
       capabilities->set(capabilities::EFFECTIVE, target);
       capabilities->set(capabilities::PERMITTED, target);
       capabilities->set(capabilities::INHERITABLE, target);
