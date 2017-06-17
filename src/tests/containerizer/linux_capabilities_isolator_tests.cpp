@@ -80,9 +80,14 @@ namespace internal {
 namespace tests {
 
 // Param for the tests:
-//   'requested'  Framework specified capabilities for the container.
-//   'allowed'    Allowed capabilities configured by the operator.
-//   'success'    True if the task should finish normally.
+//   'framework_effective'
+//            Framework specified effective capabilities for the container.
+//   'operator_effective'
+//            Default effective capabilities configured by the operator.
+//   'operator_bounding'
+//            Default bounding capabilities configured by the  operator
+//   'success'
+//            True if the task should finish normally.
 struct TestParam
 {
   enum Result
@@ -98,21 +103,27 @@ struct TestParam
   };
 
   TestParam(
-      const Option<set<Capability>>& _requested,
-      const Option<set<Capability>>& _allowed,
+      const Option<set<Capability>>& _framework_effective,
+      const Option<set<Capability>>& _operator_effective,
+      const Option<set<Capability>>& _operator_bounding,
       UseImage _useImage,
       Result _result)
-    : requested(_requested.isSome()
-        ? convert(_requested.get())
+    : framework_effective(_framework_effective.isSome()
+        ? convert(_framework_effective.get())
         : Option<CapabilityInfo>::none()),
-      allowed(_allowed.isSome()
-        ? convert(_allowed.get())
+      operator_effective(_operator_effective.isSome()
+        ? convert(_operator_effective.get())
+        : Option<CapabilityInfo>::none()),
+      operator_bounding(_operator_bounding.isSome()
+        ? convert(_operator_bounding.get())
         : Option<CapabilityInfo>::none()),
       useImage(_useImage),
       result(_result) {}
 
-  const Option<CapabilityInfo> requested;
-  const Option<CapabilityInfo> allowed;
+  const Option<CapabilityInfo> framework_effective;
+  const Option<CapabilityInfo> operator_effective;
+  const Option<CapabilityInfo> operator_bounding;
+
   const UseImage useImage;
   const Result result;
 };
@@ -120,16 +131,25 @@ struct TestParam
 
 ostream& operator<<(ostream& stream, const TestParam& param)
 {
-  if (param.requested.isSome()) {
-    stream << "requested='" << JSON::protobuf(param.requested.get()) << "', ";
+  if (param.framework_effective.isSome()) {
+    stream << "framework_effective='"
+           << JSON::protobuf(param.framework_effective.get()) << "', ";
   } else {
-    stream << "requested='none', ";
+    stream << "framework_effective='none', ";
   }
 
-  if (param.allowed.isSome()) {
-    stream << "allowed='" << JSON::protobuf(param.allowed.get()) << "', ";
+  if (param.operator_effective.isSome()) {
+    stream << "operator_effective='"
+           << JSON::protobuf(param.operator_effective.get()) << "', ";
   } else {
-    stream << "allowed='none', ";
+    stream << "operator_effective='none', ";
+  }
+
+  if (param.operator_bounding.isSome()) {
+    stream << "operator_bounding='"
+           << JSON::protobuf(param.operator_bounding.get()) << "', ";
+  } else {
+    stream << "operator_bounding='none', ";
   }
 
   switch (param.useImage) {
@@ -185,8 +205,8 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
 
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "linux/capabilities";
-  flags.effective_capabilities = param.allowed;
-  flags.bounding_capabilities = param.allowed;
+  flags.effective_capabilities = param.operator_effective;
+  flags.bounding_capabilities = param.operator_bounding;
 
   if (param.useImage == TestParam::WITH_IMAGE) {
     const string registry = path::join(sandbox.get(), "registry");
@@ -239,13 +259,13 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
       offers.get()[0].resources(),
       command);
 
-  if (param.requested.isSome()) {
+  if (param.framework_effective.isSome()) {
     ContainerInfo* container = task.mutable_container();
     container->set_type(ContainerInfo::MESOS);
 
     LinuxInfo* linux = container->mutable_linux_info();
     CapabilityInfo* capabilities = linux->mutable_capability_info();
-    capabilities->CopyFrom(param.requested.get());
+    capabilities->CopyFrom(param.framework_effective.get());
   }
 
   if (param.useImage == TestParam::WITH_IMAGE) {
@@ -300,45 +320,65 @@ INSTANTIATE_TEST_CASE_P(
         TestParam(
             set<Capability>(),
             None(),
+            None(),
             TestParam::WITHOUT_IMAGE,
             TestParam::FAILURE),
         TestParam(
             set<Capability>(),
             None(),
+            None(),
             TestParam::WITH_IMAGE,
             TestParam::FAILURE),
         TestParam(
             set<Capability>({DAC_READ_SEARCH}),
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             TestParam::WITHOUT_IMAGE,
             TestParam::FAILURE),
         TestParam(
             set<Capability>({DAC_READ_SEARCH}),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
             TestParam::WITH_IMAGE,
             TestParam::FAILURE),
 
-        // Allowed capabilities do not contain that ping needs, thus
+        // Effective capabilities do not contain that ping needs, thus
         // ping will fail.
         TestParam(
             None(),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
             TestParam::WITHOUT_IMAGE,
             TestParam::FAILURE),
         TestParam(
             None(),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
             TestParam::WITH_IMAGE,
             TestParam::FAILURE),
+        TestParam(
+            None(),
+            None(),
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
+            TestParam::WITH_IMAGE,
+            TestParam::FAILURE),
+        TestParam(
+            None(),
+            None(),
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::FAILURE),
 
-        // Requested capabilities are not allowed, task will fail.
+        // Framework effective capabilities are not allowed, task will fail.
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN}),
+            set<Capability>({CHOWN}),
             set<Capability>({CHOWN}),
             TestParam::WITHOUT_IMAGE,
             TestParam::FAILURE),
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN}),
+            set<Capability>({CHOWN}),
             set<Capability>({CHOWN}),
             TestParam::WITH_IMAGE,
             TestParam::FAILURE),
@@ -348,19 +388,35 @@ INSTANTIATE_TEST_CASE_P(
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             None(),
+            None(),
             TestParam::WITHOUT_IMAGE,
             TestParam::SUCCESS),
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            None(),
             None(),
             TestParam::WITH_IMAGE,
             TestParam::SUCCESS),
         TestParam(
             None(),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             TestParam::WITHOUT_IMAGE,
             TestParam::SUCCESS),
         TestParam(
+            None(),
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            TestParam::WITH_IMAGE,
+            TestParam::SUCCESS),
+        TestParam(
+            None(),
+            None(),
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::SUCCESS),
+        TestParam(
+            None(),
             None(),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             TestParam::WITH_IMAGE,
@@ -368,9 +424,11 @@ INSTANTIATE_TEST_CASE_P(
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             TestParam::WITHOUT_IMAGE,
             TestParam::SUCCESS),
         TestParam(
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             TestParam::WITH_IMAGE,
