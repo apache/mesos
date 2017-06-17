@@ -214,6 +214,11 @@ message ContainerLaunchInfo {
   // The capabilities are set while launching the container.
   optional CapabilityInfo effective_capabilities = 7;
 
+  // (Linux only) The bounding capability set requested for
+  // the container. This limits the file capabilities a task
+  // can acquire without granting them at launch time.
+  optional CapabilityInfo bounding_capabilities = 16;
+
   // (POSIX only) The rlimits requested for the container.
   // The rlimits are set while launching the container.
   optional RLimitInfo rlimits = 8;
