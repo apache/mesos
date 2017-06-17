@@ -1307,9 +1307,9 @@ Future<bool> MesosContainerizerProcess::_launch(
       return Failure("Multiple isolators specify working directory");
     }
 
-    if (isolatorLaunchInfo->has_capabilities() &&
-        launchInfo.has_capabilities()) {
-      return Failure("Multiple isolators specify capabilities");
+    if (isolatorLaunchInfo->has_effective_capabilities() &&
+        launchInfo.has_effective_capabilities()) {
+      return Failure("Multiple isolators specify effective capabilities");
     }
 
     if (isolatorLaunchInfo->has_rlimits() &&

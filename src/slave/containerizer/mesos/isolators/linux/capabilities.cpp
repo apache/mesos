@@ -126,13 +126,14 @@ Future<Option<ContainerLaunchInfo>> LinuxCapabilitiesIsolatorProcess::prepare(
     // behavior a user would expect from a root user.
     if (containerConfig.has_rootfs()) {
       launchInfo.mutable_command()->add_arguments(
-          "--capabilities=" + stringify(JSON::protobuf(capabilities.get())));
+          "--effective_capabilities=" +
+          stringify(JSON::protobuf(capabilities.get())));
     } else {
-      launchInfo.mutable_capabilities()->CopyFrom(capabilities.get());
+      launchInfo.mutable_effective_capabilities()->CopyFrom(capabilities.get());
     }
   } else {
     // Custom executor or nested container.
-    launchInfo.mutable_capabilities()->CopyFrom(capabilities.get());
+    launchInfo.mutable_effective_capabilities()->CopyFrom(capabilities.get());
   }
 
   return launchInfo;

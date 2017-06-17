@@ -123,7 +123,7 @@ public:
       const Option<string>& _user,
       const Option<string>& _taskCommand,
       const Option<Environment>& _taskEnvironment,
-      const Option<CapabilityInfo>& _capabilities,
+      const Option<CapabilityInfo>& _effectiveCapabilities,
       const FrameworkID& _frameworkId,
       const ExecutorID& _executorId,
       const Duration& _shutdownGracePeriod)
@@ -145,7 +145,7 @@ public:
       user(_user),
       taskCommand(_taskCommand),
       taskEnvironment(_taskEnvironment),
-      capabilities(_capabilities),
+      effectiveCapabilities(_effectiveCapabilities),
       frameworkId(_frameworkId),
       executorId(_executorId),
       lastTaskStatus(None()) {}
@@ -395,7 +395,7 @@ protected:
       const Option<string>& rootfs,
       const Option<string>& sandboxDirectory,
       const Option<string>& workingDirectory,
-      const Option<CapabilityInfo>& capabilities)
+      const Option<CapabilityInfo>& effectiveCapabilities)
   {
     // Prepare the flags to pass to the launch process.
     slave::MesosContainerizerLaunch::Flags launchFlags;
@@ -452,8 +452,9 @@ protected:
       launchInfo.set_user(user.get());
     }
 
-    if (capabilities.isSome()) {
-      launchInfo.mutable_capabilities()->CopyFrom(capabilities.get());
+    if (effectiveCapabilities.isSome()) {
+      launchInfo.mutable_effective_capabilities()->CopyFrom(
+          effectiveCapabilities.get());
     }
 
     launchFlags.launch_info = JSON::protobuf(launchInfo);
@@ -631,7 +632,7 @@ protected:
         rootfs,
         sandboxDirectory,
         workingDirectory,
-        capabilities);
+        effectiveCapabilities);
 
     LOG(INFO) << "Forked command at " << pid;
 
@@ -1115,7 +1116,7 @@ private:
   Option<string> user;
   Option<string> taskCommand;
   Option<Environment> taskEnvironment;
-  Option<CapabilityInfo> capabilities;
+  Option<CapabilityInfo> effectiveCapabilities;
   const FrameworkID frameworkId;
   const ExecutorID executorId;
   Owned<MesosBase> mesos;
@@ -1167,9 +1168,9 @@ public:
         "should be added to the executor's environment before launching\n"
         "the task.");
 
-    add(&Flags::capabilities,
-        "capabilities",
-        "Capabilities the command can use.");
+    add(&Flags::effective_capabilities,
+        "effective_capabilities",
+        "Capabilities granted to the command at launch.");
 
     add(&Flags::launcher_dir,
         "launcher_dir",
@@ -1186,7 +1187,7 @@ public:
   Option<string> user;
   Option<string> task_command;
   Option<Environment> task_environment;
-  Option<mesos::CapabilityInfo> capabilities;
+  Option<mesos::CapabilityInfo> effective_capabilities;
   string launcher_dir;
 };
 
@@ -1261,7 +1262,7 @@ int main(int argc, char** argv)
           flags.user,
           flags.task_command,
           flags.task_environment,
-          flags.capabilities,
+          flags.effective_capabilities,
           frameworkId,
           executorId,
           shutdownGracePeriod));

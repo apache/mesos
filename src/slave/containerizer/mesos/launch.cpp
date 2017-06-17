@@ -453,7 +453,7 @@ int MesosContainerizerLaunch::execute()
   // Initialize capabilities support if necessary.
   Try<Capabilities> capabilitiesManager = Error("Not initialized");
 
-  if (launchInfo.has_capabilities()) {
+  if (launchInfo.has_effective_capabilities()) {
     capabilitiesManager = Capabilities::create();
     if (capabilitiesManager.isError()) {
       cerr << "Failed to initialize capabilities support: "
@@ -472,7 +472,7 @@ int MesosContainerizerLaunch::execute()
     }
   }
 #else
-  if (launchInfo.has_capabilities()) {
+  if (launchInfo.has_effective_capabilities()) {
     cerr << "Capabilities are not supported on non Linux system" << endl;
     exitWithStatus(EXIT_FAILURE);
   }
@@ -589,7 +589,7 @@ int MesosContainerizerLaunch::execute()
 #endif // __WINDOWS__
 
 #ifdef __linux__
-  if (launchInfo.has_capabilities()) {
+  if (launchInfo.has_effective_capabilities()) {
     Try<ProcessCapabilities> capabilities = capabilitiesManager->get();
     if (capabilities.isError()) {
       cerr << "Failed to get capabilities for the current process: "
@@ -610,7 +610,8 @@ int MesosContainerizerLaunch::execute()
     }
 
     // Set up requested capabilities.
-    set<Capability> target = capabilities::convert(launchInfo.capabilities());
+    set<Capability> target = capabilities::convert(
+        launchInfo.effective_capabilities());
 
     capabilities->set(capabilities::EFFECTIVE, target);
     capabilities->set(capabilities::PERMITTED, target);
