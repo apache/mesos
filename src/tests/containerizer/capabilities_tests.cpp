@@ -152,7 +152,7 @@ TEST_F(CapabilitiesTest, ROOT_PingWithJustNetRawSysAdminCap)
 }
 
 
-TEST(AmbientCapabilities, Supported)
+TEST(AmbientCapabilities, DISABLED_Supported)
 {
   Try<Capabilities> manager = Capabilities::create();
   ASSERT_SOME(manager);
