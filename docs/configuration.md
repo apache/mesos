@@ -1019,24 +1019,18 @@ cgroup.
 </tr>
 <tr>
   <td>
-    --allowed_capabilities=VALUE
+    --effective_capabilities=VALUE
   </td>
   <td>
-JSON representation of system capabilities that the operator allows for
-tasks run in containers launched by the containerizer (currently only
+JSON representation of the Linux capabilities the that the agent will grant
+to tasks run in containers launched by the containerizer (currently only
 supported by the Mesos Containerizer). This set overrides the default
 capabilities requested by the framework.
 <p/>
-The net capability for a task running in the container will be:
-<pre><code>((F & A) & U)</code>
-  where F = capabilities requested by the framework.
-        A = allowed capabilities specified by this flag.
-        U = permitted capabilities for the agent process.
-</pre>
 To set capabilities the agent should have the <code>SETPCAP</code> capability.
 <p/>
-This flag is effective iff <code>capabilities</code> isolation is enabled.
-When <code>capabilities</code> isolation is enabled, the absence of this flag
+This flag is effective iff <code>linux/capabilities</code> isolation is enabled.
+When <code>linux/capabilities</code> isolation is enabled, the absence of this flag
 implies that the operator intends to allow ALL capabilities.
 <p/>
 Example:

@@ -185,7 +185,7 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
 
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "linux/capabilities";
-  flags.allowed_capabilities = param.allowed;
+  flags.effective_capabilities = param.allowed;
   flags.bounding_capabilities = param.allowed;
 
   if (param.useImage == TestParam::WITH_IMAGE) {
@@ -395,38 +395,39 @@ TEST_F(LinuxCapabilitiesIsolatorFlagsTest, ROOT_IsolatorFlags)
 
   Try<Owned<cluster::Slave>> slave = Owned<cluster::Slave>();
 
+
   // Allowed is not a subset of bounding, so this should fail.
-  flags.allowed_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
+  flags.effective_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
   flags.bounding_capabilities = convert(set<Capability>({NET_RAW}));
   slave = StartSlave(&detector, flags);
   ASSERT_ERROR(slave);
 
   // Allowed is the same as bounding, which is OK.
-  flags.allowed_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
+  flags.effective_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
   flags.bounding_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
   slave = StartSlave(&detector, flags);
   ASSERT_SOME(slave);
 
   // Allowed is a subset of bounding, which is OK.
-  flags.allowed_capabilities = convert(set<Capability>({NET_RAW}));
+  flags.effective_capabilities = convert(set<Capability>({NET_RAW}));
   flags.bounding_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
   slave = StartSlave(&detector, flags);
   ASSERT_SOME(slave);
 
   // Both sets are allowed to be missing.
-  flags.allowed_capabilities = None();
+  flags.effective_capabilities = None();
   flags.bounding_capabilities = None();
   slave = StartSlave(&detector, flags);
   ASSERT_SOME(slave);
 
   // Bounding capabilities are allowed to be missing.
-  flags.allowed_capabilities = convert(set<Capability>({NET_RAW}));
+  flags.effective_capabilities = convert(set<Capability>({NET_RAW}));
   flags.bounding_capabilities = None();
   slave = StartSlave(&detector, flags);
   ASSERT_SOME(slave);
 
-  // Allowed capabilities are allowed to be missing.
-  flags.allowed_capabilities = None();
+  // Effective capabilities are allowed to be missing.
+  flags.effective_capabilities = None();
   flags.bounding_capabilities = convert(set<Capability>({NET_RAW}));
   slave = StartSlave(&detector, flags);
   ASSERT_SOME(slave);

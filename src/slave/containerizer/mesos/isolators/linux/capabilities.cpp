@@ -56,10 +56,12 @@ Try<Isolator*> LinuxCapabilitiesIsolatorProcess::create(const Flags& flags)
     return Error("Failed to initialize capabilities: " + create.error());
   }
 
-  if (flags.allowed_capabilities.isSome() &&
+  if (flags.effective_capabilities.isSome() &&
       flags.bounding_capabilities.isSome()) {
-    const set<Capability> bounding = convert(flags.bounding_capabilities.get());
-    const set<Capability> effective = convert(flags.allowed_capabilities.get());
+    const set<Capability> bounding = convert(
+        flags.bounding_capabilities.get());
+    const set<Capability> effective = convert(
+        flags.effective_capabilities.get());
 
     if ((effective & bounding).size() != effective.size()) {
       return Error(
@@ -95,7 +97,7 @@ Future<Option<ContainerLaunchInfo>> LinuxCapabilitiesIsolatorProcess::prepare(
 
   // If the framework didn't specify, use the operator effective set.
   if (effective.isNone()) {
-    effective = flags.allowed_capabilities;
+    effective = flags.effective_capabilities;
   }
 
   // TODO(jpeach): MESOS-7671: If the framework specified a bounding set,

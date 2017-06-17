@@ -20,7 +20,7 @@ list of currently exposed capabilities.
 The Linux capabilities isolator is loaded when `linux/capabilities` is
 present in the agent's `--isolation` flag.
 Capabilities which should be allowed are passed with the
-`--allowed_capabilities` flag. This isolator requires the
+`--effective_capabilities` flag. This isolator requires the
 `CAP_SETPCAP` capability so agent processes typically need to be
 started as root. A possible agent startup invocation could be
 
@@ -28,12 +28,12 @@ started as root. A possible agent startup invocation could be
 sudo mesos-agent --master=<master ip> --ip=<agent ip>
   --work_dir=/var/lib/mesos
   --isolation=linux/capabilities[,other isolation flags]
-  --allowed_capabilities='{"capabilities":[NET_RAW,MKNOD]}'
+  --effective_capabilities='{"capabilities":[NET_RAW,MKNOD]}'
 ```
 
-An empty list for `--allowed_capabilities` signifies that no
-capabilities are allowed, while an absent `--allowed_capabilities` flag
-signifies that all capabilities are allowed.
+An empty list for `--effective_capabilities` signifies that no
+capabilities are allowed, while an absent `--effective_capabilities`
+flag signifies that all capabilities are allowed.
 
 
 ## Task setup

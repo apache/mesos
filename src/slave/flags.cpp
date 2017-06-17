@@ -587,25 +587,20 @@ mesos::internal::slave::Flags::Flags()
       "The path to the systemd system run time directory\n",
       "/run/systemd/system");
 
-  add(&Flags::allowed_capabilities,
-      "allowed_capabilities",
-      "JSON representation of system capabilities that the operator\n"
-      "allows tasks run in containers launched by the containerizer\n"
-      "(currently only supported by the Mesos Containerizer). This set\n"
-      "overrides the default capabilities for the user and the\n"
-      "capabilities requested by the framework.\n"
-      "\n"
-      "The net capability for a task running in the container will be:\n"
-      "   ((F & A) & U)\n"
-      "   where F = capabilities requested by the framework.\n"
-      "         A = allowed capabilities specified by this flag.\n"
-      "         U = permitted capabilities for the agent process.\n"
+  add(&Flags::effective_capabilities,
+      "effective_capabilities",
+      flags::DeprecatedName("allowed_capabilities"),
+      "JSON representation of the Linux capabilities that the agent will\n"
+      "grant to a task that will be run in containers launched by the\n"
+      "containerizer (currently only supported by the Mesos Containerizer).\n"
+      "This set overrides the default capabilities for the user but not\n"
+      "the capabilities requested by the framework.\n"
       "\n"
       "To set capabilities the agent should have the `SETPCAP` capability.\n"
       "\n"
-      "This flag is effective iff `capabilities` isolation is enabled.\n"
-      "When `capabilities` isolation is enabled, the absence of this flag\n"
-      "implies that the operator intends to allow ALL capabilities.\n"
+      "This flag is effective iff `linux/capabilities` isolation is enabled.\n"
+      "When `linux/capabilities` isolation is enabled, the absence of this\n"
+      "flag implies that the operator intends to allow ALL capabilities.\n"
       "\n"
       "Example:\n"
       "{\n"
@@ -626,7 +621,7 @@ mesos::internal::slave::Flags::Flags()
       "When `linux/capabilities` isolation is enabled, the absence of this\n"
       "flag implies that the operator allows ALL capabilities.\n"
       "\n"
-      "This flag has the same syntax as `--allowed_capabilities`."
+      "This flag has the same syntax as `--effective_capabilities`."
      );
 #endif
 
