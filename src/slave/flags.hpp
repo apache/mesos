@@ -111,6 +111,7 @@ public:
   bool systemd_enable_support;
   std::string systemd_runtime_directory;
   Option<CapabilityInfo> allowed_capabilities;
+  Option<CapabilityInfo> bounding_capabilities;
 #endif
   Option<Firewall> firewall_rules;
   Option<Path> credential;

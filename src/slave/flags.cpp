@@ -614,6 +614,20 @@ mesos::internal::slave::Flags::Flags()
       "       \"SYS_ADMIN\"\n"
       "     ]\n"
       "}");
+
+  add(&Flags::bounding_capabilities,
+      "bounding_capabilities",
+      "JSON representation of the Linux capabilities that the operator\n"
+      "will allow as the maximum level of privilege that a task launched\n"
+      "by the containerizer may acquire (currently only supported by the\n"
+      "Mesos Containerizer).\n"
+      "\n"
+      "This flag is effective iff `linux/capabilities` isolation is enabled.\n"
+      "When `linux/capabilities` isolation is enabled, the absence of this\n"
+      "flag implies that the operator allows ALL capabilities.\n"
+      "\n"
+      "This flag has the same syntax as `--allowed_capabilities`."
+     );
 #endif
 
   add(&Flags::firewall_rules,
