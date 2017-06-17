@@ -137,7 +137,8 @@ namespace resource {
 // NOTE: We cannot take 'Resources' here because invalid resources are
 // silently ignored within its constructor.
 Option<Error> validate(
-    const google::protobuf::RepeatedPtrField<Resource>& resources);
+    const google::protobuf::RepeatedPtrField<Resource>& resources,
+    const Option<protobuf::framework::Capabilities>& capabilities = None());
 
 } // namespace resource {
 
@@ -153,7 +154,9 @@ Option<Error> validateExecutorID(const ExecutorInfo& executor);
 Option<Error> validateType(const ExecutorInfo& executor);
 
 // Validates resources of the executor.
-Option<Error> validateResources(const ExecutorInfo& executor);
+Option<Error> validateResources(
+    const ExecutorInfo& executor,
+    const Option<protobuf::framework::Capabilities>& capabilities = None());
 
 } // namespace internal {
 
@@ -181,10 +184,14 @@ Option<Error> validate(
 namespace internal {
 
 // Validates resources of the task.
-Option<Error> validateResources(const TaskInfo& task);
+Option<Error> validateResources(
+    const TaskInfo& task,
+    const Option<protobuf::framework::Capabilities>& capabilities = None());
 
 // Validates resources of the task and its executor.
-Option<Error> validateTaskAndExecutorResources(const TaskInfo& task);
+Option<Error> validateTaskAndExecutorResources(
+    const TaskInfo& task,
+    const Option<protobuf::framework::Capabilities>& capabilities = None());
 
 // Validates the kill policy of the task.
 Option<Error> validateKillPolicy(const TaskInfo& task);
@@ -268,7 +275,9 @@ Option<Error> validate(
 
 
 // Validates the UNRESERVE operation.
-Option<Error> validate(const Offer::Operation::Unreserve& unreserve);
+Option<Error> validate(
+    const Offer::Operation::Unreserve& unreserve,
+    const Option<FrameworkInfo>& frameworkInfo = None());
 
 
 // Validates the CREATE operation. We need slave's checkpointed resources so
@@ -293,7 +302,8 @@ Option<Error> validate(
     const Offer::Operation::Destroy& destroy,
     const Resources& checkpointedResources,
     const hashmap<FrameworkID, Resources>& usedResources,
-    const hashmap<FrameworkID, hashmap<TaskID, TaskInfo>>& pendingTasks);
+    const hashmap<FrameworkID, hashmap<TaskID, TaskInfo>>& pendingTasks,
+    const Option<FrameworkInfo>& frameworkInfo = None());
 
 } // namespace operation {
 
