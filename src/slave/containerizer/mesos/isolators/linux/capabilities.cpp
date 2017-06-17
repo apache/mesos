@@ -56,6 +56,17 @@ Try<Isolator*> LinuxCapabilitiesIsolatorProcess::create(const Flags& flags)
     return Error("Failed to initialize capabilities: " + create.error());
   }
 
+  if (flags.allowed_capabilities.isSome() &&
+      flags.bounding_capabilities.isSome()) {
+    const set<Capability> bounding = convert(flags.bounding_capabilities.get());
+    const set<Capability> effective = convert(flags.allowed_capabilities.get());
+
+    if ((effective & bounding).size() != effective.size()) {
+      return Error(
+          "Allowed capabilities are not a subset of the bounding capabilites");
+    }
+  }
+
   return new MesosIsolator(
       Owned<MesosIsolatorProcess>(new LinuxCapabilitiesIsolatorProcess(flags)));
 }

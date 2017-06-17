@@ -43,6 +43,8 @@
 
 #include "linux/capabilities.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/fetcher.hpp"
@@ -61,6 +63,7 @@ using mesos::internal::capabilities::NET_RAW;
 using mesos::internal::slave::Fetcher;
 
 using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
 
 using process::Future;
 using process::Owned;
@@ -388,6 +391,55 @@ INSTANTIATE_TEST_CASE_P(
 
 // TODO(bbannier): Reject these tasks that specify capabilities if
 // capabilities isolator is not enabled.
+
+class LinuxCapabilitiesIsolatorFlagsTest : public MesosTest {};
+
+
+TEST_F(LinuxCapabilitiesIsolatorFlagsTest, ROOT_IsolatorFlags)
+{
+  StandaloneMasterDetector detector;
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "linux/capabilities";
+
+  Try<Owned<cluster::Slave>> slave = Owned<cluster::Slave>();
+
+  // Allowed is not a subset of bounding, so this should fail.
+  flags.allowed_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
+  flags.bounding_capabilities = convert(set<Capability>({NET_RAW}));
+  slave = StartSlave(&detector, flags);
+  ASSERT_ERROR(slave);
+
+  // Allowed is the same as bounding, which is OK.
+  flags.allowed_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
+  flags.bounding_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
+  slave = StartSlave(&detector, flags);
+  ASSERT_SOME(slave);
+
+  // Allowed is a subset of bounding, which is OK.
+  flags.allowed_capabilities = convert(set<Capability>({NET_RAW}));
+  flags.bounding_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
+  slave = StartSlave(&detector, flags);
+  ASSERT_SOME(slave);
+
+  // Both sets are allowed to be missing.
+  flags.allowed_capabilities = None();
+  flags.bounding_capabilities = None();
+  slave = StartSlave(&detector, flags);
+  ASSERT_SOME(slave);
+
+  // Bounding capabilities are allowed to be missing.
+  flags.allowed_capabilities = convert(set<Capability>({NET_RAW}));
+  flags.bounding_capabilities = None();
+  slave = StartSlave(&detector, flags);
+  ASSERT_SOME(slave);
+
+  // Allowed capabilities are allowed to be missing.
+  flags.allowed_capabilities = None();
+  flags.bounding_capabilities = convert(set<Capability>({NET_RAW}));
+  slave = StartSlave(&detector, flags);
+  ASSERT_SOME(slave);
+}
 
 } // namespace tests {
 } // namespace internal {
