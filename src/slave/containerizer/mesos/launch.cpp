@@ -560,6 +560,16 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
+  if (launchInfo.has_working_directory()) {
+    Try<Nothing> chdir = os::chdir(launchInfo.working_directory());
+    if (chdir.isError()) {
+      cerr << "Failed to chdir into current working directory "
+           << "'" << launchInfo.working_directory() << "': "
+           << chdir.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+  }
+
 #ifndef __WINDOWS__
   // Change user if provided. Note that we do that after executing the
   // preparation commands so that those commands will be run with the
@@ -624,16 +634,6 @@ int MesosContainerizerLaunch::execute()
     }
   }
 #endif // __linux__
-
-  if (launchInfo.has_working_directory()) {
-    Try<Nothing> chdir = os::chdir(launchInfo.working_directory());
-    if (chdir.isError()) {
-      cerr << "Failed to chdir into current working directory "
-           << "'" << launchInfo.working_directory() << "': "
-           << chdir.error() << endl;
-      exitWithStatus(EXIT_FAILURE);
-    }
-  }
 
   // Prepare the executable and the argument list for the child.
   string executable(launchInfo.command().shell()
