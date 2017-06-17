@@ -151,6 +151,86 @@ TEST_F(CapabilitiesTest, ROOT_PingWithJustNetRawSysAdminCap)
   AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 
+
+TEST(AmbientCapabilities, Supported)
+{
+  Try<Capabilities> manager = Capabilities::create();
+  ASSERT_SOME(manager);
+
+  Try<os::UTSInfo> uname = os::uname();
+  ASSERT_SOME(uname);
+
+  // Trim the kernel version to 2 component because Version::parse() can't
+  // deal with kernel versions like "4.10.14-200.fc25.x86_64".
+  vector<string> components = strings::split(uname->release, ".");
+  components.resize(2);
+
+  Try<Version> version = Version::parse(strings::join(".", components));
+  ASSERT_SOME(version) << " parsing kernel version "
+                       << strings::join(".", components);
+
+  // Ambient capabilities were introduced in Linux 4.3, so if the kernel is
+  // later than that we expect them to be supported.
+  if (version.get() < Version(4, 3, 0)) {
+    EXPECT_FALSE(manager->ambientCapabilitiesSupported);
+  } else {
+    EXPECT_TRUE(manager->ambientCapabilitiesSupported);
+  }
+}
+
+
+TEST(AmbientCapabilities, ROOT_SetAmbient)
+{
+  Try<Capabilities> manager = Capabilities::create();
+  ASSERT_SOME(manager);
+
+  ProcessCapabilities wanted;
+
+  Try<ProcessCapabilities> initial = manager->get();
+  ASSERT_SOME(initial);
+
+  // Setting just the ambient set should fail.
+  wanted.set(capabilities::AMBIENT, {capabilities::CHOWN});
+  EXPECT_ERROR(manager->set(wanted));
+
+  // Keep the full bounding and permitted capabilities because we want
+  // to be able to recover privilege later.
+  wanted.set(capabilities::BOUNDING, initial->get(capabilities::BOUNDING));
+  wanted.set(capabilities::PERMITTED, initial->get(capabilities::PERMITTED));
+
+  wanted.set(
+      capabilities::INHERITABLE,
+      {capabilities::SETPCAP, capabilities::CHOWN});
+
+  wanted.set(
+      capabilities::EFFECTIVE,
+      {capabilities::SETPCAP, capabilities::CHOWN});
+
+  if (manager->ambientCapabilitiesSupported) {
+    wanted.set(
+        capabilities::AMBIENT,
+        {capabilities::SETPCAP, capabilities::CHOWN});
+  }
+
+  // Setting ambient in conjuction with permitted and
+  // interitable should succeed.
+  EXPECT_SOME(manager->set(wanted)) << wanted;
+
+  // We should now have the capabilities that we set.
+  Try<ProcessCapabilities> actual = manager->get();
+  EXPECT_SOME_EQ(wanted, actual)
+    << "wanted capabilities: " << wanted << "\n"
+    << "actual capabilities: " << actual.get();
+
+  ASSERT_SOME(manager->set(initial.get())) << initial.get();
+
+  // And check that we did it right.
+  actual = manager->get();
+  ASSERT_SOME_EQ(initial.get(), actual)
+    << "wanted capabilities: " << initial.get() << "\n"
+    << "actual capabilities: " << actual.get();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

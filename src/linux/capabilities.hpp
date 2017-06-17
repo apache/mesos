@@ -82,6 +82,7 @@ enum Type
   PERMITTED,
   INHERITABLE,
   BOUNDING,
+  AMBIENT,
 };
 
 
@@ -91,10 +92,19 @@ enum Type
 class ProcessCapabilities
 {
 public:
-  std::set<Capability> get(const Type& type) const;
+  const std::set<Capability>& get(const Type& type) const;
   void set(const Type& type, const std::set<Capability>& capabilities);
   void add(const Type& type, const Capability& capability);
   void drop(const Type& type, const Capability& capability);
+
+  bool operator==(const ProcessCapabilities& right) const
+  {
+    return right.effective == effective &&
+      right.permitted == permitted &&
+      right.inheritable == inheritable &&
+      right.bounding == bounding &&
+      right.ambient == ambient;
+  }
 
 private:
   friend std::ostream& operator<<(
@@ -105,6 +115,7 @@ private:
   std::set<Capability> permitted;
   std::set<Capability> inheritable;
   std::set<Capability> bounding;
+  std::set<Capability> ambient;
 };
 
 
@@ -165,8 +176,16 @@ public:
    */
   std::set<Capability> getAllSupportedCapabilities();
 
+  /**
+   * Whether ambient capabilities are supported on this host. If
+   * ambient capabilities are supported, the AMBIENT set will be
+   * populated when getting the process capabilities and applied
+   * when setting them. Otherwise the AMBIENT set will be ignored.
+   */
+  const bool ambientCapabilitiesSupported;
+
 private:
-  explicit Capabilities(int _lastCap) : lastCap(_lastCap) {}
+  Capabilities(int _lastCap, bool _ambientSupported);
 
   // Maximum count of capabilities supported by the system.
   const int lastCap;
