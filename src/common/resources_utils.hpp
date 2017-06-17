@@ -17,6 +17,10 @@
 #ifndef __RESOURCES_UTILS_HPP__
 #define __RESOURCES_UTILS_HPP__
 
+#include <vector>
+
+#include <google/protobuf/repeated_field.h>
+
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
@@ -37,6 +41,97 @@ bool needCheckpointing(const Resource& resource);
 Try<Resources> applyCheckpointedResources(
     const Resources& resources,
     const Resources& checkpointedResources);
+
+
+// Resource format options to be used with the `convertResourceFormat` function.
+//
+// The preconditions of the options are asymmetric, centered around the
+// "post-reservation-refinement" format. This is mainly due to the fact that
+// "post-reservation-refinement" format is our canonical representation.
+// The transformations are generally applied to any of the 3 formats to be
+// converted to the canonical format, then later converted back as necessary.
+//
+// See 'Resource Format' section in `mesos.proto` for more details.
+enum ResourceFormat
+{
+  // "post-reservation-refinement" -> "pre-reservation-refinement"
+  //
+  // The `Resource` objects must be in the "post-reservation-refinement" format,
+  // and must not have refined reservations.
+  //
+  // All resources end up with the `Resource.role` and `Resource.reservation`
+  // fields set, and the `Resource.reservations` field unset.
+  //
+  // We convert the resources to the "pre-reservation-refinement" format to
+  // checkpoint resources for example. This enables downgrading to an agent
+  // without a RESERVATION_REFINEMENT caapbility, since the resources will
+  // be checkpointed in a format that the downgraded agent can recover from.
+  PRE_RESERVATION_REFINEMENT,
+
+  // "pre-reservation-refinement"  -> "post-reservation-refinement"
+  // "post-reservation-refinement" -> "post-reservation-refinement"
+  // "endpoint"                    -> "post-reservation-refinement"
+  //
+  // The `Resource` objects can be in any of the valid resource formats:
+  // "pre-reservation-refinement", "post-reservation-refinement", "endpoint".
+  //
+  // All resources end up with the `Resource.reservations` field set,
+  // and the `Resource.role` and `Resource.reservation` fields unset.
+  //
+  // If the `Resource` objects are already in the "post-reservation-refinement"
+  // format, this is a no-op.
+  //
+  // We convert the resources to the "post-reservation-refinement" format,
+  // for example, when a master receives a message from an agent without
+  // the RESERVATION_REFINEMENT capability. This allows a component
+  // (e.g. master) code to deal with a canonical format to simplify the code.
+  POST_RESERVATION_REFINEMENT,
+
+  // "post-reservation-refinement" -> "endpoint"
+  //
+  // This is a special case for endpoints, which injects
+  // the "pre-reservation-refinement" format.
+  //
+  // The `Resource` objects must be in the "post-reservation-refinement" format.
+  //
+  // All resources continue to have the `Resource.reservations` field set.
+  // The `Resource` objects without refined reservations end up with the
+  // `Resource.role` and `Resource.reservation` fields set, and the objects
+  // with refined reservations have them unset.
+  //
+  // We inject the resources with the "pre-reservation-refinement" format to
+  // enable backward compatibility with external tooling. If the master has been
+  // upgraded to a version that supports reservation refinement but no refined
+  // reservations have been made, the endpoints will return the data in both new
+  // and old formats to maximize backward compatibility. However, once
+  // a reservation refinement is made to a resource, that resource is only
+  // returned in the new format.
+  ENDPOINT
+};
+
+
+// Converts the given `Resource` to the specified `ResourceFormat`.
+//
+// See the "Resource Format" section in `mesos.proto` for more details.
+// See the `ResourceFormat` enum above for more details.
+void convertResourceFormat(Resource* resource, ResourceFormat format);
+
+
+// Converts the given `Resource`s to the specified `ResourceFormat`.
+void convertResourceFormat(
+    google::protobuf::RepeatedPtrField<Resource>* resources,
+    ResourceFormat format);
+
+
+// Converts the given `Resource`s to the specified `ResourceFormat`.
+void convertResourceFormat(
+    std::vector<Resource>* resources,
+    ResourceFormat format);
+
+
+// Converts all the `Resource` objects in the given `Operation`
+// to the specified `ResourceFormat`.
+void convertResourceFormat(Offer::Operation* operation, ResourceFormat format);
 
 } // namespace mesos {
 
