@@ -1082,6 +1082,11 @@ bool Resources::isShared(const Resource& resource)
 }
 
 
+bool Resources::hasRefinedReservations(const Resource& resource)
+{
+  return resource.reservations_size() > 1;
+}
+
 /////////////////////////////////////////////////
 // Public member functions.
 /////////////////////////////////////////////////

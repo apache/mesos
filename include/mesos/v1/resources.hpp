@@ -306,6 +306,9 @@ public:
   // Tests if the given Resource object is shared.
   static bool isShared(const Resource& resource);
 
+  // Tests if the given Resource object has refined reservations.
+  static bool hasRefinedReservations(const Resource& resource);
+
   // Returns the summed up Resources given a hashmap<Key, Resources>.
   //
   // NOTE: While scalar resources such as "cpus" sum correctly,
