@@ -1530,7 +1530,7 @@ TEST(ResourcesTest, Reservations)
 
 
 // This test verifies that we can get all resources allocatable to a role,
-// including reservations of itself, its ancestors, and unreserved resoruces.
+// including reservations of itself, its ancestors, and unreserved resources.
 TEST(ResourcesTest, HierarchicalReservations)
 {
   Resources unreserved = Resources::parse(
@@ -3371,7 +3371,7 @@ public:
     scalars3.superset = scalars1.subset;
     scalars3.totalOperations = 5000;
 
-    // TODO(bmahler): Increase the port rangae to [1-64,000] once
+    // TODO(bmahler): Increase the port range to [1-64,000] once
     // performance is improved such that this doesn't take a
     // long time to run.
 
