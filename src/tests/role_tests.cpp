@@ -911,7 +911,7 @@ TEST_F(RoleTest, EndpointBadAuthentication)
 TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, VolumesInOverlappingHierarchies)
 {
   constexpr char PATH[] = "path";
-  constexpr Megabytes DISK_SIZE(1);
+  constexpr Bytes DISK_SIZE = Megabytes(1);
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

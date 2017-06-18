@@ -157,7 +157,7 @@ protected:
   // Creates a disk with / without a `source` based on the
   // parameterization of the test. `id` influences the `root` if one
   // is specified so that we can create multiple disks in the tests.
-  Resource getDiskResource(const Megabytes& mb, size_t id = 1)
+  Resource getDiskResource(const Bytes& mb, size_t id = 1)
   {
     CHECK_LE(1u, id);
     CHECK_GE(NUM_DISKS, id);
