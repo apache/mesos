@@ -180,6 +180,8 @@ libprocess_la_SOURCES =		\
   src/process.cpp		\
   src/process_reference.hpp	\
   src/reap.cpp			\
+  src/run_queue.hpp		\
+  src/semaphore.hpp		\
   src/socket.cpp		\
   src/subprocess.cpp		\
   src/subprocess_posix.cpp	\

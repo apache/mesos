@@ -40,6 +40,10 @@
 # party libraries, and where in the directory tree you need to look to get the
 # actual libraries.
 
+if (ENABLE_LOCK_FREE_RUN_QUEUE)
+  add_definitions(-DLOCK_FREE_RUN_QUEUE)
+endif ()
+
 if (ENABLE_SSL)
   find_package(OpenSSL REQUIRED)
 endif ()
