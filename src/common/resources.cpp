@@ -835,54 +835,57 @@ Option<Error> Resources::validate(const Resource& resource)
     }
   }
 
-  if (resource.has_reservation() && resource.reservations_size() > 0) {
-    return Error(
-        "Invalid reservation: only one of 'reservation' or 'reservations'"
-        " may be present");
-  }
+  // Validate the reservation format.
 
-  // Check role name.
-  Option<Error> error = roles::validate(resource.role());
-  if (error.isSome()) {
-    return error;
-  }
+  if (resource.reservations_size() == 0) {
+    // Check for the "pre-reservation-refinement" format.
 
-  if (resource.has_reservation()) {
-    if (resource.reservation().has_type()) {
-      return Error(
-          "'Resource.ReservationInfo.type' must not be set for the"
-          " 'Resource.reservation' field");
-    }
-
-    if (resource.reservation().has_role()) {
-      return Error(
-          "'Resource.ReservationInfo.role' must not be set for the"
-          " 'Resource.reservation' field");
-    }
-
-    // Checks for the invalid state of (role, reservation) pair.
-    if (resource.role() == "*") {
-      return Error(
-          "Invalid reservation: role \"*\" cannot be dynamically reserved");
-    }
-  }
-
-  // Validate all of the roles in `reservations`.
-  foreach (
-      const Resource::ReservationInfo& reservation, resource.reservations()) {
-    Option<Error> error = roles::validate(reservation.role());
+    // Check role name.
+    Option<Error> error = roles::validate(resource.role());
     if (error.isSome()) {
       return error;
     }
 
-    if (reservation.role() == "*") {
-      return Error("Invalid reservation: role \"*\" cannot be reserved");
+    // Check reservation.
+    if (resource.has_reservation()) {
+      if (resource.reservation().has_type()) {
+        return Error(
+            "'Resource.ReservationInfo.type' must not be set for"
+            " the 'Resource.reservation' field");
+      }
+
+      if (resource.reservation().has_role()) {
+        return Error(
+            "'Resource.ReservationInfo.role' must not be set for"
+            " the 'Resource.reservation' field");
+      }
+
+      // Checks for the invalid state of (role, reservation) pair.
+      if (resource.role() == "*") {
+        return Error(
+            "Invalid reservation: role \"*\" cannot be dynamically reserved");
+      }
     }
-  }
+  } else {
+    // Check for the "post-reservation-refinement" format.
 
-  if (resource.reservations_size() > 0) {
+    CHECK_GE(resource.reservations_size(), 0);
+
+    // Validate all of the roles in `reservations`.
+    foreach (
+        const Resource::ReservationInfo& reservation, resource.reservations()) {
+      Option<Error> error = roles::validate(reservation.role());
+      if (error.isSome()) {
+        return error;
+      }
+
+      if (reservation.role() == "*") {
+        return Error("Invalid reservation: role \"*\" cannot be reserved");
+      }
+    }
+
+    // Check that the reservations are correctly refined.
     string ancestor = resource.reservations(0).role();
-
     for (int i = 1; i < resource.reservations_size(); ++i) {
       const Resource::ReservationInfo& reservation = resource.reservations(i);
 
@@ -901,6 +904,79 @@ Option<Error> Resources::validate(const Resource& resource)
       }
 
       ancestor = descendant;
+    }
+
+    // Additionally, we allow the "pre-reservation-refinement" format to be set
+    // as long as there is only one reservation, and the `Resource.role` and
+    // `Resource.reservation` fields are consistent with the reservation.
+    if (resource.reservations_size() == 1) {
+      const Resource::ReservationInfo& reservation = resource.reservations(0);
+      if (resource.has_role() && resource.role() != reservation.role()) {
+        return Error(
+            "Invalid resource format: 'Resource.role' field with"
+            " '" + resource.role() + "' does not match the role"
+            " '" + reservation.role() + "' in 'Resource.reservations'");
+      }
+
+      switch (reservation.type()) {
+        case Resource::ReservationInfo::STATIC: {
+          if (resource.has_reservation()) {
+            return Error(
+                "Invalid resource format: 'Resource.reservation' must not be"
+                " set if the single reservation in 'Resource.reservations' is"
+                " STATIC");
+          }
+
+          break;
+        }
+        case Resource::ReservationInfo::DYNAMIC: {
+          if (resource.has_role() != resource.has_reservation()) {
+            return Error(
+                "Invalid resource format: 'Resource.role' and"
+                " 'Resource.reservation' must either be both set or both not"
+                " set if the single reservation in 'Resource.reservations' is"
+                " DYNAMIC");
+          }
+
+          if (resource.has_reservation() &&
+              resource.reservation().principal() != reservation.principal()) {
+            return Error(
+                "Invalid resource format: 'Resource.reservation.principal'"
+                " field with '" + resource.reservation().principal() + "' does"
+                " not match the principal '" + reservation.principal() + "'"
+                " in 'Resource.reservations'");
+          }
+
+          if (resource.has_reservation() &&
+              resource.reservation().labels() != reservation.labels()) {
+            return Error(
+                "Invalid resource format: 'Resource.reservation.labels' field"
+                " with '" + stringify(resource.reservation().labels()) + "'"
+                " does not match the labels"
+                " '" + stringify(reservation.labels()) + "'"
+                " in 'Resource.reservations'");
+          }
+
+          break;
+        }
+        case Resource::ReservationInfo::UNKNOWN: {
+          return Error("Unsupported 'Resource.ReservationInfo.Type'");
+        }
+      }
+
+    } else {
+      CHECK_GE(resource.reservations_size(), 1);
+      if (resource.has_role()) {
+        return Error(
+            "Invalid resource format: 'Resource.role' must not be set if"
+            " there is more than one reservation in 'Resource.reservations'");
+      }
+
+      if (resource.has_reservation()) {
+        return Error(
+            "Invalid resource format: 'Resource.reservation' must not be set if"
+            " there is more than one reservation in 'Resource.reservations'");
+      }
     }
   }
 
