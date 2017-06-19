@@ -874,6 +874,18 @@ Option<Error> Resources::validate(const Resource& resource)
     // Validate all of the roles in `reservations`.
     foreach (
         const Resource::ReservationInfo& reservation, resource.reservations()) {
+      if (!reservation.has_type()) {
+        return Error(
+            "Invalid reservation: 'Resource.ReservationInfo.type'"
+            " field must be set.");
+      }
+
+      if (!reservation.has_role()) {
+        return Error(
+            "Invalid reservation: 'Resource.ReservationInfo.role'"
+            " field must be set.");
+      }
+
       Option<Error> error = roles::validate(reservation.role());
       if (error.isSome()) {
         return error;

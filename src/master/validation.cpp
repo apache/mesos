@@ -604,16 +604,24 @@ Option<Error> validateFormat(
 {
   foreach (const Resource& resource, resources) {
     if (capabilities.reservationRefinement) {
-      if (resource.has_role() || resource.has_reservation()) {
+      if (resource.has_role()) {
         return Error(
-            "A framework with the RESERVATION_REFINEMENT capability must"
-            " not have 'Resource::role' set, nor 'Resource::reservation'");
+            "Framework with the RESERVATION_REFINEMENT capability"
+            " must not have 'Resource.role' set on resource: " +
+            stringify(resource));
+      }
+      if (resource.has_reservation()) {
+        return Error(
+            "Framework with the RESERVATION_REFINEMENT capability"
+            " must not have 'Resource.reservation' set on resource " +
+            stringify(resource));
       }
     } else {
       if (resource.reservations_size() > 0) {
         return Error(
-            "A framework without the RESERVATION_REFINEMENT capability must"
-            " not have 'Resource::reservations' set");
+            "Framework without the RESERVATION_REFINEMENT capability"
+            " must not have 'Resource.reservations' set on resource " +
+            stringify(resource));
       }
     }
   }
