@@ -890,7 +890,7 @@ Option<Error> Resources::validate(const Resource& resource)
   } else {
     // Check for the "post-reservation-refinement" format.
 
-    CHECK_GE(resource.reservations_size(), 0);
+    CHECK_GT(resource.reservations_size(), 0);
 
     // Validate all of the roles in `reservations`.
     foreach (
@@ -998,7 +998,7 @@ Option<Error> Resources::validate(const Resource& resource)
       }
 
     } else {
-      CHECK_GE(resource.reservations_size(), 1);
+      CHECK_GT(resource.reservations_size(), 1);
       if (resource.has_role()) {
         return Error(
             "Invalid resource format: 'Resource.role' must not be set if"
@@ -1146,7 +1146,7 @@ bool Resources::hasRefinedReservations(const Resource& resource)
 
 const string& Resources::reservationRole(const Resource& resource)
 {
-  CHECK_GE(resource.reservations_size(), 0);
+  CHECK_GT(resource.reservations_size(), 0);
   return resource.reservations().rbegin()->role();
 }
 
@@ -1454,7 +1454,7 @@ Resources Resources::popReservation() const
   Resources result;
 
   foreach (Resource_ resource_, resources) {
-    CHECK_GE(resource_.resource.reservations_size(), 0);
+    CHECK_GT(resource_.resource.reservations_size(), 0);
     resource_.resource.mutable_reservations()->RemoveLast();
     result.add(resource_);
   }
