@@ -720,7 +720,7 @@ Option<Error> validateUniquePersistenceID(
   Resources volumes = resources.persistentVolumes();
 
   foreach (const Resource& volume, volumes) {
-    const string& role = volume.role();
+    const string& role = Resources::reservationRole(volume);
     const string& id = volume.disk().persistence().id();
 
     if (persistenceIds.contains(role) &&
@@ -1905,10 +1905,11 @@ Option<Error> validate(
     }
 
     if (!agentCapabilities.hierarchicalRole &&
-        strings::contains(resource.role(), "/")) {
+        strings::contains(Resources::reservationRole(resource), "/")) {
       return Error(
           "Resource " + stringify(resource) +
-          " with reservation for hierarchical role '" + resource.role() + "'"
+          " with reservation for hierarchical role"
+          " '" + Resources::reservationRole(resource) + "'"
           " cannot be reserved on an agent without HIERARCHICAL_ROLE"
           " capability");
     }
@@ -1919,19 +1920,22 @@ Option<Error> validate(
       // return principals of that form.
       CHECK_SOME(principal->value);
 
-      if (!resource.reservation().has_principal()) {
+      const Resource::ReservationInfo& reservation =
+        *resource.reservations().rbegin();
+
+      if (!reservation.has_principal()) {
         return Error(
             "A reserve operation was attempted by principal '" +
             stringify(principal.get()) + "', but there is a "
             "reserved resource in the request with no principal set");
       }
 
-      if (principal != resource.reservation().principal()) {
+      if (principal != reservation.principal()) {
         return Error(
             "A reserve operation was attempted by authenticated principal '" +
             stringify(principal.get()) + "', which does not match a "
             "reserved resource in the request with principal '" +
-            resource.reservation().principal() + "'");
+            reservation.principal() + "'");
       }
     }
 
@@ -1948,11 +1952,13 @@ Option<Error> validate(
             " perform reservations on allocated resources");
       }
 
-      if (resource.allocation_info().role() != resource.role()) {
+      if (resource.allocation_info().role() !=
+          Resources::reservationRole(resource)) {
         return Error(
             "A reserve operation was attempted for a resource with role"
-            " '" + resource.role() + "', but the resource was allocated"
-            " to role '" + resource.allocation_info().role() + "'");
+            " '" + Resources::reservationRole(resource) + "', but"
+            " the resource was allocated to role"
+            " '" + resource.allocation_info().role() + "'");
       }
 
       if (!frameworkRoles->contains(resource.allocation_info().role())) {
@@ -1963,11 +1969,11 @@ Option<Error> validate(
             " '" + stringify(frameworkRoles.get()) + "'");
       }
 
-      if (!frameworkRoles->contains(resource.role())) {
+      if (!frameworkRoles->contains(Resources::reservationRole(resource))) {
         return Error(
             "A reserve operation was attempted for a resource with role"
-            " '" + resource.role() + "', but the framework can only"
-            " reserve resources with roles"
+            " '" + Resources::reservationRole(resource) + "',"
+            " but the framework can only reserve resources with roles"
             " '" + stringify(frameworkRoles.get()) + "'");
       }
     } else {
@@ -2096,10 +2102,11 @@ Option<Error> validate(
     }
 
     if (!agentCapabilities.hierarchicalRole &&
-        strings::contains(volume.role(), "/")) {
+        strings::contains(Resources::reservationRole(volume), "/")) {
       return Error(
           "Volume " + stringify(volume) +
-          " with reservation for hierarchical role '" + volume.role() + "'"
+          " with reservation for hierarchical role"
+          " '" + Resources::reservationRole(volume) + "'"
           " cannot be reserved on an agent without HIERARCHICAL_ROLE"
           " capability");
     }
