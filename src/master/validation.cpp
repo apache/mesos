@@ -1950,8 +1950,9 @@ Option<Error> validate(
       if (!frameworkRoles->contains(resource.allocation_info().role())) {
         return Error(
             "A reserve operation was attempted for a resource allocated"
-            " to role '" + resource.role() + "', but the framework only"
-            " has roles '" + stringify(frameworkRoles.get()) + "'");
+            " to role '" + resource.allocation_info().role() + "',"
+            " but the framework only has roles"
+            " '" + stringify(frameworkRoles.get()) + "'");
       }
 
       if (!frameworkRoles->contains(resource.role())) {
