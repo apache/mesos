@@ -42,6 +42,8 @@
 #include <stout/os/realpath.hpp>
 #include <stout/os/stat.hpp>
 
+#include "common/resources_utils.hpp"
+
 #include "messages/messages.hpp"
 
 #include "slave/paths.hpp"
@@ -148,7 +150,7 @@ Try<SlaveState> SlaveState::recover(
     return state;
   }
 
-  const Result<SlaveInfo>& slaveInfo = ::protobuf::read<SlaveInfo>(path);
+  Result<SlaveInfo> slaveInfo = ::protobuf::read<SlaveInfo>(path);
 
   if (slaveInfo.isError()) {
     const string& message = "Failed to read agent info from '" + path + "': " +
@@ -168,6 +170,10 @@ Try<SlaveState> SlaveState::recover(
     LOG(WARNING) << "Found empty agent info file '" << path << "'";
     return state;
   }
+
+  convertResourceFormat(
+      slaveInfo.get().mutable_resources(),
+      POST_RESERVATION_REFINEMENT);
 
   state.info = slaveInfo.get();
 
@@ -387,8 +393,7 @@ Try<ExecutorState> ExecutorState::recover(
     return state;
   }
 
-  const Result<ExecutorInfo>& executorInfo =
-    ::protobuf::read<ExecutorInfo>(path);
+  Result<ExecutorInfo> executorInfo = ::protobuf::read<ExecutorInfo>(path);
 
   if (executorInfo.isError()) {
     message = "Failed to read executor info from '" + path + "': " +
@@ -409,6 +414,10 @@ Try<ExecutorState> ExecutorState::recover(
     LOG(WARNING) << "Found empty executor info file '" << path << "'";
     return state;
   }
+
+  convertResourceFormat(
+      executorInfo.get().mutable_resources(),
+      POST_RESERVATION_REFINEMENT);
 
   state.info = executorInfo.get();
 
@@ -585,7 +594,7 @@ Try<TaskState> TaskState::recover(
     return state;
   }
 
-  const Result<Task>& task = ::protobuf::read<Task>(path);
+  Result<Task> task = ::protobuf::read<Task>(path);
 
   if (task.isError()) {
     message = "Failed to read task info from '" + path + "': " + task.error();
@@ -605,6 +614,10 @@ Try<TaskState> TaskState::recover(
     LOG(WARNING) << "Found empty task info file '" << path << "'";
     return state;
   }
+
+  convertResourceFormat(
+      task.get().mutable_resources(),
+      POST_RESERVATION_REFINEMENT);
 
   state.info = task.get();
 
@@ -769,6 +782,8 @@ Try<Resources> ResourcesState::recoverResources(
     if (!resource.isSome()) {
       break;
     }
+
+    convertResourceFormat(&resource.get(), POST_RESERVATION_REFINEMENT);
 
     resources += resource.get();
   }

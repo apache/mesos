@@ -19,6 +19,7 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
 #include <mesos/roles.hpp>
 #include <mesos/type_utils.hpp>
 
@@ -475,21 +476,24 @@ string getPersistentVolumePath(
     const string& rootDir,
     const Resource& volume)
 {
-  CHECK(volume.has_role());
+  CHECK_GT(volume.reservations_size(), 0);
   CHECK(volume.has_disk());
   CHECK(volume.disk().has_persistence());
 
+  const string& role = Resources::reservationRole(volume);
+
   // Additionally check that the role and the persistent ID are valid
   // before using them to construct a directory path.
-  CHECK_NONE(roles::validate(volume.role()));
+  CHECK_NONE(roles::validate(role));
   CHECK_NONE(common::validation::validateID(volume.disk().persistence().id()));
+
 
   // If no `source` is provided in `DiskInfo` volumes are mapped into
   // the `rootDir`.
   if (!volume.disk().has_source()) {
     return getPersistentVolumePath(
         rootDir,
-        volume.role(),
+        role,
         volume.disk().persistence().id());
   }
 
@@ -503,7 +507,7 @@ string getPersistentVolumePath(
       CHECK(volume.disk().source().path().has_root());
       return getPersistentVolumePath(
           volume.disk().source().path().root(),
-          volume.role(),
+          role,
           volume.disk().persistence().id());
     }
     case Resource::DiskInfo::Source::MOUNT: {

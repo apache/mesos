@@ -194,7 +194,7 @@ public:
   void updateFramework(
       const UpdateFrameworkMessage& message);
 
-  void checkpointResources(const std::vector<Resource>& checkpointedResources);
+  void checkpointResources(std::vector<Resource> checkpointedResources);
 
   void subscribe(
       HttpConnection http,
