@@ -2758,6 +2758,132 @@ TEST(RevocableResourceTest, Filter)
 }
 
 
+// This test checks that the resources in the "pre-reservation-refinement"
+// format are valid. In the "pre-reservation-refinement" format, the reservation
+// state is represented by `Resource.role` and `Resource.reservation` fields.
+TEST(ResourceFormatTest, PreReservationRefinement)
+{
+  Resource resource;
+  resource.set_name("cpus");
+  resource.set_type(Value::SCALAR);
+  resource.mutable_scalar()->set_value(555.5);
+
+  // Unreserved resource.
+  EXPECT_NONE(Resources::validate(resource));
+
+  resource.set_role("*");
+  EXPECT_NONE(Resources::validate(resource));
+
+  // Statically reserved resource.
+  resource.set_role("foo");
+  EXPECT_NONE(Resources::validate(resource));
+
+  // Dynamically reserved resource.
+  Resource::ReservationInfo* reservation = resource.mutable_reservation();
+  reservation->set_principal("principal1");
+
+  EXPECT_NONE(Resources::validate(resource));
+}
+
+
+// This test checks that the resources in the "post-reservation-refinement"
+// format are valid. In the "post-reservation-refinement" format,
+// the reservation state is represented by the `Resource.reservations` field.
+TEST(ResourceFormatTest, PostReservationRefinement)
+{
+  Resource resource;
+  resource.set_name("cpus");
+  resource.set_type(Value::SCALAR);
+  resource.mutable_scalar()->set_value(555.5);
+
+  // Unreserved resource.
+  EXPECT_NONE(Resources::validate(resource));
+
+  Resource::ReservationInfo* reservation = resource.add_reservations();
+  reservation->set_role("foo");
+  reservation->set_principal("principal1");
+
+  // Statically reserved resource.
+  reservation->set_type(Resource::ReservationInfo::STATIC);
+  EXPECT_NONE(Resources::validate(resource));
+
+  // Dynamically reserved resource.
+  reservation->set_type(Resource::ReservationInfo::DYNAMIC);
+  EXPECT_NONE(Resources::validate(resource));
+
+  // Refined static reservation is invalid.
+  reservation->set_type(Resource::ReservationInfo::STATIC);
+  Resource::ReservationInfo* refinedReservation = resource.add_reservations();
+  refinedReservation->set_type(Resource::ReservationInfo::STATIC);
+  refinedReservation->set_role("foo/bar");
+  refinedReservation->set_principal("principal2");
+  EXPECT_SOME(Resources::validate(resource));
+
+  // Refined dynamic reservation on top of static reservation.
+  refinedReservation->set_type(Resource::ReservationInfo::DYNAMIC);
+  EXPECT_NONE(Resources::validate(resource));
+
+  // Refined dynamic reservation on top of dynamic reservation.
+  reservation->set_type(Resource::ReservationInfo::DYNAMIC);
+  EXPECT_NONE(Resources::validate(resource));
+}
+
+
+// This test checks that the resources in the "endpoint" format are valid.
+// In the "endpoint" format, both the fields for both pre-refinement and
+// post-refinement reservations are set, but they must be set to mutually
+// equivalent values.
+TEST(ResourceFormatTest, Endpoint)
+{
+  Resource resource;
+  resource.set_name("cpus");
+  resource.set_type(Value::SCALAR);
+  resource.mutable_scalar()->set_value(555.5);
+  resource.set_role("r1");
+
+  // Dynamically reserved, pre-refinement format.
+  Resource::ReservationInfo* unrefinedReservation =
+    resource.mutable_reservation();
+  unrefinedReservation->set_principal("principal1");
+
+  // Set `reservations` field as well (post-refinement format).
+  Resource::ReservationInfo* refinedReservation = resource.add_reservations();
+  refinedReservation->set_type(Resource::ReservationInfo::DYNAMIC);
+  refinedReservation->set_role("r1");
+  refinedReservation->set_principal("principal1");
+
+  // Should validate now that all fields are set to equivalent values.
+  EXPECT_NONE(Resources::validate(resource));
+
+  // Should not validate if pre- and post-refinement fields are inconsistent.
+  {
+    refinedReservation->set_role("r2");
+    EXPECT_SOME(Resources::validate(resource));
+    refinedReservation->set_role("r1");
+
+    refinedReservation->set_type(Resource::ReservationInfo::STATIC);
+    EXPECT_SOME(Resources::validate(resource));
+    refinedReservation->set_type(Resource::ReservationInfo::DYNAMIC);
+
+    unrefinedReservation->set_principal("principal2");
+    EXPECT_SOME(Resources::validate(resource));
+    unrefinedReservation->set_principal("principal1");
+
+    // Sanity check that the resource is still valid.
+    EXPECT_NONE(Resources::validate(resource));
+  }
+
+  // Should not validate if the post-refinement format contains a
+  // reservation refinement.
+  Resource::ReservationInfo* refinedReservation2 = resource.add_reservations();
+  refinedReservation2->set_type(Resource::ReservationInfo::DYNAMIC);
+  refinedReservation2->set_role("r1/r2");
+  refinedReservation2->set_principal("principal1");
+
+  EXPECT_SOME(Resources::validate(resource));
+}
+
+
 TEST(ResourcesTest, Count)
 {
   // The summation of identical shared resources is valid and

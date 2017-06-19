@@ -269,61 +269,6 @@ TEST_F(ResourceValidationTest, SharedPersistentVolume)
 }
 
 
-// This test checks that the master considers resources in the "endpoint"
-// format to be valid. In the "endpoint" format, both the fields for both
-// pre-refinement and post-refinement reservations are set, but they must be
-// set to mutually equivalent values.
-TEST_F(ResourceValidationTest, ReservationEndpointFormat)
-{
-  Resource resource;
-  resource.set_name("cpus");
-  resource.set_type(Value::SCALAR);
-  resource.mutable_scalar()->set_value(555.5);
-  resource.set_role("r1");
-
-  // Dynamically reserved, pre-refinement format.
-  Resource::ReservationInfo* unrefinedReservation =
-    resource.mutable_reservation();
-  unrefinedReservation->set_principal("principal1");
-
-  // Set `reservations` field as well (post-refinement format).
-  Resource::ReservationInfo* refinedReservation = resource.add_reservations();
-  refinedReservation->set_type(Resource::ReservationInfo::DYNAMIC);
-  refinedReservation->set_role("r1");
-  refinedReservation->set_principal("principal1");
-
-  // Should validate now that all fields are set to equivalent values.
-  EXPECT_NONE(resource::validate(CreateResources(resource)));
-
-  // Should not validate if pre- and post-refinement fields are inconsistent.
-  {
-    refinedReservation->set_role("r2");
-    EXPECT_SOME(resource::validate(CreateResources(resource)));
-    refinedReservation->set_role("r1");
-
-    refinedReservation->set_type(Resource::ReservationInfo::STATIC);
-    EXPECT_SOME(resource::validate(CreateResources(resource)));
-    refinedReservation->set_type(Resource::ReservationInfo::DYNAMIC);
-
-    unrefinedReservation->set_principal("principal2");
-    EXPECT_SOME(resource::validate(CreateResources(resource)));
-    unrefinedReservation->set_principal("principal1");
-
-    // Sanity check that the resource is still valid.
-    EXPECT_NONE(resource::validate(CreateResources(resource)));
-  }
-
-  // Should not validate if the post-refinement format contains a
-  // reservation refinement.
-  Resource::ReservationInfo* refinedReservation2 = resource.add_reservations();
-  refinedReservation2->set_type(Resource::ReservationInfo::DYNAMIC);
-  refinedReservation2->set_role("r1/r2");
-  refinedReservation2->set_principal("principal1");
-
-  EXPECT_SOME(resource::validate(CreateResources(resource)));
-}
-
-
 class ReserveOperationValidationTest : public MesosTest {};
 
 
