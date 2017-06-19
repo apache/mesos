@@ -53,13 +53,13 @@
 
 namespace mesos {
 
-// NOTE: Resource objects stored in the class are always valid and
-// kept combined if possible. It is the caller's responsibility to
-// validate any Resource object or repeated Resource protobufs before
-// constructing a Resources object. Otherwise, invalid Resource
-// objects will be silently stripped. Invalid Resource objects will
-// also be silently ignored when used in arithmetic operations (e.g.,
-// +=, -=, etc.).
+// NOTE: Resource objects stored in the class are always valid, are in
+// the "post-reservation-refinement" format, and kept combined if possible.
+// It is the caller's responsibility to validate any Resource object or
+// repeated Resource protobufs before constructing a Resources object.
+// Otherwise, invalid Resource objects will be silently stripped.
+// Invalid Resource objects will also be silently ignored when used in
+// arithmetic operations (e.g., +=, -=, etc.).
 class Resources
 {
 private:
