@@ -260,4 +260,26 @@ void convertResourceFormat(Offer::Operation* operation, ResourceFormat format)
   }
 }
 
+
+Try<Nothing> downgradeResources(
+    google::protobuf::RepeatedPtrField<Resource>* resources)
+{
+  foreach (const Resource& resource, *resources) {
+    CHECK(!resource.has_role());
+    CHECK(!resource.has_reservation());
+  }
+
+  foreach (const Resource& resource, *resources) {
+    if (Resources::hasRefinedReservations(resource)) {
+      return Error(
+          "Invalid resources downgrade: resource " + stringify(resource) +
+          " with refined reservations cannot be downgraded");
+    }
+  }
+
+  convertResourceFormat(resources, PRE_RESERVATION_REFINEMENT);
+
+  return Nothing();
+}
+
 } // namespace mesos {

@@ -24,6 +24,7 @@
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
+#include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -132,6 +133,14 @@ void convertResourceFormat(
 // Converts all the `Resource` objects in the given `Operation`
 // to the specified `ResourceFormat`.
 void convertResourceFormat(Offer::Operation* operation, ResourceFormat format);
+
+
+// Convert the given resources to the "pre-reservation-refinement" format
+// if none of the resources have refined reservations. Returns an `Error`
+// if there are any refined reservations present, and the resources are
+// left in the "post-reservation-refinement" format.
+Try<Nothing> downgradeResources(
+    google::protobuf::RepeatedPtrField<Resource>* resources);
 
 } // namespace mesos {
 
