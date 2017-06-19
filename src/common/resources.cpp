@@ -2182,27 +2182,6 @@ ostream& operator<<(ostream& stream, const Volume& volume)
 }
 
 
-ostream& operator<<(ostream& stream, const Resource::DiskInfo& disk)
-{
-  if (disk.has_source()) {
-    stream << disk.source();
-  }
-
-  if (disk.has_persistence()) {
-    if (disk.has_source()) {
-      stream << ",";
-    }
-    stream << disk.persistence().id();
-  }
-
-  if (disk.has_volume()) {
-    stream << ":" << disk.volume();
-  }
-
-  return stream;
-}
-
-
 ostream& operator<<(ostream& stream, const Labels& labels)
 {
   stream << "{";
@@ -2227,28 +2206,65 @@ ostream& operator<<(ostream& stream, const Labels& labels)
 }
 
 
+ostream& operator<<(
+    ostream& stream,
+    const Resource::ReservationInfo& reservation)
+{
+  stream << Resource::ReservationInfo::Type_Name(reservation.type()) << ","
+         << reservation.role();
+
+  if (reservation.has_principal()) {
+    stream << "," << reservation.principal();
+  }
+
+  if (reservation.has_labels()) {
+    stream << "," << reservation.labels();
+  }
+
+  return stream;
+}
+
+
+ostream& operator<<(ostream& stream, const Resource::DiskInfo& disk)
+{
+  if (disk.has_source()) {
+    stream << disk.source();
+  }
+
+  if (disk.has_persistence()) {
+    if (disk.has_source()) {
+      stream << ",";
+    }
+    stream << disk.persistence().id();
+  }
+
+  if (disk.has_volume()) {
+    stream << ":" << disk.volume();
+  }
+
+  return stream;
+}
+
+
 ostream& operator<<(ostream& stream, const Resource& resource)
 {
   stream << resource.name();
 
-  stream << "(" << resource.role();
-
-  if (resource.has_reservation()) {
-    const Resource::ReservationInfo& reservation = resource.reservation();
-
-    if (reservation.has_principal()) {
-      stream << ", " << reservation.principal();
-    }
-
-    if (reservation.has_labels()) {
-      stream << ", " << reservation.labels();
-    }
-  }
-
-  stream << ")";
-
   if (resource.has_allocation_info()) {
     stream << "(allocated: " << resource.allocation_info().role() << ")";
+  }
+
+  if (resource.reservations_size() > 0) {
+    stream << "(reservations: [";
+
+    for (int i = 0; i < resource.reservations_size(); ++i) {
+      if (i > 0) {
+        stream << ",";
+      }
+      stream << "(" << resource.reservations(i) << ")";
+    }
+
+    stream << "])";
   }
 
   if (resource.has_disk()) {
