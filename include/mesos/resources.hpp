@@ -263,15 +263,12 @@ public:
   static Option<Error> validate(
       const google::protobuf::RepeatedPtrField<Resource>& resources);
 
-  // NOTE: The following predicate functions assume that the given
-  // resource is validated.
+  // NOTE: The following predicate functions assume that the given resource is
+  // validated, and is in the "post-reservation-refinement" format. That is,
+  // the reservation state is represented by `Resource.reservations` field,
+  // and `Resource.role` and `Resource.reservation` fields are not set.
   //
-  // Valid states of (role, reservation) pair in the Resource object.
-  //   Unreserved         : ("*", None)
-  //   Static reservation : (R, None)
-  //   Dynamic reservation: (R, { principal: <framework_principal> })
-  //
-  // NOTE: ("*", { principal: <framework_principal> }) is invalid.
+  // See 'Resource Format' section in `mesos.proto` for more details.
 
   // Tests if the given Resource object is empty.
   static bool isEmpty(const Resource& resource);

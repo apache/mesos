@@ -1028,6 +1028,9 @@ Option<Error> Resources::validate(const RepeatedPtrField<Resource>& resources)
 
 bool Resources::isEmpty(const Resource& resource)
 {
+  CHECK(!resource.has_role());
+  CHECK(!resource.has_reservation());
+
   if (resource.type() == Value::SCALAR) {
     Value::Scalar zero;
     zero.set_value(0);
@@ -1044,6 +1047,9 @@ bool Resources::isEmpty(const Resource& resource)
 
 bool Resources::isPersistentVolume(const Resource& resource)
 {
+  CHECK(!resource.has_role());
+  CHECK(!resource.has_reservation());
+
   return resource.has_disk() && resource.disk().has_persistence();
 }
 
@@ -1052,6 +1058,9 @@ bool Resources::isReserved(
     const Resource& resource,
     const Option<string>& role)
 {
+  CHECK(!resource.has_role());
+  CHECK(!resource.has_reservation());
+
   if (role.isSome()) {
     return !isUnreserved(resource) && role.get() == resource.role();
   } else {
@@ -1064,6 +1073,9 @@ bool Resources::isAllocatableTo(
     const Resource& resource,
     const std::string& role)
 {
+  CHECK(!resource.has_role());
+  CHECK(!resource.has_reservation());
+
   return isUnreserved(resource) ||
          role == resource.role() ||
          roles::isStrictSubroleOf(role, resource.role());
@@ -1072,30 +1084,46 @@ bool Resources::isAllocatableTo(
 
 bool Resources::isUnreserved(const Resource& resource)
 {
-  return resource.role() == "*" && !resource.has_reservation();
+  CHECK(!resource.has_role());
+  CHECK(!resource.has_reservation());
+
+  return resource.reservations_size() == 0;
 }
 
 
 bool Resources::isDynamicallyReserved(const Resource& resource)
 {
-  return resource.has_reservation();
+  CHECK(!resource.has_role());
+  CHECK(!resource.has_reservation());
+
+  return isReserved(resource) && (resource.reservations().rbegin()->type() ==
+                                  Resource::ReservationInfo::DYNAMIC);
 }
 
 
 bool Resources::isRevocable(const Resource& resource)
 {
+  CHECK(!resource.has_role());
+  CHECK(!resource.has_reservation());
+
   return resource.has_revocable();
 }
 
 
 bool Resources::isShared(const Resource& resource)
 {
+  CHECK(!resource.has_role());
+  CHECK(!resource.has_reservation());
+
   return resource.has_shared();
 }
 
 
 bool Resources::hasRefinedReservations(const Resource& resource)
 {
+  CHECK(!resource.has_role());
+  CHECK(!resource.has_reservation());
+
   return resource.reservations_size() > 1;
 }
 
