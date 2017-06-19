@@ -2348,7 +2348,10 @@ Future<Response> Master::Http::slaves(
                              reserved) {
                   writer->field(role, [&resources](JSON::ArrayWriter* writer) {
                     foreach (const Resource& resource, resources) {
-                      writer->element(JSON::Protobuf(resource));
+                      // TODO(mpark): Replace the `modelProtobufJSON` back to
+                      // `JSON::Protobuf` once MESOS-7674 is resolved and
+                      // `Resource.role` is deprecated.
+                      writer->element(modelProtobufJSON(resource));
                     }
                   });
                 }
@@ -2361,7 +2364,10 @@ Future<Response> Master::Http::slaves(
               "unreserved_resources_full",
               [&unreservedResources](JSON::ArrayWriter* writer) {
                 foreach (const Resource& resource, unreservedResources) {
-                  writer->element(JSON::Protobuf(resource));
+                  // TODO(mpark): Replace the `modelProtobufJSON` back to
+                  // `JSON::Protobuf` once MESOS-7674 is resolved and
+                  // `Resource.role` is deprecated.
+                  writer->element(modelProtobufJSON(resource));
                 }
               });
 
@@ -2371,7 +2377,10 @@ Future<Response> Master::Http::slaves(
               "used_resources_full",
               [&usedResources](JSON::ArrayWriter* writer) {
                 foreach (const Resource& resource, usedResources) {
-                  writer->element(JSON::Protobuf(resource));
+                  // TODO(mpark): Replace the `modelProtobufJSON` back to
+                  // `JSON::Protobuf` once MESOS-7674 is resolved and
+                  // `Resource.role` is deprecated.
+                  writer->element(modelProtobufJSON(resource));
                 }
               });
 
@@ -2381,7 +2390,10 @@ Future<Response> Master::Http::slaves(
               "offered_resources_full",
               [&offeredResources](JSON::ArrayWriter* writer) {
                 foreach (const Resource& resource, offeredResources) {
-                  writer->element(JSON::Protobuf(resource));
+                  // TODO(mpark): Replace the `modelProtobufJSON` back to
+                  // `JSON::Protobuf` once MESOS-7674 is resolved and
+                  // `Resource.role` is deprecated.
+                  writer->element(modelProtobufJSON(resource));
                 }
               });
         });

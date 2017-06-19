@@ -112,8 +112,7 @@ string serialize(
       return message.SerializeAsString();
     }
     case ContentType::JSON: {
-      JSON::Object object = JSON::protobuf(message);
-      return stringify(object);
+      return stringify(modelProtobufJSON(message));
     }
     case ContentType::RECORDIO: {
       LOG(FATAL) << "Serializing a RecordIO stream is not supported";
@@ -501,6 +500,51 @@ JSON::Object model(const quota::QuotaInfo& quotaInfo)
   if (quotaInfo.has_principal()) {
     object.values["principal"] = quotaInfo.principal();
   }
+
+  return object;
+}
+
+
+JSON::Object modelProtobufJSON(const google::protobuf::Message& message)
+{
+  struct
+  {
+    using result_type = void;
+
+    void operator()(JSON::Boolean&) const { /* No-op. */ }
+    void operator()(JSON::Number&) const { /* No-op. */ }
+    void operator()(JSON::String&) const { /* No-op. */ }
+    void operator()(JSON::Object& object) const
+    {
+      // We assume that if an object has fields "role" and "reservations"
+      // that it is a `Resource` object. While this is clearly not robust,
+      // it's good enough for what we need.
+      auto role_iter = object.values.find("role");
+      auto reservations_iter = object.values.find("reservations");
+      if (role_iter != object.values.end() &&
+          role_iter->second.is<JSON::String>() &&
+          reservations_iter != object.values.end() &&
+          reservations_iter->second.is<JSON::Array>() &&
+          reservations_iter->second.as<JSON::Array>().values.size() > 1) {
+        CHECK_EQ(role_iter->second.as<JSON::String>().value, "*");
+        object.values.erase(role_iter);
+      }
+
+      foreachvalue (JSON::Value& value, object.values) {
+        boost::apply_visitor(*this, value);
+      }
+    }
+    void operator()(JSON::Array& array) const
+    {
+      foreach (JSON::Value& value, array.values) {
+        boost::apply_visitor(*this, value);
+      }
+    }
+    void operator()(JSON::Null&) const { /* No-op. */ }
+  } removeRoleFromResourcesWithRefinedReservations;
+
+  JSON::Object object = JSON::protobuf(message);
+  removeRoleFromResourcesWithRefinedReservations(object);
 
   return object;
 }
