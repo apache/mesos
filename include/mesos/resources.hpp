@@ -306,6 +306,10 @@ public:
   // Tests if the given Resource object has refined reservations.
   static bool hasRefinedReservations(const Resource& resource);
 
+  // Returns the role to which the given Resource object is reserved for.
+  // This must be called only when the resource is reserved!
+  static const std::string& reservationRole(const Resource& resource);
+
   // Returns the summed up Resources given a hashmap<Key, Resources>.
   //
   // NOTE: While scalar resources such as "cpus" sum correctly,

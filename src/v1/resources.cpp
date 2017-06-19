@@ -1111,11 +1111,8 @@ bool Resources::isReserved(
   CHECK(!resource.has_role());
   CHECK(!resource.has_reservation());
 
-  if (role.isSome()) {
-    return !isUnreserved(resource) && role.get() == resource.role();
-  } else {
-    return !isUnreserved(resource);
-  }
+  return !isUnreserved(resource) &&
+         (role.isNone() || role.get() == reservationRole(resource));
 }
 
 
@@ -1127,8 +1124,8 @@ bool Resources::isAllocatableTo(
   CHECK(!resource.has_reservation());
 
   return isUnreserved(resource) ||
-         role == resource.role() ||
-         roles::isStrictSubroleOf(role, resource.role());
+         role == reservationRole(resource) ||
+         roles::isStrictSubroleOf(role, reservationRole(resource));
 }
 
 
@@ -1175,6 +1172,13 @@ bool Resources::hasRefinedReservations(const Resource& resource)
   CHECK(!resource.has_reservation());
 
   return resource.reservations_size() > 1;
+}
+
+
+const string& Resources::reservationRole(const Resource& resource)
+{
+  CHECK_GE(resource.reservations_size(), 0);
+  return resource.reservations().rbegin()->role();
 }
 
 /////////////////////////////////////////////////
@@ -1387,7 +1391,7 @@ hashmap<string, Resources> Resources::reservations() const
 
   foreach (const Resource_& resource_, resources) {
     if (isReserved(resource_.resource)) {
-      result[resource_.resource.role()].add(resource_);
+      result[reservationRole(resource_.resource)].add(resource_);
     }
   }
 
@@ -1966,11 +1970,15 @@ Option<Resources> Resources::find(const Resource& target) const
   Resources remaining = Resources(target).flatten();
 
   // First look in the target role, then unreserved, then any remaining role.
-  vector<lambda::function<bool(const Resource&)>> predicates = {
-    lambda::bind(isReserved, lambda::_1, target.role()),
-    isUnreserved,
-    [](const Resource&) { return true; }
-  };
+  vector<lambda::function<bool(const Resource&)>> predicates;
+
+  if (isReserved(target)) {
+    predicates.push_back(
+        lambda::bind(isReserved, lambda::_1, reservationRole(target)));
+  }
+
+  predicates.push_back(isUnreserved);
+  predicates.push_back([](const Resource&) { return true; });
 
   foreach (const auto& predicate, predicates) {
     foreach (const Resource_& resource_, total.filter(predicate)) {
