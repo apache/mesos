@@ -1505,11 +1505,15 @@ mesos::master::Response::GetFrameworks::Framework model(
     _framework.mutable_inverse_offers()->Add()->CopyFrom(*offer);
   }
 
-  foreach (const Resource& resource, framework.totalUsedResources) {
+  foreach (Resource resource, framework.totalUsedResources) {
+    convertResourceFormat(&resource, ENDPOINT);
+
     _framework.mutable_allocated_resources()->Add()->CopyFrom(resource);
   }
 
-  foreach (const Resource& resource, framework.totalOfferedResources) {
+  foreach (Resource resource, framework.totalOfferedResources) {
+    convertResourceFormat(&resource, ENDPOINT);
+
     _framework.mutable_offered_resources()->Add()->CopyFrom(resource);
   }
 

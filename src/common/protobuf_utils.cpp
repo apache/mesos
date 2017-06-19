@@ -45,6 +45,7 @@
 #endif // __WINDOWS__
 
 #include "common/protobuf_utils.hpp"
+#include "common/resources_utils.hpp"
 
 #include "master/master.hpp"
 
@@ -826,15 +827,21 @@ mesos::master::Response::GetAgents::Agent createAgentResponse(
         slave.reregisteredTime.get().duration().ns());
   }
 
-  foreach (const Resource& resource, slave.totalResources) {
+  foreach (Resource resource, slave.totalResources) {
+    convertResourceFormat(&resource, ENDPOINT);
+
     agent.add_total_resources()->CopyFrom(resource);
   }
 
-  foreach (const Resource& resource, Resources::sum(slave.usedResources)) {
+  foreach (Resource resource, Resources::sum(slave.usedResources)) {
+    convertResourceFormat(&resource, ENDPOINT);
+
     agent.add_allocated_resources()->CopyFrom(resource);
   }
 
-  foreach (const Resource& resource, slave.offeredResources) {
+  foreach (Resource resource, slave.offeredResources) {
+    convertResourceFormat(&resource, ENDPOINT);
+
     agent.add_offered_resources()->CopyFrom(resource);
   }
 
