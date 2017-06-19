@@ -1510,7 +1510,18 @@ Resources Resources::createStrippedScalarQuantity() const
       Resource scalar = resource;
       scalar.clear_provider_id();
       scalar.clear_allocation_info();
-      scalar.clear_reservation();
+
+      // We collapse the stack of reservations here to a single `STATIC`
+      // reservation in order to maintain existing behavior of ignoring
+      // the reservation type, and keeping the reservation role.
+      if (Resources::isReserved(scalar)) {
+        Resource::ReservationInfo collapsedReservation;
+        collapsedReservation.set_type(Resource::ReservationInfo::STATIC);
+        collapsedReservation.set_role(Resources::reservationRole(scalar));
+        scalar.clear_reservations();
+        scalar.add_reservations()->CopyFrom(collapsedReservation);
+      }
+
       scalar.clear_disk();
       scalar.clear_shared();
       stripped.add(scalar);
@@ -1562,8 +1573,10 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
       foreach (const Resource& reserved, operation.reserve().resources()) {
         if (!Resources::isReserved(reserved)) {
           return Error("Invalid RESERVE Operation: Resource must be reserved");
-        } else if (!reserved.has_reservation()) {
-          return Error("Invalid RESERVE Operation: Missing 'reservation'");
+        } else if (!Resources::isDynamicallyReserved(reserved)) {
+          return Error(
+              "Invalid RESERVE Operation: Resource must be"
+              " dynamically reserved");
         }
 
         Resources unreserved = Resources(reserved).flatten();
@@ -1588,8 +1601,10 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
       foreach (const Resource& reserved, operation.unreserve().resources()) {
         if (!Resources::isReserved(reserved)) {
           return Error("Invalid UNRESERVE Operation: Resource is not reserved");
-        } else if (!reserved.has_reservation()) {
-          return Error("Invalid UNRESERVE Operation: Missing 'reservation'");
+        } else if (!Resources::isDynamicallyReserved(reserved)) {
+          return Error(
+              "Invalid UNRESERVE Operation: Resource is not"
+              " dynamically reserved");
         }
 
         if (!result.contains(reserved)) {
