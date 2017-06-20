@@ -122,21 +122,6 @@ JSON::Object model(const Task& task);
 JSON::Object model(const FileInfo& fileInfo);
 JSON::Object model(const quota::QuotaInfo& quotaInfo);
 
-
-// With reservation refinement, we use the `Resource.reservations` field to
-// express the reservation state. Due to the fact that `Resource.role` is
-// an optional field __and__ has a default value, our generic Protobuf to JSON
-// conversion (JSON::protobuf) injects the `role` field with the default value
-// even if it's not set. Since this will likely confuse users and also result in
-// resources we consider invalid (i.e., `Resources::validate` would fail),
-// we introduce a wrapper here which manually removes the `Resource.role` field
-// if the resource has refined reservations.
-//
-// TODO(mpark): Remove this once MESOS-7674 is resolved and
-// `Resource.role` is deprecated.
-JSON::Object modelProtobufJSON(const google::protobuf::Message& message);
-
-
 void json(JSON::ObjectWriter* writer, const Task& task);
 
 } // namespace internal {

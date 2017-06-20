@@ -1297,10 +1297,7 @@ Future<Response> Http::state(
                            totalResources.reservations()) {
                 writer->field(role, [&resources](JSON::ArrayWriter* writer) {
                   foreach (const Resource& resource, resources) {
-                    // TODO(mpark): Replace the `modelProtobufJSON` back to
-                    // `JSON::Protobuf` once MESOS-7674 is resolved and
-                    // `Resource.role` is deprecated.
-                    writer->element(modelProtobufJSON(resource));
+                    writer->element(JSON::Protobuf(resource));
                   }
                 });
               }
@@ -1310,10 +1307,7 @@ Future<Response> Http::state(
             "unreserved_resources_full",
             [&totalResources](JSON::ArrayWriter* writer) {
               foreach (const Resource& resource, totalResources.unreserved()) {
-                // TODO(mpark): Replace the `modelProtobufJSON` back to
-                // `JSON::Protobuf` once MESOS-7674 is resolved and
-                // `Resource.role` is deprecated.
-                writer->element(modelProtobufJSON(resource));
+                writer->element(JSON::Protobuf(resource));
               }
             });
 
