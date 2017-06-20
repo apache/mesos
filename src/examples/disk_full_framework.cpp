@@ -436,6 +436,8 @@ int main(int argc, char** argv)
   framework.set_user(""); // Have Mesos fill the current user.
   framework.set_name("Disk Full Framework (C++)");
   framework.set_checkpoint(true);
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   DiskFullScheduler scheduler(flags, framework);
 

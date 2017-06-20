@@ -2040,6 +2040,11 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
   // scheduler with updated information.
 
   FrameworkInfo finfo1 = DEFAULT_FRAMEWORK_INFO;
+
+  // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
+  // is removed from `DEFAULT_FRAMEWORK_INFO`.
+  finfo1.clear_capabilities();
+
   finfo1.set_name("Framework 1");
   finfo1.set_failover_timeout(1000);
   finfo1.mutable_labels()->add_labels()->CopyFrom(createLabel("foo", "bar"));
@@ -2065,6 +2070,11 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
   // callback.
 
   FrameworkInfo finfo2 = DEFAULT_FRAMEWORK_INFO;
+
+  // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
+  // is removed from `DEFAULT_FRAMEWORK_INFO`.
+  finfo2.clear_capabilities();
+
   finfo2.mutable_id()->MergeFrom(frameworkId.get());
   auto capabilityType = FrameworkInfo::Capability::REVOCABLE_RESOURCES;
   finfo2.add_capabilities()->set_type(capabilityType);

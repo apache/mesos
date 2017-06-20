@@ -381,6 +381,8 @@ int main(int argc, char** argv)
   framework.set_name("Dynamic Reservation Framework (C++)");
   framework.set_role(flags.role.get());
   framework.set_principal(flags.principal);
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   DynamicReservationScheduler scheduler(
       flags.command,

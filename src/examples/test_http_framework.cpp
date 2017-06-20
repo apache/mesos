@@ -430,6 +430,8 @@ int main(int argc, char** argv)
   FrameworkInfo framework;
   framework.set_name("Event Call Scheduler using libprocess (C++)");
   framework.set_role(flags.role);
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   const Result<string> user = os::user();
 

@@ -579,6 +579,8 @@ int main(int argc, char** argv)
   framework.set_principal(flags.principal);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   if (flags.master.get() == "local") {
     // Configure master.

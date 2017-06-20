@@ -3601,6 +3601,11 @@ TEST_F(FrameworkInfoValidationTest, DowngradeFromMultipleRoles)
   ASSERT_SOME(master);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
+  // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
+  // is removed from `DEFAULT_FRAMEWORK_INFO`.
+  frameworkInfo.clear_capabilities();
+
   frameworkInfo.add_roles("role1");
   frameworkInfo.add_roles("role2");
   frameworkInfo.add_capabilities()->set_type(

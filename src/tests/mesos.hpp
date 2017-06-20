@@ -439,6 +439,8 @@ struct DefaultFrameworkInfo
     framework.set_user(os::user().get());
     framework.set_principal(
         DefaultCredential<TCredential>::create().principal());
+    framework.add_capabilities()->set_type(
+        TFrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
     return framework;
   }

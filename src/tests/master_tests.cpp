@@ -4052,6 +4052,11 @@ TEST_F(MasterTest, StateEndpointFrameworkInfo)
   AWAIT_READY(slaveRegisteredMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
+  // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
+  // is removed from `DEFAULT_FRAMEWORK_INFO`.
+  frameworkInfo.clear_capabilities();
+
   frameworkInfo.set_webui_url("http://localhost:8080/");
 
   vector<FrameworkInfo::Capability::Type> capabilities = {
