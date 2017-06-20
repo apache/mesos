@@ -1858,6 +1858,14 @@ Option<Error> validate(
           " capability");
     }
 
+    if (!agentCapabilities.reservationRefinement &&
+        Resources::hasRefinedReservations(resource)) {
+      return Error(
+          "Resource " + stringify(resource) +
+          " with reservation refinement cannot be reserved on"
+          " an agent without RESERVATION_REFINEMENT capability");
+    }
+
     if (principal.isSome()) {
       // We assume that `principal->value.isSome()` is true. The master's HTTP
       // handlers enforce this constraint, and V0 authenticators will only
@@ -2039,6 +2047,14 @@ Option<Error> validate(
           " '" + Resources::reservationRole(volume) + "'"
           " cannot be created on an agent without HIERARCHICAL_ROLE"
           " capability");
+    }
+
+    if (!agentCapabilities.reservationRefinement &&
+        Resources::hasRefinedReservations(volume)) {
+      return Error(
+          "Volume " + stringify(volume) +
+          " with reservation refinement cannot be created on"
+          " an agent without RESERVATION_REFINEMENT capability");
     }
 
     // Ensure that the provided principals match. If `principal` is `None`,
