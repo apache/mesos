@@ -2514,7 +2514,7 @@ TEST(ResourcesOperationTest, StrippedResourcesVolume)
   EXPECT_FLOAT_EQ(200, strippedVolume.scalar().value());
   EXPECT_EQ("role", Resources::reservationRole(strippedVolume));
   EXPECT_EQ("disk", strippedVolume.name());
-  EXPECT_EQ(1u, strippedVolume.reservations_size());
+  EXPECT_EQ(1, strippedVolume.reservations_size());
   EXPECT_FALSE(strippedVolume.has_disk());
   EXPECT_FALSE(Resources::isPersistentVolume(strippedVolume));
 }
