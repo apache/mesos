@@ -195,9 +195,12 @@ TEST_F(UpgradeTest, ReregisterOldAgentWithMultiRoleMaster)
   EXPECT_TRUE(capabilities.multiRole);
 
   // Strip allocation_info and MULTI_ROLE capability.
+  capabilities.multiRole = false;
+
   ReregisterSlaveMessage strippedReregisterSlaveMessage =
     reregisterSlaveMessage.get();
-  strippedReregisterSlaveMessage.clear_agent_capabilities();
+  strippedReregisterSlaveMessage.mutable_agent_capabilities()->CopyFrom(
+      capabilities.toRepeatedPtrField());
 
   foreach (ExecutorInfo& executorInfo,
            *strippedReregisterSlaveMessage.mutable_executor_infos()) {
@@ -308,9 +311,12 @@ TEST_F(UpgradeTest, UpgradeSlaveIntoMultiRole)
   EXPECT_TRUE(capabilities.multiRole);
 
   // Strip MULTI_ROLE capability.
+  capabilities.multiRole = false;
+
   RegisterSlaveMessage strippedRegisterSlaveMessage =
     registerSlaveMessage.get();
-  strippedRegisterSlaveMessage.clear_agent_capabilities();
+  strippedRegisterSlaveMessage.mutable_agent_capabilities()->CopyFrom(
+      capabilities.toRepeatedPtrField());
 
   // Prevent this from being dropped per the DROP_PROTOBUFS above.
   FUTURE_PROTOBUF(

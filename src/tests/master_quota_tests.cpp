@@ -35,6 +35,8 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include "common/resources_utils.hpp"
+
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
@@ -347,9 +349,10 @@ TEST_F(MasterQuotaTest, SetRequestWithInvalidData)
   {
     Resources quotaResources = Resources::parse("cpus:4;mem:512").get();
 
-    Resource reserved = Resources::parse("disk", "128", ROLE1).get();
-    reserved.mutable_reservation()->CopyFrom(
-        createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+    Resource reserved = createReservedResource(
+        "disk",
+        "128",
+        createDynamicReservationInfo(ROLE1, DEFAULT_CREDENTIAL.principal()));
 
     quotaResources += reserved;
 
@@ -545,8 +548,11 @@ TEST_F(MasterQuotaTest, Status)
     const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
     ASSERT_FALSE(status.isError());
 
+    RepeatedPtrField<Resource> guarantee = status->infos(0).guarantee();
+    convertResourceFormat(&guarantee, POST_RESERVATION_REFINEMENT);
+
     ASSERT_EQ(1, status->infos().size());
-    EXPECT_EQ(quotaResources, status->infos(0).guarantee());
+    EXPECT_EQ(quotaResources, guarantee);
   }
 }
 

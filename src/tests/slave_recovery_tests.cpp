@@ -146,6 +146,10 @@ TEST_F(SlaveStateTest, CheckpointRepeatedProtobufMessages)
   Result<RepeatedPtrField<Resource>> actual =
     ::protobuf::read<RepeatedPtrField<Resource>>(file);
 
+  ASSERT_SOME(actual);
+
+  convertResourceFormat(&actual.get(), POST_RESERVATION_REFINEMENT);
+
   EXPECT_SOME_EQ(expected, actual);
 }
 

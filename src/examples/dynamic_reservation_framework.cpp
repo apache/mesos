@@ -60,18 +60,18 @@ public:
       totalTasks(5),
       principal(_principal)
   {
-    reservationInfo.set_principal(principal);
-
     taskResources = Resources::parse(
         "cpus:" + stringify(CPUS_PER_TASK) +
         ";mem:" + stringify(MEM_PER_TASK)).get();
 
     taskResources.allocate(role);
 
+    reservationInfo.set_type(Resource::ReservationInfo::DYNAMIC);
+    reservationInfo.set_role(role);
+    reservationInfo.set_principal(principal);
+
     // The task will run on reserved resources.
-    Try<Resources> flattened = taskResources.flatten(role, reservationInfo);
-    CHECK_SOME(flattened);
-    taskResources = flattened.get();
+    taskResources = taskResources.pushReservation(reservationInfo);
   }
 
   virtual ~DynamicReservationScheduler() {}

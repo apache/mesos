@@ -1776,7 +1776,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateAvailableSuccess)
   // Construct an offer operation for the framework's allocation.
   Resources unreserved = Resources::parse("cpus:25;mem:50").get();
   Resources dynamicallyReserved =
-    unreserved.flatten("role1", createReservationInfo("ops")).get();
+    unreserved.pushReservation(createDynamicReservationInfo("role1", "ops"));
 
   Offer::Operation reserve = RESERVE(dynamicallyReserved);
 
@@ -1829,7 +1829,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateAvailableFail)
   // Construct an offer operation for the framework's allocation.
   Resources unreserved = Resources::parse("cpus:25;mem:50").get();
   Resources dynamicallyReserved =
-    unreserved.flatten("role1", createReservationInfo("ops")).get();
+    unreserved.pushReservation(createDynamicReservationInfo("role1", "ops"));
 
   Offer::Operation reserve = RESERVE(dynamicallyReserved);
 
@@ -3215,8 +3215,8 @@ TEST_F(HierarchicalAllocatorTest, QuotaSetAsideReservedResources)
 
   // Reserve 4 CPUs and 512MB of memory on `agent2` for non-quota'ed role.
   Resources unreserved = Resources::parse("cpus:4;mem:512").get();
-  Resources dynamicallyReserved =
-    unreserved.flatten(NO_QUOTA_ROLE, createReservationInfo("ops")).get();
+  Resources dynamicallyReserved = unreserved.pushReservation(
+      createDynamicReservationInfo(NO_QUOTA_ROLE, "ops"));
 
   Offer::Operation reserve = RESERVE(dynamicallyReserved);
 
@@ -5341,14 +5341,18 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, ResourceLabels)
     labels1.add_labels()->CopyFrom(
         createLabel("unique_key_2", "value_" + stringify(i)));
 
-    Resources reserved1 =
-      createReservedResource("cpus", "8", "role1",
-                             createReservationInfo("principal1", labels1));
+    Resources reserved1 = createReservedResource(
+        "cpus",
+        "8",
+        createDynamicReservationInfo("role1", "principal1", labels1));
+
     reserved1.allocate("role1");
 
-    Resources reserved2 =
-      createReservedResource("cpus", "8", "role1",
-                             createReservationInfo("principal1", labels2));
+    Resources reserved2 = createReservedResource(
+        "cpus",
+        "8",
+        createDynamicReservationInfo("role1", "principal1", labels2));
+
     reserved2.allocate("role1");
 
     Resources _allocation = allocation + reserved1 + reserved2;

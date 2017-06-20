@@ -478,7 +478,13 @@ TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
   ASSERT_SOME(slave);
 
   AWAIT_READY(reregisterSlave);
-  EXPECT_EQ(Resources(reregisterSlave->checkpointed_resources()), volume);
+
+  google::protobuf::RepeatedPtrField<Resource> checkpointedResources =
+    reregisterSlave->checkpointed_resources();
+
+  convertResourceFormat(&checkpointedResources, POST_RESERVATION_REFINEMENT);
+
+  EXPECT_EQ(Resources(checkpointedResources), volume);
 
   driver.stop();
   driver.join();
@@ -2157,6 +2163,8 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   frameworkInfo.set_name("no-principal");
   frameworkInfo.set_user(os::user().get());
   frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   // Create a master. Since the framework has no
   // principal, we don't authenticate frameworks.
@@ -2313,6 +2321,8 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   frameworkInfo1.set_name("no-principal");
   frameworkInfo1.set_user(os::user().get());
   frameworkInfo1.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo1.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   // Create a `FrameworkInfo` with a principal.
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
@@ -2540,6 +2550,8 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   frameworkInfo2.set_user(os::user().get());
   frameworkInfo2.set_role(DEFAULT_TEST_ROLE);
   frameworkInfo2.set_principal("creator-principal");
+  frameworkInfo2.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();

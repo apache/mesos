@@ -4703,9 +4703,8 @@ TEST_F(SlaveTest, CheckpointedResourcesIncludedInUsage)
   // Wait for slave to be initialized.
   Clock::settle();
 
-  Resource dynamicReservation = Resources::parse("cpus", "1", "role1").get();
-  dynamicReservation.mutable_reservation()->CopyFrom(
-      createReservationInfo("principal"));
+  Resource dynamicReservation = createReservedResource(
+      "cpus", "1", createDynamicReservationInfo("role1", "principal"));
 
   Resource persistentVolume = createPersistentVolume(
       Megabytes(64),

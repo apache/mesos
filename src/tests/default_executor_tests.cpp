@@ -1318,9 +1318,9 @@ TEST_P(DefaultExecutorTest, ReservedResources)
     v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
 
   // Launch the executor using reserved resources.
-  v1::Resources reserved = unreserved.flatten(
-      frameworkInfo.role(),
-      v1::createReservationInfo(frameworkInfo.principal())).get();
+  v1::Resources reserved =
+    unreserved.pushReservation(v1::createDynamicReservationInfo(
+        frameworkInfo.role(), frameworkInfo.principal()));
 
   v1::ExecutorInfo executorInfo;
   executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
@@ -1472,9 +1472,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   v1::Resources unreserved =
     v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
 
-  v1::Resources reserved = unreserved.flatten(
-      frameworkInfo.role(),
-      v1::createReservationInfo(frameworkInfo.principal())).get();
+  v1::Resources reserved =
+    unreserved.pushReservation(v1::createDynamicReservationInfo(
+        frameworkInfo.role(), frameworkInfo.principal()));
 
   v1::Resource volume = v1::createPersistentVolume(
       Megabytes(1),
@@ -1638,9 +1638,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       None(),
       frameworkInfo.principal());
 
-  v1::Resources reserved = unreserved.flatten(
-      frameworkInfo.role(),
-      v1::createReservationInfo(frameworkInfo.principal())).get();
+  v1::Resources reserved =
+    unreserved.pushReservation(v1::createDynamicReservationInfo(
+        frameworkInfo.role(), frameworkInfo.principal()));
 
   // Launch a task that expects the persistent volume to be
   // mounted in its sandbox.

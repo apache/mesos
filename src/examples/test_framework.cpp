@@ -107,9 +107,17 @@ public:
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
         task.mutable_executor()->MergeFrom(executor);
 
-        Try<Resources> flattened = taskResources.flatten(role);
-        CHECK_SOME(flattened);
-        Option<Resources> resources = remaining.find(flattened.get());
+        Option<Resources> resources = [&]() {
+          if (role == "*") {
+            return remaining.find(taskResources);
+          }
+
+          Resource::ReservationInfo reservation;
+          reservation.set_type(Resource::ReservationInfo::STATIC);
+          reservation.set_role(role);
+
+          return remaining.find(taskResources.pushReservation(reservation));
+        }();
 
         CHECK_SOME(resources);
         task.mutable_resources()->MergeFrom(resources.get());

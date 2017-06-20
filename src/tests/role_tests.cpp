@@ -127,9 +127,9 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   filters.set_refuse_seconds(0);
 
   Resources unreserved = Resources::parse("disk:1024").get();
-  Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(),
-      createReservationInfo(frameworkInfo.principal())).get();
+  Resources dynamicallyReserved =
+    unreserved.pushReservation(createDynamicReservationInfo(
+        frameworkInfo.role(), frameworkInfo.principal()));
 
   // We use this to capture offers from `resourceOffers`.
   Future<vector<Offer>> offers;
@@ -955,22 +955,18 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, VolumesInOverlappingHierarchies)
 
     // Create a reserved disk. We only create a small disk so
     // we have remaining disk to offer to other frameworks.
-    Resource unreservedDisk = Resources::parse("disk", "1", "*").get();
-    Resource reservedDisk = unreservedDisk;
-    reservedDisk.set_role(role);
-    reservedDisk.mutable_reservation()->CopyFrom(
-        createReservationInfo(DEFAULT_CREDENTIAL.principal()));
+    Resource reservedDisk = createReservedResource(
+        "disk",
+        "1",
+        createDynamicReservationInfo(role, DEFAULT_CREDENTIAL.principal()));
 
     // Create a persistent volume on the reserved disk.
     Resource volume = createPersistentVolume(
-        createDiskResource(
-            stringify(DISK_SIZE.megabytes()), role, None(), None()),
+        reservedDisk,
         id,
         PATH,
-        None(),
+        DEFAULT_CREDENTIAL.principal(),
         frameworkInfo.principal());
-    volume.mutable_reservation()->CopyFrom(reservedDisk.reservation());
-    volume.set_role(reservedDisk.role());
 
     // Create a task which uses the volume and checks that
     // it contains no files leaked from another role.
@@ -1024,11 +1020,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, VolumesInOverlappingHierarchies)
         role,
         id,
         PATH,
-        None(),
+        DEFAULT_CREDENTIAL.principal(),
         None(),
         DEFAULT_CREDENTIAL.principal());
-
-    volume.mutable_reservation()->set_principal(DEFAULT_CREDENTIAL.principal());
 
     v1::master::Call destroyVolumesCall;
     destroyVolumesCall.set_type(v1::master::Call::DESTROY_VOLUMES);
