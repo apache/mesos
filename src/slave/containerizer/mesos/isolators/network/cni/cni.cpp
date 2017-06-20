@@ -31,6 +31,7 @@
 #include <stout/strings.hpp>
 
 #include <stout/os/constants.hpp>
+#include "common/status_utils.hpp"
 
 #include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
