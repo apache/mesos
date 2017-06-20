@@ -27,6 +27,7 @@
 #include <vector>
 
 #include <google/protobuf/descriptor.h>
+#include <google/protobuf/descriptor.pb.h>
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>
 
@@ -698,8 +699,8 @@ struct Protobuf : Representation<google::protobuf::Message>
 
 
 // `json` function for protobuf messages. Refer to `jsonify.hpp` for details.
-// TODO(mpark): This currently uses the default value for optional fields with
-// a default that are not set, but we may want to revisit this decision.
+// TODO(mpark): This currently uses the default value for optional fields
+// that are not deprecated, but we may want to revisit this decision.
 inline void json(ObjectWriter* writer, const Protobuf& protobuf)
 {
   using google::protobuf::FieldDescriptor;
@@ -723,8 +724,9 @@ inline void json(ObjectWriter* writer, const Protobuf& protobuf)
         // Has repeated field with members, output as JSON.
         fields.push_back(field);
       }
-    } else if (reflection->HasField(message, field) ||
-               field->has_default_value()) {
+    } else if (
+        reflection->HasField(message, field) ||
+        (field->has_default_value() && !field->options().deprecated())) {
       // Field is set or has default, output as JSON.
       fields.push_back(field);
     }
@@ -832,8 +834,8 @@ inline void json(ObjectWriter* writer, const Protobuf& protobuf)
 }
 
 
-// TODO(bmahler): This currently uses the default value for optional
-// fields but we may want to revisit this decision.
+// TODO(bmahler): This currently uses the default value for optional fields
+// that are not deprecated, but we may want to revisit this decision.
 inline Object protobuf(const google::protobuf::Message& message)
 {
   Object object;
@@ -854,8 +856,9 @@ inline Object protobuf(const google::protobuf::Message& message)
         // Has repeated field with members, output as JSON.
         fields.push_back(field);
       }
-    } else if (reflection->HasField(message, field) ||
-               field->has_default_value()) {
+    } else if (
+        reflection->HasField(message, field) ||
+        (field->has_default_value() && !field->options().deprecated())) {
       // Field is set or has default, output as JSON.
       fields.push_back(field);
     }
@@ -978,7 +981,7 @@ inline Object protobuf(const google::protobuf::Message& message)
           break;
         case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
           object.values[field->name()] =
-              protobuf(reflection->GetMessage(message, field));
+            protobuf(reflection->GetMessage(message, field));
           break;
         case google::protobuf::FieldDescriptor::TYPE_ENUM:
           object.values[field->name()] =
