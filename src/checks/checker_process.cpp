@@ -596,7 +596,7 @@ void CheckerProcess::___nestedCommandCheck(
 void CheckerProcess::nestedCommandCheckFailure(
     shared_ptr<Promise<int>> promise,
     http::Connection connection,
-    ContainerID checkContainerId,
+    const ContainerID& checkContainerId,
     shared_ptr<bool> checkTimedOut,
     const string& failure)
 {

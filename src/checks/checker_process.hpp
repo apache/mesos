@@ -88,7 +88,7 @@ private:
   void nestedCommandCheckFailure(
       std::shared_ptr<process::Promise<int>> promise,
       process::http::Connection connection,
-      ContainerID checkContainerId,
+      const ContainerID& checkContainerId,
       std::shared_ptr<bool> checkTimedOut,
       const std::string& failure);
 
