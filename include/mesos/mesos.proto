@@ -987,7 +987,7 @@ message Resource {
   //       See the 'Resource Format' section for more details.
   //
   // TODO(mpark): Deprecate once `reservations` is no longer experimental.
-  optional string role = 6 [default = "*"];
+  optional string role = 6 [default = "*", deprecated=true];
 
   // This was initially introduced to support MULTI_ROLE capable
   // frameworks. Frameworks that are not MULTI_ROLE capable can
