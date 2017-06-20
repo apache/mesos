@@ -1096,6 +1096,8 @@ Future<Response> Master::Http::createVolumes(
       return BadRequest(error.get().message);
     }
 
+    convertResourceFormat(&volume.get(), POST_RESERVATION_REFINEMENT);
+
     volumes += volume.get();
   }
 
@@ -1129,8 +1131,6 @@ Future<Response> Master::Http::_createVolumes(
         "Invalid CREATE operation on agent " + stringify(*slave) + ": " +
         validate.get().message);
   }
-
-  convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
 
   return master->authorizeCreateVolume(operation.create(), principal)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
@@ -1273,6 +1273,8 @@ Future<Response> Master::Http::destroyVolumes(
       return BadRequest(error.get().message);
     }
 
+    convertResourceFormat(&volume.get(), POST_RESERVATION_REFINEMENT);
+
     volumes += volume.get();
   }
 
@@ -1304,8 +1306,6 @@ Future<Response> Master::Http::_destroyVolumes(
   if (validate.isSome()) {
     return BadRequest("Invalid DESTROY operation: " + validate.get().message);
   }
-
-  convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
 
   return master->authorizeDestroyVolume(operation.destroy(), principal)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
@@ -2243,6 +2243,8 @@ Future<Response> Master::Http::reserve(
       return BadRequest(error.get().message);
     }
 
+    convertResourceFormat(&resource.get(), POST_RESERVATION_REFINEMENT);
+
     resources += resource.get();
   }
 
@@ -2273,8 +2275,6 @@ Future<Response> Master::Http::_reserve(
         "Invalid RESERVE operation on agent " + stringify(*slave) + ": " +
         error.get().message);
   }
-
-  convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
 
   return master->authorizeReserveResources(operation.reserve(), principal)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
@@ -4992,6 +4992,8 @@ Future<Response> Master::Http::unreserve(
       return BadRequest(error.get().message);
     }
 
+    convertResourceFormat(&resource.get(), POST_RESERVATION_REFINEMENT);
+
     resources += resource.get();
   }
 
@@ -5020,8 +5022,6 @@ Future<Response> Master::Http::_unreserve(
     return BadRequest(
         "Invalid UNRESERVE operation: " + error.get().message);
   }
-
-  convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
 
   return master->authorizeUnreserveResources(operation.unreserve(), principal)
     .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
