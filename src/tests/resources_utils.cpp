@@ -47,7 +47,6 @@ Resource createPorts(const ::mesos::Value::Ranges& ranges)
   value.mutable_ranges()->CopyFrom(ranges);
 
   Resource resource;
-  resource.set_role("*");
   resource.set_name("ports");
   resource.set_type(Value::RANGES);
   resource.mutable_ranges()->CopyFrom(value.ranges());

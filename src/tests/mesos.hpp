@@ -730,12 +730,27 @@ inline TTaskGroupInfo createTaskGroupInfo(const std::vector<TTaskInfo>& tasks)
 }
 
 
+template <typename TResource>
+inline typename TResource::ReservationInfo createStaticReservationInfo(
+    const std::string& role)
+{
+  typename TResource::ReservationInfo info;
+  info.set_type(TResource::ReservationInfo::STATIC);
+  info.set_role(role);
+  return info;
+}
+
+
 template <typename TResource, typename TLabels>
-inline typename TResource::ReservationInfo createReservationInfo(
+inline typename TResource::ReservationInfo createDynamicReservationInfo(
+    const std::string& role,
     const Option<std::string>& principal = None(),
     const Option<TLabels>& labels = None())
 {
   typename TResource::ReservationInfo info;
+
+  info.set_type(TResource::ReservationInfo::DYNAMIC);
+  info.set_role(role);
 
   if (principal.isSome()) {
     info.set_principal(principal.get());
@@ -749,18 +764,23 @@ inline typename TResource::ReservationInfo createReservationInfo(
 }
 
 
-template <typename TResource, typename TResources>
+template <
+    typename TResource,
+    typename TResources,
+    typename... TReservationInfos>
 inline TResource createReservedResource(
     const std::string& name,
     const std::string& value,
-    const std::string& role,
-    const Option<typename TResource::ReservationInfo>& reservation)
+    const TReservationInfos&... reservations)
 {
-  TResource resource = TResources::parse(name, value, role).get();
+  std::initializer_list<typename TResource::ReservationInfo> reservations_ = {
+    reservations...
+  };
 
-  if (reservation.isSome()) {
-    resource.mutable_reservation()->CopyFrom(reservation.get());
-  }
+  TResource resource = TResources::parse(name, value, "*").get();
+  resource.mutable_reservations()->CopyFrom(
+      google::protobuf::RepeatedPtrField<typename TResource::ReservationInfo>{
+        reservations_.begin(), reservations_.end()});
 
   return resource;
 }
@@ -879,10 +899,8 @@ inline TResource createPersistentVolume(
     const Option<std::string>& creatorPrincipal = None(),
     bool isShared = false)
 {
-  TResource volume = TResources::parse(
-      "disk",
-      stringify(size.megabytes()),
-      role).get();
+  TResource volume =
+    TResources::parse("disk", stringify(size.megabytes()), role).get();
 
   volume.mutable_disk()->CopyFrom(
       createDiskInfo<TResource, TVolume>(
@@ -894,7 +912,11 @@ inline TResource createPersistentVolume(
           creatorPrincipal));
 
   if (reservationPrincipal.isSome()) {
-    volume.mutable_reservation()->set_principal(reservationPrincipal.get());
+    typename TResource::ReservationInfo& reservation =
+      *volume.mutable_reservations()->rbegin();
+
+    reservation.set_type(TResource::ReservationInfo::DYNAMIC);
+    reservation.set_principal(reservationPrincipal.get());
   }
 
   if (isShared) {
@@ -931,7 +953,11 @@ inline TResource createPersistentVolume(
           creatorPrincipal));
 
   if (reservationPrincipal.isSome()) {
-    volume.mutable_reservation()->set_principal(reservationPrincipal.get());
+    typename TResource::ReservationInfo& reservation =
+      *volume.mutable_reservations()->rbegin();
+
+    reservation.set_type(TResource::ReservationInfo::DYNAMIC);
+    reservation.set_principal(reservationPrincipal.get());
   }
 
   if (isShared) {
@@ -1215,11 +1241,20 @@ inline TaskGroupInfo createTaskGroupInfo(const std::vector<TaskInfo>& tasks)
 }
 
 
-template <typename... Args>
-inline Resource::ReservationInfo createReservationInfo(Args&&... args)
+inline Resource::ReservationInfo createStaticReservationInfo(
+    const std::string& role)
 {
-  return common::createReservationInfo<Resource, Labels>(
-      std::forward<Args>(args)...);
+  return common::createStaticReservationInfo<Resource>(role);
+}
+
+
+inline Resource::ReservationInfo createDynamicReservationInfo(
+    const std::string& role,
+    const Option<std::string>& principal = None(),
+    const Option<Labels>& labels = None())
+{
+  return common::createDynamicReservationInfo<Resource, Labels>(
+      role, principal, labels);
 }
 
 
@@ -1430,12 +1465,20 @@ inline mesos::v1::TaskGroupInfo createTaskGroupInfo(
 }
 
 
-template <typename... Args>
-inline mesos::v1::Resource::ReservationInfo createReservationInfo(
-    Args&&... args)
+inline mesos::v1::Resource::ReservationInfo createStaticReservationInfo(
+    const std::string& role)
 {
-  return common::createReservationInfo<mesos::v1::Resource, mesos::v1::Labels>(
-      std::forward<Args>(args)...);
+  return common::createStaticReservationInfo<mesos::v1::Resource>(role);
+}
+
+
+inline mesos::v1::Resource::ReservationInfo createDynamicReservationInfo(
+    const std::string& role,
+    const Option<std::string>& principal = None(),
+    const Option<mesos::v1::Labels>& labels = None())
+{
+  return common::createDynamicReservationInfo<
+             mesos::v1::Resource, mesos::v1::Labels>(role, principal, labels);
 }
 
 
@@ -1684,8 +1727,10 @@ ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
       task.mutable_slave_id()->MergeFrom(offer.slave_id());
       task.mutable_executor()->MergeFrom(executor);
 
-      Option<Resources> resources =
-        remaining.find(taskResources.flatten(role).get());
+      Option<Resources> resources = remaining.find(
+          role == std::string("*")
+            ? taskResources
+            : taskResources.pushReservation(createStaticReservationInfo(role)));
 
       CHECK_SOME(resources);
 
