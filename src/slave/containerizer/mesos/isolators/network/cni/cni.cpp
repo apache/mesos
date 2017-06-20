@@ -2000,7 +2000,7 @@ int NetworkCniIsolatorSetup::execute()
     if (spawn != 0) {
         cerr << "Failed to bring up the loopback interface in the new "
              << "network namespace of pid " << flags.pid.get()
-             << ": " << (spawn < 0 ? "failed to fork process" : WSTRINGIFY(spawn)) << endl;
+             << ": " << (spawn < 0 ? "Failed to fork process" : WSTRINGIFY(spawn)) << endl;
         return EXIT_FAILURE;
     }
   }
