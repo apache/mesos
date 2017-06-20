@@ -175,3 +175,13 @@ a.badge-type:hover {
   -webkit-box-shadow: none;
   box-shadow: none;
 }
+
+/*
+ * The `hidden-text` class hides text by making the font size 0.
+ * This can be used, for example, to insert text that will be
+ * added when the user highlights and copies, while leaving
+ * the text hidden from the user.
+ */
+.hidden-text {
+  font-size: 0;
+}

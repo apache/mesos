@@ -12,12 +12,17 @@
 </ol>
 
 <ol class="breadcrumb">
-  <li ng-repeat="dir in path.split('/')">
-    <a href="#/agents/{{agent_id}}/browse?path={{
-             encodeURIComponent(path.split('/').slice(0, $index + 1).join('/'))}}">
-      {{dir}}
-    </a>
-  </li>
+  <!-- We want to ensure that if the user highlights the path breadcrumb,
+     and copies it, they will receive a /path/without/spaces that they
+     can then paste into a terminal, or elsewhere. In order to do this,
+     we have to ensure there is no whitespace within the <a> tag contents.
+     Also, we have to inject a hidden '/' character because the slashes
+     in the breadcrumb are not copied.
+  -->
+  <li ng-repeat="dir in path.split('/')"><a
+      href="#/agents/{{agent_id}}/browse?path={{
+            encodeURIComponent(path.split('/').slice(0, $index + 1).join('/'))
+            }}">{{dir}}</a><span class="hidden-text">/</span></li>
 </ol>
 
 <div class="alert alert-error hidden" id="alert">
