@@ -931,7 +931,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, VolumesInOverlappingHierarchies)
   // persistent volume with the given id. The framework creates a task
   // using the volume and makes sure that no volumes from other roles
   // are leaked into the volume.
-  auto runTask = [&master, &PATH, DISK_SIZE](
+  auto runTask = [&master, &PATH](
       const string& role, const string& id) {
     FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
     frameworkInfo.set_role(role);
