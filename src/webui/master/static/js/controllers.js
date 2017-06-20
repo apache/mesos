@@ -899,116 +899,120 @@
       }
     }
 
-    // When navigating directly to this page, e.g. pasting the URL into the
-    // browser, the previous page is not a page in Mesos. In that case, navigate
-    // home.
-    if (!$scope.agents) {
-      $alert.danger({
-        message: "Navigate to the agent's sandbox via the Mesos UI.",
-        title: "Failed to find agents."
-      });
-      return $location.path('/').replace();
-    }
+    var reroute = function() {
+      var agent = $scope.agents[$routeParams.agent_id];
 
-    var agent = $scope.agents[$routeParams.agent_id];
+      // If the agent doesn't exist, send the user back.
+      if (!agent) {
+        return goBack("Agent with ID '" + $routeParams.agent_id + "' does not exist.");
+      }
 
-    // If the agent doesn't exist, send the user back.
-    if (!agent) {
-      return goBack("Agent with ID '" + $routeParams.agent_id + "' does not exist.");
-    }
+      var pid = agent.pid;
+      var hostname = $scope.agents[$routeParams.agent_id].hostname;
+      var id = pid.substring(0, pid.indexOf('@'));
+      var port = pid.substring(pid.lastIndexOf(':') + 1);
+      var host = hostname + ":" + port;
 
-    var pid = agent.pid;
-    var hostname = $scope.agents[$routeParams.agent_id].hostname;
-    var id = pid.substring(0, pid.indexOf('@'));
-    var port = pid.substring(pid.lastIndexOf(':') + 1);
-    var host = hostname + ":" + port;
+      // Request agent details to get access to the route executor's "directory"
+      // to navigate directly to the executor's sandbox.
+      $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
+        .success(function(response) {
 
-    // Request agent details to get access to the route executor's "directory"
-    // to navigate directly to the executor's sandbox.
-    $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
-      .success(function(response) {
+          function matchFramework(framework) {
+            return $routeParams.framework_id === framework.id;
+          }
 
-        function matchFramework(framework) {
-          return $routeParams.framework_id === framework.id;
-        }
+          var framework =
+            _.find(response.frameworks, matchFramework) ||
+            _.find(response.completed_frameworks, matchFramework);
 
-        var framework =
-          _.find(response.frameworks, matchFramework) ||
-          _.find(response.completed_frameworks, matchFramework);
-
-        if (!framework) {
-          return goBack(
-            "Framework with ID '" + $routeParams.framework_id +
-              "' does not exist on agent with ID '" + $routeParams.agent_id +
-              "'."
-          );
-        }
-
-        function matchExecutor(executor) {
-          return $routeParams.executor_id === executor.id;
-        }
-
-        var executor =
-          _.find(framework.executors, matchExecutor) ||
-          _.find(framework.completed_executors, matchExecutor);
-
-        if (!executor) {
-          return goBack(
-            "Executor with ID '" + $routeParams.executor_id +
-              "' does not exist on agent with ID '" + $routeParams.agent_id +
-              "'."
-          );
-        }
-
-        var sandboxDirectory = executor.directory;
-
-        function matchTask(task) {
-          return $routeParams.task_id === task.id;
-        }
-
-        // Continue to navigate to the task's sandbox if the task id is
-        // specified in route parameters.
-        if ($routeParams.task_id) {
-          setTaskSandbox(executor);
-
-          var task =
-            _.find(executor.tasks, matchTask) ||
-            _.find(executor.queued_tasks, matchTask) ||
-            _.find(executor.completed_tasks, matchTask);
-
-          if (!task) {
+          if (!framework) {
             return goBack(
-              "Task with ID '" + $routeParams.task_id +
+              "Framework with ID '" + $routeParams.framework_id +
                 "' does not exist on agent with ID '" + $routeParams.agent_id +
                 "'."
             );
           }
 
-          sandboxDirectory = task.directory;
-        }
+          function matchExecutor(executor) {
+            return $routeParams.executor_id === executor.id;
+          }
 
-        // Navigate to a path like '/agents/:id/browse?path=%2Ftmp%2F', the
-        // recognized "browse" endpoint for an agent.
-        $location.path('/agents/' + $routeParams.agent_id + '/browse')
-          .search({path: sandboxDirectory})
-          .replace();
-      })
-      .error(function(response) {
-        $alert.danger({
-          bullets: [
-            "The agent's hostname, '" + hostname + "', is not accessible from your network",
-            "The agent's port, '" + port + "', is not accessible from your network",
-            "The agent timed out or went offline"
-          ],
-          message: "Potential reasons:",
-          title: "Failed to connect to agent '" + $routeParams.agent_id +
-            "' on '" + host + "'."
+          var executor =
+            _.find(framework.executors, matchExecutor) ||
+            _.find(framework.completed_executors, matchExecutor);
+
+          if (!executor) {
+            return goBack(
+              "Executor with ID '" + $routeParams.executor_id +
+                "' does not exist on agent with ID '" + $routeParams.agent_id +
+                "'."
+            );
+          }
+
+          var sandboxDirectory = executor.directory;
+
+          function matchTask(task) {
+            return $routeParams.task_id === task.id;
+          }
+
+          // Continue to navigate to the task's sandbox if the task id is
+          // specified in route parameters.
+          if ($routeParams.task_id) {
+            setTaskSandbox(executor);
+
+            var task =
+              _.find(executor.tasks, matchTask) ||
+              _.find(executor.queued_tasks, matchTask) ||
+              _.find(executor.completed_tasks, matchTask);
+
+            if (!task) {
+              return goBack(
+                "Task with ID '" + $routeParams.task_id +
+                  "' does not exist on agent with ID '" + $routeParams.agent_id +
+                  "'."
+              );
+            }
+
+            sandboxDirectory = task.directory;
+          }
+
+          // Navigate to a path like '/agents/:id/browse?path=%2Ftmp%2F', the
+          // recognized "browse" endpoint for an agent.
+          $location.path('/agents/' + $routeParams.agent_id + '/browse')
+            .search({path: sandboxDirectory})
+            .replace();
+        })
+        .error(function(response) {
+          $alert.danger({
+            bullets: [
+              "The agent's hostname, '" + hostname + "', is not accessible from your network",
+              "The agent's port, '" + port + "', is not accessible from your network",
+              "The agent timed out or went offline"
+            ],
+            message: "Potential reasons:",
+            title: "Failed to connect to agent '" + $routeParams.agent_id +
+              "' on '" + host + "'."
+          });
+
+          // Is the agent dead? Navigate home since returning to the agent might
+          // end up in an endless loop.
+          $location.path('/').replace();
         });
+    };
 
-        // Is the agent dead? Navigate home since returning to the agent might
-        // end up in an endless loop.
-        $location.path('/').replace();
-      });
+    // When navigating directly to this page, e.g. pasting the URL into the
+    // browser, the previous page is not a page in Mesos. The agents
+    // information may not ready when loading this page, we start to reroute
+    // the sandbox request after the agents information loaded.
+    if ($scope.state) {
+      reroute();
+    }
+
+    // `reroute` is expected to always route away from the current page
+    // and the listener would be removed after the first state update.
+    var removeListener = $scope.$on('state_updated', reroute);
+    $scope.$on('$routeChangeStart', removeListener);
   });
 
 
