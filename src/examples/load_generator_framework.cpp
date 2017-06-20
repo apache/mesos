@@ -324,6 +324,8 @@ int main(int argc, char** argv)
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Load Generator Framework (C++)");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   const Option<string> checkpoint = os::getenv("MESOS_CHECKPOINT");
   if (checkpoint.isSome()) {

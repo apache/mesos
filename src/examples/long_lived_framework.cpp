@@ -577,6 +577,8 @@ int main(int argc, char** argv)
   framework.set_user(os::user().get());
   framework.set_name("Long Lived Framework (C++)");
   framework.set_checkpoint(flags.checkpoint);
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   Option<Credential> credential = None();
 

@@ -4233,6 +4233,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Non_Root_Sandbox)
   framework.set_name("default");
   framework.set_user("nobody");
   framework.set_principal(DEFAULT_CREDENTIAL.principal());
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(

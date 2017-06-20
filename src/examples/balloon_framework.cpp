@@ -499,6 +499,8 @@ int main(int argc, char** argv)
   framework.set_name("Balloon Framework (C++)");
   framework.set_checkpoint(flags.checkpoint);
   framework.set_role("*");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   BalloonScheduler scheduler(framework, executor, flags);
 

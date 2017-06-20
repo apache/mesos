@@ -180,6 +180,8 @@ int main(int argc, char** argv)
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Docker No Executor Framework (C++)");
   framework.set_checkpoint(true);
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   MesosSchedulerDriver* driver;
   if (os::getenv("MESOS_AUTHENTICATE_FRAMEWORKS").isSome()) {
