@@ -31,8 +31,10 @@
 #include <stout/strings.hpp>
 
 #include <stout/os/constants.hpp>
+#include "common/status_utils.hpp"
 
 #include "common/protobuf_utils.hpp"
+#include "common/status_utils.hpp"
 
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
@@ -2029,11 +2031,13 @@ int NetworkCniIsolatorSetup::execute()
       return EXIT_FAILURE;
     }
 
-    if (os::spawn("ifconfig", {"ifconfig", "lo", "up"}) != 0) {
-      cerr << "Failed to bring up the loopback interface in the new "
-           << "network namespace of pid " << flags.pid.get()
-           << ": " << os::strerror(errno) << endl;
-      return EXIT_FAILURE;
+    int spawn = os::spawn("ifconfig", {"ifconfig", "lo", "up"});
+
+    if (spawn != 0) {
+        cerr << "Failed to bring up the loopback interface in the new "
+             << "network namespace of pid " << flags.pid.get()
+             << ": " << (spawn < 0 ? "failed to fork process" : WSTRINGIFY(spawn)) << endl;
+        return EXIT_FAILURE;
     }
   }
 
