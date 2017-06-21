@@ -73,6 +73,8 @@
 #include "tests/resources_utils.hpp"
 #include "tests/utils.hpp"
 
+using google::protobuf::RepeatedPtrField;
+
 using mesos::internal::master::Master;
 
 using mesos::internal::master::allocator::MesosAllocatorProcess;
@@ -115,6 +117,7 @@ using testing::Eq;
 using testing::Not;
 using testing::Return;
 using testing::SaveArg;
+using testing::WithParamInterface;
 
 namespace mesos {
 namespace internal {
@@ -7118,6 +7121,466 @@ TEST_F(MasterTest, IgnoreOldAgentReregistration)
 
   // Settle the clock to retire in-flight messages.
   Clock::settle();
+}
+
+
+class MasterTestPrePostReservationRefinement
+  : public MasterTest,
+    public WithParamInterface<bool> {
+public:
+  Resources inboundResources(RepeatedPtrField<Resource> resources)
+  {
+    // If reservation refinement is enabled, inbound resources are already
+    // in the "post-reservation-refinement" format and should not need to
+    // be upgraded.
+    if (GetParam()) {
+      return resources;
+    }
+
+    CHECK_NONE(validateAndUpgradeResources(&resources));
+    return resources;
+  }
+
+  RepeatedPtrField<Resource> outboundResources(
+      RepeatedPtrField<Resource> resources)
+  {
+    // If reservation refinement is enabled, outbound resources are already
+    // in the "post-reservation-refinement" format and should not need to
+    // be downgraded.
+    if (GetParam()) {
+      return resources;
+    }
+
+    CHECK_SOME(downgradeResources(&resources));
+    return resources;
+  }
+};
+
+
+// Parameterized on reservation-refinement.
+INSTANTIATE_TEST_CASE_P(
+    bool,
+    MasterTestPrePostReservationRefinement,
+    ::testing::Values(true, false));
+
+
+// This tests that a framework can launch a task with
+// and without the RESERVATION_REFINEMENT capability.
+TEST_P(MasterTestPrePostReservationRefinement, LaunchTask)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+
+  // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
+  // is removed from `DEFAULT_FRAMEWORK_INFO`.
+  frameworkInfo.clear_capabilities();
+
+  if (GetParam()) {
+    frameworkInfo.add_capabilities()->set_type(
+        FrameworkInfo::Capability::RESERVATION_REFINEMENT);
+  }
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+  Offer offer = offers->front();
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(offer.resources());
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<Nothing> update;
+  EXPECT_CALL(containerizer, update(_, inboundResources(offer.resources())))
+    .WillOnce(DoAll(FutureSatisfy(&update), Return(Nothing())));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status->state());
+  EXPECT_TRUE(status->has_executor_id());
+  EXPECT_EQ(exec.id, status->executor_id());
+
+  AWAIT_READY(update);
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This tests that a framework can launch a task group
+// with and without the RESERVATION_REFINEMENT capability.
+TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
+{
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+
+  // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
+  // is removed from `DEFAULT_FRAMEWORK_INFO`.
+  frameworkInfo.clear_capabilities();
+
+  if (GetParam()) {
+    frameworkInfo.add_capabilities()->set_type(
+        v1::FrameworkInfo::Capability::RESERVATION_REFINEMENT);
+  }
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+#ifndef USE_SSL_SOCKET
+  // Disable operator API authentication for the default executor. Executor
+  // authentication currently has SSL as a dependency, so we cannot require
+  // executors to authenticate with the agent operator API if Mesos was not
+  // built with SSL support.
+  flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  RepeatedPtrField<Resource> resources =
+    Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+  executorInfo.mutable_resources()->CopyFrom(
+      evolve<v1::Resource>(outboundResources(resources)));
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0, offers->offers().size());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId, evolve<v1::Resource>(resources), SLEEP_COMMAND(1000));
+
+  taskInfo.mutable_resources()->CopyFrom(evolve<v1::Resource>(
+      outboundResources(devolve<Resource>(taskInfo.resources()))));
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(taskInfo);
+
+  Future<v1::scheduler::Event::Update> update;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH_GROUP);
+
+    v1::Offer::Operation::LaunchGroup* launchGroup =
+      operation->mutable_launch_group();
+
+    launchGroup->mutable_executor()->CopyFrom(executorInfo);
+    launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(update);
+
+  EXPECT_EQ(TASK_RUNNING, update->status().state());
+  EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
+  EXPECT_TRUE(update->status().has_timestamp());
+
+  // Ensure that the task sandbox symbolic link is created.
+  EXPECT_TRUE(os::exists(path::join(
+      slave::paths::getExecutorLatestRunPath(
+          flags.work_dir,
+          devolve(agentId),
+          devolve(frameworkId),
+          devolve(executorInfo.executor_id())),
+      "tasks",
+      taskInfo.task_id().value())));
+
+  // Verify that the executor's type is exposed in the agent's state
+  // endpoint.
+  Future<Response> response = process::http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+  ASSERT_SOME(parse);
+  JSON::Object state = parse.get();
+
+  EXPECT_SOME_EQ(
+      JSON::String(v1::ExecutorInfo::Type_Name(executorInfo.type())),
+      state.find<JSON::String>("frameworks[0].executors[0].type"));
+}
+
+
+// This tests that a framework can perform the operations
+// RESERVE, CREATE, DESTROY, and UNRESERVE in that order
+// with and without the RESERVATION_REFINEMENT capability.
+TEST_P(MasterTestPrePostReservationRefinement,
+       ReserveCreateLaunchDestroyUnreserve)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+
+  // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
+  // is removed from `DEFAULT_FRAMEWORK_INFO`.
+  frameworkInfo.clear_capabilities();
+
+  if (GetParam()) {
+    frameworkInfo.add_capabilities()->set_type(
+        FrameworkInfo::Capability::RESERVATION_REFINEMENT);
+  }
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(5);
+  masterFlags.roles = frameworkInfo.role();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:8;disk:512";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  Resources unreservedCpus = Resources::parse("cpus:8").get();
+  Resources unreservedDisk = Resources::parse("disk:512").get();
+
+  Resources reservedCpus =
+    unreservedCpus.pushReservation(createDynamicReservationInfo(
+        frameworkInfo.role(), frameworkInfo.principal()));
+
+  Resources reservedDisk =
+    unreservedDisk.pushReservation(createDynamicReservationInfo(
+        frameworkInfo.role(), frameworkInfo.principal()));
+
+  Resources volume = createPersistentVolume(
+      createDiskResource("512", DEFAULT_TEST_ROLE, None(), None()),
+      "id1",
+      "path1",
+      frameworkInfo.principal(),
+      frameworkInfo.principal());
+
+  // We use this to capture offers from 'resourceOffers'.
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // The expectation for the first offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  // In the first offer, expect an offer with unreserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  Offer offer = offers->front();
+
+  EXPECT_TRUE(inboundResources(offer.resources())
+                .contains(allocatedResources(
+                    unreservedCpus + unreservedDisk, frameworkInfo.role())));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // We don't use the `RESERVE` helper function here currently because it
+  // takes `Resources` as its parameter, and the result of `outboundResources`
+  // may be in the "pre-reservation-refinement" format.
+  Offer::Operation reserve;
+  reserve.set_type(Offer::Operation::RESERVE);
+  reserve.mutable_reserve()->mutable_resources()->CopyFrom(
+      outboundResources(reservedCpus + reservedDisk));
+
+  // Reserve the resources.
+  driver.acceptOffers({offer.id()}, {reserve}, filters);
+
+  // In the next offer, expect an offer with reserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  offer = offers->front();
+
+  EXPECT_TRUE(inboundResources(offer.resources())
+                .contains(allocatedResources(
+                    reservedCpus + reservedDisk, frameworkInfo.role())));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // We don't use the `CREATE` helper function here currently because it
+  // takes `Resources` as its parameter, and the result of `outboundResources`
+  // may be in the "pre-reservation-refinement" format.
+  Offer::Operation create;
+  create.set_type(Offer::Operation::CREATE);
+  create.mutable_create()->mutable_volumes()->CopyFrom(
+      outboundResources(volume));
+
+  // Create a volume.
+  driver.acceptOffers({offer.id()}, {create}, filters);
+
+  // In the next offer, expect an offer with reserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  offer = offers->front();
+
+  EXPECT_TRUE(inboundResources(offer.resources())
+                .contains(allocatedResources(
+                    reservedCpus + volume, frameworkInfo.role())));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // We don't use the `DESTROY` helper function here currently because it
+  // takes `Resources` as its parameter, and the result of `outboundResources`
+  // may be in the "pre-reservation-refinement" format.
+  Offer::Operation destroy;
+  destroy.set_type(Offer::Operation::DESTROY);
+  destroy.mutable_destroy()->mutable_volumes()->CopyFrom(
+      outboundResources(volume));
+
+  // Destroy the volume.
+  driver.acceptOffers({offer.id()}, {destroy}, filters);
+
+  // In the next offer, expect an offer with unreserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(inboundResources(offer.resources())
+                .contains(allocatedResources(
+                    reservedCpus + reservedDisk, frameworkInfo.role())));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // We don't use the `UNRESERVE` helper function here currently because it
+  // takes `Resources` as its parameter, and the result of `outboundResources`
+  // may be in the "pre-reservation-refinement" format.
+  Offer::Operation unreserve;
+  unreserve.set_type(Offer::Operation::UNRESERVE);
+  unreserve.mutable_unreserve()->mutable_resources()->CopyFrom(
+      outboundResources(reservedCpus + reservedDisk));
+
+  // Unreserve the resources.
+  driver.acceptOffers({offer.id()}, {unreserve}, filters);
+
+  // In the next offer, expect an offer with unreserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(inboundResources(offer.resources())
+                .contains(allocatedResources(
+                    unreservedCpus + unreservedDisk, frameworkInfo.role())));
+
+  driver.stop();
+  driver.join();
 }
 
 } // namespace tests {

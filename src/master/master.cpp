@@ -4202,8 +4202,8 @@ void Master::_accept(
   CHECK_READY(_authorizations);
   list<Future<bool>> authorizations = _authorizations.get();
 
-  // We iterate by copy here since we call `convertResourceFormat` on it
-  // after validation which modifies the `Operation`.
+  // We iterate by copy here since we call `validateAndUpgradeResources`
+  // on it which modifies the `Operation`.
   foreach (Offer::Operation operation, accept.operations()) {
     switch (operation.type()) {
       // The RESERVE operation allows a principal to reserve resources.
@@ -4231,16 +4231,21 @@ void Master::_accept(
           continue;
         }
 
-        Option<Principal> principal = framework->info.has_principal()
-          ? Principal(framework->info.principal())
-          : Option<Principal>::none();
+        Option<Error> error = validateAndUpgradeResources(
+            operation.mutable_reserve()->mutable_resources());
 
-        // Make sure this reserve operation is valid.
-        Option<Error> error = validation::operation::validate(
-            operation.reserve(),
-            principal,
-            slave->capabilities,
-            framework->info);
+        if (error.isNone()) {
+          Option<Principal> principal = framework->info.has_principal()
+            ? Principal(framework->info.principal())
+            : Option<Principal>::none();
+
+          // Make sure this reserve operation is valid.
+          error = validation::operation::validate(
+              operation.reserve(),
+              principal,
+              slave->capabilities,
+              framework->info);
+        }
 
         if (error.isSome()) {
           drop(
@@ -4249,8 +4254,6 @@ void Master::_accept(
               error->message + "; on agent " + stringify(*slave));
           continue;
         }
-
-        convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
 
         // Test the given operation on the included resources.
         Try<Resources> resources = _offeredResources.apply(operation);
@@ -4298,16 +4301,18 @@ void Master::_accept(
           continue;
         }
 
-        // Make sure this unreserve operation is valid.
-        Option<Error> error = validation::operation::validate(
-            operation.unreserve());
+        Option<Error> error = validateAndUpgradeResources(
+            operation.mutable_unreserve()->mutable_resources());
+
+        if (error.isNone()) {
+          // Make sure this unreserve operation is valid.
+          error = validation::operation::validate(operation.unreserve());
+        }
 
         if (error.isSome()) {
           drop(framework, operation, error->message);
           continue;
         }
-
-        convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
 
         // Test the given operation on the included resources.
         Try<Resources> resources = _offeredResources.apply(operation);
@@ -4354,17 +4359,22 @@ void Master::_accept(
           continue;
         }
 
-        Option<Principal> principal = framework->info.has_principal()
-          ? Principal(framework->info.principal())
-          : Option<Principal>::none();
+        Option<Error> error = validateAndUpgradeResources(
+            operation.mutable_create()->mutable_volumes());
 
-        // Make sure this create operation is valid.
-        Option<Error> error = validation::operation::validate(
-            operation.create(),
-            slave->checkpointedResources,
-            principal,
-            slave->capabilities,
-            framework->info);
+        if (error.isNone()) {
+          Option<Principal> principal = framework->info.has_principal()
+            ? Principal(framework->info.principal())
+            : Option<Principal>::none();
+
+          // Make sure this create operation is valid.
+          error = validation::operation::validate(
+              operation.create(),
+              slave->checkpointedResources,
+              principal,
+              slave->capabilities,
+              framework->info);
+        }
 
         if (error.isSome()) {
           drop(
@@ -4373,8 +4383,6 @@ void Master::_accept(
               error->message + "; on agent " + stringify(*slave));
           continue;
         }
-
-        convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
 
         Try<Resources> resources = _offeredResources.apply(operation);
         if (resources.isError()) {
@@ -4421,19 +4429,22 @@ void Master::_accept(
           continue;
         }
 
-        // Make sure this destroy operation is valid.
-        Option<Error> error = validation::operation::validate(
-            operation.destroy(),
-            slave->checkpointedResources,
-            slave->usedResources,
-            slave->pendingTasks);
+        Option<Error> error = validateAndUpgradeResources(
+            operation.mutable_destroy()->mutable_volumes());
+
+        if (error.isNone()) {
+          // Make sure this destroy operation is valid.
+          error = validation::operation::validate(
+              operation.destroy(),
+              slave->checkpointedResources,
+              slave->usedResources,
+              slave->pendingTasks);
+        }
 
         if (error.isSome()) {
           drop(framework, operation, error->message);
           continue;
         }
-
-        convertResourceFormat(&operation, POST_RESERVATION_REFINEMENT);
 
         // If any offer from this slave contains a volume that needs
         // to be destroyed, we should process it, but we should also
@@ -4589,13 +4600,20 @@ void Master::_accept(
           Resources available =
             _offeredResources.nonShared() + offeredSharedResources;
 
-          const Option<Error>& validationError = validation::task::validate(
-              task,
-              framework,
-              slave,
-              available);
+          Option<Error> error =
+            validateAndUpgradeResources(task.mutable_resources());
 
-          if (validationError.isSome()) {
+          if (error.isNone() && task.has_executor()) {
+            error = validateAndUpgradeResources(
+                task.mutable_executor()->mutable_resources());
+          }
+
+          if (error.isNone()) {
+            error =
+              validation::task::validate(task, framework, slave, available);
+          }
+
+          if (error.isSome()) {
             const StatusUpdate& update = protobuf::createStatusUpdate(
                 framework->id(),
                 task.slave_id(),
@@ -4603,7 +4621,7 @@ void Master::_accept(
                 TASK_ERROR,
                 TaskStatus::SOURCE_MASTER,
                 None(),
-                validationError.get().message,
+                error->message,
                 TaskStatus::REASON_TASK_INVALID);
 
             metrics->tasks_error++;
@@ -4706,6 +4724,30 @@ void Master::_accept(
           }
         }
 
+        Offer::Operation::LaunchGroup* launchGroup =
+          operation.mutable_launch_group();
+
+        Option<Error> error;
+
+        if (launchGroup->has_executor()) {
+          error = validateAndUpgradeResources(
+              launchGroup->mutable_executor()->mutable_resources());
+        }
+
+        foreach (
+            TaskInfo& task,
+            *launchGroup->mutable_task_group()->mutable_tasks()) {
+          if (error.isSome()) {
+            break;
+          }
+
+          error = validateAndUpgradeResources(task.mutable_resources());
+          if (error.isNone() && task.has_executor()) {
+            error = validateAndUpgradeResources(
+                task.mutable_executor()->mutable_resources());
+          }
+        }
+
         // Note that we do not fill in the `ExecutorInfo.framework_id`
         // since we do not have to support backwards compatibility like
         // in the `Launch` operation case.
@@ -4720,9 +4762,10 @@ void Master::_accept(
         // TODO(anindya_sinha): If task group uses shared resources, this
         // validation needs to be enhanced to accommodate multiple copies
         // of shared resources across tasks within the task group.
-        Option<Error> error =
-          validation::task::group::validate(
+        if (error.isNone()) {
+          error = validation::task::group::validate(
               taskGroup, executor, framework, slave, _offeredResources);
+        }
 
         Option<TaskStatus::Reason> reason = None();
 

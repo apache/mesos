@@ -255,8 +255,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   EXPECT_EQ(TASK_ERROR, status->state());
   EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status->reason());
   EXPECT_TRUE(status->has_message());
-  EXPECT_TRUE(strings::startsWith(
-        status->message(), "Task uses invalid resources"))
+  EXPECT_TRUE(strings::contains(status->message(), "Invalid scalar resource"))
     << status->message();
 
   MockScheduler sched2;
