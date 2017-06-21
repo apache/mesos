@@ -99,8 +99,9 @@ public:
 
     // Explicitly compute `tv_sec` and `tv_usec` instead of using `us` and
     // `secs` to avoid converting `int64_t` -> `double` -> `long`.
-    t.tv_sec = ns() / SECONDS;
-    t.tv_usec = (ns() / MICROSECONDS) - (t.tv_sec * SECONDS / MICROSECONDS);
+    t.tv_sec = static_cast<decltype(t.tv_sec)>(ns() / SECONDS);
+    t.tv_usec = static_cast<decltype(t.tv_usec)>(
+        (ns() / MICROSECONDS) - (t.tv_sec * SECONDS / MICROSECONDS));
     return t;
   }
 
