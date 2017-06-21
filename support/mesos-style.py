@@ -1,6 +1,22 @@
 #!/usr/bin/env python
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-''' Runs checks for mesos style. '''
+"""Runs checks for mesos style."""
 
 import os
 import re
@@ -10,7 +26,7 @@ import sys
 
 
 class LinterBase(object):
-    '''
+    """
     This is an abstract class that provides the base functionality for
     linting files in the mesos project. Its 'main()' function
     walks through the set of files passed to it and runs some
@@ -33,7 +49,7 @@ class LinterBase(object):
 
     Please see the comments below for details on how to override each
     variable.
-    '''
+    """
     # The name of the linter to help with printing which linter files
     # are currently being processed by.
     linter_type = ''
@@ -53,11 +69,11 @@ class LinterBase(object):
     comment_prefix = ''
 
     def find_candidates(self, root_dir):
-        '''
+        """
         Search through the all files rooted at 'root_dir' and compare
         them against 'self.exclude_files' and 'self.source_files' to
         come up with a set of candidate files to lint.
-        '''
+        """
         exclude_file_regex = re.compile(self.exclude_files)
         source_criteria_regex = re.compile(self.source_files)
         for root, _, files in os.walk(root_dir):
@@ -70,44 +86,51 @@ class LinterBase(object):
                     yield path
 
     def run_lint(self, source_paths):
-        '''
+        """
         A custom function to provide linting for 'linter_type'.
         It takes a list of source files to lint and returns the number
         of errors found during the linting process.
 
         It should print any errors as it encounters them to provide
         feedback to the caller.
-        '''
+        """
         pass
 
     def check_license_header(self, source_paths):
-        ''' Checks the license headers of the given files. '''
+        """Checks the license headers of the given files."""
         error_count = 0
         for path in source_paths:
             with open(path) as source_file:
-                head = source_file.readline()
+                # We read the three first lines of the file as the
+                # first line could be a shebang and the second line empty.
+                head = "".join([next(source_file) for _ in xrange(3)])
 
-                # Check that opening comment has correct style.
-                # TODO(bbannier) We allow `Copyright` for currently deviating files.
-                # This should be removed one we have a uniform license format.
-                regex = r'^{comment_prefix} [Licensed|Copyright]'.\
-                            format(comment_prefix=self.comment_prefix)
-                if not re.match(regex, head):
+                # TODO(bbannier) We allow `Copyright` for
+                # currently deviating files. This should be
+                # removed one we have a uniform license format.
+                regex = r'^{comment_prefix} [Licensed|Copyright]'.format(
+                    comment_prefix=self.comment_prefix)
+                regex = re.compile(regex, re.MULTILINE)
+
+                if not regex.search(head):
                     sys.stderr.write(
-                        "{path}:1:  A license header should appear on the file's "
-                        "first line starting with '{comment_prefix} Licensed'.: {head}".\
-                            format(path=path, head=head, comment_prefix=self.comment_prefix))
+                        "{path}:1: A license header should appear's on one of"
+                        " the first line of the file starting with"
+                        " '{comment_prefix} Licensed'.: {head}".format(
+                            path=path,
+                            head=head,
+                            comment_prefix=self.comment_prefix))
                     error_count += 1
 
         return error_count
 
     def check_encoding(self, source_paths):
-        '''
+        """
         Checks for encoding errors in the given files. Source
         code files must contain only printable ascii characters.
         This excludes the extended ascii characters 128-255.
         http://www.asciitable.com/
-        '''
+        """
         error_count = 0
         for path in source_paths:
             with open(path) as source_file:
@@ -131,14 +154,14 @@ class LinterBase(object):
         return error_count
 
     def main(self, file_list):
-        '''
+        """
         This function takes a list of files and lints them for the
         class of files defined by 'linter_type'.
-        '''
+        """
 
-        # Verify that source roots are accessible from current working directory.
-        # A common error could be to call the style checker from other
-        # (possibly nested) paths.
+        # Verify that source roots are accessible from current
+        # working directory. A common error could be to call
+        # the style checker from other (possibly nested) paths.
         for source_dir in self.source_dirs:
             if not os.path.exists(source_dir):
                 print "Could not find '{dir}'".format(dir=source_dir)
@@ -158,24 +181,24 @@ class LinterBase(object):
         # Compute the set intersect of the input file paths and candidates.
         # This represents the reduced set of candidates to run lint on.
         candidates_set = set(candidates)
-        clean_file_paths_set = set(map(lambda x: x.rstrip(), file_paths))
+        clean_file_paths_set = set(path.rstrip() for path in file_paths)
         filtered_candidates_set = clean_file_paths_set.intersection(
             candidates_set)
 
         if filtered_candidates_set:
             plural = '' if len(filtered_candidates_set) == 1 else 's'
-            print 'Checking {num_files} {linter} file{plural}'.\
-                    format(num_files=len(filtered_candidates_set),
-                           linter=self.linter_type,
-                           plural=plural)
+            print 'Checking {num_files} {linter} file{plural}'.format(
+                num_files=len(filtered_candidates_set),
+                linter=self.linter_type,
+                plural=plural)
 
             license_errors = self.check_license_header(filtered_candidates_set)
             encoding_errors = self.check_encoding(list(filtered_candidates_set))
             lint_errors = self.run_lint(list(filtered_candidates_set))
             total_errors = license_errors + encoding_errors + lint_errors
 
-            sys.stderr.write('Total errors found: {num_errors}\n'.\
-                                format(num_errors=total_errors))
+            sys.stderr.write('Total errors found: {num_errors}\n'.format(
+                num_errors=total_errors))
 
             return total_errors
         else:
@@ -184,6 +207,7 @@ class LinterBase(object):
 
 
 class CppLinter(LinterBase):
+    """The linter for C++ files, uses cpplint."""
     linter_type = 'C++'
 
     source_dirs = ['src',
@@ -191,18 +215,26 @@ class CppLinter(LinterBase):
                    os.path.join('3rdparty', 'libprocess'),
                    os.path.join('3rdparty', 'stout')]
 
-    exclude_files = '(protobuf\-2\.4\.1|googletest\-release\-1\.8\.0|glog\-0\.3\.3|boost\-1\.53\.0|libev\-4\.15|java/jni|\.pb\.cc|\.pb\.h|\.md|\.virtualenv)'
+    exclude_files = '(' \
+                    r'protobuf\-2\.4\.1|' \
+                    r'googletest\-release\-1\.8\.0|' \
+                    r'glog\-0\.3\.3|' \
+                    r'boost\-1\.53\.0|' \
+                    r'libev\-4\.15|' \
+                    r'java/jni|' \
+                    r'\.pb\.cc|\.pb\.h|\.md|\.virtualenv' \
+                    ')'
 
-    source_files = '\.(cpp|hpp|cc|h)$'
+    source_files = r'\.(cpp|hpp|cc|h)$'
 
-    comment_prefix = '\/\/'
+    comment_prefix = r'\/\/'
 
     def run_lint(self, source_paths):
-        '''
+        """
         Runs cpplint over given files.
 
         http://google-styleguide.googlecode.com/svn/trunk/cpplint/cpplint.py
-        '''
+        """
 
         # See cpplint.py for full list of rules.
         active_rules = [
@@ -227,46 +259,57 @@ class CppLinter(LinterBase):
             'whitespace/todo']
 
         rules_filter = '--filter=-,+' + ',+'.join(active_rules)
-        p = subprocess.Popen(
+        process = subprocess.Popen(
             ['python', 'support/cpplint.py', rules_filter] + source_paths,
             stderr=subprocess.PIPE,
             close_fds=True)
 
         # Lines are stored and filtered, only showing found errors instead
         # of e.g., 'Done processing XXX.' which tends to be dominant output.
-        for line in p.stderr:
+        for line in process.stderr:
             if re.match('^(Done processing |Total errors found: )', line):
                 continue
             sys.stderr.write(line)
 
-        p.wait()
-        return p.returncode
+        process.wait()
+        return process.returncode
 
 
 class PyLinter(LinterBase):
+    """The linter for Python files, uses pylint."""
     linter_type = 'Python'
 
-    source_dirs = ['src/cli_new']
+    source_dirs = [os.path.join('src', 'cli_new')]
 
-    exclude_files = '(protobuf\-2\.4\.1|googletest\-release\-1\.8\.0|glog\-0\.3\.3|boost\-1\.53\.0|libev\-4\.15|java/jni|\.virtualenv)'
+    exclude_files = '(' \
+                    r'protobuf\-2\.4\.1|' \
+                    r'googletest\-release\-1\.8\.0|' \
+                    r'glog\-0\.3\.3|' \
+                    r'boost\-1\.53\.0|' \
+                    r'libev\-4\.15|' \
+                    r'java/jni|\.virtualenv' \
+                    ')'
 
-    source_files = '\.(py)$'
+    source_files = r'\.(py)$'
 
     comment_prefix = '#'
 
+    test = 'hello'
+
     def run_lint(self, source_paths):
-        '''
+        """
         Runs pylint over given files.
 
         https://google.github.io/styleguide/pyguide.html
-        '''
+        """
 
         cli_dir = os.path.abspath(self.source_dirs[0])
         source_files = ' '.join(source_paths)
 
-        p = subprocess.Popen(
-            ['. {virtualenv_dir}/bin/activate; \
-             PYTHONPATH={lib_dir}:{bin_dir} pylint --rcfile={config} --ignore={ignore} {files}'.\
+        process = subprocess.Popen(
+            [('. {virtualenv_dir}/bin/activate;'
+              ' PYTHONPATH={lib_dir}:{bin_dir} pylint'
+              ' --rcfile={config} --ignore={ignore} {files}').
              format(virtualenv_dir=os.path.join(cli_dir, '.virtualenv'),
                     lib_dir=os.path.join(cli_dir, 'lib'),
                     bin_dir=os.path.join(cli_dir, 'bin'),
@@ -276,7 +319,7 @@ class PyLinter(LinterBase):
             shell=True, stdout=subprocess.PIPE)
 
         num_errors = 0
-        for line in p.stdout:
+        for line in process.stdout:
             if not line.startswith('*'):
                 num_errors += 1
             sys.stderr.write(line)
@@ -310,31 +353,27 @@ class PyLinter(LinterBase):
         return False
 
     def __build_virtualenv(self):
-        '''
-        Rebuild the virtualenv.
-        '''
+        """Rebuild the virtualenv."""
         cli_dir = os.path.abspath(self.source_dirs[0])
 
         print 'Rebuilding virtualenv ...'
 
-        p = subprocess.Popen(
+        process = subprocess.Popen(
             [os.path.join(cli_dir, 'bootstrap')],
             stdout=subprocess.PIPE)
 
         output = ''
-        for line in p.stdout:
+        for line in process.stdout:
             output += line
 
-        p.wait()
+        process.wait()
 
-        if p.returncode != 0:
+        if process.returncode != 0:
             sys.stderr.write(output)
             sys.exit(1)
 
     def main(self, file_list):
-        '''
-        Override main to rebuild our virtualenv if necessary.
-        '''
+        """Override main to rebuild our virtualenv if necessary."""
         if self.__should_build_virtualenv(file_list):
             self.__build_virtualenv()
 
@@ -342,8 +381,8 @@ class PyLinter(LinterBase):
 
 
 if __name__ == '__main__':
-    cpp_linter = CppLinter()
-    cpp_errors = cpp_linter.main(sys.argv[1:])
-    py_linter = PyLinter()
-    py_errors = py_linter.main(sys.argv[1:])
-    sys.exit(cpp_errors + py_errors)
+    CPP_LINTER = CppLinter()
+    CPP_ERRORS = CPP_LINTER.main(sys.argv[1:])
+    PY_LINTER = PyLinter()
+    PY_ERRORS = PY_LINTER.main(sys.argv[1:])
+    sys.exit(CPP_ERRORS + PY_ERRORS)
