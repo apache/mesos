@@ -2107,7 +2107,7 @@ Option<Error> validate(
           "Volume " + stringify(volume) +
           " with reservation for hierarchical role"
           " '" + Resources::reservationRole(volume) + "'"
-          " cannot be reserved on an agent without HIERARCHICAL_ROLE"
+          " cannot be created on an agent without HIERARCHICAL_ROLE"
           " capability");
     }
 
