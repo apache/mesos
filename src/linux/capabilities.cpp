@@ -223,7 +223,10 @@ Try<Capabilities> Capabilities::create()
   SyscallPayload payload;
 
   if (capget(&payload.head, nullptr)) {
-    return ErrnoError("Failed to get linux capability version");
+    // If capget fails with EINVAL it still populates the version field.
+    if (errno != EINVAL) {
+      return ErrnoError("Failed to get linux capability version");
+    }
   }
 
   if (payload.head.version != _LINUX_CAPABILITY_VERSION_3) {
