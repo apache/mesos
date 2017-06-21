@@ -30,6 +30,8 @@
 #include <process/process.hpp>
 #include <process/subprocess.hpp>
 
+#include <process/metrics/counter.hpp>
+
 #include <stout/hashmap.hpp>
 
 #include "slave/flags.hpp"
@@ -321,6 +323,13 @@ private:
   Cache cache;
 
   hashmap<ContainerID, pid_t> subprocessPids;
+
+  // NOTE: These metrics will increment at most once per task. Even if
+  // a single task asks for multiple artifacts, the total number of
+  // fetches will only go up by one. And if any of those artifacts
+  // fail to fetch, the failure count will only increase by one.
+  process::metrics::Counter fetchesTotal;
+  process::metrics::Counter fetchesFailed;
 };
 
 } // namespace slave {
