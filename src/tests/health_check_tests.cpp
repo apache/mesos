@@ -1159,10 +1159,16 @@ TEST_F(HealthCheckTest, GracePeriod)
   AWAIT_READY(offers);
   EXPECT_NE(0u, offers->size());
 
+#ifndef __WINDOWS__
+  const string falseCommand = "false";
+#else
+  const string falseCommand = "cmd /C exit 1";
+#endif // __WINDOWS__
+
   // The health check for this task will always fail, but the grace period of
   // 9999 seconds should mask the failures.
   vector<TaskInfo> tasks = populateTasks(
-    SLEEP_COMMAND(2), "false", offers.get()[0], 9999);
+    SLEEP_COMMAND(2), falseCommand, offers.get()[0], 9999);
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
