@@ -258,7 +258,7 @@ FetcherProcess::FetcherProcess(const Flags& _flags)
     : ProcessBase(process::ID::generate("fetcher")),
       flags(_flags),
       cache(_flags.fetcher_cache_size),
-      fetchesTotal ("containerizer/fetcher/task_fetches_total"),
+      fetchesTotal("containerizer/fetcher/task_fetches_total"),
       fetchesFailed("containerizer/fetcher/task_fetches_failed")
 {
   process::metrics::add(fetchesTotal);
