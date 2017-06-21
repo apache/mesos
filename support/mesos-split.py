@@ -15,23 +15,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Errors if a list of files spans across the projects which make up
-# mesos.
-
-if __name__ != "__main__":
-  raise Exception("This is not a libraray")
+"""
+Errors if a list of files spans across
+the projects which make up mesos.
+"""
 
 from collections import defaultdict
 import sys
 
 if len(sys.argv) < 2:
-  print "Usage: ./mesos-split.py <filename>..."
+    print "Usage: ./mesos-split.py <filename>..."
 
-base_project = "mesos"
-subprojects = {
-  "libprocess": "3rdparty/libprocess",
-  "stout": "3rdparty/stout"
+BASE_PROJECT = "mesos"
+
+SUBPROJECTS = {
+    "libprocess": "3rdparty/libprocess",
+    "stout": "3rdparty/stout"
 }
+
 ERROR = """ERROR: Commit spanning multiple projects.
 
 Please use separate commits for mesos, libprocess and stout.
@@ -40,27 +41,38 @@ Paths grouped by project:"""
 
 
 def find_project(filename):
-  # Find longest prefix match.
-  found_path_len = 0
-  found_project = base_project
-  for project, path in subprojects.iteritems():
-    if filename.startswith(path) and len(path) > found_path_len:
-      found_path_len = len(path)
-      found_project = project
+    """Find a project using its filename."""
 
-  return found_project
+    # Find longest prefix match.
+    found_path_len = 0
+    found_project = BASE_PROJECT
+    for project, path in SUBPROJECTS.iteritems():
+        if filename.startswith(path) and len(path) > found_path_len:
+            found_path_len = len(path)
+            found_project = project
+
+    return found_project
 
 
-touched_projects = defaultdict(list)
-for filename in sys.argv[1:]:
-  touched_projects[find_project(filename)].append(filename)
+def main():
+    """
+    Expects a list of filenames on the command line.
 
-if len(touched_projects) > 1:
-  print ERROR
-  for project in touched_projects.iterkeys():
-    print "%s:" % project
-    for filename in touched_projects[project]:
-      print "  %s" % filename
-  sys.exit(1)
+    See `support/hooks/pre-commit` for the canonical usage of this method.
+    """
+    touched_projects = defaultdict(list)
+    for filename in sys.argv[1:]:
+        touched_projects[find_project(filename)].append(filename)
 
-sys.exit(0)
+    if len(touched_projects) > 1:
+        print ERROR
+        for project in touched_projects.iterkeys():
+            print "%s:" % project
+            for filename in touched_projects[project]:
+                print "  %s" % filename
+        sys.exit(1)
+
+    sys.exit(0)
+
+if __name__ == '__main__':
+    main()
