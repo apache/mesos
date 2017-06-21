@@ -238,7 +238,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   Future<mesos::scheduler::Call> ack = FUTURE_CALL(
       mesos::scheduler::Call(), mesos::scheduler::Call::ACKNOWLEDGE, _, _);
 
-  Future<Nothing> _ack =
+  Future<Nothing> _statusUpdateAcknowledgement =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offers.get()[0].id(), {task});
@@ -256,7 +256,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   EXPECT_EQ(TASK_RUNNING, update->update().status().state());
 
   // Wait for the ACK to be checkpointed.
-  AWAIT_READY(_ack);
+  AWAIT_READY(_statusUpdateAcknowledgement);
 
   // Recover the state.
   Result<slave::state::State> recover = slave::state::recover(
