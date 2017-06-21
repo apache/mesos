@@ -268,6 +268,20 @@ void convertResourceFormat(Offer::Operation* operation, ResourceFormat format)
 }
 
 
+Option<Error> validateAndUpgradeResources(
+    google::protobuf::RepeatedPtrField<Resource>* resources)
+{
+  Option<Error> error = Resources::validate(*resources);
+  if (error.isSome()) {
+    return Error("Invalid resources upgrade: " + error->message);
+  }
+
+  convertResourceFormat(resources, POST_RESERVATION_REFINEMENT);
+
+  return None();
+}
+
+
 Try<Nothing> downgradeResources(
     google::protobuf::RepeatedPtrField<Resource>* resources)
 {
