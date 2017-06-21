@@ -41,7 +41,7 @@ import sys
 DEFAULT_NUM_JOBS = int(multiprocessing.cpu_count() * 1.5)
 
 
-class Bcolors:
+class Bcolors(object):
     """
     A collection of tty output modifiers.
 
@@ -92,10 +92,10 @@ def run_test(opts):
         print(Bcolors.colorize('.', Bcolors.OKGREEN), end='')
         sys.stdout.flush()
         return True, output
-    except subprocess.CalledProcessError as ex:
+    except subprocess.CalledProcessError as error:
         print(Bcolors.colorize('.', Bcolors.FAIL), end='')
         sys.stdout.flush()
-        return False, ex.output
+        return False, error.output
 
 
 def parse_arguments():
@@ -268,9 +268,9 @@ if __name__ == '__main__':
 
         sys.exit(1)
 
-    except OSError as ex:
+    except OSError as error:
         print(Bcolors.colorize(
-            '\nERROR: {ex}'.format(ex=ex),
+            '\nERROR: {err}'.format(err=error),
             Bcolors.FAIL, Bcolors.BOLD))
 
         POOL.terminate()
