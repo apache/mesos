@@ -4486,7 +4486,8 @@ void Master::_accept(
         Offer::Operation _operation;
         _operation.set_type(Offer::Operation::LAUNCH);
 
-        foreach (const TaskInfo& task, operation.launch().task_infos()) {
+        foreach (
+            TaskInfo& task, *operation.mutable_launch()->mutable_task_infos()) {
           Future<bool> authorization = authorizations.front();
           authorizations.pop_front();
 
@@ -4555,10 +4556,9 @@ void Master::_accept(
           // Make a copy of the original task so that we can fill the missing
           // `framework_id` in `ExecutorInfo` if needed. This field was added
           // to the API later and thus was made optional.
-          TaskInfo task_(task);
           if (task.has_executor() && !task.executor().has_framework_id()) {
-            task_.mutable_executor()
-                ->mutable_framework_id()->CopyFrom(framework->id());
+            task.mutable_executor()->mutable_framework_id()->CopyFrom(
+                framework->id());
           }
 
           // For backwards compatibility with the v0 and v1 API, when
@@ -4574,9 +4574,9 @@ void Master::_accept(
 
             const HealthCheck& healthCheck = task.health_check();
             if (healthCheck.has_command() && !healthCheck.has_http()) {
-              task_.mutable_health_check()->set_type(HealthCheck::COMMAND);
+              task.mutable_health_check()->set_type(HealthCheck::COMMAND);
             } else if (healthCheck.has_http() && !healthCheck.has_command()) {
-              task_.mutable_health_check()->set_type(HealthCheck::HTTP);
+              task.mutable_health_check()->set_type(HealthCheck::HTTP);
             }
           }
 
@@ -4590,7 +4590,7 @@ void Master::_accept(
             _offeredResources.nonShared() + offeredSharedResources;
 
           const Option<Error>& validationError = validation::task::validate(
-              task_,
+              task,
               framework,
               slave,
               available);
@@ -4598,8 +4598,8 @@ void Master::_accept(
           if (validationError.isSome()) {
             const StatusUpdate& update = protobuf::createStatusUpdate(
                 framework->id(),
-                task_.slave_id(),
-                task_.task_id(),
+                task.slave_id(),
+                task.task_id(),
                 TASK_ERROR,
                 TaskStatus::SOURCE_MASTER,
                 None(),
@@ -4620,7 +4620,7 @@ void Master::_accept(
 
           // Add task.
           if (pending) {
-            const Resources consumed = addTask(task_, framework, slave);
+            const Resources consumed = addTask(task, framework, slave);
 
             CHECK(available.contains(consumed))
               << available << " does not contain " << consumed;
@@ -4634,13 +4634,13 @@ void Master::_accept(
             // as 'pid' was made optional in 0.24.0. In 0.25.0, we
             // no longer have to set pid here for http frameworks.
             message.set_pid(framework->pid.getOrElse(UPID()));
-            message.mutable_task()->MergeFrom(task_);
+            message.mutable_task()->MergeFrom(task);
 
             if (HookManager::hooksAvailable()) {
               // Set labels retrieved from label-decorator hooks.
               message.mutable_task()->mutable_labels()->CopyFrom(
                   HookManager::masterLaunchTaskLabelDecorator(
-                      task_,
+                      task,
                       framework->info,
                       slave->info));
             }
@@ -4667,9 +4667,9 @@ void Master::_accept(
             } else {
               // TODO(bmahler): Consider updating this log message to
               // indicate when the executor is also being launched.
-              LOG(INFO) << "Launching task " << task_.task_id()
+              LOG(INFO) << "Launching task " << task.task_id()
                         << " of framework " << *framework << " with resources "
-                        << task_.resources() << " on agent " << *slave;
+                        << task.resources() << " on agent " << *slave;
 
               send(slave->pid, message);
             }
