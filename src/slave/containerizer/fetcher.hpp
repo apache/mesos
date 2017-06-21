@@ -171,12 +171,12 @@ public:
       // cache.
       void reference();
       void unreference();
-      bool isReferenced();
+      bool isReferenced() const;
 
       // Returns the path in the filesystem where cache entry resides.
       // TODO(bernd-mesos): Remove this construct after refactoring so
       // that the slave flags get injected into the fetcher.
-      Path path() { return Path(path::join(directory, filename)); }
+      Path path() const { return Path(path::join(directory, filename)); }
 
       // Uniquely identifies a user/URI combination.
       const std::string key;
@@ -214,7 +214,7 @@ public:
 
     void claimSpace(const Bytes& bytes);
     void releaseSpace(const Bytes& bytes);
-    Bytes availableSpace();
+    Bytes availableSpace() const;
 
     // Invents a new, distinct base name for a cache file, using the same
     // filename extension as the URI.
@@ -234,10 +234,11 @@ public:
         const std::string& uri);
 
     // Returns whether an entry for this user and URI is in the cache.
-    bool contains(const Option<std::string>& user, const std::string& uri);
+    bool contains(
+        const Option<std::string>& user, const std::string& uri) const;
 
     // Returns whether this identical entry is in the cache.
-    bool contains(const std::shared_ptr<Cache::Entry>& entry);
+    bool contains(const std::shared_ptr<Cache::Entry>& entry) const;
 
     // Completely deletes a cache entry and its file. Warns on failure.
     // Virtual for mock testing.
@@ -259,7 +260,7 @@ public:
     Try<Nothing> adjust(const std::shared_ptr<Cache::Entry>& entry);
 
     // Number of entries.
-    size_t size();
+    size_t size() const;
 
   private:
     // Maximum storable number of bytes in the cache directory.
@@ -292,15 +293,15 @@ public:
 
   // Returns a list of cache files on disk for the given slave
   // (for all users combined). For testing.
-  Try<std::list<Path>> cacheFiles();
+  Try<std::list<Path>> cacheFiles() const;
 
   // Returns the number of cache entries for the given slave (for all
   // users combined). For testing.
-  size_t cacheSize();
+  size_t cacheSize() const;
 
   // Returns the amount of remaining cache space that is not occupied
   // by cache entries. For testing.
-  Bytes availableCacheSpace();
+  Bytes availableCacheSpace() const;
 
 private:
   process::Future<Nothing> __fetch(
@@ -318,7 +319,7 @@ private:
       const Try<Bytes>& requestedSpace,
       const std::shared_ptr<Cache::Entry>& entry);
 
-  Flags flags;
+  const Flags flags;
 
   Cache cache;
 

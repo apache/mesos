@@ -597,7 +597,7 @@ static off_t delta(
 
 
 // For testing only.
-Try<list<Path>> FetcherProcess::cacheFiles()
+Try<list<Path>> FetcherProcess::cacheFiles() const
 {
   list<Path> result;
 
@@ -623,13 +623,13 @@ Try<list<Path>> FetcherProcess::cacheFiles()
 
 
 // For testing only.
-size_t FetcherProcess::cacheSize()
+size_t FetcherProcess::cacheSize() const
 {
   return cache.size();
 }
 
 
-Bytes FetcherProcess::availableCacheSpace()
+Bytes FetcherProcess::availableCacheSpace() const
 {
   return cache.availableSpace();
 }
@@ -964,14 +964,15 @@ FetcherProcess::Cache::get(
 
 bool FetcherProcess::Cache::contains(
     const Option<string>& user,
-    const string& uri)
+    const string& uri) const
 {
   const string key = cacheKey(user, uri);
   return table.get(key).isSome();
 }
 
 
-bool FetcherProcess::Cache::contains(const shared_ptr<Cache::Entry>& entry)
+bool FetcherProcess::Cache::contains(
+    const shared_ptr<Cache::Entry>& entry) const
 {
   Option<shared_ptr<Cache::Entry>> found = table.get(entry->key);
   if (found.isNone()) {
@@ -1129,7 +1130,7 @@ Try<Nothing> FetcherProcess::Cache::adjust(
 }
 
 
-size_t FetcherProcess::Cache::size()
+size_t FetcherProcess::Cache::size() const
 {
   return table.size();
 }
@@ -1175,7 +1176,7 @@ void FetcherProcess::Cache::releaseSpace(const Bytes& bytes)
 }
 
 
-Bytes FetcherProcess::Cache::availableSpace()
+Bytes FetcherProcess::Cache::availableSpace() const
 {
   if (tally > space) {
     LOG(WARNING) << "Fetcher cache space overflow - space used: " << tally
@@ -1223,7 +1224,7 @@ void FetcherProcess::Cache::Entry::unreference()
 }
 
 
-bool FetcherProcess::Cache::Entry::isReferenced()
+bool FetcherProcess::Cache::Entry::isReferenced() const
 {
   return referenceCount > 0;
 }
