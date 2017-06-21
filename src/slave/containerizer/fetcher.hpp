@@ -109,10 +109,7 @@ private:
 class FetcherProcess : public process::Process<FetcherProcess>
 {
 public:
-  FetcherProcess(const Flags& _flags)
-    : ProcessBase(process::ID::generate("fetcher")),
-      flags(_flags) {}
-
+  explicit FetcherProcess(const Flags& _flags);
   virtual ~FetcherProcess();
 
   process::Future<Nothing> fetch(
@@ -204,7 +201,7 @@ public:
       process::Promise<Nothing> promise;
     };
 
-    Cache() : space(0), tally(0), filenameSerial(0) {}
+    explicit Cache(Bytes _space) : space(_space), tally(0), filenameSerial(0) {}
     virtual ~Cache() {}
 
     // Registers the maximum usable space in the cache directory.
@@ -264,7 +261,7 @@ public:
 
   private:
     // Maximum storable number of bytes in the cache directory.
-    Bytes space;
+    const Bytes space;
 
     // How much space has been reserved to be occupied by cache files.
     Bytes tally;

@@ -252,6 +252,12 @@ void Fetcher::kill(const ContainerID& containerId)
 }
 
 
+FetcherProcess::FetcherProcess(const Flags& _flags)
+    : ProcessBase(process::ID::generate("fetcher")),
+      flags(_flags),
+      cache(_flags.fetcher_cache_size) {}
+
+
 FetcherProcess::~FetcherProcess()
 {
   foreachkey (const ContainerID& containerId, subprocessPids) {
@@ -323,11 +329,6 @@ Future<Nothing> FetcherProcess::fetch(
 {
   VLOG(1) << "Starting to fetch URIs for container: " << containerId
           << ", directory: " << sandboxDirectory;
-
-  // TODO(bernd-mesos): This will disappear once we inject flags at
-  // Fetcher/FetcherProcess creation time. For now we trust this is
-  // always the exact same value.
-  cache.setSpace(flags.fetcher_cache_size);
 
   Try<Nothing> validated = validateUris(commandInfo);
   if (validated.isError()) {
@@ -1133,17 +1134,6 @@ Try<Nothing> FetcherProcess::Cache::adjust(
 size_t FetcherProcess::Cache::size() const
 {
   return table.size();
-}
-
-
-void FetcherProcess::Cache::setSpace(const Bytes& bytes)
-{
-  if (space > 0) {
-    // Dynamic cache size changes not supported.
-    CHECK_EQ(space, bytes);
-  } else {
-    space = bytes;
-  }
 }
 
 
