@@ -218,17 +218,13 @@ TEST(AmbientCapabilities, ROOT_SetAmbient)
 
   // We should now have the capabilities that we set.
   Try<ProcessCapabilities> actual = manager->get();
-  EXPECT_SOME_EQ(wanted, actual)
-    << "wanted capabilities: " << wanted << "\n"
-    << "actual capabilities: " << actual.get();
+  EXPECT_SOME_EQ(wanted, actual);
 
   ASSERT_SOME(manager->set(initial.get())) << initial.get();
 
   // And check that we did it right.
   actual = manager->get();
-  ASSERT_SOME_EQ(initial.get(), actual)
-    << "wanted capabilities: " << initial.get() << "\n"
-    << "actual capabilities: " << actual.get();
+  ASSERT_SOME_EQ(initial.get(), actual);
 }
 
 } // namespace tests {
