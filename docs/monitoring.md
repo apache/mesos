@@ -1518,6 +1518,20 @@ on the agent.
 </tr>
 <tr>
   <td>
+  <code>containerizer/fetcher/task_fetches_total</code>
+  </td>
+  <td>Total number of times the Mesos fetcher tried to fetch URIs for a task.</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/fetcher/task_fetches_failed</code>
+  </td>
+  <td>Number of times the Mesos fetcher failed to fetch all the URIs for a task.</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
   <code>slave/container_launch_errors</code>
   </td>
   <td>Number of container launch errors</td>
