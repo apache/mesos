@@ -11,6 +11,7 @@ import subprocess
 import sys
 import urllib
 import urllib2
+import urlparse
 
 from datetime import datetime, timedelta
 
@@ -180,7 +181,7 @@ def verify_review(review_request):
 
         # Truncate the output when posting the review as it can be very large.
         output = output if len(output) <= REVIEW_SIZE else "...<truncated>...\n" + output[-REVIEW_SIZE:]
-        output = output + "\nFull log: " + os.path.join(os.environ['BUILD_URL'], 'console')
+        output = output + "\nFull log: " + urlparse.urljoin(os.environ['BUILD_URL'], 'console')
 
         post_review(
             review_request,
