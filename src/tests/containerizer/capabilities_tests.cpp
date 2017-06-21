@@ -193,6 +193,9 @@ TEST(AmbientCapabilities, ROOT_SetAmbient)
   wanted.set(capabilities::AMBIENT, {capabilities::CHOWN});
   EXPECT_ERROR(manager->set(wanted));
 
+  // Clear the ambient set so we don't use stale values in later checks.
+  wanted.set(capabilities::AMBIENT, {});
+
   // Keep the full bounding and permitted capabilities because we want
   // to be able to recover privilege later.
   wanted.set(capabilities::BOUNDING, initial->get(capabilities::BOUNDING));
