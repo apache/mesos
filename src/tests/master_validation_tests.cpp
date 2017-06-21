@@ -1022,7 +1022,7 @@ TEST_F(CreateOperationValidationTest, AgentHierarchicalRoleCapability)
     ASSERT_SOME(error);
     EXPECT_TRUE(strings::contains(
         error->message,
-        "with reservation for hierarchical role 'foo/bar' cannot be reserved "
+        "with reservation for hierarchical role 'foo/bar' cannot be created "
         "on an agent without HIERARCHICAL_ROLE capability"));
   }
 }
