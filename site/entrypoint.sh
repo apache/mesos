@@ -16,13 +16,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a wrapper for building Mesos website locally.
+# This is a wrapper script for building Mesos website as a non-root user.
+set -e
+set -o pipefail
 
-function exit_hook {
-  # Remove generated documents when exit.
-  bundle exec rake clean_docs
-}
+# This needs to be run under `root` user for `bundle exec rake` to
+# work properly. See MESOS-7859.
+bundle install
 
-trap exit_hook EXIT
-
-bundle exec rake && bundle exec rake dev
+# We do not create a temp user for MacOS because the host volumes are always
+# mapped to UID 1000 and GID 1000 inside the container. And any writes by the
+# root user inside the container to the mounted host volume will end up with
+# the original UID and GID of the host user.
+# TODO(vinod): On Linux, create a temp user and run the below script as that
+# user to avoid doing any writes as root user on host volumes.
+/mesos/site/build.sh

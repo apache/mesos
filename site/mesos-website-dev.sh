@@ -17,12 +17,29 @@
 # limitations under the License.
 
 # This is a wrapper for building Mesos website locally.
+# TODO(vinod): Simplify the development workflow by getting rid of `docker`
+# or consolidating with the publish workflow in `support/mesos-website.sh`.
+# See MESOS-7860 for details.
 
-function exit_hook {
-  # Remove generated documents when exit.
-  bundle exec rake clean_docs
-}
+set -e
+set -o pipefail
 
-trap exit_hook EXIT
+MESOS_DIR=$(git rev-parse --show-toplevel)
 
-bundle exec rake && bundle exec rake dev
+pushd "$MESOS_DIR"
+
+TAG=mesos/website-`date +%s`-$RANDOM
+
+docker build -t $TAG site
+
+trap 'docker rmi $TAG' EXIT
+
+docker run \
+  -it \
+  --rm \
+  -p 4567:4567 \
+  -p 35729:35729 \
+  -v $MESOS_DIR:/mesos:Z \
+  $TAG
+
+popd # $MESOS_DIR

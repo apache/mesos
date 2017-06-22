@@ -13,4 +13,4 @@ EXPOSE 4567
 EXPOSE 35729
 
 WORKDIR /mesos/site
-CMD bash build.sh
+CMD bash entrypoint.sh

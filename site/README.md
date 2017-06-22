@@ -1,51 +1,22 @@
 # Apache Mesos website generator
-This will generate the site available at http://mesos.apache.org. We use docker
+This will generate the Mesos website locally. We use docker
 to simplify our generation and development workflows.
-
-
-## Build the docker image
-
-Under the root of your local Mesos git repository, run the following command
-to build the docker image.
-
-```
-docker build -t mesos/website site
-```
 
 ## Generating the site
 
-Before we start the docker container, we need to generate the help endpoint
-documentation. Running `make` is needed to generate the latest version of
-the master and agent binaries.
+Before we generate the website, please make sure to generate the help endpoint
+documentation. The endpoint generation script expects Mesos master and agent
+binaries to be available; so please run `make` if necessary.
 
 ```
 make -jN
 ../support/generate-endpoint-help.py
 ```
 
-To build and run the website inside a docker container please substitute
-*<path-to-mesos-source>* with the actual location of Mesos source code tree
-and *<path-to-mesos-website-svn-source>* with the actual location of Mesos
-website svn source code tree in the command below and run it.
+To generate the website:
 
 ```
-sudo docker run -it --rm \
-    -p 4567:4567 \
-    -p 35729:35729 \
-    -v <path-to-mesos-source>:/mesos \
-    -v <path-to-mesos-website-svn-source>/publish:/mesos/site/publish \
-    mesos/website
-```
-
-If you don't intend to update the svn source code of the Mesos website, you
-could run the command below under the root of Mesos source code instead.
-
-```
-sudo docker run -it --rm \
-    -p 4567:4567 \
-    -p 35729:35729 \
-    -v `pwd`:/mesos \
-    mesos/website
+./site/mesos-websiste-dev.sh
 ```
 
 This will start a container, generate the website from your local Mesos git
@@ -75,10 +46,7 @@ destroy/remove the container.
 
 ## Publishing the Site
 
-Because we mount the `publish` folder under Mesos website svn source code into
-the docker container we launched above, all website contents would be ready
-under the `publish` folder when the generation finishes.
-
-The website uses svnpubsub. The `publish` folder contains the websites content
-and when committed to the svn repository it will be automatically deployed to
-the live site.
+Developers are not expected to publish the website. There is a CI job on ASF
+Jenkins (Mesos-Websitebot) that automatically publishes the website when there
+are changes detected in the Mesos repository. See
+`support/jenkins/websitebot.sh` for details.
