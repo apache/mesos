@@ -6182,25 +6182,45 @@ void Master::_reregisterSlave(
   LOG(INFO) << "Re-registering agent " << slaveInfo.id() << " at " << pid
             << " (" << slaveInfo.hostname() << ")";
 
-  // Consult the registry to determine whether to readmit the
-  // slave. In the common case, the slave has been marked unreachable
-  // by the master, so we move the slave to the reachable list and
-  // readmit it. If the slave isn't in the unreachable list (which
-  // might occur if the slave's entry in the unreachable list is
-  // GC'd), we admit the slave anyway.
-  registrar->apply(Owned<Operation>(new MarkSlaveReachable(slaveInfo)))
-    .onAny(defer(self(),
-                 &Self::__reregisterSlave,
-                 slaveInfo,
-                 pid,
-                 checkpointedResources,
-                 executorInfos,
-                 tasks,
-                 frameworks,
-                 completedFrameworks,
-                 version,
-                 agentCapabilities,
-                 lambda::_1));
+  if (slaves.recovered.contains(slaveInfo.id())) {
+    // The agent likely is re-registering after a master failover as it
+    // is in the list recovered from the registry. No need to consult the
+    // registry in this case and we can directly re-admit it.
+    VLOG(1) << "Re-admitting recovered agent " << slaveInfo.id() << " at "
+            << pid << " (" << slaveInfo.hostname() << ")";
+
+    __reregisterSlave(
+        slaveInfo,
+        pid,
+        checkpointedResources,
+        executorInfos,
+        tasks,
+        frameworks,
+        completedFrameworks,
+        version,
+        agentCapabilities,
+        true);
+  } else {
+    // Consult the registry to determine whether to readmit the
+    // slave. In the common case, the slave has been marked unreachable
+    // by the master, so we move the slave to the reachable list and
+    // readmit it. If the slave isn't in the unreachable list (which
+    // might occur if the slave's entry in the unreachable list is
+    // GC'd), we admit the slave anyway.
+    registrar->apply(Owned<Operation>(new MarkSlaveReachable(slaveInfo)))
+      .onAny(defer(self(),
+                   &Self::__reregisterSlave,
+                   slaveInfo,
+                   pid,
+                   checkpointedResources,
+                   executorInfos,
+                   tasks,
+                   frameworks,
+                   completedFrameworks,
+                   version,
+                   agentCapabilities,
+                   lambda::_1));
+  }
 }
 
 
