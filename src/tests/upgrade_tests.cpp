@@ -47,6 +47,7 @@
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/resources_utils.hpp"
 
 using mesos::internal::master::Master;
 
@@ -773,6 +774,163 @@ TEST_F(UpgradeTest, UpgradeAgentIntoHierarchicalRoleForHierarchicalRole)
   // framework should receive an offer for its resources.
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test checks that if a framework attempts to create a
+// reservation refinement on an agent that is not refinement-capable,
+// the reservation operation is dropped by the master.
+TEST_F(UpgradeTest, RefineResourceOnOldAgent)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    DROP_PROTOBUF(RegisterSlaveMessage(), _, master.get()->pid);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  // The agent has a static reservation for `role1`.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:512;disk(role1):1024";
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  protobuf::slave::Capabilities agentCapabilities(
+      registerSlaveMessage->agent_capabilities());
+
+  EXPECT_TRUE(agentCapabilities.hierarchicalRole);
+  EXPECT_TRUE(agentCapabilities.reservationRefinement);
+
+  // Strip RESERVATION_REFINEMENT agent capability.
+  agentCapabilities.reservationRefinement = false;
+
+  RegisterSlaveMessage strippedRegisterSlaveMessage =
+    registerSlaveMessage.get();
+  strippedRegisterSlaveMessage.mutable_agent_capabilities()->CopyFrom(
+      agentCapabilities.toRepeatedPtrField());
+
+  process::post(
+      slave.get()->pid,
+      master.get()->pid,
+      strippedRegisterSlaveMessage);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role1/xyz");
+
+  // Check that `DEFAULT_FRAMEWORK_INFO` includes the
+  // RESERVATION_REFINEMENT framework capability.
+  protobuf::framework::Capabilities frameworkCapabilities(
+      frameworkInfo.capabilities());
+
+  EXPECT_TRUE(frameworkCapabilities.reservationRefinement);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  Resources baseReservation = Resources::parse("disk(role1):1024").get();
+  Resources refinedReservation = baseReservation.pushReservation(
+      createDynamicReservationInfo(
+          frameworkInfo.role(), frameworkInfo.principal()));
+
+  Offer offer = offers->front();
+
+  // Expect a resource offer containing a static reservation for `role1`.
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(baseReservation, frameworkInfo.role())));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // We use the filter explicitly here so that the resources
+  // will not be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // Below, we try to make two reservation refinements and launch one
+  // task. All three operations should be dropped by the master and
+  // not forwarded to the agent.
+  EXPECT_NO_FUTURE_PROTOBUFS(CheckpointResourcesMessage(), _, _);
+  EXPECT_NO_FUTURE_PROTOBUFS(RunTaskMessage(), _, _);
+
+  // Attempt to refine the existing static reservation. This should
+  // fail because the agent does not support reservation refinement.
+  driver.acceptOffers({offer.id()}, {RESERVE(refinedReservation)}, filters);
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  offer = offers->front();
+
+  // Expect another resource offer with the same static reservation.
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(baseReservation, frameworkInfo.role())));
+
+  TaskInfo taskInfo =
+    createTask(offer.slave_id(), refinedReservation, "sleep 100");
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Attempt to refine the existing static reservation and then launch
+  // a task using the refined reservation. The reservation refinement
+  // should fail, which should mean the task launch also fails,
+  // resulting in a TASK_ERROR status update.
+  driver.acceptOffers(
+      {offer.id()},
+      {RESERVE(refinedReservation), LAUNCH({taskInfo})},
+      filters);
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_ERROR, status->state());
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  // Expect another resource offer with the same static reservation.
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(baseReservation, frameworkInfo.role())));
+
+  // Make sure that any in-flight messages are delivered.
+  Clock::settle();
 
   driver.stop();
   driver.join();
