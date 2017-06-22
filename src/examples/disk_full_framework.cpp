@@ -157,6 +157,10 @@ public:
         Filters filters;
         filters.set_refuse_seconds(600);
 
+        LOG(INFO) << "Declining offer " << offer.id() << ": "
+                  << (taskActive ? "a task is already running"
+                                 : "offer does not fit");
+
         driver->declineOffer(offer.id(), filters);
         continue;
       }
