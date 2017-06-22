@@ -189,7 +189,7 @@ public:
 
       int taskId = tasksLaunched++;
 
-      LOG(INFO) << "Starting task " << taskId;
+      LOG(INFO) << "Launching task " << taskId;
 
       TaskInfo task;
       task.set_name("Balloon Task");
@@ -463,7 +463,6 @@ int main(int argc, char** argv)
   ExecutorInfo executor;
   executor.mutable_resources()->CopyFrom(resources);
   executor.set_name("Balloon Executor");
-  executor.set_source("balloon_test");
 
   // Determine the command to run the executor based on three possibilities:
   //   1) `--executor_command` was set, which overrides the below cases.
