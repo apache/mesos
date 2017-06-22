@@ -598,38 +598,6 @@ Option<Error> validate(
 
 namespace resource {
 
-Option<Error> validateFormat(
-    const RepeatedPtrField<Resource>& resources,
-    const protobuf::framework::Capabilities& capabilities)
-{
-  foreach (const Resource& resource, resources) {
-    if (capabilities.reservationRefinement) {
-      if (resource.has_role()) {
-        return Error(
-            "Framework with the RESERVATION_REFINEMENT capability"
-            " must not have 'Resource.role' set on resource: " +
-            stringify(resource));
-      }
-      if (resource.has_reservation()) {
-        return Error(
-            "Framework with the RESERVATION_REFINEMENT capability"
-            " must not have 'Resource.reservation' set on resource " +
-            stringify(resource));
-      }
-    } else {
-      if (resource.reservations_size() > 0) {
-        return Error(
-            "Framework without the RESERVATION_REFINEMENT capability"
-            " must not have 'Resource.reservations' set on resource " +
-            stringify(resource));
-      }
-    }
-  }
-
-  return None();
-}
-
-
 // Validates that the `gpus` resource is not fractional.
 // We rely on scalar resources only having 3 digits of precision.
 Option<Error> validateGpus(const RepeatedPtrField<Resource>& resources)
@@ -804,20 +772,11 @@ Option<Error> validateAllocatedToSingleRole(const Resources& resources)
 }
 
 
-Option<Error> validate(
-    const RepeatedPtrField<Resource>& resources,
-    const Option<protobuf::framework::Capabilities>& capabilities)
+Option<Error> validate(const RepeatedPtrField<Resource>& resources)
 {
   Option<Error> error = Resources::validate(resources);
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
-  }
-
-  if (capabilities.isSome()) {
-    error = validateFormat(resources, capabilities.get());
-    if (error.isSome()) {
-      return Error("Invalid resource format: " + error.get().message);
-    }
   }
 
   error = validateGpus(resources);
@@ -964,11 +923,9 @@ Option<Error> validateShutdownGracePeriod(const ExecutorInfo& executor)
 }
 
 
-Option<Error> validateResources(
-    const ExecutorInfo& executor,
-    const Option<protobuf::framework::Capabilities>& capabilities)
+Option<Error> validateResources(const ExecutorInfo& executor)
 {
-  Option<Error> error = resource::validate(executor.resources(), capabilities);
+  Option<Error> error = resource::validate(executor.resources());
   if (error.isSome()) {
     return Error("Executor uses invalid resources: " + error->message);
   }
@@ -1026,8 +983,7 @@ Option<Error> validate(
 
   const vector<lambda::function<Option<Error>()>> executorValidators = {
     lambda::bind(internal::validateFrameworkID, executor, framework),
-    lambda::bind(
-        internal::validateResources, executor, framework->capabilities),
+    lambda::bind(internal::validateResources, executor),
     lambda::bind(
         internal::validateCompatibleExecutorInfo, executor, framework, slave),
   };
@@ -1153,15 +1109,13 @@ Option<Error> validateHealthCheck(const TaskInfo& task)
 }
 
 
-Option<Error> validateResources(
-    const TaskInfo& task,
-    const Option<protobuf::framework::Capabilities>& capabilities)
+Option<Error> validateResources(const TaskInfo& task)
 {
   if (task.resources().empty()) {
     return Error("Task uses no resources");
   }
 
-  Option<Error> error = resource::validate(task.resources(), capabilities);
+  Option<Error> error = resource::validate(task.resources());
   if (error.isSome()) {
     return Error("Task uses invalid resources: " + error->message);
   }
@@ -1188,16 +1142,14 @@ Option<Error> validateResources(
 }
 
 
-Option<Error> validateTaskAndExecutorResources(
-    const TaskInfo& task,
-    const Option<protobuf::framework::Capabilities>& capabilities)
+Option<Error> validateTaskAndExecutorResources(const TaskInfo& task)
 {
   Resources total = task.resources();
   if (task.has_executor()) {
     total += task.executor().resources();
   }
 
-  Option<Error> error = resource::validate(total, capabilities);
+  Option<Error> error = resource::validate(total);
   if (error.isSome()) {
     return Error(
         "Task and its executor use invalid resources: " + error->message);
@@ -1252,7 +1204,7 @@ Option<Error> validateTask(
     lambda::bind(internal::validateKillPolicy, task),
     lambda::bind(internal::validateCheck, task),
     lambda::bind(internal::validateHealthCheck, task),
-    lambda::bind(internal::validateResources, task, framework->capabilities),
+    lambda::bind(internal::validateResources, task),
     lambda::bind(internal::validateCommandInfo, task)
   };
 
@@ -1360,8 +1312,7 @@ Option<Error> validateExecutor(
 
   // NOTE: This is refactored into a separate function
   // so that it can be easily unit tested.
-  error = task::internal::validateTaskAndExecutorResources(
-      task, framework->capabilities);
+  error = task::internal::validateTaskAndExecutorResources(task);
 
   if (error.isSome()) {
     return error;
@@ -1880,15 +1831,8 @@ Option<Error> validate(
     const protobuf::slave::Capabilities& agentCapabilities,
     const Option<FrameworkInfo>& frameworkInfo)
 {
-  Option<protobuf::framework::Capabilities> frameworkCapabilities;
-  if (frameworkInfo.isSome()) {
-    frameworkCapabilities = frameworkInfo->capabilities();
-  }
-
   // NOTE: this ensures the reservation is not being made to the "*" role.
-  Option<Error> error =
-    resource::validate(reserve.resources(), frameworkCapabilities);
-
+  Option<Error> error = resource::validate(reserve.resources());
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
   }
@@ -2018,14 +1962,7 @@ Option<Error> validate(
     const Offer::Operation::Unreserve& unreserve,
     const Option<FrameworkInfo>& frameworkInfo)
 {
-  Option<protobuf::framework::Capabilities> frameworkCapabilities;
-  if (frameworkInfo.isSome()) {
-    frameworkCapabilities = frameworkInfo->capabilities();
-  }
-
-  Option<Error> error =
-    resource::validate(unreserve.resources(), frameworkCapabilities);
-
+  Option<Error> error = resource::validate(unreserve.resources());
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
   }
@@ -2062,14 +1999,7 @@ Option<Error> validate(
     const protobuf::slave::Capabilities& agentCapabilities,
     const Option<FrameworkInfo>& frameworkInfo)
 {
-  Option<protobuf::framework::Capabilities> frameworkCapabilities;
-  if (frameworkInfo.isSome()) {
-    frameworkCapabilities = frameworkInfo->capabilities();
-  }
-
-  Option<Error> error =
-    resource::validate(create.volumes(), frameworkCapabilities);
-
+  Option<Error> error = resource::validate(create.volumes());
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
   }
@@ -2176,12 +2106,7 @@ Option<Error> validate(
 
   Resources volumes = unallocated(destroy.volumes());
 
-  Option<protobuf::framework::Capabilities> frameworkCapabilities;
-  if (frameworkInfo.isSome()) {
-    frameworkCapabilities = frameworkInfo->capabilities();
-  }
-
-  Option<Error> error = resource::validate(volumes, frameworkCapabilities);
+  Option<Error> error = resource::validate(volumes);
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
   }

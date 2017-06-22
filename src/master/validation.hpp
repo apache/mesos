@@ -137,8 +137,7 @@ namespace resource {
 // NOTE: We cannot take 'Resources' here because invalid resources are
 // silently ignored within its constructor.
 Option<Error> validate(
-    const google::protobuf::RepeatedPtrField<Resource>& resources,
-    const Option<protobuf::framework::Capabilities>& capabilities = None());
+    const google::protobuf::RepeatedPtrField<Resource>& resources);
 
 } // namespace resource {
 
@@ -154,9 +153,7 @@ Option<Error> validateExecutorID(const ExecutorInfo& executor);
 Option<Error> validateType(const ExecutorInfo& executor);
 
 // Validates resources of the executor.
-Option<Error> validateResources(
-    const ExecutorInfo& executor,
-    const Option<protobuf::framework::Capabilities>& capabilities = None());
+Option<Error> validateResources(const ExecutorInfo& executor);
 
 } // namespace internal {
 
@@ -184,14 +181,10 @@ Option<Error> validate(
 namespace internal {
 
 // Validates resources of the task.
-Option<Error> validateResources(
-    const TaskInfo& task,
-    const Option<protobuf::framework::Capabilities>& capabilities = None());
+Option<Error> validateResources(const TaskInfo& task);
 
 // Validates resources of the task and its executor.
-Option<Error> validateTaskAndExecutorResources(
-    const TaskInfo& task,
-    const Option<protobuf::framework::Capabilities>& capabilities = None());
+Option<Error> validateTaskAndExecutorResources(const TaskInfo& task);
 
 // Validates the kill policy of the task.
 Option<Error> validateKillPolicy(const TaskInfo& task);
