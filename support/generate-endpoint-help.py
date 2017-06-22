@@ -52,10 +52,13 @@ MASTER_COMMAND = [
     '--work_dir=/tmp/mesos'
 ]
 
+# NOTE: The agent flags here ensure that this script can run inside docker.
 AGENT_COMMAND = [
     'mesos-agent.sh',
     '--master=%s:%s' % (HOST_IP, MASTER_PORT),
-    '--work_dir=/tmp/mesos'
+    '--work_dir=/tmp/mesos',
+    '--systemd_enable_support=false',
+    '--launcher=posix'
 ]
 
 
