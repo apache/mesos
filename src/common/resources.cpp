@@ -2318,11 +2318,14 @@ ostream& operator<<(ostream& stream, const Resources& resources)
 }
 
 
+// We use `JSON::protobuf` to print the resources here because these
+// resources may not have been validated, or not converted to
+// "post-reservation-refinement" format at this point.
 ostream& operator<<(
     ostream& stream,
     const google::protobuf::RepeatedPtrField<Resource>& resources)
 {
-  return stream << Resources(resources);
+  return stream << JSON::protobuf(resources);
 }
 
 } // namespace mesos {
