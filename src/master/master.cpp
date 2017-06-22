@@ -4663,34 +4663,29 @@ void Master::_accept(
                       slave->info));
             }
 
-            Try<Nothing> sendRunTaskMessage = Nothing();
-
+            // If the agent does not support reservation refinement,
+            // downgrade the task and executor resources to the
+            // "pre-reservation-refinement" format. This cannot fail
+            // since the master rejects attempts to create refined
+            // reservations on non-capable agents.
             if (!slave->capabilities.reservationRefinement) {
-              sendRunTaskMessage =
-                downgradeResources(message.mutable_task()->mutable_resources());
+              CHECK_SOME(downgradeResources(
+                  message.mutable_task()->mutable_resources()));
 
-              if (!sendRunTaskMessage.isError() &&
-                  message.mutable_task()->has_executor()) {
-                sendRunTaskMessage =
-                  downgradeResources(message.mutable_task()
-                                       ->mutable_executor()
-                                       ->mutable_resources());
+              if (message.mutable_task()->has_executor()) {
+                CHECK_SOME(downgradeResources(message.mutable_task()
+                                                ->mutable_executor()
+                                                ->mutable_resources()));
               }
             }
 
-            if (sendRunTaskMessage.isError()) {
-              LOG(WARNING) << "Not launching task containing resources with"
-                           << " refined reservations, since agent " << *slave
-                           << " is not RESERVATION_REFINEMENT-capable";
-            } else {
-              // TODO(bmahler): Consider updating this log message to
-              // indicate when the executor is also being launched.
-              LOG(INFO) << "Launching task " << task.task_id()
-                        << " of framework " << *framework << " with resources "
-                        << task.resources() << " on agent " << *slave;
+            // TODO(bmahler): Consider updating this log message to
+            // indicate when the executor is also being launched.
+            LOG(INFO) << "Launching task " << task.task_id() << " of framework "
+                      << *framework << " with resources " << task.resources()
+                      << " on agent " << *slave;
 
-              send(slave->pid, message);
-            }
+            send(slave->pid, message);
           }
 
           _operation.mutable_launch()->add_task_infos()->CopyFrom(task);
@@ -4897,35 +4892,25 @@ void Master::_accept(
           }
         }
 
-        Try<Nothing> sendRunTaskGroupMessage = Nothing();
-
+        // If the agent does not support reservation refinement, downgrade
+        // the task and executor resources to the "pre-reservation-refinement"
+        // format. This cannot fail since the master rejects attempts to
+        // create refined reservations on non-capable agents.
         if (!slave->capabilities.reservationRefinement) {
-          sendRunTaskGroupMessage =
-            downgradeResources(message.mutable_executor()->mutable_resources());
+          CHECK_SOME(downgradeResources(
+              message.mutable_executor()->mutable_resources()));
 
           foreach (
               TaskInfo& task, *message.mutable_task_group()->mutable_tasks()) {
-            if (sendRunTaskGroupMessage.isError()) {
-              break;
-            }
-
-            sendRunTaskGroupMessage =
-              downgradeResources(task.mutable_resources());
+            CHECK_SOME(downgradeResources(task.mutable_resources()));
           }
         }
 
-        if (sendRunTaskGroupMessage.isError()) {
-          LOG(WARNING) << "Not launching task group containing resources with"
-                       << " refined reservations, since agent " << *slave
-                       << " is not RESERVATION_REFINEMENT-capable: "
-                       << sendRunTaskGroupMessage.error();
-        } else {
-          LOG(INFO) << "Launching task group " << stringify(taskIds)
-                    << " of framework " << *framework << " with resources "
-                    << totalResources << " on agent " << *slave;
+        LOG(INFO) << "Launching task group " << stringify(taskIds)
+                  << " of framework " << *framework << " with resources "
+                  << totalResources << " on agent " << *slave;
 
-          send(slave->pid, message);
-        }
+        send(slave->pid, message);
 
         break;
       }
