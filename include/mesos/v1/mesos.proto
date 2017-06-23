@@ -810,7 +810,12 @@ message MasterInfo {
 message AgentInfo {
   required string hostname = 1;
   optional int32 port = 8 [default = 5051];
+
+  // The configured resources at the agent. This does not include any
+  // dynamic reservations or persistent volumes that may currently
+  // exist at the agent.
   repeated Resource resources = 3;
+
   repeated Attribute attributes = 5;
   optional AgentID id = 6;
 
