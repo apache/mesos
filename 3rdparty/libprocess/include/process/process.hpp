@@ -32,6 +32,7 @@
 #include <process/pid.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/synchronized.hpp>
@@ -449,8 +450,8 @@ private:
 
   // Handlers for messages and HTTP requests.
   struct {
-    std::map<std::string, MessageHandler> message;
-    std::map<std::string, HttpEndpoint> http;
+    hashmap<std::string, MessageHandler> message;
+    hashmap<std::string, HttpEndpoint> http;
 
     // Used for delivering HTTP requests in the correct order.
     // Initialized lazily to avoid ProcessBase requiring
