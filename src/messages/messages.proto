@@ -429,11 +429,17 @@ message FrameworkErrorMessage {
  * Failure conditions are documented inline in Master::registerSlave.
  */
 message RegisterSlaveMessage {
+  // NOTE: The `Resources` in `SlaveInfo` cannot contain reservation
+  // refinements. Therefore, `slave.resources` will always use the
+  // "pre-reservation-refinement" format.
   required SlaveInfo slave = 1;
 
   // Resources that are checkpointed by the agent (e.g., persistent
   // volume or dynamic reservation). Frameworks need to release
-  // checkpointed resources explicitly.
+  // checkpointed resources explicitly. If any of the checkpointed
+  // resources use reservation refinements, every resource in this field
+  // will be represented using the "post-reservation-refinement" format;
+  // otherwise, this field will be in "pre-reservation-refinement" format.
   repeated Resource checkpointed_resources = 3;
 
   // NOTE: This is a hack for the master to detect the agent's
@@ -460,11 +466,17 @@ message RegisterSlaveMessage {
  * Failure conditions are documented inline in Master::reregisterSlave.
  */
 message ReregisterSlaveMessage {
+  // NOTE: The `Resources` in `SlaveInfo` cannot contain reservation
+  // refinements. Therefore, `slave.resources` will always use the
+  // "pre-reservation-refinement" format.
   required SlaveInfo slave = 2;
 
   // Resources that are checkpointed by the agent (e.g., persistent
   // volume or dynamic reservation). Frameworks need to release
-  // checkpointed resources explicitly.
+  // checkpointed resources explicitly. If any of the checkpointed
+  // resources use reservation refinements, every resource in this field
+  // will be represented using the "post-reservation-refinement" format;
+  // otherwise, this field will be in "pre-reservation-refinement" format.
   repeated Resource checkpointed_resources = 7;
 
   repeated ExecutorInfo executor_infos = 4;

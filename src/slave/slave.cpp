@@ -1401,10 +1401,16 @@ void Slave::doReliableRegistration(Duration maxBackoff)
 
   RepeatedPtrField<Resource> checkpointedResources_ = checkpointedResources;
 
-  // We ignore the `Try` from `downgradeResources` here because for now,
-  // we send the result either way.
-  // TODO(mpark): Do something smarter with the result once something like
-  // a master capability is introduced.
+  // If the checkpointed resources don't have reservation refinements,
+  // send them to the master in "pre-reservation-refinement" format
+  // for backward compatibility with old masters. If downgrading is
+  // not possible without losing information, send the resources in
+  // the "post-reservation-refinement" format. We ignore the return
+  // value of `downgradeResources` because for now, we send the result
+  // either way.
+  //
+  // TODO(mpark): Do something smarter with the result once something
+  // like a master capability is introduced.
   downgradeResources(&checkpointedResources_);
 
   if (!slaveInfo.has_id()) {
