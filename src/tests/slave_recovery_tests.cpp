@@ -206,7 +206,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   Future<Message> subscribeMessage = FUTURE_CALL_MESSAGE(
       mesos::scheduler::Call(), mesos::scheduler::Call::SUBSCRIBE, _, _);
@@ -384,7 +384,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -413,7 +413,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());       // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   // Restart the slave (use same flags) with a new containerizer.
   _containerizer = TypeParam::create(flags, true, &fetcher);
@@ -471,7 +471,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_ReconnectHTTPExecutor)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -753,7 +753,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -779,7 +779,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());       // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   // Restart the slave (use same flags) with a new containerizer.
   _containerizer = TypeParam::create(flags, true, &fetcher);
@@ -843,7 +843,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutorRetry)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   Future<TaskStatus> statusUpdate;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -1130,7 +1130,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoverUnregisteredHTTPExecutor)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());       // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
@@ -1142,7 +1142,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoverUnregisteredHTTPExecutor)
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   slave = this->StartSlave(detector.get(), containerizer.get(), id, flags);
   ASSERT_SOME(slave);
@@ -1242,7 +1242,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());       // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
 
@@ -1254,7 +1254,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
@@ -1332,7 +1332,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTaskUnregisteredExecutor)
   Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -1353,7 +1353,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTaskUnregisteredExecutor)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());       // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   // Kill the task enqueued on the agent.
   driver.killTask(task.task_id());
@@ -1509,7 +1509,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   slave = this->StartSlave(detector.get(), containerizer.get(), id, flags);
   ASSERT_SOME(slave);
@@ -1629,7 +1629,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
@@ -1714,7 +1714,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -1806,7 +1806,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -1842,7 +1842,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
@@ -1900,7 +1900,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -2001,7 +2001,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -2102,7 +2102,7 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -2217,7 +2217,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -2229,7 +2229,7 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
   Future<Nothing> update;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureSatisfy(&update))
-    .WillRepeatedly(Return());        // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
@@ -2315,7 +2315,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_KillTaskWithHTTPExecutor)
   Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -2359,12 +2359,12 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_KillTaskWithHTTPExecutor)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());        // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Kill the task.
   driver.killTask(task.task_id());
@@ -2430,7 +2430,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -2480,12 +2480,12 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());        // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Kill the task.
   driver.killTask(task.task_id());
@@ -2631,7 +2631,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
@@ -2750,7 +2750,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
@@ -2891,7 +2891,7 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   Future<vector<Offer>> offers3;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers3))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Now restart the slave (use same flags) with a new containerizer.
   Try<TypeParam*> containerizer2 = TypeParam::create(flags, true, &fetcher);
@@ -3218,7 +3218,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
@@ -3423,7 +3423,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -3496,12 +3496,12 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());        // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Restart the slave (use same flags) with a new containerizer.
   _containerizer = TypeParam::create(flags, true, &fetcher);
@@ -3662,12 +3662,12 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   Future<TaskStatus> status;
   EXPECT_CALL(sched2, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());        // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched2, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Kill the task.
   driver2.killTask(task.task_id());
@@ -3808,12 +3808,12 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());        // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Wait for the executor to terminate before shutting down the
   // slave in order to give cgroups (if applicable) time to clean up.
@@ -3969,12 +3969,12 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   Future<TaskStatus> status1;
   EXPECT_CALL(sched1, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status1))
-    .WillRepeatedly(Return());        // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   Future<TaskStatus> status2;
   EXPECT_CALL(sched2, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status2))
-    .WillRepeatedly(Return());        // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   // Wait for the executors to terminate before shutting down the
   // slave in order to give cgroups (if applicable) time to clean up.
@@ -4146,7 +4146,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2))
-    .WillRepeatedly(Return());        // Ignore subsequent updates.
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   Future<Nothing> executorTerminated2 =
     FUTURE_DISPATCH(_, &Slave::executorTerminated);
@@ -4155,7 +4155,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Kill both tasks.
   driver.killTask(task1.task_id());
@@ -4208,7 +4208,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -4310,7 +4310,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -4415,7 +4415,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -4454,7 +4454,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
@@ -4519,7 +4519,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   Future<vector<Offer>> offers1;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers1))
-    .WillRepeatedly(Return());      // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -4559,7 +4559,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
-    .WillRepeatedly(Return());        // Ignore subsequent offers.
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
