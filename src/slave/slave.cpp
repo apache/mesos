@@ -1393,11 +1393,11 @@ void Slave::doReliableRegistration(Duration maxBackoff)
 
   SlaveInfo slaveInfo = info;
 
-  // We ignore the `Try` from `downgradeResources` here because for now,
-  // we send the result either way.
-  // TODO(mpark): Do something smarter with the result once something like
-  // a master capability is introduced.
-  downgradeResources(slaveInfo.mutable_resources());
+  // The `SlaveInfo.resources` does not include dynamic reservations,
+  // which means it cannot contain reservation refinements, so
+  // `downgradeResources` should always succeed.
+  Try<Nothing> result = downgradeResources(slaveInfo.mutable_resources());
+  CHECK_SOME(result);
 
   RepeatedPtrField<Resource> checkpointedResources_ = checkpointedResources;
 
