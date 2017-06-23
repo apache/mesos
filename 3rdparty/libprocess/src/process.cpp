@@ -566,7 +566,7 @@ private:
   const Option<string> delegate;
 
   // Map of all local spawned and running processes.
-  map<string, ProcessBase*> processes;
+  hashmap<string, ProcessBase*> processes;
   std::recursive_mutex processes_mutex;
 
   // Gates for waiting threads (protected by processes_mutex).
@@ -2848,11 +2848,12 @@ ProcessReference ProcessManager::use(const UPID& pid)
 {
   if (pid.address == __address__) {
     synchronized (processes_mutex) {
-      if (processes.count(pid.id) > 0) {
+      Option<ProcessBase*> process = processes.get(pid.id);
+      if (process.isSome()) {
         // Note that the ProcessReference constructor _must_ get
         // called while holding the lock on processes so that waiting
         // for references is atomic (i.e., race free).
-        return ProcessReference(processes[pid.id]);
+        return ProcessReference(process.get());
       }
     }
   }
