@@ -6389,6 +6389,14 @@ void Master::___reregisterSlave(
   message.mutable_resources()->CopyFrom(slave->checkpointedResources);
 
   if (!slave->capabilities.reservationRefinement) {
+    // If the agent is not refinement-capable, don't send it
+    // checkpointed resources that contain refined reservations. This
+    // might occur if a reservation refinement is created but never
+    // reaches the agent (e.g., due to network partition), and then
+    // the agent is downgraded before the partition heals.
+    //
+    // TODO(neilc): It would probably be better to prevent the agent
+    // from re-registering in this scenario.
     Try<Nothing> result = downgradeResources(message.mutable_resources());
     if (result.isError()) {
       LOG(WARNING) << "Not sending updated checkpointed resouces "
@@ -8870,6 +8878,14 @@ void Master::_apply(Slave* slave, const Offer::Operation& operation) {
   message.mutable_resources()->CopyFrom(slave->checkpointedResources);
 
   if (!slave->capabilities.reservationRefinement) {
+    // If the agent is not refinement-capable, don't send it
+    // checkpointed resources that contain refined reservations. This
+    // might occur if a reservation refinement is created but never
+    // reaches the agent (e.g., due to network partition), and then
+    // the agent is downgraded before the partition heals.
+    //
+    // TODO(neilc): It would probably be better to prevent the agent
+    // from re-registering in this scenario.
     Try<Nothing> result = downgradeResources(message.mutable_resources());
     if (result.isError()) {
       LOG(WARNING) << "Not sending updated checkpointed resouces "
