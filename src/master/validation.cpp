@@ -318,9 +318,13 @@ Option<Error> reregisterSlave(
       return error.get();
     }
 
-    // We don't use internal::validateResources() here because
-    // that includes the validateAllocatedToSingleRole() check,
-    // which is not valid for agent re-registration.
+    // We don't use `internal::validateResources` here because that
+    // includes the `validateAllocatedToSingleRole` check, which is
+    // not valid for agent re-registration.
+    //
+    // TODO(neilc): Consider refactoring `internal::validateResources`
+    // to allow some but not all checks to be applied, or else inject
+    // allocation info into executor resources here.
     error = Resources::validate(executor.resources());
     if (error.isSome()) {
       return error.get();
@@ -367,7 +371,13 @@ Option<Error> reregisterSlave(
       }
     }
 
-    error = resource::validate(task.resources());
+    // We don't use `resource::validate` here because the task's
+    // resources might not be in "post-reservation refinement" format.
+    //
+    // TODO(neilc): Consider refactoring `resource::validate` to allow
+    // some but not all checks to be applied, or else convert the
+    // task's resources into post-refinement format here.
+    error = Resources::validate(task.resources());
     if (error.isSome()) {
       return Error("Task uses invalid resources: " + error->message);
     }
