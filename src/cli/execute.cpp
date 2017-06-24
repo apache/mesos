@@ -245,8 +245,8 @@ public:
     add(&Flags::framework_capabilities,
         "framework_capabilities",
         "Comma-separated list of optional framework capabilities to enable.\n"
-        "TASK_KILLING_STATE is always enabled. PARTITION_AWARE is enabled\n"
-        "unless --no-partition-aware is specified.");
+        "RESERVATION_REFINEMENT and TASK_KILLING_STATE are always enabled.\n"
+        "PARTITION_AWARE is enabled unless --no-partition-aware is specified.");
 
     add(&Flags::containerizer,
         "containerizer",
@@ -1035,7 +1035,8 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  // Always enable the TASK_KILLING_STATE capability.
+  // Always enable the RESERVATION_REFINEMENT and TASK_KILLING_STATE
+  // capabilities.
   vector<FrameworkInfo::Capability::Type> frameworkCapabilities = {
     FrameworkInfo::Capability::RESERVATION_REFINEMENT,
     FrameworkInfo::Capability::TASK_KILLING_STATE,
