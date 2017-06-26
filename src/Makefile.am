@@ -945,6 +945,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   oci/spec.cpp								\
   posix/rlimits.cpp							\
   resource_provider/driver.cpp						\
+  resource_provider/storage/provider.cpp				\
   sched/sched.cpp							\
   scheduler/scheduler.cpp						\
   secret/resolver.cpp							\
@@ -1078,6 +1079,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   messages/messages.hpp							\
   module/manager.hpp							\
   posix/rlimits.hpp							\
+  resource_provider/storage/provider.hpp				\
   sched/constants.hpp							\
   sched/flags.hpp							\
   scheduler/constants.hpp						\
