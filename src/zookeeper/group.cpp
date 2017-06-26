@@ -392,9 +392,9 @@ Try<bool> GroupProcess::authenticate()
 
   // Authenticate if necessary.
   if (auth.isSome()) {
-    LOG(INFO) << "Authenticating with ZooKeeper using " << auth.get().scheme;
+    LOG(INFO) << "Authenticating with ZooKeeper using " << auth->scheme;
 
-    int code = zk->authenticate(auth.get().scheme, auth.get().credentials);
+    int code = zk->authenticate(auth->scheme, auth->credentials);
 
     if (code == ZINVALIDSTATE || (code != ZOK && zk->retryable(code))) {
       return false;
@@ -490,7 +490,7 @@ void GroupProcess::timedout(int64_t sessionId)
   // The connect timer can be reset or replaced and `zk`
   // can be replaced since this method was dispatched.
   if (connectTimer.isSome() &&
-      connectTimer.get().timeout().expired() &&
+      connectTimer->timeout().expired() &&
       zk->getSessionId() == sessionId) {
     LOG(WARNING) << "Timed out waiting to connect to ZooKeeper. "
                  << "Forcing ZooKeeper session "

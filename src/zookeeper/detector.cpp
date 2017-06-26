@@ -90,7 +90,7 @@ Future<Option<Group::Membership>> LeaderDetectorProcess::detect(
   // Return immediately if the detector is no longer operational due
   // to the non-retryable error.
   if (error.isSome()) {
-    return Failure(error.get().message);
+    return Failure(error->message);
   }
 
   // Return immediately if the incumbent leader is different from the
@@ -136,8 +136,8 @@ void LeaderDetectorProcess::watched(
   }
 
   // Update leader status based on memberships.
-  if (leader.isSome() && memberships.get().count(leader.get()) == 0) {
-    VLOG(1) << "The current leader (id=" << leader.get().id() << ") is lost";
+  if (leader.isSome() && memberships->count(leader.get()) == 0) {
+    VLOG(1) << "The current leader (id=" << leader->id() << ") is lost";
   }
 
   // Run an "election". The leader is the oldest member (smallest
@@ -151,7 +151,7 @@ void LeaderDetectorProcess::watched(
   if (current != leader) {
     LOG(INFO) << "Detected a new leader: "
               << (current.isSome()
-                  ? "(id='" + stringify(current.get().id()) + "')"
+                  ? "(id='" + stringify(current->id()) + "')"
                   : "None");
 
     foreach (Promise<Option<Group::Membership>>* promise, promises) {
