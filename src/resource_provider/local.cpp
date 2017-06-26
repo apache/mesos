@@ -14,28 +14,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __RESOURCE_PROVIDER_LOCAL_HPP__
-#define __RESOURCE_PROVIDER_LOCAL_HPP__
+#include "resource_provider/local.hpp"
 
-#include <process/owned.hpp>
+#include "resource_provider/storage/provider.hpp"
 
-#include <stout/try.hpp>
-
-#include <mesos/mesos.hpp>
+using process::Owned;
 
 namespace mesos {
 namespace internal {
 
-class LocalResourceProvider
+Try<Owned<LocalResourceProvider>> LocalResourceProvider::create(
+    const ResourceProviderInfo& info)
 {
-public:
-  static Try<process::Owned<LocalResourceProvider>> create(
-      const ResourceProviderInfo& info);
+  // TODO(jieyu): Document the built-in local resource providers.
+  if (info.type() == "org.apache.mesos.rp.local.storage") {
+    Try<Owned<LocalResourceProvider>> provider =
+      StorageLocalResourceProvider::create(info);
 
-  virtual ~LocalResourceProvider() = default;
-};
+    if (provider.isError()) {
+      return Error(
+          "Failed to create storage local resource provider: " +
+          provider.error());
+    }
+
+    return provider.get();
+  }
+
+  return Error("Unknown resource provider type '" + info.type() + "'");
+}
 
 } // namespace internal {
 } // namespace mesos {
-
-#endif // __RESOURCE_PROVIDER_LOCAL_HPP__

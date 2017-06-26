@@ -946,6 +946,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   posix/rlimits.cpp							\
   resource_provider/daemon.cpp						\
   resource_provider/driver.cpp						\
+  resource_provider/local.cpp						\
   resource_provider/manager.cpp						\
   resource_provider/storage/provider.cpp				\
   sched/sched.cpp							\
