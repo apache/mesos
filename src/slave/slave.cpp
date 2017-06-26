@@ -27,6 +27,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <mesos/type_utils.hpp>
@@ -411,6 +412,17 @@ void Slave::initialize()
       << "Failed to create agent work directory '" << flags.work_dir << "': "
       << mkdir.error();
   }
+
+  Try<Owned<LocalResourceProviderDaemon>> _localResourceProviderDaemon =
+    LocalResourceProviderDaemon::create(flags);
+
+  if (_localResourceProviderDaemon.isError()) {
+    EXIT(EXIT_FAILURE)
+      << "Failed to create local resource provider daemon: "
+      << _localResourceProviderDaemon.error();
+  }
+
+  localResourceProviderDaemon = std::move(_localResourceProviderDaemon.get());
 
   Try<Resources> resources = Containerizer::resources(flags);
   if (resources.isError()) {

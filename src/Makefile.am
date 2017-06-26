@@ -944,6 +944,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   module/manager.cpp							\
   oci/spec.cpp								\
   posix/rlimits.cpp							\
+  resource_provider/daemon.cpp						\
   resource_provider/driver.cpp						\
   resource_provider/manager.cpp						\
   resource_provider/storage/provider.cpp				\
@@ -1080,6 +1081,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   messages/messages.hpp							\
   module/manager.hpp							\
   posix/rlimits.hpp							\
+  resource_provider/daemon.hpp						\
+  resource_provider/local.hpp						\
   resource_provider/manager.hpp						\
   resource_provider/storage/provider.hpp				\
   sched/constants.hpp							\

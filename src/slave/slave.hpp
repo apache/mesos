@@ -75,6 +75,7 @@
 
 #include "messages/messages.hpp"
 
+#include "resource_provider/daemon.hpp"
 #include "resource_provider/manager.hpp"
 
 #include "slave/constants.hpp"
@@ -644,6 +645,7 @@ private:
   Option<Resources> oversubscribedResources;
 
   ResourceProviderManager resourceProviderManager;
+  process::Owned<LocalResourceProviderDaemon> localResourceProviderDaemon;
 
 protected:
   // Made protected for testing purposes.

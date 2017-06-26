@@ -123,10 +123,10 @@ void StorageLocalResourceProviderProcess::initialize()
 }
 
 
-Try<Owned<StorageLocalResourceProvider>> StorageLocalResourceProvider::create(
+Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
     const ResourceProviderInfo& info)
 {
-  return Owned<StorageLocalResourceProvider>(
+  return Owned<LocalResourceProvider>(
       new StorageLocalResourceProvider(info));
 }
 
