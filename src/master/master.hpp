@@ -2890,22 +2890,14 @@ struct Role
 
     auto allocatedTo = [](const std::string& role) {
       return [role](const Resource& resource) {
+        CHECK(resource.has_allocation_info());
         return resource.allocation_info().role() == role;
       };
     };
 
     foreachvalue (Framework* framework, frameworks) {
-      // TODO(jay_guo): MULTI_ROLE is handled as a special case because
-      // the `Resource.allocation_info.role` is not yet populated. Once
-      // the support is complete, we do not need the `else` logic here.
-      if (protobuf::frameworkHasCapability(
-              framework->info, FrameworkInfo::Capability::MULTI_ROLE)) {
-        resources += framework->totalUsedResources.filter(allocatedTo(role));
-        resources += framework->totalOfferedResources.filter(allocatedTo(role));
-      } else {
-        resources += framework->totalUsedResources;
-        resources += framework->totalOfferedResources;
-      }
+      resources += framework->totalUsedResources.filter(allocatedTo(role));
+      resources += framework->totalOfferedResources.filter(allocatedTo(role));
     }
 
     return resources;
