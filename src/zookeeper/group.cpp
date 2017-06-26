@@ -497,7 +497,7 @@ void GroupProcess::timedout(int64_t sessionId)
                  << "(sessionId=" << std::hex << sessionId << ") expiration";
 
     // Locally determine that the current session has expired.
-    expired(zk->getSessionId());
+    dispatch(self(), &Self::expired, zk->getSessionId());
   }
 }
 
