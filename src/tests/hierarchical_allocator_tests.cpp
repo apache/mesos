@@ -220,10 +220,11 @@ protected:
       }
     }
 
-    // Inject the MULTI_ROLE capability since the allocator never looks at
-    // whether the framework is MULTI_ROLE capable. The logic between a
-    // non-MULTI_ROLE scheduler and a single role MULTI_ROLE scheduler is
-    // the same as far as the allocator is concerned.
+    // Inject the MULTI_ROLE capability by default. The allocator ONLY looks
+    // at whether the framework is MULTI_ROLE capable to filter out offers
+    // from non-MULTI_ROLE agents (see MESOS-6940). Other than that, the logic
+    // between a non-MULTI_ROLE scheduler and a single role MULTI_ROLE scheduler
+    // is the same as far as the allocator is concerned.
     if (!multiRole) {
       frameworkInfo.add_capabilities()->set_type(
           FrameworkInfo::Capability::MULTI_ROLE);
