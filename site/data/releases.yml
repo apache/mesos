@@ -142,6 +142,12 @@ versions:
     jira_version: 12338395
   - version: 1.1.0
     jira_version: 12337876
+  - version: 1.0.4
+    jira_version: 12340352
+  - version: 1.0.3
+    jira_version: 12338662
+  - version: 1.0.2
+    jira_version: 12338161
   - version: 1.0.1
     jira_version: 12335956
   - version: 1.0.0
