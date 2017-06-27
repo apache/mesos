@@ -84,11 +84,11 @@ NOTE: Only one of `--modules` or `--modules_dir` flag can be used at time.
               "name": "foo",
               "modules": [
                 {
-                  "name": "org_apache_mesos_bar"
+                  "name": "org_apache_mesos_bar",
                   "parameters": [
                     {
                       "key": "X",
-                      "value": "Y",
+                      "value": "Y"
                     }
                   ]
                 },
