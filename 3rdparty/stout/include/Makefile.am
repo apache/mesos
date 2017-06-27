@@ -41,6 +41,7 @@ nobase_include_HEADERS =			\
   stout/hashset.hpp				\
   stout/internal/windows/dirent.hpp		\
   stout/internal/windows/grp.hpp		\
+  stout/internal/windows/longpath.hpp		\
   stout/internal/windows/pwd.hpp		\
   stout/internal/windows/reparsepoint.hpp	\
   stout/internal/windows/symlink.hpp		\
