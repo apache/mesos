@@ -32,6 +32,15 @@ constexpr char DEV_NULL[] = "/dev/null";
 constexpr char DEV_NULL[] = "NUL";
 #endif // __WINDOWS__
 
+#ifdef __WINDOWS__
+// This prefix is prepended to absolute paths on Windows to indicate the path
+// may be greater than 255 characters.
+//
+// NOTE: We do not use a R"raw string" here because syntax highlighters do not
+// handle mismatched backslashes well.
+constexpr char LONGPATH_PREFIX[] = "\\\\?\\";
+#endif // __WINDOWS__
+
 } // namespace os {
 
 #endif // __STOUT_OS_CONSTANTS_HPP__
