@@ -22,6 +22,7 @@
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
+#include <stout/os/access.hpp>
 #include <stout/os/find.hpp>
 #include <stout/os/getcwd.hpp>
 #include <stout/os/int_fd.hpp>
@@ -177,6 +178,30 @@ TEST_F(FsTest, Touch)
   ASSERT_SOME(os::touch(testfile));
   ASSERT_TRUE(os::exists(testfile));
 }
+
+
+#ifdef __WINDOWS__
+// This test attempts to perform some basic file operations on a file
+// with an absolute path longer than the `MAX_PATH`.
+TEST_F(FsTest, LongPath)
+{
+  string testdir = os::getcwd();
+  while (testdir.length() <= MAX_PATH)
+  {
+    testdir = path::join(testdir, UUID::random().toString());
+  }
+  ASSERT_TRUE(testdir.length() > MAX_PATH);
+
+  ASSERT_SOME(os::mkdir(testdir));
+
+  const string testfile = path::join(testdir, "file.txt");
+
+  ASSERT_SOME(os::touch(testfile));
+  EXPECT_TRUE(os::exists(testfile));
+  EXPECT_SOME_TRUE(os::access(testfile, R_OK | W_OK));
+  EXPECT_SOME_EQ(testfile, os::realpath(testfile));
+}
+#endif // __WINDOWS__
 
 
 TEST_F(FsTest, SYMLINK_Symlink)
@@ -387,8 +412,8 @@ TEST_F(FsTest, Close)
 #ifdef __WINDOWS__
   // Open a file with the traditional Windows `HANDLE` API, then verify that
   // writing to that `HANDLE` succeeds before we close it, and fails after.
-  const HANDLE open_valid_handle = CreateFile(
-      testfile.c_str(),
+  const HANDLE open_valid_handle = CreateFileW(
+      wide_stringify(testfile).data(),
       FILE_APPEND_DATA,
       0,                     // No sharing mode.
       nullptr,               // Default security.
