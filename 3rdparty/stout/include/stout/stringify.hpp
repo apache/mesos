@@ -57,8 +57,24 @@ inline std::string stringify(const std::string& str)
 inline std::string stringify(const std::wstring& str)
 {
   // Convert UTF-16 `wstring` to UTF-8 `string`.
-  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> converter;
+  static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t>
+    converter(
+        "UTF-16 to UTF-8 conversion failed",
+        L"UTF-16 to UTF-8 conversion failed");
+
   return converter.to_bytes(str);
+}
+
+
+inline std::wstring wide_stringify(const std::string& str)
+{
+  // Convert UTF-8 `string` to UTF-16 `wstring`.
+  static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t>
+    converter(
+        "UTF-8 to UTF-16 conversion failed",
+        L"UTF-8 to UTF-16 conversion failed");
+
+  return converter.from_bytes(str);
 }
 #endif // __WINDOWS__
 
