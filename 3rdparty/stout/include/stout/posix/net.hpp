@@ -45,6 +45,32 @@ inline Try<std::set<std::string>> links()
 }
 
 
+inline struct addrinfo createAddrInfo(int socktype, int family, int flags);
+
+inline Try<std::string> hostname()
+{
+  char host[512];
+
+  if (gethostname(host, sizeof(host)) < 0) {
+    return ErrnoError();
+  }
+
+  struct addrinfo hints = createAddrInfo(SOCK_STREAM, AF_UNSPEC, AI_CANONNAME);
+  struct addrinfo* result = nullptr;
+
+  int error = getaddrinfo(host, nullptr, &hints, &result);
+
+  if (error != 0) {
+    return Error(gai_strerror(error));
+  }
+
+  std::string hostname = result->ai_canonname;
+  freeaddrinfo(result);
+
+  return hostname;
+}
+
+
 // Returns a `Try` of the result of attempting to set the `hostname`.
 inline Try<Nothing> setHostname(const std::string& hostname)
 {

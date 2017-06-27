@@ -23,8 +23,10 @@
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
+#include <stout/stringify.hpp>
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
+#include <stout/windows/os.hpp>
 
 
 namespace net {
@@ -64,10 +66,16 @@ inline Try<std::set<std::string>> links()
 }
 
 
+inline Try<std::string> hostname()
+{
+  return os::internal::nodename();
+}
+
+
 // Returns a `Try` of the result of attempting to set the `hostname`.
 inline Try<Nothing> setHostname(const std::string& hostname)
 {
-  if (SetComputerName(hostname.c_str()) == 0) {
+  if (::SetComputerNameW(wide_stringify(hostname).data()) == 0) {
     return WindowsError();
   }
 

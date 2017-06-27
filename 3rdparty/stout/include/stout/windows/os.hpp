@@ -70,23 +70,29 @@ inline Try<OSVERSIONINFOEX> os_version()
 
 inline Try<std::string> nodename()
 {
-  // Get DNS name of the local computer. First, find the size of the output
-  // buffer.
+  // MSDN documentation states "The names are established at system startup,
+  // when the system reads them from the registry." This is akin to the
+  // Linux `gethostname` which calls `uname`, thus avoiding a DNS lookup.
+  // The `net::getHostname` function can be used for an explicit DNS lookup.
+  //
+  // NOTE: This returns the hostname of the local computer, or the local
+  // node if this computer is part of a cluster.
+  COMPUTER_NAME_FORMAT format = ComputerNamePhysicalDnsHostname;
   DWORD size = 0;
-  if (!::GetComputerNameEx(ComputerNameDnsHostname, nullptr, &size) &&
-      ::GetLastError() != ERROR_MORE_DATA) {
-    return WindowsError(
-        "os::internal::nodename: Call to `GetComputerNameEx` failed");
+  if (::GetComputerNameExW(format, nullptr, &size) == 0) {
+    if (GetLastError() != ERROR_MORE_DATA) {
+      return WindowsError();
+    }
   }
 
-  std::unique_ptr<char[]> name(new char[size + 1]);
+  std::vector<wchar_t> buffer;
+  buffer.reserve(size);
 
-  if (!::GetComputerNameEx(ComputerNameDnsHostname, name.get(), &size)) {
-    return WindowsError(
-        "os::internal::nodename: Call to `GetComputerNameEx` failed");
+  if (::GetComputerNameExW(format, buffer.data(), &size) == 0) {
+    return WindowsError();
   }
 
-  return std::string(name.get());
+  return stringify(std::wstring(buffer.data()));
 }
 
 
