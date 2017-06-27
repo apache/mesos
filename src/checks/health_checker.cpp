@@ -54,6 +54,8 @@
 #include <stout/os/constants.hpp>
 #include <stout/os/killtree.hpp>
 
+#include "checks/checker_process.hpp"
+
 #include "common/http.hpp"
 #include "common/status_utils.hpp"
 #include "common/validation.hpp"

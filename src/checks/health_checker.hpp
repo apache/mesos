@@ -29,13 +29,14 @@
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 
-#include "checker_process.hpp"
-
 #include "messages/messages.hpp"
 
 namespace mesos {
 namespace internal {
 namespace checks {
+
+class CheckerProcess;
+
 
 class HealthChecker
 {
@@ -102,7 +103,6 @@ public:
       const ContainerID& taskContainerId,
       const process::http::URL& agentURL,
       const Option<std::string>& authorizationHeader);
-
 
   ~HealthChecker();
 

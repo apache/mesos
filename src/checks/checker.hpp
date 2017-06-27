@@ -30,11 +30,12 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
-#include "checker_process.hpp"
-
 namespace mesos {
 namespace internal {
 namespace checks {
+
+class CheckerProcess;
+
 
 class Checker
 {
