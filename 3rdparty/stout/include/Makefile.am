@@ -132,6 +132,7 @@ nobase_include_HEADERS =			\
   stout/os/posix/pagesize.hpp			\
   stout/os/posix/pipe.hpp			\
   stout/os/posix/read.hpp			\
+  stout/os/posix/realpath.hpp			\
   stout/os/posix/rename.hpp			\
   stout/os/posix/rm.hpp				\
   stout/os/posix/rmdir.hpp			\
@@ -164,6 +165,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/pagesize.hpp			\
   stout/os/windows/pipe.hpp			\
   stout/os/windows/read.hpp			\
+  stout/os/windows/realpath.hpp			\
   stout/os/windows/rename.hpp			\
   stout/os/windows/rm.hpp			\
   stout/os/windows/rmdir.hpp			\

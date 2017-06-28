@@ -10,17 +10,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __STOUT_OS_REALPATH_HPP__
-#define __STOUT_OS_REALPATH_HPP__
+#ifndef __STOUT_OS_POSIX_REALPATH_HPP__
+#define __STOUT_OS_POSIX_REALPATH_HPP__
+
+#include <string>
+
+#include <stout/error.hpp>
+#include <stout/result.hpp>
 
 
-// For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specific system calls into separate directories.
-#ifdef __WINDOWS__
-#include <stout/os/windows/realpath.hpp>
-#else
-#include <stout/os/posix/realpath.hpp>
-#endif // __WINDOWS__
+namespace os {
 
+inline Result<std::string> realpath(const std::string& path)
+{
+  char temp[PATH_MAX];
+  if (::realpath(path.c_str(), temp) == nullptr) {
+    if (errno == ENOENT || errno == ENOTDIR) {
+      return None();
+    }
 
-#endif // __STOUT_OS_REALPATH_HPP__
+    return ErrnoError();
+  }
+
+  return std::string(temp);
+}
+
+} // namespace os {
+
+#endif // __STOUT_OS_POSIX_REALPATH_HPP__

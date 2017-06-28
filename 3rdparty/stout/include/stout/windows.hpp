@@ -393,13 +393,6 @@ decltype(_mktemp_s(path, strlen(path) + 1))
 }
 
 
-inline auto realpath(const char* path, char* resolved) ->
-decltype(_fullpath(resolved, path, PATH_MAX))
-{
-  return _fullpath(resolved, path, PATH_MAX);
-}
-
-
 inline auto access(const char* fileName, int accessMode) ->
 decltype(_access(fileName, accessMode))
 {
