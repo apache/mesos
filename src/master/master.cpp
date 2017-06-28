@@ -9400,6 +9400,9 @@ void Master::exited(const UUID& id)
     return;
   }
 
+  LOG(INFO) << "Removed subscriber: " << id << " from the "
+            << "list of active subscribers";
+
   subscribers.subscribed.erase(id);
 }
 
