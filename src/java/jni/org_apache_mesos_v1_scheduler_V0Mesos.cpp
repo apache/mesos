@@ -443,7 +443,7 @@ void V0ToV1AdapterProcess::disconnected()
 
   env->ExceptionClear();
 
-  env->CallVoidMethod(jmesos, disconnected);
+  env->CallVoidMethod(jscheduler, disconnected, jmesos);
 
   if (env->ExceptionCheck()) {
     env->ExceptionDescribe();
