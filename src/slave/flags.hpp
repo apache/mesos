@@ -122,6 +122,7 @@ public:
   Option<std::string> docker_mesos_image;
   Duration docker_remove_delay;
   std::string sandbox_directory;
+  Option<ContainerDNSInfo> default_container_dns;
   Option<ContainerInfo> default_container_info;
 
   // TODO(alexr): Remove this after the deprecation cycle (started in 1.0).

@@ -16,14 +16,84 @@
 
 syntax = "proto2";
 
+import "slave/containerizer/mesos/isolators/network/cni/spec.proto";
+
 package mesos.internal;
 
-// Initializes firewall rules to allow access control of the
-// libprocess endpoints.
+/**
+ * Initializes firewall rules to allow access control of the
+ * libprocess endpoints.
+ */
 message Firewall {
   message DisabledEndpointsRule {
     repeated string paths = 1;
   }
 
   optional DisabledEndpointsRule disabled_endpoints = 1;
+}
+
+
+/**
+ * DNS information for CNI networks (Mesos containerizer) and CNM
+ * networks (Docker containerizer).
+ */
+message ContainerDNSInfo {
+  message MesosInfo {
+    enum NetworkMode {
+      UNKNOWN = 0;
+      HOST = 1; // Currently not supported.
+      CNI = 2;
+    }
+
+    optional NetworkMode network_mode = 1;
+
+    // This field is valid only when `network_mode` is set to CNI, it informs
+    // the `network/cni` isolator about the CNI network to which the DNS
+    // configuration applies. Also, if the mode is CNI and this field is not
+    // set it implies wild card semantics for the CNI network name, informing
+    // the `network/cni` isolator that the DNS configuration applies to "all"
+    // CNI networks.
+    //
+    // NOTE: If there are multiple `MesosInfo` specified, when applying the DNS
+    // configuration to a CNI network the containerizer will always choose the
+    // most specific match based on the CNI network name.
+    optional string network_name = 2;
+
+    required slave.cni.spec.DNS dns = 3;
+  }
+
+  message DockerInfo {
+    enum NetworkMode {
+      UNKNOWN = 0;
+      HOST = 1; // Currently not supported.
+      BRIDGE = 2;
+      USER = 3;
+    }
+
+    // Only support `nameservers`, `search` and `options` but not `domain`,
+    // since Docker only has `--dns`, `--dns-search`, `--dns-option` options.
+    message DNS {
+      repeated string nameservers = 1;
+      repeated string search = 2;
+      repeated string options = 3;
+    }
+
+    optional NetworkMode network_mode = 1;
+
+    // This field is valid only when `network_mode` is set to USER, it specifies
+    // the user-defined CNM network to which this DNS configuration applies.
+    // Also, if the mode is USER and this field is not set it implies wild card
+    // semantics for CNM networks, i.e, this DNS configuration applies to "all"
+    // CNM networks.
+    //
+    // NOTE: If there are multiple `DockerInfo` specified, when applying the DNS
+    // configuration to a CNM network the containerizer will always choose the
+    // most specific match based on the CNM network name.
+    optional string network_name = 2;
+
+    required DNS dns = 3;
+  }
+
+  repeated MesosInfo mesos = 1;
+  repeated DockerInfo docker = 2;
 }

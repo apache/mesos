@@ -1329,6 +1329,52 @@ Example:
 </tr>
 <tr>
   <td>
+    --default_container_dns=VALUE
+  </td>
+  <td>
+JSON-formatted DNS information for CNI networks (Mesos containerizer)
+and CNM networks (Docker containerizer). For CNI networks, this flag
+can be used to configure `nameservers`, `domain`, `search` and
+`options`, and its priority is lower than the DNS information returned
+by a CNI plugin, but higher than the DNS information in agent host's
+/etc/resolv.conf. For CNM networks, this flag can be used to configure
+`nameservers`, `search` and `options`, it will only be used if there
+is no DNS information provided in the ContainerInfo.docker.parameters
+message.
+<p/>
+See the ContainerDNS message in `flags.proto` for the expected format.
+<p/>
+Example:
+<pre><code>{
+  "mesos": [
+    {
+      "network_mode": "CNI",
+      "network_name": "net1",
+      "dns": {
+        "nameservers": [ "8.8.8.8", "8.8.4.4" ]
+      }
+    }
+  ],
+  "docker": [
+    {
+      "network_mode": "BRIDGE",
+      "dns": {
+        "nameservers": [ "8.8.8.8", "8.8.4.4" ]
+      }
+    },
+    {
+      "network_mode": "USER",
+      "network_name": "net2",
+      "dns": {
+        "nameservers": [ "8.8.8.8", "8.8.4.4" ]
+      }
+    }
+  ]
+}</code></pre>
+  </td>
+</tr>
+<tr>
+  <td>
     --default_container_info=VALUE
   </td>
   <td>

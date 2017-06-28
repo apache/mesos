@@ -770,6 +770,134 @@ mesos::internal::slave::Flags::Flags()
 #endif // __WINDOWS__
       );
 
+  add(&Flags::default_container_dns,
+      "default_container_dns",
+      "JSON-formatted DNS information for CNI networks (Mesos containerizer)\n"
+      "and CNM networks (Docker containerizer). For CNI networks, this flag\n"
+      "can be used to configure `nameservers`, `domain`, `search` and\n"
+      "`options`, and its priority is lower than the DNS information returned\n"
+      "by a CNI plugin, but higher than the DNS information in agent host's\n"
+      "/etc/resolv.conf. For CNM networks, this flag can be used to configure\n"
+      "`nameservers`, `search` and `options`, it will only be used if there\n"
+      "is no DNS information provided in the ContainerInfo.docker.parameters\n"
+      "message.\n"
+      "\n"
+      "See the ContainerDNS message in `flags.proto` for the expected format.\n"
+      "\n"
+      "Example:\n"
+      "{\n"
+      "  \"mesos\": [\n"
+      "    {\n"
+      "      \"network_mode\": \"CNI\",\n"
+      "      \"network_name\": \"net1\",\n"
+      "      \"dns\": {\n"
+      "        \"nameservers\": [ \"8.8.8.8\", \"8.8.4.4\" ]\n"
+      "      }\n"
+      "    }\n"
+      "  ],\n"
+      "  \"docker\": [\n"
+      "    {\n"
+      "      \"network_mode\": \"BRIDGE\",\n"
+      "      \"dns\": {\n"
+      "        \"nameservers\": [ \"8.8.8.8\", \"8.8.4.4\" ]\n"
+      "      }\n"
+      "    },\n"
+      "    {\n"
+      "      \"network_mode\": \"USER\",\n"
+      "      \"network_name\": \"net2\",\n"
+      "      \"dns\": {\n"
+      "        \"nameservers\": [ \"8.8.8.8\", \"8.8.4.4\" ]\n"
+      "      }\n"
+      "    }\n"
+      "  ]\n"
+      "}",
+      [](const Option<ContainerDNSInfo>& defaultContainerDNS) -> Option<Error> {
+        if (defaultContainerDNS.isSome()) {
+          Option<ContainerDNSInfo::MesosInfo> defaultCniDNS;
+          hashmap<string, ContainerDNSInfo::MesosInfo> cniNetworkDNS;
+          Option<ContainerDNSInfo::DockerInfo> dockerBridgeDNS;
+          Option<ContainerDNSInfo::DockerInfo> defaultDockerUserDNS;
+          hashmap<string, ContainerDNSInfo::DockerInfo> dockerUserDNS;
+
+          foreach (const ContainerDNSInfo::MesosInfo& dnsInfo,
+                   defaultContainerDNS->mesos()) {
+            if (dnsInfo.network_mode() ==
+                ContainerDNSInfo::MesosInfo::UNKNOWN) {
+              return Error("UNKNOWN network mode configured "
+                           "in `--default_container_dns`");
+            } else if (dnsInfo.network_mode() ==
+                       ContainerDNSInfo::MesosInfo::HOST) {
+              return Error("Configuring DNS for HOST network with "
+                           "`--default_container_dns` is not yet supported");
+            } else if (dnsInfo.network_mode() ==
+                       ContainerDNSInfo::MesosInfo::CNI) {
+              if (!dnsInfo.has_network_name()) {
+                if (defaultCniDNS.isSome()) {
+                  return Error("Multiple DNS configuration without network "
+                               "name for CNI network in "
+                               "`--default_container_dns` is not allowed");
+                }
+
+                defaultCniDNS = dnsInfo;
+              } else {
+                if (cniNetworkDNS.contains(dnsInfo.network_name())) {
+                  return Error("Multiple DNS configuration with the same "
+                               "network name '" + dnsInfo.network_name() + "' "
+                               "for CNI network in `--default_container_dns` "
+                               "is not allowed");
+                }
+
+                cniNetworkDNS[dnsInfo.network_name()] = dnsInfo;
+              }
+            }
+          }
+
+          foreach (const ContainerDNSInfo::DockerInfo& dnsInfo,
+                   defaultContainerDNS->docker()) {
+            if (dnsInfo.network_mode() ==
+                ContainerDNSInfo::DockerInfo::UNKNOWN) {
+              return Error("UNKNOWN network mode configured "
+                           "in `--default_container_dns`");
+            } else if (dnsInfo.network_mode() ==
+                       ContainerDNSInfo::DockerInfo::HOST) {
+              return Error("Configuring DNS for HOST network with "
+                           "`--default_container_dns` is not yet supported");
+            } else if (dnsInfo.network_mode() ==
+                       ContainerDNSInfo::DockerInfo::BRIDGE) {
+              if (dockerBridgeDNS.isSome()) {
+                return Error("Multiple DNS configuration for Docker default "
+                             "bridge network in `--default_container_dns` is "
+                             "not allowed");
+              }
+
+              dockerBridgeDNS = dnsInfo;
+            } else if (dnsInfo.network_mode() ==
+                       ContainerDNSInfo::DockerInfo::USER) {
+              if (!dnsInfo.has_network_name()) {
+                if (defaultDockerUserDNS.isSome()) {
+                  return Error("Multiple DNS configuration without network "
+                               "name for user-defined CNM network in "
+                               "`--default_container_dns` is not allowed");
+                }
+
+                defaultDockerUserDNS = dnsInfo;
+              } else {
+                if (dockerUserDNS.contains(dnsInfo.network_name())) {
+                  return Error("Multiple DNS configuration with the same "
+                               "network name '" + dnsInfo.network_name() +
+                               "' for user-defined CNM network in "
+                               "`--default_container_dns` is not allowed");
+                }
+
+                dockerUserDNS[dnsInfo.network_name()] = dnsInfo;
+              }
+            }
+          }
+        }
+
+        return None();
+      });
+
   add(&Flags::default_container_info,
       "default_container_info",
       "JSON-formatted ContainerInfo that will be included into\n"

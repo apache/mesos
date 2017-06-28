@@ -45,6 +45,19 @@ inline Try<mesos::internal::Firewall> parse(const std::string& value)
   return protobuf::parse<mesos::internal::Firewall>(json.get());
 }
 
+
+template <>
+inline Try<mesos::internal::ContainerDNSInfo> parse(const std::string& value)
+{
+  // Convert from string or file to JSON.
+  Try<JSON::Object> json = parse<JSON::Object>(value);
+  if (json.isError()) {
+    return Error(json.error());
+  }
+
+  return protobuf::parse<mesos::internal::ContainerDNSInfo>(json.get());
+}
+
 } // namespace flags {
 
 namespace mesos {
@@ -55,6 +68,14 @@ inline std::ostream& operator<<(
     const Firewall& rules)
 {
   return stream << rules.DebugString();
+}
+
+
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const ContainerDNSInfo& dns)
+{
+  return stream << dns.DebugString();
 }
 
 } // namespace internal {
