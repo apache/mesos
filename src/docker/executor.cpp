@@ -50,6 +50,7 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
+#include "messages/flags.hpp"
 #include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
@@ -87,6 +88,7 @@ public:
       const Duration& shutdownGracePeriod,
       const string& launcherDir,
       const map<string, string>& taskEnvironment,
+      const Option<ContainerDNSInfo>& defaultContainerDNS,
       bool cgroupsEnableCfs)
     : ProcessBase(ID::generate("docker-executor")),
       killed(false),
@@ -99,6 +101,7 @@ public:
       mappedDirectory(mappedDirectory),
       shutdownGracePeriod(shutdownGracePeriod),
       taskEnvironment(taskEnvironment),
+      defaultContainerDNS(defaultContainerDNS),
       cgroupsEnableCfs(cgroupsEnableCfs),
       stop(Nothing()),
       inspect(Nothing()) {}
@@ -605,6 +608,7 @@ private:
   string mappedDirectory;
   Duration shutdownGracePeriod;
   map<string, string> taskEnvironment;
+  Option<ContainerDNSInfo> defaultContainerDNS;
   bool cgroupsEnableCfs;
 
   Option<KillPolicy> killPolicy;
@@ -631,6 +635,7 @@ public:
       const Duration& shutdownGracePeriod,
       const string& launcherDir,
       const map<string, string>& taskEnvironment,
+      const Option<ContainerDNSInfo>& defaultContainerDNS,
       bool cgroupsEnableCfs)
   {
     process = Owned<DockerExecutorProcess>(new DockerExecutorProcess(
@@ -641,6 +646,7 @@ public:
         shutdownGracePeriod,
         launcherDir,
         taskEnvironment,
+        defaultContainerDNS,
         cgroupsEnableCfs));
 
     spawn(process.get());
@@ -793,6 +799,20 @@ int main(int argc, char** argv)
     }
   }
 
+  Option<mesos::internal::ContainerDNSInfo> defaultContainerDNS;
+  if (flags.default_container_dns.isSome()) {
+    Try<mesos::internal::ContainerDNSInfo> parse =
+      flags::parse<mesos::internal::ContainerDNSInfo>(
+          flags.default_container_dns.get());
+
+    if (parse.isError()) {
+      EXIT(EXIT_FAILURE) << flags.usage(
+          "Failed to parse --default_container_dns: " + parse.error());
+    }
+
+    defaultContainerDNS = parse.get();
+  }
+
   // Get executor shutdown grace period from the environment.
   //
   // NOTE: We avoided introducing a docker executor flag for this
@@ -847,6 +867,7 @@ int main(int argc, char** argv)
           shutdownGracePeriod,
           flags.launcher_dir.get(),
           taskEnvironment,
+          defaultContainerDNS,
           flags.cgroups_enable_cfs));
 
   Owned<mesos::MesosExecutorDriver> driver(

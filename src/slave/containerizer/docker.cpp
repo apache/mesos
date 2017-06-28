@@ -39,6 +39,7 @@
 #include <stout/jsonify.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/uuid.hpp>
 
 #include <stout/os/killtree.hpp>
@@ -256,6 +257,11 @@ DockerContainerizer::~DockerContainerizer()
 
   if (taskEnvironment.isSome()) {
     dockerFlags.task_environment = string(jsonify(taskEnvironment.get()));
+  }
+
+  if (flags.default_container_dns.isSome()) {
+    dockerFlags.default_container_dns =
+      string(jsonify(JSON::Protobuf(flags.default_container_dns.get())));
   }
 
 #ifdef __linux__

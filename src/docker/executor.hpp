@@ -76,6 +76,10 @@ struct Flags : public virtual mesos::internal::logging::Flags
         "A JSON map of environment variables and values that should\n"
         "be passed into the task launched by this executor.");
 
+    add(&Flags::default_container_dns,
+        "default_container_dns",
+        "JSON-formatted default DNS information for container.");
+
     add(&Flags::cgroups_enable_cfs,
         "cgroups_enable_cfs",
         "Cgroups feature flag to enable hard limits on CPU resources\n"
@@ -90,6 +94,7 @@ struct Flags : public virtual mesos::internal::logging::Flags
   Option<std::string> mapped_directory;
   Option<std::string> launcher_dir;
   Option<std::string> task_environment;
+  Option<std::string> default_container_dns;
 
   bool cgroups_enable_cfs;
 
