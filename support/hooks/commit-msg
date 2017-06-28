@@ -15,6 +15,12 @@ FIRST_LINE=$(head -n 1 "$1")
 LAST_CHAR=$(echo -n "$FIRST_LINE" | tail -c 1)
 FIRST_CHAR=$(echo -n "$FIRST_LINE" | head -c 1)
 
+if [[ "$FIRST_LINE" =~ ^(fixup|squash)\! ]]; then
+    # If the commit starts with fixup! or squash! we ignore everything.
+    # The message will be checked when the final commit is made.
+    exit 0
+fi
+
 while read -r LINE
 do
     # In verbose mode, the diff of the commit is included in the commit message.
