@@ -186,12 +186,12 @@ def ssl_create_default_context():
 def fetch_patch(options):
     """Fetches a patch from Review Board or GitHub."""
     if platform.system() == 'Windows':
-        patch = urllib2.urlopen(
+        response = urllib2.urlopen(
             patch_url(options),
             context=ssl_create_default_context())
 
         with open('%s.patch' % patch_id(options), 'wb') as patch:
-            patch.write(patch.read())
+            patch.write(response.read())
     else:
         # NOTE: SSL contexts are only supported in Python 2.7.9+. The version
         # of Python running on the non-Windows ASF CI machines is sometimes
