@@ -147,6 +147,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
     </tr>
     <tr>
       <td>-8</td>
+      <td>Greg Mann</td>
+      <td>Mesosphere</td>
+      <td>greggomann</td>
+      <td>grag@apache.org</td>
+    </tr>
+    <tr>
+      <td>-8</td>
       <td>Thomas Marshall</td>
       <td>Carnegie Mellon University</td>
       <td></td>
