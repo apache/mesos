@@ -160,6 +160,91 @@ public:
 };
 
 
+/**
+ * Determines which objects will be accepted when filtering results based on
+ * authorization or other criteria.
+ */
+class ObjectAcceptor
+{
+public:
+  virtual ~ObjectAcceptor() = default;
+};
+
+
+// Parent class for authorization-based acceptors.
+class AuthorizationAcceptor : public ObjectAcceptor
+{
+protected:
+  AuthorizationAcceptor(const process::Owned<ObjectApprover>& approver)
+    : objectApprover(approver) {}
+
+  const process::Owned<ObjectApprover> objectApprover;
+};
+
+
+class AuthorizeFrameworkInfoAcceptor : public AuthorizationAcceptor
+{
+public:
+  static process::Future<process::Owned<AuthorizeFrameworkInfoAcceptor>> create(
+      const Option<process::http::authentication::Principal>& principal,
+      const Option<Authorizer*>& authorizer);
+
+  bool accept(const FrameworkInfo& frameworkInfo);
+
+protected:
+  AuthorizeFrameworkInfoAcceptor(const process::Owned<ObjectApprover>& approver)
+    : AuthorizationAcceptor(approver) {}
+};
+
+
+class AuthorizeTaskAcceptor : public AuthorizationAcceptor
+{
+public:
+  static process::Future<process::Owned<AuthorizeTaskAcceptor>> create(
+      const Option<process::http::authentication::Principal>& principal,
+      const Option<Authorizer*>& authorizer);
+
+  bool accept(
+      const Task& task,
+      const FrameworkInfo& frameworkInfo);
+
+protected:
+  AuthorizeTaskAcceptor(const process::Owned<ObjectApprover>& approver)
+    : AuthorizationAcceptor(approver) {}
+};
+
+
+/**
+ * Filtering results based on framework ID. When no framework ID is specified
+ * it will accept all inputs.
+ */
+class FrameworkIDAcceptor : public ObjectAcceptor
+{
+public:
+  FrameworkIDAcceptor(const Option<std::string>& _frameworkId);
+  bool accept(const FrameworkID& frameworkId);
+
+protected:
+  Option<FrameworkID> frameworkId;
+};
+
+
+/**
+ * Filtering results based on task ID. When no task ID is specified
+ * it will accept all inputs.
+ */
+class TaskIDAcceptor : public ObjectAcceptor
+{
+public:
+  TaskIDAcceptor(const Option<std::string>& _taskId);
+
+  bool accept(const TaskID& taskId);
+
+protected:
+  Option<TaskID> taskId;
+};
+
+
 bool approveViewFrameworkInfo(
     const process::Owned<ObjectApprover>& frameworksApprover,
     const FrameworkInfo& frameworkInfo);

@@ -3755,11 +3755,15 @@ string Master::Http::TASKS_HELP()
         "",
         "Query parameters:",
         "",
+        ">        framework_id=VALUE   Only return tasks belonging to the "
+        "framework with this ID.",
         ">        limit=VALUE          Maximum number of tasks returned "
         "(default is " + stringify(TASK_LIMIT) + ").",
         ">        offset=VALUE         Starts task list at offset.",
         ">        order=(asc|desc)     Ascending or descending sort order "
-        "(default is descending)."
+        "(default is descending).",
+        ">        task_id=VALUE        Only return tasks with this ID "
+        "(should be used together with parameter 'framework_id')."
         ""),
     AUTHENTICATION(true),
     AUTHORIZATION(
@@ -3798,106 +3802,121 @@ Future<Response> Master::Http::tasks(
   Option<string> order = request.url.query.get("order");
   string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
 
-  // Retrieve Approvers for authorizing frameworks and tasks.
-  Future<Owned<ObjectApprover>> frameworksApprover;
-  Future<Owned<ObjectApprover>> tasksApprover;
-  if (master->authorizer.isSome()) {
-    Option<authorization::Subject> subject = createSubject(principal);
+  Future<Owned<AuthorizeFrameworkInfoAcceptor>> authorizeFrameworkInfo =
+    AuthorizeFrameworkInfoAcceptor::create(principal, master->authorizer);
+  Future<Owned<AuthorizeTaskAcceptor>> authorizeTask =
+    AuthorizeTaskAcceptor::create(principal, master->authorizer);
+  Future<Owned<FrameworkIDAcceptor>> selectFrameworkId =
+    Owned<FrameworkIDAcceptor>(
+        new FrameworkIDAcceptor(request.url.query.get("framework_id")));
+  Future<Owned<TaskIDAcceptor>> selectTaskId =
+    Owned<TaskIDAcceptor>(new TaskIDAcceptor(request.url.query.get("task_id")));
 
-    frameworksApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_FRAMEWORK);
+  return collect(
+      authorizeFrameworkInfo,
+      authorizeTask,
+      selectFrameworkId,
+      selectTaskId)
+    .then(defer(
+        master->self(),
+        [=](const tuple<Owned<AuthorizeFrameworkInfoAcceptor>,
+                        Owned<AuthorizeTaskAcceptor>,
+                        Owned<FrameworkIDAcceptor>,
+                        Owned<TaskIDAcceptor>>& acceptors)-> Future<Response> {
+          Owned<AuthorizeFrameworkInfoAcceptor> authorizeFrameworkInfo;
+          Owned<AuthorizeTaskAcceptor> authorizeTask;
+          Owned<FrameworkIDAcceptor> selectFrameworkId;
+          Owned<TaskIDAcceptor> selectTaskId;
+          tie(authorizeFrameworkInfo,
+              authorizeTask,
+              selectFrameworkId,
+              selectTaskId) = acceptors;
 
-    tasksApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_TASK);
-  } else {
-    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-  }
+          // Construct framework list with both active and completed frameworks.
+          vector<const Framework*> frameworks;
+          foreachvalue (Framework* framework, master->frameworks.registered) {
+            // Skip unauthorized frameworks or frameworks without matching
+            // framework ID.
+            if (!selectFrameworkId->accept(framework->id()) ||
+                !authorizeFrameworkInfo->accept(framework->info)) {
+              continue;
+            }
 
-  return collect(frameworksApprover, tasksApprover)
-    .then(defer(master->self(),
-      [=](const tuple<Owned<ObjectApprover>,
-                      Owned<ObjectApprover>>& approvers)
-        -> Future<Response> {
-      // Get approver from tuple.
-      Owned<ObjectApprover> frameworksApprover;
-      Owned<ObjectApprover> tasksApprover;
-      tie(frameworksApprover, tasksApprover) = approvers;
-
-      // Construct framework list with both active and completed frameworks.
-      vector<const Framework*> frameworks;
-      foreachvalue (Framework* framework, master->frameworks.registered) {
-        // Skip unauthorized frameworks.
-        if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
-          continue;
-        }
-
-        frameworks.push_back(framework);
-      }
-
-      foreachvalue (const Owned<Framework>& framework,
-                    master->frameworks.completed) {
-        // Skip unauthorized frameworks.
-        if (!approveViewFrameworkInfo(frameworksApprover, framework->info)) {
-          continue;
-        }
-
-        frameworks.push_back(framework.get());
-      }
-
-      // Construct task list with both running and finished tasks.
-      vector<const Task*> tasks;
-      foreach (const Framework* framework, frameworks) {
-        foreachvalue (Task* task, framework->tasks) {
-          CHECK_NOTNULL(task);
-          // Skip unauthorized tasks.
-          if (!approveViewTask(tasksApprover, *task, framework->info)) {
-            continue;
+            frameworks.push_back(framework);
           }
 
-          tasks.push_back(task);
-        }
+          foreachvalue (const Owned<Framework>& framework,
+                        master->frameworks.completed) {
+            // Skip unauthorized frameworks or frameworks without matching
+            // framework ID.
+            if (!selectFrameworkId->accept(framework->id()) ||
+                !authorizeFrameworkInfo->accept(framework->info)) {
+             continue;
+            }
 
-        foreachvalue (const Owned<Task>& task, framework->unreachableTasks) {
-          // Skip unauthorized tasks.
-          if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
-            continue;
+            frameworks.push_back(framework.get());
           }
 
-          tasks.push_back(task.get());
-        }
+          // Construct task list with both running,
+          // completed and unreachable tasks.
+          vector<const Task*> tasks;
+          foreach (const Framework* framework, frameworks) {
+            foreachvalue (Task* task, framework->tasks) {
+              CHECK_NOTNULL(task);
+              // Skip unauthorized tasks or tasks without matching task ID.
+              if (!selectTaskId->accept(task->task_id()) ||
+                  !authorizeTask->accept(*task, framework->info)) {
+                continue;
+              }
 
-        foreach (const Owned<Task>& task, framework->completedTasks) {
-          // Skip unauthorized tasks.
-          if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
-            continue;
+              tasks.push_back(task);
+            }
+
+            foreachvalue (
+                const Owned<Task>& task,
+                framework->unreachableTasks) {
+              // Skip unauthorized tasks or tasks without matching task ID.
+              if (!selectTaskId->accept(task.get()->task_id()) ||
+                  !authorizeTask->accept(*task.get(), framework->info)) {
+                continue;
+              }
+
+              tasks.push_back(task.get());
+            }
+
+            foreach (const Owned<Task>& task, framework->completedTasks) {
+              // Skip unauthorized tasks or tasks without matching task ID.
+              if (!selectTaskId->accept(task.get()->task_id()) ||
+                  !authorizeTask->accept(*task.get(), framework->info)) {
+                continue;
+              }
+
+              tasks.push_back(task.get());
+            }
           }
 
-          tasks.push_back(task.get());
-        }
-      }
-
-      // Sort tasks by task status timestamp. Default order is descending.
-      // The earliest timestamp is chosen for comparison when
-      // multiple are present.
-      if (_order == "asc") {
-        sort(tasks.begin(), tasks.end(), TaskComparator::ascending);
-      } else {
-        sort(tasks.begin(), tasks.end(), TaskComparator::descending);
-      }
-
-      auto tasksWriter = [&tasks, limit, offset](JSON::ObjectWriter* writer) {
-        writer->field("tasks",
-                      [&tasks, limit, offset](JSON::ArrayWriter* writer) {
-          // Collect 'limit' number of tasks starting from 'offset'.
-          size_t end = std::min(offset + limit, tasks.size());
-          for (size_t i = offset; i < end; i++) {
-            writer->element(*tasks[i]);
+          // Sort tasks by task status timestamp. Default order is descending.
+          // The earliest timestamp is chosen for comparison when
+          // multiple are present.
+          if (_order == "asc") {
+            sort(tasks.begin(), tasks.end(), TaskComparator::ascending);
+          } else {
+            sort(tasks.begin(), tasks.end(), TaskComparator::descending);
           }
-        });
-      };
 
-      return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
+          auto tasksWriter =
+            [&tasks, limit, offset](JSON::ObjectWriter* writer) {
+            writer->field("tasks",
+                          [&tasks, limit, offset](JSON::ArrayWriter* writer) {
+              // Collect 'limit' number of tasks starting from 'offset'.
+              size_t end = std::min(offset + limit, tasks.size());
+              for (size_t i = offset; i < end; i++) {
+                writer->element(*tasks[i]);
+              }
+            });
+          };
+
+          return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
   }));
 }
 

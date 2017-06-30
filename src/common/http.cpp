@@ -57,6 +57,8 @@ using std::set;
 using std::string;
 using std::vector;
 
+using process::Future;
+using process::Owned;
 using process::Failure;
 using process::Owned;
 
@@ -1122,5 +1124,129 @@ void logRequest(const process::http::Request& request)
                 ? " with X-Forwarded-For='" + forwardedFor.get() + "'"
                 : "");
 }
+
+
+Future<Owned<AuthorizeFrameworkInfoAcceptor>>
+  AuthorizeFrameworkInfoAcceptor::create(
+      const Option<Principal>& principal,
+      const Option<Authorizer*>& authorizer)
+{
+    if (authorizer.isNone()) {
+      return Owned<AuthorizeFrameworkInfoAcceptor>(
+          new AuthorizeFrameworkInfoAcceptor(Owned<ObjectApprover>(
+              new AcceptingObjectApprover())));
+    }
+
+    const Option<authorization::Subject> subject =
+      authorization::createSubject(principal);
+
+    return authorizer.get()->getObjectApprover(
+        subject,
+        authorization::VIEW_FRAMEWORK)
+      .then([=](const Owned<ObjectApprover>& approver) {
+        return Owned<AuthorizeFrameworkInfoAcceptor>(
+            new AuthorizeFrameworkInfoAcceptor(approver));
+      });
+}
+
+
+Future<Owned<AuthorizeTaskAcceptor>> AuthorizeTaskAcceptor::create(
+    const Option<Principal>& principal,
+    const Option<Authorizer*>& authorizer)
+{
+    if (authorizer.isNone()) {
+      return Owned<AuthorizeTaskAcceptor>(
+          new AuthorizeTaskAcceptor(Owned<ObjectApprover>(
+              new AcceptingObjectApprover())));
+    }
+
+    const Option<authorization::Subject> subject =
+      authorization::createSubject(principal);
+
+    return authorizer.get()->getObjectApprover(
+        subject,
+        authorization::VIEW_TASK)
+      .then([=](const Owned<ObjectApprover>& approver) {
+        return Owned<AuthorizeTaskAcceptor>(
+            new AuthorizeTaskAcceptor(approver));
+      });
+}
+
+
+FrameworkIDAcceptor::FrameworkIDAcceptor(
+    const Option<std::string>& _frameworkId)
+{
+  if (_frameworkId.isSome()) {
+    FrameworkID frameworkId_;
+    frameworkId_.set_value(_frameworkId.get());
+    frameworkId = frameworkId_;
+  }
+}
+
+
+TaskIDAcceptor::TaskIDAcceptor(const Option<std::string>& _taskId)
+{
+  if (_taskId.isSome()) {
+    TaskID taskId_;
+    taskId_.set_value(_taskId.get());
+    taskId = taskId_;
+  }
+}
+
+
+bool AuthorizeFrameworkInfoAcceptor::accept(const FrameworkInfo& frameworkInfo)
+{
+  ObjectApprover::Object object;
+  object.framework_info = &frameworkInfo;
+
+  Try<bool> approved = objectApprover->approved(object);
+  if (approved.isError()) {
+    LOG(WARNING) << "Error during FrameworkInfo authorization: "
+                 << approved.error();
+    return false;
+  }
+
+  return approved.get();
+}
+
+
+bool AuthorizeTaskAcceptor::accept(
+    const Task& task,
+    const FrameworkInfo& frameworkInfo)
+{
+  ObjectApprover::Object object;
+  object.task = &task;
+  object.framework_info = &frameworkInfo;
+
+  Try<bool> approved = objectApprover->approved(object);
+
+  if (approved.isError()) {
+    LOG(WARNING) << "Error during Task authorization: " << approved.error();
+    return false;
+  }
+
+  return approved.get();
+}
+
+
+bool FrameworkIDAcceptor::accept(const FrameworkID& _frameworkId)
+{
+  if (frameworkId.isSome()) {
+    return frameworkId.get() == _frameworkId;
+  }
+
+  return true;
+}
+
+
+bool TaskIDAcceptor::accept(const TaskID& _taskId)
+{
+  if (taskId.isSome()) {
+    return taskId.get() == _taskId;
+  }
+
+  return true;
+}
+
 
 }  // namespace mesos {
