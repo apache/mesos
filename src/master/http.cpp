@@ -1080,7 +1080,7 @@ Future<Response> Master::Http::createVolumes(
         parse.error());
   }
 
-  Resources volumes;
+  RepeatedPtrField<Resource> volumes;
   foreach (const JSON::Value& value, parse.get().values) {
     Try<Resource> volume = ::protobuf::parse<Resource>(value);
     if (volume.isError()) {
@@ -1089,16 +1089,7 @@ Future<Response> Master::Http::createVolumes(
           volume.error());
     }
 
-    // Since the `+=` operator will silently drop invalid resources, we validate
-    // each resource individually.
-    Option<Error> error = Resources::validate(volume.get());
-    if (error.isSome()) {
-      return BadRequest(error.get().message);
-    }
-
-    convertResourceFormat(&volume.get(), POST_RESERVATION_REFINEMENT);
-
-    volumes += volume.get();
+    volumes.Add()->CopyFrom(volume.get());
   }
 
   return _createVolumes(slaveId, volumes, principal);
@@ -1120,16 +1111,21 @@ Future<Response> Master::Http::_createVolumes(
   operation.set_type(Offer::Operation::CREATE);
   operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
 
-  Option<Error> validate = validation::operation::validate(
+  Option<Error> error = validateAndNormalizeResources(&operation);
+  if (error.isSome()) {
+    return BadRequest(error->message);
+  }
+
+  error = validation::operation::validate(
       operation.create(),
       slave->checkpointedResources,
       principal,
       slave->capabilities);
 
-  if (validate.isSome()) {
+  if (error.isSome()) {
     return BadRequest(
         "Invalid CREATE operation on agent " + stringify(*slave) + ": " +
-        validate.get().message);
+        error->message);
   }
 
   return master->authorizeCreateVolume(operation.create(), principal)
@@ -1141,7 +1137,8 @@ Future<Response> Master::Http::_createVolumes(
       // The resources required for this operation are equivalent to the
       // volumes specified by the user minus any DiskInfo (DiskInfo will
       // be created when this operation is applied).
-      return _operation(slaveId, removeDiskInfos(volumes), operation);
+      return _operation(
+          slaveId, removeDiskInfos(operation.create().volumes()), operation);
     }));
 }
 
@@ -1257,7 +1254,7 @@ Future<Response> Master::Http::destroyVolumes(
         parse.error());
   }
 
-  Resources volumes;
+  RepeatedPtrField<Resource> volumes;
   foreach (const JSON::Value& value, parse.get().values) {
     Try<Resource> volume = ::protobuf::parse<Resource>(value);
     if (volume.isError()) {
@@ -1266,16 +1263,7 @@ Future<Response> Master::Http::destroyVolumes(
           volume.error());
     }
 
-    // Since the `+=` operator will silently drop invalid resources, we validate
-    // each resource individually.
-    Option<Error> error = Resources::validate(volume.get());
-    if (error.isSome()) {
-      return BadRequest(error.get().message);
-    }
-
-    convertResourceFormat(&volume.get(), POST_RESERVATION_REFINEMENT);
-
-    volumes += volume.get();
+    volumes.Add()->CopyFrom(volume.get());
   }
 
   return _destroyVolumes(slaveId, volumes, principal);
@@ -1297,14 +1285,19 @@ Future<Response> Master::Http::_destroyVolumes(
   operation.set_type(Offer::Operation::DESTROY);
   operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
 
-  Option<Error> validate = validation::operation::validate(
+  Option<Error> error = validateAndNormalizeResources(&operation);
+  if (error.isSome()) {
+    return BadRequest(error->message);
+  }
+
+  error = validation::operation::validate(
       operation.destroy(),
       slave->checkpointedResources,
       slave->usedResources,
       slave->pendingTasks);
 
-  if (validate.isSome()) {
-    return BadRequest("Invalid DESTROY operation: " + validate.get().message);
+  if (error.isSome()) {
+    return BadRequest("Invalid DESTROY operation: " + error->message);
   }
 
   return master->authorizeDestroyVolume(operation.destroy(), principal)
@@ -1313,7 +1306,7 @@ Future<Response> Master::Http::_destroyVolumes(
         return Forbidden();
       }
 
-      return _operation(slaveId, volumes, operation);
+      return _operation(slaveId, operation.destroy().volumes(), operation);
     }));
 }
 
@@ -2227,7 +2220,7 @@ Future<Response> Master::Http::reserve(
         parse.error());
   }
 
-  Resources resources;
+  RepeatedPtrField<Resource> resources;
   foreach (const JSON::Value& value, parse.get().values) {
     Try<Resource> resource = ::protobuf::parse<Resource>(value);
     if (resource.isError()) {
@@ -2236,16 +2229,7 @@ Future<Response> Master::Http::reserve(
           resource.error());
     }
 
-    // Since the `+=` operator will silently drop invalid resources, we validate
-    // each resource individually.
-    Option<Error> error = Resources::validate(resource.get());
-    if (error.isSome()) {
-      return BadRequest(error.get().message);
-    }
-
-    convertResourceFormat(&resource.get(), POST_RESERVATION_REFINEMENT);
-
-    resources += resource.get();
+    resources.Add()->CopyFrom(resource.get());
   }
 
   return _reserve(slaveId, resources, principal);
@@ -2254,7 +2238,7 @@ Future<Response> Master::Http::reserve(
 
 Future<Response> Master::Http::_reserve(
     const SlaveID& slaveId,
-    const Resources& resources,
+    const RepeatedPtrField<Resource>& resources,
     const Option<Principal>& principal) const
 {
   Slave* slave = master->slaves.registered.get(slaveId);
@@ -2267,13 +2251,18 @@ Future<Response> Master::Http::_reserve(
   operation.set_type(Offer::Operation::RESERVE);
   operation.mutable_reserve()->mutable_resources()->CopyFrom(resources);
 
-  Option<Error> error = validation::operation::validate(
+  Option<Error> error = validateAndNormalizeResources(&operation);
+  if (error.isSome()) {
+    return BadRequest(error->message);
+  }
+
+  error = validation::operation::validate(
       operation.reserve(), principal, slave->capabilities);
 
   if (error.isSome()) {
     return BadRequest(
         "Invalid RESERVE operation on agent " + stringify(*slave) + ": " +
-        error.get().message);
+        error->message);
   }
 
   return master->authorizeReserveResources(operation.reserve(), principal)
@@ -2284,7 +2273,8 @@ Future<Response> Master::Http::_reserve(
 
       // We only allow "pushing" a single reservation at a time, so we require
       // the resources with one reservation "popped" to be present on the agent.
-      Resources required = resources.popReservation();
+      Resources required =
+        Resources(operation.reserve().resources()).popReservation();
 
       return _operation(slaveId, required, operation);
     }));
@@ -2299,7 +2289,8 @@ Future<Response> Master::Http::reserveResources(
   CHECK_EQ(mesos::master::Call::RESERVE_RESOURCES, call.type());
 
   const SlaveID& slaveId = call.reserve_resources().slave_id();
-  const Resources& resources = call.reserve_resources().resources();
+  const RepeatedPtrField<Resource>& resources =
+    call.reserve_resources().resources();
 
   return _reserve(slaveId, resources, principal);
 }
@@ -4995,7 +4986,7 @@ Future<Response> Master::Http::unreserve(
         parse.error());
   }
 
-  Resources resources;
+  RepeatedPtrField<Resource> resources;
   foreach (const JSON::Value& value, parse.get().values) {
     Try<Resource> resource = ::protobuf::parse<Resource>(value);
     if (resource.isError()) {
@@ -5004,16 +4995,7 @@ Future<Response> Master::Http::unreserve(
           resource.error());
     }
 
-    // Since the `+=` operator will silently drop invalid resources, we validate
-    // each resource individually.
-    Option<Error> error = Resources::validate(resource.get());
-    if (error.isSome()) {
-      return BadRequest(error.get().message);
-    }
-
-    convertResourceFormat(&resource.get(), POST_RESERVATION_REFINEMENT);
-
-    resources += resource.get();
+    resources.Add()->CopyFrom(resource.get());
   }
 
   return _unreserve(slaveId, resources, principal);
@@ -5022,7 +5004,7 @@ Future<Response> Master::Http::unreserve(
 
 Future<Response> Master::Http::_unreserve(
     const SlaveID& slaveId,
-    const Resources& resources,
+    const RepeatedPtrField<Resource>& resources,
     const Option<Principal>& principal) const
 {
   Slave* slave = master->slaves.registered.get(slaveId);
@@ -5035,11 +5017,14 @@ Future<Response> Master::Http::_unreserve(
   operation.set_type(Offer::Operation::UNRESERVE);
   operation.mutable_unreserve()->mutable_resources()->CopyFrom(resources);
 
-  Option<Error> error = validation::operation::validate(operation.unreserve());
-
+  Option<Error> error = validateAndNormalizeResources(&operation);
   if (error.isSome()) {
-    return BadRequest(
-        "Invalid UNRESERVE operation: " + error.get().message);
+    return BadRequest(error->message);
+  }
+
+  error = validation::operation::validate(operation.unreserve());
+  if (error.isSome()) {
+    return BadRequest("Invalid UNRESERVE operation: " + error->message);
   }
 
   return master->authorizeUnreserveResources(operation.unreserve(), principal)
@@ -5048,7 +5033,7 @@ Future<Response> Master::Http::_unreserve(
         return Forbidden();
       }
 
-      return _operation(slaveId, resources, operation);
+      return _operation(slaveId, operation.unreserve().resources(), operation);
     }));
 }
 
@@ -5125,7 +5110,8 @@ Future<Response> Master::Http::unreserveResources(
   CHECK_EQ(mesos::master::Call::UNRESERVE_RESOURCES, call.type());
 
   const SlaveID& slaveId = call.unreserve_resources().slave_id();
-  const Resources& resources = call.unreserve_resources().resources();
+  const RepeatedPtrField<Resource>& resources =
+    call.unreserve_resources().resources();
 
   return _unreserve(slaveId, resources, principal);
 }

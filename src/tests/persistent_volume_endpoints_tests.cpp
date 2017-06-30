@@ -506,9 +506,9 @@ TEST_F(PersistentVolumeEndpointsTest, InvalidVolume)
         body);
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-    ASSERT_EQ(
+    ASSERT_TRUE(strings::contains(
         response->body,
-        "Invalid reservation: role \"*\" cannot be reserved");
+        "Invalid reservation: role \"*\" cannot be reserved"));
   }
 
   {
@@ -519,9 +519,9 @@ TEST_F(PersistentVolumeEndpointsTest, InvalidVolume)
         body);
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
-    ASSERT_EQ(
+    ASSERT_TRUE(strings::contains(
         response->body,
-        "Invalid reservation: role \"*\" cannot be reserved");
+        "Invalid reservation: role \"*\" cannot be reserved"));
   }
 }
 
