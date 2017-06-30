@@ -3805,7 +3805,8 @@ void Master::accept(
 {
   CHECK_NOTNULL(framework);
 
-  foreach (Offer::Operation& operation, *accept.mutable_operations()) {
+  // Bump metrics.
+  foreach (const Offer::Operation& operation, accept.operations()) {
     if (operation.type() == Offer::Operation::LAUNCH) {
       if (operation.launch().task_infos().size() > 0) {
         ++metrics->messages_launch_tasks;
@@ -3815,22 +3816,9 @@ void Master::accept(
                      << " in ACCEPT call for framework " << framework->id()
                      << " as the launch operation specified no tasks";
       }
-    } else if (operation.type() == Offer::Operation::LAUNCH_GROUP) {
-      const ExecutorInfo& executor = operation.launch_group().executor();
-
-      TaskGroupInfo* taskGroup =
-        operation.mutable_launch_group()->mutable_task_group();
-
-      // Mutate `TaskInfo` to include `ExecutorInfo` to make it easy
-      // for operator API and WebUI to get access to the corresponding
-      // executor for tasks in the task group.
-      foreach (TaskInfo& task, *taskGroup->mutable_tasks()) {
-        if (!task.has_executor()) {
-          task.mutable_executor()->CopyFrom(executor);
-        }
-      }
     }
 
+    // TODO(mpark): Add metrics for LAUNCH_GROUP operation.
     // TODO(jieyu): Add metrics for non launch operations.
   }
 
@@ -3937,14 +3925,85 @@ void Master::accept(
     return;
   }
 
-  CHECK_SOME(allocationInfo);
-
-  // With the addition of the MULTI_ROLE capability, the resources
-  // within an offer now contain an `AllocationInfo`. We therefore
-  // inject the offer's allocation info into the operation's
-  // resources if the scheduler has not done so already.
+  // We make various adjustments to the `Offer::Operation`s,
+  // typically for backward/forward compatibility.
+  // TODO(mpark): Pull this out to a master normalization utility.
   foreach (Offer::Operation& operation, *accept.mutable_operations()) {
+    // With the addition of the MULTI_ROLE capability, the resources
+    // within an offer now contain an `AllocationInfo`. We therefore
+    // inject the offer's allocation info into the operation's
+    // resources if the scheduler has not done so already.
+    CHECK_SOME(allocationInfo);
     protobuf::injectAllocationInfo(&operation, allocationInfo.get());
+
+    switch (operation.type()) {
+      case Offer::Operation::RESERVE:
+      case Offer::Operation::UNRESERVE:
+      case Offer::Operation::CREATE:
+      case Offer::Operation::DESTROY: {
+        // No-op.
+        break;
+      }
+      case Offer::Operation::LAUNCH: {
+        foreach (
+            TaskInfo& task, *operation.mutable_launch()->mutable_task_infos()) {
+          // TODO(haosdent): Once we have internal `TaskInfo` separate from
+          // the v0 `TaskInfo` (see MESOS-6268), consider extracting the
+          // following adaptation code into devolve methods from v0 and v1
+          // `TaskInfo` to internal `TaskInfo`.
+          //
+          // Make a copy of the original task so that we can fill the missing
+          // `framework_id` in `ExecutorInfo` if needed. This field was added
+          // to the API later and thus was made optional.
+          if (task.has_executor() && !task.executor().has_framework_id()) {
+            task.mutable_executor()->mutable_framework_id()->CopyFrom(
+                framework->id());
+          }
+
+          // For backwards compatibility with the v0 and v1 API, when
+          // the type of the health check is not specified, determine
+          // its type from the `http` and `command` fields.
+          //
+          // TODO(haosdent): Remove this after the deprecation cycle which
+          // starts in 2.0.
+          if (task.has_health_check() && !task.health_check().has_type()) {
+            LOG(WARNING) << "The type of health check is not set; use of "
+                         << "'HealthCheck' without specifying 'type' will be "
+                         << "deprecated in Mesos 2.0";
+
+            const HealthCheck& healthCheck = task.health_check();
+            if (healthCheck.has_command() && !healthCheck.has_http()) {
+              task.mutable_health_check()->set_type(HealthCheck::COMMAND);
+            } else if (healthCheck.has_http() && !healthCheck.has_command()) {
+              task.mutable_health_check()->set_type(HealthCheck::HTTP);
+            }
+          }
+        }
+
+        break;
+      }
+      case Offer::Operation::LAUNCH_GROUP: {
+        const ExecutorInfo& executor = operation.launch_group().executor();
+
+        TaskGroupInfo* taskGroup =
+          operation.mutable_launch_group()->mutable_task_group();
+
+        // Mutate `TaskInfo` to include `ExecutorInfo` to make it easy
+        // for operator API and WebUI to get access to the corresponding
+        // executor for tasks in the task group.
+        foreach (TaskInfo& task, *taskGroup->mutable_tasks()) {
+          if (!task.has_executor()) {
+            task.mutable_executor()->CopyFrom(executor);
+          }
+        }
+
+        break;
+      }
+      case Offer::Operation::UNKNOWN: {
+        // No-op.
+        break;
+      }
+    }
   }
 
   CHECK_SOME(slaveId);
@@ -4555,38 +4614,6 @@ void Master::_accept(
           }
 
           // Validate the task.
-
-          // TODO(haosdent): Once we have internal `TaskInfo` separate from
-          // the v0 `TaskInfo` (see MESOS-6268), consider extracting the
-          // following adaptation code into devolve methods from v0 and v1
-          // `TaskInfo` to internal `TaskInfo`.
-          //
-          // Make a copy of the original task so that we can fill the missing
-          // `framework_id` in `ExecutorInfo` if needed. This field was added
-          // to the API later and thus was made optional.
-          if (task.has_executor() && !task.executor().has_framework_id()) {
-            task.mutable_executor()->mutable_framework_id()->CopyFrom(
-                framework->id());
-          }
-
-          // For backwards compatibility with the v0 and v1 API, when
-          // the type of the health check is not specified, determine
-          // its type from the `http` and `command` fields.
-          //
-          // TODO(haosdent): Remove this after the deprecation cycle which
-          // starts in 2.0.
-          if (task.has_health_check() && !task.health_check().has_type()) {
-            LOG(WARNING) << "The type of health check is not set; use of "
-                         << "'HealthCheck' without specifying 'type' will be "
-                         << "deprecated in Mesos 2.0";
-
-            const HealthCheck& healthCheck = task.health_check();
-            if (healthCheck.has_command() && !healthCheck.has_http()) {
-              task.mutable_health_check()->set_type(HealthCheck::COMMAND);
-            } else if (healthCheck.has_http() && !healthCheck.has_command()) {
-              task.mutable_health_check()->set_type(HealthCheck::HTTP);
-            }
-          }
 
           // We add back offered shared resources for validation even if they
           // are already consumed by other tasks in the same ACCEPT call. This
