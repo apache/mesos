@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/stringify.hpp>
 
