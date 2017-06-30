@@ -3805,11 +3805,9 @@ void Master::accept(
 {
   CHECK_NOTNULL(framework);
 
-  for (int i = 0; i < accept.operations_size(); ++i) {
-    Offer::Operation* operation = accept.mutable_operations(i);
-
-    if (operation->type() == Offer::Operation::LAUNCH) {
-      if (operation->launch().task_infos().size() > 0) {
+  foreach (Offer::Operation& operation, *accept.mutable_operations()) {
+    if (operation.type() == Offer::Operation::LAUNCH) {
+      if (operation.launch().task_infos().size() > 0) {
         ++metrics->messages_launch_tasks;
       } else {
         ++metrics->messages_decline_offers;
@@ -3817,19 +3815,18 @@ void Master::accept(
                      << " in ACCEPT call for framework " << framework->id()
                      << " as the launch operation specified no tasks";
       }
-    } else if (operation->type() == Offer::Operation::LAUNCH_GROUP) {
-      const ExecutorInfo& executor = operation->launch_group().executor();
+    } else if (operation.type() == Offer::Operation::LAUNCH_GROUP) {
+      const ExecutorInfo& executor = operation.launch_group().executor();
 
       TaskGroupInfo* taskGroup =
-        operation->mutable_launch_group()->mutable_task_group();
+        operation.mutable_launch_group()->mutable_task_group();
 
       // Mutate `TaskInfo` to include `ExecutorInfo` to make it easy
       // for operator API and WebUI to get access to the corresponding
       // executor for tasks in the task group.
-      for (int j = 0; j < taskGroup->tasks().size(); ++j) {
-        TaskInfo* task = taskGroup->mutable_tasks(j);
-        if (!task->has_executor()) {
-          task->mutable_executor()->CopyFrom(executor);
+      foreach (TaskInfo& task, *taskGroup->mutable_tasks()) {
+        if (!task.has_executor()) {
+          task.mutable_executor()->CopyFrom(executor);
         }
       }
     }
@@ -4869,13 +4866,12 @@ void Master::_accept(
         set<TaskID> taskIds;
         Resources totalResources;
 
-        for (int i = 0; i < message.task_group().tasks().size(); ++i) {
-          TaskInfo* task = message.mutable_task_group()->mutable_tasks(i);
+        foreach (
+            TaskInfo& task, *message.mutable_task_group()->mutable_tasks()) {
+          taskIds.insert(task.task_id());
+          totalResources += task.resources();
 
-          taskIds.insert(task->task_id());
-          totalResources += task->resources();
-
-          const Resources consumed = addTask(*task, framework, slave);
+          const Resources consumed = addTask(task, framework, slave);
 
           CHECK(_offeredResources.contains(consumed))
             << _offeredResources << " does not contain " << consumed;
@@ -4884,9 +4880,9 @@ void Master::_accept(
 
           if (HookManager::hooksAvailable()) {
             // Set labels retrieved from label-decorator hooks.
-            task->mutable_labels()->CopyFrom(
+            task.mutable_labels()->CopyFrom(
                 HookManager::masterLaunchTaskLabelDecorator(
-                    *task,
+                    task,
                     framework->info,
                     slave->info));
           }
