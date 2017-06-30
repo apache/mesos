@@ -59,6 +59,8 @@ using std::map;
 using std::string;
 using std::vector;
 
+using mesos::internal::ContainerDNSInfo;
+
 
 template <typename T>
 static Future<T> failure(
@@ -505,7 +507,8 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
     const Option<Resources>& resources,
     bool enableCfsQuota,
     const Option<map<string, string>>& env,
-    const Option<vector<Device>>& devices)
+    const Option<vector<Device>>& devices,
+    const Option<ContainerDNSInfo>& defaultContainerDNS)
 {
   if (!containerInfo.has_docker()) {
     return Error("No docker info found in container info");
@@ -727,9 +730,71 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
 
   options.name = name;
 
+  bool dnsSpecified = false;
   foreach (const Parameter& parameter, dockerInfo.parameters()) {
     options.additionalOptions.push_back(
         "--" + parameter.key() + "=" + parameter.value());
+
+    // In Docker 1.13.0, `--dns-option` was added and `--dns-opt` was hidden
+    // (but it can still be used), so here we need to check both of them.
+    if (!dnsSpecified &&
+        (parameter.key() == "dns" ||
+         parameter.key() == "dns-search" ||
+         parameter.key() == "dns-opt" ||
+         parameter.key() == "dns-option")) {
+      dnsSpecified = true;
+    }
+  }
+
+  if (!dnsSpecified && defaultContainerDNS.isSome()) {
+    Option<ContainerDNSInfo::DockerInfo> bridgeDNS;
+    Option<ContainerDNSInfo::DockerInfo> defaultUserDNS;
+    hashmap<string, ContainerDNSInfo::DockerInfo> userDNSMap;
+
+    foreach (const ContainerDNSInfo::DockerInfo& dnsInfo,
+             defaultContainerDNS->docker()) {
+      // Currently we only support setting DNS for containers which join
+      // Docker bridge network or user-defined network.
+      if (dnsInfo.network_mode() == ContainerDNSInfo::DockerInfo::BRIDGE) {
+        bridgeDNS = dnsInfo;
+      } else if (dnsInfo.network_mode() == ContainerDNSInfo::DockerInfo::USER) {
+        if (!dnsInfo.has_network_name()) {
+          // The DNS info which has network node set as `USER` and has no
+          // network name set is considered as the default DNS for all
+          // user-defined networks. It applies to the Docker container which
+          // joins a user-defined network but that network can not be found in
+          // `defaultContainerDNS`.
+          defaultUserDNS = dnsInfo;
+        } else {
+          userDNSMap[dnsInfo.network_name()] = dnsInfo;
+        }
+      }
+    }
+
+    auto setDNSInfo = [&](const ContainerDNSInfo::DockerInfo& dnsInfo) {
+      options.dns.assign(
+          dnsInfo.dns().nameservers().begin(),
+          dnsInfo.dns().nameservers().end());
+
+      options.dnsSearch.assign(
+          dnsInfo.dns().search().begin(),
+          dnsInfo.dns().search().end());
+
+      options.dnsOpt.assign(
+          dnsInfo.dns().options().begin(),
+          dnsInfo.dns().options().end());
+    };
+
+    if (dockerInfo.network() == ContainerInfo::DockerInfo::BRIDGE &&
+        bridgeDNS.isSome()) {
+      setDNSInfo(bridgeDNS.get());
+    } else if (dockerInfo.network() == ContainerInfo::DockerInfo::USER) {
+      if (userDNSMap.contains(options.network.get())) {
+        setDNSInfo(userDNSMap.at(options.network.get()));
+      } else if (defaultUserDNS.isSome()) {
+        setDNSInfo(defaultUserDNS.get());
+      }
+    }
   }
 
   options.image = dockerInfo.image();
@@ -827,14 +892,48 @@ Future<Option<int>> Docker::run(
     if (network != "host" &&
         network != "bridge" &&
         network != "none") {
-      // User defined networks require docker version >= 1.9.0.
+      // User defined networks require Docker version >= 1.9.0.
       Try<Nothing> validateVer = validateVersion(Version(1, 9, 0));
-
       if (validateVer.isError()) {
         return Failure("User defined networks require Docker "
                        "version 1.9.0 or higher");
       }
     }
+
+    if (network == "host" && !options.dns.empty()) {
+      // `--dns` option with host network requires Docker version >= 1.12.0,
+      // see https://github.com/moby/moby/pull/22408 for details.
+      Try<Nothing> validateVer = validateVersion(Version(1, 12, 0));
+      if (validateVer.isError()) {
+        return Failure("--dns option with host network requires Docker "
+                       "version 1.12.0 or higher");
+      }
+    }
+  }
+
+  foreach (const string& dns, options.dns) {
+    argv.push_back("--dns");
+    argv.push_back(dns);
+  }
+
+  foreach (const string& search, options.dnsSearch) {
+    argv.push_back("--dns-search");
+    argv.push_back(search);
+  }
+
+  if (!options.dnsOpt.empty()) {
+    // `--dns-opt` option requires Docker version >= 1.9.0,
+    // see https://github.com/moby/moby/pull/16031 for details.
+    Try<Nothing> validateVer = validateVersion(Version(1, 9, 0));
+    if (validateVer.isError()) {
+      return Failure("--dns-opt option requires Docker "
+                     "version 1.9.0 or higher");
+    }
+  }
+
+  foreach (const string& opt, options.dnsOpt) {
+    argv.push_back("--dns-opt");
+    argv.push_back(opt);
   }
 
   if (options.hostname.isSome()) {

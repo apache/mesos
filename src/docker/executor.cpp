@@ -170,7 +170,8 @@ public:
         task.resources() + task.executor().resources(),
         cgroupsEnableCfs,
         taskEnvironment,
-        None() // No extra devices.
+        None(), // No extra devices.
+        defaultContainerDNS
     );
 
     if (runOptions.isError()) {
