@@ -7137,7 +7137,7 @@ public:
       return resources;
     }
 
-    CHECK_NONE(validateAndUpgradeResources(&resources));
+    convertResourceFormat(&resources, POST_RESERVATION_REFINEMENT);
     return resources;
   }
 
