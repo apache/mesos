@@ -196,16 +196,215 @@ void convertResourceFormat(
 }
 
 
-Option<Error> validateAndUpgradeResources(RepeatedPtrField<Resource>* resources)
+Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
 {
-  Option<Error> error = Resources::validate(*resources);
-  if (error.isSome()) {
-    return Error("Invalid resources upgrade: " + error->message);
+  CHECK_NOTNULL(operation);
+
+  switch (operation->type()) {
+    case Offer::Operation::RESERVE: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_reserve()) {
+        return Error(
+            "A RESERVE offer operation must have"
+            " the Offer.Operation.reserve field set.");
+      }
+
+      Option<Error> error =
+        Resources::validate(operation->reserve().resources());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      convertResourceFormat(
+          operation->mutable_reserve()->mutable_resources(),
+          POST_RESERVATION_REFINEMENT);
+
+      return None();
+    }
+    case Offer::Operation::UNRESERVE: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_unreserve()) {
+        return Error(
+            "An UNRESERVE offer operation must have"
+            " the Offer.Operation.unreserve field set.");
+      }
+
+      Option<Error> error =
+        Resources::validate(operation->unreserve().resources());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      convertResourceFormat(
+          operation->mutable_unreserve()->mutable_resources(),
+          POST_RESERVATION_REFINEMENT);
+
+      return None();
+    }
+    case Offer::Operation::CREATE: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_create()) {
+        return Error(
+            "A CREATE offer operation must have"
+            " the Offer.Operation.create field set.");
+      }
+
+      Option<Error> error =
+        Resources::validate(operation->create().volumes());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      convertResourceFormat(
+          operation->mutable_create()->mutable_volumes(),
+          POST_RESERVATION_REFINEMENT);
+
+      return None();
+    }
+    case Offer::Operation::DESTROY: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_destroy()) {
+        return Error(
+            "A DESTROY offer operation must have"
+            " the Offer.Operation.destroy field set.");
+      }
+
+      Option<Error> error =
+        Resources::validate(operation->destroy().volumes());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      convertResourceFormat(
+          operation->mutable_destroy()->mutable_volumes(),
+          POST_RESERVATION_REFINEMENT);
+
+      return None();
+    }
+    case Offer::Operation::LAUNCH: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_launch()) {
+        return Error(
+            "A LAUNCH offer operation must have"
+            " the Offer.Operation.launch field set.");
+      }
+
+      // Validate resources in LAUNCH.
+      foreach (const TaskInfo& task, operation->launch().task_infos()) {
+        Option<Error> error = Resources::validate(task.resources());
+        if (error.isSome()) {
+          return error;
+        }
+
+        if (task.has_executor()) {
+          Option<Error> error =
+            Resources::validate(task.executor().resources());
+
+          if (error.isSome()) {
+            return error;
+          }
+        }
+      }
+
+      // Normalize resources in LAUNCH.
+      foreach (
+          TaskInfo& task, *operation->mutable_launch()->mutable_task_infos()) {
+        convertResourceFormat(
+            task.mutable_resources(),
+            POST_RESERVATION_REFINEMENT);
+
+        if (task.has_executor()) {
+          convertResourceFormat(
+              task.mutable_executor()->mutable_resources(),
+              POST_RESERVATION_REFINEMENT);
+        }
+      }
+
+      return None();
+    }
+    case Offer::Operation::LAUNCH_GROUP: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_launch_group()) {
+        return Error(
+            "A LAUNCH_GROUP offer operation must have"
+            " the Offer.Operation.launch_group field set.");
+      }
+
+      Offer::Operation::LaunchGroup* launchGroup =
+        operation->mutable_launch_group();
+
+      // Validate resources in LAUNCH_GROUP.
+      if (launchGroup->has_executor()) {
+        Option<Error> error =
+          Resources::validate(launchGroup->executor().resources());
+
+        if (error.isSome()) {
+          return error;
+        }
+      }
+
+      foreach (const TaskInfo& task, launchGroup->task_group().tasks()) {
+        Option<Error> error = Resources::validate(task.resources());
+        if (error.isSome()) {
+          return error;
+        }
+
+        if (task.has_executor()) {
+          Option<Error> error =
+            Resources::validate(task.executor().resources());
+
+          if (error.isSome()) {
+            return error;
+          }
+        }
+      }
+
+      // Normalize resources in LAUNCH_GROUP.
+      if (launchGroup->has_executor()) {
+        convertResourceFormat(
+            launchGroup->mutable_executor()->mutable_resources(),
+            POST_RESERVATION_REFINEMENT);
+      }
+
+      foreach (
+          TaskInfo& task, *launchGroup->mutable_task_group()->mutable_tasks()) {
+        convertResourceFormat(
+            task.mutable_resources(),
+            POST_RESERVATION_REFINEMENT);
+
+        if (task.has_executor()) {
+          convertResourceFormat(
+              task.mutable_executor()->mutable_resources(),
+              POST_RESERVATION_REFINEMENT);
+        }
+      }
+
+      return None();
+    }
+    case Offer::Operation::UNKNOWN: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      return Error("Unknown offer operation");
+    }
   }
-
-  convertResourceFormat(resources, POST_RESERVATION_REFINEMENT);
-
-  return None();
+  UNREACHABLE();
 }
 
 
