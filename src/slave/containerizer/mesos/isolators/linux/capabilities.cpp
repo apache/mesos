@@ -86,13 +86,16 @@ Future<Option<ContainerLaunchInfo>> LinuxCapabilitiesIsolatorProcess::prepare(
   // that the effective set is at least as restrictive as the
   // bounding set.
   if (containerConfig.has_container_info() &&
-      containerConfig.container_info().has_linux_info() &&
-      containerConfig.container_info().linux_info().has_capability_info()) {
-    effective =
-      containerConfig.container_info().linux_info().capability_info();
+      containerConfig.container_info().has_linux_info()) {
+    const auto& linuxInfo = containerConfig.container_info().linux_info();
 
-    // TODO(jpeach): MESOS-7671: Let the framework specify a bounding
-    // capability set too.
+    if (linuxInfo.has_capability_info()) {
+      effective = linuxInfo.capability_info();
+    }
+
+    if (linuxInfo.has_bounding_capabilities()) {
+      bounding = linuxInfo.bounding_capabilities();
+    }
   }
 
   // If the framework didn't specify, use the operator effective set.
@@ -100,8 +103,19 @@ Future<Option<ContainerLaunchInfo>> LinuxCapabilitiesIsolatorProcess::prepare(
     effective = flags.effective_capabilities;
   }
 
-  // TODO(jpeach): MESOS-7671: If the framework specified a bounding set,
-  // test it against flags.bounding_capabilities.
+  // If the framework specified a bounding set, test it against
+  // flags.bounding_capabilities since that defines the limits of
+  // what the operator is willing to allow.
+  if (bounding.isSome() && flags.bounding_capabilities.isSome()) {
+    const set<Capability> requested = convert(bounding.get());
+    const set<Capability> allowed = convert(flags.bounding_capabilities.get());
+
+    if ((requested & allowed).size() != requested.size()) {
+      return Failure(
+          "Bounding capabilities '" + stringify(requested) + "', "
+          "but only '" + stringify(allowed) + "' are allowed");
+    }
+  }
 
   // If the framework didn't specify, use the operator bounding set and fall
   // back to the effective set if necessary.
@@ -113,8 +127,7 @@ Future<Option<ContainerLaunchInfo>> LinuxCapabilitiesIsolatorProcess::prepare(
     bounding = effective;
   }
 
-  // If the operator specified a bounding set, require effective task
-  // capabilities to be within that set.
+  // Require the effective task capabilities to be within the bounding set.
   if (effective.isSome()) {
     CHECK_SOME(bounding);
 
