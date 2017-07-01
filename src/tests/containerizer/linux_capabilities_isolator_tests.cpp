@@ -104,23 +104,28 @@ struct TestParam
 
   TestParam(
       const Option<set<Capability>>& _framework_effective,
+      const Option<set<Capability>>& _framework_bounding,
       const Option<set<Capability>>& _operator_effective,
       const Option<set<Capability>>& _operator_bounding,
       UseImage _useImage,
       Result _result)
-    : framework_effective(_framework_effective.isSome()
-        ? convert(_framework_effective.get())
-        : Option<CapabilityInfo>::none()),
-      operator_effective(_operator_effective.isSome()
-        ? convert(_operator_effective.get())
-        : Option<CapabilityInfo>::none()),
-      operator_bounding(_operator_bounding.isSome()
-        ? convert(_operator_bounding.get())
-        : Option<CapabilityInfo>::none()),
+    : framework_effective(convert(_framework_effective)),
+      framework_bounding(convert(_framework_bounding)),
+      operator_effective(convert(_operator_effective)),
+      operator_bounding(convert(_operator_bounding)),
       useImage(_useImage),
       result(_result) {}
 
+  static const Option<CapabilityInfo> convert(
+      const Option<set<Capability>>& caps)
+  {
+    return caps.isSome()
+      ? capabilities::convert(caps.get())
+      : Option<CapabilityInfo>::none();
+  }
+
   const Option<CapabilityInfo> framework_effective;
+  const Option<CapabilityInfo> framework_bounding;
   const Option<CapabilityInfo> operator_effective;
   const Option<CapabilityInfo> operator_bounding;
 
@@ -136,6 +141,13 @@ ostream& operator<<(ostream& stream, const TestParam& param)
            << JSON::protobuf(param.framework_effective.get()) << "', ";
   } else {
     stream << "framework_effective='none', ";
+  }
+
+  if (param.framework_bounding.isSome()) {
+    stream << "framework_bounding='"
+           << JSON::protobuf(param.framework_bounding.get()) << "', ";
+  } else {
+    stream << "framework_bounding='none', ";
   }
 
   if (param.operator_effective.isSome()) {
@@ -259,13 +271,22 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
       offers.get()[0].resources(),
       command);
 
-  if (param.framework_effective.isSome()) {
+  if (param.framework_effective.isSome() ||
+      param.framework_bounding.isSome()) {
     ContainerInfo* container = task.mutable_container();
     container->set_type(ContainerInfo::MESOS);
 
     LinuxInfo* linux = container->mutable_linux_info();
-    CapabilityInfo* capabilities = linux->mutable_capability_info();
-    capabilities->CopyFrom(param.framework_effective.get());
+
+    if (param.framework_effective.isSome()) {
+      CapabilityInfo* capabilities = linux->mutable_capability_info();
+      capabilities->CopyFrom(param.framework_effective.get());
+    }
+
+    if (param.framework_bounding.isSome()) {
+      CapabilityInfo* capabilities = linux->mutable_bounding_capabilities();
+      capabilities->CopyFrom(param.framework_bounding.get());
+    }
   }
 
   if (param.useImage == TestParam::WITH_IMAGE) {
@@ -321,22 +342,26 @@ INSTANTIATE_TEST_CASE_P(
             set<Capability>(),
             None(),
             None(),
+            None(),
             TestParam::WITHOUT_IMAGE,
             TestParam::FAILURE),
         TestParam(
             set<Capability>(),
             None(),
             None(),
+            None(),
             TestParam::WITH_IMAGE,
             TestParam::FAILURE),
         TestParam(
             set<Capability>({DAC_READ_SEARCH}),
+            None(),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             TestParam::WITHOUT_IMAGE,
             TestParam::FAILURE),
         TestParam(
             set<Capability>({DAC_READ_SEARCH}),
+            None(),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             TestParam::WITH_IMAGE,
@@ -346,12 +371,14 @@ INSTANTIATE_TEST_CASE_P(
         // ping will fail.
         TestParam(
             None(),
+            None(),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             TestParam::WITHOUT_IMAGE,
             TestParam::FAILURE),
         TestParam(
             None(),
+            None(),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             TestParam::WITH_IMAGE,
@@ -359,10 +386,12 @@ INSTANTIATE_TEST_CASE_P(
         TestParam(
             None(),
             None(),
+            None(),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             TestParam::WITH_IMAGE,
             TestParam::FAILURE),
         TestParam(
+            None(),
             None(),
             None(),
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
@@ -372,12 +401,14 @@ INSTANTIATE_TEST_CASE_P(
         // Framework effective capabilities are not allowed, task will fail.
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN}),
+            None(),
             set<Capability>({CHOWN}),
             set<Capability>({CHOWN}),
             TestParam::WITHOUT_IMAGE,
             TestParam::FAILURE),
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN}),
+            None(),
             set<Capability>({CHOWN}),
             set<Capability>({CHOWN}),
             TestParam::WITH_IMAGE,
@@ -389,21 +420,25 @@ INSTANTIATE_TEST_CASE_P(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             None(),
             None(),
+            None(),
             TestParam::WITHOUT_IMAGE,
             TestParam::SUCCESS),
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            None(),
             None(),
             None(),
             TestParam::WITH_IMAGE,
             TestParam::SUCCESS),
         TestParam(
             None(),
+            None(),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             TestParam::WITHOUT_IMAGE,
             TestParam::SUCCESS),
         TestParam(
+            None(),
             None(),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
@@ -412,10 +447,12 @@ INSTANTIATE_TEST_CASE_P(
         TestParam(
             None(),
             None(),
+            None(),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             TestParam::WITHOUT_IMAGE,
             TestParam::SUCCESS),
         TestParam(
+            None(),
             None(),
             None(),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
@@ -423,12 +460,14 @@ INSTANTIATE_TEST_CASE_P(
             TestParam::SUCCESS),
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            None(),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             TestParam::WITHOUT_IMAGE,
             TestParam::SUCCESS),
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            None(),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             TestParam::WITH_IMAGE,
@@ -452,7 +491,6 @@ TEST_F(LinuxCapabilitiesIsolatorFlagsTest, ROOT_IsolatorFlags)
   flags.isolation = "linux/capabilities";
 
   Try<Owned<cluster::Slave>> slave = Owned<cluster::Slave>();
-
 
   // Allowed is not a subset of bounding, so this should fail.
   flags.effective_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
