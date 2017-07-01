@@ -2644,6 +2644,10 @@ message CapabilityInfo {
 message LinuxInfo {
   // Represents the capability whitelist.
   optional CapabilityInfo capability_info = 1;
+
+  // The set of capabilities that are allowed but not initially
+  // granted to tasks.
+  optional CapabilityInfo bounding_capabilities = 2;
 }
 
 
