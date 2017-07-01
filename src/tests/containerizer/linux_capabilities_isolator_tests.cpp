@@ -367,6 +367,37 @@ INSTANTIATE_TEST_CASE_P(
             TestParam::WITH_IMAGE,
             TestParam::FAILURE),
 
+        // The framework effective set is outside the bounding set
+        // so the task will be failed by the isolator.
+        TestParam(
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            set<Capability>(),
+            None(),
+            None(),
+            TestParam::WITH_IMAGE,
+            TestParam::FAILURE),
+        TestParam(
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            set<Capability>(),
+            None(),
+            None(),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::FAILURE),
+        TestParam(
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            set<Capability>({CHOWN}),
+            None(),
+            None(),
+            TestParam::WITH_IMAGE,
+            TestParam::FAILURE),
+        TestParam(
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            set<Capability>({CHOWN}),
+            None(),
+            None(),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::FAILURE),
+
         // Effective capabilities do not contain that ping needs, thus
         // ping will fail.
         TestParam(
@@ -397,6 +428,34 @@ INSTANTIATE_TEST_CASE_P(
             set<Capability>({CHOWN, DAC_READ_SEARCH}),
             TestParam::WITHOUT_IMAGE,
             TestParam::FAILURE),
+        TestParam(
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
+            None(),
+            None(),
+            None(),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::FAILURE),
+        TestParam(
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
+            None(),
+            None(),
+            None(),
+            TestParam::WITH_IMAGE,
+            TestParam::FAILURE),
+        TestParam(
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
+            None(),
+            None(),
+            TestParam::WITH_IMAGE,
+            TestParam::FAILURE),
+        TestParam(
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
+            set<Capability>({CHOWN, DAC_READ_SEARCH}),
+            None(),
+            None(),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::FAILURE),
 
         // Framework effective capabilities are not allowed, task will fail.
         TestParam(
@@ -417,6 +476,20 @@ INSTANTIATE_TEST_CASE_P(
         // Dropped all capabilities but those that ping needs, thus
         // ping will finish normally.
         TestParam(
+            set<Capability>({DAC_READ_SEARCH}),
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            None(),
+            None(),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::SUCCESS),
+        TestParam(
+            set<Capability>(),
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            None(),
+            None(),
+            TestParam::WITH_IMAGE,
+            TestParam::SUCCESS),
+        TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             None(),
             None(),
@@ -426,6 +499,20 @@ INSTANTIATE_TEST_CASE_P(
         TestParam(
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             None(),
+            None(),
+            None(),
+            TestParam::WITH_IMAGE,
+            TestParam::SUCCESS),
+        TestParam(
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            None(),
+            None(),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::SUCCESS),
+        TestParam(
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
             None(),
             None(),
             TestParam::WITH_IMAGE,
@@ -456,6 +543,20 @@ INSTANTIATE_TEST_CASE_P(
             None(),
             None(),
             set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            TestParam::WITH_IMAGE,
+            TestParam::SUCCESS),
+        TestParam(
+            None(),
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            None(),
+            None(),
+            TestParam::WITHOUT_IMAGE,
+            TestParam::SUCCESS),
+        TestParam(
+            None(),
+            set<Capability>({NET_RAW, NET_ADMIN, DAC_READ_SEARCH}),
+            None(),
+            None(),
             TestParam::WITH_IMAGE,
             TestParam::SUCCESS),
         TestParam(
