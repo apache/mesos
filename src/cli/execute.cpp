@@ -835,7 +835,7 @@ static Result<ContainerInfo> getContainerInfo(
     if (capabilities.isSome()) {
       containerInfo
         .mutable_linux_info()
-        ->mutable_capability_info()
+        ->mutable_effective_capabilities()
         ->CopyFrom(capabilities.get());
     }
 

@@ -2642,12 +2642,16 @@ message CapabilityInfo {
  * E.g, capabilities, limits etc.
  */
 message LinuxInfo {
-  // Represents the capability whitelist.
-  optional CapabilityInfo capability_info = 1;
+  // Since 1.4.0, deprecated in favor of `effective_capabilities`.
+  optional CapabilityInfo capability_info = 1 [deprecated = true];
 
   // The set of capabilities that are allowed but not initially
   // granted to tasks.
   optional CapabilityInfo bounding_capabilities = 2;
+
+  // Represents the set of capabilities that the task will
+  // be executed with.
+  optional CapabilityInfo effective_capabilities = 3;
 }
 
 

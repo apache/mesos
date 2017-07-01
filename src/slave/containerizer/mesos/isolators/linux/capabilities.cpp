@@ -89,8 +89,19 @@ Future<Option<ContainerLaunchInfo>> LinuxCapabilitiesIsolatorProcess::prepare(
       containerConfig.container_info().has_linux_info()) {
     const auto& linuxInfo = containerConfig.container_info().linux_info();
 
+    if (linuxInfo.has_capability_info() &&
+        linuxInfo.has_effective_capabilities()) {
+      return Failure(
+          "Only one of 'capability_info' or 'effective_capabilities' "
+          "is allowed");
+    }
+
     if (linuxInfo.has_capability_info()) {
       effective = linuxInfo.capability_info();
+    }
+
+    if (linuxInfo.has_effective_capabilities()) {
+      effective = linuxInfo.effective_capabilities();
     }
 
     if (linuxInfo.has_bounding_capabilities()) {

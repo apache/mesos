@@ -279,7 +279,7 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
     LinuxInfo* linux = container->mutable_linux_info();
 
     if (param.framework_effective.isSome()) {
-      CapabilityInfo* capabilities = linux->mutable_capability_info();
+      CapabilityInfo* capabilities = linux->mutable_effective_capabilities();
       capabilities->CopyFrom(param.framework_effective.get());
     }
 
