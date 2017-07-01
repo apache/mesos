@@ -253,10 +253,22 @@ public:
         "Containerizer to be used (i.e., docker, mesos).",
         "mesos");
 
-    add(&Flags::capabilities,
-        "capabilities",
-        "JSON representation of system capabilities needed to execute \n"
-        "the command.\n"
+    add(&Flags::effective_capabilities,
+        "effective_capabilities",
+        "JSON representation of effective system capabilities that should be\n"
+        "granted to the command.\n"
+        "Example:\n"
+        "{\n"
+        "   \"capabilities\": [\n"
+        "       \"NET_RAW\",\n"
+        "       \"SYS_ADMIN\"\n"
+        "     ]\n"
+        "}");
+
+    add(&Flags::bounding_capabilities,
+        "bounding_capabilities",
+        "JSON representation of system capabilities bounding set that should\n"
+        "be applied to the command.\n"
         "Example:\n"
         "{\n"
         "   \"capabilities\": [\n"
@@ -368,7 +380,8 @@ public:
   Option<std::set<string>> framework_capabilities;
   Option<JSON::Array> volumes;
   string containerizer;
-  Option<CapabilityInfo> capabilities;
+  Option<CapabilityInfo> effective_capabilities;
+  Option<CapabilityInfo> bounding_capabilities;
   Option<RLimitInfo> rlimits;
   string role;
   Option<Duration> kill_after;
@@ -767,7 +780,8 @@ static Result<ContainerInfo> getContainerInfo(
     const Option<string>& networks,
     const Option<string>& appcImage,
     const Option<string>& dockerImage,
-    const Option<CapabilityInfo>& capabilities,
+    const Option<CapabilityInfo>& effective_capabilities,
+    const Option<CapabilityInfo>& bounding_capabilities,
     const Option<RLimitInfo>& rlimits)
 {
   if (containerizer.empty()) {
@@ -786,7 +800,8 @@ static Result<ContainerInfo> getContainerInfo(
   if (containerizer == "mesos") {
     if (appcImage.isNone() &&
         dockerImage.isNone() &&
-        capabilities.isNone() &&
+        effective_capabilities.isNone() &&
+        bounding_capabilities.isNone() &&
         rlimits.isNone() &&
         (networks.isNone() || networks->empty()) &&
         (volumes.isNone() || volumes->empty())) {
@@ -832,11 +847,18 @@ static Result<ContainerInfo> getContainerInfo(
       }
     }
 
-    if (capabilities.isSome()) {
+    if (effective_capabilities.isSome()) {
       containerInfo
         .mutable_linux_info()
         ->mutable_effective_capabilities()
-        ->CopyFrom(capabilities.get());
+        ->CopyFrom(effective_capabilities.get());
+    }
+
+    if (bounding_capabilities.isSome()) {
+      containerInfo
+        .mutable_linux_info()
+        ->mutable_bounding_capabilities()
+        ->CopyFrom(bounding_capabilities.get());
     }
 
     if (rlimits.isSome()) {
@@ -1166,7 +1188,8 @@ int main(int argc, char** argv)
         flags.networks,
         appcImage,
         dockerImage,
-        flags.capabilities,
+        flags.effective_capabilities,
+        flags.bounding_capabilities,
         flags.rlimits);
 
     if (containerInfo.isError()){
