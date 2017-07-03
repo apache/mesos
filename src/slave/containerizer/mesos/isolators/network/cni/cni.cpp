@@ -86,7 +86,8 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
     return new MesosIsolator(Owned<MesosIsolatorProcess>(
         new NetworkCniIsolatorProcess(
             flags,
-            hashmap<string, string>())));
+            hashmap<string, string>(),
+            hashmap<std::string, ContainerDNSInfo::MesosInfo>())));
   }
 
   // Check for root permission.
@@ -239,10 +240,32 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
     }
   }
 
+  hashmap<string, ContainerDNSInfo::MesosInfo> cniDNSMap;
+  Option<ContainerDNSInfo::MesosInfo> defaultCniDNS;
+
+  if (flags.default_container_dns.isSome()) {
+    foreach (const ContainerDNSInfo::MesosInfo& dnsInfo,
+             flags.default_container_dns->mesos()) {
+      if (dnsInfo.network_mode() == ContainerDNSInfo::MesosInfo::CNI) {
+        if (!dnsInfo.has_network_name()) {
+          // The DNS info which has network node set as `CNI` and has no
+          // network name set is considered as the default DNS for all CNI
+          // networks, it applies to the container which joins a CNI network
+          // but that network can not be found in `--default_container_dns`.
+          defaultCniDNS = dnsInfo;
+        } else {
+          cniDNSMap[dnsInfo.network_name()] = dnsInfo;
+        }
+      }
+    }
+  }
+
   return new MesosIsolator(Owned<MesosIsolatorProcess>(
       new NetworkCniIsolatorProcess(
           flags,
           networkConfigs.get(),
+          cniDNSMap,
+          defaultCniDNS,
           rootDir.get(),
           flags.network_cni_plugins_dir.get())));
 }
@@ -989,18 +1012,31 @@ Future<Nothing> NetworkCniIsolatorProcess::_isolate(
 
   cni::spec::DNS dns;
 
-  // Collect all the DNS resolver specifications from the networks'
-  // IPAM plugins. Ordering is preserved and for single-value fields,
-  // the last network will win.
+  // For each CNI network that the container joins, collect the DNS resolver
+  // specification returned from the networks' IPAM plugin, if it is not
+  // returned from the plugin, use the DNS resolver specification in the
+  // default container DNS if any. Ordering is preserved and for single-value
+  // fields, the last network will win.
   foreachvalue (const ContainerNetwork& network, info->containerNetworks) {
-    if (network.cniNetworkInfo.isSome() && network.cniNetworkInfo->has_dns()) {
+    if (network.cniNetworkInfo.isSome() &&
+        network.cniNetworkInfo->has_dns() &&
+        network.cniNetworkInfo->dns().nameservers_size() > 0) {
+      // NOTE: Just checking `has_dns()` is not enough since some IPAM plugins
+      // (e.g., host-local) will return an empty `dns` JSON string ("dns": {})
+      // even though the CNI network configuration has not specified DNS
+      // information, that will make `has_dns()` true, so here we further check
+      // the size of the `nameservers`.
       dns.MergeFrom(network.cniNetworkInfo->dns());
+    } else if (cniDNSMap.contains(network.networkName)) {
+      dns.MergeFrom(cniDNSMap.at(network.networkName).dns());
+    } else if (defaultCniDNS.isSome()) {
+      dns.MergeFrom(defaultCniDNS->dns());
     }
   }
 
-  // If IPAM has not specified any DNS servers, then we set
-  // the container 'resolv.conf' to be the same as the host
-  // 'resolv.conf' ('/etc/resolv.conf').
+  // If IPAM plugin has not specified any DNS servers and there is no default
+  // container DNS specified, then we set the container 'resolv.conf' to be the
+  // same as the host 'resolv.conf' ('/etc/resolv.conf').
   if (dns.nameservers().empty()) {
     if (!os::exists("/etc/resolv.conf")){
       return Failure("Cannot find host's /etc/resolv.conf");
