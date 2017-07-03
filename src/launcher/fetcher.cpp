@@ -29,6 +29,7 @@
 #include <stout/strings.hpp>
 
 #include <stout/os/constants.hpp>
+#include <stout/os/copyfile.hpp>
 
 #include <mesos/mesos.hpp>
 
@@ -90,7 +91,17 @@ static Try<bool> extract(
     in = Subprocess::PATH(sourcePath);
     out = Subprocess::PATH(destinationPath);
   } else if (strings::endsWith(sourcePath, ".zip")) {
+#ifdef __WINDOWS__
+    command = {"powershell",
+               "-NoProfile",
+               "-Command",
+               "Expand-Archive",
+               "-Force",
+               sourcePath,
+               destinationDirectory};
+#else
     command = {"unzip", "-o", "-d", destinationDirectory, sourcePath};
+#endif // __WINDOWS__
   } else {
     return false;
   }
@@ -189,23 +200,15 @@ static Try<string> downloadWithNet(
 }
 
 
+// TODO(coffler): Refactor code to eliminate redundant function.
 static Try<string> copyFile(
-    const string& sourcePath,
-    const string& destinationPath)
+    const string& sourcePath, const string& destinationPath)
 {
-  int status = os::spawn("cp", {"cp", sourcePath, destinationPath});
+  const Try<Nothing> result = os::copyfile(sourcePath, destinationPath);
 
-  if (status == -1) {
-    return ErrnoError("Failed to copy '" + sourcePath + "'");
+  if (result.isError()) {
+    return Error(result.error());
   }
-
-  if (!WSUCCEEDED(status)) {
-    return Error(
-        "Failed to copy '" + sourcePath + "': " + WSTRINGIFY(status));
-  }
-
-  LOG(INFO) << "Copied resource '" << sourcePath
-            << "' to '" << destinationPath << "'";
 
   return destinationPath;
 }
@@ -264,12 +267,15 @@ static Try<string> download(
 // so that someone can do: os::chmod(path, EXECUTABLE_CHMOD_FLAGS).
 static Try<string> chmodExecutable(const string& filePath)
 {
+  // TODO(coffler): Fix Windows chmod handling, see MESOS-3176.
+#ifndef __WINDOWS__
   Try<Nothing> chmod = os::chmod(
       filePath, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
   if (chmod.isError()) {
     return Error("Failed to chmod executable '" +
                  filePath + "': " + chmod.error());
   }
+#endif // __WINDOWS__
 
   return filePath;
 }
@@ -479,6 +485,9 @@ static Try<Nothing> createCacheDirectory(const FetcherInfo& fetcherInfo)
       if (fetcherInfo.has_user()) {
         // Fetching is performed as the task's user,
         // so chown the cache directory.
+
+        // TODO(coffler): Fix Windows chown handling, see MESOS-8063.
+#ifndef __WINDOWS__
         Try<Nothing> chown = os::chown(
             fetcherInfo.user(),
             fetcherInfo.cache_directory(),
@@ -487,6 +496,7 @@ static Try<Nothing> createCacheDirectory(const FetcherInfo& fetcherInfo)
         if (chown.isError()) {
           return chown;
         }
+#endif // __WINDOWS__
       }
 
       break;
@@ -561,12 +571,15 @@ int main(int argc, char* argv[])
   // If the `FetcherInfo` specifies a user, use `os::su()` to fetch files as the
   // task's user to ensure that filesystem permissions are enforced.
   if (fetcherInfo.get().has_user()) {
+    // TODO(coffler): No support for os::su on Windows, see MESOS-8063
+#ifndef __WINDOWS__
     result = os::su(fetcherInfo.get().user());
     if (result.isError()) {
       EXIT(EXIT_FAILURE)
         << "Fetcher could not execute `os::su()` for user '"
         << fetcherInfo.get().user() << "'";
     }
+#endif // __WINDOWS__
   }
 
   const Option<string> cacheDirectory =

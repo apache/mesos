@@ -31,6 +31,7 @@ add_dependencies(
   mesos-default-executor
   mesos-docker-executor
   mesos-executor
+  mesos-fetcher
   mesos-tcp-connect
   mesos-usage)
 
@@ -43,6 +44,5 @@ else ()
   add_dependencies(
     mesos-agent
     mesos-cni-port-mapper
-    mesos-fetcher
     mesos-io-switchboard)
 endif ()

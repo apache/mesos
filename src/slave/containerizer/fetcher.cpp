@@ -202,15 +202,11 @@ Result<string> Fetcher::uriToLocalPath(
   if (strings::startsWith(path, FILE_URI_LOCALHOST)) {
     path = path.substr(FILE_URI_LOCALHOST.size());
     fileUri = true;
-  } else if (strings::startsWith(path, FILE_URI_PREFIX)) {
-    path = path.substr(FILE_URI_PREFIX.size());
-    fileUri = true;
   }
 
-#ifndef __WINDOWS__
-  const bool isRelativePath = !strings::startsWith(path, "/");
+  path = path::from_uri(path);
 
-  if (isRelativePath) {
+  if (!path::absolute(path)) {
     if (fileUri) {
       return Error("File URI only supports absolute paths");
     }
@@ -226,7 +222,6 @@ Result<string> Fetcher::uriToLocalPath(
                 << "making it: '" << path << "'";
     }
   }
-#endif // __WINDOWS__
 
   return path;
 }
@@ -817,7 +812,12 @@ Future<Nothing> FetcherProcess::run(
       return Nothing();
   }
 
+#ifdef __WINDOWS__
+  string fetcherPath = path::join(flags.launcher_dir, "mesos-fetcher.exe");
+#else
   string fetcherPath = path::join(flags.launcher_dir, "mesos-fetcher");
+#endif // __WINDOWS__
+
   Result<string> realpath = os::realpath(fetcherPath);
 
   if (!realpath.isSome()) {
