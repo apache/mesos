@@ -9380,8 +9380,8 @@ static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo)
 
 void Master::Subscribers::send(const mesos::master::Event& event)
 {
-  VLOG(1) << "Notifying all active subscribers about " << event.type() << " "
-          << "event";
+  VLOG(1) << "Notifying all active subscribers about " << event.type()
+          << " event";
 
   foreachvalue (const Owned<Subscriber>& subscriber, subscribed) {
     subscriber->http.send<mesos::master::Event, v1::master::Event>(event);
@@ -9392,12 +9392,12 @@ void Master::Subscribers::send(const mesos::master::Event& event)
 void Master::exited(const UUID& id)
 {
   if (!subscribers.subscribed.contains(id)) {
-    LOG(WARNING) << "Unknown subscriber" << id << " disconnected";
+    LOG(WARNING) << "Unknown subscriber " << id << " disconnected";
     return;
   }
 
-  LOG(INFO) << "Removed subscriber: " << id << " from the "
-            << "list of active subscribers";
+  LOG(INFO) << "Removed subscriber " << id
+            << " from the list of active subscribers";
 
   subscribers.subscribed.erase(id);
 }
@@ -9405,8 +9405,8 @@ void Master::exited(const UUID& id)
 
 void Master::subscribe(const HttpConnection& http)
 {
-  LOG(INFO) << "Added subscriber: " << http.streamId << " to the "
-            << "list of active subscribers";
+  LOG(INFO) << "Added subscriber " << http.streamId
+            << " to the list of active subscribers";
 
   http.closed()
     .onAny(defer(self(),
