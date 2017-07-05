@@ -27,7 +27,7 @@
 
 namespace net {
 
-inline Result<IPNetwork> IPNetwork::fromLinkDevice(
+inline Result<IP::Network> IP::Network::fromLinkDevice(
     const std::string& name,
     int family)
 {
@@ -56,7 +56,7 @@ inline Result<IPNetwork> IPNetwork::fromLinkDevice(
 
           freeifaddrs(ifaddr);
 
-          Try<IPNetwork> network = IPNetwork::create(address, netmask);
+          Try<IP::Network> network = IP::Network::create(address, netmask);
           if (network.isError()) {
             return Error(network.error());
           }
@@ -71,7 +71,7 @@ inline Result<IPNetwork> IPNetwork::fromLinkDevice(
         // default /32 prefix for IPv4 and /64 for IPv6 is used.
         int prefix = (family == AF_INET ? 32 : 64);
 
-        Try<IPNetwork> network = IPNetwork::create(address, prefix);
+        Try<IP::Network> network = IP::Network::create(address, prefix);
         if (network.isError()) {
           return Error(network.error());
         }
