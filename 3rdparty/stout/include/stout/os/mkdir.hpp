@@ -13,57 +13,14 @@
 #ifndef __STOUT_OS_MKDIR_HPP__
 #define __STOUT_OS_MKDIR_HPP__
 
-#ifndef __WINDOWS__
-#include <sys/stat.h>
-#endif // __WINDOWS__
 
-#include <string>
-#include <vector>
-
-#include <stout/error.hpp>
-#include <stout/nothing.hpp>
-#include <stout/strings.hpp>
-#include <stout/try.hpp>
-
-#include <stout/os/constants.hpp>
-
+// For readability, we minimize the number of #ifdef blocks in the code by
+// splitting platform specific system calls into separate directories.
 #ifdef __WINDOWS__
-#include <stout/windows.hpp> // To be certain we're using the right `mkdir`.
+#include <stout/os/windows/mkdir.hpp>
+#else
+#include <stout/os/posix/mkdir.hpp>
 #endif // __WINDOWS__
 
-
-namespace os {
-
-inline Try<Nothing> mkdir(const std::string& directory, bool recursive = true)
-{
-  if (!recursive) {
-    if (::mkdir(directory.c_str(), 0755) < 0) {
-      return ErrnoError();
-    }
-  } else {
-    std::vector<std::string> tokens =
-      strings::tokenize(directory, stringify(os::PATH_SEPARATOR));
-
-    std::string path;
-
-    // We got an absolute path, so keep the leading slash.
-    if (directory.find_first_of(stringify(os::PATH_SEPARATOR)) == 0) {
-      path = os::PATH_SEPARATOR;
-    }
-
-    foreach (const std::string& token, tokens) {
-      path += token;
-      if (::mkdir(path.c_str(), 0755) < 0 && errno != EEXIST) {
-        return ErrnoError();
-      }
-
-      path += os::PATH_SEPARATOR;
-    }
-  }
-
-  return Nothing();
-}
-
-} // namespace os {
 
 #endif // __STOUT_OS_MKDIR_HPP__

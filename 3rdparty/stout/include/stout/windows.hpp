@@ -359,13 +359,6 @@ inline char* getcwd(char* path, size_t maxlen)
 }
 
 
-inline auto mkdir(const char* path, mode_t mode) ->
-decltype(_mkdir(path))
-{
-  return _mkdir(path);
-}
-
-
 inline auto mktemp(char* path) ->
 decltype(_mktemp(path))
 {

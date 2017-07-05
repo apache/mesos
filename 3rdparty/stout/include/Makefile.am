@@ -128,6 +128,7 @@ nobase_include_HEADERS =			\
   stout/os/posix/getenv.hpp			\
   stout/os/posix/kill.hpp			\
   stout/os/posix/killtree.hpp			\
+  stout/os/posix/mkdir.hpp			\
   stout/os/posix/mkdtemp.hpp			\
   stout/os/posix/pagesize.hpp			\
   stout/os/posix/pipe.hpp			\
@@ -161,6 +162,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/getenv.hpp			\
   stout/os/windows/kill.hpp			\
   stout/os/windows/killtree.hpp			\
+  stout/os/windows/mkdir.hpp			\
   stout/os/windows/mkdtemp.hpp			\
   stout/os/windows/pagesize.hpp			\
   stout/os/windows/pipe.hpp			\
