@@ -1781,17 +1781,21 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Owned<MasterDetector> detector = master.get()->createDetector();
+  Clock::pause();
 
   Future<SlaveRegisteredMessage> slave1RegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
 
+  Owned<MasterDetector> detector = master.get()->createDetector();
   slave::Flags slave1Flags = CreateSlaveFlags();
   slave1Flags.resources = "cpus:4";
-  Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get(), slave1Flags);
 
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get(), slave1Flags);
   ASSERT_SOME(slave1);
+
+  Clock::advance(slave1Flags.registration_backoff_factor);
   AWAIT_READY(slave1RegisteredMessage);
+
   const SlaveID& slaveId1 = slave1RegisteredMessage->slave_id();
 
   Future<SlaveRegisteredMessage> slave2RegisteredMessage =
@@ -1800,10 +1804,13 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
   // Each slave needs its own flags to ensure work_dirs are unique.
   slave::Flags slave2Flags = CreateSlaveFlags();
   slave2Flags.resources = "cpus:3";
-  Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get(), slave2Flags);
 
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get(), slave2Flags);
   ASSERT_SOME(slave2);
+
+  Clock::advance(slave2Flags.registration_backoff_factor);
   AWAIT_READY(slave2RegisteredMessage);
+
   const SlaveID& slaveId2 = slave2RegisteredMessage->slave_id();
 
   FrameworkInfo frameworkInfo = createFrameworkInfo();
