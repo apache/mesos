@@ -24,6 +24,9 @@
 #include <stout/os/mkdir.hpp>
 #include <stout/os/realpath.hpp>
 
+#include <stout/internal/windows/attributes.hpp>
+#include <stout/internal/windows/longpath.hpp>
+
 // We pass this struct to `DeviceIoControl` to get information about a reparse
 // point (including things like whether it's a symlink). It is normally part of
 // the Device Driver Kit (DDK), specifically `nitfs.h`, but rather than taking
@@ -112,15 +115,14 @@ struct SymbolicLink
 // Checks file/folder attributes for a path to see if the reparse point
 // attribute is set; this indicates whether the path points at a reparse point,
 // rather than a "normal" file or folder.
-inline Try<bool> reparse_point_attribute_set(const std::string& absolute_path)
+inline Try<bool> reparse_point_attribute_set(const std::wstring& absolute_path)
 {
-  const DWORD attributes = ::GetFileAttributes(absolute_path.c_str());
-  if (attributes == INVALID_FILE_ATTRIBUTES) {
-    return WindowsError(
-        "Failed to get attributes for file '" + absolute_path + "'");
+  const Try<DWORD> attributes = get_file_attributes(absolute_path.data());
+  if (attributes.isError()) {
+    return Error(attributes.error());
   }
 
-  return (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+  return (attributes.get() & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 }
 
 
@@ -192,8 +194,8 @@ inline Try<SharedHandle> get_handle_no_follow(const std::string& absolute_path)
     ? (FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
     : FILE_FLAG_OPEN_REPARSE_POINT;
 
-  const HANDLE handle = ::CreateFile(
-      absolute_path.c_str(),
+  const HANDLE handle = ::CreateFileW(
+      longpath(absolute_path).data(),
       GENERIC_READ,     // Open the file for reading only.
       FILE_SHARE_READ,  // Just reading this file, allow others to do the same.
       nullptr,          // Ignored.
@@ -307,7 +309,8 @@ inline Try<Nothing> create_symbolic_link(
   const bool target_is_folder = S_ISDIR(absolute_target_path_stat.st_mode);
 
   // Bail out if target is already a reparse point.
-  Try<bool> attribute_set = reparse_point_attribute_set(absolute_target_path);
+  Try<bool> attribute_set = reparse_point_attribute_set(
+      longpath(absolute_target_path));
   if (!attribute_set.isSome()) {
     return Error(
         "Could not get reparse point attribute for '" + absolute_target_path +
