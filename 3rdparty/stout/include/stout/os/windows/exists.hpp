@@ -15,9 +15,10 @@
 
 #include <string>
 
+#include <stout/error.hpp>
 #include <stout/windows.hpp>
 
-#include <stout/os/realpath.hpp>
+#include <stout/internal/windows/longpath.hpp>
 
 
 namespace os {
@@ -25,21 +26,15 @@ namespace os {
 
 inline bool exists(const std::string& path)
 {
-  Result<std::string> absolutePath = os::realpath(path);
-
-  if (!absolutePath.isSome()) {
-    return false;
-  }
-
-  // NOTE: `GetFileAttributes` redirects to either `GetFileAttributesA`
-  // (ASCII) or `GetFileAttributesW` (for `wchar`s). It returns
-  // `INVALID_FILE_ATTRIBUTES` if the file could not be opened for any reason.
-  // Checking for one of two 'not found' error codes (`ERROR_FILE_NOT_FOUND` or
-  // `ERROR_PATH_NOT_FOUND`) is a reliable test for whether the file or
-  // directory exists. See also [1] for more information on this technique.
+  // NOTE: `GetFileAttributes` returns `INVALID_FILE_ATTRIBUTES` if the file
+  // could not be opened for any reason. Checking for one of two 'not found'
+  // error codes (`ERROR_FILE_NOT_FOUND` or `ERROR_PATH_NOT_FOUND`) is a
+  // reliable test for whether the file or directory exists. See also [1] for
+  // more information on this technique.
   //
   // [1] http://blogs.msdn.com/b/oldnewthing/archive/2007/10/23/5612082.aspx
-  DWORD attributes = GetFileAttributes(absolutePath.get().c_str());
+  const DWORD attributes = ::GetFileAttributesW(
+      ::internal::windows::longpath(path).data());
 
   if (attributes == INVALID_FILE_ATTRIBUTES) {
     DWORD error = GetLastError();
