@@ -37,8 +37,8 @@ TEST(NetTest, LinkDevice)
   ASSERT_SOME(links);
 
   foreach (const string& link, links.get()) {
-    Result<net::IPNetwork> network =
-      net::IPNetwork::fromLinkDevice(link, AF_INET);
+    Result<net::IP::Network> network =
+      net::IP::Network::fromLinkDevice(link, AF_INET);
 
     EXPECT_FALSE(network.isError());
 
@@ -61,7 +61,7 @@ TEST(NetTest, LinkDevice)
     }
   }
 
-  EXPECT_ERROR(net::IPNetwork::fromLinkDevice("non-exist", AF_INET));
+  EXPECT_ERROR(net::IP::Network::fromLinkDevice("non-exist", AF_INET));
 }
 
 
@@ -92,48 +92,59 @@ TEST(NetTest, ConstructIPv6)
 
 TEST(NetTest, ConstructIPv4Network)
 {
-  EXPECT_SOME(net::IPNetwork::parse("10.135.0.1/8"));
-  EXPECT_SOME(net::IPNetwork::parse("192.168.1.1/16"));
-  EXPECT_SOME(net::IPNetwork::parse("172.39.13.123/31"));
+  EXPECT_SOME(net::IP::Network::parse("10.135.0.1/8"));
+  EXPECT_SOME(net::IP::Network::parse("192.168.1.1/16"));
+  EXPECT_SOME(net::IP::Network::parse("172.39.13.123/31"));
 
-  EXPECT_ERROR(net::IPNetwork::parse("123.1.1.2//23"));
-  EXPECT_ERROR(net::IPNetwork::parse("121.2.3.5/23/"));
-  EXPECT_ERROR(net::IPNetwork::parse("12.32.3.a/16"));
-  EXPECT_ERROR(net::IPNetwork::parse("hello moto/8"));
-  EXPECT_ERROR(net::IPNetwork::parse("::1/128", AF_INET));
+  EXPECT_ERROR(net::IP::Network::parse("123.1.1.2//23"));
+  EXPECT_ERROR(net::IP::Network::parse("121.2.3.5/23/"));
+  EXPECT_ERROR(net::IP::Network::parse("12.32.3.a/16"));
+  EXPECT_ERROR(net::IP::Network::parse("hello moto/8"));
+  EXPECT_ERROR(net::IP::Network::parse("::1/128", AF_INET));
 
-  EXPECT_SOME(net::IPNetwork::create(net::IP(0x12345678), net::IP(0xffff0000)));
-  EXPECT_SOME(net::IPNetwork::create(net::IP(0x12345678), net::IP(0xf0000000)));
-  EXPECT_SOME(net::IPNetwork::create(net::IP(0x12345678), net::IP(0xffffffff)));
-  EXPECT_SOME(net::IPNetwork::create(net::IP(0x12345678), net::IP(0)));
+  EXPECT_SOME(net::IP::Network::create(
+      net::IP(0x12345678),
+      net::IP(0xffff0000)));
 
-  EXPECT_ERROR(net::IPNetwork::create(net::IP(0x87654321), net::IP(0xff)));
-  EXPECT_ERROR(net::IPNetwork::create(net::IP(0x87654321), net::IP(0xff00ff)));
+  EXPECT_SOME(net::IP::Network::create(
+      net::IP(0x12345678),
+      net::IP(0xf0000000)));
 
-  Try<net::IPNetwork> n1 = net::IPNetwork::create(net::IP(0x12345678), 16);
-  Try<net::IPNetwork> n2 = net::IPNetwork::create(net::IP(0x12345678), 32);
-  Try<net::IPNetwork> n3 = net::IPNetwork::create(net::IP(0x12345678), 0);
+  EXPECT_SOME(net::IP::Network::create(
+      net::IP(0x12345678),
+      net::IP(0xffffffff)));
 
-  EXPECT_SOME_EQ(net::IPNetwork::parse("18.52.86.120/16", AF_INET).get(), n1);
-  EXPECT_SOME_EQ(net::IPNetwork::parse("18.52.86.120/32", AF_INET).get(), n2);
-  EXPECT_SOME_EQ(net::IPNetwork::parse("18.52.86.120/0", AF_INET).get(), n3);
+  EXPECT_SOME(net::IP::Network::create(net::IP(0x12345678), net::IP(0)));
 
-  EXPECT_ERROR(net::IPNetwork::create(net::IP(0x12345678), 123));
-  EXPECT_ERROR(net::IPNetwork::create(net::IP(0x12345678), -1));
+  EXPECT_ERROR(net::IP::Network::create(net::IP(0x87654321), net::IP(0xff)));
+  EXPECT_ERROR(net::IP::Network::create(
+      net::IP(0x87654321),
+      net::IP(0xff00ff)));
+
+  Try<net::IP::Network> n1 = net::IP::Network::create(net::IP(0x12345678), 16);
+  Try<net::IP::Network> n2 = net::IP::Network::create(net::IP(0x12345678), 32);
+  Try<net::IP::Network> n3 = net::IP::Network::create(net::IP(0x12345678), 0);
+
+  EXPECT_SOME_EQ(net::IP::Network::parse("18.52.86.120/16", AF_INET).get(), n1);
+  EXPECT_SOME_EQ(net::IP::Network::parse("18.52.86.120/32", AF_INET).get(), n2);
+  EXPECT_SOME_EQ(net::IP::Network::parse("18.52.86.120/0", AF_INET).get(), n3);
+
+  EXPECT_ERROR(net::IP::Network::create(net::IP(0x12345678), 123));
+  EXPECT_ERROR(net::IP::Network::create(net::IP(0x12345678), -1));
 
   uint32_t address = 0x01020304;
   uint32_t netmask = 0xff000000;
 
-  Try<net::IPNetwork> network =
-    net::IPNetwork::create(net::IP(address), net::IP(netmask));
+  Try<net::IP::Network> network =
+      net::IP::Network::create(net::IP(address), net::IP(netmask));
 
   ASSERT_SOME(network);
   EXPECT_EQ(net::IP(address), network.get().address());
   EXPECT_EQ(net::IP(netmask), network.get().netmask());
   EXPECT_EQ("1.2.3.4/8", stringify(network.get()));
 
-  Try<net::IPNetwork> network2 =
-      net::IPNetwork::parse(stringify(network.get()));
+  Try<net::IP::Network> network2 =
+      net::IP::Network::parse(stringify(network.get()));
 
   ASSERT_SOME(network2);
   EXPECT_EQ(network.get(), network2.get());
@@ -142,13 +153,13 @@ TEST(NetTest, ConstructIPv4Network)
 
 TEST(NetTest, ConstructIPv6Network)
 {
-  EXPECT_SOME(net::IPNetwork::parse("::/128"));
-  EXPECT_SOME(net::IPNetwork::parse("fe80::d/64"));
-  EXPECT_SOME(net::IPNetwork::parse(
+  EXPECT_SOME(net::IP::Network::parse("::/128"));
+  EXPECT_SOME(net::IP::Network::parse("fe80::d/64"));
+  EXPECT_SOME(net::IP::Network::parse(
       "2001:cdba:0000:0000:0000:0000:3257:9652/16"));
 
-  EXPECT_ERROR(net::IPNetwork::parse("10.135.0.1/8", AF_INET6));
-  EXPECT_ERROR(net::IPNetwork::parse("hello moto/8"));
+  EXPECT_ERROR(net::IP::Network::parse("10.135.0.1/8", AF_INET6));
+  EXPECT_ERROR(net::IP::Network::parse("hello moto/8"));
 
   net::IP loopback(::in6addr_loopback);
   ASSERT_EQ("::1", stringify(loopback));
@@ -160,30 +171,30 @@ TEST(NetTest, ConstructIPv6Network)
   ASSERT_SOME(netmask1);
   ASSERT_SOME(netmask2);
 
-  EXPECT_SOME(net::IPNetwork::create(address.get(), netmask1.get()));
-  EXPECT_ERROR(net::IPNetwork::create(address.get(), loopback));
+  EXPECT_SOME(net::IP::Network::create(address.get(), netmask1.get()));
+  EXPECT_ERROR(net::IP::Network::create(address.get(), loopback));
 
-  Try<net::IPNetwork> n1 = net::IPNetwork::create(loopback, 53);
-  Try<net::IPNetwork> n2 = net::IPNetwork::create(loopback, 128);
-  Try<net::IPNetwork> n3 = net::IPNetwork::create(loopback, 0);
+  Try<net::IP::Network> n1 = net::IP::Network::create(loopback, 53);
+  Try<net::IP::Network> n2 = net::IP::Network::create(loopback, 128);
+  Try<net::IP::Network> n3 = net::IP::Network::create(loopback, 0);
 
-  EXPECT_SOME_EQ(net::IPNetwork::parse("::1/53", AF_INET6).get(), n1);
-  EXPECT_SOME_EQ(net::IPNetwork::parse("::1/128", AF_INET6).get(), n2);
-  EXPECT_SOME_EQ(net::IPNetwork::parse("::1/0", AF_INET6).get(), n3);
+  EXPECT_SOME_EQ(net::IP::Network::parse("::1/53", AF_INET6).get(), n1);
+  EXPECT_SOME_EQ(net::IP::Network::parse("::1/128", AF_INET6).get(), n2);
+  EXPECT_SOME_EQ(net::IP::Network::parse("::1/0", AF_INET6).get(), n3);
 
-  EXPECT_ERROR(net::IPNetwork::create(loopback, -3));
-  EXPECT_ERROR(net::IPNetwork::create(loopback, 182));
+  EXPECT_ERROR(net::IP::Network::create(loopback, -3));
+  EXPECT_ERROR(net::IP::Network::create(loopback, 182));
 
-  Try<net::IPNetwork> network =
-    net::IPNetwork::create(address.get(), netmask1.get());
+  Try<net::IP::Network> network =
+    net::IP::Network::create(address.get(), netmask1.get());
 
   ASSERT_SOME(network);
   EXPECT_EQ(address.get(), network.get().address());
   EXPECT_EQ(netmask1.get(), network.get().netmask());
   EXPECT_EQ("2001:cdba::3257:9652/9", stringify(network.get()));
 
-  Try<net::IPNetwork> network2 =
-    net::IPNetwork::parse(stringify(network.get()));
+  Try<net::IP::Network> network2 =
+    net::IP::Network::parse(stringify(network.get()));
 
   ASSERT_SOME(network2);
   EXPECT_EQ(network.get(), network2.get());

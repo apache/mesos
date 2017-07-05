@@ -68,7 +68,6 @@
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
 
-
 namespace net {
 
 // Represents an IP.
@@ -199,6 +198,109 @@ public:
       return memcmp(&storage_, &that.storage_, sizeof(storage_)) > 0;
     }
   }
+
+  // Represents an IP network. We store the IP address and the IP
+  // netmask which defines the subnet.
+  class Network
+  {
+  public:
+    // Returns the IPv4 network for loopback (i.e., 127.0.0.1/8).
+    //
+    // TODO(asridharan): We need to move this functionality to an
+    // `net::inet::IP::Network` class in the future.
+    static Network LOOPBACK_V4();
+
+    // Returns the IPv6 network for loopback (i.e. ::1/128)
+    //
+    // TODO(asridharan): We need to move this functionality to an
+    // `net::inet6::IP::Network` class in the future.
+    static Network LOOPBACK_V6();
+
+    // Creates an IP network from the given string that has the
+    // IP address in canonical format with subnet prefix.
+    // For example:
+    //   10.0.0.1/8
+    //   192.168.1.100/24
+    //   fe80::3/64
+    static Try<Network> parse(
+        const std::string& value,
+        int family = AF_UNSPEC);
+
+    // Creates an IP network from the given IP address and netmask.
+    // Returns error if the netmask is not valid (e.g., not contiguous).
+    static Try<Network> create(const IP& address, const IP& netmask);
+
+    // Creates an IP network from an IP address and a subnet prefix.
+    // Returns error if the prefix is not valid.
+    static Try<Network> create(const IP& address, int prefix);
+
+    // Returns the first available IP network of a given link device.
+    // The link device is specified using its name (e.g., eth0). Returns
+    // error if the link device is not found. Returns none if the link
+    // device is found, but does not have an IP network.
+    // TODO(jieyu): It is uncommon, but likely that a link device has
+    // multiple IP networks. In that case, consider returning the
+    // primary IP network instead of the first one.
+    static Result<Network> fromLinkDevice(const std::string& name, int family);
+
+    // Need to add a copy constructor due to the presence of
+    // `unique_ptr`.
+    Network(const Network& network)
+      :address_(new IP(network.address())),
+      netmask_(new IP(network.netmask())) {};
+
+    IP address() const { return *address_; }
+
+    IP netmask() const { return *netmask_; }
+
+    // Returns the prefix of the subnet defined by the IP netmask.
+    int prefix() const
+    {
+      switch (netmask_->family()) {
+        case AF_INET: {
+          return bits::countSetBits(netmask_->in()->s_addr);
+        }
+        case AF_INET6: {
+          struct in6_addr in6 = netmask_->in6().get();
+
+          int prefix = std::accumulate(
+              std::begin(in6.s6_addr),
+              std::end(in6.s6_addr),
+              0,
+              [](int acc, uint8_t c) {
+                return acc + bits::countSetBits(c);
+              });
+
+          return prefix;
+        }
+        default:
+          UNREACHABLE();
+      }
+    }
+
+    bool operator==(const Network& that) const
+    {
+      return *(address_) == *(that.address_) &&
+        *(netmask_) == *(that.netmask_);
+    }
+
+    bool operator!=(const Network& that) const
+    {
+      return !(*this == that);
+    }
+
+  private:
+    Network(const IP& _address, const IP& _netmask)
+      : address_(new IP(_address)), netmask_(new IP(_netmask)) {}
+
+    // NOTE: The reason we need to store `std::unique_ptr` and not
+    // `net::IP` here is that since this class has a nested definition
+    // within `net::IP` `net::IP` is an incomplete type at this point.
+    // We therefore cannot store an object and can only store pointers
+    // for this incomplete type.
+    std::unique_ptr<IP> address_;
+    std::unique_ptr<IP> netmask_;
+  };
 
 private:
   // NOTE: We need to clear the union when creating an IP because the
@@ -334,90 +436,7 @@ inline std::ostream& operator<<(std::ostream& stream, const IP& ip)
 }
 
 
-// Represents an IP network. We store the IP address and the IP
-// netmask which defines the subnet.
-class IPNetwork
-{
-public:
-  // Returns the IPv4 network for loopback (i.e., 127.0.0.1/8).
-  static IPNetwork LOOPBACK_V4();
-
-  // Returns the IPv6 network for loopback (i.e. ::1/128)
-  static IPNetwork LOOPBACK_V6();
-
-  // Creates an IP network from the given string that has the
-  // IP address in canonical format with subnet prefix.
-  // For example:
-  //   10.0.0.1/8
-  //   192.168.1.100/24
-  //   fe80::3/64
-  static Try<IPNetwork> parse(const std::string& value, int family = AF_UNSPEC);
-
-  // Creates an IP network from the given IP address and netmask.
-  // Returns error if the netmask is not valid (e.g., not contiguous).
-  static Try<IPNetwork> create(const IP& address, const IP& netmask);
-
-  // Creates an IP network from an IP address and a subnet prefix.
-  // Returns error if the prefix is not valid.
-  static Try<IPNetwork> create(const IP& address, int prefix);
-
-  // Returns the first available IP network of a given link device.
-  // The link device is specified using its name (e.g., eth0). Returns
-  // error if the link device is not found. Returns none if the link
-  // device is found, but does not have an IP network.
-  // TODO(jieyu): It is uncommon, but likely that a link device has
-  // multiple IP networks. In that case, consider returning the
-  // primary IP network instead of the first one.
-  static Result<IPNetwork> fromLinkDevice(const std::string& name, int family);
-
-  IP address() const { return address_; }
-
-  IP netmask() const { return netmask_; }
-
-  // Returns the prefix of the subnet defined by the IP netmask.
-  int prefix() const
-  {
-    switch (netmask_.family()) {
-      case AF_INET: {
-        return bits::countSetBits(netmask_.in().get().s_addr);
-      }
-      case AF_INET6: {
-        struct in6_addr in6 = netmask_.in6().get();
-
-        int prefix = std::accumulate(
-          std::begin(in6.s6_addr),
-          std::end(in6.s6_addr),
-          0,
-          [](int acc, uint8_t c) { return acc + bits::countSetBits(c); });
-
-        return prefix;
-      }
-      default: {
-        UNREACHABLE();
-      }
-    }
-  }
-
-  bool operator==(const IPNetwork& that) const
-  {
-    return address_ == that.address_ && netmask_ == that.netmask_;
-  }
-
-  bool operator!=(const IPNetwork& that) const
-  {
-    return !(*this == that);
-  }
-
-private:
-  IPNetwork(const IP& _address, const IP& _netmask)
-    : address_(_address), netmask_(_netmask) {}
-
-  IP address_;
-  IP netmask_;
-};
-
-
-inline Try<IPNetwork> IPNetwork::parse(const std::string& value, int family)
+inline Try<IP::Network> IP::Network::parse(const std::string& value, int family)
 {
   std::vector<std::string> tokens = strings::split(value, "/");
 
@@ -443,19 +462,21 @@ inline Try<IPNetwork> IPNetwork::parse(const std::string& value, int family)
 }
 
 
-inline IPNetwork IPNetwork::LOOPBACK_V4()
+inline IP::Network IP::Network::LOOPBACK_V4()
 {
   return parse("127.0.0.1/8", AF_INET).get();
 }
 
 
-inline IPNetwork IPNetwork::LOOPBACK_V6()
+inline IP::Network IP::Network::LOOPBACK_V6()
 {
   return parse("::1/128", AF_INET6).get();
 }
 
 
-inline Try<IPNetwork> IPNetwork::create(const IP& address, const IP& netmask)
+inline Try<IP::Network> IP::Network::create(
+    const IP& address,
+    const IP& netmask)
 {
   if (address.family() != netmask.family()) {
     return Error(
@@ -496,11 +517,11 @@ inline Try<IPNetwork> IPNetwork::create(const IP& address, const IP& netmask)
     }
   }
 
-  return IPNetwork(address, netmask);
+  return IP::Network(address, netmask);
 }
 
 
-inline Try<IPNetwork> IPNetwork::create(const IP& address, int prefix)
+inline Try<IP::Network> IP::Network::create(const IP& address, int prefix)
 {
   if (prefix < 0) {
     return Error("Subnet prefix is negative");
@@ -518,7 +539,7 @@ inline Try<IPNetwork> IPNetwork::create(const IP& address, int prefix)
         mask = 0xffffffff << (32 - prefix);
       }
 
-      return IPNetwork(address, IP(mask));
+      return IP::Network(address, IP(mask));
     }
     case AF_INET6: {
       if (prefix > 128) {
@@ -539,7 +560,7 @@ inline Try<IPNetwork> IPNetwork::create(const IP& address, int prefix)
         mask.s6_addr[i] = _mask;
       }
 
-      return IPNetwork(address, IP(mask));
+      return IP::Network(address, IP(mask));
     }
     default: {
       UNREACHABLE();
@@ -550,7 +571,9 @@ inline Try<IPNetwork> IPNetwork::create(const IP& address, int prefix)
 
 // Returns the string representation of the given IP network using the
 // canonical form with prefix. For example: "10.0.0.1/8".
-inline std::ostream& operator<<(std::ostream& stream, const IPNetwork& network)
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const IP::Network& network)
 {
   stream << network.address() << "/" << network.prefix();
 
