@@ -80,7 +80,21 @@ inline Try<Bytes> parse(const std::string& value)
 template <>
 inline Try<net::IP> parse(const std::string& value)
 {
-  return net::IP::parse(value, AF_INET);
+  return net::IP::parse(value);
+}
+
+
+template <>
+inline Try<net::IPv4> parse(const std::string& value)
+{
+  return net::IPv4::parse(value);
+}
+
+
+template <>
+inline Try<net::IPv6> parse(const std::string& value)
+{
+  return net::IPv6::parse(value);
 }
 
 
