@@ -74,6 +74,23 @@ TEST(NetTest, ConstructIPv4)
   EXPECT_ERROR(net::IP::parse("121.2.3.5.", AF_INET));
   EXPECT_ERROR(net::IP::parse("12.32.3.a", AF_INET));
   EXPECT_ERROR(net::IP::parse("hello world", AF_INET));
+
+  uint32_t address = 0x01020304;
+  Try<net::IPv4> ip4 = net::IPv4::parse("1.2.3.4");
+  ASSERT_SOME(ip4);
+  EXPECT_EQ(ip4.get(), net::IPv4(address));
+
+  Try<net::IPv4> loopback = net::IPv4::parse("127.0.0.1");
+  ASSERT_SOME(loopback);
+  EXPECT_TRUE(loopback->isLoopback());
+
+  Try<net::IPv4> any = net::IPv4::parse("0.0.0.0");
+  ASSERT_SOME(any);
+  EXPECT_TRUE(any->isAny());
+
+  EXPECT_NE(loopback.get(), any.get());
+  EXPECT_GT(loopback.get(), any.get());
+  EXPECT_LT(any.get(), loopback.get());
 }
 
 
@@ -81,12 +98,34 @@ TEST(NetTest, ConstructIPv6)
 {
   EXPECT_SOME(net::IP::parse("::1", AF_INET6));
   EXPECT_SOME(net::IP::parse("fe80::eef4:bbff:fe33:a9c7", AF_INET6));
+  EXPECT_SOME(net::IPv6::parse("fe80::eef4:bbff:fe33:a9c7"));
   EXPECT_SOME(net::IP::parse("::192.9.5.5", AF_INET6));
+  EXPECT_SOME(net::IPv6::parse("::192.9.5.5"));
 
   EXPECT_ERROR(net::IP::parse("1::1::1", AF_INET6));
+  EXPECT_ERROR(net::IPv6::parse("1::1::1"));
   EXPECT_ERROR(net::IP::parse("121.2.3.5", AF_INET6));
+  EXPECT_ERROR(net::IPv6::parse("121.2.3.5"));
   EXPECT_ERROR(net::IP::parse("fe80:2:a", AF_INET6));
+  EXPECT_ERROR(net::IPv6::parse("fe80:2:a"));
   EXPECT_ERROR(net::IP::parse("hello world", AF_INET6));
+  EXPECT_ERROR(net::IPv6::parse("hello world"));
+
+  Try<net::IPv6> loopback = net::IPv6::parse("::1");
+  ASSERT_SOME(loopback);
+  net::IPv6 loopback2 = net::IPv6(loopback->in6());
+  EXPECT_EQ(loopback2, loopback.get());
+  EXPECT_TRUE(loopback2.isLoopback());
+  EXPECT_FALSE(loopback2.isAny());
+
+  Try<net::IPv6> any = net::IPv6::parse("::");
+  ASSERT_SOME(any);
+  EXPECT_TRUE(any->isAny());
+  EXPECT_FALSE(any->isLoopback());
+
+  EXPECT_NE(loopback.get(), any.get());
+  EXPECT_GT(loopback.get(), any.get());
+  EXPECT_LT(any.get(), loopback.get());
 }
 
 

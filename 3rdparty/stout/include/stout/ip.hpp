@@ -53,6 +53,7 @@
 
 #include <stout/abort.hpp>
 #include <stout/bits.hpp>
+#include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/none.hpp>
 #include <stout/numify.hpp>
@@ -273,8 +274,9 @@ public:
 
           return prefix;
         }
-        default:
+        default: {
           UNREACHABLE();
+        }
       }
     }
 
@@ -318,6 +320,89 @@ private:
 
   int family_;
   Storage storage_;
+};
+
+
+class IPv4 : public IP
+{
+public:
+  static IPv4 LOOPBACK()
+  {
+    return IPv4(INADDR_LOOPBACK);
+  }
+
+  static IPv4 ANY()
+  {
+    return IPv4(INADDR_LOOPBACK);
+  }
+
+  static Try<IPv4> parse(const std::string& value)
+  {
+    in_addr in;
+
+    if (inet_pton(AF_INET, value.c_str(), &in) == 1) {
+      return IPv4(in);
+    }
+
+    return Error("Failed to parse IPv4: " + value);
+  }
+
+  explicit IPv4(const in_addr& in)
+    : IP(in) {};
+
+  explicit IPv4(uint32_t ip)
+    : IP(ip) {};
+
+  // Returns the in_addr storage.
+  in_addr in() const
+  {
+    Try<in_addr> in = IP::in();
+
+    // `_family` would already be set to `AF_INET` hence the above
+    // `Try` should always be successful.
+    CHECK_SOME(in);
+
+    return in.get();
+  }
+};
+
+
+class IPv6 : public IP
+{
+public:
+  static IPv6 LOOPBACK()
+  {
+    return IPv6(in6addr_loopback);
+  }
+
+  static IPv6 ANY()
+  {
+    return IPv6(in6addr_any);
+  }
+
+  static Try<IPv6> parse(const std::string& value)
+  {
+    in6_addr in6;
+    if (inet_pton(AF_INET6, value.c_str(), &in6) == 1) {
+      return IPv6(in6);
+    }
+
+    return Error("Failed to parse IPv6: " + value);
+  }
+
+  explicit IPv6(const in6_addr& in6)
+    : IP(in6) {};
+
+  in6_addr in6() const
+  {
+    Try<in6_addr> in6 = IP::in6();
+
+    // `_family` would already be set to `AF_INET6` hence the above
+    // `Try` should always be successful.
+    CHECK_SOME(in6);
+
+    return in6.get();
+  }
 };
 
 
@@ -582,6 +667,7 @@ inline std::ostream& operator<<(
 
 } // namespace net {
 
+
 namespace std {
 
 template <>
@@ -607,6 +693,31 @@ struct hash<net::IP>
       default:
         UNREACHABLE();
     }
+  }
+};
+
+
+template <>
+struct hash<net::IPv4>
+{
+  size_t operator()(const net::IPv4& ip)
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, htonl(ip.in().s_addr));
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<net::IPv6>
+{
+  size_t operator()(const net::IPv6& ip)
+  {
+    size_t seed = 0;
+    in6_addr in6 = ip.in6();
+    boost::hash_range(seed, std::begin(in6.s6_addr), std::end(in6.s6_addr));
+    return seed;
   }
 };
 
