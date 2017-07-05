@@ -65,8 +65,8 @@ message AgentID {
  * A framework-generated ID to distinguish a task. The ID must remain
  * unique while the task is active. A framework can reuse an ID _only_
  * if the previous task with the same ID has reached a terminal state
- * (e.g., TASK_FINISHED, TASK_LOST, TASK_KILLED, etc.). However,
- * reusing task IDs is strongly discouraged (MESOS-2198).
+ * (e.g., TASK_FINISHED, TASK_KILLED, etc.). However, reusing task IDs
+ * is strongly discouraged (MESOS-2198).
  */
 message TaskID {
   required string value = 1;
@@ -1937,9 +1937,13 @@ enum TaskState {
 
   // In Mesos 1.3, this will only be sent when the framework does NOT
   // opt-in to the PARTITION_AWARE capability.
-  TASK_LOST = 5;     // TERMINAL: The task failed but can be rescheduled.
+  //
+  // NOTE: This state is not always terminal. For example, tasks might
+  // transition from TASK_LOST to TASK_RUNNING or other states when a
+  // partitioned agent re-registers.
+  TASK_LOST = 5;     // The task failed but can be rescheduled.
 
-  // The following task statuses are only sent when the framework
+  // The following task states are only sent when the framework
   // opts-in to the PARTITION_AWARE capability.
 
   // The task failed to launch because of a transient error. The
