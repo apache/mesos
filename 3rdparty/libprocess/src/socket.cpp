@@ -55,7 +55,8 @@ Try<std::shared_ptr<SocketImpl>> SocketImpl::create(
 {
   int domain = [=]() {
     switch (family) {
-      case Address::Family::INET: return AF_INET;
+      case Address::Family::INET4: return AF_INET;
+      case Address::Family::INET6: return AF_INET6;
 #ifndef __WINDOWS__
       case Address::Family::UNIX: return AF_UNIX;
 #endif // __WINDOWS__

@@ -86,7 +86,8 @@ Future<int_fd> accept(int_fd fd)
   // Turn off Nagle (TCP_NODELAY) so pipelined requests don't wait.
   // NOTE: We cast to `char*` here because the function prototypes on Windows
   // use `char*` instead of `void*`.
-  if (address->family() == Address::Family::INET) {
+  if (address->family() == Address::Family::INET4 ||
+      address->family() == Address::Family::INET6) {
     int on = 1;
     if (::setsockopt(
             s,

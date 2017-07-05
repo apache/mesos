@@ -56,6 +56,8 @@
 
 namespace authentication = process::http::authentication;
 namespace http = process::http;
+namespace inet4 = process::network::inet4;
+namespace network = process::network;
 #ifndef __WINDOWS__
 namespace unix = process::network::unix;
 #endif // __WINDOWS__
@@ -645,7 +647,7 @@ TEST_P(HTTPTest, PathParse)
 
 http::Response validateGetWithoutQuery(const http::Request& request)
 {
-  EXPECT_SOME_NE(process::address(), request.client);
+  EXPECT_SOME_NE(network::Address(process::address()), request.client);
   EXPECT_EQ("GET", request.method);
   EXPECT_THAT(request.url.path, EndsWith("get"));
   EXPECT_EQ("", request.body);
@@ -658,7 +660,7 @@ http::Response validateGetWithoutQuery(const http::Request& request)
 
 http::Response validateGetWithQuery(const http::Request& request)
 {
-  EXPECT_SOME_NE(process::address(), request.client);
+  EXPECT_SOME_NE(network::Address(process::address()), request.client);
   EXPECT_EQ("GET", request.method);
   EXPECT_THAT(request.url.path, EndsWith("get"));
   EXPECT_EQ("", request.body);
@@ -2106,7 +2108,7 @@ TEST_F(HttpServeTest, Pipelining)
   Try<Socket> server = Socket::create();
   ASSERT_SOME(server);
 
-  ASSERT_SOME(server->bind(Address::ANY_ANY()));
+  ASSERT_SOME(server->bind(inet4::Address::ANY_ANY()));
   ASSERT_SOME(server->listen(1));
 
   Try<Address> any_address = server->address();
@@ -2214,7 +2216,7 @@ TEST_F(HttpServeTest, Discard)
   Try<Socket> server = Socket::create();
   ASSERT_SOME(server);
 
-  ASSERT_SOME(server->bind(Address::ANY_ANY()));
+  ASSERT_SOME(server->bind(inet4::Address::ANY_ANY()));
   ASSERT_SOME(server->listen(1));
 
   Try<Address> any_address = server->address();

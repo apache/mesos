@@ -27,6 +27,7 @@
 
 #include <stout/tests/utils.hpp>
 
+namespace inet4 = process::network::inet4;
 #ifndef __WINDOWS__
 namespace unix = process::network::unix;
 #endif // __WINDOWS__
@@ -164,7 +165,7 @@ TEST_P(NetSocketTest, EOFBeforeRecv)
   Try<Socket> server = Socket::create();
   ASSERT_SOME(server);
 
-  Try<Address> server_address = server->bind(Address::ANY_ANY());
+  Try<Address> server_address = server->bind(inet4::Address::ANY_ANY());
   ASSERT_SOME(server_address);
 
   ASSERT_SOME(server->listen(1));
@@ -209,7 +210,7 @@ TEST_P(NetSocketTest, EOFAfterRecv)
   Try<Socket> server = Socket::create();
   ASSERT_SOME(server);
 
-  Try<Address> server_address = server->bind(Address::ANY_ANY());
+  Try<Address> server_address = server->bind(inet4::Address::ANY_ANY());
   ASSERT_SOME(server_address);
 
   ASSERT_SOME(server->listen(1));

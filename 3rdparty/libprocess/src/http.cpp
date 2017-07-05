@@ -72,6 +72,8 @@ using std::vector;
 using process::http::Request;
 using process::http::Response;
 
+namespace inet4 = process::network::inet4;
+
 using process::network::inet::Address;
 using process::network::inet::Socket;
 
@@ -1424,7 +1426,7 @@ Future<Connection> connect(const network::Address& address, Scheme scheme)
 Future<Connection> connect(const URL& url)
 {
   // TODO(bmahler): Move address resolution into the URL class?
-  Address address = Address::ANY_ANY();
+  Address address = inet4::Address::ANY_ANY();
 
   if (url.ip.isNone() && url.domain.isNone()) {
     return Failure("Expected URL.ip or URL.domain to be set");

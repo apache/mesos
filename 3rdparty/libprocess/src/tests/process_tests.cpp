@@ -67,6 +67,7 @@
 
 namespace http = process::http;
 namespace inject = process::inject;
+namespace inet4 = process::network::inet4;
 
 using process::async;
 using process::Clock;
@@ -1351,7 +1352,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, THREADSAFE_Http2)
 
   Socket socket = create.get();
 
-  ASSERT_SOME(socket.bind(Address::ANY_ANY()));
+  ASSERT_SOME(socket.bind(inet4::Address::ANY_ANY()));
 
   // Create a UPID for 'Libprocess-From' based on the IP and port we
   // got assigned.

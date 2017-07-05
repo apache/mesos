@@ -520,7 +520,8 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
     return Failure("Failed to connect: bufferevent_openssl_socket_new");
   }
 
-  if (address.family() == Address::Family::INET) {
+  if (address.family() == Address::Family::INET4 ||
+      address.family() == Address::Family::INET6) {
     // Try and determine the 'peer_hostname' from the address we're
     // connecting to in order to properly verify the certificate
     // later.

@@ -470,8 +470,10 @@ template <>
 inline Try<Socket<inet::Address>> Socket<inet::Address>::create(
     SocketImpl::Kind kind)
 {
+  // TODO(benh): Replace this function which defaults to IPv4 in
+  // exchange for explicit IPv4 and IPv6 versions.
   Try<std::shared_ptr<SocketImpl>> impl =
-    SocketImpl::create(Address::Family::INET, kind);
+    SocketImpl::create(Address::Family::INET4, kind);
   if (impl.isError()) {
     return Error(impl.error());
   }

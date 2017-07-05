@@ -30,11 +30,14 @@
 
 #include <ostream>
 
+#include <boost/variant.hpp>
+
 #include <boost/functional/hash.hpp>
 
 #include <stout/abort.hpp>
 #include <stout/check.hpp>
 #include <stout/ip.hpp>
+#include <stout/variant.hpp>
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
 #include <stout/unreachable.hpp>
@@ -42,112 +45,7 @@
 namespace process {
 namespace network {
 
-namespace inet {
 class Address;
-} // namespace inet {
-
-#ifndef __WINDOWS__
-namespace unix {
-class Address;
-} // namespace unix {
-#endif // __WINDOWS__
-
-// Represents a network "address", subsuming the `struct addrinfo` and
-// `struct sockaddr` that typically is used to encapsulate an address.
-//
-// TODO(jieyu): Move this class to stout.
-class Address
-{
-public:
-  enum class Family {
-    INET,
-#ifndef __WINDOWS__
-    UNIX
-#endif // __WINDOWS__
-  };
-
-  static Try<Address> create(const sockaddr_storage& storage)
-  {
-    switch (storage.ss_family) {
-      case AF_INET:
-#ifndef __WINDOWS__
-      case AF_UNIX:
-#endif // __WINDOWS__
-        return Address(storage);
-      default:
-        return Error("Unsupported family: " + stringify(storage.ss_family));
-    }
-  }
-
-  Family family() const
-  {
-    switch (sockaddr.storage.ss_family) {
-      case AF_INET:
-        return Family::INET;
-#ifndef __WINDOWS__
-      case AF_UNIX:
-        return Family::UNIX;
-#endif // __WINDOWS__
-      default:
-        ABORT("Unexpected family: " + stringify(sockaddr.storage.ss_family));
-    }
-  }
-
-  // Returns the storage size depending on the family of this address.
-  size_t size() const
-  {
-    switch (family()) {
-      case Family::INET:
-        return sizeof(sockaddr_in);
-#ifndef __WINDOWS__
-      case Family::UNIX:
-        return sizeof(sockaddr_un);
-#endif // __WINDOWS__
-    }
-    UNREACHABLE();
-  }
-
-  operator sockaddr_storage() const
-  {
-    return sockaddr.storage;
-  }
-
-private:
-  friend class inet::Address;
-#ifndef __WINDOWS__
-  friend class unix::Address;
-#endif // __WINDOWS__
-
-  template <typename AddressType>
-  friend Try<AddressType> convert(Try<Address>&& address);
-  friend std::ostream& operator<<(std::ostream& stream, const Address& address);
-
-  Address(const sockaddr_storage& storage)
-  {
-    sockaddr.storage = storage;
-  }
-
-  union {
-    sockaddr_storage storage;
-    sockaddr_in in;
-#ifndef __WINDOWS__
-    sockaddr_un un;
-#endif // __WINDOWS__
-  } sockaddr;
-};
-
-
-// Helper for converting between Address and other types.
-template <typename AddressType>
-Try<AddressType> convert(Try<Address>&& address);
-
-
-template <>
-inline Try<Address> convert(Try<Address>&& address)
-{
-  return address;
-}
-
 
 namespace inet {
 
@@ -156,13 +54,6 @@ class Address
 public:
   Address(const net::IP& _ip, uint16_t _port)
     : ip(_ip), port(_port) {}
-
-  Address(const sockaddr_in& in)
-    : Address(net::IP(in.sin_addr), ntohs(in.sin_port)) {}
-
-  static Address LOOPBACK_ANY() { return Address(net::IP(INADDR_LOOPBACK), 0); }
-
-  static Address ANY_ANY() { return Address(net::IP(INADDR_ANY), 0); }
 
   /**
    * Returns the hostname of this address's IP.
@@ -173,7 +64,7 @@ public:
   // deal with slow name resolution.
   Try<std::string> hostname() const
   {
-    const Try<std::string> hostname = ip == net::IP(INADDR_ANY)
+    const Try<std::string> hostname = ip.isAny()
       ? net::hostname()
       : net::getHostname(ip);
 
@@ -182,6 +73,31 @@ public:
     }
 
     return hostname.get();
+  }
+
+  operator sockaddr_storage() const
+  {
+    union {
+      sockaddr_storage storage;
+      sockaddr_in in;
+      sockaddr_in6 in6;
+    } sockaddr;
+    memset(&sockaddr.storage, 0, sizeof(sockaddr_storage));
+    switch (ip.family()) {
+      case AF_INET:
+        sockaddr.in.sin_family = AF_INET;
+        sockaddr.in.sin_addr = ip.in().get();
+        sockaddr.in.sin_port = htons(port);
+        break;
+      case AF_INET6:
+        sockaddr.in6.sin6_family = AF_INET6;
+        sockaddr.in6.sin6_addr = ip.in6().get();
+        sockaddr.in6.sin6_port = htons(port);
+        break;
+      default:
+        ABORT("Unexpected family: " + stringify(ip.family()));
+    }
+    return sockaddr.storage;
   }
 
   bool operator<(const Address& that) const
@@ -212,22 +128,9 @@ public:
     return !(*this == that);
   }
 
-  bool operator==(const network::Address& that) const;
-
-  operator network::Address() const
-  {
-    union {
-      sockaddr_storage storage;
-      sockaddr_in in;
-    } sockaddr;
-    memset(&sockaddr.storage, 0, sizeof(sockaddr_storage));
-    sockaddr.in.sin_family = AF_INET;
-    sockaddr.in.sin_addr = ip.in().get();
-    sockaddr.in.sin_port = htons(port);
-    return network::Address(sockaddr.storage);
-  }
-
-  // TODO(benh): Use a sockaddr_in here like we do for unix::Address.
+  // TODO(benh): Consider using `sockaddr_storage` here like we do for
+  // `unix::Address`. This will require changing all places that
+  // either the `ip` or `port` field are currently used.
   net::IP ip;
   uint16_t port;
 };
@@ -242,33 +145,54 @@ inline std::ostream& operator<<(std::ostream& stream, const Address& address)
 } // namespace inet {
 
 
-template <>
-inline Try<inet::Address> convert(Try<Address>&& address)
+namespace inet4 {
+
+class Address : public inet::Address
 {
-  if (address.isError()) {
-    return Error(address.error());
+public:
+  static Address LOOPBACK_ANY()
+  {
+    return Address(net::IPv4::LOOPBACK(), 0);
   }
 
-  if (address->family() == Address::Family::INET) {
-    return inet::Address(address->sockaddr.in);
+  static Address ANY_ANY()
+  {
+    return Address(net::IPv4::ANY(), 0);
   }
 
-  return Error("Unexpected address family");
-}
+  Address(const net::IPv4& ip, uint16_t port)
+    : inet::Address(ip, port) {}
+
+  Address(const sockaddr_in& in)
+    : inet::Address(net::IPv4(in.sin_addr), ntohs(in.sin_port)) {}
+};
+
+} // namespace inet4 {
 
 
-namespace inet {
+namespace inet6 {
 
-inline bool Address::operator==(const network::Address& that) const
+class Address : public inet::Address
 {
-  Try<Address> address = convert<Address>(that);
-  if (address.isError()) {
-    return false;
+public:
+  static Address LOOPBACK_ANY()
+  {
+    return Address(net::IPv6::LOOPBACK(), 0);
   }
-  return *this == address.get();
-}
 
-} // namespace inet {
+  static Address ANY_ANY()
+  {
+    return Address(net::IPv6::ANY(), 0);
+  }
+
+  Address(const net::IPv6& ip, uint16_t port)
+    : inet::Address(ip, port) {}
+
+  Address(const sockaddr_in6& in6)
+    : inet::Address(net::IPv6(in6.sin6_addr), ntohs(in6.sin6_port)) {}
+};
+
+} // namespace inet6 {
 
 
 #ifndef __WINDOWS__
@@ -309,9 +233,14 @@ public:
     return std::string(sockaddr.un.sun_path);
   }
 
-  operator network::Address() const
+  operator sockaddr_storage() const
   {
-    return network::Address(sockaddr.storage);
+    return sockaddr.storage;
+  }
+
+  bool operator==(const Address& that) const
+  {
+    return path() == that.path();
   }
 
 private:
@@ -338,8 +267,161 @@ inline std::ostream& operator<<(
 }
 
 } // namespace unix {
+#endif // __WINDOWS__
 
 
+// Represents a network "address", subsuming the `struct addrinfo` and
+// `struct sockaddr` that typically is used to encapsulate an address.
+//
+// TODO(jieyu): Move this class to stout.
+class Address :
+  public Variant<
+#ifndef __WINDOWS__
+  unix::Address,
+#endif // __WINDOWS__
+  inet4::Address,
+  inet6::Address>
+{
+public:
+  enum class Family {
+#ifndef __WINDOWS__
+    UNIX,
+#endif // __WINDOWS__
+    INET4,
+    INET6
+  };
+
+  static Try<Address> create(const sockaddr_storage& storage)
+  {
+    switch (storage.ss_family) {
+#ifndef __WINDOWS__
+      case AF_UNIX:
+        return unix::Address((const sockaddr_un&) storage);
+#endif // __WINDOWS__
+      case AF_INET:
+        return inet4::Address((const sockaddr_in&) storage);
+      case AF_INET6:
+        return inet6::Address((const sockaddr_in6&) storage);
+      default:
+        return Error("Unsupported family: " + stringify(storage.ss_family));
+    }
+  }
+
+  // Helper constructor for converting an `inet::Address`.
+  Address(const inet::Address& address)
+    : Address([](const Try<Address>& address) {
+        // We expect our implementation of the cast operator to be
+        // correct, hence `Address::create` should always succeed.
+        CHECK_SOME(address);
+        return address.get();
+      }(Address::create((sockaddr_storage) address))) {}
+
+#ifndef __WINDOWS__
+  Address(unix::Address address)
+    : Variant<
+    unix::Address,
+    inet4::Address,
+    inet6::Address>(std::move(address)) {}
+#endif // __WINDOWS__
+
+  Address(inet4::Address address)
+    : Variant<
+#ifndef __WINDOWS__
+    unix::Address,
+#endif // __WINDOWS__
+    inet4::Address,
+    inet6::Address>(std::move(address)) {}
+
+  Address(inet6::Address address)
+    : Variant<
+#ifndef __WINDOWS__
+    unix::Address,
+#endif // __WINDOWS__
+    inet4::Address,
+    inet6::Address>(std::move(address)) {}
+
+  Family family() const
+  {
+    return visit(
+#ifndef __WINDOWS__
+        [](const unix::Address& address) {
+          return Address::Family::UNIX;
+        },
+#endif // __WINDOWS__
+        [](const inet4::Address& address) {
+          return Address::Family::INET4;
+        },
+        [](const inet6::Address& address) {
+          return Address::Family::INET6;
+        });
+  }
+
+  // Returns the storage size depending on the family of this address.
+  size_t size() const
+  {
+    return visit(
+#ifndef __WINDOWS__
+        [](const unix::Address& address) {
+          return sizeof(sockaddr_un);
+        },
+#endif // __WINDOWS__
+        [](const inet4::Address& address) {
+          return sizeof(sockaddr_in);
+        },
+        [](const inet6::Address& address) {
+          return sizeof(sockaddr_in6);
+        });
+  }
+
+  // Implicit cast for working with C interfaces.
+  operator sockaddr_storage() const
+  {
+    return visit(
+#ifndef __WINDOWS__
+        [](const unix::Address& address) {
+          return (sockaddr_storage) address;
+        },
+#endif // __WINDOWS__
+        [](const inet4::Address& address) {
+          return (sockaddr_storage) address;
+        },
+        [](const inet6::Address& address) {
+          return (sockaddr_storage) address;
+        });
+
+    // TODO(benh): With C++14 generic lambdas:
+    // return visit(
+    //     [](const auto& address) {
+    //       return (sockaddr_storage) address;
+    //     });
+  }
+};
+
+
+// Helper for converting between Address and other types.
+template <typename AddressType>
+Try<AddressType> convert(Try<Address>&& address);
+
+
+// TODO(benh): With C++14 generic lambdas:
+// template <typename AddressType>
+// Try<AddressType> convert(Try<Address>&& address)
+// {
+//   if (address.isError()) {
+//     return Error(address.error());
+//   }
+
+//   return address->visit(
+//       [](const AddressType& address) -> Try<AddressType> {
+//         return address;
+//       },
+//       [](const auto&) -> Try<AddressType> {
+//         return Error("Unexpected address family");
+//       });
+// }
+
+
+#ifndef __WINDOWS__
 template <>
 inline Try<unix::Address> convert(Try<Address>&& address)
 {
@@ -347,31 +429,109 @@ inline Try<unix::Address> convert(Try<Address>&& address)
     return Error(address.error());
   }
 
-  if (address->family() == Address::Family::UNIX) {
-    return unix::Address(address->sockaddr.un);
-  }
-
-  return Error("Unexpected address family");
+  return address->visit(
+      [](const unix::Address& address) -> Try<unix::Address> {
+        return address;
+      },
+      [](const inet4::Address&) -> Try<unix::Address> {
+        return Error("Unexpected address family");
+      },
+      [](const inet6::Address&) -> Try<unix::Address> {
+        return Error("Unexpected address family");
+      });
 }
 #endif // __WINDOWS__
 
 
-inline std::ostream& operator<<(std::ostream& stream, const Address& address)
+template <>
+inline Try<inet4::Address> convert(Try<Address>&& address)
 {
-  switch (address.family()) {
-    case Address::Family::INET:
-      return stream << inet::Address(address.sockaddr.in);
-#ifndef __WINDOWS__
-    case Address::Family::UNIX:
-      return stream << unix::Address(address.sockaddr.un);
-#endif // __WINDOWS__
+  if (address.isError()) {
+    return Error(address.error());
   }
 
-  UNREACHABLE();
+  return address->visit(
+#ifndef __WINDOWS__
+      [](const unix::Address&) -> Try<inet4::Address> {
+        return Error("Unexpected address family");
+      },
+#endif // __WINDOWS__
+      [](const inet4::Address& address) -> Try<inet4::Address> {
+        return address;
+      },
+      [](const inet6::Address&) -> Try<inet4::Address> {
+        return Error("Unexpected address family");
+      });
+}
+
+
+template <>
+inline Try<inet6::Address> convert(Try<Address>&& address)
+{
+  if (address.isError()) {
+    return Error(address.error());
+  }
+
+  return address->visit(
+#ifndef __WINDOWS__
+      [](const unix::Address&) -> Try<inet6::Address> {
+        return Error("Unexpected address family");
+      },
+#endif // __WINDOWS__
+      [](const inet4::Address&) -> Try<inet6::Address> {
+        return Error("Unexpected address family");
+      },
+      [](const inet6::Address& address) -> Try<inet6::Address> {
+        return address;
+      });
+}
+
+
+// Explicit instantiation in order to be able to upcast an `inet4::`
+// or `inet6::Address` to an `inet::Address`.
+template <>
+inline Try<inet::Address> convert(Try<Address>&& address)
+{
+  if (address.isError()) {
+    return Error(address.error());
+  }
+
+  return address->visit(
+#ifndef __WINDOWS__
+      [](const unix::Address& address) -> Try<inet::Address> {
+        return Error("Unexpected address family");
+      },
+#endif // __WINDOWS__
+      [](const inet4::Address& address) -> Try<inet::Address> {
+        return address;
+      },
+      [](const inet6::Address& address) -> Try<inet::Address> {
+        return address;
+      });
+
+  // TODO(benh): With C++14 generic lambdas:
+  // return address->visit(
+  //     [](const inet4::Address& address) -> Try<inet::Address> {
+  //       return address;
+  //     },
+  //     [](const inet6::Address& address) -> Try<inet::Address> {
+  //       return address;
+  //     },
+  //     [](const auto& t) -> Try<inet::Address> {
+  //       return Error("Unexpected address family");
+  //     });
+}
+
+
+template <>
+inline Try<Address> convert(Try<Address>&& address)
+{
+  return address;
 }
 
 } // namespace network {
 } // namespace process {
+
 
 namespace std {
 
@@ -390,6 +550,18 @@ struct hash<process::network::inet::Address>
     return seed;
   }
 };
+
+
+template <>
+struct hash<process::network::inet4::Address>
+  : hash<process::network::inet::Address>
+{};
+
+
+template <>
+struct hash<process::network::inet6::Address>
+  : hash<process::network::inet::Address>
+{};
 
 } // namespace std {
 

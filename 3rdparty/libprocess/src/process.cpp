@@ -135,7 +135,7 @@ using process::http::authentication::AuthenticatorManager;
 
 using process::http::authorization::AuthorizationCallbacks;
 
-namespace inet = process::network::inet;
+namespace inet4 = process::network::inet4;
 
 using process::network::inet::Address;
 using process::network::inet::Socket;
@@ -599,7 +599,7 @@ static std::mutex* socket_mutex = new std::mutex();
 static Future<Socket> future_accept;
 
 // Local socket address.
-static Address __address__ = Address::ANY_ANY();
+static Address __address__ = inet4::Address::ANY_ANY();
 
 // Active SocketManager (eventually will probably be thread-local).
 static SocketManager* socket_manager = nullptr;
@@ -1112,7 +1112,7 @@ bool initialize(
   Clock::initialize(lambda::bind(&timedout, lambda::_1));
 
   // Fill in the local IP and port for inter-libprocess communication.
-  __address__ = Address::ANY_ANY();
+  __address__ = inet4::Address::ANY_ANY();
 
   // Fetch and parse the libprocess environment variables.
   Try<flags::Warnings> load = libprocess_flags->load("LIBPROCESS_");
@@ -1137,7 +1137,7 @@ bool initialize(
   // Create a "server" socket for communicating.
   Try<Socket> create = Socket::create();
   if (create.isError()) {
-    PLOG(FATAL) << "Failed to construct server socket:" << create.error();
+    LOG(FATAL) << "Failed to construct server socket:" << create.error();
   }
   __s__ = new Socket(create.get());
 
@@ -1156,7 +1156,7 @@ bool initialize(
 
   Try<Address> bind = __s__->bind(__address__);
   if (bind.isError()) {
-    PLOG(FATAL) << "Failed to initialize: " << bind.error();
+    LOG(FATAL) << "Failed to initialize: " << bind.error();
   }
 
   __address__ = bind.get();
@@ -1195,7 +1195,7 @@ bool initialize(
 
   Try<Nothing> listen = __s__->listen(LISTEN_BACKLOG);
   if (listen.isError()) {
-    PLOG(FATAL) << "Failed to initialize: " << listen.error();
+    LOG(FATAL) << "Failed to initialize: " << listen.error();
   }
 
   // Need to set `initialize_complete` here so that we can actually
@@ -1358,7 +1358,7 @@ void finalize(bool finalize_wsa)
   // Clear the public address of the server socket.
   // NOTE: This variable is necessary for process communication, so it
   // cannot be cleared until after the `ProcessManager` is deleted.
-  __address__ = Address::ANY_ANY();
+  __address__ = inet4::Address::ANY_ANY();
 
   // Finally, reset the Flags to defaults.
   *libprocess_flags = internal::Flags();
@@ -2880,8 +2880,8 @@ void ProcessManager::handle(
 
           // If the client address is not an IP address (e.g. coming
           // from a domain socket), we also reject the message.
-          Try<inet::Address> client_ip_address =
-            network::convert<inet::Address>(request->client.get());
+          Try<Address> client_ip_address =
+            network::convert<Address>(request->client.get());
 
           if (client_ip_address.isError() ||
               message->from.address.ip != client_ip_address->ip) {
