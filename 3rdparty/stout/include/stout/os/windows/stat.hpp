@@ -20,6 +20,8 @@
 #include <stout/unreachable.hpp>
 #include <stout/windows.hpp>
 
+#include <stout/internal/windows/attributes.hpp>
+#include <stout/internal/windows/longpath.hpp>
 #include <stout/internal/windows/reparsepoint.hpp>
 #include <stout/internal/windows/symlink.hpp>
 
@@ -38,19 +40,20 @@ inline bool isdir(
     const std::string& path,
     const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  struct _stat s;
-
   // A symlink itself is not a directory.
   // If it's not a link, we ignore `follow`.
   if (follow == DO_NOT_FOLLOW_SYMLINK && islink(path)) {
     return false;
   }
 
-  if (::_stat(path.c_str(), &s) < 0) {
+  const Try<DWORD> attributes = ::internal::windows::get_file_attributes(
+      ::internal::windows::longpath(path));
+
+  if (attributes.isError()) {
     return false;
   }
 
-  return S_ISDIR(s.st_mode);
+  return attributes.get() & FILE_ATTRIBUTE_DIRECTORY;
 }
 
 
@@ -58,8 +61,6 @@ inline bool isfile(
     const std::string& path,
     const FollowSymlink follow = FOLLOW_SYMLINK)
 {
-  struct _stat s;
-
   // A symlink itself is a file, but not a regular file.
   // On POSIX, this check is done with `S_IFREG`, which
   // returns false for symbolic links.
@@ -68,11 +69,18 @@ inline bool isfile(
     return false;
   }
 
-  if (::_stat(path.c_str(), &s) < 0) {
+  const Try<DWORD> attributes = ::internal::windows::get_file_attributes(
+      ::internal::windows::longpath(path));
+
+  if (attributes.isError()) {
     return false;
   }
 
-  return S_ISREG(s.st_mode);
+  // NOTE: Windows files attributes do not define a flag for "regular"
+  // files. Instead, this call will only return successfully iff the
+  // given file or directory exists. Checking against the directory
+  // flag determines if the path is a file or directory.
+  return !(attributes.get() & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 
