@@ -111,9 +111,9 @@ public:
     cniPluginDir = path::join(sandbox.get(), "plugins");
     cniConfigDir = path::join(sandbox.get(), "configs");
 
-    Try<net::IPNetwork> hostIPNetwork = getNonLoopbackIP();
+    Try<net::IP::Network> hostNetwork = getNonLoopbackIP();
 
-    ASSERT_SOME(hostIPNetwork);
+    ASSERT_SOME(hostNetwork);
 
     // Get the first external name server.
     Try<string> read = os::read("/etc/resolv.conf");
@@ -148,8 +148,8 @@ public:
         echo "  }"
         echo "}"
         )~",
-        hostIPNetwork->address(),
-        hostIPNetwork->prefix(),
+        hostNetwork->address(),
+        hostNetwork->prefix(),
         nameServer.get()).get());
 
     ASSERT_SOME(result);
@@ -992,8 +992,8 @@ TEST_F(CniIsolatorTest, ROOT_OverrideHostname)
 // the right settings in /etc/resolv.conf.
 TEST_F(CniIsolatorTest, ROOT_VerifyResolverConfig)
 {
-  Try<net::IPNetwork> hostIPNetwork = getNonLoopbackIP();
-  ASSERT_SOME(hostIPNetwork);
+  Try<net::IP::Network> hostNetwork = getNonLoopbackIP();
+  ASSERT_SOME(hostNetwork);
 
   Try<string> mockPlugin = strings::format(
       R"~(
@@ -1019,8 +1019,8 @@ TEST_F(CniIsolatorTest, ROOT_VerifyResolverConfig)
       echo '  }'
       echo '}'
       )~",
-      hostIPNetwork.get().address(),
-      hostIPNetwork.get().prefix());
+      hostNetwork.get().address(),
+      hostNetwork.get().prefix());
 
   ASSERT_SOME(mockPlugin);
 
@@ -1110,8 +1110,8 @@ TEST_F(CniIsolatorTest, ROOT_VerifyResolverConfig)
 // that glibc accepts by using it to ping a host.
 TEST_F(CniIsolatorTest, ROOT_INTERNET_VerifyResolverConfig)
 {
-  Try<net::IPNetwork> hostIPNetwork = getNonLoopbackIP();
-  ASSERT_SOME(hostIPNetwork);
+  Try<net::IP::Network> hostNetwork = getNonLoopbackIP();
+  ASSERT_SOME(hostNetwork);
 
   // Note: We set a dummy nameserver IP address followed by the
   // Google anycast address. We also set the resolver timeout
@@ -1141,8 +1141,8 @@ TEST_F(CniIsolatorTest, ROOT_INTERNET_VerifyResolverConfig)
       echo '  }'
       echo '}'
       )~",
-      hostIPNetwork.get().address(),
-      hostIPNetwork.get().prefix());
+      hostNetwork.get().address(),
+      hostNetwork.get().prefix());
 
   ASSERT_SOME(mockPlugin);
 
@@ -1441,24 +1441,24 @@ TEST_P(DefaultExecutorCniTest, ROOT_VerifyContainerIP)
   const v1::AgentID& agentId = offer.agent_id();
 
   // The command tests if the MESOS_CONTAINER_IP is the same as the
-  // `hostIPNetwork.address` which is what the mock CNI plugin would have
+  // `hostnetwork.address` which is what the mock CNI plugin would have
   // setup for the container.
   //
   // If the container is running on the host network we set the IP to
   // slave's PID, which is effectively the `LIBPROCESS_IP` that the
   // `DefaultExecutor` is going to see. If, however, the container is
   // running on a CNI network we choose the first non-loopback
-  // address as `hostIPNetwork` since the mock CNI plugin
+  // address as `hostNetwork` since the mock CNI plugin
   // would set the container's IP to this address.
-  Try<net::IPNetwork> hostIPNetwork = net::IPNetwork::create(
+  Try<net::IP::Network> hostNetwork = net::IP::Network::create(
       slave.get()->pid.address.ip,
       32);
 
   if (networkInfo.isSome()) {
-    hostIPNetwork = getNonLoopbackIP();
+    hostNetwork = getNonLoopbackIP();
   }
 
-  ASSERT_SOME(hostIPNetwork);
+  ASSERT_SOME(hostNetwork);
 
   string command = strings::format(
       R"~(
@@ -1468,8 +1468,8 @@ TEST_P(DefaultExecutorCniTest, ROOT_VerifyContainerIP)
       else
         exit 1
       fi)~",
-      stringify(hostIPNetwork->address()),
-      stringify(hostIPNetwork->address())).get();
+      stringify(hostNetwork->address()),
+      stringify(hostNetwork->address())).get();
 
   v1::TaskInfo taskInfo = v1::createTask(
       agentId,
@@ -1671,15 +1671,15 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
 
   // Try connecting to the nginx server on port 80 through a
   // non-loopback IP address on `hostPort`.
-  Try<net::IPNetwork> hostIPNetwork = getNonLoopbackIP();
-  ASSERT_SOME(hostIPNetwork);
+  Try<net::IP::Network> hostNetwork = getNonLoopbackIP();
+  ASSERT_SOME(hostNetwork);
 
   // `TASK_RUNNING` does not guarantee that the service is running.
   // Hence, we need to re-try the service multiple times.
   Duration waited = Duration::zero();
   do {
     Try<string> connect = os::shell(
-        "curl -I http://" + stringify(hostIPNetwork->address()) +
+        "curl -I http://" + stringify(hostNetwork->address()) +
         ":" + stringify(hostPort));
 
     if (connect.isSome()) {

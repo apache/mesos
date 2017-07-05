@@ -405,7 +405,7 @@ Try<string, PluginError> PortMapper::handleAddCommand()
 
   // The IP from `delegateResult->ip4().ip()` is in CIDR notation. We
   // need to strip out the netmask.
-  Try<net::IPNetwork> ip = net::IPNetwork::parse(
+  Try<net::IP::Network> ip = net::IP::Network::parse(
       delegateResult->ip4().ip(),
       AF_INET);
 

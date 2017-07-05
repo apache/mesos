@@ -192,7 +192,7 @@ string getWebUIDir()
 }
 
 
-Try<net::IPNetwork> getNonLoopbackIP()
+Try<net::IP::Network> getNonLoopbackIP()
 {
   Try<set<string>> links = net::links();
   if (links.isError()) {
@@ -202,18 +202,18 @@ Try<net::IPNetwork> getNonLoopbackIP()
   }
 
   foreach (const string& link, links.get()) {
-    Result<net::IPNetwork> hostIPNetwork =
-      net::IPNetwork::fromLinkDevice(link, AF_INET);
+    Result<net::IP::Network> hostNetwork =
+      net::IP::Network::fromLinkDevice(link, AF_INET);
 
-    if (hostIPNetwork.isError()) {
+    if (hostNetwork.isError()) {
       return Error(
           "Unable to find a non-loopback address: " +
-          hostIPNetwork.error());
+          hostNetwork.error());
     }
 
-    if (hostIPNetwork.isSome() &&
-        (hostIPNetwork.get() != net::IPNetwork::LOOPBACK_V4())) {
-      return hostIPNetwork.get();
+    if (hostNetwork.isSome() &&
+        (hostNetwork.get() != net::IP::Network::LOOPBACK_V4())) {
+      return hostNetwork.get();
     }
   }
 

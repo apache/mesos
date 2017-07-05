@@ -964,7 +964,7 @@ Future<Nothing> NetworkCniIsolatorProcess::_isolate(
     if (network.cniNetworkInfo.isSome() && network.cniNetworkInfo->has_ip4()) {
       // IP are always stored in CIDR notation so need to retrieve the
       // address without the subnet mask.
-      Try<net::IPNetwork> ip = net::IPNetwork::parse(
+      Try<net::IP::Network> ip = net::IP::Network::parse(
           network.cniNetworkInfo->ip4().ip(),
           AF_INET);
 
@@ -1375,7 +1375,7 @@ Future<ContainerStatus> NetworkCniIsolatorProcess::status(
 
     if (containerNetwork.cniNetworkInfo->has_ip4()) {
       // Remove prefix length from IP address.
-      Try<net::IPNetwork> ip = net::IPNetwork::parse(
+      Try<net::IP::Network> ip = net::IP::Network::parse(
           containerNetwork.cniNetworkInfo->ip4().ip(), AF_INET);
 
       if (ip.isError()) {

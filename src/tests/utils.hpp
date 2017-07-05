@@ -83,7 +83,7 @@ std::string getWebUIDir();
 Try<uint16_t> getFreePort();
 
 // Get a non-loopback IP available on this host.
-Try<net::IPNetwork> getNonLoopbackIP();
+Try<net::IP::Network> getNonLoopbackIP();
 
 } // namespace tests {
 } // namespace internal {
