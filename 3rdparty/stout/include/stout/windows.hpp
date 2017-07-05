@@ -352,13 +352,6 @@ decltype(_chdir(path))
 }
 
 
-inline char* getcwd(char* path, size_t maxlen)
-{
-  CHECK_LE(maxlen, INT_MAX);
-  return _getcwd(path, static_cast<int>(maxlen));
-}
-
-
 inline auto mktemp(char* path) ->
 decltype(_mktemp(path))
 {

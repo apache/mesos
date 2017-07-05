@@ -125,6 +125,7 @@ nobase_include_HEADERS =			\
   stout/os/posix/fork.hpp			\
   stout/os/posix/fsync.hpp			\
   stout/os/posix/ftruncate.hpp			\
+  stout/os/posix/getcwd.hpp			\
   stout/os/posix/getenv.hpp			\
   stout/os/posix/kill.hpp			\
   stout/os/posix/killtree.hpp			\
@@ -159,6 +160,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/fork.hpp			\
   stout/os/windows/fsync.hpp			\
   stout/os/windows/ftruncate.hpp		\
+  stout/os/windows/getcwd.hpp			\
   stout/os/windows/getenv.hpp			\
   stout/os/windows/kill.hpp			\
   stout/os/windows/killtree.hpp			\

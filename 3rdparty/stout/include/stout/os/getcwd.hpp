@@ -13,39 +13,14 @@
 #ifndef __STOUT_OS_GETCWD_HPP__
 #define __STOUT_OS_GETCWD_HPP__
 
-#include <stout/try.hpp>
 
+// For readability, we minimize the number of #ifdef blocks in the code by
+// splitting platform specific system calls into separate directories.
 #ifdef __WINDOWS__
-#include <stout/windows.hpp> // To be certain we're using the right `getcwd`.
+#include <stout/os/windows/getcwd.hpp>
+#else
+#include <stout/os/posix/getcwd.hpp>
 #endif // __WINDOWS__
-
-
-namespace os {
-
-inline std::string getcwd()
-{
-  size_t size = 100;
-
-  while (true) {
-    char* temp = new char[size];
-    if (::getcwd(temp, size) == temp) {
-      std::string result(temp);
-      delete[] temp;
-      return result;
-    } else {
-      if (errno != ERANGE) {
-        delete[] temp;
-        return std::string();
-      }
-      size *= 2;
-      delete[] temp;
-    }
-  }
-
-  return std::string();
-}
-
-} // namespace os {
 
 
 #endif // __STOUT_OS_GETCWD_HPP__
