@@ -20,9 +20,9 @@
 
 function exit_hook {
   # Remove generated documents when exit.
-  rake clean_docs
+  bundle exec rake clean_docs
 }
 
 trap exit_hook EXIT
 
-bundle install && rake && rake dev
+bundle install && bundle exec rake && bundle exec rake dev
