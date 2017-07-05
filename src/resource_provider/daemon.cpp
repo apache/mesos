@@ -127,7 +127,7 @@ Try<Nothing> LocalResourceProviderDaemonProcess::load(const string& path)
   }
 
   Try<ResourceProviderInfo> info =
-    protobuf::parse<ResourceProviderInfo>(json.get());
+    ::protobuf::parse<ResourceProviderInfo>(json.get());
 
   if (info.isError()) {
     return Error("Not a valid resource provider config: " + info.error());
