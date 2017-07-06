@@ -65,6 +65,7 @@ source ${VIRTUALENV_DIRECTORY}/bin/activate
 SITE_PACKAGES=$(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")
 echo ${SITE_PACKAGES}
 echo "${CURRDIR}/lib" > ${SITE_PACKAGES}/_virtualenv_path_extensions.pth
+echo "${CURRDIR}/../python/lib" >> ${SITE_PACKAGES}/_virtualenv_path_extensions.pth
 pip install --upgrade pip
 pip install -r ${CURRDIR}/pip-requirements.txt
 deactivate
