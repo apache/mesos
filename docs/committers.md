@@ -216,6 +216,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>alexr@apache.org</td>
     </tr>
     <tr>
+      <td>+1</td>
+      <td>Alexander Rojas</td>
+      <td>Mesosphere</td>
+      <td>alexander</td>
+      <td>arojas@apache.org</td>
+    </tr>
+    <tr>
       <td>-8</td>
       <td>Charles Reiss</td>
       <td>UC Berkeley</td>
