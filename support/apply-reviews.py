@@ -206,13 +206,13 @@ def fetch_patch(options):
                 review_id=patch_id(options),
                 url=patch_url(options))
 
-    # In case of github we always need to fetch the patch to extract username
-    # and email, so we ignore the dry_run option by setting the second parameter
-    # to False.
-    if options['github']:
-        shell(cmd, False)
-    else:
-        shell(cmd, options['dry_run'])
+        # In case of github we always need to fetch the patch to extract username
+        # and email, so we ignore the dry_run option by setting the second parameter
+        # to False.
+        if options['github']:
+            shell(cmd, False)
+        else:
+            shell(cmd, options['dry_run'])
 
 
 def patch_id(options):
