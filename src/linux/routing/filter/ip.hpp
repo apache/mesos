@@ -107,7 +107,7 @@ struct Classifier
 
   Option<net::MAC> destinationMAC;
 
-  // TODO(evelinad): Replace net::IP with net::IPNetwork when we will
+  // TODO(evelinad): Replace net::IP with net::IP::Network when we will
   // support classifiers for the entire subnet.
   Option<net::IP> destinationIP;
 

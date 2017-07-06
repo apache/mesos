@@ -31,14 +31,14 @@ namespace route {
 // Represents a rule in the routing table (for IPv4).
 struct Rule
 {
-  Rule(const Option<net::IPNetwork>& _destination,
+  Rule(const Option<net::IP::Network>& _destination,
        const Option<net::IP>& _gateway,
        const std::string& _link)
     : destination(_destination),
       gateway(_gateway),
       link(_link) {}
 
-  Option<net::IPNetwork> destination;
+  Option<net::IP::Network> destination;
   Option<net::IP> gateway;
   std::string link;
 };

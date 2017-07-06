@@ -75,11 +75,11 @@ Try<vector<Rule>> table()
       CHECK_EQ(AF_INET, rtnl_route_get_family(route));
 
       // Get the destination IP network if exists.
-      Option<net::IPNetwork> destination;
+      Option<net::IP::Network> destination;
       struct nl_addr* dst = rtnl_route_get_dst(route);
       if (dst != nullptr && nl_addr_get_len(dst) != 0) {
         struct in_addr* addr = (struct in_addr*) nl_addr_get_binary_addr(dst);
-        Try<net::IPNetwork> network = net::IPNetwork::create(
+        Try<net::IP::Network> network = net::IP::Network::create(
             net::IP(*addr),
             nl_addr_get_prefixlen(dst));
 

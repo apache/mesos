@@ -252,7 +252,7 @@ private:
       const std::string& _eth0,
       const std::string& _lo,
       const net::MAC& _hostMAC,
-      const net::IPNetwork& _hostIPNetwork,
+      const net::IP::Network& _hostIPNetwork,
       const size_t _hostEth0MTU,
       const net::IP& _hostDefaultGateway,
       const routing::Handle& _hostTxFqCodelHandle,
@@ -315,7 +315,7 @@ private:
   const std::string eth0;
   const std::string lo;
   const net::MAC hostMAC;
-  const net::IPNetwork hostIPNetwork;
+  const net::IP::Network hostIPNetwork;
   const size_t hostEth0MTU;
   const net::IP hostDefaultGateway;
   const routing::Handle hostTxFqCodelHandle;

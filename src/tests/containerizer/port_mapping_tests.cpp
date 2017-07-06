@@ -243,8 +243,8 @@ protected:
     cleanup(eth0, lo);
 
     // Get host IP address.
-    Result<net::IPNetwork> hostIPNetwork =
-        net::IPNetwork::fromLinkDevice(eth0, AF_INET);
+    Result<net::IP::Network> hostIPNetwork =
+        net::IP::Network::fromLinkDevice(eth0, AF_INET);
 
     ASSERT_SOME(hostIPNetwork)
       << "Failed to retrieve the host public IP network from " << eth0 << ": "

@@ -496,7 +496,7 @@ static Try<Nothing> addContainerIPFilters(
       ingress::HANDLE,
       ip::Classifier(
           None(),
-          net::IPNetwork::LOOPBACK_V4().address(),
+          net::IP::Network::LOOPBACK_V4().address(),
           None(),
           range),
       Priority(IP_FILTER_PRIORITY, NORMAL),
@@ -547,7 +547,7 @@ static Try<Nothing> removeContainerIPFilters(
       ingress::HANDLE,
       ip::Classifier(
           None(),
-          net::IPNetwork::LOOPBACK_V4().address(),
+          net::IP::Network::LOOPBACK_V4().address(),
           None(),
           range));
 
@@ -1641,8 +1641,8 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   }
 
   // Get the host IP network, MAC and default gateway.
-  Result<net::IPNetwork> hostIPNetwork =
-    net::IPNetwork::fromLinkDevice(eth0.get(), AF_INET);
+  Result<net::IP::Network> hostIPNetwork =
+    net::IP::Network::fromLinkDevice(eth0.get(), AF_INET);
 
   if (!hostIPNetwork.isSome()) {
     return Error(
@@ -3678,7 +3678,7 @@ Try<Nothing> PortMappingIsolatorProcess::addHostIPFilters(
       ingress::HANDLE,
       ip::Classifier(
           None(),
-          net::IPNetwork::LOOPBACK_V4().address(),
+          net::IP::Network::LOOPBACK_V4().address(),
           range,
           None()),
       Priority(IP_FILTER_PRIORITY, NORMAL),
@@ -3881,7 +3881,7 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
       ingress::HANDLE,
       ip::Classifier(
           None(),
-          net::IPNetwork::LOOPBACK_V4().address(),
+          net::IP::Network::LOOPBACK_V4().address(),
           range,
           None()));
 
@@ -4005,7 +4005,7 @@ string PortMappingIsolatorProcess::scripts(Info* info)
          << " prio " << Priority(IP_FILTER_PRIORITY, NORMAL).get() << " u32"
          << " flowid ffff:0"
          << " match ip dst "
-         << net::IPNetwork::LOOPBACK_V4().address()
+         << net::IP::Network::LOOPBACK_V4().address()
          << " action mirred egress redirect dev " << eth0 << "\n";
 
   foreach (const PortRange& range,
@@ -4025,7 +4025,7 @@ string PortMappingIsolatorProcess::scripts(Info* info)
            << " prio " << Priority(IP_FILTER_PRIORITY, NORMAL).get() << " u32"
            << " flowid ffff:0"
            << " match ip dst "
-           << net::IPNetwork::LOOPBACK_V4().address()
+           << net::IP::Network::LOOPBACK_V4().address()
            << " match ip dport " << range.begin() << " "
            << hex << range.mask() << dec
            << " action mirred egress redirect dev " << lo << "\n";
@@ -4045,7 +4045,7 @@ string PortMappingIsolatorProcess::scripts(Info* info)
          << " flowid ffff:0"
          << " match ip protocol 1 0xff"
          << " match ip dst "
-         << net::IPNetwork::LOOPBACK_V4().address() << "\n";
+         << net::IP::Network::LOOPBACK_V4().address() << "\n";
 
   // Display the filters created on eth0 and lo.
   script << "tc filter show dev " << eth0
