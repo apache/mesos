@@ -330,10 +330,12 @@ inline Try<Nothing> create_symbolic_link(
   // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/aa363866(v=vs.85).aspx
   static std::mutex adjust_privileges_mutex;
   synchronized(adjust_privileges_mutex) {
-    if (!::CreateSymbolicLink(
-        reparse_point.c_str(),  // path to the symbolic link
-        target.c_str(),        // symlink target
-        target_is_folder ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0)) {
+    if (!::CreateSymbolicLinkW(
+            // Path to link.
+            longpath(real_reparse_point_path.get()).data(),
+            // Path to target.
+            longpath(real_target_path.get()).data(),
+            target_is_folder ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0)) {
       return WindowsError(
           "'internal::windows::create_symbolic_link': 'CreateSymbolicLink' "
           "call failed");
