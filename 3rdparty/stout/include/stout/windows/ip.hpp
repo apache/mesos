@@ -28,7 +28,7 @@
 
 namespace net {
 
-inline Result<IPNetwork> IPNetwork::fromLinkDevice(
+inline Result<IP::Network> IP::Network::fromLinkDevice(
     const std::string& name,
     int family)
 {
@@ -67,7 +67,7 @@ inline Result<IPNetwork> IPNetwork::fromLinkDevice(
       if (ip_adapter.IpAddressList.IpMask.String[0] != '\0') {
         IP netmask = IP::parse(ip_adapter.IpAddressList.IpMask.String).get();
 
-        Try<IPNetwork> network = IPNetwork::create(address, netmask);
+        Try<IP::Network> network = IP::Network::create(address, netmask);
         if (network.isError()) {
            return Error(network.error());
         }
@@ -79,7 +79,7 @@ inline Result<IPNetwork> IPNetwork::fromLinkDevice(
       // We've seen such cases when VPN is used. In that case, a
       // default /32 prefix for IPv4 and /64 for IPv6 is used.
       int prefix = (family == AF_INET ? 32 : 64);
-      Try<IPNetwork> network = IPNetwork::create(address, prefix);
+      Try<IP::Network> network = IP::Network::create(address, prefix);
       if (network.isError()) {
         return Error(network.error());
       }
