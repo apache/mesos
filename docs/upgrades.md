@@ -43,6 +43,44 @@ We categorize the changes as follows:
   </thead>
 <tr>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
+  1.4.x
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+    <ul style="padding-left:10px;">
+      <li>A <a href="#1-4-x-ambient-capabilities">Container capabilities are made ambient if supported</a></li>
+      <li>A <a href="#1-4-x-bounding-capabilities">Support for explicit bounding capabilities</a></li>
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+    <ul style="padding-left:10px;">
+      <li>A <a href="#1-4-x-agent-capabilities-flags">effective_capabilities</a></li>
+      <li>A <a href="#1-4-x-agent-capabilities-flags">bounding-capabilities</a></li>
+      <li>D <a href="#1-4-x-agent-capabilities-flags">allowed-capabilities</a></li>
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+    <ul style="padding-left:10px;">
+      <li>A <a href="#1-4-x-bounding-capabilities">Support for explicit setting bounding capabilities</a></li>
+      <li>D <a href="#1-4-x-linuxinfo-capabilities">LinuxInfo.effective_capabilities deprecates LinuxInfo.capabilities</a></li>
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+
+</tr>
+<tr>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
   1.3.x
   </td>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
@@ -274,6 +312,26 @@ We categorize the changes as follows:
   </td>
 </tr>
 </table>
+
+## Upgrading from 1.3.x to 1.4.x ##
+
+<a name="1-4-x-ambient-capabilities"></a>
+
+* If the `mesos-agent` kernel supports ambient capabilities (Linux 4.3 or later), the capabilities specified in the `LinuxInfo.effective_capabilities` message will be made ambient in the container task.
+
+<a name="1-4-x-bounding-capabilities"></a>
+
+* Explicitly setting the bounding capabilities of a task independently of the effective capabilities is now supported. Frameworks can specifiy the task bounding capabilities by using the `LinuxInfo.bounding_capabilities` message. Operators can specify the default bounding capabilities using the agent `--bounding_capabilities` flag. This flag also specifies the maximum bounding set that a framework is allowed to specify.
+
+<a name="1-4-x-linuxinfo-capabilities"></a>
+
+* The `LinuxInfo.capabilities` field has been deprecated in favor of `LinuxInfo.effective_capabilities`.
+
+<a name="1-4-x-agent-capabilities-flags"></a>
+
+* The agent `--effective_capabilities` flag has been added to specify the default effective capability set for tasks.
+* The agent `--bounding_capabilities` flag has been added to specify the default bounding capability set for tasks.
+* The agent `--allowed-capabilities` flag has been deprecated in favor of `--effective_capabilities`.
 
 ## Upgrading from 1.2.x to 1.3.x ##
 
