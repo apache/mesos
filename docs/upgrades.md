@@ -336,24 +336,31 @@ We categorize the changes as follows:
 ## Upgrading from 1.2.x to 1.3.x ##
 
 <a name="1-3-x-disallow-old-agents"></a>
+
 * The master will no longer allow 0.x agents to register. Interoperability between 1.1+ masters and 0.x agents has never been supported; however, it was not explicitly disallowed, either. Starting with this release of Mesos, registration attempts by 0.x agents will be ignored.
 
 <a name="1-3-x-setquota-removequota-acl"></a>
+
 * Support for deprecated ACLs `set_quotas` and `remove_quotas` has been removed from the local authorizer. Before upgrading the Mesos binaries, consolidate the ACLs used under `set_quotas` and `remove_quotes` under their replacement ACL `update_quotas`. After consolidation of the ACLs, the binaries could be safely replaced.
 
 <a name="1-3-x-shutdown-framework-acl"></a>
+
 * Support for deprecated ACL `shutdown_frameworks` has been removed from the local authorizer. Before upgrading the Mesos binaries, replace all instances of the ACL `shutdown_frameworks` with the newer ACL `teardown_frameworks`. After updating the ACLs, the binaries can be safely replaced.
 
 <a name="1-3-x-framework-info-role"></a>
+
 * Support for multi-role frameworks deprecates the `FrameworkInfo.role` field in favor of `FrameworkInfo.roles` and the `MULTI_ROLE` capability. Frameworks using the new field can continue to use a single role.
 
 <a name="1-3-x-endpoints-roles"></a>
+
 * Support for multi-role frameworks means that the framework `role` field in the master and agent endpoints is deprecated in favor of `roles`. Any tooling parsing endpoint information and relying on the role field needs to be updated before multi-role frameworks can be safely run in the cluster.
 
 <a name="1-3-x-allocator-interface-change"></a>
+
 * Implementors of allocator modules have to provide new implementation functionality to satisfy the `MULTI_ROLE` framework capability. Also, the interface has changed.
 
 <a name="1-3-x-executor-authentication"></a>
+
 * New Agent flags `authenticate_http_executors` and `executor_secret_key`: Used to enable required HTTP executor authentication and set the key file used for generation and authentication of HTTP executor tokens. Note that enabling these flags after upgrade is disruptive to HTTP executors that were launched before the upgrade. For more information on the recommended upgrade procedure when enabling these flags, see the [authentication documentation](authentication.md).
 
 In order to upgrade a running cluster:
@@ -368,45 +375,59 @@ In order to upgrade a running cluster:
 ## Upgrading from 1.1.x to 1.2.x ##
 
 <a name="1-2-1-disallow-old-agents"></a>
+
 * In Mesos 1.2.1, the master will no longer allow 0.x agents to register. Interoperability between 1.1+ masters and 0.x agents has never been supported; however, it was not explicitly disallowed, either. Starting with Mesos 1.2.1, registration attempts by 0.x agents will be ignored. **NOTE:** This applies only when upgrading to Mesos 1.2.1. Mesos 1.2.0 does not implement this behavior.
 
 <a name="1-2-x-heartbeat-flag"></a>
+
 * New Agent flag http_heartbeat_interval: This flag sets a heartbeat interval for messages to be sent over persistent connections made against the agent HTTP API. Currently, this only applies to the LAUNCH_NESTED_CONTAINER_SESSION and ATTACH_CONTAINER_OUTPUT calls. (default: 30secs)
 
 <a name="1-2-x-backend-flag"></a>
+
 * New Agent flag image_provisioner_backend: Strategy for provisioning container rootfs from images, e.g., aufs, bind, copy, overlay.
 
 <a name="1-2-x-unreachable-flag"></a>
+
 * New Master flag max_unreachable_tasks_per_framework: Maximum number of unreachable tasks per framework to store in memory. (default: 1000)
 
 <a name="1-2-x-revive-suppress"></a>
+
 * New Revive and Suppress v1 scheduler Calls: Revive or Suppress offers for a specified role. If role is unset, the call will revive/suppress offers for all of the roles the framework is subscribed to. (Especially for multi-role frameworks.)
 
 <a name="1-2-x-container-logger-interface"></a>
+
 * Mesos 1.2 modifies the `ContainerLogger`'s `prepare()` method.  The method now takes an additional argument for the `user` the logger should run a subprocess as.  Please see [MESOS-5856](https://issues.apache.org/jira/browse/MESOS-5856) for more information.
 
 <a name="1-2-x-allocator-module-changes"></a>
+
 * Allocator module changes to support inactive frameworks, multi-role frameworks, and suppress/revive. See `allocator.hpp` for interface changes.
 
 <a name="1-2-x-new-authz-actions"></a>
+
 * New Authorizer module actions: LAUNCH_NESTED_CONTAINER, KILL_NESTED_CONTAINER, WAIT_NESTED_CONTAINER, LAUNCH_NESTED_CONTAINER_SESSION, ATTACH_CONTAINER_INPUT, ATTACH_CONTAINER_OUTPUT, VIEW_CONTAINER, and SET_LOG_LEVEL. See `authorizer.proto` for module interface changes, and `acls.proto` for corresponding LocalAuthorizer ACL changes.
 
 <a name="1-2-x-renamed-authz-actions"></a>
+
 * Renamed Authorizer module actions (and deprecated old aliases): REGISTER_FRAMEWORK, TEARDOWN_FRAMEWORK, RESERVE_RESOURCES, UNRESERVE_RESOURCES, CREATE_VOLUME, DESTROY_VOLUME, UPDATE_WEIGHT, GET_QUOTA. See `authorizer.proto` for interface changes.
 
 <a name="1-2-x-removed-hooks"></a>
+
 * Removed slavePreLaunchDockerEnvironmentDecorator and slavePreLaunchDockerHook in favor of slavePreLaunchDockerTaskExecutorDecorator.
 
 <a name="1-2-x-debug-endpoints"></a>
+
 * New Agent v1 operator API calls: LAUNCH_NESTED_CONTAINER_SESSION, ATTACH_CONTAINER_INPUT, ATTACH_CONTAINER_OUTPUT for debugging into running containers (Mesos containerizer only).
 
 <a name="1-2-x-recovered-frameworks"></a>
+
 * Deprecated `recovered_frameworks` in v1 GetFrameworks call. Now it will be empty.
 
 <a name="1-2-x-orphan-executors"></a>
+
 * Deprecated `orphan_executors` in v1 GetExecutors call. Now it will be empty.
 
 <a name="1-2-x-orphan-tasks"></a>
+
 * Deprecated `orphan_tasks` in v1 GetTasks call. Now it will be empty.
 
 In order to upgrade a running cluster:
