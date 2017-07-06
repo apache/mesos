@@ -333,7 +333,7 @@ public:
 
   static IPv4 ANY()
   {
-    return IPv4(INADDR_LOOPBACK);
+    return IPv4(INADDR_ANY);
   }
 
   static Try<IPv4> parse(const std::string& value)
