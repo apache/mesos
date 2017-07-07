@@ -12,6 +12,7 @@ All Issues:
   * [MESOS-7689] - Libprocess can crash on malformed request paths for libprocess messages.
   * [MESOS-7690] - The agent can crash when an unknown executor tries to register.
   * [MESOS-7692] - Default environment variables defined in Docker image are not available in Mesos containerizer.
+  * [MESOS-7703] - Mesos fails to exec a custom executor when no shell is used.
 
 
 Release Notes - Mesos - Version 1.3.0
