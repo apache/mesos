@@ -294,7 +294,8 @@ static Try<Bytes> fetchSize(
     return Error(path.error());
   }
   if (path.isSome()) {
-    Try<Bytes> size = os::stat::size(path.get(), os::stat::FOLLOW_SYMLINK);
+    Try<Bytes> size = os::stat::size(
+        path.get(), os::stat::FollowSymlink::FOLLOW_SYMLINK);
     if (size.isError()) {
       return Error("Could not determine file size for: '" + path.get() +
                      "', error: " + size.error());
@@ -1129,7 +1130,7 @@ Try<Nothing> FetcherProcess::Cache::adjust(
 
   Try<Bytes> size = os::stat::size(
       entry.get()->path().string(),
-      os::stat::DO_NOT_FOLLOW_SYMLINK);
+      os::stat::FollowSymlink::DO_NOT_FOLLOW_SYMLINK);
 
   if (size.isSome()) {
     off_t d = delta(size.get(), entry);
