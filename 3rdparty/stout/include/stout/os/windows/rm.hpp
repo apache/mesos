@@ -23,6 +23,8 @@
 
 #include <stout/os/stat.hpp>
 
+#include <stout/internal/windows/longpath.hpp>
+
 
 namespace os {
 
@@ -43,8 +45,10 @@ inline Try<Nothing> rm(const std::string& path)
   // [2] https://msdn.microsoft.com/en-us/library/windows/desktop/aa365682(v=vs.85).aspx#deletefile_and_deletefiletransacted
   // [3] http://pubs.opengroup.org/onlinepubs/009695399/functions/remove.html
   // [4] http://pubs.opengroup.org/onlinepubs/009695399/functions/rmdir.html
-  const BOOL result = os::stat::isdir(path) ? ::RemoveDirectory(path.c_str())
-                                            : ::DeleteFile(path.c_str());
+  const std::wstring longpath = ::internal::windows::longpath(path);
+  const BOOL result = os::stat::isdir(path)
+      ? ::RemoveDirectoryW(longpath.data())
+      : ::DeleteFileW(longpath.data());
 
   if (!result) {
     return WindowsError("`os::rm` could not remove '" + path + "'");
