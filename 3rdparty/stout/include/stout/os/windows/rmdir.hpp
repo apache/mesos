@@ -26,6 +26,9 @@
 
 #include <stout/windows/error.hpp>
 
+#include <stout/internal/windows/longpath.hpp>
+#include <stout/internal/windows/reparsepoint.hpp>
+
 
 namespace os {
 namespace internal {
@@ -59,27 +62,29 @@ inline Try<Nothing> recursive_remove_directory(
   } else {
     current_path = path;
   }
+  const std::wstring long_current_path =
+      ::internal::windows::longpath(current_path);
 
   // Get first file matching pattern `X:\path\to\wherever\*`.
-  WIN32_FIND_DATA found;
-  const std::string search_pattern = current_path + "*";
+  WIN32_FIND_DATAW found;
+  const std::wstring search_pattern = long_current_path + L"*";
   const SharedHandle search_handle(
-      FindFirstFile(search_pattern.c_str(), &found),
-      FindClose);
+      ::FindFirstFileW(search_pattern.data(), &found),
+      ::FindClose);
 
   if (search_handle.get() == INVALID_HANDLE_VALUE) {
     return WindowsError(
         "`os::internal::recursive_remove_directory` failed when searching "
-        "for files with pattern '" + search_pattern + "'");
+        "for files with pattern '" + stringify(search_pattern) + "'");
   }
 
   do {
     // NOTE: do-while is appropriate here because folder is guaranteed to have
     // at least a file called `.` (and probably also one called `..`).
-    const std::string current_file(found.cFileName);
+    const std::wstring current_file(found.cFileName);
 
-    const bool is_current_directory = current_file.compare(".") == 0;
-    const bool is_parent_directory = current_file.compare("..") == 0;
+    const bool is_current_directory = current_file.compare(L".") == 0;
+    const bool is_parent_directory = current_file.compare(L"..") == 0;
 
     // Don't try to delete `.` and `..` files in directory.
     if (is_current_directory || is_parent_directory) {
@@ -87,7 +92,7 @@ inline Try<Nothing> recursive_remove_directory(
     }
 
     // Path to remove.
-    const std::string current_absolute_path = current_path + current_file;
+    const std::wstring current_absolute_path = long_current_path + current_file;
 
     Try<bool> is_reparse_point =
       ::internal::windows::reparse_point_attribute_set(current_absolute_path);
@@ -102,47 +107,48 @@ inline Try<Nothing> recursive_remove_directory(
       //
       // If either `RemoveDirectory` or `DeleteFile` succeeds, the reparse
       // point has been successfully removed, and we report success.
-      const BOOL rmdir = ::RemoveDirectory(current_absolute_path.c_str());
+      const BOOL rmdir = ::RemoveDirectoryW(current_absolute_path.data());
 
       if (rmdir == FALSE) {
-        const BOOL rm = ::DeleteFile(current_absolute_path.c_str());
+        const BOOL rm = ::DeleteFileW(current_absolute_path.data());
 
         if (rm == FALSE) {
           return WindowsError(
               "Failed to remove reparse point at '" +
-              current_absolute_path + "'");
+              stringify(current_absolute_path) + "'");
         }
       }
-    } else if (os::stat::isdir(current_absolute_path)) {
+    } else if (os::stat::isdir(stringify(current_absolute_path))) {
       Try<Nothing> removed = recursive_remove_directory(
-          current_absolute_path, true, continueOnError);
+          stringify(current_absolute_path), true, continueOnError);
 
       if (removed.isError()) {
         if (continueOnError) {
-          LOG(WARNING) << "Failed to delete directory " << current_absolute_path
+          LOG(WARNING) << "Failed to delete directory "
+                       << stringify(current_absolute_path)
                        << " with error " << removed.error();
         } else {
           return Error(removed.error());
         }
       }
     } else {
-      if (::remove(current_absolute_path.c_str()) != 0) {
+      if (::DeleteFileW(current_absolute_path.data()) == 0) {
         if (continueOnError) {
           LOG(WARNING)
               << "`os::internal::recursive_remove_directory`"
               << " attempted to delete file '"
-              << current_absolute_path << "', but failed";
+              << stringify(current_absolute_path) << "', but failed";
         } else {
           return WindowsError(
               "`os::internal::recursive_remove_directory` attempted to delete "
-              "file '" + current_absolute_path + "', but failed");
+              "file '" + stringify(current_absolute_path) + "', but failed");
         }
       }
     }
-  } while (FindNextFile(search_handle.get(), &found));
+  } while (::FindNextFileW(search_handle.get(), &found));
 
   // Finally, remove current directory unless `removeRoot` is disabled.
-  if (removeRoot && ::_rmdir(current_path.c_str()) == -1) {
+  if (removeRoot && ::RemoveDirectoryW(long_current_path.data()) == FALSE) {
     if (continueOnError) {
       LOG(WARNING) << "`os::internal::recursive_remove_directory`"
                    << " attempted to delete directory '"
