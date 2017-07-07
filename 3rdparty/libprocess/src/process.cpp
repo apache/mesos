@@ -116,6 +116,10 @@
 #include "gate.hpp"
 #include "process_reference.hpp"
 
+namespace inet = process::network::inet;
+namespace inet4 = process::network::inet4;
+namespace inet6 = process::network::inet6;
+
 using process::wait; // Necessary on some OS's to disambiguate.
 
 using process::http::Accepted;
@@ -134,8 +138,6 @@ using process::http::authentication::AuthenticationResult;
 using process::http::authentication::AuthenticatorManager;
 
 using process::http::authorization::AuthorizationCallbacks;
-
-namespace inet4 = process::network::inet4;
 
 using process::network::inet::Address;
 using process::network::inet::Socket;
@@ -169,7 +171,21 @@ struct Flags : public virtual flags::FlagsBase
         "ip",
         "The IP address for communication to and from libprocess.\n"
         "If not specified, libprocess will attempt to reverse-DNS lookup\n"
-        "the hostname and use that IP instead.");
+        "the hostname and use that IP instead.",
+        [](const Option<net::IP>& ip) -> Option<Error> {
+          if (ip.isSome() && ip->family() != AF_INET) {
+            return Error(
+              "Currently we allow only IPv4 address to be specified "
+              "with the `--ip` flag");
+          }
+
+          return None();
+        });
+
+    add(&Flags::ip6,
+        "ip6",
+        "The IPv6 address that `libprocess` will use in future to perform "
+        "communication of IPv6 sockets.\n");
 
     add(&Flags::advertise_ip,
         "advertise_ip",
@@ -230,6 +246,7 @@ struct Flags : public virtual flags::FlagsBase
   }
 
   Option<net::IP> ip;
+  Option<net::IPv6> ip6;
   Option<net::IP> advertise_ip;
   Option<int> port;
   Option<int> advertise_port;
@@ -599,7 +616,10 @@ static std::mutex* socket_mutex = new std::mutex();
 static Future<Socket> future_accept;
 
 // Local socket address.
-static Address __address__ = inet4::Address::ANY_ANY();
+static inet::Address __address__ = inet4::Address::ANY_ANY();
+
+// Local IPv6 socket address.
+static Option<inet6::Address> __address6__ = None();
 
 // Active SocketManager (eventually will probably be thread-local).
 static SocketManager* socket_manager = nullptr;
@@ -1126,12 +1146,18 @@ bool initialize(
     LOG(WARNING) << warning.message;
   }
 
-  if (libprocess_flags->ip.isSome()) {
-    __address__.ip = libprocess_flags->ip.get();
-  }
+  uint16_t port = 0;
 
   if (libprocess_flags->port.isSome()) {
-    __address__.port = libprocess_flags->port.get();
+    port = libprocess_flags->port.get();
+  }
+
+  if (libprocess_flags->ip.isSome()) {
+    __address__ = inet::Address(libprocess_flags->ip.get(), port);
+  }
+
+  if (libprocess_flags->ip6.isSome()) {
+    __address6__ = inet6::Address(libprocess_flags->ip6.get(), port);
   }
 
   // Create a "server" socket for communicating.
@@ -1359,6 +1385,9 @@ void finalize(bool finalize_wsa)
   // NOTE: This variable is necessary for process communication, so it
   // cannot be cleared until after the `ProcessManager` is deleted.
   __address__ = inet4::Address::ANY_ANY();
+
+  // Reset any IPv6 addresses set on the process.
+  __address6__ = None();
 
   // Finally, reset the Flags to defaults.
   *libprocess_flags = internal::Flags();
@@ -3682,6 +3711,7 @@ ProcessBase::ProcessBase(const string& id)
 
   pid.id = id != "" ? id : ID::generate();
   pid.address = __address__;
+  pid.addresses.v6 = __address6__;
 
   // If using a manual clock, try and set current time of process
   // using happens before relationship between creator (__process__)
