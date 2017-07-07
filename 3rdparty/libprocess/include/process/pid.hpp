@@ -41,7 +41,7 @@ struct UPID
   UPID() = default;
 
   UPID(const UPID& that)
-    : id(that.id), address(that.address) {}
+    : id(that.id), address(that.address), addresses(that.addresses) {}
 
   UPID(const char* id_, const net::IP& ip_, uint16_t port_)
     : id(id_), address(ip_, port_) {}
@@ -93,7 +93,31 @@ struct UPID
   }
 
   std::string id;
+
+  // TODO(asridharan): Ideally, the following `address` field should be of
+  // type `network::Address` so that the default address of the PID
+  // could be a unix domain socket or an IPv4/v6 address. This change
+  // however is disruptive at this point and should be done after we have
+  // introduced support for unix domain and IPv6 sockets into
+  // `libprocess`.
   network::inet::Address address = network::inet4::Address::ANY_ANY();
+
+  // TODO(asridharan): Currently we are introducing only an `Optional`
+  // IPv6 address in the following `addresses` structure. This will
+  // help us initiate some basic IPv6 support for the
+  // `DockerContainerizer`.  However, going forward, once we start
+  // supporting unix domain sockets and IPv4/IPv6 socket in
+  // `libprocess` we will add the following fields to this structure.
+  //
+  // Option<network::unix::Address> unix;
+  // Option<network::inet4::Address> v4;
+  //
+  // With the introduction of the above fields `libprocess` PID will
+  // be able to support unix, IPv4 and IPv6 sockets simultaneously.
+  struct
+  {
+    Option<network::inet6::Address> v6;
+  } addresses = {None()};
 };
 
 
@@ -141,6 +165,7 @@ struct PID : UPID
     PID<Base> pid;
     pid.id = id;
     pid.address = address;
+    pid.addresses = addresses;
     return pid;
   }
 };

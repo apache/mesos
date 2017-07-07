@@ -62,6 +62,7 @@ UPID::UPID(const ProcessBase& process)
 {
   id = process.self().id;
   address = process.self().address;
+  addresses = process.self().addresses;
 }
 
 
