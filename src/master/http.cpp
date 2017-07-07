@@ -375,38 +375,151 @@ struct FullFrameworkWriter {
 };
 
 
-static void json(JSON::ObjectWriter* writer, const Summary<Slave>& summary)
+struct SlaveWriter
 {
-  const Slave& slave = summary;
+  SlaveWriter(const Slave& slave, const Owned<ObjectApprover>& roleApprover)
+    : slave_(slave), roleApprover_(roleApprover) {}
 
-  json(writer, slave.info);
+  void operator()(JSON::ObjectWriter* writer) const
+  {
+    json(writer, slave_.info);
 
-  writer->field("pid", string(slave.pid));
-  writer->field("registered_time", slave.registeredTime.secs());
+    writer->field("pid", string(slave_.pid));
+    writer->field("registered_time", slave_.registeredTime.secs());
 
-  if (slave.reregisteredTime.isSome()) {
-    writer->field("reregistered_time", slave.reregisteredTime.get().secs());
+    if (slave_.reregisteredTime.isSome()) {
+      writer->field("reregistered_time", slave_.reregisteredTime.get().secs());
+    }
+
+    const Resources& totalResources = slave_.totalResources;
+    writer->field("resources", totalResources);
+    writer->field("used_resources", Resources::sum(slave_.usedResources));
+    writer->field("offered_resources", slave_.offeredResources);
+    writer->field(
+        "reserved_resources",
+        [&totalResources, this](JSON::ObjectWriter* writer) {
+          foreachpair (const string& role, const Resources& reservation,
+                       totalResources.reservations()) {
+            // TODO(arojas): Consider showing unapproved resources in an
+            // aggregated special field, so that all resource values add up
+            // MESOS-7779.
+            if (approveViewRole(roleApprover_, role)) {
+              writer->field(role, reservation);
+            }
+          }
+        });
+    writer->field("unreserved_resources", totalResources.unreserved());
+
+    writer->field("active", slave_.active);
+    writer->field("version", slave_.version);
+    writer->field("capabilities", slave_.capabilities.toRepeatedPtrField());
   }
 
-  const Resources& totalResources = slave.totalResources;
-  writer->field("resources", totalResources);
-  writer->field("used_resources", Resources::sum(slave.usedResources));
-  writer->field("offered_resources", slave.offeredResources);
-  writer->field("reserved_resources", totalResources.reservations());
-  writer->field("unreserved_resources", totalResources.unreserved());
-
-  writer->field("active", slave.active);
-  writer->field("version", slave.version);
-  writer->field("capabilities", slave.capabilities.toRepeatedPtrField());
-}
+  const Slave& slave_;
+  const Owned<ObjectApprover>& roleApprover_;
+};
 
 
-static void json(JSON::ObjectWriter* writer, const Full<Slave>& full)
+struct SlavesWriter
 {
-  const Slave& slave = full;
+  SlavesWriter(
+      const Master::Slaves& slaves,
+      const Owned<ObjectApprover>& roleApprover)
+    : slaves_(slaves),
+      roleApprover_(roleApprover) {}
 
-  json(writer, Summary<Slave>(slave));
-}
+  void operator()(JSON::ObjectWriter* writer) const
+  {
+    writer->field("slaves", [this](JSON::ArrayWriter* writer) {
+      foreachvalue (const Slave* slave, slaves_.registered) {
+        writer->element([this, &slave](JSON::ObjectWriter* writer) {
+          writeSlave(slave, writer);
+        });
+      }
+    });
+
+    writer->field("recovered_slaves", [this](JSON::ArrayWriter* writer) {
+      foreachvalue (const SlaveInfo& slaveInfo, slaves_.recovered) {
+        writer->element([&slaveInfo](JSON::ObjectWriter* writer) {
+          json(writer, slaveInfo);
+        });
+      }
+    });
+  }
+
+  void writeSlave(const Slave* slave, JSON::ObjectWriter* writer) const
+  {
+    SlaveWriter(*slave, roleApprover_)(writer);
+
+    // Add the complete protobuf->JSON for all used, reserved,
+    // and offered resources. The other endpoints summarize
+    // resource information, which omits the details of
+    // reservations and persistent volumes. Full resource
+    // information is necessary so that operators can use the
+    // `/unreserve` and `/destroy-volumes` endpoints.
+
+    hashmap<string, Resources> reserved = slave->totalResources.reservations();
+
+    writer->field(
+        "reserved_resources_full",
+        [&reserved, this](JSON::ObjectWriter* writer) {
+          foreachpair (const string& role,
+                       const Resources& resources,
+                       reserved) {
+            if (approveViewRole(roleApprover_, role)) {
+              writer->field(role, [&resources](JSON::ArrayWriter* writer) {
+                foreach (Resource resource, resources) {
+                  convertResourceFormat(&resource, ENDPOINT);
+                  writer->element(JSON::Protobuf(resource));
+                }
+              });
+            }
+          }
+        });
+
+    Resources unreservedResources = slave->totalResources.unreserved();
+
+    writer->field(
+        "unreserved_resources_full",
+        [&unreservedResources](JSON::ArrayWriter* writer) {
+          foreach (Resource resource, unreservedResources) {
+            convertResourceFormat(&resource, ENDPOINT);
+            writer->element(JSON::Protobuf(resource));
+          }
+        });
+
+    Resources usedResources = Resources::sum(slave->usedResources);
+
+    writer->field(
+        "used_resources_full",
+        [&usedResources, this](JSON::ArrayWriter* writer) {
+          foreach (Resource resource, usedResources) {
+            if (approveViewRole(roleApprover_, resource.role()) &&
+                approveViewRole(roleApprover_,
+                                resource.allocation_info().role())) {
+              convertResourceFormat(&resource, ENDPOINT);
+              writer->element(JSON::Protobuf(resource));
+            }
+          }
+        });
+
+    const Resources& offeredResources = slave->offeredResources;
+
+    writer->field(
+        "offered_resources_full",
+        [&offeredResources, this](JSON::ArrayWriter* writer) {
+          foreach (Resource resource, offeredResources) {
+            if (approveViewRole(roleApprover_, resource.role())) {
+              convertResourceFormat(&resource, ENDPOINT);
+              writer->element(JSON::Protobuf(resource));
+            }
+          }
+        });
+  }
+
+  const Master::Slaves &slaves_;
+  const Owned<ObjectApprover> &roleApprover_;
+};
 
 
 static void json(JSON::ObjectWriter* writer, const Summary<Framework>& summary)
@@ -2319,91 +2432,33 @@ string Master::Http::SLAVES_HELP()
 
 Future<Response> Master::Http::slaves(
     const Request& request,
-    const Option<Principal>&) const
+    const Option<Principal>& principal) const
 {
   // When current master is not the leader, redirect to the leading master.
   if (!master->elected()) {
     return redirect(request);
   }
 
-  auto slaves = [this](JSON::ObjectWriter* writer) {
-    writer->field("slaves", [this](JSON::ArrayWriter* writer) {
-      foreachvalue (const Slave* slave, master->slaves.registered) {
-        writer->element([&slave](JSON::ObjectWriter* writer) {
-          json(writer, Full<Slave>(*slave));
+  // Retrieve `ObjectApprover`s for authorizing roles.
+  Future<Owned<ObjectApprover>> rolesApprover;
 
-          // Add the complete protobuf->JSON for all used, reserved,
-          // and offered resources. The other endpoints summarize
-          // resource information, which omits the details of
-          // reservations and persistent volumes. Full resource
-          // information is necessary so that operators can use the
-          // `/unreserve` and `/destroy-volumes` endpoints.
+  if (master->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
 
-          hashmap<string, Resources> reserved =
-            slave->totalResources.reservations();
+    rolesApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_ROLE);
+  } else {
+    rolesApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
 
-          writer->field(
-              "reserved_resources_full",
-              [&reserved](JSON::ObjectWriter* writer) {
-                foreachpair (const string& role,
-                             const Resources& resources,
-                             reserved) {
-                  writer->field(role, [&resources](JSON::ArrayWriter* writer) {
-                    foreach (Resource resource, resources) {
-                      convertResourceFormat(&resource, ENDPOINT);
-                      writer->element(JSON::Protobuf(resource));
-                    }
-                  });
-                }
-              });
+  Master* master = this->master;
+  Option<string> jsonp = request.url.query.get("jsonp");
 
-          Resources unreservedResources = slave->totalResources.unreserved();
-
-          writer->field(
-              "unreserved_resources_full",
-              [&unreservedResources](JSON::ArrayWriter* writer) {
-                foreach (Resource resource, unreservedResources) {
-                  convertResourceFormat(&resource, ENDPOINT);
-                  writer->element(JSON::Protobuf(resource));
-                }
-              });
-
-          Resources usedResources = Resources::sum(slave->usedResources);
-
-          writer->field(
-              "used_resources_full",
-              [&usedResources](JSON::ArrayWriter* writer) {
-                foreach (Resource resource, usedResources) {
-                  convertResourceFormat(&resource, ENDPOINT);
-                  writer->element(JSON::Protobuf(resource));
-                }
-              });
-
-          const Resources& offeredResources = slave->offeredResources;
-
-          writer->field(
-              "offered_resources_full",
-              [&offeredResources](JSON::ArrayWriter* writer) {
-                foreach (Resource resource, offeredResources) {
-                  convertResourceFormat(&resource, ENDPOINT);
-                  writer->element(JSON::Protobuf(resource));
-                }
-              });
-        });
-      };
-    });
-
-    // Model all of the recovered slaves.
-    writer->field("recovered_slaves", [this](JSON::ArrayWriter* writer) {
-      foreachvalue (const SlaveInfo& slaveInfo, master->slaves.recovered) {
-        writer->element([&slaveInfo](JSON::ObjectWriter* writer) {
-          json(writer, slaveInfo);
-        });
-      }
-    });
-  };
-
-  return OK(jsonify(slaves), request.url.query.get("jsonp"));
+  return rolesApprover.then(defer(master->self(),
+      [master, jsonp](const Owned<ObjectApprover>& rolesApprover)
+          -> Future<Response> {
+        return OK(jsonify(SlavesWriter(master->slaves, rolesApprover)), jsonp);
+      }));
 }
 
 
@@ -2683,6 +2738,7 @@ Future<Response> Master::Http::state(
   }
 
   // Retrieve `ObjectApprover`s for authorizing frameworks and tasks.
+  Future<Owned<ObjectApprover>> rolesApprover;
   Future<Owned<ObjectApprover>> frameworksApprover;
   Future<Owned<ObjectApprover>> tasksApprover;
   Future<Owned<ObjectApprover>> executorsApprover;
@@ -2690,6 +2746,9 @@ Future<Response> Master::Http::state(
 
   if (master->authorizer.isSome()) {
     Option<authorization::Subject> subject = createSubject(principal);
+
+    rolesApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_ROLE);
 
     frameworksApprover = master->authorizer.get()->getObjectApprover(
         subject, authorization::VIEW_FRAMEWORK);
@@ -2703,6 +2762,7 @@ Future<Response> Master::Http::state(
     flagsApprover = master->authorizer.get()->getObjectApprover(
         subject, authorization::VIEW_FLAGS);
   } else {
+    rolesApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
@@ -2710,6 +2770,7 @@ Future<Response> Master::Http::state(
   }
 
   return collect(
+      rolesApprover,
       frameworksApprover,
       tasksApprover,
       executorsApprover,
@@ -2719,17 +2780,20 @@ Future<Response> Master::Http::state(
         [this, request](const tuple<Owned<ObjectApprover>,
                                     Owned<ObjectApprover>,
                                     Owned<ObjectApprover>,
+                                    Owned<ObjectApprover>,
                                     Owned<ObjectApprover>>& approvers)
           -> Response {
       // This lambda is consumed before the outer lambda
       // returns, hence capture by reference is fine here.
       auto state = [this, &approvers](JSON::ObjectWriter* writer) {
         // Get approver from tuple.
+        Owned<ObjectApprover> rolesApprover;
         Owned<ObjectApprover> frameworksApprover;
         Owned<ObjectApprover> tasksApprover;
         Owned<ObjectApprover> executorsApprover;
         Owned<ObjectApprover> flagsApprover;
-        tie(frameworksApprover,
+        tie(rolesApprover,
+            frameworksApprover,
             tasksApprover,
             executorsApprover,
             flagsApprover) = approvers;
@@ -2800,11 +2864,12 @@ Future<Response> Master::Http::state(
         }
 
         // Model all of the registered slaves.
-        writer->field("slaves", [this](JSON::ArrayWriter* writer) {
-          foreachvalue (Slave* slave, master->slaves.registered) {
-            writer->element(Full<Slave>(*slave));
-          }
-        });
+        writer->field("slaves",
+          [this, rolesApprover](JSON::ArrayWriter* writer) {
+            foreachvalue (Slave* slave, master->slaves.registered) {
+              writer->element(SlaveWriter(*slave, rolesApprover));
+            }
+          });
 
         // Model all of the recovered slaves.
         writer->field("recovered_slaves", [this](JSON::ArrayWriter* writer) {
@@ -3141,147 +3206,167 @@ Future<Response> Master::Http::stateSummary(
     return redirect(request);
   }
 
+  Future<Owned<ObjectApprover>> rolesApprover;
   Future<Owned<ObjectApprover>> frameworksApprover;
 
   if (master->authorizer.isSome()) {
     Option<authorization::Subject> subject = createSubject(principal);
 
+    rolesApprover = master->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_ROLE);
     frameworksApprover = master->authorizer.get()->getObjectApprover(
         subject, authorization::VIEW_FRAMEWORK);
   } else {
+    rolesApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
   }
 
-  return frameworksApprover
-    .then(defer(
-        master->self(),
-        [this, request](const Owned<ObjectApprover>& frameworksApprover)
+  return collect(rolesApprover, frameworksApprover).then(defer(
+      master->self(),
+      [this, request](const tuple<Owned<ObjectApprover>,
+                                    Owned<ObjectApprover>>& approvers)
           -> Response {
-      auto stateSummary =
-          [this, &frameworksApprover](JSON::ObjectWriter* writer) {
-        writer->field("hostname", master->info().hostname());
+        auto stateSummary = [this, &approvers](JSON::ObjectWriter* writer) {
+          Owned<ObjectApprover> rolesApprover;
+          Owned<ObjectApprover> frameworksApprover;
+          tie(rolesApprover,
+              frameworksApprover) = approvers;
 
-        if (master->flags.cluster.isSome()) {
-          writer->field("cluster", master->flags.cluster.get());
-        }
+          writer->field("hostname", master->info().hostname());
 
-        // We use the tasks in the 'Frameworks' struct to compute summaries
-        // for this endpoint. This is done 1) for consistency between the
-        // 'slaves' and 'frameworks' subsections below 2) because we want to
-        // provide summary information for frameworks that are currently
-        // registered 3) the frameworks keep a circular buffer of completed
-        // tasks that we can use to keep a limited view on the history of
-        // recent completed / failed tasks.
+          if (master->flags.cluster.isSome()) {
+            writer->field("cluster", master->flags.cluster.get());
+          }
 
-        // Generate mappings from 'slave' to 'framework' and reverse.
-        SlaveFrameworkMapping slaveFrameworkMapping(
-            master->frameworks.registered);
+          // We use the tasks in the 'Frameworks' struct to compute summaries
+          // for this endpoint. This is done 1) for consistency between the
+          // 'slaves' and 'frameworks' subsections below 2) because we want to
+          // provide summary information for frameworks that are currently
+          // registered 3) the frameworks keep a circular buffer of completed
+          // tasks that we can use to keep a limited view on the history of
+          // recent completed / failed tasks.
 
-        // Generate 'TaskState' summaries for all framework and slave ids.
-        TaskStateSummaries taskStateSummaries(master->frameworks.registered);
+          // Generate mappings from 'slave' to 'framework' and reverse.
+          SlaveFrameworkMapping slaveFrameworkMapping(
+              master->frameworks.registered);
 
-        // Model all of the slaves.
-        writer->field(
-            "slaves",
-            [this, &slaveFrameworkMapping, &taskStateSummaries](
-                JSON::ArrayWriter* writer) {
-          foreachvalue (Slave* slave, master->slaves.registered) {
-            writer->element(
-                [&slave, &slaveFrameworkMapping, &taskStateSummaries](
-                    JSON::ObjectWriter* writer) {
-              json(writer, Summary<Slave>(*slave));
+          // Generate 'TaskState' summaries for all framework and slave ids.
+          TaskStateSummaries taskStateSummaries(master->frameworks.registered);
 
-              // Add the 'TaskState' summary for this slave.
-              const TaskStateSummary& summary =
-                taskStateSummaries.slave(slave->id);
+          // Model all of the slaves.
+          writer->field(
+              "slaves",
+              [this,
+               &slaveFrameworkMapping,
+               &taskStateSummaries,
+               &rolesApprover](JSON::ArrayWriter* writer) {
+                foreachvalue (Slave* slave, master->slaves.registered) {
+                  writer->element(
+                      [&slave,
+                       &slaveFrameworkMapping,
+                       &taskStateSummaries,
+                       &rolesApprover](JSON::ObjectWriter* writer) {
+                        SlaveWriter slaveWriter(*slave, rolesApprover);
+                        slaveWriter(writer);
 
-              // Certain per-agent status totals will always be zero
-              // (e.g., TASK_ERROR, TASK_UNREACHABLE). We report them
-              // here anyway, for completeness.
-              //
-              // TODO(neilc): Update for TASK_GONE and TASK_GONE_BY_OPERATOR.
-              writer->field("TASK_STAGING", summary.staging);
-              writer->field("TASK_STARTING", summary.starting);
-              writer->field("TASK_RUNNING", summary.running);
-              writer->field("TASK_KILLING", summary.killing);
-              writer->field("TASK_FINISHED", summary.finished);
-              writer->field("TASK_KILLED", summary.killed);
-              writer->field("TASK_FAILED", summary.failed);
-              writer->field("TASK_LOST", summary.lost);
-              writer->field("TASK_ERROR", summary.error);
-              writer->field("TASK_UNREACHABLE", summary.unreachable);
+                        // Add the 'TaskState' summary for this slave.
+                        const TaskStateSummary& summary =
+                            taskStateSummaries.slave(slave->id);
 
-              // Add the ids of all the frameworks running on this slave.
-              const hashset<FrameworkID>& frameworks =
-                slaveFrameworkMapping.frameworks(slave->id);
+                        // Certain per-agent status totals will always be zero
+                        // (e.g., TASK_ERROR, TASK_UNREACHABLE). We report them
+                        // here anyway, for completeness.
+                        //
+                        // TODO(neilc): Update for TASK_GONE and
+                        // TASK_GONE_BY_OPERATOR.
+                        writer->field("TASK_STAGING", summary.staging);
+                        writer->field("TASK_STARTING", summary.starting);
+                        writer->field("TASK_RUNNING", summary.running);
+                        writer->field("TASK_KILLING", summary.killing);
+                        writer->field("TASK_FINISHED", summary.finished);
+                        writer->field("TASK_KILLED", summary.killed);
+                        writer->field("TASK_FAILED", summary.failed);
+                        writer->field("TASK_LOST", summary.lost);
+                        writer->field("TASK_ERROR", summary.error);
+                        writer->field("TASK_UNREACHABLE", summary.unreachable);
 
-              writer->field(
-                  "framework_ids",
-                  [&frameworks](JSON::ArrayWriter* writer) {
-                foreach (const FrameworkID& frameworkId, frameworks) {
-                  writer->element(frameworkId.value());
+                        // Add the ids of all the frameworks running on this
+                        // slave.
+                        const hashset<FrameworkID>& frameworks =
+                            slaveFrameworkMapping.frameworks(slave->id);
+
+                        writer->field(
+                            "framework_ids",
+                            [&frameworks](JSON::ArrayWriter* writer) {
+                              foreach (
+                                  const FrameworkID& frameworkId,
+                                  frameworks) {
+                                writer->element(frameworkId.value());
+                              }
+                            });
+                      });
                 }
               });
-            });
-          }
-        });
 
-        // Model all of the frameworks.
-        writer->field(
-            "frameworks",
-            [this,
-             &slaveFrameworkMapping,
-             &taskStateSummaries,
-             &frameworksApprover](JSON::ArrayWriter* writer) {
-          foreachpair (const FrameworkID& frameworkId,
-                       Framework* framework,
-                       master->frameworks.registered) {
-            // Skip unauthorized frameworks.
-            if (!approveViewFrameworkInfo(
-                    frameworksApprover,
-                    framework->info)) {
-              continue;
-            }
+          // Model all of the frameworks.
+          writer->field(
+              "frameworks",
+              [this,
+               &slaveFrameworkMapping,
+               &taskStateSummaries,
+               &frameworksApprover](JSON::ArrayWriter* writer) {
+                foreachpair (const FrameworkID& frameworkId,
+                             Framework* framework,
+                             master->frameworks.registered) {
+                  // Skip unauthorized frameworks.
+                  if (!approveViewFrameworkInfo(
+                          frameworksApprover,
+                          framework->info)) {
+                    continue;
+                  }
 
-            writer->element(
-                [&frameworkId,
-                 &framework,
-                 &slaveFrameworkMapping,
-                 &taskStateSummaries](JSON::ObjectWriter* writer) {
-              json(writer, Summary<Framework>(*framework));
+                  writer->element(
+                      [&frameworkId,
+                       &framework,
+                       &slaveFrameworkMapping,
+                       &taskStateSummaries](JSON::ObjectWriter* writer) {
+                        json(writer, Summary<Framework>(*framework));
 
-              // Add the 'TaskState' summary for this framework.
-              const TaskStateSummary& summary =
-                taskStateSummaries.framework(frameworkId);
+                        // Add the 'TaskState' summary for this framework.
+                        const TaskStateSummary& summary =
+                            taskStateSummaries.framework(frameworkId);
 
-              // TODO(neilc): Update for TASK_GONE and TASK_GONE_BY_OPERATOR.
-              writer->field("TASK_STAGING", summary.staging);
-              writer->field("TASK_STARTING", summary.starting);
-              writer->field("TASK_RUNNING", summary.running);
-              writer->field("TASK_KILLING", summary.killing);
-              writer->field("TASK_FINISHED", summary.finished);
-              writer->field("TASK_KILLED", summary.killed);
-              writer->field("TASK_FAILED", summary.failed);
-              writer->field("TASK_LOST", summary.lost);
-              writer->field("TASK_ERROR", summary.error);
-              writer->field("TASK_UNREACHABLE", summary.unreachable);
+                        // TODO(neilc): Update for TASK_GONE and
+                        // TASK_GONE_BY_OPERATOR.
+                        writer->field("TASK_STAGING", summary.staging);
+                        writer->field("TASK_STARTING", summary.starting);
+                        writer->field("TASK_RUNNING", summary.running);
+                        writer->field("TASK_KILLING", summary.killing);
+                        writer->field("TASK_FINISHED", summary.finished);
+                        writer->field("TASK_KILLED", summary.killed);
+                        writer->field("TASK_FAILED", summary.failed);
+                        writer->field("TASK_LOST", summary.lost);
+                        writer->field("TASK_ERROR", summary.error);
+                        writer->field("TASK_UNREACHABLE", summary.unreachable);
 
-              // Add the ids of all the slaves running this framework.
-              const hashset<SlaveID>& slaves =
-                slaveFrameworkMapping.slaves(frameworkId);
+                        // Add the ids of all the slaves running this framework.
+                        const hashset<SlaveID>& slaves =
+                            slaveFrameworkMapping.slaves(frameworkId);
 
-              writer->field("slave_ids", [&slaves](JSON::ArrayWriter* writer) {
-                foreach (const SlaveID& slaveId, slaves) {
-                  writer->element(slaveId.value());
+                        writer->field(
+                            "slave_ids",
+                            [&slaves](JSON::ArrayWriter* writer) {
+                              foreach (const SlaveID& slaveId, slaves) {
+                                writer->element(slaveId.value());
+                              }
+                            });
+                      });
                 }
               });
-            });
-          }
-        });
-      };
+        };
 
-      return OK(jsonify(stateSummary), request.url.query.get("jsonp"));
-    }));
+        return OK(jsonify(stateSummary), request.url.query.get("jsonp"));
+      }));
 }
 
 

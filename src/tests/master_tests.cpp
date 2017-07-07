@@ -2222,6 +2222,95 @@ TEST_F(MasterTest, SlavesEndpointWithoutSlaves)
 }
 
 
+// Tests that reservations can only be seen by authorized users.
+TEST_F(MasterTest, SlavesEndpointFiltering)
+{
+  // Start up the master.
+  master::Flags flags = CreateMasterFlags();
+
+  {
+    mesos::ACL::ViewRole* acl = flags.acls.get().add_view_roles();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<SlaveRegisteredMessage> agentRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(agentRegisteredMessage);
+  const SlaveID& agentId = agentRegisteredMessage->slave_id();
+
+  // Create reservation.
+  {
+    RepeatedPtrField<Resource> reservation =
+      Resources::parse("cpus:1;mem:12")->pushReservation(
+          createDynamicReservationInfo(
+              "superhero",
+              DEFAULT_CREDENTIAL.principal()));
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "reserve",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        strings::format(
+            "slaveId=%s&resources=%s",
+            agentId,
+            JSON::protobuf(reservation)).get());
+
+    AWAIT_READY(response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+  }
+
+  // Query master with invalid user.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "slaves",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    const Try<JSON::Object> json = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(json);
+
+    Result<JSON::Object> reservations =
+      json->find<JSON::Object>("slaves[0].reserved_resources");
+    ASSERT_SOME(reservations);
+    EXPECT_TRUE(reservations->values.empty());
+  }
+
+  // Query master with valid user.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "slaves",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    const Try<JSON::Object> json = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(json);
+
+    Result<JSON::Object> reservations =
+      json->find<JSON::Object>("slaves[0].reserved_resources");
+    ASSERT_SOME(reservations);
+    EXPECT_FALSE(reservations->values.empty());
+  }
+}
+
+
 // Ensures that the number of registered slaves reported by
 // /master/slaves coincides with the actual number of registered
 // slaves.

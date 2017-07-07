@@ -1607,6 +1607,7 @@ private:
   friend struct Framework;
   friend struct Metrics;
   friend struct Slave;
+  friend struct SlavesWriter;
 
   // NOTE: Since 'getOffer', 'getInverseOffer' and 'slaves' are
   // protected, we need to make the following functions friends.
