@@ -1150,6 +1150,7 @@ bool initialize(
 
   if (libprocess_flags->port.isSome()) {
     port = libprocess_flags->port.get();
+    __address__.port = port;
   }
 
   if (libprocess_flags->ip.isSome()) {
