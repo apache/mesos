@@ -77,6 +77,19 @@ using testing::Eq;
 using testing::Invoke;
 using testing::Return;
 
+namespace process {
+
+// We need to reinitialize libprocess in order to test against
+// different configurations, such as when libprocess is initialized
+// with SSL or IPv6 enabled.
+void reinitialize(
+    const Option<string>& delegate,
+    const Option<string>& readonlyAuthenticationRealm,
+    const Option<string>& readwriteAuthenticationRealm);
+
+} // namespace process {
+
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -4336,6 +4349,212 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Non_Root_Sandbox)
   ASSERT_SOME(stdout);
 
   EXPECT_TRUE(strings::contains(stdout.get(), "foo"));
+}
+
+
+// Fixture for testing IPv6 support for docker containers on host network.
+//
+// TODO(asridharan): Currently in the `Setup` and `TearDown` methods
+// of this class we re-initialize libprocess to take an IPv6 address.
+// Ideally, we should be moving this into a more general test fixture
+// in mesos.hpp to be used by any other tests for IPv6. This might
+// need changes to `MesosTest` in to order to allow for multiple
+// inheritance.
+class DockerContainerizerIPv6Test : public DockerContainerizerTest
+{
+protected:
+  virtual void SetUp()
+  {
+    os::setenv("LIBPROCESS_IP6", "::1234");
+    process::reinitialize(
+        None(),
+        READWRITE_HTTP_AUTHENTICATION_REALM,
+        READONLY_HTTP_AUTHENTICATION_REALM);
+
+    DockerContainerizerTest::SetUp();
+  }
+
+  virtual void TearDown()
+  {
+    DockerContainerizerTest::TearDown();
+
+    os::unsetenv("LIBPROCESS_IP6");
+    process::reinitialize(
+        None(),
+        READWRITE_HTTP_AUTHENTICATION_REALM,
+        READONLY_HTTP_AUTHENTICATION_REALM);
+  }
+};
+
+
+// Launches a docker container on the host network. The host network
+// is assumed to have an IPv4 address and an IPv6 address. The test
+// passes if the Mesos state correctly exposes both the IPv4 and IPv6
+// address.
+TEST_F(DockerContainerizerIPv6Test, ROOT_DOCKER_LaunchIPv6HostNetwork)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher(flags);
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &dockerContainerizer, flags);
+
+  ASSERT_SOME(slave);
+
+  // Check if the slave has the IPv6 address stored in its PID.
+  EXPECT_SOME(slave.get()->pid.addresses.v6);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task =  createTask(
+      offer.slave_id(),
+      offer.resources(),
+      SLEEP_COMMAND(10000));
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  ASSERT_TRUE(statusRunning->has_data());
+
+  Try<JSON::Array> array = JSON::parse<JSON::Array>(statusRunning->data());
+  ASSERT_SOME(array);
+
+  // Check if container information is exposed through master's state endpoint.
+  Future<http::Response> response = http::get(
+      master.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Value> find = parse->find<JSON::Value>(
+      "frameworks[0].tasks[0].container.docker.privileged");
+
+  EXPECT_SOME_FALSE(find);
+
+  // Check if container information is exposed through slave's state endpoint.
+  response = http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+
+  parse = JSON::parse<JSON::Object>(response->body);
+  ASSERT_SOME(parse);
+
+  find = parse->find<JSON::Value>(
+      "frameworks[0].executors[0].tasks[0].container.docker.privileged");
+
+  EXPECT_SOME_FALSE(find);
+
+  // Now verify the ContainerStatus fields in the TaskStatus.
+  ASSERT_TRUE(statusRunning->has_container_status());
+  EXPECT_TRUE(statusRunning->container_status().has_container_id());
+  ASSERT_EQ(1, statusRunning->container_status().network_infos().size());
+  EXPECT_EQ(2, statusRunning->container_status().network_infos(0).ip_addresses().size()); // NOLINT(whitespace/line_length)
+
+  Option<string> containerIPv4 = None();
+  Option<string> containerIPv6 = None();
+
+  foreach(const NetworkInfo::IPAddress& ipAddress,
+          statusRunning->container_status().network_infos(0).ip_addresses()) {
+    if (ipAddress.protocol() == NetworkInfo::IPv4) {
+      containerIPv4 = ipAddress.ip_address();
+    }
+
+    if (ipAddress.protocol() == NetworkInfo::IPv6) {
+      containerIPv6 = ipAddress.ip_address();
+    }
+  }
+
+  EXPECT_SOME(containerIPv4);
+  ASSERT_SOME(containerIPv6);
+  EXPECT_EQ(containerIPv6.get(), "::1234");
+
+  ASSERT_TRUE(exists(docker, containerId.get()));
+
+  Future<Option<ContainerTermination>> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
+
+  ASSERT_FALSE(
+    exists(docker, containerId.get(), ContainerState::RUNNING));
 }
 
 } // namespace tests {
