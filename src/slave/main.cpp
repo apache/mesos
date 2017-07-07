@@ -296,6 +296,11 @@ int main(int argc, char** argv)
         "Only one of `--ip` or `--ip_discovery_command` should be specified");
   }
 
+  if (flags.ip6_discovery_command.isSome() && flags.ip6.isSome()) {
+    EXIT(EXIT_FAILURE) << flags.usage(
+        "Only one of `--ip6` or `--ip6_discovery_command` should be specified");
+  }
+
   if (flags.ip_discovery_command.isSome()) {
     Try<string> ipAddress = os::shell(flags.ip_discovery_command.get());
 
@@ -306,6 +311,17 @@ int main(int argc, char** argv)
     os::setenv("LIBPROCESS_IP", strings::trim(ipAddress.get()));
   } else if (flags.ip.isSome()) {
     os::setenv("LIBPROCESS_IP", flags.ip.get());
+  }
+
+  if (flags.ip6_discovery_command.isSome()) {
+    Try<string> ip6Address = os::shell(flags.ip6_discovery_command.get());
+    if (ip6Address.isError()) {
+      EXIT(EXIT_FAILURE) << ip6Address.error();
+    }
+
+    os::setenv("LIBPROCESS_IP6", strings::trim(ip6Address.get()));
+  } else if (flags.ip6.isSome()) {
+    os::setenv("LIBPROCESS_IP6", flags.ip.get());
   }
 
   os::setenv("LIBPROCESS_PORT", stringify(flags.port));
