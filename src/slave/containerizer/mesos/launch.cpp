@@ -796,13 +796,31 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
+#ifndef __WINDOWS__
+  // Search executable in the current working directory as well.
+  // execvpe and execvp will only search executable from the current
+  // working directory if environment variable PATH is not set.
+  // TODO(aaron.wood): 'os::which' current does not work on Windows.
+  // Remove the ifndef guard once it's supported on Windows.
+  if (!path::absolute(executable) &&
+      launchInfo.has_working_directory()) {
+    Option<string> which = os::which(
+        executable,
+        launchInfo.working_directory());
+
+    if (which.isSome()) {
+      executable = which.get();
+    }
+  }
+#endif // __WINDOWS__
+
   if (envp.isSome()) {
     os::execvpe(executable.c_str(), argv, envp.get());
   } else {
     os::execvp(executable.c_str(), argv);
   }
 
-  // If we get here, the execle call failed.
+  // If we get here, the execvp call failed.
   cerr << "Failed to execute command: " << os::strerror(errno) << endl;
   exitWithStatus(EXIT_FAILURE);
   UNREACHABLE();
