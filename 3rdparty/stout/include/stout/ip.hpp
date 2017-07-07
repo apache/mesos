@@ -291,7 +291,7 @@ public:
       return !(*this == that);
     }
 
-  private:
+  protected:
     Network(const IP& _address, const IP& _netmask)
       : address_(new IP(_address)), netmask_(new IP(_netmask)) {}
 
@@ -304,7 +304,7 @@ public:
     std::unique_ptr<IP> netmask_;
   };
 
-private:
+protected:
   // NOTE: We need to clear the union when creating an IP because the
   // equality check uses memcmp.
   void clear()
