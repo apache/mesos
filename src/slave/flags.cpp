@@ -1077,6 +1077,25 @@ mesos::internal::slave::Flags::Flags()
       "IP address to listen on. This cannot be used in conjunction\n"
       "with `--ip_discovery_command`.");
 
+  add(&Flags::ip6,
+      "ip6",
+      "IPv6 address to listen on. This cannot be used in conjunction\n"
+      "with '--ip6_discovery_command'.\n"
+      "\n"
+      "NOTE: Currently Mesos doesn't listen on IPv6 sockets and hence\n"
+      "this IPv6 address is only used to advertise IPv6 addresses for\n"
+      "containers running on the host network.\n",
+      [](const Option<string>& ip6) -> Option<Error> {
+        if (ip6.isSome()) {
+          LOG(WARNING) << "Currently Mesos doesn't listen on IPv6 sockets"
+                       << "and hence the IPv6 address " << ip6.get() << " "
+                       << "will only be used to advertise IPv6 addresses"
+                       << "for containers running on the host network";
+        }
+
+        return None();
+      });
+
   add(&Flags::port, "port", "Port to listen on.", SlaveInfo().port());
 
   add(&Flags::advertise_ip,
@@ -1105,4 +1124,14 @@ mesos::internal::slave::Flags::Flags()
       "Optional IP discovery binary: if set, it is expected to emit\n"
       "the IP address which the slave will try to bind to.\n"
       "Cannot be used in conjunction with `--ip`.");
+
+  add(&Flags::ip6_discovery_command,
+      "ip6_discovery_command",
+      "Optional IPv6 discovery binary: if set, it is expected to emit\n"
+      "the IPv6 address on which Mesos will try to bind when IPv6 socket\n"
+      "support is enabled in Mesos.\n"
+      "\n"
+      "NOTE: Currently Mesos doesn't listen on IPv6 sockets and hence\n"
+      "this IPv6 address is only used to advertise IPv6 addresses for\n"
+      "containers running on the host network.\n");
 }
