@@ -27,6 +27,17 @@ namespace os {
 
 namespace stat {
 
+// Specify whether symlink path arguments should be followed or
+// not. APIs in the os::stat family that take a FollowSymlink
+// argument all provide FollowSymlink::FOLLOW_SYMLINK as the default value,
+// so they will follow symlinks unless otherwise specified.
+enum class FollowSymlink
+{
+  DO_NOT_FOLLOW_SYMLINK,
+  FOLLOW_SYMLINK
+};
+
+
 namespace internal {
 
 inline Try<struct ::stat> stat(
@@ -36,12 +47,12 @@ inline Try<struct ::stat> stat(
   struct ::stat s;
 
   switch (follow) {
-    case DO_NOT_FOLLOW_SYMLINK:
+    case FollowSymlink::DO_NOT_FOLLOW_SYMLINK:
       if (::lstat(path.c_str(), &s) < 0) {
         return ErrnoError("Failed to lstat '" + path + "'");
       }
       return s;
-    case FOLLOW_SYMLINK:
+    case FollowSymlink::FOLLOW_SYMLINK:
       if (::stat(path.c_str(), &s) < 0) {
         return ErrnoError("Failed to stat '" + path + "'");
       }
@@ -55,17 +66,18 @@ inline Try<struct ::stat> stat(
 
 inline bool islink(const std::string& path)
 {
-  // By definition, you don't followsymlinks when trying
+  // By definition, you don't follow symlinks when trying
   // to find whether a path is a link. If you followed it,
   // it wouldn't ever be a link.
-  Try<struct ::stat> s = internal::stat(path, DO_NOT_FOLLOW_SYMLINK);
+  Try<struct ::stat> s = internal::stat(
+      path, FollowSymlink::DO_NOT_FOLLOW_SYMLINK);
   return s.isSome() && S_ISLNK(s->st_mode);
 }
 
 
 inline bool isdir(
     const std::string& path,
-    const FollowSymlink follow = FOLLOW_SYMLINK)
+    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
   Try<struct ::stat> s = internal::stat(path, follow);
   return s.isSome() && S_ISDIR(s->st_mode);
@@ -74,7 +86,7 @@ inline bool isdir(
 
 inline bool isfile(
     const std::string& path,
-    const FollowSymlink follow = FOLLOW_SYMLINK)
+    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
   Try<struct ::stat> s = internal::stat(path, follow);
   return s.isSome() && S_ISREG(s->st_mode);
@@ -87,7 +99,7 @@ inline bool isfile(
 // name (strlen).
 inline Try<Bytes> size(
     const std::string& path,
-    const FollowSymlink follow = FOLLOW_SYMLINK)
+    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
   Try<struct ::stat> s = internal::stat(path, follow);
   if (s.isError()) {
@@ -100,7 +112,7 @@ inline Try<Bytes> size(
 
 inline Try<long> mtime(
     const std::string& path,
-    const FollowSymlink follow = FOLLOW_SYMLINK)
+    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
   Try<struct ::stat> s = internal::stat(path, follow);
   if (s.isError()) {
@@ -113,7 +125,7 @@ inline Try<long> mtime(
 
 inline Try<mode_t> mode(
     const std::string& path,
-    const FollowSymlink follow = FOLLOW_SYMLINK)
+    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
   Try<struct ::stat> s = internal::stat(path, follow);
   if (s.isError()) {
@@ -126,7 +138,7 @@ inline Try<mode_t> mode(
 
 inline Try<dev_t> dev(
     const std::string& path,
-    const FollowSymlink follow = FOLLOW_SYMLINK)
+    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
   Try<struct ::stat> s = internal::stat(path, follow);
   if (s.isError()) {
@@ -139,7 +151,7 @@ inline Try<dev_t> dev(
 
 inline Try<dev_t> rdev(
     const std::string& path,
-    const FollowSymlink follow = FOLLOW_SYMLINK)
+    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
   Try<struct ::stat> s = internal::stat(path, follow);
   if (s.isError()) {
@@ -156,7 +168,7 @@ inline Try<dev_t> rdev(
 
 inline Try<ino_t> inode(
     const std::string& path,
-    const FollowSymlink follow = FOLLOW_SYMLINK)
+    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
   Try<struct ::stat> s = internal::stat(path, follow);
   if (s.isError()) {
@@ -169,7 +181,7 @@ inline Try<ino_t> inode(
 
 inline Try<uid_t> uid(
     const std::string& path,
-    const FollowSymlink follow = FOLLOW_SYMLINK)
+    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
   Try<struct ::stat> s = internal::stat(path, follow);
   if (s.isError()) {

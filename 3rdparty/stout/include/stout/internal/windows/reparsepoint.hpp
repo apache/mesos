@@ -27,6 +27,24 @@
 #include <stout/internal/windows/attributes.hpp>
 #include <stout/internal/windows/longpath.hpp>
 
+
+namespace os {
+namespace stat {
+
+// Specify whether symlink path arguments should be followed or
+// not. APIs in the os::stat family that take a FollowSymlink
+// argument all provide FollowSymlink::FOLLOW_SYMLINK as the default value,
+// so they will follow symlinks unless otherwise specified.
+enum class FollowSymlink
+{
+  DO_NOT_FOLLOW_SYMLINK,
+  FOLLOW_SYMLINK
+};
+
+} // namespace stat {
+} // namespace os {
+
+
 // We pass this struct to `DeviceIoControl` to get information about a reparse
 // point (including things like whether it's a symlink). It is normally part of
 // the Device Driver Kit (DDK), specifically `nitfs.h`, but rather than taking

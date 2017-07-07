@@ -13,24 +13,6 @@
 #ifndef __STOUT_OS_STAT_HPP__
 #define __STOUT_OS_STAT_HPP__
 
-namespace os {
-
-namespace stat {
-
-// Specify whether symlink path arguments should be followed or
-// not. APIs in the os::stat family that take a FollowSymlink
-// argument all provide FOLLOW_SYMLINK as the default value,
-// so they will follow symlinks unless otherwise specified.
-enum FollowSymlink
-{
-  DO_NOT_FOLLOW_SYMLINK,
-  FOLLOW_SYMLINK
-};
-
-} // namespace stat {
-
-} // namespace os {
-
 // For readability, we minimize the number of #ifdef blocks in the code by
 // splitting platform specific system calls into separate directories.
 #ifdef __WINDOWS__
