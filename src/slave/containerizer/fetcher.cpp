@@ -16,16 +16,17 @@
 
 #include "slave/containerizer/fetcher.hpp"
 
-#include <unordered_map>
-
 #include <process/async.hpp>
 #include <process/check.hpp>
 #include <process/collect.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/owned.hpp>
+#include <process/subprocess.hpp>
 
 #include <process/metrics/metrics.hpp>
 
+#include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/net.hpp>
 #include <stout/path.hpp>
@@ -34,11 +35,15 @@
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
 
+#include <stout/os/exists.hpp>
 #include <stout/os/find.hpp>
 #include <stout/os/killtree.hpp>
 #include <stout/os/read.hpp>
+#include <stout/os/rmdir.hpp>
 
 #include "hdfs/hdfs.hpp"
+
+#include "slave/containerizer/fetcher_process.hpp"
 
 using std::list;
 using std::map;

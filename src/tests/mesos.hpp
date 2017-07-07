@@ -75,6 +75,7 @@
 
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/fetcher.hpp"
+#include "slave/containerizer/fetcher_process.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 
