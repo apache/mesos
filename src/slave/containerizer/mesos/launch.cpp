@@ -706,10 +706,10 @@ int MesosContainerizerLaunch::execute()
   // TODO(aaron.wood): 'os::which' current does not work on Windows.
   // Remove the ifndef guard once it's supported on Windows.
   if (!path::absolute(executable) &&
-      launchInfo.has_working_directory()) {
+      flags.working_directory.isSome()) {
     Option<string> which = os::which(
         executable,
-        launchInfo.working_directory());
+        flags.working_directory.get());
 
     if (which.isSome()) {
       executable = which.get();
