@@ -4560,7 +4560,19 @@ void Slave::_statusUpdate(
     if (containerStatus->network_infos().size() == 0) {
       NetworkInfo* networkInfo = containerStatus->add_network_infos();
       NetworkInfo::IPAddress* ipAddress = networkInfo->add_ip_addresses();
+
+      // Set up IPv4 address.
+      //
+      // NOTE: By default the protocol is set to IPv4 and therefore we
+      // don't explicitly set the protocol here.
       ipAddress->set_ip_address(stringify(self().address.ip));
+
+      // Set up IPv6 address.
+      if (self().addresses.v6.isSome()) {
+        ipAddress = networkInfo->add_ip_addresses();
+        ipAddress->set_ip_address(stringify(self().addresses.v6->ip));
+        ipAddress->set_protocol(NetworkInfo::IPv6);
+      }
     }
   }
 

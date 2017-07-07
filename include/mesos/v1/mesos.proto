@@ -2520,7 +2520,7 @@ message NetworkInfo {
     // request the network isolator on the Agent to assign an IP address to the
     // container being launched. If a specific IP address is specified in
     // ip_address, this field should not be set.
-    optional Protocol protocol = 1;
+    optional Protocol protocol = 1 [default = IPv4];
 
     // Statically assigned IP provided by the Framework. This IP will be
     // assigned to the container by the network isolator module on the Agent.
