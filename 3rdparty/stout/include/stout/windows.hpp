@@ -372,13 +372,6 @@ decltype(_mktemp_s(path, strlen(path) + 1))
 }
 
 
-inline auto access(const char* fileName, int accessMode) ->
-decltype(_access(fileName, accessMode))
-{
-  return _access(fileName, accessMode);
-}
-
-
 // NOTE: Signals do not exist on Windows, so all signals are unknown.
 // If the signal number is unknown, the Posix specification leaves the
 // return value of `strsignal` unspecified.

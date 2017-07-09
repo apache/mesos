@@ -19,14 +19,24 @@
 #include <stout/try.hpp>
 
 #ifdef __WINDOWS__
-#include <stout/windows.hpp> // To be certain we're using the right `access`.
+#include <stout/windows.hpp>
+#include <stout/internal/windows/longpath.hpp>
 #endif // __WINDOWS__
 
 namespace os {
 
 inline Try<bool> access(const std::string& path, int how)
 {
-  if (::access(path.c_str(), how) < 0) {
+  int result;
+
+#ifdef __WINDOWS__
+  std::wstring longpath = ::internal::windows::longpath(path);
+  result = ::_waccess(longpath.data(), how);
+#else
+  result = ::access(path.data(), how);
+#endif
+
+  if (result < 0) {
     if (errno == EACCES) {
       return false;
     } else {
