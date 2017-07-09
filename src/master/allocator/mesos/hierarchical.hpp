@@ -143,7 +143,7 @@ public:
 
   void updateSlave(
       const SlaveID& slave,
-      const Option<Resources>& oversubscribed = None(),
+      const Option<Resources>& total = None(),
       const Option<std::vector<SlaveInfo::Capability>>& capabilities = None());
 
   void deactivateSlave(
@@ -525,8 +525,8 @@ private:
 
   // Helper to update the agent's total resources maintained in the allocator
   // and the role and quota sorters (whose total resources match the agent's
-  // total resources).
-  void updateSlaveTotal(const SlaveID& slaveId, const Resources& total);
+  // total resources). Returns true iff the stored agent total was changed.
+  bool updateSlaveTotal(const SlaveID& slaveId, const Resources& total);
 };
 
 

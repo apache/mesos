@@ -623,7 +623,7 @@ void HierarchicalAllocatorProcess::removeSlave(
 
 void HierarchicalAllocatorProcess::updateSlave(
     const SlaveID& slaveId,
-    const Option<Resources>& oversubscribed,
+    const Option<Resources>& total,
     const Option<vector<SlaveInfo::Capability>>& capabilities)
 {
   CHECK(initialized);
@@ -648,42 +648,11 @@ void HierarchicalAllocatorProcess::updateSlave(
     }
   }
 
-  if (oversubscribed.isSome()) {
-    // Check that all the oversubscribed resources are revocable.
-    CHECK_EQ(oversubscribed.get(), oversubscribed->revocable());
+  if (total.isSome()) {
+    updated = updateSlaveTotal(slaveId, total.get());
 
-    const Resources oldRevocable = slave.total.revocable();
-
-    if (oldRevocable != oversubscribed.get()) {
-      // Update the total resources.
-      //
-      // Reset the total resources to include the non-revocable resources,
-      // plus the new estimate of oversubscribed resources.
-      //
-      // NOTE: All modifications to revocable resources in the allocator for
-      // `slaveId` are lost.
-      //
-      // TODO(alexr): Update this math once the source of revocable resources
-      // is extended beyond oversubscription.
-      slave.total = slave.total.nonRevocable() + oversubscribed.get();
-
-      // Update the total resources in the `roleSorter` by removing the
-      // previous oversubscribed resources and adding the new
-      // oversubscription estimate.
-      roleSorter->remove(slaveId, oldRevocable);
-      roleSorter->add(slaveId, oversubscribed.get());
-
-      updated = true;
-
-      // NOTE: We do not need to update `quotaRoleSorter` because this
-      // function only changes the revocable resources on the slave, but
-      // the quota role sorter only manages non-revocable resources.
-
-      LOG(INFO) << "Agent " << slaveId << " (" << slave.hostname << ")"
-                << " updated with oversubscribed resources "
-                << oversubscribed.get() << " (total: " << slave.total
-                << ", allocated: " << slave.allocated << ")";
-    }
+    LOG(INFO) << "Agent " << slaveId << " (" << slave.hostname << ")"
+              << " updated with total resources " << total.get();
   }
 
   if (updated) {
@@ -2365,7 +2334,7 @@ void HierarchicalAllocatorProcess::untrackFrameworkUnderRole(
 }
 
 
-void HierarchicalAllocatorProcess::updateSlaveTotal(
+bool HierarchicalAllocatorProcess::updateSlaveTotal(
     const SlaveID& slaveId,
     const Resources& total)
 {
@@ -2374,6 +2343,11 @@ void HierarchicalAllocatorProcess::updateSlaveTotal(
   Slave& slave = slaves.at(slaveId);
 
   const Resources oldTotal = slave.total;
+
+  if (oldTotal == total) {
+    return false;
+  }
+
   slave.total = total;
 
   // Currently `roleSorter` and `quotaRoleSorter`, being the root-level
@@ -2387,6 +2361,8 @@ void HierarchicalAllocatorProcess::updateSlaveTotal(
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
   quotaRoleSorter->remove(slaveId, oldTotal.nonRevocable());
   quotaRoleSorter->add(slaveId, total.nonRevocable());
+
+  return true;
 }
 
 } // namespace internal {

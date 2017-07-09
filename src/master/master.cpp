@@ -66,7 +66,6 @@
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
-#include <stout/unimplemented.hpp>
 #include <stout/unreachable.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
@@ -6566,10 +6565,6 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
       slave->totalResources =
         slave->totalResources.nonRevocable() +
         oversubscribedResources.revocable();
-
-      // Now update the agent's resources in the allocator.
-      allocator->updateSlave(slaveId, message.oversubscribed_resources());
-
       break;
     }
     case UpdateSlaveMessage::TOTAL: {
@@ -6579,7 +6574,8 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
       LOG(INFO) << "Received update of agent " << *slave << " with total"
                 << " resources " << totalResources;
 
-      UNIMPLEMENTED;
+      slave->totalResources = totalResources;
+      break;
     }
     case UpdateSlaveMessage::UNKNOWN: {
       LOG(WARNING) << "Ignoring update on agent " << slaveId
@@ -6587,6 +6583,9 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
       return;
     }
   }
+
+  // Now update the agent's resources in the allocator.
+  allocator->updateSlave(slaveId, slave->totalResources);
 
   // Then rescind any outstanding offers with revocable resources.
   // NOTE: Need a copy of offers because the offers are removed inside the loop.
