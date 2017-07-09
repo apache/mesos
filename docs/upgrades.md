@@ -70,6 +70,7 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
     <ul style="padding-left:10px;">
+      <li>C <a href="1-4-x-allocator-update-slave">Changed semantics of Allocator::updateSlave</a></li>
     </ul>
   </td>
 
@@ -329,9 +330,14 @@ We categorize the changes as follows:
 
 <a name="1-4-x-agent-capabilities-flags"></a>
 
-* The agent `--effective_capabilities` flag has been added to specify the default effective capability set for tasks.
-* The agent `--bounding_capabilities` flag has been added to specify the default bounding capability set for tasks.
-* The agent `--allowed-capabilities` flag has been deprecated in favor of `--effective_capabilities`.
+* Changes to capability-related agent flags:
+  * The agent `--effective_capabilities` flag has been added to specify the default effective capability set for tasks.
+  * The agent `--bounding_capabilities` flag has been added to specify the default bounding capability set for tasks.
+  * The agent `--allowed-capabilities` flag has been deprecated in favor of `--effective_capabilities`.
+
+<a name="1-4-x-allocator-update-slave"></a>
+
+* The semantics of the optional resource argument passed in `Allocator::updateSlave` was change. While previously the passed value denoted a new amount of oversubscribed (revocable) resources on the agent, it now denotes the new amount of total resources on the agent. This requires custom allocator implementations to update their interpretation of the passed value.
 
 ## Upgrading from 1.2.x to 1.3.x ##
 
