@@ -424,9 +424,7 @@ public:
       const ExecutorID& executorId,
       int32_t status);
 
-  void updateSlave(
-      const SlaveID& slaveId,
-      const Resources& oversubscribedResources);
+  void updateSlave(const UpdateSlaveMessage& message);
 
   void updateUnavailability(
       const MachineID& machineId,

@@ -1230,6 +1230,7 @@ void Slave::registered(
 
     UpdateSlaveMessage message;
     message.mutable_slave_id()->CopyFrom(info.id());
+    message.set_type(UpdateSlaveMessage::OVERSUBSCRIBED);
     message.mutable_oversubscribed_resources()->CopyFrom(
         oversubscribedResources.get());
 
@@ -1309,6 +1310,7 @@ void Slave::reregistered(
 
     UpdateSlaveMessage message;
     message.mutable_slave_id()->CopyFrom(info.id());
+    message.set_type(UpdateSlaveMessage::OVERSUBSCRIBED);
     message.mutable_oversubscribed_resources()->CopyFrom(
         oversubscribedResources.get());
 
@@ -6434,6 +6436,7 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
 
       UpdateSlaveMessage message;
       message.mutable_slave_id()->CopyFrom(info.id());
+      message.set_type(UpdateSlaveMessage::OVERSUBSCRIBED);
       message.mutable_oversubscribed_resources()->CopyFrom(oversubscribed);
 
       CHECK_SOME(master);

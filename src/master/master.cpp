@@ -66,6 +66,7 @@
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
+#include <stout/unimplemented.hpp>
 #include <stout/unreachable.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
@@ -894,10 +895,7 @@ void Master::initialize()
       &ExitedExecutorMessage::executor_id,
       &ExitedExecutorMessage::status);
 
-  install<UpdateSlaveMessage>(
-      &Master::updateSlave,
-      &UpdateSlaveMessage::slave_id,
-      &UpdateSlaveMessage::oversubscribed_resources);
+  install<UpdateSlaveMessage>(&Master::updateSlave);
 
   install<AuthenticateMessage>(
       &Master::authenticate,
@@ -6523,34 +6521,27 @@ void Master::updateFramework(
 }
 
 
-void Master::updateSlave(
-    const SlaveID& slaveId,
-    const Resources& oversubscribedResources)
+void Master::updateSlave(const UpdateSlaveMessage& message)
 {
   ++metrics->messages_update_slave;
+
+  const SlaveID& slaveId = message.slave_id();
 
   if (slaves.removed.get(slaveId).isSome()) {
     // If the slave has been removed, drop the status update. The
     // master is no longer trying to health check this slave; when the
     // slave realizes it hasn't received any pings from the master, it
     // will eventually try to reregister.
-    LOG(WARNING)
-      << "Ignoring update of agent with total oversubscribed resources "
-      << oversubscribedResources << " on removed agent " << slaveId;
+    LOG(WARNING) << "Ignoring update on removed agent " << slaveId;
     return;
   }
 
   Slave* slave = slaves.registered.get(slaveId);
 
   if (slave == nullptr) {
-    LOG(WARNING)
-      << "Ignoring update of agent with total oversubscribed resources "
-      << oversubscribedResources << " on unknown agent " << slaveId;
+    LOG(WARNING) << "Ignoring update on removed agent " << slaveId;
     return;
   }
-
-  LOG(INFO) << "Received update of agent " << *slave << " with total"
-            << " oversubscribed resources " << oversubscribedResources;
 
   // NOTE: We must *first* update the agent's resources before we
   // recover the resources. If we recovered the resources first,
@@ -6558,11 +6549,44 @@ void Master::updateSlave(
   // updating the agent in the allocator. This would lead us to
   // re-send out the stale oversubscribed resources!
 
-  slave->totalResources =
-    slave->totalResources.nonRevocable() + oversubscribedResources.revocable();
+  // If the caller did not specify a type we assume we should set
+  // `oversubscribedResources` to be backwards-compatibility with
+  // older clients.
+  const UpdateSlaveMessage::Type type =
+    message.has_type() ? message.type() : UpdateSlaveMessage::OVERSUBSCRIBED;
 
-  // First update the agent's resources in the allocator.
-  allocator->updateSlave(slaveId, oversubscribedResources);
+  switch (type) {
+    case UpdateSlaveMessage::OVERSUBSCRIBED: {
+      const Resources oversubscribedResources =
+        message.oversubscribed_resources();
+
+      LOG(INFO) << "Received update of agent " << *slave << " with total"
+                << " oversubscribed resources " << oversubscribedResources;
+
+      slave->totalResources =
+        slave->totalResources.nonRevocable() +
+        oversubscribedResources.revocable();
+
+      // Now update the agent's resources in the allocator.
+      allocator->updateSlave(slaveId, message.oversubscribed_resources());
+
+      break;
+    }
+    case UpdateSlaveMessage::TOTAL: {
+      const Resources totalResources =
+        message.total_resources();
+
+      LOG(INFO) << "Received update of agent " << *slave << " with total"
+                << " resources " << totalResources;
+
+      UNIMPLEMENTED;
+    }
+    case UpdateSlaveMessage::UNKNOWN: {
+      LOG(WARNING) << "Ignoring update on agent " << slaveId
+                   << " since the update type is not understood";
+      return;
+    }
+  }
 
   // Then rescind any outstanding offers with revocable resources.
   // NOTE: Need a copy of offers because the offers are removed inside the loop.

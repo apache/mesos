@@ -323,6 +323,7 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
 
   AWAIT_READY(update);
 
+  EXPECT_EQ(update->type(), UpdateSlaveMessage::OVERSUBSCRIBED);
   EXPECT_EQ(update->oversubscribed_resources(), resources);
 
   // Ensure the metric is updated.
@@ -695,6 +696,7 @@ TEST_F(OversubscriptionTest, FixedResourceEstimator)
   Clock::settle();
 
   AWAIT_READY(update);
+  ASSERT_EQ(UpdateSlaveMessage::OVERSUBSCRIBED, update->type());
 
   Resources resources = update->oversubscribed_resources();
   EXPECT_SOME_EQ(2.0, resources.cpus());
@@ -896,6 +898,7 @@ TEST_F(OversubscriptionTest, Reregistration)
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegistered);
   AWAIT_READY(update);
+  ASSERT_EQ(UpdateSlaveMessage::OVERSUBSCRIBED, update->type());
 
   Resources resources = update->oversubscribed_resources();
   EXPECT_SOME_EQ(2.0, resources.cpus());
