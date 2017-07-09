@@ -345,13 +345,6 @@ decltype(strerror_s(buffer, length, errnum))
 // maintain the code. It is an explicit marker that we are using the compiler
 // to guarantee that the return type is identical to whatever is in the Windows
 // implementation of the standard.
-inline auto chdir(const char* path) ->
-decltype(_chdir(path))
-{
-  return _chdir(path);
-}
-
-
 inline auto mktemp(char* path) ->
 decltype(_mktemp(path))
 {

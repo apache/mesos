@@ -115,6 +115,7 @@ nobase_include_HEADERS =			\
   stout/os/write.hpp				\
   stout/os/xattr.hpp				\
   stout/os/posix/bootid.hpp			\
+  stout/os/posix/chdir.hpp			\
   stout/os/posix/chown.hpp			\
   stout/os/posix/chroot.hpp			\
   stout/os/posix/close.hpp			\
@@ -150,6 +151,7 @@ nobase_include_HEADERS =			\
   stout/os/raw/argv.hpp				\
   stout/os/raw/environment.hpp			\
   stout/os/windows/bootid.hpp			\
+  stout/os/windows/chdir.hpp			\
   stout/os/windows/chroot.hpp			\
   stout/os/windows/close.hpp			\
   stout/os/windows/dup.hpp			\
