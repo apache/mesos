@@ -25,6 +25,11 @@
 #include <stout/os/close.hpp>
 #include <stout/os/int_fd.hpp>
 
+#ifdef __WINDOWS__
+#include <stout/windows.hpp>
+#include <stout/internal/windows/longpath.hpp>
+#endif // __WINDOWS__
+
 // For old systems that do not support O_CLOEXEC, we still want
 // os::open to accept that flag so that we can simplify the code.
 #ifndef O_CLOEXEC
@@ -70,7 +75,12 @@ inline Try<int_fd> open(const std::string& path, int oflag, mode_t mode = 0)
   }
 #endif
 
+#ifdef __WINDOWS__
+  std::wstring longpath = ::internal::windows::longpath(path);
+  int_fd fd = ::_wopen(longpath.data(), oflag, mode);
+#else
   int_fd fd = ::open(path.c_str(), oflag, mode);
+#endif // __WINDOWS__
   if (fd < 0) {
     return ErrnoError();
   }
