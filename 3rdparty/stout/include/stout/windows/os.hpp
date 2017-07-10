@@ -209,13 +209,14 @@ inline void setenv(
   //
   // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms683188(v=vs.85).aspx
   if (!overwrite &&
-      ::GetEnvironmentVariable(key.c_str(), nullptr, 0) != 0 &&
+      ::GetEnvironmentVariableW(wide_stringify(key).data(), nullptr, 0) != 0 &&
       ::GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
     return;
   }
 
   // `SetEnvironmentVariable` returns an error code, but we can't act on it.
-  ::SetEnvironmentVariable(key.c_str(), value.c_str());
+  ::SetEnvironmentVariableW(
+      wide_stringify(key).data(), wide_stringify(value).data());
 }
 
 
@@ -225,7 +226,7 @@ inline void unsetenv(const std::string& key)
 {
   // Per MSDN documentation[1], passing `nullptr` as the value will cause
   // `SetEnvironmentVariable` to delete the key from the process's environment.
-  ::SetEnvironmentVariable(key.c_str(), nullptr);
+  ::SetEnvironmentVariableW(wide_stringify(key).data(), nullptr);
 }
 
 

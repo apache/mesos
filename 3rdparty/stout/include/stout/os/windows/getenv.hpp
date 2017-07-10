@@ -18,6 +18,7 @@
 
 #include <stout/none.hpp>
 #include <stout/option.hpp>
+#include <stout/stringify.hpp>
 #include <stout/windows.hpp>
 
 
@@ -28,20 +29,23 @@ namespace os {
 // variable matching key is found, None() is returned.
 inline Option<std::string> getenv(const std::string& key)
 {
+  std::wstring wide_key = wide_stringify(key);
+
   // NOTE: The double-call to `::GetEnvironmentVariable` here uses the first
   // call to get the size of the variable's value, and then again to retrieve
   // the value itself. It is possible to have `::GetEnvironmentVariable`
   // allocate the space for this, but we explicitly do it this way to avoid
   // that.
-  DWORD buffer_size = ::GetEnvironmentVariable(key.c_str(), nullptr, 0);
+  DWORD buffer_size = ::GetEnvironmentVariableW(wide_key.data(), nullptr, 0);
   if (buffer_size == 0) {
     return None();
   }
 
-  std::unique_ptr<char[]> environment(new char[buffer_size]);
+  std::vector<wchar_t> environment;
+  environment.reserve(static_cast<size_t>(buffer_size));
 
   DWORD value_size =
-    ::GetEnvironmentVariable(key.c_str(), environment.get(), buffer_size);
+    ::GetEnvironmentVariableW(wide_key.data(), environment.data(), buffer_size);
 
   if (value_size == 0) {
     // If `value_size == 0` here, that probably means the environment variable
@@ -50,7 +54,7 @@ inline Option<std::string> getenv(const std::string& key)
     return None();
   }
 
-  return std::string(environment.get());
+  return stringify(std::wstring(environment.data()));
 }
 
 } // namespace os {

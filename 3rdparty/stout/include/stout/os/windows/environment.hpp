@@ -15,6 +15,7 @@
 
 #include <map>
 #include <string>
+#include <stout/stringify.hpp>
 
 
 namespace os {
@@ -28,21 +29,22 @@ inline std::map<std::string, std::string> environment()
   // Var3=Value3\0
   // ...
   // VarN=ValueN\0\0
-  char* env = GetEnvironmentStrings();
+  wchar_t* env = ::GetEnvironmentStringsW();
   std::map<std::string, std::string> result;
 
-  for (size_t i = 0; env[i] != '\0' && env[i+1] != '\0';) {
-    std::string entry(env + i);
+  for (size_t i = 0; env[i] != L'\0' && env[i+1] != L'\0';) {
+    std::wstring entry(env + i);
 
     // Increment past the current environment string and null terminator.
     i = i + entry.size() + 1;
 
-    size_t position = entry.find_first_of('=');
+    size_t position = entry.find_first_of(L'=');
     if (position == std::string::npos) {
       continue; // Skip malformed environment entries.
     }
 
-    result[entry.substr(0, position)] = entry.substr(position + 1);
+    result[stringify(entry.substr(0, position))] =
+      stringify(entry.substr(position + 1));
   }
 
   return result;
