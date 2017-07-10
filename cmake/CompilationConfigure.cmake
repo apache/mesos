@@ -248,9 +248,9 @@ if (WIN32)
   # NOTE: We APPEND ${CRT} rather than REPLACE so it gets picked up by
   # dependencies.
   foreach (lang C CXX)
-    # Enable multi-threaded compilation.
+    # Enable multi-threaded and UNICODE compilation.
     # NOTE: We do not add CRT here because dependencies will use it incorrectly.
-    string(APPEND CMAKE_${lang}_FLAGS " /MP")
+    string(APPEND CMAKE_${lang}_FLAGS " /MP -DUNICODE -D_UNICODE")
 
     # Debug library for debug configuration.
     string(APPEND CMAKE_${lang}_FLAGS_DEBUG "${CRT}d")
