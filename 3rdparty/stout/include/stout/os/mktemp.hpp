@@ -13,53 +13,14 @@
 #ifndef __STOUT_OS_MKTEMP_HPP__
 #define __STOUT_OS_MKTEMP_HPP__
 
-#include <stdlib.h>
-#include <string.h>
 
-#include <string>
-
-#include <stout/error.hpp>
-#include <stout/path.hpp>
-#include <stout/try.hpp>
-
+// For readability, we minimize the number of #ifdef blocks in the code by
+// splitting platform specific system calls into separate directories.
 #ifdef __WINDOWS__
-#include <stout/windows.hpp> // To be certain we're using the right `mkstemp`.
+#include <stout/os/windows/mktemp.hpp>
+#else
+#include <stout/os/posix/mktemp.hpp>
 #endif // __WINDOWS__
-
-#include <stout/os/close.hpp>
-#include <stout/os/int_fd.hpp>
-#include <stout/os/temp.hpp>
-
-
-namespace os {
-
-// Creates a temporary file using the specified path template. The
-// template may be any path with _6_ `Xs' appended to it, for example
-// /tmp/temp.XXXXXX. The trailing `Xs' are replaced with a unique
-// alphanumeric combination.
-inline Try<std::string> mktemp(
-    const std::string& path = path::join(os::temp(), "XXXXXX"))
-{
-  char* temp = new char[path.size() + 1];
-  ::memcpy(temp, path.c_str(), path.size() + 1);
-
-  int_fd fd = ::mkstemp(temp);
-  if (fd < 0) {
-    delete[] temp;
-    return ErrnoError();
-  }
-
-  // We ignore the return value of close(). This is because users
-  // calling this function are interested in the return value of
-  // mkstemp(). Also an unsuccessful close() doesn't affect the file.
-  os::close(fd);
-
-  std::string result(temp);
-  delete[] temp;
-  return result;
-}
-
-} // namespace os {
 
 
 #endif // __STOUT_OS_MKTEMP_HPP__

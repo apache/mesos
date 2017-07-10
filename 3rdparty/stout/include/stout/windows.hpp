@@ -338,40 +338,6 @@ decltype(strerror_s(buffer, length, errnum))
 }
 
 
-// File I/O function aliases.
-//
-// NOTE: The use of `auto` and the trailing return type in the following
-// functions are meant to make it easier for Linux developers to use and
-// maintain the code. It is an explicit marker that we are using the compiler
-// to guarantee that the return type is identical to whatever is in the Windows
-// implementation of the standard.
-inline auto mktemp(char* path) ->
-decltype(_mktemp(path))
-{
-  return _mktemp(path);
-}
-
-
-inline auto mkstemp(char* path) ->
-decltype(_mktemp_s(path, strlen(path) + 1))
-{
-  // NOTE: in the POSIX spec, `mkstemp` will generate a random filename from
-  // the `path` template, `open` that filename, and return the resulting file
-  // descriptor. On Windows, `_mktemp_s` will actually only generate the path,
-  // so here we actually have to call `open` ourselves to get a file descriptor
-  // we can return as a result.
-  if (_mktemp_s(path, strlen(path) + 1) != 0) {
-    return -1;
-  }
-
-  // NOTE: We open the file with read / write access for the given user, an
-  // attempt to match POSIX's specification of `mkstemp`. We use `_S_IREAD` and
-  // `_S_IWRITE` here instead of the POSIX equivalents. On Windows the file is
-  // is not present, we use `_O_CREAT` option when opening the file.
-  return _open(path, _O_CREAT, _S_IREAD | _S_IWRITE);
-}
-
-
 // NOTE: Signals do not exist on Windows, so all signals are unknown.
 // If the signal number is unknown, the Posix specification leaves the
 // return value of `strsignal` unspecified.
