@@ -640,7 +640,7 @@ static Message* parse(Request* request)
   }
 
   // Check that URL path is present and starts with '/'.
-  if (request.url.path.find('/') != 0) {
+  if (request->url.path.find('/') != 0) {
     return nullptr;
   }
 
