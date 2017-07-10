@@ -321,7 +321,7 @@ int main(int argc, char** argv)
 
     os::setenv("LIBPROCESS_IP6", strings::trim(ip6Address.get()));
   } else if (flags.ip6.isSome()) {
-    os::setenv("LIBPROCESS_IP6", flags.ip.get());
+    os::setenv("LIBPROCESS_IP6", flags.ip6.get());
   }
 
   os::setenv("LIBPROCESS_PORT", stringify(flags.port));
