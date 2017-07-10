@@ -38,7 +38,7 @@ original level after the given duration.
 
 ## <a name="Containers"></a>Containers
 
-For background, see [the containerizer documentation](containerizer.md).
+For background, see [the containerizer documentation](containerizers.md).
 
 Mesos does not assume any structured logging for entities running inside
 containers.  Instead, Mesos will store the stdout and stderr of containers
@@ -210,7 +210,7 @@ There are several caveats to consider when designing a new `ContainerLogger`:
 * The `ContainerLogger` should not assume that containers have been launched
   with any specific `ContainerLogger`.  The Agent may be restarted with a
   different `ContainerLogger`.
-* Each [containerizer](containerizer.md) running on an Agent uses its own
+* Each [containerizer](containerizers.md) running on an Agent uses its own
   instance of the `ContainerLogger`.  This means more than one `ContainerLogger`
   may be running in a single Agent.  However, each Agent will only run a single
   type of `ContainerLogger`.
