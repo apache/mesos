@@ -925,9 +925,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Libraries)
 }
 
 
-// TODO(hausdorff): Port this test to Windows; these shell commands as they
-// exist now don't make much sense to the Windows cmd prompt. See MESOS-3441.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Shell)
+// NOTE: `os::shell()` is explicitly disallowed on Windows.
+#ifndef __WINDOWS__
+TEST_F(OsTest, Shell)
 {
   Try<string> result = os::shell("echo %s", "hello world");
   EXPECT_SOME_EQ("hello world\n", result);
@@ -952,6 +952,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Shell)
   EXPECT_SOME_EQ("", result);
   EXPECT_FALSE(os::exists("/tmp/os_tests.txt"));
 }
+#endif // __WINDOWS__
 
 
 // NOTE: Disabled on Windows because `mknod` does not exist.

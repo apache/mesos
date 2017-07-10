@@ -134,6 +134,7 @@ if (WIN32)
     ws2_32
     Mswsock
     Secur32
+    Userenv
     )
 else ()
   set(STOUT_LIBS

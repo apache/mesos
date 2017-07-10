@@ -215,28 +215,12 @@ TEST_F(ProcessTest, Pstree)
               1u == total_children) << stringify(tree.get());
   const bool conhost_spawned = total_children == 1;
 
-  // Windows has no `sleep` command, so we fake it with `ping`.
-  const string command = "ping 127.0.0.1 -n 2";
-
-  STARTUPINFO si;
-  PROCESS_INFORMATION pi;
-  ZeroMemory(&si, sizeof(si));
-  si.cb = sizeof(si);
-  ZeroMemory(&pi, sizeof(pi));
-
-  // Create new process that "sleeps".
-  BOOL created = CreateProcess(
-      nullptr,                // No module name (use command line).
-      (LPSTR)command.c_str(),
-      nullptr,                // Process handle not inheritable.
-      nullptr,                // Thread handle not inheritable.
-      FALSE,                  // Set handle inheritance to FALSE.
-      0,                      // No creation flags.
-      nullptr,                // Use parent's environment block.
-      nullptr,                // Use parent's starting directory.
-      &si,
-      &pi);
-  ASSERT_TRUE(created == TRUE);
+  Try<internal::windows::ProcessData> process_data =
+    internal::windows::create_process(
+        "powershell",
+        {"powershell", "-NoProfile", "-Command", "Start-Sleep", "2"},
+        None());
+  ASSERT_SOME(process_data);
 
   Try<ProcessTree> tree_after_spawn = os::pstree(getpid());
   ASSERT_SOME(tree_after_spawn);
@@ -248,7 +232,9 @@ TEST_F(ProcessTest, Pstree)
               (conhost_spawned && 2u == children_after_span)
               ) << stringify(tree_after_spawn.get());
 
-  WaitForSingleObject(pi.hProcess, INFINITE);
+  // Wait for the process synchronously.
+  ::WaitForSingleObject(
+      process_data.get().process_handle.get_handle(), INFINITE);
 }
 #else
 TEST_F(ProcessTest, Pstree)

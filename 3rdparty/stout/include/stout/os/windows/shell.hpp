@@ -16,156 +16,131 @@
 #include <process.h>
 #include <stdarg.h> // For va_list, va_start, etc.
 
+#include <algorithm>
+#include <map>
 #include <ostream>
 #include <string>
+#include <tuple>
+#include <vector>
 
+#include <stout/error.hpp>
+#include <stout/foreach.hpp>
+#include <stout/option.hpp>
+#include <stout/os.hpp>
+#include <stout/os/int_fd.hpp>
 #include <stout/try.hpp>
+#include <stout/unimplemented.hpp>
 
-#include <stout/os/raw/argv.hpp>
+#include <stout/windows.hpp>
 
-namespace os {
+namespace internal {
 
-namespace Shell {
+namespace windows {
 
-  // Canonical constants used as platform-dependent args to `exec` calls.
-  // `name` is the command name, `arg0` is the first argument received
-  // by the callee, usually the command name and `arg1` is the second
-  // command argument received by the callee.
-  constexpr const char* name = "cmd.exe";
-  constexpr const char* arg0 = "cmd";
-  constexpr const char* arg1 = "/c";
-
-} // namespace Shell {
-
-/**
- * Runs a shell command with optional arguments.
- *
- * This assumes that a successful execution will result in the exit code
- * for the command to be `EXIT_SUCCESS`; in this case, the contents
- * of the `Try` will be the contents of `stdout`.
- *
- * If the exit code is non-zero or the process was signaled, we will
- * return an appropriate error message; but *not* `stderr`.
- *
- * If the caller needs to examine the contents of `stderr` it should
- * be redirected to `stdout` (using, e.g., "2>&1 || true" in the command
- * string).  The `|| true` is required to obtain a success exit
- * code in case of errors, and still obtain `stderr`, as piped to
- * `stdout`.
- *
- * @param fmt the formatting string that contains the command to execute
- *   in the underlying shell.
- * @param t optional arguments for `fmt`.
- *
- * @return the output from running the specified command with the shell; or
- *   an error message if the command's exit code is non-zero.
- */
-template <typename... T>
-Try<std::string> shell(const std::string& fmt, const T&... t)
+// Retrieves system environment in a `std::map`, ignoring
+// the current process's environment variables.
+inline Option<std::map<std::wstring, std::wstring>> get_system_env()
 {
-  const Try<std::string> command = strings::internal::format(fmt, t...);
-  if (command.isError()) {
-    return Error(command.error());
+  std::map<std::wstring, std::wstring> system_env;
+  wchar_t* env_entry = nullptr;
+
+  // Get the system environment.
+  // The third parameter (bool) tells the function *not* to inherit
+  // variables from the current process.
+  if (!::CreateEnvironmentBlock((LPVOID*)&env_entry, nullptr, FALSE)) {
+    return None();
   }
 
-  FILE* file;
-  std::ostringstream stdoutstr;
+  // Save the environment block in order to destroy it later.
+  wchar_t* env_block = env_entry;
 
-  if ((file = _popen(command.get().c_str(), "r")) == nullptr) {
-    return Error("Failed to run '" + command.get() + "'");
+  while (*env_entry != L'\0') {
+    // Each environment block contains the environment variables as follows:
+    // Var1=Value1\0
+    // Var2=Value2\0
+    // Var3=Value3\0
+    // ...
+    // VarN=ValueN\0\0
+    // The name of an environment variable cannot include an equal sign (=).
+
+    // Construct a string from the pointer up to the first '\0',
+    // e.g. "Var1=Value1\0", then split into name and value.
+    std::wstring entry(env_entry);
+    std::wstring::size_type separator = entry.find(L"=");
+    std::wstring var_name(entry.substr(0, separator));
+    std::wstring varVal(entry.substr(separator + 1));
+
+    // Mesos variables are upper case. Convert system variables to
+    // match the name provided by the scheduler in case of a collision.
+    // This is safe because Windows environment variables are case insensitive.
+    std::transform(
+        var_name.begin(), var_name.end(), var_name.begin(), ::towupper);
+
+    // The system environment has priority.
+    system_env.insert_or_assign(var_name.data(), varVal.data());
+
+    // Advance the pointer the length of the entry string plus the '\0'.
+    env_entry += entry.length() + 1;
   }
 
-  char line[1024];
-  // NOTE(vinod): Ideally the if and while loops should be interchanged. But
-  // we get a broken pipe error if we don't read the output and simply close.
-  while (fgets(line, sizeof(line), file) != nullptr) {
-    stdoutstr << line;
-  }
+  ::DestroyEnvironmentBlock(env_block);
 
-  if (ferror(file) != 0) {
-    _pclose(file); // Ignoring result since we already have an error.
-    return Error("Error reading output of '" + command.get() + "'");
-  }
-
-  int status;
-  if ((status = _pclose(file)) == -1) {
-    return Error("Failed to get status of '" + command.get() + "'");
-  }
-
-  return stdoutstr.str();
+  return system_env;
 }
 
 
-// Executes a command by calling "cmd /c <command>", and returns
-// after the command has been completed. Returns 0 if succeeds, and
-// return -1 on error.
+// Creates a null-terminated array of null-terminated strings that will be
+// passed to `CreateProcessW` as the `lpEnvironment` argument, as described by
+// MSDN[1]. This array needs to be sorted in alphabetical order, but the `map`
+// already takes care of that. Note that this function explicitly handles
+// UTF-16 environments, so it must be used in conjunction with the
+// `CREATE_UNICODE_ENVIRONMENT` flag.
 //
-// The returned value from `_spawnlp` represents child exit code when
-// `_P_WAIT` is used.
+// NOTE: This function will add the system's environment variables into
+// the returned string. These variables take precedence over the provided
+// `env` and are generally necessary in order to launch things on Windows.
 //
-// Note: Be cautious about shell injection
-// (https://en.wikipedia.org/wiki/Code_injection#Shell_injection)
-// when using this method and use proper validation and sanitization
-// on the `command`. For this reason in general `os::spawn` is
-// preferred if a shell is not required.
-inline int system(const std::string& command)
+// [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms682425(v=vs.85).aspx
+inline Option<std::wstring> create_process_env(
+    const Option<std::map<std::string, std::string>>& env)
 {
-  return static_cast<int>(::_spawnlp(
-    _P_WAIT, Shell::name, Shell::arg0, Shell::arg1, command.c_str(), nullptr));
-}
+  if (env.isNone() || (env.isSome() && env.get().size() == 0)) {
+    return None();
+  }
 
+  Option<std::map<std::wstring, std::wstring>> system_env = get_system_env();
 
-// Executes a command by calling "<command> <arguments...>", and
-// returns after the command has been completed. Returns 0 if
-// succeeds, and -1 on error.
-inline int spawn(
-    const std::string& command,
-    const std::vector<std::string>& arguments)
-{
-  return static_cast<int>(
-      ::_spawnvp(_P_WAIT, command.c_str(), os::raw::Argv(arguments)));
-}
+  // The system environment must be non-empty.
+  // No subprocesses will be able to launch if the system environment is blank.
+  CHECK(system_env.isSome() && system_env.get().size() > 0);
 
-// On Windows, the `_spawnlp` call creates a new process.
-// In order to emulate the semantics of `execlp`, we spawn with `_P_WAIT`,
-// which forces the parent process to block on the child. When the child exits,
-// the exit code is propagated back through the parent via `exit()`.
-//
-// The returned value from `_spawnlp` represents child exit code when
-// `_P_WAIT` is used.
-template<typename... T>
-inline int execlp(const char* file, T... t)
-{
-  exit(static_cast<int>(::_spawnlp(_P_WAIT, file, t...)));
-  return 0;
-}
+  std::map<std::wstring, std::wstring> combined_env;
 
+  // Populate the combined environment first with the given environment
+  // converted to UTF-16 for Windows.
+  foreachpair (const std::string& key,
+               const std::string& value,
+               env.get()) {
+    combined_env[wide_stringify(key)] = wide_stringify(value);
+  }
 
-// On Windows, the `_spawnvp` call creates a new process.
-// In order to emulate the semantics of `execvp`, we spawn with `_P_WAIT`,
-// which forces the parent process to block on the child. When the child exits,
-// the exit code is propagated back through the parent via `exit()`.
-//
-// The returned value from `_spawnlp` represents child exit code when
-// `_P_WAIT` is used.
-inline int execvp(const char* file, char* const argv[])
-{
-  exit(static_cast<int>(::_spawnvp(_P_WAIT, file, argv)));
-  return 0;
-}
+  // Add the system environment variables, overwriting the previous.
+  foreachpair (const std::wstring& key,
+               const std::wstring& value,
+               system_env.get()) {
+    combined_env[key] = value;
+  }
 
+  std::wstring env_string;
+  foreachpair (const std::wstring& key,
+               const std::wstring& value,
+               combined_env) {
+    env_string += key + L'=' + value + L'\0';
+  }
 
-// On Windows, the `_spawnvpe` call creates a new process.
-// In order to emulate the semantics of `execvpe`, we spawn with `_P_WAIT`,
-// which forces the parent process to block on the child. When the child exits,
-// the exit code is propagated back through the parent via `exit()`.
-//
-// The returned value from `_spawnvpe` represents child exit code when
-// `_P_WAIT` is used.
-inline int execvpe(const char* file, char* const argv[], char* const envp[])
-{
-  exit(static_cast<int>(::_spawnvpe(_P_WAIT, file, argv, envp)));
-  return 0;
+  // Append final null terminating character.
+  env_string.push_back(L'\0');
+  return env_string;
 }
 
 
@@ -188,10 +163,9 @@ inline int execvpe(const char* file, char* const argv[], char* const envp[])
 // NOLINT(whitespace/line_length)
 inline std::wstring stringify_args(const std::vector<std::string>& argv)
 {
-  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> converter;
   std::wstring command;
   for (auto argit = argv.cbegin(); argit != argv.cend(); ++argit) {
-    std::wstring arg = converter.from_bytes(*argit);
+    std::wstring arg = wide_stringify(*argit);
     // Don't quote empty arguments or those without troublesome characters.
     if (!arg.empty() && arg.find_first_of(L" \t\n\v\"") == arg.npos) {
       command.append(arg);
@@ -233,6 +207,198 @@ inline std::wstring stringify_args(const std::vector<std::string>& argv)
   // Append final null terminating character.
   command.push_back(L'\0');
   return command;
+}
+
+struct ProcessData {
+  SharedHandle process_handle;
+  SharedHandle thread_handle;
+  pid_t pid;
+};
+
+// Provides an interface for creating a child process on Windows.
+//
+// The `command` argument is given for compatibility, and is ignored. This is
+// because the `CreateProcess` will use `argv[0]` as the command to be executed,
+// and will perform a `PATH` lookup. If `command` were to be used instead,
+// `CreateProcess` would require an absolute path.
+//
+// If `create_suspended` is `true`, the process will not be started, and the
+// caller must use `ResumeThread` to start the process.
+//
+// The caller can specify explicit `stdin`, `stdout`, and `stderr` handles,
+// in that order, for the process via the `pipes` argument.
+//
+// The return value is a `ProcessData` struct, with the process and thread
+// handles each saved in a `SharedHandle`, ensuring they are closed when struct
+// goes out of scope.
+inline Try<ProcessData> create_process(
+    const std::string& command,
+    const std::vector<std::string>& argv,
+    const Option<std::map<std::string, std::string>>& environment,
+    const bool create_suspended = false,
+    const Option<std::tuple<int_fd, int_fd, int_fd>> pipes = None())
+{
+  // TODO(andschwa): Assert that `command` and `argv[0]` are the same.
+  std::wstring arg_string = stringify_args(argv);
+  std::vector<wchar_t> arg_buffer(arg_string.begin(), arg_string.end());
+  arg_buffer.push_back(L'\0');
+
+  // Create the process with a Unicode environment.
+  DWORD creation_flags = CREATE_UNICODE_ENVIRONMENT;
+  if (create_suspended) {
+    creation_flags |= CREATE_SUSPENDED;
+  }
+
+  // Construct the environment that will be passed to `::CreateProcessW`.
+  Option<std::wstring> env_string = create_process_env(environment);
+  std::vector<wchar_t> env_buffer;
+  if (env_string.isSome()) {
+    // This string contains the necessary null characters.
+    env_buffer.assign(env_string.get().begin(), env_string.get().end());
+  }
+
+  wchar_t* process_env = env_buffer.empty() ? nullptr : env_buffer.data();
+
+  PROCESS_INFORMATION process_info;
+  memset(&process_info, 0, sizeof(PROCESS_INFORMATION));
+
+  STARTUPINFOW startup_info;
+  memset(&startup_info, 0, sizeof(STARTUPINFOW));
+  startup_info.cb = sizeof(STARTUPINFOW);
+
+  // Hook up the stdin/out/err pipes and use the `STARTF_USESTDHANDLES`
+  // flag to instruct the child to use them [1].
+  // A more user-friendly example can be found in [2].
+  //
+  // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms686331(v=vs.85).aspx
+  // [2] https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx
+  if (pipes.isSome()) {
+    startup_info.hStdInput = std::get<0>(pipes.get());
+    startup_info.hStdOutput = std::get<1>(pipes.get());
+    startup_info.hStdError = std::get<2>(pipes.get());
+    startup_info.dwFlags |= STARTF_USESTDHANDLES;
+  }
+
+  BOOL create_process_result = ::CreateProcessW(
+      // This is replaced by the first token of `arg_buffer` string.
+      static_cast<LPCWSTR>(nullptr),
+      static_cast<LPWSTR>(arg_buffer.data()),
+      static_cast<LPSECURITY_ATTRIBUTES>(nullptr),
+      static_cast<LPSECURITY_ATTRIBUTES>(nullptr),
+      TRUE, // Inherited parent process handles.
+      creation_flags,
+      static_cast<LPVOID>(process_env),
+      static_cast<LPCWSTR>(nullptr), // Inherited working directory.
+      &startup_info,
+      &process_info);
+
+  if (!create_process_result) {
+    return WindowsError(
+        "Failed to call `CreateProcess`: " + stringify(arg_buffer));
+  }
+
+  return ProcessData{
+    SharedHandle{process_info.hProcess, ::CloseHandle},
+    SharedHandle{process_info.hThread, ::CloseHandle},
+    static_cast<pid_t>(process_info.dwProcessId)};
+}
+
+} // namespace windows {
+
+} // namespace internal {
+
+namespace os {
+
+namespace Shell {
+
+// Canonical constants used as platform-dependent args to `exec` calls.
+// `name` is the command name, `arg0` is the first argument received
+// by the callee, usually the command name and `arg1` is the second
+// command argument received by the callee.
+constexpr const char* name = "cmd.exe";
+constexpr const char* arg0 = "cmd.exe";
+constexpr const char* arg1 = "/c";
+
+} // namespace Shell {
+
+template <typename... T>
+Try<std::string> shell(const std::string& fmt, const T&... t) = delete;
+
+
+template<typename... T>
+inline int execlp(const char* file, T... t) = delete;
+
+
+// Executes a command by calling "<command> <arguments...>", and
+// returns after the command has been completed. Returns process exit code if
+// succeeds, and -1 on error.
+inline int spawn(
+    const std::string& command,
+    const std::vector<std::string>& arguments,
+    const Option<std::map<std::string, std::string>>& environment = None())
+{
+  Try<::internal::windows::ProcessData> process_data =
+    ::internal::windows::create_process(command, arguments, environment);
+
+  if (process_data.isError()) {
+    LOG(WARNING) << process_data.error();
+    return -1;
+  }
+
+  // Wait for the process synchronously.
+  ::WaitForSingleObject(
+      process_data.get().process_handle.get_handle(), INFINITE);
+
+  int status;
+  if (!::GetExitCodeProcess(
+           process_data.get().process_handle.get_handle(),
+           &static_cast<DWORD>(status))) {
+    LOG(WARNING) << "Failed to `GetExitCodeProcess`: " << command;
+    return -1;
+  }
+
+  // Return the child exit code.
+  return status;
+}
+
+
+// Executes a command by calling "cmd /c <command>", and returns
+// after the command has been completed. Returns exit code if succeeds, and
+// return -1 on error.
+//
+// Note: Be cautious about shell injection
+// (https://en.wikipedia.org/wiki/Code_injection#Shell_injection)
+// when using this method and use proper validation and sanitization
+// on the `command`. For this reason in general `os::spawn` is
+// preferred if a shell is not required.
+inline int system(const std::string& command)
+{
+  return os::spawn(Shell::name, {Shell::arg0, Shell::arg1, command});
+}
+
+
+// In order to emulate the semantics of `execvp`, `os::spawn` waits for the new
+// process to exit, and returns its error code, which is propogated back to the
+// parent via `exit` here.
+inline int execvp(
+    const std::string& command,
+    const std::vector<std::string>& argv)
+{
+  exit(os::spawn(command, argv));
+  return -1;
+}
+
+
+// NOTE: This function can accept `Argv` and `Envp` constructs through their
+// explicit type conversions, but unlike the POSIX implementations, it cannot
+// accept the raw forms.
+inline int execvpe(
+    const std::string& command,
+    const std::vector<std::string>& argv,
+    const std::map<std::string, std::string>& envp)
+{
+  exit(os::spawn(command, argv, envp));
+  return -1;
 }
 
 } // namespace os {
