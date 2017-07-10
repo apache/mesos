@@ -14,7 +14,9 @@
 #define __STOUT_OS_WINDOWS_TEMP_HPP__
 
 #include <string>
+#include <vector>
 
+#include <stout/stringify.hpp>
 #include <stout/windows.hpp>
 
 
@@ -27,15 +29,18 @@ namespace os {
 // where none of these are found, this function returns the current directory.
 inline std::string temp()
 {
-  char temp_folder[MAX_PATH + 2];
-  if (::GetTempPath(MAX_PATH + 2, temp_folder) == 0) {
-    if (::GetCurrentDirectory(MAX_PATH + 2, temp_folder) == 0) {
+  size_t size = static_cast<size_t>(MAX_PATH) + 2;
+  std::vector<wchar_t> buffer;
+  buffer.reserve(size);
+  if (::GetTempPathW(static_cast<DWORD>(size), buffer.data()) == 0) {
+    // Failed, use current directory.
+    if (::GetCurrentDirectoryW(static_cast<DWORD>(size), buffer.data()) == 0) {
       // Failed, use relative path.
       return ".";
     }
   }
 
-  return std::string(temp_folder);
+  return stringify(std::wstring(buffer.data()));
 }
 
 } // namespace os {
