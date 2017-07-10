@@ -19,6 +19,7 @@
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
+#include <stout/windows.hpp>
 
 #include <stout/internal/windows/symlink.hpp>
 
@@ -89,10 +90,12 @@ inline Try<Nothing> symlink(
 inline Try<std::list<std::string>> list(const std::string& pattern)
 {
   std::list<std::string> found_files;
-  WIN32_FIND_DATA find_data;
-  const HANDLE search_handle = ::FindFirstFile(pattern.c_str(), &find_data);
+  WIN32_FIND_DATAW found;
+  const SharedHandle search_handle(
+    ::FindFirstFileW(wide_stringify(pattern).data(), &found),
+    ::FindClose);
 
-  if (search_handle == INVALID_HANDLE_VALUE) {
+  if (search_handle.get() == INVALID_HANDLE_VALUE) {
     // For compliance with the POSIX implementation (which uses `::glob`),
     // return an empty list instead of an error when the path does not exist.
     int error = ::GetLastError();
@@ -106,18 +109,15 @@ inline Try<std::list<std::string>> list(const std::string& pattern)
   }
 
   do {
-    const std::string current_file(find_data.cFileName);
+    const std::wstring current_file(found.cFileName);
 
-    // Ignore `.` and `..` entries
-    if (current_file.compare(".") != 0 && current_file.compare("..") != 0) {
-      found_files.push_back(current_file);
+    // Ignore `.` and `..` entries.
+    if (current_file.compare(L".") != 0 && current_file.compare(L"..") != 0) {
+      found_files.push_back(stringify(current_file));
     }
-  } while (::FindNextFile(search_handle, &find_data));
+  } while (::FindNextFileW(search_handle.get(), &found));
 
-  // Cache `FindNextFile` error, `FindClose` will overwrite it
   const DWORD error = ::GetLastError();
-  ::FindClose(search_handle);
-
   if (error != ERROR_NO_MORE_FILES) {
     return WindowsError(
         error,
