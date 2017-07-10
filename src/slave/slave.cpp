@@ -6018,26 +6018,6 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
   }
 
   if (slaveState.isSome() && slaveState->info.isSome()) {
-    // Check for SlaveInfo compatibility.
-    // TODO(vinod): Also check for version compatibility.
-    // NOTE: We set the 'id' field in 'info' from the recovered slave,
-    // as a hack to compare the info created from options/flags with
-    // the recovered info.
-    info.mutable_id()->CopyFrom(slaveState->id);
-    if (flags.recover == "reconnect" &&
-        !(info == slaveState->info.get())) {
-      return Failure(strings::join(
-          "\n",
-          "Incompatible agent info detected.",
-          "------------------------------------------------------------",
-          "Old agent info:\n" + stringify(slaveState->info.get()),
-          "------------------------------------------------------------",
-          "New agent info:\n" + stringify(info),
-          "------------------------------------------------------------"));
-    }
-
-    info = slaveState->info.get(); // Recover the slave info.
-
     if (slaveState->errors > 0) {
       LOG(WARNING) << "Errors encountered during agent recovery: "
                    << slaveState->errors;
@@ -6045,10 +6025,52 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
       metrics.recovery_errors += slaveState->errors;
     }
 
-    // Recover the frameworks.
-    foreachvalue (const FrameworkState& frameworkState,
-                  slaveState->frameworks) {
-      recoverFramework(frameworkState, injectedExecutors, injectedTasks);
+    // Check for SlaveInfo compatibility.
+    // TODO(vinod): Also check for version compatibility.
+
+    SlaveInfo _info(info);
+    _info.mutable_id()->CopyFrom(slaveState->id);
+    if (flags.recover == "reconnect" &&
+        !(_info == slaveState->info.get())) {
+      string message = strings::join(
+          "\n",
+          "Incompatible agent info detected.",
+          "------------------------------------------------------------",
+          "Old agent info:\n" + stringify(slaveState->info.get()),
+          "------------------------------------------------------------",
+          "New agent info:\n" + stringify(info),
+          "------------------------------------------------------------");
+
+      // Fail the recovery unless the agent is recovering for the first
+      // time after host reboot.
+      //
+      // Prior to Mesos 1.4 we directly bypass the state recovery and
+      // start as a new agent upon reboot (introduced in MESOS-844).
+      // This unncessarily discards the existing agent ID (MESOS-6223).
+      // Starting in Mesos 1.4 we'll attempt to recover the slave state
+      // even after reboot but in case of slave info mismatch we'll fall
+      // back to recovering as a new agent (existing behavior). This
+      // prevents the agent from flapping if the slave info (resources,
+      // attributes, etc.) change is due to host maintenance associated
+      // with the reboot.
+      if (!state->rebooted) {
+        return Failure(message);
+      }
+
+      LOG(WARNING) << "Falling back to recover as a new agent due to error: "
+                   << message;
+
+      // Cleaning up the slave state to avoid any state recovery for the
+      // old agent.
+      slaveState = None();
+    } else {
+      info = slaveState->info.get(); // Recover the slave info.
+
+      // Recover the frameworks.
+      foreachvalue (const FrameworkState& frameworkState,
+                    slaveState->frameworks) {
+        recoverFramework(frameworkState, injectedExecutors, injectedTasks);
+      }
     }
   }
 
