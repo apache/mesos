@@ -31,15 +31,13 @@ inline bool WSUCCEEDED(int status)
 
 inline std::string WSTRINGIFY(int status)
 {
-#ifdef __WINDOWS__
-  // On Windows the exit codes are not standardized. The behaviour should
-  // be defined to improve the diagnostic based on logs.
-  // TODO(dpravat): MESOS-5417 tracks this improvement.
-  LOG(WARNING) << "`WSTRINGIFY` has been called, but it is not implemented.";
-
-  return "";
-#else
   std::string message;
+#ifdef __WINDOWS__
+  // NOTE: On Windows, exit codes are not standardized, so we cannot
+  // treat any exit codes differently.
+  message += "exited with status ";
+  message += stringify(status);
+#else
   if (WIFEXITED(status)) {
     message += "exited with status ";
     message += stringify(WEXITSTATUS(status));
@@ -56,8 +54,8 @@ inline std::string WSTRINGIFY(int status)
     message += "wait status ";
     message += stringify(status);
   }
-  return message;
 #endif // __WINDOWS__
+  return message;
 }
 
 #endif // __STATUS_UTILS_HPP__
