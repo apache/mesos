@@ -1159,7 +1159,7 @@ bool initialize(
   }
 
   if (libprocess_flags->ip.isSome()) {
-    __address__ = inet::Address(libprocess_flags->ip.get(), port);
+    __address__.ip = libprocess_flags->ip.get();
   }
 
   if (libprocess_flags->ip6.isSome()) {
