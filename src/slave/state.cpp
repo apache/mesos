@@ -82,7 +82,6 @@ Try<State> recover(const string& rootDir, bool strict)
   // resources checkpoint file.
   state.resources = resources.get();
 
-  // If the machine has rebooted, skip recovering slave state.
   const string& bootIdPath = paths::getBootIdPath(rootDir);
   if (os::exists(bootIdPath)) {
     Try<string> read = os::read(bootIdPath);
@@ -95,7 +94,7 @@ Try<State> recover(const string& rootDir, bool strict)
 
       if (id.get() != strings::trim(read.get())) {
         LOG(INFO) << "Agent host rebooted";
-        return state;
+        state.rebooted = true;
       }
     }
   }

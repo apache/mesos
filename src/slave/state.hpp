@@ -316,6 +316,7 @@ struct State
 
   Option<ResourcesState> resources;
   Option<SlaveState> slave;
+  bool rebooted = false;
 
   // TODO(jieyu): Consider using a vector of Option<Error> here so
   // that we can print all the errors. This also applies to all the
