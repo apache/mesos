@@ -166,13 +166,6 @@ set(PROCESS_LIBS
   ${HTTP_PARSER_LFLAG}
   )
 
-if (WIN32)
-  set(PROCESS_LIBS
-    ${PROCESS_LIBS}
-    userenv
-    )
-endif ()
-
 if (NOT ENABLE_LIBEVENT)
   set(PROCESS_LIBS ${PROCESS_LIBS} ${LIBEV_LFLAG})
 else ()

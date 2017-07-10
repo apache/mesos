@@ -318,17 +318,12 @@ private:
       if (in.isSome()) { os::close(in.get()); }
       if (out.isSome()) { os::close(out.get()); }
       if (err.isSome()) { os::close(err.get()); }
-
-#ifdef __WINDOWS__
-      CloseHandle(processInformation.hProcess);
-      CloseHandle(processInformation.hThread);
-#endif // __WINDOWS__
     }
 
     pid_t pid;
 
 #ifdef __WINDOWS__
-    PROCESS_INFORMATION processInformation;
+    Option<::internal::windows::ProcessData> process_data;
 #endif // __WINDOWS__
 
     // The parent side of the pipe for stdin/stdout/stderr. If the

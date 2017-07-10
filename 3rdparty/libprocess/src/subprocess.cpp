@@ -380,22 +380,23 @@ Try<Subprocess> subprocess(
     process.data->pid = pid.get();
 #else
     // TODO(joerg84): Consider using the childHooks and parentHooks here.
-    Try<PROCESS_INFORMATION> processInformation = internal::createChildProcess(
-        path,
-        argv,
-        environment,
-        stdinfds,
-        stdoutfds,
-        stderrfds,
-        parent_hooks);
+    Try<::internal::windows::ProcessData> process_data =
+      internal::createChildProcess(
+          path,
+          argv,
+          environment,
+          parent_hooks,
+          stdinfds,
+          stdoutfds,
+          stderrfds);
 
-    if (processInformation.isError()) {
+    if (process_data.isError()) {
       process::internal::close(stdinfds, stdoutfds, stderrfds);
       return Error(
-          "Could not launch child process: " + processInformation.error());
+          "Could not launch child process: " + process_data.error());
     }
 
-    if (processInformation.get().dwProcessId == -1) {
+    if (process_data.get().pid == -1) {
       // Save the errno as 'close' below might overwrite it.
       ErrnoError error("Failed to clone");
       process::internal::close(stdinfds, stdoutfds, stderrfds);
@@ -408,8 +409,8 @@ Try<Subprocess> subprocess(
     // 'createChildProcess' to be consistent with the posix path.
     internal::close({stdinfds.read, stdoutfds.write, stderrfds.write});
 
-    process.data->processInformation = processInformation.get();
-    process.data->pid = processInformation.get().dwProcessId;
+    process.data->process_data = process_data.get();
+    process.data->pid = process_data.get().pid;
 #endif // __WINDOWS__
   }
 
