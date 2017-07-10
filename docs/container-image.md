@@ -8,7 +8,7 @@ layout: documentation
 
 ## Motivation
 
-Mesos currently supports several [containerizers](containerizer.md),
+Mesos currently supports several [containerizers](containerizers.md),
 notably the Mesos containerizer and the Docker containerizer. Mesos
 containerizer uses native OS features directly to provide isolation
 between containers, while Docker containerizer delegates container

@@ -268,7 +268,7 @@ checked process; this is achieved by either calling `docker run` for the health
 check command in case of [docker containerizer](docker-containerizer.md) or
 by explicitly calling `setns()` for `mnt` namespace in case of
 [mesos containerizer](mesos-containerizer.md) (see
-[containerization in Mesos](containerizer.md)). To perform an HTTP(S) or TCP
+[containerization in Mesos](containerizers.md)). To perform an HTTP(S) or TCP
 health check, the most reliable solution is to share the same network namespace
 with the checked process; in case of docker containerizer `setns()` for `net`
 namespace is explicitly called, while mesos containerizer guarantees an executor
