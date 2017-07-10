@@ -627,17 +627,17 @@ inline int random()
 }
 
 
-// `name_job` maps a `pid` to a `string` name for a job object.
+// `name_job` maps a `pid` to a `wstring` name for a job object.
 // Only named job objects are accessible via `OpenJobObject`.
 // Thus all our job objects must be named. This is essentially a shim
 // to map the Linux concept of a process tree's root `pid` to a
 // named job object so that the process group can be treated similarly.
-inline Try<std::string> name_job(pid_t pid) {
+inline Try<std::wstring> name_job(pid_t pid) {
   Try<std::string> alpha_pid = strings::internal::format("MESOS_JOB_%X", pid);
   if (alpha_pid.isError()) {
     return Error(alpha_pid.error());
   }
-  return alpha_pid;
+  return wide_stringify(alpha_pid.get());
 }
 
 
@@ -649,18 +649,19 @@ inline Try<std::string> name_job(pid_t pid) {
 inline Try<SharedHandle> open_job(
     const DWORD desired_access,
     BOOL inherit_handles,
-    const std::string& name)
+    const std::wstring& name)
 {
   SharedHandle jobHandle(
-      ::OpenJobObject(
+      ::OpenJobObjectW(
           desired_access,
           inherit_handles,
-          name.c_str()),
+          name.data()),
       ::CloseHandle);
 
   if (jobHandle.get() == nullptr) {
     return WindowsError(
-        "os::open_job: Call to `OpenJobObject` failed for job: " + name);
+        "os::open_job: Call to `OpenJobObject` failed for job: " +
+        stringify(name));
   }
 
   return jobHandle;
@@ -673,19 +674,19 @@ inline Try<SharedHandle> open_job(
 // handle is closed and all associated processes have exited,
 // a running process must be assigned to the created job
 // before the returned handle is closed.
-inline Try<SharedHandle> create_job(const std::string& name)
+inline Try<SharedHandle> create_job(const std::wstring& name)
 {
   SharedHandle jobHandle(
-      ::CreateJobObject(
+      ::CreateJobObjectW(
           nullptr,       // Use a default security descriptor, and
                          // the created handle cannot be inherited.
-          name.c_str()), // The name of the job.
+          name.data()),  // The name of the job.
       ::CloseHandle);
-  // TODO(andschwa): Fix the type of `name` when Unicode is turned on.
 
   if (jobHandle.get_handle() == nullptr) {
     return WindowsError(
-        "os::create_job: Call to `CreateJobObject` failed for job: " + name);
+        "os::create_job: Call to `CreateJobObject` failed for job: " +
+        stringify(name));
   }
 
   JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = { { 0 }, 0 };
@@ -705,7 +706,8 @@ inline Try<SharedHandle> create_job(const std::string& name)
 
   if (setInformationResult == FALSE) {
     return WindowsError(
-        "os::create_job: `SetInformationJobObject` failed for job: " + name);
+        "os::create_job: `SetInformationJobObject` failed for job: " +
+        stringify(name));
   }
 
   return jobHandle;
