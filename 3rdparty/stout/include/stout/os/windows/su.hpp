@@ -81,18 +81,19 @@ inline Result<std::string> user(Option<uid_t> uid = None())
 
   EXTENDED_NAME_FORMAT username_format = NameSamCompatible;
   ULONG buffer_size = 0;
-  if (::GetUserNameEx(username_format, nullptr, &buffer_size) == FALSE) {
+  if (::GetUserNameExW(username_format, nullptr, &buffer_size) == FALSE) {
     if (::GetLastError() != ERROR_MORE_DATA) {
       return WindowsError("os::user: Failed to get buffer size for username");
     }
   }
 
-  std::vector<TCHAR> user_name(buffer_size);
-  if (::GetUserNameEx(username_format, &user_name[0], &buffer_size) == FALSE) {
+  std::vector<wchar_t> user_name(buffer_size);
+  if (::GetUserNameExW(username_format, user_name.data(), &buffer_size)
+      == FALSE) {
     return WindowsError("os::user: Failed to get username from OS");
   }
 
-  return std::string(&user_name[0]);
+  return stringify(std::wstring(user_name.data()));
 }
 
 
