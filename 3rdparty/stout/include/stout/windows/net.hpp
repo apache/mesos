@@ -31,6 +31,119 @@
 
 namespace net {
 
+inline struct addrinfoW createAddrInfo(int socktype, int family, int flags)
+{
+  struct addrinfoW addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.ai_socktype = socktype;
+  addr.ai_family = family;
+  addr.ai_flags |= flags;
+
+  return addr;
+}
+
+
+inline Error GaiError(int error)
+{
+  return Error(stringify(std::wstring(gai_strerrorW(error))));
+}
+
+
+// Returns a Try of the hostname for the provided IP. If the hostname
+// cannot be resolved, then a string version of the IP address is
+// returned.
+//
+// TODO(benh): Merge with `net::hostname`.
+inline Try<std::string> getHostname(const IP& ip)
+{
+  struct sockaddr_storage storage;
+  memset(&storage, 0, sizeof(storage));
+
+  switch (ip.family()) {
+    case AF_INET: {
+      struct sockaddr_in addr;
+      memset(&addr, 0, sizeof(addr));
+      addr.sin_family = AF_INET;
+      addr.sin_addr = ip.in().get();
+      addr.sin_port = 0;
+
+      memcpy(&storage, &addr, sizeof(addr));
+      break;
+    }
+    case AF_INET6: {
+      struct sockaddr_in6 addr;
+      memset(&addr, 0, sizeof(addr));
+      addr.sin6_family = AF_INET6;
+      addr.sin6_addr = ip.in6().get();
+      addr.sin6_port = 0;
+
+      memcpy(&storage, &addr, sizeof(addr));
+      break;
+    }
+    default: {
+      ABORT("Unsupported family type: " + stringify(ip.family()));
+    }
+  }
+
+  wchar_t hostname[MAXHOSTNAMELEN];
+  socklen_t length;
+
+  if (ip.family() == AF_INET) {
+    length = sizeof(struct sockaddr_in);
+  } else if (ip.family() == AF_INET6) {
+    length = sizeof(struct sockaddr_in6);
+  } else {
+    return Error("Unknown address family: " + stringify(ip.family()));
+  }
+
+  int error = GetNameInfoW(
+      (struct sockaddr*) &storage,
+      length,
+      hostname,
+      MAXHOSTNAMELEN,
+      nullptr,
+      0,
+      0);
+
+  if (error != 0) {
+    return GaiError(error);
+  }
+
+  return stringify(std::wstring(hostname));
+}
+
+
+// Returns a Try of the IP for the provided hostname or an error if no IP is
+// obtained.
+inline Try<IP> getIP(const std::string& hostname, int family = AF_UNSPEC)
+{
+  struct addrinfoW hints = createAddrInfo(SOCK_STREAM, family, 0);
+  struct addrinfoW* result = nullptr;
+
+  int error =
+      GetAddrInfoW(wide_stringify(hostname).data(), nullptr, &hints, &result);
+
+  if (error != 0) {
+    return GaiError(error);
+  }
+
+  if (result->ai_addr == nullptr) {
+    FreeAddrInfoW(result);
+    return Error("No addresses found");
+  }
+
+  Try<IP> ip = IP::create(*result->ai_addr);
+
+  if (ip.isError()) {
+    FreeAddrInfoW(result);
+    return Error("Unsupported family type");
+  }
+
+  FreeAddrInfoW(result);
+  return ip.get();
+}
+
+
 // Returns the names of all the link devices in the system.
 //
 // NOTE: On Windows, the device names are GUID's which are not easily
