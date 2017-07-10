@@ -49,20 +49,14 @@
 namespace os {
 namespace internal {
 
-inline Try<OSVERSIONINFOEX> os_version()
+inline Try<OSVERSIONINFOEXW> os_version()
 {
-  OSVERSIONINFOEX os_version;
-  os_version.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-#pragma warning(push)
-#pragma warning(disable : 4996)
-  // Disable compiler warning asking us to use the Unicode version of
-  // `GetVersionEx`, because Mesos currently does not support Unicode. See
-  // MESOS-6817.
-  if (!::GetVersionEx(reinterpret_cast<LPOSVERSIONINFO>(&os_version))) {
+  OSVERSIONINFOEXW os_version;
+  os_version.dwOSVersionInfoSize = sizeof(os_version);
+  if (!::GetVersionExW(reinterpret_cast<LPOSVERSIONINFO>(&os_version))) {
     return WindowsError(
         "os::internal::os_version: Call to `GetVersionEx` failed");
   }
-#pragma warning(pop)
 
   return os_version;
 }
@@ -116,7 +110,7 @@ inline std::string machine()
 }
 
 
-inline std::string sysname(OSVERSIONINFOEX os_version)
+inline std::string sysname(OSVERSIONINFOEXW os_version)
 {
   switch (os_version.wProductType) {
     case VER_NT_DOMAIN_CONTROLLER:
@@ -128,20 +122,20 @@ inline std::string sysname(OSVERSIONINFOEX os_version)
 }
 
 
-inline std::string release(OSVERSIONINFOEX os_version)
+inline std::string release(OSVERSIONINFOEXW os_version)
 {
   return stringify(
       Version(os_version.dwMajorVersion, os_version.dwMinorVersion, 0));
 }
 
 
-inline std::string version(OSVERSIONINFOEX os_version)
+inline std::string version(OSVERSIONINFOEXW os_version)
 {
   std::string version = std::to_string(os_version.dwBuildNumber);
 
-  if (os_version.szCSDVersion[0] != '\0') {
+  if (os_version.szCSDVersion[0] != L'\0') {
     version.append(" ");
-    version.append(os_version.szCSDVersion);
+    version.append(stringify(os_version.szCSDVersion));
   }
 
   return version;
@@ -437,17 +431,11 @@ inline Try<Memory> memory()
 
 inline Try<Version> release()
 {
-  OSVERSIONINFOEX os_version;
-  os_version.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-#pragma warning(push)
-#pragma warning(disable : 4996)
-  // Disable compiler warning asking us to use the Unicode version of
-  // `GetVersionEx`, because Mesos currently does not support Unicode. See
-  // MESOS-6817.
-  if (!::GetVersionEx(reinterpret_cast<LPOSVERSIONINFO>(&os_version))) {
+  OSVERSIONINFOEXW os_version;
+  os_version.dwOSVersionInfoSize = sizeof(os_version);
+  if (!::GetVersionExW(reinterpret_cast<LPOSVERSIONINFO>(&os_version))) {
     return WindowsError("os::release: Call to `GetVersionEx` failed");
   }
-#pragma warning(pop)
 
   return Version(os_version.dwMajorVersion, os_version.dwMinorVersion, 0);
 }
@@ -456,7 +444,7 @@ inline Try<Version> release()
 // Return the system information.
 inline Try<UTSInfo> uname()
 {
-  Try<OSVERSIONINFOEX> os_version = internal::os_version();
+  Try<OSVERSIONINFOEXW> os_version = internal::os_version();
   if (os_version.isError()) {
     return Error(os_version.error());
   }
