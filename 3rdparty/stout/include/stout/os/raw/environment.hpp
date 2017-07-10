@@ -121,10 +121,12 @@ class Envp
 public:
   Envp(Envp&& that)
     : envp(that.envp),
-      size(that.size)
+      size(that.size),
+      environment(that.environment)
   {
     that.envp = nullptr;
     that.size = 0;
+    that.environment = std::map<std::string, std::string>();
   }
 
   template <typename Map>
@@ -137,6 +139,7 @@ public:
     size_t index = 0;
 
     for (auto it = map.begin(); it != map.end(); ++it) {
+      environment[stringify(it->first)] = stringify(it->second);
       std::string entry = stringify(it->first) + "=" + stringify(it->second);
       envp[index] = new char[entry.size() + 1];
       ::memcpy(envp[index], entry.c_str(), entry.size() + 1);
@@ -157,6 +160,7 @@ public:
     foreachpair (const std::string& key,
                  const JSON::Value& value,
                  object.values) {
+      environment[key] = stringify(value.as<JSON::String>().value);
       std::string entry = key + "=" + value.as<JSON::String>().value;
       envp[index] = new char[entry.size() + 1];
       ::memcpy(envp[index], entry.c_str(), entry.size() + 1);
@@ -183,12 +187,18 @@ public:
     return envp;
   }
 
+  operator std::map<std::string, std::string>()
+  {
+    return environment;
+  }
+
 private:
   Envp(const Envp&) = delete;
   Envp& operator=(const Envp&) = delete;
 
   char **envp;
   size_t size;
+  std::map<std::string, std::string> environment;
 };
 
 } // namespace raw {
