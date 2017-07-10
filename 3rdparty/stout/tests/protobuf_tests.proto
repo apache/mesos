@@ -105,3 +105,28 @@ message EnumMessage {
   optional Enum e2 = 2;
   repeated Enum repeated_enum = 3;
 }
+
+
+// A message for testing map.
+message MapMessage {
+  map<string, string> string_to_string = 1;
+  map<string, bool> string_to_bool = 2;
+  map<string, bytes> string_to_bytes = 3;
+  map<string, int32> string_to_int32 = 4;
+  map<string, int64> string_to_int64 = 5;
+  map<string, uint32> string_to_uint32 = 6;
+  map<string, uint64> string_to_uint64 = 7;
+  map<string, sint32> string_to_sint32 = 8;
+  map<string, sint64> string_to_sint64 = 9;
+  map<string, float> string_to_float = 10;
+  map<string, double> string_to_double = 11;
+  map<string, Enum> string_to_enum = 12;
+  map<string, Nested> string_to_nested = 13;
+  map<bool, string> bool_to_string = 14;
+  map<int32, string> int32_to_string = 15;
+  map<int64, string> int64_to_string = 16;
+  map<uint32,string> uint32_to_string = 17;
+  map<uint64, string> uint64_to_string = 18;
+  map<sint32, string> sint32_to_string = 19;
+  map<sint64, string> sint64_to_string = 20;
+}
