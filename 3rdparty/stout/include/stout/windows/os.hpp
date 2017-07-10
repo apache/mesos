@@ -356,42 +356,7 @@ inline Result<pid_t> waitpid(long pid, int* status, int options)
 }
 
 
-inline std::string hstrerror(int err)
-{
-  char buffer[1024];
-  DWORD format_error = 0;
-
-  // NOTE: Per the Linux documentation[1], `h_errno` can have only one of the
-  // following errors.
-  switch (err) {
-    case WSAHOST_NOT_FOUND:
-    case WSANO_DATA:
-    case WSANO_RECOVERY:
-    case WSATRY_AGAIN: {
-      format_error = ::FormatMessage(
-          FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-          nullptr,
-          err,
-          MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-          buffer,
-          sizeof(buffer),
-          nullptr);
-      break;
-    }
-    default: {
-      return "Unknown resolver error";
-    }
-  }
-
-  if (format_error == 0) {
-    // If call to `FormatMessage` fails, then we choose to output the error
-    // code rather than call `FormatMessage` again.
-    return "os::hstrerror: Call to `FormatMessage` failed with error code" +
-      std::to_string(GetLastError());
-  } else {
-    return buffer;
-  }
-}
+inline std::string hstrerror(int err) = delete;
 
 
 inline Try<Nothing> chown(
