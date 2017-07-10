@@ -21,6 +21,7 @@
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
 
+#include <stout/internal/windows/longpath.hpp>
 #include <stout/internal/windows/symlink.hpp>
 
 namespace fs {
@@ -36,8 +37,8 @@ inline Try<Bytes> size(const std::string& path = "/")
   }
 
   ULARGE_INTEGER free_bytes, total_bytes, total_free_bytes;
-  if (::GetDiskFreeSpaceEx(
-          real_path.get().c_str(),
+  if (::GetDiskFreeSpaceExW(
+          internal::windows::longpath(real_path.get()).data(),
           &free_bytes,
           &total_bytes,
           &total_free_bytes) == 0) {
@@ -61,8 +62,8 @@ inline Try<double> usage(const std::string& path = "/")
   }
 
   ULARGE_INTEGER free_bytes, total_bytes, total_free_bytes;
-  if (::GetDiskFreeSpaceEx(
-          real_path.get().c_str(),
+  if (::GetDiskFreeSpaceExW(
+          internal::windows::longpath(real_path.get()).data(),
           &free_bytes,
           &total_bytes,
           &total_free_bytes) == 0) {
