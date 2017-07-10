@@ -19,6 +19,7 @@
 
 #include <stout/error.hpp>
 #include <stout/windows.hpp>
+#include <stout/stringify.hpp>
 
 
 // A useful type that can be used to represent a Try that has failed. This is a
@@ -58,20 +59,20 @@ private:
     // `message_buffer`, and then dumps said pretty-printed error message at
     // that address, in our `default_language`.
     //
-    // The 5th actual parameter (namely `(LPSTR)&message_buffer`), may look
+    // The 5th actual parameter (namely `(LPWSTR)&message_buffer`), may look
     // strange to readers of this code. It is copied directly out of the
     // documentation[1], and is unfortunately required to get the
     // pretty-printed error message. The short story is:
     //
     //   * The flag `FORMAT_MESSAGE_ALLOCATE_BUFFER` tells `FormatMessage` to
-    //     point `message_buffer` (which is an `LPSTR` a.k.a. `char*`) at a
+    //     point `message_buffer` (which is an `LPWSTR` a.k.a. `char*`) at a
     //     string error message. But, `message_buffer` to point a `char*` at a
     //     different place, `FormatMessage` would need the address
     //     `&message_buffer` so that it could change where it is pointing.
     //   * So, to solve this problem, the API writers decided that when you
     //     pass that flag in, `FormatMessage` will treat the 5th parameter not
-    //     as `LPSTR` (which is what the type is in the function signagure),
-    //     but as `LPSTR*` a.k.a. `char**`, which (assuming you've casted the
+    //     as `LPWSTR` (which is what the type is in the function signagure),
+    //     but as `LPWSTR*` a.k.a. `char**`, which (assuming you've casted the
     //     parameter correctly) allows it to allocate the message on your
     //     behalf, and change `message_buffer` to point at this new error
     //     string.
@@ -82,22 +83,22 @@ private:
     // the documentation as well.
     //
     // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms679351(v=vs.85).aspx
-    LPSTR message_buffer;
-    size_t size = FormatMessage(
+    wchar_t *message_buffer = nullptr;
+    size_t size = ::FormatMessageW(
         allocate_message_buffer,
         nullptr,                 // Ignored.
         errorCode,
         default_language,
-        (LPSTR) &message_buffer, // See comment above about quirky cast.
+        (LPWSTR)&message_buffer, // See comment above about quirky cast.
         0,                       // Ignored.
         nullptr);                // Ignored.
 
-    std::string message(message_buffer, size);
+    std::wstring message(message_buffer, size);
 
     // Required per documentation above.
-    LocalFree(message_buffer);
+    ::LocalFree(message_buffer);
 
-    return message;
+    return stringify(message);
   }
 };
 
