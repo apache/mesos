@@ -474,7 +474,7 @@ inline tm* gmtime_r(const time_t* timep, tm* result)
 }
 
 
-inline Result<PROCESSENTRY32> process_entry(pid_t pid)
+inline Result<PROCESSENTRY32W> process_entry(pid_t pid)
 {
   // Get a snapshot of the processes in the system. NOTE: We should not check
   // whether the handle is `nullptr`, because this API will always return
@@ -488,9 +488,9 @@ inline Result<PROCESSENTRY32> process_entry(pid_t pid)
   SharedHandle safe_snapshot_handle(snapshot_handle, ::CloseHandle);
 
   // Initialize process entry.
-  PROCESSENTRY32 process_entry;
-  ZeroMemory(&process_entry, sizeof(PROCESSENTRY32));
-  process_entry.dwSize = sizeof(PROCESSENTRY32);
+  PROCESSENTRY32W process_entry;
+  memset(&process_entry, 0, sizeof(process_entry));
+  process_entry.dwSize = sizeof(process_entry);
 
   // Get first process so that we can loop through process entries until we
   // find the one we care about.
@@ -535,7 +535,7 @@ inline Result<PROCESSENTRY32> process_entry(pid_t pid)
 inline Result<Process> process(pid_t pid)
 {
   // Find process with pid.
-  Result<PROCESSENTRY32> entry = process_entry(pid);
+  Result<PROCESSENTRY32W> entry = process_entry(pid);
 
   if (entry.isError()) {
     return WindowsError(entry.error());
@@ -604,7 +604,7 @@ inline Result<Process> process(pid_t pid)
       Bytes(proc_mem_counters.WorkingSetSize),
       utime.isSome() ? utime.get() : Option<Duration>::none(),
       stime.isSome() ? stime.get() : Option<Duration>::none(),
-      entry.get().szExeFile,                   // Executable filename.
+      stringify(entry.get().szExeFile),        // Executable filename.
       false);                                  // Is not zombie process.
 }
 
