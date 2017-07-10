@@ -678,3 +678,121 @@ TEST(ProtobufTest, JsonifyLargeIntegers)
   // Check JSON -> String.
   EXPECT_EQ(expected, string(jsonify(JSON::Protobuf(message))));
 }
+
+
+TEST(ProtobufTest, JsonifyMap)
+{
+  tests::MapMessage message;
+  (*message.mutable_string_to_bool())["key1"] = true;
+  (*message.mutable_string_to_bool())["key2"] = false;
+  (*message.mutable_string_to_bytes())["key"] = "bytes";
+  (*message.mutable_string_to_double())["key"] = 1.0;
+  (*message.mutable_string_to_enum())["key"] = tests::ONE;
+  (*message.mutable_string_to_float())["key"] = 1.0;
+  (*message.mutable_string_to_string())["key1"] = "value1";
+  (*message.mutable_string_to_string())["key2"] = "value2";
+
+  tests::Nested nested;
+  nested.set_str("nested");
+  (*message.mutable_string_to_nested())["key"] = nested;
+
+  // These numbers are equal or close to the integer limits.
+  (*message.mutable_string_to_int32())["key"] = -2147483647;
+  (*message.mutable_string_to_int64())["key"] = -9223372036854775807;
+  (*message.mutable_string_to_sint32())["key"] = -1234567890;
+  (*message.mutable_string_to_sint64())["key"] = -1234567890123456789;
+  (*message.mutable_string_to_uint32())["key"] = 4294967295;
+  (*message.mutable_string_to_uint64())["key"] = 9223372036854775807;
+
+  (*message.mutable_bool_to_string())[true] = "value1";
+  (*message.mutable_bool_to_string())[false] = "value2";
+
+  // These numbers are equal or close to the integer limits.
+  (*message.mutable_int32_to_string())[-2147483647] = "value";
+  (*message.mutable_int64_to_string())[-9223372036854775807] = "value";
+  (*message.mutable_sint32_to_string())[-1234567890] = "value";
+  (*message.mutable_sint64_to_string())[-1234567890123456789] = "value";
+  (*message.mutable_uint32_to_string())[4294967295] = "value";
+  (*message.mutable_uint64_to_string())[9223372036854775807] = "value";
+
+  // The keys are in alphabetical order.
+  // The value of `string_to_bytes` is base64 encoded.
+  string expected = strings::remove(
+      "{"
+      "  \"bool_to_string\": {"
+      "    \"false\": \"value2\","
+      "    \"true\": \"value1\""
+      "  },"
+      "  \"int32_to_string\": {"
+      "    \"-2147483647\": \"value\""
+      "  },"
+      "  \"int64_to_string\": {"
+      "    \"-9223372036854775807\": \"value\""
+      "  },"
+      "  \"sint32_to_string\": {"
+      "    \"-1234567890\": \"value\""
+      "  },"
+      "  \"sint64_to_string\": {"
+      "    \"-1234567890123456789\": \"value\""
+      "  },"
+      "  \"string_to_bool\": {"
+      "    \"key1\": true,"
+      "    \"key2\": false"
+      "  },"
+      "  \"string_to_bytes\": {"
+      "    \"key\": \"Ynl0ZXM=\""
+      "  },"
+      "  \"string_to_double\": {"
+      "    \"key\": 1.0"
+      "  },"
+      "  \"string_to_enum\": {"
+      "    \"key\": \"ONE\""
+      "  },"
+      "  \"string_to_float\": {"
+      "    \"key\": 1.0"
+      "  },"
+      "  \"string_to_int32\": {"
+      "    \"key\": -2147483647"
+      "  },"
+      "  \"string_to_int64\": {"
+      "    \"key\": -9223372036854775807"
+      "  },"
+      "  \"string_to_nested\": {"
+      "    \"key\": {"
+      "      \"str\": \"nested\""
+      "    }"
+      "  },"
+      "  \"string_to_sint32\": {"
+      "    \"key\": -1234567890"
+      "  },"
+      "  \"string_to_sint64\": {"
+      "    \"key\": -1234567890123456789"
+      "  },"
+      "  \"string_to_string\": {"
+      "    \"key1\": \"value1\","
+      "    \"key2\": \"value2\""
+      "  },"
+      "  \"string_to_uint32\": {"
+      "    \"key\": 4294967295"
+      "  },"
+      "  \"string_to_uint64\": {"
+      "    \"key\": 9223372036854775807"
+      "  },"
+      "  \"uint32_to_string\": {"
+      "    \"4294967295\": \"value\""
+      "  },"
+      "  \"uint64_to_string\": {"
+      "    \"9223372036854775807\": \"value\""
+      "  }"
+      "}",
+      " ");
+
+  JSON::Object object = JSON::protobuf(message);
+  EXPECT_EQ(expected, stringify(object));
+
+  // Test parsing too.
+  Try<tests::MapMessage> parse = protobuf::parse<tests::MapMessage>(object);
+  ASSERT_SOME(parse);
+
+  EXPECT_EQ(object, JSON::protobuf(parse.get()));
+}
