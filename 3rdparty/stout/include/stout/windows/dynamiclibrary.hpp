@@ -17,6 +17,7 @@
 
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
+#include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 #include <stout/windows/error.hpp>
@@ -50,7 +51,7 @@ public:
       return Error("Library already opened");
     }
 
-    handle_ = LoadLibrary(path.c_str());
+    handle_ = ::LoadLibraryW(wide_stringify(path).data());
 
     if (handle_ == nullptr) {
       return WindowsError("Could not load library '" + path + "'");
@@ -67,7 +68,7 @@ public:
       return Error("Could not close library; handle was already `nullptr`");
     }
 
-    if (!FreeLibrary(handle_)) {
+    if (!::FreeLibrary(handle_)) {
       return WindowsError(
           "Could not close library '" + (path_.isSome() ? path_.get() : ""));
     }
@@ -85,7 +86,7 @@ public:
           "Could not get symbol '" + name + "'; library handle was `nullptr`");
     }
 
-    void* symbol = GetProcAddress(handle_, name.c_str());
+    void* symbol = ::GetProcAddress(handle_, name.c_str());
 
     if (symbol == nullptr) {
       return WindowsError(
