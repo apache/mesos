@@ -39,37 +39,38 @@ public:
   template <typename Iterable>
   explicit Argv(const Iterable& iterable)
   {
-    std::vector<char*> _argv;
     foreach (const std::string& arg, iterable) {
-      char* _arg = new char[arg.size() + 1];
-      ::memcpy(_arg, arg.c_str(), arg.size() + 1);
-      _argv.emplace_back(_arg);
+      args.emplace_back(arg);
     }
 
-    size = _argv.size();
-    argv = new char*[size + 1];
-    for (size_t i = 0; i < size; i++) {
-      argv[i] = _argv[i];
+    argv = new char*[args.size() + 1];
+    for (size_t i = 0; i < args.size(); i++) {
+      argv[i] = const_cast<char*>(args[i].c_str());
     }
-    argv[size] = nullptr;
+
+    argv[args.size()] = nullptr;
   }
 
   ~Argv()
   {
-    for (size_t i = 0; i < size; i++) {
-      delete[] argv[i];
-    }
     delete[] argv;
   }
 
-  operator char**()
+  operator char**() const
   {
     return argv;
   }
 
+  operator std::vector<std::string>() const
+  {
+    return args;
+  }
+
 private:
+  std::vector<std::string> args;
+
+  // NOTE: This points to strings in the vector `args`.
   char** argv;
-  size_t size;
 };
 
 } // namespace raw {

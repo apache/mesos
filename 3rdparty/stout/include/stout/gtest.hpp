@@ -226,7 +226,8 @@ template <typename T1, typename T2>
 #ifndef __WINDOWS__
 #define SLEEP_COMMAND(x) "sleep " #x
 #else
-#define SLEEP_COMMAND(x) "powershell -NoProfile -Command Start-Sleep " #x
+#define SLEEP_COMMAND(x) \
+  "powershell -NoProfile -Command Start-Sleep -Seconds " #x
 #endif // __WINDOWS__
 
 
