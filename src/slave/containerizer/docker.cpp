@@ -1427,7 +1427,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   // applications to not work, but upon overriding system defaults, it becomes
   // the overidder's problem.
   Option<map<std::wstring, std::wstring>> systemEnvironment =
-    process::internal::getSystemEnvironment();
+    ::internal::windows::get_system_env();
   foreachpair(const std::wstring& key,
               const std::wstring& value,
               systemEnvironment.get()) {
