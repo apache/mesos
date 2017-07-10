@@ -36,19 +36,33 @@
 #include <glog/logging.h>
 
 
-#ifdef _UNICODE
-// Much of the core Windows API is available both in `string` and `wstring`
+#if !defined(_UNICODE) || !defined(UNICODE)
+// Much of the Windows API is available both in `string` and `wstring`
 // varieties. To avoid polluting the namespace with two versions of every
 // function, a common pattern in the Windows headers is to offer a single macro
 // that expands to the `string` or `wstring` version, depending on whether the
-// `_UNICODE` preprocessor symbol is set. For example, `GetMessage` will expand
-// to either `GetMessageA` (the `string` version) or `GetMessageW` (the
-// `wstring` version) depending on whether this symbol is defined.
+// `_UNICODE` and `UNICODE` preprocessor symbols are set. For example,
+// `GetMessage` will expand to either `GetMessageA` (the `string` version) or
+// `GetMessageW` (the `wstring` version) depending on whether these symbols are
+// defined.
 //
-// The downside of this is that it makes POSIX interop really hard. Hence, we
-// refuse to compile if such a symbol is passed in during compilation.
-#error "Mesos doesn't currently support the `_UNICODE` Windows header constant"
-#endif // _UNICODE
+// Unfortunately the `string` version is not UTF-8, like a developer would
+// expect on Linux, but is instead the current Windows code page, and thus may
+// take a different value at runtime. This makes it potentially difficult to
+// decode, whereas the `wstring` version is always encoded as UTF-16, and thus
+// can be programatically converted to UTF-8 using the `stringify()` function
+// (converting UTF-8 to UTF-16 is done with `wide_stringify()`).
+//
+// Furthermore, support for NTFS long paths requires the use of the `wstring`
+// APIs, coupled with the `\\?\` long path prefix marker for paths longer than
+// the max path limit. This is accomplished by wrapping paths sent to Windows
+// APIs with the `internal::windows::longpath()` helper. In order to prevent
+// future regressions, we enforce the definitions of `_UNICODE` and `UNICODE`.
+//
+// NOTE: The Mesos code should always use the explicit `W` suffixed APIs in
+// order to avoid type ambiguity.
+#error "Mesos must be built with `_UNICODE` and `UNICODE` defined."
+#endif // !defined(_UNICODE) || !defined(UNICODE)
 
 // An RAII `HANDLE`.
 class SharedHandle : public std::shared_ptr<void>
