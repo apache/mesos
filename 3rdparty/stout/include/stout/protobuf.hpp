@@ -382,12 +382,51 @@ struct Parser : boost::static_visitor<Try<Nothing>>
   {
     switch (field->type()) {
       case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
-        // TODO(gilbert): We currently push up the nested error
-        // messages without wrapping the error message (due to
-        // the recursive nature of parse). We should pass along
-        // variable information in order to construct a helpful
-        // error message, e.g. "Failed to parse field 'a.b.c': ...".
-        if (field->is_repeated()) {
+        if (field->is_map()) {
+          foreachpair (
+              const std::string& name,
+              const JSON::Value& value,
+              object.values) {
+            google::protobuf::Message* entry =
+              reflection->AddMessage(message, field);
+
+            // A map is equivalent to:
+            //
+            //   message MapFieldEntry {
+            //     optional key_type key = 1;
+            //     optional value_type value = 2;
+            //   }
+            //
+            //   repeated MapFieldEntry map_field = N;
+            //
+            // See the link below for details:
+            // https://developers.google.com/protocol-buffers/docs/proto#maps
+            const google::protobuf::FieldDescriptor* key_field =
+              entry->GetDescriptor()->FindFieldByNumber(1);
+
+            JSON::Value key(name);
+
+            Try<Nothing> apply =
+              boost::apply_visitor(Parser(entry, key_field), key);
+
+            if (apply.isError()) {
+              return Error(apply.error());
+            }
+
+            const google::protobuf::FieldDescriptor* value_field =
+              entry->GetDescriptor()->FindFieldByNumber(2);
+
+            apply = boost::apply_visitor(Parser(entry, value_field), value);
+            if (apply.isError()) {
+              return Error(apply.error());
+            }
+          }
+        } else if (field->is_repeated()) {
+          // TODO(gilbert): We currently push up the nested error
+          // messages without wrapping the error message (due to
+          // the recursive nature of parse). We should pass along
+          // variable information in order to construct a helpful
+          // error message, e.g. "Failed to parse field 'a.b.c': ...".
           return parse(reflection->AddMessage(message, field), object);
         } else {
           return parse(reflection->MutableMessage(message, field), object);
@@ -864,6 +903,56 @@ inline Object protobuf(const google::protobuf::Message& message)
   const google::protobuf::Descriptor* descriptor = message.GetDescriptor();
   const google::protobuf::Reflection* reflection = message.GetReflection();
 
+  auto value_for_field = [](
+      const google::protobuf::Message& message,
+      const google::protobuf::FieldDescriptor* field) -> JSON::Value {
+    const google::protobuf::Reflection* reflection = message.GetReflection();
+
+    switch (field->type()) {
+      case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
+        return JSON::Number(reflection->GetDouble(message, field));
+      case google::protobuf::FieldDescriptor::TYPE_FLOAT:
+        return JSON::Number(reflection->GetFloat(message, field));
+      case google::protobuf::FieldDescriptor::TYPE_INT64:
+      case google::protobuf::FieldDescriptor::TYPE_SINT64:
+      case google::protobuf::FieldDescriptor::TYPE_SFIXED64:
+        return JSON::Number(reflection->GetInt64(message, field));
+      case google::protobuf::FieldDescriptor::TYPE_UINT64:
+      case google::protobuf::FieldDescriptor::TYPE_FIXED64:
+        return JSON::Number(reflection->GetUInt64(message, field));
+      case google::protobuf::FieldDescriptor::TYPE_INT32:
+      case google::protobuf::FieldDescriptor::TYPE_SINT32:
+      case google::protobuf::FieldDescriptor::TYPE_SFIXED32:
+        return JSON::Number(reflection->GetInt32(message, field));
+      case google::protobuf::FieldDescriptor::TYPE_UINT32:
+      case google::protobuf::FieldDescriptor::TYPE_FIXED32:
+        return JSON::Number(reflection->GetUInt32(message, field));
+      case google::protobuf::FieldDescriptor::TYPE_BOOL:
+        if (reflection->GetBool(message, field)) {
+          return JSON::Boolean(true);
+        } else {
+          return JSON::Boolean(false);
+        }
+        break;
+      case google::protobuf::FieldDescriptor::TYPE_STRING:
+        return JSON::String(reflection->GetString(message, field));
+      case google::protobuf::FieldDescriptor::TYPE_BYTES:
+        return JSON::String(
+            base64::encode(reflection->GetString(message, field)));
+      case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
+        return protobuf(reflection->GetMessage(message, field));
+      case google::protobuf::FieldDescriptor::TYPE_ENUM:
+        return JSON::String(reflection->GetEnum(message, field)->name());
+      case google::protobuf::FieldDescriptor::TYPE_GROUP:
+        // Deprecated! We abort here instead of using a Try as return value,
+        // because we expect this code path to never be taken.
+        ABORT("Unhandled protobuf field type: " +
+              stringify(field->type()));
+    }
+
+    UNREACHABLE();
+  };
+
   // We first look through all the possible fields to determine both
   // the set fields _and_ the optional fields with a default that
   // are not set. Reflection::ListFields() alone will only include
@@ -886,7 +975,44 @@ inline Object protobuf(const google::protobuf::Message& message)
   }
 
   foreach (const google::protobuf::FieldDescriptor* field, fields) {
-    if (field->is_repeated()) {
+    if (field->is_map()) {
+      JSON::Object map;
+
+      int fieldSize = reflection->FieldSize(message, field);
+      for (int i = 0; i < fieldSize; ++i) {
+        const google::protobuf::Message& entry =
+          reflection->GetRepeatedMessage(message, field, i);
+
+        // A map is equivalent to:
+        //
+        //   message MapFieldEntry {
+        //     optional key_type key = 1;
+        //     optional value_type value = 2;
+        //   }
+        //
+        //   repeated MapFieldEntry map_field = N;
+        //
+        // See the link below for details:
+        // https://developers.google.com/protocol-buffers/docs/proto#maps
+        const google::protobuf::FieldDescriptor* key_field =
+          entry.GetDescriptor()->FindFieldByNumber(1);
+
+        const google::protobuf::FieldDescriptor* value_field =
+          entry.GetDescriptor()->FindFieldByNumber(2);
+
+        JSON::Value key = value_for_field(entry, key_field);
+
+        std::string name;
+        if (key.is<JSON::String>()) {
+          name = key.as<JSON::String>().value;
+        } else {
+          name = jsonify(key);
+        }
+
+        map.values[name] = value_for_field(entry, value_field);
+      }
+      object.values[field->name()] = map;
+    } else if (field->is_repeated()) {
       JSON::Array array;
       int fieldSize = reflection->FieldSize(message, field);
       array.values.reserve(fieldSize);
@@ -954,66 +1080,7 @@ inline Object protobuf(const google::protobuf::Message& message)
       }
       object.values[field->name()] = array;
     } else {
-      switch (field->type()) {
-        case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
-          object.values[field->name()] =
-              JSON::Number(reflection->GetDouble(message, field));
-          break;
-        case google::protobuf::FieldDescriptor::TYPE_FLOAT:
-          object.values[field->name()] =
-              JSON::Number(reflection->GetFloat(message, field));
-          break;
-        case google::protobuf::FieldDescriptor::TYPE_INT64:
-        case google::protobuf::FieldDescriptor::TYPE_SINT64:
-        case google::protobuf::FieldDescriptor::TYPE_SFIXED64:
-          object.values[field->name()] =
-              JSON::Number(reflection->GetInt64(message, field));
-          break;
-        case google::protobuf::FieldDescriptor::TYPE_UINT64:
-        case google::protobuf::FieldDescriptor::TYPE_FIXED64:
-          object.values[field->name()] =
-              JSON::Number(reflection->GetUInt64(message, field));
-          break;
-        case google::protobuf::FieldDescriptor::TYPE_INT32:
-        case google::protobuf::FieldDescriptor::TYPE_SINT32:
-        case google::protobuf::FieldDescriptor::TYPE_SFIXED32:
-          object.values[field->name()] =
-              JSON::Number(reflection->GetInt32(message, field));
-          break;
-        case google::protobuf::FieldDescriptor::TYPE_UINT32:
-        case google::protobuf::FieldDescriptor::TYPE_FIXED32:
-          object.values[field->name()] =
-              JSON::Number(reflection->GetUInt32(message, field));
-          break;
-        case google::protobuf::FieldDescriptor::TYPE_BOOL:
-          if (reflection->GetBool(message, field)) {
-            object.values[field->name()] = JSON::Boolean(true);
-          } else {
-            object.values[field->name()] = JSON::Boolean(false);
-          }
-          break;
-        case google::protobuf::FieldDescriptor::TYPE_STRING:
-          object.values[field->name()] =
-              JSON::String(reflection->GetString(message, field));
-          break;
-        case google::protobuf::FieldDescriptor::TYPE_BYTES:
-          object.values[field->name()] = JSON::String(
-              base64::encode(reflection->GetString(message, field)));
-          break;
-        case google::protobuf::FieldDescriptor::TYPE_MESSAGE:
-          object.values[field->name()] =
-            protobuf(reflection->GetMessage(message, field));
-          break;
-        case google::protobuf::FieldDescriptor::TYPE_ENUM:
-          object.values[field->name()] =
-              JSON::String(reflection->GetEnum(message, field)->name());
-          break;
-        case google::protobuf::FieldDescriptor::TYPE_GROUP:
-          // Deprecated! We abort here instead of using a Try as return value,
-          // because we expect this code path to never be taken.
-          ABORT("Unhandled protobuf field type: " +
-                stringify(field->type()));
-      }
+      object.values[field->name()] = value_for_field(message, field);
     }
   }
 
