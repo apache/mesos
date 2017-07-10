@@ -41,7 +41,7 @@ public:
 
   void manage(
       const pid_t pid,
-      const std::string& name,
+      const std::wstring& name,
       const SharedHandle& handle)
   {
     jobs.emplace(pid, JobData{name, handle});
@@ -68,7 +68,7 @@ protected:
 
 private:
   struct JobData {
-    std::string name;
+    std::wstring name;
     SharedHandle handle;
   };
 
@@ -91,7 +91,7 @@ inline Subprocess::ParentHook Subprocess::ParentHook::CREATE_JOB() {
     // object is greater than the lifetime of the processes it contains. Thus
     // the job object handle is explicitly owned by the global job object
     // manager process.
-    Try<std::string> name = os::name_job(pid);
+    Try<std::wstring> name = os::name_job(pid);
     if (name.isError()) {
       return Error(name.error());
     }
