@@ -15,14 +15,7 @@ Mesos 1.0.0 introduced experimental support for Windows.
 
 1. Install the latest [Visual Studio 2017](https://www.visualstudio.com/downloads/):
    The "Community" edition is sufficient (and free).
-   During installation, you install either the "Desktop development with C++"
-   workload or choose the following "Individual components":
-    * VC++ 2017 v141 toolset
-    * Windows 10 SDK (10.0.15036.0, currently) for Desktop C++
-    * Windows Universal CRT SDK
-    * Windows Universal C Runtime
-    * C++ profiling tools (optional, for profiling)
-    * Visual Studio C++ core features (optional, for IDE)
+   During installation, choose the "Desktop development with C++" workload.
 
 2. Install [CMake 3.8.0](https://cmake.org/download/) or later.
    During installation, choose to "Add CMake to the system PATH for all users".
@@ -34,18 +27,10 @@ Mesos 1.0.0 introduced experimental support for Windows.
    Command Prompt", and "Checkout Windows-style, commit Unix-style
    line endings" (i.e. `git config core.autocrlf true`).
 
-5. Enable filesystem long path support by running the following
-   in an administrative PowerShell prompt:
-   `Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem -Name LongPathsEnabled -Value 1`
-   And then reboot.  Alternatively this can be set manually through `regedit`.
-   For more details, see this
-   [MSDN article](https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx).
-   NOTE: This requirement is in the process of being deprecated!
-
-6. Make sure there are no spaces in your build directory.
+5. Make sure there are no spaces in your build directory.
    For example, `C:/Program Files (x86)/mesos` is an invalid build directory.
 
-7. If developing Mesos, install [Python 2](https://www.python.org/downloads/)
+6. If developing Mesos, install [Python 2](https://www.python.org/downloads/)
    (not Python 3), in order to use our support scripts (e.g. to post and apply
    patches, or lint source code).
 
@@ -55,7 +40,7 @@ Mesos 1.0.0 introduced experimental support for Windows.
 Following are the instructions for Windows 10.
 
     # Start an administrative session of PowerShell
-    # (required for creating symlinks).
+    # (required for creating symlinks when using the agent).
 
     # Clone (or extract) Mesos.
     git clone https://git-wip-us.apache.org/repos/asf/mesos.git
@@ -83,8 +68,8 @@ The current implementation is known to have the following limitations:
 * Only the agent should be run on Windows.  The Mesos master can be
   launched, but only for testing as the master does not support
   high-availability setups on Windows.
-* Due to the 260 character `MAX_PATH` limitation on Windows,
-  it is required to enable the NTFS long path support.
+* While Mesos supports NTFS long paths internally, tasks which do not support
+  long paths must be run on agent whose `--work_dir` is a short path.
 * The Mesos agent must be run as Administrator, mainly due to symlinks.
 * The `MesosContainerizer` currently does not provide any actual
   resource isolation (similar to running the Mesos agent on POSIX).
@@ -93,4 +78,4 @@ The current implementation is known to have the following limitations:
 ## Status
 
 For more information regarding the status of Windows support in Mesos,
-please refer to the [Jira epic](https://issues.apache.org/jira/browse/MESOS-3094).
+please refer to the [JIRA epic](https://issues.apache.org/jira/browse/MESOS-3094).
