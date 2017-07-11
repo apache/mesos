@@ -1755,6 +1755,9 @@ message Offer {
   // URL for reaching the slave running on the host.
   optional URL url = 8;
 
+  // The domain of the slave.
+  optional DomainInfo domain = 11;
+
   repeated Resource resources = 5;
   repeated Attribute attributes = 7;
   repeated ExecutorID executor_ids = 6;

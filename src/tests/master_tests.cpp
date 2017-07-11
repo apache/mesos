@@ -7389,6 +7389,8 @@ TEST_F(MasterTest, AgentDomainSameRegion)
   Clock::advance(slaveFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage);
 
+  const SlaveID& slaveId = slaveRegisteredMessage->slave_id();
+
   MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
@@ -7408,6 +7410,10 @@ TEST_F(MasterTest, AgentDomainSameRegion)
 
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
+
+  Offer offer = offers->front();
+  EXPECT_EQ(slaveId, offer.slave_id());
+  EXPECT_EQ(slaveFlags.domain.get(), offer.domain());
 
   driver.stop();
   driver.join();
@@ -7441,6 +7447,8 @@ TEST_F(MasterTest, AgentDomainDifferentRegion)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage);
+
+  const SlaveID& slaveId = slaveRegisteredMessage->slave_id();
 
   // Launch a non-region-aware scheduler. It should NOT receive any
   // resource offers for `slave`.
@@ -7492,6 +7500,8 @@ TEST_F(MasterTest, AgentDomainDifferentRegion)
     ASSERT_FALSE(offers->empty());
 
     Offer offer = offers->front();
+    EXPECT_EQ(slaveId, offer.slave_id());
+    EXPECT_EQ(slaveFlags.domain.get(), offer.domain());
 
     // Check that we can launch a task in a remote region.
     TaskInfo task = createTask(offer, "sleep 60");
@@ -7541,6 +7551,8 @@ TEST_F(MasterTest, AgentDomainUnset)
   Clock::advance(slaveFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage);
 
+  const SlaveID& slaveId = slaveRegisteredMessage->slave_id();
+
   MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
@@ -7555,6 +7567,10 @@ TEST_F(MasterTest, AgentDomainUnset)
 
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
+
+  Offer offer = offers->front();
+  EXPECT_EQ(slaveId, offer.slave_id());
+  EXPECT_FALSE(offer.has_domain());
 
   driver.stop();
   driver.join();

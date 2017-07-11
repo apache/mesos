@@ -7538,6 +7538,10 @@ void Master::offer(
       offer->mutable_attributes()->MergeFrom(slave->info.attributes());
       offer->mutable_allocation_info()->set_role(role);
 
+      if (slave->info.has_domain()) {
+        offer->mutable_domain()->MergeFrom(slave->info.domain());
+      }
+
       // Add all framework's executors running on this slave.
       if (slave->executors.contains(framework->id())) {
         const hashmap<ExecutorID, ExecutorInfo>& executors =
