@@ -409,7 +409,79 @@ Try<Docker::Container> Docker::Container::create(const string& output)
     }
   }
 
-  return Container(output, id, name, optionalPid, started, ipAddress, devices);
+  vector<string> dns;
+
+  Result<JSON::Array> dnsArray =
+    json.find<JSON::Array>("HostConfig.Dns");
+
+  if (dnsArray.isError()) {
+    return Error("Failed to parse HostConfig.Dns: " + dnsArray.error());
+  }
+
+  if (dnsArray.isSome()) {
+    foreach (const JSON::Value& entry, dnsArray->values) {
+      if (!entry.is<JSON::String>()) {
+        return Error("Malformed HostConfig.Dns"
+                     " entry '" + stringify(entry) + "'");
+      }
+
+      dns.push_back(entry.as<JSON::String>().value);
+    }
+  }
+
+  vector<string> dnsOptions;
+
+  Result<JSON::Array> dnsOptionArray =
+    json.find<JSON::Array>("HostConfig.DnsOptions");
+
+  if (dnsOptionArray.isError()) {
+    return Error("Failed to parse HostConfig.DnsOptions: " +
+                 dnsOptionArray.error());
+  }
+
+  if (dnsOptionArray.isSome()) {
+    foreach (const JSON::Value& entry, dnsOptionArray->values) {
+      if (!entry.is<JSON::String>()) {
+        return Error("Malformed HostConfig.DnsOptions"
+                     " entry '" + stringify(entry) + "'");
+      }
+
+      dnsOptions.push_back(entry.as<JSON::String>().value);
+    }
+  }
+
+  vector<string> dnsSearch;
+
+  Result<JSON::Array> dnsSearchArray =
+    json.find<JSON::Array>("HostConfig.DnsSearch");
+
+  if (dnsSearchArray.isError()) {
+    return Error("Failed to parse HostConfig.DnsSearch: " +
+                 dnsSearchArray.error());
+  }
+
+  if (dnsSearchArray.isSome()) {
+    foreach (const JSON::Value& entry, dnsSearchArray->values) {
+      if (!entry.is<JSON::String>()) {
+        return Error("Malformed HostConfig.DnsSearch"
+                     " entry '" + stringify(entry) + "'");
+      }
+
+      dnsSearch.push_back(entry.as<JSON::String>().value);
+    }
+  }
+
+  return Container(
+      output,
+      id,
+      name,
+      optionalPid,
+      started,
+      ipAddress,
+      devices,
+      dns,
+      dnsOptions,
+      dnsSearch);
 }
 
 

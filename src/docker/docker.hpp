@@ -115,6 +115,15 @@ public:
 
     const std::vector<Device> devices;
 
+    // Returns the DNS nameservers set by "--dns" option.
+    const std::vector<std::string> dns;
+
+    // Returns the DNS options set by "--dns-option" option.
+    const std::vector<std::string> dnsOptions;
+
+    // Returns the DNS search domains set by "--dns-search" option.
+    const std::vector<std::string> dnsSearch;
+
   private:
     Container(
         const std::string& output,
@@ -123,14 +132,20 @@ public:
         const Option<pid_t>& pid,
         bool started,
         const Option<std::string>& ipAddress,
-        const std::vector<Device>& devices)
+        const std::vector<Device>& devices,
+        const std::vector<std::string>& dns,
+        const std::vector<std::string>& dnsOptions,
+        const std::vector<std::string>& dnsSearch)
       : output(output),
         id(id),
         name(name),
         pid(pid),
         started(started),
         ipAddress(ipAddress),
-        devices(devices) {}
+        devices(devices),
+        dns(dns),
+        dnsOptions(dnsOptions),
+        dnsSearch(dnsSearch) {}
   };
 
   class Image
