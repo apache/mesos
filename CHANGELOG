@@ -11,6 +11,7 @@ All Issues:
   * [MESOS-7689] - Libprocess can crash on malformed request paths for libprocess messages.
   * [MESOS-7690] - The agent can crash when an unknown executor tries to register.
   * [MESOS-7703] - Mesos fails to exec a custom executor when no shell is used.
+  * [MESOS-7770] - Persistent volume might not be mounted if there is a sandbox volume whose source is the same as the target of the persistent volume.
 
 
 Release Notes - Mesos - Version 1.2.1
