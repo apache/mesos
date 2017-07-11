@@ -4352,6 +4352,159 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Non_Root_Sandbox)
 }
 
 
+// This test verifies the DNS configuration of the Docker container
+// can be successfully set with the agent flag `--default_container_dns`.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_DefaultDNS)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+  Try<ContainerDNSInfo> parse = flags::parse<ContainerDNSInfo>(
+      R"~(
+      {
+        "docker": [
+          {
+            "network_mode": "BRIDGE",
+            "dns": {
+              "nameservers": [ "8.8.8.8", "8.8.4.4" ],
+              "search": [ "example1.com", "example2.com" ],
+              "options": [ "timeout:3", "attempts:2" ]
+            }
+          }
+        ]
+      })~");
+
+  ASSERT_SOME(parse);
+
+  flags.default_container_dns = parse.get();
+
+  Fetcher fetcher(flags);
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  CommandInfo command;
+  command.set_value("sleep 1000");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  ASSERT_TRUE(statusRunning->has_data());
+
+  // Find the DNS configuration of the container and verify
+  // if it is consistent with `flags.default_container_dns`.
+  string name = containerName(containerId.get());
+  Future<Docker::Container> inspect = docker->inspect(name);
+  AWAIT_READY(inspect);
+
+  vector<string> defaultDNS;
+  std::copy(
+      flags.default_container_dns->docker(0).dns().nameservers().begin(),
+      flags.default_container_dns->docker(0).dns().nameservers().end(),
+      std::back_inserter(defaultDNS));
+
+  EXPECT_EQ(inspect->dns, defaultDNS);
+
+  vector<string> defaultDNSSearch;
+  std::copy(
+      flags.default_container_dns->docker(0).dns().search().begin(),
+      flags.default_container_dns->docker(0).dns().search().end(),
+      std::back_inserter(defaultDNSSearch));
+
+  EXPECT_EQ(inspect->dnsSearch, defaultDNSSearch);
+
+  vector<string> defaultDNSOption;
+  std::copy(
+      flags.default_container_dns->docker(0).dns().options().begin(),
+      flags.default_container_dns->docker(0).dns().options().end(),
+      std::back_inserter(defaultDNSOption));
+
+  EXPECT_EQ(inspect->dnsOptions, defaultDNSOption);
+
+  Future<Option<ContainerTermination>> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
+}
+
+
 // Fixture for testing IPv6 support for docker containers on host network.
 //
 // TODO(asridharan): Currently in the `Setup` and `TearDown` methods
