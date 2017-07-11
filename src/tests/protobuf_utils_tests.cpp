@@ -220,6 +220,9 @@ TEST(ProtobufUtilTest, FrameworkCapabilities)
     if (capabilities.multiRole) {
       result.insert(FrameworkInfo::Capability::MULTI_ROLE);
     }
+    if (capabilities.regionAware) {
+      result.insert(FrameworkInfo::Capability::REGION_AWARE);
+    }
 
     return result;
   };
@@ -265,6 +268,9 @@ TEST(ProtobufUtilTest, FrameworkCapabilities)
   EXPECT_EQ(expected, backAndForth(expected));
 
   expected = { FrameworkInfo::Capability::MULTI_ROLE };
+  EXPECT_EQ(expected, backAndForth(expected));
+
+  expected = { FrameworkInfo::Capability::REGION_AWARE };
   EXPECT_EQ(expected, backAndForth(expected));
 }
 

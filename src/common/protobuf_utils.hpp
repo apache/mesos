@@ -355,6 +355,9 @@ struct Capabilities
         case FrameworkInfo::Capability::RESERVATION_REFINEMENT:
           reservationRefinement = true;
           break;
+        case FrameworkInfo::Capability::REGION_AWARE:
+          regionAware = true;
+          break;
       }
     }
   }
@@ -367,6 +370,7 @@ struct Capabilities
   bool partitionAware = false;
   bool multiRole = false;
   bool reservationRefinement = false;
+  bool regionAware = false;
 };
 
 

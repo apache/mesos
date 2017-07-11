@@ -369,6 +369,18 @@ message FrameworkInfo {
       // reservations if it uses the `Resource.reservations` field, and
       // `Resource.reservations_size() > 1`.
       RESERVATION_REFINEMENT = 7; // EXPERIMENTAL.
+
+      // Indicates that the framework is prepared to receive offers
+      // for agents whose region is different from the master's
+      // region. Network links between hosts in different regions
+      // typically have higher latency and lower bandwidth than
+      // network links within a region, so frameworks should be
+      // careful to only place suitable workloads in remote regions.
+      // Frameworks that are not region-aware will never receive
+      // offers for remote agents; region-aware frameworks are assumed
+      // to implement their own logic to decide which workloads (if
+      // any) are suitable for placement on remote agents.
+      REGION_AWARE = 8;
     }
 
     // Enum fields should be optional, see: MESOS-4997.
