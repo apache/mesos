@@ -534,6 +534,82 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 }
 
 
+// This test verifies that if a persistent volume and host volume
+// are both specified and the host path of the host volume is the
+// same relative path as the persistent volume's container path,
+// the persistent volume will not be neglect and is mounted
+// correctly. This is a regression test for MESOS-7770.
+TEST_F(LinuxFilesystemIsolatorTest,
+       ROOT_PersistentVolumeAndHostVolumeWithRootFilesystem)
+{
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  // Write to an absolute path in the container's mount namespace
+  // to verify mounts of the host volume and the persistent volume
+  // are done in the proper order.
+  ExecutorInfo executor = createExecutorInfo(
+      "test_executor",
+      "echo abc > /absolute_path/file");
+
+  executor.add_resources()->CopyFrom(createPersistentVolume(
+      Megabytes(32),
+      "test_role",
+      "persistent_volume_id",
+      "volume"));
+
+  executor.mutable_container()->CopyFrom(createContainerInfo(
+      "test_image",
+      {createVolumeFromHostPath("/absolute_path", "volume", Volume::RW)}));
+
+  // Create a persistent volume.
+  string volume = slave::paths::getPersistentVolumePath(
+      flags.work_dir,
+      "test_role",
+      "persistent_volume_id");
+
+  ASSERT_SOME(os::mkdir(volume));
+
+  string directory = path::join(flags.work_dir, "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<bool> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(None(), executor, directory),
+      map<string, string>(),
+      None());
+
+  AWAIT_READY(launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
+
+  EXPECT_SOME_EQ("abc\n", os::read(path::join(volume, "file")));
+}
+
+
 // This test verifies that persistent volumes are properly mounted if
 // the container does not specify a root filesystem.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
