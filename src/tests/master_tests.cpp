@@ -7362,6 +7362,138 @@ TEST_F(MasterTest, MultiRoleSchedulerUnsubscribeFromRole)
 }
 
 
+// This test checks that if the master is configured with a domain but
+// the agent is not, the agent is allowed to register and its
+// resources are offered to frameworks as usual.
+TEST_F(MasterTest, AgentDomainUnset)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.domain = createDomainInfo("region-abc", "zone-123");
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(slaveRegisteredMessage);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test checks that if the agent is configured with a domain but
+// the master is not, the agent is not allowed to register.
+TEST_F(MasterTest, AgentDomainMismatch)
+{
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.domain = createDomainInfo("region-abc", "zone-456");
+
+  // Agent should attempt to register.
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
+
+  // If the agent is allowed to register, the master will update the
+  // registry. The agent should not be allowed to register, so we
+  // expect that no registrar operations will be observed.
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .Times(0);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(registerSlaveMessage);
+
+  Clock::settle();
+}
+
+
+// This test checks that if the agent is configured with a domain but
+// the master is not, the agent is not allowed to re-register. This
+// might happen if the leading master is configured with a domain but
+// one of the standby masters is not, and then the leader fails over.
+TEST_F(MasterTest, AgentDomainMismatchOnReregister)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.domain = createDomainInfo("region-abc", "zone-123");
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.domain = createDomainInfo("region-abc", "zone-456");
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Simulate master failover and start a new master with no domain
+  // configured.
+  master->reset();
+
+  masterFlags.domain = None();
+
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  // If the agent is allowed to re-register, the master will update
+  // the registry. The agent should not be allowed to register, so we
+  // expect that no registrar operations will be observed.
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .Times(0);
+
+  // Simulate a new master detected event.
+  detector.appoint(master.get()->pid);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(reregisterSlaveMessage);
+
+  Clock::settle();
+}
+
+
 // Check that the master does not allow old Mesos agents to register.
 // We do this by intercepting the agent's `RegisterSlaveMessage` and
 // then re-sending it with a tweaked version number.

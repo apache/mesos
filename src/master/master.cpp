@@ -5774,6 +5774,20 @@ void Master::_registerSlave(
     return;
   }
 
+  // If the agent is configured with a domain but the master is not,
+  // we can't determine whether the agent is remote. To be safe, we
+  // don't allow the agent to register. We don't shutdown the agent so
+  // that any tasks on the agent can continue to run.
+  //
+  // TODO(neilc): Consider sending a warning to agent (MESOS-7615).
+  if (slaveInfo.has_domain() && !info_.has_domain()) {
+    LOG(WARNING) << "Agent at " << pid << " is configured with "
+                 << "domain " << slaveInfo.domain() << " "
+                 << "but the master has no configured domain. "
+                 << "Ignoring agent registration attempt";
+    return;
+  }
+
   // Check if this slave is already registered (because it retries).
   if (Slave* slave = slaves.registered.get(pid)) {
     if (!slave->connected) {
@@ -6066,6 +6080,20 @@ void Master::_reregisterSlave(
                  << pid << ": agent version is " << parsedVersion.get()
                  << ", minimum supported agent version is "
                  << MINIMUM_AGENT_VERSION;
+    return;
+  }
+
+  // If the agent is configured with a domain but the master is not,
+  // we can't determine whether the agent is remote. To be safe, we
+  // don't allow the agent to re-register. We don't shutdown the agent
+  // so that any tasks on the agent can continue to run.
+  //
+  // TODO(neilc): Consider sending a warning to agent (MESOS-7615).
+  if (slaveInfo.has_domain() && !info_.has_domain()) {
+    LOG(WARNING) << "Agent at " << pid << " is configured with "
+                 << "domain " << slaveInfo.domain() << " "
+                 << "but the master has no configured domain."
+                 << "Ignoring agent re-registration attempt";
     return;
   }
 
