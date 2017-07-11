@@ -800,6 +800,144 @@ TEST_F(MasterTest, StatusUpdateAck)
 }
 
 
+// This test checks that domain information is correctly returned by
+// the master's HTTP endpoints.
+TEST_F(MasterTest, DomainEndpoints)
+{
+  const string MASTER_REGION = "region-abc";
+  const string MASTER_ZONE = "zone-123";
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.domain = createDomainInfo(MASTER_REGION, MASTER_ZONE);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  const string AGENT_REGION = "region-xyz";
+  const string AGENT_ZONE = "zone-456";
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.domain = createDomainInfo(AGENT_REGION, AGENT_ZONE);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Query the "/state" master endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::String> masterRegion = parse->find<JSON::String>(
+        "domain.fault_domain.region.name");
+    Result<JSON::String> masterZone = parse->find<JSON::String>(
+        "domain.fault_domain.zone.name");
+
+    EXPECT_SOME_EQ(JSON::String(MASTER_REGION), masterRegion);
+    EXPECT_SOME_EQ(JSON::String(MASTER_ZONE), masterZone);
+
+    Result<JSON::String> leaderRegion = parse->find<JSON::String>(
+        "leader_info.domain.fault_domain.region.name");
+    Result<JSON::String> leaderZone = parse->find<JSON::String>(
+        "leader_info.domain.fault_domain.zone.name");
+
+    EXPECT_SOME_EQ(JSON::String(MASTER_REGION), leaderRegion);
+    EXPECT_SOME_EQ(JSON::String(MASTER_ZONE), leaderZone);
+
+    Result<JSON::String> agentRegion = parse->find<JSON::String>(
+        "slaves[0].domain.fault_domain.region.name");
+    Result<JSON::String> agentZone = parse->find<JSON::String>(
+        "slaves[0].domain.fault_domain.zone.name");
+
+    EXPECT_SOME_EQ(JSON::String(AGENT_REGION), agentRegion);
+    EXPECT_SOME_EQ(JSON::String(AGENT_ZONE), agentZone);
+  }
+
+  // Query the "/state-summary" master endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state-summary",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::String> agentRegion = parse->find<JSON::String>(
+        "slaves[0].domain.fault_domain.region.name");
+    Result<JSON::String> agentZone = parse->find<JSON::String>(
+        "slaves[0].domain.fault_domain.zone.name");
+
+    EXPECT_SOME_EQ(JSON::String(AGENT_REGION), agentRegion);
+    EXPECT_SOME_EQ(JSON::String(AGENT_ZONE), agentZone);
+  }
+
+  // Query the "/slaves" master endpoint.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "slaves",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::String> agentRegion = parse->find<JSON::String>(
+        "slaves[0].domain.fault_domain.region.name");
+    Result<JSON::String> agentZone = parse->find<JSON::String>(
+        "slaves[0].domain.fault_domain.zone.name");
+
+    EXPECT_SOME_EQ(JSON::String(AGENT_REGION), agentRegion);
+    EXPECT_SOME_EQ(JSON::String(AGENT_ZONE), agentZone);
+  }
+
+  // Query the "/state" agent endpoint.
+  {
+    Future<Response> response = process::http::get(
+        slave.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::String> agentRegion = parse->find<JSON::String>(
+        "domain.fault_domain.region.name");
+    Result<JSON::String> agentZone = parse->find<JSON::String>(
+        "domain.fault_domain.zone.name");
+
+    EXPECT_SOME_EQ(JSON::String(AGENT_REGION), agentRegion);
+    EXPECT_SOME_EQ(JSON::String(AGENT_ZONE), agentZone);
+  }
+}
+
+
 TEST_F(MasterTest, RecoverResources)
 {
   master::Flags masterFlags = CreateMasterFlags();
@@ -1110,7 +1248,10 @@ TEST_F(MasterTest, MultipleExecutors)
 
 TEST_F(MasterTest, MasterInfo)
 {
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.domain = createDomainInfo("region-abc", "zone-xyz");
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -1131,6 +1272,7 @@ TEST_F(MasterTest, MasterInfo)
   driver.start();
 
   AWAIT_READY(masterInfo);
+  EXPECT_EQ(masterFlags.domain, masterInfo->domain());
   EXPECT_EQ(master.get()->pid.address.port, masterInfo->port());
   EXPECT_EQ(
       master.get()->pid.address.ip,

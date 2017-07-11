@@ -133,6 +133,7 @@ void json(JSON::ArrayWriter* writer, const Labels& labels);
 void json(JSON::ObjectWriter* writer, const Resources& resources);
 void json(JSON::ObjectWriter* writer, const Task& task);
 void json(JSON::ObjectWriter* writer, const TaskStatus& status);
+void json(JSON::ObjectWriter* writer, const DomainInfo& domainInfo);
 
 namespace authorization {
 

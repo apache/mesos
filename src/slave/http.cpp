@@ -1302,6 +1302,10 @@ Future<Response> Http::state(
         writer->field("hostname", slave->info.hostname());
         writer->field("capabilities", AGENT_CAPABILITIES());
 
+        if (slave->info.has_domain()) {
+          writer->field("domain", slave->info.domain());
+        }
+
         const Resources& totalResources = slave->totalResources;
 
         writer->field("resources", totalResources);

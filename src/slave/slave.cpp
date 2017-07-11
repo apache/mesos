@@ -575,6 +575,10 @@ void Slave::initialize()
   // Checkpointing of slaves is always enabled.
   info.set_checkpoint(true);
 
+  if (flags.domain.isSome()) {
+    info.mutable_domain()->CopyFrom(flags.domain.get());
+  }
+
   LOG(INFO) << "Agent hostname: " << info.hostname();
 
   statusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1)

@@ -1019,6 +1019,21 @@ inline hashmap<std::string, double> convertToHashmap(
 }
 
 
+// Helper to create DomainInfo.
+template <typename TDomainInfo>
+inline TDomainInfo createDomainInfo(
+    const std::string& regionName,
+    const std::string& zoneName)
+{
+  TDomainInfo domain;
+
+  domain.mutable_fault_domain()->mutable_region()->set_name(regionName);
+  domain.mutable_fault_domain()->mutable_zone()->set_name(zoneName);
+
+  return domain;
+}
+
+
 // Helpers for creating offer operations.
 template <typename TResources, typename TOffer>
 inline typename TOffer::Operation RESERVE(const TResources& resources)
@@ -1326,6 +1341,13 @@ template <typename... Args>
 inline hashmap<std::string, double> convertToHashmap(Args&&... args)
 {
   return common::convertToHashmap<WeightInfo>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline DomainInfo createDomainInfo(Args&&... args)
+{
+  return common::createDomainInfo<DomainInfo>(std::forward<Args>(args)...);
 }
 
 

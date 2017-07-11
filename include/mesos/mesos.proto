@@ -865,6 +865,10 @@ message MasterInfo {
   // and supersedes the use of `ip`, `port` and `hostname`.
   // Since Mesos 0.24.
   optional Address address = 7;
+
+  // The domain that this master belongs to. All masters in a Mesos
+  // cluster should belong to the same region.
+  optional DomainInfo domain = 8;
 }
 
 
@@ -884,6 +888,12 @@ message SlaveInfo {
 
   repeated Attribute attributes = 5;
   optional SlaveID id = 6;
+
+  // The domain that this slave belongs to. If the slave's region
+  // differs from the master's region, it will not appear in resource
+  // offers to frameworks that have not enabled the REGION_AWARE
+  // capability.
+  optional DomainInfo domain = 10;
 
   // Slave checkpointing is always enabled in recent Mesos versions;
   // the value of this field is ignored.

@@ -145,7 +145,10 @@ INSTANTIATE_TEST_CASE_P(
 
 TEST_P(MasterAPITest, GetAgents)
 {
-  Try<Owned<cluster::Master>> master = this->StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.domain = createDomainInfo("region-abc", "zone-123");
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -154,10 +157,11 @@ TEST_P(MasterAPITest, GetAgents)
   Future<SlaveRegisteredMessage> agentRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.hostname = "host";
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.hostname = "host";
+  slaveFlags.domain = createDomainInfo("region-xyz", "zone-456");
 
-  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
 
   AWAIT_READY(agentRegisteredMessage);
@@ -179,6 +183,7 @@ TEST_P(MasterAPITest, GetAgents)
       v1Response->get_agents().agents(0);
 
   ASSERT_EQ("host", v1Agent.agent_info().hostname());
+  ASSERT_EQ(evolve(slaveFlags.domain.get()), v1Agent.agent_info().domain());
   ASSERT_EQ(agent.get()->pid, v1Agent.pid());
   ASSERT_TRUE(v1Agent.active());
   ASSERT_EQ(MESOS_VERSION, v1Agent.version());
@@ -930,7 +935,10 @@ TEST_P(MasterAPITest, GetRoles)
 
 TEST_P(MasterAPITest, GetMaster)
 {
-  Try<Owned<cluster::Master>> master = this->StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.domain = createDomainInfo("region-abc", "zone-123");
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   v1::master::Call v1Call;
@@ -944,8 +952,12 @@ TEST_P(MasterAPITest, GetMaster)
   AWAIT_READY(v1Response);
   ASSERT_TRUE(v1Response->IsInitialized());
   ASSERT_EQ(v1::master::Response::GET_MASTER, v1Response->type());
-  ASSERT_EQ(master.get()->getMasterInfo().ip(),
-            v1Response->get_master().master_info().ip());
+
+  const mesos::v1::MasterInfo& masterInfo =
+    v1Response->get_master().master_info();
+
+  ASSERT_EQ(evolve(masterFlags.domain.get()), masterInfo.domain());
+  ASSERT_EQ(master.get()->getMasterInfo().ip(), masterInfo.ip());
 }
 
 
@@ -3439,6 +3451,7 @@ TEST_P(AgentAPITest, GetAgent)
 
   slave::Flags flags = CreateSlaveFlags();
   flags.hostname = "host";
+  flags.domain = createDomainInfo("region-xyz", "zone-456");
 
   StandaloneMasterDetector detector;
   Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector, flags);
@@ -3461,8 +3474,11 @@ TEST_P(AgentAPITest, GetAgent)
   AWAIT_READY(v1Response);
   ASSERT_TRUE(v1Response->IsInitialized());
   ASSERT_EQ(v1::agent::Response::GET_AGENT, v1Response->type());
-  ASSERT_EQ(flags.hostname,
-            v1Response->get_agent().agent_info().hostname());
+
+  const mesos::v1::AgentInfo& agentInfo = v1Response->get_agent().agent_info();
+
+  ASSERT_EQ(flags.hostname, agentInfo.hostname());
+  ASSERT_EQ(evolve(flags.domain.get()), agentInfo.domain());
 }
 
 

@@ -339,7 +339,8 @@ bool operator==(const MasterInfo& left, const MasterInfo& right)
     left.port() == right.port() &&
     left.pid() == right.pid() &&
     left.hostname() == right.hostname() &&
-    left.version() == right.version();
+    left.version() == right.version() &&
+    left.domain() == right.domain();
 }
 
 
@@ -385,7 +386,8 @@ bool operator==(const AgentInfo& left, const AgentInfo& right)
     Resources(left.resources()) == Resources(right.resources()) &&
     Attributes(left.attributes()) == Attributes(right.attributes()) &&
     left.id() == right.id() &&
-    left.port() == right.port();
+    left.port() == right.port() &&
+    left.domain() == right.domain();
 }
 
 

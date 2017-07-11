@@ -358,6 +358,10 @@ Master::Master(
   info_.mutable_address()->set_ip(stringify(self().address.ip));
   info_.mutable_address()->set_port(self().address.port);
   info_.mutable_address()->set_hostname(hostname);
+
+  if (flags.domain.isSome()) {
+    info_.mutable_domain()->CopyFrom(flags.domain.get());
+  }
 }
 
 

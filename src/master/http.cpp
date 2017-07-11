@@ -161,6 +161,10 @@ static void json(JSON::ObjectWriter* writer, const MasterInfo& info)
   writer->field("pid", info.pid());
   writer->field("port", info.port());
   writer->field("hostname", info.hostname());
+
+  if (info.has_domain()) {
+    writer->field("domain", info.domain());
+  }
 }
 
 
@@ -170,6 +174,10 @@ static void json(JSON::ObjectWriter* writer, const SlaveInfo& slaveInfo)
   writer->field("hostname", slaveInfo.hostname());
   writer->field("port", slaveInfo.port());
   writer->field("attributes", Attributes(slaveInfo.attributes()));
+
+  if (slaveInfo.has_domain()) {
+    writer->field("domain", slaveInfo.domain());
+  }
 }
 
 namespace internal {
@@ -2827,6 +2835,10 @@ Future<Response> Master::Http::state(
         writer->field("activated_slaves", master->_slaves_active());
         writer->field("deactivated_slaves", master->_slaves_inactive());
         writer->field("unreachable_slaves", master->_slaves_unreachable());
+
+        if (master->info().has_domain()) {
+          writer->field("domain", master->info().domain());
+        }
 
         // TODO(haosdent): Deprecated this in favor of `leader_info` below.
         if (master->leader.isSome()) {

@@ -7476,6 +7476,85 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
   driver.join();
 }
 
+
+// This test checks that if an agent is shutdown gracefully, then its
+// domain is configured and the agent is restarted, the agent restarts
+// successfully. Note that shutting down the agent gracefully (killing
+// all tasks) is necessary, because changing the agent's domain is an
+// incompatible change to its SlaveInfo.
+TEST_F(SlaveTest, ChangeDomain)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.domain = createDomainInfo("region-abc", "zone-123");
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage1 =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave1);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(slaveRegisteredMessage1);
+
+  // Gracefully shutdown the agent.
+  slave1.get()->shutdown();
+
+  // Restart the agent with a domain. We use the same `slave::Flags`,
+  // so the new instance of the agent uses the same `work_dir`.
+  const string AGENT_REGION = "region-abc";
+  const string AGENT_ZONE = "zone-456";
+
+  slaveFlags.domain = createDomainInfo(AGENT_REGION, AGENT_ZONE);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave2);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(slaveRegisteredMessage2);
+
+  // The agent should be assigned a new AgentID.
+  EXPECT_NE(slaveRegisteredMessage1->slave_id(),
+            slaveRegisteredMessage2->slave_id());
+
+  // Check that the new agent domain is correctly reflected in the
+  // master's HTTP endpoints.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "slaves",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    JSON::Array slaves = parse->values["slaves"].as<JSON::Array>();
+    ASSERT_EQ(1u, slaves.values.size());
+
+    Result<JSON::String> agentRegion = parse->find<JSON::String>(
+        "slaves[0].domain.fault_domain.region.name");
+    Result<JSON::String> agentZone = parse->find<JSON::String>(
+        "slaves[0].domain.fault_domain.zone.name");
+
+    EXPECT_SOME_EQ(JSON::String(AGENT_REGION), agentRegion);
+    EXPECT_SOME_EQ(JSON::String(AGENT_ZONE), agentZone);
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
