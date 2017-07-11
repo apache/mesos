@@ -727,45 +727,74 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
     string target = path::join(info->directory, containerPath);
 
     if (os::exists(target)) {
-      // NOTE: This is possible because 'info->resources' will be
-      // reset when slave restarts and recovers. When the slave calls
-      // 'containerizer->update' after the executor re-registers,
-      // we'll try to re-mount all the already mounted volumes.
+      // NOTE: There are two scenarios that we may have the mount
+      // target existed:
+      // 1. This is possible because 'info->resources' will be reset
+      //    when slave restarts and recovers. When the slave calls
+      //    'containerizer->update' after the executor re-registers,
+      //    we'll try to re-mount all the already mounted volumes.
+      // 2. There may be multiple references to the persistent
+      //    volume's mount target. E.g., a host volume and a
+      //    persistent volume are both specified, and the source
+      //    of the host volume is the same as the container path
+      //    of the persistent volume.
 
-      // TODO(jieyu): Check the source of the mount matches the entry
-      // with the same target in the mount table if one can be found.
-      // If not, mount the persistent volume as we did below. This is
+      // Check the source of the mount matches the entry with the
+      // same target in the mount table if one can be found. If
+      // not, mount the persistent volume as we did below. This is
       // possible because the slave could crash after it unmounts the
       // volume but before it is able to delete the mount point.
-    } else {
-      Try<Nothing> mkdir = os::mkdir(target);
-      if (mkdir.isError()) {
-        return Failure(
-            "Failed to create persistent volume mount point at '" +
-            target + "': " + mkdir.error());
+      Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+      if (table.isError()) {
+        return Failure("Failed to get mount table: " + table.error());
       }
 
-      LOG(INFO) << "Mounting '" << source << "' to '" << target
-                << "' for persistent volume " << resource
-                << " of container " << containerId;
+      // Check a particular persistent volume is mounted or not.
+      bool volumeMounted = false;
 
-      Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, nullptr);
+      foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
+        // TODO(gilbert): Check source of the mount matches the entry's
+        // root. Note that the root is relative to the root of its parent
+        // mount. See:
+        // http://man7.org/linux/man-pages/man5/proc.5.html
+        if (target == entry.target) {
+          volumeMounted = true;
+          break;
+        }
+      }
+
+      if (volumeMounted) {
+        continue;
+      }
+    }
+
+    Try<Nothing> mkdir = os::mkdir(target);
+    if (mkdir.isError()) {
+      return Failure(
+          "Failed to create persistent volume mount point at '" +
+          target + "': " + mkdir.error());
+    }
+
+    LOG(INFO) << "Mounting '" << source << "' to '" << target
+              << "' for persistent volume " << resource
+              << " of container " << containerId;
+
+    Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, nullptr);
+    if (mount.isError()) {
+      return Failure(
+          "Failed to mount persistent volume from '" +
+          source + "' to '" + target + "': " + mount.error());
+    }
+
+    // If the mount needs to be read-only, do a remount.
+    if (resource.disk().volume().mode() == Volume::RO) {
+      mount = fs::mount(
+          None(), target, None(), MS_BIND | MS_RDONLY | MS_REMOUNT, nullptr);
+
       if (mount.isError()) {
         return Failure(
-            "Failed to mount persistent volume from '" +
+            "Failed to remount persistent volume as read-only from '" +
             source + "' to '" + target + "': " + mount.error());
-      }
-
-      // If the mount needs to be read-only, do a remount.
-      if (resource.disk().volume().mode() == Volume::RO) {
-        mount = fs::mount(
-            None(), target, None(), MS_BIND | MS_RDONLY | MS_REMOUNT, nullptr);
-
-        if (mount.isError()) {
-          return Failure(
-              "Failed to remount persistent volume as read-only from '" +
-              source + "' to '" + target + "': " + mount.error());
-        }
       }
     }
   }
