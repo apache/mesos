@@ -263,6 +263,14 @@ inline bool operator!=(const DurationInfo& left, const DurationInfo& right)
 }
 
 
+inline bool operator!=(
+    const DomainInfo::FaultDomain::RegionInfo& left,
+    const DomainInfo::FaultDomain::RegionInfo& right)
+{
+  return left.name() != right.name();
+}
+
+
 inline bool operator<(const ContainerID& left, const ContainerID& right)
 {
   return left.value() < right.value();

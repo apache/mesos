@@ -2180,6 +2180,35 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
     if (wasElected) {
       EXIT(EXIT_FAILURE) << "Lost leadership... committing suicide!";
     }
+
+    // If this master and the current leader both have a configured
+    // domain and the current leader is located in a different region,
+    // exit with an error message: this indicates a configuration
+    // error, since all masters must be in the same region.
+    if (leader->has_domain() && info_.has_domain()) {
+      const DomainInfo& leaderDomain = leader->domain();
+      const DomainInfo& selfDomain = info_.domain();
+
+      // We currently reject configured domains without fault domains,
+      // but that might change in the future. For compatibility with
+      // future versions of Mesos, we treat a master with a configured
+      // domain but no fault domain as equivalent to a master with no
+      // configured domain.
+      if (leaderDomain.has_fault_domain() && selfDomain.has_fault_domain()) {
+        const DomainInfo::FaultDomain::RegionInfo& leaderRegion =
+          leaderDomain.fault_domain().region();
+        const DomainInfo::FaultDomain::RegionInfo& selfRegion =
+          selfDomain.fault_domain().region();
+
+        if (leaderRegion != selfRegion) {
+          EXIT(EXIT_FAILURE) << "Leading master uses domain "
+                             << leaderDomain << "; this master is "
+                             << "configured to use domain "
+                             << selfDomain << "; all masters in the "
+                             << "same cluster must use the same region";
+        }
+      }
+    }
   }
 
   // Keep detecting.
