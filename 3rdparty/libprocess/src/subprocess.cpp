@@ -169,8 +169,10 @@ Subprocess::ChildHook Subprocess::ChildHook::SUPERVISOR()
 
       // Block until the child process finishes.
       int status = 0;
-      if (waitpid(pid, &status, 0) == -1) {
-        abort();
+      while (waitpid(pid, &status, 0) == -1) {
+        if (errno != EINTR) {
+          abort();
+        }
       }
 
       // Forward the exit status if the child process exits normally.
