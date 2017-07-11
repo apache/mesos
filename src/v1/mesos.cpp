@@ -467,6 +467,12 @@ ostream& operator<<(ostream& stream, const ContainerInfo& containerInfo)
 }
 
 
+ostream& operator<<(ostream& stream, const DomainInfo& domainInfo)
+{
+  return stream << JSON::protobuf(domainInfo);
+}
+
+
 ostream& operator<<(ostream& stream, const ExecutorID& executorId)
 {
   return stream << executorId.value();

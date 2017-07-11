@@ -559,6 +559,12 @@ ostream& operator<<(ostream& stream, const ContainerInfo& containerInfo)
 }
 
 
+ostream& operator<<(ostream& stream, const DomainInfo& domainInfo)
+{
+  return stream << JSON::protobuf(domainInfo);
+}
+
+
 ostream& operator<<(ostream& stream, const Environment& environment)
 {
   return stream << JSON::protobuf(environment);

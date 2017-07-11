@@ -175,6 +175,36 @@ inline bool operator==(const TaskID& left, const std::string& right)
 }
 
 
+inline bool operator==(
+    const DomainInfo::FaultDomain::RegionInfo& left,
+    const DomainInfo::FaultDomain::RegionInfo& right)
+{
+  return left.name() == right.name();
+}
+
+
+inline bool operator==(
+    const DomainInfo::FaultDomain::ZoneInfo& left,
+    const DomainInfo::FaultDomain::ZoneInfo& right)
+{
+  return left.name() == right.name();
+}
+
+
+inline bool operator==(
+    const DomainInfo::FaultDomain& left,
+    const DomainInfo::FaultDomain& right)
+{
+  return left.region() == right.region() && left.zone() == right.zone();
+}
+
+
+inline bool operator==(const DomainInfo& left, const DomainInfo& right)
+{
+  return left.fault_domain() == right.fault_domain();
+}
+
+
 /**
  * For machines to match, both the `hostname` and `ip` must be equivalent.
  * Hostname is not case sensitive, so it is lowercased before comparison.
@@ -294,6 +324,9 @@ std::ostream& operator<<(std::ostream& stream, const ContainerID& containerId);
 std::ostream& operator<<(
     std::ostream& stream,
     const ContainerInfo& containerInfo);
+
+
+std::ostream& operator<<(std::ostream& stream, const DomainInfo& domainInfo);
 
 
 std::ostream& operator<<(std::ostream& stream, const Environment& environment);
