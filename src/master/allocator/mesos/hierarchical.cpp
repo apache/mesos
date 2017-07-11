@@ -150,13 +150,15 @@ void HierarchicalAllocatorProcess::initialize(
              const hashmap<SlaveID, UnavailableResources>&)>&
       _inverseOfferCallback,
     const Option<set<string>>& _fairnessExcludeResourceNames,
-    bool _filterGpuResources)
+    bool _filterGpuResources,
+    const Option<DomainInfo>& _domain)
 {
   allocationInterval = _allocationInterval;
   offerCallback = _offerCallback;
   inverseOfferCallback = _inverseOfferCallback;
   fairnessExcludeResourceNames = _fairnessExcludeResourceNames;
   filterGpuResources = _filterGpuResources;
+  domain = _domain;
   initialized = true;
   paused = false;
 
@@ -559,6 +561,10 @@ void HierarchicalAllocatorProcess::addSlave(
   slave.activated = true;
   slave.hostname = slaveInfo.hostname();
   slave.capabilities = protobuf::slave::Capabilities(capabilities);
+
+  if (slaveInfo.has_domain()) {
+    slave.domain = slaveInfo.domain();
+  }
 
   // NOTE: We currently implement maintenance in the allocator to be able to
   // leverage state and features such as the FrameworkSorter and OfferFilter.
@@ -1599,6 +1605,12 @@ void HierarchicalAllocatorProcess::__allocate()
           continue;
         }
 
+        // If this framework is not region-aware, don't offer it
+        // resources on agents in remote regions.
+        if (!framework.capabilities.regionAware && isRemoteSlave(slave)) {
+          continue;
+        }
+
         // Calculate the currently available resources on the slave, which
         // is the difference in non-shared resources between total and
         // allocated, plus all shared resources on the agent (if applicable).
@@ -1775,6 +1787,12 @@ void HierarchicalAllocatorProcess::__allocate()
         if (filterGpuResources &&
             !framework.capabilities.gpuResources &&
             slave.total.gpus().getOrElse(0) > 0) {
+          continue;
+        }
+
+        // If this framework is not region-aware, don't offer it
+        // resources on agents in remote regions.
+        if (!framework.capabilities.regionAware && isRemoteSlave(slave)) {
           continue;
         }
 
@@ -2363,6 +2381,40 @@ bool HierarchicalAllocatorProcess::updateSlaveTotal(
   quotaRoleSorter->add(slaveId, total.nonRevocable());
 
   return true;
+}
+
+
+bool HierarchicalAllocatorProcess::isRemoteSlave(const Slave& slave) const
+{
+  // If the slave does not have a configured domain, assume it is not remote.
+  if (slave.domain.isNone()) {
+    return false;
+  }
+
+  // The current version of the Mesos agent refuses to startup if a
+  // domain is specified without also including a fault domain. That
+  // might change in the future, if more types of domains are added.
+  // For forward compatibility, we treat agents with a configured
+  // domain but no fault domain as having no configured domain.
+  if (!slave.domain->has_fault_domain()) {
+    return false;
+  }
+
+  // If the slave has a configured domain (and it has been allowed to
+  // register with the master), the master must also have a configured
+  // domain.
+  CHECK(domain.isSome());
+
+  // The master will not startup if configured with a domain but no
+  // fault domain.
+  CHECK(domain->has_fault_domain());
+
+  const DomainInfo::FaultDomain::RegionInfo& masterRegion =
+    domain->fault_domain().region();
+  const DomainInfo::FaultDomain::RegionInfo& slaveRegion =
+    slave.domain->fault_domain().region();
+
+  return masterRegion != slaveRegion;
 }
 
 } // namespace internal {

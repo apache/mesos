@@ -768,7 +768,8 @@ void Master::initialize()
       defer(self(), &Master::offer, lambda::_1, lambda::_2),
       defer(self(), &Master::inverseOffer, lambda::_1, lambda::_2),
       flags.fair_sharing_excluded_resource_names,
-      flags.filter_gpu_resources);
+      flags.filter_gpu_resources,
+      flags.domain);
 
   // Parse the whitelist. Passing Allocator::updateWhitelist()
   // callback is safe because we shut down the whitelistWatcher in

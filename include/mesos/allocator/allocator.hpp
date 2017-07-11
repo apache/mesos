@@ -94,7 +94,8 @@ public:
         inverseOfferCallback,
       const Option<std::set<std::string>>&
         fairnessExcludeResourceNames = None(),
-      bool filterGpuResources = true) = 0;
+      bool filterGpuResources = true,
+      const Option<DomainInfo>& domain = None()) = 0;
 
   /**
    * Informs the allocator of the recovered state from the master.

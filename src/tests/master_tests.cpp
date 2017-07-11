@@ -7362,6 +7362,161 @@ TEST_F(MasterTest, MultiRoleSchedulerUnsubscribeFromRole)
 }
 
 
+// This test checks that if the agent and master are configured with
+// domains that specify the same region (but different zones), the
+// agent is allowed to register and its resources are offered to
+// frameworks as usual.
+TEST_F(MasterTest, AgentDomainSameRegion)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.domain = createDomainInfo("region-abc", "zone-123");
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.domain = createDomainInfo("region-abc", "zone-456");
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(slaveRegisteredMessage);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<MasterInfo> masterInfo;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<2>(&masterInfo));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(masterInfo);
+  EXPECT_EQ(masterFlags.domain, masterInfo->domain());
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test checks that if the agent and master are configured with
+// domains that specify different regions, the agent is allowed to
+// register but its resources are only offered to region-aware
+// frameworks. We also check that tasks can be launched in remote
+// regions.
+TEST_F(MasterTest, AgentDomainDifferentRegion)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.domain = createDomainInfo("region-abc", "zone-123");
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.domain = createDomainInfo("region-xyz", "zone-123");
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Launch a non-region-aware scheduler. It should NOT receive any
+  // resource offers for `slave`.
+  {
+    MockScheduler sched;
+    MesosSchedulerDriver driver(
+        &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+    Future<Nothing> registered;
+    EXPECT_CALL(sched, registered(&driver, _, _))
+      .WillOnce(FutureSatisfy(&registered));
+
+    // We do not expect to get offered any resources.
+    Future<vector<Offer>> offers;
+    EXPECT_CALL(sched, resourceOffers(&driver, _))
+      .Times(0);
+
+    driver.start();
+
+    AWAIT_READY(registered);
+
+    // Trigger a batch allocation, for good measure.
+    Clock::advance(masterFlags.allocation_interval);
+    Clock::settle();
+
+    driver.stop();
+    driver.join();
+  }
+
+  // Launch a region-aware scheduler. It should receive an offer for `slave`.
+  {
+    FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+    frameworkInfo.add_capabilities()->set_type(
+        FrameworkInfo::Capability::REGION_AWARE);
+
+    MockScheduler sched;
+    MesosSchedulerDriver driver(
+        &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+    EXPECT_CALL(sched, registered(&driver, _, _));
+
+    Future<vector<Offer>> offers;
+    EXPECT_CALL(sched, resourceOffers(&driver, _))
+      .WillOnce(FutureArg<1>(&offers));
+
+    driver.start();
+
+    AWAIT_READY(offers);
+    ASSERT_FALSE(offers->empty());
+
+    Offer offer = offers->front();
+
+    // Check that we can launch a task in a remote region.
+    TaskInfo task = createTask(offer, "sleep 60");
+
+    Future<TaskStatus> runningStatus;
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillOnce(FutureArg<1>(&runningStatus));
+
+    driver.launchTasks(offer.id(), {task});
+
+    AWAIT_READY(runningStatus);
+    EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+    EXPECT_EQ(task.task_id(), runningStatus->task_id());
+
+    driver.stop();
+    driver.join();
+  }
+
+  // Resume the clock so that executor/task cleanup happens correctly.
+  //
+  // TODO(neilc): Replace this with more fine-grained clock advancement.
+  Clock::resume();
+}
+
+
 // This test checks that if the master is configured with a domain but
 // the agent is not, the agent is allowed to register and its
 // resources are offered to frameworks as usual.
