@@ -168,6 +168,7 @@ public:
   std::string xfs_project_range;
 #endif
   bool http_command_executor;
+  Option<DomainInfo> domain;
 
   // The following flags are executable specific (e.g., since we only
   // have one instance of libprocess per execution, we only want to

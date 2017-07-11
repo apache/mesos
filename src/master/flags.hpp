@@ -96,6 +96,7 @@ public:
   Duration registry_gc_interval;
   Duration registry_max_agent_age;
   size_t registry_max_agent_count;
+  Option<DomainInfo> domain;
 
   // The following flags are executable specific (e.g., since we only
   // have one instance of libprocess per execution, we only want to

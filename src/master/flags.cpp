@@ -641,4 +641,40 @@ mesos::internal::master::Flags::Flags()
       "Optional IP discovery binary: if set, it is expected to emit\n"
       "the IP address which the master will try to bind to.\n"
       "Cannot be used in conjunction with `--ip`.");
+
+  add(&Flags::domain,
+      "domain",
+      "Domain that the master belongs to. Mesos currently only supports\n"
+      "fault domains, which identify groups of hosts with similar failure\n"
+      "characteristics. A fault domain consists of a region and a zone.\n"
+      "All masters in the same Mesos cluster must be in the same region\n"
+      "(they can be in different zones). This value can be specified as\n"
+      "either a JSON-formatted string or a file path containing JSON.\n"
+      "\n"
+      "Example:\n"
+      "{\n"
+      "  \"fault_domain\":\n"
+      "    {\n"
+      "      \"region\":\n"
+      "        {\n"
+      "          \"name\": \"aws-us-east-1\"\n"
+      "        },\n"
+      "      \"zone\":\n"
+      "        {\n"
+      "          \"name\": \"aws-us-east-1a\"\n"
+      "        }\n"
+      "    }\n"
+      "}",
+      [](const Option<DomainInfo>& domain) -> Option<Error> {
+        if (domain.isSome()) {
+          // Don't let the user specify a domain without a fault
+          // domain. This is allowed by the protobuf spec (for forward
+          // compatibility with possible future changes), but is not a
+          // useful configuration right now.
+          if (!domain->has_fault_domain()) {
+            return Error("`domain` must define `fault_domain`");
+          }
+        }
+        return None();
+      });
 }

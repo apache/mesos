@@ -1134,4 +1134,41 @@ mesos::internal::slave::Flags::Flags()
       "NOTE: Currently Mesos doesn't listen on IPv6 sockets and hence\n"
       "this IPv6 address is only used to advertise IPv6 addresses for\n"
       "containers running on the host network.\n");
+
+  add(&Flags::domain,
+      "domain",
+      "Domain that the agent belongs to. Mesos currently only supports\n"
+      "fault domains, which identify groups of hosts with similar failure\n"
+      "characteristics. A fault domain consists of a region and a zone.\n"
+      "If this agent is placed in a different region than the master, it\n"
+      "will not appear in resource offers to frameworks that have not\n"
+      "enabled the REGION_AWARE capability. This value can be specified\n"
+      "as either a JSON-formatted string or a file path containing JSON.\n"
+      "\n"
+      "Example:\n"
+      "{\n"
+      "  \"fault_domain\":\n"
+      "    {\n"
+      "      \"region\":\n"
+      "        {\n"
+      "          \"name\": \"aws-us-east-1\"\n"
+      "        },\n"
+      "      \"zone\":\n"
+      "        {\n"
+      "          \"name\": \"aws-us-east-1a\"\n"
+      "        }\n"
+      "    }\n"
+      "}",
+      [](const Option<DomainInfo>& domain) -> Option<Error> {
+        if (domain.isSome()) {
+          // Don't let the user specify a domain without a fault
+          // domain. This is allowed by the protobuf spec (for forward
+          // compatibility with possible future changes), but is not a
+          // useful configuration right now.
+          if (!domain->has_fault_domain()) {
+            return Error("`domain` must define `fault_domain`");
+          }
+        }
+        return None();
+      });
 }

@@ -112,6 +112,36 @@ Example:
 </tr>
 <tr>
   <td>
+    --domain=VALUE
+  </td>
+  <td>
+Domain that the master or agent belongs to. Mesos currently only supports
+fault domains, which identify groups of hosts with similar failure
+characteristics. A fault domain consists of a region and a zone. All masters
+in the same Mesos cluster must be in the same region (they can be in
+different zones). Agents configured to use a different region than the
+master's region will not appear in resource offers to frameworks that have
+not enabled the <code>REGION_AWARE</code> capability. This value can be
+specified as either a JSON-formatted string or a file path containing JSON.
+<p/>
+Example:
+<pre><code>{
+  "fault_domain":
+    {
+      "region":
+        {
+          "name": "aws-us-east-1"
+        },
+      "zone":
+        {
+          "name": "aws-us-east-1a"
+        }
+    }
+}</code></pre>
+  </td>
+</tr>
+<tr>
+  <td>
     --[no-]help
   </td>
   <td>

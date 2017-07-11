@@ -214,6 +214,18 @@ inline Try<mesos::RLimitInfo> parse(const std::string& value)
 
 
 template <>
+inline Try<mesos::DomainInfo> parse(const std::string& value)
+{
+  Try<JSON::Object> json = parse<JSON::Object>(value);
+  if (json.isError()) {
+    return Error(json.error());
+  }
+
+  return protobuf::parse<mesos::DomainInfo>(json.get());
+}
+
+
+template <>
 inline Try<mesos::FrameworkID> parse(const std::string& value)
 {
   mesos::FrameworkID frameworkId;
