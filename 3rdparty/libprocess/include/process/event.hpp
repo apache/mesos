@@ -86,30 +86,25 @@ struct Event
 
 struct MessageEvent : Event
 {
-  explicit MessageEvent(Message* _message)
-    : message(_message) {}
+  explicit MessageEvent(Message&& _message)
+    : message(std::move(_message)) {}
 
-  MessageEvent(const MessageEvent& that)
-    : message(that.message == nullptr ? nullptr : new Message(*that.message)) {}
+  MessageEvent(const MessageEvent& that) = default;
+  MessageEvent(MessageEvent&& that) = default;
 
-  virtual ~MessageEvent()
-  {
-    delete message;
-  }
+  // Keep MessageEvent not assignable even though we made it
+  // copyable.
+  // Note that we are violating the "rule of three" here but it helps
+  // keep the fields const.
+  MessageEvent& operator=(const MessageEvent&) = delete;
+  MessageEvent& operator=(MessageEvent&&) = delete;
 
   virtual void visit(EventVisitor* visitor) const
   {
     visitor->visit(*this);
   }
 
-  Message* const message;
-
-private:
-  // Keep MessageEvent not assignable even though we made it
-  // copyable.
-  // Note that we are violating the "rule of three" here but it helps
-  // keep the fields const.
-  MessageEvent& operator=(const MessageEvent&);
+  const Message message;
 };
 
 

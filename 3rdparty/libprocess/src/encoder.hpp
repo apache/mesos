@@ -101,54 +101,42 @@ private:
 class MessageEncoder : public DataEncoder
 {
 public:
-  MessageEncoder(Message* _message)
-    : DataEncoder(encode(_message)), message(_message) {}
+  MessageEncoder(const Message& message)
+    : DataEncoder(encode(message)) {}
 
-  virtual ~MessageEncoder()
-  {
-    if (message != nullptr) {
-      delete message;
-    }
-  }
-
-  static std::string encode(Message* message)
+  static std::string encode(const Message& message)
   {
     std::ostringstream out;
 
-    if (message != nullptr) {
-      out << "POST ";
-      // Nothing keeps the 'id' component of a PID from being an empty
-      // string which would create a malformed path that has two
-      // '//' unless we check for it explicitly.
-      // TODO(benh): Make the 'id' part of a PID optional so when it's
-      // missing it's clear that we're simply addressing an ip:port.
-      if (message->to.id != "") {
-        out << "/" << message->to.id;
-      }
+    out << "POST ";
+    // Nothing keeps the 'id' component of a PID from being an empty
+    // string which would create a malformed path that has two
+    // '//' unless we check for it explicitly.
+    // TODO(benh): Make the 'id' part of a PID optional so when it's
+    // missing it's clear that we're simply addressing an ip:port.
+    if (message.to.id != "") {
+      out << "/" << message.to.id;
+    }
 
-      out << "/" << message->name << " HTTP/1.1\r\n"
-          << "User-Agent: libprocess/" << message->from << "\r\n"
-          << "Libprocess-From: " << message->from << "\r\n"
-          << "Connection: Keep-Alive\r\n"
-          << "Host: \r\n";
+    out << "/" << message.name << " HTTP/1.1\r\n"
+        << "User-Agent: libprocess/" << message.from << "\r\n"
+        << "Libprocess-From: " << message.from << "\r\n"
+        << "Connection: Keep-Alive\r\n"
+        << "Host: \r\n";
 
-      if (message->body.size() > 0) {
-        out << "Transfer-Encoding: chunked\r\n\r\n"
-            << std::hex << message->body.size() << "\r\n";
-        out.write(message->body.data(), message->body.size());
-        out << "\r\n"
-            << "0\r\n"
-            << "\r\n";
-      } else {
-        out << "\r\n";
-      }
+    if (message.body.size() > 0) {
+      out << "Transfer-Encoding: chunked\r\n\r\n"
+          << std::hex << message.body.size() << "\r\n";
+      out.write(message.body.data(), message.body.size());
+      out << "\r\n"
+          << "0\r\n"
+          << "\r\n";
+    } else {
+      out << "\r\n";
     }
 
     return out.str();
   }
-
-private:
-  Message* message;
 };
 
 

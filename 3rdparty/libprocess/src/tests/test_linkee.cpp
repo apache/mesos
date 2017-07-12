@@ -187,7 +187,7 @@ int main(int argc, char** argv)
       message.from = UPID("(1)", address);
       message.to = parent;
 
-      outgoing->send(MessageEncoder::encode(&message));
+      outgoing->send(MessageEncoder::encode(message));
     });
 
   // Now sit and accept links until the linkee is killed.

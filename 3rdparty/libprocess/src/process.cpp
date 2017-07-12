@@ -426,7 +426,7 @@ public:
   void send(const Response& response,
             const Request& request,
             const Socket& socket);
-  void send(Message* message,
+  void send(Message&& message,
             const SocketImpl::Kind& kind = SocketImpl::DEFAULT_KIND());
 
   Encoder* next(int_fd s);
@@ -467,7 +467,7 @@ private:
   void send_connect(
       const Future<Nothing>& future,
       Socket socket,
-      Message* message);
+      Message&& message);
 
   // Collection of all active sockets (both inbound and outbound).
   hashmap<int_fd, Socket> sockets;
@@ -740,28 +740,27 @@ void Clock::settle()
 }
 
 
-static Message* encode(const UPID& from,
-                       const UPID& to,
-                       const string& name,
-                       const string& data = "")
+static Message encode(
+    const UPID& from,
+    const UPID& to,
+    const string& name,
+    const char* data,
+    size_t length)
 {
-  Message* message = new Message();
-  message->from = from;
-  message->to = to;
-  message->name = name;
-  message->body = data;
+  Message message{name, from, to, string(data, length)};
   return message;
 }
 
 
-static void transport(Message* message, ProcessBase* sender = nullptr)
+static void transport(Message&& message, ProcessBase* sender = nullptr)
 {
-  if (message->to.address == __address__) {
+  if (message.to.address == __address__) {
     // Local message.
-    process_manager->deliver(message->to, new MessageEvent(message), sender);
+    MessageEvent* event = new MessageEvent(std::move(message));
+    process_manager->deliver(event->message.to, event, sender);
   } else {
     // Remote message.
-    socket_manager->send(message);
+    socket_manager->send(std::move(message));
   }
 }
 
@@ -802,7 +801,7 @@ static Future<Owned<Request>> convert(Owned<Request>&& pipeRequest)
 }
 
 
-static Future<Message*> parse(const Request& request)
+static Future<MessageEvent*> parse(const Request& request)
 {
   // TODO(benh): Do better error handling (to deal with a malformed
   // libprocess message, malicious or otherwise).
@@ -856,13 +855,13 @@ static Future<Message*> parse(const Request& request)
 
   return reader.readAll()
     .then([from, name, to](const string& body) {
-      Message* message = new Message();
-      message->name = name;
-      message->from = from.get();
-      message->to = to;
-      message->body = body;
+      Message message;
+      message.name = name;
+      message.from = from.get();
+      message.to = to;
+      message.body = body;
 
-      return message;
+      return new MessageEvent(std::move(message));
     });
 }
 
@@ -2192,12 +2191,12 @@ void SocketManager::send(
 void SocketManager::send_connect(
     const Future<Nothing>& future,
     Socket socket,
-    Message* message)
+    Message&& message)
 {
   if (future.isDiscarded() || future.isFailed()) {
     if (future.isFailed()) {
-      VLOG(1) << "Failed to send '" << message->name << "' to '"
-              << message->to.address << "', connect: " << future.failure();
+      VLOG(1) << "Failed to send '" << message.name << "' to '"
+              << message.to.address << "', connect: " << future.failure();
     }
 
     // Check if SSL is enabled, and whether we allow a downgrade to
@@ -2219,7 +2218,6 @@ void SocketManager::send_connect(
         if (create.isError()) {
           VLOG(1) << "Failed to link, create socket: " << create.error();
           socket_manager->close(socket);
-          delete message;
           return;
         }
 
@@ -2234,13 +2232,13 @@ void SocketManager::send_connect(
       }
 
       CHECK_SOME(poll_socket);
-      poll_socket.get().connect(message->to.address)
+      poll_socket.get().connect(message.to.address)
         .onAny(lambda::bind(
-            &SocketManager::send_connect,
-            this,
-            lambda::_1,
-            poll_socket.get(),
-            message));
+            // TODO(benh): with C++14 we can use lambda instead of
+            // `std::bind` and capture `message` with a `std::move`.
+            [this, poll_socket](Message& message, const Future<Nothing>& f) {
+              send_connect(f, poll_socket.get(), std::move(message));
+            }, std::move(message), lambda::_1));
 
       // We don't need to 'shutdown()' the socket as it was never
       // connected.
@@ -2250,7 +2248,6 @@ void SocketManager::send_connect(
 
     socket_manager->close(socket);
 
-    delete message;
     return;
   }
 
@@ -2274,11 +2271,9 @@ void SocketManager::send_connect(
 }
 
 
-void SocketManager::send(Message* message, const SocketImpl::Kind& kind)
+void SocketManager::send(Message&& message, const SocketImpl::Kind& kind)
 {
-  CHECK(message != nullptr);
-
-  const Address& address = message->to.address;
+  const Address& address = message.to.address;
 
   Option<Socket> socket = None();
   bool connect = false;
@@ -2315,7 +2310,6 @@ void SocketManager::send(Message* message, const SocketImpl::Kind& kind)
       Try<Socket> create = Socket::create(kind);
       if (create.isError()) {
         VLOG(1) << "Failed to send, create socket: " << create.error();
-        delete message;
         return;
       }
       socket = create.get();
@@ -2340,11 +2334,11 @@ void SocketManager::send(Message* message, const SocketImpl::Kind& kind)
     CHECK_SOME(socket);
     socket->connect(address)
       .onAny(lambda::bind(
-          &SocketManager::send_connect,
-          this,
-          lambda::_1,
-          socket.get(),
-          message));
+            // TODO(benh): with C++14 we can use lambda instead of
+            // `std::bind` and capture `message` with a `std::move`.
+            [this, socket](Message& message, const Future<Nothing>& f) {
+              send_connect(f, socket.get(), std::move(message));
+            }, std::move(message), lambda::_1));
   } else {
     // If we're not connecting and we haven't added the encoder to
     // the 'outgoing' queue then schedule it to be sent.
@@ -2897,7 +2891,7 @@ void ProcessManager::handle(
     // from `SocketManager::finalize()` due to it closing all active sockets
     // during libprocess finalization.
     parse(*request)
-      .onAny([this, socket, request](const Future<Message*>& future) {
+      .onAny([this, socket, request](const Future<MessageEvent*>& future) {
         // Get the HttpProxy pid for this socket.
         PID<HttpProxy> proxy = socket_manager->proxy(socket);
 
@@ -2914,7 +2908,7 @@ void ProcessManager::handle(
           return;
         }
 
-        Message* message = CHECK_NOTNULL(future.get());
+        MessageEvent* event = CHECK_NOTNULL(future.get());
 
         // Verify that the UPID this peer is claiming is on the same IP
         // address the peer is sending from.
@@ -2927,10 +2921,10 @@ void ProcessManager::handle(
             network::convert<Address>(request->client.get());
 
           if (client_ip_address.isError() ||
-              message->from.address.ip != client_ip_address->ip) {
+              event->message.from.address.ip != client_ip_address->ip) {
             Response response = BadRequest(
                 "UPID IP address validation failed: Message from " +
-                stringify(message->from) + " was sent from IP " +
+                stringify(event->message.from) + " was sent from IP " +
                 stringify(request->client.get()));
 
             dispatch(proxy, &HttpProxy::enqueue, response, *request);
@@ -2940,14 +2934,14 @@ void ProcessManager::handle(
                     << ": " << response.body;
 
             delete request;
-            delete message;
+            delete event;
             return;
           }
         }
 
         // TODO(benh): Use the sender PID when delivering in order to
         // capture happens-before timing relationships for testing.
-        bool accepted = deliver(message->to, new MessageEvent(message));
+        bool accepted = deliver(event->message.to, event);
 
         // Only send back an HTTP response if this isn't from libprocess
         // (which we determine by looking at the User-Agent). This is
@@ -3676,7 +3670,7 @@ Future<Response> ProcessManager::__processes__(const Request&)
           JSON::Object object;
           object.values["type"] = "MESSAGE";
 
-          const Message& message = *event.message;
+          const Message& message = event.message;
 
           object.values["name"] = message.name;
           object.values["from"] = string(message.from);
@@ -3798,9 +3792,9 @@ void ProcessBase::inject(
   if (!from)
     return;
 
-  Message* message = encode(from, pid, name, string(data, length));
+  Message message = encode(from, pid, name, data, length);
 
-  enqueue(new MessageEvent(message), true);
+  enqueue(new MessageEvent(std::move(message)), true);
 }
 
 
@@ -3815,22 +3809,22 @@ void ProcessBase::send(
   }
 
   // Encode and transport outgoing message.
-  transport(encode(pid, to, name, string(data, length)), this);
+  transport(encode(pid, to, name, data, length), this);
 }
 
 
 void ProcessBase::visit(const MessageEvent& event)
 {
-  if (handlers.message.count(event.message->name) > 0) {
-    handlers.message[event.message->name](
-        event.message->from,
-        event.message->body);
-  } else if (delegates.count(event.message->name) > 0) {
-    VLOG(1) << "Delegating message '" << event.message->name
-            << "' to " << delegates[event.message->name];
-    Message* message = new Message(*event.message);
-    message->to = delegates[event.message->name];
-    transport(message, this);
+  if (handlers.message.count(event.message.name) > 0) {
+    handlers.message[event.message.name](
+        event.message.from,
+        event.message.body);
+  } else if (delegates.count(event.message.name) > 0) {
+    VLOG(1) << "Delegating message '" << event.message.name
+            << "' to " << delegates[event.message.name];
+    Message message(event.message);
+    message.to = delegates[event.message.name];
+    transport(std::move(message), this);
   }
 }
 
@@ -4205,7 +4199,7 @@ void post(const UPID& to, const string& name, const char* data, size_t length)
   }
 
   // Encode and transport outgoing message.
-  transport(encode(UPID(), to, name, string(data, length)));
+  transport(encode(UPID(), to, name, data, length));
 }
 
 
@@ -4222,7 +4216,7 @@ void post(const UPID& from,
   }
 
   // Encode and transport outgoing message.
-  transport(encode(from, to, name, string(data, length)));
+  transport(encode(from, to, name, data, length));
 }
 
 

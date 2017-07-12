@@ -109,6 +109,32 @@ PromiseArgFieldActionP2<index, Field, process::Promise<T>*> FutureArgField(
 }
 
 
+ACTION_TEMPLATE(PromiseArgNotPointerField,
+                HAS_1_TEMPLATE_PARAMS(int, k),
+                AND_2_VALUE_PARAMS(field, promise))
+{
+  // TODO(benh): Use a shared_ptr for promise to defend against this
+  // action getting invoked more than once (e.g., used via
+  // WillRepeatedly). We won't be able to set it a second time but at
+  // least we won't get a segmentation fault. We could also consider
+  // warning users if they attempted to set it more than once.
+  promise->set(std::get<k>(args).*field);
+  delete promise;
+}
+
+
+template <int index, typename Field, typename T>
+PromiseArgNotPointerFieldActionP2<index, Field, process::Promise<T>*>
+FutureArgNotPointerField(
+    Field field,
+    process::Future<T>* future)
+{
+  process::Promise<T>* promise = new process::Promise<T>();
+  *future = promise->future();
+  return PromiseArgNotPointerField<index>(field, promise);
+}
+
+
 ACTION_P2(PromiseSatisfy, promise, value)
 {
   promise->set(value);
@@ -319,9 +345,9 @@ private:
 MATCHER_P3(MessageMatcher, name, from, to, "")
 {
   const MessageEvent& event = ::std::get<0>(arg);
-  return (testing::Matcher<std::string>(name).Matches(event.message->name) &&
-          testing::Matcher<UPID>(from).Matches(event.message->from) &&
-          testing::Matcher<UPID>(to).Matches(event.message->to));
+  return (testing::Matcher<std::string>(name).Matches(event.message.name) &&
+          testing::Matcher<UPID>(from).Matches(event.message.from) &&
+          testing::Matcher<UPID>(to).Matches(event.message.to));
 }
 
 
@@ -334,11 +360,11 @@ MATCHER_P4(UnionMessageMatcher, message, unionType, from, to, "")
   message_type message;
 
   return (testing::Matcher<std::string>(message.GetTypeName()).Matches(
-              event.message->name) &&
-          message.ParseFromString(event.message->body) &&
+              event.message.name) &&
+          message.ParseFromString(event.message.body) &&
           testing::Matcher<unionType_type>(unionType).Matches(message.type()) &&
-          testing::Matcher<process::UPID>(from).Matches(event.message->from) &&
-          testing::Matcher<process::UPID>(to).Matches(event.message->to));
+          testing::Matcher<process::UPID>(from).Matches(event.message.from) &&
+          testing::Matcher<process::UPID>(to).Matches(event.message.to));
 }
 
 
@@ -440,7 +466,7 @@ Future<Message> FutureMessage(Name name, From from, To to, bool drop = false)
   synchronized (filter->mutex) {
     EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
       .With(MessageMatcher(name, from, to))
-      .WillOnce(testing::DoAll(FutureArgField<0>(
+      .WillOnce(testing::DoAll(FutureArgNotPointerField<0>(
                                    &MessageEvent::message,
                                    &future),
                                testing::Return(drop)))
@@ -462,7 +488,7 @@ Future<process::Message> FutureUnionMessage(
   synchronized (filter->mutex) {
     EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
       .With(UnionMessageMatcher(message, unionType, from, to))
-      .WillOnce(testing::DoAll(FutureArgField<0>(
+      .WillOnce(testing::DoAll(FutureArgNotPointerField<0>(
                                    &MessageEvent::message,
                                    &future),
                                testing::Return(drop)))

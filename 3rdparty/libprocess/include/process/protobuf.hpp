@@ -99,10 +99,10 @@ public:
 protected:
   virtual void visit(const process::MessageEvent& event)
   {
-    if (protobufHandlers.count(event.message->name) > 0) {
-      from = event.message->from; // For 'reply'.
-      protobufHandlers[event.message->name](
-          event.message->from, event.message->body);
+    if (protobufHandlers.count(event.message.name) > 0) {
+      from = event.message.from; // For 'reply'.
+      protobufHandlers[event.message.name](
+          event.message.from, event.message.body);
       from = process::UPID();
     } else {
       process::Process<T>::visit(event);

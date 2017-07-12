@@ -741,7 +741,7 @@ protected:
     AWAIT_ASSERT_READY(event);
 
     // Save the PID of the linkee.
-    pid = event->message->from;
+    pid = event->message.from;
 
     terminate(coordinator);
     wait(coordinator);
@@ -1272,7 +1272,7 @@ TEST(ProcessTest, THREADSAFE_Remote)
   message.from = UPID("sender", sender.get());
   message.to = process.self();
 
-  const string data = MessageEncoder::encode(&message);
+  const string data = MessageEncoder::encode(message);
 
   AWAIT_READY(socket.send(data));
 
