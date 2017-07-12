@@ -149,6 +149,51 @@ TEST_F(MesosContainerizerTest, Launch)
 }
 
 
+TEST_F(MesosContainerizerTest, StandaloneLaunch)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "posix";
+  flags.isolation = "posix/cpu,posix/mem";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Future<bool> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(
+          createCommandInfo("exit 42"),
+          "cpus:1;mem:64",
+          sandbox.get()),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(42, wait.get()->status());
+}
+
+
 TEST_F(MesosContainerizerTest, Destroy)
 {
   slave::Flags flags = CreateSlaveFlags();

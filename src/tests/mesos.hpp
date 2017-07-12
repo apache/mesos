@@ -1420,6 +1420,33 @@ inline mesos::slave::ContainerConfig createContainerConfig(
 }
 
 
+// Helper for creating standalone container configs.
+inline mesos::slave::ContainerConfig createContainerConfig(
+    const CommandInfo& commandInfo,
+    const std::string& resources,
+    const std::string& sandboxDirectory,
+    const Option<ContainerInfo>& containerInfo = None(),
+    const Option<std::string>& user = None())
+{
+  mesos::slave::ContainerConfig containerConfig;
+  containerConfig.mutable_command_info()->CopyFrom(commandInfo);
+  containerConfig.mutable_resources()->CopyFrom(
+      Resources::parse(resources).get());
+
+  containerConfig.set_directory(sandboxDirectory);
+
+  if (user.isSome()) {
+    containerConfig.set_user(user.get());
+  }
+
+  if (containerInfo.isSome()) {
+    containerConfig.mutable_container_info()->CopyFrom(containerInfo.get());
+  }
+
+  return containerConfig;
+}
+
+
 template <typename... Args>
 inline Image createDockerImage(Args&&... args)
 {
