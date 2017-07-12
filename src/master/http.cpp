@@ -3408,7 +3408,7 @@ JSON::Object model(
   } else {
     Role* role = _role.get();
 
-    object.values["resources"] = model(role->resources());
+    object.values["resources"] = model(role->allocatedResources());
 
     {
       JSON::Array array;
@@ -3643,7 +3643,7 @@ Future<Response> Master::Http::getRoles(
         if (master->roles.contains(name)) {
           Role* role_ = master->roles.at(name);
 
-          role.mutable_resources()->CopyFrom(role_->resources());
+          role.mutable_resources()->CopyFrom(role_->allocatedResources());
 
           foreachkey (const FrameworkID& frameworkId, role_->frameworks) {
             role.add_frameworks()->CopyFrom(frameworkId);

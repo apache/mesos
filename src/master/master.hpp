@@ -2883,7 +2883,7 @@ struct Role
     frameworks.erase(framework->id());
   }
 
-  Resources resources() const
+  Resources allocatedResources() const
   {
     Resources resources;
 
