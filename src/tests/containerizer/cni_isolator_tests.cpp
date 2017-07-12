@@ -1732,6 +1732,185 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
   driver.join();
 }
 
+
+class DefaultContainerDNSCniTest
+  : public CniIsolatorTest,
+    public WithParamInterface<string> {};
+
+
+INSTANTIATE_TEST_CASE_P(
+    DefaultContainerDNSInfo,
+    DefaultContainerDNSCniTest,
+    ::testing::Values(
+        // A DNS information for the `__MESOS_TEST__` CNI network.
+        R"~(
+        {
+          "mesos": [
+            {
+              "network_mode": "CNI",
+              "network_name": "__MESOS_TEST__",
+              "dns": {
+                "nameservers": [ "8.8.8.8", "8.8.4.4" ],
+                "domain": "mesos.apache.org",
+                "search": [ "a.mesos.apache.org", "a.mesos.apache.org" ],
+                "options": [ "timeout:3", "attempts:2" ]
+              }
+            }
+          ]
+        })~",
+        // A DNS information with `network_mode == CNI`, but without a network
+        // name, acts as a wildcard match making it the default DNS for any CNI
+        // network not specified in the `--default_container_dns` flag.
+        R"~(
+        {
+          "mesos": [
+            {
+              "network_mode": "CNI",
+              "dns": {
+                "nameservers": [ "8.8.8.8", "8.8.4.4" ],
+                "domain": "mesos.apache.org",
+                "search": [ "a.mesos.apache.org", "a.mesos.apache.org" ],
+                "options": [ "timeout:3", "attempts:2" ]
+              }
+            }
+          ]
+        })~",
+        // Two DNS information, one is specific for `__MESOS_TEST__` CNI
+        // network, the other is the defaule DNS for any CNI network not
+        // specified in the `--default_container_dns` flag.
+        R"~(
+        {
+          "mesos": [
+            {
+              "network_mode": "CNI",
+              "network_name": "__MESOS_TEST__",
+              "dns": {
+                "nameservers": [ "8.8.8.8", "8.8.4.4" ],
+                "domain": "mesos.apache.org",
+                "search": [ "a.mesos.apache.org", "a.mesos.apache.org" ],
+                "options": [ "timeout:3", "attempts:2" ]
+              }
+            },
+            {
+              "network_mode": "CNI",
+              "dns": {
+                "nameservers": [ "8.8.8.9", "8.8.4.5" ],
+                "domain": "mesos1.apache.org",
+                "search": [ "b.mesos.apache.org", "b.mesos.apache.org" ],
+                "options": [ "timeout:9", "attempts:5" ]
+              }
+            }
+          ]
+        })~"));
+
+
+// This test verifies the DNS configuration of the container can be
+// successfully set with the agent flag `--default_container_dns`.
+TEST_P(DefaultContainerDNSCniTest, ROOT_VerifyDefaultDNS)
+{
+  Try<net::IP::Network> hostNetwork = getNonLoopbackIP();
+  ASSERT_SOME(hostNetwork);
+
+  Try<string> mockPlugin = strings::format(
+      R"~(
+      #!/bin/sh
+      echo '{'
+      echo '  "ip4": {'
+      echo '    "ip": "%s/%d"'
+      echo '  }'
+      echo '}'
+      )~",
+      hostNetwork.get().address(),
+      hostNetwork.get().prefix());
+
+  ASSERT_SOME(mockPlugin);
+
+  ASSERT_SOME(setupMockPlugin(mockPlugin.get()));
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/cni";
+
+  flags.network_cni_plugins_dir = cniPluginDir;
+  flags.network_cni_config_dir = cniConfigDir;
+
+  Try<ContainerDNSInfo> parse = flags::parse<ContainerDNSInfo>(GetParam());
+  ASSERT_SOME(parse);
+
+  flags.default_container_dns = parse.get();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  // Verify that /etc/resolv.conf was generated the way we expect.
+  // This is sensitive to changes in 'formatResolverConfig()'.
+  const string command =
+      "#! /bin/sh\n"
+      "set -x\n"
+      "cat > expected <<EOF\n"
+      "domain mesos.apache.org\n"
+      "search a.mesos.apache.org a.mesos.apache.org\n"
+      "options timeout:3 attempts:2\n"
+      "nameserver 8.8.8.8\n"
+      "nameserver 8.8.4.4\n"
+      "EOF\n"
+      "cat /etc/resolv.conf\n"
+      "exec diff -c /etc/resolv.conf expected\n";
+
+  TaskInfo task = createTask(offer, command);
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+
+  // Make sure the container joins the mock CNI network.
+  container->add_network_infos()->set_name("__MESOS_TEST__");
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(task.task_id(), statusFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
