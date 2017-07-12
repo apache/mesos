@@ -907,7 +907,7 @@ TEST_F(CniIsolatorTest, ROOT_DynamicAddDelofCniConfig)
 
 
 // This test verifies that the hostname of the container can be
-// overriden by setting hostname field in ContainerInfo.
+// overridden by setting hostname field in ContainerInfo.
 TEST_F(CniIsolatorTest, ROOT_OverrideHostname)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
