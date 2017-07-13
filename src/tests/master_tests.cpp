@@ -546,17 +546,10 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   EXPECT_CALL(sched, disconnected(&driver))
     .WillOnce(FutureSatisfy(&disconnected));
 
-  // Restart master.
-  master = StartMaster(masterFlags);
+  // Restart master with a mock authorizer to block agent state transitioning.
+  MockAuthorizer authorizer;
+  master = StartMaster(&authorizer, masterFlags);
   ASSERT_SOME(master);
-
-  // Intercept the first registrar operation that is attempted; this
-  // should be the registry operation that reregisters the slave.
-  Future<Owned<master::Operation>> reregister;
-  Promise<bool> promise; // Never satisfied.
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
-    .WillOnce(DoAll(FutureArg<0>(&reregister),
-                    Return(promise.future())));
 
   frameworkId = Future<FrameworkID>();
   EXPECT_CALL(sched, registered(&driver, _, _))
@@ -569,15 +562,19 @@ TEST_F(MasterTest, KillUnknownTaskSlaveInTransition)
   AWAIT_READY(disconnected);
   AWAIT_READY(frameworkId);
 
+  // Intercept agent authorization.
+  Future<Nothing> authorize;
+  Promise<bool> promise; // Never satisfied.
+  EXPECT_CALL(authorizer, authorized(_))
+    .WillOnce(DoAll(FutureSatisfy(&authorize),
+                    Return(promise.future())));
+
   // Restart slave.
   slave = StartSlave(&detector, &containerizer, slaveFlags);
   ASSERT_SOME(slave);
 
   // Wait for the slave to start reregistration.
-  AWAIT_READY(reregister);
-  EXPECT_NE(
-      nullptr,
-      dynamic_cast<master::MarkSlaveReachable*>(reregister->get()));
+  AWAIT_READY(authorize);
 
   // As Master::killTask isn't doing anything, we shouldn't get a status update.
   EXPECT_CALL(sched, statusUpdate(&driver, _))

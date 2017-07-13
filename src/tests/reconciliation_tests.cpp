@@ -554,8 +554,9 @@ TEST_F(ReconciliationTest, RecoveredAgentReregistrationInProgress)
   slave.get()->terminate();
   slave->reset();
 
-  // Restart the master.
-  master = StartMaster(masterFlags);
+  // Restart master with a mock authorizer to block agent state transitioning.
+  MockAuthorizer authorizer;
+  master = StartMaster(&authorizer, masterFlags);
   ASSERT_SOME(master);
 
   MockScheduler sched;
@@ -578,12 +579,11 @@ TEST_F(ReconciliationTest, RecoveredAgentReregistrationInProgress)
   // Wait for the framework to register.
   AWAIT_READY(frameworkId);
 
-  // Intercept the first registrar operation that is attempted; this
-  // should be the registry operation that reregisters the slave.
-  Future<Owned<master::Operation>> reregister;
+  // Intercept agent authorization.
+  Future<Nothing> authorize;
   Promise<bool> promise; // Never satisfied.
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
-    .WillOnce(DoAll(FutureArg<0>(&reregister),
+  EXPECT_CALL(authorizer, authorized(_))
+    .WillOnce(DoAll(FutureSatisfy(&authorize),
                     Return(promise.future())));
 
   // Restart the slave.
@@ -592,10 +592,7 @@ TEST_F(ReconciliationTest, RecoveredAgentReregistrationInProgress)
   ASSERT_SOME(slave);
 
   // Wait for the slave to start reregistration.
-  AWAIT_READY(reregister);
-  EXPECT_NE(
-      nullptr,
-      dynamic_cast<master::MarkSlaveReachable*>(reregister->get()));
+  AWAIT_READY(authorize);
 
   Future<mesos::scheduler::Call> reconcileCall = FUTURE_CALL(
       mesos::scheduler::Call(), mesos::scheduler::Call::RECONCILE, _, _);
