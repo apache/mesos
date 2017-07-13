@@ -177,6 +177,7 @@ libprocess_la_SOURCES =		\
   src/socket.cpp		\
   src/subprocess.cpp		\
   src/subprocess_posix.cpp	\
+  src/subprocess_posix.hpp	\
   src/time.cpp			\
   src/timeseries.cpp
 

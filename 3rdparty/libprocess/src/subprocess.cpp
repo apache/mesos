@@ -32,12 +32,6 @@
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
-#ifdef __WINDOWS__
-#include <process/windows/subprocess.hpp>
-#else
-#include <process/posix/subprocess.hpp>
-#endif // __WINDOWS__
-
 #include <stout/error.hpp>
 #include <stout/lambda.hpp>
 #include <stout/foreach.hpp>
@@ -45,6 +39,12 @@
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+
+#ifdef __WINDOWS__
+#include "subprocess_windows.hpp"
+#else
+#include "subprocess_posix.hpp"
+#endif // __WINDOWS__
 
 using std::map;
 using std::string;

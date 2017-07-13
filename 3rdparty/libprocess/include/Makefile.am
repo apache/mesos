@@ -71,7 +71,3 @@ nobase_include_HEADERS =		\
   process/timeout.hpp			\
   process/timer.hpp			\
   process/timeseries.hpp
-
-noinst_HEADERS = 			\
-  process/posix/subprocess.hpp		\
-  process/windows/subprocess.hpp
