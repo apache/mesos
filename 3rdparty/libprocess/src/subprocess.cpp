@@ -23,6 +23,7 @@
 #endif // __linux__
 #include <sys/types.h>
 
+#include <initializer_list>
 #include <string>
 
 #include <glog/logging.h>
@@ -30,6 +31,12 @@
 #include <process/future.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
+
+#ifdef __WINDOWS__
+#include <process/windows/subprocess.hpp>
+#else
+#include <process/posix/subprocess.hpp>
+#endif // __WINDOWS__
 
 #include <stout/error.hpp>
 #include <stout/lambda.hpp>
@@ -110,7 +117,7 @@ Subprocess::ChildHook Subprocess::ChildHook::UNSET_CLOEXEC(int fd)
 
 
 #ifdef __linux__
-inline void signalHandler(int signal)
+static void signalHandler(int signal)
 {
   // Send SIGKILL to every process in the process group of the
   // calling process.
@@ -264,6 +271,33 @@ static void cleanup(
   }
 
   delete promise;
+}
+
+
+static void close(std::initializer_list<int_fd> fds)
+{
+  foreach (int_fd fd, fds) {
+    if (fd >= 0) {
+      os::close(fd);
+    }
+  }
+}
+
+
+// This function will invoke `os::close` on all specified file
+// descriptors that are valid (i.e., not `None` and >= 0).
+static void close(
+    const Subprocess::IO::InputFileDescriptors& stdinfds,
+    const Subprocess::IO::OutputFileDescriptors& stdoutfds,
+    const Subprocess::IO::OutputFileDescriptors& stderrfds)
+{
+  close(
+      {stdinfds.read,
+       stdinfds.write.getOrElse(-1),
+       stdoutfds.read.getOrElse(-1),
+       stdoutfds.write,
+       stderrfds.read.getOrElse(-1),
+       stderrfds.write});
 }
 
 }  // namespace internal {

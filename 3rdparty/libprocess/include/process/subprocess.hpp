@@ -17,10 +17,4 @@
 // include the platform-dependent versions of the headers.
 #include <process/subprocess_base.hpp>
 
-#ifndef __WINDOWS__
-#include <process/posix/subprocess.hpp>
-#else
-#include <process/windows/subprocess.hpp>
-#endif // __WINDOWS__
-
 #endif // __PROCESS_SUBPROCESS_HPP__

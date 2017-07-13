@@ -43,6 +43,16 @@
 #include <stout/os/strerror.hpp>
 
 namespace process {
+namespace internal {
+
+static void close(std::initializer_list<int_fd> fds);
+
+
+static void close(
+    const Subprocess::IO::InputFileDescriptors& stdinfds,
+    const Subprocess::IO::OutputFileDescriptors& stdoutfds,
+    const Subprocess::IO::OutputFileDescriptors& stderrfds);
+
 
 inline pid_t defaultClone(const lambda::function<int()>& func)
 {
@@ -59,8 +69,6 @@ inline pid_t defaultClone(const lambda::function<int()>& func)
   }
 }
 
-
-namespace internal {
 
 // This function will invoke `os::cloexec` on all specified file
 // descriptors that are valid (i.e., not `None` and >= 0).
@@ -88,15 +96,6 @@ inline Try<Nothing> cloexec(
   }
 
   return Nothing();
-}
-
-
-inline void signalHandler(int signal)
-{
-  // Send SIGKILL to every process in the process group of the
-  // calling process.
-  kill(0, SIGKILL);
-  abort();
 }
 
 

@@ -13,12 +13,8 @@
 #ifndef __PROCESS_SUBPROCESS_BASE_HPP__
 #define __PROCESS_SUBPROCESS_BASE_HPP__
 
-#include <sys/types.h>
-
-#include <initializer_list>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -434,34 +430,6 @@ inline Try<Subprocess> subprocess(
       child_hooks);
 }
 
-namespace internal {
-
-inline void close(std::initializer_list<int_fd> fds)
-{
-  foreach (int_fd fd, fds) {
-    if (fd >= 0) {
-      os::close(fd);
-    }
-  }
-}
-
-// This function will invoke `os::close` on all specified file
-// descriptors that are valid (i.e., not `None` and >= 0).
-inline void close(
-    const Subprocess::IO::InputFileDescriptors& stdinfds,
-    const Subprocess::IO::OutputFileDescriptors& stdoutfds,
-    const Subprocess::IO::OutputFileDescriptors& stderrfds)
-{
-  close(
-      {stdinfds.read,
-       stdinfds.write.getOrElse(-1),
-       stdoutfds.read.getOrElse(-1),
-       stdoutfds.write,
-       stderrfds.read.getOrElse(-1),
-       stderrfds.write});
-}
-
-} // namespace internal {
 } // namespace process {
 
 #endif // __PROCESS_SUBPROCESS_BASE_HPP__
