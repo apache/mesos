@@ -25,7 +25,7 @@ layout: community_section
 
     <p>
     As the community has scaled, we work on larger and more involved features and components in separate interest or <i>working</i> groups.
-    We keep track of these working groups <a href="https://cwiki.apache.org/confluence/display/MESOS/Apache+Mesos+Working+Groups">here</a>.
+    We keep track of these working groups <a href="http://mesos.apache.org/documentation/latest/working-groups/">here</a>.
     In this list, you will be able to get in touch with the stakeholders, contributors and committers interested in certain features for Mesos and join in on the design meetings.
     </p>
 
