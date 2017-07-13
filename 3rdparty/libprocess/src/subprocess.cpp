@@ -122,7 +122,7 @@ static void signalHandler(int signal)
   // Send SIGKILL to every process in the process group of the
   // calling process.
   kill(0, SIGKILL);
-  abort();
+  _exit(EXIT_FAILURE);
 }
 #endif // __linux__
 
@@ -178,7 +178,7 @@ Subprocess::ChildHook Subprocess::ChildHook::SUPERVISOR()
       int status = 0;
       while (waitpid(pid, &status, 0) == -1) {
         if (errno != EINTR) {
-          abort();
+          _exit(EXIT_FAILURE);
         }
       }
 
@@ -187,8 +187,7 @@ Subprocess::ChildHook Subprocess::ChildHook::SUPERVISOR()
         _exit(WEXITSTATUS(status));
       }
 
-      abort();
-      UNREACHABLE();
+      _exit(EXIT_FAILURE);
     }
 #endif // __linux__
     return Nothing();
