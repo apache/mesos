@@ -32,6 +32,7 @@
 #include <stout/strings.hpp>
 
 #include <stout/os/constants.hpp>
+#include <stout/os/getenv.hpp>
 #include <stout/os/mkdir.hpp>
 #include <stout/os/write.hpp>
 

@@ -105,7 +105,7 @@ static pid_t cloneWithSetns(
     const Option<pid_t>& taskPid,
     const vector<string>& namespaces)
 {
-  return process::defaultClone([=]() -> int {
+  auto child = [=]() -> int {
     if (taskPid.isSome()) {
       foreach (const string& ns, namespaces) {
         Try<Nothing> setns = ns::setns(taskPid.get(), ns);
@@ -121,7 +121,19 @@ static pid_t cloneWithSetns(
     }
 
     return func();
-  });
+  };
+
+  pid_t pid = ::fork();
+  if (pid == -1) {
+    return -1;
+  } else if (pid == 0) {
+    // Child.
+    ::exit(child());
+    UNREACHABLE();
+  } else {
+    // Parent.
+    return pid;
+  }
 }
 #endif
 

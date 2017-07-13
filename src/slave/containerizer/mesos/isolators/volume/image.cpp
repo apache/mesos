@@ -28,6 +28,9 @@
 #include <stout/foreach.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/exists.hpp>
+#include <stout/os/mkdir.hpp>
+
 #include "slave/containerizer/mesos/isolators/volume/image.hpp"
 
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
