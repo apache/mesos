@@ -13,6 +13,10 @@ Below are some of the expectations from a working group:
 * Should maintain meeting notes that are shared with the <dev@mesos.apache.org> list regularly.
 * Should have a corresponding slack channel (also publicly archived) where synchronous discussions take place.
 
+## YouTube Channel
+
+Past meetings should be posted to the [YouTube Channel](https://www.youtube.com/channel/UC0wxLxgX8ilUn0m31lCpzAw).
+
 ## Mailing List
 
 Please use the <dev@mesos.apache.org> list for discussions.

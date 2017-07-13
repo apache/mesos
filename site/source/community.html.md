@@ -26,7 +26,7 @@ layout: community_section
     <p>
     As the community has scaled, we work on larger and more involved features and components in separate interest or <i>working</i> groups.
     We keep track of these working groups <a href="http://mesos.apache.org/documentation/latest/working-groups/">here</a>.
-    In this list, you will be able to get in touch with the stakeholders, contributors and committers interested in certain features for Mesos and join in on the design meetings.
+    In this list, you will be able to get in touch with the stakeholders, contributors and committers interested in certain features for Mesos, join in on the design meetings and see videos of past meetings.
     </p>
 
   </div>
