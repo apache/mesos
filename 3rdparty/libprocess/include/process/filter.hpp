@@ -24,6 +24,43 @@ public:
   virtual bool filter(const DispatchEvent&) { return false; }
   virtual bool filter(const HttpEvent&) { return false; }
   virtual bool filter(const ExitedEvent&) { return false; }
+
+  virtual bool filter(Event* event)
+  {
+    bool result = false;
+    struct FilterVisitor : EventVisitor
+    {
+      explicit FilterVisitor(Filter* _filter, bool* _result)
+        : filter(_filter), result(_result) {}
+
+      virtual void visit(const MessageEvent& event)
+      {
+        *result = filter->filter(event);
+      }
+
+      virtual void visit(const DispatchEvent& event)
+      {
+        *result = filter->filter(event);
+      }
+
+      virtual void visit(const HttpEvent& event)
+      {
+        *result = filter->filter(event);
+      }
+
+      virtual void visit(const ExitedEvent& event)
+      {
+        *result = filter->filter(event);
+      }
+
+      Filter* filter;
+      bool* result;
+    } visitor(this, &result);
+
+    event->visit(&visitor);
+
+    return result;
+  }
 };
 
 
