@@ -59,16 +59,25 @@ message Call {
     GET_AGENT = 20;         // Retrieves the agent information.
 
     // Calls for managing nested containers underneath an executor's container.
-    LAUNCH_NESTED_CONTAINER = 14;  // See 'LaunchNestedContainer' below.
-    WAIT_NESTED_CONTAINER = 15;    // See 'WaitNestedContainer' below.
-    KILL_NESTED_CONTAINER = 16;    // See 'KillNestedContainer' below.
-    REMOVE_NESTED_CONTAINER = 21;  // See 'RemoveNestedContainer' below.
+    // Some of these calls are deprecated in favor of the calls
+    // for both standalone or nested containers further below.
+    LAUNCH_NESTED_CONTAINER = 14 [deprecated = true];
+    WAIT_NESTED_CONTAINER = 15 [deprecated = true];
+    KILL_NESTED_CONTAINER = 16 [deprecated = true];
+    REMOVE_NESTED_CONTAINER = 21 [deprecated = true];
 
     // See 'LaunchNestedContainerSession' below.
     LAUNCH_NESTED_CONTAINER_SESSION = 17;
 
     ATTACH_CONTAINER_INPUT = 18; // See 'AttachContainerInput' below.
     ATTACH_CONTAINER_OUTPUT = 19; // see 'AttachContainerOutput' below.
+
+    // Calls for managing standalone containers
+    // or containers nested underneath another container.
+    LAUNCH_CONTAINER = 22; // See 'LaunchContainer' below.
+    WAIT_CONTAINER = 23;   // See 'WaitContainer' below.
+    KILL_CONTAINER = 24;   // See 'KillContainer' below.
+    REMOVE_CONTAINER = 25; // See 'RemoveContainer' below.
   }
 
   // Provides a snapshot of the current metrics tracked by the agent.
@@ -109,28 +118,25 @@ message Call {
     optional uint64 length = 3;
   }
 
- // Launches a nested container within an executor's tree of containers.
+  // Deprecated in favor of `LaunchContainer`.
   message LaunchNestedContainer {
     required ContainerID container_id = 1;
     optional CommandInfo command = 2;
     optional ContainerInfo container = 3;
   }
 
-  // Waits for the nested container to terminate and receives the exit status.
+  // Deprecated in favor of `WaitContainer`.
   message WaitNestedContainer {
     required ContainerID container_id = 1;
   }
 
-  // Kills the nested container. The signal (e.g., SIGTERM, SIGKILL, etc.)
-  // to be sent to the container can be specified in the 'signal' field.
-  // If 'signal' is not set, SIGKILL is used by default.
+  // Deprecated in favor of `KillContainer`.
   message KillNestedContainer {
     required ContainerID container_id = 1;
     optional int32 signal = 2;
   }
 
-  // Removes a nested container and its artifacts (runtime and sandbox
-  // directories).
+  // Deprecated in favor of `RemoveContainer`.
   message RemoveNestedContainer {
     required ContainerID container_id = 1;
   }
@@ -175,19 +181,118 @@ message Call {
     required ContainerID container_id = 1;
   }
 
+  // Launches a either a "standalone" container on this agent
+  // or a nested container within another tree of containers.
+  //
+  // A standalone container is launched by specifying a ContainerID
+  // with no parent. Standalone containers bypass the normal offer cycle
+  // between the master and agent. Unlike other containers, a standalone
+  // container does not have an executor or any tasks. This means the
+  // standalone container does not report back to Mesos or any framework
+  // and must be supervised separately.
+  //
+  // A nested container is launched by specifying a ContainerID with
+  // another existing container (including standalone containers)
+  // as the parent.
+  //
+  // Returns 200 OK if the new container launch succeeds.
+  // Returns 202 Accepted if the requested ContainerID is already in use
+  //   by a standalone or nested container.
+  // Returns 400 Bad Request if the container launch fails.
+  message LaunchContainer {
+    // NOTE: Some characters cannot be used in the ID. All characters
+    // must be valid filesystem path characters.  In addition, '/' and '.'
+    // are reserved.
+    required ContainerID container_id = 1;
+
+    optional CommandInfo command = 2;
+
+    // NOTE: Nested containers may not specify resources and instead
+    // share resources with its parent container.
+    //
+    // TODO(josephw): These resources are purely used for isolation
+    // and are not accounted for by the Mesos master (if connected).
+    // It is the caller's responsibility to ensure that resources are
+    // not overcommitted (e.g. CPU and memory) or conflicting (e.g. ports
+    // and volumes). Once there is support for preempting tasks and a
+    // way to update the resources advertised by the agent, these standalone
+    // container resources should be accounted for by the master.
+    repeated Resource resources = 3;
+
+    optional ContainerInfo container = 4;
+  }
+
+  // Waits for the standalone or nested container to terminate
+  // and returns the exit status.
+  //
+  // Returns 200 OK if and when the container exits.
+  // Returns 404 Not Found if the container does not exist.
+  message WaitContainer {
+    required ContainerID container_id = 1;
+  }
+
+  // Kills the standalone or nested container. The signal to be sent
+  // to the container can be specified in the 'signal' field.
+  //
+  // Returns 200 OK if the signal is sent successfully.
+  // Returns 404 Not Found if the container does not exist.
+  message KillContainer {
+    required ContainerID container_id = 1;
+
+    // Defaults to SIGKILL.
+    optional int32 signal = 2;
+  }
+
+  // Removes a container's artifacts (runtime and sandbox directories).
+  //
+  // For nested containers, it is important to use this call if multiple
+  // nested containers are launched under the same parent container, because
+  // garbage collection only takes place at the parent container. Artifacts
+  // belonging to nested containers will not be garbage collected while
+  // the parent container is running.
+  //
+  // TODO(josephw): A standalone container's runtime directory is currently
+  // garbage collected as soon as the container exits. To allow the user to
+  // retrieve the exit status reliably, the runtime directory cannot be
+  // garbage collected immediately. Instead, the user will eventually be
+  // required to make this call after the standalone container has exited.
+  // Also, a standalone container's sandbox directory is currently not
+  // garbage collected and is only deleted via this call.
+  //
+  // Returns 200 OK if the removal is successful or if the parent container
+  //   (for nested containers) does not exist.
+  // Returns 500 Internal Server Error if anything goes wrong, including
+  //   if the container is still running or does not exist.
+  //
+  // TODO(josephw): Consider returning a 400 Bad Request instead of 500
+  // Internal Server Error when the user tries to remove a running or
+  // nonexistent nested container.
+  message RemoveContainer {
+    required ContainerID container_id = 1;
+  }
+
   optional Type type = 1;
 
   optional GetMetrics get_metrics = 2;
   optional SetLoggingLevel set_logging_level = 3;
   optional ListFiles list_files = 4;
   optional ReadFile read_file = 5;
-  optional LaunchNestedContainer launch_nested_container = 6;
-  optional WaitNestedContainer wait_nested_container = 7;
-  optional KillNestedContainer kill_nested_container = 8;
-  optional RemoveNestedContainer remove_nested_container = 12;
+
+  optional LaunchNestedContainer launch_nested_container = 6
+    [deprecated = true];
+
+  optional WaitNestedContainer wait_nested_container = 7 [deprecated = true];
+  optional KillNestedContainer kill_nested_container = 8 [deprecated = true];
+  optional RemoveNestedContainer remove_nested_container = 12
+    [deprecated = true];
+
   optional LaunchNestedContainerSession launch_nested_container_session = 9;
   optional AttachContainerInput attach_container_input = 10;
   optional AttachContainerOutput attach_container_output = 11;
+  optional LaunchContainer launch_container = 13;
+  optional WaitContainer wait_container = 14;
+  optional KillContainer kill_container = 15;
+  optional RemoveContainer remove_container = 16;
 }
 
 
@@ -217,7 +322,8 @@ message Response {
     GET_TASKS = 12;                // See 'GetTasks' below.
     GET_AGENT = 14;                // See 'GetAgent' below.
 
-    WAIT_NESTED_CONTAINER = 13;    // See 'WaitNestedContainer' below.
+    WAIT_NESTED_CONTAINER = 13 [deprecated = true];
+    WAIT_CONTAINER = 15;           // See 'WaitContainer' below.
   }
 
   // `healthy` would be true if the agent is healthy. Delayed responses are also
@@ -353,6 +459,28 @@ message Response {
     optional string message = 5;
   }
 
+  // Returns termination information about the standalone or nested container.
+  message WaitContainer {
+    // Wait status of the lead process in the container. Note that this
+    // is the return value of `wait(2)`, so callers must use the `wait(2)`
+    // family of macros to extract whether the process exited cleanly and
+    // what the exit code was.
+    optional int32 exit_status = 1;
+
+    // The `state` and `reason` fields may be populated if the Mesos agent
+    // terminates the container. In the absence of any special knowledge,
+    // executors should propagate this information via the `status` field
+    // of an `Update` call for the corresponding TaskID.
+    optional TaskState state = 2;
+    optional TaskStatus.Reason reason = 3;
+
+    // This field will be populated if the task was terminated due to
+    // a resource limitation.
+    optional TaskResourceLimitation limitation = 4;
+
+    optional string message = 5;
+  }
+
   optional Type type = 1;
 
   optional GetHealth get_health = 2;
@@ -369,6 +497,7 @@ message Response {
   optional GetTasks get_tasks = 13;
   optional GetAgent get_agent = 15;
   optional WaitNestedContainer wait_nested_container = 14;
+  optional WaitContainer wait_container = 16;
 }
 
 
