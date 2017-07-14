@@ -933,7 +933,10 @@ Future<Option<int>> Docker::run(
   return s->status();
 }
 
-
+// NOTE: A known issue in Docker 1.12/1.13 sometimes leaks its mount
+// namespace, causing `docker rm` to fail. As a workaround, we do a
+// best-effort `docker rm` and log the error insteaf of return a
+// failure when `remove` is set to true (MESOS-7777).
 Future<Nothing> Docker::stop(
     const string& containerName,
     const Duration& timeout,
@@ -982,7 +985,12 @@ Future<Nothing> Docker::_stop(
 
   if (remove) {
     bool force = !status.isSome() || status.get() != 0;
-    return docker.rm(containerName, force);
+    return docker.rm(containerName, force)
+      .repair([=](const Future<Nothing>& future) {
+        LOG(ERROR) << "Unable to remove Docker container '"
+                   << containerName + "': " << future.failure();
+        return Nothing();
+      });
   }
 
   return checkError(cmd, s);
