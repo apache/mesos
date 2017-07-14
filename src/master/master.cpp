@@ -1489,9 +1489,9 @@ void Master::visit(const MessageEvent& event)
   // framework and whether the framework has a principal so we use
   // these two temp variables to simplify the condition checks below.
   bool isRegisteredFramework =
-    frameworks.principals.contains(event.message->from);
+    frameworks.principals.contains(event.message.from);
   const Option<string> principal = isRegisteredFramework
-    ? frameworks.principals[event.message->from]
+    ? frameworks.principals[event.message.from]
     : Option<string>::none();
 
   // Increment the "message_received" counter if the message is from
@@ -1508,7 +1508,7 @@ void Master::visit(const MessageEvent& event)
 
   // All messages are filtered when non-leading.
   if (!elected()) {
-    VLOG(1) << "Dropping '" << event.message->name << "' message since "
+    VLOG(1) << "Dropping '" << event.message.name << "' message since "
             << "not elected yet";
     ++metrics->dropped_messages;
     return;
@@ -1522,7 +1522,7 @@ void Master::visit(const MessageEvent& event)
   // the additional queueing delay and the accumulated backlog
   // of messages post-recovery?
   if (!recovered.get().isReady()) {
-    VLOG(1) << "Dropping '" << event.message->name << "' message since "
+    VLOG(1) << "Dropping '" << event.message.name << "' message since "
             << "not recovered yet";
     ++metrics->dropped_messages;
     return;
@@ -1636,8 +1636,8 @@ void Master::_visit(const MessageEvent& event)
   // mapping may be deleted in handling 'UnregisterFrameworkMessage'
   // but its counter still needs to be incremented for this message.
   const Option<string> principal =
-    frameworks.principals.contains(event.message->from)
-      ? frameworks.principals[event.message->from]
+    frameworks.principals.contains(event.message.from)
+      ? frameworks.principals[event.message.from]
       : Option<string>::none();
 
   ProtobufProcess<Master>::visit(event);
@@ -1661,8 +1661,8 @@ void Master::exceededCapacity(
     const Option<string>& principal,
     uint64_t capacity)
 {
-  LOG(WARNING) << "Dropping message " << event.message->name << " from "
-               << event.message->from
+  LOG(WARNING) << "Dropping message " << event.message.name << " from "
+               << event.message.from
                << (principal.isSome() ? "(" + principal.get() + ")" : "")
                << ": capacity(" << capacity << ") exceeded";
 
@@ -1674,9 +1674,9 @@ void Master::exceededCapacity(
   // unrecoverable error and should take action to recover.
   FrameworkErrorMessage message;
   message.set_message(
-      "Message " + event.message->name +
+      "Message " + event.message.name +
       " dropped: capacity(" + stringify(capacity) + ") exceeded");
-  send(event.message->from, message);
+  send(event.message.from, message);
 }
 
 
