@@ -161,21 +161,32 @@ public:
 };
 
 
-/**
- * Determines which objects will be accepted when filtering results based on
- * authorization or other criteria.
- */
-class ObjectAcceptor
+// Determines which objects will be accepted based on authorization.
+class AuthorizationAcceptor
 {
 public:
-  virtual ~ObjectAcceptor() = default;
-};
+  static process::Future<process::Owned<AuthorizationAcceptor>> create(
+      const Option<process::http::authentication::Principal>& principal,
+      const Option<Authorizer*>& authorizer,
+      const authorization::Action& action);
 
+  template <typename... Args>
+  bool accept(Args&... args)
+  {
+    Try<bool> approved =
+      objectApprover->approved(ObjectApprover::Object(args...));
+    if (approved.isError()) {
+      LOG(WARNING) << "Error during authorization: " << approved.error();
+      return false;
+    }
 
-// Parent class for authorization-based acceptors.
-class AuthorizationAcceptor : public ObjectAcceptor
-{
+    return approved.get();
+  }
+
 protected:
+  // TODO(qleng): Currently, `Owned` is implemented with `shared_ptr` and allows
+  // copying. In the future, if `Owned` is implemented with `unique_ptr`, we
+  // will need to pass by rvalue reference here instead (see MESOS-5122).
   AuthorizationAcceptor(const process::Owned<ObjectApprover>& approver)
     : objectApprover(approver) {}
 
@@ -183,46 +194,15 @@ protected:
 };
 
 
-class AuthorizeFrameworkInfoAcceptor : public AuthorizationAcceptor
-{
-public:
-  static process::Future<process::Owned<AuthorizeFrameworkInfoAcceptor>> create(
-      const Option<process::http::authentication::Principal>& principal,
-      const Option<Authorizer*>& authorizer);
-
-  bool accept(const FrameworkInfo& frameworkInfo);
-
-protected:
-  AuthorizeFrameworkInfoAcceptor(const process::Owned<ObjectApprover>& approver)
-    : AuthorizationAcceptor(approver) {}
-};
-
-
-class AuthorizeTaskAcceptor : public AuthorizationAcceptor
-{
-public:
-  static process::Future<process::Owned<AuthorizeTaskAcceptor>> create(
-      const Option<process::http::authentication::Principal>& principal,
-      const Option<Authorizer*>& authorizer);
-
-  bool accept(
-      const Task& task,
-      const FrameworkInfo& frameworkInfo);
-
-protected:
-  AuthorizeTaskAcceptor(const process::Owned<ObjectApprover>& approver)
-    : AuthorizationAcceptor(approver) {}
-};
-
-
 /**
  * Filtering results based on framework ID. When no framework ID is specified
  * it will accept all inputs.
  */
-class FrameworkIDAcceptor : public ObjectAcceptor
+class FrameworkIDAcceptor
 {
 public:
   FrameworkIDAcceptor(const Option<std::string>& _frameworkId);
+
   bool accept(const FrameworkID& frameworkId);
 
 protected:
@@ -234,7 +214,7 @@ protected:
  * Filtering results based on task ID. When no task ID is specified
  * it will accept all inputs.
  */
-class TaskIDAcceptor : public ObjectAcceptor
+class TaskIDAcceptor
 {
 public:
   TaskIDAcceptor(const Option<std::string>& _taskId);

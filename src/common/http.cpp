@@ -1143,50 +1143,25 @@ void logRequest(const process::http::Request& request)
 }
 
 
-Future<Owned<AuthorizeFrameworkInfoAcceptor>>
-  AuthorizeFrameworkInfoAcceptor::create(
-      const Option<Principal>& principal,
-      const Option<Authorizer*>& authorizer)
-{
-    if (authorizer.isNone()) {
-      return Owned<AuthorizeFrameworkInfoAcceptor>(
-          new AuthorizeFrameworkInfoAcceptor(Owned<ObjectApprover>(
-              new AcceptingObjectApprover())));
-    }
-
-    const Option<authorization::Subject> subject =
-      authorization::createSubject(principal);
-
-    return authorizer.get()->getObjectApprover(
-        subject,
-        authorization::VIEW_FRAMEWORK)
-      .then([=](const Owned<ObjectApprover>& approver) {
-        return Owned<AuthorizeFrameworkInfoAcceptor>(
-            new AuthorizeFrameworkInfoAcceptor(approver));
-      });
-}
-
-
-Future<Owned<AuthorizeTaskAcceptor>> AuthorizeTaskAcceptor::create(
+Future<Owned<AuthorizationAcceptor>> AuthorizationAcceptor::create(
     const Option<Principal>& principal,
-    const Option<Authorizer*>& authorizer)
+    const Option<Authorizer*>& authorizer,
+    const authorization::Action& action)
 {
-    if (authorizer.isNone()) {
-      return Owned<AuthorizeTaskAcceptor>(
-          new AuthorizeTaskAcceptor(Owned<ObjectApprover>(
-              new AcceptingObjectApprover())));
-    }
+  if (authorizer.isNone()) {
+    return Owned<AuthorizationAcceptor>(
+        new AuthorizationAcceptor(Owned<ObjectApprover>(
+            new AcceptingObjectApprover())));
+  }
 
-    const Option<authorization::Subject> subject =
-      authorization::createSubject(principal);
+  const Option<authorization::Subject> subject =
+    authorization::createSubject(principal);
 
-    return authorizer.get()->getObjectApprover(
-        subject,
-        authorization::VIEW_TASK)
-      .then([=](const Owned<ObjectApprover>& approver) {
-        return Owned<AuthorizeTaskAcceptor>(
-            new AuthorizeTaskAcceptor(approver));
-      });
+  return authorizer.get()->getObjectApprover(subject, action)
+    .then([=](const Owned<ObjectApprover>& approver) {
+      return Owned<AuthorizationAcceptor>(
+          new AuthorizationAcceptor(approver));
+    });
 }
 
 
@@ -1208,41 +1183,6 @@ TaskIDAcceptor::TaskIDAcceptor(const Option<std::string>& _taskId)
     taskId_.set_value(_taskId.get());
     taskId = taskId_;
   }
-}
-
-
-bool AuthorizeFrameworkInfoAcceptor::accept(const FrameworkInfo& frameworkInfo)
-{
-  ObjectApprover::Object object;
-  object.framework_info = &frameworkInfo;
-
-  Try<bool> approved = objectApprover->approved(object);
-  if (approved.isError()) {
-    LOG(WARNING) << "Error during FrameworkInfo authorization: "
-                 << approved.error();
-    return false;
-  }
-
-  return approved.get();
-}
-
-
-bool AuthorizeTaskAcceptor::accept(
-    const Task& task,
-    const FrameworkInfo& frameworkInfo)
-{
-  ObjectApprover::Object object;
-  object.task = &task;
-  object.framework_info = &frameworkInfo;
-
-  Try<bool> approved = objectApprover->approved(object);
-
-  if (approved.isError()) {
-    LOG(WARNING) << "Error during Task authorization: " << approved.error();
-    return false;
-  }
-
-  return approved.get();
 }
 
 

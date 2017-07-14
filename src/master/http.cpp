@@ -3890,10 +3890,16 @@ Future<Response> Master::Http::tasks(
   Option<string> order = request.url.query.get("order");
   string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
 
-  Future<Owned<AuthorizeFrameworkInfoAcceptor>> authorizeFrameworkInfo =
-    AuthorizeFrameworkInfoAcceptor::create(principal, master->authorizer);
-  Future<Owned<AuthorizeTaskAcceptor>> authorizeTask =
-    AuthorizeTaskAcceptor::create(principal, master->authorizer);
+  Future<Owned<AuthorizationAcceptor>> authorizeFrameworkInfo =
+    AuthorizationAcceptor::create(
+        principal,
+        master->authorizer,
+        authorization::VIEW_FRAMEWORK);
+  Future<Owned<AuthorizationAcceptor>> authorizeTask =
+    AuthorizationAcceptor::create(
+        principal,
+        master->authorizer,
+        authorization::VIEW_TASK);
   Future<Owned<FrameworkIDAcceptor>> selectFrameworkId =
     Owned<FrameworkIDAcceptor>(
         new FrameworkIDAcceptor(request.url.query.get("framework_id")));
@@ -3907,12 +3913,12 @@ Future<Response> Master::Http::tasks(
       selectTaskId)
     .then(defer(
         master->self(),
-        [=](const tuple<Owned<AuthorizeFrameworkInfoAcceptor>,
-                        Owned<AuthorizeTaskAcceptor>,
+        [=](const tuple<Owned<AuthorizationAcceptor>,
+                        Owned<AuthorizationAcceptor>,
                         Owned<FrameworkIDAcceptor>,
                         Owned<TaskIDAcceptor>>& acceptors)-> Future<Response> {
-          Owned<AuthorizeFrameworkInfoAcceptor> authorizeFrameworkInfo;
-          Owned<AuthorizeTaskAcceptor> authorizeTask;
+          Owned<AuthorizationAcceptor> authorizeFrameworkInfo;
+          Owned<AuthorizationAcceptor> authorizeTask;
           Owned<FrameworkIDAcceptor> selectFrameworkId;
           Owned<TaskIDAcceptor> selectTaskId;
           tie(authorizeFrameworkInfo,
