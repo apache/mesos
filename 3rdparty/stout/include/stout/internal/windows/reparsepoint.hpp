@@ -180,7 +180,7 @@ inline Try<SymbolicLink> build_symbolic_link(const REPARSE_DATA_BUFFER& data)
 inline Try<SharedHandle> get_handle_no_follow(const std::string& absolute_path)
 {
   const Try<DWORD> attributes = ::internal::windows::get_file_attributes(
-      wide_stringify(absolute_path));
+      ::internal::windows::longpath(absolute_path));
 
   if (attributes.isError()) {
     return Error(attributes.error());
@@ -321,7 +321,7 @@ inline Try<Nothing> create_symbolic_link(
   // Determine if target is a folder or a file. This makes a difference
   // in the way we call `create_symbolic_link`.
   const Try<DWORD> attributes = ::internal::windows::get_file_attributes(
-      wide_stringify(absolute_target_path));
+      ::internal::windows::longpath(absolute_target_path));
 
   if (attributes.isError()) {
     return Error(attributes.error());
