@@ -7479,6 +7479,38 @@ bool Framework::removePendingTask(
 }
 
 
+Resources Framework::allocatedResources() const
+{
+  Resources allocated;
+
+  foreachvalue (const Executor* executor, executors) {
+    // TODO(abudnik): Currently `Executor::resources` does not include
+    // the executor's queued tasks!
+    allocated += executor->resources;
+  }
+
+  hashset<ExecutorID> pendingExecutors;
+
+  typedef hashmap<TaskID, TaskInfo> TaskMap;
+  foreachvalue (const TaskMap& pendingTasks, pending) {
+    foreachvalue (const TaskInfo& task, pendingTasks) {
+      allocated += task.resources();
+
+      ExecutorInfo executorInfo = slave->getExecutorInfo(info, task);
+      const ExecutorID& executorId = executorInfo.executor_id();
+
+      if (!executors.contains(executorId) &&
+          !pendingExecutors.contains(executorId)) {
+        allocated += executorInfo.resources();
+        pendingExecutors.insert(executorId);
+      }
+    }
+  }
+
+  return allocated;
+}
+
+
 Executor::Executor(
     Slave* _slave,
     const FrameworkID& _frameworkId,

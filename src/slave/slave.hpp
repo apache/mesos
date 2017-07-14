@@ -872,6 +872,8 @@ public:
       const TaskInfo& task,
       const ExecutorInfo& executorInfo);
 
+  Resources allocatedResources() const;
+
   enum State
   {
     RUNNING,      // First state of a newly created framework.
