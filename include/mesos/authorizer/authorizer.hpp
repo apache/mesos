@@ -58,6 +58,118 @@ public:
         container_id(nullptr),
         machine_id(nullptr) {}
 
+    Object(const std::string& _value)
+      : value(&_value),
+        framework_info(nullptr),
+        task(nullptr),
+        task_info(nullptr),
+        executor_info(nullptr),
+        quota_info(nullptr),
+        weight_info(nullptr),
+        resource(nullptr),
+        command_info(nullptr),
+        container_id(nullptr),
+        machine_id(nullptr) {}
+
+    Object(const MachineID& _machine_id)
+      : value(nullptr),
+        framework_info(nullptr),
+        task(nullptr),
+        task_info(nullptr),
+        executor_info(nullptr),
+        quota_info(nullptr),
+        weight_info(nullptr),
+        resource(nullptr),
+        command_info(nullptr),
+        container_id(nullptr),
+        machine_id(&_machine_id) {}
+
+    Object(const FrameworkInfo& _framework_info)
+      : value(nullptr),
+        framework_info(&_framework_info),
+        task(nullptr),
+        task_info(nullptr),
+        executor_info(nullptr),
+        quota_info(nullptr),
+        weight_info(nullptr),
+        resource(nullptr),
+        command_info(nullptr),
+        container_id(nullptr),
+        machine_id(nullptr) {}
+
+    Object(const ExecutorInfo& _executor_info,
+        const FrameworkInfo& _framework_info)
+      : value(nullptr),
+        framework_info(&_framework_info),
+        task(nullptr),
+        task_info(nullptr),
+        executor_info(&_executor_info),
+        quota_info(nullptr),
+        weight_info(nullptr),
+        resource(nullptr),
+        command_info(nullptr),
+        container_id(nullptr),
+        machine_id(nullptr) {}
+
+    Object(const TaskInfo& _task_info, const FrameworkInfo& _framework_info)
+      : value(nullptr),
+        framework_info(&_framework_info),
+        task(nullptr),
+        task_info(&_task_info),
+        executor_info(nullptr),
+        quota_info(nullptr),
+        weight_info(nullptr),
+        resource(nullptr),
+        command_info(nullptr),
+        container_id(nullptr),
+        machine_id(nullptr) {}
+
+    Object(const Task& _task, const FrameworkInfo& _framework_info)
+      : value(nullptr),
+        framework_info(&_framework_info),
+        task(&_task),
+        task_info(nullptr),
+        executor_info(nullptr),
+        quota_info(nullptr),
+        weight_info(nullptr),
+        resource(nullptr),
+        command_info(nullptr),
+        container_id(nullptr),
+        machine_id(nullptr) {}
+
+    Object(
+        const ExecutorInfo& _executor_info,
+        const FrameworkInfo& _framework_info,
+        const CommandInfo& _command_info,
+        const ContainerID& _container_id)
+      : value(nullptr),
+        framework_info(&_framework_info),
+        task(nullptr),
+        task_info(nullptr),
+        executor_info(&_executor_info),
+        quota_info(nullptr),
+        weight_info(nullptr),
+        resource(nullptr),
+        command_info(&_command_info),
+        container_id(&_container_id),
+        machine_id(nullptr) {}
+
+    Object(
+        const ExecutorInfo& _executor_info,
+        const FrameworkInfo& _framework_info,
+        const ContainerID& _container_id)
+      : value(nullptr),
+        framework_info(&_framework_info),
+        task(nullptr),
+        task_info(nullptr),
+        executor_info(&_executor_info),
+        quota_info(nullptr),
+        weight_info(nullptr),
+        resource(nullptr),
+        command_info(nullptr),
+        container_id(&_container_id),
+        machine_id(nullptr) {}
+
     Object(const authorization::Object& object)
       : value(object.has_value() ? &object.value() : nullptr),
         framework_info(

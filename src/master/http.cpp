@@ -4239,10 +4239,8 @@ mesos::maintenance::Schedule Master::Http::_getMaintenanceSchedule(
     mesos::maintenance::Window window_;
 
     foreach (const MachineID& machine_id, window.machine_ids()) {
-      ObjectApprover::Object object;
-      object.machine_id = &machine_id;
-
-      Try<bool> approved = approver->approved(object);
+      Try<bool> approved =
+        approver->approved(ObjectApprover::Object(machine_id));
 
       if (approved.isError()) {
         LOG(WARNING) << "Error during MachineID authorization: "
@@ -4306,10 +4304,7 @@ Future<Response> Master::Http::__updateMaintenanceSchedule(
 {
   foreach (const mesos::maintenance::Window& window, schedule.windows()) {
     foreach (const MachineID& machine, window.machine_ids()) {
-      ObjectApprover::Object object;
-      object.machine_id = &machine;
-
-      Try<bool> approved = approver->approved(object);
+      Try<bool> approved = approver->approved(ObjectApprover::Object(machine));
 
       if (approved.isError()) {
         return InternalServerError("Authorization error: " + approved.error());
@@ -4548,9 +4543,7 @@ Future<Response> Master::Http::_startMaintenance(
             "' is not in DRAINING mode and cannot be brought down");
     }
 
-    ObjectApprover::Object object;
-    object.machine_id = &id;
-    Try<bool> approved = approver->approved(object);
+    Try<bool> approved = approver->approved(ObjectApprover::Object(id));
 
     if (approved.isError()) {
       return InternalServerError("Authorization error: " + approved.error());
@@ -4730,9 +4723,7 @@ Future<Response> Master::Http::_stopMaintenance(
             "' is not in DOWN mode and cannot be brought up");
     }
 
-    ObjectApprover::Object object;
-    object.machine_id = &id;
-    Try<bool> approved = approver->approved(object);
+    Try<bool> approved = approver->approved(ObjectApprover::Object(id));
 
     if (approved.isError()) {
       return InternalServerError("Authorization error: " + approved.error());
@@ -4905,9 +4896,7 @@ Future<mesos::maintenance::ClusterStatus> Master::Http::_getMaintenanceStatus(
         const MachineID& id,
         const Machine& machine,
         master->machines) {
-      ObjectApprover::Object object;
-      object.machine_id = &id;
-      Try<bool> approved = approver->approved(object);
+      Try<bool> approved = approver->approved(ObjectApprover::Object(id));
 
       if (approved.isError()) {
         LOG(WARNING) << "Error during MachineID authorization: "

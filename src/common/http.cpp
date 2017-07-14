@@ -847,10 +847,8 @@ bool approveViewFrameworkInfo(
     const Owned<ObjectApprover>& frameworksApprover,
     const FrameworkInfo& frameworkInfo)
 {
-  ObjectApprover::Object object;
-  object.framework_info = &frameworkInfo;
-
-  Try<bool> approved = frameworksApprover->approved(object);
+  Try<bool> approved =
+    frameworksApprover->approved(ObjectApprover::Object(frameworkInfo));
   if (approved.isError()) {
     LOG(WARNING) << "Error during FrameworkInfo authorization: "
                  << approved.error();
@@ -866,11 +864,8 @@ bool approveViewExecutorInfo(
     const ExecutorInfo& executorInfo,
     const FrameworkInfo& frameworkInfo)
 {
-  ObjectApprover::Object object;
-  object.executor_info = &executorInfo;
-  object.framework_info = &frameworkInfo;
-
-  Try<bool> approved = executorsApprover->approved(object);
+  Try<bool> approved = executorsApprover->approved(
+      ObjectApprover::Object(executorInfo, frameworkInfo));
   if (approved.isError()) {
     LOG(WARNING) << "Error during ExecutorInfo authorization: "
                  << approved.error();
@@ -886,11 +881,8 @@ bool approveViewTaskInfo(
     const TaskInfo& taskInfo,
     const FrameworkInfo& frameworkInfo)
 {
-  ObjectApprover::Object object;
-  object.task_info = &taskInfo;
-  object.framework_info = &frameworkInfo;
-
-  Try<bool> approved = tasksApprover->approved(object);
+  Try<bool> approved =
+    tasksApprover->approved(ObjectApprover::Object(taskInfo, frameworkInfo));
   if (approved.isError()) {
     LOG(WARNING) << "Error during TaskInfo authorization: " << approved.error();
     // TODO(joerg84): Consider exposing these errors to the caller.
@@ -905,11 +897,8 @@ bool approveViewTask(
     const Task& task,
     const FrameworkInfo& frameworkInfo)
 {
-  ObjectApprover::Object object;
-  object.task = &task;
-  object.framework_info = &frameworkInfo;
-
-  Try<bool> approved = tasksApprover->approved(object);
+  Try<bool> approved =
+    tasksApprover->approved(ObjectApprover::Object(task, frameworkInfo));
   if (approved.isError()) {
     LOG(WARNING) << "Error during Task authorization: " << approved.error();
     // TODO(joerg84): Consider exposing these errors to the caller.
@@ -922,9 +911,7 @@ bool approveViewTask(
 bool approveViewFlags(
     const Owned<ObjectApprover>& flagsApprover)
 {
-  ObjectApprover::Object object;
-
-  Try<bool> approved = flagsApprover->approved(object);
+  Try<bool> approved = flagsApprover->approved(ObjectApprover::Object());
   if (approved.isError()) {
     LOG(WARNING) << "Error during Flags authorization: " << approved.error();
     // TODO(joerg84): Consider exposing these errors to the caller.
@@ -980,10 +967,7 @@ bool approveViewRole(
     const Owned<ObjectApprover>& rolesApprover,
     const string& role)
 {
-  ObjectApprover::Object object;
-  object.value = &role;
-
-  Try<bool> approved = rolesApprover->approved(object);
+  Try<bool> approved = rolesApprover->approved(ObjectApprover::Object(role));
   if (approved.isError()) {
     LOG(WARNING) << "Error during Roles authorization: " << approved.error();
     // TODO(joerg84): Consider exposing these errors to the caller.
