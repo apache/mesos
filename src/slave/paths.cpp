@@ -88,7 +88,8 @@ Try<ExecutorRunPath> parseExecutorRunPath(
         "the root directory: " + rootDir);
   }
 
-  vector<string> tokens = strings::tokenize(dir.substr(rootDir.size()), "/");
+  vector<string> tokens = strings::tokenize(
+      dir.substr(rootDir.size()), stringify(os::PATH_SEPARATOR));
 
   // A complete executor run path consists of at least 8 tokens, which
   // includes the four named directories and the four IDs.
