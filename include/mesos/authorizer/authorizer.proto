@@ -217,6 +217,30 @@ enum Action {
   // This action will not fill in any object fields, since a principal is
   // either allowed to mark an agent as gone or is unauthorized.
   MARK_AGENT_GONE = 34;
+
+  // This action will not fill in any object fields. A principal is either
+  // allowed to launch standalone containers or is unauthorized.
+  //
+  // TODO(josephw): This should set the operating system user in the object.
+  LAUNCH_STANDALONE_CONTAINER = 35;
+
+  // This action will not fill in any object fields. A principal is either
+  // allowed to kill standalone containers or is unauthorized.
+  //
+  // TODO(josephw): This should set the operating system user in the object.
+  KILL_STANDALONE_CONTAINER = 36;
+
+  // This action will not fill in any object fields. A principal is either
+  // allowed to wait upon standalone containers or is unauthorized.
+  //
+  // TODO(josephw): This should set the operating system user in the object.
+  WAIT_STANDALONE_CONTAINER = 37;
+
+  // This action will not fill in any object fields. A principal is either
+  // allowed to remove standalone containers or is unauthorized.
+  //
+  // TODO(josephw): This should set the operating system user in the object.
+  REMOVE_STANDALONE_CONTAINER = 38;
 }
 
 

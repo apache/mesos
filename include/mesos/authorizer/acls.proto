@@ -414,6 +414,59 @@ message ACL {
     // access.
     required Entity agents = 2;
   }
+
+  // Which principals are authorized to launch standalone containers.
+  message LaunchStandaloneContainer {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly.
+    // Use Entity type ANY or NONE to allow or deny access.
+    //
+    // TODO(josephw): Consider allowing granular permission to launch as
+    // SOME particular operating system users (e.g., linux users).
+    required Entity users = 2;
+  }
+
+  // Which principals are authorized to kill a standalone container.
+  message KillStandaloneContainer {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly.
+    // Use Entity type ANY or NONE to allow or deny access.
+    //
+    // TODO(josephw): Consider allowing granular permission to act upon
+    // SOME particular operating system users (e.g., linux users).
+    required Entity users = 2;
+  }
+
+  // Which principals are authorized to wait on a standalone container.
+  message WaitStandaloneContainer {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly.
+    // Use Entity type ANY or NONE to allow or deny access.
+    //
+    // TODO(josephw): Consider allowing granular permission to act upon
+    // SOME particular operating system users (e.g., linux users).
+    required Entity users = 2;
+  }
+
+  // Which principals are authorized to remove the artifacts (sandbox
+  // and runtime directories) of a standalone container.
+  message RemoveStandaloneContainer {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly.
+    // Use Entity type ANY or NONE to allow or deny access.
+    //
+    // TODO(josephw): Consider allowing granular permission to act upon
+    // SOME particular operating system users (e.g., linux users).
+    required Entity users = 2;
+  }
 }
 
 
@@ -485,4 +538,8 @@ message ACLs {
   repeated ACL.StopMaintenance stop_maintenances = 38;
   repeated ACL.GetMaintenanceStatus get_maintenance_statuses = 39;
   repeated ACL.MarkAgentGone mark_agents_gone = 40;
+  repeated ACL.LaunchStandaloneContainer launch_standalone_container = 41;
+  repeated ACL.KillStandaloneContainer kill_standalone_container = 42;
+  repeated ACL.WaitStandaloneContainer wait_standalone_container = 43;
+  repeated ACL.RemoveStandaloneContainer remove_standalone_container = 44;
 }

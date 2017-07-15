@@ -396,6 +396,10 @@ public:
           }
 
           break;
+        case authorization::LAUNCH_STANDALONE_CONTAINER:
+        case authorization::KILL_STANDALONE_CONTAINER:
+        case authorization::WAIT_STANDALONE_CONTAINER:
+        case authorization::REMOVE_STANDALONE_CONTAINER:
         case authorization::GET_MAINTENANCE_SCHEDULE:
         case authorization::GET_MAINTENANCE_STATUS:
         case authorization::MARK_AGENT_GONE:
@@ -665,11 +669,14 @@ public:
         case authorization::GET_MAINTENANCE_SCHEDULE:
         case authorization::GET_MAINTENANCE_STATUS:
         case authorization::KILL_NESTED_CONTAINER:
+        case authorization::KILL_STANDALONE_CONTAINER:
         case authorization::LAUNCH_NESTED_CONTAINER:
         case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
+        case authorization::LAUNCH_STANDALONE_CONTAINER:
         case authorization::MARK_AGENT_GONE:
         case authorization::REGISTER_AGENT:
         case authorization::REMOVE_NESTED_CONTAINER:
+        case authorization::REMOVE_STANDALONE_CONTAINER:
         case authorization::RUN_TASK:
         case authorization::SET_LOG_LEVEL:
         case authorization::START_MAINTENANCE:
@@ -683,6 +690,7 @@ public:
         case authorization::VIEW_FRAMEWORK:
         case authorization::VIEW_TASK:
         case authorization::WAIT_NESTED_CONTAINER:
+        case authorization::WAIT_STANDALONE_CONTAINER:
         case authorization::UNKNOWN:
           UNREACHABLE();
       }
@@ -876,11 +884,14 @@ public:
       case authorization::GET_MAINTENANCE_SCHEDULE:
       case authorization::GET_MAINTENANCE_STATUS:
       case authorization::KILL_NESTED_CONTAINER:
+      case authorization::KILL_STANDALONE_CONTAINER:
       case authorization::LAUNCH_NESTED_CONTAINER:
       case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
+      case authorization::LAUNCH_STANDALONE_CONTAINER:
       case authorization::MARK_AGENT_GONE:
       case authorization::REGISTER_AGENT:
       case authorization::REMOVE_NESTED_CONTAINER:
+      case authorization::REMOVE_STANDALONE_CONTAINER:
       case authorization::RUN_TASK:
       case authorization::SET_LOG_LEVEL:
       case authorization::START_MAINTENANCE:
@@ -895,6 +906,7 @@ public:
       case authorization::VIEW_FRAMEWORK:
       case authorization::VIEW_TASK:
       case authorization::WAIT_NESTED_CONTAINER:
+      case authorization::WAIT_STANDALONE_CONTAINER:
         UNREACHABLE();
     }
 
@@ -1043,9 +1055,12 @@ public:
       case authorization::GET_MAINTENANCE_SCHEDULE:
       case authorization::GET_MAINTENANCE_STATUS:
       case authorization::KILL_NESTED_CONTAINER:
+      case authorization::KILL_STANDALONE_CONTAINER:
+      case authorization::LAUNCH_STANDALONE_CONTAINER:
       case authorization::MARK_AGENT_GONE:
       case authorization::REGISTER_AGENT:
       case authorization::REMOVE_NESTED_CONTAINER:
+      case authorization::REMOVE_STANDALONE_CONTAINER:
       case authorization::RUN_TASK:
       case authorization::SET_LOG_LEVEL:
       case authorization::START_MAINTENANCE:
@@ -1059,6 +1074,7 @@ public:
       case authorization::VIEW_FRAMEWORK:
       case authorization::VIEW_TASK:
       case authorization::WAIT_NESTED_CONTAINER:
+      case authorization::WAIT_STANDALONE_CONTAINER:
       case authorization::UNKNOWN: {
         Result<vector<GenericACL>> genericACLs =
           createGenericACLs(action, acls);
@@ -1348,6 +1364,50 @@ private:
         }
 
         return acls_;
+      case authorization::LAUNCH_STANDALONE_CONTAINER:
+        foreach (const ACL::LaunchStandaloneContainer& acl,
+                 acls.launch_standalone_container()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.users();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::KILL_STANDALONE_CONTAINER:
+        foreach (const ACL::KillStandaloneContainer& acl,
+            acls.kill_standalone_container()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.users();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::WAIT_STANDALONE_CONTAINER:
+        foreach (const ACL::WaitStandaloneContainer& acl,
+            acls.wait_standalone_container()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.users();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::REMOVE_STANDALONE_CONTAINER:
+        foreach (const ACL::RemoveStandaloneContainer& acl,
+            acls.remove_standalone_container()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.users();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
       case authorization::REGISTER_FRAMEWORK:
       case authorization::CREATE_VOLUME:
       case authorization::RESERVE_RESOURCES:
@@ -1476,6 +1536,38 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
     if (acl.machines().type() == ACL::Entity::SOME) {
       return Error(
           "acls.get_maintenance_status type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::LaunchStandaloneContainer& acl,
+           acls.launch_standalone_container()) {
+    if (acl.users().type() == ACL::Entity::SOME) {
+      return Error(
+          "acls.launch_standalone_container type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::KillStandaloneContainer& acl,
+           acls.kill_standalone_container()) {
+    if (acl.users().type() == ACL::Entity::SOME) {
+      return Error(
+          "acls.kill_standalone_container type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::WaitStandaloneContainer& acl,
+           acls.wait_standalone_container()) {
+    if (acl.users().type() == ACL::Entity::SOME) {
+      return Error(
+          "acls.wait_standalone_container type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::RemoveStandaloneContainer& acl,
+           acls.remove_standalone_container()) {
+    if (acl.users().type() == ACL::Entity::SOME) {
+      return Error(
+          "acls.remove_standalone_container type must be either NONE or ANY");
     }
   }
 
