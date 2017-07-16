@@ -71,7 +71,7 @@ each URI are determined based on the following protobuf structure. (See
         optional bool executable = 2;
         optional bool extract = 3 [default = true];
         optional bool cache = 4;
-        optional string filename = 5;
+        optional string output_file = 5;
       }
       ...
       optional string user = 5;
