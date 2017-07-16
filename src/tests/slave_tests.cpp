@@ -3453,6 +3453,152 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
 #endif // __WINDOWS__
 
 
+// This test verifies that when an unreachable agent reregisters after
+// master failover, the master consults and updates the registrar for
+// re-admitting the agent.
+TEST_F(SlaveTest, UnreachableAgentReregisterAfterFailover)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  // Drop all the PONGs to simulate slave partition.
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  slave.get()->terminate();
+  slave->reset();
+
+  Clock::pause();
+
+  // Induce agent ping timeouts.
+  size_t pings = 0;
+  while (true) {
+    pings++;
+    if (pings == masterFlags.max_agent_ping_timeouts) {
+      break;
+    }
+    Clock::advance(masterFlags.agent_ping_timeout);
+    Clock::settle();
+  }
+
+  // Now set the expectation when the agent is one ping timeout away
+  // from being deemed unreachable.
+  Future<Owned<master::Operation>> markUnreachable;
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .WillOnce(DoAll(FutureArg<0>(&markUnreachable),
+                    Invoke(master.get()->registrar.get(),
+                           &MockRegistrar::unmocked_apply)));
+
+  Clock::advance(masterFlags.agent_ping_timeout);
+
+  AWAIT_READY(markUnreachable);
+  EXPECT_NE(
+      nullptr,
+      dynamic_cast<master::MarkSlaveUnreachable*>(markUnreachable->get()));
+
+  // Make sure the registrar operation completes so the agent will be updated
+  // as an unreachable agent in the registry before the master terminates.
+  Clock::settle();
+
+  master->reset();
+
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Start the agent, which will cause it to reregister. Intercept the
+  // next registry operation, which we expect to be slave reregistration.
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
+
+  Future<Owned<master::Operation>> markReachable;
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .WillOnce(DoAll(FutureArg<0>(&markReachable),
+                    Invoke(master.get()->registrar.get(),
+                           &MockRegistrar::unmocked_apply)));
+
+  detector = master.get()->createDetector();
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  // Verify that the reregistration involves registry update.
+  AWAIT_READY(markReachable);
+  EXPECT_NE(
+      nullptr,
+      dynamic_cast<master::MarkSlaveReachable*>(markReachable->get()));
+
+  AWAIT_READY(slaveReregisteredMessage);
+}
+
+
+// This test verifies that when a registered agent restarts and reregisters
+// after master failover, the master does not consult the registrar in
+// deciding to re-admit the agent.
+TEST_F(SlaveTest, RegisteredAgentReregisterAfterFailover)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  // Reuse slaveFlags so both StartSlave() use the same work_dir.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Pause the clock so the terminated agent is not deemed unreachable.
+  Clock::pause();
+
+  // There should be no registrar operation across both agent termination
+  // and reregistration.
+  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+    .Times(0);
+
+  slave.get()->terminate();
+  slave->reset();
+
+  master->reset();
+
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
+
+  detector = master.get()->createDetector();
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  // No registrar operation occurs by the time the agent is fully registered.
+  AWAIT_READY(slaveReregisteredMessage);
+}
+
+
 #ifndef __WINDOWS__
 // This test checks that the master behaves correctly when a slave
 // fails health checks and is in the process of being marked
