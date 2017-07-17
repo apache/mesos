@@ -57,6 +57,7 @@
 #include "tests/containerizer.hpp"
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
+#include "tests/mock_fetcher.hpp"
 
 using mesos::fetcher::FetcherInfo;
 

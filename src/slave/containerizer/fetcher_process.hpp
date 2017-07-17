@@ -18,6 +18,7 @@
 #define __SLAVE_CONTAINERIZER_FETCHER_PROCESS_HPP__
 
 #include <list>
+#include <memory>
 #include <string>
 
 #include <mesos/mesos.hpp>

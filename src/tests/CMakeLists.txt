@@ -58,6 +58,7 @@ set(MESOS_TESTS_UTILS_SRC
   main.cpp
   mesos.cpp
   mock_docker.cpp
+  mock_fetcher.cpp
   mock_registrar.cpp
   mock_slave.cpp
   module.cpp

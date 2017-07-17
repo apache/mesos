@@ -48,6 +48,7 @@
 #include "tests/environment.hpp"
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
+#include "tests/mock_fetcher.hpp"
 #include "tests/utils.hpp"
 
 #include "tests/containerizer/isolator.hpp"

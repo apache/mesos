@@ -49,8 +49,6 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
-using mesos::fetcher::FetcherInfo;
-
 using mesos::master::detector::MasterDetector;
 
 using std::list;
@@ -58,7 +56,6 @@ using std::shared_ptr;
 using std::string;
 
 using testing::_;
-using testing::Invoke;
 
 using namespace process;
 
@@ -510,20 +507,6 @@ MockExecutor::MockExecutor(const ExecutorID& _id) : id(_id) {}
 MockExecutor::~MockExecutor() {}
 
 
-MockFetcherProcess::MockFetcherProcess(const slave::Flags& flags)
-  : slave::FetcherProcess(flags)
-{
-  // Set up default behaviors, calling the original methods.
-  EXPECT_CALL(*this, _fetch(_, _, _, _, _))
-    .WillRepeatedly(Invoke(this, &MockFetcherProcess::unmocked__fetch));
-  EXPECT_CALL(*this, run(_, _, _, _))
-    .WillRepeatedly(Invoke(this, &MockFetcherProcess::unmocked_run));
-}
-
-
-MockFetcherProcess::~MockFetcherProcess() {}
-
-
 MockAuthorizer::MockAuthorizer()
 {
   // Implementation of the ObjectApprover interface authorizing all objects.
@@ -549,37 +532,6 @@ MockAuthorizer::MockAuthorizer()
 
 
 MockAuthorizer::~MockAuthorizer() {}
-
-
-Future<Nothing> MockFetcherProcess::unmocked__fetch(
-    const hashmap<CommandInfo::URI, Option<Future<shared_ptr<Cache::Entry>>>>&
-      entries,
-    const ContainerID& containerId,
-    const string& sandboxDirectory,
-    const string& cacheDirectory,
-    const Option<string>& user)
-{
-  return slave::FetcherProcess::_fetch(
-      entries,
-      containerId,
-      sandboxDirectory,
-      cacheDirectory,
-      user);
-}
-
-
-Future<Nothing> MockFetcherProcess::unmocked_run(
-    const ContainerID& containerId,
-    const string& sandboxDirectory,
-    const Option<string>& user,
-    const FetcherInfo& info)
-{
-  return slave::FetcherProcess::run(
-      containerId,
-      sandboxDirectory,
-      user,
-      info);
-}
 
 
 slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
