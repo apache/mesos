@@ -216,7 +216,7 @@ public:
     return watch->promise.future();
   }
 
-  // Sends a request to each of the groups members and returns a set
+  // Sends a request to each of the group members and returns a set
   // of futures that represent their responses.
   template <typename Req, typename Res>
   std::set<process::Future<Res>> broadcast(
@@ -235,6 +235,7 @@ public:
     return futures;
   }
 
+  // Sends a request to each of the group members without expecting responses.
   template <typename M>
   Nothing broadcast(
       const M& m,
@@ -244,7 +245,10 @@ public:
     for (iterator = pids.begin(); iterator != pids.end(); ++iterator) {
       const process::UPID& pid = *iterator;
       if (filter.count(pid) == 0) {
-        process::post(pid, m);
+        // NOTE: Here we just use the pid of the network to send this message
+        // since we don't need to deliver responses back to the caller. Any
+        // incoming messages addressed to the network are simply dropped.
+        process::post(self(), pid, m);
       }
     }
     return Nothing();
