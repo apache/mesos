@@ -83,7 +83,17 @@ message Call {
     repeated Resource converted_resources = 3;
   }
 
-  optional Type type = 1;
-  optional Subscribe subscribe = 2;
-  optional Update update = 3;
+  // Identifies who generated this call.
+  // The 'ResourceProviderManager' assigns a resource provider ID when
+  // a new resource provider subscribes for the first time. Once
+  // assigned, the resource provider must set the 'resource_provider_id'
+  // here and within its 'ResourceProviderInfo' (in any further
+  // 'SUBSCRIBE' calls). This allows the 'ResourceProviderManager' to
+  // identify a resource provider correctly across disconnections,
+  // failovers, etc.
+  optional ResourceProviderID resource_provider_id = 1;
+
+  optional Type type = 2;
+  optional Subscribe subscribe = 3;
+  optional Update update = 4;
 }
