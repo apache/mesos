@@ -344,7 +344,33 @@ else ()
   set(BUILD_USER "$ENV{USER}")
 endif ()
 
+# When building from source, from a git clone, emit some extra build info.
+if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
+  execute_process(
+    COMMAND git rev-parse HEAD
+    OUTPUT_VARIABLE BUILD_GIT_SHA
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+  execute_process(
+    COMMAND git symbolic-ref HEAD
+    OUTPUT_VARIABLE BUILD_GIT_BRANCH
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+  execute_process(
+    COMMAND git describe --exact --tags
+    OUTPUT_VARIABLE BUILD_GIT_TAG
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif ()
+
 # Emit the BUILD_DATE, BUILD_TIME, and BUILD_USER variables into a file.
+# When building from a git clone, the variables BUILD_GIT_SHA,
+# BUILD_GIT_BRANCH, and BUILD_GIT_TAG will also be emitted.
 # This will be updated each time `cmake` is run.
 configure_file(
   "${CMAKE_SOURCE_DIR}/src/common/build_config.hpp.in"

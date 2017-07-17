@@ -21,6 +21,8 @@
 #cmakedefine BUILD_TIME "@BUILD_TIME@"
 #cmakedefine BUILD_USER "@BUILD_USER@"
 
-// TODO(andschwa): Define GIT_SHA etc. for parity with autotools.
+#cmakedefine BUILD_GIT_SHA "@BUILD_GIT_SHA@"
+#cmakedefine BUILD_GIT_BRANCH "@BUILD_GIT_BRANCH@"
+#cmakedefine BUILD_GIT_TAG "@BUILD_GIT_TAG@"
 
 #endif // __COMMON_BUILD_CONFIG_HPP__
