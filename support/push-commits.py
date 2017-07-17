@@ -1,16 +1,34 @@
 #!/usr/bin/env python
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-# This script is typically used by Mesos committers to push a locally applied
-# review chain to ASF git repo and mark the reviews as submitted on ASF
-# ReviewBoard.
-#
-# Example Usage:
-#
-# > git checkout master
-# > git pull origin
-# > ./support/apply-reviews.py -c -r 1234
-# > ./support/push-commits.py
-#
+"""
+This script is typically used by Mesos committers to push a locally applied
+review chain to ASF git repo and mark the reviews as submitted on ASF
+ReviewBoard.
+
+Example Usage:
+
+> git checkout master
+> git pull origin
+> ./support/apply-reviews.py -c -r 1234
+> ./support/push-commits.py
+"""
+
 # TODO(vinod): Also post the commit message to the corresponding ASF JIRA
 # tickets and resolve them if necessary.
 
@@ -21,12 +39,11 @@ import sys
 
 from subprocess import check_output
 
-REVIEWBOARD_URL =  'https://reviews.apache.org'
+REVIEWBOARD_URL = 'https://reviews.apache.org'
 
 
 def get_reviews(revision_range):
-    """Returns the list of reviews found in the commits in the revision range.
-    """
+    """Return the list of reviews found in the commits in the revision range."""
     log = check_output(['git',
                         '--no-pager',
                         'log',
@@ -52,17 +69,16 @@ def get_reviews(revision_range):
 
 
 def close_reviews(reviews, options):
-    """ Marks the given reviews as submitted on ReviewBoard."""
-    # Close the reviews on ReviewBoard.
+    """Mark the given reviews as submitted on ReviewBoard."""
     for review_id in reviews:
-       print 'Closing review', review_id
-       if not options['dry_run']:
-           # TODO(vinod): Include the commit message as '--description'.
-           check_output(['rbt', 'close', review_id])
+        print 'Closing review', review_id
+        if not options['dry_run']:
+            # TODO(vinod): Include the commit message as '--description'.
+            check_output(['rbt', 'close', review_id])
 
 
 def parse_options():
-    """Returns a dictionary of options parsed from command line arguments."""
+    """Return a dictionary of options parsed from command line arguments."""
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-n',
@@ -78,7 +94,8 @@ def parse_options():
     return options
 
 
-if __name__ == '__main__':
+def main():
+    """Main function to push the commits in this branch as review requests."""
     options = parse_options()
 
     current_branch_ref = check_output(['git', 'symbolic-ref', 'HEAD']).strip()
@@ -93,10 +110,11 @@ if __name__ == '__main__':
                                            '--abbrev-ref',
                                            'master@{upstream}']).strip()
 
-    merge_base = check_output(['git',
-			       'merge-base',
-			       remote_tracking_branch,
-			       'master']).strip()
+    merge_base = check_output([
+        'git',
+        'merge-base',
+        remote_tracking_branch,
+        'master']).strip()
 
     if merge_base == current_branch_ref:
         print 'No new commits found to push'
@@ -122,3 +140,6 @@ if __name__ == '__main__':
 
     # Now mark the reviews as submitted.
     close_reviews(reviews, options)
+
+if __name__ == '__main__':
+    main()
