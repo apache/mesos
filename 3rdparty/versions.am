@@ -20,6 +20,7 @@
 # still need to update version numbers in src/python/setup.py.in too!
 
 BOOST_VERSION = 1.53.0
+CONCURRENTQUEUE_VERSION = 1.0.0-beta
 ELFIO_VERSION = 3.2
 GLOG_VERSION = 0.3.3
 GOOGLETEST_VERSION = 1.8.0

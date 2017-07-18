@@ -38,6 +38,7 @@ lcov --directory . -c -o mesos_test.info
 LCOV_FILTERS="/usr/include/*"
 LCOV_FILTERS+=" /usr/lib/jvm/*"
 LCOV_FILTERS+=" mesos/build/*"
+LCOV_FILTERS+=" build/3rdparty/concurrentqueue*"
 LCOV_FILTERS+=" build/3rdparty/setuptools-*"
 LCOV_FILTERS+=" build/3rdparty/leveldb*"
 LCOV_FILTERS+=" build/3rdparty/zookeeper-*"

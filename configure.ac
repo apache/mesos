@@ -282,6 +282,13 @@ AC_ARG_WITH([boost],
                            location prefixed by the given path]),
             [without_bundled_boost=yes], [])
 
+AC_ARG_WITH([concurrentqueue],
+            AS_HELP_STRING([--with-concurrentqueue@<:@=DIR@:>@],
+                           [excludes building and using the bundled concurrentqueue
+                           package in lieu of an installed version at a
+                           location prefixed by the given path]),
+            [without_bundled_concurrentqueue=yes], [])
+
 AC_ARG_WITH([curl],
             AS_HELP_STRING([--with-curl=@<:@=DIR@:>@],
                            [specify where to locate the curl library]),
@@ -772,6 +779,40 @@ else
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_BOOST], [test "x$with_bundled_boost" = "xyes"])
+
+if test -n "`echo $with_concurrentqueue`"; then
+  CPPFLAGS="-isystem ${with_concurrentqueue} $CPPFLAGS"
+fi
+
+
+# Check if user has asked us to use a preinstalled concurrentqueue,
+# or if they asked us to ignore all bundled libraries while compiling
+# and linking.
+if test "x$without_bundled_concurrentqueue" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([concurrentqueue.h], [found_concurrentqueue=yes])
+
+  if test "x$found_concurrentqueue" = "xyes"; then
+    with_bundled_concurrentqueue=no
+  else
+    AC_MSG_ERROR([cannot find concurrentqueue
+-------------------------------------------------------------------
+You have requested the use of a non-bundled concurrentqueue but no
+suitable concurrentqueue could be found.
+
+You may want specify the location of concurrentqueue by providing a
+prefix path via --with-concurrentqueue=DIR, or check that the path
+you provided is correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_concurrentqueue=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_CONCURRENTQUEUE],
+               [test "x$with_bundled_concurrentqueue" = "xyes"])
 
 
 # Check if Libcurl prefix path was provided, and if so, add it to

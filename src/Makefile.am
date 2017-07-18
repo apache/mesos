@@ -33,6 +33,7 @@ ZOOKEEPER_JAR = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/zookeeper-$(ZOOKEEPER_VE
 LIBPROCESS = 3rdparty/libprocess
 STOUT = 3rdparty/stout
 BOOST = 3rdparty/boost-$(BOOST_VERSION)
+CONCURRENTQUEUE = 3rdparty/concurrentqueue-$(CONCURRENTQUEUE_VERSION)
 ELFIO = 3rdparty/elfio-$(ELFIO_VERSION)
 GLOG = 3rdparty/glog-$(GLOG_VERSION)
 GOOGLETEST = 3rdparty/googletest-release-$(GOOGLETEST_VERSION)
@@ -151,6 +152,13 @@ if WITH_BUNDLED_BOOST
 # path. This disables compiler warnings inside Boost headers since we
 # can't easily fix them. See MESOS-3799.
 MESOS_CPPFLAGS += -isystem ../$(BOOST)
+endif
+
+if WITH_BUNDLED_CONCURRENTQUEUE
+# We use "-isystem" instead of "-I" to add concurrentqueue to the include
+# search path. This disables compiler warnings inside concurrentqueue
+# headers since we don't own the library.
+MESOS_CPPFLAGS += -isystem ../$(CONCURRENTQUEUE)
 endif
 
 if WITH_BUNDLED_ELFIO

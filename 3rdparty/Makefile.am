@@ -43,6 +43,7 @@ pkg3rdpartydir = $(pkglibdir)/3rdparty
 include versions.am
 
 BOOST = boost-$(BOOST_VERSION)
+CONCURRENTQUEUE = concurrentqueue-$(CONCURRENTQUEUE_VERSION)
 ELFIO = elfio-$(ELFIO_VERSION)
 GLOG = glog-$(GLOG_VERSION)
 GOOGLETEST = googletest-release-$(GOOGLETEST_VERSION)
@@ -60,21 +61,22 @@ SETUPTOOLS = setuptools-$(SETUPTOOLS_VERSION)
 WHEEL = wheel-$(WHEEL_VERSION)
 ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
 
-EXTRA_DIST =		\
-  $(BOOST).tar.gz	\
-  $(ELFIO).tar.gz	\
-  $(GLOG).tar.gz	\
-  $(GOOGLETEST).tar.gz	\
-  $(GPERFTOOLS).tar.gz	\
-  $(HTTP_PARSER).tar.gz	\
-  $(LEVELDB).tar.gz	\
-  $(LIBEV).tar.gz	\
-  $(NVML).tar.gz	\
-  $(PIP).tar.gz		\
-  $(PROTOBUF).tar.gz	\
-  $(PICOJSON).tar.gz	\
-  $(SETUPTOOLS).tar.gz	\
-  $(WHEEL).tar.gz	\
+EXTRA_DIST =			\
+  $(BOOST).tar.gz		\
+  $(CONCURRENTQUEUE).tar.gz	\
+  $(ELFIO).tar.gz		\
+  $(GLOG).tar.gz		\
+  $(GOOGLETEST).tar.gz		\
+  $(GPERFTOOLS).tar.gz		\
+  $(HTTP_PARSER).tar.gz		\
+  $(LEVELDB).tar.gz		\
+  $(LIBEV).tar.gz		\
+  $(NVML).tar.gz		\
+  $(PIP).tar.gz			\
+  $(PROTOBUF).tar.gz		\
+  $(PICOJSON).tar.gz		\
+  $(SETUPTOOLS).tar.gz		\
+  $(WHEEL).tar.gz		\
   $(ZOOKEEPER).tar.gz
 
 # We need to patch glog in order to deal with a compilation issue when
@@ -95,21 +97,22 @@ EXTRA_DIST +=		\
 EXTRA_DIST +=		\
   $(ZOOKEEPER).patch
 
-CLEAN_EXTRACTED =	\
-  $(BOOST)		\
-  $(ELFIO)		\
-  $(GLOG)		\
-  $(GOOGLETEST)		\
-  $(GPERFTOOLS)		\
-  $(HTTP_PARSER)	\
-  $(LEVELDB)		\
-  $(LIBEV)		\
-  $(NVML)		\
-  $(PIP)		\
-  $(PICOJSON)		\
-  $(PROTOBUF)		\
-  $(SETUPTOOLS)		\
-  $(WHEEL)		\
+CLEAN_EXTRACTED =		\
+  $(BOOST)			\
+  $(CONCURRENTQUEUE)		\
+  $(ELFIO)			\
+  $(GLOG)			\
+  $(GOOGLETEST)			\
+  $(GPERFTOOLS)			\
+  $(HTTP_PARSER)		\
+  $(LEVELDB)			\
+  $(LIBEV)			\
+  $(NVML)			\
+  $(PIP)			\
+  $(PICOJSON)			\
+  $(PROTOBUF)			\
+  $(SETUPTOOLS)			\
+  $(WHEEL)			\
   $(ZOOKEEPER)
 
 # This is where the magic happens: we use stamp files as dependencies
@@ -139,6 +142,14 @@ endif
 
 if WITH_BUNDLED_BOOST
   ALL_LOCAL += $(BOOST)-stamp
+endif
+
+if WITH_BUNDLED_CONCURRENTQUEUE
+# Libprocess depends on <concurrentqueue.h>. Install concurrentqeueue.h
+# into $PREFIX/include but don't add it to the source tarball.
+nodist_include_HEADERS = $(CONCURRENTQUEUE)/concurrentqueue.h
+$(CONCURRENTQUEUE)/concurrentqueue.h: $(CONCURRENTQUEUE)-stamp
+ALL_LOCAL += $(CONCURRENTQUEUE)-stamp
 endif
 
 if WITH_BUNDLED_ELFIO
@@ -337,6 +348,11 @@ if WITH_BUNDLED_BOOST
 	@test -d $(INSTALLDIR)/include/boost || \
 	  rm -rf $(INSTALLDIR)/include/boost
 	cp -fpR $(BOOST)/boost $(INSTALLDIR)/include/
+endif
+if WITH_BUNDLED_CONCURRENTQUEUE
+	@test -d $(INSTALLDIR)/include/concurrentqueue || \
+	  rm -rf $(INSTALLDIR)/include/concurrentqueue
+	cp -fpR $(CONCURRENTQUEUE)/concurrentqueue.h $(INSTALLDIR)/include/
 endif
 if WITH_BUNDLED_ELFIO
 	@test -d $(INSTALLDIR)/include/elfio || \

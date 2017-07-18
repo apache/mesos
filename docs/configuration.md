@@ -2553,6 +2553,15 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
+      --with-concurrentqueue[=DIR]
+    </td>
+    <td>
+      Excludes building and using the bundled concurrentqueue package in lieu
+      of an installed version at a location prefixed by the given path.
+    </td>
+  </tr>
+  <tr>
+    <td>
       --with-curl=[=DIR]
     </td>
     <td>
