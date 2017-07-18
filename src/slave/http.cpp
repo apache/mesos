@@ -1336,6 +1336,20 @@ Future<Response> Http::state(
               }
             });
 
+        // TODO(abudnik): Consider storing the allocatedResources in the Slave
+        // struct rather than computing it here each time.
+        Resources allocatedResources;
+
+        foreachvalue (const Framework* framework, slave->frameworks) {
+          allocatedResources += framework->allocatedResources();
+        }
+
+        writer->field(
+            "reserved_resources_allocated", allocatedResources.reservations());
+
+        writer->field(
+            "unreserved_resources_allocated", allocatedResources.unreserved());
+
         writer->field("attributes", Attributes(slave->info.attributes()));
 
         if (slave->master.isSome()) {
