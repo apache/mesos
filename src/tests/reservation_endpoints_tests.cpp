@@ -1528,17 +1528,17 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
 }
 
 
-// This test verifies that unreserved resources and dynamic reservations are
-// reflected in the agent's "/state" endpoint. Separately exposing reservations
-// from the agent's endpoint is necessary because it's not a guarantee that
-// it matches the master's versions.
+// This test verifies that unreserved resources, dynamic reservations, allocated
+// resources per each role are reflected in the agent's "/state" endpoint.
+// Separately exposing reservations from the agent's endpoint is necessary
+// because it's not a guarantee that it matches the master's versions.
 TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resources = "cpus:4;mem:2048;disk:4096";
+  slaveFlags.resources = "cpus:4;mem:2048;disk:4096;cpus(role):2;mem(role):512";
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
@@ -1578,6 +1578,40 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
   Clock::settle();
   Clock::resume();
 
+  FrameworkInfo frameworkInfo = createFrameworkInfo();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers->empty());
+
+  Offer offer = offers.get()[0];
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  Resources taskResources = Resources::parse(
+      "cpus(role):2;mem(role):512;cpus:2;mem:1024").get();
+
+  TaskInfo task = createTask(offer.slave_id(), taskResources, "sleep 1000");
+
+  driver.acceptOffers({offer.id()}, {LAUNCH({task})});
+
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status->state());
+
   Future<Response> response = process::http::get(
       agent.get()->pid,
       "state",
@@ -1596,6 +1630,12 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
     JSON::Value expected = JSON::parse(
         R"~(
         {
+          "role": {
+            "cpus": 2.0,
+            "disk": 0.0,
+            "gpus": 0.0,
+            "mem": 512.0
+          },
           "role1": {
             "cpus": 1.0,
             "disk": 1024.0,
@@ -1605,6 +1645,21 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
         })~").get();
 
     EXPECT_EQ(expected, state.values["reserved_resources"]);
+  }
+
+  {
+    JSON::Value expected = JSON::parse(
+        R"~(
+        {
+          "role": {
+            "cpus": 2.0,
+            "disk": 0.0,
+            "gpus": 0.0,
+            "mem": 512.0
+          }
+        })~").get();
+
+    EXPECT_EQ(expected, state.values["reserved_resources_allocated"]);
   }
 
   {
@@ -1622,9 +1677,53 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
   }
 
   {
+    // NOTE: executor consumes extra 0.1 cpus and 32.0 mem
+    JSON::Value expected = JSON::parse(
+        R"~(
+        {
+          "cpus": 2.1,
+          "disk": 0.0,
+          "gpus": 0.0,
+          "mem": 1056.0
+        })~").get();
+
+    EXPECT_EQ(expected, state.values["unreserved_resources_allocated"]);
+  }
+
+  {
     JSON::Value expected = JSON::parse(strings::format(
         R"~(
         {
+          "role": [
+            {
+              "name": "cpus",
+              "type": "SCALAR",
+              "scalar": {
+                "value": 2.0
+              },
+              "role": "role",
+              "reservations": [
+                {
+                  "role": "role",
+                  "type": "STATIC"
+                }
+              ]
+            },
+            {
+              "name": "mem",
+              "type": "SCALAR",
+              "scalar": {
+                "value": 512.0
+              },
+              "role": "role",
+              "reservations": [
+                {
+                  "role": "role",
+                  "type": "STATIC"
+                }
+              ]
+            }
+          ],
           "role1": [
             {
               "name": "cpus",
@@ -1737,6 +1836,9 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
 
     EXPECT_EQ(expected, state.values["unreserved_resources_full"]);
   }
+
+  driver.stop();
+  driver.join();
 }
 
 } // namespace tests {
