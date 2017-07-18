@@ -160,6 +160,35 @@
 
   </div>
   <div class="col-md-9">
+    <table m-table table-content="agent.reserved_resources_as_array" title="Resource Reservations"
+      class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th data-key="role">Reservation Role</th>
+          <th data-key="cpus">CPUs (Allocated / Total)</th>
+          <th data-key="gpus">GPUs (Allocated / Total)</th>
+          <th data-key="mem">Mem (Allocated / Total)</th>
+          <th data-key="disk">Disk (Allocated / Total)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><em>Unreserved</em></td>
+          <td>{{state.unreserved_resources_allocated.cpus | number}} / {{state.unreserved_resources.cpus | number}}</td>
+          <td>{{state.unreserved_resources_allocated.gpus | number}} / {{state.unreserved_resources.gpus | number}}</td>
+          <td>{{state.unreserved_resources_allocated.mem * (1024 * 1024) | dataSize}} / {{state.unreserved_resources.mem * (1024 * 1024) | dataSize}}</td>
+          <td>{{state.unreserved_resources_allocated.disk * (1024 * 1024) | dataSize}} / {{state.unreserved_resources.disk * (1024 * 1024) | dataSize}}</td>
+        </tr>
+        <tr ng-repeat="reservation in $data">
+          <td>{{reservation.role}}</td>
+          <td>{{(state.reserved_resources_allocated[reservation.role].cpus || 0) | number}} / {{reservation.cpus | number}}</td>
+          <td>{{(state.reserved_resources_allocated[reservation.role].gpus || 0) | number}} / {{reservation.gpus | number}}</td>
+          <td>{{(state.reserved_resources_allocated[reservation.role].mem * (1024 * 1024) || 0) | dataSize}} / {{reservation.mem * (1024 * 1024) | dataSize}}</td>
+          <td>{{(state.reserved_resources_allocated[reservation.role].disk * (1024 * 1024) || 0) | dataSize}} / {{reservation.disk * (1024 * 1024) | dataSize}}</td>
+        </tr>
+      </tbody>
+    </table>
+
     <table m-table table-content="agent.frameworks" title="Frameworks"
       class="table table-striped table-bordered table-condensed">
       <thead>

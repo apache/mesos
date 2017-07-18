@@ -601,6 +601,14 @@
           $scope.agent.frameworks = {};
           $scope.agent.completed_frameworks = {};
 
+          // Convert the reserved resources map into an array for inclusion
+          // in an `ng-repeat` table.
+          $scope.agent.reserved_resources_as_array = _($scope.state.reserved_resources)
+            .map(function(reservation, role) {
+              reservation.role = role;
+              return reservation;
+            });
+
           // Computes framework stats by setting new attributes on the 'framework'
           // object.
           function computeFrameworkStats(framework) {
