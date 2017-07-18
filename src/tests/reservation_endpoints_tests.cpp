@@ -1530,8 +1530,6 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
 
 // This test verifies that unreserved resources, dynamic reservations, allocated
 // resources per each role are reflected in the agent's "/state" endpoint.
-// Separately exposing reservations from the agent's endpoint is necessary
-// because it's not a guarantee that it matches the master's versions.
 TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
