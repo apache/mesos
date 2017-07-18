@@ -2416,17 +2416,9 @@ void Slave::__run(
       LOG(INFO) << "Queued " << taskOrTaskGroup(task, taskGroup)
                 << " for executor " << *executor;
 
-      // Update the resource limits for the container. Note that the
-      // resource limits include the currently queued tasks because we
-      // want the container to have enough resources to hold the
-      // upcoming tasks.
-      Resources resources = executor->resources;
-
-      foreachvalue (const TaskInfo& _task, executor->queuedTasks) {
-        resources += _task.resources();
-      }
-
-      containerizer->update(executor->containerId, resources)
+      containerizer->update(
+          executor->containerId,
+          executor->allocatedResources())
         .onAny(defer(self(),
                      &Self::___run,
                      lambda::_1,
@@ -3790,16 +3782,6 @@ void Slave::subscribe(
             None());
       }
 
-      // Update the resource limits for the container. Note that the
-      // resource limits include the currently queued tasks because we
-      // want the container to have enough resources to hold the
-      // upcoming tasks.
-      Resources resources = executor->resources;
-
-      foreachvalue (const TaskInfo& task, executor->queuedTasks) {
-        resources += task.resources();
-      }
-
       // We maintain a copy of the tasks in `queuedTaskGroups` also in
       // `queuedTasks`. Hence, we need to ensure that we don't send the same
       // tasks to the executor twice.
@@ -3819,7 +3801,9 @@ void Slave::subscribe(
         }
       }
 
-      containerizer->update(executor->containerId, resources)
+      containerizer->update(
+          executor->containerId,
+          executor->allocatedResources())
         .onAny(defer(self(),
                      &Self::___run,
                      lambda::_1,
@@ -4012,16 +3996,6 @@ void Slave::registerExecutor(
       message.mutable_slave_info()->MergeFrom(info);
       executor->send(message);
 
-      // Update the resource limits for the container. Note that the
-      // resource limits include the currently queued tasks because we
-      // want the container to have enough resources to hold the
-      // upcoming tasks.
-      Resources resources = executor->resources;
-
-      foreachvalue (const TaskInfo& task, executor->queuedTasks) {
-        resources += task.resources();
-      }
-
       // We maintain a copy of the tasks in `queuedTaskGroups` also in
       // `queuedTasks`. Hence, we need to ensure that we don't send the same
       // tasks to the executor twice.
@@ -4041,7 +4015,9 @@ void Slave::registerExecutor(
         }
       }
 
-      containerizer->update(executor->containerId, resources)
+      containerizer->update(
+          executor->containerId,
+          executor->allocatedResources())
         .onAny(defer(self(),
                      &Self::___run,
                      lambda::_1,
@@ -4179,7 +4155,9 @@ void Slave::reregisterExecutor(
       }
 
       // Tell the containerizer to update the resources.
-      containerizer->update(executor->containerId, executor->resources)
+      containerizer->update(
+          executor->containerId,
+          executor->allocatedResources())
         .onAny(defer(self(),
                      &Self::_reregisterExecutor,
                      lambda::_1,
@@ -4623,7 +4601,7 @@ void Slave::_statusUpdate(
     // have been updated before sending the status update. Note that
     // duplicate terminal updates are not possible here because they
     // lead to an error from `Executor::updateTaskState`.
-    containerizer->update(executor->containerId, executor->resources)
+    containerizer->update(executor->containerId, executor->allocatedResources())
       .onAny(defer(self(),
                    &Slave::__statusUpdate,
                    lambda::_1,
@@ -6445,9 +6423,8 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
     // calculating the available oversubscribed resources to offer.
     Resources oversubscribed;
     foreachvalue (Framework* framework, frameworks) {
-      foreachvalue (Executor* executor, framework->executors) {
-        oversubscribed += unallocated(executor->resources.revocable());
-      }
+      oversubscribed += unallocated(
+          framework->allocatedResources().revocable());
     }
 
     // Add oversubscribable resources to the total.
@@ -6647,7 +6624,7 @@ Future<ResourceUsage> Slave::usage()
 
       ResourceUsage::Executor* entry = usage->add_executors();
       entry->mutable_executor_info()->CopyFrom(executor->info);
-      entry->mutable_allocated()->CopyFrom(executor->resources);
+      entry->mutable_allocated()->CopyFrom(executor->allocatedResources());
       entry->mutable_container_id()->CopyFrom(executor->containerId);
 
       // We include non-terminal tasks in ResourceUsage.
@@ -7012,9 +6989,7 @@ double Slave::_resources_used(const string& name)
   Resources used;
 
   foreachvalue (Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      used += executor->resources.nonRevocable();
-    }
+    used += framework->allocatedResources().nonRevocable();
   }
 
   return used.get<Value::Scalar>(name).getOrElse(Value::Scalar()).value();
@@ -7056,9 +7031,7 @@ double Slave::_resources_revocable_used(const string& name)
   Resources used;
 
   foreachvalue (Framework* framework, frameworks) {
-    foreachvalue (Executor* executor, framework->executors) {
-      used += executor->resources.revocable();
-    }
+    used += framework->allocatedResources().revocable();
   }
 
   return used.get<Value::Scalar>(name).getOrElse(Value::Scalar()).value();
@@ -7484,9 +7457,7 @@ Resources Framework::allocatedResources() const
   Resources allocated;
 
   foreachvalue (const Executor* executor, executors) {
-    // TODO(abudnik): Currently `Executor::resources` does not include
-    // the executor's queued tasks!
-    allocated += executor->resources;
+    allocated += executor->allocatedResources();
   }
 
   hashset<ExecutorID> pendingExecutors;
@@ -7530,7 +7501,6 @@ Executor::Executor(
     checkpoint(_checkpoint),
     http(None()),
     pid(None()),
-    resources(_info.resources()),
     completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR)
 {
   CHECK_NOTNULL(slave);
@@ -7578,8 +7548,6 @@ Task* Executor::addTask(const TaskInfo& task)
   Task* t = new Task(protobuf::createTask(task, TASK_STAGING, frameworkId));
 
   launchedTasks[task.task_id()] = t;
-
-  resources += task.resources();
 
   return t;
 }
@@ -7659,12 +7627,6 @@ void Executor::recoverTask(const TaskState& state, bool recheckpointTask)
   }
 
   launchedTasks[state.id] = task;
-
-  // NOTE: Since some tasks might have been terminated when the
-  // slave was down, the executor resources we capture here is an
-  // upper-bound. The actual resources needed (for live tasks) by
-  // the isolator will be calculated when the executor re-registers.
-  resources += state.info->resources();
 
   // Read updates to get the latest state of the task.
   foreach (const StatusUpdate& update, state.updates) {
@@ -7754,7 +7716,6 @@ Try<Nothing> Executor::updateTaskState(const TaskStatus& status)
     task = launchedTasks.at(status.task_id());
 
     if (terminal) {
-      resources -= task->resources(); // Release the resources.
       launchedTasks.erase(taskId);
     }
   } else if (terminatedTasks.contains(taskId)) {

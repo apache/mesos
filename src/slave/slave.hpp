@@ -795,9 +795,6 @@ public:
   Option<HttpConnection> http;
   Option<process::UPID> pid;
 
-  // Currently consumed resources.
-  Resources resources;
-
   // Tasks can be found in one of the following four data structures:
   //
   // TODO(bmahler): Make these private to enforce that the task

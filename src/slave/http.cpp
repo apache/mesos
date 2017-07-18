@@ -185,7 +185,7 @@ struct ExecutorWriter
     writer->field("source", executor_->info.source());
     writer->field("container", executor_->containerId.value());
     writer->field("directory", executor_->directory);
-    writer->field("resources", executor_->resources);
+    writer->field("resources", executor_->allocatedResources());
 
     // Resources may be empty for command executors.
     if (!executor_->info.resources().empty()) {
