@@ -749,6 +749,8 @@ public:
   // Returns the task group associated with the task.
   Option<TaskGroupInfo> getQueuedTaskGroup(const TaskID& taskId);
 
+  Resources allocatedResources() const;
+
   enum State
   {
     REGISTERING,  // Executor is launched but not (re-)registered yet.

@@ -7836,6 +7836,22 @@ Option<TaskGroupInfo> Executor::getQueuedTaskGroup(const TaskID& taskId)
 }
 
 
+Resources Executor::allocatedResources() const
+{
+  Resources allocatedResources = info.resources();
+
+  foreachvalue (const TaskInfo& task, queuedTasks) {
+    allocatedResources += task.resources();
+  }
+
+  foreachvalue (const Task* task, launchedTasks) {
+    allocatedResources += task->resources();
+  }
+
+  return allocatedResources;
+}
+
+
 map<string, string> executorEnvironment(
     const Flags& flags,
     const ExecutorInfo& executorInfo,
