@@ -50,6 +50,7 @@ We categorize the changes as follows:
     <ul style="padding-left:10px;">
       <li>A <a href="#1-4-x-ambient-capabilities">Container capabilities are made ambient if supported</a></li>
       <li>A <a href="#1-4-x-bounding-capabilities">Support for explicit bounding capabilities</a></li>
+      <li>C <a href="#1-4-x-agent-recovery">Agent recovery post reboot</a></li>
     </ul>
   </td>
 
@@ -323,6 +324,12 @@ We categorize the changes as follows:
 <a name="1-4-x-bounding-capabilities"></a>
 
 * Explicitly setting the bounding capabilities of a task independently of the effective capabilities is now supported. Frameworks can specifiy the task bounding capabilities by using the `LinuxInfo.bounding_capabilities` message. Operators can specify the default bounding capabilities using the agent `--bounding_capabilities` flag. This flag also specifies the maximum bounding set that a framework is allowed to specify.
+
+<a name="1-4-x-agent-recovery"></a>
+
+* Agent is now allowed to recover its agent ID post a host reboot. This prevents the unnecessary discarding of agent ID by prior Mesos versions. Notes about backwards compatibility:
+  * In case the agent's recovery runs into agent info mismatch which may happen due to resource change associated with reboot, it'll fall back to recovering as a new agent (existing behavior).
+  * In other cases such as checkpointed resources (e.g. persistent volumes) being incompatible with the agent's resources the recovery will still fail (existing behavior).
 
 <a name="1-4-x-linuxinfo-capabilities"></a>
 
