@@ -17,6 +17,7 @@
 #ifndef __SLAVE_GC_HPP__
 #define __SLAVE_GC_HPP__
 
+#include <list>
 #include <string>
 #include <vector>
 
@@ -70,8 +71,9 @@ public:
   // Unschedules the specified path for removal.
   // The future will be true if the path has been unscheduled.
   // The future will be false if the path is not scheduled for
-  // removal, or the path has already being removed.
-  // Note that you currently cannot discard a returned future.
+  // removal, or the path has already being removed. If path
+  // removal is in progress, the future will be false when the
+  // removal finishes or will fail on unsuccessful removal.
   virtual process::Future<bool> unschedule(const std::string& path);
 
   // Deletes all the directories, whose scheduled garbage collection time
@@ -96,7 +98,7 @@ public:
       const Duration& d,
       const std::string& path);
 
-  bool unschedule(const std::string& path);
+  process::Future<bool> unschedule(const std::string& path);
 
   void prune(const Duration& d);
 
@@ -107,23 +109,31 @@ private:
 
   struct PathInfo
   {
-    PathInfo(const std::string& _path,
-             process::Owned<process::Promise<Nothing>> _promise)
-      : path(_path), promise(_promise) {}
+    PathInfo(const std::string& _path)
+      : path(_path) {}
 
     bool operator==(const PathInfo& that) const
     {
-      return path == that.path && promise == that.promise;
+      return path == that.path;
     }
 
     const std::string path;
-    const process::Owned<process::Promise<Nothing>> promise;
+
+    // This promise tracks the scheduled gc for the path.
+    process::Promise<Nothing> promise;
+
+    bool removing = false;
   };
+
+  // Callback for `remove` for bookkeeping after path removal.
+  void _remove(
+      const process::Future<Nothing>& result,
+      const std::list<process::Owned<PathInfo>> infos);
 
   // Store all the timeouts and corresponding paths to delete.
   // NOTE: We are using Multimap here instead of Multihashmap, because
   // we need the keys of the map (deletion time) to be sorted.
-  Multimap<process::Timeout, PathInfo> paths;
+  Multimap<process::Timeout, process::Owned<PathInfo>> paths;
 
   // We also need efficient lookup for a path, to determine whether
   // it exists in our paths mapping.

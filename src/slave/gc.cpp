@@ -16,10 +16,14 @@
 
 #include <list>
 
+#include <process/async.hpp>
+#include <process/check.hpp>
+#include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 
 #include <stout/os/rmdir.hpp>
 
@@ -42,8 +46,8 @@ namespace slave {
 
 GarbageCollectorProcess::~GarbageCollectorProcess()
 {
-  foreachvalue (const PathInfo& info, paths) {
-    info.promise->discard();
+  foreachvalue (const Owned<PathInfo>& info, paths) {
+    info->promise.discard();
   }
 }
 
@@ -57,15 +61,21 @@ Future<Nothing> GarbageCollectorProcess::schedule(
   // If there's an existing schedule for this path, we must remove
   // it here in order to reschedule.
   if (timeouts.contains(path)) {
-    CHECK(unschedule(path));
+    return unschedule(path)
+      .then(defer(
+          self(),
+          &Self::schedule,
+          d,
+          path));
   }
-
-  Owned<Promise<Nothing>> promise(new Promise<Nothing>());
 
   Timeout removalTime = Timeout::in(d);
 
   timeouts[path] = removalTime;
-  paths.put(removalTime, PathInfo(path, promise));
+
+  Owned<PathInfo> info(new PathInfo(path));
+
+  paths.put(removalTime, info);
 
   // If the timer is not yet initialized or the timeout is sooner than
   // the currently active timer, update it.
@@ -74,11 +84,11 @@ Future<Nothing> GarbageCollectorProcess::schedule(
     reset(); // Schedule the timer for next event.
   }
 
-  return promise->future();
+  return info->promise.future();
 }
 
 
-bool GarbageCollectorProcess::unschedule(const string& path)
+Future<bool> GarbageCollectorProcess::unschedule(const string& path)
 {
   LOG(INFO) << "Unscheduling '" << path << "' from gc";
 
@@ -90,14 +100,23 @@ bool GarbageCollectorProcess::unschedule(const string& path)
   CHECK(paths.contains(timeout));
 
   // Locate the path.
-  foreach (const PathInfo& info, paths.get(timeout)) {
-    if (info.path == path) {
+  foreach (const Owned<PathInfo>& info, paths.get(timeout)) {
+    if (info->path == path) {
+      // If the path is currently undergoing removal, we cannot
+      // prevent path removal and wait for removal completion.
+      if (info->removing) {
+        // Return false to be consistent with the behavior when
+        // `unschedule` is called after the path is removed.
+        return info->promise.future()
+          .then([]() { return false; });
+      }
+
       // Discard the promise.
-      info.promise->discard();
+      info->promise.discard();
 
       // Clean up the maps.
       CHECK(paths.remove(timeout, info));
-      CHECK(timeouts.erase(path) > 0);
+      CHECK_EQ(timeouts.erase(info->path), 1u);
 
       return true;
     }
@@ -125,41 +144,70 @@ void GarbageCollectorProcess::reset()
 
 void GarbageCollectorProcess::remove(const Timeout& removalTime)
 {
-  // TODO(bmahler): Other dispatches can block waiting for a removal
-  // operation. To fix this, the removal operation can be done
-  // asynchronously in another thread.
   if (paths.count(removalTime) > 0) {
-    foreach (const PathInfo& info, paths.get(removalTime)) {
-      LOG(INFO) << "Deleting " << info.path;
+    list<Owned<PathInfo>> infos;
 
-      // Run rmdir with 'continueOnError = true'. It's possible for
-      // tasks and isolators to lay down files that are not deletable by
-      // GC. In the face of such errors GC needs to free up disk space
-      // wherever it can because it's already re-offered to frameworks.
-      Try<Nothing> rmdir = os::rmdir(info.path, true, true, true);
-
-      if (rmdir.isError()) {
-        LOG(WARNING) << "Failed to delete '" << info.path << "': "
-                     << rmdir.error();
-        info.promise->fail(rmdir.error());
-      } else {
-        LOG(INFO) << "Deleted '" << info.path << "'";
-        info.promise->set(rmdir.get());
+    foreach (const Owned<PathInfo> info, paths.get(removalTime)) {
+      if (info->removing) {
+        VLOG(1) << "Skipping deletion of '" << info-> path
+                << "'  as it is already in progress";
+        continue;
       }
 
-      timeouts.erase(info.path);
+      infos.push_back(info);
+
+      // Set `removing` to signify that the path is being cleaned up.
+      info->removing = true;
     }
 
-    paths.remove(removalTime);
+    auto rmdirs = [infos]() {
+      foreach (const Owned<PathInfo>& info, infos) {
+        // Run the removal operation with 'continueOnError = true'.
+        // It's possible for tasks and isolators to lay down files
+        // that are not deletable by GC. In the face of such errors
+        // GC needs to free up disk space wherever it can because the
+        // disk space has already been re-offered to frameworks.
+        LOG(INFO) << "Deleting " << info->path;
+        Try<Nothing> rmdir = os::rmdir(info->path, true, true, true);
+
+        if (rmdir.isError()) {
+          LOG(WARNING) << "Failed to delete '" << info->path << "': "
+                       << rmdir.error();
+          info->promise.fail(rmdir.error());
+        } else {
+          LOG(INFO) << "Deleted '" << info->path << "'";
+          info->promise.set(rmdir.get());
+        }
+      }
+
+      return Nothing();
+    };
+
+    async(rmdirs)
+      .onAny(defer(self(), &Self::_remove, lambda::_1, infos));
   } else {
     // This occurs when either:
     //   1. The path(s) has already been removed (e.g. by prune()).
     //   2. All paths under the removal time were unscheduled.
     LOG(INFO) << "Ignoring gc event at " << removalTime.remaining()
               << " as the paths were already removed, or were unscheduled";
+    reset();
+  }
+}
+
+
+void  GarbageCollectorProcess::_remove(const Future<Nothing>& result,
+                                       const list<Owned<PathInfo>> infos)
+{
+  CHECK_READY(result);
+
+  // Remove path records from `paths` and `timeouts` data structures.
+  foreach (const Owned<PathInfo>& info, infos) {
+    CHECK(paths.remove(timeouts[info->path], info));
+    CHECK_EQ(timeouts.erase(info->path), 1u);
   }
 
-  reset(); // Schedule the timer for next event.
+  reset();
 }
 
 
