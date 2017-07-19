@@ -3900,11 +3900,10 @@ Future<Response> Master::Http::tasks(
         principal,
         master->authorizer,
         authorization::VIEW_TASK);
-  Future<Owned<FrameworkIDAcceptor>> selectFrameworkId =
-    Owned<FrameworkIDAcceptor>(
-        new FrameworkIDAcceptor(request.url.query.get("framework_id")));
-  Future<Owned<TaskIDAcceptor>> selectTaskId =
-    Owned<TaskIDAcceptor>(new TaskIDAcceptor(request.url.query.get("task_id")));
+  Future<IDAcceptor<FrameworkID>> selectFrameworkId =
+    IDAcceptor<FrameworkID>(request.url.query.get("framework_id"));
+  Future<IDAcceptor<TaskID>> selectTaskId =
+    IDAcceptor<TaskID>(request.url.query.get("task_id"));
 
   return collect(
       authorizeFrameworkInfo,
@@ -3915,12 +3914,12 @@ Future<Response> Master::Http::tasks(
         master->self(),
         [=](const tuple<Owned<AuthorizationAcceptor>,
                         Owned<AuthorizationAcceptor>,
-                        Owned<FrameworkIDAcceptor>,
-                        Owned<TaskIDAcceptor>>& acceptors)-> Future<Response> {
+                        IDAcceptor<FrameworkID>,
+                        IDAcceptor<TaskID>>& acceptors)-> Future<Response> {
           Owned<AuthorizationAcceptor> authorizeFrameworkInfo;
           Owned<AuthorizationAcceptor> authorizeTask;
-          Owned<FrameworkIDAcceptor> selectFrameworkId;
-          Owned<TaskIDAcceptor> selectTaskId;
+          IDAcceptor<FrameworkID> selectFrameworkId;
+          IDAcceptor<TaskID> selectTaskId;
           tie(authorizeFrameworkInfo,
               authorizeTask,
               selectFrameworkId,
@@ -3931,7 +3930,7 @@ Future<Response> Master::Http::tasks(
           foreachvalue (Framework* framework, master->frameworks.registered) {
             // Skip unauthorized frameworks or frameworks without matching
             // framework ID.
-            if (!selectFrameworkId->accept(framework->id()) ||
+            if (!selectFrameworkId.accept(framework->id()) ||
                 !authorizeFrameworkInfo->accept(framework->info)) {
               continue;
             }
@@ -3943,7 +3942,7 @@ Future<Response> Master::Http::tasks(
                         master->frameworks.completed) {
             // Skip unauthorized frameworks or frameworks without matching
             // framework ID.
-            if (!selectFrameworkId->accept(framework->id()) ||
+            if (!selectFrameworkId.accept(framework->id()) ||
                 !authorizeFrameworkInfo->accept(framework->info)) {
              continue;
             }
@@ -3958,7 +3957,7 @@ Future<Response> Master::Http::tasks(
             foreachvalue (Task* task, framework->tasks) {
               CHECK_NOTNULL(task);
               // Skip unauthorized tasks or tasks without matching task ID.
-              if (!selectTaskId->accept(task->task_id()) ||
+              if (!selectTaskId.accept(task->task_id()) ||
                   !authorizeTask->accept(*task, framework->info)) {
                 continue;
               }
@@ -3970,7 +3969,7 @@ Future<Response> Master::Http::tasks(
                 const Owned<Task>& task,
                 framework->unreachableTasks) {
               // Skip unauthorized tasks or tasks without matching task ID.
-              if (!selectTaskId->accept(task.get()->task_id()) ||
+              if (!selectTaskId.accept(task.get()->task_id()) ||
                   !authorizeTask->accept(*task.get(), framework->info)) {
                 continue;
               }
@@ -3980,7 +3979,7 @@ Future<Response> Master::Http::tasks(
 
             foreach (const Owned<Task>& task, framework->completedTasks) {
               // Skip unauthorized tasks or tasks without matching task ID.
-              if (!selectTaskId->accept(task.get()->task_id()) ||
+              if (!selectTaskId.accept(task.get()->task_id()) ||
                   !authorizeTask->accept(*task.get(), framework->info)) {
                 continue;
               }

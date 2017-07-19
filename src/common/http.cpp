@@ -1165,45 +1165,4 @@ Future<Owned<AuthorizationAcceptor>> AuthorizationAcceptor::create(
 }
 
 
-FrameworkIDAcceptor::FrameworkIDAcceptor(
-    const Option<std::string>& _frameworkId)
-{
-  if (_frameworkId.isSome()) {
-    FrameworkID frameworkId_;
-    frameworkId_.set_value(_frameworkId.get());
-    frameworkId = frameworkId_;
-  }
-}
-
-
-TaskIDAcceptor::TaskIDAcceptor(const Option<std::string>& _taskId)
-{
-  if (_taskId.isSome()) {
-    TaskID taskId_;
-    taskId_.set_value(_taskId.get());
-    taskId = taskId_;
-  }
-}
-
-
-bool FrameworkIDAcceptor::accept(const FrameworkID& _frameworkId)
-{
-  if (frameworkId.isSome()) {
-    return frameworkId.get() == _frameworkId;
-  }
-
-  return true;
-}
-
-
-bool TaskIDAcceptor::accept(const TaskID& _taskId)
-{
-  if (taskId.isSome()) {
-    return taskId.get() == _taskId;
-  }
-
-  return true;
-}
-
-
 }  // namespace mesos {

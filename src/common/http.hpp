@@ -195,34 +195,34 @@ protected:
 
 
 /**
- * Filtering results based on framework ID. When no framework ID is specified
- * it will accept all inputs.
+ * Used to filter results for API handlers. Provides the 'accept()' method to
+ * test whether the supplied ID is equal to a stored target ID. If no target
+ * ID is provided when the acceptor is constructed, it will accept all inputs.
  */
-class FrameworkIDAcceptor
+template <typename T>
+class IDAcceptor
 {
 public:
-  FrameworkIDAcceptor(const Option<std::string>& _frameworkId);
+  IDAcceptor(const Option<std::string>& id = None())
+  {
+    if (id.isSome()) {
+      T targetId_;
+      targetId_.set_value(id.get());
+      targetId = targetId_;
+    }
+  }
 
-  bool accept(const FrameworkID& frameworkId);
+  bool accept(const T& candidateId) const
+  {
+    if (targetId.isNone()) {
+      return true;
+    }
 
-protected:
-  Option<FrameworkID> frameworkId;
-};
-
-
-/**
- * Filtering results based on task ID. When no task ID is specified
- * it will accept all inputs.
- */
-class TaskIDAcceptor
-{
-public:
-  TaskIDAcceptor(const Option<std::string>& _taskId);
-
-  bool accept(const TaskID& taskId);
+    return candidateId.value() == targetId->value();
+  }
 
 protected:
-  Option<TaskID> taskId;
+  Option<T> targetId;
 };
 
 
