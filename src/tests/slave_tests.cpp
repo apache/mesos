@@ -2358,30 +2358,39 @@ TEST_F(SlaveTest, ContainersEndpointNoExecutor)
 
 
 // This is an end-to-end test that verifies that the slave returns the
-// correct container status and resource statistics based on the
-// currently running executors, and the values returned by the
-// '/containers' endpoint are as expected.
+// correct container status and resource statistics based on the currently
+// running executors, and ensures that '/containers' endpoint returns the
+// correct container when it is provided a container ID query parameter.
 TEST_F(SlaveTest, ContainersEndpoint)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  MockExecutor exec(DEFAULT_EXECUTOR_ID);
-  TestContainerizer containerizer(&exec);
-  StandaloneMasterDetector detector(master.get()->pid);
+  // Create two executors so that we can launch tasks in two separate
+  // containers.
+  ExecutorInfo executor1 = createExecutorInfo("executor-1", "exit 1");
+  ExecutorInfo executor2 = createExecutorInfo("executor-2", "exit 1");
 
-  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
-  spawn(slave);
+  MockExecutor exec1(executor1.executor_id());
+  MockExecutor exec2(executor2.executor_id());
+
+  hashmap<ExecutorID, Executor*> execs;
+  execs[executor1.executor_id()] = &exec1;
+  execs[executor2.executor_id()] = &exec2;
+
+  TestContainerizer containerizer(execs);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(_, _, _));
-  EXPECT_CALL(exec, registered(_, _, _, _));
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
-
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -2389,98 +2398,247 @@ TEST_F(SlaveTest, ContainersEndpoint)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  ASSERT_NE(0u, offers->size());
 
-  const Offer& offer = offers.get()[0];
+  // Launch two tasks, each under a different executor.
+  vector<TaskInfo> tasks;
 
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      Resources::parse("cpus:0.1;mem:32").get(),
-      SLEEP_COMMAND(1000),
-      exec.id);
+  TaskInfo task1;
+  {
+    task1.set_name("");
+    task1.mutable_task_id()->set_value("1");
+    task1.mutable_slave_id()->MergeFrom(offers->front().slave_id());
+    task1.mutable_resources()->MergeFrom(
+        Resources::parse("cpus:1;mem:512").get());
+    task1.mutable_executor()->MergeFrom(executor1);
+    tasks.push_back(task1);
+  }
 
-  EXPECT_CALL(exec, launchTask(_, _))
-    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+  TaskInfo task2;
+  {
+    task2.set_name("");
+    task2.mutable_task_id()->set_value("2");
+    task2.mutable_slave_id()->MergeFrom(offers->front().slave_id());
+    task2.mutable_resources()->MergeFrom(
+        Resources::parse("cpus:1;mem:512").get());
+    task2.mutable_executor()->MergeFrom(executor2);
+    tasks.push_back(task2);
+  }
 
-  Future<TaskStatus> status;
+  EXPECT_CALL(exec1, registered(_, _, _, _));
+
+  Future<TaskInfo> launchedTask1;
+  EXPECT_CALL(exec1, launchTask(_, _))
+    .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
+                    FutureArg<1>(&launchedTask1)));
+
+  EXPECT_CALL(exec2, registered(_, _, _, _));
+
+  Future<TaskInfo> launchedTask2;
+  EXPECT_CALL(exec2, launchTask(_, _))
+    .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
+                    FutureArg<1>(&launchedTask2)));
+
+  Future<TaskStatus> status1, status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
 
-  driver.launchTasks(offer.id(), {task});
+  driver.launchTasks(offers->front().id(), tasks);
 
-  AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status->state());
+  AWAIT_READY(launchedTask1);
+  EXPECT_EQ(task1.task_id(), launchedTask1->task_id());
 
-  ResourceStatistics statistics;
-  statistics.set_mem_limit_bytes(2048);
+  AWAIT_READY(launchedTask2);
+  EXPECT_EQ(task2.task_id(), launchedTask2->task_id());
 
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1->state());
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2->state());
+
+  // Prepare container statistics.
+  ResourceStatistics statistics1;
+  statistics1.set_mem_limit_bytes(2048);
+
+  ResourceStatistics statistics2;
+  statistics2.set_mem_limit_bytes(2048);
+
+  // Get the container ID and return simulated statistics.
+  Future<ContainerID> containerId1;
+  Future<ContainerID> containerId2;
+
+  // Will be called twice during the first request. We extract the assigned
+  // container IDs for use when requesting information on a single container.
   EXPECT_CALL(containerizer, usage(_))
-    .WillOnce(Return(statistics));
+    .WillOnce(DoAll(FutureArg<0>(&containerId1), Return(statistics1)))
+    .WillOnce(DoAll(FutureArg<0>(&containerId2), Return(statistics2)));
 
-  ContainerStatus containerStatus;
+  // Construct the container statuses to be returned. Note that
+  // these container IDs will be different than the actual container
+  // IDs assigned by the agent, but creating them here allows us to
+  // easily confirm the output of '/containers'.
+  ContainerStatus containerStatus1;
+  ContainerStatus containerStatus2;
 
   ContainerID parent;
-  ContainerID child;
   parent.set_value("parent");
-  child.set_value("child");
-  child.mutable_parent()->CopyFrom(parent);
-  containerStatus.mutable_container_id()->CopyFrom(child);
 
-  CgroupInfo* cgroupInfo = containerStatus.mutable_cgroup_info();
-  CgroupInfo::NetCls* netCls = cgroupInfo->mutable_net_cls();
-  netCls->set_classid(42);
+  {
+    ContainerID child;
+    child.set_value("child1");
+    child.mutable_parent()->CopyFrom(parent);
+    containerStatus1.mutable_container_id()->CopyFrom(child);
 
-  NetworkInfo* networkInfo = containerStatus.add_network_infos();
-  NetworkInfo::IPAddress* ipAddr = networkInfo->add_ip_addresses();
-  ipAddr->set_ip_address("192.168.1.20");
+    CgroupInfo* cgroupInfo = containerStatus1.mutable_cgroup_info();
+    CgroupInfo::NetCls* netCls = cgroupInfo->mutable_net_cls();
+    netCls->set_classid(42);
 
+    NetworkInfo* networkInfo = containerStatus1.add_network_infos();
+    NetworkInfo::IPAddress* ipAddr = networkInfo->add_ip_addresses();
+    ipAddr->set_ip_address("192.168.1.20");
+  }
+
+  {
+    ContainerID child;
+    child.set_value("child2");
+    child.mutable_parent()->CopyFrom(parent);
+    containerStatus2.mutable_container_id()->CopyFrom(child);
+
+    CgroupInfo* cgroupInfo = containerStatus2.mutable_cgroup_info();
+    CgroupInfo::NetCls* netCls = cgroupInfo->mutable_net_cls();
+    netCls->set_classid(42);
+
+    NetworkInfo* networkInfo = containerStatus2.add_network_infos();
+    NetworkInfo::IPAddress* ipAddr = networkInfo->add_ip_addresses();
+    ipAddr->set_ip_address("192.168.1.21");
+  }
+
+  // Will be called twice during the first request.
   EXPECT_CALL(containerizer, status(_))
-    .WillOnce(Return(containerStatus));
+    .WillOnce(Return(containerStatus1))
+    .WillOnce(Return(containerStatus2));
 
-  Future<Response> response = process::http::get(
-      slave.self(),
-      "containers",
-      None(),
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+  // Request information about all containers.
+  {
+    Future<Response> response = process::http::get(
+        slave.get()->pid,
+        "containers",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-  AWAIT_READY(response);
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+    Try<JSON::Value> value = JSON::parse<JSON::Value>(response->body);
+    ASSERT_SOME(value);
 
-  Try<JSON::Value> value = JSON::parse(response->body);
-  ASSERT_SOME(value);
+    JSON::Array array = value->as<JSON::Array>();
 
-  Try<JSON::Value> expected = JSON::parse(
-      "[{"
-          "\"executor_id\":\"default\","
-          "\"executor_name\":\"\","
-          "\"source\":\"\","
-          "\"statistics\":{"
-              "\"mem_limit_bytes\":2048"
-          "},"
-          "\"status\":{"
+    EXPECT_TRUE(array.values.size() == 2);
+
+    Try<JSON::Value> containerJson1 = JSON::parse(
+        "{"
+            "\"executor_name\":\"\","
+            "\"source\":\"\","
+            "\"statistics\":{"
+                "\"mem_limit_bytes\":2048"
+            "},"
+            "\"status\":{"
+                "\"container_id\":{"
+                  "\"parent\":{\"value\":\"parent\"},"
+                  "\"value\":\"child1\""
+                "},"
+                "\"cgroup_info\":{\"net_cls\":{\"classid\":42}},"
+                "\"network_infos\":[{"
+                    "\"ip_addresses\":[{\"ip_address\":\"192.168.1.20\"}]"
+                "}]"
+            "}"
+          "}");
+
+    Try<JSON::Value> containerJson2 = JSON::parse(
+        "{"
+            "\"executor_name\":\"\","
+            "\"source\":\"\","
+            "\"statistics\":{"
+                "\"mem_limit_bytes\":2048"
+            "},"
+            "\"status\":{"
+                "\"container_id\":{"
+                  "\"parent\":{\"value\":\"parent\"},"
+                  "\"value\":\"child2\""
+                "},"
+                "\"cgroup_info\":{\"net_cls\":{\"classid\":42}},"
+                "\"network_infos\":[{"
+                    "\"ip_addresses\":[{\"ip_address\":\"192.168.1.21\"}]"
+                "}]"
+            "}"
+          "}");
+
+    // Since containers are stored in a hashmap, there is no strict guarantee of
+    // their ordering when listed. For this reason, we test both possibilities.
+    if (array.values[0].contains(containerJson1.get())) {
+      ASSERT_TRUE(array.values[1].contains(containerJson2.get()));
+    } else {
+      ASSERT_TRUE(array.values[0].contains(containerJson2.get()));
+      ASSERT_TRUE(array.values[1].contains(containerJson1.get()));
+    }
+  }
+
+  AWAIT_READY(containerId1);
+  AWAIT_READY(containerId2);
+
+  // Will be called once during the second request.
+  EXPECT_CALL(containerizer, usage(_))
+    .WillOnce(Return(statistics1));
+
+  // Will be called once during the second request.
+  EXPECT_CALL(containerizer, status(_))
+    .WillOnce(Return(containerStatus1));
+
+  {
+    Future<Response> response = process::http::get(
+        slave.get()->pid,
+        "containers?container_id=" + containerId1->value(),
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    Try<JSON::Value> value = JSON::parse<JSON::Value>(response->body);
+    ASSERT_SOME(value);
+
+    JSON::Array array = value->as<JSON::Array>();
+
+    EXPECT_TRUE(array.values.size() == 1);
+
+    Try<JSON::Value> expected = JSON::parse(
+        "[{"
+            "\"container_id\":\"" + containerId1->value() + "\","
+            "\"executor_name\":\"\","
+            "\"source\":\"\","
+            "\"statistics\":{"
+                "\"mem_limit_bytes\":2048"
+            "},"
+            "\"status\":{"
               "\"container_id\":{"
                 "\"parent\":{\"value\":\"parent\"},"
-                "\"value\":\"child\""
-              "},"
-              "\"cgroup_info\":{\"net_cls\":{\"classid\":42}},"
-              "\"network_infos\":[{"
-                  "\"ip_addresses\":[{\"ip_address\":\"192.168.1.20\"}]"
-              "}]"
-          "}"
-      "}]");
+                  "\"value\":\"child1\""
+                "},"
+                "\"cgroup_info\":{\"net_cls\":{\"classid\":42}},"
+                "\"network_infos\":[{"
+                    "\"ip_addresses\":[{\"ip_address\":\"192.168.1.20\"}]"
+                "}]"
+            "}"
+        "}]");
 
-  ASSERT_SOME(expected);
-  EXPECT_TRUE(value->contains(expected.get()));
+    ASSERT_SOME(expected);
+    EXPECT_TRUE(value->contains(expected.get()));
+  }
 
-  EXPECT_CALL(exec, shutdown(_))
+  EXPECT_CALL(exec1, shutdown(_))
+    .Times(AtMost(1));
+  EXPECT_CALL(exec2, shutdown(_))
     .Times(AtMost(1));
 
   driver.stop();
   driver.join();
-
-  terminate(slave);
-  wait(slave);
 }
 
 

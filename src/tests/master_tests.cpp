@@ -2505,6 +2505,125 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
 }
 
 
+// Ensures that the '/slaves' endpoint returns the correct slave and it's in
+// the correct field of the response when provided with a slave ID query
+// parameter.
+TEST_F(MasterTest, SlavesEndpointQuerySlave)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+
+  // Ensure that master can recover from the same work_dir.
+  masterFlags.registry = "replicated_log";
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  // Start two agents.
+
+  Future<SlaveRegisteredMessage> slave1RegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get());
+  ASSERT_SOME(slave1);
+
+  AWAIT_READY(slave1RegisteredMessage);
+
+  Future<SlaveRegisteredMessage> slave2RegisteredMessage =
+    FUTURE_PROTOBUF(
+        SlaveRegisteredMessage(),
+        master.get()->pid,
+        Not(slave1.get()->pid));
+
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get());
+  ASSERT_SOME(slave2);
+
+  AWAIT_READY(slave2RegisteredMessage);
+
+  // Query the information about the first agent.
+  {
+    string slaveId = slave1RegisteredMessage->slave_id().value();
+
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "slaves?slave_id=" + slaveId,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    const Try<JSON::Value> value = JSON::parse<JSON::Value>(response->body);
+
+    ASSERT_SOME(value);
+
+    Try<JSON::Object> object = value->as<JSON::Object>();
+
+    Result<JSON::Array> array = object->find<JSON::Array>("slaves");
+    ASSERT_SOME(array);
+    EXPECT_EQ(1u, array->values.size());
+
+    Try<JSON::Value> expected = JSON::parse(
+        "{"
+          "\"slaves\":"
+            "[{"
+                "\"id\":\"" + slaveId + "\""
+            "}]"
+        "}");
+
+    ASSERT_SOME(expected);
+
+    EXPECT_TRUE(value->contains(expected.get()));
+  }
+
+  // Stop agents while the master is down.
+  master->reset();
+  slave1.get()->terminate();
+  slave1->reset();
+  slave2.get()->terminate();
+  slave2->reset();
+
+  // Restart the master, now two agents should be in the 'recovered' state.
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Check if the second agent is in the 'recovered_slaves' field.
+  {
+    string slaveId = slave2RegisteredMessage->slave_id().value();
+
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "slaves?slave_id=" + slaveId,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    const Try<JSON::Value> value = JSON::parse<JSON::Value>(response->body);
+
+    ASSERT_SOME(value);
+    Try<JSON::Object> object = value->as<JSON::Object>();
+
+    Result<JSON::Array> array = object->find<JSON::Array>("recovered_slaves");
+    ASSERT_SOME(array);
+    EXPECT_EQ(1u, array->values.size());
+
+    Try<JSON::Value> expected = JSON::parse(
+        "{"
+          "\"recovered_slaves\":"
+            "[{"
+                "\"id\":\"" + slaveId + "\""
+            "}]"
+        "}");
+
+    ASSERT_SOME(expected);
+
+    EXPECT_TRUE(value->contains(expected.get()));
+  }
+}
+
+
 // This test ensures that when a slave is recovered from the registry
 // but does not re-register with the master, it is marked unreachable
 // in the registry, the framework is informed that the slave is lost,
@@ -5848,43 +5967,195 @@ TEST_F(MasterTest, FrameworksEndpointWithoutFrameworks)
 }
 
 
-TEST_F(MasterTest, FrameworksEndpointOneFramework)
+// Ensures that the '/master/frameworks' endpoint returns the correct framework
+// when provided with a framework ID query parameter.
+TEST_F(MasterTest, FrameworksEndpointMultipleFrameworks)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  // Start a slave to receive shutdown message when framework is terminated.
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
 
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
-  Future<Nothing> registered;
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureSatisfy(&registered));
+  AWAIT_READY(registerSlaveMessage);
 
-  driver.start();
+  // Start two frameworks.
 
-  AWAIT_READY(registered);
+  Future<FrameworkID> frameworkId1;
+  Future<FrameworkID> frameworkId2;
 
-  Future<Response> response = process::http::get(
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1,
+      DEFAULT_FRAMEWORK_INFO,
       master.get()->pid,
-      "frameworks",
-      None(),
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+      DEFAULT_CREDENTIAL);
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+  EXPECT_CALL(sched1, registered(_, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId1));
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
-  ASSERT_SOME(parse);
+  // Ignore any incoming resource offers to the scheduler.
+  EXPECT_CALL(sched1, resourceOffers(_, _))
+    .WillRepeatedly(Return());
 
-  Result<JSON::Array> array = parse->find<JSON::Array>("frameworks");
-  ASSERT_SOME(array);
-  EXPECT_EQ(1u, array->values.size());
+  driver1.start();
 
-  driver.stop();
-  driver.join();
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(
+      &sched2,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched2, registered(_, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId2));
+
+  // Ignore any incoming resource offers to the scheduler.
+  EXPECT_CALL(sched2, resourceOffers(_, _))
+    .WillRepeatedly(Return());
+
+  driver2.start();
+
+  AWAIT_READY(frameworkId1);
+  AWAIT_READY(frameworkId2);
+
+  // Request with no query parameter.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "frameworks",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Value> value = JSON::parse<JSON::Value>(response->body);
+    ASSERT_SOME(value);
+
+    JSON::Object object = value->as<JSON::Object>();
+
+    Result<JSON::Array> array = object.find<JSON::Array>("frameworks");
+    ASSERT_SOME(array);
+    EXPECT_EQ(2u, array->values.size());
+
+    Try<JSON::Value> frameworkJson1 = JSON::parse(
+        "{"
+            "\"id\":\"" + frameworkId1->value() + "\","
+            "\"name\":\"default\""
+        "}");
+
+    Try<JSON::Value> frameworkJson2 = JSON::parse(
+        "{"
+            "\"id\":\"" + frameworkId2->value() + "\","
+            "\"name\":\"default\""
+        "}");
+
+    ASSERT_SOME(frameworkJson1);
+    ASSERT_SOME(frameworkJson2);
+
+    // Since frameworks are stored in a hashmap, there is no strict guarantee of
+    // their ordering when listed. For this reason, we test both possibilities.
+    if (array->values[0].contains(frameworkJson1.get())) {
+      ASSERT_TRUE(array->values[1].contains(frameworkJson2.get()));
+    } else {
+      ASSERT_TRUE(array->values[0].contains(frameworkJson2.get()));
+      ASSERT_TRUE(array->values[1].contains(frameworkJson1.get()));
+    }
+  }
+
+  // Query the first framework.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "frameworks?framework_id=" + frameworkId1->value(),
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Value> value = JSON::parse<JSON::Value>(response->body);
+    ASSERT_SOME(value);
+
+    JSON::Object object = value->as<JSON::Object>();
+
+    Result<JSON::Array> array = object.find<JSON::Array>("frameworks");
+    ASSERT_SOME(array);
+    EXPECT_EQ(1u, array->values.size());
+
+    Try<JSON::Value> expected = JSON::parse(
+        "{"
+          "\"frameworks\":"
+            "[{"
+                "\"id\":\"" + frameworkId1->value() + "\","
+                "\"name\":\"default\""
+            "}]"
+        "}");
+
+    ASSERT_SOME(expected);
+
+    EXPECT_TRUE(value->contains(expected.get()));
+  }
+
+  // Expect a teardown call and a shutdown message to ensure that the
+  // master has marked the framework as completed.
+  Future<mesos::scheduler::Call> teardownCall = FUTURE_CALL(
+      mesos::scheduler::Call(), mesos::scheduler::Call::TEARDOWN, _, _);
+  Future<ShutdownFrameworkMessage> shutdownFrameworkMessage =
+    FUTURE_PROTOBUF(ShutdownFrameworkMessage(), _, _);
+
+  // Complete the first framework. As a result, it will appear in the response's
+  // 'completed_frameworks' field.
+  driver1.stop();
+  driver1.join();
+
+  AWAIT_READY(teardownCall);
+
+  AWAIT_READY(shutdownFrameworkMessage);
+
+  // Query the first framework.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "frameworks?framework_id=" + frameworkId1->value(),
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Value> value = JSON::parse<JSON::Value>(response->body);
+    ASSERT_SOME(value);
+
+    JSON::Object object = value->as<JSON::Object>();
+
+    Result<JSON::Array> array =
+      object.find<JSON::Array>("completed_frameworks");
+    ASSERT_SOME(array);
+    EXPECT_EQ(1u, array->values.size());
+
+    Try<JSON::Value> expected = JSON::parse(
+        "{"
+          "\"completed_frameworks\":"
+            "[{"
+                "\"id\":\"" + frameworkId1->value() + "\","
+                "\"name\":\"default\""
+            "}]"
+        "}");
+
+    ASSERT_SOME(expected);
+
+    EXPECT_TRUE(value->contains(expected.get()));
+  }
+
+  driver2.stop();
+  driver2.join();
 }
 
 
