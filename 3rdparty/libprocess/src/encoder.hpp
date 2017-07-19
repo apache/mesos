@@ -201,7 +201,8 @@ public:
       if (compressed.isError()) {
         LOG(WARNING) << "Failed to gzip response body: " << compressed.error();
       } else {
-        body = compressed.get();
+        body = std::move(compressed.get());
+
         headers["Content-Length"] = stringify(body.length());
         headers["Content-Encoding"] = "gzip";
       }
