@@ -249,6 +249,7 @@ check_PROGRAMS = libprocess-tests benchmarks
 libprocess_tests_SOURCES =					\
   src/tests/after_tests.cpp					\
   src/tests/collect_tests.cpp					\
+  src/tests/count_down_latch_tests.cpp				\
   src/tests/decoder_tests.cpp					\
   src/tests/encoder_tests.cpp					\
   src/tests/future_tests.cpp					\

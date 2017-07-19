@@ -19,6 +19,7 @@ nobase_include_HEADERS =		\
   process/check.hpp			\
   process/clock.hpp			\
   process/collect.hpp			\
+  process/count_down_latch.hpp		\
   process/defer.hpp			\
   process/deferred.hpp			\
   process/delay.hpp			\

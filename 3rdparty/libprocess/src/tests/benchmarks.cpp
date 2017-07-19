@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <process/collect.hpp>
+#include <process/count_down_latch.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -37,7 +38,9 @@
 
 namespace http = process::http;
 
+using process::CountDownLatch;
 using process::Future;
+using process::MessageEvent;
 using process::Owned;
 using process::Process;
 using process::ProcessBase;
@@ -367,5 +370,118 @@ TEST(ProcessTest, Process_BENCHMARK_LargeNumberOfLinks)
     terminate(process);
     wait(process);
     delete process;
+  }
+}
+
+
+class Destination : public Process<Destination>
+{
+protected:
+  virtual void visit(const MessageEvent& event)
+  {
+    if (event.message.name == "ping") {
+      send(event.message.from, "pong");
+    }
+  }
+};
+
+
+class Client : public Process<Client>
+{
+public:
+  Client(const UPID& destination, CountDownLatch* latch, long repeat)
+    : destination(destination), latch(latch), repeat(repeat) {}
+
+protected:
+  virtual void visit(const MessageEvent& event)
+  {
+    if (event.message.name == "pong") {
+      received += 1;
+      if (sent < repeat) {
+        send(destination, "ping");
+        sent += 1;
+      } else if (received >= repeat) {
+        latch->decrement();
+      }
+    } else if (event.message.name == "run") {
+      for (long l = 0; l < std::min(1000L, repeat); l++) {
+        send(destination, "ping");
+        sent += 1;
+      }
+    }
+  }
+
+private:
+  UPID destination;
+  CountDownLatch* latch;
+  long repeat;
+  long sent = 0L;
+  long received = 0L;
+};
+
+
+// See
+// https://github.com/akka/akka/blob/7ac37e7536547c57ab639ed8746c7b4e5ff2f69b/akka-actor-tests/src/test/scala/akka/performance/microbench/TellThroughputPerformanceSpec.scala
+// for the inspiration for this benchmark (this file was deleted in
+// this commit:
+// https://github.com/akka/akka/commit/a02e138f3bc7c21c2b2511ea19203a52d74584d5).
+//
+// This benchmark was discussed here:
+// http://letitcrash.com/post/17607272336/scalability-of-fork-join-pool
+TEST(ProcessTest, Process_BENCHMARK_ThroughputPerformance)
+{
+  long repeatFactor = 500L;
+  long defaultRepeat = 30000L * repeatFactor;
+
+  const size_t numberOfClients = 4;
+
+  CountDownLatch latch(numberOfClients - 1);
+
+  long repeat = defaultRepeat;
+
+  auto repeatsPerClient = repeat / numberOfClients;
+
+  vector<Owned<Destination>> destinations;
+  vector<Owned<Client>> clients;
+
+  for (size_t i = 0; i < numberOfClients; i++) {
+    Owned<Destination> destination(new Destination());
+
+    spawn(*destination);
+
+    Owned<Client> client(new Client(
+        destination->self(),
+        &latch,
+        repeatsPerClient));
+
+    spawn(*client);
+
+    destinations.push_back(destination);
+    clients.push_back(client);
+  }
+
+  Stopwatch watch;
+  watch.start();
+
+  foreach (const Owned<Client>& client, clients) {
+    post(client->self(), "run");
+  }
+
+  AWAIT_READY(latch.triggered());
+
+  Duration elapsed = watch.elapsed();
+
+  double throughput = (double) repeat / elapsed.secs();
+
+  cout << "Estimated Total: " << std::fixed << throughput << endl;
+
+  foreach (const Owned<Client>& client, clients) {
+    terminate(client->self());
+    wait(client->self());
+  }
+
+  foreach (const Owned<Destination>& destination, destinations) {
+    terminate(destination->self());
+    wait(destination->self());
   }
 }
