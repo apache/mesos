@@ -20,7 +20,7 @@ accepting offers that contain GPUs and launching tasks that consume
 them should be just as straightforward as launching a traditional task
 that only consumes CPUs, memory, and disk.
 
-As such, Mesos exposes GPUs as a simple `SCALAR` resource in the same
+Mesos exposes GPUs as a simple `SCALAR` resource in the same
 way it always has for CPUs, memory, and disk. That is, a resource
 offer such as the following is now possible:
 
@@ -31,16 +31,15 @@ can be selected. If a fractional amount is selected, launching the
 task will result in a `TASK_ERROR`.
 
 At the time of this writing, Nvidia GPU support is only available for
-tasks launched through the Mesos containerizer (i.e. no support exists
+tasks launched through the Mesos containerizer (i.e., no support exists
 for launching GPU capable tasks through the Docker containerizer).
 That said, the Mesos containerizer now supports running docker
-images natively, so this limitation should not affect the vast
-majority of users.
+images natively, so this limitation should not affect most users.
 
 Moreover, we mimic the support provided by [nvidia-docker](
 https://github.com/NVIDIA/nvidia-docker/wiki/NVIDIA-driver) to
 automatically mount the proper Nvidia drivers and tools directly into
-your docker container. This means you can easily test your GPU enabled
+your docker container. This means you can easily test your GPU-enabled
 docker containers locally and deploy them to Mesos with the assurance
 that they will work without modification.
 
@@ -49,7 +48,7 @@ framework capabilities necessary to enable Nvidia GPU support in
 Mesos. We then show an example of setting up and running an example
 test cluster that launches tasks both with and without docker
 containers. Finally, we conclude with a step-by-step guide of how to
-install any necessary nvidia GPU drivers on your machine.
+install any necessary Nvidia GPU drivers on your machine.
 
 ## Agent Flags
 The following isolation flags are required to enable Nvidia GPU
@@ -57,17 +56,17 @@ support on an agent.
 
     --isolation="filesystem/linux,cgroups/devices,gpu/nvidia"
 
-The `filesystem/linux` flag tells the agent to use linux-specific
+The `filesystem/linux` flag tells the agent to use Linux-specific
 commands to prepare the root filesystem and volumes (e.g., persistent
 volumes) for containers that require them. Specifically, it relies on
 Linux mount namespaces to prevent the mounts of a container from being
 propagated to the host mount table. In the case of GPUs, we require
-this flag to properly mount certain Nvidia binaries (e.g.
-`nvidia-smi`) and libraries (e.g. `libnvidia-ml.so`) into a container
+this flag to properly mount certain Nvidia binaries (e.g.,
+`nvidia-smi`) and libraries (e.g., `libnvidia-ml.so`) into a container
 when necessary.
 
 The `cgroups/devices` flag tells the agent to restrict access to a
-specific set of devices for each task that it launches (i.e. a subset
+specific set of devices for each task that it launches (i.e., a subset
 of all devices listed in `/dev`). When used in conjunction with the
 `gpu/nvidia` flag, the `cgroups/devices` flag allows us to grant /
 revoke access to specific GPUs on a per-task basis.
@@ -75,7 +74,7 @@ revoke access to specific GPUs on a per-task basis.
 By default, all GPUs on an agent are automatically discovered and sent
 to the Mesos master as part of its resource offer. However, it may
 sometimes be necessary to restrict access to only a subset of the GPUs
-available an agent. This is useful, for example, if you want to
+available on an agent. This is useful, for example, if you want to
 exclude a specific GPU device because an unwanted Nvidia graphics card
 is listed alongside a more powerful set of GPUs. When this is
 required, the following additional agent flags can be used to
@@ -132,18 +131,18 @@ is important to emphasize it here for clarity.
 
 ## Framework Capabilities
 Once you launch an agent with the flags above, GPU resources will be
-advertised to the mesos master along side all of the traditional
+advertised to the Mesos master along side all of the traditional
 resources such as CPUs, memory, and disk. However, the master will
 only forward offers that contain GPUs to frameworks that have
 explicitly enabled the `GPU_RESOURCES` framework capability.
 
 The choice to make frameworks explicitly opt-in to this `GPU_RESOURCES`
 capability was to keep legacy frameworks from accidentally consuming
-non-GPU resources on GPU-capable machines (and thus blocking your GPU
+non-GPU resources on GPU-capable machines (and thus preventing your GPU
 jobs from running). It's not that big a deal if all of your nodes have
 GPUs, but in a mixed-node environment, it can be a big problem.
 
-An example of setting this capability in a C++ based framework can be
+An example of setting this capability in a C++-based framework can be
 seen below:
 
     FrameworkInfo framework;
@@ -161,10 +160,10 @@ seen below:
 
 
 ## Minimal GPU Capable Cluster
-In this section we walk through two examples of launching GPU capable
+In this section we walk through two examples of configuring GPU-capable
 clusters and running tasks on them. The first example demonstrates the
-minimal setup required to run a command that consumes GPUs on a GPU
-capable agent. The second example demonstrates the setup necessary to
+minimal setup required to run a command that consumes GPUs on a GPU-capable
+agent. The second example demonstrates the setup necessary to
 launch a docker container that does the same.
 
 **Note**: Both of these examples assume you have installed the
@@ -172,7 +171,7 @@ external dependencies required for Nvidia GPU support on Mesos. Please
 see [below](#external-dependencies) for more information.
 
 ### Minimal Setup Without Support for Docker Containers
-The commands below show a minimal example of bringing up a GPU capable
+The commands below show a minimal example of bringing up a GPU-capable
 Mesos cluster on `localhost` and executing a task on it. The required
 agent flags are set as described above, and the `mesos-execute`
 command has been told to enable the `GPU_RESOURCES` framework
@@ -195,7 +194,7 @@ capability so it can receive offers containing GPU resources.
           --resources="gpus:1"
 
 If all goes well, you should see something like the following in the
-`stdout` out of your task.
+`stdout` out of your task:
 
     +------------------------------------------------------+
     | NVIDIA-SMI 352.79     Driver Version: 352.79         |
@@ -208,7 +207,7 @@ If all goes well, you should see something like the following in the
     +-------------------------------+----------------------+----------------------+
 
 ### Minimal Setup With Support for Docker Containers
-The commands below show a minimal example of bringing up a GPU capable
+The commands below show a minimal example of bringing up a GPU-capable
 Mesos cluster on `localhost` and running a docker container on it. The
 required agent flags are set as described above, and the
 `mesos-execute` command has been told to enable the `GPU_RESOURCES`
@@ -273,7 +272,7 @@ Unfortunately, most Linux distributions come preinstalled with an open
 source video driver called `Nouveau`. This driver conflicts with the
 Nvidia driver we are trying to install. The following guides may prove
 useful to help guide you through the process of uninstalling `Nouveau`
-before installing the Nvidia driver on `CentOS` or `Ubuntu`.
+before installing the Nvidia driver on CentOS or Ubuntu.
 
     http://www.dedoimedo.com/computers/centos-7-nvidia.html
     http://www.allaboutlinux.eu/remove-nouveau-and-install-nvidia-driver-in-ubuntu-15-04/
@@ -340,7 +339,7 @@ To verify your CUDA installation, it is recommended to go through the instructio
 
     http://docs.nvidia.com/cuda/cuda-getting-started-guide-for-linux/#install-samples
 
-Finally, you should get a developer to run Mesos's Nvidia GPU related
+Finally, you should get a developer to run Mesos's Nvidia GPU-related
 unit tests on your machine to ensure that everything passes (as
 described below).
 
