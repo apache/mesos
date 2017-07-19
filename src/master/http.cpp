@@ -219,11 +219,11 @@ static void json(JSON::ObjectWriter* writer, const Summary<Framework>& summary);
 // user is authorized to view them.
 struct FullFrameworkWriter {
   FullFrameworkWriter(
-      const Owned<ObjectApprover>& taskApprover,
-      const Owned<ObjectApprover>& executorApprover,
+      const Owned<AuthorizationAcceptor>& authorizeTask,
+      const Owned<AuthorizationAcceptor>& authorizeExecutorInfo,
       const Framework* framework)
-    : taskApprover_(taskApprover),
-      executorApprover_(executorApprover),
+    : authorizeTask_(authorizeTask),
+      authorizeExecutorInfo_(authorizeExecutorInfo),
       framework_(framework) {}
 
   void operator()(JSON::ObjectWriter* writer) const
@@ -268,7 +268,7 @@ struct FullFrameworkWriter {
     writer->field("tasks", [this](JSON::ArrayWriter* writer) {
       foreachvalue (const TaskInfo& taskInfo, framework_->pendingTasks) {
         // Skip unauthorized tasks.
-        if (!approveViewTaskInfo(taskApprover_, taskInfo, framework_->info)) {
+        if (!authorizeTask_->accept(taskInfo, framework_->info)) {
           continue;
         }
 
@@ -309,7 +309,7 @@ struct FullFrameworkWriter {
 
       foreachvalue (Task* task, framework_->tasks) {
         // Skip unauthorized tasks.
-        if (!approveViewTask(taskApprover_, *task, framework_->info)) {
+        if (!authorizeTask_->accept(*task, framework_->info)) {
           continue;
         }
 
@@ -320,7 +320,7 @@ struct FullFrameworkWriter {
     writer->field("unreachable_tasks", [this](JSON::ArrayWriter* writer) {
       foreachvalue (const Owned<Task>& task, framework_->unreachableTasks) {
         // Skip unauthorized tasks.
-        if (!approveViewTask(taskApprover_, *task.get(), framework_->info)) {
+        if (!authorizeTask_->accept(*task.get(), framework_->info)) {
           continue;
         }
 
@@ -331,7 +331,7 @@ struct FullFrameworkWriter {
     writer->field("completed_tasks", [this](JSON::ArrayWriter* writer) {
       foreach (const Owned<Task>& task, framework_->completedTasks) {
         // Skip unauthorized tasks.
-        if (!approveViewTask(taskApprover_, *task.get(), framework_->info)) {
+        if (!authorizeTask_->accept(*task.get(), framework_->info)) {
           continue;
         }
 
@@ -357,10 +357,7 @@ struct FullFrameworkWriter {
                            &executor,
                            &slaveId](JSON::ObjectWriter* writer) {
             // Skip unauthorized executors.
-            if (!approveViewExecutorInfo(
-                    executorApprover_,
-                    executor,
-                    framework_->info)) {
+            if (!authorizeExecutorInfo_->accept(executor, framework_->info)) {
               return;
             }
 
@@ -377,16 +374,18 @@ struct FullFrameworkWriter {
     }
   }
 
-  const Owned<ObjectApprover>& taskApprover_;
-  const Owned<ObjectApprover>& executorApprover_;
+  const Owned<AuthorizationAcceptor>& authorizeTask_;
+  const Owned<AuthorizationAcceptor>& authorizeExecutorInfo_;
   const Framework* framework_;
 };
 
 
 struct SlaveWriter
 {
-  SlaveWriter(const Slave& slave, const Owned<ObjectApprover>& roleApprover)
-    : slave_(slave), roleApprover_(roleApprover) {}
+  SlaveWriter(
+      const Slave& slave,
+      const Owned<AuthorizationAcceptor>& authorizeRole)
+    : slave_(slave), authorizeRole_(authorizeRole) {}
 
   void operator()(JSON::ObjectWriter* writer) const
   {
@@ -411,7 +410,7 @@ struct SlaveWriter
             // TODO(arojas): Consider showing unapproved resources in an
             // aggregated special field, so that all resource values add up
             // MESOS-7779.
-            if (approveViewRole(roleApprover_, role)) {
+            if (authorizeRole_->accept(role)) {
               writer->field(role, reservation);
             }
           }
@@ -424,7 +423,7 @@ struct SlaveWriter
   }
 
   const Slave& slave_;
-  const Owned<ObjectApprover>& roleApprover_;
+  const Owned<AuthorizationAcceptor>& authorizeRole_;
 };
 
 
@@ -432,14 +431,20 @@ struct SlavesWriter
 {
   SlavesWriter(
       const Master::Slaves& slaves,
-      const Owned<ObjectApprover>& roleApprover)
+      const Owned<AuthorizationAcceptor>& authorizeRole,
+      const IDAcceptor<SlaveID>& selectSlaveId)
     : slaves_(slaves),
-      roleApprover_(roleApprover) {}
+      authorizeRole_(authorizeRole),
+      selectSlaveId_(selectSlaveId) {}
 
   void operator()(JSON::ObjectWriter* writer) const
   {
     writer->field("slaves", [this](JSON::ArrayWriter* writer) {
       foreachvalue (const Slave* slave, slaves_.registered) {
+        if (!selectSlaveId_.accept(slave->id)) {
+          continue;
+        }
+
         writer->element([this, &slave](JSON::ObjectWriter* writer) {
           writeSlave(slave, writer);
         });
@@ -448,6 +453,10 @@ struct SlavesWriter
 
     writer->field("recovered_slaves", [this](JSON::ArrayWriter* writer) {
       foreachvalue (const SlaveInfo& slaveInfo, slaves_.recovered) {
+        if (!selectSlaveId_.accept(slaveInfo.id())) {
+          continue;
+        }
+
         writer->element([&slaveInfo](JSON::ObjectWriter* writer) {
           json(writer, slaveInfo);
         });
@@ -457,7 +466,7 @@ struct SlavesWriter
 
   void writeSlave(const Slave* slave, JSON::ObjectWriter* writer) const
   {
-    SlaveWriter(*slave, roleApprover_)(writer);
+    SlaveWriter(*slave, authorizeRole_)(writer);
 
     // Add the complete protobuf->JSON for all used, reserved,
     // and offered resources. The other endpoints summarize
@@ -474,7 +483,7 @@ struct SlavesWriter
           foreachpair (const string& role,
                        const Resources& resources,
                        reserved) {
-            if (approveViewRole(roleApprover_, role)) {
+            if (authorizeRole_->accept(role)) {
               writer->field(role, [&resources](JSON::ArrayWriter* writer) {
                 foreach (Resource resource, resources) {
                   convertResourceFormat(&resource, ENDPOINT);
@@ -502,9 +511,8 @@ struct SlavesWriter
         "used_resources_full",
         [&usedResources, this](JSON::ArrayWriter* writer) {
           foreach (Resource resource, usedResources) {
-            if (approveViewRole(roleApprover_, resource.role()) &&
-                approveViewRole(roleApprover_,
-                                resource.allocation_info().role())) {
+            if (authorizeRole_->accept(resource.role()) &&
+                authorizeRole_->accept(resource.allocation_info().role())) {
               convertResourceFormat(&resource, ENDPOINT);
               writer->element(JSON::Protobuf(resource));
             }
@@ -517,7 +525,7 @@ struct SlavesWriter
         "offered_resources_full",
         [&offeredResources, this](JSON::ArrayWriter* writer) {
           foreach (Resource resource, offeredResources) {
-            if (approveViewRole(roleApprover_, resource.role())) {
+            if (authorizeRole_->accept(resource.role())) {
               convertResourceFormat(&resource, ENDPOINT);
               writer->element(JSON::Protobuf(resource));
             }
@@ -525,8 +533,9 @@ struct SlavesWriter
         });
   }
 
-  const Master::Slaves &slaves_;
-  const Owned<ObjectApprover> &roleApprover_;
+  const Master::Slaves& slaves_;
+  const Owned<AuthorizationAcceptor>& authorizeRole_;
+  const IDAcceptor<SlaveID>& selectSlaveId_;
 };
 
 
@@ -1467,7 +1476,11 @@ string Master::Http::FRAMEWORKS_HELP()
         "current master is not the leader.",
         "",
         "Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be",
-        "found."),
+        "found.",
+        "",
+        "Query parameters:",
+        ">        framework_id=VALUE   The ID of the framework returned "
+        "(when no framework ID specified, all frameworks will be returned)."),
     AUTHENTICATION(true),
     AUTHORIZATION(
         "This endpoint might be filtered based on the user accessing it.",
@@ -1493,87 +1506,89 @@ Future<Response> Master::Http::frameworks(
     return redirect(request);
   }
 
-  // Retrieve `ObjectApprover`s for authorizing frameworks and tasks and
-  // executors.
-  Future<Owned<ObjectApprover>> frameworksApprover;
-  Future<Owned<ObjectApprover>> tasksApprover;
-  Future<Owned<ObjectApprover>> executorsApprover;
+  Future<Owned<AuthorizationAcceptor>> authorizeFrameworkInfo =
+    AuthorizationAcceptor::create(
+        principal, master->authorizer, authorization::VIEW_FRAMEWORK);
+  Future<Owned<AuthorizationAcceptor>> authorizeTask =
+    AuthorizationAcceptor::create(
+        principal, master->authorizer, authorization::VIEW_TASK);
+  Future<Owned<AuthorizationAcceptor>> authorizeExecutorInfo =
+    AuthorizationAcceptor::create(
+        principal, master->authorizer, authorization::VIEW_EXECUTOR);
+  Future<IDAcceptor<FrameworkID>> selectFrameworkId =
+    IDAcceptor<FrameworkID>(request.url.query.get("framework_id"));
 
-  if (master->authorizer.isSome()) {
-    Option<authorization::Subject> subject = createSubject(principal);
-
-    frameworksApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_FRAMEWORK);
-
-    tasksApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_TASK);
-
-    executorsApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_EXECUTOR);
-  } else {
-    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-  }
-
-  return collect(frameworksApprover, tasksApprover, executorsApprover)
+  return collect(
+      authorizeFrameworkInfo,
+      authorizeTask,
+      authorizeExecutorInfo,
+      selectFrameworkId)
     .then(defer(master->self(),
-        [this, request](const tuple<Owned<ObjectApprover>,
-                                    Owned<ObjectApprover>,
-                                    Owned<ObjectApprover>>& approvers)
+        [this, request](const tuple<Owned<AuthorizationAcceptor>,
+                                    Owned<AuthorizationAcceptor>,
+                                    Owned<AuthorizationAcceptor>,
+                                    IDAcceptor<FrameworkID>>& acceptors)
           -> Response {
       // This lambda is consumed before the outer lambda
       // returns, hence capture by reference is fine here.
-      auto frameworks = [this, &approvers](JSON::ObjectWriter* writer) {
-        // Get approver from tuple.
-        Owned<ObjectApprover> frameworksApprover;
-        Owned<ObjectApprover> tasksApprover;
-        Owned<ObjectApprover> executorsApprover;
-        tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
+      auto frameworks = [this, &acceptors](JSON::ObjectWriter* writer) {
+        Owned<AuthorizationAcceptor> authorizeFrameworkInfo;
+        Owned<AuthorizationAcceptor> authorizeTask;
+        Owned<AuthorizationAcceptor> authorizeExecutorInfo;
+        IDAcceptor<FrameworkID> selectFrameworkId;
+        tie(authorizeFrameworkInfo,
+            authorizeTask,
+            authorizeExecutorInfo,
+            selectFrameworkId) = acceptors;
 
         // Model all of the frameworks.
         writer->field(
             "frameworks",
-            [this, &frameworksApprover, &executorsApprover, &tasksApprover](
-                JSON::ArrayWriter* writer) {
-              foreachvalue (Framework* framework,
-                            master->frameworks.registered) {
-                // Skip unauthorized frameworks.
-                if (!approveViewFrameworkInfo(
-                        frameworksApprover, framework->info)) {
-                  continue;
-                }
+            [this,
+             &authorizeFrameworkInfo,
+             &authorizeTask,
+             &authorizeExecutorInfo,
+             &selectFrameworkId](JSON::ArrayWriter* writer) {
+          foreachvalue (Framework* framework, master->frameworks.registered) {
+            // Skip unauthorized frameworks or frameworks without a matching ID.
+            if (!selectFrameworkId.accept(framework->id()) ||
+                !authorizeFrameworkInfo->accept(framework->info)) {
+              continue;
+            }
 
-                FullFrameworkWriter frameworkWriter(
-                    tasksApprover,
-                    executorsApprover,
-                    framework);
+            FullFrameworkWriter frameworkWriter(
+                authorizeTask,
+                authorizeExecutorInfo,
+                framework);
 
-                writer->element(frameworkWriter);
-              }
-            });
+            writer->element(frameworkWriter);
+          }
+        });
 
         // Model all of the completed frameworks.
         writer->field(
             "completed_frameworks",
-            [this, &frameworksApprover, &executorsApprover, &tasksApprover](
-                JSON::ArrayWriter* writer) {
-              foreachvalue (const Owned<Framework>& framework,
-                            master->frameworks.completed) {
-                // Skip unauthorized frameworks.
-                if (!approveViewFrameworkInfo(
-                        frameworksApprover, framework->info)) {
-                  continue;
-                }
+            [this,
+             &authorizeFrameworkInfo,
+             &authorizeTask,
+             &authorizeExecutorInfo,
+             &selectFrameworkId](JSON::ArrayWriter* writer) {
+          foreachvalue (const Owned<Framework>& framework,
+                        master->frameworks.completed) {
+            // Skip unauthorized frameworks or frameworks without a matching ID.
+            if (!selectFrameworkId.accept(framework->id()) ||
+                !authorizeFrameworkInfo->accept(framework->info)) {
+              continue;
+            }
 
-                FullFrameworkWriter frameworkWriter(
-                    tasksApprover,
-                    executorsApprover,
-                    framework.get());
+            FullFrameworkWriter frameworkWriter(
+                authorizeTask,
+                authorizeExecutorInfo,
+                framework.get());
 
-                writer->element(frameworkWriter);
-              }
-            });
+            writer->element(frameworkWriter);
+          }
+        });
 
         // Unregistered frameworks are no longer possible. We emit an
         // empty array for the sake of backward compatibility.
@@ -2433,7 +2448,11 @@ string Master::Http::SLAVES_HELP()
         "",
         "This endpoint shows information about the agents which are registered",
         "in this master or recovered from registry, formatted as a JSON",
-        "object."),
+        "object.",
+        "",
+        "Query parameters:",
+        ">        slave_id=VALUE       The ID of the slave returned "
+        "(when no slave_id is specified, all slaves will be returned)."),
     AUTHENTICATION(true));
 }
 
@@ -2447,26 +2466,28 @@ Future<Response> Master::Http::slaves(
     return redirect(request);
   }
 
-  // Retrieve `ObjectApprover`s for authorizing roles.
-  Future<Owned<ObjectApprover>> rolesApprover;
-
-  if (master->authorizer.isSome()) {
-    Option<authorization::Subject> subject = createSubject(principal);
-
-    rolesApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_ROLE);
-  } else {
-    rolesApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-  }
+  Future<Owned<AuthorizationAcceptor>> authorizeRole =
+    AuthorizationAcceptor::create(
+        principal, master->authorizer, authorization::VIEW_ROLE);
+  Future<IDAcceptor<SlaveID>> selectSlaveId =
+    IDAcceptor<SlaveID>(request.url.query.get("slave_id"));
 
   Master* master = this->master;
   Option<string> jsonp = request.url.query.get("jsonp");
 
-  return rolesApprover.then(defer(master->self(),
-      [master, jsonp](const Owned<ObjectApprover>& rolesApprover)
+  return collect(authorizeRole, selectSlaveId)
+    .then(defer(master->self(),
+        [master, jsonp](const tuple<Owned<AuthorizationAcceptor>,
+                                    IDAcceptor<SlaveID>>& acceptors)
           -> Future<Response> {
-        return OK(jsonify(SlavesWriter(master->slaves, rolesApprover)), jsonp);
-      }));
+      Owned<AuthorizationAcceptor> authorizeRole;
+      IDAcceptor<SlaveID> selectSlaveId;
+      tie(authorizeRole, selectSlaveId) = acceptors;
+
+      return OK(
+          jsonify(SlavesWriter(master->slaves, authorizeRole, selectSlaveId)),
+          jsonp);
+  }));
 }
 
 
@@ -2745,66 +2766,49 @@ Future<Response> Master::Http::state(
     return redirect(request);
   }
 
-  // Retrieve `ObjectApprover`s for authorizing frameworks and tasks.
-  Future<Owned<ObjectApprover>> rolesApprover;
-  Future<Owned<ObjectApprover>> frameworksApprover;
-  Future<Owned<ObjectApprover>> tasksApprover;
-  Future<Owned<ObjectApprover>> executorsApprover;
-  Future<Owned<ObjectApprover>> flagsApprover;
-
-  if (master->authorizer.isSome()) {
-    Option<authorization::Subject> subject = createSubject(principal);
-
-    rolesApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_ROLE);
-
-    frameworksApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_FRAMEWORK);
-
-    tasksApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_TASK);
-
-    executorsApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_EXECUTOR);
-
-    flagsApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_FLAGS);
-  } else {
-    rolesApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    flagsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-  }
+  Future<Owned<AuthorizationAcceptor>> authorizeRole =
+    AuthorizationAcceptor::create(
+        principal, master->authorizer, authorization::VIEW_ROLE);
+  Future<Owned<AuthorizationAcceptor>> authorizeFrameworkInfo =
+    AuthorizationAcceptor::create(
+        principal, master->authorizer, authorization::VIEW_FRAMEWORK);
+  Future<Owned<AuthorizationAcceptor>> authorizeTask =
+    AuthorizationAcceptor::create(
+        principal, master->authorizer, authorization::VIEW_TASK);
+  Future<Owned<AuthorizationAcceptor>> authorizeExecutorInfo =
+    AuthorizationAcceptor::create(
+        principal, master->authorizer, authorization::VIEW_EXECUTOR);
+  Future<Owned<AuthorizationAcceptor>> authorizeFlags =
+    AuthorizationAcceptor::create(
+        principal, master->authorizer, authorization::VIEW_FLAGS);
 
   return collect(
-      rolesApprover,
-      frameworksApprover,
-      tasksApprover,
-      executorsApprover,
-      flagsApprover)
+      authorizeRole,
+      authorizeFrameworkInfo,
+      authorizeTask,
+      authorizeExecutorInfo,
+      authorizeFlags)
     .then(defer(
         master->self(),
-        [this, request](const tuple<Owned<ObjectApprover>,
-                                    Owned<ObjectApprover>,
-                                    Owned<ObjectApprover>,
-                                    Owned<ObjectApprover>,
-                                    Owned<ObjectApprover>>& approvers)
+        [this, request](const tuple<Owned<AuthorizationAcceptor>,
+                                    Owned<AuthorizationAcceptor>,
+                                    Owned<AuthorizationAcceptor>,
+                                    Owned<AuthorizationAcceptor>,
+                                    Owned<AuthorizationAcceptor>>& acceptors)
           -> Response {
       // This lambda is consumed before the outer lambda
       // returns, hence capture by reference is fine here.
-      auto state = [this, &approvers](JSON::ObjectWriter* writer) {
-        // Get approver from tuple.
-        Owned<ObjectApprover> rolesApprover;
-        Owned<ObjectApprover> frameworksApprover;
-        Owned<ObjectApprover> tasksApprover;
-        Owned<ObjectApprover> executorsApprover;
-        Owned<ObjectApprover> flagsApprover;
-        tie(rolesApprover,
-            frameworksApprover,
-            tasksApprover,
-            executorsApprover,
-            flagsApprover) = approvers;
+      auto state = [this, &acceptors](JSON::ObjectWriter* writer) {
+        Owned<AuthorizationAcceptor> authorizeRole;
+        Owned<AuthorizationAcceptor> authorizeFrameworkInfo;
+        Owned<AuthorizationAcceptor> authorizeTask;
+        Owned<AuthorizationAcceptor> authorizeExecutorInfo;
+        Owned<AuthorizationAcceptor> authorizeFlags;
+        tie(authorizeRole,
+            authorizeFrameworkInfo,
+            authorizeTask,
+            authorizeExecutorInfo,
+            authorizeFlags) = acceptors;
 
         writer->field("version", MESOS_VERSION);
 
@@ -2851,7 +2855,7 @@ Future<Response> Master::Http::state(
           });
         }
 
-        if (approveViewFlags(flagsApprover)) {
+        if (authorizeFlags->accept()) {
           if (master->flags.cluster.isSome()) {
             writer->field("cluster", master->flags.cluster.get());
           }
@@ -2877,9 +2881,9 @@ Future<Response> Master::Http::state(
 
         // Model all of the registered slaves.
         writer->field("slaves",
-          [this, rolesApprover](JSON::ArrayWriter* writer) {
+          [this, &authorizeRole](JSON::ArrayWriter* writer) {
             foreachvalue (Slave* slave, master->slaves.registered) {
-              writer->element(SlaveWriter(*slave, rolesApprover));
+              writer->element(SlaveWriter(*slave, authorizeRole));
             }
           });
 
@@ -2895,43 +2899,49 @@ Future<Response> Master::Http::state(
         // Model all of the frameworks.
         writer->field(
             "frameworks",
-            [this, &frameworksApprover, &executorsApprover, &tasksApprover](
-                JSON::ArrayWriter* writer) {
-              foreachvalue (
-                  Framework* framework,
-                  master->frameworks.registered) {
-                // Skip unauthorized frameworks.
-                if (!approveViewFrameworkInfo(
-                        frameworksApprover, framework->info)) {
-                  continue;
-                }
+            [this,
+             &authorizeFrameworkInfo,
+             &authorizeTask,
+             &authorizeExecutorInfo](JSON::ArrayWriter* writer) {
+          foreachvalue (
+              Framework* framework,
+              master->frameworks.registered) {
+            // Skip unauthorized frameworks.
+            if (!authorizeFrameworkInfo->accept(framework->info)) {
+              continue;
+            }
 
-                auto frameworkWriter = FullFrameworkWriter(
-                    tasksApprover, executorsApprover, framework);
+            auto frameworkWriter = FullFrameworkWriter(
+                authorizeTask,
+                authorizeExecutorInfo,
+                framework);
 
-                writer->element(frameworkWriter);
-              }
-            });
+            writer->element(frameworkWriter);
+          }
+        });
 
         // Model all of the completed frameworks.
         writer->field(
             "completed_frameworks",
-            [this, &frameworksApprover, &executorsApprover, &tasksApprover](
-                JSON::ArrayWriter* writer) {
-              foreachvalue (const Owned<Framework>& framework,
-                            master->frameworks.completed) {
-                // Skip unauthorized frameworks.
-                if (!approveViewFrameworkInfo(
-                    frameworksApprover, framework->info)) {
-                  continue;
-                }
+            [this,
+             &authorizeFrameworkInfo,
+             &authorizeTask,
+             &authorizeExecutorInfo](JSON::ArrayWriter* writer) {
+          foreachvalue (const Owned<Framework>& framework,
+                        master->frameworks.completed) {
+            // Skip unauthorized frameworks.
+            if (!authorizeFrameworkInfo->accept(framework->info)) {
+              continue;
+            }
 
-                auto frameworkWriter = FullFrameworkWriter(
-                    tasksApprover, executorsApprover, framework.get());
+            auto frameworkWriter = FullFrameworkWriter(
+                authorizeTask,
+                authorizeExecutorInfo,
+                framework.get());
 
-                writer->element(frameworkWriter);
-              }
-            });
+            writer->element(frameworkWriter);
+          }
+        });
 
         // Orphan tasks are no longer possible. We emit an empty array
         // for the sake of backward compatibility.
@@ -3218,31 +3228,22 @@ Future<Response> Master::Http::stateSummary(
     return redirect(request);
   }
 
-  Future<Owned<ObjectApprover>> rolesApprover;
-  Future<Owned<ObjectApprover>> frameworksApprover;
+  Future<Owned<AuthorizationAcceptor>> authorizeRole =
+    AuthorizationAcceptor::create(
+        principal, master->authorizer, authorization::VIEW_ROLE);
+  Future<Owned<AuthorizationAcceptor>> authorizeFrameworkInfo =
+    AuthorizationAcceptor::create(
+        principal, master->authorizer, authorization::VIEW_FRAMEWORK);
 
-  if (master->authorizer.isSome()) {
-    Option<authorization::Subject> subject = createSubject(principal);
-
-    rolesApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_ROLE);
-    frameworksApprover = master->authorizer.get()->getObjectApprover(
-        subject, authorization::VIEW_FRAMEWORK);
-  } else {
-    rolesApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-    frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
-  }
-
-  return collect(rolesApprover, frameworksApprover).then(defer(
+  return collect(authorizeRole, authorizeFrameworkInfo).then(defer(
       master->self(),
-      [this, request](const tuple<Owned<ObjectApprover>,
-                                    Owned<ObjectApprover>>& approvers)
+      [this, request](const tuple<Owned<AuthorizationAcceptor>,
+                                  Owned<AuthorizationAcceptor>>& acceptors)
           -> Response {
-        auto stateSummary = [this, &approvers](JSON::ObjectWriter* writer) {
-          Owned<ObjectApprover> rolesApprover;
-          Owned<ObjectApprover> frameworksApprover;
-          tie(rolesApprover,
-              frameworksApprover) = approvers;
+        auto stateSummary = [this, &acceptors](JSON::ObjectWriter* writer) {
+          Owned<AuthorizationAcceptor> authorizeRole;
+          Owned<AuthorizationAcceptor> authorizeFrameworkInfo;
+          tie(authorizeRole, authorizeFrameworkInfo) = acceptors;
 
           writer->field("hostname", master->info().hostname());
 
@@ -3271,14 +3272,14 @@ Future<Response> Master::Http::stateSummary(
               [this,
                &slaveFrameworkMapping,
                &taskStateSummaries,
-               &rolesApprover](JSON::ArrayWriter* writer) {
+               &authorizeRole](JSON::ArrayWriter* writer) {
                 foreachvalue (Slave* slave, master->slaves.registered) {
                   writer->element(
                       [&slave,
                        &slaveFrameworkMapping,
                        &taskStateSummaries,
-                       &rolesApprover](JSON::ObjectWriter* writer) {
-                        SlaveWriter slaveWriter(*slave, rolesApprover);
+                       &authorizeRole](JSON::ObjectWriter* writer) {
+                        SlaveWriter slaveWriter(*slave, authorizeRole);
                         slaveWriter(writer);
 
                         // Add the 'TaskState' summary for this slave.
@@ -3326,14 +3327,12 @@ Future<Response> Master::Http::stateSummary(
               [this,
                &slaveFrameworkMapping,
                &taskStateSummaries,
-               &frameworksApprover](JSON::ArrayWriter* writer) {
+               &authorizeFrameworkInfo](JSON::ArrayWriter* writer) {
                 foreachpair (const FrameworkID& frameworkId,
                              Framework* framework,
                              master->frameworks.registered) {
                   // Skip unauthorized frameworks.
-                  if (!approveViewFrameworkInfo(
-                          frameworksApprover,
-                          framework->info)) {
+                  if (!authorizeFrameworkInfo->accept(framework->info)) {
                     continue;
                   }
 
