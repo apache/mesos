@@ -30,6 +30,7 @@ BUNDLED_DIR = $(top_srcdir)/..
 include ../../versions.am
 
 BOOST = boost-$(BOOST_VERSION)
+CONCURRENTQUEUE = concurrentqueue-$(CONCURRENTQUEUE_VERSION)
 GLOG = glog-$(GLOG_VERSION)
 GOOGLETEST = googletest-release-$(GOOGLETEST_VERSION)
 GMOCK = $(GOOGLETEST)/googlemock
@@ -40,14 +41,15 @@ LIBEV = libev-$(LIBEV_VERSION)
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
 
-EXTRA_DIST =		\
-  $(BOOST).tar.gz	\
-  $(GLOG).tar.gz	\
-  $(GOOGLETEST).tar.gz	\
-  $(GPERFTOOLS).tar.gz	\
-  $(HTTP_PARSER).tar.gz	\
-  $(LIBEV).tar.gz	\
-  $(PROTOBUF).tar.gz	\
+EXTRA_DIST =			\
+  $(BOOST).tar.gz		\
+  $(CONCURRENTQUEUE).tar.gz	\
+  $(GLOG).tar.gz		\
+  $(GOOGLETEST).tar.gz		\
+  $(GPERFTOOLS).tar.gz		\
+  $(HTTP_PARSER).tar.gz		\
+  $(LIBEV).tar.gz		\
+  $(PROTOBUF).tar.gz		\
   $(PICOJSON).tar.gz
 
 # We need to patch glog in order to deal with a compilation issue when
@@ -68,14 +70,15 @@ EXTRA_DIST +=		\
 EXTRA_DIST +=		\
   $(PROTOBUF).patch
 
-CLEAN_EXTRACTED =	\
-  $(BOOST)		\
-  $(GLOG)		\
-  $(GOOGLETEST)		\
-  $(GPERFTOOLS)		\
-  $(HTTP_PARSER)	\
-  $(LIBEV)		\
-  $(PICOJSON)		\
+CLEAN_EXTRACTED =		\
+  $(BOOST)			\
+  $(CONCURRENTQUEUE)		\
+  $(GLOG)			\
+  $(GOOGLETEST)			\
+  $(GPERFTOOLS)			\
+  $(HTTP_PARSER)		\
+  $(LIBEV)			\
+  $(PICOJSON)			\
   $(PROTOBUF)
 
 # This is where the magic happens: we use stamp files as dependencies
@@ -91,6 +94,10 @@ ALL_LOCAL = # Initialize ALL_LOCAL so we can add to it.
 
 if WITH_BUNDLED_BOOST
   ALL_LOCAL += $(BOOST)-stamp
+endif
+
+if WITH_BUNDLED_CONCURRENTQUEUE
+  ALL_LOCAL += $(CONCURRENTQUEUE)-stamp
 endif
 
 if WITH_BUNDLED_GLOG
