@@ -833,6 +833,13 @@ Future<Nothing> FetcherProcess::run(
     environment["HADOOP_HOME"] = flags.hadoop_home;
   }
 
+  // TODO(jieyu): This is to make sure the libprocess of the fetcher
+  // can properly initialize and find the IP. Since we don't need to
+  // use the TCP socket for communication, it's OK to use a local
+  // address. Consider disable TCP socket in libprocess if libprocess
+  // supports that.
+  environment.emplace("LIBPROCESS_IP", "127.0.0.1");
+
   VLOG(1) << "Fetching URIs using command '" << command << "'";
 
   Try<Subprocess> fetcherSubprocess = subprocess(
