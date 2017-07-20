@@ -79,6 +79,11 @@ option(
   FALSE)
 
 option(
+  ENABLE_LOCK_FREE_RUN_QUEUE
+  "Build libprocess with lock free run queue"
+  FALSE)
+
+option(
   HAS_AUTHENTICATION
   "Build Mesos against authentication libraries"
   TRUE)

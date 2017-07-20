@@ -30,13 +30,14 @@ endif ()
 # Downloads, configures, and compiles the third-party libraries for the process
 # library (located in `3rdparty/`, i.e. not the `mesos-3rdparty` repository).
 ###############################################################################
-set(BOOST_URL       ${FETCH_URL}/boost-${BOOST_VERSION}.tar.gz)
-set(ELFIO_URL       ${FETCH_URL}/elfio-${ELFIO_VERSION}.tar.gz)
-set(GLOG_URL        ${FETCH_URL}/glog-${GLOG_VERSION}.tar.gz)
-set(HTTP_PARSER_URL ${FETCH_URL}/http-parser-${HTTP_PARSER_VERSION}.tar.gz)
-set(PICOJSON_URL    ${FETCH_URL}/picojson-${PICOJSON_VERSION}.tar.gz)
-set(NVML_URL        ${FETCH_URL}/nvml-${NVML_VERSION}.tar.gz)
-set(LIBEV_URL       ${FETCH_URL}/libev-${LIBEV_VERSION}.tar.gz)
+set(BOOST_URL           ${FETCH_URL}/boost-${BOOST_VERSION}.tar.gz)
+set(CONCURRENTQUEUE_URL ${FETCH_URL}/concurrentqueue-${CONCURRENTQUEUE_VERSION}.tar.gz)
+set(ELFIO_URL           ${FETCH_URL}/elfio-${ELFIO_VERSION}.tar.gz)
+set(GLOG_URL            ${FETCH_URL}/glog-${GLOG_VERSION}.tar.gz)
+set(HTTP_PARSER_URL     ${FETCH_URL}/http-parser-${HTTP_PARSER_VERSION}.tar.gz)
+set(PICOJSON_URL        ${FETCH_URL}/picojson-${PICOJSON_VERSION}.tar.gz)
+set(NVML_URL            ${FETCH_URL}/nvml-${NVML_VERSION}.tar.gz)
+set(LIBEV_URL           ${FETCH_URL}/libev-${LIBEV_VERSION}.tar.gz)
 
 # NOTE: libevent doesn't come rebundled, so this URL is always the same. But,
 # it's only downloaded if `ENABLE_LIBEVENT` is set.
@@ -180,6 +181,16 @@ ExternalProject_Add(
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${BOOST_URL}
   URL_HASH          ${BOOST_HASH}
+  )
+
+ExternalProject_Add(
+  ${CONCURRENTQUEUE_TARGET}
+  PREFIX            ${CONCURRENTQUEUE_CMAKE_ROOT}
+  CONFIGURE_COMMAND ${CMAKE_NOOP}
+  BUILD_COMMAND     ${CMAKE_NOOP}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
+  URL               ${CONCURRENTQUEUE_URL}
+  URL_HASH          ${CONCURRENTQUEUE_HASH}
   )
 
 ExternalProject_Add(
