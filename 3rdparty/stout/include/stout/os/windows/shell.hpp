@@ -294,7 +294,7 @@ inline Try<ProcessData> create_process(
 
   if (!create_process_result) {
     return WindowsError(
-        "Failed to call `CreateProcess`: " + stringify(arg_buffer));
+        "Failed to call `CreateProcess`: " + stringify(arg_string));
   }
 
   return ProcessData{
