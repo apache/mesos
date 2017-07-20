@@ -66,7 +66,10 @@ int main(int argc, char** argv)
   listeners.Append(process::ClockTestEventListener::instance());
   listeners.Append(process::FilterTestEventListener::instance());
 
-  return RUN_ALL_TESTS();
+  int result = RUN_ALL_TESTS();
+
+  process::finalize(true);
+  return result;
 }
 
 // TODO(jmlvanre): Factor out the client / server behavior so that we
