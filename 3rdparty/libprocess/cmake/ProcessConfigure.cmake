@@ -40,10 +40,6 @@
 # party libraries, and where in the directory tree you need to look to get the
 # actual libraries.
 
-if (ENABLE_LOCK_FREE_RUN_QUEUE)
-  add_definitions(-DLOCK_FREE_RUN_QUEUE)
-endif ()
-
 if (ENABLE_SSL)
   find_package(OpenSSL REQUIRED)
 endif ()
@@ -76,6 +72,7 @@ set(PROCESS_DEPENDENCIES
   ${PROCESS_DEPENDENCIES}
   ${STOUT_DEPENDENCIES}
   ${HTTP_PARSER_TARGET}
+  ${CONCURRENTQUEUE_TARGET}
   )
 
 if (NOT ENABLE_LIBEVENT)
@@ -104,6 +101,7 @@ set(PROCESS_3RDPARTY_INCLUDE_DIRS
   ${STOUT_3RDPARTY_INCLUDE_DIRS}
   ${STOUT_INCLUDE_DIRS}
   ${HTTP_PARSER_INCLUDE_DIR}
+  ${CONCURRENTQUEUE_INCLUDE_DIR}
   )
 
 if (NOT ENABLE_LIBEVENT)
