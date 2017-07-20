@@ -28,10 +28,8 @@ class Counter : public Metric
 public:
   // 'name' is the unique name for the instance of Counter being constructed.
   // This is what will be used as the key in the JSON endpoint.
-  // 'window' is the amount of history to keep for this Metric.
-  Counter(const std::string& name, const Option<Duration>& window = None())
-    : Metric(name, window),
-      data(new Data())
+  Counter(const std::string& name)
+    : Metric(name, None()), data(new Data())
   {
     push(static_cast<double>(data->value.load()));
   }
