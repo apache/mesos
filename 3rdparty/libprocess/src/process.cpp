@@ -63,6 +63,7 @@
 #include <process/address.hpp>
 #include <process/check.hpp>
 #include <process/clock.hpp>
+#include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
@@ -113,6 +114,7 @@
 #include "decoder.hpp"
 #include "encoder.hpp"
 #include "event_loop.hpp"
+#include "event_queue.hpp"
 #include "gate.hpp"
 #include "process_reference.hpp"
 #include "run_queue.hpp"
@@ -3180,10 +3182,12 @@ void ProcessManager::resume(ProcessBase* process)
   bool terminate = false;
   bool blocked = false;
 
-  CHECK(process->state == ProcessBase::BOTTOM ||
-        process->state == ProcessBase::READY);
+  ProcessBase::State state = process->state.load();
 
-  if (process->state == ProcessBase::BOTTOM) {
+  CHECK(state == ProcessBase::State::BOTTOM ||
+        state == ProcessBase::State::READY);
+
+  if (state == ProcessBase::State::BOTTOM) {
     try { process->initialize(); }
     catch (...) { terminate = true; }
   }
@@ -3191,18 +3195,37 @@ void ProcessManager::resume(ProcessBase* process)
   while (!terminate && !blocked) {
     Event* event = nullptr;
 
-    synchronized (process->mutex) {
-      if (process->events.size() > 0) {
-        event = process->events.front();
-        process->events.pop_front();
-      } else {
-        process->state = ProcessBase::BLOCKED;
-        blocked = true;
+    if (!process->events->empty()) {
+      event = process->events->dequeue();
+    } else {
+      state = ProcessBase::State::BLOCKED;
+      process->state.store(state);
+      blocked = true;
+
+      // Now check that we didn't miss any events that got added
+      // before we set ourselves to BLOCKED since we won't have been
+      // added to the run queue in those circumstances so we need to
+      // serve those events!
+      if (!process->events->empty()) {
+        // Make sure the state is in READY! Either we need to
+        // explicitly do this because `ProcessBase::enqueue` saw us as
+        // READY (or BOTTOM) and didn't change the state or we're
+        // racing with `ProcessBase::enqueue` because they saw us at
+        // BLOCKED and are trying to change the state. If they change
+        // the state then they'll also enqueue this process, which
+        // means we need to bail because another thread might resume
+        // (and the reason we'll bail is because `blocked` is true)!
+        if (process->state.compare_exchange_strong(
+                state,
+                ProcessBase::State::READY)) {
+          blocked = false;
+          continue;
+        }
       }
     }
 
     if (!blocked) {
-      CHECK(event != nullptr);
+      CHECK_NOTNULL(event);
 
       // Determine if we should filter this event.
       //
@@ -3253,6 +3276,10 @@ void ProcessManager::resume(ProcessBase* process)
     }
   }
 
+  // TODO(benh): If `terminate` was set to true when we initialized
+  // then we'll never actually cleanup! This bug has been here a long
+  // time!!!
+
   __process__ = nullptr;
 }
 
@@ -3262,29 +3289,20 @@ void ProcessManager::cleanup(ProcessBase* process)
   VLOG(2) << "Cleaning up " << process->pid;
 
   // First, set the terminating state so no more events will get
-  // enqueued and delete all the pending events. We want to delete the
-  // events before we hold the processes lock because deleting an
-  // event could cause code outside libprocess to get executed which
-  // might cause a deadlock with the processes lock. Likewise,
-  // deleting the events now rather than later has the nice property
-  // of making sure that any events that might have gotten enqueued on
-  // the process we are cleaning up will get dropped (since it's
-  // terminating) and eliminates the potential of enqueueing them on
-  // another process that gets spawned with the same PID.
-  deque<Event*> events;
+  // enqueued and then decomission the event queue which will also
+  // delete all the pending events. We want to delete the events
+  // before we hold `processes_mutex` because deleting an event could
+  // cause code outside libprocess to get executed which might cause a
+  // deadlock with `processes_mutex`. Also, deleting the events now
+  // rather than later has the nice property of making sure that any
+  // _new_ events that might have gotten enqueued _BACK_ onto this
+  // process due to the deleting of the pending events will get
+  // dropped since this process is now TERMINATING, which eliminates
+  // the potential of these new events from getting enqueued onto a
+  // _new_ process that gets spawned with the same PID.
+  process->state.store(ProcessBase::State::TERMINATING);
 
-  synchronized (process->mutex) {
-    process->state = ProcessBase::TERMINATING;
-    events = process->events;
-    process->events.clear();
-  }
-
-  // Delete pending events.
-  while (!events.empty()) {
-    Event* event = events.front();
-    events.pop_front();
-    delete event;
-  }
+  process->events->decomission();
 
   // Remove help strings for all installed routes for this process.
   dispatch(help, &Help::remove, process->pid.id);
@@ -3302,7 +3320,7 @@ void ProcessManager::cleanup(ProcessBase* process)
     }
 
     synchronized (process->mutex) {
-      CHECK(process->events.empty());
+      CHECK(process->events->empty());
 
       processes.erase(process->pid.id);
 
@@ -3397,16 +3415,16 @@ bool ProcessManager::wait(const UPID& pid)
 
   ProcessBase* process = nullptr; // Set to non-null if we donate thread.
 
-  // Try and approach the gate if necessary.
-  synchronized (processes_mutex) {
-    if (processes.count(pid.id) > 0) {
-      process = processes[pid.id];
+  if (ProcessReference reference = use(pid)) {
+    // Save the process assuming we can donate to it.
+    process = reference;
 
-      gate = process->gate;
+    gate = process->gate;
 
-      // Check if it is runnable in order to donate this thread.
-      if (process->state == ProcessBase::BOTTOM ||
-          process->state == ProcessBase::READY) {
+    // Check if it is runnable in order to donate this thread.
+    switch (process->state.load()) {
+      case ProcessBase::State::BOTTOM:
+      case ProcessBase::State::READY:
         // Assume that we'll be able to successfully extract the
         // process from the run queue and optimistically increment
         // `running` so that `Clock::settle` properly waits. In the
@@ -3424,10 +3442,11 @@ bool ProcessManager::wait(const UPID& pid)
           running.fetch_sub(1);
           process = nullptr;
         }
-      } else {
-        // Process is not runnable, so no need to donate ...
+        break;
+      case ProcessBase::State::BLOCKED:
+      case ProcessBase::State::TERMINATING:
         process = nullptr;
-      }
+        break;
     }
   }
 
@@ -3612,95 +3631,35 @@ void ProcessManager::settle()
 
 Future<Response> ProcessManager::__processes__(const Request&)
 {
-  JSON::Array array;
-
   synchronized (processes_mutex) {
-    foreachvalue (ProcessBase* process, process_manager->processes) {
-      JSON::Object object;
-      object.values["id"] = process->pid.id;
-
-      JSON::Array events;
-
-      struct JSONVisitor : EventVisitor
-      {
-        explicit JSONVisitor(JSON::Array* _events) : events(_events) {}
-
-        virtual void visit(const MessageEvent& event)
-        {
-          JSON::Object object;
-          object.values["type"] = "MESSAGE";
-
-          const Message& message = event.message;
-
-          object.values["name"] = message.name;
-          object.values["from"] = string(message.from);
-          object.values["to"] = string(message.to);
-          object.values["body"] = message.body;
-
-          events->values.push_back(object);
+    return collect(lambda::map(
+        [](ProcessBase* process) {
+          // TODO(benh): Try and "inject" this dispatch or create a
+          // high-priority set of events (i.e., mailbox).
+          return dispatch(
+              process->self(),
+              [process]() -> JSON::Object {
+                return *process;
+              });
+        },
+        process_manager->processes.values()))
+      .then([](const std::list<JSON::Object>& objects) -> Response {
+        JSON::Array array;
+        foreach (const JSON::Object& object, objects) {
+          array.values.push_back(object);
         }
-
-        virtual void visit(const HttpEvent& event)
-        {
-          JSON::Object object;
-          object.values["type"] = "HTTP";
-
-          const Request& request = *event.request;
-
-          object.values["method"] = request.method;
-          object.values["url"] = stringify(request.url);
-
-          events->values.push_back(object);
-        }
-
-        virtual void visit(const DispatchEvent& event)
-        {
-          JSON::Object object;
-          object.values["type"] = "DISPATCH";
-          events->values.push_back(object);
-        }
-
-        virtual void visit(const ExitedEvent& event)
-        {
-          JSON::Object object;
-          object.values["type"] = "EXITED";
-          events->values.push_back(object);
-        }
-
-        virtual void visit(const TerminateEvent& event)
-        {
-          JSON::Object object;
-          object.values["type"] = "TERMINATE";
-          events->values.push_back(object);
-        }
-
-        JSON::Array* events;
-      } visitor(&events);
-
-      synchronized (process->mutex) {
-        foreach (Event* event, process->events) {
-          event->visit(&visitor);
-        }
-      }
-
-      object.values["events"] = events;
-      array.values.push_back(object);
-    }
+        return OK(array);
+      });
   }
-
-  return OK(array);
 }
 
 
 ProcessBase::ProcessBase(const string& id)
+  : events(new EventQueue()),
+    refs(0),
+    gate(std::make_shared<Gate>())
 {
   process::initialize();
-
-  state = ProcessBase::BOTTOM;
-
-  refs = 0;
-
-  gate = std::make_shared<Gate>();
 
   pid.id = id != "" ? id : ID::generate();
   pid.address = __address__;
@@ -3718,26 +3677,76 @@ ProcessBase::ProcessBase(const string& id)
 ProcessBase::~ProcessBase() {}
 
 
+template <>
+size_t ProcessBase::eventCount<MessageEvent>()
+{
+  CHECK_EQ(this, __process__);
+  return events->count<MessageEvent>();
+}
+
+
+template <>
+size_t ProcessBase::eventCount<DispatchEvent>()
+{
+  CHECK_EQ(this, __process__);
+  return events->count<DispatchEvent>();
+}
+
+
+template <>
+size_t ProcessBase::eventCount<HttpEvent>()
+{
+  CHECK_EQ(this, __process__);
+  return events->count<HttpEvent>();
+}
+
+
+template <>
+size_t ProcessBase::eventCount<ExitedEvent>()
+{
+  CHECK_EQ(this, __process__);
+  return events->count<ExitedEvent>();
+}
+
+
+template <>
+size_t ProcessBase::eventCount<TerminateEvent>()
+{
+  CHECK_EQ(this, __process__);
+  return events->count<TerminateEvent>();
+}
+
+
 void ProcessBase::enqueue(Event* event, bool inject)
 {
-  CHECK(event != nullptr);
+  CHECK_NOTNULL(event);
 
-  synchronized (mutex) {
-    if (state != TERMINATING) {
-      if (!inject) {
-        events.push_back(event);
-      } else {
-        events.push_front(event);
-      }
+  State old = state.load();
 
-      if (state == BLOCKED) {
-        state = READY;
-        process_manager->enqueue(this);
-      }
-
-      CHECK(state == BOTTOM || state == READY);
-    } else {
+  switch (old) {
+    case State::BOTTOM:
+    case State::READY:
+    case State::BLOCKED:
+      events->enqueue(event, inject);
+      break;
+    case State::TERMINATING:
       delete event;
+      return;
+  }
+
+  // If we're BLOCKED then we need to try and enqueue us into the run
+  // queue. It's possible that in the time we enqueued the event and
+  // are attempting to enqueue us in the run queue another thread has
+  // already served the event! Worse case scenario we'll end up
+  // enqueuing us in the run queue only to find out in
+  // `ProcessManager::resume` that our event queue is empty!
+  if ((old = state.load()) == State::BLOCKED) {
+    if (state.compare_exchange_strong(old, State::READY)) {
+      // NOTE: we only enqueue if _we_ successfully did the exchange
+      // since another thread executing this code or a thread in
+      // `ProcessBase::resume` might have already done the exchange to
+      // READY.
+      process_manager->enqueue(this);
     }
   }
 }
@@ -4045,6 +4054,17 @@ void ProcessBase::route(
   handlers.http[name.substr(1)] = endpoint;
 
   dispatch(help, &Help::add, pid.id, name, help_);
+}
+
+
+ProcessBase:: operator JSON::Object()
+{
+  CHECK_EQ(this, __process__);
+
+  JSON::Object object;
+  object.values["id"] = pid.id;
+  object.values["events"] = JSON::Array(*events);
+  return object;
 }
 
 

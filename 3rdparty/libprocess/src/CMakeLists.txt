@@ -39,6 +39,7 @@ set(PROCESS_SRC
   decoder.hpp
   encoder.hpp
   event_loop.hpp
+  event_queue.hpp
   firewall.cpp
   gate.hpp
   help.cpp

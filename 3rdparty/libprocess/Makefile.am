@@ -164,6 +164,7 @@ libprocess_la_SOURCES =		\
   src/decoder.hpp		\
   src/encoder.hpp		\
   src/event_loop.hpp		\
+  src/event_queue.hpp		\
   src/firewall.cpp		\
   src/gate.hpp			\
   src/help.cpp			\
