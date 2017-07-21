@@ -69,6 +69,13 @@ AC_CONFIG_FILES([3rdparty/gmock_sources.cc])
 # Optional features.
 ###############################################################################
 
+# TODO(benh): Eventaully make this enabled by default.
+AC_ARG_ENABLE([lock_free_event_queue],
+              AS_HELP_STRING([--enable-lock-free-event-queue],
+                             [enables the lock free event queue]),
+                             [], [enable_lock_free_event_queue=no])
+
+# TODO(benh): Eventaully make this enabled by default.
 AC_ARG_ENABLE([lock_free_run_queue],
               AS_HELP_STRING([--enable-lock-free-run-queue],
                              [enables the lock free run queue]),
@@ -238,6 +245,10 @@ AC_ARG_VAR([TEST_DRIVER], [executable and arguments of a test driver])
 ###############################################################################
 # Compiler checks.
 ###############################################################################
+
+# Check if we should use the lock free run queue.
+AS_IF([test "x$enable_lock_free_event_queue" = "xyes"],
+      [AC_DEFINE([LOCK_FREE_EVENT_QUEUE])])
 
 # Check if we should use the lock free run queue.
 AS_IF([test "x$enable_lock_free_run_queue" = "xyes"],
