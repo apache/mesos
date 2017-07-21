@@ -133,17 +133,6 @@ protected:
   virtual void lost(const UPID&) {}
 
   /**
-   * Puts the message at front of this process's message queue.
-   *
-   * @see process::Message
-   */
-  void inject(
-      const UPID& from,
-      const std::string& name,
-      const char* data = nullptr,
-      size_t length = 0);
-
-  /**
    * Sends the message to the specified `UPID`.
    *
    * @see process::Message
@@ -408,8 +397,11 @@ private:
 
   std::atomic<State> state = ATOMIC_VAR_INIT(State::BOTTOM);
 
+  // Flag for indicating that a terminate event has been injected.
+  std::atomic<bool> termination = ATOMIC_VAR_INIT(false);
+
   // Enqueue the specified message, request, or function call.
-  void enqueue(Event* event, bool inject = false);
+  void enqueue(Event* event);
 
   // Delegates for messages.
   std::map<std::string, UPID> delegates;

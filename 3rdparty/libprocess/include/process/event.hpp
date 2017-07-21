@@ -197,8 +197,8 @@ private:
 
 struct TerminateEvent : Event
 {
-  explicit TerminateEvent(const UPID& _from)
-    : from(_from) {}
+  TerminateEvent(const UPID& _from, bool _inject)
+    : from(_from), inject(_inject) {}
 
   virtual void visit(EventVisitor* visitor) const
   {
@@ -206,6 +206,7 @@ struct TerminateEvent : Event
   }
 
   const UPID from;
+  const bool inject;
 
 private:
   // Not copyable, not assignable.
