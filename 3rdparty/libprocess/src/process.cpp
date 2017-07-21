@@ -3319,13 +3319,7 @@ void ProcessManager::cleanup(ProcessBase* process)
 #endif
     }
 
-    synchronized (process->mutex) {
-      CHECK(process->events->empty());
-
-      processes.erase(process->pid.id);
-
-      CHECK(process->refs.load() == 0);
-    }
+    processes.erase(process->pid.id);
 
     // Note that we don't remove the process from the clock during
     // cleanup, but rather the clock is reset for a process when it is
