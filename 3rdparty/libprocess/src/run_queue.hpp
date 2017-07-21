@@ -13,21 +13,16 @@
 #ifndef __PROCESS_RUN_QUEUE_HPP__
 #define __PROCESS_RUN_QUEUE_HPP__
 
-// At _configuration_ (i.e., build) time you can specify
-// RUN_QUEUE=... as an environment variable (i.e., just like CC or
-// CXXFLAGS) to pick the run queue implementation. If nothing is
-// specified we'll default to the LockingRunQueue.
+// At _configuration_ (i.e., build) time you can specify './configure
+// --enable-lock-free-run-queue' or 'cmake
+// -DENABLE_LOCK_FREE_RUN_QUEUE to pick the LockFreeRunQueue. By
+// default we'll use the LockingRunQueue.
 //
-// Alternatively we could have made this be a _runtime_ decision but
-// for performance reasons we wanted the run queue implementation to
-// be compile-time optimized (e.g., inlined, etc).
-//
-// Note that care should be taken not to reconfigure with a different
-// value of RUN_QUEUE when reusing a build directory!
-#define RUN_QUEUE LockingRunQueue
+// We choose to make this a _compile-time_ decision rather than a
+// _runtime_ decision because we wanted the run queue implementation
+// to be compile-time optimized (e.g., inlined, etc).
 
 #ifdef LOCK_FREE_RUN_QUEUE
-#define RUN_QUEUE LockFreeRunQueue
 #include <concurrentqueue.h>
 #endif // LOCK_FREE_RUN_QUEUE
 
@@ -42,7 +37,8 @@
 
 namespace process {
 
-class LockingRunQueue
+#ifndef LOCK_FREE_RUN_QUEUE
+class RunQueue
 {
 public:
   bool extract(ProcessBase* process)
@@ -115,9 +111,9 @@ private:
   DecomissionableKernelSemaphore semaphore;
 };
 
+#else // LOCK_FREE_RUN_QUEUE
 
-#ifdef LOCK_FREE_RUN_QUEUE
-class LockFreeRunQueue
+class RunQueue
 {
 public:
   bool extract(ProcessBase*)
@@ -175,6 +171,7 @@ private:
   // Semaphore used for threads to wait for the queue.
   DecomissionableKernelSemaphore semaphore;
 };
+
 #endif // LOCK_FREE_RUN_QUEUE
 
 } // namespace process {

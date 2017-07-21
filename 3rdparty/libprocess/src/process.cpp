@@ -586,9 +586,9 @@ private:
 
   // Queue of runnable processes.
   //
-  // See run_queue.hpp for more information about the RUN_QUEUE
-  // preprocessor definition.
-  RUN_QUEUE runq;
+  // See run_queue.hpp for more information about the run queue
+  // implementation.
+  RunQueue runq;
 
   // Number of running processes, to support Clock::settle operation.
   std::atomic_long running;
