@@ -33,6 +33,7 @@ set(STOUT_ROOT_TESTS_SRC
   ip_tests.cpp
   json_tests.cpp
   jsonify_tests.cpp
+  lambda_tests.cpp
   linkedhashmap_tests.cpp
   mac_tests.cpp
   main.cpp

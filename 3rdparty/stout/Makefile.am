@@ -143,6 +143,7 @@ stout_tests_SOURCES =			\
   tests/ip_tests.cpp			\
   tests/json_tests.cpp			\
   tests/jsonify_tests.cpp		\
+  tests/lambda_tests.cpp		\
   tests/linkedhashmap_tests.cpp		\
   tests/mac_tests.cpp			\
   tests/main.cpp			\
