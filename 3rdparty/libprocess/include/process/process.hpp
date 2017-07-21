@@ -401,14 +401,16 @@ private:
   friend void* schedule(void*);
 
   // Process states.
+  //
+  // Transitioning from BLOCKED to READY also requires enqueueing the
+  // process in the run queue otherwise the events will never be
+  // processed!
   enum
   {
-    BOTTOM,
-    READY,
-    RUNNING,
-    BLOCKED,
-    TERMINATING,
-    TERMINATED
+    BOTTOM, // Uninitialized but events may be enqueued.
+    BLOCKED, // Initialized, no events enqueued.
+    READY, // Initialized, events enqueued.
+    TERMINATING // Initialized, no more events will be enqueued.
   } state;
 
   template <typename T>
