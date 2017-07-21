@@ -245,10 +245,10 @@ public:
     for (iterator = pids.begin(); iterator != pids.end(); ++iterator) {
       const process::UPID& pid = *iterator;
       if (filter.count(pid) == 0) {
-        // NOTE: Here we just use the pid of the network to send this message
-        // since we don't need to deliver responses back to the caller. Any
-        // incoming messages addressed to the network are simply dropped.
-        process::post(self(), pid, m);
+        // NOTE: Just send this message as the network process itself
+        // since we don't need to deliver responses back to the caller.
+        // Incoming messages addressed to the network are simply dropped.
+        send(pid, m);
       }
     }
     return Nothing();
