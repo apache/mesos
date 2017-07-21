@@ -148,6 +148,13 @@ AC_CONFIG_FILES([mpi/mpiexec-mesos], [chmod +x mpi/mpiexec-mesos])
 # Optional features.
 ###############################################################################
 
+# TODO(benh): Eventaully make this enabled by default.
+AC_ARG_ENABLE([lock_free_event_queue],
+              AS_HELP_STRING([--enable-lock-free-event-queue],
+                             [enables the lock free event queue in libprocess]),
+                             [], [enable_lock_free_event_queue=no])
+
+# TODO(benh): Eventaully make this enabled by default.
 AC_ARG_ENABLE([lock_free_run_queue],
               AS_HELP_STRING([--enable-lock-free-run-queue],
                              [enables the lock free run queue in libprocess]),
@@ -449,6 +456,10 @@ AS_IF([test "x${ac_cv_env_CXXFLAGS_set}" = "x"],
 ###############################################################################
 # Compiler checks.
 ###############################################################################
+
+# Check if we should use the lock free event queue.
+AS_IF([test "x$enable_lock_free_event_queue" = "xyes"],
+      [AC_DEFINE([LOCK_FREE_EVENT_QUEUE])])
 
 # Check if we should use the lock free run queue.
 AS_IF([test "x$enable_lock_free_run_queue" = "xyes"],

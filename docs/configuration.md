@@ -2502,6 +2502,15 @@ quotas for container sandbox directories. Valid project IDs range from
       responsive; not recommended.
     </td>
   </tr>
+  <tr>
+    <td>
+      --enable-lock-free-event-queue
+    </td>
+    <td>
+      Enables the lock-free event queue to be used in libprocess which
+      greatly improves message passing performance!
+    </td>
+  </tr>
 </table>
 
 ### Autotools `configure` script optional package flags
