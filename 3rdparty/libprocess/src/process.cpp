@@ -581,9 +581,6 @@ private:
   hashmap<string, ProcessBase*> processes;
   std::recursive_mutex processes_mutex;
 
-  // Gates for waiting threads (protected by processes_mutex).
-  map<ProcessBase*, Gate*> gates;
-
   // Queue of runnable processes.
   //
   // See run_queue.hpp for more information about the run queue
@@ -3295,7 +3292,7 @@ void ProcessManager::cleanup(ProcessBase* process)
   dispatch(help, &Help::remove, process->pid.id);
 
   // Possible gate non-libprocess threads are waiting at.
-  Gate* gate = nullptr;
+  std::shared_ptr<Gate> gate = process->gate;
 
   // Remove process.
   synchronized (processes_mutex) {
@@ -3310,14 +3307,6 @@ void ProcessManager::cleanup(ProcessBase* process)
       CHECK(process->events.empty());
 
       processes.erase(process->pid.id);
-
-      // Lookup gate to wake up waiting threads.
-      map<ProcessBase*, Gate*>::iterator it = gates.find(process);
-      if (it != gates.end()) {
-        gate = it->second;
-        // N.B. The last thread that leaves the gate also free's it.
-        gates.erase(it);
-      }
 
       CHECK(process->refs.load() == 0);
       process->state = ProcessBase::TERMINATED;
@@ -3356,9 +3345,8 @@ void ProcessManager::cleanup(ProcessBase* process)
     // another thread _approaches_ the gate causing that thread to
     // wait on _arrival_ to the gate forever (see
     // ProcessManager::wait).
-    if (gate != nullptr) {
-      gate->open();
-    }
+    CHECK(gate);
+    gate->open();
   }
 }
 
@@ -3408,16 +3396,7 @@ void ProcessManager::terminate(
 
 bool ProcessManager::wait(const UPID& pid)
 {
-  // We use a gate for waiters. A gate is single use. That is, a new
-  // gate is created when the first thread shows up and wants to wait
-  // for a process that currently has no gate. Once that process
-  // exits, the last thread to leave the gate will also clean it
-  // up. Note that a gate will never get more threads waiting on it
-  // after it has been opened, since the process should no longer be
-  // valid and therefore will not have an entry in 'processes'.
-
-  Gate* gate = nullptr;
-  Gate::state_t old;
+  std::shared_ptr<Gate> gate;
 
   ProcessBase* process = nullptr; // Set to non-null if we donate thread.
 
@@ -3427,13 +3406,7 @@ bool ProcessManager::wait(const UPID& pid)
       process = processes[pid.id];
       CHECK(process->state != ProcessBase::TERMINATED);
 
-      // Check and see if a gate already exists.
-      if (gates.find(process) == gates.end()) {
-        gates[process] = new Gate();
-      }
-
-      gate = gates[process];
-      old = gate->approach();
+      gate = process->gate;
 
       // Check if it is runnable in order to donate this thread.
       if (process->state == ProcessBase::BOTTOM ||
@@ -3481,14 +3454,9 @@ bool ProcessManager::wait(const UPID& pid)
   // (i.e., donate for a message, check and see if our gate is open,
   // if not, keep donating).
 
-  // Now arrive at the gate and wait until it opens.
-  if (gate != nullptr) {
-    int remaining = gate->arrive(old);
-
-    if (remaining == 0) {
-      delete gate;
-    }
-
+  // Now wait at the gate until it opens.
+  if (gate) {
+    gate->wait();
     return true;
   }
 
@@ -3735,6 +3703,8 @@ ProcessBase::ProcessBase(const string& id)
   state = ProcessBase::BOTTOM;
 
   refs = 0;
+
+  gate = std::make_shared<Gate>();
 
   pid.id = id != "" ? id : ID::generate();
   pid.address = __address__;

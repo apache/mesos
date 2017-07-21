@@ -15,6 +15,7 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <map>
 #include <queue>
 #include <vector>
@@ -40,6 +41,7 @@
 namespace process {
 
 // Forward declaration.
+class Gate;
 class Logging;
 class Sequence;
 
@@ -480,6 +482,8 @@ private:
 
   // Active references.
   std::atomic_long refs;
+
+  std::shared_ptr<Gate> gate;
 
   // Process PID.
   UPID pid;

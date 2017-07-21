@@ -18,88 +18,46 @@
 
 #include <stout/synchronized.hpp>
 
+namespace process {
+
+// A Gate abstracts the concept of something that can "only happen
+// once and every one else needs to queue up and wait until that thing
+// happens" ... kind of like a gate that can only ever open.
+//
+// NOTE: historically a gate could be opened and _closed_ allowing but
+// those semantics are no longer needed so they have been removed in
+// order to simplify the implementation.
+//
+// TODO(benh): Consider removing this entirely and using `Once` for
+// cleanup of a `ProcessBase` instead of a `Gate`.
 class Gate
 {
 public:
-  typedef intptr_t state_t;
-
-private:
-  int waiters;
-  state_t state;
-  std::mutex mutex;
-  std::condition_variable cond;
-
-public:
-  Gate() : waiters(0), state(0) {}
-
-  ~Gate() = default;
-
-  // Signals the state change of the gate to any (at least one) or
-  // all (if 'all' is true) of the threads waiting on it.
-  void open(bool all = true)
+  // Opens the gate and notifies all the waiters.
+  void open()
   {
     synchronized (mutex) {
-      state++;
-      if (all) {
-        cond.notify_all();
-      } else {
-        cond.notify_one();
-      }
+      opened = true;
+      cond.notify_all();
     }
   }
 
-  // Blocks the current thread until the gate's state changes from
-  // the current state.
+  // Blocks the current thread until the gate has been opened.
   void wait()
   {
     synchronized (mutex) {
-      waiters++;
-      state_t old = state;
-      while (old == state) {
+      while (!opened) {
         synchronized_wait(&cond, &mutex);
       }
-      waiters--;
     }
   }
 
-  // Gets the current state of the gate and notifies the gate about
-  // the intention to wait for its state change.
-  // Call 'leave()' if no longer interested in the state change.
-  state_t approach()
-  {
-    synchronized (mutex) {
-      waiters++;
-      return state;
-    }
-  }
-
-  // Blocks the current thread until the gate's state changes from
-  // the specified 'old' state. The 'old' state can be obtained by
-  // calling 'approach()'. Returns the number of remaining waiters.
-  int arrive(state_t old)
-  {
-    int remaining;
-
-    synchronized (mutex) {
-      while (old == state) {
-        synchronized_wait(&cond, &mutex);
-      }
-
-      waiters--;
-      remaining = waiters;
-    }
-
-    return remaining;
-  }
-
-  // Notifies the gate that a waiter (the current thread) is no
-  // longer waiting for the gate's state change.
-  void leave()
-  {
-    synchronized (mutex) {
-      waiters--;
-    }
-  }
+private:
+  bool opened = false;
+  std::mutex mutex;
+  std::condition_variable cond;
 };
+
+} // namespace process {
 
 #endif // __GATE_HPP__
