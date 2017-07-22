@@ -17,78 +17,35 @@
 
 namespace process {
 
-// Provides reference counting semantics for a process pointer.
 class ProcessReference
 {
 public:
-  ProcessReference() : process(nullptr) {}
+  ProcessReference() = default;
 
-  ~ProcessReference()
-  {
-    cleanup();
-  }
+  ProcessReference(std::shared_ptr<ProcessBase*>&& reference)
+    : reference(std::move(reference)) {}
 
-  ProcessReference(const ProcessReference& that)
-  {
-    copy(that);
-  }
-
-  ProcessReference& operator=(const ProcessReference& that)
-  {
-    if (this != &that) {
-      cleanup();
-      copy(that);
-    }
-    return *this;
-  }
+  ProcessReference(const std::shared_ptr<ProcessBase*>& reference)
+    : reference(reference) {}
 
   ProcessBase* operator->() const
   {
-    return process;
+    CHECK(reference);
+    return *reference;
   }
 
   operator ProcessBase*() const
   {
-    return process;
+    CHECK(reference);
+    return *reference;
   }
 
   operator bool() const
   {
-    return process != nullptr;
+    return (bool) reference;
   }
 
-private:
-  friend class ProcessManager; // For ProcessManager::use.
-
-  explicit ProcessReference(ProcessBase* _process)
-    : process(_process)
-  {
-    if (process != nullptr) {
-      process->refs.fetch_add(1);
-    }
-  }
-
-  void copy(const ProcessReference& that)
-  {
-    process = that.process;
-
-    if (process != nullptr) {
-      // There should be at least one reference to the process, so
-      // we don't need to worry about checking if it's exiting or
-      // not, since we know we can always create another reference.
-      CHECK(process->refs.load() > 0);
-      process->refs.fetch_add(1);
-    }
-  }
-
-  void cleanup()
-  {
-    if (process != nullptr) {
-      process->refs.fetch_sub(1);
-    }
-  }
-
-  ProcessBase* process;
+  std::shared_ptr<ProcessBase*> reference;
 };
 
 } // namespace process {

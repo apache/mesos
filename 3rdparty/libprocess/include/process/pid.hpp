@@ -40,26 +40,31 @@ struct UPID
 {
   UPID() = default;
 
-  UPID(const UPID& that)
-    : id(that.id), address(that.address), addresses(that.addresses) {}
+  UPID(const UPID& that) = default;
+
+  UPID(UPID&& that) = default;
 
   UPID(const char* id_, const net::IP& ip_, uint16_t port_)
-    : id(id_), address(ip_, port_) {}
+    : id(id_), address(ip_, port_) { resolve(); }
 
   UPID(const char* id_, const network::inet::Address& address_)
-    : id(id_), address(address_) {}
+    : id(id_), address(address_) { resolve(); }
 
   UPID(const std::string& id_, const net::IP& ip_, uint16_t port_)
-    : id(id_), address(ip_, port_) {}
+    : id(id_), address(ip_, port_) { resolve(); }
 
   UPID(const std::string& id_, const network::inet::Address& address_)
-    : id(id_), address(address_) {}
+    : id(id_), address(address_) { resolve(); }
 
   /*implicit*/ UPID(const char* s);
 
   /*implicit*/ UPID(const std::string& s);
 
   /*implicit*/ UPID(const ProcessBase& process);
+
+  UPID& operator=(const UPID& that) = default;
+
+  UPID& operator=(UPID&& that) = default;
 
   operator std::string() const;
 
@@ -92,6 +97,10 @@ struct UPID
     return !(*this == that);
   }
 
+  // Attempts to resolve and cache a weak pointer to the ProcessBase
+  // to which this UPID refers.
+  void resolve();
+
   std::string id;
 
   // TODO(asridharan): Ideally, the following `address` field should be of
@@ -118,6 +127,17 @@ struct UPID
   {
     Option<network::inet6::Address> v6;
   } addresses = {None()};
+
+protected:
+  friend class ProcessBase;
+  friend class ProcessManager;
+
+  // A weak pointer to the actual process used to optimize enqueuing
+  // events without having to go through a shared lock in the
+  // `ProcessManager`. This is `None` if someone creates a UPID and
+  // doesn't call `resolve()` or if `resolve()` doesn't find a valid
+  // process (i.e., the process hasn't started or has terminated).
+  Option<std::weak_ptr<ProcessBase*>> reference = None();
 };
 
 
@@ -150,6 +170,10 @@ struct UPID
 template <typename T = ProcessBase>
 struct PID : UPID
 {
+  // Need to declare PID<U> as a friend in order to write `reference`.
+  template <typename U>
+  friend class PID;
+
   PID() : UPID() {}
 
   /*implicit*/ PID(const T* t) : UPID(static_cast<const ProcessBase&>(*t)) {}
@@ -166,6 +190,7 @@ struct PID : UPID
     pid.id = id;
     pid.address = address;
     pid.addresses = addresses;
+    pid.reference = reference;
     return pid;
   }
 };

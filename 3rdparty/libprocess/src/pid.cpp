@@ -58,12 +58,7 @@ UPID::UPID(const string& s)
 
 
 // TODO(benh): Make this inline-able (cyclic dependency issues).
-UPID::UPID(const ProcessBase& process)
-{
-  id = process.self().id;
-  address = process.self().address;
-  addresses = process.self().addresses;
-}
+UPID::UPID(const ProcessBase& process) : UPID(process.self()) {}
 
 
 UPID::operator string() const
@@ -144,6 +139,8 @@ istream& operator>>(istream& stream, UPID& pid)
 
   pid.id = id;
   pid.address = address;
+
+  pid.resolve();
 
   return stream;
 }
