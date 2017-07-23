@@ -15,7 +15,16 @@
 # limitations under the License.
 
 """
-Client library for the Mesos HTTP ReST API
+Tests for the mesos package
 """
 
-__version__ = '0.0.0.dev'
+from __future__ import absolute_import
+
+import mesos
+
+
+def test_version():
+    """
+    Test to ensure the __version__ attr exists
+    """
+    assert hasattr(mesos, '__version__')

@@ -15,7 +15,5 @@
 # limitations under the License.
 
 """
-Client library for the Mesos HTTP ReST API
+Tests for everything under src/python/lib
 """
-
-__version__ = '0.0.0.dev'

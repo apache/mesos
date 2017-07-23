@@ -15,7 +15,35 @@
 # limitations under the License.
 
 """
-Client library for the Mesos HTTP ReST API
+Setup script for the mesos package
 """
 
-__version__ = '0.0.0.dev'
+from setuptools import find_packages, setup
+
+from mesos import __version__
+
+
+def read_requirements(filename="requirements.in"):
+    """
+    Load list of dependent packages for the mesos package.
+
+    :param filename: filename to load requirements from
+    :type filename: str
+    :rtype: list[str]
+    """
+    with open(filename) as f:
+        return f.readlines()
+
+
+setup(
+    author='Apache Mesos',
+    author_email='dev@mesos.apache.org',
+    description='Client library for Mesos http rest api',
+    include_package_data=True,
+    install_requires=read_requirements(),
+    license='apache',
+    name='mesos',
+    packages=find_packages(),
+    version=__version__,
+    zip_safe=False,
+)
