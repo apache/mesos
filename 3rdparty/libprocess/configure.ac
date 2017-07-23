@@ -69,16 +69,22 @@ AC_CONFIG_FILES([3rdparty/gmock_sources.cc])
 # Optional features.
 ###############################################################################
 
-# TODO(benh): Eventaully make this enabled by default.
+# TODO(benh): Eventually make this enabled by default.
+AC_ARG_ENABLE([last_in_first_out_fixed_size_semaphore],
+              AS_HELP_STRING([--enable-last-in-first-out-fixed-size-semaphore],
+                             [enables the optimized LIFO fixed-size semaphore]),
+                             [], [enable_last_in_first_out_fixed_size_semaphore=no])
+
+# TODO(benh): Eventually make this enabled by default.
 AC_ARG_ENABLE([lock_free_event_queue],
               AS_HELP_STRING([--enable-lock-free-event-queue],
-                             [enables the lock free event queue]),
+                             [enables the lock-free event queue]),
                              [], [enable_lock_free_event_queue=no])
 
-# TODO(benh): Eventaully make this enabled by default.
+# TODO(benh): Eventually make this enabled by default.
 AC_ARG_ENABLE([lock_free_run_queue],
               AS_HELP_STRING([--enable-lock-free-run-queue],
-                             [enables the lock free run queue]),
+                             [enables the lock-free run queue]),
                              [], [enable_lock_free_run_queue=no])
 
 AC_ARG_ENABLE([hardening],
@@ -246,11 +252,15 @@ AC_ARG_VAR([TEST_DRIVER], [executable and arguments of a test driver])
 # Compiler checks.
 ###############################################################################
 
-# Check if we should use the lock free run queue.
+# Check if we should use the LIFO fixed-size semaphore.
+AS_IF([test "x$enable_last_in_first_out_fixed_size_semaphore" = "xyes"],
+      [AC_DEFINE([LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE])])
+
+# Check if we should use the lock-free run queue.
 AS_IF([test "x$enable_lock_free_event_queue" = "xyes"],
       [AC_DEFINE([LOCK_FREE_EVENT_QUEUE])])
 
-# Check if we should use the lock free run queue.
+# Check if we should use the lock-free run queue.
 AS_IF([test "x$enable_lock_free_run_queue" = "xyes"],
       [AC_DEFINE([LOCK_FREE_RUN_QUEUE])])
 

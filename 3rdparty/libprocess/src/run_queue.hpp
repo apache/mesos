@@ -13,13 +13,23 @@
 #ifndef __PROCESS_RUN_QUEUE_HPP__
 #define __PROCESS_RUN_QUEUE_HPP__
 
-// At _configuration_ (i.e., build) time you can specify './configure
-// --enable-lock-free-run-queue' or 'cmake
-// -DENABLE_LOCK_FREE_RUN_QUEUE to pick the LockFreeRunQueue. By
-// default we'll use the LockingRunQueue.
+// At _configuration_ (i.e., build) time you can specify a few
+// optimizations:
 //
-// We choose to make this a _compile-time_ decision rather than a
-// _runtime_ decision because we wanted the run queue implementation
+//  (1) --enable-lock-free-run-queue (autotools) or
+//      -DENABLE_LOCK_FREE_RUN_QUEUE (cmake) which enables the
+//      lock-free run queue implementation (see below for more details).
+//
+//  (2) --enable-last-in-first-out-fixed-size-semaphore (autotools) or
+//      -DENABLE_LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE (cmake) which
+//      enables an optimized semaphore implementation (see semaphore.hpp
+//      for more details).
+//
+// By default we use the `LockingRunQueue` and
+// `DecomissionableKernelSemaphore`.
+//
+// We choose to make these _compile-time_ decisions rather than
+// _runtime_ decisions because we wanted the run queue implementation
 // to be compile-time optimized (e.g., inlined, etc).
 
 #ifdef LOCK_FREE_RUN_QUEUE
@@ -100,6 +110,11 @@ public:
     semaphore.decomission();
   }
 
+  size_t capacity() const
+  {
+    return semaphore.capacity();
+  }
+
   // Epoch used to capture changes to the run queue when settling.
   std::atomic_long epoch = ATOMIC_VAR_INIT(0L);
 
@@ -108,7 +123,11 @@ private:
   std::mutex mutex;
 
   // Semaphore used for threads to wait.
+#ifndef LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE
   DecomissionableKernelSemaphore semaphore;
+#else
+  DecomissionableLastInFirstOutFixedSizeSemaphore semaphore;
+#endif // LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE
 };
 
 #else // LOCK_FREE_RUN_QUEUE
@@ -162,14 +181,22 @@ public:
     semaphore.decomission();
   }
 
+  size_t capacity() const
+  {
+    return semaphore.capacity();
+  }
+
   // Epoch used to capture changes to the run queue when settling.
   std::atomic_long epoch = ATOMIC_VAR_INIT(0L);
 
 private:
   moodycamel::ConcurrentQueue<ProcessBase*> queue;
 
-  // Semaphore used for threads to wait for the queue.
+#ifndef LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE
   DecomissionableKernelSemaphore semaphore;
+#else
+  DecomissionableLastInFirstOutFixedSizeSemaphore semaphore;
+#endif // LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE
 };
 
 #endif // LOCK_FREE_RUN_QUEUE
