@@ -769,6 +769,18 @@ static Message encode(
 }
 
 
+static Message encode(
+    const UPID& from,
+    const UPID& to,
+    string&& name,
+    const char* data,
+    size_t length)
+{
+  Message message{std::move(name), from, to, string(data, length)};
+  return message;
+}
+
+
 static void transport(Message&& message, ProcessBase* sender = nullptr)
 {
   if (message.to.address == __address__) {
@@ -778,6 +790,56 @@ static void transport(Message&& message, ProcessBase* sender = nullptr)
   } else {
     // Remote message.
     socket_manager->send(std::move(message));
+  }
+}
+
+
+static void transport(
+    const UPID& from,
+    const UPID& to,
+    const string& name,
+    const char* data,
+    size_t length,
+    ProcessBase* sender = nullptr)
+{
+  if (to.address == __address__) {
+    // Local message.
+    MessageEvent* event = new MessageEvent(
+        from,
+        to,
+        name,
+        data,
+        length);
+
+    process_manager->deliver(event->message.to, event, sender);
+  } else {
+    // Remote message.
+    socket_manager->send(encode(from, to, name, data, length));
+  }
+}
+
+
+static void transport(
+    const UPID& from,
+    const UPID& to,
+    string&& name,
+    const char* data,
+    size_t length,
+    ProcessBase* sender = nullptr)
+{
+  if (to.address == __address__) {
+    // Local message.
+    MessageEvent* event = new MessageEvent(
+        from,
+        to,
+        std::move(name),
+        data,
+        length);
+
+    process_manager->deliver(event->message.to, event, sender);
+  } else {
+    // Remote message.
+    socket_manager->send(encode(from, to, std::move(name), data, length));
   }
 }
 
@@ -3830,7 +3892,22 @@ void ProcessBase::send(
   }
 
   // Encode and transport outgoing message.
-  transport(encode(pid, to, name, data, length), this);
+  transport(pid, to, name, data, length, this);
+}
+
+
+void ProcessBase::send(
+    const UPID& to,
+    string&& name,
+    const char* data,
+    size_t length)
+{
+  if (!to) {
+    return;
+  }
+
+  // Encode and transport outgoing message.
+  transport(pid, to, std::move(name), data, length, this);
 }
 
 
@@ -4237,8 +4314,8 @@ void post(const UPID& to, const string& name, const char* data, size_t length)
     return;
   }
 
-  // Encode and transport outgoing message.
-  transport(encode(UPID(), to, name, data, length));
+  // Transport outgoing message.
+  transport(UPID(), to, name, data, length);
 }
 
 
@@ -4254,8 +4331,8 @@ void post(const UPID& from,
     return;
   }
 
-  // Encode and transport outgoing message.
-  transport(encode(from, to, name, data, length));
+  // Transport outgoing message.
+  transport(from, to, name, data, length);
 }
 
 

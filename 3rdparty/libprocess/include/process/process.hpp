@@ -143,6 +143,12 @@ protected:
       const char* data = nullptr,
       size_t length = 0);
 
+  void send(
+      const UPID& to,
+      std::string&& name,
+      const char* data = nullptr,
+      size_t length = 0);
+
   /**
    * Describes the behavior of the `link` call when the target `pid`
    * points to a remote process. This enum has no effect if the target

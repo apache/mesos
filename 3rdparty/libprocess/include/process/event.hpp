@@ -93,6 +93,22 @@ struct MessageEvent : Event
   explicit MessageEvent(Message&& _message)
     : message(std::move(_message)) {}
 
+  MessageEvent(
+      const UPID& from,
+      const UPID& to,
+      const std::string& name,
+      const char* data,
+      size_t length)
+    : message{name, from, to, std::string(data, length)} {}
+
+  MessageEvent(
+      const UPID& from,
+      const UPID& to,
+      std::string&& name,
+      const char* data,
+      size_t length)
+    : message{std::move(name), from, to, std::string(data, length)} {}
+
   MessageEvent(const MessageEvent& that) = default;
   MessageEvent(MessageEvent&& that) = default;
 
