@@ -137,12 +137,14 @@ istream& operator>>(istream& stream, UPID& pid)
     return stream;
   }
 
-  pid.id = id;
+  pid.id = std::move(id);
   pid.address = address;
 
   pid.resolve();
 
   return stream;
 }
+
+const std::string UPID::ID::EMPTY = "";
 
 } // namespace process {

@@ -4191,7 +4191,7 @@ ProcessBase:: operator JSON::Object()
   CHECK_EQ(this, __process__);
 
   JSON::Object object;
-  object.values["id"] = pid.id;
+  object.values["id"] = (const string&) pid.id;
   object.values["events"] = JSON::Array(events->consumer);
   return object;
 }
