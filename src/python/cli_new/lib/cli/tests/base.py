@@ -61,7 +61,8 @@ class CLITestCase(unittest.TestCase):
         cli_dir = os.path.dirname(tests_dir)
         lib_dir = os.path.dirname(cli_dir)
         cli_new_dir = os.path.dirname(lib_dir)
-        src_dir = os.path.dirname(cli_new_dir)
+        python_dir = os.path.dirname(cli_new_dir)
+        src_dir = os.path.dirname(python_dir)
         mesos_dir = os.path.dirname(src_dir)
         build_dir = os.path.join(mesos_dir, "build")
 
