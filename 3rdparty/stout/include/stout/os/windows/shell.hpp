@@ -349,16 +349,16 @@ inline int spawn(
   ::WaitForSingleObject(
       process_data.get().process_handle.get_handle(), INFINITE);
 
-  int status;
+  DWORD status;
   if (!::GetExitCodeProcess(
            process_data.get().process_handle.get_handle(),
-           &static_cast<DWORD>(status))) {
+           &status)) {
     LOG(WARNING) << "Failed to `GetExitCodeProcess`: " << command;
     return -1;
   }
 
   // Return the child exit code.
-  return status;
+  return static_cast<int>(status);
 }
 
 
