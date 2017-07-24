@@ -964,7 +964,6 @@ message AgentInfo {
 message ResourceProviderInfo {
   optional ResourceProviderID id = 1;
   repeated Attribute attributes = 2;
-  repeated Resource resources = 3;
 
   // The type of the resource provider. This uniquely identifies a
   // resource provider implementation. For instance:
@@ -973,12 +972,12 @@ message ResourceProviderInfo {
   // Please follow to Java package naming convention
   // (https://en.wikipedia.org/wiki/Java_package#Package_naming_conventions)
   // to avoid conflicts on type names.
-  required string type = 4;
+  required string type = 3;
 
   // The name of the resource provider. There could be multiple
   // instances of a type of resource provider. The name field is used
   // to distinguish these instances.
-  required string name = 5;
+  required string name = 4;
 }
 
 

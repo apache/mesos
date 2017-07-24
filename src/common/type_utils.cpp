@@ -362,10 +362,6 @@ bool operator==(
     return false;
   }
 
-  if (Resources(left.resources()) != Resources(right.resources())) {
-    return false;
-  }
-
   if (left.type() != right.type()) {
     return false;
   }
