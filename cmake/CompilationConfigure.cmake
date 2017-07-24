@@ -231,7 +231,7 @@ if (WIN32)
 
   # COFF/PE and friends are somewhat limited in the number of sections they
   # allow for an object file. We use this to avoid those problems.
-  string(APPEND CMAKE_CXX_FLAGS " /bigobj -DGOOGLE_GLOG_DLL_DECL= /vd2")
+  string(APPEND CMAKE_CXX_FLAGS " /bigobj -DGOOGLE_GLOG_DLL_DECL= /vd2 /permissive-")
 
   # Build against the multi-threaded version of the C runtime library (CRT).
   if (BUILD_SHARED_LIBS)
