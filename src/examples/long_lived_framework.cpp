@@ -106,9 +106,13 @@ public:
       master(_master),
       framework(_framework),
       executor(_executor),
-      taskResources(Resources::parse(
-          "cpus:" + stringify(CPUS_PER_TASK) +
-          ";mem:" + stringify(MEM_PER_TASK)).get()),
+      taskResources([&_framework]() {
+        Resources resources = Resources::parse(
+            "cpus:" + stringify(CPUS_PER_TASK) +
+            ";mem:" + stringify(MEM_PER_TASK)).get();
+        resources.allocate(_framework.role());
+        return resources;
+      }()),
       tasksLaunched(0),
       credential(_credential),
       metrics(*this)
@@ -237,7 +241,11 @@ protected:
   {
     CHECK_EQ(SUBSCRIBED, state);
 
-    static const Resources EXECUTOR_RESOURCES = Resources(executor.resources());
+    const Resources executorResources = [this]() {
+      Resources resources(executor.resources());
+      resources.allocate(framework.role());
+      return resources;
+    }();
 
     metrics.offers_received += offers.size();
 
@@ -247,7 +255,7 @@ protected:
         // Launch a new task with executor.
 
         if (Resources(offer.resources()).toUnreserved()
-            .contains(EXECUTOR_RESOURCES + taskResources)) {
+            .contains(taskResources + executorResources)) {
           LOG(INFO)
             << "Starting executor and task " << tasksLaunched
             << " on " << offer.hostname();
