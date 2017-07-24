@@ -1330,6 +1330,13 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
         self(),
         [=](const ContainerIO& containerIO)
           -> Future<Docker::Container> {
+    // We need to pass `flags.default_container_dns` only when the agent is not
+    // running in a Docker container. This is to handle the case of launching a
+    // custom executor in a Docker container. If the agent is running in a
+    // Docker container (i.e., flags.docker_mesos_image.isSome() == true), that
+    // is the case of launching `mesos-docker-executor` in a Docker container
+    // with the Docker image `flags.docker_mesos_image`. In that case we already
+    // set `flags.default_container_dns` in the method `dockerFlags()`.
     Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
         container->container,
         container->command,
@@ -1343,7 +1350,8 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
         false,
 #endif
         container->environment,
-        None() // No extra devices.
+        None(), // No extra devices.
+        flags.docker_mesos_image.isNone() ? flags.default_container_dns : None()
     );
 
     if (runOptions.isError()) {
