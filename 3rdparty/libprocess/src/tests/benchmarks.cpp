@@ -436,7 +436,7 @@ TEST(ProcessTest, Process_BENCHMARK_ThroughputPerformance)
   long repeatFactor = 500L;
   long defaultRepeat = 30000L * repeatFactor;
 
-  const size_t numberOfClients = 4;
+  const long numberOfClients = process::workers();
 
   CountDownLatch latch(numberOfClients - 1);
 
@@ -447,7 +447,7 @@ TEST(ProcessTest, Process_BENCHMARK_ThroughputPerformance)
   vector<Owned<Destination>> destinations;
   vector<Owned<Client>> clients;
 
-  for (size_t i = 0; i < numberOfClients; i++) {
+  for (long _ = 0; _ < numberOfClients; _++) {
     Owned<Destination> destination(new Destination());
 
     spawn(*destination);

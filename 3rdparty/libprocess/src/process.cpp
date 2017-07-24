@@ -575,6 +575,11 @@ public:
     }
   }
 
+  long workers() const
+  {
+    return threads.size() - 1; // Less 1 for event loop thread.
+  }
+
 private:
   // Delegate process name to receive root HTTP requests.
   const Option<string> delegate;
@@ -1437,6 +1442,13 @@ PID<Logging> logging()
 {
   process::initialize();
   return _logging;
+}
+
+
+long workers()
+{
+  process::initialize();
+  return process_manager->workers();
 }
 
 

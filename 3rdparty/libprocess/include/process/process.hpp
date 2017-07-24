@@ -547,6 +547,14 @@ PID<Logging> logging();
 
 
 /**
+ * Returns the number of worker threads the library has created. A
+ * worker thread is a thread that runs a process (i.e., calls
+ * `ProcessBase::serve`).
+ */
+long workers();
+
+
+/**
  * Spawn a new process.
  *
  * @param process Process to be spawned.
