@@ -360,6 +360,14 @@ bool operator==(
     return false;
   }
 
+  if (left.type() != right.type()) {
+    return false;
+  }
+
+  if (left.name() != right.name()) {
+    return false;
+  }
+
   return true;
 }
 
