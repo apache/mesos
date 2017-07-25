@@ -44,6 +44,8 @@
 
 #include "linux/routing/filter/ip.hpp"
 
+#include "linux/routing/queueing/htb.hpp"
+
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/mesos/isolator.hpp"
@@ -77,6 +79,12 @@ inline std::string PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT()
 // output for each of the Linux Traffic Control Qdiscs we report.
 constexpr char NET_ISOLATOR_BW_LIMIT[] = "bw_limit";
 constexpr char NET_ISOLATOR_BLOAT_REDUCTION[] = "bloat_reduction";
+
+
+// Default minimum egress rate of 1Mbps if egress rate limiting is
+// used. This ensures there is at least some bandwidth available for
+// the executor to communicate with the agent.
+inline Bytes DEFAULT_MINIMUM_EGRESS_RATE_LIMIT() { return Bytes(125000); }
 
 
 // Responsible for allocating ephemeral ports for the port mapping
@@ -135,6 +143,15 @@ std::vector<routing::filter::ip::PortRange> getPortRanges(
     const IntervalSet<uint16_t>& ports);
 
 
+// Return the current egress HTB configuration for the container with
+// namespace named by the executor pid on the container's interface
+// eth0. This is exposed for testing.
+// NOTE: This function is blocking (up to ~5 seconds).
+Result<routing::queueing::htb::cls::Config> recoverHTBConfig(
+    pid_t pid,
+    const std::string& eth0,
+    const Flags& flags);
+
 // Provides network isolation using port mapping. Each container is
 // assigned a fixed set of ports (including ephemeral ports). The
 // isolator will set up filters on the host such that network traffic
@@ -183,9 +200,11 @@ private:
   {
     Info(const IntervalSet<uint16_t>& _nonEphemeralPorts,
          const Interval<uint16_t>& _ephemeralPorts,
+         const Option<routing::queueing::htb::cls::Config>& _htb,
          const Option<pid_t>& _pid = None())
       : nonEphemeralPorts(_nonEphemeralPorts),
         ephemeralPorts(_ephemeralPorts),
+        htb(_htb),
         pid(_pid) {}
 
     // Non-ephemeral ports used by the container. It's possible that a
@@ -200,6 +219,10 @@ private:
     // single interval) inside the container to restrict the ephemeral
     // ports used by the container.
     const Interval<uint16_t> ephemeralPorts;
+
+    // Optional htb configuration for egress traffic. This may change
+    // upon 'update'.
+    Option<routing::queueing::htb::cls::Config> htb;
 
     Option<pid_t> pid;
     Option<uint16_t> flowId;
@@ -259,7 +282,6 @@ private:
       const net::IP& _hostDefaultGateway,
       const routing::Handle& _hostTxFqCodelHandle,
       const hashmap<std::string, std::string>& _hostNetworkConfigurations,
-      const Option<Bytes>& _egressRateLimitPerContainer,
       const IntervalSet<uint16_t>& _managedNonEphemeralPorts,
       const process::Owned<EphemeralPortsAllocator>& _ephemeralPortsAllocator,
       const std::set<uint16_t>& _flowIDs)
@@ -274,7 +296,6 @@ private:
       hostDefaultGateway(_hostDefaultGateway),
       hostTxFqCodelHandle(_hostTxFqCodelHandle),
       hostNetworkConfigurations(_hostNetworkConfigurations),
-      egressRateLimitPerContainer(_egressRateLimitPerContainer),
       managedNonEphemeralPorts(_managedNonEphemeralPorts),
       ephemeralPortsAllocator(_ephemeralPortsAllocator),
       freeFlowIds(_flowIDs) {}
@@ -306,6 +327,12 @@ private:
       const std::string& veth,
       bool removeFiltersOnVeth = true);
 
+  // Determine the egress rate limit to apply to a container, either
+  // None if no limit should be applied or some rate determined from
+  // a fixed limit or a limit scaled by CPU.
+  Option<routing::queueing::htb::cls::Config> htbConfig(
+      const Resources& resources) const;
+
   // Return the scripts that will be executed in the child context.
   std::string scripts(Info* info);
 
@@ -326,9 +353,6 @@ private:
   // configure proc files (e.g., /proc/sys/net/core/somaxconn) and
   // values of the configure proc files.
   const hashmap<std::string, std::string> hostNetworkConfigurations;
-
-  // The optional throughput limit to containers' egress traffic.
-  const Option<Bytes> egressRateLimitPerContainer;
 
   // All the non-ephemeral ports managed by the slave, as passed in
   // via flags.resources.
@@ -363,6 +387,7 @@ public:
     Option<pid_t> pid;
     Option<JSON::Object> ports_to_add;
     Option<JSON::Object> ports_to_remove;
+    Option<JSON::Object> htb_config;
   };
 
   PortMappingUpdate() : Subcommand(NAME) {}
@@ -402,6 +427,33 @@ protected:
   int execute() override;
   flags::FlagsBase* getFlags() override { return &flags; }
 };
+
+
+// Defines the subcommand for determining the egress HTB configuration
+// for a container. The qdisc/class is currently on the container's
+// interface inside the network namespace.
+class PortMappingHTBConfig : public Subcommand
+{
+public:
+  static const char* NAME;
+
+  struct Flags : public virtual flags::FlagsBase
+  {
+    Flags();
+
+    Option<std::string> eth0_name;
+    Option<pid_t> pid;
+  };
+
+  PortMappingHTBConfig() : Subcommand(NAME) {}
+
+  Flags flags;
+
+protected:
+  virtual int execute();
+  virtual flags::FlagsBase* getFlags() { return &flags; }
+};
+
 
 } // namespace slave {
 } // namespace internal {

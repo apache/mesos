@@ -31,6 +31,7 @@
 #include <process/pid.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/fs.hpp>
@@ -52,6 +53,7 @@
 #include <stout/os/constants.hpp>
 #include <stout/os/exists.hpp>
 #include <stout/os/realpath.hpp>
+#include <stout/os/shell.hpp>
 #include <stout/os/stat.hpp>
 
 #include "common/status_utils.hpp"
@@ -407,6 +409,14 @@ PortMappingUpdate::Flags::Flags()
       "A collection of port ranges (formatted as a JSON object)\n"
       "for which to remove IP filters. E.g.,\n"
       "--ports_to_remove={\"range\":[{\"begin\":4,\"end\":8}]}");
+
+  add(&Flags::htb_config,
+      "htb_config",
+      "Configuration for HTB rate, ceil, and burst (formatted\n"
+      "as a JSON object, values are in Bytes). If this is present\n"
+      "but the JSON is empty then any existing HTB shaping is\n"
+      "removed. E.g. to set limits,\n"
+      "--htb_config={\"rate\":10000,\"ceil\":20000,\"burst\":1500}");
 }
 
 
@@ -554,6 +564,126 @@ static Try<Nothing> removeContainerIPFilters(
 }
 
 
+static JSON::Object json(const htb::cls::Config& config) {
+  JSON::Object json;
+
+  json.values["rate"] = config.rate;
+
+  if (config.ceil.isSome()) {
+    json.values["ceil"] = config.ceil.get();
+  }
+
+  if (config.burst.isSome()) {
+    json.values["burst"] = config.burst.get();
+  }
+
+  return json;
+}
+
+
+static Result<htb::cls::Config> parseHTBConfig(const JSON::Object& object)
+{
+  if (object.values.empty()) {
+    return None();
+  }
+
+  Result<JSON::Number> rate = object.at<JSON::Number>("rate");
+  if (rate.isNone()) {
+    return Error("Mandatory HTB rate not specified");
+  } else if (rate.isError()) {
+    return Error("Failed to parse HTB rate: " + rate.error());
+  }
+
+  Result<JSON::Number> ceil = object.at<JSON::Number>("ceil");
+  if (ceil.isError()) {
+    return Error("Failed to parse HTB ceil: " + ceil.error());
+  }
+
+  Result<JSON::Number> burst = object.at<JSON::Number>("burst");
+  if (burst.isError()) {
+    return Error("Failed to parse HTB burst: " + burst.error());
+  }
+
+  return htb::cls::Config(
+      rate->as<uint32_t>(),
+      ceil.isSome() ? Option<uint32_t>(ceil->as<uint32_t>())
+                    : None(),
+      burst.isSome() ? Option<uint32_t>(burst->as<uint32_t>())
+                     : None());
+}
+
+
+// This could be done from the host using "tc -n <namespace>" but we
+// execute it from within the container's network namespace for
+// consistency here with the other container update operations.
+static Try<Nothing> updateHTB(
+    const string& eth0,
+    const Option<htb::cls::Config>& config)
+{
+  Try<bool> exists = htb::cls::exists(eth0, CONTAINER_TX_HTB_CLASS_ID);
+  if (exists.isError()) {
+    return Error("Error checking for htb class: " + exists.error());
+  }
+
+  // If no limit specified and no limit exists, then nothing to do.
+  if (config.isNone() && !exists.get()) {
+    return Nothing();
+  }
+
+  // Remove an existing HTB qdisc (and any child classes/qdiscs).
+  if (config.isNone() && exists.get()) {
+    Try<bool> remove = htb::remove(eth0, EGRESS_ROOT);
+    if (remove.isError()) {
+      return Error("Failed to remove htb qdisc: " + remove.error());
+    }
+  }
+
+  // Add an HTB qdisc and HTB and fq_codel classes.
+  if (config.isSome() && !exists.get()) {
+    Try<bool> htbQdisc = htb::create(
+        eth0,
+        EGRESS_ROOT,
+        CONTAINER_TX_HTB_HANDLE);
+    if (htbQdisc.isError()) {
+      return Error("Failed to add htb class: " + htbQdisc.error());
+    }
+
+    Try<bool> htbClass = htb::cls::create(
+        eth0,
+        CONTAINER_TX_HTB_HANDLE,
+        CONTAINER_TX_HTB_CLASS_ID,
+        config.get());
+    if (htbClass.isError()) {
+      return Error("Failed to add htb class: " + htbClass.error());
+    }
+
+    Try<bool> fq_codel = fq_codel::create(
+        eth0,
+        CONTAINER_TX_HTB_CLASS_ID,
+        None());
+    if (fq_codel.isError()) {
+      return Error(
+          "Failed to add fq_codel qdisc: " + fq_codel.error());
+    }
+  }
+
+  // Change an existing HTB class. Incomplete preparation will cause
+  // container termination, including after recovery.
+  if (config.isSome() && exists.get()) {
+    Try<bool> update = htb::cls::update(
+        eth0,
+        CONTAINER_TX_HTB_CLASS_ID,
+        config.get());
+    if (update.isError()) {
+      return Error(
+          "Failed to update htb class: " + update.error());
+    }
+  }
+
+  return Nothing();
+}
+
+
 int PortMappingUpdate::execute()
 {
   if (flags.help) {
@@ -578,9 +708,24 @@ int PortMappingUpdate::execute()
     return 1;
   }
 
-  if (flags.ports_to_add.isNone() && flags.ports_to_remove.isNone()) {
+  if (flags.ports_to_add.isNone() &&
+      flags.ports_to_remove.isNone() &&
+      flags.htb_config.isNone()) {
     cerr << "Nothing to update" << endl;
     return 1;
+  }
+
+  Option<htb::cls::Config> htb;
+  if (flags.htb_config.isSome()) {
+    Result<htb::cls::Config> parse = parseHTBConfig(flags.htb_config.get());
+    if (parse.isError()) {
+      cerr << "Failed to parse HTB config: "
+           << parse.error()
+           << endl;
+      return 1;
+    }
+
+    htb = (parse.isSome() ? Option<htb::cls::Config>(parse.get()) : None());
   }
 
   Option<vector<PortRange>> portsToAdd;
@@ -633,6 +778,16 @@ int PortMappingUpdate::execute()
         cerr << "Failed to remove IP filters: " << remove.error() << endl;
         return 1;
       }
+    }
+  }
+
+  // Update HTB config. Use the original flag because we want to
+  // remove a existing HTB class if htb is None.
+  if (flags.htb_config.isSome()) {
+    Try<Nothing> update = updateHTB(eth0, htb);
+    if (update.isError()) {
+      cerr << "Failed to update HTB class: " << update.error() << endl;
+      return 1;
     }
   }
 
@@ -1212,6 +1367,70 @@ int PortMappingStatistics::execute()
 
 
 /////////////////////////////////////////////////
+// Implementation for PortMappingHTBConfig
+/////////////////////////////////////////////////
+
+const char* PortMappingHTBConfig::NAME = "htb_config";
+
+PortMappingHTBConfig::Flags::Flags()
+{
+  add(&Flags::eth0_name,
+      "eth0_name",
+      "The name of the public network interface (e.g., eth0)");
+
+  add(&Flags::pid,
+      "pid",
+      "The pid of the process whose namespaces we will enter");
+}
+
+
+int PortMappingHTBConfig::execute()
+{
+  if (flags.help) {
+    cerr << "Usage: " << name() << " [OPTIONS]" << endl << endl
+         << "Supported options:" << endl
+         << flags.usage();
+    return 0;
+  }
+
+  if (flags.eth0_name.isNone()) {
+    cerr << "The public interface name (e.g., eth0) is not specified" << endl;
+    return 1;
+  }
+
+  if (flags.pid.isNone()) {
+    cerr << "The pid is not specified" << endl;
+    return 1;
+  }
+
+  // Enter the network namespace.
+  Try<Nothing> setns = ns::setns(flags.pid.get(), "net");
+  if (setns.isError()) {
+    cerr << "Failed to enter the network namespace of pid " << flags.pid.get()
+         << ": " << setns.error() << endl;
+    return 1;
+  }
+
+  Result<htb::cls::Config> config =
+    htb::cls::getConfig(flags.eth0_name.get(), CONTAINER_TX_HTB_CLASS_ID);
+  if (config.isError()) {
+    cerr << "Could not determine HTB class config: "
+         << config.error()
+         << endl;
+    return 1;
+  }
+
+  if (config.isNone()) {
+    cout << "{}";
+    return 0;
+  }
+
+  cout << jsonify(config.get()) << endl;
+  return 0;
+}
+
+
+/////////////////////////////////////////////////
 // Implementation for the isolator.
 /////////////////////////////////////////////////
 
@@ -1595,10 +1814,28 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
   LOG(INFO) << "Using " << lo.get() << " as the loopback interface";
 
-  // If egress rate limit is provided, do a sanity check that it is
+  // A fixed egress rate is incompatible with a scaled egress rate.
+  if (flags.egress_rate_limit_per_container.isSome() &&
+      flags.egress_rate_per_cpu.isSome()) {
+    return Error(
+        "Cannot specify both egress_rate_limit_per_container"
+        " and egress_rate_per_cpu.");
+  }
+
+  if (flags.minimum_egress_rate_limit.isSome() &&
+      flags.maximum_egress_rate_limit.isSome() &&
+      (flags.minimum_egress_rate_limit.get() >
+       flags.maximum_egress_rate_limit.get())) {
+    return Error(
+        "Minimum egress rate limit cannot be greater than"
+        " maximum egress rate.");
+  }
+
+  // If an egress rate limit is provided, do a sanity check that it is
   // not greater than the host physical link speed.
-  Option<Bytes> egressRateLimitPerContainer;
-  if (flags.egress_rate_limit_per_container.isSome()) {
+  if (flags.egress_rate_limit_per_container.isSome() ||
+      flags.minimum_egress_rate_limit.isSome() ||
+      flags.maximum_egress_rate_limit.isSome()) {
     // Read host physical link speed from /sys/class/net/eth0/speed.
     // This value is in MBits/s. Some distribution does not support
     // reading speed (depending on the driver). If that's the case,
@@ -1630,23 +1867,34 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           LOG(WARNING) << "Link speed reporting is not supported for '"
                        << eth0.get() + "'";
         } else {
-          // Convert host link speed to Bytes/s for comparason.
-          if (hostLinkSpeed.get() * 1000000 / 8 <
-              flags.egress_rate_limit_per_container->bytes()) {
+          // Convert host link speed to Bytes/s for comparison.
+          Bytes speed(hostLinkSpeed.get() * 1000000 / 8);
+
+          if (flags.egress_rate_limit_per_container.isSome() &&
+              (speed < flags.egress_rate_limit_per_container.get())) {
             return Error(
                 "The given egress traffic limit for containers " +
                 stringify(flags.egress_rate_limit_per_container->bytes()) +
                 " Bytes/s is greater than the host link speed " +
-                stringify(hostLinkSpeed.get() * 1000000 / 8) + " Bytes/s");
+                stringify(speed.bytes()) + " Bytes/s");
+          }
+
+          if (flags.minimum_egress_rate_limit.isSome() &&
+              (speed < flags.minimum_egress_rate_limit.get())) {
+            return Error(
+                "The given minimum egress traffic limit for containers " +
+                stringify(flags.maximum_egress_rate_limit.get().bytes()) +
+                " Bytes/s is greater than the host link speed " +
+                stringify(speed.bytes()) + " Bytes/s");
+          }
+
+          if (flags.maximum_egress_rate_limit.isSome() &&
+              speed < flags.maximum_egress_rate_limit.get()) {
+            LOG(WARNING) << "The given maximum egress rate limit is greater"
+                         << " than the link speed and will not be achieved.";
           }
         }
       }
-    }
-
-    if (flags.egress_rate_limit_per_container.get() != Bytes(0)) {
-      egressRateLimitPerContainer = flags.egress_rate_limit_per_container.get();
-    } else {
-      LOG(WARNING) << "Ignoring the given zero egress rate limit";
     }
   }
 
@@ -2031,10 +2279,70 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           hostDefaultGateway.get(),
           hostTxFqCodelHandle,
           hostNetworkConfigurations,
-          egressRateLimitPerContainer,
           nonEphemeralPorts,
           ephemeralPortsAllocator,
           freeFlowIds)));
+}
+
+
+Result<htb::cls::Config> recoverHTBConfig(
+    pid_t pid,
+    const std::string& eth0,
+    const Flags& flags)
+{
+  PortMappingHTBConfig config;
+  config.flags.eth0_name = eth0;
+  config.flags.pid = pid;
+
+  vector<string> argv(2);
+  argv[0] = "mesos-network-helper";
+  argv[1] = PortMappingHTBConfig::NAME;
+
+  Try<Subprocess> s = subprocess(
+      path::join(flags.launcher_dir, "mesos-network-helper"),
+      argv,
+      Subprocess::PATH(os::DEV_NULL),
+      Subprocess::PIPE(),
+      Subprocess::FD(STDERR_FILENO),
+      &config.flags);
+
+  if (s.isError()) {
+    return Error("Failed to launch htb config subcommand: " + s.error());
+  }
+
+  // Blocking wait for the command to complete.
+  s->status().await(Seconds(10));
+  if (!s->status().isReady()) {
+    return Error(
+        "Failed to get status: " +
+        (s->status().isFailed() ? s->status().failure() : "discarded"));
+  }
+
+  Option<int> status = s->status().get();
+  if (status.isNone()) {
+    return Error(
+        "The process for getting htb config was unexpectedly reaped");
+  } else if (status.get() != 0) {
+    return Error(
+        "The process for getting htb config has non-zero exit code: " +
+        WSTRINGIFY(status.get()));
+  }
+
+  // Blocking wait to read stdout.
+  Future<string> out = io::read(s->out().get());
+  out.await(Seconds(1));
+  if (!out.isReady()) {
+    return Error("Failed to get output for htb config command");
+  }
+
+  Try<JSON::Object> object = JSON::parse<JSON::Object>(out.get());
+  if (object.isError()) {
+    return Error(
+        "Failed to parse the output from htb config command: " +
+        object.error());
+  }
+
+  return parseHTBConfig(object.get());
 }
 
 
@@ -2445,6 +2753,10 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
     }
   }
 
+  // Block until we determine the container's HTB config. Ignore
+  // errors here.
+  Result<htb::cls::Config> htb = recoverHTBConfig(pid, eth0, flags);
+
   Info* info = nullptr;
 
   if (ephemeralPorts.empty()) {
@@ -2457,7 +2769,16 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
                  << stringify(pid) << ". This could happen if agent crashes "
                  << "while isolating a container";
 
-    info = new Info(nonEphemeralPorts, Interval<uint16_t>(), pid);
+    info = new Info(
+        nonEphemeralPorts,
+        Interval<uint16_t>(),
+        (htb.isSome() ? Option<htb::cls::Config>(htb.get()) : None()),
+        pid);
+
+    VLOG(1) << "Recovered network isolator for container with pid " << pid
+            << " non-ephemeral port ranges " << nonEphemeralPorts
+            << " and egress HTB config "
+            << (htb.isSome() ? jsonify(htb.get()) : string("None"));
   } else {
     if (ephemeralPorts.intervalCount() != 1) {
       return Error("Each container should have only one ephemeral port range");
@@ -2466,11 +2787,17 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
     // Tell the allocator that this ephemeral port range is used.
     ephemeralPortsAllocator->allocate(*ephemeralPorts.begin());
 
-    info = new Info(nonEphemeralPorts, *ephemeralPorts.begin(), pid);
+    info = new Info(
+        nonEphemeralPorts,
+        *ephemeralPorts.begin(),
+        htb.isSome() ? Option<htb::cls::Config>(htb.get()) : None(),
+        pid);
 
     VLOG(1) << "Recovered network isolator for container with pid " << pid
             << " non-ephemeral port ranges " << nonEphemeralPorts
-            << " and ephemeral port range " << *ephemeralPorts.begin();
+            << " and ephemeral port range " << *ephemeralPorts.begin()
+            << " and egress HTB config "
+            << (htb.isSome() ? jsonify(htb.get()) : string("None"));
   }
 
   if (flowId.isSome()) {
@@ -2532,7 +2859,10 @@ Future<Option<ContainerLaunchInfo>> PortMappingIsolatorProcess::prepare(
         "Failed to allocate ephemeral ports: " + ephemeralPorts.error());
   }
 
-  infos[containerId] = new Info(nonEphemeralPorts, ephemeralPorts.get());
+  infos[containerId] = new Info(
+      nonEphemeralPorts,
+      ephemeralPorts.get(),
+      htbConfig(resources));
 
   LOG(INFO) << "Using non-ephemeral ports " << nonEphemeralPorts
             << " and ephemeral ports " << ephemeralPorts.get()
@@ -3001,104 +3331,128 @@ Future<Nothing> PortMappingIsolatorProcess::update(
     }
   }
 
-  // No need to proceed if no change to the non-ephemeral ports.
-  if (nonEphemeralPorts == info->nonEphemeralPorts) {
+  Option<htb::cls::Config> htb = htbConfig(resources);
+
+  // No need to proceed if no change to the non-ephemeral ports and no
+  // change to the HTB configuration.
+  if ((nonEphemeralPorts == info->nonEphemeralPorts) &&
+      (htb == info->htb)) {
     return Nothing();
   }
 
-  LOG(INFO) << "Updating non-ephemeral ports for container "
-            << containerId << " from " << info->nonEphemeralPorts
-            << " to " << nonEphemeralPorts;
-
-  Result<vector<ip::Classifier>> classifiers =
-    ip::classifiers(veth(pid), ingress::HANDLE);
-
-  if (classifiers.isError()) {
-    return Failure(
-        "Failed to get all the IP filters on " + veth(pid) +
-        ": " + classifiers.error());
-  } else if (classifiers.isNone()) {
-    return Failure("Failed to find " + veth(pid));
-  }
-
-  // We first decide what port ranges need to be removed. Any filter
-  // whose port range is not within the new non-ephemeral ports should
-  // be removed.
-  hashset<PortRange> portsToRemove;
-  IntervalSet<uint16_t> remaining = info->nonEphemeralPorts;
-
-  foreach (const ip::Classifier& classifier, classifiers.get()) {
-    Option<PortRange> sourcePorts = classifier.sourcePorts;
-    Option<PortRange> destinationPorts = classifier.destinationPorts;
-
-    // All the IP filters on veth used by us only have source ports.
-    if (sourcePorts.isNone() || destinationPorts.isSome()) {
-      return Failure("Unexpected IP filter detected on " + veth(pid));
-    }
-
-    Interval<uint16_t> ports =
-      (Bound<uint16_t>::closed(sourcePorts->begin()),
-       Bound<uint16_t>::closed(sourcePorts->end()));
-
-    // Skip the ephemeral ports.
-    if (ports == info->ephemeralPorts) {
-      continue;
-    }
-
-    if (!nonEphemeralPorts.contains(ports)) {
-      remaining -= ports;
-      portsToRemove.insert(sourcePorts.get());
-    }
-  }
-
-  // We then decide what port ranges need to be added.
-  vector<PortRange> portsToAdd = getPortRanges(nonEphemeralPorts - remaining);
-
-  foreach (const PortRange& range, portsToAdd) {
-    if (info->flowId.isSome()) {
-      LOG(INFO) << "Adding IP packet filters with ports " << range
-                << " with flow ID " << info->flowId.get()
-                << " for container " << containerId;
-    } else {
-      LOG(INFO) << "Adding IP packet filters with ports " << range
-                << " for container " << containerId;
-    }
-
-    // All IP packets from a container will be assigned a single flow
-    // on host eth0.
-    Try<Nothing> add = addHostIPFilters(range, info->flowId, veth(pid));
-    if (add.isError()) {
-      return Failure(
-          "Failed to add IP packet filter with ports " +
-          stringify(range) + " for container with pid " +
-          stringify(pid) + ": " + add.error());
-    }
-  }
-
-  foreach (const PortRange& range, portsToRemove) {
-    LOG(INFO) << "Removing IP packet filters with ports " << range
-              << " for container with pid " << pid;
-
-    Try<Nothing> removing = removeHostIPFilters(range, veth(pid));
-    if (removing.isError()) {
-      return Failure(
-          "Failed to remove IP packet filter with ports " +
-          stringify(range) + " for container with pid " +
-          stringify(pid) + ": " + removing.error());
-    }
-  }
-
-  // Update the non-ephemeral ports of this container.
-  info->nonEphemeralPorts = nonEphemeralPorts;
-
-  // Update the IP filters inside the container.
   PortMappingUpdate update;
   update.flags.eth0_name = eth0;
   update.flags.lo_name = lo;
   update.flags.pid = pid;
-  update.flags.ports_to_add = json(portsToAdd);
-  update.flags.ports_to_remove = json(portsToRemove);
 
+  // Update the IP filters if the ephemeral ports have changed.
+  if (nonEphemeralPorts != info->nonEphemeralPorts) {
+    LOG(INFO) << "Updating non-ephemeral ports for container "
+              << containerId << " from " << info->nonEphemeralPorts
+              << " to " << nonEphemeralPorts;
+
+    Result<vector<ip::Classifier>> classifiers =
+      ip::classifiers(veth(pid), ingress::HANDLE);
+
+    if (classifiers.isError()) {
+      return Failure(
+          "Failed to get all the IP filters on " + veth(pid) +
+          ": " + classifiers.error());
+    } else if (classifiers.isNone()) {
+      return Failure("Failed to find " + veth(pid));
+    }
+
+    // We first decide what port ranges need to be removed. Any filter
+    // whose port range is not within the new non-ephemeral ports should
+    // be removed.
+    hashset<PortRange> portsToRemove;
+    IntervalSet<uint16_t> remaining = info->nonEphemeralPorts;
+
+    foreach (const ip::Classifier& classifier, classifiers.get()) {
+      Option<PortRange> sourcePorts = classifier.sourcePorts;
+      Option<PortRange> destinationPorts = classifier.destinationPorts;
+
+      // All the IP filters on veth used by us only have source ports.
+      if (sourcePorts.isNone() || destinationPorts.isSome()) {
+        return Failure("Unexpected IP filter detected on " + veth(pid));
+      }
+
+      Interval<uint16_t> ports =
+        (Bound<uint16_t>::closed(sourcePorts.get().begin()),
+        Bound<uint16_t>::closed(sourcePorts.get().end()));
+
+      // Skip the ephemeral ports.
+      if (ports == info->ephemeralPorts) {
+        continue;
+      }
+
+      if (!nonEphemeralPorts.contains(ports)) {
+        remaining -= ports;
+        portsToRemove.insert(sourcePorts.get());
+      }
+    }
+
+    // We then decide what port ranges need to be added.
+    vector<PortRange> portsToAdd = getPortRanges(nonEphemeralPorts - remaining);
+
+    foreach (const PortRange& range, portsToAdd) {
+      if (info->flowId.isSome()) {
+        LOG(INFO) << "Adding IP packet filters with ports " << range
+                  << " with flow ID " << info->flowId.get()
+                  << " for container " << containerId;
+      } else {
+        LOG(INFO) << "Adding IP packet filters with ports " << range
+                  << " for container " << containerId;
+      }
+
+      // All IP packets from a container will be assigned a single flow
+      // on host eth0.
+      Try<Nothing> add = addHostIPFilters(range, info->flowId, veth(pid));
+      if (add.isError()) {
+        return Failure(
+            "Failed to add IP packet filter with ports " +
+            stringify(range) + " for container with pid " +
+            stringify(pid) + ": " + add.error());
+      }
+    }
+
+    foreach (const PortRange& range, portsToRemove) {
+      LOG(INFO) << "Removing IP packet filters with ports " << range
+                << " for container with pid " << pid;
+
+      Try<Nothing> removing = removeHostIPFilters(range, veth(pid));
+      if (removing.isError()) {
+        return Failure(
+            "Failed to remove IP packet filter with ports " +
+            stringify(range) + " for container with pid " +
+            stringify(pid) + ": " + removing.error());
+      }
+    }
+
+    // Update the non-ephemeral ports of this container.
+    info->nonEphemeralPorts = nonEphemeralPorts;
+
+    // Set the flags for updating the IP filters inside the container.
+    update.flags.ports_to_add = json(portsToAdd);
+    update.flags.ports_to_remove = json(portsToRemove);
+  }
+
+  // Set the flags for updating the egress rate, if it has changed. We
+  // explicitly send an empty JSON::Object if there's no config so an
+  // existing class will be removed.
+  if (htb != info->htb) {
+    update.flags.htb_config = htb.isSome() ? json(htb.get()) : JSON::Object();
+
+    LOG(INFO) << "Setting htb config to "
+              << (htb.isSome() ? jsonify(htb.get()) : string("None"))
+              << " for container " << containerId;
+
+    // Update the egress rate limit for this container.
+    info->htb = htb;
+  }
+
+  // Use the mesos-network-helper to make changes inside the
+  // container's namespace.
   vector<string> argv(2);
   argv[0] = "mesos-network-helper";
   argv[1] = PortMappingUpdate::NAME;
@@ -3210,6 +3564,19 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
   Option<uint64_t> tx_dropped = stat->get("rx_dropped");
   if (tx_dropped.isSome()) {
     result.set_net_tx_dropped(tx_dropped.get());
+  }
+
+  // Include the egress shaping limits, if applied.
+  if (info->htb.isSome()) {
+    result.set_net_tx_rate_limit(info->htb->rate);
+
+    if (info->htb->ceil.isSome()) {
+      result.set_net_tx_burst_rate_limit(info->htb->ceil.get());
+
+      if (info->htb->burst.isSome()) {
+        result.set_net_tx_burst_size(info->htb->burst.get());
+      }
+    }
   }
 
   // Retrieve the socket information from inside the container.
@@ -3940,6 +4307,45 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
 }
 
 
+Option<htb::cls::Config> PortMappingIsolatorProcess::htbConfig(
+    const Resources& resources) const
+{
+  Bytes rate(0);
+  if (flags.egress_rate_limit_per_container.isSome()) {
+    rate = flags.egress_rate_limit_per_container.get();
+  } else if (flags.egress_rate_per_cpu.isSome()) {
+    rate = flags.egress_rate_per_cpu.get() *
+           floor(resources.cpus().getOrElse(0));
+  } else {
+    return None();
+  }
+
+  if (flags.minimum_egress_rate_limit.isSome()) {
+    rate = std::max(flags.minimum_egress_rate_limit.get(), rate);
+  } else {
+    rate = std::max(DEFAULT_MINIMUM_EGRESS_RATE_LIMIT(), rate);
+  }
+
+  if (flags.maximum_egress_rate_limit.isSome()) {
+    rate = std::min(flags.maximum_egress_rate_limit.get(), rate);
+  }
+
+  Option<uint32_t> ceil;
+  Option<uint32_t> burst;
+
+  if (flags.egress_ceil_limit.isSome() &&
+      flags.egress_ceil_limit.get() > rate) {
+    ceil = flags.egress_ceil_limit->bytes();
+
+    if (flags.egress_burst.isSome()) {
+      burst = flags.egress_burst->bytes();
+    }
+  }
+
+  return htb::cls::Config(rate.bytes(), ceil, burst);
+}
+
+
 // This function returns the scripts that need to be run in child
 // context before child execs to complete network isolation.
 // TODO(jieyu): Use the Subcommand abstraction to remove most of the
@@ -4080,13 +4486,23 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   // Additionally, HTB has a simpler interface for just capping the
   // throughput. TBF requires other parameters such as 'burst' that
   // HTB already has default values for.
-  if (egressRateLimitPerContainer.isSome()) {
+  if (info->htb.isSome()) {
     script << "tc qdisc add dev " << eth0 << " root handle "
            << CONTAINER_TX_HTB_HANDLE << " htb default 1\n";
     script << "tc class add dev " << eth0 << " parent "
            << CONTAINER_TX_HTB_HANDLE << " classid "
            << CONTAINER_TX_HTB_CLASS_ID << " htb rate "
-           << egressRateLimitPerContainer->bytes() * 8 << "bit\n";
+           << info->htb->rate * 8 << "bit";
+    if (info->htb->ceil.isSome()) {
+      script << " ceil "
+             << info->htb->ceil.get() * 8 << "bit";
+      if (info->htb->burst.isSome()) {
+        // Use bytes here because tc command borks at bits.
+        script << " burst "
+               << info->htb->burst.get() << "b";
+      }
+    }
+    script << "\n";
 
     // Packets are buffered at the leaf qdisc if we send them faster
     // than the HTB rate limit and may be dropped when the queue is

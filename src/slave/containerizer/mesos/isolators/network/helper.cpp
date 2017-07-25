@@ -29,5 +29,6 @@ int main(int argc, char** argv)
       argc,
       argv,
       new PortMappingUpdate(),
-      new PortMappingStatistics());
+      new PortMappingStatistics(),
+      new PortMappingHTBConfig());
 }
