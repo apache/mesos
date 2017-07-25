@@ -136,11 +136,6 @@ public:
     explicit Cache(Bytes _space) : space(_space), tally(0), filenameSerial(0) {}
     virtual ~Cache() {}
 
-    // Registers the maximum usable space in the cache directory.
-    // TODO(bernd-mesos): This method will disappear when injecting 'flags'
-    // into the fetcher instead of passing 'flags' around as parameter.
-    void setSpace(const Bytes& bytes);
-
     void claimSpace(const Bytes& bytes);
     void releaseSpace(const Bytes& bytes);
 
