@@ -199,6 +199,8 @@ libprocess_la_SOURCES =		\
   src/gate.hpp			\
   src/help.cpp			\
   src/http.cpp			\
+  src/http_proxy.cpp		\
+  src/http_proxy.hpp		\
   src/io.cpp			\
   src/latch.cpp			\
   src/logging.cpp		\
@@ -214,6 +216,7 @@ libprocess_la_SOURCES =		\
   src/run_queue.hpp		\
   src/semaphore.hpp		\
   src/socket.cpp		\
+  src/socket_manager.hpp	\
   src/subprocess.cpp		\
   src/subprocess_posix.cpp	\
   src/subprocess_posix.hpp	\
