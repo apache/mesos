@@ -142,6 +142,7 @@ public:
 
     void claimSpace(const Bytes& bytes);
     void releaseSpace(const Bytes& bytes);
+
     Bytes availableSpace() const;
 
     // Invents a new, distinct base name for a cache file, using the same
@@ -247,18 +248,24 @@ private:
       const Try<Bytes>& requestedSpace,
       const std::shared_ptr<Cache::Entry>& entry);
 
+  struct Metrics
+  {
+    explicit Metrics(FetcherProcess *fetcher);
+    ~Metrics();
+
+    // NOTE: These metrics will increment at most once per task. Even if
+    // a single task asks for multiple artifacts, the total number of
+    // fetches will only go up by one. And if any of those artifacts
+    // fail to fetch, the failure count will only increase by one.
+    process::metrics::Counter task_fetches_total;
+    process::metrics::Counter task_fetches_failed;
+  } metrics;
+
   const Flags flags;
 
   Cache cache;
 
   hashmap<ContainerID, pid_t> subprocessPids;
-
-  // NOTE: These metrics will increment at most once per task. Even if
-  // a single task asks for multiple artifacts, the total number of
-  // fetches will only go up by one. And if any of those artifacts
-  // fail to fetch, the failure count will only increase by one.
-  process::metrics::Counter fetchesTotal;
-  process::metrics::Counter fetchesFailed;
 };
 
 

@@ -259,15 +259,28 @@ void Fetcher::kill(const ContainerID& containerId)
 }
 
 
+FetcherProcess::Metrics::Metrics(FetcherProcess *fetcher)
+  : task_fetches_total("containerizer/fetcher/task_fetches_total"),
+    task_fetches_failed("containerizer/fetcher/task_fetches_failed")
+{
+  process::metrics::add(task_fetches_total);
+  process::metrics::add(task_fetches_failed);
+}
+
+
+FetcherProcess::Metrics::~Metrics()
+{
+  process::metrics::remove(task_fetches_total);
+  process::metrics::remove(task_fetches_failed);
+}
+
+
 FetcherProcess::FetcherProcess(const Flags& _flags)
     : ProcessBase(process::ID::generate("fetcher")),
+      metrics(this),
       flags(_flags),
-      cache(_flags.fetcher_cache_size),
-      fetchesTotal("containerizer/fetcher/task_fetches_total"),
-      fetchesFailed("containerizer/fetcher/task_fetches_failed")
+      cache(_flags.fetcher_cache_size)
 {
-  process::metrics::add(fetchesTotal);
-  process::metrics::add(fetchesFailed);
 }
 
 
@@ -276,9 +289,6 @@ FetcherProcess::~FetcherProcess()
   foreachkey (const ContainerID& containerId, subprocessPids) {
     kill(containerId);
   }
-
-  process::metrics::remove(fetchesTotal);
-  process::metrics::remove(fetchesFailed);
 }
 
 
@@ -344,14 +354,14 @@ Future<Nothing> FetcherProcess::fetch(
     const string& sandboxDirectory,
     const Option<string>& user)
 {
-  ++fetchesTotal;
+  ++metrics.task_fetches_total;
 
   VLOG(1) << "Starting to fetch URIs for container: " << containerId
           << ", directory: " << sandboxDirectory;
 
   Try<Nothing> validated = validateUris(commandInfo);
   if (validated.isError()) {
-    ++fetchesFailed;
+    ++metrics.task_fetches_failed;
     return Failure("Could not fetch: " + validated.error());
   }
 
@@ -557,7 +567,7 @@ Future<Nothing> FetcherProcess::__fetch(
         }
       }
 
-      ++fetchesFailed;
+      ++metrics.task_fetches_failed;
       return future; // Always propagate the failure!
     })
     // Call to `operator` here forces the conversion on MSVC. This is implicit
