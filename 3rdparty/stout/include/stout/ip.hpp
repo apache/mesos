@@ -247,8 +247,18 @@ public:
     // Need to add a copy constructor due to the presence of
     // `unique_ptr`.
     Network(const Network& network)
-      :address_(new IP(network.address())),
-      netmask_(new IP(network.netmask())) {};
+      : address_(new IP(network.address())),
+        netmask_(new IP(network.netmask())) {}
+
+    // Need to add a copy assignment operator due to the use of
+    // `std::unique_ptr`.
+    Network& operator=(const Network& network)
+    {
+      address_.reset(new IP(network.address()));
+      netmask_.reset(new IP(network.netmask()));
+
+      return *this;
+    }
 
     IP address() const { return *address_; }
 
@@ -348,10 +358,10 @@ public:
   }
 
   explicit IPv4(const in_addr& in)
-    : IP(in) {};
+    : IP(in) {}
 
   explicit IPv4(uint32_t ip)
-    : IP(ip) {};
+    : IP(ip) {}
 
   // Returns the in_addr storage.
   in_addr in() const
@@ -391,7 +401,7 @@ public:
   }
 
   explicit IPv6(const in6_addr& in6)
-    : IP(in6) {};
+    : IP(in6) {}
 
   in6_addr in6() const
   {
