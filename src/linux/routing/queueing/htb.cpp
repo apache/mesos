@@ -19,6 +19,10 @@
 #include <netlink/route/qdisc.h>
 #include <netlink/route/tc.h>
 
+#include <netlink/route/link/veth.h>
+
+#include <netlink/route/qdisc/htb.h>
+
 #include <stout/error.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
@@ -36,15 +40,14 @@ namespace queueing {
 
 namespace htb {
 
-// TODO(cwang): The htb queueing discipline configuration is not
-// exposed to the user because we use all the default parameters
-// currently.
-struct Config {};
+// NOTE: The htb queueing discipline configuration is not exposed to
+// the user but the queueing class configuration is.
+struct DisciplineConfig {};
 
 } // namespace htb {
 
 /////////////////////////////////////////////////
-// Type specific {en}decoding functions.
+// Type specific {en}decoding functions for disciplines and classes.
 /////////////////////////////////////////////////
 
 namespace internal {
@@ -53,9 +56,9 @@ namespace internal {
 // libnl queueing discipline 'qdisc'. Each type of queueing discipline
 // needs to implement this function.
 template <>
-Try<Nothing> encode<htb::Config>(
+Try<Nothing> encode<htb::DisciplineConfig>(
     const Netlink<struct rtnl_qdisc>& qdisc,
-    const htb::Config& config)
+    const htb::DisciplineConfig& config)
 {
   return Nothing();
 }
@@ -66,16 +69,84 @@ Try<Nothing> encode<htb::Config>(
 // to implement this function. Returns None if the libnl queueing
 // discipline is not an htb queueing discipline.
 template <>
-Result<htb::Config> decode<htb::Config>(
+Result<htb::DisciplineConfig> decode<htb::DisciplineConfig>(
     const Netlink<struct rtnl_qdisc>& qdisc)
 {
-  if (rtnl_tc_get_kind(TC_CAST(qdisc.get())) != htb::KIND) {
+  if (rtnl_tc_get_kind(TC_CAST(qdisc.get())) != string(htb::KIND)) {
     return None();
   }
 
-  return htb::Config();
+  return htb::DisciplineConfig();
 }
 
+namespace cls {
+
+// Encodes an htb queueing class configuration into the libnl queueing
+// class 'cls'. Each type of queueing class needs to implement this
+// function.
+template<>
+Try<Nothing> encode<htb::cls::Config>(
+    const Netlink<struct rtnl_class>& cls,
+    const htb::cls::Config& config)
+{
+  int error = rtnl_htb_set_rate(cls.get(), config.rate);
+  if (error != 0) {
+    return Error(string(nl_geterror(error)));
+  }
+
+  if (config.ceil.isSome()) {
+    error = rtnl_htb_set_ceil(cls.get(), config.ceil.get());
+    if (error != 0) {
+      return Error(string(nl_geterror(error)));
+    }
+  }
+
+  if (config.burst.isSome()) {
+    // NOTE: The libnl documentation is incorrect/confusing. The
+    // correct buffer for sending at the ceil rate is rbuffer, *not*
+    // the cbuffer.
+    // https://www.infradead.org/~tgr/libnl/doc/api/group__qdisc__htb.html
+    // https://linux.die.net/man/8/tc-htb
+    error = rtnl_htb_set_rbuffer(cls.get(), config.burst.get());
+    if (error != 0) {
+      return Error(string(nl_geterror(error)));
+    }
+  }
+
+  return Nothing();
+}
+
+
+// Decodes the htb queueing class configuration from the libnl
+// queueing class 'cls'. Each type of queueing class needs to
+// implement this function. Returns None if the libnl queueing class
+// is not an htb queueing class.
+template<>
+Result<htb::cls::Config> decode<htb::cls::Config>(
+    const Netlink<struct rtnl_class>& cls)
+{
+  if (rtnl_tc_get_kind(TC_CAST(cls.get())) != string(htb::KIND)) {
+    return None();
+  }
+
+  htb::cls::Config config;
+
+  uint32_t rate = rtnl_htb_get_rate(cls.get());
+  uint32_t ceil = rtnl_htb_get_ceil(cls.get());
+  // NOTE: The libnl documentation is incorrect/confusing. The
+  // correct buffer for sending at the ceil rate is rbuffer, *not*
+  // the cbuffer.
+  // https://www.infradead.org/~tgr/libnl/doc/api/group__qdisc__htb.html
+  // https://linux.die.net/man/8/tc-htb
+  uint32_t burst = rtnl_htb_get_rbuffer(cls.get());
+
+  return htb::cls::Config(
+      rate,
+      (ceil > 0) ? Option<uint32_t>(ceil) : None(),
+      (burst > 0) ? Option<uint32_t>(burst) : None());
+}
+
+} // namespace cls {
 } // namespace internal {
 
 /////////////////////////////////////////////////
@@ -97,11 +168,11 @@ Try<bool> create(
 {
   return internal::create(
       link,
-      Discipline<Config>(
+      Discipline<DisciplineConfig>(
           KIND,
           parent,
           handle,
-          Config()));
+          DisciplineConfig()));
 }
 
 
@@ -119,6 +190,74 @@ Result<hashmap<string, uint64_t>> statistics(
 }
 
 
+namespace cls {
+
+void json(JSON::ObjectWriter* writer, const Config& config)
+{
+  writer->field("rate", config.rate);
+  if (config.ceil.isSome()) {
+    writer->field("ceil", config.ceil.get());
+  }
+  if (config.burst.isSome()) {
+    writer->field("burst", config.burst.get());
+  }
+}
+
+Try<bool> exists(const string& link, const Handle& classid)
+{
+  return internal::cls::exists(link, classid, KIND);
+}
+
+
+Try<bool> create(
+    const string& link,
+    const Handle& parent,
+    const Option<Handle>& handle,
+    const Config& config)
+{
+  return internal::cls::create(
+      link,
+      Class<Config>(
+        KIND,
+        parent,
+        handle,
+        config));
+}
+
+
+Try<bool> update(
+    const std::string& link,
+    const Handle& classid,
+    const Config& config)
+{
+  return internal::cls::update(
+      link,
+      Class<Config>(
+        KIND,
+        Handle(classid.primary(), 0),
+        classid,
+        config));
+}
+
+
+Result<Config> getConfig(
+    const std::string& link,
+    const Handle& classid)
+{
+  return internal::cls::getConfig<Config>(
+      link,
+      classid,
+      KIND);
+}
+
+
+Try<bool> remove(const string& link, const Handle& classid)
+{
+  return internal::cls::remove(link, classid, KIND);
+}
+
+
+} // namespace cls {
 } // namespace htb {
 } // namespace queueing {
 } // namespace routing {
