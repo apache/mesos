@@ -238,3 +238,21 @@ TEST(NetTest, ConstructIPv6Network)
   ASSERT_SOME(network2);
   EXPECT_EQ(network.get(), network2.get());
 }
+
+
+// Check the copy assignment operator for `net::IP::Network` works.
+TEST(NetTest, CopyIPNetwork)
+{
+  Try<net::IP::Network> network = net::IP::Network::parse("192.168.1.1/16");
+  EXPECT_SOME(network);
+
+  net::IP::Network network2 = network.get();
+  EXPECT_EQ(network2, network.get());
+
+  // Check the same for IPv6.
+  network = net::IP::Network::parse("::1/128");
+  EXPECT_SOME(network);
+
+  network2 = network.get();
+  EXPECT_EQ(network2, network.get());
+}
