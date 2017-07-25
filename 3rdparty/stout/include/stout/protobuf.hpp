@@ -451,7 +451,19 @@ struct Parser : boost::static_visitor<Try<Nothing>>
           field->enum_type()->FindValueByName(string.value);
 
         if (descriptor == nullptr) {
-          return Error("Failed to find enum for '" + string.value + "'");
+          if (field->is_required()) {
+            return Error("Failed to find enum for '" + string.value + "'");
+          }
+
+          // Unrecognized enum value will be discarded if this is not a
+          // required enum field, which makes the field's `has..` accessor
+          // return false and its getter return the first value listed in
+          // the enum definition, or the default value if one is specified.
+          //
+          // This is the deserialization behavior of proto2, see the link
+          // below for details:
+          // https://developers.google.com/protocol-buffers/docs/proto#updating
+          break;
         }
 
         if (field->is_repeated()) {
