@@ -28,6 +28,7 @@
 #include <process/process.hpp>
 
 #include <process/metrics/counter.hpp>
+#include <process/metrics/gauge.hpp>
 
 #include <stout/hashmap.hpp>
 
@@ -143,6 +144,8 @@ public:
     void claimSpace(const Bytes& bytes);
     void releaseSpace(const Bytes& bytes);
 
+    Bytes totalSpace() const;
+    Bytes usedSpace() const;
     Bytes availableSpace() const;
 
     // Invents a new, distinct base name for a cache file, using the same
@@ -259,6 +262,9 @@ private:
     // fail to fetch, the failure count will only increase by one.
     process::metrics::Counter task_fetches_total;
     process::metrics::Counter task_fetches_failed;
+
+    process::metrics::Gauge cache_size_total_bytes;
+    process::metrics::Gauge cache_size_used_bytes;
   } metrics;
 
   const Flags flags;

@@ -261,10 +261,24 @@ void Fetcher::kill(const ContainerID& containerId)
 
 FetcherProcess::Metrics::Metrics(FetcherProcess *fetcher)
   : task_fetches_total("containerizer/fetcher/task_fetches_total"),
-    task_fetches_failed("containerizer/fetcher/task_fetches_failed")
+    task_fetches_failed("containerizer/fetcher/task_fetches_failed"),
+    cache_size_total_bytes(
+        "containerizer/fetcher/cache_size_total_bytes",
+        [=]() {
+          // This value is safe to read while it is concurrently updated.
+          return fetcher->cache.totalSpace().bytes();
+        }),
+    cache_size_used_bytes(
+        "containerizer/fetcher/cache_size_used_bytes",
+        [=]() {
+          // This value is safe to read while it is concurrently updated.
+          return fetcher->cache.usedSpace().bytes();
+        })
 {
   process::metrics::add(task_fetches_total);
   process::metrics::add(task_fetches_failed);
+  process::metrics::add(cache_size_total_bytes);
+  process::metrics::add(cache_size_used_bytes);
 }
 
 
@@ -272,6 +286,12 @@ FetcherProcess::Metrics::~Metrics()
 {
   process::metrics::remove(task_fetches_total);
   process::metrics::remove(task_fetches_failed);
+
+  // Wait for the metrics to be removed before we allow the destructor
+  // to complete.
+  await(
+      process::metrics::remove(cache_size_total_bytes),
+      process::metrics::remove(cache_size_used_bytes)).await();
 }
 
 
@@ -1201,6 +1221,18 @@ void FetcherProcess::Cache::releaseSpace(const Bytes& bytes)
   tally -= bytes;
 
   VLOG(1) << "Released cache space: " << bytes << ", now using: " << tally;
+}
+
+
+Bytes FetcherProcess::Cache::totalSpace() const
+{
+  return space;
+}
+
+
+Bytes FetcherProcess::Cache::usedSpace() const
+{
+  return tally;
 }
 
 

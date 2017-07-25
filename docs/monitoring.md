@@ -1255,6 +1255,21 @@ the agent and their current usage.
 </thead>
 <tr>
   <td>
+  <code>containerizer/fetcher/cache_size_total_bytes</code>
+  </td>
+  <td>The configured maximum size of the fetcher cache in bytes. This value is
+  constant for the life of the Mesos agent.</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/fetcher/cache_size_used_bytes</code>
+  </td>
+  <td>The current amount of data stored in the fetcher cache in bytes.</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
   <code>slave/cpus_percent</code>
   </td>
   <td>Percentage of allocated CPUs</td>
