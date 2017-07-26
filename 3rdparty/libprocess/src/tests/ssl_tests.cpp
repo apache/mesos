@@ -528,6 +528,49 @@ TEST_F(SSLTest, ProtocolMismatch)
 }
 
 
+// Ensure that key exchange using ECDHE algorithm works.
+TEST_F(SSLTest, ECDHESupport)
+{
+  // Set up the default server environment variables.
+  map<string, string> server_environment = {
+    {"LIBPROCESS_SSL_ENABLED", "true"},
+    {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+    {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+    {"LIBPROCESS_SSL_CIPHERS",
+     "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:"
+     "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA"}
+  };
+
+  // Set up the default client environment variables.
+  map<string, string> client_environment = {
+    {"LIBPROCESS_SSL_ENABLED", "true"},
+    {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+    {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+    {"LIBPROCESS_SSL_CIPHERS",
+     "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:"
+     "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA"}
+  };
+
+  // Set up the server.
+  Try<Socket> server = setup_server(server_environment);
+  ASSERT_SOME(server);
+
+  // Launch the client.
+  Try<Subprocess> client =
+      launch_client(client_environment, server.get(), true);
+  ASSERT_SOME(client);
+
+  Future<Socket> socket = server.get().accept();
+  AWAIT_ASSERT_READY(socket);
+
+  // TODO(jmlvanre): Remove const copy.
+  AWAIT_ASSERT_EQ(data, Socket(socket.get()).recv());
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(data));
+
+  AWAIT_ASSERT_READY(await_subprocess(client.get(), 0));
+}
+
+
 // Ensure we can communicate between a POLL based socket and an SSL
 // socket if 'SSL_SUPPORT_DOWNGRADE' is enabled.
 TEST_F(SSLTest, ValidDowngrade)

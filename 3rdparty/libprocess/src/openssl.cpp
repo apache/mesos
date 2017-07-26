@@ -115,6 +115,16 @@ Flags::Flags()
       "AES128-SHA:AES256-SHA:RC4-SHA:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA:"
       "DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA");
 
+  add(&Flags::ecdh_curves,
+      "ecdh_curves",
+      "Colon separated list of curve NID or names, e.g. 'P-521:P-384:P-256'. "
+      "The curves are in preference order. If no list is provided, the most "
+      "appropriate curve for a client will be selected. This behavior can be "
+      "explicitly enabled by setting this flag to 'auto'."
+      "NOTE: Old versions of OpenSSL support only one curve, check "
+      "the documentation of your OpenSSL.",
+      "auto");
+
   // We purposely don't have a flag for SSLv2. We do this because most
   // systems have disabled SSLv2 at compilation due to having so many
   // security vulnerabilities.
@@ -280,6 +290,70 @@ string error_string(unsigned long code)
   return s;
 }
 
+
+#if OPENSSL_VERSION_NUMBER >= 0x0090800fL && !defined(OPENSSL_NO_ECDH)
+// Sets the elliptic curve parameters for the given context in order
+// to enable ECDH ciphers.
+// Adapted from NGINX SSL initialization code:
+// https://github.com/nginx/nginx/blob/bfe36ba3185a477d2f8ce120577308646173b736/
+// src/event/ngx_event_openssl.c#L1080-L1161
+static Try<Nothing> initialize_ecdh_curve(SSL_CTX* ctx, const Flags& ssl_flags)
+{
+#if defined(SSL_OP_SINGLE_ECDH_USE)
+  // Let OpenSSL compute new ECDH parameters for each new handshake.
+  // In newer versions (1.0.2+) of OpenSSL this is the default, and
+  // this call has no effect.
+  SSL_CTX_set_options(ctx, SSL_OP_SINGLE_ECDH_USE);
+#endif // SSL_OP_SINGLE_ECDH_USE
+
+#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST)
+  // If `SSL_CTX_set_ecdh_auto` is not defined, OpenSSL will ignore the
+  // preference order of the curve list and use its own algorithm to chose
+  // the right curve for a connection.
+#if defined(SSL_CTX_set_ecdh_auto)
+  SSL_CTX_set_ecdh_auto(ctx, 1);
+#endif // SSL_CTX_set_ecdh_auto
+
+  if (ssl_flags.ecdh_curves == "auto") {
+    return Nothing();
+  }
+
+  if (SSL_CTX_set1_curves_list(ctx, ssl_flags.ecdh_curves.c_str()) != 1) {
+    unsigned long error = ERR_get_error();
+    return Error(
+        "Could not load ECDH curves '" + ssl_flags.ecdh_curves + "' " +
+        "(OpenSSL error #" + stringify(error) + "): " + error_string(error));
+  }
+
+  VLOG(2) << "Using ecdh curves: " << ssl_flags.ecdh_curves;
+#else // SSL_CTX_set1_curves_list || SSL_CTRL_SET_CURVES_LIST
+  string curve =
+      ssl_flags.ecdh_curves == "auto" ? "prime256v1" : ssl_flags.ecdh_curves;
+
+  int nid = OBJ_sn2nid(curve.c_str());
+  if (nid == 0) {
+    unsigned long error = ERR_get_error();
+    return Error(
+        "Unknown curve '" + curve + "' (OpenSSL error #" + stringify(error) +
+        "): " + error_string(error));
+  }
+
+  EC_KEY* ecdh = EC_KEY_new_by_curve_name(nid);
+  if (ecdh == nullptr) {
+    unsigned long error = ERR_get_error();
+    return Error(
+        "Error generating key from curve " + curve + "' (OpenSSL error #" +
+        stringify(error) + "): " + error_string(error));
+  }
+
+  SSL_CTX_set_tmp_ecdh(ctx, ecdh);
+  EC_KEY_free(ecdh);
+
+  VLOG(2) << "Using ecdh curve: " << ssl_flags.ecdh_curves;
+#endif // SSL_CTX_set1_curves_list || SSL_CTRL_SET_CURVES_LIST
+  return Nothing();
+}
+#endif // OPENSSL_VERSION_NUMBER >= 0x0090800fL && !OPENSSL_NO_ECDH
 
 // Tests can declare this function and use it to re-configure the SSL
 // environment variables programatically. Without explicitly declaring
@@ -593,6 +667,13 @@ void reinitialize()
   if (!ssl_flags->enable_tls_v1_2) { ssl_options |= SSL_OP_NO_TLSv1_2; }
 
   SSL_CTX_set_options(ctx, ssl_options);
+
+#if OPENSSL_VERSION_NUMBER >= 0x0090800fL && !defined(OPENSSL_NO_ECDH)
+  Try<Nothing> ecdh_initialized = initialize_ecdh_curve(ctx, *ssl_flags);
+  if (ecdh_initialized.isError()) {
+    EXIT(EXIT_FAILURE) << ecdh_initialized.error();
+  }
+#endif // OPENSSL_VERSION_NUMBER >= 0x0090800fL && !OPENSSL_NO_ECDH
 }
 
 
