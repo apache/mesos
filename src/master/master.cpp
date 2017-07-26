@@ -6261,7 +6261,7 @@ void Master::__reregisterSlave(
     const vector<ExecutorInfo>& executorInfos_,
     const vector<Task>& tasks_,
     const vector<FrameworkInfo>& frameworks,
-    const vector<Archive::Framework>& completedFrameworks,
+    const vector<Archive::Framework>& completedFrameworks_,
     const string& version,
     const vector<SlaveInfo::Capability>& agentCapabilities,
     const Future<bool>& readmit)
@@ -6312,6 +6312,7 @@ void Master::__reregisterSlave(
   protobuf::slave::Capabilities slaveCapabilities(agentCapabilities);
   vector<Task> tasks = tasks_;
   vector<ExecutorInfo> executorInfos = executorInfos_;
+  vector<Archive::Framework> completedFrameworks = completedFrameworks_;
 
   // If the agent is not multi-role capable, inject allocation info.
   if (!slaveCapabilities.multiRole) {
@@ -6354,6 +6355,14 @@ void Master::__reregisterSlave(
     foreach (ExecutorInfo& executor, executorInfos) {
       convertResourceFormat(
           executor.mutable_resources(), POST_RESERVATION_REFINEMENT);
+    }
+
+    foreach (Archive::Framework& completedFramework,
+             completedFrameworks) {
+      foreach (Task& task, *completedFramework.mutable_tasks()) {
+        convertResourceFormat(
+            task.mutable_resources(), POST_RESERVATION_REFINEMENT);
+      }
     }
   }
 
