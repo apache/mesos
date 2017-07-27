@@ -520,6 +520,7 @@ if test "x$without_bundled_protobuf" = "xyes" || \
       AC_MSG_ERROR([protoc not found in PATH])
     fi
 
+    PROTOCOMPILER="$PROTOBUFPREFIX/bin/protoc"
   else
     AC_MSG_ERROR([cannot find protobuf
 -------------------------------------------------------------------
@@ -539,6 +540,7 @@ fi
 AM_CONDITIONAL([WITH_BUNDLED_PROTOBUF],
                [test "x$with_bundled_protobuf" = "xyes"])
 
+AC_SUBST([PROTOCOMPILER])
 
 # Check if libsvn-1 prefix path was provided, and if so, add it to
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path

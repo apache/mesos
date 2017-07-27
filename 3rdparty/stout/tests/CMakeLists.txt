@@ -99,11 +99,22 @@ set(STOUT_TESTS_SRC
 #############################################################################
 include_directories(SYSTEM ${STOUT_TEST_3RDPARTY_INCLUDE_DIRS})
 include_directories(${STOUT_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
 # Linux).
 ###########################################################################
 link_directories(${STOUT_TEST_LIB_DIRS})
+
+# THE C++ PROTOCOL BUFFER CODE (protobuf_tests.pb.h and protobuf_tests.pb.cc).
+##############################################################################
+add_custom_command(
+  OUTPUT protobuf_tests.pb.h protobuf_tests.pb.cc
+  COMMAND ${PROTOC}
+    -I${CMAKE_SOURCE_DIR}/3rdparty/stout/tests
+    --cpp_out=.
+    ${CMAKE_SOURCE_DIR}/3rdparty/stout/tests/protobuf_tests.proto
+  DEPENDS ${CMAKE_SOURCE_DIR}/3rdparty/stout/tests/protobuf_tests.proto)
 
 # THE STOUT TEST EXECUTABLE (generates, e.g., stout-tests, etc., on Linux).
 ###########################################################################

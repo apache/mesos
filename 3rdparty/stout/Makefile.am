@@ -110,9 +110,17 @@ PROTOBUF_INCLUDE_FLAGS = -I$(PROTOBUF)/src
 LIB_PROTOBUF = $(PROTOBUF)/src/libprotobuf.la
 $(LIB_PROTOBUF): $(PROTOBUF)-build-stamp
 BUNDLED_DEPS += $(PROTOBUF)-build-stamp
+PROTOC = $(PROTOBUF)/src/protoc
 else
 LIB_PROTOBUF = -lprotobuf
+PROTOC = @PROTOCOMPILER@
 endif
+
+PROTOCFLAGS = -I$(srcdir)/tests
+
+# Targets for generating C++ protocol buffer code.
+protobuf_tests.pb.cc protobuf_tests.pb.h: tests/protobuf_tests.proto
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=$(builddir) $^
 
 # Tests for stout.
 check_PROGRAMS = stout-tests
@@ -154,8 +162,6 @@ stout_tests_SOURCES =			\
   tests/os/systems_tests.cpp		\
   tests/path_tests.cpp			\
   tests/protobuf_tests.cpp		\
-  tests/protobuf_tests.pb.cc		\
-  tests/protobuf_tests.pb.h		\
   tests/protobuf_tests.proto		\
   tests/recordio_tests.cpp		\
   tests/result_tests.cpp		\
@@ -203,6 +209,16 @@ if !OS_FREEBSD
 endif
 
 BUILT_SOURCES = $(BUNDLED_DEPS)
+
+BUILT_SOURCES +=			\
+  protobuf_tests.pb.cc
+
+nodist_stout_tests_SOURCES =		\
+  protobuf_tests.pb.cc
+
+CLEANFILES =				\
+  protobuf_tests.pb.cc			\
+  protobuf_tests.pb.h
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
