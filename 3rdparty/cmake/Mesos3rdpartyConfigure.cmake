@@ -14,11 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# DEFINE DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS.
-##################################################
-set(MESOS_3RDPARTY_SRC ${CMAKE_SOURCE_DIR}/3rdparty)
-set(MESOS_3RDPARTY_BIN ${CMAKE_BINARY_DIR}/3rdparty)
-
 # Configure Windows use of the GNU patch utility;
 # we attempt to find it in its default location,
 # but this path may be customized.
@@ -41,6 +36,7 @@ if (WIN32)
       FATAL_ERROR
       "GnuWin32 patch.exe was not found. Use -DPATCHEXE_PATH to "
       "provide the local path of GnuWin32 patch.exe. "
+      "Also delete CMakeCache.txt to clear the cache. "
       "Mesos for Windows requires GnuWin32 patch.exe "
       "to apply updates. You may get it from "
       "http://gnuwin32.sourceforge.net/packages/patch.htm"
@@ -52,7 +48,7 @@ if (WIN32)
       ${GNUWIN32_PATCH_EXECUTABLE})
 
     # Since Windows Vista patch.exe has been reqesting elevation to work
-    # eventhough it is not required to apply patches. So to avoid a prompt
+    # even though it is not required to apply patches. So to avoid a prompt
     # for elevation a manifest will be applied to patch.exe in the current
     # user temp directory.
 
@@ -63,8 +59,8 @@ if (WIN32)
     # Set full path for temp location of patch.exe.
     set(PATCHEXE_LOCATION $ENV{${USER_TMP_DIR}}/patch.exe)
 
-    #set full path for patch.exe.manifest.
-    set(PATCHMANIFEST_LOCATION ${MESOS_3RDPARTY_SRC}/patch.exe.manifest)
+    # Set full path for patch.exe.manifest.
+    set(PATCHMANIFEST_LOCATION ${CMAKE_SOURCE_DIR}/3rdparty/patch.exe.manifest)
 
     # Set full path for temp location of patch.exe.manifest.
     set(PATCHMANIFEST_TMP_LOCATION $ENV{${USER_TMP_DIR}}/patch.exe.manifest)
