@@ -839,6 +839,33 @@ mesos::master::Event createFrameworkAdded(
 }
 
 
+mesos::master::Event createFrameworkUpdated(
+    const mesos::internal::master::Framework& _framework)
+{
+  mesos::master::Event event;
+  event.set_type(mesos::master::Event::FRAMEWORK_UPDATED);
+
+  mesos::master::Response::GetFrameworks::Framework* framework =
+    event.mutable_framework_updated()->mutable_framework();
+
+  framework->mutable_framework_info()->CopyFrom(_framework.info);
+  framework->set_active(_framework.active());
+  framework->set_connected(_framework.connected());
+  framework->set_recovered(_framework.recovered());
+
+  framework->mutable_registered_time()->set_nanoseconds(
+      _framework.registeredTime.duration().ns());
+
+  framework->mutable_reregistered_time()->set_nanoseconds(
+      _framework.reregisteredTime.duration().ns());
+
+  framework->mutable_unregistered_time()->set_nanoseconds(
+      _framework.unregisteredTime.duration().ns());
+
+  return event;
+}
+
+
 mesos::master::Response::GetAgents::Agent createAgentResponse(
     const mesos::internal::master::Slave& slave)
 {

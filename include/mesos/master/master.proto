@@ -481,6 +481,7 @@ message Event {
     AGENT_ADDED = 4; // See `AgentAdded` below.
     AGENT_REMOVED = 5; // See `AgentRemoved` below.
     FRAMEWORK_ADDED = 6; // See `FrameworkAdded` below.
+    FRAMEWORK_UPDATED = 7; // See `FrameworkUpdated` below.
 
     // TODO(vinod): Fill in more events.
   }
@@ -517,6 +518,12 @@ message Event {
     required Response.GetFrameworks.Framework framework = 1;
   }
 
+  // Forwarded by the master when a framework re-registers with the master
+  // upon a disconnection (network error) or upon a master failover.
+  message FrameworkUpdated {
+    required Response.GetFrameworks.Framework framework = 1;
+  }
+
   // Forwarded by the master when an agent becomes known to it.
   // This can happen when an agent registered for the first
   // time, or reregistered after a master failover.
@@ -543,4 +550,5 @@ message Event {
   optional AgentAdded agent_added = 5;
   optional AgentRemoved agent_removed = 6;
   optional FrameworkAdded framework_added = 7;
+  optional FrameworkUpdated framework_updated = 8;
 }

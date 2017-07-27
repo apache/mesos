@@ -309,6 +309,11 @@ mesos::master::Event createFrameworkAdded(
     const mesos::internal::master::Framework& framework);
 
 
+// Helper for creating a 'FRAMEWORK_UPDATED' event from a `Framework`.
+mesos::master::Event createFrameworkUpdated(
+    const mesos::internal::master::Framework& framework);
+
+
 // Helper for creating an `Agent` response.
 mesos::master::Response::GetAgents::Agent createAgentResponse(
     const mesos::internal::master::Slave& slave);
