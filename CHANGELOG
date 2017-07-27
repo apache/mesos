@@ -7,6 +7,7 @@ All Issues:
   * [MESOS-7429] - Allow isolators to inject task-specific environment variables.
   * [MESOS-7540] - Add an agent flag for executor re-registration timeout.
   * [MESOS-7546] - WAIT_NESTED_CONTAINER sometimes returns 404.
+  * [MESOS-7252] - Need to fix resource check in long-lived framework.
   * [MESOS-7569] - Allow "old" executors with half-open connections to be preserved during agent upgrade / restart.
   * [MESOS-7581] - Fix interference of external Boost installations when using some unbundled dependencies.
   * [MESOS-7689] - Libprocess can crash on malformed request paths for libprocess messages.
