@@ -231,6 +231,19 @@ v1::master::Response evolve(const mesos::master::Response& response)
 }
 
 
+v1::resource_provider::Call evolve(const mesos::resource_provider::Call& call)
+{
+  return evolve<v1::resource_provider::Call>(call);
+}
+
+
+v1::resource_provider::Event evolve(
+    const mesos::resource_provider::Event& event)
+{
+  return evolve<v1::resource_provider::Event>(event);
+}
+
+
 v1::scheduler::Call evolve(const scheduler::Call& call)
 {
   return evolve<v1::scheduler::Call>(call);

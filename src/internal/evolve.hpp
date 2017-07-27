@@ -32,6 +32,8 @@
 
 #include <mesos/maintenance/maintenance.hpp>
 
+#include <mesos/resource_provider/resource_provider.hpp>
+
 #include <mesos/scheduler/scheduler.hpp>
 
 #include <mesos/v1/mesos.hpp>
@@ -42,6 +44,8 @@
 #include <mesos/v1/executor/executor.hpp>
 
 #include <mesos/v1/master/master.hpp>
+
+#include <mesos/v1/resource_provider/resource_provider.hpp>
 
 #include <mesos/v1/maintenance/maintenance.hpp>
 
@@ -86,6 +90,12 @@ v1::maintenance::ClusterStatus evolve(
 v1::maintenance::Schedule evolve(const maintenance::Schedule& schedule);
 
 v1::master::Response evolve(const mesos::master::Response& response);
+
+
+v1::resource_provider::Call evolve(const mesos::resource_provider::Call& call);
+v1::resource_provider::Event evolve(
+    const mesos::resource_provider::Event& event);
+
 
 v1::scheduler::Call evolve(const scheduler::Call& call);
 
