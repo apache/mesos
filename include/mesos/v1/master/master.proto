@@ -480,6 +480,7 @@ message Event {
     TASK_UPDATED = 3; // See `TaskUpdated` below.
     AGENT_ADDED = 4; // See `AgentAdded` below.
     AGENT_REMOVED = 5; // See `AgentRemoved` below.
+    FRAMEWORK_ADDED = 6; // See `FrameworkAdded` below.
 
     // TODO(vinod): Fill in more events.
   }
@@ -510,6 +511,13 @@ message Event {
     required TaskState state = 3;
   }
 
+
+  // Forwarded by the master when a framework becomes known to it.
+  // This can happen when a new framework registers with the master.
+  message FrameworkAdded {
+    required Response.GetFrameworks.Framework framework = 1;
+  }
+
   // Forwarded by the master when an agent becomes known to it.
   // This can happen when an agent registered for the first
   // time, or reregistered after a master failover.
@@ -535,4 +543,5 @@ message Event {
   optional TaskUpdated task_updated = 4;
   optional AgentAdded agent_added = 5;
   optional AgentRemoved agent_removed = 6;
+  optional FrameworkAdded framework_added = 7;
 }

@@ -52,6 +52,7 @@ namespace internal {
 
 namespace master {
 // Forward declaration (in lieu of an include).
+struct Framework;
 struct Slave;
 } // namespace master {
 
@@ -301,6 +302,11 @@ mesos::master::Event createTaskUpdated(
 
 // Helper for creating a `TASK_ADDED` event from a `Task`.
 mesos::master::Event createTaskAdded(const Task& task);
+
+
+// Helper for creating a 'FRAMEWORK_ADDED' event from a `Framework`.
+mesos::master::Event createFrameworkAdded(
+    const mesos::internal::master::Framework& framework);
 
 
 // Helper for creating an `Agent` response.

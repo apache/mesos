@@ -2701,6 +2701,11 @@ void Master::_subscribe(
     // Start the heartbeat after sending SUBSCRIBED event.
     framework->heartbeat();
 
+    if (!subscribers.subscribed.empty()) {
+      subscribers.send(
+          protobuf::master::event::createFrameworkAdded(*framework));
+    }
+
     return;
   }
 
@@ -2995,6 +3000,11 @@ void Master::_subscribe(
     message.mutable_framework_id()->MergeFrom(framework->id());
     message.mutable_master_info()->MergeFrom(info_);
     framework->send(message);
+
+    if (!subscribers.subscribed.empty()) {
+      subscribers.send(
+          protobuf::master::event::createFrameworkAdded(*framework));
+    }
 
     return;
   }
