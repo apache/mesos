@@ -418,6 +418,39 @@ TEST(ProtobufTest, ParseJSONNestedError)
 }
 
 
+// Tests when parsing protobuf from JSON, for the optional enum field which
+// has an unrecognized enum value, after the parsing the field will be unset
+// and its getter will return the default enum value. For the repeated enum
+// field which contains an unrecognized enum value, after the parsing the
+// field will not contain that unrecognized value anymore.
+TEST(ProtobufTest, ParseJSONUnrecognizedEnum)
+{
+  string message =
+    "{"
+    "  \"e1\": \"XXX\","
+    "  \"e2\": \"\","
+    "  \"repeated_enum\": [\"ONE\", \"XXX\", \"\", \"TWO\"]"
+    "}";
+
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(message);
+  ASSERT_SOME(json);
+
+  Try<tests::EnumMessage> parse =
+    protobuf::parse<tests::EnumMessage>(json.get());
+
+  ASSERT_SOME(parse);
+
+  EXPECT_FALSE(parse->has_e1());
+  EXPECT_EQ(tests::UNKNOWN, parse->e1());
+  EXPECT_FALSE(parse->has_e2());
+  EXPECT_EQ(tests::UNKNOWN, parse->e2());
+
+  EXPECT_EQ(2, parse->repeated_enum_size());
+  EXPECT_EQ(tests::ONE, parse->repeated_enum(0));
+  EXPECT_EQ(tests::TWO, parse->repeated_enum(1));
+}
+
+
 TEST(ProtobufTest, Jsonify)
 {
   tests::Message message;

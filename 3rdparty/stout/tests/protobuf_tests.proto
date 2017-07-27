@@ -24,6 +24,7 @@ package tests;
 // dynamic message at run-time.
 
 enum Enum {
+  UNKNOWN = 0;
   ONE = 1;
   TWO = 2;
 }
@@ -95,4 +96,12 @@ message Message {
 // A message for testing Proto->JSON conversion.
 message ArrayMessage {
   repeated SimpleMessage values = 1;
+}
+
+
+// A message for testing optional enum field.
+message EnumMessage {
+  optional Enum e1 = 1;
+  optional Enum e2 = 2;
+  repeated Enum repeated_enum = 3;
 }
