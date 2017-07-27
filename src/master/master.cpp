@@ -8499,6 +8499,11 @@ void Master::removeFramework(Framework* framework)
 
   // The framework pointer is now owned by `frameworks.completed`.
   frameworks.completed.set(framework->id(), Owned<Framework>(framework));
+
+  if (!subscribers.subscribed.empty()) {
+    subscribers.send(
+        protobuf::master::event::createFrameworkRemoved(framework->info));
+  }
 }
 
 

@@ -866,6 +866,18 @@ mesos::master::Event createFrameworkUpdated(
 }
 
 
+mesos::master::Event createFrameworkRemoved(const FrameworkInfo& frameworkInfo)
+{
+  mesos::master::Event event;
+  event.set_type(mesos::master::Event::FRAMEWORK_REMOVED);
+
+  event.mutable_framework_removed()->mutable_framework_info()->CopyFrom(
+      frameworkInfo);
+
+  return event;
+}
+
+
 mesos::master::Response::GetAgents::Agent createAgentResponse(
     const mesos::internal::master::Slave& slave)
 {
