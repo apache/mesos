@@ -956,6 +956,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   resource_provider/driver.cpp						\
   resource_provider/local.cpp						\
   resource_provider/manager.cpp						\
+  resource_provider/validation.cpp					\
   resource_provider/storage/provider.cpp				\
   sched/sched.cpp							\
   scheduler/scheduler.cpp						\
@@ -1094,6 +1095,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   resource_provider/local.hpp						\
   resource_provider/manager.hpp						\
   resource_provider/message.hpp						\
+  resource_provider/validation.hpp					\
   resource_provider/storage/provider.hpp				\
   sched/constants.hpp							\
   sched/flags.hpp							\
@@ -2357,6 +2359,7 @@ mesos_tests_SOURCES =						\
   tests/reservation_tests.cpp					\
   tests/resource_offers_tests.cpp				\
   tests/resource_provider_http_api_tests.cpp			\
+  tests/resource_provider_validation_tests.cpp			\
   tests/resources_tests.cpp					\
   tests/resources_utils.cpp					\
   tests/role_tests.cpp						\

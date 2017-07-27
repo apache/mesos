@@ -403,6 +403,7 @@ set(RESOURCE_PROVIDER_SRC
   resource_provider/driver.cpp
   resource_provider/local.cpp
   resource_provider/manager.cpp
+  resource_provider/validation.cpp
   resource_provider/storage/provider.cpp
   )
 
