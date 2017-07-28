@@ -357,6 +357,9 @@ private:
 
   hashmap<ContainerID, process::Owned<Container>> containers_;
 
+  // Helper to transition container state.
+  void transition(const ContainerID& containerId, const State& state);
+
   struct Metrics
   {
     Metrics();
