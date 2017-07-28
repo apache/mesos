@@ -1343,6 +1343,7 @@ TEST_F(SlaveTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("slave/tasks_staging"));
   EXPECT_EQ(1u, snapshot.values.count("slave/tasks_starting"));
   EXPECT_EQ(1u, snapshot.values.count("slave/tasks_running"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/tasks_killing"));
   EXPECT_EQ(1u, snapshot.values.count("slave/tasks_finished"));
   EXPECT_EQ(1u, snapshot.values.count("slave/tasks_failed"));
   EXPECT_EQ(1u, snapshot.values.count("slave/tasks_killed"));

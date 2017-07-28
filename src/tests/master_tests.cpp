@@ -2242,10 +2242,12 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_staging"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_starting"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_running"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_killing"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_finished"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_failed"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_killed"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_lost"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_error"));
 
   EXPECT_EQ(1u, snapshot.values.count("master/dropped_messages"));
 
