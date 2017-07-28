@@ -295,7 +295,7 @@ class HttpProxy : public Process<HttpProxy>
 {
 public:
   explicit HttpProxy(const Socket& _socket);
-  virtual ~HttpProxy() {};
+  virtual ~HttpProxy() {}
 
   // Enqueues the response to be sent once all previously enqueued
   // responses have been processed (e.g., waited for and sent).
@@ -2499,7 +2499,6 @@ void SocketManager::close(int_fd s)
       // from the socket. Note we need to do this before we call
       // 'sockets.erase(s)' to avoid the potential race with the last
       // reference being in 'sockets'.
-
 
       // Hold on to the Socket and remove it from the 'sockets' map so
       // that in the case where 'shutdown()' ends up calling close the
