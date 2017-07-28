@@ -57,6 +57,7 @@ layout: documentation
 * [Jobrapido](http://www.jobrapido.com)
 * [Jusbrasil](http://www.jusbrasil.com.br)
 * [iQIYI](http://www.iqiyi.com/)
+* [Kakao](http://www.kakaocorp.com/)
 * [Learnium](http://www.learnium.net/)
 * [LIFX](http://lifx.co)
 * [Linkernetworks](http://www.linkernetworks.com)
