@@ -432,6 +432,15 @@ Try<vector<CommandInfo>> LinuxFilesystemIsolatorProcess::getPreExecCommands(
     commands.push_back(command);
   }
 
+  // Get the parent sandbox user and group info for the source path.
+  struct stat s;
+  if (::stat(containerConfig.directory().c_str(), &s) < 0) {
+    return ErrnoError("Failed to stat '" + containerConfig.directory() + "'");
+  }
+
+  const uid_t uid = s.st_uid;
+  const gid_t gid = s.st_gid;
+
   foreach (const Volume& volume, containerConfig.container_info().volumes()) {
     // NOTE: Volumes with source will be handled by the corresponding
     // isolators (e.g., docker/volume).
@@ -477,14 +486,28 @@ Try<vector<CommandInfo>> LinuxFilesystemIsolatorProcess::getPreExecCommands(
       // work directory because a user can potentially use a container
       // path like '../../abc'.
 
-      Try<Nothing> mkdir = os::mkdir(source);
-      if (mkdir.isError()) {
-        return Error(
-            "Failed to create the source of the mount at '" +
-            source + "': " + mkdir.error());
-      }
+      // NOTE: Chown should be avoided if the source directory already
+      // exists because it may be owned by some other user and should
+      // not be mutated.
+      if (!os::exists(source)) {
+        Try<Nothing> mkdir = os::mkdir(source);
+        if (mkdir.isError()) {
+          return Error(
+              "Failed to create the source of the mount at '" +
+              source + "': " + mkdir.error());
+        }
 
-      // TODO(idownes): Consider setting ownership and mode.
+        LOG(INFO) << "Changing the ownership of the sandbox volume at '"
+                  << source << "' with UID " << uid << " and GID " << gid;
+
+        Try<Nothing> chown = os::chown(uid, gid, source, false);
+        if (chown.isError()) {
+          return Error(
+              "Failed to change the ownership of the sandbox volume at '" +
+              source + "' with UID " + stringify(uid) + " and GID " +
+              stringify(gid) + ": " + chown.error());
+        }
+      }
     }
 
     // Determine the target of the mount. The mount target
