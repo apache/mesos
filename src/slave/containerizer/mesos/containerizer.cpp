@@ -1779,11 +1779,13 @@ Future<bool> MesosContainerizerProcess::isolate(
     return Failure("Container destroyed during preparing");
   }
 
-  if (containers_.at(containerId)->state == DESTROYING) {
+  const Owned<Container>& container = containers_.at(containerId);
+
+  if (container->state == DESTROYING) {
     return Failure("Container is being destroyed during preparing");
   }
 
-  CHECK_EQ(containers_.at(containerId)->state, PREPARING);
+  CHECK_EQ(container->state, PREPARING);
 
   transition(containerId, ISOLATING);
 
@@ -1817,7 +1819,7 @@ Future<bool> MesosContainerizerProcess::isolate(
   // Wait for all isolators to complete.
   Future<list<Nothing>> future = collect(futures);
 
-  containers_.at(containerId)->isolation = future;
+  container->isolation = future;
 
   return future.then([]() { return true; });
 }
@@ -1833,11 +1835,13 @@ Future<bool> MesosContainerizerProcess::exec(
     return Failure("Container destroyed during fetching");
   }
 
-  if (containers_.at(containerId)->state == DESTROYING) {
+  const Owned<Container>& container = containers_.at(containerId);
+
+  if (container->state == DESTROYING) {
     return Failure("Container is being destroyed during fetching");
   }
 
-  CHECK_EQ(containers_.at(containerId)->state, FETCHING);
+  CHECK_EQ(container->state, FETCHING);
 
   // Now that we've contained the child we can signal it to continue
   // by writing to the pipe.
