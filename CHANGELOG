@@ -17,6 +17,7 @@ All Issues:
   * [MESOS-7770] - Persistent volume might not be mounted if there is a sandbox volume whose source is the same as the target of the persistent volume.
   * [MESOS-7777] - Agent failed to recover due to mount namespace leakage in Docker 1.12/1.13.
   * [MESOS-7796] - LIBPROCESS_IP isn't passed on to the fetcher.
+  * [MESOS-7830] - Sandbox_path volume does not have ownership set correctly.
 
 
 Release Notes - Mesos - Version 1.3.0
