@@ -166,11 +166,35 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
         sandboxes[containerId.parent()],
         sandboxPath.path());
 
-    Try<Nothing> mkdir = os::mkdir(source);
-    if (mkdir.isError()) {
-      return Failure(
-          "Failed to create the directory in the parent sandbox: " +
-          mkdir.error());
+    // NOTE: Chown should be avoided if the source directory already
+    // exists because it may be owned by some other user and should
+    // not be mutated.
+    if (!os::exists(source)) {
+      Try<Nothing> mkdir = os::mkdir(source);
+      if (mkdir.isError()) {
+        return Failure(
+            "Failed to create the directory in the parent sandbox: " +
+            mkdir.error());
+      }
+
+      // Get the parent sandbox user and group info for the source path.
+      struct stat s;
+      if (::stat(sandboxes[containerId.parent()].c_str(), &s) < 0) {
+        return Failure(ErrnoError(
+            "Failed to stat '" + sandboxes[containerId.parent()] + "'"));
+      }
+
+      LOG(INFO) << "Changing the ownership of the sandbox_path volume at '"
+                << source << "' with UID " << s.st_uid << " and GID "
+                << s.st_gid;
+
+      Try<Nothing> chown = os::chown(s.st_uid, s.st_gid, source, false);
+      if (chown.isError()) {
+        return Failure(
+            "Failed to change the ownership of the sandbox_path volume at '" +
+            source + "' with UID " + stringify(s.st_uid) + " and GID " +
+            stringify(s.st_gid) + ": " + chown.error());
+      }
     }
 
     // Prepare the target.
