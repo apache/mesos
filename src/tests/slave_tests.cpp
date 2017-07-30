@@ -133,6 +133,7 @@ using testing::Eq;
 using testing::Invoke;
 using testing::Return;
 using testing::SaveArg;
+using testing::WithParamInterface;
 
 namespace mesos {
 namespace internal {
@@ -7858,6 +7859,168 @@ TEST_F(SlaveTest, ChangeDomain)
 
     EXPECT_SOME_EQ(JSON::String(AGENT_REGION), agentRegion);
     EXPECT_SOME_EQ(JSON::String(AGENT_ZONE), agentZone);
+  }
+}
+
+
+class DefaultContainerDNSFlagTest
+  : public MesosTest,
+    public WithParamInterface<string> {};
+
+
+INSTANTIATE_TEST_CASE_P(
+    ContainerizerType,
+    DefaultContainerDNSFlagTest,
+    ::testing::Values("mesos", "docker"));
+
+
+// This test verifies the validation for the
+// agent flag `--default_container_dns`.
+TEST_P(DefaultContainerDNSFlagTest, ValidateFlag)
+{
+  const int argc = 4;
+  const char* argv[argc] = {
+    "/path/to/program",
+    "--master=127.0.0.1:5050",
+    "--work_dir=/tmp"
+  };
+
+  string containerizer = GetParam();
+
+  // Verifies the unknown network mode is not supported.
+  //
+  // TODO(qianzhang): Change the value of the `network_mode`
+  // to an non-existent enum value once MESOS-7828 is resolved.
+  string defaultContainerDNSInfo =
+    "--default_container_dns={"
+    "  \"" + containerizer + "\": [\n"
+    "    {\n"
+    "      \"network_mode\": \"UNKNOWN\",\n"
+    "      \"dns\": {\n"
+    "        \"nameservers\": [ \"8.8.8.8\" ]\n"
+    "      }\n"
+    "    }\n"
+    "  ]\n"
+    "}";
+
+  argv[3] = defaultContainerDNSInfo.c_str();
+
+  {
+    slave::Flags flags;
+    Try<flags::Warnings> load = flags.load(None(), argc, argv);
+    EXPECT_ERROR(load);
+  }
+
+  // Verifies the host network mode is not supported.
+  defaultContainerDNSInfo =
+    "--default_container_dns={"
+    "  \"" + containerizer + "\": [\n"
+    "    {\n"
+    "      \"network_mode\": \"HOST\",\n"
+    "      \"dns\": {\n"
+    "        \"nameservers\": [ \"8.8.8.8\" ]\n"
+    "      }\n"
+    "    }\n"
+    "  ]\n"
+    "}";
+
+  argv[3] = defaultContainerDNSInfo.c_str();
+
+  {
+    slave::Flags flags;
+    Try<flags::Warnings> load = flags.load(None(), argc, argv);
+    EXPECT_ERROR(load);
+  }
+
+  string network_mode = (containerizer == "mesos" ? "CNI"  : "USER");
+
+  // Verifies multiple DNS configuration without network name for
+  // user-defined CNM network or CNI network is not supported.
+  defaultContainerDNSInfo =
+    "--default_container_dns={"
+    "  \"" + containerizer + "\": [\n"
+    "    {\n"
+    "      \"network_mode\": \"" + network_mode + "\",\n"
+    "      \"dns\": {\n"
+    "        \"nameservers\": [ \"8.8.8.8\" ]\n"
+    "      }\n"
+    "    },\n"
+    "    {\n"
+    "      \"network_mode\": \"" + network_mode + "\",\n"
+    "      \"dns\": {\n"
+    "        \"nameservers\": [ \"8.8.8.8\" ]\n"
+    "      }\n"
+    "    }\n"
+    "  ]\n"
+    "}";
+
+  argv[3] = defaultContainerDNSInfo.c_str();
+
+  {
+    slave::Flags flags;
+    Try<flags::Warnings> load = flags.load(None(), argc, argv);
+    EXPECT_ERROR(load);
+  }
+
+  // Verifies multiple DNS configuration with the same network name for CNI
+  // network or user-defined CNM network or CNI network is not supported.
+  defaultContainerDNSInfo =
+    "--default_container_dns={"
+    "  \"" + containerizer + "\": [\n"
+    "    {\n"
+    "      \"network_mode\": \"" + network_mode + "\",\n"
+    "      \"network_name\": \"net1\",\n"
+    "      \"dns\": {\n"
+    "        \"nameservers\": [ \"8.8.8.8\" ]\n"
+    "      }\n"
+    "    },\n"
+    "    {\n"
+    "      \"network_mode\": \"" + network_mode + "\",\n"
+    "      \"network_name\": \"net1\",\n"
+    "      \"dns\": {\n"
+    "        \"nameservers\": [ \"8.8.8.8\" ]\n"
+    "      }\n"
+    "    }\n"
+    "  ]\n"
+    "}";
+
+  argv[3] = defaultContainerDNSInfo.c_str();
+
+  {
+    slave::Flags flags;
+    Try<flags::Warnings> load = flags.load(None(), argc, argv);
+    EXPECT_ERROR(load);
+  }
+
+  // Verifies multiple DNS configuration for Docker
+  // default bridge network is not supported.
+  if (containerizer == "docker") {
+    // Verifies the host network mode is not supported.
+    defaultContainerDNSInfo =
+      "--default_container_dns={"
+      "  \"" + containerizer + "\": [\n"
+      "    {\n"
+      "      \"network_mode\": \"BRIDGE\",\n"
+      "      \"dns\": {\n"
+      "        \"nameservers\": [ \"8.8.8.8\" ]\n"
+      "      }\n"
+      "    },\n"
+      "    {\n"
+      "      \"network_mode\": \"BRIDGE\",\n"
+      "      \"dns\": {\n"
+      "        \"nameservers\": [ \"8.8.8.8\" ]\n"
+      "      }\n"
+      "    }\n"
+      "  ]\n"
+      "}";
+
+    argv[3] = defaultContainerDNSInfo.c_str();
+
+    {
+      slave::Flags flags;
+      Try<flags::Warnings> load = flags.load(None(), argc, argv);
+      EXPECT_ERROR(load);
+    }
   }
 }
 
