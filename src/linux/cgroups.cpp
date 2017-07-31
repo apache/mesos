@@ -1925,6 +1925,351 @@ Result<string> cgroup(pid_t pid, const string& subsystem)
 } // namespace internal {
 
 
+namespace blkio {
+
+Result<string> cgroup(pid_t pid)
+{
+  return internal::cgroup(pid, "blkio");
+}
+
+
+Try<Device> Device::parse(const string& s)
+{
+  vector<string> device = strings::tokenize(s, ":");
+  if (device.size() != 2) {
+    return Error("Invalid major:minor device number: '" + s + "'");
+  }
+
+  Try<unsigned int> major = numify<unsigned int>(device[0]);
+  if (major.isError()) {
+    return Error("Invalid device major number: '" + device[0] + "'");
+  }
+
+  Try<unsigned int> minor = numify<unsigned int>(device[1]);
+  if (minor.isError()) {
+    return Error("Invalid device minor number: '" + device[1] + "'");
+  }
+
+  return Device(makedev(major.get(), minor.get()));
+}
+
+
+static bool isOperation(const string& s)
+{
+  return (s == "Total" ||
+          s == "Read" ||
+          s == "Write" ||
+          s == "Sync" ||
+          s == "Async");
+}
+
+
+static Try<Operation> parseOperation(const string& s)
+{
+  if (s == "Total") {
+    return Operation::TOTAL;
+  } else if (s == "Read") {
+    return Operation::READ;
+  } else if (s == "Write") {
+    return Operation::WRITE;
+  } else if (s == "Sync") {
+    return Operation::SYNC;
+  } else if (s == "Async") {
+    return Operation::ASYNC;
+  }
+
+  return Error("Invalid Operation value: '" + s + "'");
+}
+
+
+Try<Value> Value::parse(const string& s)
+{
+  vector<string> tokens = strings::tokenize(s, " ");
+  if (tokens.size() == 1) {
+    Try<uint64_t> value = numify<uint64_t>(tokens[0]);
+    if (value.isError()) {
+      return Error("Value is not a number: '" + tokens[0] + "'");
+    }
+
+    return Value{None(), None(), value.get()};
+  }
+
+  Option<Device> device;
+  int offset = 0;
+
+  if (tokens.size() == 3) {
+    Try<Device> dev = Device::parse(tokens[0]);
+    if (dev.isError()) {
+      return Error(dev.error());
+    }
+
+    device = dev.get();
+    offset++;
+  } else if (tokens.size() != 2) {
+    return Error("Invalid blkio value: '" + s + "'");
+  }
+
+  if (!isOperation(tokens[offset])) {
+    Try<Device> dev = Device::parse(tokens[offset]);
+    if (dev.isError()) {
+      return Error(dev.error());
+    }
+
+    Try<uint64_t> value = numify<uint64_t>(tokens[offset + 1]);
+    if (value.isError()) {
+      return Error("Value is not a number: '" + tokens[offset + 1] + "'");
+    }
+
+    return Value{dev.get(), None(), value.get()};
+  }
+
+  Try<Operation> operation = parseOperation(tokens[offset]);
+  if (operation.isError()) {
+    return Error(operation.error());
+  }
+
+  Try<uint64_t> value = numify<uint64_t>(tokens[offset + 1]);
+  if (value.isError()) {
+    return Error("Value is not a number: " + value.error());
+  }
+
+  return Value{device, operation.get(), value.get()};
+}
+
+
+static Try<vector<Value>> readEntries(
+    const string& hierarchy,
+    const string& cgroup,
+    const string& control)
+{
+  Try<string> read = cgroups::read(hierarchy, cgroup, control);
+  if (read.isError()) {
+    return Error("Failed to read from '" + control + "': " + read.error());
+  }
+
+  vector<Value> entries;
+
+  foreach (const string& s, strings::tokenize(read.get(), "\n")) {
+    Try<Value> value = Value::parse(s);
+    if (value.isError()) {
+      return Error("Failed to parse blkio value '" + s + "' from '" +
+                   control + "': " + value.error());
+    }
+
+    entries.push_back(value.get());
+  }
+
+  return entries;
+}
+
+
+namespace cfq {
+
+Try<vector<Value>> time(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.time");
+}
+
+
+Try<vector<Value>> time_recursive(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.time_recursive");
+}
+
+
+Try<vector<Value>> sectors(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.sectors");
+}
+
+
+Try<vector<Value>> sectors_recursive(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.sectors_recursive");
+}
+
+
+Try<vector<Value>> io_merged(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_merged");
+}
+
+
+Try<vector<Value>> io_merged_recursive(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_merged_recursive");
+}
+
+
+Try<vector<Value>> io_queued(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_queued");
+}
+
+
+Try<vector<Value>> io_queued_recursive(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_queued_recursive");
+}
+
+
+Try<vector<Value>> io_service_bytes(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_service_bytes");
+}
+
+
+Try<vector<Value>> io_service_bytes_recursive(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_service_bytes_recursive");
+}
+
+
+Try<vector<Value>> io_service_time(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_service_time");
+}
+
+
+Try<vector<Value>> io_service_time_recursive(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_service_time_recursive");
+}
+
+
+Try<vector<Value>> io_serviced(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_serviced");
+}
+
+
+Try<vector<Value>> io_serviced_recursive(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_serviced_recursive");
+}
+
+
+Try<vector<Value>> io_wait_time(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_wait_time");
+}
+
+
+Try<vector<Value>> io_wait_time_recursive(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.io_wait_time_recursive");
+}
+
+} // namespace cfq {
+
+
+namespace throttle {
+
+Try<vector<Value>> io_service_bytes(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.throttle.io_service_bytes");
+}
+
+
+Try<vector<Value>> io_serviced(
+    const string& hierarchy,
+    const string& cgroup)
+{
+  return readEntries(
+      hierarchy,
+      cgroup,
+      "blkio.throttle.io_serviced");
+}
+
+} // namespace throttle {
+} // namespace blkio {
+
+
 namespace cpu {
 
 Result<string> cgroup(pid_t pid)

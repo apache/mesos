@@ -401,6 +401,243 @@ Try<hashmap<std::string, uint64_t>> stat(
     const std::string& file);
 
 
+// Blkio subsystem.
+namespace blkio {
+
+// Returns the cgroup that the specified pid is a member of within the
+// hierarchy that the 'blkio' subsystem is mounted, or None if the subsystem
+// is not mounted or the pid is not a member of a cgroup.
+Result<std::string> cgroup(pid_t pid);
+
+
+// Wrapper class for dev_t.
+class Device
+{
+public:
+  constexpr Device(dev_t device) : value(device) {}
+  inline unsigned int getMajor() const { return major(value); }
+  inline unsigned int getMinor() const { return minor(value); }
+
+  inline bool operator==(const Device& that) const
+  {
+    return value == that.value;
+  }
+
+  inline bool operator!=(const Device& that) const
+  {
+    return value != that.value;
+  }
+
+  inline operator dev_t() const { return value; }
+
+public:
+  static Try<Device> parse(const std::string& s);
+
+private:
+  dev_t value;
+};
+
+
+enum class Operation {
+  TOTAL,
+  READ,
+  WRITE,
+  SYNC,
+  ASYNC,
+};
+
+
+// Entry for a blkio file. The format of each entry can either be:
+// 1. <value>
+// 2. <dev> <value>
+// 3. <dev> <op> <value>
+// 4. <op> <value>
+//
+// For details:
+// https://www.kernel.org/doc/Documentation/cgroup-v1/blkio-controller.txt
+struct Value
+{
+  Option<Device> device;
+  Option<Operation> op;
+  uint64_t value;
+
+  static Try<Value> parse(const std::string& s);
+};
+
+
+namespace cfq {
+
+Try<std::vector<Value>> time(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+Try<std::vector<Value>> time_recursive(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+Try<std::vector<Value>> sectors(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+Try<std::vector<Value>> sectors_recursive(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the total number of bios/requests merged into requests
+// belonging to the given cgroup from blkio.io_merged.
+Try<std::vector<Value>> io_merged(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the total number of bios/requests merged into requests
+// belonging to the given cgroup and all its descendants from
+// blkio.io_merged_recursive.
+Try<std::vector<Value>> io_merged_recursive(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the total number of requests queued up in the given
+// cgroup from blkio.io_queued.
+Try<std::vector<Value>> io_queued(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the total number of requests queued up in the given
+// cgroup and all its descendants from blkio.io_queued_recursive.
+Try<std::vector<Value>> io_queued_recursive(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the number of bytes transferred to/from the disk by
+// the given cgroup from blkio.io_service_bytes.
+Try<std::vector<Value>> io_service_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the number of bytes transferred to/from the disk by
+// the given cgroup and all its descendants from
+// blkio.io_service_bytes_recursive.
+Try<std::vector<Value>> io_service_bytes_recursive(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the total amount of time between request dispatch and
+// completion by the IOs done by the given cgroup from
+// blkio.io_service_time.
+Try<std::vector<Value>> io_service_time(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the total amount of time between request dispatch and
+// completion by the IOs done by the given cgroup and all its
+// descendants from blkio.io_service_time_recursive.
+Try<std::vector<Value>> io_service_time_recursive(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the number of IOs (bio) issued to the disk by the given
+// cgroup from blkio.io_serviced.
+Try<std::vector<Value>> io_serviced(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the number of IOs (bio) issued to the disk by the given
+// cgroup and all its descendants from blkio.io_serviced_recursive.
+Try<std::vector<Value>> io_serviced_recursive(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the total amount of time the IOs for the given cgroup
+// spent waiting in the schedule queues for service from
+// blkio.io_wait_time.
+Try<std::vector<Value>> io_wait_time(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the total amount of time the IOs for the given cgroup
+// and all its descendants spent waiting in the scheduler queues
+// for service from blkio.io_wait_time_recursive.
+Try<std::vector<Value>> io_wait_time_recursive(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+} // namespace cfq {
+
+
+namespace throttle {
+
+// Returns the numbers of bytes transferred to/from the disk for
+// the given cgroup from blkio.throttle.io_service_bytes.
+Try<std::vector<Value>> io_service_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the numbers of IOs (bio) issued to the disk for the
+// given cgroup from blkio.throttle.io_serviced.
+Try<std::vector<Value>> io_serviced(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+} // namespace throttle {
+
+
+inline std::ostream& operator<<(std::ostream& stream, const Device& device)
+{
+  return stream << device.getMajor() << ':' << device.getMinor();
+}
+
+
+inline std::ostream& operator<<(std::ostream& stream, const Operation op)
+{
+  switch (op) {
+    case Operation::TOTAL:
+      return stream << "Total";
+    case Operation::READ:
+      return stream << "Read";
+    case Operation::WRITE:
+      return stream << "Write";
+    case Operation::SYNC:
+      return stream << "Sync";
+    case Operation::ASYNC:
+      return stream << "Async";
+  }
+
+  UNREACHABLE();
+}
+
+
+inline std::ostream& operator<<(std::ostream& stream, const Value& value)
+{
+  if (value.device.isSome()) {
+    stream << value.device.get() << ' ';
+  }
+
+  if (value.op.isSome()) {
+    stream << value.op.get() << ' ';
+  }
+
+  return stream << value.value;
+}
+
+} // namespace blkio {
+
+
 // Cpu controls.
 namespace cpu {
 
