@@ -1584,6 +1584,9 @@ message ResourceStatistics {
   // Per disk (resource) statistics.
   repeated DiskStatistics disk_statistics = 43;
 
+  // Cgroups blkio statistics.
+  optional CgroupInfo.Blkio.Statistics blkio_statistics = 44;
+
   // Perf statistics.
   optional PerfStatistics perf = 13;
 
@@ -2901,6 +2904,71 @@ message ContainerStatus {
  * Linux control group (cgroup) information.
  */
 message CgroupInfo {
+  // Configuration of a blkio cgroup subsystem.
+  message Blkio {
+    enum Operation {
+      UNKNOWN = 0;
+      TOTAL = 1;
+      READ = 2;
+      WRITE = 3;
+      SYNC = 4;
+      ASYNC = 5;
+    }
+
+    // Describes a stat value without the device descriptor part.
+    message Value {
+      optional Operation op = 1; // Required.
+      optional uint64 value = 2; // Required.
+    }
+
+    message CFQ {
+      message Statistics {
+        // Stats are grouped by block devices. If `device` is not
+        // set, it represents `Total`.
+        optional Device.Number device = 1;
+        // blkio.sectors
+        optional uint64 sectors = 2;
+        // blkio.time
+        optional uint64 time = 3;
+        // blkio.io_serviced
+        repeated Value io_serviced = 4;
+        // blkio.io_service_bytes
+        repeated Value io_service_bytes = 5;
+        // blkio.io_service_time
+        repeated Value io_service_time = 6;
+        // blkio.io_wait_time
+        repeated Value io_wait_time = 7;
+        // blkio.io_merged
+        repeated Value io_merged = 8;
+        // blkio.io_queued
+        repeated Value io_queued = 9;
+      }
+
+      // TODO(jasonlai): Add fields for blkio weight and weight
+      // device.
+    }
+
+    message Throttling {
+      message Statistics {
+        // Stats are grouped by block devices. If `device` is not
+        // set, it represents `Total`.
+        optional Device.Number device = 1;
+        // blkio.throttle.io_serviced
+        repeated Value io_serviced = 2;
+        // blkio.throttle.io_service_bytes
+        repeated Value io_service_bytes = 3;
+      }
+
+      // TODO(jasonlai): Add fields for blkio.throttle.*_device.
+    }
+
+    message Statistics {
+      repeated CFQ.Statistics cfq = 1;
+      repeated CFQ.Statistics cfq_recursive = 2;
+      repeated Throttling.Statistics throttling = 3;
+    }
+  }
+
   // Configuration of a net_cls cgroup subsystem.
   message NetCls {
     // The 32-bit classid consists of two parts, a 16 bit major handle
