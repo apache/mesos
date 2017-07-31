@@ -49,6 +49,10 @@ public:
     return CGROUP_SUBSYSTEM_BLKIO_NAME;
   };
 
+  virtual process::Future<ResourceStatistics> usage(
+      const ContainerID& containerId,
+      const std::string& cgroup);
+
 private:
   BlkioSubsystem(const Flags& flags, const std::string& hierarchy);
 };
