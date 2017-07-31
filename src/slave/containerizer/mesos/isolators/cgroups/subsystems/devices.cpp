@@ -86,6 +86,12 @@ Try<Owned<Subsystem>> DevicesSubsystem::create(
   if (flags.allowed_devices.isSome()) {
     foreach (const DeviceAccess& device_access,
              flags.allowed_devices->allowed_devices()) {
+      if (!device_access.device().has_path()) {
+        VLOG(1) << "Skipping a whitelisted device since no device "
+                << "path is provided";
+        continue;
+      }
+
       string path = device_access.device().path();
       const DeviceAccess_Access access = device_access.access();
       bool readAccess = (access.has_read() && access.read());

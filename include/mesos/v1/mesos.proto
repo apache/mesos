@@ -3067,7 +3067,13 @@ message FileInfo {
  * Describes information abount a device.
  */
 message Device {
-  required string path = 1;
+  message Number {
+    required uint64 major = 1;
+    required uint64 minor = 2;
+  }
+
+  optional string path = 1;
+  optional Number number = 2;
 }
 
 
