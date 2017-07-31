@@ -849,6 +849,7 @@ All Issues:
   * [MESOS-7690] - The agent can crash when an unknown executor tries to register.
   * [MESOS-7581] - Fix interference of external Boost installations when using some unbundled dependencies.
   * [MESOS-7703] - Mesos fails to exec a custom executor when no shell is used.
+  * [MESOS-7728] - Java HTTP adapter crashes JVM when leading master disconnects.
   * [MESOS-7770] - Persistent volume might not be mounted if there is a sandbox volume whose source is the same as the target of the persistent volume.
   * [MESOS-7777] - Agent failed to recover due to mount namespace leakage in Docker 1.12/1.13.
   * [MESOS-7796] - LIBPROCESS_IP isn't passed on to the fetcher.
