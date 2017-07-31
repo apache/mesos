@@ -891,8 +891,8 @@ struct Entry
     };
 
     Type type;
-    Option<dev_t> major; // Matches all `major` numbers if None.
-    Option<dev_t> minor; // Matches all `minor` numbers if None.
+    Option<unsigned int> major; // Matches all `major` numbers if None.
+    Option<unsigned int> minor; // Matches all `minor` numbers if None.
   };
 
   struct Access

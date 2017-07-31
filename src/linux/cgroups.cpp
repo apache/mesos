@@ -2914,8 +2914,7 @@ Try<Entry> Entry::parse(const string& s)
   entry.selector.minor = None();
 
   if (deviceNumbers[0] != "*") {
-    Try<dev_t> major = numify<dev_t>(deviceNumbers[0]);
-
+    Try<unsigned int> major = numify<unsigned int>(deviceNumbers[0]);
     if (major.isError()) {
       return Error("Invalid format");
     }
@@ -2924,8 +2923,7 @@ Try<Entry> Entry::parse(const string& s)
   }
 
   if (deviceNumbers[1] != "*") {
-    Try<dev_t> minor = numify<dev_t>(deviceNumbers[1]);
-
+    Try<unsigned int> minor = numify<unsigned int>(deviceNumbers[1]);
     if (minor.isError()) {
       return Error("Invalid format");
     }
