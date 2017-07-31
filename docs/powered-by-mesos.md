@@ -111,6 +111,7 @@ layout: documentation
 * [Udacity](https://udacity.com)
 * [Uninett AS](http://www.uninett.no)
 * [URX](http://www.urx.com)
+* [Verizon Labs](https://www.verizon.com/about/our-company/what-we-do)
 * [Viadeo](http://www.viadeo.com)
 * [Virdata](http://www.virdata.com)
 * [Weibo](http://weibo.com/)
