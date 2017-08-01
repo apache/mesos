@@ -3036,22 +3036,17 @@ void ProcessManager::handle(
         // capture happens-before timing relationships for testing.
         bool accepted = deliver(event->message.to, event);
 
-        // Only send back an HTTP response if this isn't from libprocess
-        // (which we determine by looking at the User-Agent). This is
-        // necessary because older versions of libprocess would try and
-        // recv the data and parse it as an HTTP request which would
-        // fail thus causing the socket to get closed (but now
-        // libprocess will ignore responses, see ignore_data).
-        Option<string> agent = request->headers.get("User-Agent");
-        if (agent.getOrElse("").find("libprocess/") == string::npos) {
-          if (accepted) {
-            VLOG(2) << "Accepted libprocess message to " << request->url.path;
-            dispatch(proxy, &HttpProxy::enqueue, Accepted(), *request);
-          } else {
-            VLOG(1) << "Failed to handle libprocess message to "
-                    << request->url.path << ": not found";
-            dispatch(proxy, &HttpProxy::enqueue, NotFound(), *request);
-          }
+        // NOTE: prior to commit d5fe51c on April 11, 2014 we needed
+        // to ignore sending responses in the event the receiver was a
+        // version of libprocess that didn't properly ignore
+        // responses. Now we always send a response.
+        if (accepted) {
+          VLOG(2) << "Delivered libprocess message to " << request->url.path;
+          dispatch(proxy, &HttpProxy::enqueue, Accepted(), *request);
+        } else {
+          VLOG(1) << "Failed to deliver libprocess message to "
+                  << request->url.path;
+          dispatch(proxy, &HttpProxy::enqueue, NotFound(), *request);
         }
 
         delete request;
