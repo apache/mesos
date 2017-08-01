@@ -105,7 +105,7 @@ public:
         "task",
         "The value could be a JSON-formatted string of `TaskInfo` or a\n"
         "file path containing the JSON-formatted `TaskInfo`. Path must\n"
-        "be of the form `file:///path/to/file` or `/path/to/file`."
+        "be of the form `file:///path/to/file` or `/path/to/file`.\n"
         "\n"
         "See the `TaskInfo` message in `mesos.proto` for the expected\n"
         "format. NOTE: `agent_id` need not to be set.\n"
@@ -142,7 +142,7 @@ public:
         "task_group",
         "The value could be a JSON-formatted string of `TaskGroupInfo` or a\n"
         "file path containing the JSON-formatted `TaskGroupInfo`. Path must\n"
-        "be of the form `file:///path/to/file` or `/path/to/file`."
+        "be of the form `file:///path/to/file` or `/path/to/file`.\n"
         "\n"
         "See the `TaskGroupInfo` message in `mesos.proto` for the expected\n"
         "format. NOTE: `agent_id` need not to be set.\n"
@@ -257,6 +257,7 @@ public:
         "effective_capabilities",
         "JSON representation of effective system capabilities that should be\n"
         "granted to the command.\n"
+        "\n"
         "Example:\n"
         "{\n"
         "   \"capabilities\": [\n"
@@ -269,6 +270,7 @@ public:
         "bounding_capabilities",
         "JSON representation of system capabilities bounding set that should\n"
         "be applied to the command.\n"
+        "\n"
         "Example:\n"
         "{\n"
         "   \"capabilities\": [\n"
