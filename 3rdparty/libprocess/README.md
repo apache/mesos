@@ -1,6 +1,6 @@
 # Libprocess Developer Guide
 
-*Note* This Developer Guide is Work in Progress.
+*Note:* this Developer Guide is Work in Progress.
 
 The library _libprocess_ provides high level elements for an
 actor programming style with asynchronous message-handling and a
@@ -28,12 +28,13 @@ At a higher level, functional composition of processes is facilitated using [fut
 * [Processes and the Asynchronous Pimpl Pattern](#processes)
 * [Futures and Promises](#futures-and-promises)
 * [HTTP](#http)
-* [Testing](#testing)
+* [Clock Management and Timeouts](#clock)
 * [Miscellaneous Primitives](#miscellaneous-primitives)
+* [Optimized Run Queue and Event Queue](#optimized-run-queue-event-queue)
 
 ---
 
-## Processes and the Asynchronous Pimpl Pattern
+## <a name="processes"></a> Processes and the Asynchronous Pimpl Pattern
 
 A `process` is an actor, effectively a cross between a thread and an object.
 
@@ -360,7 +361,7 @@ int main(int argc, char** argv)
 
 ---
 
-## Futures and Promises
+## <a name="futures-and-promises"></a> Futures and Promises
 
 The `Future` and `Promise` primitives are used to enable
 programmers to write asynchronous, non-blocking, and highly
@@ -541,7 +542,7 @@ int main(int argc, char** argv)
 
 -->
 
-## `HTTP`
+## <a name="http"></a> HTTP
 
 libprocess provides facilities for communicating between actors via HTTP
 messages. With the advent of the HTTP API, HTTP is becoming the preferred mode
@@ -644,7 +645,7 @@ Future<Response> response = connection.send(request);
 It's also worth noting that if multiple requests are sent in succession on a
 `Connection`, they will be automatically pipelined.
 
-## Clock Management and Timeouts
+## <a name="clock"></a> Clock Management and Timeouts
 
 Asynchronous programs often use timeouts, e.g., because a process that initiates
 an asynchronous operation wants to take action if the operation hasn't completed
@@ -728,8 +729,50 @@ int main()
 ~~~
 
 
-## Miscellaneous Primitives
+## <a name="miscellaneous-primitives"></a> Miscellaneous Primitives
 
 ### `async`
 
-Async defines a function template for asynchronously executing function closures. It provides their results as [futures](#futures-and-promises).
+Async defines a function template for asynchronously executing
+function closures. It provides their results as
+[futures](#futures-and-promises).
+
+## <a name="optimized-run-queue-event-queue"></a> Optimized Run Queue and Event Queue
+
+There are a handful of compile-time optimizations that can be
+configured to improve the run queue and event queue performance. These
+are currently not enabled by default as they are considered
+***alpha***. These optimizations include:
+
+* `--enable-lock-free-run-queue` (autotools) or
+  `-DENABLE_LOCK_FREE_RUN_QUEUE` (cmake) which enables the lock-free
+  run queue implementation.
+
+* `--enable-lock-free-event-queue` (autotools) or
+  `-DENABLE_LOCK_FREE_EVENT_QUEUE` (cmake) which enables the lock-free
+  event queue implementation.
+
+* `--enable-last-in-first-out-fixed-size-semaphore` (autotools) or
+  `-DENABLE_LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE` (cmake) which
+  enables an optimized semaphore implementation.
+
+#### Details
+
+Both the lock-free run queue implementation and the lock-free event
+queue implementation use `moodycamel::ConcurrentQueue` which can be
+found [here](https://github.com/cameron314/concurrentqueue).
+
+For the run queue we use a semaphore to block threads when there are
+not any processes to run. On Linux we found that using a semaphore
+from glibc (i.e., `sem_create`, `sem_wait`, `sem_post`, etc) had some
+performance issues. We discuss those performance issues and how our
+optimized semaphore overcomes them in more detail in
+[semaphore.hpp](https://github.com/apache/mesos/blob/master/3rdparty/libprocess/src/semaphore.hpp#L191).
+
+#### Benchmark
+
+The benchmark that we've used to drive the run queue and event queue
+performance improvements can be found in
+[benchmarks.cpp](https://github.com/apache/mesos/blob/master/3rdparty/libprocess/src/tests/benchmarks.cpp#L426). You
+can run the benchmark yourself by invoking `./benchmarks
+--gtest_filter=ProcessTest.*ThroughputPerformance`.
