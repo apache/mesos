@@ -698,7 +698,7 @@ Future<Nothing> CgroupsIsolatorProcess::_update(
   if (errors.size() > 0) {
     return Failure(
         "Failed to update subsystems: " +
-        strings::join(";", errors));
+        strings::join("; ", errors));
   }
 
   return Nothing();
