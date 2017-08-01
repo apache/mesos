@@ -83,6 +83,8 @@ using process::http::Request;
 class RegistrarProcess : public Process<RegistrarProcess>
 {
 public:
+  using State = mesos::state::State; // `ProcessBase::State` conflicts here.
+
   RegistrarProcess(
       const Flags& _flags,
       State* _state,
