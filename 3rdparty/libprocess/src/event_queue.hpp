@@ -324,7 +324,18 @@ private:
 
       // If we can bulk dequeue more items then keep looking for the
       // out of order event!
-    } while (queue.try_dequeue_bulk(std::back_inserter(items), SIZE_MAX) != 0);
+      //
+      // NOTE: we use the _small_ value of `4` to dequeue here since
+      // in the presence of enough events being enqueued we could end
+      // up spending a LONG time dequeuing here! Since the next event
+      // in the sequence should really be close to the top of the
+      // queue we use a small value to dequeue.
+      //
+      // The intuition here is this: the faster we can return the next
+      // event the faster that event can get processed and the faster
+      // it might generate other events that can get processed in
+      // parallel by other threads and the more work we get done.
+    } while (queue.try_dequeue_bulk(std::back_inserter(items), 4) != 0);
 
     return nullptr;
   }
