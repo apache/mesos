@@ -484,10 +484,13 @@ struct SlavesWriter
                        const Resources& resources,
                        reserved) {
             if (authorizeRole_->accept(role)) {
-              writer->field(role, [&resources](JSON::ArrayWriter* writer) {
+              writer->field(role, [&resources, this](
+                  JSON::ArrayWriter* writer) {
                 foreach (Resource resource, resources) {
-                  convertResourceFormat(&resource, ENDPOINT);
-                  writer->element(JSON::Protobuf(resource));
+                  if (authorizeResource(resource, authorizeRole_)) {
+                    convertResourceFormat(&resource, ENDPOINT);
+                    writer->element(JSON::Protobuf(resource));
+                  }
                 }
               });
             }
@@ -498,10 +501,12 @@ struct SlavesWriter
 
     writer->field(
         "unreserved_resources_full",
-        [&unreservedResources](JSON::ArrayWriter* writer) {
+        [&unreservedResources, this](JSON::ArrayWriter* writer) {
           foreach (Resource resource, unreservedResources) {
-            convertResourceFormat(&resource, ENDPOINT);
-            writer->element(JSON::Protobuf(resource));
+            if (authorizeResource(resource, authorizeRole_)) {
+              convertResourceFormat(&resource, ENDPOINT);
+              writer->element(JSON::Protobuf(resource));
+            }
           }
         });
 
@@ -511,8 +516,7 @@ struct SlavesWriter
         "used_resources_full",
         [&usedResources, this](JSON::ArrayWriter* writer) {
           foreach (Resource resource, usedResources) {
-            if (authorizeRole_->accept(resource.role()) &&
-                authorizeRole_->accept(resource.allocation_info().role())) {
+            if (authorizeResource(resource, authorizeRole_)) {
               convertResourceFormat(&resource, ENDPOINT);
               writer->element(JSON::Protobuf(resource));
             }
@@ -525,7 +529,7 @@ struct SlavesWriter
         "offered_resources_full",
         [&offeredResources, this](JSON::ArrayWriter* writer) {
           foreach (Resource resource, offeredResources) {
-            if (authorizeRole_->accept(resource.role())) {
+            if (authorizeResource(resource, authorizeRole_)) {
               convertResourceFormat(&resource, ENDPOINT);
               writer->element(JSON::Protobuf(resource));
             }
