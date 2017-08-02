@@ -4801,13 +4801,13 @@ void Master::_accept(
             // since the master rejects attempts to create refined
             // reservations on non-capable agents.
             if (!slave->capabilities.reservationRefinement) {
-              CHECK_SOME(downgradeResources(
-                  message.mutable_task()->mutable_resources()));
+              TaskInfo& task = *message.mutable_task();
 
-              if (message.mutable_task()->has_executor()) {
-                CHECK_SOME(downgradeResources(message.mutable_task()
-                                                ->mutable_executor()
-                                                ->mutable_resources()));
+              CHECK_SOME(downgradeResources(task.mutable_resources()));
+
+              if (task.has_executor()) {
+                CHECK_SOME(downgradeResources(
+                    task.mutable_executor()->mutable_resources()));
               }
             }
 
