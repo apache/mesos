@@ -2530,8 +2530,9 @@ message Volume {
       // in a backwards-compatible way. See: MESOS-4997.
       UNKNOWN = 0;
 
-      // TODO(gyliu513): Add HOST_PATH and IMAGE as volume source type.
+      // TODO(gyliu513): Add IMAGE as volume source type.
       DOCKER_VOLUME = 1;
+      HOST_PATH = 4;
       SANDBOX_PATH = 2;
       SECRET = 3;
     }
@@ -2545,6 +2546,11 @@ message Volume {
 
       // Volume driver specific options.
       optional Parameters driver_options = 3;
+    }
+
+    // Absolute path pointing to a directory or file on the host.
+    message HostPath {
+      required string path = 1;
     }
 
     // Describe a path from a container's sandbox. The container can
@@ -2575,6 +2581,7 @@ message Volume {
     // The source of the volume created by docker volume driver.
     optional DockerVolume docker_volume = 2;
 
+    optional HostPath host_path = 5;
     optional SandboxPath sandbox_path = 3;
 
     // The volume/secret isolator uses the secret-fetcher module (third-party or
