@@ -280,7 +280,7 @@ struct PID : UPID
 {
   // Need to declare PID<U> as a friend in order to write `reference`.
   template <typename U>
-  friend class PID;
+  friend struct PID;
 
   PID() : UPID() {}
 
