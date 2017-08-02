@@ -1540,7 +1540,32 @@ master until this timeout has elapsed (see MESOS-7539). (default: 2secs)
 </tr>
 <tr>
   <td>
-    --max_completed_executors_per_framework
+    --executor_reregistration_retry_interval=VALUE
+  </td>
+  <td>
+For PID-based executors, how long the agent waits before retrying
+the reconnect message sent to the executor during recovery.
+NOTE: Do not use this unless you understand the following
+(see MESOS-5332): PID-based executors using Mesos libraries &gt;= 1.1.2
+always re-link with the agent upon receiving the reconnect message.
+This avoids the executor replying on a half-open TCP connection to
+the old agent (possible if netfilter is dropping packets,
+see: MESOS-7057). However, PID-based executors using Mesos
+libraries &lt; 1.1.2 do not re-link and are therefore prone to
+replying on a half-open connection after the agent restarts. If we
+only send a single reconnect message, these "old" executors will
+reply on their half-open connection and receive a RST; without any
+retries, they will fail to reconnect and be killed by the agent once
+the executor re-registration timeout elapses. To ensure these "old"
+executors can reconnect in the presence of netfilter dropping
+packets, we introduced optional retries of the reconnect message.
+This results in "old" executors correctly establishing a link
+when processing the second reconnect message. (default: no retries)
+  </td>
+</tr>
+<tr>
+  <td>
+    --max_completed_executors_per_framework=VALUE
   </td>
   <td>
 Maximum number of completed executors per framework to store
