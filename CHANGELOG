@@ -333,7 +333,7 @@ All Resolved Issues:
   * [MESOS-7439] - Bump the default timeout value for docker volume driver unmount operation.
 
 
-Release Notes - Mesos - Version 1.2.2 (WIP)
+Release Notes - Mesos - Version 1.2.2
 -------------------------------------------
 * This is a bug fix release.
 
@@ -341,18 +341,20 @@ All Issues:
 ** Bug
   * [MESOS-5187] - The filesystem/linux isolator does not set the permissions of the host_path.
   * [MESOS-7252] - Need to fix resource check in long-lived framework.
-  * [MESOS-7540] - Add an agent flag for executor re-registration timeout.
   * [MESOS-7546] - WAIT_NESTED_CONTAINER sometimes returns 404.
   * [MESOS-7569] - Allow "old" executors with half-open connections to be preserved during agent upgrade / restart.
   * [MESOS-7581] - Fix interference of external Boost installations when using some unbundled dependencies.
   * [MESOS-7689] - Libprocess can crash on malformed request paths for libprocess messages.
   * [MESOS-7690] - The agent can crash when an unknown executor tries to register.
   * [MESOS-7703] - Mesos fails to exec a custom executor when no shell is used.
+  * [MESOS-7728] - Java HTTP adapter crashes JVM when leading master disconnects.
   * [MESOS-7770] - Persistent volume might not be mounted if there is a sandbox volume whose source is the same as the target of the persistent volume.
   * [MESOS-7777] - Agent failed to recover due to mount namespace leakage in Docker 1.12/1.13.
   * [MESOS-7796] - LIBPROCESS_IP isn't passed on to the fetcher.
   * [MESOS-7830] - Sandbox_path volume does not have ownership set correctly.
 
+** Improvement
+  * [MESOS-7540] - Add an agent flag for executor re-registration timeout.
 
 Release Notes - Mesos - Version 1.2.1
 -------------------------------------------
