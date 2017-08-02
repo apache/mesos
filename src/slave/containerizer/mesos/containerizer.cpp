@@ -227,6 +227,22 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     flags_.isolation += ",environment_secret";
   }
 
+#ifdef __linux__
+  if (flags_.image_providers.isSome()) {
+    // The 'filesystem/linux' isolator and 'linux' launcher are required
+    // for the mesos containerizer to support container images.
+    if (!strings::contains(flags_.isolation, "filesystem/linux")) {
+      return Error("The 'filesystem/linux' isolator must be enabled for"
+                   " container image support.");
+    }
+
+    if (flags_.launcher != "linux") {
+      return Error("The 'linux' launcher must be used for container"
+                   " image support.");
+    }
+  }
+#endif // __linux__
+
   LOG(INFO) << "Using isolation: " << flags_.isolation;
 
   // Create the launcher for the MesosContainerizer.
