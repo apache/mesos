@@ -5008,6 +5008,11 @@ void Master::_accept(
           foreach (
               TaskInfo& task, *message.mutable_task_group()->mutable_tasks()) {
             CHECK_SOME(downgradeResources(task.mutable_resources()));
+
+            if (task.has_executor()) {
+              CHECK_SOME(downgradeResources(
+                  task.mutable_executor()->mutable_resources()));
+            }
           }
         }
 
