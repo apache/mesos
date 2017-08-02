@@ -2430,6 +2430,192 @@ TASK_UPDATED Event (JSON)
 }
 ```
 
+### FRAMEWORK_ADDED
+
+Sent whenever a framework becomes known to the master. This can happen when a new framework registers with the master.
+
+```
+FRAMEWORK_ADDED Event (JSON)
+
+<event-length>
+{
+  "type": "FRAMEWORK_ADDED",
+
+  "framework_added": {
+    "framework": {
+      "active": true,
+      "allocated_resources": [],
+      "connected": true,
+      "framework_info": {
+        "capabilities": [
+          {
+            "type": "RESERVATION_REFINEMENT"
+          }
+        ],
+        "checkpoint": true,
+        "failover_timeout": 0,
+        "id": {
+          "value": "a9ba2984-99c4-4183-8cd1-f7313426e21c-0147"
+        },
+        "name": "inverse-offer-example-framework",
+        "role": "*",
+        "user": "root"
+      },
+      "inverse_offers": [],
+      "recovered": false,
+      "registered_time": {
+        "nanoseconds": 1501191957829317120
+      },
+      "reregistered_time": {
+        "nanoseconds": 1501191957829317120
+      }
+    }
+  }
+}
+```
+
+### FRAMEWORK_UPDATED
+
+Sent whenever a framework re-registers with the master upon a disconnection (network error) or upon a master failover.
+
+```
+FRAMEWORK_UPDATED Event (JSON)
+
+<event-length>
+{
+  "type": "FRAMEWORK_UPDATED",
+
+  "framework_updated": {
+    "framework": {
+      "active": true,
+      "allocated_resources": [],
+      "connected": true,
+      "framework_info": {
+        "capabilities": [
+          {
+            "type": "RESERVATION_REFINEMENT"
+          }
+        ],
+        "checkpoint": true,
+        "failover_timeout": 0,
+        "id": {
+          "value": "a9ba2984-99c4-4183-8cd1-f7313426e21c-0147"
+        },
+        "name": "inverse-offer-example-framework",
+        "role": "*",
+        "user": "root"
+      },
+      "inverse_offers": [],
+      "recovered": false,
+      "registered_time": {
+        "nanoseconds": 1501191957829317120
+      },
+      "reregistered_time": {
+        "nanoseconds": 1501191957829317120
+      }
+    }
+  }
+}
+```
+
+### FRAMEWORK_REMOVED
+
+Sent whenever a framework is removed. This can happen when a framework is explicitly teardown by the operator or if it fails to re-register with the master within the failover timeout.
+
+```
+FRAMEWORK_REMOVED Event (JSON)
+
+<event-length>
+{
+  "type": "FRAMEWORK_REMOVED",
+
+  "framework_removed": {
+    "framework_info": {
+      "capabilities": [
+        {
+          "type": "RESERVATION_REFINEMENT"
+        }
+      ],
+      "checkpoint": true,
+      "failover_timeout": 0,
+      "id": {
+        "value": "a9ba2984-99c4-4183-8cd1-f7313426e21c-0147"
+      },
+      "name": "inverse-offer-example-framework",
+      "role": "*",
+      "user": "root"
+    }
+  }
+}
+```
+
+### AGENT_ADDED
+
+Sent whenever an agent becomes known to it. This can happen when an agent registered for the first time, or reregistered after a master failover.
+
+```
+AGENT_ADDED Event (JSON)
+
+<event-length>
+{
+  "type": "AGENT_ADDED",
+
+  "agent_added": {
+    "agent": {
+      "active": true,
+      "agent_info": {
+        "hostname": "172.31.2.24",
+        "id": {
+          "value": "c3946a13-75b4-4d3c-9d0e-fc10038dca85-S3"
+        },
+        "port": 5051,
+        "resources": [],
+      },
+      "allocated_resources": [],
+      "capabilities": [
+        {
+          "type": "MULTI_ROLE"
+        },
+        {
+          "type": "HIERARCHICAL_ROLE"
+        },
+        {
+          "type": "RESERVATION_REFINEMENT"
+        }
+      ],
+      "offered_resources": [],
+      "pid": "slave(1)@172.31.2.24:5051",
+      "registered_time": {
+        "nanoseconds": 1500993262264135000
+      },
+      "reregistered_time": {
+        "nanoseconds": 1500993263019321000
+      },
+      "total_resources": [],
+      "version": "1.4.0"
+    }
+  }
+}
+```
+
+### AGENT_REMOVED
+
+Sent whenever a agent is removed. This can happen when the agent is scheduled for maintenance. (NOTE: It's possible that an agent might become active once it has been removed, i.e. if the master has gc'ed its list of known "dead" agents. See MESOS-5965 for context).
+
+```
+AGENT_REMOVED Event (JSON)
+
+<event-length>
+{
+  "type": "AGENT_REMOVED",
+
+  "agent_removed": {
+    "agent_id": {
+      "value": "c3946a13-75b4-4d3c-9d0e-fc10038dca85-S3"
+    }
+  }
+}
+```
 
 ## Agent API
 
