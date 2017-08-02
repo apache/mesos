@@ -5,6 +5,19 @@ This release contains the following new features:
   * [MESOS-6223] - Agents are now allowed to recover the agent ID
     after a host reboot. See docs/upgrades.md for details.
 
+  * [MESOS-6375] - **Experimental** Support for hierarchical resource
+    allocation roles. Hierarchical roles allows delegation of resource
+    allocation policies (i.e. fair sharing and quota) further down the
+    hierarchy. For example, the "engineering" organization gets a 75%
+    share of the resources, but it's up to the operators within the
+    "engineering" organization to figure out how to fairly share between
+    the "engineering/backend" team and the "engineering/frontend" team.
+    The same delegation applies for quota. NOTE: There are known issues
+    related to hierarchical roles (e.g. hierarchical quota allocation
+    is not implemented and quota will be over-allocated if used with
+    hierarchical roles, see: MESOS-7402) and thus it is not recommended
+    for production usage at this time.
+
   * [MESOS-7477] - Linux ambient capabilites are now supported, so
     frameworks can run tasks that use ambient capabilites to grant
     limited additional privileged to tasks.
