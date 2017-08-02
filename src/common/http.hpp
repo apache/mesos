@@ -270,6 +270,14 @@ bool approveViewRole(
     const process::Owned<ObjectApprover>& rolesApprover,
     const std::string& role);
 
+// Authorizes resources in either the pre- or the post-reservation-refinement
+// formats.
+// TODO(arojas): Update this helper to only accept the
+// post-reservation-refinement format once MESOS-7851 is resolved.
+bool authorizeResource(
+    const Resource& resource,
+    const Option<process::Owned<AuthorizationAcceptor>>& acceptor);
+
 
 /**
  * Helper function to create HTTP authenticators

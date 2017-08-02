@@ -1452,7 +1452,8 @@ private:
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
-    mesos::master::Response::GetAgents _getAgents() const;
+    mesos::master::Response::GetAgents _getAgents(
+        const process::Owned<AuthorizationAcceptor>& rolesAcceptor) const;
 
     process::Future<process::http::Response> getFlags(
         const mesos::master::Call& call,
@@ -1578,7 +1579,8 @@ private:
     mesos::master::Response::GetState _getState(
         const process::Owned<ObjectApprover>& frameworksApprover,
         const process::Owned<ObjectApprover>& taskApprover,
-        const process::Owned<ObjectApprover>& executorsApprover) const;
+        const process::Owned<ObjectApprover>& executorsApprover,
+        const process::Owned<AuthorizationAcceptor>& rolesAcceptor) const;
 
     process::Future<process::http::Response> subscribe(
         const mesos::master::Call& call,

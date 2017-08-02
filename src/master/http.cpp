@@ -806,38 +806,52 @@ Future<Response> Master::Http::subscribe(
     executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
   }
 
-  return collect(frameworksApprover, tasksApprover, executorsApprover)
+  Future<Owned<AuthorizationAcceptor>> rolesAcceptor =
+    AuthorizationAcceptor::create(
+        principal,
+        master->authorizer,
+        authorization::VIEW_ROLE);
+
+  return collect(
+      frameworksApprover, tasksApprover, executorsApprover, rolesAcceptor)
     .then(defer(master->self(),
-      [=](const tuple<Owned<ObjectApprover>,
-                      Owned<ObjectApprover>,
-                      Owned<ObjectApprover>>& approvers)
-        -> Future<Response> {
-      // Get approver from tuple.
-      Owned<ObjectApprover> frameworksApprover;
-      Owned<ObjectApprover> tasksApprover;
-      Owned<ObjectApprover> executorsApprover;
-      tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
+        [=](const tuple<Owned<ObjectApprover>,
+                        Owned<ObjectApprover>,
+                        Owned<ObjectApprover>,
+                        Owned<AuthorizationAcceptor>>& approvers)
+            -> Future<Response> {
+          // Get approver from tuple.
+          Owned<ObjectApprover> frameworksApprover;
+          Owned<ObjectApprover> tasksApprover;
+          Owned<ObjectApprover> executorsApprover;
+          Owned<AuthorizationAcceptor> rolesAcceptor;
+          tie(frameworksApprover,
+              tasksApprover,
+              executorsApprover,
+              rolesAcceptor) = approvers;
 
-      Pipe pipe;
-      OK ok;
+          Pipe pipe;
+          OK ok;
 
-      ok.headers["Content-Type"] = stringify(contentType);
-      ok.type = Response::PIPE;
-      ok.reader = pipe.reader();
+          ok.headers["Content-Type"] = stringify(contentType);
+          ok.type = Response::PIPE;
+          ok.reader = pipe.reader();
 
-      HttpConnection http {pipe.writer(), contentType, UUID::random()};
-      master->subscribe(http);
+          HttpConnection http{pipe.writer(), contentType, UUID::random()};
+          master->subscribe(http);
 
-      mesos::master::Event event;
-      event.set_type(mesos::master::Event::SUBSCRIBED);
-      event.mutable_subscribed()->mutable_get_state()->CopyFrom(
-          _getState(frameworksApprover,
-                    tasksApprover,
-                    executorsApprover));
+          mesos::master::Event event;
+          event.set_type(mesos::master::Event::SUBSCRIBED);
+          event.mutable_subscribed()->mutable_get_state()->CopyFrom(
+              _getState(
+                  frameworksApprover,
+                  tasksApprover,
+                  executorsApprover,
+                  rolesAcceptor));
 
-      http.send<mesos::master::Event, v1::master::Event>(event);
+          http.send<mesos::master::Event, v1::master::Event>(event);
 
-      return ok;
+          return ok;
     }));
 }
 
@@ -1837,27 +1851,41 @@ Future<Response> Master::Http::getState(
     executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
   }
 
-  return collect(frameworksApprover, tasksApprover, executorsApprover)
+  Future<Owned<AuthorizationAcceptor>> rolesAcceptor =
+    AuthorizationAcceptor::create(
+        principal,
+        master->authorizer,
+        authorization::VIEW_ROLE);
+
+  return collect(
+      frameworksApprover, tasksApprover, executorsApprover, rolesAcceptor)
     .then(defer(master->self(),
-      [=](const tuple<Owned<ObjectApprover>,
-                      Owned<ObjectApprover>,
-                      Owned<ObjectApprover>>& approvers)
-        -> Future<Response> {
-      // Get approver from tuple.
-      Owned<ObjectApprover> frameworksApprover;
-      Owned<ObjectApprover> tasksApprover;
-      Owned<ObjectApprover> executorsApprover;
-      tie(frameworksApprover, tasksApprover, executorsApprover) = approvers;
+        [=](const tuple<Owned<ObjectApprover>,
+                        Owned<ObjectApprover>,
+                        Owned<ObjectApprover>,
+                        Owned<AuthorizationAcceptor>>& approvers)
+            -> Future<Response> {
+          // Get approver from tuple.
+          Owned<ObjectApprover> frameworksApprover;
+          Owned<ObjectApprover> tasksApprover;
+          Owned<ObjectApprover> executorsApprover;
+          Owned<AuthorizationAcceptor> rolesAcceptor;
+          tie(frameworksApprover,
+              tasksApprover,
+              executorsApprover,
+              rolesAcceptor) = approvers;
 
-      mesos::master::Response response;
-      response.set_type(mesos::master::Response::GET_STATE);
-      response.mutable_get_state()->CopyFrom(
-          _getState(frameworksApprover,
-                    tasksApprover,
-                    executorsApprover));
+          mesos::master::Response response;
+          response.set_type(mesos::master::Response::GET_STATE);
+          response.mutable_get_state()->CopyFrom(
+              _getState(
+                  frameworksApprover,
+                  tasksApprover,
+                  executorsApprover,
+                  rolesAcceptor));
 
-      return OK(serialize(contentType, evolve(response)),
-                stringify(contentType));
+          return OK(
+              serialize(contentType, evolve(response)), stringify(contentType));
     }));
 }
 
@@ -1865,7 +1893,8 @@ Future<Response> Master::Http::getState(
 mesos::master::Response::GetState Master::Http::_getState(
     const Owned<ObjectApprover>& frameworksApprover,
     const Owned<ObjectApprover>& tasksApprover,
-    const Owned<ObjectApprover>& executorsApprover) const
+    const Owned<ObjectApprover>& executorsApprover,
+    const Owned<AuthorizationAcceptor>& rolesAcceptor) const
 {
   // NOTE: This function must be blocking instead of returning a
   // `Future`. This is because `subscribe()` needs to atomically
@@ -1883,7 +1912,7 @@ mesos::master::Response::GetState Master::Http::_getState(
   getState.mutable_get_frameworks()->CopyFrom(
       _getFrameworks(frameworksApprover));
 
-  getState.mutable_get_agents()->CopyFrom(_getAgents());
+  getState.mutable_get_agents()->CopyFrom(_getAgents(rolesAcceptor));
 
   return getState;
 }
@@ -2498,25 +2527,42 @@ Future<process::http::Response> Master::Http::getAgents(
 {
   CHECK_EQ(mesos::master::Call::GET_AGENTS, call.type());
 
-  mesos::master::Response response;
-  response.set_type(mesos::master::Response::GET_AGENTS);
-  response.mutable_get_agents()->CopyFrom(_getAgents());
+  return AuthorizationAcceptor::create(
+      principal,
+      master->authorizer,
+      authorization::VIEW_ROLE)
+    .then(defer(master->self(),
+        [=](const Owned<AuthorizationAcceptor>& rolesAcceptor)
+            -> Future<process::http::Response> {
+          mesos::master::Response response;
+          response.set_type(mesos::master::Response::GET_AGENTS);
+          response.mutable_get_agents()->CopyFrom(_getAgents(rolesAcceptor));
 
-  return OK(serialize(contentType, evolve(response)),
-            stringify(contentType));
+          return OK(serialize(contentType, evolve(response)),
+                    stringify(contentType));
+    }));
 }
 
 
-mesos::master::Response::GetAgents Master::Http::_getAgents() const
+mesos::master::Response::GetAgents Master::Http::_getAgents(
+    const Owned<AuthorizationAcceptor>& rolesAcceptor) const
 {
   mesos::master::Response::GetAgents getAgents;
   foreachvalue (const Slave* slave, master->slaves.registered) {
     mesos::master::Response::GetAgents::Agent* agent = getAgents.add_agents();
-    agent->CopyFrom(protobuf::master::event::createAgentResponse(*slave));
+    agent->CopyFrom(
+        protobuf::master::event::createAgentResponse(*slave, rolesAcceptor));
   }
 
   foreachvalue (const SlaveInfo& slaveInfo, master->slaves.recovered) {
-    getAgents.add_recovered_agents()->CopyFrom(slaveInfo);
+    SlaveInfo* agent = getAgents.add_recovered_agents();
+    agent->CopyFrom(slaveInfo);
+    agent->clear_resources();
+    foreach (const Resource& resource, slaveInfo.resources()) {
+      if (authorizeResource(resource, rolesAcceptor)) {
+        agent->add_resources()->CopyFrom(resource);
+      }
+    }
   }
 
   return getAgents;

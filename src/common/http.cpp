@@ -976,6 +976,39 @@ bool approveViewRole(
   return approved.get();
 }
 
+
+bool authorizeResource(
+    const Resource& resource,
+    const Option<Owned<AuthorizationAcceptor>>& acceptor)
+{
+  if (acceptor.isNone()) {
+    return true;
+  }
+
+  // Necessary because recovered agents are presented in old format.
+  if (resource.has_role() && resource.role() != "*" &&
+      !acceptor.get()->accept(resource.role())) {
+    return false;
+  }
+
+  if (resource.has_allocation_info() &&
+      !acceptor.get()->accept(resource.allocation_info().role())) {
+    return false;
+  }
+
+  // Reservations follow a path model where each entry is a child of the
+  // previous one. Therefore, to accept the resource the acceptor has to
+  // accept all entries.
+  foreach (Resource::ReservationInfo reservation, resource.reservations()) {
+    if (!acceptor.get()->accept(reservation.role())) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 namespace {
 
 Result<process::http::authentication::Authenticator*> createBasicAuthenticator(

@@ -44,6 +44,7 @@
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
 
+#include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/resources_utils.hpp"
 
@@ -60,6 +61,7 @@ using google::protobuf::RepeatedPtrField;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerState;
 
+using process::Owned;
 using process::UPID;
 
 namespace mesos {
@@ -879,7 +881,8 @@ mesos::master::Event createFrameworkRemoved(const FrameworkInfo& frameworkInfo)
 
 
 mesos::master::Response::GetAgents::Agent createAgentResponse(
-    const mesos::internal::master::Slave& slave)
+    const mesos::internal::master::Slave& slave,
+    const Option<Owned<AuthorizationAcceptor>>& rolesAcceptor)
 {
   mesos::master::Response::GetAgents::Agent agent;
 
@@ -897,22 +900,32 @@ mesos::master::Response::GetAgents::Agent createAgentResponse(
         slave.reregisteredTime.get().duration().ns());
   }
 
-  foreach (Resource resource, slave.totalResources) {
-    convertResourceFormat(&resource, ENDPOINT);
+  agent.mutable_agent_info()->clear_resources();
+  foreach (const Resource& resource, slave.info.resources()) {
+    if (authorizeResource(resource, rolesAcceptor)) {
+      agent.mutable_agent_info()->add_resources()->CopyFrom(resource);
+    }
+  }
 
-    agent.add_total_resources()->CopyFrom(resource);
+  foreach (Resource resource, slave.totalResources) {
+    if (authorizeResource(resource, rolesAcceptor)) {
+      convertResourceFormat(&resource, ENDPOINT);
+      agent.add_total_resources()->CopyFrom(resource);
+    }
   }
 
   foreach (Resource resource, Resources::sum(slave.usedResources)) {
-    convertResourceFormat(&resource, ENDPOINT);
-
-    agent.add_allocated_resources()->CopyFrom(resource);
+    if (authorizeResource(resource, rolesAcceptor)) {
+      convertResourceFormat(&resource, ENDPOINT);
+      agent.add_allocated_resources()->CopyFrom(resource);
+    }
   }
 
   foreach (Resource resource, slave.offeredResources) {
-    convertResourceFormat(&resource, ENDPOINT);
-
-    agent.add_offered_resources()->CopyFrom(resource);
+    if (authorizeResource(resource, rolesAcceptor)) {
+      convertResourceFormat(&resource, ENDPOINT);
+      agent.add_offered_resources()->CopyFrom(resource);
+    }
   }
 
   agent.mutable_capabilities()->CopyFrom(

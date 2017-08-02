@@ -63,6 +63,8 @@
 
 namespace http = process::http;
 
+using google::protobuf::RepeatedPtrField;
+
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
@@ -1498,7 +1500,7 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
         "api/v1",
         headers,
         serialize(contentType, v1StopMaintenanceCall),
-        stringify(contentType));
+       stringify(contentType));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Forbidden().status, response);
   }
@@ -1633,12 +1635,235 @@ TEST_P(MasterAPITest, SubscribeAgentEvents)
 }
 
 
+// This test verifies that no information about reservations and/or allocations
+// is returned to unauthorized users in response to the GET_AGENTS call.
+TEST_P(MasterAPITest, GetAgentsFiltering)
+{
+  master::Flags flags = CreateMasterFlags();
+
+  const string roleSuperhero = "superhero";
+  const string roleMuggle = "muggle";
+
+  {
+    mesos::ACL::ViewRole* acl = flags.acls.get().add_view_roles();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_roles()->add_values(roleSuperhero);
+
+    acl = flags.acls.get().add_view_roles();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    mesos::ACL::ViewRole* acl = flags.acls.get().add_view_roles();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_roles()->add_values(roleMuggle);
+
+    acl = flags.acls.get().add_view_roles();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<SlaveRegisteredMessage> agentRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  slave::Flags slaveFlags = this->CreateSlaveFlags();
+
+  // Statically reserve some resources on the agent.
+  slaveFlags.resources =
+    "cpus(muggle):1;cpus(*):2;gpus(*):0;mem(muggle):1024;mem(*):1024;"
+    "disk(muggle):1024;disk(*):1024;ports(muggle):[30000-30999];"
+    "ports(*):[31000-32000]";
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(agentRegisteredMessage);
+  const SlaveID& agentId = agentRegisteredMessage->slave_id();
+
+  // Create dynamic reservation.
+  {
+    RepeatedPtrField<Resource> reservation =
+      Resources::parse("cpus:1;mem:12")->pushReservation(
+          createDynamicReservationInfo(
+              roleSuperhero,
+              DEFAULT_CREDENTIAL.principal()));
+
+    Future<http::Response> response = process::http::post(
+        master.get()->pid,
+        "reserve",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        strings::format(
+            "slaveId=%s&resources=%s",
+            agentId,
+            JSON::protobuf(reservation)).get());
+
+    AWAIT_READY(response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Accepted().status, response);
+  }
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_AGENTS);
+  ContentType contentType = GetParam();
+
+  // Default credential principal should only be allowed to see resources
+  // which are reserved for the role 'superhero'.
+  {
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1Call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+    Try<v1::master::Response> v1Response =
+      deserialize<v1::master::Response>(contentType, response->body);
+
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
+    ASSERT_EQ(1, v1Response->get_agents().agents_size());
+
+    // AgentInfo.resources is not passed through `convertResourceFormat()` so
+    // its format is different.
+    foreach (const v1::Resource& resource,
+             v1Response->get_agents().agents(0).agent_info().resources()) {
+      EXPECT_FALSE(resource.has_role());
+      EXPECT_FALSE(resource.has_allocation_info());
+      EXPECT_FALSE(resource.has_reservation());
+      EXPECT_EQ(0, resource.reservations_size());
+    }
+
+    vector<RepeatedPtrField<v1::Resource>> resourceFields = {
+      v1Response->get_agents().agents(0).total_resources(),
+      v1Response->get_agents().agents(0).allocated_resources(),
+      v1Response->get_agents().agents(0).offered_resources()
+    };
+
+    bool hasReservedResources = false;
+    foreach (const RepeatedPtrField<v1::Resource>& resources, resourceFields) {
+      foreach (const v1::Resource& resource, resources) {
+        EXPECT_TRUE(resource.has_role());
+        EXPECT_TRUE(roleSuperhero == resource.role() || "*" == resource.role());
+
+        EXPECT_FALSE(resource.has_allocation_info());
+
+        if (resource.role() != "*") {
+          hasReservedResources = true;
+
+          EXPECT_TRUE(resource.has_reservation());
+          EXPECT_FALSE(resource.reservation().has_role());
+
+          EXPECT_NE(0, resource.reservations_size());
+          foreach (const v1::Resource::ReservationInfo& reservation,
+                   resource.reservations()) {
+            EXPECT_EQ(roleSuperhero, reservation.role());
+          }
+        } else {
+          EXPECT_FALSE(resource.has_reservation());
+          EXPECT_EQ(0, resource.reservations_size());
+        }
+      }
+    }
+    EXPECT_TRUE(hasReservedResources);
+  }
+
+  // Default credential principal 2 should only be allowed to see resources
+  // which are reserved for the role 'muggle'.
+  {
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL_2);
+    headers["Accept"] = stringify(contentType);
+
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1Call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+    Try<v1::master::Response> v1Response =
+      deserialize<v1::master::Response>(contentType, response->body);
+
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
+    ASSERT_EQ(1, v1Response->get_agents().agents_size());
+
+    // AgentInfo.resources is not passed through `convertResourceFormat()` so
+    // its format is different.
+    foreach (const v1::Resource& resource,
+             v1Response->get_agents().agents(0).agent_info().resources()) {
+      EXPECT_FALSE(resource.has_role());
+      EXPECT_FALSE(resource.has_allocation_info());
+      EXPECT_FALSE(resource.has_reservation());
+      if (resource.reservations_size() > 0) {
+        foreach (const v1::Resource::ReservationInfo& reservation,
+                 resource.reservations()) {
+          EXPECT_EQ(roleMuggle, reservation.role());
+        }
+      }
+    }
+
+    vector<RepeatedPtrField<v1::Resource>> resourceFields = {
+      v1Response->get_agents().agents(0).total_resources(),
+      v1Response->get_agents().agents(0).allocated_resources(),
+      v1Response->get_agents().agents(0).offered_resources()
+    };
+
+    bool hasReservedResources = false;
+    foreach (const RepeatedPtrField<v1::Resource>& resources, resourceFields) {
+      foreach (const v1::Resource& resource, resources) {
+        EXPECT_TRUE(resource.has_role());
+        EXPECT_TRUE(roleMuggle == resource.role() || "*" == resource.role());
+
+        EXPECT_FALSE(resource.has_allocation_info());
+
+        if (resource.role() != "*") {
+          hasReservedResources = true;
+          EXPECT_FALSE(resource.has_reservation());
+
+          EXPECT_NE(0, resource.reservations_size());
+          foreach (const v1::Resource::ReservationInfo& reservation,
+                   resource.reservations()) {
+            EXPECT_EQ(roleMuggle, reservation.role());
+          }
+        } else {
+          EXPECT_FALSE(resource.has_reservation());
+          EXPECT_EQ(0, resource.reservations_size());
+        }
+      }
+    }
+    EXPECT_TRUE(hasReservedResources);
+  }
+}
+
+
 // This test verifies that recovered but yet to reregister agents are returned
-// in `recovered_agents` field of `GetAgents` response.
+// in `recovered_agents` field of `GetAgents` response. Authorization is enabled
+// to ensure that authorization-based filtering is able to handle recovered
+// agents, whose resources are currently stored in the
+// pre-reservation-refinement format (see MESOS-7851).
 TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry = "replicated_log";
+
+  // This forces the authorizer to be initialized.
+  {
+    mesos::ACL::ViewRole* acl = masterFlags.acls.get().add_view_roles();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+  }
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -1649,6 +1874,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
   // Reuse slaveFlags so both StartSlave() use the same work_dir.
   slave::Flags slaveFlags = this->CreateSlaveFlags();
 
+  // Statically reserve some resources on the agent.
+  slaveFlags.resources =
+    "cpus(foo):1;cpus(*):2;gpus(*):0;mem(foo):1024;mem(*):1024;"
+    "disk(foo):1024;disk(*):1024;ports(*):[31000-32000]";
+
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
@@ -1656,6 +1886,27 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
   AWAIT_READY(slaveRegisteredMessage);
 
   v1::AgentID agentId = evolve(slaveRegisteredMessage->slave_id());
+
+  // Create dynamic reservation.
+  {
+    RepeatedPtrField<Resource> reservation =
+      Resources::parse("cpus:1;mem:12")->pushReservation(
+          createDynamicReservationInfo(
+              "bar",
+              DEFAULT_CREDENTIAL.principal()));
+
+    Future<http::Response> response = process::http::post(
+        master.get()->pid,
+        "reserve",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        strings::format(
+            "slaveId=%s&resources=%s",
+            agentId,
+            JSON::protobuf(reservation)).get());
+
+    AWAIT_READY(response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Accepted().status, response);
+  }
 
   // Ensure that the agent is present in `GetAgent.agents` while
   // `GetAgents.recovered_agents` is empty.
