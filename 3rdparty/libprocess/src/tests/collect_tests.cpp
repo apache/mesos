@@ -12,10 +12,12 @@
 
 #include <process/collect.hpp>
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 
 #include <stout/gtest.hpp>
 
 using process::Future;
+using process::Owned;
 using process::Promise;
 
 using std::list;
@@ -129,6 +131,30 @@ TEST(CollectTest, DiscardPropagation)
 
   AWAIT_DISCARDED(promise1.future());
   AWAIT_DISCARDED(promise2.future());
+}
+
+
+TEST(CollectTest, AbandonedPropagation)
+{
+  Owned<Promise<int>> promise(new Promise<int>());
+
+  // There is a race from the time that we reset the promise to when
+  // the collect process is terminated so we need to use
+  // Future::recover to properly handle this case.
+  Future<int> future = process::collect(promise->future())
+    .recover([](const Future<std::tuple<int>>& f) -> Future<std::tuple<int>> {
+      if (f.isAbandoned()) {
+        return std::make_tuple(42);
+      }
+      return f;
+    })
+    .then([](const std::tuple<int>& t) {
+      return std::get<0>(t);
+    });
+
+  promise.reset();
+
+  AWAIT_EQ(42, future);
 }
 
 
@@ -248,4 +274,32 @@ TEST(AwaitTest, DiscardPropagation)
 
   AWAIT_DISCARDED(promise1.future());
   AWAIT_DISCARDED(promise2.future());
+}
+
+
+TEST(AwaitTest, AbandonedPropagation)
+{
+  Owned<Promise<int>> promise(new Promise<int>());
+
+  // There is a race from the time that we reset the promise to when
+  // the await process is terminated so we need to use
+  // Future::recover to properly handle this case.
+  Future<int> future = process::await(promise->future(), Future<int>())
+    .recover([](const Future<std::tuple<Future<int>, Future<int>>>& f)
+             -> Future<std::tuple<Future<int>, Future<int>>> {
+      if (f.isAbandoned()) {
+        return std::make_tuple(42, 0);
+      }
+      return f;
+    })
+    .then([](const std::tuple<Future<int>, Future<int>>& t) {
+      return std::get<0>(t)
+        .then([](int i) {
+          return i;
+        });
+    });
+
+  promise.reset();
+
+  AWAIT_EQ(42, future);
 }

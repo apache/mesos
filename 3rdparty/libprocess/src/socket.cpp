@@ -162,7 +162,7 @@ Future<string> SocketImpl::recv(const Option<ssize_t>& size)
       [=]() {
         return self->recv(data.get(), chunk);
       },
-      [=](size_t length) -> ControlFlow<string> {
+      [=](size_t length) mutable -> ControlFlow<string> {
         if (length == 0) { // EOF.
           // Return everything we've received thus far, a subsequent
           // receive will return an empty string.

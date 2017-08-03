@@ -76,6 +76,7 @@ public:
     delete promise;
   }
 
+protected:
   virtual void initialize()
   {
     // Stop this nonsense if nobody cares.
@@ -83,10 +84,19 @@ public:
 
     foreach (const Future<T>& future, futures) {
       future.onAny(defer(this, &CollectProcess::waited, lambda::_1));
+      future.onAbandoned(defer(this, &CollectProcess::abandoned));
     }
   }
 
 private:
+  void abandoned()
+  {
+    // There is no use waiting because this future will never complete
+    // so terminate this process which will cause `promise` to get
+    // deleted and our future to also be abandoned.
+    terminate(this);
+  }
+
   void discarded()
   {
     promise->discard();
@@ -150,10 +160,19 @@ public:
 
     foreach (const Future<T>& future, futures) {
       future.onAny(defer(this, &AwaitProcess::waited, lambda::_1));
+      future.onAbandoned(defer(this, &AwaitProcess::abandoned));
     }
   }
 
 private:
+  void abandoned()
+  {
+    // There is no use waiting because this future will never complete
+    // so terminate this process which will cause `promise` to get
+    // deleted and our future to also be abandoned.
+    terminate(this);
+  }
+
   void discarded()
   {
     promise->discard();
