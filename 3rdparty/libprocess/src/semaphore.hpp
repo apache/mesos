@@ -237,10 +237,9 @@ thread_local KernelSemaphore* __semaphore__ = nullptr;
 // Using Clang we weren't able to initialize `__semaphore__` likely
 // because it is declared `thread_local` so instead we dereference the
 // semaphore on every read.
-#define _semaphore_                                                     \
-  (__semaphore__ == nullptr                                             \
-   ? __semaphore__ = new KernelSemaphore()                              \
-   : __semaphore__)
+#define _semaphore_                                                 \
+  (__semaphore__ == nullptr ? __semaphore__ = new KernelSemaphore() \
+                            : __semaphore__)
 
 class DecomissionableLastInFirstOutFixedSizeSemaphore
 {
