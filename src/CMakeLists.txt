@@ -70,6 +70,7 @@ PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/network/cni/
 PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/docker/volume/state)
 PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/provisioner/docker/message)
 PROTOC_GENERATE(INTERNAL TARGET master/registry)
+PROTOC_GENERATE(INTERNAL TARGET resource_provider/registry)
 
 
 # BUILD PROTOBUFS.
@@ -466,6 +467,7 @@ set(RESOURCE_PROVIDER_SRC
   resource_provider/driver.cpp
   resource_provider/local.cpp
   resource_provider/manager.cpp
+  resource_provider/registrar.cpp
   resource_provider/validation.cpp
   resource_provider/storage/provider.cpp)
 

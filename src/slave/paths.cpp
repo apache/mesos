@@ -70,6 +70,7 @@ const char SLAVES_DIR[] = "slaves";
 const char FRAMEWORKS_DIR[] = "frameworks";
 const char EXECUTORS_DIR[] = "executors";
 const char EXECUTOR_RUNS_DIR[] = "runs";
+const char RESOURCE_PROVIDER_REGISTRY[] = "resource_provider_registry";
 
 
 Try<ExecutorRunPath> parseExecutorRunPath(
@@ -444,6 +445,16 @@ string getTaskUpdatesPath(
           containerId,
           taskId),
       TASK_UPDATES_FILE);
+}
+
+
+string getResourceProviderRegistryPath(
+    const string& rootDir,
+    const SlaveID& slaveId)
+{
+  return path::join(
+      getSlavePath(getMetaRootDir(rootDir), slaveId),
+      RESOURCE_PROVIDER_REGISTRY);
 }
 
 

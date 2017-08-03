@@ -47,6 +47,7 @@
 #include "internal/devolve.hpp"
 
 #include "resource_provider/manager.hpp"
+#include "resource_provider/registrar.hpp"
 
 #include "slave/slave.hpp"
 
@@ -57,6 +58,10 @@ namespace http = process::http;
 using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
+
+using mesos::resource_provider::AdmitResourceProvider;
+using mesos::resource_provider::Registrar;
+using mesos::resource_provider::RemoveResourceProvider;
 
 using mesos::v1::resource_provider::Call;
 using mesos::v1::resource_provider::Event;
@@ -337,6 +342,50 @@ TEST_P(ResourceProviderManagerHttpApiTest, AgentEndpoint)
   // Check event type is subscribed and the resource provider id is set.
   EXPECT_EQ(Event::SUBSCRIBED, event->get().type());
   EXPECT_FALSE(event->get().subscribed().provider_id().value().empty());
+}
+
+
+class ResourceProviderRegistrarTest : public tests::MesosTest {};
+
+
+// Test that the agent resource provider registrar works as expected.
+TEST_F(ResourceProviderRegistrarTest, AgentRegistrar)
+{
+  ResourceProviderID resourceProviderId;
+  resourceProviderId.set_value("foo");
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  const slave::Flags flags = CreateSlaveFlags();
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  Try<Owned<Registrar>> registrar =
+    Registrar::create(flags, slaveRegisteredMessage->slave_id());
+
+  ASSERT_SOME(registrar);
+  ASSERT_NE(nullptr, registrar->get());
+
+  // Applying operations on a not yet recovered registrar fails.
+  AWAIT_FAILED(registrar.get()->apply(Owned<Registrar::Operation>(
+      new AdmitResourceProvider(resourceProviderId))));
+
+  AWAIT_READY(registrar.get()->recover());
+
+  AWAIT_READY(registrar.get()->apply(Owned<Registrar::Operation>(
+      new AdmitResourceProvider(resourceProviderId))));
+
+  AWAIT_READY(registrar.get()->apply(Owned<Registrar::Operation>(
+      new RemoveResourceProvider(resourceProviderId))));
 }
 
 } // namespace tests {

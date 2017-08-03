@@ -284,6 +284,11 @@ std::string getTaskUpdatesPath(
     const TaskID& taskId);
 
 
+std::string getResourceProviderRegistryPath(
+    const std::string& rootDir,
+    const SlaveID& slaveId);
+
+
 std::string getResourcesInfoPath(
     const std::string& rootDir);
 
