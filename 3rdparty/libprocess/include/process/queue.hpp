@@ -54,19 +54,16 @@ public:
 
   Future<T> get()
   {
-    Future<T> future;
-
     synchronized (data->lock) {
       if (data->elements.empty()) {
         data->promises.push_back(Owned<Promise<T>>(new Promise<T>()));
-        future = data->promises.back()->future();
+        return data->promises.back()->future();
       } else {
-        future = Future<T>(data->elements.front());
+        Future<T> future = Future<T>(data->elements.front());
         data->elements.pop();
+        return future;
       }
     }
-
-    return future;
   }
 
   size_t size() const

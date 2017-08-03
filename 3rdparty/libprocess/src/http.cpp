@@ -419,26 +419,23 @@ Pipe::Writer Pipe::writer() const
 
 Future<string> Pipe::Reader::read()
 {
-  Future<string> future;
-
   synchronized (data->lock) {
     if (data->readEnd == Reader::CLOSED) {
-      future = Failure("closed");
+      return Failure("closed");
     } else if (!data->writes.empty()) {
-      future = data->writes.front();
+      Future<string> future = data->writes.front();
       data->writes.pop();
+      return future;
     } else if (data->writeEnd == Writer::CLOSED) {
-      future = ""; // End-of-file.
+      return ""; // End-of-file.
     } else if (data->writeEnd == Writer::FAILED) {
       CHECK_SOME(data->failure);
-      future = data->failure.get();
+      return data->failure.get();
     } else {
       data->reads.push(Owned<Promise<string>>(new Promise<string>()));
-      future = data->reads.back()->future();
+      return data->reads.back()->future();
     }
   }
-
-  return future;
 }
 
 
