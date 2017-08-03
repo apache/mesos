@@ -111,20 +111,24 @@ TEST(CollectTest, Failure)
 
 TEST(CollectTest, DiscardPropagation)
 {
-  Future<int> future1;
-  Future<bool> future2;
+  Promise<int> promise1;
+  Promise<bool> promise2;
 
-  future1
-    .onDiscard([=](){ process::internal::discarded(future1); });
-  future2
-    .onDiscard([=](){ process::internal::discarded(future2); });
+  promise1.future()
+    .onDiscard([&](){ promise1.discard(); });
+  promise2.future()
+    .onDiscard([&](){ promise2.discard(); });
 
-  Future<std::tuple<int, bool>> collect = process::collect(future1, future2);
+  Future<std::tuple<int, bool>> collect = process::collect(
+      promise1.future(),
+      promise2.future());
 
   collect.discard();
 
-  AWAIT_DISCARDED(future1);
-  AWAIT_DISCARDED(future2);
+  AWAIT_DISCARDED(collect);
+
+  AWAIT_DISCARDED(promise1.future());
+  AWAIT_DISCARDED(promise2.future());
 }
 
 
@@ -226,19 +230,22 @@ TEST(AwaitTest, Discarded)
 
 TEST(AwaitTest, DiscardPropagation)
 {
-  Future<int> future1;
-  Future<bool> future2;
+  Promise<int> promise1;
+  Promise<bool> promise2;
 
-  future1
-    .onDiscard([=](){ process::internal::discarded(future1); });
-  future2
-    .onDiscard([=](){ process::internal::discarded(future2); });
+  promise1.future()
+    .onDiscard([&](){ promise1.discard(); });
+  promise2.future()
+    .onDiscard([&](){ promise2.discard(); });
 
-  Future<std::tuple<Future<int>, Future<bool>>> await =
-    process::await(future1, future2);
+  Future<std::tuple<Future<int>, Future<bool>>> await = process::await(
+      promise1.future(),
+      promise2.future());
 
   await.discard();
 
-  AWAIT_DISCARDED(future1);
-  AWAIT_DISCARDED(future2);
+  AWAIT_DISCARDED(await);
+
+  AWAIT_DISCARDED(promise1.future());
+  AWAIT_DISCARDED(promise2.future());
 }
