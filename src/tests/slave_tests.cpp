@@ -3602,7 +3602,8 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
 // This test verifies that when an unreachable agent reregisters after
 // master failover, the master consults and updates the registrar for
 // re-admitting the agent.
-TEST_F(SlaveTest, UnreachableAgentReregisterAfterFailover)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    SlaveTest, UnreachableAgentReregisterAfterFailover)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry = "replicated_log";
@@ -3695,7 +3696,8 @@ TEST_F(SlaveTest, UnreachableAgentReregisterAfterFailover)
 // This test verifies that when a registered agent restarts and reregisters
 // after master failover, the master does not consult the registrar in
 // deciding to re-admit the agent.
-TEST_F(SlaveTest, RegisteredAgentReregisterAfterFailover)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    SlaveTest, RegisteredAgentReregisterAfterFailover)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry = "replicated_log";
