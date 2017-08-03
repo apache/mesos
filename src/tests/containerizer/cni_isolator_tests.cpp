@@ -1743,67 +1743,62 @@ INSTANTIATE_TEST_CASE_P(
     DefaultContainerDNSCniTest,
     ::testing::Values(
         // A DNS information for the `__MESOS_TEST__` CNI network.
-        string(
-            R"~(
-            {
-              "mesos": [
-                {
-                  "network_mode": "CNI",
-                  "network_name": "__MESOS_TEST__",
-                  "dns": {
-                    "nameservers": [ "8.8.8.8", "8.8.4.4" ],
-                    "domain": "mesos.apache.org",
-                    "search": [ "a.mesos.apache.org", "a.mesos.apache.org" ],
-                    "options": [ "timeout:3", "attempts:2" ]
-                  }
-                }
-              ]
-            })~"),
+        "{\n"
+        "  \"mesos\": [\n"
+        "    {\n"
+        "      \"network_mode\": \"CNI\",\n"
+        "      \"network_name\": \"__MESOS_TEST__\",\n"
+        "      \"dns\": {\n"
+        "        \"nameservers\": [ \"8.8.8.8\", \"8.8.4.4\" ],\n"
+        "        \"domain\": \"mesos.apache.org\",\n"
+        "        \"search\": [ \"a.mesos.apache.org\" ],\n"
+        "        \"options\": [ \"timeout:3\", \"attempts:2\" ]\n"
+        "      }\n"
+        "    }\n"
+        "  ]\n"
+        "}",
         // A DNS information with `network_mode == CNI`, but without a network
         // name, acts as a wildcard match making it the default DNS for any CNI
         // network not specified in the `--default_container_dns` flag.
-        string(
-            R"~(
-            {
-              "mesos": [
-                {
-                  "network_mode": "CNI",
-                  "dns": {
-                    "nameservers": [ "8.8.8.8", "8.8.4.4" ],
-                    "domain": "mesos.apache.org",
-                    "search": [ "a.mesos.apache.org", "a.mesos.apache.org" ],
-                    "options": [ "timeout:3", "attempts:2" ]
-                  }
-                }
-              ]
-            })~"),
+        "{\n"
+        "  \"mesos\": [\n"
+        "    {\n"
+        "      \"network_mode\": \"CNI\",\n"
+        "      \"dns\": {\n"
+        "        \"nameservers\": [ \"8.8.8.8\", \"8.8.4.4\" ],\n"
+        "        \"domain\": \"mesos.apache.org\",\n"
+        "        \"search\": [ \"a.mesos.apache.org\" ],\n"
+        "        \"options\": [ \"timeout:3\", \"attempts:2\" ]\n"
+        "      }\n"
+        "    }\n"
+        "  ]\n"
+        "}",
         // Two DNS information, one is specific for `__MESOS_TEST__` CNI
         // network, the other is the defaule DNS for any CNI network not
         // specified in the `--default_container_dns` flag.
-        string(
-            R"~(
-            {
-              "mesos": [
-                {
-                  "network_mode": "CNI",
-                  "network_name": "__MESOS_TEST__",
-                  "dns": {
-                    "nameservers": [ "8.8.8.8", "8.8.4.4" ],
-                    "domain": "mesos.apache.org",
-                    "search": [ "a.mesos.apache.org", "a.mesos.apache.org" ],
-                    "options": [ "timeout:3", "attempts:2" ]
-                  }
-                },
-                {
-                  "network_mode": "CNI",
-                  "dns": {
-                    "nameservers": [ "8.8.8.9", "8.8.4.5" ],
-                    "domain": "mesos1.apache.org",
-                    "search": [ "b.mesos.apache.org", "b.mesos.apache.org" ],
-                    "options": [ "timeout:9", "attempts:5" ]
-                  }
-                }
-              ]})~")));
+        "{\n"
+        "  \"mesos\": [\n"
+        "    {\n"
+        "      \"network_mode\": \"CNI\",\n"
+        "      \"network_name\": \"__MESOS_TEST__\",\n"
+        "      \"dns\": {\n"
+        "        \"nameservers\": [ \"8.8.8.8\", \"8.8.4.4\" ],\n"
+        "        \"domain\": \"mesos.apache.org\",\n"
+        "        \"search\": [ \"a.mesos.apache.org\" ],\n"
+        "        \"options\": [ \"timeout:3\", \"attempts:2\" ]\n"
+        "      }\n"
+        "    },\n"
+        "    {\n"
+        "      \"network_mode\": \"CNI\",\n"
+        "      \"dns\": {\n"
+        "        \"nameservers\": [ \"8.8.8.9\", \"8.8.4.5\" ],\n"
+        "        \"domain\": \"mesos1.apache.org\",\n"
+        "        \"search\": [ \"b.mesos.apache.org\" ],\n"
+        "        \"options\": [ \"timeout:9\", \"attempts:5\" ]\n"
+        "      }\n"
+        "    }\n"
+        "  ]\n"
+        "}"));
 
 
 // This test verifies the DNS configuration of the container can be
@@ -1877,7 +1872,7 @@ TEST_P(DefaultContainerDNSCniTest, ROOT_VerifyDefaultDNS)
       "set -x\n"
       "cat > expected <<EOF\n"
       "domain mesos.apache.org\n"
-      "search a.mesos.apache.org a.mesos.apache.org\n"
+      "search a.mesos.apache.org\n"
       "options timeout:3 attempts:2\n"
       "nameserver 8.8.8.8\n"
       "nameserver 8.8.4.4\n"
