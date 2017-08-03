@@ -181,6 +181,38 @@ template <typename T>
 }
 
 
+template <typename T>
+::testing::AssertionResult AwaitAssertAbandoned(
+    const char* expr,
+    const char*, // Unused string representation of 'duration'.
+    const process::Future<T>& actual,
+    const Duration& duration)
+{
+  process::Owned<process::Latch> latch(new process::Latch());
+
+  actual.onAny([=]() { latch->trigger(); });
+  actual.onAbandoned([=]() { latch->trigger(); });
+
+  if (!latch->await(duration)) {
+    return ::testing::AssertionFailure()
+      << "Failed to wait " << duration << " for " << expr;
+  } else if (actual.isDiscarded()) {
+    return ::testing::AssertionFailure()
+      << expr << " was discarded";
+  } else if (actual.isReady()) {
+    return ::testing::AssertionFailure()
+      << expr << " is ready (" << ::testing::PrintToString(actual.get()) << ")";
+  } else if (actual.isFailed()) {
+    return ::testing::AssertionFailure()
+      << "(" << expr << ").failure(): " << actual.failure();
+  }
+
+  CHECK_ABANDONED(actual);
+
+  return ::testing::AssertionSuccess();
+}
+
+
 template <typename T1, typename T2>
 ::testing::AssertionResult AwaitAssertEq(
     const char* expectedExpr,
@@ -207,6 +239,22 @@ template <typename T1, typename T2>
 
   return result;
 }
+
+
+#define AWAIT_ASSERT_ABANDONED_FOR(actual, duration)            \
+  ASSERT_PRED_FORMAT2(AwaitAssertAbandoned, actual, duration)
+
+
+#define AWAIT_ASSERT_ABANDONED(actual)                  \
+  AWAIT_ASSERT_ABANDONED_FOR(actual, Seconds(15))
+
+
+#define AWAIT_EXPECT_ABANDONED_FOR(actual, duration)            \
+  EXPECT_PRED_FORMAT2(AwaitAssertAbandoned, actual, duration)
+
+
+#define AWAIT_EXPECT_ABANDONED(actual)                  \
+  AWAIT_EXPECT_ABANDONED_FOR(actual, Seconds(15))
 
 
 // TODO(bmahler): Differentiate EXPECT and ASSERT here.

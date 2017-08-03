@@ -127,6 +127,7 @@ public:
   bool isReady() const;
   bool isDiscarded() const;
   bool isFailed() const;
+  bool isAbandoned() const;
   bool hasDiscard() const;
 
   // Discards this future. Returns false if discard has already been
@@ -157,6 +158,7 @@ public:
 
   // Type of the callback functions that can get invoked when the
   // future gets set, fails, or is discarded.
+  typedef lambda::function<void()> AbandonedCallback;
   typedef lambda::function<void()> DiscardCallback;
   typedef lambda::function<void(const T&)> ReadyCallback;
   typedef lambda::function<void(const std::string&)> FailedCallback;
@@ -165,6 +167,7 @@ public:
 
   // Installs callbacks for the specified events and returns a const
   // reference to 'this' in order to easily support chaining.
+  const Future<T>& onAbandoned(AbandonedCallback&& callback) const;
   const Future<T>& onDiscard(DiscardCallback&& callback) const;
   const Future<T>& onReady(ReadyCallback&& callback) const;
   const Future<T>& onFailed(FailedCallback&& callback) const;
@@ -173,6 +176,12 @@ public:
 
   // TODO(benh): Add onReady, onFailed, onAny for _Deferred<F> where F
   // is not expected.
+
+  template <typename F>
+  const Future<T>& onAbandoned(_Deferred<F>&& deferred) const
+  {
+    return onAbandoned(deferred.operator std::function<void()>());
+  }
 
   template <typename F>
   const Future<T>& onDiscard(_Deferred<F>&& deferred) const
@@ -215,7 +224,8 @@ private:
   // argument (i.e., 'const T&' for 'onReady' and 'then' and 'const
   // std::string&' for 'onFailed'), but we allow functors that don't
   // care about the argument. We don't need to do this for
-  // 'onDiscarded' because it doesn't take an argument.
+  // 'onDiscard', 'onDiscarded' or 'onAbandoned' because they don't
+  // take an argument.
   struct LessPrefer {};
   struct Prefer : LessPrefer {};
 
@@ -298,6 +308,15 @@ private:
   }
 
 public:
+  template <typename F>
+  const Future<T>& onAbandoned(F&& f) const
+  {
+    return onAbandoned(std::function<void()>(
+        [=]() mutable {
+          f();
+        }));
+  }
+
   template <typename F>
   const Future<T>& onDiscard(F&& f) const
   {
@@ -419,6 +438,9 @@ public:
     return then(std::forward<F>(f), Prefer());
   }
 
+  // TODO(benh): Considering adding a `rescue` function for rescuing
+  // abandoned futures.
+
   // Installs callbacks that get executed if this future completes
   // because it failed.
   Future<T> repair(
@@ -443,6 +465,8 @@ public:
   // Prefer/LessPrefer to disambiguate.
 
 private:
+  template <typename U>
+  friend class Future;
   friend class Promise<T>;
   friend class WeakFuture<T>;
 
@@ -465,6 +489,7 @@ private:
     State state;
     bool discard;
     bool associated;
+    bool abandoned;
 
     // One of:
     //   1. None, the state is PENDING or DISCARDED.
@@ -472,12 +497,54 @@ private:
     //   3. Error, the state is FAILED; 'error()' stores the message.
     Result<T> result;
 
+    std::vector<AbandonedCallback> onAbandonedCallbacks;
     std::vector<DiscardCallback> onDiscardCallbacks;
     std::vector<ReadyCallback> onReadyCallbacks;
     std::vector<FailedCallback> onFailedCallbacks;
     std::vector<DiscardedCallback> onDiscardedCallbacks;
     std::vector<AnyCallback> onAnyCallbacks;
   };
+
+  // Abandons this future. Returns false if the future is already
+  // associated or no longer pending. Otherwise returns true and any
+  // Future::onAbandoned callbacks wil be run.
+  //
+  // If `propagating` is true then we'll abandon this future even if
+  // it has already been associated. This is important because
+  // `~Promise()` will try and abandon and we need to ignore that if
+  // the future has been associated since the promise will no longer
+  // be setting the future anyway (and is likely the reason it's being
+  // destructed, because it's useless). When the future that we've
+  // associated with gets abandoned, however, then we need to actually
+  // abandon this future too. Here's an example of this:
+  //
+  // 1:    Owned<Promise<int>> promise1(new Promise<int>());
+  // 2:    Owned<Promise<int>> promise2(new Promise<int>());
+  // 3:
+  // 4:    Future<int> future1 = promise1->future();
+  // 5:    Future<int> future2 = promise2->future();
+  // 6:
+  // 7:    promise1->associate(future2);
+  // 8:
+  // 9:    promise1.reset();
+  // 10:
+  // 11:   assert(!future1.isAbandoned());
+  // 12:
+  // 13:   promise2.reset();
+  // 14:
+  // 15:   assert(future2.isAbandoned());
+  // 16:   assert(future3.isAbandoned());
+  //
+  // At line 9 `~Promise()` will attempt to abandon the future by
+  // calling `abandon()` but since it's been associated we won't do
+  // anything. On line 13 the `onAbandoned()` callback will call
+  // `abandon(true)` and know we'll actually abandon the future
+  // because we're _propagating_ the abandon from the associated
+  // future.
+  //
+  // NOTE: this is an _INTERNAL_ function and should never be exposed
+  // or used outside of the implementation.
+  bool abandon(bool propagating = false);
 
   // Sets the value for this future, unless the future is already set,
   // failed, or discarded, in which case it returns false.
@@ -658,7 +725,12 @@ void discarded(Future<T> future)
 
 
 template <typename T>
-Promise<T>::Promise() {}
+Promise<T>::Promise()
+{
+  // Need to "unset" `abandoned` since it gets set in the empty
+  // constructor for `Future`.
+  f.data->abandoned = false;
+}
 
 
 template <typename T>
@@ -672,7 +744,11 @@ Promise<T>::~Promise()
   // Note that we don't discard the promise as we don't want to give
   // the illusion that any computation hasn't started (or possibly
   // finished) in the event that computation is "visible" by other
-  // means.
+  // means. However, we try and abandon the future if it hasn't been
+  // associated or set (or moved, i.e., `f.data` is true).
+  if (f.data) {
+    f.abandon();
+  }
 }
 
 
@@ -766,7 +842,8 @@ bool Promise<T>::associate(const Future<T>& future)
     future
       .onReady(lambda::bind(set, f, lambda::_1))
       .onFailed(lambda::bind(&Future<T>::fail, f, lambda::_1))
-      .onDiscarded(lambda::bind(&internal::discarded<T>, f));
+      .onDiscarded(lambda::bind(&internal::discarded<T>, f))
+      .onAbandoned(lambda::bind(&Future<T>::abandon, f, true));
   }
 
   return associated;
@@ -924,12 +1001,14 @@ Future<T>::Data::Data()
   : state(PENDING),
     discard(false),
     associated(false),
+    abandoned(false),
     result(None()) {}
 
 
 template <typename T>
 void Future<T>::Data::clearAllCallbacks()
 {
+  onAbandonedCallbacks.clear();
   onAnyCallbacks.clear();
   onDiscardCallbacks.clear();
   onDiscardedCallbacks.clear();
@@ -940,7 +1019,10 @@ void Future<T>::Data::clearAllCallbacks()
 
 template <typename T>
 Future<T>::Future()
-  : data(new Data()) {}
+  : data(new Data())
+{
+  data->abandoned = true;
+}
 
 
 template <typename T>
@@ -1065,6 +1147,32 @@ bool Future<T>::discard()
 
 
 template <typename T>
+bool Future<T>::abandon(bool propagating)
+{
+  bool result = false;
+
+  std::vector<AbandonedCallback> callbacks;
+  synchronized (data->lock) {
+    if (!data->abandoned &&
+        data->state == PENDING &&
+        (!data->associated || propagating)) {
+      result = data->abandoned = true;
+
+      callbacks.swap(data->onAbandonedCallbacks);
+    }
+  }
+
+  // Invoke all callbacks. The callbacks get destroyed when we exit
+  // from the function.
+  if (result) {
+    internal::run(callbacks);
+  }
+
+  return result;
+}
+
+
+template <typename T>
 bool Future<T>::isPending() const
 {
   return data->state == PENDING;
@@ -1089,6 +1197,13 @@ template <typename T>
 bool Future<T>::isFailed() const
 {
   return data->state == FAILED;
+}
+
+
+template <typename T>
+bool Future<T>::isAbandoned() const
+{
+  return data->abandoned;
 }
 
 
@@ -1178,6 +1293,28 @@ const std::string& Future<T>::failure() const
 
   CHECK_ERROR(data->result);
   return data->result.error();
+}
+
+
+template <typename T>
+const Future<T>& Future<T>::onAbandoned(AbandonedCallback&& callback) const
+{
+  bool run = false;
+
+  synchronized (data->lock) {
+    if (data->abandoned) {
+      run = true;
+    } else if (data->state == PENDING) {
+      data->onAbandonedCallbacks.emplace_back(std::move(callback));
+    }
+  }
+
+  // TODO(*): Invoke callback in another execution context.
+  if (run) {
+    callback();
+  }
+
+  return *this;
 }
 
 
@@ -1413,6 +1550,10 @@ Future<X> Future<T>::then(lambda::function<Future<X>(const T&)> f) const
 
   onAny(std::move(thenf));
 
+  onAbandoned([=]() {
+    promise->future().abandon();
+  });
+
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
   promise->future().onDiscard(
@@ -1433,6 +1574,10 @@ Future<X> Future<T>::then(lambda::function<X(const T&)> f) const
 
   onAny(std::move(then));
 
+  onAbandoned([=]() {
+    promise->future().abandon();
+  });
+
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
   promise->future().onDiscard(
@@ -1449,6 +1594,10 @@ Future<T> Future<T>::repair(
   std::shared_ptr<Promise<T>> promise(new Promise<T>());
 
   onAny(lambda::bind(&internal::repair<T>, f, promise, lambda::_1));
+
+  onAbandoned([=]() {
+    promise->future().abandon();
+  });
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
@@ -1500,6 +1649,10 @@ Future<T> Future<T>::after(
       lambda::bind(&internal::expired<T>, f, latch, promise, timer, *this));
 
   onAny(lambda::bind(&internal::after<T>, latch, promise, timer, lambda::_1));
+
+  onAbandoned([=]() {
+    promise->future().abandon();
+  });
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.

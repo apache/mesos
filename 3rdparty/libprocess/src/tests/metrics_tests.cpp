@@ -54,6 +54,7 @@ using process::Failure;
 using process::Future;
 using process::PID;
 using process::Process;
+using process::Promise;
 using process::READONLY_HTTP_AUTHENTICATION_REALM;
 using process::Statistics;
 using process::UPID;
@@ -76,8 +77,12 @@ public:
 
   Future<double> pending()
   {
-    return Future<double>();
+    return promise.future();
   }
+
+  // Need to use a promise for the call to pending instead of just a
+  // `Future<double>()` so we don't return an abandoned future.
+  Promise<double> promise;
 };
 
 

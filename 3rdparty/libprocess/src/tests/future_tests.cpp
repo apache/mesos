@@ -17,6 +17,7 @@
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
+#include <process/owned.hpp>
 
 #include <stout/duration.hpp>
 #include <stout/nothing.hpp>
@@ -25,6 +26,7 @@
 using process::Clock;
 using process::Failure;
 using process::Future;
+using process::Owned;
 using process::Promise;
 using process::undiscardable;
 
@@ -610,4 +612,38 @@ TEST(FutureTest, UndiscardableLambda)
   promise.set(42);
 
   AWAIT_ASSERT_EQ(84, f);
+}
+
+
+TEST(FutureTest, Abandoned)
+{
+  AWAIT_EXPECT_ABANDONED(Future<int>());
+
+  Owned<Promise<int>> promise(new Promise<int>());
+
+  Future<int> future = promise->future();
+
+  EXPECT_TRUE(!future.isAbandoned());
+
+  promise.reset();
+
+  AWAIT_EXPECT_ABANDONED(future);
+}
+
+
+TEST(FutureTest, AbandonedChain)
+{
+  Owned<Promise<int>> promise(new Promise<int>());
+
+  Future<string> future = promise->future()
+    .then([]() {
+      return Nothing();
+    })
+    .then([]() -> string {
+      return "hello world";
+    });
+
+  promise.reset();
+
+  AWAIT_EXPECT_ABANDONED(future);
 }

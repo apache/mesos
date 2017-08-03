@@ -35,6 +35,9 @@
 #define CHECK_FAILED(expression)                                        \
   CHECK_STATE(CHECK_FAILED, _check_failed, expression)
 
+#define CHECK_ABANDONED(expression)                                     \
+  CHECK_STATE(CHECK_ABANDONED, _check_abandoned, expression)
+
 // Private structs/functions used for CHECK_*.
 
 template <typename T>
@@ -98,6 +101,22 @@ Option<Error> _check_failed(const process::Future<T>& f)
     CHECK(f.isFailed());
     return None();
   }
+}
+
+
+template <typename T>
+Option<Error> _check_abandoned(const process::Future<T>& f)
+{
+  if (f.isReady()) {
+    return Some("is READY");
+  } else if (f.isDiscarded()) {
+    return Some("is DISCARDED");
+  } else if (f.isFailed()) {
+    return Some("is FAILED: " + f.failure());
+  } else if (!f.isAbandoned()) {
+    return Some("is not abandoned");
+  }
+  return None();
 }
 
 // TODO(dhamon): CHECK_NPENDING, CHECK_NREADY, etc.
