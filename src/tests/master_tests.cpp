@@ -2231,6 +2231,7 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/slaves_disconnected"));
   EXPECT_EQ(1u, snapshot.values.count("master/slaves_active"));
   EXPECT_EQ(1u, snapshot.values.count("master/slaves_inactive"));
+  EXPECT_EQ(1u, snapshot.values.count("master/slaves_unreachable"));
 
   EXPECT_EQ(1u, snapshot.values.count("master/frameworks_connected"));
   EXPECT_EQ(1u, snapshot.values.count("master/frameworks_disconnected"));
@@ -2242,12 +2243,16 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_staging"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_starting"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_running"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_unreachable"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_killing"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_finished"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_failed"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_killed"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_lost"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_error"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_dropped"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_gone"));
+  EXPECT_EQ(1u, snapshot.values.count("master/tasks_gone_by_operator"));
 
   EXPECT_EQ(1u, snapshot.values.count("master/dropped_messages"));
 
@@ -2276,6 +2281,7 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/messages_unregister_slave"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_status_update"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_exited_executor"));
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_update_slave"));
 
   // Messages from both schedulers and slaves.
   EXPECT_EQ(1u, snapshot.values.count("master/messages_authenticate"));
@@ -2284,6 +2290,10 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
       "master/valid_framework_to_executor_messages"));
   EXPECT_EQ(1u, snapshot.values.count(
       "master/invalid_framework_to_executor_messages"));
+  EXPECT_EQ(1u, snapshot.values.count(
+      "master/valid_executor_to_framework_messages"));
+  EXPECT_EQ(1u, snapshot.values.count(
+      "master/invalid_executor_to_framework_messages"));
 
   EXPECT_EQ(1u, snapshot.values.count("master/valid_status_updates"));
   EXPECT_EQ(1u, snapshot.values.count("master/invalid_status_updates"));
@@ -2293,27 +2303,50 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count(
       "master/invalid_status_update_acknowledgements"));
 
+  // Recovery counters.
   EXPECT_EQ(1u, snapshot.values.count("master/recovery_slave_removals"));
 
+  // Process metrics.
   EXPECT_EQ(1u, snapshot.values.count("master/event_queue_messages"));
   EXPECT_EQ(1u, snapshot.values.count("master/event_queue_dispatches"));
   EXPECT_EQ(1u, snapshot.values.count("master/event_queue_http_requests"));
+
+  // Slave observer metrics.
+  EXPECT_EQ(1u, snapshot.values.count("master/slave_unreachable_scheduled"));
+  EXPECT_EQ(1u, snapshot.values.count("master/slave_unreachable_completed"));
+  EXPECT_EQ(1u, snapshot.values.count("master/slave_unreachable_canceled"));
 
   EXPECT_EQ(1u, snapshot.values.count("master/cpus_total"));
   EXPECT_EQ(1u, snapshot.values.count("master/cpus_used"));
   EXPECT_EQ(1u, snapshot.values.count("master/cpus_percent"));
 
+  EXPECT_EQ(1u, snapshot.values.count("master/cpus_revocable_total"));
+  EXPECT_EQ(1u, snapshot.values.count("master/cpus_revocable_used"));
+  EXPECT_EQ(1u, snapshot.values.count("master/cpus_revocable_percent"));
+
   EXPECT_EQ(1u, snapshot.values.count("master/gpus_total"));
   EXPECT_EQ(1u, snapshot.values.count("master/gpus_used"));
   EXPECT_EQ(1u, snapshot.values.count("master/gpus_percent"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/gpus_revocable_total"));
+  EXPECT_EQ(1u, snapshot.values.count("master/gpus_revocable_used"));
+  EXPECT_EQ(1u, snapshot.values.count("master/gpus_revocable_percent"));
 
   EXPECT_EQ(1u, snapshot.values.count("master/mem_total"));
   EXPECT_EQ(1u, snapshot.values.count("master/mem_used"));
   EXPECT_EQ(1u, snapshot.values.count("master/mem_percent"));
 
+  EXPECT_EQ(1u, snapshot.values.count("master/mem_revocable_total"));
+  EXPECT_EQ(1u, snapshot.values.count("master/mem_revocable_used"));
+  EXPECT_EQ(1u, snapshot.values.count("master/mem_revocable_percent"));
+
   EXPECT_EQ(1u, snapshot.values.count("master/disk_total"));
   EXPECT_EQ(1u, snapshot.values.count("master/disk_used"));
   EXPECT_EQ(1u, snapshot.values.count("master/disk_percent"));
+
+  EXPECT_EQ(1u, snapshot.values.count("master/disk_revocable_total"));
+  EXPECT_EQ(1u, snapshot.values.count("master/disk_revocable_used"));
+  EXPECT_EQ(1u, snapshot.values.count("master/disk_revocable_percent"));
 
   // Registrar Metrics.
   EXPECT_EQ(1u, snapshot.values.count("registrar/queued_operations"));
