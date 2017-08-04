@@ -1801,28 +1801,11 @@ void Slave::_run(
 
   const ExecutorID& executorId = executorInfo.executor_id();
 
-  // Remove the task/task group from being pending. If any of the
-  // tasks in the task group have been killed in the interim, we
-  // send a TASK_KILLED for all the other tasks in the group.
+  // If any of the tasks in the task group have been killed in the interim,
+  // we send a TASK_KILLED for all the other tasks in the group.
   bool killed = false;
   foreach (const TaskInfo& _task, tasks) {
-    if (framework->pending.contains(executorId) &&
-        framework->pending[executorId].contains(_task.task_id())) {
-      framework->pending[executorId].erase(_task.task_id());
-      if (framework->pending[executorId].empty()) {
-        framework->pending.erase(executorId);
-        // NOTE: Ideally we would perform the following check here:
-        //
-        //   if (framework->executors.empty() &&
-        //       framework->pending.empty()) {
-        //     removeFramework(framework);
-        //   }
-        //
-        // However, we need 'framework' to stay valid for the rest of
-        // this function. As such, we perform the check before each of
-        // the 'return' statements below.
-      }
-    } else {
+    if (!framework->removePendingTask(_task.task_id())) {
       killed = true;
     }
   }
@@ -2471,23 +2454,20 @@ void Slave::killTask(
     return;
   }
 
-  foreachkey (const ExecutorID& executorId, framework->pending) {
-    if (framework->pending[executorId].contains(taskId)) {
-      LOG(WARNING) << "Killing task " << taskId
-                   << " of framework " << frameworkId
-                   << " before it was launched";
+  // TODO(bmahler): Removing the task here is a bug: MESOS-7783.
+  bool removedWhilePending = framework->removePendingTask(taskId);
 
-      // We send the TASK_KILLED status update in `_run()` as the
-      // task being killed could be part of a task group and we
-      // don't store this information in `framework->pending`.
-      // We don't invoke `removeFramework()` here since we need the
-      // framework to be valid for sending the status update later.
-     framework->pending[executorId].erase(taskId);
-     if (framework->pending[executorId].empty()) {
-       framework->pending.erase(executorId);
-     }
-     return;
-    }
+  if (removedWhilePending) {
+    LOG(WARNING) << "Killing task " << taskId
+                 << " of framework " << frameworkId
+                 << " before it was launched";
+
+    // We send the TASK_KILLED status update in `_run()` as the
+    // task being killed could be part of a task group and we
+    // don't store this information in `framework->pending`.
+    // We don't invoke `removeFramework()` here since we need the
+    // framework to be valid for sending the status update later.
+    return;
   }
 
   Executor* executor = framework->getExecutor(taskId);
@@ -6921,6 +6901,22 @@ void Framework::recoverExecutor(const ExecutorState& state)
   }
 
   return;
+}
+
+
+bool Framework::removePendingTask(const TaskID& taskId)
+{
+  foreachkey (const ExecutorID& executorId, pending) {
+    if (pending.at(executorId).contains(taskId)) {
+      pending.at(executorId).erase(taskId);
+      if (pending.at(executorId).empty()) {
+        pending.erase(executorId);
+      }
+      return true;
+    }
+  }
+
+  return false;
 }
 
 
