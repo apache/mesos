@@ -1039,12 +1039,31 @@ struct Framework
   Option<UPID> pid;
 
   // Executors with pending tasks.
-  hashmap<ExecutorID, hashmap<TaskID, TaskInfo>> pending;
+  hashmap<ExecutorID, hashmap<TaskID, TaskInfo>> pendingTasks;
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;
 
   boost::circular_buffer<process::Owned<Executor>> completedExecutors;
+
+  bool hasTask(const TaskID& taskId)
+  {
+    foreachkey (const ExecutorID& executorId, pendingTasks) {
+      if (pendingTasks[executorId].contains(taskId)) {
+        return true;
+      }
+    }
+
+    foreachvalue (Executor* executor, executors) {
+      if (executor->queuedTasks.contains(taskId) ||
+          executor->launchedTasks.contains(taskId) ||
+          executor->terminatedTasks.contains(taskId)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 
 private:
   Framework(const Framework&);              // No copying.

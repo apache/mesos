@@ -1272,8 +1272,8 @@ void Slave::reregistered(
 
       // Try to locate the task.
       if (framework != nullptr) {
-        foreachkey (const ExecutorID& executorId, framework->pending) {
-          if (framework->pending[executorId].contains(taskId)) {
+        foreachkey (const ExecutorID& executorId, framework->pendingTasks) {
+          if (framework->pendingTasks[executorId].contains(taskId)) {
             known = true;
           }
         }
@@ -1377,7 +1377,7 @@ void Slave::doReliableRegistration(Duration maxBackoff)
       // pending tasks, and we need to send exited events if they
       // cannot be launched, see MESOS-1715, MESOS-1720, MESOS-1800.
       typedef hashmap<TaskID, TaskInfo> TaskMap;
-      foreachvalue (const TaskMap& tasks, framework->pending) {
+      foreachvalue (const TaskMap& tasks, framework->pendingTasks) {
         foreachvalue (const TaskInfo& task, tasks) {
           message.add_tasks()->CopyFrom(protobuf::createTask(
               task, TASK_STAGING, framework->id()));
@@ -1641,8 +1641,8 @@ void Slave::run(
   // removed and the framework and top level executor directories
   // are not scheduled for deletion before '_run()' is called.
   CHECK_NOTNULL(framework);
-  foreach (const TaskInfo& task, tasks) {
-    framework->pending[executorId][task.task_id()] = task;
+  foreach (const TaskInfo& _task, tasks) {
+    framework->pendingTasks[executorId][_task.task_id()] = _task;
   }
 
   // If we are about to create a new executor, unschedule the top
@@ -2316,7 +2316,7 @@ void Slave::killTask(
 
     // We send the TASK_KILLED status update in `_run()` as the
     // task being killed could be part of a task group and we
-    // don't store this information in `framework->pending`.
+    // don't store this information in `framework->pendingTasks`.
     // We don't invoke `removeFramework()` here since we need the
     // framework to be valid for sending the status update later.
     return;
@@ -4722,7 +4722,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
 
   // Schedule the top level executor work directory, only if the
   // framework doesn't have any 'pending' tasks for this executor.
-  if (!framework->pending.contains(executor->id)) {
+  if (!framework->pendingTasks.contains(executor->id)) {
     const string path = paths::getExecutorPath(
         flags.work_dir, info.id(), framework->id(), executor->id);
 
@@ -4744,7 +4744,7 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
 
     // Schedule the top level executor meta directory, only if the
     // framework doesn't have any 'pending' tasks for this executor.
-    if (!framework->pending.contains(executor->id)) {
+    if (!framework->pendingTasks.contains(executor->id)) {
       const string path = paths::getExecutorPath(
           metaDir, info.id(), framework->id(), executor->id);
 
@@ -5825,7 +5825,7 @@ double Slave::_tasks_staging()
   double count = 0.0;
   foreachvalue (Framework* framework, frameworks) {
     typedef hashmap<TaskID, TaskInfo> TaskMap;
-    foreachvalue (const TaskMap& tasks, framework->pending) {
+    foreachvalue (const TaskMap& tasks, framework->pendingTasks) {
       count += tasks.size();
     }
 
@@ -6182,7 +6182,7 @@ Framework::Framework(
 
 bool Framework::idle() const
 {
-  return executors.empty() && pending.empty();
+  return executors.empty() && pendingTasks.empty();
 }
 
 
@@ -6581,11 +6581,11 @@ void Framework::recoverExecutor(const ExecutorState& state)
 
 bool Framework::removePendingTask(const TaskID& taskId)
 {
-  foreachkey (const ExecutorID& executorId, pending) {
-    if (pending.at(executorId).contains(taskId)) {
-      pending.at(executorId).erase(taskId);
-      if (pending.at(executorId).empty()) {
-        pending.erase(executorId);
+  foreachkey (const ExecutorID& executorId, pendingTasks) {
+    if (pendingTasks.at(executorId).contains(taskId)) {
+      pendingTasks.at(executorId).erase(taskId);
+      if (pendingTasks.at(executorId).empty()) {
+        pendingTasks.erase(executorId);
       }
       return true;
     }
