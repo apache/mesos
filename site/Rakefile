@@ -77,7 +77,7 @@ task :javadoc do
     raise "Please make sure Java proto files are generated in #{proto_java_folder} folder."
   end
   # TODO: add version to the path. Uses 'current' for now.
-  system("javadoc -d source/api/latest/java -sourcepath ../src/java/src:#{proto_java_folder} org.apache.mesos")
+  system("javadoc -d source/api/latest/java -sourcepath ../src/java/src:#{proto_java_folder} -notimestamp org.apache.mesos")
 end
 
 desc "Generate doxygen from the C++ source files in the codebase"
