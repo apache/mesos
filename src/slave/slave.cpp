@@ -7486,10 +7486,10 @@ void Framework::addPendingTaskGroup(
 }
 
 
-bool Framework::hasTask(const TaskID& taskId)
+bool Framework::hasTask(const TaskID& taskId) const
 {
   foreachkey (const ExecutorID& executorId, pendingTasks) {
-    if (pendingTasks[executorId].contains(taskId)) {
+    if (pendingTasks.at(executorId).contains(taskId)) {
       return true;
     }
   }

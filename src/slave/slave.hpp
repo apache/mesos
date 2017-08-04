@@ -892,7 +892,7 @@ public:
       const ExecutorID& executorId,
       const TaskGroupInfo& taskGroup);
 
-  bool hasTask(const TaskID& taskId);
+  bool hasTask(const TaskID& taskId) const;
   bool isPending(const TaskID& taskId) const;
 
   // Returns the task group associated with a pending task.
