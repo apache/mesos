@@ -1703,7 +1703,7 @@ mesos::agent::Response::GetTasks Http::_getTasks(
   foreach (const Framework* framework, frameworks) {
     // Pending tasks.
     typedef hashmap<TaskID, TaskInfo> TaskMap;
-    foreachvalue (const TaskMap& taskInfos, framework->pending) {
+    foreachvalue (const TaskMap& taskInfos, framework->pendingTasks) {
       foreachvalue (const TaskInfo& taskInfo, taskInfos) {
         // Skip unauthorized tasks.
         if (!approveViewTaskInfo(tasksApprover, taskInfo, framework->info)) {

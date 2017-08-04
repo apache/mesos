@@ -912,7 +912,7 @@ public:
   // being bypassed, and provide public views into them.
 
   // Executors with pending tasks.
-  hashmap<ExecutorID, hashmap<TaskID, TaskInfo>> pending;
+  hashmap<ExecutorID, hashmap<TaskID, TaskInfo>> pendingTasks;
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;
