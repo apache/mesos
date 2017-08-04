@@ -41,6 +41,8 @@
 
 #include <mesos/master/detector.hpp>
 
+#include <mesos/resources.hpp>
+
 #include "linux/capabilities.hpp"
 
 #include "master/detector/standalone.hpp"
@@ -317,6 +319,151 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
           break;
         case TestParam::FAILURE:
           EXPECT_EQ(TASK_FAILED, state);
+          break;
+      }
+      break;
+    }
+  }
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Parameterized test confirming the behavior of the capabilities
+// isolator with nested containers. We here use the fact has `ping`
+// has `NET_RAW` and `NET_ADMIN` in its file capabilities. This test
+// should be instantiated with above `TestParam` struct.
+TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_NestedPing)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "linux/capabilities";
+  flags.effective_capabilities = param.operator_effective;
+  flags.bounding_capabilities = param.operator_bounding;
+
+#ifndef USE_SSL_SOCKET
+  // Disable operator API authentication for the default executor. Executor
+  // authentication currently has SSL as a dependency, so we cannot require
+  // executors to authenticate with the agent operator API if Mesos was not
+  // built with SSL support.
+  flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
+
+  if (param.useImage == TestParam::WITH_IMAGE) {
+    const string registry = path::join(sandbox.get(), "registry");
+    AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
+    flags.docker_registry = registry;
+    flags.docker_store_dir = path::join(os::getcwd(), "store");
+    flags.image_providers = "docker";
+    flags.isolation += ",docker/runtime,filesystem/linux";
+  }
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  Resources resources = Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  ExecutorInfo executorInfo;
+  executorInfo.set_type(ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId.get());
+  executorInfo.mutable_resources()->CopyFrom(resources);
+
+  const Offer& offer = offers->front();
+  const SlaveID& slaveId = offer.slave_id();
+
+  // We use 'ping' as the command since it has file capabilities
+  // (`NET_RAW` and `NET_ADMIN` in permitted set). This allows us to
+  // test if capabilities are properly set.
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/bin/ping");
+  command.add_arguments("ping");
+  command.add_arguments("-c");
+  command.add_arguments("1");
+  command.add_arguments("127.0.0.1");
+
+  TaskInfo task = createTask(slaveId, resources, command);
+
+  if (param.framework_effective.isSome() ||
+      param.framework_bounding.isSome()) {
+    ContainerInfo* container = task.mutable_container();
+    container->set_type(ContainerInfo::MESOS);
+
+    LinuxInfo* linux = container->mutable_linux_info();
+
+    if (param.framework_effective.isSome()) {
+      CapabilityInfo* capabilities = linux->mutable_effective_capabilities();
+      capabilities->CopyFrom(param.framework_effective.get());
+    }
+
+    if (param.framework_bounding.isSome()) {
+      CapabilityInfo* capabilities = linux->mutable_bounding_capabilities();
+      capabilities->CopyFrom(param.framework_bounding.get());
+    }
+  }
+
+  if (param.useImage == TestParam::WITH_IMAGE) {
+    ContainerInfo* container = task.mutable_container();
+    container->set_type(ContainerInfo::MESOS);
+
+    Image* image = container->mutable_mesos()->mutable_image();
+    image->set_type(Image::DOCKER);
+    image->mutable_docker()->set_name("test_image");
+  }
+
+  Queue<TaskStatus> statuses;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(PushTaskStatus<1>(&statuses));
+
+  TaskGroupInfo taskGroup = createTaskGroupInfo({task});
+
+  driver.acceptOffers({offer.id()}, {LAUNCH_GROUP(executorInfo, taskGroup)});
+
+  // Wait for the terminal status update.
+  for (;;) {
+    Future<TaskStatus> status = statuses.get();
+    AWAIT_READY(status);
+
+    TaskState state = status->state();
+    if (protobuf::isTerminalState(state)) {
+      switch (param.result) {
+        case TestParam::SUCCESS:
+          EXPECT_EQ(TASK_FINISHED, state) << status->DebugString();
+          break;
+        case TestParam::FAILURE:
+          EXPECT_EQ(TASK_FAILED, state) << status->DebugString();
           break;
       }
       break;
