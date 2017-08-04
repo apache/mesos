@@ -1867,8 +1867,6 @@ void Slave::_run(
     return;
   }
 
-  const ExecutorID& executorId = executorInfo.executor_id();
-
   // We don't send a status update here because a terminating
   // framework cannot send acknowledgements.
   if (framework->state == Framework::TERMINATING) {
@@ -1879,7 +1877,7 @@ void Slave::_run(
     // Although we cannot send a status update in this case, we remove
     // the affected tasks from the pending tasks.
     foreach (const TaskInfo& _task, tasks) {
-      framework->removePendingTask(_task, executorInfo);
+      framework->removePendingTask(_task.task_id());
     }
 
     if (framework->executors.empty() && framework->pending.empty()) {
@@ -1888,6 +1886,8 @@ void Slave::_run(
 
     return;
   }
+
+  const ExecutorID& executorId = executorInfo.executor_id();
 
   // If any of the tasks in the task group have been killed in the interim,
   // we send a TASK_KILLED for all the other tasks in the group.
@@ -1906,7 +1906,7 @@ void Slave::_run(
                  << " because it has been killed in the meantime";
 
     foreach (const TaskInfo& _task, tasks) {
-      framework->removePendingTask(_task, executorInfo);
+      framework->removePendingTask(_task.task_id());
 
       const StatusUpdate update = protobuf::createStatusUpdate(
           frameworkId,
@@ -1948,7 +1948,7 @@ void Slave::_run(
     }
 
     foreach (const TaskInfo& _task, tasks) {
-      framework->removePendingTask(_task, executorInfo);
+      framework->removePendingTask(_task.task_id());
 
       const StatusUpdate update = protobuf::createStatusUpdate(
           frameworkId,
@@ -2038,7 +2038,7 @@ void Slave::__run(
     // Although we cannot send a status update in this case, we remove
     // the affected tasks from the list of pending tasks.
     foreach (const TaskInfo& _task, tasks) {
-      framework->removePendingTask(_task, executorInfo);
+      framework->removePendingTask(_task.task_id());
     }
 
     if (framework->executors.empty() && framework->pending.empty()) {
@@ -2053,7 +2053,7 @@ void Slave::__run(
   // send a TASK_KILLED for all the other tasks in the group.
   bool killed = false;
   foreach (const TaskInfo& _task, tasks) {
-    if (framework->removePendingTask(_task, executorInfo)) {
+    if (framework->removePendingTask(_task.task_id())) {
       // NOTE: Ideally we would perform the following check here:
       //
       //   if (framework->executors.empty() &&
@@ -2967,23 +2967,20 @@ void Slave::killTask(
     return;
   }
 
-  foreachkey (const ExecutorID& executorId, framework->pending) {
-    if (framework->pending[executorId].contains(taskId)) {
-      LOG(WARNING) << "Killing task " << taskId
-                   << " of framework " << frameworkId
-                   << " before it was launched";
+  // TODO(bmahler): Removing the task here is a bug: MESOS-7783.
+  bool removedWhilePending = framework->removePendingTask(taskId);
 
-      // We send the TASK_KILLED status update in `_run()` as the
-      // task being killed could be part of a task group and we
-      // don't store this information in `framework->pending`.
-      // We don't invoke `removeFramework()` here since we need the
-      // framework to be valid for sending the status update later.
-     framework->pending[executorId].erase(taskId);
-     if (framework->pending[executorId].empty()) {
-       framework->pending.erase(executorId);
-     }
-     return;
-    }
+  if (removedWhilePending) {
+    LOG(WARNING) << "Killing task " << taskId
+                 << " of framework " << frameworkId
+                 << " before it was launched";
+
+    // We send the TASK_KILLED status update in `_run()` as the
+    // task being killed could be part of a task group and we
+    // don't store this information in `framework->pending`.
+    // We don't invoke `removeFramework()` here since we need the
+    // framework to be valid for sending the status update later.
+    return;
   }
 
   Executor* executor = framework->getExecutor(taskId);
@@ -7451,21 +7448,16 @@ bool Framework::hasTask(const TaskID& taskId)
 }
 
 
-// Return `true` if `task` was a pending task of this framework
-// before the removal; `false` otherwise.
-bool Framework::removePendingTask(
-    const TaskInfo& task,
-    const ExecutorInfo& executorInfo)
+bool Framework::removePendingTask(const TaskID& taskId)
 {
-  const ExecutorID executorId = executorInfo.executor_id();
-
-  if (pending.contains(executorId) &&
-      pending.at(executorId).contains(task.task_id())) {
-    pending.at(executorId).erase(task.task_id());
-    if (pending.at(executorId).empty()) {
-      pending.erase(executorId);
+  foreachkey (const ExecutorID& executorId, pending) {
+    if (pending.at(executorId).contains(taskId)) {
+      pending.at(executorId).erase(taskId);
+      if (pending.at(executorId).empty()) {
+        pending.erase(executorId);
+      }
+      return true;
     }
-    return true;
   }
 
   return false;
