@@ -868,9 +868,8 @@ public:
 
   bool hasTask(const TaskID& taskId);
 
-  bool removePendingTask(
-      const TaskInfo& task,
-      const ExecutorInfo& executorInfo);
+  // Returns whether the pending task was removed.
+  bool removePendingTask(const TaskID& taskId);
 
   Resources allocatedResources() const;
 
