@@ -28,7 +28,7 @@ pushd "$MESOS_DIR"
 
 TAG=mesos/website-`date +%s`-$RANDOM
 
-docker build -t $TAG support/mesos-website
+docker build --no-cache=true -t $TAG support/mesos-website
 
 trap 'docker rmi $TAG' EXIT
 
