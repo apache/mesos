@@ -1739,9 +1739,7 @@ void Slave::_run(
       statusUpdate(update, UPID());
     }
 
-    // Refer to the comment after 'framework->pending.erase' above
-    // for why we need this.
-    if (framework->executors.empty() && framework->pending.empty()) {
+    if (framework->idle()) {
       removeFramework(framework);
     }
 
@@ -1757,7 +1755,7 @@ void Slave::_run(
 
     // Refer to the comment after 'framework->pending.erase' above
     // for why we need this.
-    if (framework->executors.empty() && framework->pending.empty()) {
+    if (framework->idle()) {
       removeFramework(framework);
     }
 
@@ -1788,7 +1786,7 @@ void Slave::_run(
     }
 
     // for why we need this.
-    if (framework->executors.empty() && framework->pending.empty()) {
+    if (framework->idle()) {
       removeFramework(framework);
     }
 
@@ -1837,7 +1835,7 @@ void Slave::_run(
 
     // Refer to the comment after 'framework->pending.erase' above
     // for why we need this.
-    if (framework->executors.empty() && framework->pending.empty()) {
+    if (framework->idle()) {
       removeFramework(framework);
     }
 
@@ -1878,7 +1876,7 @@ void Slave::_run(
 
     // Refer to the comment after 'framework->pending.erase' above
     // for why we need this.
-    if (framework->executors.empty() && framework->pending.empty()) {
+    if (framework->idle()) {
       removeFramework(framework);
     }
 
@@ -1897,7 +1895,7 @@ void Slave::_run(
 
     // Refer to the comment after 'framework->pending.erase' above
     // for why we need this.
-    if (framework->executors.empty() && framework->pending.empty()) {
+    if (framework->idle()) {
       removeFramework(framework);
     }
 
@@ -2544,7 +2542,7 @@ void Slave::shutdownFramework(
       }
 
       // Remove this framework if it has no pending executors and tasks.
-      if (framework->executors.empty() && framework->pending.empty()) {
+      if (framework->idle()) {
         removeFramework(framework);
       }
       break;
@@ -2986,7 +2984,7 @@ void Slave::_statusUpdateAcknowledgement(
   }
 
   // Remove this framework if it has no pending executors and tasks.
-  if (framework->executors.empty() && framework->pending.empty()) {
+  if (framework->idle()) {
     removeFramework(framework);
   }
 }
@@ -4660,7 +4658,7 @@ void Slave::executorTerminated(
       }
 
       // Remove this framework if it has no pending executors and tasks.
-      if (framework->executors.empty() && framework->pending.empty()) {
+      if (framework->idle()) {
         removeFramework(framework);
       }
       break;
@@ -4772,10 +4770,8 @@ void Slave::removeFramework(Framework* framework)
   CHECK(framework->state == Framework::RUNNING ||
         framework->state == Framework::TERMINATING);
 
-  // The invariant here is that a framework should not be removed
-  // if it has either pending executors or pending tasks.
-  CHECK(framework->executors.empty());
-  CHECK(framework->pending.empty());
+  // We only remove frameworks once they become idle.
+  CHECK(framework->idle());
 
   // Close all status update streams for this framework.
   statusUpdateManager->cleanup(framework->id());
@@ -6182,6 +6178,12 @@ Framework::Framework(
     info(_info),
     pid(_pid),
     completedExecutors(slaveFlags.max_completed_executors_per_framework) {}
+
+
+bool Framework::idle() const
+{
+  return executors.empty() && pending.empty();
+}
 
 
 void Framework::checkpointFramework() const

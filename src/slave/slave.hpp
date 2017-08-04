@@ -997,6 +997,16 @@ struct Framework
   Executor* launchExecutor(
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& taskInfo);
+
+  // Returns whether the framework is idle, where idle is
+  // defined as having no activity:
+  //   (1) The framework has no non-terminal tasks and executors.
+  //   (2) All status updates have been acknowledged.
+  //
+  // TODO(bmahler): The framework should also not be considered
+  // idle if there are unacknowledged updates for "pending" tasks.
+  bool idle() const;
+
   void destroyExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const TaskID& taskId);
