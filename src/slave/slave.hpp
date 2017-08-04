@@ -1124,9 +1124,8 @@ struct Framework
 
   void checkpointFramework() const;
 
-  bool removePendingTask(
-      const TaskInfo& task,
-      const ExecutorInfo& executorInfo);
+  // Returns whether the pending task was removed.
+  bool removePendingTask(const TaskID& taskId);
 
   const FrameworkID id() const { return info.id(); }
 
