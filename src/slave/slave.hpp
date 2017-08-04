@@ -1003,6 +1003,9 @@ struct Framework
   void recoverExecutor(const state::ExecutorState& state);
   void checkpointFramework() const;
 
+  // Returns whether the pending task was removed.
+  bool removePendingTask(const TaskID& taskId);
+
   const FrameworkID id() const { return info.id(); }
 
   enum State
