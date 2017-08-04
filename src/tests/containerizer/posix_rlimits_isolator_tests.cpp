@@ -31,6 +31,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <stout/hashmap.hpp>
+
 #include "slave/flags.hpp"
 #include "tests/cluster.hpp"
 #include "tests/environment.hpp"
@@ -333,6 +335,182 @@ TEST_F(PosixRLimitsIsolatorTest, TaskExceedingLimit)
   AWAIT_READY(statusFailed);
   EXPECT_EQ(task.task_id(), statusFailed->task_id());
   EXPECT_EQ(TASK_FAILED, statusFailed->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test confirms that rlimits are set for nested containers.
+TEST_F(PosixRLimitsIsolatorTest, NestedContainers)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "posix/rlimits";
+
+#ifndef USE_SSL_SOCKET
+  // Disable operator API authentication for the default executor.
+  // Executor authentication currently has SSL as a dependency, so we
+  // cannot require executors to authenticate with the agent operator
+  // API if Mesos was not built with SSL support.
+  flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+      .WillOnce(FutureArg<1>(&offers))
+      .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0u, offers->size());
+
+  Future<TaskStatus> taskStatuses[4];
+
+  {
+    // This variable doesn't have to be used explicitly.
+    testing::InSequence inSequence;
+
+    foreach (Future<TaskStatus>& taskStatus, taskStatuses) {
+      EXPECT_CALL(sched, statusUpdate(&driver, _))
+          .WillOnce(FutureArg<1>(&taskStatus));
+    }
+
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+        .WillRepeatedly(Return()); // Ignore subsequent updates.
+  }
+
+  Resources resources = Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  const Offer& offer = offers->front();
+  const SlaveID& slaveId = offer.slave_id();
+
+  TaskInfo task1 = createTask(
+      slaveId,
+      resources,
+      "ULIMIT=`ulimit -t`;\n"
+      "if [ \"$ULIMIT\" != \"10000\" ]; then\n"
+      "  exit 1;\n"
+      "fi");
+
+  {
+    TaskID taskId;
+    taskId.set_value("task1");
+
+    task1.mutable_task_id()->CopyFrom(taskId);
+
+    ContainerInfo* container = task1.mutable_container();
+    container->set_type(ContainerInfo::MESOS);
+
+    RLimitInfo rlimitInfo;
+    RLimitInfo::RLimit* cpuLimit = rlimitInfo.add_rlimits();
+    cpuLimit->set_type(RLimitInfo::RLimit::RLMT_CPU);
+    cpuLimit->set_soft(10000);
+    cpuLimit->set_hard(10000);
+
+    container->mutable_rlimit_info()->CopyFrom(rlimitInfo);
+  }
+
+  TaskInfo task2 = createTask(
+      slaveId,
+      resources,
+      "ULIMIT=`ulimit -t`;\n"
+      "if [ \"$ULIMIT\" != \"20000\" ]; then\n"
+      "  exit 1;\n"
+      "fi");
+
+  {
+    TaskID taskId;
+    taskId.set_value("task2");
+
+    task2.mutable_task_id()->CopyFrom(taskId);
+
+    ContainerInfo* container = task2.mutable_container();
+    container->set_type(ContainerInfo::MESOS);
+
+    RLimitInfo rlimitInfo;
+    RLimitInfo::RLimit* cpuLimit = rlimitInfo.add_rlimits();
+    cpuLimit->set_type(RLimitInfo::RLimit::RLMT_CPU);
+    cpuLimit->set_soft(20000);
+    cpuLimit->set_hard(20000);
+
+    container->mutable_rlimit_info()->CopyFrom(rlimitInfo);
+  }
+
+  TaskGroupInfo taskGroup = createTaskGroupInfo({task1, task2});
+
+  ExecutorInfo executorInfo;
+  executorInfo.set_type(ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId.get());
+  executorInfo.mutable_resources()->CopyFrom(resources);
+
+  driver.acceptOffers(
+      {offer.id()},
+      {LAUNCH_GROUP(executorInfo, taskGroup)});
+
+  // We track the status updates of each task separately, to verify
+  // that they transition from TASK_RUNNING to TASK_FINISHED.
+  enum class Stage
+  {
+    INITIAL,
+    RUNNING,
+    FINISHED
+  };
+
+  hashmap<TaskID, Stage> taskStages;
+  taskStages[task1.task_id()] = Stage::INITIAL;
+  taskStages[task2.task_id()] = Stage::INITIAL;
+
+  foreach (const Future<TaskStatus>& taskStatus, taskStatuses) {
+    AWAIT_READY(taskStatus);
+
+    Option<Stage> taskStage = taskStages.get(taskStatus->task_id());
+    ASSERT_SOME(taskStage);
+
+    switch (taskStage.get()) {
+      case Stage::INITIAL: {
+        ASSERT_EQ(TASK_RUNNING, taskStatus->state())
+          << taskStatus->DebugString();
+
+        taskStages[taskStatus->task_id()] = Stage::RUNNING;
+        break;
+      }
+      case Stage::RUNNING: {
+        ASSERT_EQ(TASK_FINISHED, taskStatus->state())
+          << taskStatus->DebugString();
+
+        taskStages[taskStatus->task_id()] = Stage::FINISHED;
+        break;
+      }
+      case Stage::FINISHED: {
+        FAIL() << "Unexpected task update: " << taskStatus->DebugString();
+        break;
+      }
+    }
+  }
 
   driver.stop();
   driver.join();

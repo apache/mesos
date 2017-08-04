@@ -28,6 +28,12 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+bool PosixRLimitsIsolatorProcess::supportsNesting()
+{
+  return true;
+}
+
+
 process::Future<Option<ContainerLaunchInfo>>
 PosixRLimitsIsolatorProcess::prepare(
     const ContainerID& containerId,
