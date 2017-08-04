@@ -43,6 +43,10 @@ Additional API Changes:
     allocator implementation should be changed to interpretation of the
     passed value as a total before updating.
 
+Feature Graduations:
+  * [MESOS-2533] - Support HTTP checks in Mesos.
+  * [MESOS-3567] - Support TCP checks in Mesos.
+
 
 Release Notes - Mesos - Version 1.3.1 (WIP)
 -------------------------------------------
