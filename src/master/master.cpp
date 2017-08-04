@@ -9161,6 +9161,7 @@ void Master::removeOffer(Offer* offer, bool rescind)
   }
 
   // Delete it.
+  LOG(INFO) << "Removing offer " << offer->id();
   offers.erase(offer->id());
   delete offer;
 }
