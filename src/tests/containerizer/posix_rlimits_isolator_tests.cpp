@@ -79,8 +79,8 @@ TEST_F(PosixRLimitsIsolatorTest, InvalidLimits)
   Future<vector<Offer>> offers;
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-      .WillOnce(FutureArg<1>(&offers))
-      .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -106,7 +106,7 @@ TEST_F(PosixRLimitsIsolatorTest, InvalidLimits)
 
   Future<TaskStatus> taskStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-      .WillOnce(FutureArg<1>(&taskStatus));
+    .WillOnce(FutureArg<1>(&taskStatus));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
@@ -122,7 +122,8 @@ TEST_F(PosixRLimitsIsolatorTest, InvalidLimits)
 
 // This test confirms that setting no values for the soft and hard
 // limits implies an unlimited resource.
-TEST_F(PosixRLimitsIsolatorTest, UnsetLimits) {
+TEST_F(PosixRLimitsIsolatorTest, UnsetLimits)
+{
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -147,8 +148,8 @@ TEST_F(PosixRLimitsIsolatorTest, UnsetLimits) {
   Future<vector<Offer>> offers;
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-      .WillOnce(FutureArg<1>(&offers))
-      .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -181,8 +182,8 @@ TEST_F(PosixRLimitsIsolatorTest, UnsetLimits) {
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinal;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-      .WillOnce(FutureArg<1>(&statusRunning))
-      .WillOnce(FutureArg<1>(&statusFinal));
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinal));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
@@ -227,8 +228,8 @@ TEST_F(PosixRLimitsIsolatorTest, BothSoftAndHardLimitSet)
   Future<vector<Offer>> offers;
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-      .WillOnce(FutureArg<1>(&offers))
-      .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -252,7 +253,7 @@ TEST_F(PosixRLimitsIsolatorTest, BothSoftAndHardLimitSet)
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-      .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
@@ -294,8 +295,8 @@ TEST_F(PosixRLimitsIsolatorTest, TaskExceedingLimit)
   Future<vector<Offer>> offers;
 
   EXPECT_CALL(sched, resourceOffers(_, _))
-      .WillOnce(FutureArg<1>(&offers))
-      .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -377,8 +378,8 @@ TEST_F(PosixRLimitsIsolatorTest, NestedContainers)
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
-      .WillOnce(FutureArg<1>(&offers))
-      .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
@@ -395,11 +396,11 @@ TEST_F(PosixRLimitsIsolatorTest, NestedContainers)
 
     foreach (Future<TaskStatus>& taskStatus, taskStatuses) {
       EXPECT_CALL(sched, statusUpdate(&driver, _))
-          .WillOnce(FutureArg<1>(&taskStatus));
+        .WillOnce(FutureArg<1>(&taskStatus));
     }
 
     EXPECT_CALL(sched, statusUpdate(&driver, _))
-        .WillRepeatedly(Return()); // Ignore subsequent updates.
+      .WillRepeatedly(Return()); // Ignore subsequent updates.
   }
 
   Resources resources = Resources::parse("cpus:0.1;mem:32;disk:32").get();
