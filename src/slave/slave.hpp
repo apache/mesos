@@ -1168,7 +1168,7 @@ struct Framework
   // being bypassed, and provide public views into them.
 
   // Executors with pending tasks.
-  hashmap<ExecutorID, hashmap<TaskID, TaskInfo>> pending;
+  hashmap<ExecutorID, hashmap<TaskID, TaskInfo>> pendingTasks;
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;
@@ -1177,8 +1177,8 @@ struct Framework
 
   bool hasTask(const TaskID& taskId)
   {
-    foreachkey (const ExecutorID& executorId, pending) {
-      if (pending[executorId].contains(taskId)) {
+    foreachkey (const ExecutorID& executorId, pendingTasks) {
+      if (pendingTasks[executorId].contains(taskId)) {
         return true;
       }
     }
