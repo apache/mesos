@@ -17,6 +17,8 @@
 #include <functional>
 #include <vector>
 
+#include <stout/result_of.hpp>
+
 namespace lambda {
 
 using std::bind;
@@ -31,8 +33,9 @@ template <
   template <typename...> class Iterable,
   typename F,
   typename U,
-  typename V = typename std::result_of<F(U)>::type>
-Iterable<V> map(F&& f, const Iterable<U>& input)
+  typename V = typename result_of<F(U)>::type,
+  typename... Us>
+Iterable<V> map(F&& f, const Iterable<U, Us...>& input)
 {
   Iterable<V> output;
   std::transform(
@@ -49,8 +52,9 @@ template <
   template <typename...> class InputIterable,
   typename F,
   typename U,
-  typename V = typename std::result_of<F(U)>::type>
-OutputIterable<V> map(F&& f, const InputIterable<U>& input)
+  typename V = typename result_of<F(U)>::type,
+  typename... Us>
+OutputIterable<V> map(F&& f, const InputIterable<U, Us...>& input)
 {
   OutputIterable<V> output;
   std::transform(
@@ -66,10 +70,11 @@ template <
   template <typename...> class Iterable,
   typename F,
   typename U,
-  typename V = typename std::result_of<F(U)>::type,
+  typename V = typename result_of<F(U)>::type,
   typename = typename std::enable_if<
-    !std::is_same<U, V>::value>::type>
-Iterable<V> map(F&& f, Iterable<U>&& input)
+    !std::is_same<U, V>::value>::type,
+  typename... Us>
+Iterable<V> map(F&& f, Iterable<U, Us...>&& input)
 {
   Iterable<V> output;
   std::transform(
@@ -86,8 +91,9 @@ template <
   typename F,
   typename U,
   typename = typename std::enable_if<
-    std::is_same<U, typename std::result_of<F(U)>::type>::value>::type>
-Iterable<U>&& map(F&& f, Iterable<U>&& iterable)
+    std::is_same<U, typename result_of<F(U)>::type>::value>::type,
+  typename... Us>
+Iterable<U, Us...>&& map(F&& f, Iterable<U, Us...>&& iterable)
 {
   std::transform(
       std::make_move_iterator(iterable.begin()),
@@ -103,8 +109,9 @@ template <
   template <typename...> class InputIterable,
   typename F,
   typename U,
-  typename V = typename std::result_of<F(U)>::type>
-OutputIterable<V> map(F&& f, InputIterable<U>&& input)
+  typename V = typename result_of<F(U)>::type,
+  typename... Us>
+OutputIterable<V> map(F&& f, InputIterable<U, Us...>&& input)
 {
   OutputIterable<V> output;
   std::transform(
@@ -120,7 +127,7 @@ template <
   template <typename...> class OutputIterable,
   typename F,
   typename U,
-  typename V = typename std::result_of<F(U)>::type>
+  typename V = typename result_of<F(U)>::type>
 OutputIterable<V> map(F&& f, std::initializer_list<U> input)
 {
   OutputIterable<V> output;
@@ -136,7 +143,7 @@ OutputIterable<V> map(F&& f, std::initializer_list<U> input)
 template <
   typename F,
   typename U,
-  typename V = typename std::result_of<F(U)>::type>
+  typename V = typename result_of<F(U)>::type>
 std::vector<V> map(F&& f, std::initializer_list<U> input)
 {
   std::vector<V> output;
