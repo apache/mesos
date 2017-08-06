@@ -93,10 +93,10 @@ struct Info
 
 
 // Return a list of socket information that matches the given protocol
-// family and socket states. 'states' can accpet multiple states using
+// family and socket states. 'states' can accept multiple states using
 // bitwise OR.
-// NOTE: 'family' is actually igored here because the older kernel
-// idiag API libnl3 uses only supports TCP and ingores this value. We
+// NOTE: 'family' is actually ignored here because the older kernel
+// idiag API libnl3 uses only supports TCP and ignores this value. We
 // keep it here to follow libnl3-idiag's suit.
 Try<std::vector<Info>> infos(int familiy, int states);
 
