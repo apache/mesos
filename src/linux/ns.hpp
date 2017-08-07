@@ -532,12 +532,60 @@ inline Try<pid_t> clone(
 
     close(fds.values());
 
+    auto grandchildMain = [=]() -> int {
+      // Grandchild (second child, now completely entered in the
+      // namespaces of the target).
+      //
+      // Now clone with the specified flags, close the unused socket,
+      // and execute the specified function.
+      pid_t pid = os::clone([=]() {
+        // Now send back the pid and have it be translated appropriately
+        // by the kernel to the enclosing pid namespace.
+        //
+        // NOTE: sending back the pid is best effort because we're going
+        // to exit no matter what.
+        ((struct ucred*) CMSG_DATA(CMSG_FIRSTHDR(&message)))->pid = ::getpid();
+        ((struct ucred*) CMSG_DATA(CMSG_FIRSTHDR(&message)))->uid = ::getuid();
+        ((struct ucred*) CMSG_DATA(CMSG_FIRSTHDR(&message)))->gid = ::getgid();
+
+        if (sendmsg(sockets[1], &message, 0) == -1) {
+          // Failed to send the pid back to the parent!
+          _exit(EXIT_FAILURE);
+        }
+
+        ::close(sockets[1]);
+
+        return f();
+      },
+      flags,
+      stack.get());
+
+      ::close(sockets[1]);
+
+      // TODO(benh): Kill ourselves with an exit status that we can
+      // decode above to determine why `clone` failed.
+      _exit(pid < 0 ? EXIT_FAILURE : EXIT_SUCCESS);
+      UNREACHABLE();
+    };
+
     // Fork again to make sure we're actually in those namespaces
     // (required for the pid namespace at least).
     //
+    // NOTE: We use clone instead of fork here because of a glibc bug.
+    // glibc version < 2.25 has an assertion in 'fork()' which checks
+    // if the child process's pid is not the same as the parent. This
+    // invariant is no longer true with pid namespaces being
+    // introduced. See more details in MESOS-7858.
+    //
+    // NOTE: glibc 'fork()' also specifies 'CLONE_CHILD_SETTID' and
+    // 'CLONE_CHILD_CLEARTID' for the clone flags. However, since we
+    // are not using any pthread library in the grandchild, we don't
+    // need those flags.
+    //
     // TODO(benh): Don't do a fork if we're not actually entering the
     // PID namespace since the extra fork is unnecessary.
-    pid_t grandchild = fork();
+    pid_t grandchild = os::clone(grandchildMain, SIGCHLD);
+
     if (grandchild < 0) {
       // TODO(benh): Exit with `errno` in order to capture `fork` error?
       ::close(sockets[1]);
@@ -574,39 +622,6 @@ inline Try<pid_t> clone(
       assert(WIFSIGNALED(status));
       raise(WTERMSIG(status));
     }
-
-    // Grandchild (second child, now completely entered in the
-    // namespaces of the target).
-    //
-    // Now clone with the specified flags, close the unused socket,
-    // and execute the specified function.
-    pid_t pid = os::clone([=]() {
-      // Now send back the pid and have it be translated appropriately
-      // by the kernel to the enclosing pid namespace.
-      //
-      // NOTE: sending back the pid is best effort because we're going
-      // to exit no matter what.
-      ((struct ucred*) CMSG_DATA(CMSG_FIRSTHDR(&message)))->pid = ::getpid();
-      ((struct ucred*) CMSG_DATA(CMSG_FIRSTHDR(&message)))->uid = ::getuid();
-      ((struct ucred*) CMSG_DATA(CMSG_FIRSTHDR(&message)))->gid = ::getgid();
-
-      if (sendmsg(sockets[1], &message, 0) == -1) {
-        // Failed to send the pid back to the parent!
-        _exit(EXIT_FAILURE);
-      }
-
-      ::close(sockets[1]);
-
-      return f();
-    },
-    flags,
-    stack.get());
-
-    ::close(sockets[1]);
-
-    // TODO(benh): Kill ourselves with an exit status that we can
-    // decode above to determine why `clone` failed.
-    _exit(pid < 0 ? EXIT_FAILURE : EXIT_SUCCESS);
   }
   UNREACHABLE();
 }
