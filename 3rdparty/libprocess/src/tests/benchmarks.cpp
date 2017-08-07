@@ -488,3 +488,89 @@ TEST(ProcessTest, Process_BENCHMARK_ThroughputPerformance)
     wait(destination->self());
   }
 }
+
+
+class DispatchProcess : public Process<DispatchProcess>
+{
+public:
+  struct Movable
+  {
+    std::vector<int> data;
+  };
+
+  // This simulates protobuf objects, which do not support moves.
+  struct Copyable
+  {
+    std::vector<int> data;
+
+    Copyable(std::vector<int>&& data) : data(std::move(data)) {}
+    Copyable(const Copyable& that) = default;
+    Copyable& operator=(const Copyable&) = default;
+  };
+
+  DispatchProcess(Promise<Nothing> *promise, long repeat)
+    : promise(promise), repeat(repeat) {}
+
+  template <typename T>
+  Future<Nothing> handler(const T& data)
+  {
+    count++;
+    if (count >= repeat) {
+      promise->set(Nothing());
+      return Nothing();
+    }
+
+    dispatch(self(), &Self::_handler).then(
+        defer(self(), &Self::handler<T>, data));
+
+    return Nothing();
+  }
+
+  template <typename T>
+  static void run(const string& name, long repeats)
+  {
+    Promise<Nothing> promise;
+
+    Owned<DispatchProcess> process(new DispatchProcess(&promise, repeats));
+    spawn(*process);
+
+    T data{std::vector<int>(10240, 42)};
+
+    Stopwatch watch;
+    watch.start();
+
+    dispatch(process.get(), &DispatchProcess::handler<T>, data);
+
+    AWAIT_READY(promise.future());
+
+    cout << name <<  " elapsed: " << watch.elapsed() << endl;
+
+    terminate(process.get());
+    wait(process.get());
+  }
+
+private:
+  Future<Nothing> _handler()
+  {
+    return Nothing();
+  }
+
+  Promise<Nothing> *promise;
+  long repeat;
+  long count = 0;
+};
+
+
+TEST(ProcessTest, Process_BENCHMARK_DispatchDefer)
+{
+  constexpr long repeats = 100000;
+
+  // Test performance separately for objects which support std::move,
+  // and which don't (e.g. like protobufs).
+  // Note: DispatchProcess::handler code is not fully optimized,
+  // to take advantage of std::move support, e.g. parameter is passed
+  // by const reference, so some copying is unavoidable, however
+  // this resembles how most of the handlers are currently implemented.
+  DispatchProcess::run<DispatchProcess::Movable>("Movable", repeats);
+  DispatchProcess::run<DispatchProcess::Copyable>("Copyable", repeats);
+}

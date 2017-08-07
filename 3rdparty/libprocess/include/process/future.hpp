@@ -175,32 +175,34 @@ public:
   template <typename F>
   const Future<T>& onDiscard(_Deferred<F>&& deferred) const
   {
-    return onDiscard(deferred.operator std::function<void()>());
+    return onDiscard(std::move(deferred).operator std::function<void()>());
   }
 
   template <typename F>
   const Future<T>& onReady(_Deferred<F>&& deferred) const
   {
-    return onReady(deferred.operator std::function<void(const T&)>());
+    return onReady(
+        std::move(deferred).operator std::function<void(const T&)>());
   }
 
   template <typename F>
   const Future<T>& onFailed(_Deferred<F>&& deferred) const
   {
     return onFailed(
-        deferred.operator std::function<void(const std::string&)>());
+        std::move(deferred).operator std::function<void(const std::string&)>());
   }
 
   template <typename F>
   const Future<T>& onDiscarded(_Deferred<F>&& deferred) const
   {
-    return onDiscarded(deferred.operator std::function<void()>());
+    return onDiscarded(std::move(deferred).operator std::function<void()>());
   }
 
   template <typename F>
   const Future<T>& onAny(_Deferred<F>&& deferred) const
   {
-    return onAny(deferred.operator std::function<void(const Future<T>&)>());
+    return onAny(
+        std::move(deferred).operator std::function<void(const Future<T>&)>());
   }
 
 private:
@@ -334,21 +336,22 @@ public:
   // and associates the result of the callback with the future that is
   // returned to the caller (which may be of a different type).
   template <typename X>
-  Future<X> then(const lambda::function<Future<X>(const T&)>& f) const;
+  Future<X> then(lambda::function<Future<X>(const T&)> f) const;
 
   template <typename X>
-  Future<X> then(const lambda::function<X(const T&)>& f) const;
+  Future<X> then(lambda::function<X(const T&)> f) const;
 
   template <typename X>
-  Future<X> then(const lambda::function<Future<X>()>& f) const
+  Future<X> then(lambda::function<Future<X>()> f) const
   {
-    return then(lambda::function<Future<X>(const T&)>(lambda::bind(f)));
+    return then(
+        lambda::function<Future<X>(const T&)>(lambda::bind(std::move(f))));
   }
 
   template <typename X>
-  Future<X> then(const lambda::function<X()>& f) const
+  Future<X> then(lambda::function<X()> f) const
   {
-    return then(lambda::function<X(const T&)>(lambda::bind(f)));
+    return then(lambda::function<X(const T&)>(lambda::bind(std::move(f))));
   }
 
 private:
@@ -360,7 +363,7 @@ private:
   {
     // note the then<X> is necessary to not have an infinite loop with
     // then(F&& f)
-    return then<X>(f.operator std::function<Future<X>(const T&)>());
+    return then<X>(std::move(f).operator std::function<Future<X>(const T&)>());
   }
 
   // Refer to the less preferred version of `onReady` for why these SFINAE
@@ -373,13 +376,13 @@ private:
               F>::type()>::type>::type>
   Future<X> then(_Deferred<F>&& f, LessPrefer) const
   {
-    return then<X>(f.operator std::function<Future<X>()>());
+    return then<X>(std::move(f).operator std::function<Future<X>()>());
   }
 
   template <typename F, typename X = typename internal::unwrap<typename result_of<F(const T&)>::type>::type> // NOLINT(whitespace/line_length)
   Future<X> then(F&& f, Prefer) const
   {
-    return then<X>(std::function<Future<X>(const T&)>(f));
+    return then<X>(std::function<Future<X>(const T&)>(std::forward<F>(f)));
   }
 
   // Refer to the less preferred version of `onReady` for why these SFINAE
@@ -392,7 +395,7 @@ private:
               F>::type()>::type>::type>
   Future<X> then(F&& f, LessPrefer) const
   {
-    return then<X>(std::function<Future<X>()>(f));
+    return then<X>(std::function<Future<X>()>(std::forward<F>(f)));
   }
 
 public:
@@ -1396,14 +1399,14 @@ void after(
 
 template <typename T>
 template <typename X>
-Future<X> Future<T>::then(const lambda::function<Future<X>(const T&)>& f) const
+Future<X> Future<T>::then(lambda::function<Future<X>(const T&)> f) const
 {
   std::shared_ptr<Promise<X>> promise(new Promise<X>());
 
   lambda::function<void(const Future<T>&)> thenf =
-    lambda::bind(&internal::thenf<T, X>, f, promise, lambda::_1);
+    lambda::bind(&internal::thenf<T, X>, std::move(f), promise, lambda::_1);
 
-  onAny(thenf);
+  onAny(std::move(thenf));
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
@@ -1416,14 +1419,14 @@ Future<X> Future<T>::then(const lambda::function<Future<X>(const T&)>& f) const
 
 template <typename T>
 template <typename X>
-Future<X> Future<T>::then(const lambda::function<X(const T&)>& f) const
+Future<X> Future<T>::then(lambda::function<X(const T&)> f) const
 {
   std::shared_ptr<Promise<X>> promise(new Promise<X>());
 
   lambda::function<void(const Future<T>&)> then =
-    lambda::bind(&internal::then<T, X>, f, promise, lambda::_1);
+    lambda::bind(&internal::then<T, X>, std::move(f), promise, lambda::_1);
 
-  onAny(then);
+  onAny(std::move(then));
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.

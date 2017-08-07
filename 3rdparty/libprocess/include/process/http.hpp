@@ -1017,7 +1017,8 @@ Future<Nothing> serve(
 template <typename F>
 Future<Nothing> serve(const network::Socket& s, F&& f)
 {
-  return internal::serve(s, std::function<Future<Response>(const Request&)>(f));
+  return internal::serve(
+      s, std::function<Future<Response>(const Request&)>(std::forward<F>(f)));
 }
 
 

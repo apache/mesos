@@ -19,6 +19,7 @@
 
 #include <process/process.hpp>
 
+#include <stout/lambda.hpp>
 #include <stout/preprocessor.hpp>
 #include <stout/result_of.hpp>
 
@@ -183,6 +184,11 @@ void dispatch(const Process<T>* process, void (T::*method)())
 // Due to a bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=41933)
 // with variadic templates and lambdas, we still need to do
 // preprocessor expansions.
+
+// The following assumes base names for type and variable are `A` and `a`.
+#define FORWARD(Z, N, DATA) std::forward<A ## N>(a ## N)
+#define DECL(Z, N, DATA) typename std::decay<A ## N>::type& a ## N
+
 #define TEMPLATE(Z, N, DATA)                                            \
   template <typename T,                                                 \
             ENUM_PARAMS(N, typename P),                                 \
@@ -190,16 +196,19 @@ void dispatch(const Process<T>* process, void (T::*method)())
   void dispatch(                                                        \
       const PID<T>& pid,                                                \
       void (T::*method)(ENUM_PARAMS(N, P)),                             \
-      ENUM_BINARY_PARAMS(N, A, a))                                      \
+      ENUM_BINARY_PARAMS(N, A, &&a))                                    \
   {                                                                     \
     std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
         new std::function<void(ProcessBase*)>(                          \
-            [=](ProcessBase* process) {                                 \
-              assert(process != nullptr);                               \
-              T* t = dynamic_cast<T*>(process);                         \
-              assert(t != nullptr);                                     \
-              (t->*method)(ENUM_PARAMS(N, a));                          \
-            }));                                                        \
+            std::bind([method](ENUM(N, DECL, _),                        \
+                               ProcessBase* process) {                  \
+                        assert(process != nullptr);                     \
+                        T* t = dynamic_cast<T*>(process);               \
+                        assert(t != nullptr);                           \
+                        (t->*method)(ENUM_PARAMS(N, a));                \
+                      },                                                \
+                      ENUM(N, FORWARD, _),                              \
+                      lambda::_1)));                                    \
                                                                         \
     internal::dispatch(pid, f, &typeid(method));                        \
   }                                                                     \
@@ -210,9 +219,9 @@ void dispatch(const Process<T>* process, void (T::*method)())
   void dispatch(                                                        \
       const Process<T>& process,                                        \
       void (T::*method)(ENUM_PARAMS(N, P)),                             \
-      ENUM_BINARY_PARAMS(N, A, a))                                      \
+      ENUM_BINARY_PARAMS(N, A, &&a))                                    \
   {                                                                     \
-    dispatch(process.self(), method, ENUM_PARAMS(N, a));                \
+    dispatch(process.self(), method, ENUM(N, FORWARD, _));              \
   }                                                                     \
                                                                         \
   template <typename T,                                                 \
@@ -221,9 +230,9 @@ void dispatch(const Process<T>* process, void (T::*method)())
   void dispatch(                                                        \
       const Process<T>* process,                                        \
       void (T::*method)(ENUM_PARAMS(N, P)),                             \
-      ENUM_BINARY_PARAMS(N, A, a))                                      \
+      ENUM_BINARY_PARAMS(N, A, &&a))                                    \
   {                                                                     \
-    dispatch(process->self(), method, ENUM_PARAMS(N, a));               \
+    dispatch(process->self(), method, ENUM(N, FORWARD, _));             \
   }
 
   REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
@@ -271,18 +280,22 @@ Future<R> dispatch(const Process<T>* process, Future<R> (T::*method)())
   Future<R> dispatch(                                                   \
       const PID<T>& pid,                                                \
       Future<R> (T::*method)(ENUM_PARAMS(N, P)),                        \
-      ENUM_BINARY_PARAMS(N, A, a))                                      \
+      ENUM_BINARY_PARAMS(N, A, &&a))                                    \
   {                                                                     \
     std::shared_ptr<Promise<R>> promise(new Promise<R>());              \
                                                                         \
     std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
         new std::function<void(ProcessBase*)>(                          \
-            [=](ProcessBase* process) {                                 \
-              assert(process != nullptr);                               \
-              T* t = dynamic_cast<T*>(process);                         \
-              assert(t != nullptr);                                     \
-              promise->associate((t->*method)(ENUM_PARAMS(N, a)));      \
-            }));                                                        \
+            std::bind([promise, method](ENUM(N, DECL, _),               \
+                                        ProcessBase* process) {         \
+                        assert(process != nullptr);                     \
+                        T* t = dynamic_cast<T*>(process);               \
+                        assert(t != nullptr);                           \
+                        promise->associate(                             \
+                            (t->*method)(ENUM_PARAMS(N, a)));           \
+                      },                                                \
+                      ENUM(N, FORWARD, _),                              \
+                      lambda::_1)));                                    \
                                                                         \
     internal::dispatch(pid, f, &typeid(method));                        \
                                                                         \
@@ -296,9 +309,9 @@ Future<R> dispatch(const Process<T>* process, Future<R> (T::*method)())
   Future<R> dispatch(                                                   \
       const Process<T>& process,                                        \
       Future<R> (T::*method)(ENUM_PARAMS(N, P)),                        \
-      ENUM_BINARY_PARAMS(N, A, a))                                      \
+      ENUM_BINARY_PARAMS(N, A, &&a))                                    \
   {                                                                     \
-    return dispatch(process.self(), method, ENUM_PARAMS(N, a));         \
+    return dispatch(process.self(), method, ENUM(N, FORWARD, _));       \
   }                                                                     \
                                                                         \
   template <typename R,                                                 \
@@ -308,9 +321,9 @@ Future<R> dispatch(const Process<T>* process, Future<R> (T::*method)())
   Future<R> dispatch(                                                   \
       const Process<T>* process,                                        \
       Future<R> (T::*method)(ENUM_PARAMS(N, P)),                        \
-      ENUM_BINARY_PARAMS(N, A, a))                                      \
+      ENUM_BINARY_PARAMS(N, A, &&a))                                    \
   {                                                                     \
-    return dispatch(process->self(), method, ENUM_PARAMS(N, a));        \
+    return dispatch(process->self(), method, ENUM(N, FORWARD, _));      \
   }
 
   REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
@@ -358,18 +371,21 @@ Future<R> dispatch(const Process<T>* process, R (T::*method)())
   Future<R> dispatch(                                                   \
       const PID<T>& pid,                                                \
       R (T::*method)(ENUM_PARAMS(N, P)),                                \
-      ENUM_BINARY_PARAMS(N, A, a))                                      \
+      ENUM_BINARY_PARAMS(N, A, &&a))                                    \
   {                                                                     \
     std::shared_ptr<Promise<R>> promise(new Promise<R>());              \
                                                                         \
     std::shared_ptr<std::function<void(ProcessBase*)>> f(               \
         new std::function<void(ProcessBase*)>(                          \
-            [=](ProcessBase* process) {                                 \
-              assert(process != nullptr);                               \
-              T* t = dynamic_cast<T*>(process);                         \
-              assert(t != nullptr);                                     \
-              promise->set((t->*method)(ENUM_PARAMS(N, a)));            \
-            }));                                                        \
+            std::bind([promise, method](ENUM(N, DECL, _),               \
+                                        ProcessBase* process) {         \
+                        assert(process != nullptr);                     \
+                        T* t = dynamic_cast<T*>(process);               \
+                        assert(t != nullptr);                           \
+                        promise->set((t->*method)(ENUM_PARAMS(N, a)));  \
+                      },                                                \
+                      ENUM(N, FORWARD, _),                              \
+                      lambda::_1)));                                    \
                                                                         \
     internal::dispatch(pid, f, &typeid(method));                        \
                                                                         \
@@ -383,9 +399,9 @@ Future<R> dispatch(const Process<T>* process, R (T::*method)())
   Future<R> dispatch(                                                   \
       const Process<T>& process,                                        \
       R (T::*method)(ENUM_PARAMS(N, P)),                                \
-      ENUM_BINARY_PARAMS(N, A, a))                                      \
+      ENUM_BINARY_PARAMS(N, A, &&a))                                    \
   {                                                                     \
-    return dispatch(process.self(), method, ENUM_PARAMS(N, a));         \
+    return dispatch(process.self(), method, ENUM(N, FORWARD, _));       \
   }                                                                     \
                                                                         \
   template <typename R,                                                 \
@@ -395,14 +411,16 @@ Future<R> dispatch(const Process<T>* process, R (T::*method)())
   Future<R> dispatch(                                                   \
       const Process<T>* process,                                        \
       R (T::*method)(ENUM_PARAMS(N, P)),                                \
-      ENUM_BINARY_PARAMS(N, A, a))                                      \
+      ENUM_BINARY_PARAMS(N, A, &&a))                                    \
   {                                                                     \
-    return dispatch(process->self(), method, ENUM_PARAMS(N, a));        \
+    return dispatch(process->self(), method, ENUM(N, FORWARD, _));      \
   }
 
   REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
 #undef TEMPLATE
 
+#undef DECL
+#undef FORWARD
 
 // We use partial specialization of
 //   - internal::Dispatch<void> vs

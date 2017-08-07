@@ -63,7 +63,9 @@ private:
 template <typename F>
 struct _Deferred
 {
-  operator Deferred<void()>() const
+  // We expect that conversion operators are invoked on rvalues only,
+  // as _Deferred is supposed to be used directly as a result of defer call.
+  operator Deferred<void()>() &&
   {
     // The 'pid' differentiates an already dispatched functor versus
     // one which still needs to be dispatched (which is done
@@ -74,13 +76,13 @@ struct _Deferred
     // arguments which will just be dropped when invoking the
     // underlying bound function).
     if (pid.isNone()) {
-      return std::function<void()>(f);
+      return std::function<void()>(std::forward<F>(f));
     }
 
     // We need to explicitly copy the members otherwise we'll
     // implicitly copy 'this' which might not exist at invocation.
     Option<UPID> pid_ = pid;
-    F f_ = f;
+    F&& f_ = std::forward<F>(f);
 
     return std::function<void()>(
         [=]() {
@@ -88,14 +90,14 @@ struct _Deferred
         });
   }
 
-  operator std::function<void()>() const
+  operator std::function<void()>() &&
   {
     if (pid.isNone()) {
-      return std::function<void()>(f);
+      return std::function<void()>(std::forward<F>(f));
     }
 
     Option<UPID> pid_ = pid;
-    F f_ = f;
+    F&& f_ = std::forward<F>(f);
 
     return std::function<void()>(
         [=]() {
@@ -104,14 +106,14 @@ struct _Deferred
   }
 
   template <typename R>
-  operator Deferred<R()>() const
+  operator Deferred<R()>() &&
   {
     if (pid.isNone()) {
-      return std::function<R()>(f);
+      return std::function<R()>(std::forward<F>(f));
     }
 
     Option<UPID> pid_ = pid;
-    F f_ = f;
+    F&& f_ = std::forward<F>(f);
 
     return std::function<R()>(
         [=]() {
@@ -120,14 +122,14 @@ struct _Deferred
   }
 
   template <typename R>
-  operator std::function<R()>() const
+  operator std::function<R()>() &&
   {
     if (pid.isNone()) {
-      return std::function<R()>(f);
+      return std::function<R()>(std::forward<F>(f));
     }
 
     Option<UPID> pid_ = pid;
-    F f_ = f;
+    F&& f_ = std::forward<F>(f);
 
     return std::function<R()>(
         [=]() {
@@ -141,43 +143,43 @@ struct _Deferred
   // libc++) we can't use std::bind with a std::function so we have to
   // explicitly use the std::function<R(P...)>::operator() (see
   // http://stackoverflow.com/questions/20097616/stdbind-to-a-stdfunction-crashes-with-clang).
-#define TEMPLATE(Z, N, DATA)                                            \
-  template <ENUM_PARAMS(N, typename P)>                                 \
-  operator Deferred<void(ENUM_PARAMS(N, P))>() const                    \
-  {                                                                     \
-    if (pid.isNone()) {                                                 \
-      return std::function<void(ENUM_PARAMS(N, P))>(f);                 \
-    }                                                                   \
-                                                                        \
-    Option<UPID> pid_ = pid;                                            \
-    F f_ = f;                                                           \
-                                                                        \
-    return std::function<void(ENUM_PARAMS(N, P))>(                      \
-        [=](ENUM_BINARY_PARAMS(N, P, p)) {                              \
-          std::function<void()> f__([=]() {                             \
-            f_(ENUM_PARAMS(N, p));                                      \
-          });                                                           \
-          dispatch(pid_.get(), f__);                                    \
-        });                                                             \
-  }                                                                     \
-                                                                        \
-  template <ENUM_PARAMS(N, typename P)>                                 \
-  operator std::function<void(ENUM_PARAMS(N, P))>() const               \
-  {                                                                     \
-    if (pid.isNone()) {                                                 \
-      return std::function<void(ENUM_PARAMS(N, P))>(f);                 \
-    }                                                                   \
-                                                                        \
-    Option<UPID> pid_ = pid;                                            \
-    F f_ = f;                                                           \
-                                                                        \
-    return std::function<void(ENUM_PARAMS(N, P))>(                      \
-        [=](ENUM_BINARY_PARAMS(N, P, p)) {                              \
-          std::function<void()> f__([=]() {                             \
-            f_(ENUM_PARAMS(N, p));                                      \
-          });                                                           \
-          dispatch(pid_.get(), f__);                                    \
-        });                                                             \
+#define TEMPLATE(Z, N, DATA)                                             \
+  template <ENUM_PARAMS(N, typename P)>                                  \
+  operator Deferred<void(ENUM_PARAMS(N, P))>() &&                        \
+  {                                                                      \
+    if (pid.isNone()) {                                                  \
+      return std::function<void(ENUM_PARAMS(N, P))>(std::forward<F>(f)); \
+    }                                                                    \
+                                                                         \
+    Option<UPID> pid_ = pid;                                             \
+    F&& f_ = std::forward<F>(f);                                         \
+                                                                         \
+    return std::function<void(ENUM_PARAMS(N, P))>(                       \
+        [=](ENUM_BINARY_PARAMS(N, P, p)) {                               \
+          std::function<void()> f__([=]() {                              \
+            f_(ENUM_PARAMS(N, p));                                       \
+          });                                                            \
+          dispatch(pid_.get(), f__);                                     \
+        });                                                              \
+  }                                                                      \
+                                                                         \
+  template <ENUM_PARAMS(N, typename P)>                                  \
+  operator std::function<void(ENUM_PARAMS(N, P))>() &&                   \
+  {                                                                      \
+    if (pid.isNone()) {                                                  \
+      return std::function<void(ENUM_PARAMS(N, P))>(std::forward<F>(f)); \
+    }                                                                    \
+                                                                         \
+    Option<UPID> pid_ = pid;                                             \
+    F&& f_ = std::forward<F>(f);                                         \
+                                                                         \
+    return std::function<void(ENUM_PARAMS(N, P))>(                       \
+        [=](ENUM_BINARY_PARAMS(N, P, p)) {                               \
+          std::function<void()> f__([=]() {                              \
+            f_(ENUM_PARAMS(N, p));                                       \
+          });                                                            \
+          dispatch(pid_.get(), f__);                                     \
+        });                                                              \
   }
 
   REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
@@ -185,14 +187,14 @@ struct _Deferred
 
 #define TEMPLATE(Z, N, DATA)                                            \
   template <typename R, ENUM_PARAMS(N, typename P)>                     \
-  operator Deferred<R(ENUM_PARAMS(N, P))>() const                       \
+  operator Deferred<R(ENUM_PARAMS(N, P))>() &&                          \
   {                                                                     \
     if (pid.isNone()) {                                                 \
-      return std::function<R(ENUM_PARAMS(N, P))>(f);                    \
+      return std::function<R(ENUM_PARAMS(N, P))>(std::forward<F>(f));   \
     }                                                                   \
                                                                         \
     Option<UPID> pid_ = pid;                                            \
-    F f_ = f;                                                           \
+    F&& f_ = std::forward<F>(f);                                        \
                                                                         \
     return std::function<R(ENUM_PARAMS(N, P))>(                         \
         [=](ENUM_BINARY_PARAMS(N, P, p)) {                              \
@@ -204,14 +206,14 @@ struct _Deferred
   }                                                                     \
                                                                         \
   template <typename R, ENUM_PARAMS(N, typename P)>                     \
-  operator std::function<R(ENUM_PARAMS(N, P))>() const                  \
+  operator std::function<R(ENUM_PARAMS(N, P))>() &&                     \
   {                                                                     \
     if (pid.isNone()) {                                                 \
-      return std::function<R(ENUM_PARAMS(N, P))>(f);                    \
+      return std::function<R(ENUM_PARAMS(N, P))>(std::forward<F>(f));   \
     }                                                                   \
                                                                         \
     Option<UPID> pid_ = pid;                                            \
-    F f_ = f;                                                           \
+    F&& f_ = std::forward<F>(f);                                        \
                                                                         \
     return std::function<R(ENUM_PARAMS(N, P))>(                         \
         [=](ENUM_BINARY_PARAMS(N, P, p)) {                              \
@@ -231,47 +233,63 @@ private:
   template <typename G>
   friend _Deferred<G> defer(const UPID& pid, G&& g);
 
-#define TEMPLATE(Z, N, DATA)                                            \
-  template <typename T,                                                 \
-            ENUM_PARAMS(N, typename P),                                 \
-            ENUM_PARAMS(N, typename A)>                                 \
-  friend auto defer(const PID<T>& pid,                                  \
-             void (T::*method)(ENUM_PARAMS(N, P)),                      \
-             ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(&std::function<void(ENUM_PARAMS(N, P))>::operator(), std::function<void(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>; // NOLINT(whitespace/line_length)
+// This assumes type and variable base names are `A` and `a` respectively.
+#define FORWARD(Z, N, DATA) std::forward<A ## N>(a ## N)
+
+#define TEMPLATE(Z, N, DATA)                                             \
+  template <typename T,                                                  \
+            ENUM_PARAMS(N, typename P),                                  \
+            ENUM_PARAMS(N, typename A)>                                  \
+  friend auto defer(const PID<T>& pid,                                   \
+                    void (T::*method)(ENUM_PARAMS(N, P)),                \
+                    ENUM_BINARY_PARAMS(N, A, &&a))                       \
+    -> _Deferred<decltype(                                               \
+           std::bind(                                                    \
+               &std::function<void(ENUM_PARAMS(N, P))>::operator(),      \
+               std::function<void(ENUM_PARAMS(N, P))>(),                 \
+               ENUM(N, FORWARD, _)))>;
 
   REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
 #undef TEMPLATE
 
-#define TEMPLATE(Z, N, DATA)                                            \
-  template <typename R,                                                 \
-            typename T,                                                 \
-            ENUM_PARAMS(N, typename P),                                 \
-            ENUM_PARAMS(N, typename A)>                                 \
-  friend auto defer(const PID<T>& pid,                                  \
-             Future<R> (T::*method)(ENUM_PARAMS(N, P)),                 \
-             ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>; // NOLINT(whitespace/line_length)
+#define TEMPLATE(Z, N, DATA)                                             \
+  template <typename R,                                                  \
+            typename T,                                                  \
+            ENUM_PARAMS(N, typename P),                                  \
+            ENUM_PARAMS(N, typename A)>                                  \
+  friend auto defer(const PID<T>& pid,                                   \
+                    Future<R> (T::*method)(ENUM_PARAMS(N, P)),           \
+                    ENUM_BINARY_PARAMS(N, A, &&a))                       \
+    -> _Deferred<decltype(                                               \
+           std::bind(                                                    \
+               &std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), \
+               std::function<Future<R>(ENUM_PARAMS(N, P))>(),            \
+               ENUM(N, FORWARD, _)))>;
 
   REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
 #undef TEMPLATE
 
-#define TEMPLATE(Z, N, DATA)                                            \
-  template <typename R,                                                 \
-            typename T,                                                 \
-            ENUM_PARAMS(N, typename P),                                 \
-            ENUM_PARAMS(N, typename A)>                                 \
-  friend auto defer(const PID<T>& pid,                                  \
-             R (T::*method)(ENUM_PARAMS(N, P)),                         \
-             ENUM_BINARY_PARAMS(N, A, a))                               \
-    -> _Deferred<decltype(std::bind(&std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), std::function<Future<R>(ENUM_PARAMS(N, P))>(), ENUM_PARAMS(N, a)))>; // NOLINT(whitespace/line_length)
+#define TEMPLATE(Z, N, DATA)                                             \
+  template <typename R,                                                  \
+            typename T,                                                  \
+            ENUM_PARAMS(N, typename P),                                  \
+            ENUM_PARAMS(N, typename A)>                                  \
+  friend auto defer(const PID<T>& pid,                                   \
+                    R (T::*method)(ENUM_PARAMS(N, P)),                   \
+                    ENUM_BINARY_PARAMS(N, A, &&a))                       \
+    -> _Deferred<decltype(                                               \
+         std::bind(                                                      \
+           &std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(),     \
+           std::function<Future<R>(ENUM_PARAMS(N, P))>(),                \
+           ENUM(N, FORWARD, _)))>;
 
   REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
 #undef TEMPLATE
+#undef FORWARD
 
-  _Deferred(const UPID& pid, F f) : pid(pid), f(f) {}
+  _Deferred(const UPID& pid, F&& f) : pid(pid), f(std::forward<F>(f)) {}
 
-  /*implicit*/ _Deferred(F f) : f(f) {}
+  /*implicit*/ _Deferred(F&& f) : f(std::forward<F>(f)) {}
 
   Option<UPID> pid;
   F f;
