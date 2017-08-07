@@ -110,16 +110,7 @@ link_directories(${PROCESS_LIB_DIRS})
 
 # THE PROCESS LIBRARY (generates, e.g., libprocess.so, etc., on Linux).
 #######################################################################
-if (WIN32)
-  add_library(${PROCESS_TARGET} STATIC ${PROCESS_SRC})
-else ()
-  add_library(${PROCESS_TARGET} SHARED ${PROCESS_SRC})
-
-  set_target_properties(
-    ${PROCESS_TARGET} PROPERTIES
-    POSITION_INDEPENDENT_CODE TRUE
-    )
-endif ()
+add_library(${PROCESS_TARGET} ${PROCESS_SRC})
 
 set_target_properties(
   ${PROCESS_TARGET} PROPERTIES
