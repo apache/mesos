@@ -22,7 +22,6 @@
 #error "linux/ns.hpp is only available on Linux systems."
 #endif
 
-#include <assert.h>
 #include <sched.h>
 #include <unistd.h>
 
@@ -33,6 +32,7 @@
 #include <string>
 #include <vector>
 
+#include <stout/assert.hpp>
 #include <stout/error.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
@@ -521,7 +521,7 @@ inline Try<pid_t> clone(
     for (size_t i = 0; i < NAMESPACES; i++) {
       Option<int> fd = fds.get(namespaces[i].nstype);
       if (fd.isSome()) {
-        assert(namespaces[i].nstype & nstypes);
+        ASSERT(namespaces[i].nstype & nstypes);
         if (::setns(fd.get(), namespaces[i].nstype) < 0) {
           close(fds.values());
           ::close(sockets[1]);
@@ -613,13 +613,13 @@ inline Try<pid_t> clone(
         }
       }
 
-      assert(WIFEXITED(status) || WIFSIGNALED(status));
+      ASSERT(WIFEXITED(status) || WIFSIGNALED(status));
 
       if (WIFEXITED(status)) {
         _exit(WEXITSTATUS(status));
       }
 
-      assert(WIFSIGNALED(status));
+      ASSERT(WIFSIGNALED(status));
       raise(WTERMSIG(status));
     }
   }
