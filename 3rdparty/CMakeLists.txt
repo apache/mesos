@@ -63,10 +63,8 @@ include(ExternalProject)
 # This adds our FindApr and FindSvn packages.
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/stout/cmake)
 
-# This adds our `external()` and `patch_command()` functions.
-list(APPEND CMAKE_MODULE_PATH
-  ${CMAKE_CURRENT_SOURCE_DIR}/libprocess/cmake/macros)
-
+# This adds our `EXTERNAL()` and `PATCH_CMD()` functions.
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(External)
 include(PatchCommand)
 
@@ -212,8 +210,12 @@ EXTERNAL(glog ${GLOG_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(glog ${LIBRARY_LINKAGE} IMPORTED)
 add_dependencies(glog ${GLOG_TARGET})
 
+# Patch glog to deal with a problem that appears when compiling on clang
+# under the C++11 standard. cf. MESOS-860, MESOS-966.
+# On Windows, patch it to enable stack tracing.
+PATCH_CMD(GLOG_PATCH_CMD glog-${GLOG_VERSION}.patch)
+
 if (WIN32)
-  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/glog-${GLOG_VERSION}.patch)
   set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
 
   # NOTE: Windows-specific workaround for a glog issue documented here[1].
@@ -236,16 +238,13 @@ if (WIN32)
     IMPORTED_LINK_INTERFACE_LIBRARIES DbgHelp
     INTERFACE_COMPILE_DEFINITIONS "${GLOG_COMPILE_DEFINITIONS}")
 else ()
-  # Patch glog to deal with a problem that appears when compiling on clang
-  # under the C++11 standard. cf. MESOS-860, MESOS-966.
-  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/glog-${GLOG_VERSION}.patch GLOG_PATCH_CMD)
-
   # TODO(andschwa): Build with CMake instead when glog is updated.
   # NOTE: We only link to the shared library of glog because the static build
   # doesn't have PIC.
   set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure GTEST_CONFIG=no --prefix=${GLOG_ROOT}-build)
   set(GLOG_BUILD_CMD   make)
   set(GLOG_INSTALL_CMD make install)
+
   set_target_properties(
     glog PROPERTIES
     IMPORTED_LOCATION ${GLOG_ROOT}-build/lib/libglog${CMAKE_SHARED_LIBRARY_SUFFIX}
@@ -420,7 +419,7 @@ else ()
     INTERFACE_INCLUDE_DIRECTORIES ${LIBEV_ROOT}-build/include)
 
   # Patch libev to keep it from reaping child processes.
-  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/libev-4.22.patch LIBEV_PATCH_CMD)
+  PATCH_CMD(LIBEV_PATCH_CMD libev-${LIBEV_VERSION}.patch)
 
   MAKE_INCLUDE_DIR(libev)
   GET_BYPRODUCTS(libev)
@@ -716,6 +715,8 @@ set_target_properties(
   INTERFACE_LINK_LIBRARIES zk-hashtable
   INTERFACE_COMPILE_DEFINITIONS "${ZOOKEEPER_COMPILE_DEFINITIONS}")
 
+PATCH_CMD(ZOOKEEPER_PATCH_CMD zookeeper-${ZOOKEEPER_VERSION}.patch)
+
 if (WIN32)
   set_target_properties(
     zookeeper PROPERTIES
@@ -726,12 +727,6 @@ if (WIN32)
     zk-hashtable PROPERTIES
     IMPORTED_LOCATION_DEBUG ${ZOOKEEPER_ROOT}-build/Debug/hashtable${CMAKE_STATIC_LIBRARY_SUFFIX}
     IMPORTED_LOCATION_RELEASE ${ZOOKEEPER_ROOT}-build/Release/hashtable${CMAKE_STATIC_LIBRARY_SUFFIX})
-
-  # Set the patch command which will utilize patch.exe in temp location for no elevation prompt
-  # NOTE: We do not specify the `--binary` patch option here because the
-  # files being modified are extracted with CRLF (Windows) line endings
-  # already. The `--binary` option will instead fail to apply the patch.
-  set(ZOOKEEPER_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/zookeeper-${ZOOKEEPER_VERSION}.patch)
 else ()
   set_target_properties(
     zookeeper PROPERTIES
@@ -740,8 +735,6 @@ else ()
   set_target_properties(
     zk-hashtable PROPERTIES
     IMPORTED_LOCATION ${ZOOKEEPER_ROOT}-build/libhashtable${CMAKE_STATIC_LIBRARY_SUFFIX})
-
-  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/zookeeper-${ZOOKEEPER_VERSION}.patch ZOOKEEPER_PATCH_CMD)
 endif ()
 
 MAKE_INCLUDE_DIR(zookeeper)
@@ -774,7 +767,7 @@ if (NOT WIN32)
     IMPORTED_LOCATION ${LEVELDB_ROOT}/out-static/libleveldb${CMAKE_STATIC_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES ${LEVELDB_ROOT}/include)
 
-  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/leveldb-${LEVELDB_VERSION}.patch LEVELDB_PATCH_CMD)
+  PATCH_CMD(LEVELDB_PATCH_CMD leveldb-${LEVELDB_VERSION}.patch)
 
   MAKE_INCLUDE_DIR(leveldb)
   GET_BYPRODUCTS(leveldb)

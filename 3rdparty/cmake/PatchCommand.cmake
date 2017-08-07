@@ -14,10 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Configure Windows use of the GNU patch utility;
-# we attempt to find it in its default location,
-# but this path may be customized.
-#################################################
+# Find and fix GNU Patch for Windows.
+#####################################
 if (WIN32)
   set(PROGRAMFILESX86 "PROGRAMFILES(X86)")
   set(PATCHEXE_DEFAULT_LOCATION $ENV{${PROGRAMFILESX86}}/GnuWin32/bin)
@@ -87,3 +85,24 @@ if (WIN32)
       COMMAND  ${APPLY_PATCH_MANIFEST_COMMAND})
   endif ()
 endif ()
+
+# PATCH_CMD generates a patch command given a patch file. If the path is not
+# absolute, it's resolved to the current source directory. It stores the command
+# in the variable name supplied.
+################################################################################
+function(PATCH_CMD CMD_VAR PATCH_FILE)
+  get_filename_component(PATCH_PATH ${PATCH_FILE} ABSOLUTE)
+  if (WIN32)
+    # Set the patch command which will utilize patch.exe in temp location for no elevation prompt
+    # NOTE: We do not specify the `--binary` patch option here because the
+    # files being modified are extracted with CRLF (Windows) line endings
+    # already. The `--binary` option will instead fail to apply the patch.
+    set (${CMD_VAR}
+      ${PATCHEXE_LOCATION} -p1 < ${PATCH_PATH}
+      PARENT_SCOPE)
+  else ()
+    set (${CMD_VAR}
+      test ! -e ${PATCH_PATH} || patch -p1 < ${PATCH_PATH}
+      PARENT_SCOPE)
+  endif ()
+endfunction()
