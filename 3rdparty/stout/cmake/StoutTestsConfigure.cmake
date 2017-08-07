@@ -31,10 +31,6 @@
 #     for the core dependencies (e.g., where to find the .so/.dll files) without
 #     having to also export the variables for test-only dependencies.
 
-set(
-  STOUT_TESTS_TARGET stout-tests
-  CACHE STRING "Target we use to refer to tests for the stout library")
-
 # COMPILER CONFIGURATION.
 #########################
 EXTERNAL("googletest" ${GOOGLETEST_VERSION} "${MESOS_3RDPARTY_BIN}")
@@ -62,7 +58,6 @@ set(GTEST_LFLAG gtest)
 ################################################################################
 set(STOUT_TEST_DEPENDENCIES
   ${STOUT_TEST_DEPENDENCIES}
-  ${STOUT_DEPENDENCIES}
   ${GOOGLETEST_TARGET}
   )
 
@@ -71,7 +66,6 @@ set(STOUT_TEST_DEPENDENCIES
 ###############################################################################
 set(STOUT_TEST_3RDPARTY_INCLUDE_DIRS
   ${STOUT_TEST_3RDPARTY_INCLUDE_DIRS}
-  ${STOUT_3RDPARTY_INCLUDE_DIRS}
   ${GMOCK_INCLUDE_DIR}
   ${GTEST_INCLUDE_DIR}
   )
@@ -82,7 +76,6 @@ set(STOUT_TEST_3RDPARTY_INCLUDE_DIRS
 ########################################################################
 set(STOUT_TEST_LIB_DIRS
   ${STOUT_TEST_LIB_DIRS}
-  ${STOUT_LIB_DIRS}
   ${GMOCK_LIB_DIR}
   ${GTEST_LIB_DIR}
   )
@@ -92,7 +85,6 @@ set(STOUT_TEST_LIB_DIRS
 #########################################################################
 set(STOUT_TEST_LIBS
   ${STOUT_TEST_LIBS}
-  ${STOUT_LIBS}
   ${GMOCK_LFLAG}
   )
 
