@@ -139,7 +139,7 @@ static Try<Nothing> interpretCheckStatusInfo(const CheckStatusInfo& result)
     case CheckInfo::COMMAND: {
       const int exitCode = result.command().exit_code();
       if (exitCode != 0) {
-        return Error("Command returned: " + WSTRINGIFY(exitCode));
+        return Error("Command " + WSTRINGIFY(exitCode));
       }
 
       break;

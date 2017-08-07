@@ -847,14 +847,14 @@ Future<int> CheckerProcess::_httpCheck(
     const Future<string>& error = std::get<2>(t);
     if (!error.isReady()) {
       return Failure(
-          string(HTTP_CHECK_COMMAND) + " returned " +
-          WSTRINGIFY(exitCode) + "; reading stderr failed: " +
+          string(HTTP_CHECK_COMMAND) + " " + WSTRINGIFY(exitCode) +
+          "; reading stderr failed: " +
           (error.isFailed() ? error.failure() : "discarded"));
     }
 
     return Failure(
-        string(HTTP_CHECK_COMMAND) + " returned " +
-        WSTRINGIFY(exitCode) + ": " + error.get());
+        string(HTTP_CHECK_COMMAND) + " " + WSTRINGIFY(exitCode) + ": " +
+        error.get());
   }
 
   const Future<string>& output = std::get<1>(t);
