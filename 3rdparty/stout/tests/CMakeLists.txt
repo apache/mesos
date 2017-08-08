@@ -108,14 +108,6 @@ add_custom_command(
     ${CMAKE_SOURCE_DIR}/3rdparty/stout/tests/protobuf_tests.proto
   DEPENDS ${CMAKE_SOURCE_DIR}/3rdparty/stout/tests/protobuf_tests.proto)
 
-GROUP_STOUT_HEADERS()
-
-GROUP_SOURCE(
-  "tests"
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  "*.[ch]*")
-
 # TODO(andschwa): Remove when gmock and gtest are top-level targets.
 link_directories(${STOUT_TEST_LIB_DIRS})
 
