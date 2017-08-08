@@ -376,12 +376,11 @@ else ()
     )
 endif ()
 
-
-# BUILDING THE STOUT TESTS.
+# BUILDING THE STOUT LIBRARY AND ITS TESTS.
 #
-# Builds, configures, and compiles the Stout tests.
-###################################################
-add_subdirectory(stout/tests)
+# Builds, configures, and compiles the stout library and assorted tests.
+########################################################################
+add_subdirectory(stout)
 
 
 # BUILDING THE PROCESS LIBRARY AND ITS TESTS.
