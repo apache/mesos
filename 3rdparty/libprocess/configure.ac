@@ -138,12 +138,6 @@ AC_ARG_ENABLE([static-unimplemented],
                              functions default: no]),
               [], [enable_static_unimplemented=no])
 
-AC_ARG_ENABLE([zlib],
-            AS_HELP_STRING([--disable-zlib],
-                           [disables zlib compression, which means the webui
-                           will be far less responsive; not recommended]),
-            [], [enable_zlib=yes])
-
 
 ###############################################################################
 # Optional packages.
@@ -240,6 +234,11 @@ AC_ARG_WITH([stout],
 AC_ARG_WITH([svn],
             AS_HELP_STRING([--with-svn=@<:@=DIR@:>@],
                            [specify where to locate the svn-1 library]),
+            [], [])
+
+AC_ARG_WITH([zlib],
+            AS_HELP_STRING([--with-zlib=@<:@=DIR@:>@],
+                           [specify where to locate the zlib library]),
             [], [])
 
 
@@ -1075,17 +1074,32 @@ libsubversion-1 is required for libprocess to build.
 ])])
 
 
-# Check if we should/can build with libz.
-if test "x$enable_zlib" = "xyes"; then
-  AC_CHECK_LIB([z], [deflate, gzread, gzwrite, inflate], [],
-               [AC_MSG_ERROR([cannot find libz
--------------------------------------------------------------------
-This means HTTP responses will be slower because we cannot use
-compression; you probably want to download and install zlib, but
-you can get away without it by doing --disable-zlib.
--------------------------------------------------------------------
-  ])])
+# Check if zlib prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes.
+if test -n "`echo $with_zlib`" ; then
+  ZLIB_CPPFLAGS="-isystem ${with_zlib}/include"
+  ZLIB_LINKERFLAGS="-L${with_zlib}/lib"
+
+  CPPFLAGS="$ZLIB_CPPFLAGS $CPPFLAGS"
+  LDFLAGS="$ZLIB_LINKERFLAGS $LDFLAGS"
 fi
+
+AC_CHECK_HEADERS([zlib.h],
+                 [AC_CHECK_LIB([z], [deflate, gzread, gzwrite, inflate], [],
+                               [AC_MSG_ERROR([cannot find libz
+-------------------------------------------------------------------
+libz is required for libprocess to build.
+-------------------------------------------------------------------
+                               ])])],
+                 [AC_MSG_ERROR([cannot find libz headers
+-------------------------------------------------------------------
+libz headers are required for libprocess to build.
+-------------------------------------------------------------------
+                 ])])
+
+AC_SUBST([ZLIB_CPPFLAGS])
+AC_SUBST([ZLIB_LINKERFLAGS])
 
 
 # Once all CXXFLAGS are completely assembled, make sure the we are not

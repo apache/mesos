@@ -24,6 +24,10 @@ BUILT_SOURCES = # Initialized to enable using +=.
 #  '--srcdir=...' when configuring.
 CONFIGURE_ARGS = @CONFIGURE_ARGS@ --enable-shared=no --with-pic --srcdir=.
 
+# Set up building flags for non-bundled libraries.
+ZLIB_INCLUDE_FLAGS = @ZLIB_CPPFLAGS@
+ZLIB_LINKER_FLAGS = @ZLIB_LINKERFLAGS@
+
 # Directory which holds bundled dependencies
 BUNDLED_DIR = $(top_srcdir)/..
 
@@ -168,9 +172,16 @@ endif
 if WITH_BUNDLED_PROTOBUF
 $(PROTOBUF)/src/protoc $(PROTOBUF)/src/libprotobuf.la: $(PROTOBUF)-build-stamp
 
+# NOTE: The `--with-zlib` flag works differently between libprocess and
+# Protobuf. Protobuf uses `--with-zlib` as an on/off switch for data
+# compression instead of a path specifier for ZLib, so we need to set up
+# the `CPPFLAGS` and `LDFLAGS` if `--with-zlib=DIR` is given.
 $(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp
-	cd $(PROTOBUF) && ./configure $(CONFIGURE_ARGS) && \
-        $(MAKE) $(AM_MAKEFLAGS)
+	cd $(PROTOBUF) &&				\
+	  ./configure $(CONFIGURE_ARGS)			\
+	              CPPFLAGS="$(ZLIB_INCLUDE_FLAGS)"	\
+	              LDFLAGS="$(ZLIB_LINKER_FLAGS)" &&	\
+	  $(MAKE) $(AM_MAKEFLAGS)
 	touch $@
 ALL_LOCAL += $(PROTOBUF)/src/libprotobuf.la
 ALL_LOCAL += $(PROTOBUF)/src/protoc
