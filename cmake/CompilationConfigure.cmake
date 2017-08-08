@@ -133,13 +133,10 @@ if (WIN32 AND REBUNDLED)
   message(
     WARNING
     "On Windows, the required versions of:\n"
-    "  * ZooKeeper\n"
-    "  * protobuf\n"
-    "  * glog\n"
-    "  * libevent\n"
     "  * curl\n"
-    "  * libapr\n"
+    "  * apr\n"
     "  * zlib\n"
+    "  * glog\n"
     "do not come rebundled in the Mesos repository.  They will be downloaded from "
     "the Internet, even though the `REBUNDLED` flag was set.")
 endif ()
@@ -255,7 +252,7 @@ if (WIN32)
 
   # COFF/PE and friends are somewhat limited in the number of sections they
   # allow for an object file. We use this to avoid those problems.
-  string(APPEND CMAKE_CXX_FLAGS " /bigobj -DGOOGLE_GLOG_DLL_DECL= /vd2 /permissive-")
+  string(APPEND CMAKE_CXX_FLAGS " /bigobj /vd2 /permissive-")
 
   # Build against the multi-threaded version of the C runtime library (CRT).
   if (BUILD_SHARED_LIBS)
@@ -268,10 +265,6 @@ if (WIN32)
   else ()
     # Use static CRT.
     set(CRT " /MT")
-
-    # TODO(andschwa): Define this closer to its usage; anything that includes
-    # `curl.h` has to set this so that the declspec is correct.
-    string(APPEND CMAKE_CXX_FLAGS " -DCURL_STATICLIB")
   endif ()
 
   # NOTE: We APPEND ${CRT} rather than REPLACE so it gets picked up by
@@ -318,17 +311,6 @@ if (WIN32)
   set(TEST_LIB_EXEC_DIR       "WARNINGDONOTUSEME")
   set(PKG_MODULE_DIR          "WARNINGDONOTUSEME")
   set(S_BIN_DIR               "WARNINGDONOTUSEME")
-
-  # Windows-specific workaround for a glog issue documented here[1].
-  # Basically, Windows.h and glog/logging.h both define ERROR. Since we don't
-  # need the Windows ERROR, we can use this flag to avoid defining it at all.
-  # Unlike the other fix (defining GLOG_NO_ABBREVIATED_SEVERITIES), this fix
-  # is guaranteed to require no changes to the original Mesos code. See also
-  # the note in the code itself[2].
-  #
-  # [1] https://google-glog.googlecode.com/svn/trunk/doc/glog.html#windows
-  # [2] https://code.google.com/p/google-glog/source/browse/trunk/src/windows/glog/logging.h?r=113
-  list(APPEND MESOS_CPPFLAGS -DNOGDI -DNOMINMAX)
 endif ()
 
 # GLOBAL CONFIGURATION.
@@ -354,15 +336,10 @@ endif ()
 
 # Calculate some build information.
 string(TIMESTAMP BUILD_DATE "%Y-%m-%d %H:%M:%S UTC" UTC)
+string(TIMESTAMP BUILD_TIME "%s" UTC)
 if (WIN32)
-  string(TIMESTAMP BUILD_TIME "%s" UTC)
   set(BUILD_USER "$ENV{USERNAME}")
 else ()
-  execute_process(
-    COMMAND date +%s
-    OUTPUT_VARIABLE BUILD_TIME
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
   set(BUILD_USER "$ENV{USER}")
 endif ()
 
@@ -404,7 +381,6 @@ configure_file(
 # preprocessor will interpret the symbols as (e.g.) int literals and uquoted
 # identifiers, rather than the string values our code expects.
 list(APPEND MESOS_CPPFLAGS
-  -DUSE_STATIC_LIB
   -DUSE_CMAKE_BUILD_CONFIG
   -DBUILD_JAVA_JVM_LIBRARY="${JAVA_JVM_LIBRARY}")
 
