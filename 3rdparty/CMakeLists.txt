@@ -327,7 +327,7 @@ list(
   APPEND CMAKE_MODULE_PATH
   ${CMAKE_SOURCE_DIR}/3rdparty/stout/cmake
   )
-include(StoutConfigure)
+# TODO(andschwa): Remove this when gmock and gtest can be included.
 include(StoutTestsConfigure)
 
 set(GOOGLETEST_URL ${FETCH_URL}/googletest-release-${GOOGLETEST_VERSION}.tar.gz)

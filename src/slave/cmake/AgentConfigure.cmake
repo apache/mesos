@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-include(StoutConfigure)
-
 set(LOGROTATE_CONTAINER_LOGGER_TARGET logrotate_container_logger
   CACHE STRING "Library containing the logrotate container logger."
   )
