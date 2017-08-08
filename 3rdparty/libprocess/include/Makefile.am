@@ -31,6 +31,7 @@ nobase_include_HEADERS =		\
   process/future.hpp			\
   process/gc.hpp			\
   process/gmock.hpp			\
+  process/grpc.hpp			\
   process/gtest.hpp			\
   process/help.hpp			\
   process/http.hpp			\

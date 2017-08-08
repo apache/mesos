@@ -58,6 +58,7 @@ GLOG = $(BUNDLED_DIR)/glog-$(GLOG_VERSION)
 GOOGLETEST = $(BUNDLED_DIR)/googletest-release-$(GOOGLETEST_VERSION)
 GMOCK = $(GOOGLETEST)/googlemock
 GPERFTOOLS = $(BUNDLED_DIR)/gperftools-$(GPERFTOOLS_VERSION)
+GRPC = $(BUNDLED_DIR)/grpc-$(GRPC_VERSION)
 GTEST = $(GOOGLETEST)/googletest
 HTTP_PARSER = $(BUNDLED_DIR)/http-parser-$(HTTP_PARSER_VERSION)
 LIBEV = $(BUNDLED_DIR)/libev-$(LIBEV_VERSION)
@@ -111,6 +112,28 @@ $(LIB_GPERFTOOLS): $(GPERFTOOLS)-build-stamp
 BUNDLED_DEPS += $(GPERFTOOLS)-build-stamp
 endif
 
+if ENABLE_GRPC
+if WITH_BUNDLED_GRPC
+GRPC_INCLUDE_FLAGS = -I$(GRPC)/include
+LIB_GRPC = $(GRPC)/libs/opt/libgrpc++.a	\
+           $(GRPC)/libs/opt/libgrpc.a	\
+           $(GRPC)/libs/opt/libgpr.a	\
+           -lssl -lcrypto
+GRPC_CPP_PLUGIN = $(GRPC)/bins/opt/grpc_cpp_plugin
+
+# NOTE: We need to specify the dependency between Protobuf and gRPC
+# here, otherwise `make` might launch concurrent gRPC and Protobuf
+# builds, which in turn trigger two racy Protobuf builds.
+$(GRPC)-build-stamp: $(PROTOBUF)-build-stamp
+
+$(LIB_GRPC): $(GRPC)-build-stamp
+BUNDLED_DEPS += $(GRPC)-build-stamp
+else
+LIB_GRPC = -lgrpc++ -lgrpc -lgpr -lssl -lcrypto
+GRPC_CPP_PLUGIN = @GRPC_CXX_PLUGIN@
+endif
+endif
+
 if WITH_BUNDLED_HTTP_PARSER
 HTTP_PARSER_INCLUDE_FLAGS = -I$(HTTP_PARSER)
 LIB_HTTP_PARSER = $(BUNDLED_DIR)/libry_http_parser.la
@@ -140,7 +163,14 @@ BUNDLED_DEPS += $(PICOJSON)-stamp
 endif
 
 if WITH_BUNDLED_PROTOBUF
+PROTOBUF_INCLUDE_FLAGS = -I$(PROTOBUF)/src
+LIB_PROTOBUF = $(PROTOBUF)/src/libprotobuf.la
+PROTOC = $(PROTOBUF)/src/protoc
+$(LIB_PROTOBUF): $(PROTOBUF)-build-stamp
 BUNDLED_DEPS += $(PROTOBUF)-build-stamp
+else
+LIB_PROTOBUF = -lprotobuf
+PROTOC = @PROTOCOMPILER@
 endif
 
 if WITH_BUNDLED_STOUT
@@ -192,13 +222,13 @@ libprocess_la_SOURCES =		\
 
 if ENABLE_SSL
 libprocess_la_SOURCES +=	\
-    src/jwt.cpp			\
-    src/jwt_authenticator.cpp	\
-    src/libevent_ssl_socket.cpp	\
-    src/libevent_ssl_socket.hpp	\
-    src/openssl.cpp		\
-    src/openssl.hpp		\
-    src/ssl/utilities.cpp
+  src/jwt.cpp			\
+  src/jwt_authenticator.cpp	\
+  src/libevent_ssl_socket.cpp	\
+  src/libevent_ssl_socket.hpp	\
+  src/openssl.cpp		\
+  src/openssl.hpp		\
+  src/ssl/utilities.cpp
 endif
 
 
@@ -213,22 +243,29 @@ libprocess_la_CPPFLAGS =			\
   $(ELFIO_INCLUDE_FLAGS)			\
   $(GLOG_INCLUDE_FLAGS)				\
   $(GPERFTOOLS_INCLUDE_FLAGS)			\
+  $(GRPC_INCLUDE_FLAGS)				\
   $(HTTP_PARSER_INCLUDE_FLAGS)			\
   $(LIB_EV_INCLUDE_FLAGS)			\
   $(PICOJSON_INCLUDE_FLAGS)			\
+  $(PROTOBUF_INCLUDE_FLAGS)			\
   $(STOUT_INCLUDE_FLAGS)			\
   $(AM_CPPFLAGS)
 
+if ENABLE_GRPC
+libprocess_la_SOURCES +=	\
+  src/grpc.cpp
+endif
+
 if ENABLE_LIBEVENT
 libprocess_la_SOURCES +=	\
-    src/libevent.hpp		\
-    src/libevent.cpp		\
-    src/libevent_poll.cpp
+  src/libevent.hpp		\
+  src/libevent.cpp		\
+  src/libevent_poll.cpp
 else
-  libprocess_la_SOURCES +=	\
-    src/libev.hpp		\
-    src/libev.cpp		\
-    src/libev_poll.cpp
+libprocess_la_SOURCES +=	\
+  src/libev.hpp			\
+  src/libev.cpp			\
+  src/libev_poll.cpp
 endif
 
 if ENABLE_STATIC_LIBPROCESS
@@ -282,8 +319,34 @@ libprocess_tests_CPPFLAGS =		\
   $(libprocess_la_CPPFLAGS)
 
 libprocess_tests_LDADD =		\
+  $(LIB_GRPC)				\
   $(LIB_GMOCK)				\
+  $(LIB_PROTOBUF)			\
   libprocess.la
+
+if ENABLE_GRPC
+libprocess_tests_SOURCES +=				\
+  src/tests/grpc_tests.cpp				\
+  src/tests/grpc_tests.proto
+
+GRPC_TESTS_GENERATED_SOURCES =				\
+  grpc_tests.pb.h					\
+  grpc_tests.pb.cc					\
+  grpc_tests.grpc.pb.h					\
+  grpc_tests.grpc.pb.cc
+
+# Use a pseudo-target here to avoid multiple protoc invocations.
+$(GRPC_TESTS_GENERATED_SOURCES): grpc_tests_proto
+
+grpc_tests_proto: src/tests/grpc_tests.proto		\
+                  $(PROTOBUF)-build-stamp		\
+                  $(GRPC)-build-stamp
+	$(PROTOC) $<					\
+	  -I$(srcdir)/src/tests				\
+	  --cpp_out=$(builddir)				\
+	  --grpc_out=$(builddir)			\
+	  --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN)
+endif
 
 if ENABLE_SSL
 check_PROGRAMS += ssl-client
@@ -333,7 +396,15 @@ libprocess_tests_LDADD +=		\
   $(LIB_EV)
 endif
 
-BUILT_SOURCES = $(BUNDLED_DEPS)
+BUILT_SOURCES =							\
+  $(BUNDLED_DEPS)						\
+  $(GRPC_TESTS_GENERATED_SOURCES)
+
+nodist_libprocess_tests_SOURCES =				\
+  $(GRPC_TESTS_GENERATED_SOURCES)
+
+CLEANFILES =							\
+  $(GRPC_TESTS_GENERATED_SOURCES)
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
