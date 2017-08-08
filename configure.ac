@@ -273,12 +273,6 @@ AC_ARG_ENABLE([xfs-disk-isolator],
                              [builds the XFS disk isolator]),
               [], [enable_xfs_disk_isolator=no])
 
-AC_ARG_ENABLE([zlib],
-            AS_HELP_STRING([--disable-zlib],
-                           [disables zlib compression, which means the webui
-                           will be far less responsive; not recommended]),
-            [], [enable_zlib=yes])
-
 AC_ARG_ENABLE([parallel_test_execution],
               AS_HELP_STRING([--enable-parallel-test-execution],
                              [execute tests in parallel where possible]))
@@ -704,13 +698,6 @@ if test "x$found_gflags" = "xyes"; then
 else
   GFLAGS_LIBS=""
 fi
-
-AC_CHECK_LIB([z], [gzread], [],
-             [AC_MSG_ERROR([cannot find libz
--------------------------------------------------------------------
-libz is required for mesos to build.
--------------------------------------------------------------------
-])])
 
 AC_CHECK_TOOL([PATCHCOMMAND_TEST], [patch], [], [$PATH])
 if test -z "`echo $PATCHCOMMAND_TEST`"; then
@@ -1913,21 +1900,28 @@ AM_CONDITIONAL([ENABLE_XFS_DISK_ISOLATOR], [test "x$enable_xfs_disk_isolator" = 
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
 # suffixes.
 if test -n "`echo $with_zlib`" ; then
-    CPPFLAGS="-isystem ${with_zlib}/include $CPPFLAGS"
-    LDFLAGS="-L${with_zlib}/lib $LDFLAGS"
+  ZLIB_CPPFLAGS="-isystem ${with_zlib}/include"
+  ZLIB_LINKERFLAGS="-L${with_zlib}/lib"
+
+  CPPFLAGS="$ZLIB_CPPFLAGS $CPPFLAGS"
+  LDFLAGS="$ZLIB_LINKERFLAGS $LDFLAGS"
 fi
 
-# Check if we should/can build with libz.
-if test "x$enable_zlib" = "xyes"; then
-  AC_CHECK_LIB([z], [deflate, gzread, gzwrite, inflate], [],
-               [AC_MSG_ERROR([cannot find libz
+AC_CHECK_HEADERS([zlib.h],
+                 [AC_CHECK_LIB([z], [deflate, gzread, gzwrite, inflate], [],
+                               [AC_MSG_ERROR([cannot find libz
 -------------------------------------------------------------------
-This means HTTP responses will be slower because we cannot use
-compression; you probably want to download and install zlib, but
-you can get away without it by doing --disable-zlib.
+libz is required for Mesos to build.
 -------------------------------------------------------------------
-  ])])
-fi
+                               ])])],
+                 [AC_MSG_ERROR([cannot find libz headers
+-------------------------------------------------------------------
+libz headers are required for Mesos to build.
+-------------------------------------------------------------------
+                 ])])
+
+AC_SUBST([ZLIB_CPPFLAGS])
+AC_SUBST([ZLIB_LINKERFLAGS])
 
 
 # Check if ZooKeeper prefix path was supplied and if so, add it to
