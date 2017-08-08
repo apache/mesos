@@ -65,12 +65,11 @@ macro(GROUP_PROCESS_HEADERS)
     "*.h*")
 endmacro()
 
-# Define process library dependencies. Tells the process library build targets
+# DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
 set(PROCESS_DEPENDENCIES
   ${PROCESS_DEPENDENCIES}
-  ${STOUT_DEPENDENCIES}
   ${HTTP_PARSER_TARGET}
   ${CONCURRENTQUEUE_TARGET}
   )
@@ -88,7 +87,7 @@ if (WIN32)
     )
 endif ()
 
-# Define third-party include directories. Tells compiler toolchain where to get
+# DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux).
 ###############################################################################
 set(PROCESS_INCLUDE_DIRS
@@ -98,8 +97,6 @@ set(PROCESS_INCLUDE_DIRS
 
 set(PROCESS_3RDPARTY_INCLUDE_DIRS
   ${PROCESS_3RDPARTY_INCLUDE_DIRS}
-  ${STOUT_3RDPARTY_INCLUDE_DIRS}
-  ${STOUT_INCLUDE_DIRS}
   ${HTTP_PARSER_INCLUDE_DIR}
   ${CONCURRENTQUEUE_INCLUDE_DIR}
   )
@@ -134,13 +131,12 @@ if (WIN32)
   )
 endif ()
 
-# Define third-party lib install directories. Used to tell the compiler
+# DEFINE THIRD-PARTY LIB INSTALL DIRECTORIES. Used to tell the compiler
 # toolchain where to find our third party libs (e.g., -L/path/to/glog on
 # Linux).
 ########################################################################
 set(PROCESS_LIB_DIRS
   ${PROCESS_LIB_DIRS}
-  ${STOUT_LIB_DIRS}
   ${HTTP_PARSER_LIB_DIR}
   )
 
@@ -157,14 +153,14 @@ if (WIN32)
     )
 endif ()
 
-# Define third-party libs. Used to generate flags that the linker uses to
+# DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
 # include our third-party libs (e.g., -lglog on Linux).
 #########################################################################
 find_package(Threads REQUIRED)
 
 set(PROCESS_LIBS
   ${PROCESS_LIBS}
-  ${STOUT_LIBS}
+  stout
   ${HTTP_PARSER_LFLAG}
   )
 

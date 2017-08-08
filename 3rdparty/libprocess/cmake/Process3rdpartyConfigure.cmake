@@ -16,8 +16,6 @@
 
 # DEFINE DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS.
 ##################################################
-set(STOUT ${MESOS_3RDPARTY_SRC}/stout)
-
 EXTERNAL("boost"           ${BOOST_VERSION}           "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("concurrentqueue" ${CONCURRENTQUEUE_VERSION} "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("glog"            ${GLOG_VERSION}            "${MESOS_3RDPARTY_BIN}")
@@ -46,7 +44,6 @@ set(LIBEVENT_LIB_ROOT ${LIBEVENT_ROOT}-lib/lib)
 
 # Convenience variables for include directories of third-party dependencies.
 set(PROCESS_INCLUDE_DIR ${MESOS_3RDPARTY_SRC}/libprocess/include)
-set(STOUT_INCLUDE_DIR   ${STOUT}/include)
 
 set(BOOST_INCLUDE_DIR           ${BOOST_ROOT})
 set(CONCURRENTQUEUE_INCLUDE_DIR ${CONCURRENTQUEUE_ROOT})
@@ -145,5 +142,4 @@ endif ()
 
 # Configure the process library, the last of our third-party libraries.
 #######################################################################
-include(StoutConfigure)
 include(ProcessConfigure)
