@@ -121,7 +121,7 @@ libgmock_la_CPPFLAGS =			\
   -I$(GTEST)/include -I$(GTEST) -I$(GTEST)/src	\
   -I$(GMOCK)/include -I$(GMOCK) -I$(GMOCK)/src
 
-  gmock_sources.cc: $(GMOCK)-stamp
+  gmock_sources.cc: $(GOOGLETEST)-stamp
 
 $(GMOCK)-build-stamp: libgmock.la
 	touch $@

@@ -62,7 +62,7 @@ BUNDLED_DEPS = # Initialize BUNDLED_DEPS so we can add to it.
 
 # Ensure bundled software is build properly.
 %-stamp:
-	@cd $(BUNDLED_DIR) && $(MAKE) $(AM_MAKEFLAGS) $(@F)
+	@cd $(BUNDLED_DIR) && $(MAKE) $(AM_MAKEFLAGS) $(@:$(BUNDLED_DIR)/%=%)
 
 # We use "-isystem" instead of "-I" to add Boost to the include search
 # path. This disables compiler warnings inside Boost headers since we
