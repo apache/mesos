@@ -1703,6 +1703,134 @@ TEST_F(SlaveTest, StateEndpoint)
 }
 
 
+// Verifies that requests to the agent's '/state' endpoint are successful when
+// there are pending tasks from a task group. This test was used to confirm the
+// fix for MESOS-7871.
+TEST_F(SlaveTest, GetStateTaskGroupPending)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
+
+  Resources resources = Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  ExecutorInfo executorInfo;
+  executorInfo.set_type(ExecutorInfo::DEFAULT);
+
+  executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_resources()->CopyFrom(resources);
+
+  const ExecutorID& executorId = executorInfo.executor_id();
+  TestContainerizer containerizer(executorId, executor);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  MockSlave slave(CreateSlaveFlags(), detector.get(), &containerizer);
+  process::PID<Slave> slavePid = spawn(slave);
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(devolve(frameworkId));
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const SlaveID slaveId = devolve(offer.agent_id());
+
+  // Override the default expectation, which forwards calls to the agent's
+  // unmocked `_run()` method. Instead, we want to do nothing so that tasks
+  // remain in the framework's 'pending' list.
+  Future<Nothing> _run;
+  EXPECT_CALL(slave, _run(_, _, _, _, _))
+    .WillOnce(FutureSatisfy(&_run));
+
+  // The executor should not be launched.
+  EXPECT_CALL(*executor, connected(_))
+    .Times(0);
+
+  v1::TaskInfo task1 = evolve(createTask(slaveId, resources, ""));
+
+  v1::TaskInfo task2 = evolve(createTask(slaveId, resources, ""));
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH_GROUP);
+
+    v1::Offer::Operation::LaunchGroup* launchGroup =
+      operation->mutable_launch_group();
+
+    launchGroup->mutable_executor()->CopyFrom(evolve(executorInfo));
+    launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+    mesos.send(call);
+  }
+
+  // Wait for the tasks to be placed in 'pending'.
+  AWAIT_READY(_run);
+
+  Future<Response> response = process::http::get(
+      slavePid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  // To confirm the fix for MESOS-7871, we simply verify that the
+  // agent doesn't crash when this request is made.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  terminate(slave);
+  wait(slave);
+}
+
+
 // This test checks that when a slave is in RECOVERING state it responds
 // to HTTP requests for "/state" endpoint with ServiceUnavailable.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
