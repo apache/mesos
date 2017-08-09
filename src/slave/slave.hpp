@@ -396,8 +396,9 @@ public:
 
   Executor* getExecutor(const ContainerID& containerId) const;
 
-  // Returns an ExecutorInfo for a TaskInfo (possibly
-  // constructing one if the task has a CommandInfo).
+  // Returns the ExecutorInfo associated with a TaskInfo. If the task has no
+  // ExecutorInfo, then we generate an ExecutorInfo corresponding to the
+  // command executor.
   ExecutorInfo getExecutorInfo(
       const FrameworkInfo& frameworkInfo,
       const TaskInfo& task) const;

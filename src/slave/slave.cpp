@@ -1597,6 +1597,10 @@ void Slave::runTask(
     const UPID& pid,
     const TaskInfo& task)
 {
+  CHECK_NE(task.has_executor(), task.has_command())
+    << "Task " << task.task_id()
+    << " should have either CommandInfo or ExecutorInfo set but not both";
+
   if (master != from) {
     LOG(WARNING) << "Ignoring run task message from " << from
                  << " because it is not the expected master: "
@@ -4980,10 +4984,9 @@ ExecutorInfo Slave::getExecutorInfo(
     const FrameworkInfo& frameworkInfo,
     const TaskInfo& task) const
 {
-  CHECK_NE(task.has_executor(), task.has_command())
-    << "Task " << task.task_id()
-    << " should have either CommandInfo or ExecutorInfo set but not both";
-
+  // In the case of tasks launched as part of a task group, the task group's
+  // ExecutorInfo is injected into each TaskInfo by the master and we return
+  // it here.
   if (task.has_executor()) {
     return task.executor();
   }
