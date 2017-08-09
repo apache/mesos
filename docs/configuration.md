@@ -2515,6 +2515,14 @@ quotas for container sandbox directories. Valid project IDs range from
   </tr>
   <tr>
     <td>
+      --enable-parallel-test-execution
+    </td>
+    <td>
+      Whether to attempt to run tests in parallel.
+    </td>
+  </tr>
+  <tr>
+    <td>
       --disable-python
     </td>
     <td>
