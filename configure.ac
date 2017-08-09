@@ -281,8 +281,7 @@ AC_ARG_ENABLE([zlib],
 
 AC_ARG_ENABLE([parallel_test_execution],
               AS_HELP_STRING([--enable-parallel-test-execution],
-                             [execute tests in parallel where possible]),
-            [], [enable_parallel_test_execution=no])
+                             [execute tests in parallel where possible]))
 
 AC_ARG_ENABLE([werror],
               AS_HELP_STRING([--disable-werror],
