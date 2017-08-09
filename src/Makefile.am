@@ -122,7 +122,7 @@ AM_LIBS = $(PTHREAD_LIBS)
 
 # Setup CPPFLAGS that are used for most source files.
 MESOS_CPPFLAGS = $(AM_CPPFLAGS)
-MESOS_CPPFLAGS += -Werror
+MESOS_CPPFLAGS += @WERROR@
 MESOS_CPPFLAGS += -DLIBDIR=\"$(libdir)\"
 MESOS_CPPFLAGS += -DPKGLIBEXECDIR=\"$(pkglibexecdir)\"
 MESOS_CPPFLAGS += -DPKGDATADIR=\"$(pkgdatadir)\"

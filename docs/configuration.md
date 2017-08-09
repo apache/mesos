@@ -2582,6 +2582,14 @@ quotas for container sandbox directories. Valid project IDs range from
       greatly improves message passing performance!
     </td>
   </tr>
+  <tr>
+    <td>
+      --disable-werror
+    </td>
+    <td>
+      Disables treating compiler warnings as fatal errors.
+    </td>
+  </tr>
 </table>
 
 ### Autotools `configure` script optional package flags

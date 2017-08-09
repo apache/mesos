@@ -284,6 +284,11 @@ AC_ARG_ENABLE([parallel_test_execution],
                              [execute tests in parallel where possible]),
             [], [enable_parallel_test_execution=no])
 
+AC_ARG_ENABLE([werror],
+              AS_HELP_STRING([--disable-werror],
+                             [do not treat compiler warnings as fatal errors]))
+
+
 ###############################################################################
 # Optional packages.
 ###############################################################################
@@ -676,6 +681,12 @@ AS_IF([test x"$enable_tests_install" = "xyes"],
 AS_IF([test "x$enable_parallel_test_execution" = "xyes"],
       [AC_SUBST([TEST_DRIVER],
        '${abs_top_srcdir}/support/mesos-gtest-runner.py'[' --sequential='*ROOT_*'']]))
+
+# Define `WERROR` if the use of `-Werror` was not disabled, leave
+# unset otherwise. An unset variable evaluates to an empty string
+# in autoconf's substitution.
+AS_IF([test "x$enable_werror" != "xno"],
+      [AC_SUBST([WERROR], [-Werror])])
 
 # Check for libunwind, and link it in if present.
 if test "x$OS_NAME" = "xfreebsd"; then
