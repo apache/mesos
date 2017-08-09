@@ -70,7 +70,7 @@ BUNDLED_DEPS = # Initialize BUNDLED_DEPENDENCIES so we can add to it.
 
 # Ensure bundled software is build properly.
 %-stamp:
-	@cd $(BUNDLED_DIR) && $(MAKE) $(AM_MAKEFLAGS) $(@F)
+	@cd $(BUNDLED_DIR) && $(MAKE) $(AM_MAKEFLAGS) $(@:$(BUNDLED_DIR)/%=%)
 
 if WITH_BUNDLED_BOOST
 BOOST_INCLUDE_FLAGS = -isystem $(BOOST)
