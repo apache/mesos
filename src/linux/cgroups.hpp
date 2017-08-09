@@ -415,8 +415,8 @@ class Device
 {
 public:
   constexpr Device(dev_t device) : value(device) {}
-  inline unsigned int getMajor() const { return major(value); }
-  inline unsigned int getMinor() const { return minor(value); }
+  unsigned int getMajor() const;
+  unsigned int getMinor() const;
 
   inline bool operator==(const Device& that) const
   {

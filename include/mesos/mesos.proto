@@ -3153,8 +3153,8 @@ message FileInfo {
  */
 message Device {
   message Number {
-    required uint64 major = 1;
-    required uint64 minor = 2;
+    required uint64 major_number = 1;
+    required uint64 minor_number = 2;
   }
 
   optional string path = 1;

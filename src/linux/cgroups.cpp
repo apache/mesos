@@ -24,6 +24,14 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 
+// This header include must be enclosed in an `extern "C"` block to
+// workaround a bug in glibc <= 2.12 (see MESOS-7378).
+//
+// TODO(gilbert): Remove this when we no longer support glibc <= 2.12.
+extern "C" {
+#include <sys/sysmacros.h>
+}
+
 #include <glog/logging.h>
 
 #include <fstream>
@@ -1930,6 +1938,18 @@ namespace blkio {
 Result<string> cgroup(pid_t pid)
 {
   return internal::cgroup(pid, "blkio");
+}
+
+
+unsigned int Device::getMajor() const
+{
+  return major(value);
+}
+
+
+unsigned int Device::getMinor() const
+{
+  return minor(value);
 }
 
 
