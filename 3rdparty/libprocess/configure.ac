@@ -952,27 +952,33 @@ if test -n "`echo $with_ssl`"; then
   LDFLAGS="-L${with_ssl}/lib $LDFLAGS"
 fi
 
-if test "x$enable_ssl" = "xyes"; then
-  AC_CHECK_HEADERS([openssl/ssl.h],
-                   [AC_CHECK_LIB([ssl],
-                                 [SSL_CTX_new],
-                                 [],
-                                 [AC_MSG_ERROR([cannot find libssl
--------------------------------------------------------------------
-libssl is required for an SSL-enabled build.
--------------------------------------------------------------------
-                                 ])])],
-                   [AC_MSG_ERROR([cannot find libssl headers
--------------------------------------------------------------------
-libssl is required for an SSL-enabled build.
--------------------------------------------------------------------
-  ])])
+AC_CHECK_LIB([crypto], [RAND_poll], [found_crypto=yes])
 
-  AC_CHECK_LIB([crypto], [RAND_poll], [], [AC_MSG_ERROR([cannot find libcrypto
+AC_CHECK_HEADERS([openssl/ssl.h],
+                 [AC_CHECK_LIB([ssl],
+                               [SSL_CTX_new],
+                               [found_ssl=yes],
+                               [],
+                               [-lcrypto])])
+
+if test "x$enable_ssl" = "xyes"; then
+  if test "x$found_ssl" != "xyes"; then
+    AC_MSG_ERROR([cannot find libssl
+-------------------------------------------------------------------
+libssl is required for an SSL-enabled build.
+-------------------------------------------------------------------
+    ])
+  fi
+
+  if test "x$found_crypto" != "xyes"; then
+    AC_MSG_ERROR([cannot find libcrypto
 -------------------------------------------------------------------
 libcrypto is required for an SSL-enabled build.
 -------------------------------------------------------------------
-  ])])
+    ])
+  fi
+
+  LIBS="-lssl -lcrypto $LIBS"
 
   if test "x$enable_libevent" = "xyes"; then
     AC_CHECK_HEADERS([event2/bufferevent_ssl.h],
@@ -1106,6 +1112,10 @@ AC_SUBST([ZLIB_LINKERFLAGS])
 # affected by libcxx undefined behavior,
 # https://llvm.org/bugs/show_bug.cgi?id=28469.
 AC_MSG_CHECKING([C++ standard library for undefined behaviour with selected optimization level])
+# NOTE: We clear `LIBS` here to prevent linking in libraries unrelated
+# to the test. These libraries might not be in the linker lookup paths.
+saved_LIBS="$LIBS"
+LIBS=""
 AC_LANG_PUSH([C++])
 AC_RUN_IFELSE([
   AC_LANG_SOURCE([[
@@ -1131,6 +1141,7 @@ AC_RUN_IFELSE([
   ]
 )
 AC_LANG_POP([C++])
+LIBS="$saved_LIBS"
 
 
 # Also pass the flags to 3rdparty libraries.
