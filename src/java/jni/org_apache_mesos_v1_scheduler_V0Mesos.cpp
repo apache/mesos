@@ -189,6 +189,8 @@ protected:
 
   void __received(const Event& event);
 
+  void connect();
+
   void heartbeat();
 
   void disconnect();
@@ -355,35 +357,7 @@ void V0ToV1AdapterProcess::registered(
     const FrameworkID& _frameworkId,
     const MasterInfo& masterInfo)
 {
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
-
-  jclass clazz = env->GetObjectClass(jmesos);
-
-  jfieldID scheduler =
-    env->GetFieldID(clazz, "scheduler",
-                    "Lorg/apache/mesos/v1/scheduler/Scheduler;");
-
-  jobject jscheduler = env->GetObjectField(jmesos, scheduler);
-
-  clazz = env->GetObjectClass(jscheduler);
-
-  // scheduler.connected(mesos);
-  jmethodID connected =
-    env->GetMethodID(clazz, "connected",
-                     "(Lorg/apache/mesos/v1/scheduler/Mesos;)V");
-
-  env->ExceptionClear();
-
-  env->CallVoidMethod(jscheduler, connected, jmesos);
-
-  if (env->ExceptionCheck()) {
-    env->ExceptionDescribe();
-    env->ExceptionClear();
-    jvm->DetachCurrentThread();
-    ABORT("Exception thrown during `connected` call");
-  }
-
-  jvm->DetachCurrentThread();
+  connect();
 
   // We need this copy to populate the fields in `Event::Subscribed` upon
   // receiving a `reregistered()` callback later.
@@ -554,6 +528,18 @@ void V0ToV1AdapterProcess::error(const string& message)
 
   event.mutable_error()->set_message(message);
 
+  // There might be an error during the communication with the master or
+  // implicit registration happening on driver initialization. Since
+  // `Scheduler.connect` is called upon a successful registration only, the
+  // scheduler will never try to subscribe and hence will never receive the
+  // error. This workaround satisfies the invariant of the v1 interface that
+  // a scheduler can receive an event only after successfully connecting with
+  // the master.
+  if (!subscribeCall) {
+    LOG(INFO) << "Implicitly connecting the scheduler to send an error";
+    connect();
+  }
+
   received(event);
 }
 
@@ -579,7 +565,8 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
 
       // The driver subscribes implicitly with the master upon initialization.
       // For compatibility with the v1 interface, send the already enqueued
-      // subscribed event upon receiving the subscribe request.
+      // subscribed event (or subscription error) upon receiving the subscribe
+      // request.
       _received();
       break;
     }
@@ -699,7 +686,8 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
 void V0ToV1AdapterProcess::received(const Event& event)
 {
   // For compatibility with the v1 interface, we only start sending events
-  // once the scheduler has sent the subscribe call.
+  // once the scheduler has sent the subscribe call. An exception to this
+  // is an error event, which can be sent before the subscribe call.
   if (!subscribeCall) {
     pending.push(event);
     return;
@@ -753,6 +741,40 @@ void V0ToV1AdapterProcess::__received(const Event& event)
     env->ExceptionClear();
     jvm->DetachCurrentThread();
     ABORT("Exception thrown during `received` call");
+  }
+
+  jvm->DetachCurrentThread();
+}
+
+
+void V0ToV1AdapterProcess::connect()
+{
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+
+  jclass clazz = env->GetObjectClass(jmesos);
+
+  jfieldID scheduler =
+    env->GetFieldID(clazz, "scheduler",
+                    "Lorg/apache/mesos/v1/scheduler/Scheduler;");
+
+  jobject jscheduler = env->GetObjectField(jmesos, scheduler);
+
+  clazz = env->GetObjectClass(jscheduler);
+
+  // scheduler.connected(mesos);
+  jmethodID connected =
+    env->GetMethodID(clazz, "connected",
+                     "(Lorg/apache/mesos/v1/scheduler/Mesos;)V");
+
+  env->ExceptionClear();
+
+  env->CallVoidMethod(jscheduler, connected, jmesos);
+
+  if (env->ExceptionCheck()) {
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+    jvm->DetachCurrentThread();
+    ABORT("Exception thrown during `connected` call");
   }
 
   jvm->DetachCurrentThread();
