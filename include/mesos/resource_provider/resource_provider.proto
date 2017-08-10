@@ -74,6 +74,12 @@ message Call {
   // Notify the master about the status of an operation.
   message Update {
     enum State {
+      // This must be the first enum value in this list, to
+      // ensure that if 'state' is not set, the default value
+      // is UNKNOWN. This enables enum values to be added
+      // in a backwards-compatible way. See: MESOS-4997.
+      UNKNOWN = 0;
+
       OK = 1;
       FAILED = 2;
     }
