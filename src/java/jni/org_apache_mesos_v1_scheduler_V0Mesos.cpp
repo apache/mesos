@@ -396,37 +396,22 @@ void V0ToV1AdapterProcess::reregistered(const MasterInfo& masterInfo)
 
 void V0ToV1AdapterProcess::disconnected()
 {
-  disconnect();
+  // Upon noticing a disconnection with the master, we drain the pending
+  // events in the queue that were waiting to be sent to the scheduler
+  // upon receiving the subscribe call.
+  // It's fine to do so because:
+  // - Any outstanding offers are invalidated by the master upon a scheduler
+  //   (re-)registration.
+  // - Any task status updates could be reconciled by the scheduler.
+  pending = queue<Event>();
+  subscribeCall = false;
 
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
-
-  jclass clazz = env->GetObjectClass(jmesos);
-
-  jfieldID scheduler =
-    env->GetFieldID(clazz, "scheduler",
-                    "Lorg/apache/mesos/v1/scheduler/Scheduler;");
-
-  jobject jscheduler = env->GetObjectField(jmesos, scheduler);
-
-  clazz = env->GetObjectClass(jscheduler);
-
-  // scheduler.disconnected(mesos);
-  jmethodID disconnected =
-    env->GetMethodID(clazz, "disconnected",
-                     "(Lorg/apache/mesos/v1/scheduler/Mesos;)V");
-
-  env->ExceptionClear();
-
-  env->CallVoidMethod(jscheduler, disconnected, jmesos);
-
-  if (env->ExceptionCheck()) {
-    env->ExceptionDescribe();
-    env->ExceptionClear();
-    jvm->DetachCurrentThread();
-    ABORT("Exception thrown during `disconnected` call");
+  if (heartbeatTimer.isSome()) {
+    Clock::cancel(heartbeatTimer.get());
+    heartbeatTimer = None();
   }
 
-  jvm->DetachCurrentThread();
+  disconnect();
 }
 
 
@@ -805,20 +790,35 @@ void V0ToV1AdapterProcess::heartbeat()
 
 void V0ToV1AdapterProcess::disconnect()
 {
-  // Upon noticing a disconnection with the master, we drain the pending
-  // events in the queue that were waiting to be sent to the scheduler
-  // upon receiving the subscribe call.
-  // It's fine to do so because:
-  // - Any outstanding offers are invalidated by the master upon a scheduler
-  //   (re-)registration.
-  // - Any task status updates could be reconciled by the scheduler.
-  pending = queue<Event>();
-  subscribeCall = false;
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
 
-  if (heartbeatTimer.isSome()) {
-    Clock::cancel(heartbeatTimer.get());
-    heartbeatTimer = None();
+  jclass clazz = env->GetObjectClass(jmesos);
+
+  jfieldID scheduler =
+    env->GetFieldID(clazz, "scheduler",
+                    "Lorg/apache/mesos/v1/scheduler/Scheduler;");
+
+  jobject jscheduler = env->GetObjectField(jmesos, scheduler);
+
+  clazz = env->GetObjectClass(jscheduler);
+
+  // scheduler.disconnected(mesos);
+  jmethodID disconnected =
+    env->GetMethodID(clazz, "disconnected",
+                     "(Lorg/apache/mesos/v1/scheduler/Mesos;)V");
+
+  env->ExceptionClear();
+
+  env->CallVoidMethod(jscheduler, disconnected, jmesos);
+
+  if (env->ExceptionCheck()) {
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+    jvm->DetachCurrentThread();
+    ABORT("Exception thrown during `disconnected` call");
   }
+
+  jvm->DetachCurrentThread();
 }
 
 
