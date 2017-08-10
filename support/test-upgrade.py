@@ -1,4 +1,22 @@
 #!/usr/bin/env python
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Script to test the upgrade path between two versions of Mesos."""
 
 import argparse
 import os
@@ -10,11 +28,17 @@ import time
 DEFAULT_PRINCIPAL = 'foo'
 DEFAULT_SECRET = 'bar'
 
-# Helper class to keep track of process lifecycles, i.e., starting processes,
-# capturing output, and checking liveness during delays/sleep.
-class Process:
+
+class Process(object):
+    """
+    Helper class to keep track of process lifecycles.
+
+    This class allows to start processes, capture their
+    output, and check their liveness during delays/sleep.
+    """
 
     def __init__(self, args, environment=None):
+        """Initialize the Process."""
         outfile = tempfile.mktemp()
         fout = open(outfile, 'w')
         print 'Run %s, output: %s' % (args, outfile)
@@ -25,10 +49,14 @@ class Process:
                                         stderr=subprocess.STDOUT,
                                         env=environment)
 
-    # Polls the process for the specified number of seconds, returning the
-    # process's return value if it ends during that time. Returns `True` if the
-    # process is still running after that time period.
     def sleep(self, seconds):
+        """
+        Poll the process for the specified number of seconds.
+
+        If the process ends during that time, this method returns the process's
+        return value. If the process is still running after that time period,
+        this method returns `True`.
+        """
         poll_time = 0.1
         while seconds > 0:
             seconds -= poll_time
@@ -39,41 +67,42 @@ class Process:
         return True
 
     def __del__(self):
-        if self.process.poll() == None:
+        """Kill the Process."""
+        if self.process.poll() is None:
             self.process.kill()
 
 
-# Class representing an agent process.
 class Agent(Process):
+    """Class representing an agent process."""
 
     def __init__(self, path, work_dir, credfile):
+        """Initialize a Mesos agent by running mesos-slave.sh."""
         Process.__init__(self, [os.path.join(path, 'bin', 'mesos-slave.sh'),
                                 '--master=127.0.0.1:5050',
                                 '--credential=' + credfile,
                                 '--work_dir=' + work_dir,
                                 '--resources=disk:2048;mem:2048;cpus:2'])
-        pass
 
 
-# Class representing a master process.
 class Master(Process):
+    """Class representing a master process."""
 
     def __init__(self, path, work_dir, credfile):
+        """Initialize a Mesos master by running mesos-master.sh."""
         Process.__init__(self, [os.path.join(path, 'bin', 'mesos-master.sh'),
                                 '--ip=127.0.0.1',
                                 '--work_dir=' + work_dir,
                                 '--authenticate',
                                 '--credentials=' + credfile,
                                 '--roles=test'])
-        pass
 
 
-# Class representing a framework instance (the test-framework for now).
-#
 # TODO(greggomann): Add support for multiple frameworks.
 class Framework(Process):
+    """Class representing a framework instance (the test-framework for now)."""
 
     def __init__(self, path):
+        """Initialize a framework."""
         # The test-framework can take these parameters as environment variables,
         # but not as command-line parameters.
         environment = {
@@ -94,29 +123,59 @@ class Framework(Process):
 
         Process.__init__(self, [os.path.join(path, 'src', 'test-framework'),
                                 '--master=127.0.0.1:5050'], environment)
-        pass
 
 
-# Convenience function to get the Mesos version from the built executables.
 def version(path):
-    p = subprocess.Popen([os.path.join(path, 'bin', 'mesos-master.sh'),
-                          '--version'],
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-    output, err = p.communicate()
-    rc = p.returncode
-    if rc != 0:
+    """Get the Mesos version from the built executables."""
+    mesos_master_path = os.path.join(path, 'bin', 'mesos-master.sh')
+    process = subprocess.Popen([mesos_master_path, '--version'],
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+    output, _ = process.communicate()
+    return_code = process.returncode
+    if return_code != 0:
         return False
 
     return output[:-1]
 
 
-# Script to test the upgrade path between two versions of Mesos.
-#
+def create_master(master_version, build_path, work_dir, credfile):
+    """Create a master using a specific version."""
+    print '##### Starting %s master #####' % master_version
+    master = Master(build_path, work_dir, credfile)
+    if not master.sleep(0.5):
+        print '%s master exited prematurely' % master_version
+        sys.exit(1)
+    return master
+
+
+def create_agent(agent_version, build_path, work_dir, credfile):
+    """Create an agent using a specific version."""
+    print '##### Starting %s agent #####' % agent_version
+    agent = Agent(build_path, work_dir, credfile)
+    if not agent.sleep(0.5):
+        print '%s agent exited prematurely' % agent_version
+        sys.exit(1)
+    return agent
+
+
+def test_framework(framework_version, build_path):
+    """Run a version of the test framework on a specified version of Mesos."""
+    print '##### Starting %s framework #####' % framework_version
+    print 'Waiting for %s framework to complete (10 sec max)...' % (
+        framework_version)
+    framework = Framework(build_path)
+    if framework.sleep(10) != 0:
+        print '%s framework failed' % framework_version
+        sys.exit(1)
+
+
 # TODO(nnielsen): Add support for zookeeper and failover of master.
 # TODO(nnielsen): Add support for testing scheduler live upgrade/failover.
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Test upgrade path between two mesos builds')
+def main():
+    """Main function to test the upgrade between two Mesos builds."""
+    parser = argparse.ArgumentParser(
+        description='Test upgrade path between two mesos builds')
     parser.add_argument('--prev',
                         type=str,
                         help='Build path to mesos version to upgrade from',
@@ -128,14 +187,11 @@ if __name__ == '__main__':
                         required=True)
     args = parser.parse_args()
 
-    prev_path = args.prev
-    next_path = args.next
-
     # Get the version strings from the built executables.
-    prev_version = version(prev_path)
-    next_version = version(next_path)
+    prev_version = version(args.prev)
+    next_version = version(args.next)
 
-    if prev_version == False or next_version == False:
+    if not prev_version or not next_version:
         print 'Could not get mesos version numbers'
         sys.exit(1)
 
@@ -168,96 +224,30 @@ NOTE: live denotes that master process keeps running from previous case.
            prev_version, next_version, next_version,
            next_version, next_version, next_version)
 
-    print ''
-    print 'Test case 1 (Run of previous setup)'
-    print '##### Starting %s master #####' % prev_version
+    # Test case 1.
+    master = create_master(prev_version, args.prev, master_work_dir, credfile)
+    agent = create_agent(prev_version, args.prev, agent_work_dir, credfile)
+    test_framework(prev_version, args.prev)
 
-    prev_master = Master(prev_path, master_work_dir, credfile)
-    if prev_master.sleep(0.5) != True:
-        print '%s master exited prematurely' % prev_version
-        sys.exit(1)
-
-    print '##### Starting %s agent #####' % prev_version
-
-    prev_agent = Agent(prev_path, agent_work_dir, credfile)
-    if prev_agent.sleep(0.5) != True:
-        print '%s agent exited prematurely' % prev_version
-        sys.exit(1)
-
-    print '##### Starting %s framework #####' % prev_version
-    print 'Waiting for %s framework to complete (10 sec max)...' % prev_version
-    prev_framework = Framework(prev_path)
-    if prev_framework.sleep(10) != 0:
-        print '%s framework failed' % prev_version
-        sys.exit(1)
-
-
-    print ''
-    print 'Test case 2 (Upgrade master)'
-
+    # Test case 2.
     # NOTE: Need to stop and start the agent because standalone detector does
     # not detect master failover.
-    print '##### Stopping %s agent #####' % prev_version
-    prev_agent.process.kill()
+    agent.process.kill()
+    master.process.kill()
+    master = create_master(next_version, args.next, master_work_dir, credfile)
+    agent = create_agent(prev_version, args.prev, agent_work_dir, credfile)
+    test_framework(prev_version, args.prev)
 
-    print '##### Stopping %s master #####' % prev_version
-    prev_master.process.kill()
+    # Test case 3.
+    agent.process.kill()
+    agent = create_agent(next_version, args.next, agent_work_dir, credfile)
+    test_framework(prev_version, args.prev)
 
-    print '##### Starting %s master #####' % next_version
-    next_master = Master(next_path, master_work_dir, credfile)
-    if next_master.sleep(0.5) != True:
-        print '%s master exited prematurely' % next_version
-        sys.exit(1)
+    # Test case 4.
+    test_framework(next_version, args.next)
 
-    print '##### Starting %s agent #####' % prev_version
-    prev_agent = Agent(prev_path, agent_work_dir, credfile)
-    if prev_agent.sleep(0.5) != True:
-        print '%s agent exited prematurely' % prev_version
-        sys.exit(1)
-
-    print '##### Starting %s framework #####' % prev_version
-    print 'Waiting for %s framework to complete (10 sec max)...' % prev_version
-    prev_framework = Framework(prev_path)
-    if prev_framework.sleep(10) != 0:
-        print '%s framework failed with %s master and %s agent' % (prev_version,
-                                                                   next_version,
-                                                                   prev_version)
-        sys.exit(1)
-
-
-    print ''
-    print 'Test case 3 (Upgrade agent)'
-
-    print '##### Stopping %s agent #####' % prev_version
-    prev_agent.process.kill()
-
-    print '##### Starting %s agent #####' % next_version
-    next_agent = Agent(next_path, agent_work_dir, credfile)
-    if next_agent.sleep(0.5) != True:
-        print '%s agent exited prematurely' % next_version
-        sys.exit(1)
-
-    print '##### Starting %s framework #####' % prev_version
-    print 'Waiting for %s framework to complete (10 sec max)...' % prev_version
-    prev_framework = Framework(prev_path)
-    if prev_framework.sleep(10) != 0:
-        print '%s framework failed with %s master and %s agent' % (prev_version,
-                                                                   next_version,
-                                                                   next_version)
-        sys.exit(1)
-
-
-    print ''
-    print 'Test case 4 (Run of next setup)'
-
-    print '##### Starting %s framework #####' % next_version
-    print 'Waiting for %s framework to complete (10 sec max)...' % next_version
-    next_framework = Framework(next_path)
-    if next_framework.sleep(10) != 0:
-        print '%s framework failed with %s master and %s agent' % (next_version,
-                                                                   next_version,
-                                                                   next_version)
-        sys.exit(1)
-
-    # Test passed.
+    # Tests passed.
     sys.exit(0)
+
+if __name__ == '__main__':
+    main()
