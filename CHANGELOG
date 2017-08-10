@@ -1,5 +1,14 @@
-Release Notes - Mesos - Version 1.3.1 (WIP)
+Release Notes - Mesos - Version 1.3.2 (WIP)
 -------------------------------------------
+* This is a bug fix release.
+
+All Issues:
+** Bug
+  * [MESOS-6743] - Docker executor hangs forever if `docker stop` fails.
+
+
+Release Notes - Mesos - Version 1.3.1
+-------------------------------------
 * This is a bug fix release.
 
 All Issues:
@@ -23,7 +32,7 @@ All Issues:
 
 
 Release Notes - Mesos - Version 1.3.0
--------------------------------------------
+-------------------------------------
 This release contains the following new features:
 
   * [MESOS-1763] - Support for frameworks to receive resources for multiple
