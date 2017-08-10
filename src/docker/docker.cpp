@@ -1223,7 +1223,7 @@ Future<Docker::Container> Docker::inspect(
 {
   Owned<Promise<Docker::Container>> promise(new Promise<Docker::Container>());
 
-  const string cmd =  path + " -H " + socket + " inspect " + containerName;
+  const string cmd = path + " -H " + socket + " inspect " + containerName;
   _inspect(cmd, promise, retryInterval);
 
   return promise->future();

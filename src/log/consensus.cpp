@@ -45,7 +45,7 @@ namespace log {
 static bool isRejectedPromise(const PromiseResponse& response) {
   if (response.has_type()) {
     // New format (Mesos >= 0.26).
-    return response.type() ==  PromiseResponse::REJECT;
+    return response.type() == PromiseResponse::REJECT;
   } else {
     // Old format (Mesos < 0.26).
     return !response.okay();

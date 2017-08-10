@@ -1289,7 +1289,7 @@ Option<Error> validateExecutor(
           " should not contain any shared resources");
     }
 
-    Option<double> cpus =  executorResources.cpus();
+    Option<double> cpus = executorResources.cpus();
     if (cpus.isNone() || cpus.get() < MIN_CPUS) {
       LOG(WARNING)
         << "Executor '" << task.executor().executor_id()
@@ -1476,7 +1476,7 @@ Option<Error> validateExecutor(
   const Resources& executorResources = executor.resources();
 
   // Validate minimal cpus and memory resources of executor.
-  Option<double> cpus =  executorResources.cpus();
+  Option<double> cpus = executorResources.cpus();
   if (cpus.isNone() || cpus.get() < MIN_CPUS) {
     return Error(
       "Executor '" + stringify(executor.executor_id()) +

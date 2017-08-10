@@ -1407,15 +1407,15 @@ message TrafficControlStatistics {
 
 
 message IpStatistics {
-  optional int64 Forwarding =  1;
-  optional int64 DefaultTTL =  2;
-  optional int64 InReceives =  3;
-  optional int64 InHdrErrors =  4;
-  optional int64 InAddrErrors =  5;
-  optional int64 ForwDatagrams =  6;
+  optional int64 Forwarding = 1;
+  optional int64 DefaultTTL = 2;
+  optional int64 InReceives = 3;
+  optional int64 InHdrErrors = 4;
+  optional int64 InAddrErrors = 5;
+  optional int64 ForwDatagrams = 6;
   optional int64 InUnknownProtos = 7;
-  optional int64 InDiscards =  8;
-  optional int64 InDelivers  = 9;
+  optional int64 InDiscards = 8;
+  optional int64 InDelivers = 9;
   optional int64 OutRequests = 10;
   optional int64 OutDiscards = 11;
   optional int64 OutNoRoutes = 12;
@@ -1431,11 +1431,11 @@ message IpStatistics {
 
 message IcmpStatistics {
   optional int64 InMsgs = 1;
-  optional int64 InErrors =  2;
+  optional int64 InErrors = 2;
   optional int64 InCsumErrors = 3;
-  optional int64 InDestUnreachs =  4;
+  optional int64 InDestUnreachs = 4;
   optional int64 InTimeExcds = 5;
-  optional int64 InParmProbs =  6;
+  optional int64 InParmProbs = 6;
   optional int64 InSrcQuenchs = 7;
   optional int64 InRedirects = 8;
   optional int64 InEchos = 9;

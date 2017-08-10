@@ -201,7 +201,7 @@ message Call {
   optional DestroyVolumes destroy_volumes = 10;
   optional UpdateMaintenanceSchedule update_maintenance_schedule = 11;
   optional StartMaintenance start_maintenance = 12;
-  optional StopMaintenance stop_maintenance  = 13;
+  optional StopMaintenance stop_maintenance = 13;
   optional SetQuota set_quota = 14;
   optional RemoveQuota remove_quota = 15;
 }

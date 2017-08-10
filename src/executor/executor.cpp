@@ -693,8 +693,8 @@ protected:
 
     // This could happen if the agent failed over after sending an event.
     if (event->isNone()) {
-      const string error =  "End-Of-File received from agent. The agent closed "
-                            "the event stream";
+      const string error = "End-Of-File received from agent. The agent closed"
+                           " the event stream";
       LOG(ERROR) << error;
 
       disconnected(connectionId.get(), error);

@@ -906,7 +906,7 @@ void IOSwitchboard::reaped(
 }
 
 
-const char IOSwitchboardServer::NAME[]          = "mesos-io-switchboard";
+const char IOSwitchboardServer::NAME[] = "mesos-io-switchboard";
 
 
 class IOSwitchboardServerProcess : public Process<IOSwitchboardServerProcess>

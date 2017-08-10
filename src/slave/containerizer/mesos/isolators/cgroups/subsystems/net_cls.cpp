@@ -268,7 +268,7 @@ Try<Owned<Subsystem>> NetClsSubsystem::create(
         return Error("The secondary handle has to be a non-zero value.");
       }
 
-      Try<uint16_t> upper =  numify<uint16_t>(range[1]);
+      Try<uint16_t> upper = numify<uint16_t>(range[1]);
       if (upper.isError()) {
         return Error(
             "Failed to parse the upper bound of range of secondary handles '" +

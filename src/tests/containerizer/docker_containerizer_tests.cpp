@@ -4601,7 +4601,7 @@ TEST_F(DockerContainerizerIPv6Test, ROOT_DOCKER_LaunchIPv6HostNetwork)
 
   const Offer& offer = offers.get()[0];
 
-  TaskInfo task =  createTask(
+  TaskInfo task = createTask(
       offer.slave_id(),
       offer.resources(),
       SLEEP_COMMAND(10000));
