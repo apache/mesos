@@ -295,8 +295,6 @@ class PyLinter(LinterBase):
 
     comment_prefix = '#'
 
-    test = 'hello'
-
     def run_lint(self, source_paths):
         """
         Runs pylint over given files.
