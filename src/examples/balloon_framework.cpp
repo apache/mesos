@@ -68,6 +68,11 @@ class Flags : public virtual flags::FlagsBase
 public:
   Flags()
   {
+    add(&Flags::name,
+        "name",
+        "Name to be used by the framework.",
+        "Balloon Framework");
+
     add(&Flags::master,
         "master",
         "Master to connect to.");
@@ -143,6 +148,7 @@ public:
         false);
   }
 
+  string name;
   string master;
   Bytes task_memory_usage_limit;
   Bytes task_memory;
@@ -223,7 +229,7 @@ public:
       LOG(INFO) << "Launching task " << taskId;
 
       TaskInfo task;
-      task.set_name("Balloon Task");
+      task.set_name(flags.name + " Task");
       task.mutable_task_id()->set_value(stringify(taskId));
       task.mutable_slave_id()->MergeFrom(offer.slave_id());
       task.mutable_resources()->CopyFrom(taskResources);
@@ -493,7 +499,7 @@ int main(int argc, char** argv)
 
   ExecutorInfo executor;
   executor.mutable_resources()->CopyFrom(resources);
-  executor.set_name("Balloon Executor");
+  executor.set_name(flags.name + " Executor");
 
   // Determine the command to run the executor based on three possibilities:
   //   1) `--executor_command` was set, which overrides the below cases.
@@ -548,7 +554,7 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(os::user().get());
-  framework.set_name("Balloon Framework (C++)");
+  framework.set_name(flags.name);
   framework.set_checkpoint(flags.checkpoint);
   framework.set_role("*");
   framework.add_capabilities()->set_type(

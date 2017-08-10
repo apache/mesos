@@ -62,6 +62,11 @@ class Flags : public virtual flags::FlagsBase
 public:
   Flags()
   {
+    add(&Flags::name,
+        "name",
+        "Name to be used by the framework.",
+        "Disk Full Framework");
+
     add(&Flags::master,
         "master",
         "Master to connect to.");
@@ -98,6 +103,7 @@ public:
         "and the task will terminated.\n");
   }
 
+  string name;
   string master;
   bool run_once;
   Duration pre_sleep_duration;
@@ -178,7 +184,7 @@ public:
           " && sleep " + stringify(flags.post_sleep_duration.secs());
 
       TaskInfo task;
-      task.set_name("Disk full framework task");
+      task.set_name(flags.name + " Task");
       task.mutable_task_id()->set_value(stringify(taskId));
       task.mutable_slave_id()->MergeFrom(offer.slave_id());
       task.mutable_resources()->CopyFrom(taskResources);
@@ -438,7 +444,7 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill the current user.
-  framework.set_name("Disk Full Framework (C++)");
+  framework.set_name(flags.name);
   framework.set_checkpoint(true);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
