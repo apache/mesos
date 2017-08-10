@@ -22,6 +22,7 @@
 #include <mesos/executor.hpp>
 #include <mesos/mesos.hpp>
 
+#include <process/delay.hpp>
 #include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -71,6 +72,7 @@ namespace docker {
 
 const Duration DOCKER_INSPECT_DELAY = Milliseconds(500);
 const Duration DOCKER_INSPECT_TIMEOUT = Seconds(5);
+const Duration KILL_RETRY_INTERVAL = Seconds(5);
 
 // Executor that is responsible to execute a docker container and
 // redirect log output to configured stdout and stderr files. Similar
@@ -92,8 +94,9 @@ public:
       bool cgroupsEnableCfs)
     : ProcessBase(ID::generate("docker-executor")),
       killed(false),
-      killedByHealthCheck(false),
       terminated(false),
+      killedByHealthCheck(false),
+      killingInProgress(false),
       launcherDir(launcherDir),
       docker(docker),
       containerName(containerName),
@@ -360,8 +363,8 @@ private:
     // the grace period if a new one is provided.
 
     // Issue the kill signal if the container is running
-    // and we haven't killed it yet.
-    if (run.isSome() && !killed) {
+    // and kill attempt is not in progress.
+    if (run.isSome() && !killingInProgress) {
       // We have to issue the kill after 'docker inspect' has
       // completed, otherwise we may race with 'docker run'
       // and docker may not know about the container. Note
@@ -380,7 +383,15 @@ private:
     CHECK_SOME(taskId);
     CHECK_EQ(taskId_, taskId.get());
 
-    if (!terminated && !killed) {
+    if (!terminated && !killingInProgress) {
+      killingInProgress = true;
+
+      // Once the task has been transitioned to `killed`,
+      // there is no way back, even if the kill attempt
+      // failed. This also allows us to send TASK_KILLING
+      // only once, regardless of how many kill attempts
+      // have been made.
+      //
       // Because we rely on `killed` to determine whether
       // to send TASK_KILLED, we set `killed` only once the
       // kill is issued. If we set it earlier we're more
@@ -388,23 +399,25 @@ private:
       // signaled the container. Note that in general it's
       // a race between signaling and the container
       // terminating with a non-zero exit status.
-      killed = true;
+      if (!killed) {
+        killed = true;
 
-      // Send TASK_KILLING if the framework can handle it.
-      if (protobuf::frameworkHasCapability(
-              frameworkInfo.get(),
-              FrameworkInfo::Capability::TASK_KILLING_STATE)) {
-        // TODO(alexr): Use `protobuf::createTaskStatus()`
-        // instead of manually setting fields.
-        TaskStatus status;
-        status.mutable_task_id()->CopyFrom(taskId.get());
-        status.set_state(TASK_KILLING);
-        driver.get()->sendStatusUpdate(status);
-      }
+        // Send TASK_KILLING if the framework can handle it.
+        if (protobuf::frameworkHasCapability(
+                frameworkInfo.get(),
+                FrameworkInfo::Capability::TASK_KILLING_STATE)) {
+          // TODO(alexr): Use `protobuf::createTaskStatus()`
+          // instead of manually setting fields.
+          TaskStatus status;
+          status.mutable_task_id()->CopyFrom(taskId.get());
+          status.set_state(TASK_KILLING);
+          driver.get()->sendStatusUpdate(status);
+        }
 
-      // Stop health checking the task.
-      if (checker.get() != nullptr) {
-        checker->pause();
+        // Stop health checking the task.
+        if (checker.get() != nullptr) {
+          checker->pause();
+        }
       }
 
       // TODO(bmahler): Replace this with 'docker kill' so
@@ -412,9 +425,32 @@ private:
       // a `KillPolicy` override.
       stop = docker->stop(containerName, gracePeriod);
 
+      // Invoking `docker stop` might be unsuccessful, in which case the
+      // container most probably does not receive the signal. In this case we
+      // should allow schedulers to retry the kill operation or, if the kill
+      // was initiated by a failing health check, retry ourselves. We do not
+      // bail out nor stop retrying to avoid sending a terminal status update
+      // while the container might still be running.
+      //
+      // NOTE: `docker stop` might also hang. We do not address this for now,
+      // because there is no evidence that in this case docker daemon might
+      // function properly, i.e., it's only the docker cli command that hangs,
+      // and hence there is not so much we can do. See MESOS-6743.
       stop.onFailed(defer(self(), [=](const string& failure) {
         LOG(ERROR) << "Failed to stop container '" << containerName << "'"
                    << ": " << failure;
+
+        killingInProgress = false;
+
+        if (killedByHealthCheck) {
+          LOG(INFO) << "Retrying to kill task in " << KILL_RETRY_INTERVAL;
+          delay(
+              KILL_RETRY_INTERVAL,
+              self(),
+              &Self::_killTask,
+              taskId_,
+              gracePeriod);
+        }
       }));
     }
   }
@@ -604,8 +640,10 @@ private:
   // TODO(alexr): Introduce a state enum and document transitions,
   // see MESOS-5252.
   bool killed;
-  bool killedByHealthCheck;
   bool terminated;
+
+  bool killedByHealthCheck;
+  bool killingInProgress; // Guard against simultaneous kill attempts.
 
   string launcherDir;
   Owned<Docker> docker;
