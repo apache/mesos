@@ -41,7 +41,7 @@ inline bool is_restartable_error(int error)
 // retry the operation later.
 inline bool is_retryable_error(int error)
 {
-  return (error ==  EWOULDBLOCK || error == EAGAIN);
+  return (error == EWOULDBLOCK || error == EAGAIN);
 }
 
 

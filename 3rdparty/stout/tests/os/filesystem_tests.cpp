@@ -90,7 +90,7 @@ TEST_F(FsTest, Find)
 
 TEST_F(FsTest, ReadWriteString)
 {
-  const string testfile  = path::join(os::getcwd(), UUID::random().toString());
+  const string testfile = path::join(os::getcwd(), UUID::random().toString());
   const string teststr = "line1\nline2";
 
   ASSERT_SOME(os::write(testfile, teststr));
@@ -173,7 +173,7 @@ TEST_F(FsTest, Exists)
 
 TEST_F(FsTest, Touch)
 {
-  const string testfile  = path::join(os::getcwd(), UUID::random().toString());
+  const string testfile = path::join(os::getcwd(), UUID::random().toString());
 
   ASSERT_SOME(os::touch(testfile));
   ASSERT_TRUE(os::exists(testfile));
