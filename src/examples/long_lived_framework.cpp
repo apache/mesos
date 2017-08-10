@@ -581,7 +581,6 @@ int main(int argc, char** argv)
   executor.mutable_executor_id()->set_value("default");
   executor.mutable_resources()->CopyFrom(resources);
   executor.set_name("Long Lived Executor (C++)");
-  executor.set_source("cpp_long_lived_framework");
 
   // Determine the command to run the executor based on three possibilities:
   //   1) `--executor_command` was set, which overrides the below cases.

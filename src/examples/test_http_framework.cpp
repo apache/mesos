@@ -456,7 +456,6 @@ int main(int argc, char** argv)
   executor.mutable_executor_id()->set_value("default");
   executor.mutable_command()->set_value(uri);
   executor.set_name("Test Executor (C++)");
-  executor.set_source("cpp_test");
 
   value = os::getenv("DEFAULT_PRINCIPAL");
   if (value.isNone()) {
