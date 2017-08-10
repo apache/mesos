@@ -374,6 +374,11 @@ private:
       // that we can adjust the grace period in the case of
       // a `KillPolicy` override.
       stop = docker->stop(containerName, gracePeriod);
+
+      stop.onFailed(defer(self(), [=](const string& failure) {
+        LOG(ERROR) << "Failed to stop container '" << containerName << "'"
+                   << ": " << failure;
+      }));
     }
   }
 
