@@ -65,6 +65,10 @@ using mesos::v1::scheduler::Event;
 const int32_t CPUS_PER_TASK = 1;
 const int32_t MEM_PER_TASK = 128;
 
+constexpr char EXECUTOR_BINARY[] = "test-http-executor";
+constexpr char EXECUTOR_NAME[] = "Test Executor (C++)";
+constexpr char FRAMEWORK_NAME[] = "Event Call Scheduler using libprocess (C++)";
+
 class HTTPScheduler : public process::Process<HTTPScheduler>
 {
 public:
@@ -406,11 +410,10 @@ int main(int argc, char** argv)
   string uri;
   Option<string> value = os::getenv("MESOS_HELPER_DIR");
   if (value.isSome()) {
-    uri = path::join(value.get(), "test-http-executor");
+    uri = path::join(value.get(), EXECUTOR_BINARY);
   } else {
-    uri = path::join(
-        os::realpath(Path(argv[0]).dirname()).get(),
-        "test-http-executor");
+    uri =
+      path::join(os::realpath(Path(argv[0]).dirname()).get(), EXECUTOR_BINARY);
   }
 
   Flags flags;
@@ -436,7 +439,7 @@ int main(int argc, char** argv)
   }
 
   FrameworkInfo framework;
-  framework.set_name("Event Call Scheduler using libprocess (C++)");
+  framework.set_name(FRAMEWORK_NAME);
   framework.set_role(flags.role);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
@@ -455,7 +458,7 @@ int main(int argc, char** argv)
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
   executor.mutable_command()->set_value(uri);
-  executor.set_name("Test Executor (C++)");
+  executor.set_name(EXECUTOR_NAME);
 
   value = os::getenv("DEFAULT_PRINCIPAL");
   if (value.isNone()) {

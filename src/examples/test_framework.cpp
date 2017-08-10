@@ -51,6 +51,11 @@ using mesos::Resources;
 const int32_t CPUS_PER_TASK = 1;
 const int32_t MEM_PER_TASK = 128;
 
+constexpr char EXECUTOR_BINARY[] = "test-executor";
+constexpr char EXECUTOR_NAME[] = "Test Executor (C++)";
+constexpr char FRAMEWORK_NAME[] = "Test Framework (C++)";
+constexpr char FRAMEWORK_PRINCIPAL[] = "test-framework-cpp";
+
 class TestScheduler : public Scheduler
 {
 public:
@@ -220,11 +225,10 @@ int main(int argc, char** argv)
   string uri;
   Option<string> value = os::getenv("MESOS_HELPER_DIR");
   if (value.isSome()) {
-    uri = path::join(value.get(), "test-executor");
+    uri = path::join(value.get(), EXECUTOR_BINARY);
   } else {
-    uri = path::join(
-        os::realpath(Path(argv[0]).dirname()).get(),
-        "test-executor");
+    uri =
+      path::join(os::realpath(Path(argv[0]).dirname()).get(), EXECUTOR_BINARY);
   }
 
   Flags flags;
@@ -251,11 +255,11 @@ int main(int argc, char** argv)
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
   executor.mutable_command()->set_value(uri);
-  executor.set_name("Test Executor (C++)");
+  executor.set_name(EXECUTOR_NAME);
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
-  framework.set_name("Test Framework (C++)");
+  framework.set_name(FRAMEWORK_NAME);
   framework.set_role(flags.role);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
@@ -305,7 +309,7 @@ int main(int argc, char** argv)
         implicitAcknowledgements,
         credential);
   } else {
-    framework.set_principal("test-framework-cpp");
+    framework.set_principal(FRAMEWORK_PRINCIPAL);
 
     driver = new MesosSchedulerDriver(
         &scheduler,

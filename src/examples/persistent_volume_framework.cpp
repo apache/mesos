@@ -52,6 +52,7 @@ using std::ostringstream;
 using std::string;
 using std::vector;
 
+constexpr char FRAMEWORK_NAME[] = "Persistent Volume Framework (C++)";
 
 // TODO(jieyu): Currently, persistent volume is only allowed for
 // reserved resources.
@@ -573,7 +574,7 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
-  framework.set_name("Persistent Volume Framework (C++)");
+  framework.set_name(FRAMEWORK_NAME);
   framework.set_role(flags.role);
   framework.set_checkpoint(true);
   framework.set_principal(flags.principal);

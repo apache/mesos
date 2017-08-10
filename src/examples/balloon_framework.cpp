@@ -63,6 +63,10 @@ const double CPUS_PER_TASK = 0.1;
 const double CPUS_PER_EXECUTOR = 0.1;
 const int32_t MEM_PER_EXECUTOR = 64;
 
+constexpr char EXECUTOR_BINARY[] = "balloon-executor";
+constexpr char FRAMEWORK_PRINCIPAL[] = "balloon-framework-cpp";
+constexpr char FRAMEWORK_METRICS_PREFIX[] = "balloon_framework";
+
 class Flags : public virtual flags::FlagsBase
 {
 public:
@@ -324,15 +328,16 @@ private:
   {
     Metrics(const BalloonSchedulerProcess& _scheduler)
       : uptime_secs(
-            "balloon_framework/uptime_secs",
+            string(FRAMEWORK_METRICS_PREFIX) + "/uptime_secs",
             defer(_scheduler, &BalloonSchedulerProcess::_uptime_secs)),
         registered(
-            "balloon_framework/registered",
+            string(FRAMEWORK_METRICS_PREFIX) + "/registered",
             defer(_scheduler, &BalloonSchedulerProcess::_registered)),
-        tasks_finished("balloon_framework/tasks_finished"),
-        tasks_oomed("balloon_framework/tasks_oomed"),
-        launch_failures("balloon_framework/launch_failures"),
-        abnormal_terminations("balloon_framework/abnormal_terminations")
+        tasks_finished(string(FRAMEWORK_METRICS_PREFIX) + "/tasks_finished"),
+        tasks_oomed(string(FRAMEWORK_METRICS_PREFIX) + "/tasks_oomed"),
+        launch_failures(string(FRAMEWORK_METRICS_PREFIX) + "/launch_failures"),
+        abnormal_terminations(
+            string(FRAMEWORK_METRICS_PREFIX) + "/abnormal_terminations")
     {
       process::metrics::add(uptime_secs);
       process::metrics::add(registered);
@@ -513,12 +518,10 @@ int main(int argc, char** argv)
   if (flags.executor_command.isSome()) {
     command = flags.executor_command.get();
   } else if (flags.build_dir.isSome()) {
-    command = path::join(
-        flags.build_dir.get(), "src", "balloon-executor");
+    command = path::join(flags.build_dir.get(), "src", EXECUTOR_BINARY);
   } else {
-    command = path::join(
-        os::realpath(Path(argv[0]).dirname()).get(),
-        "balloon-executor");
+    command =
+      path::join(os::realpath(Path(argv[0]).dirname()).get(), EXECUTOR_BINARY);
   }
 
   executor.mutable_command()->set_value(command);
@@ -596,7 +599,7 @@ int main(int argc, char** argv)
     driver = new MesosSchedulerDriver(
         &scheduler, framework, flags.master, credential);
   } else {
-    framework.set_principal("balloon-framework-cpp");
+    framework.set_principal(FRAMEWORK_PRINCIPAL);
 
     driver = new MesosSchedulerDriver(
         &scheduler, framework, flags.master);

@@ -56,6 +56,8 @@ const double CPUS_PER_TASK = 0.1;
 const int MEMORY_PER_TASK = 16;
 const Bytes DISK_PER_TASK = Megabytes(5);
 
+constexpr char FRAMEWORK_PRINCIPAL[] = "disk-full-framework-cpp";
+constexpr char FRAMEWORK_METRICS_PREFIX[] = "disk_full_framework";
 
 class Flags : public virtual flags::FlagsBase
 {
@@ -288,14 +290,15 @@ private:
   {
     Metrics(const DiskFullSchedulerProcess& _scheduler)
       : uptime_secs(
-            "disk_full_framework/uptime_secs",
+            string(FRAMEWORK_METRICS_PREFIX) + "/uptime_secs",
             defer(_scheduler, &DiskFullSchedulerProcess::_uptime_secs)),
         registered(
-            "disk_full_framework/registered",
+            string(FRAMEWORK_METRICS_PREFIX) + "/registered",
             defer(_scheduler, &DiskFullSchedulerProcess::_registered)),
-        tasks_finished("disk_full_framework/tasks_finished"),
-        tasks_disk_full("disk_full_framework/tasks_disk_full"),
-        abnormal_terminations("disk_full_framework/abnormal_terminations")
+        tasks_finished(string(FRAMEWORK_METRICS_PREFIX) + "/tasks_finished"),
+        tasks_disk_full(string(FRAMEWORK_METRICS_PREFIX) + "/tasks_disk_full"),
+        abnormal_terminations(
+            string(FRAMEWORK_METRICS_PREFIX) + "/abnormal_terminations")
     {
       process::metrics::add(uptime_secs);
       process::metrics::add(registered);
@@ -480,7 +483,7 @@ int main(int argc, char** argv)
     driver = new MesosSchedulerDriver(
         &scheduler, framework, flags.master, credential);
   } else {
-    framework.set_principal("disk-full-framework-cpp");
+    framework.set_principal(FRAMEWORK_PRINCIPAL);
 
     driver = new MesosSchedulerDriver(
         &scheduler, framework, flags.master);

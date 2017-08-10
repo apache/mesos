@@ -42,6 +42,8 @@ using std::vector;
 const int32_t CPUS_PER_TASK = 1;
 const int32_t MEM_PER_TASK = 128;
 
+constexpr char FRAMEWORK_NAME[] = "Dynamic Reservation Framework (C++)";
+
 // The framework reserves resources to run at most one task at a time
 // on each agent; the resources are reserved when they are offered to
 // the framework for the first time, and are unreserved when all tasks
@@ -378,7 +380,7 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Mesos'll fill in the current user.
-  framework.set_name("Dynamic Reservation Framework (C++)");
+  framework.set_name(FRAMEWORK_NAME);
   framework.set_role(flags.role.get());
   framework.set_principal(flags.principal);
   framework.add_capabilities()->set_type(

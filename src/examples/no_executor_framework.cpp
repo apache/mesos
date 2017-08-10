@@ -43,6 +43,8 @@ using std::vector;
 
 using mesos::Resources;
 
+constexpr char FRAMEWORK_NAME[] = "No Executor Framework";
+
 
 static Offer::Operation LAUNCH(const vector<TaskInfo>& tasks)
 {
@@ -327,7 +329,7 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
-  framework.set_name("No Executor Framework");
+  framework.set_name(FRAMEWORK_NAME);
   framework.set_checkpoint(flags.checkpoint);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);

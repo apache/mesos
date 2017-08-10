@@ -41,6 +41,7 @@ using std::endl;
 using std::string;
 using std::vector;
 
+constexpr char FRAMEWORK_NAME[] = "Load Generator Framework (C++)";
 
 // Generate load towards the master (by repeatedly sending
 // ReconcileTasksMessages) at the specified rate and for the
@@ -323,7 +324,7 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
-  framework.set_name("Load Generator Framework (C++)");
+  framework.set_name(FRAMEWORK_NAME);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 

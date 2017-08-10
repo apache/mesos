@@ -39,6 +39,9 @@ using std::vector;
 const int32_t CPUS_PER_TASK = 1;
 const int32_t MEM_PER_TASK = 32;
 
+constexpr char FRAMEWORK_NAME[] = "Docker No Executor Framework (C++)";
+constexpr char FRAMEWORK_PRINCIPAL[] = "no-executor-framework-cpp";
+
 class DockerNoExecutorScheduler : public Scheduler
 {
 public:
@@ -178,7 +181,7 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
-  framework.set_name("Docker No Executor Framework (C++)");
+  framework.set_name(FRAMEWORK_NAME);
   framework.set_checkpoint(true);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
@@ -209,7 +212,7 @@ int main(int argc, char** argv)
     driver = new MesosSchedulerDriver(
         &scheduler, framework, argv[1], credential);
   } else {
-    framework.set_principal("no-executor-framework-cpp");
+    framework.set_principal(FRAMEWORK_PRINCIPAL);
 
     driver = new MesosSchedulerDriver(
         &scheduler, framework, argv[1]);
