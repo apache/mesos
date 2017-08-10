@@ -42,6 +42,7 @@ const int32_t MEM_PER_TASK = 32;
 constexpr char FRAMEWORK_NAME[] = "Docker No Executor Framework (C++)";
 constexpr char FRAMEWORK_PRINCIPAL[] = "no-executor-framework-cpp";
 
+
 class DockerNoExecutorScheduler : public Scheduler
 {
 public:
@@ -214,8 +215,7 @@ int main(int argc, char** argv)
   } else {
     framework.set_principal(FRAMEWORK_PRINCIPAL);
 
-    driver = new MesosSchedulerDriver(
-        &scheduler, framework, argv[1]);
+    driver = new MesosSchedulerDriver(&scheduler, framework, argv[1]);
   }
 
   int status = driver->run() == DRIVER_STOPPED ? 0 : 1;

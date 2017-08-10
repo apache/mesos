@@ -93,8 +93,7 @@ public:
     LOG(INFO) << "Reregistered with master " << masterInfo;
   }
 
-  virtual void disconnected(
-      SchedulerDriver* driver)
+  virtual void disconnected(SchedulerDriver* driver)
   {
     LOG(INFO) << "Disconnected!";
   }
@@ -132,16 +131,12 @@ public:
     }
   }
 
-  virtual void offerRescinded(
-      SchedulerDriver* driver,
-      const OfferID& offerId)
+  virtual void offerRescinded(SchedulerDriver* driver, const OfferID& offerId)
   {
     LOG(INFO) << "Offer " << offerId << " has been rescinded";
   }
 
-  virtual void statusUpdate(
-      SchedulerDriver* driver,
-      const TaskStatus& status)
+  virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
   {
     if (!activeTasks.contains(status.task_id())) {
       LOG(WARNING) << "Unknown task '" << status.task_id() << "'"
@@ -194,9 +189,7 @@ public:
                << "' on agent " << slaveId << ": '" << data << "'";
   }
 
-  virtual void slaveLost(
-      SchedulerDriver* driver,
-      const SlaveID& slaveId)
+  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& slaveId)
   {
     LOG(INFO) << "Lost agent " << slaveId;
   }
@@ -211,9 +204,7 @@ public:
               << slaveId << ", " << WSTRINGIFY(status);
   }
 
-  virtual void error(
-      SchedulerDriver* driver,
-      const string& message)
+  virtual void error(SchedulerDriver* driver, const string& message)
   {
     LOG(ERROR) << message;
   }
@@ -302,8 +293,7 @@ int main(int argc, char** argv)
   Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
   if (load.isError()) {
-    EXIT(EXIT_FAILURE)
-      << flags.usage(load.error());
+    EXIT(EXIT_FAILURE) << flags.usage(load.error());
   }
 
   // Log any flag warnings.
@@ -312,19 +302,17 @@ int main(int argc, char** argv)
   }
 
   if (flags.help) {
-    EXIT(EXIT_SUCCESS)
-      << flags.usage();
+    EXIT(EXIT_SUCCESS) << flags.usage();
   }
 
   if (flags.master.isNone()) {
-    EXIT(EXIT_FAILURE)
-      << flags.usage("Missing required option --master");
+    EXIT(EXIT_FAILURE) << flags.usage("Missing required option --master");
   }
 
   if (flags.principal.isSome() != flags.secret.isSome()) {
-    EXIT(EXIT_FAILURE)
-      << flags.usage("Both --principal and --secret are required"
-                     " to enable authentication");
+    EXIT(EXIT_FAILURE) << flags.usage(
+        "Both --principal and --secret are required"
+        " to enable authentication");
   }
 
   FrameworkInfo framework;
@@ -343,13 +331,11 @@ int main(int argc, char** argv)
     framework.set_principal(flags.principal.get());
   }
 
-  Try<Resources> resources =
-    Resources::parse(flags.task_resources);
+  Try<Resources> resources = Resources::parse(flags.task_resources);
 
   if (resources.isError()) {
-    EXIT(EXIT_FAILURE)
-      << flags.usage("Invalid --task_resources: " +
-                     resources.error());
+    EXIT(EXIT_FAILURE) << flags.usage(
+        "Invalid --task_resources: " + resources.error());
   }
 
   Resources taskResources = resources.get();
@@ -359,9 +345,8 @@ int main(int argc, char** argv)
       Resources::parse(flags.task_revocable_resources.get());
 
     if (revocableResources.isError()) {
-      EXIT(EXIT_FAILURE)
-        << flags.usage("Invalid --task_revocable_resources: " +
-                       revocableResources.error());
+      EXIT(EXIT_FAILURE) << flags.usage(
+          "Invalid --task_revocable_resources: " + revocableResources.error());
     }
 
     foreach (Resource revocable, revocableResources.get()) {

@@ -67,6 +67,7 @@ constexpr char EXECUTOR_BINARY[] = "balloon-executor";
 constexpr char FRAMEWORK_PRINCIPAL[] = "balloon-framework-cpp";
 constexpr char FRAMEWORK_METRICS_PREFIX[] = "balloon_framework";
 
+
 class Flags : public virtual flags::FlagsBase
 {
 public:
@@ -240,8 +241,8 @@ public:
       task.set_data(stringify(flags.task_memory_usage_limit));
 
       task.mutable_executor()->CopyFrom(executor);
-      task.mutable_executor()->mutable_executor_id()
-        ->set_value(stringify(taskId));
+      task.mutable_executor()->mutable_executor_id()->set_value(
+          stringify(taskId));
 
       driver->launchTasks(offer.id(), {task});
 
@@ -397,27 +398,21 @@ public:
   {
     LOG(INFO) << "Registered with framework ID: " << frameworkId;
 
-    process::dispatch(
-        &process,
-        &BalloonSchedulerProcess::registered);
+    process::dispatch(&process, &BalloonSchedulerProcess::registered);
   }
 
   virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo)
   {
     LOG(INFO) << "Reregistered";
 
-    process::dispatch(
-        &process,
-        &BalloonSchedulerProcess::registered);
+    process::dispatch(&process, &BalloonSchedulerProcess::registered);
   }
 
   virtual void disconnected(SchedulerDriver* driver)
   {
     LOG(INFO) << "Disconnected";
 
-    process::dispatch(
-        &process,
-        &BalloonSchedulerProcess::disconnected);
+    process::dispatch(&process, &BalloonSchedulerProcess::disconnected);
   }
 
   virtual void resourceOffers(
@@ -433,21 +428,18 @@ public:
         offers);
   }
 
-  virtual void offerRescinded(
-      SchedulerDriver* driver,
-      const OfferID& offerId)
+  virtual void offerRescinded(SchedulerDriver* driver, const OfferID& offerId)
   {
     LOG(INFO) << "Offer rescinded";
   }
 
   virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
   {
-    LOG(INFO)
-      << "Task " << status.task_id() << " in state "
-      << TaskState_Name(status.state())
-      << ", Source: " << status.source()
-      << ", Reason: " << status.reason()
-      << (status.has_message() ? ", Message: " + status.message() : "");
+    LOG(INFO) << "Task " << status.task_id() << " in state "
+              << TaskState_Name(status.state())
+              << ", Source: " << status.source()
+              << ", Reason: " << status.reason()
+              << (status.has_message() ? ", Message: " + status.message() : "");
 
     process::dispatch(
         &process,
@@ -601,8 +593,7 @@ int main(int argc, char** argv)
   } else {
     framework.set_principal(FRAMEWORK_PRINCIPAL);
 
-    driver = new MesosSchedulerDriver(
-        &scheduler, framework, flags.master);
+    driver = new MesosSchedulerDriver(&scheduler, framework, flags.master);
   }
 
   int status = driver->run() == DRIVER_STOPPED ? 0 : 1;

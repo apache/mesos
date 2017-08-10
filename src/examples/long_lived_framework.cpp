@@ -84,7 +84,6 @@ using process::http::OK;
 using process::metrics::Gauge;
 using process::metrics::Counter;
 
-
 // NOTE: Per-task resources are nominal because all of the resources for the
 // container are provisioned when the executor is created. The executor can
 // run multiple tasks at once, but uses a constant amount of resources
@@ -99,6 +98,7 @@ constexpr char EXECUTOR_BINARY[] = "long-lived-executor";
 constexpr char EXECUTOR_NAME[] = "Long Lived Executor (C++)";
 constexpr char FRAMEWORK_NAME[] = "Long Lived Framework (C++)";
 constexpr char FRAMEWORK_METRICS_PREFIX[] = "long_lived_framework";
+
 
 // This scheduler picks one agent and repeatedly launches sleep tasks on it,
 // using a single multi-task executor. If the agent or executor fails, the
@@ -136,13 +136,14 @@ protected:
   {
     // We initialize the library here to ensure that callbacks are only invoked
     // after the process has spawned.
-    mesos.reset(new Mesos(
-      master,
-      mesos::ContentType::PROTOBUF,
-      process::defer(self(), &Self::connected),
-      process::defer(self(), &Self::disconnected),
-      process::defer(self(), &Self::received, lambda::_1),
-      credential));
+    mesos.reset(
+        new Mesos(
+            master,
+            mesos::ContentType::PROTOBUF,
+            process::defer(self(), &Self::connected),
+            process::defer(self(), &Self::disconnected),
+            process::defer(self(), &Self::received, lambda::_1),
+            credential));
   }
 
   void connected()
@@ -190,8 +191,7 @@ protected:
 
       switch (event.type()) {
         case Event::SUBSCRIBED: {
-          framework.mutable_id()->
-            CopyFrom(event.subscribed().framework_id());
+          framework.mutable_id()->CopyFrom(event.subscribed().framework_id());
 
           LOG(INFO) << "Subscribed with ID '" << framework.id() << "'";
 
@@ -263,11 +263,11 @@ protected:
         // No active executor running in the cluster.
         // Launch a new task with executor.
 
-        if (Resources(offer.resources()).toUnreserved()
-            .contains(taskResources + executorResources)) {
-          LOG(INFO)
-            << "Starting executor and task " << tasksLaunched
-            << " on " << offer.hostname();
+        if (Resources(offer.resources())
+              .toUnreserved()
+              .contains(taskResources + executorResources)) {
+          LOG(INFO) << "Starting executor and task " << tasksLaunched << " on "
+                    << offer.hostname();
 
           launch(offer);
 
@@ -282,8 +282,8 @@ protected:
         if (Resources(offer.resources())
               .toUnreserved()
               .contains(taskResources)) {
-          LOG(INFO)
-            << "Starting task " << tasksLaunched << " on " << offer.hostname();
+          LOG(INFO) << "Starting task " << tasksLaunched << " on "
+                    << offer.hostname();
 
           launch(offer);
         } else {

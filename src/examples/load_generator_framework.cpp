@@ -43,6 +43,7 @@ using std::vector;
 
 constexpr char FRAMEWORK_NAME[] = "Load Generator Framework (C++)";
 
+
 // Generate load towards the master (by repeatedly sending
 // ReconcileTasksMessages) at the specified rate and for the
 // specified duration.
@@ -66,7 +67,7 @@ private:
     watch.start();
 
     while (true) {
-      Duration elapsed =  watch.elapsed();
+      Duration elapsed = watch.elapsed();
 
       if (duration.isSome() && elapsed >= duration.get()) {
         LOG(INFO) << "LoadGenerator generated " << messages

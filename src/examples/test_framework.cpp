@@ -56,6 +56,7 @@ constexpr char EXECUTOR_NAME[] = "Test Executor (C++)";
 constexpr char FRAMEWORK_NAME[] = "Test Framework (C++)";
 constexpr char FRAMEWORK_PRINCIPAL[] = "test-framework-cpp";
 
+
 class TestScheduler : public Scheduler
 {
 public:
@@ -135,8 +136,8 @@ public:
     }
   }
 
-  virtual void offerRescinded(SchedulerDriver* driver,
-                              const OfferID& offerId) {}
+  virtual void offerRescinded(SchedulerDriver* driver, const OfferID& offerId)
+  {}
 
   virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
   {
@@ -155,8 +156,7 @@ public:
            << " is in unexpected state " << status.state()
            << " with reason " << status.reason()
            << " from source " << status.source()
-           << " with message '" << status.message() << "'"
-           << endl;
+           << " with message '" << status.message() << "'" << endl;
       driver->abort();
     }
 
@@ -169,17 +169,21 @@ public:
     }
   }
 
-  virtual void frameworkMessage(SchedulerDriver* driver,
-                                const ExecutorID& executorId,
-                                const SlaveID& slaveId,
-                                const string& data) {}
+  virtual void frameworkMessage(
+      SchedulerDriver* driver,
+      const ExecutorID& executorId,
+      const SlaveID& slaveId,
+      const string& data)
+  {}
 
   virtual void slaveLost(SchedulerDriver* driver, const SlaveID& sid) {}
 
-  virtual void executorLost(SchedulerDriver* driver,
-                            const ExecutorID& executorID,
-                            const SlaveID& slaveID,
-                            int status) {}
+  virtual void executorLost(
+      SchedulerDriver* driver,
+      const ExecutorID& executorID,
+      const SlaveID& slaveID,
+      int status)
+  {}
 
   virtual void error(SchedulerDriver* driver, const string& message)
   {
@@ -266,8 +270,7 @@ int main(int argc, char** argv)
 
   value = os::getenv("MESOS_CHECKPOINT");
   if (value.isSome()) {
-    framework.set_checkpoint(
-        numify<bool>(value.get()).get());
+    framework.set_checkpoint(numify<bool>(value.get()).get());
   }
 
   bool implicitAcknowledgements = true;
