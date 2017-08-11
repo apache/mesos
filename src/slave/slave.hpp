@@ -712,7 +712,12 @@ public:
 
   ~Executor();
 
-  Task* addTask(const TaskInfo& task);
+  // Note that these tasks will also be tracked within `queuedTasks`.
+  void enqueueTaskGroup(const TaskGroupInfo& taskGroup);
+
+  void enqueueTask(const TaskInfo& task);
+  Option<TaskInfo> dequeueTask(const TaskID& taskId);
+  Task* addLaunchedTask(const TaskInfo& task);
   void completeTask(const TaskID& taskId);
   void checkpointExecutor();
   void checkpointTask(const TaskInfo& task);
@@ -814,8 +819,6 @@ public:
   // Not yet launched task groups. This is needed for correctly sending
   // TASK_KILLED status updates for all tasks in the group if any of the
   // tasks were killed before the executor could register with the agent.
-  //
-  // TODO(anand): Replace this with `LinkedHashSet` when it is available.
   std::list<TaskGroupInfo> queuedTaskGroups;
 
   // Running.

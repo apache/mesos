@@ -2356,19 +2356,18 @@ void Slave::__run(
       break;
     }
     case Executor::REGISTERING:
-      foreach (const TaskInfo& _task, tasks) {
-        // Checkpoint the task before we do anything else.
-        if (executor->checkpoint) {
+      if (executor->checkpoint) {
+        foreach (const TaskInfo& _task, tasks) {
           executor->checkpointTask(_task);
         }
-
-        // Queue task if the executor has not yet registered.
-        executor->queuedTasks[_task.task_id()] = _task;
       }
 
       if (taskGroup.isSome()) {
-        // Queue task group if the executor has not yet registered.
-        executor->queuedTaskGroups.push_back(taskGroup.get());
+        executor->enqueueTaskGroup(taskGroup.get());
+      } else {
+        foreach (const TaskInfo& _task, tasks) {
+          executor->enqueueTask(_task);
+        }
       }
 
       LOG(INFO) << "Queued " << taskOrTaskGroup(task, taskGroup)
@@ -2376,21 +2375,20 @@ void Slave::__run(
 
       break;
     case Executor::RUNNING: {
-      foreach (const TaskInfo& _task, tasks) {
-        // Checkpoint the task before we do anything else.
-        if (executor->checkpoint) {
+      if (executor->checkpoint) {
+        foreach (const TaskInfo& _task, tasks) {
           executor->checkpointTask(_task);
         }
-
-        // Queue task until the containerizer is updated with new
-        // resource limits (MESOS-998).
-        executor->queuedTasks[_task.task_id()] = _task;
       }
 
+      // Queue tasks until the containerizer is updated
+      // with new resource limits (MESOS-998).
       if (taskGroup.isSome()) {
-        // Queue task group until the containerizer is updated with new
-        // resource limits (MESOS-998).
-        executor->queuedTaskGroups.push_back(taskGroup.get());
+        executor->enqueueTaskGroup(taskGroup.get());
+      } else {
+        foreach (const TaskInfo& _task, tasks) {
+          executor->enqueueTask(_task);
+        }
       }
 
       LOG(INFO) << "Queued " << taskOrTaskGroup(task, taskGroup)
@@ -2571,10 +2569,8 @@ void Slave::___run(
       continue;
     }
 
-    executor->queuedTasks.erase(task.task_id());
-
-    // Add the task and send it to the executor.
-    executor->addTask(task);
+    CHECK_SOME(executor->dequeueTask(task.task_id()));
+    executor->addLaunchedTask(task);
 
     LOG(INFO) << "Sending queued task '" << task.task_id()
               << "' to executor " << *executor;
@@ -2591,12 +2587,24 @@ void Slave::___run(
   }
 
   foreach (const TaskGroupInfo& taskGroup, taskGroups) {
-    auto it = find(
-        executor->queuedTaskGroups.begin(),
-        executor->queuedTaskGroups.end(),
-        taskGroup);
+    // The invariant here is that all queued tasks in the group
+    // are still queued, or all were removed due to a kill arriving
+    // for one of the tasks in the group.
+    bool allQueued = true;
+    bool allRemoved = true;
+    foreach (const TaskInfo& task, taskGroup.tasks()) {
+      if (executor->queuedTasks.contains(task.task_id())) {
+        allRemoved = false;
+      } else {
+        allQueued = false;
+      }
+    }
 
-    if (it == executor->queuedTaskGroups.end()) {
+    CHECK(allQueued != allRemoved)
+      << "BUG: The task group " << taskOrTaskGroup(None(), taskGroup)
+      << " was killed partially";
+
+    if (allRemoved) {
       // This is the case where the task group is killed. No need to send
       // status update because it should be handled in 'killTask'.
       LOG(WARNING) << "Ignoring sending queued task group "
@@ -2605,18 +2613,14 @@ void Slave::___run(
       continue;
     }
 
-    LOG(INFO) << "Sending queued task group " << taskOrTaskGroup(None(), *it)
+    LOG(INFO) << "Sending queued task group"
+              << " " << taskOrTaskGroup(None(), taskGroup)
               << " to executor " << *executor;
 
-    // Add the tasks and send the task group to the executor. Since, the
-    // queued tasks also include tasks from the queued task group, we
-    // remove them from queued tasks.
-    foreach (const TaskInfo& task, it->tasks()) {
-      executor->addTask(task);
-      executor->queuedTasks.erase(task.task_id());
+    foreach (const TaskInfo& task, taskGroup.tasks()) {
+      CHECK_SOME(executor->dequeueTask(task.task_id()));
+      executor->addLaunchedTask(task);
     }
-
-    executor->queuedTaskGroups.erase(it);
 
     executor::Event event;
     event.set_type(executor::Event::LAUNCH_GROUP);
@@ -3794,22 +3798,12 @@ void Slave::subscribe(
             None());
       }
 
-      // We maintain a copy of the tasks in `queuedTaskGroups` also in
-      // `queuedTasks`. Hence, we need to ensure that we don't send the same
-      // tasks to the executor twice.
-      LinkedHashMap<TaskID, TaskInfo> queuedTasks;
-      foreachpair (const TaskID& taskId,
-                   const TaskInfo& taskInfo,
-                   executor->queuedTasks) {
-        queuedTasks[taskId] = taskInfo;
-      }
+      // Split the queued tasks between the task groups and tasks.
+      LinkedHashMap<TaskID, TaskInfo> queuedTasks = executor->queuedTasks;
 
       foreach (const TaskGroupInfo& taskGroup, executor->queuedTaskGroups) {
         foreach (const TaskInfo& task, taskGroup.tasks()) {
-          const TaskID& taskId = task.task_id();
-          if (queuedTasks.contains(taskId)) {
-            queuedTasks.erase(taskId);
-          }
+          queuedTasks.erase(task.task_id());
         }
       }
 
@@ -4008,22 +4002,12 @@ void Slave::registerExecutor(
       message.mutable_slave_info()->MergeFrom(info);
       executor->send(message);
 
-      // We maintain a copy of the tasks in `queuedTaskGroups` also in
-      // `queuedTasks`. Hence, we need to ensure that we don't send the same
-      // tasks to the executor twice.
-      LinkedHashMap<TaskID, TaskInfo> queuedTasks;
-      foreachpair (const TaskID& taskId,
-                   const TaskInfo& taskInfo,
-                   executor->queuedTasks) {
-        queuedTasks[taskId] = taskInfo;
-      }
+      // Split the queued tasks between the task groups and tasks.
+      LinkedHashMap<TaskID, TaskInfo> queuedTasks = executor->queuedTasks;
 
       foreach (const TaskGroupInfo& taskGroup, executor->queuedTaskGroups) {
         foreach (const TaskInfo& task, taskGroup.tasks()) {
-          const TaskID& taskId = task.task_id();
-          if (queuedTasks.contains(taskId)) {
-            queuedTasks.erase(taskId);
-          }
+          queuedTasks.erase(task.task_id());
         }
       }
 
@@ -7665,8 +7649,61 @@ Executor::~Executor()
 }
 
 
-Task* Executor::addTask(const TaskInfo& task)
+void Executor::enqueueTask(const TaskInfo& task)
 {
+  queuedTasks[task.task_id()] = task;
+}
+
+
+void Executor::enqueueTaskGroup(const TaskGroupInfo& taskGroup)
+{
+  foreach (const TaskInfo& task, taskGroup.tasks()) {
+    queuedTasks[task.task_id()] = task;
+  }
+
+  queuedTaskGroups.push_back(taskGroup);
+}
+
+
+Option<TaskInfo> Executor::dequeueTask(const TaskID& taskId)
+{
+  Option<TaskInfo> taskInfo = queuedTasks.get(taskId);
+
+  queuedTasks.erase(taskId);
+
+  // Remove the task group if all of its tasks have been dequeued.
+  for (auto it = queuedTaskGroups.begin(); it != queuedTaskGroups.end(); ++it) {
+    foreach (const TaskInfo& t, it->tasks()) {
+      if (t.task_id() == taskId) {
+        // Found its task group, check if all tasks within
+        // the group have been removed.
+        bool allRemoved = true;
+
+        foreach (const TaskInfo& t_, it->tasks()) {
+          if (queuedTasks.contains(t_.task_id())) {
+            allRemoved = false;
+            break;
+          }
+        }
+
+        if (allRemoved) {
+          queuedTaskGroups.erase(it);
+        }
+
+        return taskInfo;
+      }
+    }
+  }
+
+  return taskInfo;
+}
+
+
+Task* Executor::addLaunchedTask(const TaskInfo& task)
+{
+  CHECK(!queuedTasks.contains(task.task_id()))
+    << "Task " << task.task_id() << " was not dequeued";
+
   // The master should enforce unique task IDs, but just in case
   // maybe we shouldn't make this a fatal error.
   CHECK(!launchedTasks.contains(task.task_id()))
@@ -7800,52 +7837,20 @@ Try<Nothing> Executor::updateTaskState(const TaskStatus& status)
   bool terminal = protobuf::isTerminalState(status.state());
 
   const TaskID& taskId = status.task_id();
-  Option<TaskGroupInfo> taskGroup = getQueuedTaskGroup(taskId);
 
   Task* task = nullptr;
 
-  if (taskGroup.isSome()) {
-    if (!terminal) {
-      return Error("Cannot send non-terminal update for queued task group");
-    }
-
-    // Since, the queued tasks also include tasks from the queued task group, we
-    // remove them from queued tasks.
-    queuedTasks.erase(taskId);
-
-    foreach (const TaskInfo& task_, taskGroup->tasks()) {
-      if (task_.task_id() == taskId) {
-        task = new Task(protobuf::createTask(
-            task_,
-            status.state(),
-            frameworkId));
-        break;
-      }
-    }
-
-    size_t nonTerminalTasks = 0;
-    foreach (const TaskInfo& task_, taskGroup->tasks()) {
-      if (!terminatedTasks.contains(task_.task_id())) {
-        nonTerminalTasks++;
-      }
-    }
-
-    // We remove the task group when all the other tasks in the task group
-    // are terminal.
-    if (nonTerminalTasks == 1) {
-      queuedTaskGroups.remove(taskGroup.get());
-    }
-  } else if (queuedTasks.contains(taskId)) {
+  if (queuedTasks.contains(taskId)) {
     if (!terminal) {
       return Error("Cannot send non-terminal update for queued task");
     }
 
+    TaskInfo taskInfo = CHECK_NOTNONE(dequeueTask(taskId));
+
     task = new Task(protobuf::createTask(
-        queuedTasks.at(taskId),
+        taskInfo,
         status.state(),
         frameworkId));
-
-    queuedTasks.erase(taskId);
   } else if (launchedTasks.contains(taskId)) {
     task = launchedTasks.at(status.task_id());
 
