@@ -3409,9 +3409,11 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
 }
 
 
-// This test ensures that if a `killTask()` for an executor is received by the
-// agent before the executor registers, the executor is properly cleaned up.
-TEST_F(SlaveTest, KillTaskUnregisteredExecutor)
+// This test verifies that when the agent gets a `killTask`
+// message for a queued task on a registering executor, a
+// the agent will generate a TASK_KILLED and will shut down
+// the executor.
+TEST_F(SlaveTest, KillQueuedTaskDuringExecutorRegistration)
 {
   // Start a master.
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -3479,7 +3481,7 @@ TEST_F(SlaveTest, KillTaskUnregisteredExecutor)
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status->state());
-  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_UNREGISTERED, status->reason());
+  EXPECT_EQ(TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH, status->reason());
 
   // Now let the executor register by spoofing the message.
   RegisterExecutorMessage registerExecutor;

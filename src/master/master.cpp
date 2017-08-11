@@ -4581,7 +4581,8 @@ void Master::_accept(
                   TaskStatus::SOURCE_MASTER,
                   None(),
                   "A task within the task group was killed before"
-                  " delivery to the agent");
+                  " delivery to the agent",
+                  TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH);
 
               metrics->tasks_killed++;
 
@@ -4935,7 +4936,8 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
         TASK_KILLED,
         TaskStatus::SOURCE_MASTER,
         None(),
-        "Killed pending task");
+        "Killed before delivery to the agent",
+        TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH);
 
     forward(update, UPID(), framework);
 
