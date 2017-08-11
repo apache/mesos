@@ -4020,26 +4020,36 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
 
   metrics.valid_status_updates++;
 
-  // Before sending update, we need to retrieve the container status.
-  //
-  // NOTE: If the executor sets the ContainerID inside the
-  // ContainerStatus, that indicates that the Task this status update
-  // is associated with is tied to that container (could be nested).
-  // Therefore, we need to get the status of that container, instead
-  // of the top level executor container.
-  ContainerID containerId = executor->containerId;
-  if (update.status().has_container_status() &&
-      update.status().container_status().has_container_id()) {
-    containerId = update.status().container_status().container_id();
-  }
+  // Before sending update, we need to retrieve the container status
+  // if the task reached the executor. For tasks that are queued, we
+  // do not need to send the container status and we must
+  // synchronously transition the task to ensure that it is removed
+  // from the queued tasks before the run task path continues.
+  if (executor->queuedTasks.contains(status.task_id())) {
+    CHECK(protobuf::isTerminalState(status.state()))
+        << "Queued tasks can only be transitioned to terminal states";
 
-  containerizer->status(containerId)
-    .onAny(defer(self(),
-                 &Slave::_statusUpdate,
-                 update,
-                 pid,
-                 executor->id,
-                 lambda::_1));
+    _statusUpdate(update, pid, executor->id, None());
+  } else {
+    // NOTE: If the executor sets the ContainerID inside the
+    // ContainerStatus, that indicates that the Task this status update
+    // is associated with is tied to that container (could be nested).
+    // Therefore, we need to get the status of that container, instead
+    // of the top level executor container.
+    ContainerID containerId = executor->containerId;
+    if (update.status().has_container_status() &&
+        update.status().container_status().has_container_id()) {
+      containerId = update.status().container_status().container_id();
+    }
+
+    containerizer->status(containerId)
+      .onAny(defer(self(),
+                   &Slave::_statusUpdate,
+                   update,
+                   pid,
+                   executor->id,
+                   lambda::_1));
+  }
 }
 
 
@@ -4047,26 +4057,26 @@ void Slave::_statusUpdate(
     StatusUpdate update,
     const Option<process::UPID>& pid,
     const ExecutorID& executorId,
-    const Future<ContainerStatus>& future)
+    const Option<Future<ContainerStatus>>& containerStatus)
 {
-  ContainerStatus* containerStatus =
-    update.mutable_status()->mutable_container_status();
-
   // There can be cases where a container is already removed from the
   // containerizer before the `status` call is dispatched to the
   // containerizer, leading to the failure of the returned `Future`.
   // In such a case we should simply not update the `ContainerStatus`
   // with the return `Future` but continue processing the
   // `StatusUpdate`.
-  if (future.isReady()) {
-    containerStatus->MergeFrom(future.get());
+  if (containerStatus.isSome() && containerStatus->isReady()) {
+    ContainerStatus* status =
+      update.mutable_status()->mutable_container_status();
+
+    status->MergeFrom(containerStatus->get());
 
     // Fill in the container IP address with the IP from the agent
     // PID, if not already filled in.
     //
     // TODO(karya): Fill in the IP address by looking up the executor PID.
-    if (containerStatus->network_infos().size() == 0) {
-      NetworkInfo* networkInfo = containerStatus->add_network_infos();
+    if (status->network_infos().size() == 0) {
+      NetworkInfo* networkInfo = status->add_network_infos();
       NetworkInfo::IPAddress* ipAddress = networkInfo->add_ip_addresses();
       ipAddress->set_ip_address(stringify(self().address.ip));
     }
@@ -4857,18 +4867,22 @@ void Slave::executorTerminated(
       // the status update manager should have already cleaned up all the
       // status update streams for a framework that is terminating.
       if (framework->state != Framework::TERMINATING) {
-        // Transition all live launched tasks.
-        foreachvalue (Task* task, executor->launchedTasks) {
+        // Transition all live launched tasks. Note that the map is
+        // removed from within the loop due terminal status updates.
+        foreach (const TaskID& taskId, executor->launchedTasks.keys()) {
+          Task* task = executor->launchedTasks.at(taskId);
+
           if (!protobuf::isTerminalState(task->state())) {
             sendExecutorTerminatedStatusUpdate(
-                task->task_id(), termination, frameworkId, executor);
+                taskId, termination, frameworkId, executor);
           }
         }
 
-        // Transition all queued tasks.
-        foreachvalue (const TaskInfo& task, executor->queuedTasks) {
+        // Transition all queued tasks. Note that the map is removed
+        // from within the loop due terminal status updates.
+        foreach (const TaskID& taskId, executor->queuedTasks.keys()) {
           sendExecutorTerminatedStatusUpdate(
-              task.task_id(), termination, frameworkId, executor);
+              taskId, termination, frameworkId, executor);
         }
       }
 

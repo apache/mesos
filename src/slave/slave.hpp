@@ -244,7 +244,7 @@ public:
       StatusUpdate update,
       const Option<process::UPID>& pid,
       const ExecutorID& executorId,
-      const process::Future<ContainerStatus>& future);
+      const Option<process::Future<ContainerStatus>>& containerStatus);
 
   // Continue handling the status update after optionally updating the
   // container's resources.
