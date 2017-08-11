@@ -408,6 +408,7 @@ TEST_F(MasterAuthorizationTest, KillTask)
   // Framework should get a TASK_KILLED right away.
   AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH, status->reason());
 
   Future<Nothing> recoverResources =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
@@ -530,7 +531,9 @@ TEST_F(MasterAuthorizationTest, KillPendingTaskInTaskGroup)
   AWAIT_READY(task1Status);
   EXPECT_EQ(TASK_KILLED, task1Status->state());
   EXPECT_TRUE(strings::contains(
-      task1Status->message(), "Killed pending task"));
+      task1Status->message(), "Killed before delivery to the agent"));
+  EXPECT_EQ(TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
+            task1Status->reason());
 
   Future<Nothing> recoverResources =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
@@ -544,6 +547,8 @@ TEST_F(MasterAuthorizationTest, KillPendingTaskInTaskGroup)
   EXPECT_TRUE(strings::contains(
       task2Status->message(),
       "A task within the task group was killed before delivery to the agent"));
+  EXPECT_EQ(TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
+            task2Status->reason());
 
   // No task launch should happen resulting in all resources being
   // returned to the allocator.

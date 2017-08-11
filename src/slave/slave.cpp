@@ -1833,7 +1833,8 @@ void Slave::_run(
           TASK_KILLED,
           TaskStatus::SOURCE_SLAVE,
           UUID::random(),
-          "Task killed before it was launched");
+          "Killed before delivery to the executor",
+          TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH);
 
       // TODO(vinod): Ensure that the status update manager reliably
       // delivers this update. Currently, we don't guarantee this
@@ -1999,7 +2000,8 @@ void Slave::__run(
           TASK_KILLED,
           TaskStatus::SOURCE_SLAVE,
           UUID::random(),
-          "Task killed before it was launched");
+          "Killed before delivery to the executor",
+          TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH);
       statusUpdate(update, UPID());
     }
 
@@ -2936,8 +2938,9 @@ void Slave::killTask(
               TASK_KILLED,
               TaskStatus::SOURCE_SLAVE,
               UUID::random(),
-              "Unregistered executor",
-              TaskStatus::REASON_EXECUTOR_UNREGISTERED,
+              "A task within the task group was killed before"
+              " delivery to the executor",
+              TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
               executor->id));
         }
       } else {
@@ -2948,8 +2951,8 @@ void Slave::killTask(
             TASK_KILLED,
             TaskStatus::SOURCE_SLAVE,
             UUID::random(),
-            "Unregistered executor",
-            TaskStatus::REASON_EXECUTOR_UNREGISTERED,
+            "Killed before delivery to the executor",
+            TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
             executor->id));
       }
 
@@ -2993,8 +2996,8 @@ void Slave::killTask(
                 TASK_KILLED,
                 TaskStatus::SOURCE_SLAVE,
                 UUID::random(),
-                "Task killed while it was queued",
-                None(),
+                "Killed before delivery to the executor",
+                TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
                 executor->id));
           }
         } else {
@@ -3005,8 +3008,8 @@ void Slave::killTask(
               TASK_KILLED,
               TaskStatus::SOURCE_SLAVE,
               UUID::random(),
-              "Task killed while it was queued",
-              None(),
+              "Killed before delivery to the executor",
+              TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
               executor->id));
         }
 
