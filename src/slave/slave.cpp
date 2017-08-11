@@ -1750,7 +1750,9 @@ void Slave::_run(
           TASK_KILLED,
           TaskStatus::SOURCE_SLAVE,
           UUID::random(),
-          "Task killed before it was launched");
+          "Killed before delivery to the executor",
+          TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH);
+
       statusUpdate(update, UPID());
     }
 
@@ -1802,7 +1804,6 @@ void Slave::_run(
       statusUpdate(update, UPID());
     }
 
-    // Refer to the comment after 'framework->pending.erase' above
     // for why we need this.
     if (framework->executors.empty() && framework->pending.empty()) {
       removeFramework(framework);
@@ -2384,8 +2385,9 @@ void Slave::killTask(
               TASK_KILLED,
               TaskStatus::SOURCE_SLAVE,
               UUID::random(),
-              "Unregistered executor",
-              TaskStatus::REASON_EXECUTOR_UNREGISTERED,
+              "A task within the task group was killed before"
+              " delivery to the executor",
+              TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
               executor->id));
         }
       } else {
@@ -2396,8 +2398,8 @@ void Slave::killTask(
             TASK_KILLED,
             TaskStatus::SOURCE_SLAVE,
             UUID::random(),
-            "Unregistered executor",
-            TaskStatus::REASON_EXECUTOR_UNREGISTERED,
+            "Killed before delivery to the executor",
+            TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
             executor->id));
       }
 
@@ -2441,8 +2443,8 @@ void Slave::killTask(
                 TASK_KILLED,
                 TaskStatus::SOURCE_SLAVE,
                 UUID::random(),
-                "Task killed while it was queued",
-                None(),
+                "Killed before delivery to the executor",
+                TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
                 executor->id));
           }
         } else {
@@ -2453,8 +2455,8 @@ void Slave::killTask(
               TASK_KILLED,
               TaskStatus::SOURCE_SLAVE,
               UUID::random(),
-              "Task killed while it was queued",
-              None(),
+              "Killed before delivery to the executor",
+              TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
               executor->id));
         }
 
