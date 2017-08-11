@@ -274,18 +274,19 @@ Future<Image> StoreProcess::_get(
     }
   }
 
-  Try<string> staging =
-    os::mkdtemp(paths::getStagingTempDir(flags.docker_store_dir));
-
-  if (staging.isError()) {
-    return Failure("Failed to create a staging directory: " + staging.error());
-  }
-
-  // If there is already an pulling going on for the given 'name', we
+  // If there is already a pulling going on for the given 'name', we
   // will skip the additional pulling.
   const string name = stringify(reference);
 
   if (!pulling.contains(name)) {
+    Try<string> staging =
+      os::mkdtemp(paths::getStagingTempDir(flags.docker_store_dir));
+
+    if (staging.isError()) {
+      return Failure(
+          "Failed to create a staging directory: " + staging.error());
+    }
+
     Owned<Promise<Image>> promise(new Promise<Image>());
 
     Future<Image> future = puller->pull(
