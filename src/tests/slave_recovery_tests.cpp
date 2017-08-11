@@ -1298,10 +1298,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 }
 
 
-// This test verifies that when the agent gets a `killTask` message and restarts
-// before the executor registers, a TASK_KILLED update is sent and the executor
-// shuts down.
-TYPED_TEST(SlaveRecoveryTest, KillTaskUnregisteredExecutor)
+// This test verifies that when the agent gets a `killTask`
+// message for a queued task on a registering executor, a
+// restart of the agent will generate a TASK_KILLED and
+// will shut down the executor.
+TYPED_TEST(SlaveRecoveryTest, KillQueuedTaskDuringExecutorRegistration)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
@@ -1361,7 +1362,7 @@ TYPED_TEST(SlaveRecoveryTest, KillTaskUnregisteredExecutor)
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status->state());
-  EXPECT_EQ(TaskStatus::REASON_EXECUTOR_UNREGISTERED, status->reason());
+  EXPECT_EQ(TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH, status->reason());
 
   slave.get()->terminate();
 
