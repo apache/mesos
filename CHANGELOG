@@ -6,6 +6,7 @@ All Issues:
 ** Bug
   * [MESOS-5187] - The filesystem/linux isolator does not set the permissions of the host_path.
   * [MESOS-6743] - Docker executor hangs forever if `docker stop` fails.
+  * [MESOS-6950] - Launching two tasks with the same Docker image simultaneously may cause a staging dir never cleaned up.
   * [MESOS-7540] - Add an agent flag for executor re-registration timeout.
   * [MESOS-7569] - Allow "old" executors with half-open connections to be preserved during agent upgrade / restart.
   * [MESOS-7689] - Libprocess can crash on malformed request paths for libprocess messages.
