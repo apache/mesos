@@ -374,7 +374,7 @@ void FetcherCacheTest::setupArchiveAsset()
   archivePath = path::join(assetsDirectory, ARCHIVE_NAME);
 
   // Make the archive file read-only, so we can tell if it becomes
-  // executable by acccident.
+  // executable by accident.
   ASSERT_SOME(os::chmod(archivePath, S_IRUSR | S_IRGRP | S_IROTH));
 }
 
