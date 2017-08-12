@@ -43,7 +43,7 @@ TEST(ProcTest, Pids)
   Try<set<pid_t>> pids = proc::pids();
 
   ASSERT_SOME(pids);
-  EXPECT_NE(0u, pids.get().size());
+  EXPECT_FALSE(pids->empty());
   EXPECT_EQ(1u, pids.get().count(getpid()));
   EXPECT_EQ(1u, pids.get().count(1));
 }

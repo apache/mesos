@@ -344,7 +344,7 @@ TEST_F(OsTest, Children)
   Try<set<pid_t>> children = os::children(getpid());
 
   ASSERT_SOME(children);
-  EXPECT_EQ(0u, children.get().size());
+  EXPECT_TRUE(children->empty());
 
   Try<ProcessTree> tree =
     Fork(None(),                   // Child.

@@ -315,7 +315,7 @@ TEST_F(FsTest, List)
   // Verify that we return empty list when we provide an invalid path.
   Try<list<string>> noFiles = fs::list("this_path_does_not_exist");
   ASSERT_SOME(noFiles);
-  EXPECT_EQ(0u, noFiles.get().size());
+  EXPECT_TRUE(noFiles->empty());
 }
 
 

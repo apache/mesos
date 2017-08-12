@@ -166,7 +166,7 @@ TEST_F(ProcessTest, Pids)
 {
   Try<set<pid_t>> pids = os::pids();
   ASSERT_SOME(pids);
-  EXPECT_NE(0u, pids.get().size());
+  EXPECT_FALSE(pids->empty());
   EXPECT_EQ(1u, pids.get().count(getpid()));
 
   // In a FreeBSD jail, pid 1 may not exist.
@@ -242,7 +242,7 @@ TEST_F(ProcessTest, Pstree)
   Try<ProcessTree> tree = os::pstree(getpid());
 
   ASSERT_SOME(tree);
-  EXPECT_EQ(0u, tree.get().children.size()) << stringify(tree.get());
+  EXPECT_TRUE(tree->children.empty()) << stringify(tree.get());
 
   tree =
     Fork(None(),                   // Child.

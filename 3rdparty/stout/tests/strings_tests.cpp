@@ -153,14 +153,14 @@ TEST(StringsTest, TokenizeWithMultipleDelims)
 TEST(StringsTest, TokenizeEmptyString)
 {
   vector<string> tokens = strings::tokenize("", " ");
-  ASSERT_EQ(0u, tokens.size());
+  ASSERT_TRUE(tokens.empty());
 }
 
 
 TEST(StringsTest, TokenizeDelimOnlyString)
 {
   vector<string> tokens = strings::tokenize("   ", " ");
-  ASSERT_EQ(0u, tokens.size());
+  ASSERT_TRUE(tokens.empty());
 }
 
 
@@ -201,7 +201,7 @@ TEST(StringsTest, TokenizeNullByteDelim)
 TEST(StringsTest, TokenizeNZero)
 {
   vector<string> tokens = strings::tokenize("foo,bar,,,", ",", 0);
-  ASSERT_EQ(0u, tokens.size());
+  ASSERT_TRUE(tokens.empty());
 }
 
 
@@ -216,7 +216,7 @@ TEST(StringsTest, TokenizeNOne)
 TEST(StringsTest, TokenizeNDelimOnlyString)
 {
   vector<string> tokens = strings::tokenize(",,,", ",", 2);
-  ASSERT_EQ(0u, tokens.size());
+  ASSERT_TRUE(tokens.empty());
 }
 
 
@@ -354,7 +354,7 @@ TEST(StringsTest, SplitWithMultipleDelims)
 TEST(StringsTest, SplitNZero)
 {
   vector<string> tokens = strings::split("foo,bar,,,", ",", 0);
-  ASSERT_EQ(0u, tokens.size());
+  ASSERT_TRUE(tokens.empty());
 }
 
 
