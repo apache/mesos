@@ -189,7 +189,7 @@ TEST(DecoderTest, ResponseWithUnspecifiedLength)
 
   deque<http::Response*> responses = decoder.decode(data.data(), data.length());
   ASSERT_FALSE(decoder.failed());
-  ASSERT_EQ(0u, responses.size());
+  ASSERT_TRUE(responses.empty());
 
   responses = decoder.decode("", 0);
   ASSERT_FALSE(decoder.failed());

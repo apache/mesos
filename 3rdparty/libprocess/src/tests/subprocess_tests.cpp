@@ -717,7 +717,7 @@ TEST_F(SubprocessTest, Flags)
   Flags flags2;
   Try<flags::Warnings> load = flags2.load(None(), argc, argv);
   ASSERT_SOME(load);
-  EXPECT_EQ(0u, load->warnings.size());
+  EXPECT_TRUE(load->warnings.empty());
 
   EXPECT_EQ(flags.b, flags2.b);
   EXPECT_EQ(flags.i, flags2.i);
