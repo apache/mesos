@@ -1828,7 +1828,7 @@ TEST_F(PartitionTest, PartitionedSlaveExitedExecutor)
 
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   // Launch a task. This allows us to have the slave send an
   // ExitedExecutorMessage.

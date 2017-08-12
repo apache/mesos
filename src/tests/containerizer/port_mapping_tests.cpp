@@ -1915,7 +1915,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1->size());
+  EXPECT_FALSE(offers1->empty());
 
   Offer offer1 = offers1.get()[0];
 
@@ -1972,7 +1972,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
   Clock::resume();
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2->size());
+  EXPECT_FALSE(offers2->empty());
 
   Offer offer2 = offers2.get()[0];
 
@@ -2084,7 +2084,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   // Start a long running task using network islator.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
@@ -2143,11 +2143,11 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
     ip::classifiers(eth0, ingress::HANDLE);
 
   EXPECT_SOME(classifiers);
-  EXPECT_EQ(0u, classifiers->size());
+  EXPECT_TRUE(classifiers->empty());
 
   classifiers = ip::classifiers(lo, ingress::HANDLE);
   EXPECT_SOME(classifiers);
-  EXPECT_EQ(0u, classifiers->size());
+  EXPECT_TRUE(classifiers->empty());
 
   // Expect no 'veth' devices.
   Try<set<string>> links = net::links();
@@ -2159,7 +2159,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
   // Expect no files in bind mount directory.
   Try<list<string>> files = os::ls(slave::PORT_MAPPING_BIND_MOUNT_ROOT());
   ASSERT_SOME(files);
-  EXPECT_EQ(0u, files->size());
+  EXPECT_TRUE(files->empty());
 
   driver.stop();
   driver.join();
@@ -2205,7 +2205,7 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   // Start a long running task using network islator.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
@@ -2298,7 +2298,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 

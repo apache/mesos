@@ -427,7 +427,7 @@ TEST_F(UpgradeTest, MultiRoleSchedulerUpgrade)
 
   AWAIT_READY(frameworkId);
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task;
   task.set_name("");

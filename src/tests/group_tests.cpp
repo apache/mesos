@@ -74,7 +74,7 @@ TEST_F(GroupTest, Group)
   memberships = group.watch(memberships.get());
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(0u, memberships->size());
+  EXPECT_TRUE(memberships->empty());
 
   ASSERT_TRUE(membership->cancelled().isReady());
   ASSERT_TRUE(membership->cancelled().get());
@@ -185,7 +185,7 @@ TEST_F(GroupTest, GroupCancelWithDisconnect)
   memberships = group.watch(memberships.get());
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(0u, memberships->size());
+  EXPECT_TRUE(memberships->empty());
 
   ASSERT_TRUE(membership->cancelled().isReady());
   ASSERT_TRUE(membership->cancelled().get());
@@ -216,7 +216,7 @@ TEST_F(GroupTest, GroupWatchWithSessionExpiration)
   server->expireSession(session->get());
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(0u, memberships->size());
+  EXPECT_TRUE(memberships->empty());
 
   AWAIT_READY(membership->cancelled());
   ASSERT_FALSE(membership->cancelled().get());
@@ -428,7 +428,7 @@ TEST_F(GroupTest, LabelledGroup)
   memberships = group.watch(memberships.get());
 
   AWAIT_READY(memberships);
-  EXPECT_EQ(0u, memberships->size());
+  EXPECT_TRUE(memberships->empty());
 
   ASSERT_TRUE(membership->cancelled().isReady());
   ASSERT_TRUE(membership->cancelled().get());

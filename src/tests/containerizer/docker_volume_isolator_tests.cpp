@@ -269,7 +269,7 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsWithVolumes)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -423,7 +423,7 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsFailedWithSameVolumes)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -527,7 +527,7 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsSlaveRecovery)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -720,7 +720,7 @@ TEST_F(DockerVolumeIsolatorTest,
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -854,7 +854,7 @@ TEST_F(DockerVolumeIsolatorTest,
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -989,7 +989,7 @@ TEST_F(DockerVolumeIsolatorTest,
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 

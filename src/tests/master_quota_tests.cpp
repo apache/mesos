@@ -509,7 +509,7 @@ TEST_F(MasterQuotaTest, Status)
     const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
     ASSERT_FALSE(status.isError());
 
-    EXPECT_EQ(0, status->infos().size());
+    EXPECT_TRUE(status->infos().empty());
   }
 
   // Send a quota request for the specified role.
@@ -1328,7 +1328,7 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequests)
     const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
     ASSERT_FALSE(status.isError());
 
-    EXPECT_EQ(0, status->infos().size());
+    EXPECT_TRUE(status->infos().empty());
   }
 
   // Get the previous requested quota using default principal, which is

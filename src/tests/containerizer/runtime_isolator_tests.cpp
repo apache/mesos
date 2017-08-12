@@ -386,7 +386,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_INTERNET_CURL_NestedSimpleCommand)
   executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
 
@@ -505,7 +505,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultCmdLocalPuller)
   executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
 
@@ -625,7 +625,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultEntryptLocalPuller)
   executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
 

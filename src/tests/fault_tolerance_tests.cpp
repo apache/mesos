@@ -221,7 +221,7 @@ TEST_F(FaultToleranceTest, ReregisterCompletedFrameworks)
   AWAIT_READY(frameworkId);
   EXPECT_NE("", frameworkId->value());
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   // Step 3. Create/launch a task.
   TaskInfo task =
@@ -951,7 +951,7 @@ TEST_F(FaultToleranceTest, DisconnectedSchedulerLaunchLost)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   AWAIT_READY(message);
 
@@ -1014,7 +1014,7 @@ TEST_F(FaultToleranceTest, DisconnectedSchedulerLaunchDropped)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   AWAIT_READY(message);
 
@@ -1076,7 +1076,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverStatusUpdate)
   driver1.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   // Launch a task.
   TaskInfo task;
@@ -1286,7 +1286,7 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
   Offer offer = offers.get()[0];
 
   TaskInfo task;
@@ -1375,7 +1375,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
   driver1.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   TaskInfo task;
   task.set_name("");
@@ -1475,7 +1475,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
   driver1.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
@@ -1702,7 +1702,7 @@ TEST_F(FaultToleranceTest, SchedulerExit)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   AWAIT_READY(offers);
 

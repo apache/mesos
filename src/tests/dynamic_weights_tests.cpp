@@ -113,7 +113,7 @@ protected:
       convertToHashmap(weightInfos.get());
 
     if (_weights.isNone()) {
-      EXPECT_EQ(0u, weights.size());
+      EXPECT_TRUE(weights.empty());
     } else if (_weights == GET_WEIGHTS1) {
       EXPECT_EQ(1u, weights.size());
       EXPECT_EQ(2.0, weights["role1"]);

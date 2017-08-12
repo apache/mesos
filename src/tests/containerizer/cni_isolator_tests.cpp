@@ -1435,7 +1435,7 @@ TEST_P(DefaultExecutorCniTest, ROOT_VerifyContainerIP)
   }
 
   AWAIT_READY(offers);
-  ASSERT_NE(0, offers->offers().size());
+  ASSERT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();

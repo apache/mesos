@@ -85,7 +85,7 @@ TEST_F(PosixRLimitsIsolatorTest, InvalidLimits)
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task = createTask(
       offers.get()[0].slave_id(),
@@ -154,7 +154,7 @@ TEST_F(PosixRLimitsIsolatorTest, UnsetLimits)
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task = createTask(
       offers.get()[0].slave_id(),
@@ -234,7 +234,7 @@ TEST_F(PosixRLimitsIsolatorTest, BothSoftAndHardLimitSet)
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task = createTask(
       offers.get()[0].slave_id(),
@@ -301,7 +301,7 @@ TEST_F(PosixRLimitsIsolatorTest, TaskExceedingLimit)
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   // The task attempts to use an infinite amount of CPU time.
   TaskInfo task = createTask(
@@ -386,7 +386,7 @@ TEST_F(PosixRLimitsIsolatorTest, NestedContainers)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   Future<TaskStatus> taskStatuses[4];
 

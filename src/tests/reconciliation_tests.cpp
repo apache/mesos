@@ -882,7 +882,7 @@ TEST_F(ReconciliationTest, PendingTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   // Return a pending future from authorizer.
   Future<Nothing> authorize;

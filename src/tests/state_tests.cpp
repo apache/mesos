@@ -95,7 +95,7 @@ void FetchAndStoreAndFetch(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  ASSERT_EQ(0, slaves1.slaves().size());
+  ASSERT_TRUE(slaves1.slaves().empty());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -125,7 +125,7 @@ void FetchAndStoreAndStoreAndFetch(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  ASSERT_EQ(0, slaves1.slaves().size());
+  ASSERT_TRUE(slaves1.slaves().empty());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -161,7 +161,7 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
   Variable<Slaves> variable1 = future1.get();
 
   Slaves slaves1 = variable1.get();
-  ASSERT_EQ(0, slaves1.slaves().size());
+  ASSERT_TRUE(slaves1.slaves().empty());
 
   Slave* slave1 = slaves1.add_slaves();
   slave1->mutable_info()->set_hostname("localhost1");
@@ -173,7 +173,7 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
   ASSERT_SOME(future2.get());
 
   Slaves slaves2 = variable1.get();
-  ASSERT_EQ(0, slaves2.slaves().size());
+  ASSERT_TRUE(slaves2.slaves().empty());
 
   Slave* slave2 = slaves2.add_slaves();
   slave2->mutable_info()->set_hostname("localhost2");
@@ -203,7 +203,7 @@ void FetchAndStoreAndExpungeAndFetch(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  ASSERT_EQ(0, slaves1.slaves().size());
+  ASSERT_TRUE(slaves1.slaves().empty());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -226,7 +226,7 @@ void FetchAndStoreAndExpungeAndFetch(State* state)
   variable = future1.get();
 
   Slaves slaves2 = variable.get();
-  ASSERT_EQ(0, slaves2.slaves().size());
+  ASSERT_TRUE(slaves2.slaves().empty());
 }
 
 
@@ -238,7 +238,7 @@ void FetchAndStoreAndExpungeAndExpunge(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  ASSERT_EQ(0, slaves1.slaves().size());
+  ASSERT_TRUE(slaves1.slaves().empty());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -269,7 +269,7 @@ void FetchAndStoreAndExpungeAndStoreAndFetch(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  ASSERT_EQ(0, slaves1.slaves().size());
+  ASSERT_TRUE(slaves1.slaves().empty());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -309,7 +309,7 @@ void Names(State* state)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  ASSERT_EQ(0, slaves1.slaves().size());
+  ASSERT_TRUE(slaves1.slaves().empty());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -588,7 +588,7 @@ TEST_F(LogStateTest, Timeout)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves1 = variable.get();
-  ASSERT_EQ(0, slaves1.slaves().size());
+  ASSERT_TRUE(slaves1.slaves().empty());
 
   Slave* slave = slaves1.add_slaves();
   slave->mutable_info()->set_hostname("localhost");
@@ -624,7 +624,7 @@ TEST_F(LogStateTest, Diff)
   Variable<Slaves> variable = future1.get();
 
   Slaves slaves = variable.get();
-  ASSERT_EQ(0, slaves.slaves().size());
+  ASSERT_TRUE(slaves.slaves().empty());
 
   for (size_t i = 0; i < 1024; i++) {
     Slave* slave = slaves.add_slaves();

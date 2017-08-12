@@ -575,7 +575,7 @@ Try<vector<FetcherCacheTest::Task>> FetcherCacheTest::launchTasks(
            (offers.isFailed() ? offers.failure() : "discarded"));
   }
 
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
   const Offer offer = offers.get()[0];
 
   vector<TaskInfo> tasks;
@@ -659,7 +659,7 @@ TEST_F(FetcherCacheTest, LocalUncached)
 
   EXPECT_EQ(0u, fetcherProcess->cacheSize());
   ASSERT_SOME(fetcherProcess->cacheFiles());
-  EXPECT_EQ(0u, fetcherProcess->cacheFiles()->size());
+  EXPECT_TRUE(fetcherProcess->cacheFiles()->empty());
 
   const string path = path::join(task->runDirectory.string(), COMMAND_NAME);
   EXPECT_TRUE(isExecutable(path));
@@ -837,7 +837,7 @@ TEST_F(FetcherCacheTest, CachedFallback)
 
   EXPECT_EQ(0u, fetcherProcess->cacheSize());
   ASSERT_SOME(fetcherProcess->cacheFiles());
-  EXPECT_EQ(0u, fetcherProcess->cacheFiles()->size());
+  EXPECT_TRUE(fetcherProcess->cacheFiles()->empty());
 
   verifyCacheMetrics();
 }
@@ -876,7 +876,7 @@ TEST_F(FetcherCacheTest, LocalUncachedExtract)
 
   EXPECT_EQ(0u, fetcherProcess->cacheSize());
   ASSERT_SOME(fetcherProcess->cacheFiles());
-  EXPECT_EQ(0u, fetcherProcess->cacheFiles()->size());
+  EXPECT_TRUE(fetcherProcess->cacheFiles()->empty());
 
   verifyCacheMetrics();
 }

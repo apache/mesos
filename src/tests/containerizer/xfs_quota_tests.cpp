@@ -801,7 +801,7 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
   AWAIT_READY(usage2);
 
   // We should have no executors left because we didn't checkpoint.
-  ASSERT_EQ(0, usage2->executors().size());
+  ASSERT_TRUE(usage2->executors().empty());
 
   Try<std::list<string>> sandboxes = os::glob(path::join(
       slave::paths::getSandboxRootDir(mountPoint.get()),

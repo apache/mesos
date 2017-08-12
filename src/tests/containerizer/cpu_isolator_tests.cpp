@@ -106,7 +106,7 @@ TEST_P(CpuIsolatorTest, ROOT_UserCpuUsage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   // Max out a single core in userspace. This will run for at most one
   // second.
@@ -197,7 +197,7 @@ TEST_P(CpuIsolatorTest, ROOT_SystemCpuUsage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   // Generating random numbers is done by the kernel and will max out
   // a single core and run almost exclusively in the kernel, i.e.,

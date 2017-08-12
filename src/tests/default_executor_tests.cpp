@@ -172,7 +172,7 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -305,7 +305,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0, offers1->offers().size());
+  EXPECT_FALSE(offers1->offers().empty());
 
   const v1::Offer& offer1 = offers1->offers(0);
   const v1::AgentID& agentId = offer1.agent_id();
@@ -592,7 +592,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -771,7 +771,7 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -871,7 +871,7 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
   executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
 
@@ -988,7 +988,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnTaskFailure)
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -1124,7 +1124,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -1329,7 +1329,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   executorInfo.mutable_resources()->CopyFrom(reserved);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -1497,7 +1497,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   executorInfo.mutable_resources()->CopyFrom(executorResources);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
 
@@ -1625,7 +1625,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   executorInfo.mutable_resources()->CopyFrom(unreserved);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
 

@@ -106,7 +106,7 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 120");
 

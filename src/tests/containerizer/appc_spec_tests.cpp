@@ -223,8 +223,8 @@ TEST_F(AppcSpecTest, ValidateImageManifestWithNullExec)
   // Check app object.
   ASSERT_TRUE(imageManifest->has_app());
   EXPECT_FALSE(imageManifest->app().has_workingdirectory());
-  EXPECT_EQ(0, imageManifest->app().environment_size());
-  EXPECT_EQ(0, imageManifest->app().exec_size());
+  EXPECT_TRUE(imageManifest->app().environment().empty());
+  EXPECT_TRUE(imageManifest->app().exec().empty());
 
   // Check annotations.
   ASSERT_EQ(imageManifest->annotations_size(), 8);

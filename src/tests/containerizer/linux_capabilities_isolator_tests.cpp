@@ -255,7 +255,7 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   // We use 'ping' as the command since it has file capabilities
   // (`NET_RAW` and `NET_ADMIN` in permitted set). This allows us to
@@ -390,7 +390,7 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_NestedPing)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   Resources resources = Resources::parse("cpus:0.1;mem:32;disk:32").get();
 

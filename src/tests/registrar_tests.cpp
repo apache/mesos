@@ -598,8 +598,8 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
     AWAIT_READY(registry);
 
     EXPECT_EQ(1, registry->schedules().size());
-    EXPECT_EQ(0, registry->schedules(0).windows().size());
-    EXPECT_EQ(0, registry->machines().machines().size());
+    EXPECT_TRUE(registry->schedules(0).windows().empty());
+    EXPECT_TRUE(registry->machines().machines().empty());
   }
 }
 
@@ -767,8 +767,8 @@ TEST_F(RegistrarTest, StopMaintenance)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    EXPECT_EQ(0, registry->schedules().size());
-    EXPECT_EQ(0, registry->machines().machines().size());
+    EXPECT_TRUE(registry->schedules().empty());
+    EXPECT_TRUE(registry->machines().machines().empty());
   }
 }
 
@@ -973,7 +973,7 @@ TEST_F(RegistrarTest, RemoveQuota)
     AWAIT_READY(registry);
 
     // Check that there are no more quotas at this point.
-    ASSERT_EQ(0, registry->quotas().size());
+    ASSERT_TRUE(registry->quotas().empty());
   }
 }
 
@@ -994,7 +994,7 @@ TEST_F(RegistrarTest, UpdateWeights)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    ASSERT_EQ(0, registry->weights_size());
+    ASSERT_TRUE(registry->weights().empty());
 
     // Store the weight for 'ROLE1' previously without weight.
     hashmap<string, double> weights;

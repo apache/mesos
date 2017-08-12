@@ -516,7 +516,7 @@ TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
 
   // Wait for some normal offers.
   AWAIT_READY(normalOffers);
-  EXPECT_NE(0u, normalOffers->size());
+  EXPECT_FALSE(normalOffers->empty());
 
   // Check that unavailability is not set.
   foreach (const Offer& offer, normalOffers.get()) {
@@ -551,7 +551,7 @@ TEST_F(MasterMaintenanceTest, PreV1SchedulerSupport)
 
   // Wait for some offers.
   AWAIT_READY(unavailabilityOffers);
-  EXPECT_NE(0u, unavailabilityOffers->size());
+  EXPECT_FALSE(unavailabilityOffers->empty());
 
   // Check that each offer has an unavailability.
   foreach (const Offer& offer, unavailabilityOffers.get()) {
@@ -982,7 +982,7 @@ TEST_F(MasterMaintenanceTest, BringUpMachines)
     ::protobuf::parse<mesos::maintenance::Schedule>(masterSchedule_.get());
 
   ASSERT_SOME(masterSchedule);
-  ASSERT_EQ(0, masterSchedule->windows().size());
+  ASSERT_TRUE(masterSchedule->windows().empty());
 }
 
 
@@ -1032,8 +1032,8 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
       ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
 
   ASSERT_SOME(statuses);
-  ASSERT_EQ(0, statuses->draining_machines().size());
-  ASSERT_EQ(0, statuses->down_machines().size());
+  ASSERT_TRUE(statuses->draining_machines().empty());
+  ASSERT_TRUE(statuses->down_machines().empty());
 
   // Get the maintenance statuses.
   response = process::http::get(
@@ -1052,7 +1052,7 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
 
   ASSERT_SOME(statuses);
   ASSERT_EQ(2, statuses->draining_machines().size());
-  ASSERT_EQ(0, statuses->down_machines().size());
+  ASSERT_TRUE(statuses->down_machines().empty());
 
   // Deactivate machine1.
   JSON::Array machines = createMachineList({machine1});
@@ -1111,7 +1111,7 @@ TEST_F(MasterMaintenanceTest, MachineStatus)
 
   ASSERT_SOME(statuses);
   ASSERT_EQ(1, statuses->draining_machines().size());
-  ASSERT_EQ(0, statuses->down_machines().size());
+  ASSERT_TRUE(statuses->down_machines().empty());
   ASSERT_EQ("0.0.0.2", statuses->draining_machines(0).id().ip());
 }
 
@@ -1170,12 +1170,12 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
     ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
 
   ASSERT_SOME(statuses);
-  ASSERT_EQ(0, statuses->down_machines().size());
+  ASSERT_TRUE(statuses->down_machines().empty());
   ASSERT_EQ(1, statuses->draining_machines().size());
   ASSERT_EQ(
       maintenanceHostname,
       statuses->draining_machines(0).id().hostname());
-  ASSERT_EQ(0, statuses->draining_machines(0).statuses().size());
+  ASSERT_TRUE(statuses->draining_machines(0).statuses().empty());
 
   // Now start a framework.
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
@@ -1223,7 +1223,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   // Ensure we receive some regular resource offers.
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   // All the offers should have unavailability.
   foreach (const v1::Offer& offer, offers->offers()) {
@@ -1341,7 +1341,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
 
   ASSERT_SOME(statuses);
-  ASSERT_EQ(0, statuses->down_machines().size());
+  ASSERT_TRUE(statuses->down_machines().empty());
   ASSERT_EQ(1, statuses->draining_machines().size());
   ASSERT_EQ(
       maintenanceHostname,
@@ -1405,7 +1405,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   statuses = ::protobuf::parse<maintenance::ClusterStatus>(statuses_.get());
 
   ASSERT_SOME(statuses);
-  ASSERT_EQ(0, statuses->down_machines().size());
+  ASSERT_TRUE(statuses->down_machines().empty());
   ASSERT_EQ(1, statuses->draining_machines().size());
   ASSERT_EQ(
       maintenanceHostname,

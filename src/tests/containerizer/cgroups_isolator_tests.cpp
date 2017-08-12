@@ -154,7 +154,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   // Launch a task with the command executor.
   CommandInfo command;
@@ -293,7 +293,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
   // Initially the framework will get all regular resources.
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1->size());
+  EXPECT_FALSE(offers1->empty());
   EXPECT_TRUE(Resources(offers1.get()[0].resources()).revocable().empty());
 
   Future<vector<Offer>> offers2;
@@ -309,7 +309,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
 
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2->size());
+  EXPECT_FALSE(offers2->empty());
   EXPECT_EQ(allocatedResources(cpus, frameworkInfo.role()),
             Resources(offers2.get()[0].resources()));
 
@@ -394,7 +394,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   // Generate random numbers to max out a single core. We'll run this
   // for 0.5 seconds of wall time so it should consume approximately
@@ -516,7 +516,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_LimitSwap)
   executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
 
@@ -603,7 +603,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PidsAndTids)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   CommandInfo command;
   command.set_shell(false);
@@ -1011,7 +1011,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_Sample)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 120");
 
@@ -1127,7 +1127,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1->size());
+  EXPECT_FALSE(offers1->empty());
 
   Future<TaskStatus> statusRunning1;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -1190,7 +1190,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   AWAIT_READY(__recover);
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2->size());
+  EXPECT_FALSE(offers2->empty());
 
   // The first container should not report any perf statistics.
   usage = containerizer->usage(containerId1);
@@ -1288,7 +1288,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1->size());
+  EXPECT_FALSE(offers1->empty());
 
   Future<TaskStatus> statusRunning1;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -1348,7 +1348,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
   AWAIT_READY(__recover);
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2->size());
+  EXPECT_FALSE(offers2->empty());
 
   // The first container should not report memory statistics.
   usage = containerizer->usage(containerId1);
@@ -1444,7 +1444,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_NE(0u, offers1->size());
+  EXPECT_FALSE(offers1->empty());
 
   Future<TaskStatus> statusRunning1;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -1503,7 +1503,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
   AWAIT_READY(__recover);
 
   AWAIT_READY(offers2);
-  EXPECT_NE(0u, offers2->size());
+  EXPECT_FALSE(offers2->empty());
 
   // The first container should not report memory statistics.
   usage = containerizer->usage(containerId1);

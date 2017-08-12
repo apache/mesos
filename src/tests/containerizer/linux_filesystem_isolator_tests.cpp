@@ -1039,7 +1039,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -1110,7 +1110,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -1204,7 +1204,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -1474,7 +1474,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest, ROOT_SandboxEnvironmentVariable)
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -1558,7 +1558,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   // We request a sandbox (1MB) that is smaller than the persistent
   // volume (4MB) and attempt to create a file in that volume that is
@@ -1652,7 +1652,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   // We create a shared volume which shall be used by the task to
   // write to that volume.

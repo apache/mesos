@@ -176,7 +176,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, VerifyMasterLaunchTaskHook)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   TaskInfo task;
   task.set_name("");
@@ -373,7 +373,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, VerifySlaveLaunchExecutorHook)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   // Launch a task with the command executor.
   TaskInfo task;
@@ -891,7 +891,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   const Offer& offer = offers.get()[0];
 
@@ -1018,7 +1018,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, ROOT_DOCKER_VerifySlavePostFetchHook)
   driver.start();
 
   AWAIT_READY(offers);
-  ASSERT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task = createTask(
       offers.get()[0].slave_id(),
@@ -1103,7 +1103,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   Resources resources = offers.get()[0].resources();
 

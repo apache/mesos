@@ -204,7 +204,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   AWAIT_READY(registered);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  EXPECT_FALSE(offers->empty());
 
   TaskInfo task;
   task.set_name("test");
@@ -666,7 +666,7 @@ TEST_F(ExecutorAuthorizationTest, FailedSubscribe)
   executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   Future<v1::executor::Mesos*> executorLib;
   EXPECT_CALL(*executor, connected(_))
@@ -825,7 +825,7 @@ TEST_F(ExecutorAuthorizationTest, FailedApiCalls)
   executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0, offers->offers().size());
+  EXPECT_FALSE(offers->offers().empty());
 
   Future<v1::executor::Mesos*> executorLib;
   EXPECT_CALL(*executor, connected(_))

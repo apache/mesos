@@ -1258,7 +1258,7 @@ TEST_F(MesosContainerizerRecoverTest, SkipRecoverNonMesosContainers)
 
   Future<hashset<ContainerID>> containers = containerizer.get()->containers();
   AWAIT_READY(containers);
-  EXPECT_EQ(0u, containers->size());
+  EXPECT_TRUE(containers->empty());
 }
 
 

@@ -1333,7 +1333,7 @@ TEST_F(RoutingVethTest, ROOT_IPFilterRemove)
     ip::classifiers(TEST_VETH_LINK, ingress::HANDLE);
 
   ASSERT_SOME(classifiers);
-  EXPECT_EQ(0u, classifiers->size());
+  EXPECT_TRUE(classifiers->empty());
 }
 
 

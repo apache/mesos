@@ -844,7 +844,7 @@ TEST_F(CgroupsAnyHierarchyWithFreezerTest, ROOT_CGROUPS_AssignThreads)
   Try<set<pid_t>> cgroupThreads =
     cgroups::threads(hierarchy, TEST_CGROUPS_ROOT);
   EXPECT_SOME(cgroupThreads);
-  EXPECT_EQ(0u, cgroupThreads->size());
+  EXPECT_TRUE(cgroupThreads->empty());
 
   // Assign ourselves to the test cgroup.
   ASSERT_SOME(cgroups::assign(hierarchy, TEST_CGROUPS_ROOT, ::getpid()));
