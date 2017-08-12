@@ -565,6 +565,29 @@ int MesosContainerizerLaunch::execute()
 #endif // __WINDOWS__
 
   if (launchInfo.has_working_directory()) {
+    // If working directory does not exist (e.g., being removed from
+    // the container image), create an empty directory even it may
+    // not be used. Please note that this case can only be possible
+    // if an image has 'WORKDIR' specified in its manifest but that
+    // 'WORKDIR' does not exist in the image's rootfs.
+    //
+    // TODO(gilbert): Set the proper ownership to this working
+    // directory to make sure a specified non-root user has the
+    // permission to write to this working directory. Right now
+    // it is owned by root, and any non-root user will fail to
+    // write to this directory. Please note that this is identical
+    // to the semantic as docker daemon. The semantic can be
+    // verified by:
+    // 'docker run -ti -u nobody quay.io/spinnaker/front50:master bash'
+    // The ownership of '/workdir' is root. Creating any file under
+    // '/workdir' will fail for 'Permission denied'.
+    Try<Nothing> mkdir = os::mkdir(launchInfo.working_directory());
+    if (mkdir.isError()) {
+      cerr << "Failed to create working directory "
+           << "'" << launchInfo.working_directory() << "': "
+           << mkdir.error() << endl;
+    }
+
     Try<Nothing> chdir = os::chdir(launchInfo.working_directory());
     if (chdir.isError()) {
       cerr << "Failed to chdir into current working directory "
