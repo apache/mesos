@@ -2725,6 +2725,14 @@ message LinuxInfo {
   // Represents the set of capabilities that the task will
   // be executed with.
   optional CapabilityInfo effective_capabilities = 3;
+
+  // If set as 'true', the container shares the pid namespace with
+  // its parent. If the container is a top level container, it will
+  // share the pid namespace with the agent. If the container is a
+  // nested container, it will share the pid namespace with its
+  // parent container. This field will be ignored if 'namespaces/pid'
+  // isolator is not enabled.
+  optional bool share_pid_namespace = 4;
 }
 
 
