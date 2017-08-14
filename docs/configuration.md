@@ -2046,6 +2046,20 @@ sandbox is mapped to.
 </tr>
 <tr>
   <td>
+    --[no-]disallow_sharing_agent_pid_namespace
+  </td>
+  <td>
+If set to <code>true</code>, each top-level container will have its own pid
+namespace, and if the framework requests to share the agent pid namespace for
+the top level container, the container launch will be rejected. If set to
+<code>false</code>, the top-level containers will share the pid namespace with
+agent if the framework requests it. This flag will be ignored if the
+`namespaces/pid` isolator is not enabled.
+(default: false)
+  </td>
+</tr>
+<tr>
+  <td>
     --[no-]strict
   </td>
   <td>
