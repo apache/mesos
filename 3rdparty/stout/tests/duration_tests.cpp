@@ -50,8 +50,13 @@ TEST(DurationTest, ParseAndTry)
   EXPECT_SOME_EQ(Hours(3), Duration::parse("3hrs"));
   EXPECT_SOME_EQ(Hours(3) + Minutes(30), Duration::parse("3.5hrs"));
 
+  EXPECT_ERROR(
+      Duration::parse(
+          stringify(std::numeric_limits<int64_t>::max()) + "seconds"));
+
   EXPECT_SOME_EQ(Nanoseconds(3141592653), Duration::create(3.141592653));
-  // Duration can hold only 9.22337e9 seconds.
+
+  // Duration can hold only +/-9.22337e9 seconds.
   EXPECT_ERROR(Duration::create(10 * 1e9));
   EXPECT_ERROR(Duration::create(-10 * 1e9));
 }

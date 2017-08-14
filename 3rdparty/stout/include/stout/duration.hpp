@@ -50,28 +50,39 @@ public:
 
       const std::string unit = s.substr(index);
 
+      int64_t factor;
       if (unit == "ns") {
-        return Duration(value.get(), NANOSECONDS);
+        factor = NANOSECONDS;
       } else if (unit == "us") {
-        return Duration(value.get(), MICROSECONDS);
+        factor = MICROSECONDS;
       } else if (unit == "ms") {
-        return Duration(value.get(), MILLISECONDS);
+        factor = MILLISECONDS;
       } else if (unit == "secs") {
-        return Duration(value.get(), SECONDS);
+        factor = SECONDS;
       } else if (unit == "mins") {
-        return Duration(value.get(), MINUTES);
+        factor = MINUTES;
       } else if (unit == "hrs") {
-        return Duration(value.get(), HOURS);
+        factor = HOURS;
       } else if (unit == "days") {
-        return Duration(value.get(), DAYS);
+        factor = DAYS;
       } else if (unit == "weeks") {
-        return Duration(value.get(), WEEKS);
+        factor = WEEKS;
       } else {
         return Error(
             "Unknown duration unit '" + unit + "'; supported units are"
             " 'ns', 'us', 'ms', 'secs', 'mins', 'hrs', 'days', and 'weeks'");
       }
+
+      double nanos = value.get() * factor;
+      if (nanos > max().nanos || nanos < min().nanos) {
+        return Error(
+            "Argument out of the range that a Duration can represent due"
+            " to int64_t's size limit");
+      }
+
+      return Duration(value.get(), factor);
     }
+
     return Error("Invalid duration '" + s + "'");
   }
 
