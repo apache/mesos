@@ -113,6 +113,7 @@ public:
   std::string systemd_runtime_directory;
   Option<CapabilityInfo> effective_capabilities;
   Option<CapabilityInfo> bounding_capabilities;
+  bool disallow_sharing_agent_pid_namespace;
 #endif
   Option<Firewall> firewall_rules;
   Option<Path> credential;
