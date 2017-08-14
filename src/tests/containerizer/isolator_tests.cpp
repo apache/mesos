@@ -68,10 +68,17 @@ public:
     containerId.set_value(UUID::random().toString());
   }
 
-  Try<Owned<MesosContainerizer>> createContainerizer(const string& isolation)
+  Try<Owned<MesosContainerizer>> createContainerizer(
+      const string& isolation,
+      const Option<bool>& disallowSharingAgentPidNamespace = None())
   {
     slave::Flags flags = CreateSlaveFlags();
     flags.isolation = isolation;
+
+    if (disallowSharingAgentPidNamespace.isSome()) {
+      flags.disallow_sharing_agent_pid_namespace =
+        disallowSharingAgentPidNamespace.get();
+    }
 
     fetcher.reset(new Fetcher(flags));
 
@@ -211,6 +218,37 @@ TEST_F(NamespacesIsolatorTest, ROOT_SharePidNamespace)
 
   EXPECT_EQ(stringify(testPidNamespace.get()),
             strings::trim(containerPidNamespace.get()));
+}
+
+
+// This test verifies launching a top-level container to share
+// pid namespace with agent will fail when the agent flag
+// `--disallow_sharing_agent_pid_namespace` is set to true.
+TEST_F(NamespacesIsolatorTest, ROOT_SharePidNamespaceWhenDisallow)
+{
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer("filesystem/linux,namespaces/pid", true);
+
+  ASSERT_SOME(containerizer);
+
+  const string command = "sleep 1000";
+
+  mesos::slave::ContainerConfig containerConfig = createContainerConfig(
+      None(),
+      createExecutorInfo("executor", command),
+      directory);
+
+  ContainerInfo* container = containerConfig.mutable_container_info();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_linux_info()->set_share_pid_namespace(true);
+
+  process::Future<bool> launch = containerizer.get()->launch(
+      containerId,
+      containerConfig,
+      std::map<string, string>(),
+      None());
+
+  AWAIT_FAILED(launch);
 }
 
 
