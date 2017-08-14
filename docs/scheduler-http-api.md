@@ -165,7 +165,11 @@ HTTP/1.1 202 Accepted
 ```
 
 ### ACCEPT
-Sent by the scheduler when it accepts offer(s) sent by the master. The `ACCEPT` request includes the type of operations (e.g., launch task, launch task group, reserve resources, create volumes) that the scheduler wants to perform on the offers. Note that until the scheduler replies (accepts or declines) to an offer, the offer's resources are considered allocated to the offer's role and to the framework. Also, any of the offer's resources not used in the `ACCEPT` call (e.g., to launch a task or task group) are considered declined and might be reoffered to other frameworks. In other words, the same `OfferID` cannot be used in more than one `ACCEPT` call. These semantics might change when we add new features to Mesos (e.g., persistence, reservations, optimistic offers, resizeTask, etc.).
+Sent by the scheduler when it accepts offer(s) sent by the master. The `ACCEPT` request includes the type of operations (e.g., launch task, launch task group, reserve resources, create volumes) that the scheduler wants to perform on the offers. Note that until the scheduler replies (accepts or declines) to an offer, the offer's resources are considered allocated to the offer's role and to the framework. Also, any of the offer's resources not used in the `ACCEPT` call (e.g., to launch a task or task group) are considered declined and might be reoffered to other frameworks, meaning that they will not be reoffered to the scheduler for the amount of time defined by the filter. The same `OfferID` cannot be used in more than one `ACCEPT` call. These semantics might change when we add new features to Mesos (e.g., persistence, reservations, optimistic offers, resizeTask, etc.).
+
+The scheduler API uses `Filters.refuse_seconds` to specify the duration for which resources are considered declined. If `filters` is not set, then the default value defined in [mesos.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/mesos.proto) will be used.
+
+NOTE: Mesos will cap `Filters.refuse_seconds` at 31536000 seconds (365 days).
 
 ```
 ACCEPT Request (JSON):

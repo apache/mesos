@@ -2254,6 +2254,11 @@ message Filters {
   // SchedulerDriver::launchTasks. You MUST pass Filters with this
   // field set to change this behavior (i.e., get another offer which
   // includes unused resources sooner or later than the default).
+  //
+  // If this field is set to a number of seconds greater than 31536000
+  // (365 days), then the resources will be considered refused for 365
+  // days. If it is set to a negative number, then the default value
+  // will be used.
   optional double refuse_seconds = 1 [default = 5.0];
 }
 
