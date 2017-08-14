@@ -410,8 +410,7 @@ inline std::ostream& operator<<(std::ostream& stream, const Duration& duration_)
 
 inline Try<Duration> Duration::create(double seconds)
 {
-  if (seconds * SECONDS > std::numeric_limits<int64_t>::max() ||
-      seconds * SECONDS < std::numeric_limits<int64_t>::min()) {
+  if (seconds * SECONDS > max().nanos || seconds * SECONDS < min().nanos) {
     return Error("Argument out of the range that a Duration can represent due "
                  "to int64_t's size limit");
   }
