@@ -122,6 +122,7 @@ using process::http::Unauthorized;
 
 using process::http::authentication::Principal;
 
+using std::list;
 using std::map;
 using std::shared_ptr;
 using std::string;
@@ -4040,7 +4041,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
     .WillOnce(Invoke(&slave, &MockSlave::unmocked_runTask));
 
   // Saved arguments from Slave::_run().
-  Future<bool> future;
+  Future<list<bool>> unschedules;
   FrameworkInfo frameworkInfo;
   ExecutorInfo executorInfo;
   Option<TaskGroupInfo> taskGroup;
@@ -4051,7 +4052,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   Future<Nothing> _run;
   EXPECT_CALL(slave, _run(_, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run),
-                    SaveArg<0>(&future),
+                    SaveArg<0>(&unschedules),
                     SaveArg<1>(&frameworkInfo),
                     SaveArg<2>(&executorInfo),
                     SaveArg<3>(&task_),
@@ -4080,7 +4081,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   AWAIT_READY(removeFramework);
 
   slave.unmocked__run(
-      future, frameworkInfo, executorInfo, task_, taskGroup);
+      unschedules, frameworkInfo, executorInfo, task_, taskGroup);
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status->state());
@@ -4154,7 +4155,7 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
   // Skip what Slave::_run() normally does, save its arguments for
   // later, tie reaching the critical moment when to kill the task to
   // a future.
-  Future<bool> future1, future2;
+  Future<list<bool>> unschedules1, unschedules2;
   FrameworkInfo frameworkInfo1, frameworkInfo2;
   ExecutorInfo executorInfo1, executorInfo2;
   Option<TaskGroupInfo> taskGroup1, taskGroup2;
@@ -4163,13 +4164,13 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
   Future<Nothing> _run1, _run2;
   EXPECT_CALL(slave, _run(_, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run1),
-                    SaveArg<0>(&future1),
+                    SaveArg<0>(&unschedules1),
                     SaveArg<1>(&frameworkInfo1),
                     SaveArg<2>(&executorInfo1),
                     SaveArg<3>(&task_1),
                     SaveArg<4>(&taskGroup1)))
     .WillOnce(DoAll(FutureSatisfy(&_run2),
-                    SaveArg<0>(&future2),
+                    SaveArg<0>(&unschedules2),
                     SaveArg<1>(&frameworkInfo2),
                     SaveArg<2>(&executorInfo2),
                     SaveArg<3>(&task_2),
@@ -4207,10 +4208,10 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
 
   // The `__run` continuations should have no effect.
   slave.unmocked__run(
-      future1, frameworkInfo1, executorInfo1, task_1, taskGroup1);
+      unschedules1, frameworkInfo1, executorInfo1, task_1, taskGroup1);
 
   slave.unmocked__run(
-      future2, frameworkInfo2, executorInfo2, task_2, taskGroup2);
+      unschedules2, frameworkInfo2, executorInfo2, task_2, taskGroup2);
 
   Clock::settle();
 
@@ -7036,7 +7037,7 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
     .WillOnce(Invoke(&slave, &MockSlave::unmocked_runTaskGroup));
 
   // Saved arguments from `Slave::_run()`.
-  Future<bool> future;
+  Future<list<bool>> unschedules;
   FrameworkInfo frameworkInfo;
   ExecutorInfo executorInfo_;
   Option<TaskGroupInfo> taskGroup_;
@@ -7048,7 +7049,7 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   Future<Nothing> _run;
   EXPECT_CALL(slave, _run(_, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run),
-                    SaveArg<0>(&future),
+                    SaveArg<0>(&unschedules),
                     SaveArg<1>(&frameworkInfo),
                     SaveArg<2>(&executorInfo_),
                     SaveArg<3>(&task_),
@@ -7120,7 +7121,7 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   AWAIT_READY(removeFramework);
 
   slave.unmocked__run(
-      future, frameworkInfo, executorInfo_, task_, taskGroup_);
+      unschedules, frameworkInfo, executorInfo_, task_, taskGroup_);
 
   AWAIT_READY(update1);
   AWAIT_READY(update2);

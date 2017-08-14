@@ -132,14 +132,14 @@ public:
       const TaskInfo& task);
 
   MOCK_METHOD5(_run, void(
-      const process::Future<bool>& future,
+      const process::Future<std::list<bool>>& unschedules,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
       const Option<TaskGroupInfo>& taskGroup));
 
   void unmocked__run(
-      const process::Future<bool>& future,
+      const process::Future<std::list<bool>>& unschedules,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,

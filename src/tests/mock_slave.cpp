@@ -178,14 +178,14 @@ void MockSlave::unmocked_runTask(
 
 
 void MockSlave::unmocked__run(
-    const Future<bool>& future,
+    const Future<list<bool>>& unschedules,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const Option<TaskInfo>& taskInfo,
     const Option<TaskGroupInfo>& taskGroup)
 {
   slave::Slave::_run(
-      future, frameworkInfo, executorInfo, taskInfo, taskGroup);
+      unschedules, frameworkInfo, executorInfo, taskInfo, taskGroup);
 }
 
 

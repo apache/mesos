@@ -158,7 +158,7 @@ public:
 
   // Made 'virtual' for Slave mocking.
   virtual void _run(
-      const process::Future<bool>& future,
+      const process::Future<std::list<bool>>& unschedules,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
@@ -170,8 +170,6 @@ public:
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const TaskGroupInfo& taskGroupInfo);
-
-  process::Future<bool> unschedule(const std::string& path);
 
   // Made 'virtual' for Slave mocking.
   virtual void killTask(

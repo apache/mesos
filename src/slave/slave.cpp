@@ -1596,14 +1596,6 @@ void Slave::doReliableRegistration(Duration maxBackoff)
 }
 
 
-// Helper to unschedule the path.
-// TODO(vinod): Can we avoid this helper?
-Future<bool> Slave::unschedule(const string& path)
-{
-  return gc->unschedule(path);
-}
-
-
 // TODO(vinod): Instead of crashing the slave on checkpoint errors,
 // send TASK_LOST to the framework.
 void Slave::runTask(
@@ -1742,7 +1734,7 @@ void Slave::run(
     return;
   }
 
-  Future<bool> unschedule = true;
+  list<Future<bool>> unschedules;
 
   // If we are about to create a new framework, unschedule the work
   // and meta directories from getting gc'ed.
@@ -1753,13 +1745,13 @@ void Slave::run(
         flags.work_dir, info.id(), frameworkId);
 
     if (os::exists(path)) {
-      unschedule = unschedule.then(defer(self(), &Self::unschedule, path));
+      unschedules.push_back(gc->unschedule(path));
     }
 
     // Unschedule framework meta directory.
     path = paths::getFrameworkPath(metaDir, info.id(), frameworkId);
     if (os::exists(path)) {
-      unschedule = unschedule.then(defer(self(), &Self::unschedule, path));
+      unschedules.push_back(gc->unschedule(path));
     }
 
     Option<UPID> frameworkPid = None();
@@ -1836,31 +1828,31 @@ void Slave::run(
         flags.work_dir, info.id(), frameworkId, executorId);
 
     if (os::exists(path)) {
-      unschedule = unschedule.then(defer(self(), &Self::unschedule, path));
+      unschedules.push_back(gc->unschedule(path));
     }
 
     // Unschedule executor meta directory.
     path = paths::getExecutorPath(metaDir, info.id(), frameworkId, executorId);
 
     if (os::exists(path)) {
-      unschedule = unschedule.then(defer(self(), &Self::unschedule, path));
+      unschedules.push_back(gc->unschedule(path));
     }
   }
 
   // Run the task after the unschedules are done.
-  unschedule.onAny(defer(
-      self(),
-      &Self::_run,
-      lambda::_1,
-      frameworkInfo,
-      executorInfo,
-      task,
-      taskGroup));
+  collect(unschedules)
+    .onAny(defer(self(),
+                 &Self::_run,
+                 lambda::_1,
+                 frameworkInfo,
+                 executorInfo,
+                 task,
+                 taskGroup));
 }
 
 
 void Slave::_run(
-    const Future<bool>& future,
+    const Future<list<bool>>& unschedules,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const Option<TaskInfo>& task,
@@ -1933,11 +1925,12 @@ void Slave::_run(
     return;
   }
 
-  CHECK(!future.isDiscarded());
+  CHECK(!unschedules.isDiscarded());
 
-  if (!future.isReady()) {
+  if (!unschedules.isReady()) {
     LOG(ERROR) << "Failed to unschedule directories scheduled for gc: "
-               << (future.isFailed() ? future.failure() : "future discarded");
+               << (unschedules.isFailed() ?
+                   unschedules.failure() : "future discarded");
 
     // We report TASK_DROPPED to the framework because the task was
     // never launched. For non-partition-aware frameworks, we report
