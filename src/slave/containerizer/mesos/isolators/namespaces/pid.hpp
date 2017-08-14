@@ -39,7 +39,9 @@ public:
       const mesos::slave::ContainerConfig& containerConfig);
 
 private:
-  NamespacesPidIsolatorProcess();
+  NamespacesPidIsolatorProcess(const Flags& flags);
+
+  const Flags flags;
 };
 
 } // namespace slave {
