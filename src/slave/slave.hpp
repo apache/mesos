@@ -1112,6 +1112,8 @@ struct Framework
 
   ~Framework();
 
+  const FrameworkID id() const { return info.id(); }
+
   // Returns whether the framework is idle, where idle is
   // defined as having no activity:
   //   (1) The framework has no non-terminal tasks and executors.
@@ -1133,10 +1135,24 @@ struct Framework
 
   void checkpointFramework() const;
 
+  void addPendingTask(
+      const ExecutorID& executorId,
+      const TaskInfo& task);
+
+  // Note that these tasks will also be tracked within `pendingTasks`.
+  void addPendingTaskGroup(
+      const ExecutorID& executorId,
+      const TaskGroupInfo& taskGroup);
+
+  bool isPending(const TaskID& taskId) const;
+
+  // Returns the task group associated with a pending task.
+  Option<TaskGroupInfo> getTaskGroupForPendingTask(const TaskID& taskId);
+
   // Returns whether the pending task was removed.
   bool removePendingTask(const TaskID& taskId);
 
-  const FrameworkID id() const { return info.id(); }
+  Option<ExecutorID> getExecutorIdForPendingTask(const TaskID& taskId) const;
 
   enum State
   {
@@ -1169,6 +1185,11 @@ struct Framework
 
   // Executors with pending tasks.
   hashmap<ExecutorID, hashmap<TaskID, TaskInfo>> pendingTasks;
+
+  // Pending task groups. This is needed for correctly sending
+  // TASK_KILLED status updates for all tasks in the group if
+  // any of the tasks are killed while pending.
+  std::list<TaskGroupInfo> pendingTaskGroups;
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;
