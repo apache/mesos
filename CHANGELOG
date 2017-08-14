@@ -32,7 +32,7 @@ Deprecations/Removals:
     of LinuxInfo.effective_capabilities.
 
   * [MESOS-7477] - The agent `--allowed_capabilities` flag is
-    deprecated in favor of `--effective_capabilities`
+    deprecated in favor of `--effective_capabilities`.
 
 Additional API Changes:
 
@@ -42,6 +42,8 @@ Additional API Changes:
     resources (both revocable and non-revocable) on the agent. Custom
     allocator implementation should be changed to interpretation of the
     passed value as a total before updating.
+  * [MESOS-7660] `Filter::refuse_seconds` is now capped to 31536000
+    seconds (365 days).
 
 Feature Graduations:
   * [MESOS-2533] - Support HTTP checks in Mesos.
