@@ -1373,6 +1373,178 @@ TEST_P(DefaultExecutorTest, ReservedResources)
 }
 
 
+#ifdef __linux__
+// This test verifies that tasks from two different
+// task groups can share the same pid namespace.
+TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.containerizers = GetParam();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(DoAll(v1::scheduler::SendSubscribe(frameworkInfo),
+                    FutureSatisfy(&connected)));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers1;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      "test_default_executor",
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT);
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers1);
+  EXPECT_FALSE(offers1->offers().empty());
+
+  const v1::Offer& offer1 = offers1->offers(0);
+  const v1::AgentID& agentId = offer1.agent_id();
+
+  // Create the first task which will share pid namespace with its parent.
+  v1::TaskInfo taskInfo1 = v1::createTask(
+      agentId,
+      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
+      "stat -Lc %i /proc/self/ns/pid > ns && sleep 1000");
+
+  mesos::v1::ContainerInfo* containerInfo = taskInfo1.mutable_container();
+  containerInfo->set_type(mesos::v1::ContainerInfo::MESOS);
+  containerInfo->mutable_linux_info()->set_share_pid_namespace(true);
+
+  Future<v1::scheduler::Event::Update> update1;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&update1));
+
+  Future<v1::scheduler::Event::Offers> offers2;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return());
+
+  // Launch the first task group.
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo1}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer1, {launchGroup}));
+
+  AWAIT_READY(update1);
+
+  ASSERT_EQ(TASK_RUNNING, update1->status().state());
+  EXPECT_EQ(taskInfo1.task_id(), update1->status().task_id());
+  EXPECT_TRUE(update1->status().has_timestamp());
+
+  AWAIT_READY(offers2);
+  EXPECT_FALSE(offers2->offers().empty());
+
+  const v1::Offer& offer2 = offers2->offers(0);
+
+  // Create the second task which will share pid namespace with its parent.
+  v1::TaskInfo taskInfo2 = v1::createTask(
+      agentId,
+      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
+      "stat -Lc %i /proc/self/ns/pid > ns && sleep 1000");
+
+  containerInfo = taskInfo2.mutable_container();
+  containerInfo->set_type(mesos::v1::ContainerInfo::MESOS);
+  containerInfo->mutable_linux_info()->set_share_pid_namespace(true);
+
+  Future<v1::scheduler::Event::Update> update2;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&update2));
+
+  // Launch the second task group.
+  launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo2}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer2, {launchGroup}));
+
+  AWAIT_READY(update2);
+
+  ASSERT_EQ(TASK_RUNNING, update2->status().state());
+  EXPECT_EQ(taskInfo2.task_id(), update2->status().task_id());
+  EXPECT_TRUE(update2->status().has_timestamp());
+
+  string executorSandbox = slave::paths::getExecutorLatestRunPath(
+      flags.work_dir,
+      devolve(agentId),
+      devolve(frameworkId),
+      devolve(executorInfo.executor_id()));
+
+  string pidNamespacePath1 = path::join(
+      executorSandbox,
+      "tasks",
+      taskInfo1.task_id().value(),
+      "ns");
+
+  string pidNamespacePath2 = path::join(
+      executorSandbox,
+      "tasks",
+      taskInfo2.task_id().value(),
+      "ns");
+
+  // Wait up to 5 seconds for each of the two tasks to
+  // write its pid namespace inode into its sandbox.
+  Duration waited = Duration::zero();
+  do {
+    if (os::exists(pidNamespacePath1) && os::exists(pidNamespacePath2)) {
+      break;
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < Seconds(5));
+
+  EXPECT_TRUE(os::exists(pidNamespacePath1));
+  EXPECT_TRUE(os::exists(pidNamespacePath2));
+
+  Try<string> pidNamespace1 = os::read(pidNamespacePath1);
+  ASSERT_SOME(pidNamespace1);
+
+  Try<string> pidNamespace2 = os::read(pidNamespacePath2);
+  ASSERT_SOME(pidNamespace2);
+
+  // Check the two tasks share the same pid namespace.
+  EXPECT_EQ(strings::trim(pidNamespace1.get()),
+            strings::trim(pidNamespace2.get()));
+}
+#endif // __linux__
+
+
 struct LauncherAndIsolationParam
 {
   LauncherAndIsolationParam(const string& _launcher, const string& _isolation)
@@ -1508,7 +1680,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       "echo abc > task_volume_path/file");
 
   // TODO(gilbert): Refactor the following code once the helper
-  // to create a 'sandbox_path' volume is suppported.
+  // to create a 'sandbox_path' volume is supported.
   mesos::v1::ContainerInfo* containerInfo = taskInfo.mutable_container();
   containerInfo->set_type(mesos::v1::ContainerInfo::MESOS);
 
