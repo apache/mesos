@@ -109,7 +109,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_PidNamespace)
 
   // Write the command's pid namespace inode and init name to files.
   const string command =
-    "stat -c %i /proc/self/ns/pid > ns && (cat /proc/1/comm > init)";
+    "stat -Lc %i /proc/self/ns/pid > ns && (cat /proc/1/comm > init)";
 
   process::Future<bool> launch = containerizer.get()->launch(
       containerId,
@@ -173,7 +173,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespace)
   ASSERT_NE(hostShmmax.get(), shmmaxValue);
 
   const string command =
-    "stat -c %i /proc/self/ns/ipc > ns;"
+    "stat -Lc %i /proc/self/ns/ipc > ns;"
     "echo " + stringify(shmmaxValue) + " > /proc/sys/kernel/shmmax;"
     "cp /proc/sys/kernel/shmmax shmmax";
 
