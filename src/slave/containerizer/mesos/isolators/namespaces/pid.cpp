@@ -22,6 +22,7 @@
 
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
 
+using process::Failure;
 using process::Future;
 using process::Owned;
 
@@ -61,12 +62,13 @@ Try<Isolator*> NamespacesPidIsolatorProcess::create(const Flags& flags)
   }
 
   return new MesosIsolator(Owned<MesosIsolatorProcess>(
-      new NamespacesPidIsolatorProcess()));
+      new NamespacesPidIsolatorProcess(flags)));
 }
 
 
-NamespacesPidIsolatorProcess::NamespacesPidIsolatorProcess()
-  : ProcessBase(process::ID::generate("pid-namespace-isolator")) {}
+NamespacesPidIsolatorProcess::NamespacesPidIsolatorProcess(const Flags& _flags)
+  : ProcessBase(process::ID::generate("pid-namespace-isolator")),
+    flags(_flags) {}
 
 
 bool NamespacesPidIsolatorProcess::supportsNesting()
@@ -81,20 +83,39 @@ Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
 {
   ContainerLaunchInfo launchInfo;
 
+  bool sharePidNamespace =
+    containerConfig.container_info().linux_info().share_pid_namespace();
+
   if (containerId.has_parent()) {
     // If we are a nested container, then we want to enter our
     // parent's pid namespace before cloning a new one.
     launchInfo.add_enter_namespaces(CLONE_NEWPID);
 
-    // However, if we are a nested container in the `DEBUG` class,
-    // then we don't want to clone a new PID namespace at all, so we
-    // short cirucuit here.
+    // For nested container in the `DEBUG` class, we don't want to clone a
+    // new pid namespace at all, so we short circuit here.
     if (containerConfig.has_container_class() &&
         containerConfig.container_class() == ContainerClass::DEBUG) {
       return launchInfo;
     }
+  } else {
+    // If sharing agent pid namespace with top-level container is disallowed,
+    // but the framework requests it by setting the `share_pid_namespace` field
+    // to true, the container launch will be rejected.
+    if (flags.disallow_sharing_agent_pid_namespace && sharePidNamespace) {
+      return Failure(
+          "Sharing agent pid namespace with "
+          "top-level container is not allowed");
+    }
   }
 
+  // For the container which wants to share pid namespace
+  // with its parent, just return immediately.
+  if (sharePidNamespace) {
+    return launchInfo;
+  }
+
+  // For the container which does not want to share pid namespace with
+  // its parent, make sure we will clone a new pid namespace for it.
   launchInfo.add_clone_namespaces(CLONE_NEWPID);
 
   // Mount /proc with standard options for the container's pid
