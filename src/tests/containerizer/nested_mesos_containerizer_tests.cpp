@@ -827,6 +827,148 @@ TEST_F(NestedMesosContainerizerTest,
 }
 
 
+// This test verifies that nested container can share pid namespace
+// with its parent container or have its own pid namespace based on
+// the field `ContainerInfo.linux_info.share_pid_namespace`.
+TEST_F(NestedMesosContainerizerTest,
+       ROOT_CGROUPS_LaunchNestedSharePidNamespace)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  // Launch the parent container.
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<bool> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(
+          None(),
+          createExecutorInfo(
+              "executor",
+              "stat -Lc %i /proc/self/ns/pid > ns && sleep 1000",
+              "cpus:1"),
+          directory.get()),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  // Launch the first nested container which will share pid namespace
+  // with the parent container.
+  ContainerID nestedContainerId1;
+  nestedContainerId1.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId1.set_value(UUID::random().toString());
+
+  ContainerInfo container;
+  container.set_type(ContainerInfo::MESOS);
+  container.mutable_linux_info()->set_share_pid_namespace(true);
+
+  launch = containerizer->launch(
+      nestedContainerId1,
+      createContainerConfig(
+          createCommandInfo("stat -Lc %i /proc/self/ns/pid > ns"),
+          container),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(
+      nestedContainerId1);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  // Launch the second nested container which will have its own pid namespace.
+  ContainerID nestedContainerId2;
+  nestedContainerId2.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId2.set_value(UUID::random().toString());
+
+  container.mutable_linux_info()->set_share_pid_namespace(false);
+
+  launch = containerizer->launch(
+      nestedContainerId2,
+      createContainerConfig(
+          createCommandInfo("stat -Lc %i /proc/self/ns/pid > ns"),
+          container),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  wait = containerizer->wait(nestedContainerId2);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  // Get parent container's pid namespace.
+  Try<string> parentPidNamespace = os::read(path::join(directory.get(), "ns"));
+  ASSERT_SOME(parentPidNamespace);
+
+  // Get first nested container's pid namespace.
+  const string sandboxPath1 =
+    getSandboxPath(directory.get(), nestedContainerId1);
+
+  ASSERT_TRUE(os::exists(sandboxPath1));
+
+  Try<string> pidNamespace1 = os::read(path::join(sandboxPath1, "ns"));
+  ASSERT_SOME(pidNamespace1);
+
+  // Get second nested container's pid namespace.
+  const string sandboxPath2 =
+    getSandboxPath(directory.get(), nestedContainerId2);
+
+  ASSERT_TRUE(os::exists(sandboxPath2));
+
+  Try<string> pidNamespace2 = os::read(path::join(sandboxPath2, "ns"));
+
+  ASSERT_SOME(pidNamespace2);
+
+  // Check the first nested container shares the pid namespace
+  // with the parent container.
+  EXPECT_EQ(stringify(parentPidNamespace.get()),
+            stringify(pidNamespace1.get()));
+
+  // Check the second nested container has its own pid namespace.
+  EXPECT_NE(stringify(parentPidNamespace.get()),
+            stringify(pidNamespace2.get()));
+
+  wait = containerizer->wait(containerId);
+
+  containerizer->destroy(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+}
+
+
 TEST_F(NestedMesosContainerizerTest,
        ROOT_CGROUPS_INTERNET_CURL_LaunchNestedDebugCheckMntNamespace)
 {
