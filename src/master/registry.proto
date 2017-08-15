@@ -17,8 +17,12 @@
 syntax = "proto2";
 
 import "mesos/mesos.proto";
+
 import "mesos/maintenance/maintenance.proto";
+
 import "mesos/quota/quota.proto";
+
+import "resource_provider/registry.proto";
 
 package mesos.internal;
 
@@ -123,4 +127,7 @@ message Registry {
   // A list of recorded weights in the cluster, a newly elected master shall
   // reconstruct it from the registry.
   repeated Weight weights = 6;
+
+  // All known resource providers.
+  optional resource_provider.registry.Registry resource_provider_registry = 9;
 }

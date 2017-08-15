@@ -25,6 +25,8 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
+#include "master/registrar.hpp"
+
 #include "resource_provider/registry.hpp"
 
 #include "slave/flags.hpp"
@@ -61,6 +63,10 @@ public:
   private:
     bool success = false;
   };
+
+  // Create a registry on top of a master's persistent state.
+  static Try<process::Owned<Registrar>> create(
+      mesos::internal::master::Registrar* registrar);
 
   // Create a registry on top of an agent's persistent state.
   static Try<process::Owned<Registrar>> create(
@@ -116,6 +122,27 @@ public:
 
 private:
   std::unique_ptr<AgentRegistrarProcess> process;
+};
+
+
+class MasterRegistrarProcess;
+
+
+class MasterRegistrar : public Registrar
+{
+public:
+  explicit MasterRegistrar(mesos::internal::master::Registrar* Registrar);
+
+  ~MasterRegistrar() override;
+
+  // This registrar performs no recovery; instead to recover
+  // the underlying master registrar needs to be recovered.
+  process::Future<Nothing> recover() override;
+
+  process::Future<bool> apply(process::Owned<Operation> operation) override;
+
+private:
+  std::unique_ptr<MasterRegistrarProcess> process;
 };
 
 } // namespace resource_provider {

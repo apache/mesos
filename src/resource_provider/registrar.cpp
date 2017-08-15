@@ -42,12 +42,13 @@
 #include <stout/path.hpp>
 #include <stout/unreachable.hpp>
 
+#include "master/registrar.hpp"
+
 #include "slave/paths.hpp"
 
 
 using std::deque;
 using std::string;
-using std::unique_ptr;
 
 using mesos::resource_provider::registry::Registry;
 using mesos::resource_provider::registry::ResourceProvider;
@@ -73,6 +74,7 @@ using process::terminate;
 using process::wait;
 
 
+namespace master = mesos::internal::master;
 namespace slave = mesos::internal::slave;
 
 namespace mesos {
@@ -99,6 +101,12 @@ Try<Owned<Registrar>> Registrar::create(
     const SlaveID& slaveId)
 {
   return new AgentRegistrar(slaveFlags, slaveId);
+}
+
+
+Try<Owned<Registrar>> Registrar::create(master::Registrar* registrar)
+{
+  return new MasterRegistrar(registrar);
 }
 
 
@@ -368,6 +376,93 @@ Future<bool> AgentRegistrar::apply(Owned<Operation> operation)
   return dispatch(
       process.get(),
       &AgentRegistrarProcess::apply,
+      std::move(operation));
+}
+
+
+class MasterRegistrarProcess : public Process<MasterRegistrarProcess>
+{
+  // A helper class for adapting operations on the resource provider
+  // registry to the master registry.
+  class AdaptedOperation : public master::Operation
+  {
+  public:
+    AdaptedOperation(Owned<Registrar::Operation> operation);
+
+  private:
+    Try<bool> perform(internal::Registry* registry, hashset<SlaveID>*) override;
+
+    Owned<Registrar::Operation> operation;
+
+    AdaptedOperation(const AdaptedOperation&) = delete;
+    AdaptedOperation(AdaptedOperation&&) = default;
+    AdaptedOperation& operator=(const AdaptedOperation&) = delete;
+    AdaptedOperation& operator=(AdaptedOperation&&) = default;
+  };
+
+public:
+  explicit MasterRegistrarProcess(master::Registrar* registrar);
+
+  Future<bool> apply(Owned<Registrar::Operation> operation);
+
+private:
+  master::Registrar* registrar = nullptr;
+};
+
+
+MasterRegistrarProcess::AdaptedOperation::AdaptedOperation(
+    Owned<Registrar::Operation> operation)
+  : operation(std::move(operation)) {}
+
+
+Try<bool> MasterRegistrarProcess::AdaptedOperation::perform(
+    internal::Registry* registry,
+    hashset<SlaveID>*)
+{
+  return (*operation)(registry->mutable_resource_provider_registry());
+}
+
+
+MasterRegistrarProcess::MasterRegistrarProcess(master::Registrar* _registrar)
+  : ProcessBase(process::ID::generate("resource-provider-agent-registrar")),
+    registrar(_registrar) {}
+
+
+Future<bool> MasterRegistrarProcess::apply(
+    Owned<Registrar::Operation> operation)
+{
+  auto adaptedOperation =
+    Owned<master::Operation>(new AdaptedOperation(std::move(operation)));
+
+  return registrar->apply(std::move(adaptedOperation));
+}
+
+
+MasterRegistrar::MasterRegistrar(master::Registrar* registrar)
+  : process(new MasterRegistrarProcess(registrar))
+{
+  spawn(process.get(), false);
+}
+
+
+MasterRegistrar::~MasterRegistrar()
+{
+  terminate(*process);
+  wait(*process);
+}
+
+
+Future<Nothing> MasterRegistrar::recover()
+{
+  return Nothing();
+}
+
+
+Future<bool> MasterRegistrar::apply(Owned<Operation> operation)
+{
+  return dispatch(
+      process.get(),
+      &MasterRegistrarProcess::apply,
       std::move(operation));
 }
 

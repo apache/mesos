@@ -21,6 +21,9 @@
 #include <mesos/http.hpp>
 #include <mesos/resources.hpp>
 
+#include <mesos/state/in_memory.hpp>
+#include <mesos/state/state.hpp>
+
 #include <mesos/v1/mesos.hpp>
 
 #include <mesos/v1/resource_provider/resource_provider.hpp>
@@ -58,6 +61,9 @@ namespace http = process::http;
 using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
+
+using mesos::state::InMemoryStorage;
+using mesos::state::State;
 
 using mesos::resource_provider::AdmitResourceProvider;
 using mesos::resource_provider::Registrar;
@@ -380,6 +386,37 @@ TEST_F(ResourceProviderRegistrarTest, AgentRegistrar)
       new AdmitResourceProvider(resourceProviderId))));
 
   AWAIT_READY(registrar.get()->recover());
+
+  AWAIT_READY(registrar.get()->apply(Owned<Registrar::Operation>(
+      new AdmitResourceProvider(resourceProviderId))));
+
+  AWAIT_READY(registrar.get()->apply(Owned<Registrar::Operation>(
+      new RemoveResourceProvider(resourceProviderId))));
+}
+
+
+// Test that the master resource provider registrar works as expected.
+TEST_F(ResourceProviderRegistrarTest, MasterRegistrar)
+{
+  ResourceProviderID resourceProviderId;
+  resourceProviderId.set_value("foo");
+
+  InMemoryStorage storage;
+  State state(&storage);
+  master::Registrar masterRegistrar(CreateMasterFlags(), &state);
+
+  const MasterInfo masterInfo = protobuf::createMasterInfo({});
+
+  Try<Owned<Registrar>> registrar = Registrar::create(&masterRegistrar);
+
+  ASSERT_SOME(registrar);
+  ASSERT_NE(nullptr, registrar->get());
+
+  // Applying operations on a not yet recovered registrar fails.
+  AWAIT_FAILED(registrar.get()->apply(Owned<Registrar::Operation>(
+      new AdmitResourceProvider(resourceProviderId))));
+
+  AWAIT_READY(masterRegistrar.recover(masterInfo));
 
   AWAIT_READY(registrar.get()->apply(Owned<Registrar::Operation>(
       new AdmitResourceProvider(resourceProviderId))));
