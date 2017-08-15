@@ -182,3 +182,60 @@ TEST(LinkedHashMapTest, ForeachMutate)
   list<string> values = {"foo", "qux", "caz"};
   EXPECT_EQ(values, map.values());
 }
+
+
+// TODO(bmahler): Simplify this test once LinkedHashMap
+// has equality operators.
+TEST(LinkedHashMapTest, CopyConstruction)
+{
+  LinkedHashMap<int, string> map;
+
+  map[1] = "1";
+  map[2] = "2";
+  map[3] = "3";
+
+  LinkedHashMap<int, string> copy(map);
+
+  EXPECT_EQ(map.keys(), copy.keys());
+  EXPECT_EQ(map.values(), copy.values());
+
+  EXPECT_EQ(1u, map.erase(1));
+  EXPECT_EQ(1u, copy.erase(1));
+
+  EXPECT_EQ(map.keys(), copy.keys());
+  EXPECT_EQ(map.values(), copy.values());
+
+  copy[4] = "4";
+
+  EXPECT_NE(map.keys(), copy.keys());
+  EXPECT_NE(map.values(), copy.values());
+}
+
+
+// TODO(bmahler): Simplify this test once LinkedHashMap
+// has equality operators.
+TEST(LinkedHashMapTest, Assignment)
+{
+  LinkedHashMap<int, string> map;
+
+  map[1] = "1";
+  map[2] = "2";
+  map[3] = "3";
+
+  LinkedHashMap<int, string> copy;
+  copy = map;
+
+  EXPECT_EQ(map.keys(), copy.keys());
+  EXPECT_EQ(map.values(), copy.values());
+
+  EXPECT_EQ(1u, map.erase(1));
+  EXPECT_EQ(1u, copy.erase(1));
+
+  EXPECT_EQ(map.keys(), copy.keys());
+  EXPECT_EQ(map.values(), copy.values());
+
+  copy[4] = "4";
+
+  EXPECT_NE(map.keys(), copy.keys());
+  EXPECT_NE(map.values(), copy.values());
+}

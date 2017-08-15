@@ -33,6 +33,35 @@ public:
   typedef std::list<entry> list;
   typedef hashmap<Key, typename list::iterator> map;
 
+  LinkedHashMap() = default;
+
+  LinkedHashMap(const LinkedHashMap<Key, Value>& other)
+    : entries_(other.entries_)
+  {
+    // Build up the index.
+    for (auto it = entries_.begin(); it != entries_.end(); ++it) {
+      keys_[it->first] = it;
+    }
+  }
+
+  LinkedHashMap& operator=(const LinkedHashMap<Key, Value>& other)
+  {
+    clear();
+
+    entries_ = other.entries_;
+
+    // Build up the index.
+    for (auto it = entries_.begin(); it != entries_.end(); ++it) {
+      keys_[it->first] = it;
+    }
+
+    return *this;
+  }
+
+  // TODO(bmahler): Implement move construction / assignment.
+  LinkedHashMap(LinkedHashMap<Key, Value>&&) = delete;
+  LinkedHashMap& operator=(LinkedHashMap&&) = delete;
+
   Value& operator[] (const Key& key)
   {
     if (!keys_.contains(key)) {
