@@ -89,6 +89,8 @@ public:
 
   Future<bool> destroy(const ContainerID& containerId);
 
+  Future<bool> kill(const ContainerID& containerId, int signal);
+
   Future<hashset<ContainerID>> containers();
 
   Future<Nothing> remove(const ContainerID& containerId);
@@ -229,6 +231,17 @@ Future<bool> ComposingContainerizer::destroy(const ContainerID& containerId)
   return dispatch(process,
                   &ComposingContainerizerProcess::destroy,
                   containerId);
+}
+
+
+Future<bool> ComposingContainerizer::kill(
+    const ContainerID& containerId,
+    int signal)
+{
+  return dispatch(process,
+                  &ComposingContainerizerProcess::kill,
+                  containerId,
+                  signal);
 }
 
 
@@ -627,6 +640,18 @@ Future<bool> ComposingContainerizerProcess::destroy(
   }
 
   return container->destroyed.future();
+}
+
+
+Future<bool> ComposingContainerizerProcess::kill(
+    const ContainerID& containerId,
+    int signal)
+{
+  if (!containers_.contains(containerId)) {
+    return false;
+  }
+
+  return containers_.at(containerId)->containerizer->kill(containerId, signal);
 }
 
 
