@@ -2497,6 +2497,12 @@ Future<Response> Http::killNestedContainer(
       const ContainerID& containerId =
         call.kill_nested_container().container_id();
 
+      // SIGKILL is used by default if a signal is not specified.
+      int signal = SIGKILL;
+      if (call.kill_nested_container().has_signal()) {
+        signal = call.kill_nested_container().signal();
+      }
+
       Executor* executor = slave->getExecutor(containerId);
       if (executor == nullptr) {
         return NotFound(
@@ -2518,9 +2524,9 @@ Future<Response> Http::killNestedContainer(
         return Forbidden();
       }
 
-      Future<bool> destroy = slave->containerizer->destroy(containerId);
+      Future<bool> kill = slave->containerizer->kill(containerId, signal);
 
-      return destroy
+      return kill
         .then([containerId](bool found) -> Response {
           if (!found) {
             return NotFound("Container '" + stringify(containerId) + "'"
