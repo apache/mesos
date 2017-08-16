@@ -121,9 +121,12 @@ message Call {
     required ContainerID container_id = 1;
   }
 
-  // Kills the nested container. Currently only supports SIGKILL.
+  // Kills the nested container. The signal (e.g., SIGTERM, SIGKILL, etc.)
+  // to be sent to the container can be specified in the 'signal' field.
+  // If 'signal' is not set, SIGKILL is used by default.
   message KillNestedContainer {
     required ContainerID container_id = 1;
+    optional int32 signal = 2;
   }
 
   // Removes a nested container and its artifacts (runtime and sandbox
