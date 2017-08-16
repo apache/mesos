@@ -303,6 +303,11 @@ public:
     return destroy(containerId.get());
   }
 
+  Future<bool> kill(const ContainerID& containerId, int /* signal */)
+  {
+    return destroy(containerId);
+  }
+
   Future<hashset<ContainerID>> containers()
   {
     return containers_.keys();
@@ -429,6 +434,9 @@ void TestContainerizer::setup()
 
   EXPECT_CALL(*this, destroy(_))
     .WillRepeatedly(Invoke(this, &TestContainerizer::_destroy));
+
+  EXPECT_CALL(*this, kill(_, _))
+    .WillRepeatedly(Invoke(this, &TestContainerizer::_kill));
 }
 
 
@@ -521,6 +529,18 @@ Future<bool> TestContainerizer::_destroy(
       process.get(),
       destroy,
       containerId);
+}
+
+
+Future<bool> TestContainerizer::_kill(
+    const ContainerID& containerId,
+    int signal)
+{
+  return process::dispatch(
+      process.get(),
+      &TestContainerizerProcess::kill,
+      containerId,
+      signal);
 }
 
 
