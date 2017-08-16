@@ -993,7 +993,34 @@ protected:
       container->healthChecker = None();
     }
 
-    LOG(INFO) << "Killing child container " << container->containerId;
+    LOG(INFO)
+      << "Killing task " << container->taskInfo.task_id() << " running in child"
+      << " container " << container->containerId << " with SIGTERM signal";
+
+    // Default grace period is set to 3s.
+    //
+    // TODO(anand): Add support for handling kill policies.
+    const Duration GRACE_PERIOD = Seconds(3);
+
+    LOG(INFO) << "Scheduling escalation to SIGKILL in " << GRACE_PERIOD
+              << " from now";
+
+    const ContainerID& containerId = container->containerId;
+
+    delay(GRACE_PERIOD,
+          self(),
+          &Self::escalated,
+          connectionId.get(),
+          containerId,
+          container->taskInfo.task_id(),
+          GRACE_PERIOD);
+
+    return kill(containerId, SIGTERM);
+  }
+
+  Future<Nothing> kill(const ContainerID& containerId, int signal)
+  {
+    CHECK_EQ(SUBSCRIBED, state);
 
     agent::Call call;
     call.set_type(agent::Call::KILL_NESTED_CONTAINER);
@@ -1001,12 +1028,44 @@ protected:
     agent::Call::KillNestedContainer* kill =
       call.mutable_kill_nested_container();
 
-    kill->mutable_container_id()->CopyFrom(container->containerId);
+    kill->mutable_container_id()->CopyFrom(containerId);
+    kill->set_signal(signal);
 
     return post(None(), call)
       .then([](const Response& /* response */) {
         return Nothing();
       });
+  }
+
+  void escalated(
+      const UUID& _connectionId,
+      const ContainerID& containerId,
+      const TaskID& taskId,
+      const Duration& timeout)
+  {
+    if (connectionId != _connectionId) {
+      VLOG(1) << "Ignoring signal escalation timeout from a stale connection";
+      return;
+    }
+
+    CHECK_EQ(SUBSCRIBED, state);
+
+    // It might be possible that the container is already terminated.
+    // If that happens, don't bother escalating to SIGKILL.
+    if (!containers.contains(taskId)) {
+      LOG(WARNING)
+        << "Ignoring escalation to SIGKILL since the task '" << taskId
+        << "' running in child container " << containerId << " has"
+        << " already terminated";
+      return;
+    }
+
+    LOG(INFO)
+      << "Task '" << taskId << "' running in child container " << containerId
+      << " did not terminate after " << timeout << ", sending SIGKILL"
+      << " to the container";
+
+    kill(containerId, SIGKILL);
   }
 
   void killTask(const TaskID& taskId)
