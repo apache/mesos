@@ -577,6 +577,17 @@ Future<bool> MesosContainerizer::destroy(const ContainerID& containerId)
 }
 
 
+Future<bool> MesosContainerizer::kill(
+    const ContainerID& containerId,
+    int signal)
+{
+  return dispatch(process.get(),
+                  &MesosContainerizerProcess::kill,
+                  containerId,
+                  signal);
+}
+
+
 Future<hashset<ContainerID>> MesosContainerizer::containers()
 {
   return dispatch(process.get(),
@@ -2425,6 +2436,41 @@ void MesosContainerizerProcess::______destroy(
   }
 
   containers_.erase(containerId);
+}
+
+
+Future<bool> MesosContainerizerProcess::kill(
+    const ContainerID& containerId,
+    int signal)
+{
+  if (!containers_.contains(containerId)) {
+    LOG(WARNING) << "Attempted to kill unknown container " << containerId;
+
+    return false;
+  }
+
+  const Owned<Container>& container = containers_.at(containerId);
+
+  // This can happen when we try to signal the container before it
+  // is launched. We destroy the container forcefully in this case.
+  //
+  // TODO(anand): Consider chaining this to the launch completion
+  // future instead.
+  if (container->pid.isNone()) {
+    LOG(WARNING) << "Unable to find the pid for container " << containerId
+                 << ", destroying it";
+
+    destroy(containerId);
+    return true;
+  }
+
+  int status = os::kill(container->pid.get(), signal);
+  if (status != 0) {
+    return Failure("Unable to send signal to container: "  +
+                   os::strerror(errno));
+  }
+
+  return true;
 }
 
 
