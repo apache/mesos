@@ -100,84 +100,6 @@ foreach (lang C CXX)
   endforeach ()
 endforeach ()
 
-# Define build/patch/configure commands for third-party libs.
-#############################################################
-# NOTE: (fix for MESOS-3250) A few third-party libraries (libev, gmock) do not
-# have `make install` commands available, so below we have to add our own
-# "install" commands.
-#
-# The reason is: if we do not, we get runtime library load problems on OS X. In
-# particular, `dydl` will look for these libraries at the prefix we passed to
-# `configure` (or in `/usr/local` if we did not pass a prefix in), but since
-# they don't have a `make install` step, they never get placed in the prefix
-# folder.
-#
-# Our solution is to:
-#   (1) make a lib directory inside the Mesos folder for each of the libraries
-#       that has no install step, and
-#   (2) copy all such libraries into their respective directories.
-#
-# (Note that step (1) is not only convenient, but important: make will add a
-# `lib` to the end of your prefix path when linking, and since the built
-# libraries end up in a `.libs` folder, it's not enough to simply pass the
-# build directory into `configure` as a prefix; so if we're going to move the
-# libraries, we might as well move them to a library folder.)
-if (NOT WIN32)
-  set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure --prefix=${GLOG_LIB_ROOT})
-  set(GLOG_BUILD_CMD   make libglog.la)
-  set(GLOG_INSTALL_CMD make install)
-  # Patch glog to deal with a problem that appears when compiling on clang
-  # under the C++11 standard. cf. MESOS-860, MESOS-966.
-  PATCH_CMD(${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch GLOG_PATCH_CMD)
-
-  # NOTE: `libev` is "installed" into a lib directory, see "NOTE: (fix for
-  # MESOS-3250)" comment above for explanation.
-  set(LIBEV_CONFIG_CMD  ${LIBEV_ROOT}/configure --prefix=${LIBEV_ROOT}-lib)
-  set(LIBEV_BUILD_CMD   make)
-  set(LIBEV_INSTALL_CMD mkdir -p ${LIBEV_LIB_ROOT} && cp -r ${LIBEV_ROOT}-build/.libs/. ${LIBEV_LIB_ROOT})
-  # Patch libev to keep it from reaping child processes.
-  PATCH_CMD(${MESOS_3RDPARTY_SRC}/libev-4.22.patch LIBEV_PATCH_CMD)
-
-  set(LIBEVENT_INSTALL_CMD mkdir -p ${LIBEVENT_LIB_ROOT} && cp -r ${LIBEVENT_ROOT}-build/lib/. ${LIBEVENT_LIB_DIR} && cp -r ${LIBEVENT_ROOT}-build/include/. ${LIBEVENT_INCLUDE_DIR} && cp -r ${LIBEVENT_ROOT}/include/. ${LIBEVENT_INCLUDE_DIR})
-else ()
-  set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
-  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch)
-
-  set(LIBEVENT_INSTALL_CMD ${CMAKE_NOOP})
-
-  set(LIBAPR_INSTALL_CMD ${CMAKE_NOOP})
-endif ()
-
-set(HTTP_PARSER_UPDATE_CMD ${CMAKE_COMMAND} -E copy ${MESOS_3RDPARTY_SRC}/http-parser/CMakeLists.txt.template ${HTTP_PARSER_ROOT}/CMakeLists.txt)
-
-set(LIBEVENT_CMAKE_ARGS
-  ${LIBEVENT_CMAKE_ARGS}
-  # NOTE: Libevent does not respect the BUILD_SHARED_LIBS global flag.
-  -DEVENT__BUILD_SHARED_LIBRARIES=${BUILD_SHARED_LIBS}
-  -DEVENT__DISABLE_BENCHMARK=ON
-  -DEVENT__DISABLE_TESTS=ON
-  -DEVENT__DISABLE_SAMPLES=ON
-  )
-
-if (ENABLE_SSL)
-  set(LIBEVENT_CMAKE_ARGS
-    ${LIBEVENT_CMAKE_ARGS}
-    -DEVENT__DISABLE_OPENSSL=OFF
-    )
-else ()
-  set(LIBEVENT_CMAKE_ARGS
-    ${LIBEVENT_CMAKE_ARGS}
-    -DEVENT__DISABLE_OPENSSL=ON
-    )
-endif ()
-
-if (NOT WIN32)
-  set(LIBEVENT_CMAKE_ARGS
-    ${LIBEVENT_CMAKE_ARGS}
-    -DCMAKE_C_FLAGS=-fPIC
-    )
-endif ()
-
 
 # Third-party libraries. Tell the build system how to pull in and build third-
 # party libraries at compile time, using the ExternalProject_Add macro.
@@ -221,10 +143,55 @@ ExternalProject_Add(
   URL_HASH          ${ELFIO_HASH}
   )
 
-# The patch, configure, build, and install commands are stubbed out on Windows
-# builds so that it defaults to build using CMake. This is for the same reason
-# as the GMock code library build, see the call to `ExternalProject_Add` for
-# the GMock project below for more details.
+# glog: Google Logging Library.
+# https://github.com/google/glog
+################################
+EXTERNAL(glog ${GLOG_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(glog ${LIBRARY_LINKAGE} IMPORTED)
+add_dependencies(glog ${GLOG_TARGET})
+
+if (WIN32)
+  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch)
+  set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
+
+  # NOTE: Windows-specific workaround for a glog issue documented here[1].
+  # Basically, Windows.h and glog/logging.h both define ERROR. Since we don't
+  # need the Windows ERROR, we can use this flag to avoid defining it at all.
+  # Unlike the other fix (defining GLOG_NO_ABBREVIATED_SEVERITIES), this fix
+  # is guaranteed to require no changes to the original Mesos code. See also
+  # the note in the code itself[2].
+  #
+  # [1] https://htmlpreview.github.io/?https://github.com/google/glog/blob/master/doc/glog.html#windows
+  # [2] https://github.com/google/glog/blob/f012836db187d5897d4adaaf621b4d53ae4865da/src/windows/glog/logging.h#L965
+  set(GLOG_COMPILE_DEFINITIONS GOOGLE_GLOG_DLL_DECL= NOGDI NOMINMAX)
+
+  set_target_properties(
+    glog PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${GLOG_ROOT}-build/Debug/glog${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${GLOG_ROOT}-build/Release/glog${LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${GLOG_ROOT}/src/windows
+    # TODO(andschwa): Remove this when glog is updated.
+    IMPORTED_LINK_INTERFACE_LIBRARIES DbgHelp
+    INTERFACE_COMPILE_DEFINITIONS "${GLOG_COMPILE_DEFINITIONS}")
+else ()
+  # Patch glog to deal with a problem that appears when compiling on clang
+  # under the C++11 standard. cf. MESOS-860, MESOS-966.
+  patch_cmd(${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch GLOG_PATCH_CMD)
+
+  # TODO(andschwa): Build with CMake instead when glog is updated.
+  # NOTE: We only link to the shared library of glog because the static build
+  # doesn't have PIC.
+  set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure GTEST_CONFIG=no --prefix=${GLOG_ROOT}-build)
+  set(GLOG_BUILD_CMD   make)
+  set(GLOG_INSTALL_CMD make install)
+  set_target_properties(
+    glog PROPERTIES
+    IMPORTED_LOCATION ${GLOG_ROOT}-build/lib/libglog${CMAKE_SHARED_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${GLOG_ROOT}-build/include)
+endif ()
+
+MAKE_INCLUDE_DIR(glog)
+
 ExternalProject_Add(
   ${GLOG_TARGET}
   PREFIX            ${GLOG_CMAKE_ROOT}
@@ -234,8 +201,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${GLOG_BUILD_CMD}
   INSTALL_COMMAND   ${GLOG_INSTALL_CMD}
   URL               ${GLOG_URL}
-  URL_HASH          ${GLOG_HASH}
-  )
+  URL_HASH          ${GLOG_HASH})
 
 ExternalProject_Add(
   ${PICOJSON_TARGET}
@@ -257,55 +223,194 @@ ExternalProject_Add(
   URL_HASH          ${NVML_HASH}
   )
 
+# HTTP Parser: HTTP request/response parser for C.
+# https://github.com/nodejs/http-parser
+##################################################
+# TODO: Remove `GLOBAL` when `Process3rdpartyConfigure` is removed.
+EXTERNAL(http_parser ${HTTP_PARSER_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(http_parser ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
+add_dependencies(http_parser ${HTTP_PARSER_TARGET})
+set_target_properties(http_parser PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${HTTP_PARSER_ROOT})
+
+# NOTE: http-parser is always built as a static library.
+if (WIN32)
+  set_target_properties(
+    http_parser PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${HTTP_PARSER_ROOT}-build/Debug/http_parser${CMAKE_STATIC_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${HTTP_PARSER_ROOT}-build/Release/http_parser${CMAKE_STATIC_LIBRARY_SUFFIX})
+else ()
+  set_target_properties(
+    http_parser PROPERTIES
+    IMPORTED_LOCATION ${HTTP_PARSER_ROOT}-build/libhttp_parser${CMAKE_STATIC_LIBRARY_SUFFIX})
+endif ()
+
+# NOTE: This is used to provide a CMake build for http-parser. We can't just use
+# `add_library(http_parser ...)` because `ExternalProject_Add` extracts the
+# tarball at build time, and `add_library` is a configuration time step.
+set(HTTP_PARSER_PATCH_CMD
+  ${CMAKE_COMMAND} -E copy
+  ${MESOS_3RDPARTY_SRC}/http-parser/CMakeLists.txt.template
+  ${HTTP_PARSER_ROOT}/CMakeLists.txt)
+
+MAKE_INCLUDE_DIR(http_parser)
+
 ExternalProject_Add(
   ${HTTP_PARSER_TARGET}
   PREFIX            ${HTTP_PARSER_CMAKE_ROOT}
-  UPDATE_COMMAND    ${HTTP_PARSER_UPDATE_CMD}
+  PATCH_COMMAND     ${HTTP_PARSER_PATCH_CMD}
   CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${HTTP_PARSER_URL}
-  URL_HASH          ${HTTP_PARSER_HASH}
-  )
+  URL_HASH          ${HTTP_PARSER_HASH})
 
-if (NOT ENABLE_LIBEVENT)
+
+if (ENABLE_LIBEVENT)
+  # libevent: An event notification library.
+  # http://libevent.org/
+  ##########################################
+  EXTERNAL(libevent ${LIBEVENT_VERSION} "${MESOS_3RDPARTY_BIN}")
+  add_library(libevent ${LIBRARY_LINKAGE} IMPORTED)
+  add_dependencies(libevent ${LIBEVENT_TARGET})
+
+  set_target_properties(
+    libevent PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${LIBEVENT_ROOT}/include;${LIBEVENT_ROOT}-build/include")
+
+  if (WIN32)
+    set_target_properties(
+      libevent PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${LIBEVENT_ROOT}-build/lib/Debug/event${LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${LIBEVENT_ROOT}-build/lib/Release/event${LIBRARY_SUFFIX})
+  else ()
+    set_target_properties(
+      libevent PROPERTIES
+      IMPORTED_LOCATION ${LIBEVENT_ROOT}-build/lib/libevent${LIBRARY_SUFFIX})
+  endif ()
+
+  set(LIBEVENT_CMAKE_ARGS
+    # NOTE: Libevent does not respect the BUILD_SHARED_LIBS global flag.
+    ${CMAKE_FORWARD_ARGS}
+    -DEVENT__BUILD_SHARED_LIBRARIES=${BUILD_SHARED_LIBS}
+    -DEVENT__DISABLE_OPENSSL=$<NOT:$<BOOL:${ENABLE_SSL}>>
+    -DCMAKE_C_FLAGS=$<IF:$<PLATFORM_ID:Windows>,"",-fPIC>
+    -DEVENT__DISABLE_BENCHMARK=ON
+    -DEVENT__DISABLE_REGRESS=ON
+    -DEVENT__DISABLE_SAMPLES=ON
+    -DEVENT__DISABLE_TESTS=ON)
+
+  if (OPENSSL_ROOT_DIR)
+    list(APPEND LIBEVENT_CMAKE_ARGS -DOPENSSL_ROOT_DIR=${OPENSSL_ROOT_DIR})
+  endif ()
+
+  MAKE_INCLUDE_DIR(libevent)
+
+  ExternalProject_Add(
+    ${LIBEVENT_TARGET}
+    PREFIX            ${LIBEVENT_CMAKE_ROOT}
+    CMAKE_ARGS        ${LIBEVENT_CMAKE_ARGS}
+    INSTALL_COMMAND   ${CMAKE_NOOP}
+    URL               ${LIBEVENT_URL}
+    URL_HASH          ${LIBEVENT_HASH})
+else ()
+  # libev: Full-featured high-performance event loop.
+  # https://github.com/enki/libev
+  ###################################################
+  EXTERNAL(libev ${LIBEV_VERSION} "${MESOS_3RDPARTY_BIN}")
+  add_library(libev SHARED IMPORTED)
+  add_dependencies(libev ${LIBEV_TARGET})
+
+  set_target_properties(
+    libev PROPERTIES
+    IMPORTED_LOCATION ${LIBEV_ROOT}-build/lib/libev${CMAKE_SHARED_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${LIBEV_ROOT}-build/include)
+
+  # Patch libev to keep it from reaping child processes.
+  patch_cmd(${MESOS_3RDPARTY_SRC}/libev-4.22.patch LIBEV_PATCH_CMD)
+
+  MAKE_INCLUDE_DIR(libev)
+
   ExternalProject_Add(
     ${LIBEV_TARGET}
     PREFIX            ${LIBEV_CMAKE_ROOT}
     PATCH_COMMAND     ${LIBEV_PATCH_CMD}
-    CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
-    CONFIGURE_COMMAND ${LIBEV_CONFIG_CMD}
-    BUILD_COMMAND     ${LIBEV_BUILD_CMD}
-    INSTALL_COMMAND   ${LIBEV_INSTALL_CMD}
+    CONFIGURE_COMMAND ${LIBEV_ROOT}/configure --prefix=${LIBEV_ROOT}-build
+    BUILD_COMMAND     make
+    INSTALL_COMMAND   make install
     URL               ${LIBEV_URL}
-    URL_HASH          ${LIBEV_HASH}
-    )
-elseif (ENABLE_LIBEVENT)
-  ExternalProject_Add(
-    ${LIBEVENT_TARGET}
-    PREFIX            ${LIBEVENT_CMAKE_ROOT}
-    CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};${LIBEVENT_CMAKE_ARGS}
-    INSTALL_COMMAND   ${LIBEVENT_INSTALL_CMD}
-    URL               ${LIBEVENT_URL}
-    URL_HASH          ${LIBEVENT_HASH}
-    )
+    URL_HASH          ${LIBEV_HASH})
 endif ()
 
+
+# APR: The Apache Portable Runtime Project.
+# https://apr.apache.org
+###########################################
 if (WIN32)
+  EXTERNAL(libapr ${LIBAPR_VERSION} "${MESOS_3RDPARTY_BIN}")
+  add_library(apr ${LIBRARY_LINKAGE} IMPORTED)
+  add_dependencies(apr ${LIBAPR_TARGET})
+
+  # NOTE: libapr-1 is always a static library on Windows.
+  set_target_properties(
+    apr PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${LIBAPR_ROOT}-build/Debug/libapr-1${CMAKE_STATIC_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${LIBAPR_ROOT}-build/Release/libapr-1${CMAKE_STATIC_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES "${LIBAPR_ROOT}/include;${LIBAPR_ROOT}-build")
+
+  MAKE_INCLUDE_DIR(apr)
+
   ExternalProject_Add(
     ${LIBAPR_TARGET}
     PREFIX            ${LIBAPR_CMAKE_ROOT}
     CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
-    INSTALL_COMMAND   ${LIBAPR_INSTALL_CMD}
+    INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${LIBAPR_URL}
-    URL_HASH          ${LIBAPR_HASH}
-    )
+    URL_HASH          ${LIBAPR_HASH})
+else ()
+  find_package(Apr REQUIRED)
+  add_library(apr SHARED IMPORTED)
+
+  set_target_properties(
+    apr PROPERTIES
+    IMPORTED_LOCATION ${APR_LIBS}
+    INTERFACE_INCLUDE_DIRECTORIES ${APR_INCLUDE_DIR})
 endif ()
 
 
-# Windows third-party libraries. Windows has no package manager, so we download
-# them here.
-###############################################################################
+# Subversion: Enterprise-class centralized version control for the masses.
+# https://subversion.apache.org
+##########################################################################
+if (NOT WIN32)
+  # NOTE: This does not use `FindSubversion` because it finds the `svn`
+  # executable, but we're looking for the library.
+  find_package(Svn REQUIRED)
+  add_library(svn INTERFACE)
+  target_include_directories(svn SYSTEM INTERFACE ${SVN_INCLUDE_DIR})
+
+  # `FindSvn` returns finds three separate libraries.
+  foreach (lib ${SVN_LIBS})
+    get_filename_component(SVN_LIB ${lib} NAME_WE)
+    add_library(${SVN_LIB} SHARED IMPORTED)
+    set_target_properties(${SVN_LIB} PROPERTIES IMPORTED_LOCATION ${lib})
+    target_link_libraries(svn INTERFACE ${SVN_LIB})
+  endforeach ()
+endif ()
+
+
+# curl: Command line tool and library for transferring data with URLs.
+# https://curl.haxx.se
+######################################################################
 if (WIN32)
+  EXTERNAL(curl ${CURL_VERSION} "${MESOS_3RDPARTY_BIN}")
+  add_library(curl ${LIBRARY_LINKAGE} IMPORTED)
+  add_dependencies(curl ${CURL_TARGET})
+
+  set_target_properties(
+    curl PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl${LIBRARY_SUFFIX}
+    INTERFACE_COMPILE_DEFINITIONS CURL_STATICLIB
+    INTERFACE_INCLUDE_DIRECTORIES ${CURL_ROOT}/include)
+
   set(CURL_CMAKE_ARGS ${CMAKE_FORWARD_ARGS} -DBUILD_CURL_TESTS=OFF)
 
   # NOTE: curl does not respect BUILD_SHARED_LIBS.
@@ -314,7 +419,8 @@ if (WIN32)
     list(APPEND CURL_CMAKE_ARGS -DCURL_STATICLIB=ON)
   endif ()
 
-  # TODO(hausdorff): maybe try to incorporate this into findpackage for Windows
+  MAKE_INCLUDE_DIR(curl)
+
   ExternalProject_Add(
     ${CURL_TARGET}
     PREFIX            ${CURL_CMAKE_ROOT}
@@ -322,8 +428,41 @@ if (WIN32)
     CMAKE_ARGS        ${CURL_CMAKE_ARGS}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${CURL_URL}
-    URL_HASH          ${CURL_HASH}
-  )
+    URL_HASH          ${CURL_HASH})
+else ()
+  find_package(CURL REQUIRED)
+  add_library(curl SHARED IMPORTED)
+
+  set_target_properties(
+    curl PROPERTIES
+    IMPORTED_LOCATION ${CURL_LIBRARIES}
+    INTERFACE_INCLUDE_DIRECTORIES ${CURL_INCLUDE_DIRS})
+endif ()
+
+
+# zlib: A Massively Spiffy Yet Delicately Unobtrusive Compression Library.
+# https://zlib.net
+##########################################################################
+if (WIN32)
+  EXTERNAL(zlib ${ZLIB_VERSION} "${MESOS_3RDPARTY_BIN}")
+  add_library(zlib ${LIBRARY_LINKAGE} IMPORTED)
+  add_dependencies(zlib ${ZLIB_TARGET})
+
+  # Zlib generates different libraries depending on the linkage
+  # and configuration.  i.e.:
+  #   * For a static Debug build: `zlibstaticd.lib`.
+  #   * For a shared Release build: `zlib.lib`.
+  if (NOT BUILD_SHARED_LIBS)
+    set(ZLIB_STATIC static)
+  endif ()
+
+  set_target_properties(
+    zlib PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${ZLIB_ROOT}-build/Debug/zlib${ZLIB_STATIC}d${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${ZLIB_ROOT}-build/Release/zlib${ZLIB_STATIC}${LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_ROOT};${ZLIB_ROOT}-build")
+
+  MAKE_INCLUDE_DIR(zlib)
 
   ExternalProject_Add(
     ${ZLIB_TARGET}
@@ -331,9 +470,20 @@ if (WIN32)
     CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${ZLIB_URL}
-    URL_HASH          ${ZLIB_HASH}
-  )
+    URL_HASH          ${ZLIB_HASH})
+else ()
+  find_package(ZLIB REQUIRED)
+  add_library(zlib SHARED IMPORTED)
+
+  set_target_properties(
+    zlib PROPERTIES
+    IMPORTED_LOCATION ${ZLIB_LIBRARIES}
+    INTERFACE_INCLUDE_DIRECTORIES ${ZLIB_INCLUDE_DIRS})
 endif ()
+
+set_target_properties(
+  zlib PROPERTIES
+  INTERFACE_COMPILE_DEFINITIONS HAVE_LIBZ)
 
 
 # DEPENDENCIES FOR THE PROCESS LIBRARY TESTS AND STOUT TESTS.
@@ -343,21 +493,52 @@ endif ()
 ###############################################################################
 list(
   APPEND CMAKE_MODULE_PATH
-  ${CMAKE_SOURCE_DIR}/3rdparty/stout/cmake
-  )
-# TODO(andschwa): Remove this when gmock and gtest can be included.
-include(StoutTestsConfigure)
+  ${CMAKE_SOURCE_DIR}/3rdparty/stout/cmake)
+
+
+# Google Test: Google's C++ test framework (GoogleTest and GoogleMock).
+# https://github.com/google/googletest
+#######################################################################
+EXTERNAL(googletest ${GOOGLETEST_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(googletest INTERFACE)
+add_dependencies(googletest ${GOOGLETEST_TARGET})
+target_link_libraries(googletest INTERFACE gmock gtest)
+
+add_library(gmock IMPORTED STATIC)
+add_library(gtest IMPORTED STATIC)
+
+set_target_properties(
+  gmock PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${GOOGLETEST_ROOT}/googlemock/include)
+
+set_target_properties(
+  gtest PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${GOOGLETEST_ROOT}/googletest/include)
+
+if (WIN32)
+  set_target_properties(
+    gmock PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${GOOGLETEST_ROOT}-build/googlemock/Debug/gmock${CMAKE_STATIC_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${GOOGLETEST_ROOT}-build/googlemock/Release/gmock${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+  set_target_properties(
+    gtest PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${GOOGLETEST_ROOT}-build/googlemock/gtest/Debug/gtest${CMAKE_STATIC_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${GOOGLETEST_ROOT}-build/googlemock/gtest/Release/gtest${CMAKE_STATIC_LIBRARY_SUFFIX})
+else ()
+  set_target_properties(
+    gmock PROPERTIES
+    IMPORTED_LOCATION ${GOOGLETEST_ROOT}-build/googlemock/libgmock${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+  set_target_properties(
+    gtest PROPERTIES
+    IMPORTED_LOCATION ${GOOGLETEST_ROOT}-build/googlemock/gtest/libgtest${CMAKE_STATIC_LIBRARY_SUFFIX})
+endif ()
+
+MAKE_INCLUDE_DIR(gmock)
+MAKE_INCLUDE_DIR(gtest)
 
 set(GOOGLETEST_URL ${FETCH_URL}/googletest-release-${GOOGLETEST_VERSION}.tar.gz)
-set(PROTOBUF_URL ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
-
-# NOTE: `googletest` is "installed" into a lib directory, see "NOTE: (fix for
-# MESOS-3250)" comment above for explanation.
-if (NOT WIN32)
-  set(GOOGLETEST_INSTALL_CMD mkdir -p ${GOOGLETEST_ROOT}-lib/lib && cp -r ${GOOGLETEST_ROOT}-build/googlemock/. ${GOOGLETEST_ROOT}-lib/lib)
-else ()
-  set(GOOGLETEST_INSTALL_CMD ${CMAKE_NOOP})
-endif ()
 
 ExternalProject_Add(
   ${GOOGLETEST_TARGET}
@@ -365,34 +546,65 @@ ExternalProject_Add(
   # NOTE: googletest cannot be built as a shared library, or the test runner
   # will crash with a double-free.
   CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-DBUILD_SHARED_LIBS=OFF
-  INSTALL_COMMAND   ${GOOGLETEST_INSTALL_CMD}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${GOOGLETEST_URL}
-  URL_HASH          ${GOOGLETEST_HASH}
-  )
+  URL_HASH          ${GOOGLETEST_HASH})
 
-if (NOT WIN32)
-  # NOTE: `ExternalProject_Add` is used separately because older versions
-  # of CMake used on Linux do not understand the `SOURCE_SUBDIR` command.
-  ExternalProject_Add(
-    ${PROTOBUF_TARGET}
-    PREFIX            ${PROTOBUF_CMAKE_ROOT}
-    CONFIGURE_COMMAND ${PROTOBUF_ROOT}/configure --prefix=${PROTOBUF_LIB_ROOT}
-    BUILD_COMMAND     make
-    INSTALL_COMMAND   make install
-    URL               ${PROTOBUF_URL}
-    URL_HASH          ${PROTOBUF_HASH}
-    )
+
+# Protocol Buffers: Google's data interchange format.
+# https://developers.google.com/protocol-buffers/
+#####################################################
+EXTERNAL("protobuf" ${PROTOBUF_VERSION} "${MESOS_3RDPARTY_BIN}")
+
+# TODO(andschwa): Move protobufs so these don't have to be GLOBAL.
+add_library(protobuf ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
+
+add_dependencies(protobuf ${PROTOBUF_TARGET})
+add_executable(protoc IMPORTED GLOBAL)
+add_dependencies(protoc ${PROTOBUF_TARGET})
+
+set_target_properties(
+  protobuf PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${PROTOBUF_ROOT}/src)
+
+if (WIN32)
+  set_target_properties(
+    protobuf PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${PROTOBUF_ROOT}-build/Debug/libprotobufd${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${PROTOBUF_ROOT}-build/Release/libprotobuf${LIBRARY_SUFFIX})
+
+  set_target_properties(
+    protoc PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${PROTOBUF_ROOT}-build/Debug/protoc.exe
+    IMPORTED_LOCATION_RELEASE ${PROTOBUF_ROOT}-build/Release/protoc.exe)
 else ()
-  ExternalProject_Add(
-    ${PROTOBUF_TARGET}
-    PREFIX            ${PROTOBUF_CMAKE_ROOT}
-    SOURCE_SUBDIR     cmake
-    CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-Dprotobuf_BUILD_TESTS=OFF
-    INSTALL_COMMAND   ${CMAKE_NOOP}
-    URL               ${PROTOBUF_URL}
-    URL_HASH          ${PROTOBUF_HASH}
-    )
+  # This is for single-configuration generators such as GNU Make.
+  if (CMAKE_BUILD_TYPE MATCHES DEBUG)
+    set(PROTOBUF_SUFFIX d)
+  endif ()
+
+  set_target_properties(
+    protobuf PROPERTIES
+    IMPORTED_LOCATION ${PROTOBUF_ROOT}-build/libprotobuf${PROTOBUF_SUFFIX}${LIBRARY_SUFFIX})
+
+  set_target_properties(
+    protoc PROPERTIES
+    IMPORTED_LOCATION ${PROTOBUF_ROOT}-build/protoc)
 endif ()
+
+MAKE_INCLUDE_DIR(protobuf)
+
+set(PROTOBUF_URL ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
+
+ExternalProject_Add(
+  ${PROTOBUF_TARGET}
+  PREFIX            ${PROTOBUF_CMAKE_ROOT}
+  SOURCE_SUBDIR     cmake
+  CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-Dprotobuf_BUILD_TESTS=OFF
+  INSTALL_COMMAND   ${CMAKE_NOOP}
+  URL               ${PROTOBUF_URL}
+  URL_HASH          ${PROTOBUF_HASH})
+
 
 # BUILDING THE STOUT LIBRARY AND ITS TESTS.
 #
@@ -473,21 +685,32 @@ ExternalProject_Add(
   URL_HASH          ${ZOOKEEPER_HASH})
 
 
+# LevelDB: A fast key-value storage library.
+# https://github.com/google/leveldb
+############################################
 if (NOT WIN32)
-  PATCH_CMD(
-    ${MESOS_3RDPARTY_SRC}/leveldb-${LEVELDB_VERSION}.patch
-    LEVELDB_PATCH_CMD)
+  # TODO(andschwa): Move leveldb so these don't have to be GLOBAL.
+  EXTERNAL(leveldb ${LEVELDB_VERSION} "${MESOS_3RDPARTY_BIN}")
+  add_library(leveldb STATIC IMPORTED GLOBAL)
+  add_dependencies(leveldb ${LEVELDB_TARGET})
 
-  # NOTE: Building leveldb as a shared library is not yet supported.
+  set_target_properties(
+    leveldb PROPERTIES
+    IMPORTED_LOCATION ${LEVELDB_ROOT}/out-static/libleveldb${CMAKE_STATIC_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${LEVELDB_ROOT}/include)
+
+  patch_cmd(${MESOS_3RDPARTY_SRC}/leveldb-${LEVELDB_VERSION}.patch LEVELDB_PATCH_CMD)
+
+  MAKE_INCLUDE_DIR(leveldb)
+
   ExternalProject_Add(
     ${LEVELDB_TARGET}
-    PREFIX            ${LEVELDB_TARGET}
+    PREFIX            ${LEVELDB_CMAKE_ROOT}
     PATCH_COMMAND     ${LEVELDB_PATCH_CMD}
     CONFIGURE_COMMAND ${CMAKE_NOOP}
     BUILD_IN_SOURCE   1
     BUILD_COMMAND     make OPT=-O2\ -DNDEBUG\ -fPIC all
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${LEVELDB_URL}
-    URL_HASH          ${LEVELDB_HASH}
-    )
+    URL_HASH          ${LEVELDB_HASH})
 endif ()
