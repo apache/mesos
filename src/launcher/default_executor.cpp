@@ -230,7 +230,11 @@ public:
       }
 
       case Event::KILL: {
-        killTask(event.kill().task_id());
+        Option<KillPolicy> killPolicy = event.kill().has_kill_policy()
+          ? Option<KillPolicy>(event.kill().kill_policy())
+          : None();
+
+        killTask(event.kill().task_id(), killPolicy);
         break;
       }
 
@@ -966,7 +970,9 @@ protected:
     terminate(self());
   }
 
-  Future<Nothing> kill(Owned<Container> container)
+  Future<Nothing> kill(
+      Owned<Container> container,
+      const Option<KillPolicy>& killPolicy = None())
   {
     CHECK_EQ(SUBSCRIBED, state);
 
@@ -993,27 +999,52 @@ protected:
       container->healthChecker = None();
     }
 
+    const TaskID& taskId = container->taskInfo.task_id();
+
     LOG(INFO)
-      << "Killing task " << container->taskInfo.task_id() << " running in child"
-      << " container " << container->containerId << " with SIGTERM signal";
+      << "Killing task " << taskId << " running in child container"
+      << " " << container->containerId << " with SIGTERM signal";
 
     // Default grace period is set to 3s.
-    //
-    // TODO(anand): Add support for handling kill policies.
-    const Duration GRACE_PERIOD = Seconds(3);
+    Duration gracePeriod = Seconds(3);
 
-    LOG(INFO) << "Scheduling escalation to SIGKILL in " << GRACE_PERIOD
+    Option<KillPolicy> taskInfoKillPolicy;
+    if (container->taskInfo.has_kill_policy()) {
+      taskInfoKillPolicy = container->taskInfo.kill_policy();
+    }
+
+    // Kill policy provided in the `Kill` event takes precedence
+    // over kill policy specified when the task was launched.
+    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
+    } else if (taskInfoKillPolicy.isSome() &&
+               taskInfoKillPolicy->has_grace_period()) {
+      gracePeriod =
+        Nanoseconds(taskInfoKillPolicy->grace_period().nanoseconds());
+    }
+
+    LOG(INFO) << "Scheduling escalation to SIGKILL in " << gracePeriod
               << " from now";
 
     const ContainerID& containerId = container->containerId;
 
-    delay(GRACE_PERIOD,
+    delay(gracePeriod,
           self(),
           &Self::escalated,
           connectionId.get(),
           containerId,
           container->taskInfo.task_id(),
-          GRACE_PERIOD);
+          gracePeriod);
+
+    // Send a 'TASK_KILLING' update if the framework can handle it.
+    CHECK_SOME(frameworkInfo);
+
+    if (protobuf::frameworkHasCapability(
+            frameworkInfo.get(),
+            FrameworkInfo::Capability::TASK_KILLING_STATE)) {
+      TaskStatus status = createTaskStatus(taskId, TASK_KILLING);
+      forward(status);
+    }
 
     return kill(containerId, SIGTERM);
   }
@@ -1068,7 +1099,9 @@ protected:
     kill(containerId, SIGKILL);
   }
 
-  void killTask(const TaskID& taskId)
+  void killTask(
+      const TaskID& taskId,
+      const Option<KillPolicy>& killPolicy = None())
   {
     if (shuttingDown) {
       LOG(WARNING) << "Ignoring kill for task '" << taskId
@@ -1078,7 +1111,10 @@ protected:
 
     CHECK_EQ(SUBSCRIBED, state);
 
-    // TODO(anand): Add support for handling kill policies.
+    // TODO(anand): Add support for adjusting the remaining grace period if
+    // we receive another kill request while a task is being killed but has
+    // not terminated yet. See similar comments in the command executor
+    // for more context.
 
     LOG(INFO) << "Received kill for task '" << taskId << "'";
 
@@ -1095,7 +1131,7 @@ protected:
       return;
     }
 
-    kill(container);
+    kill(container, killPolicy);
   }
 
   void taskCheckUpdated(
