@@ -16,6 +16,15 @@
 
 include(ExternalProject)
 
+if (BUILD_SHARED_LIBS)
+  set(LIBRARY_LINKAGE SHARED)
+  set(LIBRARY_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
+else ()
+  set(LIBRARY_LINKAGE STATIC)
+  set(LIBRARY_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
+endif ()
+
+
 # Define sources of third-party dependencies.
 #############################################
 if (REBUNDLED)
