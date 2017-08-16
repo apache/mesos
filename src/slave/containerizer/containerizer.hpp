@@ -139,6 +139,16 @@ public:
   // so you should always call wait() before destroy().
   virtual process::Future<bool> destroy(const ContainerID& containerId) = 0;
 
+  // Sends a signal to a running container. Returns false when the container
+  // cannot be found. The future may be failed if an error occurs in sending
+  // the signal to the running container.
+  virtual process::Future<bool> kill(
+      const ContainerID& containerId,
+      int signal)
+  {
+    return process::Failure("Unsupported");
+  };
+
   virtual process::Future<hashset<ContainerID>> containers() = 0;
 
   // Remove a nested container, including its sandbox and runtime directories.
