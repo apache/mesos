@@ -651,6 +651,11 @@ Future<bool> ComposingContainerizerProcess::kill(
     return false;
   }
 
+  // This is needed for eventually removing the given container from
+  // the list of active containers.
+  containers_.at(containerId)->containerizer->wait(containerId)
+    .onAny(defer(self(), &Self::destroy, containerId));
+
   return containers_.at(containerId)->containerizer->kill(containerId, signal);
 }
 
