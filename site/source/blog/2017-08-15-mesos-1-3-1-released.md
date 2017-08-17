@@ -33,7 +33,7 @@ Full release notes are available in the release [CHANGELOG](https://git-wip-us.a
 
 ### Upgrades
 
-Rolling upgrades from a Mesos 1.3.1 cluster to Mesos 1.3.1 are straightforward.
+Rolling upgrades from a Mesos 1.3.0 cluster to Mesos 1.3.1 are straightforward.
 Please refer to the [upgrade
 guide](http://mesos.apache.org/documentation/latest/upgrades/) for detailed information on upgrading to Mesos 1.3.1 from 1.2.x, 1.1.x or 1.0.x.
 
