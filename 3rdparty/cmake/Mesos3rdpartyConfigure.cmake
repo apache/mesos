@@ -24,36 +24,13 @@ if (NOT WIN32)
   EXTERNAL("leveldb" ${LEVELDB_VERSION} "${MESOS_3RDPARTY_BIN}")
 endif ()
 
-EXTERNAL("zookeeper" ${ZOOKEEPER_VERSION} "${MESOS_3RDPARTY_BIN}")
-
-# Intermediate convenience variables for oddly-structured directories.
-set(ZOOKEEPER_C_ROOT ${ZOOKEEPER_ROOT}/src/c)
-set(ZOOKEEPER_LIB    ${ZOOKEEPER_ROOT}/src/c)
-
 # Convenience variables for include directories of third-party dependencies.
 set(LEVELDB_INCLUDE_DIR ${LEVELDB_ROOT}/include)
-set(ZOOKEEPER_INCLUDE_GENDIR ${ZOOKEEPER_C_ROOT}/generated)
-set(ZOOKEEPER_INCLUDE_DIR ${ZOOKEEPER_C_ROOT}/include)
-
-# Convenience variables for `lib` directories of built third-party dependencies.
-if (NOT WIN32)
-  set(ZOOKEEPER_LIB_DIR ${ZOOKEEPER_LIB})
-else ()
-  set(ZOOKEEPER_LIB_DIR ${ZOOKEEPER_ROOT}-build)
-endif ()
 
 # Convenience variables for "lflags", the symbols we pass to CMake to generate
 # things like `-L/path/to/glog` or `-lglog`.
 if (NOT WIN32)
   set(LEVELDB_LFLAG   ${LEVELDB_ROOT}/out-static/libleveldb.a)
-
-  if (BUILD_SHARED_LIBS)
-    set(ZOOKEEPER_LFLAG ${ZOOKEEPER_LIB}/lib/libzookeeper_mt${CMAKE_SHARED_LIBRARY_SUFFIX})
-  else ()
-    set(ZOOKEEPER_LFLAG ${ZOOKEEPER_LIB}/lib/libzookeeper_mt.a)
-  endif ()
-else ()
-  set(ZOOKEEPER_LFLAG zookeeper hashtable)
 endif ()
 
 # Configure Windows use of the GNU patch utility;

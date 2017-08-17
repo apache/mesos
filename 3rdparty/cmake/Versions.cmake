@@ -27,24 +27,18 @@ set(PROTOBUF_VERSION        "3.3.0")
 set(PROTOBUF_HASH           "SHA256=E43F47C51C4A838F737EE2DA2F183F129EE388272622C403179D5AD28C555F39")
 set(ZLIB_VERSION            "1.2.8")
 set(ZLIB_HASH               "SHA256=36658CB768A54C1D4DEC43C3116C27ED893E88B02ECFCB44F2166F9C0B7F2A0D")
+set(ZOOKEEPER_VERSION   "3.4.8")
+set(ZOOKEEPER_HASH      "SHA256=F10A0B51F45C4F64C1FE69EF713ABF9EB9571BC7385A82DA892E83BB6C965E90")
 
 # Platform-dependent versions.
 if (NOT WIN32)
   set(GLOG_VERSION      "0.3.3")
   set(GLOG_HASH         "SHA256=FBF90C2285BA0561DB7A40F8A4EEFB9AA963E7D399BD450363E959929FE849D0")
-  set(ZOOKEEPER_VERSION "3.4.8")
-  set(ZOOKEEPER_HASH    "SHA256=F10A0B51F45C4F64C1FE69EF713ABF9EB9571BC7385A82DA892E83BB6C965E90")
 else ()
-  # TODO(hausdorff): (MESOS-3394) Upgrade Windows to use glog v0.3.5 when they
-  # release it, as that will contain fixes that will allow us to build glog on
-  # Windows, as well as build using CMake directly. For now, we simply point
-  # Windows builds at a commit hash in the glog history that has all the
-  # functionality we want.
+  # TODO(andschwa): (MESOS-3394) Update Windows to use glog v0.3.6 when it is
+  # released, as it contains our patches. For now, we simply point Windows
+  # builds at a commit hash in the glog history that has all the functionality
+  # we want.
   set(GLOG_VERSION      "da816ea70")
   set(GLOG_HASH         "SHA256=15338EDBE643F3F9A769FBCA34C3AFDF48D8779D800E7F0878A9649A53339F96")
-
-  # The latest release of ZK, 3.4.7, does not compile on Windows. Therefore, we
-  # pick a recent commit that does until the next release stabilizes.
-  set(ZOOKEEPER_VERSION "3.5.2-alpha")
-  set(ZOOKEEPER_HASH    "SHA256=E4997EE78AAB27628876BCB7BA7FCE8369BA162B1F50D9270A0ED865D11B8310")
 endif ()
