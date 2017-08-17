@@ -113,6 +113,14 @@ function(MAKE_INCLUDE_DIR TARGET)
   file(MAKE_DIRECTORY ${DIR})
 endfunction()
 
+# Boost: C++ Libraries.
+# http://www.boost.org
+#######################
+EXTERNAL(boost ${BOOST_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(boost INTERFACE)
+add_dependencies(boost ${BOOST_TARGET})
+target_include_directories(boost SYSTEM INTERFACE ${BOOST_ROOT})
+
 ExternalProject_Add(
   ${BOOST_TARGET}
   PREFIX            ${BOOST_CMAKE_ROOT}
@@ -120,8 +128,16 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${BOOST_URL}
-  URL_HASH          ${BOOST_HASH}
-  )
+  URL_HASH          ${BOOST_HASH})
+
+
+# moodycamel::ConcurrentQueue: An industrial-strength lock-free queue.
+# https://github.com/cameron314/concurrentqueue
+######################################################################
+EXTERNAL(concurrentqueue ${CONCURRENTQUEUE_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(concurrentqueue INTERFACE)
+add_dependencies(concurrentqueue ${CONCURRENTQUEUE_TARGET})
+target_include_directories(concurrentqueue SYSTEM INTERFACE ${CONCURRENTQUEUE_ROOT})
 
 ExternalProject_Add(
   ${CONCURRENTQUEUE_TARGET}
@@ -130,8 +146,16 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${CONCURRENTQUEUE_URL}
-  URL_HASH          ${CONCURRENTQUEUE_HASH}
-  )
+  URL_HASH          ${CONCURRENTQUEUE_HASH})
+
+
+# ELFIO: library for reading and generating ELF files.
+# http://elfio.sourceforge.net
+######################################################
+EXTERNAL(elfio ${ELFIO_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(elfio INTERFACE)
+add_dependencies(elfio ${ELFIO_TARGET})
+target_include_directories(elfio SYSTEM INTERFACE ${ELFIO_ROOT})
 
 ExternalProject_Add(
   ${ELFIO_TARGET}
@@ -140,8 +164,8 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${ELFIO_URL}
-  URL_HASH          ${ELFIO_HASH}
-  )
+  URL_HASH          ${ELFIO_HASH})
+
 
 # glog: Google Logging Library.
 # https://github.com/google/glog
@@ -203,6 +227,25 @@ ExternalProject_Add(
   URL               ${GLOG_URL}
   URL_HASH          ${GLOG_HASH})
 
+
+# PicoJSON: JSON parser / serializer.
+# https://github.com/kazuho/picojson
+#####################################
+EXTERNAL(picojson ${PICOJSON_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(picojson INTERFACE)
+add_dependencies(picojson ${PICOJSON_TARGET})
+target_include_directories(picojson SYSTEM INTERFACE ${PICOJSON_ROOT})
+
+# Enable the INT64 support for PicoJSON.
+# NOTE: PicoJson requires __STDC_FORMAT_MACROS to be defined before importing
+# 'inttypes.h'.  Since other libraries may also import this header, it must
+# be globally defined so that PicoJSON has access to the macros, regardless
+# of the order of inclusion.
+target_compile_definitions(
+  picojson INTERFACE
+  PICOJSON_USE_INT64
+  __STDC_FORMAT_MACROS)
+
 ExternalProject_Add(
   ${PICOJSON_TARGET}
   PREFIX            ${PICOJSON_CMAKE_ROOT}
@@ -210,8 +253,16 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${PICOJSON_URL}
-  URL_HASH          ${PICOJSON_HASH}
-  )
+  URL_HASH          ${PICOJSON_HASH})
+
+
+# NVML: NVIDIA Management Library.
+# https://developer.nvidia.com/nvidia-management-library-nvml
+#############################################################
+EXTERNAL(nvml ${NVML_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(nvml INTERFACE)
+add_dependencies(nvml ${NVML_TARGET})
+target_include_directories(nvml SYSTEM INTERFACE ${NVML_ROOT})
 
 ExternalProject_Add(
   ${NVML_TARGET}
@@ -220,8 +271,8 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${NVML_URL}
-  URL_HASH          ${NVML_HASH}
-  )
+  URL_HASH          ${NVML_HASH})
+
 
 # HTTP Parser: HTTP request/response parser for C.
 # https://github.com/nodejs/http-parser
