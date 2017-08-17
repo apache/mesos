@@ -1,8 +1,1211 @@
-diff --git a/src/c/src/mt_adaptor.c b/src/c/src/mt_adaptor.c
-index 7dc7878..9c62991 100644
---- a/src/c/src/mt_adaptor.c
-+++ b/src/c/src/mt_adaptor.c
-@@ -483,13 +483,7 @@ int32_t inc_ref_counter(zhandle_t* zh,int i)
+diff --git c/src/c/CMakeLists.txt w/src/c/CMakeLists.txt
+new file mode 100644
+index 000000000..0f256b59c
+--- /dev/null
++++ w/src/c/CMakeLists.txt
+@@ -0,0 +1,237 @@
++# Licensed to the Apache Software Foundation (ASF) under one
++# or more contributor license agreements.  See the NOTICE file
++# distributed with this work for additional information
++# regarding copyright ownership.  The ASF licenses this file
++# to you under the Apache License, Version 2.0 (the
++# "License"); you may not use this file except in compliance
++# with the License.  You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++cmake_minimum_required(VERSION 3.6)
++
++project(zookeeper VERSION 3.4.8)
++set(email user@zookeeper.apache.org)
++set(description "zookeeper C client")
++
++# general options
++include_directories(include tests generated ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
++if(UNIX)
++  add_compile_options(-Wall -fPIC)
++elseif(WIN32)
++  add_compile_options(/W3)
++endif()
++add_definitions(-DUSE_STATIC_LIB)
++
++# TODO: Enable /WX and /W4 on Windows. Currently there are ~1000 warnings.
++# TODO: Add Solaris support.
++# TODO: Add a shared library option.
++# TODO: Specify symbols to export.
++# TODO: Generate doxygen documentation.
++
++# Sync API option
++option(WANT_SYNCAPI "Enables Sync API support" ON)
++if(WANT_SYNCAPI)
++  add_definitions(-DTHREADED)
++  if(WIN32)
++    # Note that the generator expression ensures that `/MTd` is used when Debug
++    # configurations are built.
++    add_compile_options(/MT$<$<CONFIG:Debug>:d>)
++  endif()
++endif()
++
++# CppUnit option
++if(WIN32 OR APPLE)
++  # The tests do not yet compile on Windows or macOS,
++  # so we set this to off by default.
++  #
++  # Note that CMake does not have expressions except in conditionals,
++  # so we're left with this if/else/endif pattern.
++  set(DEFAULT_WANT_CPPUNIT OFF)
++else()
++  set(DEFAULT_WANT_CPPUNIT ON)
++endif()
++option(WANT_CPPUNIT "Enables CppUnit and tests" ${DEFAULT_WANT_CPPUNIT})
++
++# The function `to_have(in out)` converts a header name like `arpa/inet.h`
++# into an Autotools style preprocessor definition `HAVE_ARPA_INET_H`.
++# This is then set or unset in `configure_file()` step.
++#
++# Note that CMake functions do not have return values; instead an "out"
++# variable must be passed, and explicitly set with parent scope.
++function(to_have in out)
++  string(TOUPPER ${in} str)
++  string(REGEX REPLACE "/|\\." "_" str ${str})
++  set(${out} "HAVE_${str}" PARENT_SCOPE)
++endfunction()
++
++# include file checks
++foreach(f generated/zookeeper.jute.h generated/zookeeper.jute.c)
++  if(EXISTS "${CMAKE_SOURCE_DIR}/${f}")
++    to_have(${f} name)
++    set(${name} 1)
++  else()
++    message(FATAL_ERROR
++      "jute files are missing!\n"
++      "Please run 'ant compile_jute' while in the ZooKeeper top level directory.")
++  endif()
++endforeach()
++
++# header checks
++include(CheckIncludeFile)
++set(check_headers
++  arpa/inet.h
++  dlfcn.h
++  fcntl.h
++  inttypes.h
++  memory.h
++  netdb.h
++  netinet/in.h
++  stdint.h
++  stdlib.h
++  string.h
++  strings.h
++  sys/socket.h
++  sys/stat.h
++  sys/time.h
++  sys/types.h
++  unistd.h
++  sys/utsname.h)
++
++foreach(f ${check_headers})
++  to_have(${f} name)
++  check_include_file(${f} ${name})
++endforeach()
++
++# function checks
++include(CheckFunctionExists)
++set(check_functions
++  getcwd
++  gethostbyname
++  gethostname
++  getlogin
++  getpwuid_r
++  gettimeofday
++  getuid
++  memmove
++  memset
++  poll
++  socket
++  strchr
++  strdup
++  strerror
++  strtol)
++
++foreach(fn ${check_functions})
++  to_have(${fn} name)
++  check_function_exists(${fn} ${name})
++endforeach()
++
++# library checks
++set(check_libraries rt m pthread)
++foreach(lib ${check_libraries})
++  to_have("lib${lib}" name)
++  find_library(${name} ${lib})
++endforeach()
++
++# IPv6 check
++include(CheckStructHasMember)
++check_struct_has_member("struct sockaddr_in6" sin6_addr "netinet/in.h" ZOO_IPV6_ENABLED)
++
++# configure
++configure_file(cmake_config.h.in ${CMAKE_SOURCE_DIR}/include/config.h)
++
++# hashtable library
++set(hashtable_sources src/hashtable/hashtable_itr.c src/hashtable/hashtable.c)
++add_library(hashtable STATIC ${hashtable_sources})
++target_link_libraries(hashtable PUBLIC $<$<PLATFORM_ID:Linux>:m>)
++
++# zookeeper library
++set(zookeeper_sources
++  src/zookeeper.c
++  src/recordio.c
++  generated/zookeeper.jute.c
++  src/zk_log.c
++  src/zk_hashtable.c)
++
++if(WANT_SYNCAPI)
++  list(APPEND zookeeper_sources src/mt_adaptor.c)
++else()
++  list(APPEND zookeeper_sources src/st_adaptor.c)
++endif()
++
++if(WIN32)
++  list(APPEND zookeeper_sources src/winport.c)
++endif()
++
++add_library(zookeeper STATIC ${zookeeper_sources})
++target_link_libraries(zookeeper PUBLIC
++  hashtable
++  $<$<PLATFORM_ID:Linux>:rt> # clock_gettime
++  $<$<PLATFORM_ID:Windows>:ws2_32>) # Winsock 2.0
++
++if(WANT_SYNCAPI AND NOT WIN32)
++  find_package(Threads REQUIRED)
++  target_link_libraries(zookeeper PUBLIC Threads::Threads)
++endif()
++
++# cli executable
++add_executable(cli src/cli.c)
++target_link_libraries(cli zookeeper)
++
++# load_gen executable
++if(WANT_SYNCAPI AND NOT WIN32)
++  add_executable(load_gen src/load_gen.c)
++  target_link_libraries(load_gen zookeeper)
++endif()
++
++# tests
++set(test_sources
++  tests/TestDriver.cc
++  tests/LibCMocks.cc
++  tests/LibCSymTable.cc
++  tests/MocksBase.cc
++  tests/ZKMocks.cc
++  tests/Util.cc
++  tests/ThreadingUtil.cc
++  tests/TestZookeeperInit.cc
++  tests/TestZookeeperClose.cc
++  tests/TestClientRetry.cc
++  tests/TestOperations.cc
++  tests/TestMulti.cc
++  tests/TestWatchers.cc
++  tests/TestClient.cc)
++
++if(WANT_SYNCAPI)
++  list(APPEND test_sources tests/PthreadMocks.cc)
++endif()
++
++if(WANT_CPPUNIT)
++  add_executable(zktest ${test_sources})
++  target_compile_definitions(zktest
++    PRIVATE -DZKSERVER_CMD="${CMAKE_SOURCE_DIR}/tests/zkServer.sh")
++  # TODO: Use `find_library()` for `cppunit`.
++  target_link_libraries(zktest zookeeper cppunit dl)
++
++  # This reads the link flags from the file `tests/wrappers.opt` into
++  # the variable `symbol_wrappers` for use in `target_link_libraries`.
++  # It is a holdover from the original build system.
++  file(STRINGS tests/wrappers.opt symbol_wrappers)
++  if(WANT_SYNCAPI)
++    file(STRINGS tests/wrappers-mt.opt symbol_wrappers_mt)
++  endif()
++
++  target_link_libraries(zktest ${symbol_wrappers} ${symbol_wrappers_mt})
++
++  enable_testing()
++  add_test(NAME zktest_runner COMMAND zktest)
++  set_property(TEST zktest_runner PROPERTY ENVIRONMENT
++    "ZKROOT=${CMAKE_SOURCE_DIR}/../.."
++    "CLASSPATH=$CLASSPATH:$CLOVER_HOME/lib/clover.jar")
++endif()
+diff --git c/src/c/Cli.vcproj w/src/c/Cli.vcproj
+deleted file mode 100644
+index 39ed8a429..000000000
+--- c/src/c/Cli.vcproj
++++ /dev/null
+@@ -1,210 +0,0 @@
+-<?xml version="1.0" encoding="Windows-1252"?>
+-<VisualStudioProject
+-    ProjectType="Visual C++"
+-    Version="9.00"
+-    Name="Cli"
+-    ProjectGUID="{050228F9-070F-4806-A2B5-E6B95D8EC4AF}"
+-    RootNamespace="Cli"
+-    Keyword="Win32Proj"
+-    TargetFrameworkVersion="196613"
+-    >
+-    <Platforms>
+-        <Platform
+-            Name="Win32"
+-        />
+-    </Platforms>
+-    <ToolFiles>
+-    </ToolFiles>
+-    <Configurations>
+-        <Configuration
+-            Name="Debug|Win32"
+-            OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+-            IntermediateDirectory="$(ConfigurationName)"
+-            ConfigurationType="1"
+-            CharacterSet="1"
+-            >
+-            <Tool
+-                Name="VCPreBuildEventTool"
+-            />
+-            <Tool
+-                Name="VCCustomBuildTool"
+-            />
+-            <Tool
+-                Name="VCXMLDataGeneratorTool"
+-            />
+-            <Tool
+-                Name="VCWebServiceProxyGeneratorTool"
+-            />
+-            <Tool
+-                Name="VCMIDLTool"
+-            />
+-            <Tool
+-                Name="VCCLCompilerTool"
+-                Optimization="0"
+-                AdditionalIncludeDirectories="$(ZOOKEEPER_HOME)\src\c\src;$(ZOOKEEPER_HOME)\src\c\include;$(ZOOKEEPER_HOME)\src\c;$(ZOOKEEPER_HOME)\src\c\generated"
+-                PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;THREADED"
+-                MinimalRebuild="true"
+-                BasicRuntimeChecks="3"
+-                RuntimeLibrary="3"
+-                UsePrecompiledHeader="0"
+-                WarningLevel="3"
+-                DebugInformationFormat="4"
+-                CompileAs="1"
+-            />
+-            <Tool
+-                Name="VCManagedResourceCompilerTool"
+-            />
+-            <Tool
+-                Name="VCResourceCompilerTool"
+-            />
+-            <Tool
+-                Name="VCPreLinkEventTool"
+-            />
+-            <Tool
+-                Name="VCLinkerTool"
+-                AdditionalDependencies="Ws2_32.lib zookeeper_d.lib"
+-                OutputFile="$(OutDir)\$(ProjectName).exe"
+-                LinkIncremental="2"
+-                AdditionalLibraryDirectories="$(ZOOKEEPER_HOME)\src\c\Debug"
+-                GenerateDebugInformation="true"
+-                SubSystem="1"
+-                TargetMachine="1"
+-            />
+-            <Tool
+-                Name="VCALinkTool"
+-            />
+-            <Tool
+-                Name="VCManifestTool"
+-            />
+-            <Tool
+-                Name="VCXDCMakeTool"
+-            />
+-            <Tool
+-                Name="VCBscMakeTool"
+-            />
+-            <Tool
+-                Name="VCFxCopTool"
+-            />
+-            <Tool
+-                Name="VCAppVerifierTool"
+-            />
+-            <Tool
+-                Name="VCPostBuildEventTool"
+-            />
+-        </Configuration>
+-        <Configuration
+-            Name="Release|Win32"
+-            OutputDirectory="$(SolutionDir)$(ConfigurationName)"
+-            IntermediateDirectory="$(ConfigurationName)"
+-            ConfigurationType="1"
+-            CharacterSet="1"
+-            WholeProgramOptimization="1"
+-            >
+-            <Tool
+-                Name="VCPreBuildEventTool"
+-            />
+-            <Tool
+-                Name="VCCustomBuildTool"
+-            />
+-            <Tool
+-                Name="VCXMLDataGeneratorTool"
+-            />
+-            <Tool
+-                Name="VCWebServiceProxyGeneratorTool"
+-            />
+-            <Tool
+-                Name="VCMIDLTool"
+-            />
+-            <Tool
+-                Name="VCCLCompilerTool"
+-                Optimization="2"
+-                EnableIntrinsicFunctions="true"
+-                AdditionalIncludeDirectories="$(ZOOKEEPER_HOME)\src\c\src;$(ZOOKEEPER_HOME)\src\c\include;$(ZOOKEEPER_HOME)\src\c;$(ZOOKEEPER_HOME)\src\c\generated"
+-                PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;THREADED"
+-                RuntimeLibrary="2"
+-                EnableFunctionLevelLinking="true"
+-                UsePrecompiledHeader="0"
+-                WarningLevel="3"
+-                DebugInformationFormat="3"
+-                CompileAs="1"
+-            />
+-            <Tool
+-                Name="VCManagedResourceCompilerTool"
+-            />
+-            <Tool
+-                Name="VCResourceCompilerTool"
+-            />
+-            <Tool
+-                Name="VCPreLinkEventTool"
+-            />
+-            <Tool
+-                Name="VCLinkerTool"
+-                AdditionalDependencies="Ws2_32.lib zookeeper.lib"
+-                LinkIncremental="1"
+-                AdditionalLibraryDirectories="$(ZOOKEEPER_HOME)\src\c\Release"
+-                GenerateDebugInformation="true"
+-                SubSystem="1"
+-                OptimizeReferences="2"
+-                EnableCOMDATFolding="2"
+-                TargetMachine="1"
+-            />
+-            <Tool
+-                Name="VCALinkTool"
+-            />
+-            <Tool
+-                Name="VCManifestTool"
+-            />
+-            <Tool
+-                Name="VCXDCMakeTool"
+-            />
+-            <Tool
+-                Name="VCBscMakeTool"
+-            />
+-            <Tool
+-                Name="VCFxCopTool"
+-            />
+-            <Tool
+-                Name="VCAppVerifierTool"
+-            />
+-            <Tool
+-                Name="VCPostBuildEventTool"
+-            />
+-        </Configuration>
+-    </Configurations>
+-    <References>
+-    </References>
+-    <Files>
+-        <Filter
+-            Name="Source Files"
+-            Filter="cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx"
+-            UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
+-            >
+-            <File
+-                RelativePath=".\src\cli.c"
+-                >
+-                <FileConfiguration
+-                    Name="Debug|Win32"
+-                    >
+-                    <Tool
+-                        Name="VCCLCompilerTool"
+-                        AdditionalIncludeDirectories="$(ZOOKEEPER_HOME)\src\c\include;$(ZOOKEEPER_HOME)\src\c;$(ZOOKEEPER_HOME)\src\c\src"
+-                    />
+-                </FileConfiguration>
+-            </File>
+-        </Filter>
+-        <Filter
+-            Name="Header Files"
+-            Filter="h;hpp;hxx;hm;inl;inc;xsd"
+-            UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
+-            >
+-        </Filter>
+-        <Filter
+-            Name="Resource Files"
+-            Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
+-            UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
+-            >
+-        </Filter>
+-    </Files>
+-    <Globals>
+-    </Globals>
+-</VisualStudioProject>
+diff --git c/src/c/README w/src/c/README
+index 0b31d0a7a..4f1ad7abf 100644
+--- c/src/c/README
++++ w/src/c/README
+@@ -71,6 +71,28 @@ tar downloaded from Apache please skip to step 2.
+    default only HTML documentation is generated.  For information on
+    other document formats please use "./configure --help"
+ 
++Alternatively you can use the CMake build system. On Windows, this is required.
++Follow steps 1 and 2 above, and then continue here.
++
++1) do a "cmake [OPTIONS]" to generate the makefile or msbuild files (the correct
++   build system will be generated based on your platform). Some options from above
++   are supported:
++   -DCMAKE_BUILD_TYPE  Debug by default, Release enables optimzation etc.
++   -DWANT_SYNCAPI      ON by default, OFF disables the Sync API support
++   -DWANT_CPPUNIT      ON except on Windows, OFF disables the tests
++   -DBUILD_SHARED_LIBS not yet supported, only static libraries are built
++   other CMake options see "cmake --help" for generic options, such as generator
++
++2) do a "cmake --build ." to build the default targets. Alternatively you can
++   invoke "make" or "msbuild" manually. If the tests were enabled, use "ctest -V"
++   to run them.
++
++Current limitations of the CMake build system include lack of Solaris support,
++no shared library option, no explicitly exported symbols (all are exported by
++default), no versions on the libraries, and no documentation generation.
++Features of CMake include a single, easily consumed cross-platform build system
++to generate the ZooKeeper C Client libraries for any project, with little to no
++configuration.
+ 
+ USING THE CLIENT
+ 
+diff --git c/src/c/cmake_config.h.in w/src/c/cmake_config.h.in
+new file mode 100644
+index 000000000..55efd8a86
+--- /dev/null
++++ w/src/c/cmake_config.h.in
+@@ -0,0 +1,154 @@
++/**
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef CONFIG_H_
++#define CONFIG_H_
++
++/* Define to 1 if you have the <arpa/inet.h> header file. */
++#cmakedefine HAVE_ARPA_INET_H 1
++
++/* Define to 1 if you have the <dlfcn.h> header file. */
++#cmakedefine HAVE_DLFCN_H 1
++
++/* Define to 1 if you have the <fcntl.h> header file. */
++#cmakedefine HAVE_FCNTL_H 1
++
++/* Define to 1 if you have the file `generated/zookeeper.jute.c'. */
++#cmakedefine HAVE_GENERATED_ZOOKEEPER_JUTE_C 1
++
++/* Define to 1 if you have the file `generated/zookeeper.jute.h'. */
++#cmakedefine HAVE_GENERATED_ZOOKEEPER_JUTE_H 1
++
++/* Define to 1 if you have the `getcwd' function. */
++#cmakedefine HAVE_GETCWD 1
++
++/* Define to 1 if you have the `gethostbyname' function. */
++#cmakedefine HAVE_GETHOSTBYNAME 1
++
++/* Define to 1 if you have the `gethostname' function. */
++#cmakedefine HAVE_GETHOSTNAME 1
++
++/* Define to 1 if you have the `getlogin' function. */
++#cmakedefine HAVE_GETLOGIN 1
++
++/* Define to 1 if you have the `getpwuid_r' function. */
++#cmakedefine HAVE_GETPWUID_R 1
++
++/* Define to 1 if you have the `gettimeofday' function. */
++#cmakedefine HAVE_GETTIMEOFDAY 1
++
++/* Define to 1 if you have the `getuid' function. */
++#cmakedefine HAVE_GETUID 1
++
++/* Define to 1 if you have the <inttypes.h> header file. */
++#cmakedefine HAVE_INTTYPES_H 1
++
++/* Define to 1 if you have the `rt' library (-lrt). */
++#cmakedefine HAVE_LIBRT 1
++
++/* Define to 1 if you have the `memmove' function. */
++#cmakedefine HAVE_MEMMOVE 1
++
++/* Define to 1 if you have the <memory.h> header file. */
++#cmakedefine HAVE_MEMORY_H 1
++
++/* Define to 1 if you have the `memset' function. */
++#cmakedefine HAVE_MEMSET 1
++
++/* Define to 1 if you have the <netdb.h> header file. */
++#cmakedefine HAVE_NETDB_H 1
++
++/* Define to 1 if you have the <netinet/in.h> header file. */
++#cmakedefine HAVE_NETINET_IN_H 1
++
++/* Define to 1 if you have the `poll' function. */
++#cmakedefine HAVE_POLL 1
++
++/* Define to 1 if you have the `socket' function. */
++#cmakedefine HAVE_SOCKET 1
++
++/* Define to 1 if you have the <stdint.h> header file. */
++#cmakedefine HAVE_STDINT_H 1
++
++/* Define to 1 if you have the <stdlib.h> header file. */
++#cmakedefine HAVE_STDLIB_H 1
++
++/* Define to 1 if you have the `strchr' function. */
++#cmakedefine HAVE_STRCHR 1
++
++/* Define to 1 if you have the `strdup' function. */
++#cmakedefine HAVE_STRDUP 1
++
++/* Define to 1 if you have the `strerror' function. */
++#cmakedefine HAVE_STRERROR 1
++
++/* Define to 1 if you have the <strings.h> header file. */
++#cmakedefine HAVE_STRINGS_H 1
++
++/* Define to 1 if you have the <string.h> header file. */
++#cmakedefine HAVE_STRING_H 1
++
++/* Define to 1 if you have the `strtol' function. */
++#cmakedefine HAVE_STRTOL 1
++
++/* Define to 1 if you have the <sys/socket.h> header file. */
++#cmakedefine HAVE_SYS_SOCKET_H 1
++
++/* Define to 1 if you have the <sys/stat.h> header file. */
++#cmakedefine HAVE_SYS_STAT_H 1
++
++/* Define to 1 if you have the <sys/time.h> header file. */
++#cmakedefine HAVE_SYS_TIME_H 1
++
++/* Define to 1 if you have the <sys/types.h> header file. */
++#cmakedefine HAVE_SYS_TYPES_H 1
++
++/* Define to 1 if you have the <sys/utsname.h> header file. */
++#cmakedefine HAVE_SYS_UTSNAME_H 1
++
++/* Define to 1 if you have the <unistd.h> header file. */
++#cmakedefine HAVE_UNISTD_H 1
++
++/* Define to 1 if IPv6 support is available. */
++#cmakedefine ZOO_IPV6_ENABLED 1
++
++/* poll() second argument type */
++#define POLL_NFDS_TYPE nfds_t
++
++/* Name of package */
++#define PACKAGE "${PROJECT_NAME}"
++
++/* Define to the address where bug reports for this package should be sent. */
++#define PACKAGE_BUGREPORT "${email}"
++
++/* Define to the full name of this package. */
++#define PACKAGE_NAME "${description}"
++
++/* Define to the full name and version of this package. */
++#define PACKAGE_STRING "${description} ${PROJECT_VERSION}"
++
++/* Define to the one symbol short name of this package. */
++#define PACKAGE_TARNAME "${PROJECT_NAME}"
++
++/* Define to the version of this package. */
++#define PACKAGE_VERSION "${PROJECT_VERSION}"
++
++/* Version number of package */
++#define VERSION "${PROJECT_VERSION}"
++
++#endif
+diff --git c/src/c/include/recordio.h w/src/c/include/recordio.h
+index 90f458b4a..eed5f99c2 100644
+--- c/src/c/include/recordio.h
++++ w/src/c/include/recordio.h
+@@ -19,11 +19,12 @@
+ #define __RECORDIO_H__
+ 
+ #include <sys/types.h>
+-#ifndef WIN32
+-#define STRUCT_INITIALIZER(l,r) .l = r
+-#else
+-#define STRUCT_INITIALIZER(l,r)  r
++#include <stdint.h> /* for int64_t */
++#ifdef WIN32
+ #include "winconfig.h"
++#define STRUCT_INITIALIZER(l,r)  r
++#else
++#define STRUCT_INITIALIZER(l,r) .l = r
+ #endif
+ 
+ #ifdef __cplusplus
+diff --git c/src/c/include/winconfig.h w/src/c/include/winconfig.h
+index 06c377e93..c273a932a 100644
+--- c/src/c/include/winconfig.h
++++ w/src/c/include/winconfig.h
+@@ -1,196 +1,15 @@
+-/* Define to 1 if you have the <arpa/inet.h> header file. */
+-#undef HAVE_ARPA_INET_H
+-
+-/* Define to 1 if you have the <dlfcn.h> header file. */
+-#undef HAVE_DLFCN_H
+-
+-/* Define to 1 if you have the <fcntl.h> header file. */
+-#undef HAVE_FCNTL_H
+-
+-/* Define to 1 if you have the file `generated/zookeeper.jute.c'. */
+-#define HAVE_GENERATED_ZOOKEEPER_JUTE_C 1
+-
+-/* Define to 1 if you have the file `generated/zookeeper.jute.h'. */
+-#define HAVE_GENERATED_ZOOKEEPER_JUTE_H 1
+-
+-/* Define to 1 if you have the `getcwd' function. */
+-#undef HAVE_GETCWD
+-
+-/* Define to 1 if you have the `gethostbyname' function. */
+-#undef HAVE_GETHOSTBYNAME
+-
+-/* Define to 1 if you have the `gethostname' function. */
+-#define HAVE_GETHOSTNAME 1
+-
+-/* Define to 1 if you have the `getlogin' function. */
+-#undef HAVE_GETLOGIN
+-
+-/* Define to 1 if you have the `getpwuid_r' function. */
+-#undef HAVE_GETPWUID_R
+-
+-/* Define to 1 if you have the `gettimeofday' function. */
+-#undef HAVE_GETTIMEOFDAY
+-
+-/* Define to 1 if you have the `getuid' function. */
+-#undef HAVE_GETUID
+-
+-/* Define to 1 if you have the <inttypes.h> header file. */
+-#undef HAVE_INTTYPES_H
+-
+-/* Define to 1 if you have the `memmove' function. */
+-#undef HAVE_MEMMOVE
+-
+-/* Define to 1 if you have the <memory.h> header file. */
+-#undef HAVE_MEMORY_H
+-
+-/* Define to 1 if you have the `memset' function. */
+-#undef HAVE_MEMSET
+-
+-/* Define to 1 if you have the <netdb.h> header file. */
+-#undef HAVE_NETDB_H
+-
+-/* Define to 1 if you have the <netinet/in.h> header file. */
+-#undef HAVE_NETINET_IN_H
+-
+-/* Define to 1 if you have the `poll' function. */
+-#undef HAVE_POLL
+-
+-/* Define to 1 if you have the `socket' function. */
+-#undef HAVE_SOCKET
+-
+-/* Define to 1 if you have the <stdint.h> header file. */
+-#undef HAVE_STDINT_H
+-
+-/* Define to 1 if you have the <stdlib.h> header file. */
+-#define HAVE_STDLIB_H 1
+-
+-/* Define to 1 if you have the `strchr' function. */
+-#define HAVE_STRCHR 1
+-
+-/* Define to 1 if you have the `strdup' function. */
+-#define HAVE_STRDUP 1
+-
+-/* Define to 1 if you have the `strerror' function. */
+-#define HAVE_STRERROR 1
+-
+-/* Define to 1 if you have the <strings.h> header file. */
+-#undef HAVE_STRINGS_H
+-
+-/* Define to 1 if you have the <string.h> header file. */
+-#undef HAVE_STRING_H
+-
+-/* Define to 1 if you have the `strtol' function. */
+-#undef HAVE_STRTOL
+-
+-/* Define to 1 if you have the <sys/socket.h> header file. */
+-#undef HAVE_SYS_SOCKET_H
+-
+-/* Define to 1 if you have the <sys/stat.h> header file. */
+-#undef HAVE_SYS_STAT_H
+-
+-/* Define to 1 if you have the <sys/time.h> header file. */
+-#undef HAVE_SYS_TIME_H
+-
+-/* Define to 1 if you have the <sys/types.h> header file. */
+-#undef HAVE_SYS_TYPES_H
+-
+-/* Define to 1 if you have the <sys/utsname.h> header file. */
+-#undef HAVE_SYS_UTSNAME_H
+-
+-/* Define to 1 if you have the <unistd.h> header file. */
+-#undef HAVE_UNISTD_H
+-
+-/* Define to the sub-directory in which libtool stores uninstalled libraries.
+-   */
+-#define LT_OBJDIR
+-
+-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+-/* #undef NO_MINUS_C_MINUS_O */
+-
+-/* Name of package */
+-#define PACKAGE "c-client-src"
+-
+-/* Define to the address where bug reports for this package should be sent. */
+-#define PACKAGE_BUGREPORT "user@zookeeper.apache.org"
+-
+-/* Define to the full name of this package. */
+-#define PACKAGE_NAME "zookeeper C client"
+-
+-/* Define to the full name and version of this package. */
+-#define PACKAGE_STRING "zookeeper C client 3.4.8 win32"
+-
+-/* Define to the one symbol short name of this package. */
+-#define PACKAGE_TARNAME "c-client-src"
+-
+-/* Define to the home page for this package. */
+-#define PACKAGE_URL ""
+-
+-/* Define to the version of this package. */
+-#define PACKAGE_VERSION "3.4.8"
+-
+-/* poll() second argument type */
+-#define POLL_NFDS_TYPE
+-
+-/* Define to 1 if you have the ANSI C header files. */
+-#define STDC_HEADERS
+-
+-/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+-#define TIME_WITH_SYS_TIME
+-
+-/* Version number of package */
+-#define VERSION "3.4.8"
+-
+-/* Define to empty if `const' does not conform to ANSI C. */
+-/* #undef const */
++#ifndef WINCONFIG_H_
++#define WINCONFIG_H_
+ 
+ /* Define to `__inline__' or `__inline' if that's what the C compiler
+    calls it, or to nothing if 'inline' is not supported under any name.  */
+ #ifndef __cplusplus
+ #define inline __inline
+ #endif
+-#ifdef WIN32
++
+ #define __attribute__(x)
+ #define __func__ __FUNCTION__
+ 
+-#ifndef _WIN32_WINNT_NT4
+-#define _WIN32_WINNT_NT4 0x0400
+-#endif
+-
+-#define NTDDI_VERSION _WIN32_WINNT_NT4
+-#define _WIN32_WINNT _WIN32_WINNT_NT4
+-
+-#define _CRT_SECURE_NO_WARNINGS
+-#define WIN32_LEAN_AND_MEAN
+-#include <Windows.h>
+-#include <Winsock2.h>
+-#include <winstdint.h>
+-#include <process.h>
+-#include <ws2tcpip.h>
+-#undef AF_INET6
+-#undef min
+-#undef max
+-
+-#include <errno.h>
+-
+-#define strtok_r strtok_s
+-#define localtime_r(a,b) localtime_s(b,a)
+-#define get_errno() errno=GetLastError()
+-#define random rand
+-#define snprintf _snprintf
+-
+-#define ACL ZKACL  // Conflict with windows API
+-
+-#define EAI_ADDRFAMILY WSAEINVAL
+-#define EHOSTDOWN EPIPE
+-#define ESTALE ENODEV
+-
+-#ifndef EWOULDBLOCK
+-#define EWOULDBLOCK WSAEWOULDBLOCK
+-#endif
+-
+-#ifndef EINPROGRESS
+-#define EINPROGRESS WSAEINPROGRESS
+-#endif
+-
+-typedef int pid_t;
++#define ACL ZKACL /* Conflict with windows API */
++
+ #endif
+diff --git c/src/c/include/winstdint.h w/src/c/include/winstdint.h
+deleted file mode 100644
+index d02608a59..000000000
+--- c/src/c/include/winstdint.h
++++ /dev/null
+@@ -1,247 +0,0 @@
+-// ISO C9x  compliant stdint.h for Microsoft Visual Studio
+-// Based on ISO/IEC 9899:TC2 Committee draft (May 6, 2005) WG14/N1124 
+-// 
+-//  Copyright (c) 2006-2008 Alexander Chemeris
+-// 
+-// Redistribution and use in source and binary forms, with or without
+-// modification, are permitted provided that the following conditions are met:
+-// 
+-//   1. Redistributions of source code must retain the above copyright notice,
+-//      this list of conditions and the following disclaimer.
+-// 
+-//   2. Redistributions in binary form must reproduce the above copyright
+-//      notice, this list of conditions and the following disclaimer in the
+-//      documentation and/or other materials provided with the distribution.
+-// 
+-//   3. The name of the author may be used to endorse or promote products
+-//      derived from this software without specific prior written permission.
+-// 
+-// THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+-// WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+-// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+-// EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+-// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+-// OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
+-// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+-// OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+-// ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-// 
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#ifndef _MSC_VER // [
+-#error "Use this header only with Microsoft Visual C++ compilers!"
+-#endif // _MSC_VER ]
+-
+-#ifndef _MSC_STDINT_H_ // [
+-#define _MSC_STDINT_H_
+-
+-#if _MSC_VER > 1000
+-#pragma once
+-#endif
+-
+-#include <limits.h>
+-
+-// For Visual Studio 6 in C++ mode and for many Visual Studio versions when
+-// compiling for ARM we should wrap <wchar.h> include with 'extern "C++" {}'
+-// or compiler give many errors like this:
+-//   error C2733: second C linkage of overloaded function 'wmemchr' not allowed
+-#ifdef __cplusplus
+-extern "C" {
+-#endif
+-#  include <wchar.h>
+-#ifdef __cplusplus
+-}
+-#endif
+-
+-// Define _W64 macros to mark types changing their size, like intptr_t.
+-#ifndef _W64
+-#  if !defined(__midl) && (defined(_X86_) || defined(_M_IX86)) && _MSC_VER >= 1300
+-#     define _W64 __w64
+-#  else
+-#     define _W64
+-#  endif
+-#endif
+-
+-
+-// 7.18.1 Integer types
+-
+-// 7.18.1.1 Exact-width integer types
+-
+-// Visual Studio 6 and Embedded Visual C++ 4 doesn't
+-// realize that, e.g. char has the same size as __int8
+-// so we give up on __intX for them.
+-#if (_MSC_VER < 1300)
+-   typedef signed char       int8_t;
+-   typedef signed short      int16_t;
+-   typedef signed int        int32_t;
+-   typedef unsigned char     uint8_t;
+-   typedef unsigned short    uint16_t;
+-   typedef unsigned int      uint32_t;
+-#else
+-   typedef signed __int8     int8_t;
+-   typedef signed __int16    int16_t;
+-   typedef signed __int32    int32_t;
+-   typedef unsigned __int8   uint8_t;
+-   typedef unsigned __int16  uint16_t;
+-   typedef unsigned __int32  uint32_t;
+-#endif
+-typedef signed __int64       int64_t;
+-typedef unsigned __int64     uint64_t;
+-
+-
+-// 7.18.1.2 Minimum-width integer types
+-typedef int8_t    int_least8_t;
+-typedef int16_t   int_least16_t;
+-typedef int32_t   int_least32_t;
+-typedef int64_t   int_least64_t;
+-typedef uint8_t   uint_least8_t;
+-typedef uint16_t  uint_least16_t;
+-typedef uint32_t  uint_least32_t;
+-typedef uint64_t  uint_least64_t;
+-
+-// 7.18.1.3 Fastest minimum-width integer types
+-typedef int8_t    int_fast8_t;
+-typedef int16_t   int_fast16_t;
+-typedef int32_t   int_fast32_t;
+-typedef int64_t   int_fast64_t;
+-typedef uint8_t   uint_fast8_t;
+-typedef uint16_t  uint_fast16_t;
+-typedef uint32_t  uint_fast32_t;
+-typedef uint64_t  uint_fast64_t;
+-
+-// 7.18.1.4 Integer types capable of holding object pointers
+-#ifdef _WIN64 // [
+-   typedef signed __int64    intptr_t;
+-   typedef unsigned __int64  uintptr_t;
+-#else // _WIN64 ][
+-   typedef _W64 signed int   intptr_t;
+-   typedef _W64 unsigned int uintptr_t;
+-#endif // _WIN64 ]
+-
+-// 7.18.1.5 Greatest-width integer types
+-typedef int64_t   intmax_t;
+-typedef uint64_t  uintmax_t;
+-
+-
+-// 7.18.2 Limits of specified-width integer types
+-
+-#if !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS) // [   See footnote 220 at page 257 and footnote 221 at page 259
+-
+-// 7.18.2.1 Limits of exact-width integer types
+-#define INT8_MIN     ((int8_t)_I8_MIN)
+-#define INT8_MAX     _I8_MAX
+-#define INT16_MIN    ((int16_t)_I16_MIN)
+-#define INT16_MAX    _I16_MAX
+-#define INT32_MIN    ((int32_t)_I32_MIN)
+-#define INT32_MAX    _I32_MAX
+-#define INT64_MIN    ((int64_t)_I64_MIN)
+-#define INT64_MAX    _I64_MAX
+-#define UINT8_MAX    _UI8_MAX
+-#define UINT16_MAX   _UI16_MAX
+-#define UINT32_MAX   _UI32_MAX
+-#define UINT64_MAX   _UI64_MAX
+-
+-// 7.18.2.2 Limits of minimum-width integer types
+-#define INT_LEAST8_MIN    INT8_MIN
+-#define INT_LEAST8_MAX    INT8_MAX
+-#define INT_LEAST16_MIN   INT16_MIN
+-#define INT_LEAST16_MAX   INT16_MAX
+-#define INT_LEAST32_MIN   INT32_MIN
+-#define INT_LEAST32_MAX   INT32_MAX
+-#define INT_LEAST64_MIN   INT64_MIN
+-#define INT_LEAST64_MAX   INT64_MAX
+-#define UINT_LEAST8_MAX   UINT8_MAX
+-#define UINT_LEAST16_MAX  UINT16_MAX
+-#define UINT_LEAST32_MAX  UINT32_MAX
+-#define UINT_LEAST64_MAX  UINT64_MAX
+-
+-// 7.18.2.3 Limits of fastest minimum-width integer types
+-#define INT_FAST8_MIN    INT8_MIN
+-#define INT_FAST8_MAX    INT8_MAX
+-#define INT_FAST16_MIN   INT16_MIN
+-#define INT_FAST16_MAX   INT16_MAX
+-#define INT_FAST32_MIN   INT32_MIN
+-#define INT_FAST32_MAX   INT32_MAX
+-#define INT_FAST64_MIN   INT64_MIN
+-#define INT_FAST64_MAX   INT64_MAX
+-#define UINT_FAST8_MAX   UINT8_MAX
+-#define UINT_FAST16_MAX  UINT16_MAX
+-#define UINT_FAST32_MAX  UINT32_MAX
+-#define UINT_FAST64_MAX  UINT64_MAX
+-
+-// 7.18.2.4 Limits of integer types capable of holding object pointers
+-#ifdef _WIN64 // [
+-#  define INTPTR_MIN   INT64_MIN
+-#  define INTPTR_MAX   INT64_MAX
+-#  define UINTPTR_MAX  UINT64_MAX
+-#else // _WIN64 ][
+-#  define INTPTR_MIN   INT32_MIN
+-#  define INTPTR_MAX   INT32_MAX
+-#  define UINTPTR_MAX  UINT32_MAX
+-#endif // _WIN64 ]
+-
+-// 7.18.2.5 Limits of greatest-width integer types
+-#define INTMAX_MIN   INT64_MIN
+-#define INTMAX_MAX   INT64_MAX
+-#define UINTMAX_MAX  UINT64_MAX
+-
+-// 7.18.3 Limits of other integer types
+-
+-#ifdef _WIN64 // [
+-#  define PTRDIFF_MIN  _I64_MIN
+-#  define PTRDIFF_MAX  _I64_MAX
+-#else  // _WIN64 ][
+-#  define PTRDIFF_MIN  _I32_MIN
+-#  define PTRDIFF_MAX  _I32_MAX
+-#endif  // _WIN64 ]
+-
+-#define SIG_ATOMIC_MIN  INT_MIN
+-#define SIG_ATOMIC_MAX  INT_MAX
+-
+-#ifndef SIZE_MAX // [
+-#  ifdef _WIN64 // [
+-#     define SIZE_MAX  _UI64_MAX
+-#  else // _WIN64 ][
+-#     define SIZE_MAX  _UI32_MAX
+-#  endif // _WIN64 ]
+-#endif // SIZE_MAX ]
+-
+-// WCHAR_MIN and WCHAR_MAX are also defined in <wchar.h>
+-#ifndef WCHAR_MIN // [
+-#  define WCHAR_MIN  0
+-#endif  // WCHAR_MIN ]
+-#ifndef WCHAR_MAX // [
+-#  define WCHAR_MAX  _UI16_MAX
+-#endif  // WCHAR_MAX ]
+-
+-#define WINT_MIN  0
+-#define WINT_MAX  _UI16_MAX
+-
+-#endif // __STDC_LIMIT_MACROS ]
+-
+-
+-// 7.18.4 Limits of other integer types
+-
+-#if !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS) // [   See footnote 224 at page 260
+-
+-// 7.18.4.1 Macros for minimum-width integer constants
+-
+-#define INT8_C(val)  val##i8
+-#define INT16_C(val) val##i16
+-#define INT32_C(val) val##i32
+-#define INT64_C(val) val##i64
+-
+-#define UINT8_C(val)  val##ui8
+-#define UINT16_C(val) val##ui16
+-#define UINT32_C(val) val##ui32
+-#define UINT64_C(val) val##ui64
+-
+-// 7.18.4.2 Macros for greatest-width integer constants
+-#define INTMAX_C   INT64_C
+-#define UINTMAX_C  UINT64_C
+-
+-#endif // __STDC_CONSTANT_MACROS ]
+-
+-
+-#endif // _MSC_STDINT_H_ ]
+diff --git c/src/c/include/zookeeper.h w/src/c/include/zookeeper.h
+index 7d1066a93..b0bb09e3f 100644
+--- c/src/c/include/zookeeper.h
++++ w/src/c/include/zookeeper.h
+@@ -20,12 +20,18 @@
+ #define ZOOKEEPER_H_
+ 
+ #include <stdlib.h>
++
++/* we must not include config.h as a public header */
+ #ifndef WIN32
+ #include <sys/socket.h>
+ #include <sys/time.h>
+-#else
+-#include "winconfig.h"
+ #endif
++
++#ifdef WIN32
++#include <winsock2.h> /* must always be included before ws2tcpip.h */
++#include <ws2tcpip.h> /* for struct sock_addr and socklen_t */
++#endif
++
+ #include <stdio.h>
+ #include <ctype.h>
+ 
+diff --git c/src/c/src/load_gen.c w/src/c/src/load_gen.c
+index 72b595076..0410ca137 100644
+--- c/src/c/src/load_gen.c
++++ w/src/c/src/load_gen.c
+@@ -19,13 +19,9 @@
+ #include <zookeeper.h>
+ #include "zookeeper_log.h"
+ #include <errno.h>
+-#ifndef WIN32
+ #ifdef THREADED 
+ #include <pthread.h>
+ #endif
+-#else
+-#include "win32port.h"
+-#endif
+ #include <string.h>
+ #include <stdlib.h>
+ 
+diff --git c/src/c/src/mt_adaptor.c w/src/c/src/mt_adaptor.c
+index 7dc78789f..52d86d5d9 100644
+--- c/src/c/src/mt_adaptor.c
++++ w/src/c/src/mt_adaptor.c
+@@ -19,7 +19,7 @@
+ #define THREADED
+ #endif
+ 
+-#ifndef DLL_EXPORT
++#if !defined(DLL_EXPORT) && !defined(USE_STATIC_LIB)
+ #  define USE_STATIC_LIB
+ #endif
+ 
+@@ -373,8 +373,7 @@ void *do_io(void *v)
+         int interest;
+         int timeout;
+         int maxfd=1;
+-        int rc;
+-        
++
+         zookeeper_interest(zh, &fd, &interest, &tv);
+         if (fd != -1) {
+             fds[1].fd=fd;
+@@ -436,7 +435,7 @@ void *do_io(void *v)
+        }
+ #endif
+         // dispatch zookeeper events
+-        rc = zookeeper_process(zh, interest);
++        zookeeper_process(zh, interest);
+         // check the current state of the zhandle and terminate 
+         // if it is_unrecoverable()
+         if(is_unrecoverable(zh))
+@@ -483,25 +482,9 @@ int32_t inc_ref_counter(zhandle_t* zh,int i)
  int32_t fetch_and_add(volatile int32_t* operand, int incr)
  {
  #ifndef WIN32
@@ -15,5 +1218,536 @@ index 7dc7878..9c62991 100644
 -   return result;
 +    return __sync_fetch_and_add(operand, incr);
  #else
-     volatile int32_t result;
-     _asm
+-    volatile int32_t result;
+-    _asm
+-    {
+-        mov eax, operand; //eax = v;
+-       mov ebx, incr; // ebx = i;
+-        mov ecx, 0x0; // ecx = 0;
+-        lock xadd dword ptr [eax], ecx; 
+-       lock xadd dword ptr [eax], ebx; 
+-        mov result, ecx; // result = ebx;        
+-     }
+-     return result;    
++    return InterlockedExchangeAdd(operand, incr);
+ #endif
+ }
+ 
+diff --git c/src/c/src/recordio.c w/src/c/src/recordio.c
+index 41797fbc9..e5944d6be 100644
+--- c/src/c/src/recordio.c
++++ w/src/c/src/recordio.c
+@@ -23,6 +23,8 @@
+ #include <stdlib.h>
+ #ifndef WIN32
+ #include <netinet/in.h>
++#else
++#include <winsock2.h> /* for _htonl and _ntohl */
+ #endif
+ 
+ void deallocate_String(char **s)
+diff --git c/src/c/src/winport.c w/src/c/src/winport.c
+index aeef3a84e..3592ea149 100644
+--- c/src/c/src/winport.c
++++ w/src/c/src/winport.c
+@@ -18,8 +18,10 @@
+ 
+ #ifdef WIN32
+ #include "winport.h"
+-#include <winsock2.h>
+-#include <ws2tcpip.h>
++#include <stdlib.h>
++#include <stdint.h> /* for int64_t */
++#include <winsock2.h> /* must always be included before ws2tcpip.h */
++#include <ws2tcpip.h> /* for SOCKET */
+ 
+ int pthread_mutex_lock(pthread_mutex_t* _mutex ){      
+        int rc = WaitForSingleObject( *_mutex,    // handle to mutex
+@@ -255,6 +257,14 @@ int pthread_setspecific(pthread_key_t key, const void *value)
+        return ((rc != 0 ) ? 0 : GetLastError());
+ }
+ 
++int gettimeofday(struct timeval *tp, void *tzp) {
++        int64_t now = 0;
++        if (tzp != 0) { errno = EINVAL; return -1; }
++        GetSystemTimeAsFileTime( (LPFILETIME)&now );
++        tp->tv_sec = (long)(now / 10000000 - 11644473600LL);
++        tp->tv_usec = (now / 10) % 1000000;
++        return 0;
++}
+ 
+ int close(SOCKET fd) {
+         return closesocket(fd);
+diff --git c/src/c/src/winport.h w/src/c/src/winport.h
+index 32272c03d..da6028cd3 100644
+--- c/src/c/src/winport.h
++++ w/src/c/src/winport.h
+@@ -25,9 +25,31 @@
+ #define WINPORT_H_
+ 
+ #ifdef WIN32
+-#include <winconfig.h>
++#include "winconfig.h"
++
++#define _WINSOCK_DEPRECATED_NO_WARNINGS
++#include <winsock2.h> /* must always be included before ws2tcpip.h */
++#include <ws2tcpip.h> /* for struct sock_addr used in zookeeper.h */
++
++/* POSIX names are deprecated, use ISO conformant names instead. */
++#define strdup _strdup
++#define getcwd _getcwd
++#define getpid _getpid
++
++/* Windows "secure" versions of POSIX reentrant functions */
++#define strtok_r strtok_s
++#define localtime_r(a,b) localtime_s(b,a)
++
++/* After this version of MSVC, snprintf became a defined function,
++   and so cannot be redefined, nor can #ifndef be used to guard it. */
++#if ((defined(_MSC_VER) && _MSC_VER < 1900) || !defined(_MSC_VER))
++#define snprintf _snprintf
++#endif
++
++
+ #include <errno.h>
+ #include <process.h>
++#include <stdint.h> /* for int64_t */
+ #include <stdlib.h>
+ #include <malloc.h>
+ 
+@@ -105,14 +127,7 @@ int pthread_key_delete(pthread_key_t key);
+ void *pthread_getspecific(pthread_key_t key);
+ int pthread_setspecific(pthread_key_t key, const void *value);
+ 
+-inline int gettimeofday(struct timeval *tp, void *tzp) {
+-        int64_t now = 0;
+-        if (tzp != 0) { errno = EINVAL; return -1; }
+-        GetSystemTimeAsFileTime( (LPFILETIME)&now );
+-        tp->tv_sec = (long)(now / 10000000 - 11644473600LL);
+-        tp->tv_usec = (now / 10) % 1000000;
+-        return 0;
+-}
++int gettimeofday(struct timeval *tp, void *tzp);
+ int close(SOCKET fd);
+ int Win32WSAStartup();
+ void Win32WSACleanup();
+diff --git c/src/c/src/zk_log.c w/src/c/src/zk_log.c
+index 37ff856ca..6b4fdfa2b 100644
+--- c/src/c/src/zk_log.c
++++ w/src/c/src/zk_log.c
+@@ -16,13 +16,16 @@
+  * limitations under the License.
+  */
+ 
+-#ifndef DLL_EXPORT
++#if !defined(DLL_EXPORT) && !defined(USE_STATIC_LIB)
+ #  define USE_STATIC_LIB
+ #endif
+ 
+ #include "zookeeper_log.h"
+ #ifndef WIN32
+ #include <unistd.h>
++#else
++typedef DWORD pid_t;
++#include <process.h> /* for getpid */
+ #endif
+ 
+ #include <stdarg.h>
+diff --git c/src/c/src/zookeeper.c w/src/c/src/zookeeper.c
+index 1ba90afa2..9b837f227 100644
+--- c/src/c/src/zookeeper.c
++++ w/src/c/src/zookeeper.c
+@@ -16,7 +16,7 @@
+  * limitations under the License.
+  */
+ 
+-#ifndef DLL_EXPORT
++#if !defined(DLL_EXPORT) && !defined(USE_STATIC_LIB)
+ #  define USE_STATIC_LIB
+ #endif
+ 
+@@ -24,6 +24,7 @@
+ #define USE_IPV6
+ #endif
+ 
++#include "config.h"
+ #include <zookeeper.h>
+ #include <zookeeper.jute.h>
+ #include <proto.h>
+@@ -41,16 +42,33 @@
+ #include <stdarg.h>
+ #include <limits.h>
+ 
+-#ifndef WIN32
++#ifdef HAVE_SYS_TIME_H
+ #include <sys/time.h>
++#endif
++
++#ifdef HAVE_SYS_SOCKET_H
+ #include <sys/socket.h>
++#endif
++
++#ifdef HAVE_POLL
+ #include <poll.h>
++#endif
++
++#ifdef HAVE_NETINET_IN_H
+ #include <netinet/in.h>
+ #include <netinet/tcp.h>
++#endif
++
++#ifdef HAVE_ARPA_INET_H
+ #include <arpa/inet.h>
++#endif
++
++#ifdef HAVE_NETDB_H
+ #include <netdb.h>
+-#include <unistd.h>
+-#include "config.h"
++#endif
++
++#ifdef HAVE_UNISTD_H
++#include <unistd.h> // needed for _POSIX_MONOTONIC_CLOCK
+ #endif
+ 
+ #ifdef HAVE_SYS_UTSNAME_H
+@@ -61,6 +79,15 @@
+ #include <pwd.h>
+ #endif
+ 
++#ifdef WIN32
++#define random rand /* replace POSIX random with Windows rand */
++#include <process.h> /* for getpid */
++#include <direct.h> /* for getcwd */
++#define EAI_ADDRFAMILY WSAEINVAL /* is this still needed? */
++#define EHOSTDOWN EPIPE
++#define ESTALE ENODEV
++#endif
++
+ #define IF_DEBUG(x) if(logLevel==ZOO_LOG_LEVEL_DEBUG) {x;}
+ 
+ const int ZOOKEEPER_WRITE = 1 << 0;
+@@ -1611,7 +1638,16 @@ int zookeeper_interest(zhandle_t *zh, int *fd, int *interest,
+ #endif
+                 rc = connect(zh->fd, (struct sockaddr*) &zh->addrs[zh->connect_index], sizeof(struct sockaddr_in));
+ #ifdef WIN32
+-                get_errno();
++                errno = GetLastError();
++
++#ifndef EWOULDBLOCK
++#define EWOULDBLOCK WSAEWOULDBLOCK
++#endif
++
++#ifndef EINPROGRESS
++#define EINPROGRESS WSAEINPROGRESS
++#endif
++
+ #if _MSC_VER >= 1600
+                 switch (errno) {
+                 case WSAEWOULDBLOCK:
+diff --git c/src/c/zookeeper.vcproj w/src/c/zookeeper.vcproj
+deleted file mode 100644
+index dc3ab43e3..000000000
+--- c/src/c/zookeeper.vcproj
++++ /dev/null
+@@ -1,300 +0,0 @@
+-???<?xml version="1.0" encoding="UTF-8"?>
+-<VisualStudioProject
+-	ProjectType="Visual C++"
+-	Version="9.00"
+-	Name="zookeeper"
+-	ProjectGUID="{5754FB2B-5EA5-4988-851D-908CA533A626}"
+-	RootNamespace="zookeeper"
+-	Keyword="Win32Proj"
+-	TargetFrameworkVersion="0"
+-	>
+-	<Platforms>
+-		<Platform
+-			Name="Win32"
+-		/>
+-	</Platforms>
+-	<ToolFiles>
+-	</ToolFiles>
+-	<Configurations>
+-		<Configuration
+-			Name="Debug|Win32"
+-			OutputDirectory="Debug"
+-			IntermediateDirectory="Debug"
+-			ConfigurationType="2"
+-			CharacterSet="2"
+-			>
+-			<Tool
+-				Name="VCPreBuildEventTool"
+-			/>
+-			<Tool
+-				Name="VCCustomBuildTool"
+-			/>
+-			<Tool
+-				Name="VCXMLDataGeneratorTool"
+-			/>
+-			<Tool
+-				Name="VCWebServiceProxyGeneratorTool"
+-			/>
+-			<Tool
+-				Name="VCMIDLTool"
+-			/>
+-			<Tool
+-				Name="VCCLCompilerTool"
+-				Optimization="0"
+-				AdditionalIncludeDirectories="$(ZOOKEEPER_HOME)\src\c\include;$(ZOOKEEPER_HOME)\src\c\generated;$(ZOOKEEPER_HOME)\src\c;$(ZOOKEEPER_HOME)\src\c\src\hashtable"
+-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;ZOOKEEPER_EXPORTS;DLL_EXPORT;THREADED"
+-				MinimalRebuild="true"
+-				BasicRuntimeChecks="3"
+-				RuntimeLibrary="3"
+-				UsePrecompiledHeader="0"
+-				WarningLevel="3"
+-				Detect64BitPortabilityProblems="false"
+-				DebugInformationFormat="4"
+-				CompileAs="1"
+-			/>
+-			<Tool
+-				Name="VCManagedResourceCompilerTool"
+-			/>
+-			<Tool
+-				Name="VCResourceCompilerTool"
+-			/>
+-			<Tool
+-				Name="VCPreLinkEventTool"
+-			/>
+-			<Tool
+-				Name="VCLinkerTool"
+-				AdditionalDependencies="ws2_32.lib"
+-				OutputFile="$(OutDir)\$(ProjectName).dll"
+-				LinkIncremental="1"
+-				AdditionalLibraryDirectories=""
+-				GenerateDebugInformation="true"
+-				SubSystem="2"
+-				RandomizedBaseAddress="1"
+-				DataExecutionPrevention="0"
+-				ImportLibrary=".\Debug/zookeeper_d.lib"
+-				TargetMachine="1"
+-			/>
+-			<Tool
+-				Name="VCALinkTool"
+-			/>
+-			<Tool
+-				Name="VCManifestTool"
+-			/>
+-			<Tool
+-				Name="VCXDCMakeTool"
+-			/>
+-			<Tool
+-				Name="VCBscMakeTool"
+-			/>
+-			<Tool
+-				Name="VCFxCopTool"
+-			/>
+-			<Tool
+-				Name="VCAppVerifierTool"
+-			/>
+-			<Tool
+-				Name="VCPostBuildEventTool"
+-			/>
+-		</Configuration>
+-		<Configuration
+-			Name="Release|Win32"
+-			OutputDirectory="Release"
+-			IntermediateDirectory="Release"
+-			ConfigurationType="2"
+-			>
+-			<Tool
+-				Name="VCPreBuildEventTool"
+-			/>
+-			<Tool
+-				Name="VCCustomBuildTool"
+-			/>
+-			<Tool
+-				Name="VCXMLDataGeneratorTool"
+-			/>
+-			<Tool
+-				Name="VCWebServiceProxyGeneratorTool"
+-			/>
+-			<Tool
+-				Name="VCMIDLTool"
+-			/>
+-			<Tool
+-				Name="VCCLCompilerTool"
+-				AdditionalIncludeDirectories="$(ZOOKEEPER_HOME)\src\c\generated;$(ZOOKEEPER_HOME)\src\c;$(ZOOKEEPER_HOME)\src\c\include"
+-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;ZOOKEEPER_EXPORTS;DLL_EXPORT;THREADED"
+-				RuntimeLibrary="2"
+-				UsePrecompiledHeader="0"
+-				WarningLevel="3"
+-				Detect64BitPortabilityProblems="true"
+-				DebugInformationFormat="3"
+-				CompileAs="1"
+-			/>
+-			<Tool
+-				Name="VCManagedResourceCompilerTool"
+-			/>
+-			<Tool
+-				Name="VCResourceCompilerTool"
+-			/>
+-			<Tool
+-				Name="VCPreLinkEventTool"
+-			/>
+-			<Tool
+-				Name="VCLinkerTool"
+-				AdditionalDependencies="WS2_32.lib"
+-				LinkIncremental="2"
+-				GenerateDebugInformation="true"
+-				SubSystem="2"
+-				OptimizeReferences="2"
+-				EnableCOMDATFolding="2"
+-				TargetMachine="1"
+-			/>
+-			<Tool
+-				Name="VCALinkTool"
+-			/>
+-			<Tool
+-				Name="VCManifestTool"
+-			/>
+-			<Tool
+-				Name="VCXDCMakeTool"
+-			/>
+-			<Tool
+-				Name="VCBscMakeTool"
+-			/>
+-			<Tool
+-				Name="VCFxCopTool"
+-			/>
+-			<Tool
+-				Name="VCAppVerifierTool"
+-			/>
+-			<Tool
+-				Name="VCPostBuildEventTool"
+-			/>
+-		</Configuration>
+-	</Configurations>
+-	<References>
+-	</References>
+-	<Files>
+-		<Filter
+-			Name="Header Files"
+-			Filter="h;hpp;hxx;hm;inl;inc;xsd"
+-			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
+-			>
+-			<File
+-				RelativePath=".\src\hashtable\hashtable.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\src\hashtable\hashtable_itr.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\src\hashtable\hashtable_private.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\include\proto.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\include\recordio.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\include\winconfig.h"
+-				>
+-				<FileConfiguration
+-					Name="Debug|Win32"
+-					>
+-					<Tool
+-						Name="VCCLCompilerTool"
+-					/>
+-				</FileConfiguration>
+-			</File>
+-			<File
+-				RelativePath=".\src\winport.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\include\winstdint.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\src\zk_adaptor.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\src\zk_hashtable.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\include\zookeeper.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\generated\zookeeper.jute.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\include\zookeeper_log.h"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\include\zookeeper_version.h"
+-				>
+-			</File>
+-		</Filter>
+-		<Filter
+-			Name="Resource Files"
+-			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx"
+-			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
+-			>
+-		</Filter>
+-		<Filter
+-			Name="Source Files"
+-			Filter="cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx"
+-			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
+-			>
+-			<File
+-				RelativePath=".\src\hashtable\hashtable.c"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\src\hashtable\hashtable_itr.c"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\src\mt_adaptor.c"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\src\recordio.c"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\src\winport.c"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\src\zk_hashtable.c"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\src\zk_log.c"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\src\zookeeper.c"
+-				>
+-			</File>
+-			<File
+-				RelativePath=".\generated\zookeeper.jute.c"
+-				>
+-			</File>
+-		</Filter>
+-		<File
+-			RelativePath=".\ClassDiagram1.cd"
+-			>
+-		</File>
+-	</Files>
+-	<Globals>
+-	</Globals>
+-</VisualStudioProject>
