@@ -14,22 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# THE RESOURCE_ESTIMATOR SOURCE.
-################################
-set(RESOURCE_ESTIMATOR_SRC
-  ${RESOURCE_ESTIMATOR_SRC}
-  fixed.cpp
-  )
-
-# THE AGENT EXECUTABLE.
-#######################
-add_library(${RESOURCE_ESTIMATOR_TARGET} ${MESOS_DEFAULT_LIBRARY_LINKAGE} ${RESOURCE_ESTIMATOR_SRC})
-
-# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
-######################################################
-target_link_libraries(${RESOURCE_ESTIMATOR_TARGET} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
-
-# ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
-####################################################################
-add_dependencies(${MESOS_TARGET} ${RESOURCE_ESTIMATOR_TARGET})
-add_dependencies(${RESOURCE_ESTIMATOR_TARGET} ${MESOS_LIBS_TARGET})
+# THE FIXED RESOURCE ESTIMATOR.
+###############################
+# NOTE: This library uses underscores because of a hard-coded expectation of
+# `src/tests/oversubscription_tests.cpp`.
+add_library(fixed_resource_estimator fixed.cpp)
+target_link_libraries(fixed_resource_estimator PRIVATE mesos)

@@ -14,32 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# THE MESOS TCP CONNECT SOURCE.
-###############################
-set(MESOS_TCP_CONNECT_SRC
-  ${MESOS_TCP_CONNECT_SRC}
-  tcp_connect.cpp
-  )
-
-# INCLUDE DIRECTIVES FOR MESOS TCP CONNECT EXECUTABLE (generates, e.g.,
-# -I/path/to/thing on Linux).
-#######################################################################
-include_directories(${AGENT_INCLUDE_DIRS})
-
-# LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
-# Linux).
-###########################################################################
-link_directories(${AGENT_LIB_DIRS})
-
 # THE MESOS TCP CONNECT EXECUTABLE.
 ###################################
-add_executable(${MESOS_TCP_CONNECT} ${MESOS_TCP_CONNECT_SRC})
-
-# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
-######################################################
-target_link_libraries(${MESOS_TCP_CONNECT} ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
-
-# ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
-####################################################################
-add_dependencies(${MESOS_TARGET} ${MESOS_TCP_CONNECT})
-add_dependencies(${MESOS_TCP_CONNECT} ${MESOS_LIBS_TARGET})
+add_executable(mesos-tcp-connect tcp_connect.cpp)
+target_link_libraries(mesos-tcp-connect PRIVATE mesos)

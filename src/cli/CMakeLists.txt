@@ -16,28 +16,9 @@
 
 # TODO(josephw): Enable this on Windows after sorting out the dependencies.
 if (NOT WIN32)
-
-set(MESOS_EXECUTE_TARGET mesos-execute
-  CACHE STRING "Utility used to schedule and run a command in a mesos cluster.")
-
-# THE MESOS-EXECUTE SOURCE.
-###########################
-set(MESOS_EXECUTE_SRC
-  ${MESOS_EXECUTE_SRC}
-  execute.cpp
-  )
-
-# THE MESOS EXECUTE.
-#######################
-add_executable(${MESOS_EXECUTE_TARGET} ${MESOS_EXECUTE_SRC})
-
-# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
-######################################################
-target_link_libraries(${MESOS_EXECUTE_TARGET} ${MESOS_LIBS_TARGET})
-
-# ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
-####################################################################
-add_dependencies(${MESOS_TARGET} ${MESOS_EXECUTE_TARGET})
-add_dependencies(${MESOS_EXECUTE_TARGET} ${MESOS_LIBS_TARGET})
-
+  # THE MESOS EXECUTE.
+  # Utility used to schedule and run a command in a mesos cluster.
+  ################################################################
+  add_executable(mesos-execute execute.cpp)
+  target_link_libraries(mesos-execute PRIVATE mesos)
 endif ()

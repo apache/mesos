@@ -26,6 +26,7 @@ else ()
 endif ()
 
 option(BUILD_SHARED_LIBS "Build shared libraries." ${DEFAULT_BUILD_SHARED_LIBS})
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 option(ENABLE_JAVA "Build Java components. Warning: this is SLOW." OFF)
 if (ENABLE_JAVA)

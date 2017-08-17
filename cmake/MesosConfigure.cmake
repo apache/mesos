@@ -50,13 +50,6 @@ enable_testing()
 #####################
 include(CompilationConfigure)
 
-if (BUILD_SHARED_LIBS)
-  set(MESOS_DEFAULT_LIBRARY_LINKAGE "SHARED")
-  set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
-else ()
-  set(MESOS_DEFAULT_LIBRARY_LINKAGE "STATIC")
-endif ()
-
 # DEFINE DIRECTORY STRUCTURE MESOS PROJECT.
 ###########################################
 set(MESOS_SRC_DIR     ${CMAKE_SOURCE_DIR}/src)
@@ -93,80 +86,6 @@ add_custom_target(
   make_bin_jni_dir ALL
   DEPENDS make_bin_src_dir
   COMMAND ${CMAKE_COMMAND} -E make_directory ${MESOS_BIN_SRC_DIR}/java/jni)
-
-# CONFIGURE AGENT.
-##################
-include(AgentConfigure)
-
-# CONFIGURE MASTER.
-##################
-include(MasterConfigure)
-
-# CONFIGURE EXAMPLE MODULES AND FRAMEWORKS.
-###########################################
-include(ExamplesConfigure)
-
-# DEFINE MESOS BUILD TARGETS.
-#############################
-set(
-  AGENT_TARGET mesos-agent
-  CACHE STRING "Target we use to refer to agent executable")
-
-set(
-  DEFAULT_EXECUTOR_TARGET mesos-default-executor
-  CACHE STRING "Target for the default executor")
-
-set(
-  MESOS_CONTAINERIZER mesos-containerizer
-  CACHE STRING "Target for containerizer")
-
-set(
-  MESOS_DOCKER_EXECUTOR mesos-docker-executor
-  CACHE STRING "Target for docker executor")
-
-set(
-  MESOS_EXECUTOR mesos-executor
-  CACHE STRING "Target for command executor")
-
-set(
-  MESOS_FETCHER mesos-fetcher
-  CACHE STRING "Target for fetcher")
-
-if (NOT WIN32)
-  set(
-    MESOS_IO_SWITCHBOARD mesos-io-switchboard
-    CACHE STRING "Target for the IO switchboard")
-
-  set(
-    MESOS_CNI_PORT_MAPPER mesos-cni-port-mapper
-    CACHE STRING "Target for the CNI port-mapper plugin")
-endif ()
-
-set(
-  MESOS_MASTER mesos-master
-  CACHE STRING "Target for master")
-
-set(
-  MESOS_TCP_CONNECT mesos-tcp-connect
-  CACHE STRING "Target for tcp-connect")
-
-set(
-  MESOS_USAGE mesos-usage
-  CACHE STRING "Target for usage")
-
-# MESOS LIBRARY CONFIGURATION.
-##############################
-set(
-  MESOS_TARGET mesos-and-binaries
-  CACHE STRING "Target that includes libmesos and all required binaries")
-
-add_custom_target(${MESOS_TARGET} ALL)
-
-set(MESOS_LIBS_TARGET mesos-${MESOS_PACKAGE_VERSION}
-    CACHE STRING "Library of master and agent code")
-
-set(MESOS_PROTOBUF_TARGET mesos-protobufs
-    CACHE STRING "Library of protobuf definitions used by Mesos")
 
 # MESOS SCRIPT CONFIGURATION.
 #############################

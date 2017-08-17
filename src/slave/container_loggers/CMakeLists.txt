@@ -14,36 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Logrotate container logger sources.
-#####################################
-set(LOGROTATE_CONTAINER_LOGGER_SRC lib_logrotate.cpp)
-set(MESOS_LOGROTATE_LOGGER_SRC logrotate.cpp)
-
 # Build the container logger module.
 ####################################
 # NOTE: Modules are not supported on Windows.
 if (NOT WIN32)
-  add_library(${LOGROTATE_CONTAINER_LOGGER_TARGET} SHARED ${LOGROTATE_CONTAINER_LOGGER_SRC})
-  add_executable(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_LOGROTATE_LOGGER_SRC})
-endif ()
+  # NOTE: This library uses underscores because of a hard-coded expectation of
+  # `src/tests/module`.
+  add_library(logrotate_container_logger SHARED lib_logrotate.cpp)
+  target_link_libraries(logrotate_container_logger PRIVATE mesos)
 
-# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
-######################################################
-if (NOT WIN32)
-  target_link_libraries(${LOGROTATE_CONTAINER_LOGGER_TARGET} ${MESOS_LIBS_TARGET})
-  target_link_libraries(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_LIBS_TARGET})
-endif ()
-
-# ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
-####################################################################
-if (NOT WIN32)
-  add_dependencies(${MESOS_TARGET} ${LOGROTATE_CONTAINER_LOGGER_TARGET})
+  # NOTE: This does not link to the above library because this is a
+  # light-weight companion binary which can be run independently.
+  add_executable(mesos-logrotate-logger logrotate.cpp)
+  target_link_libraries(mesos-logrotate-logger PRIVATE mesos)
 
   add_dependencies(
-    ${LOGROTATE_CONTAINER_LOGGER_TARGET}
-    ${MESOS_LIBS_TARGET}
-    ${MESOS_LOGROTATE_LOGGER_TARGET}
-    )
-
-  add_dependencies(${MESOS_LOGROTATE_LOGGER_TARGET} ${MESOS_LIBS_TARGET})
+    logrotate_container_logger
+    mesos-logrotate-logger)
 endif ()

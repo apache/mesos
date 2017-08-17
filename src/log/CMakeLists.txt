@@ -16,28 +16,9 @@
 
 # TODO(josephw): Enable this on Windows after sorting out the dependencies.
 if (NOT WIN32)
-
-set(MESOS_LOG_TARGET mesos-log
-  CACHE STRING "Utility used to interact with the replicated log.")
-
-# THE MESOS-LOG SOURCE.
-###########################
-set(MESOS_LOG_SRC
-  ${MESOS_LOG_SRC}
-  main.cpp
-  )
-
-# THE MESOS LOG.
-###########################################
-add_executable(${MESOS_LOG_TARGET} ${MESOS_LOG_SRC})
-
-# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
-######################################################
-target_link_libraries(${MESOS_LOG_TARGET} ${MESOS_LIBS_TARGET})
-
-# ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
-####################################################################
-add_dependencies(${MESOS_TARGET} ${MESOS_LOG_TARGET})
-add_dependencies(${MESOS_LOG_TARGET} ${MESOS_LIBS_TARGET})
-
+  # THE MESOS LOG.
+  # Utility used to interact with the replicated log.
+  ###################################################
+  add_executable(mesos-log main.cpp)
+  target_link_libraries(mesos-log PRIVATE mesos)
 endif ()

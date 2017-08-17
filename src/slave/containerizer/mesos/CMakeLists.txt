@@ -14,59 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# SOURCE FILES FOR THE CONTAINERIZER.
-#####################################
-set(CONTAINERIZER_EXECUTABLE_SRC
-  ${CONTAINERIZER_EXECUTABLE_SRC}
-  main.cpp
-  )
-
-if (NOT WIN32)
-  set(MESOS_IO_SWITCHBOARD_SRC
-    ${MESOS_IO_SWITCHBOARD_SRC}
-    io/switchboard_main.cpp
-    )
-
-  set(MESOS_CNI_PORT_MAPPER_SRC
-    ${MESOS_CNI_PORT_MAPPER_SRC}
-    isolators/network/cni/plugins/port_mapper/main.cpp
-    isolators/network/cni/plugins/port_mapper/port_mapper.cpp
-    )
-endif ()
-
 # THE CONTAINERIZER EXECUTABLE.
 ###############################
-add_executable(${MESOS_CONTAINERIZER} ${CONTAINERIZER_EXECUTABLE_SRC})
-if (NOT WIN32)
-  add_executable(${MESOS_IO_SWITCHBOARD} ${MESOS_IO_SWITCHBOARD_SRC})
-  add_executable(${MESOS_CNI_PORT_MAPPER} ${MESOS_CNI_PORT_MAPPER_SRC})
-endif ()
+add_executable(mesos-containerizer main.cpp)
+target_link_libraries(mesos-containerizer PRIVATE mesos)
 
-# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
-######################################################
-target_link_libraries(${MESOS_CONTAINERIZER}  ${AGENT_LIBS} ${MESOS_LIBS_TARGET})
 if (NOT WIN32)
-  target_link_libraries(
-    ${MESOS_IO_SWITCHBOARD}
-    ${AGENT_LIBS}
-    ${MESOS_LIBS_TARGET})
+  add_executable(mesos-io-switchboard io/switchboard_main.cpp)
+  target_link_libraries(mesos-io-switchboard PRIVATE mesos)
 
-  target_link_libraries(
-    ${MESOS_CNI_PORT_MAPPER}
-    ${AGENT_LIBS}
-    ${MESOS_LIBS_TARGET})
-endif ()
+  add_executable(
+    mesos-cni-port-mapper
+    isolators/network/cni/plugins/port_mapper/main.cpp
+    isolators/network/cni/plugins/port_mapper/port_mapper.cpp)
 
-# ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
-####################################################################
-add_dependencies(${MESOS_TARGET} ${MESOS_CONTAINERIZER})
-if (NOT WIN32)
-  add_dependencies(${MESOS_TARGET} ${MESOS_IO_SWITCHBOARD})
-  add_dependencies(${MESOS_TARGET} ${MESOS_CNI_PORT_MAPPER})
-endif ()
-
-add_dependencies(${MESOS_CONTAINERIZER} ${MESOS_LIBS_TARGET})
-if (NOT WIN32)
-  add_dependencies(${MESOS_IO_SWITCHBOARD} ${MESOS_LIBS_TARGET})
-  add_dependencies(${MESOS_CNI_PORT_MAPPER} ${MESOS_LIBS_TARGET})
+  target_link_libraries(mesos-cni-port-mapper PRIVATE mesos)
 endif ()
