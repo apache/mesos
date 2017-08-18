@@ -18,6 +18,10 @@ This release contains the following new features:
     hierarchical roles, see: MESOS-7402) and thus it is not recommended
     for production usage at this time.
 
+  * [MESOS-7418] - File-based secrets are now supported for Mesos and Universal
+    containerizer. One can specify a file volume which can be populated with
+    secret contents. The secret file is mounted as tmpfs inside the container.
+
   * [MESOS-7477] - Linux ambient capabilites are now supported, so
     frameworks can run tasks that use ambient capabilites to grant
     limited additional privileged to tasks.
