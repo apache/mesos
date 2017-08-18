@@ -75,7 +75,7 @@ status updates are triggered if a certain condition is met, e.g., the value or
 presence of a specific field in the check status changes.
 
 When a built-in executor sends a task status update because the check or health
-check status has changed, it sets `TaskStatus.reason` to﻿
+check status has changed, it sets `TaskStatus.reason` to
 `REASON_TASK_CHECK_STATUS_UPDATED` or `REASON_TASK_HEALTH_CHECK_STATUS_UPDATED`
 respectively. While sending such an update, the executor avoids shadowing other
 data that might have been injected previously, e.g., a check update includes the
@@ -99,11 +99,11 @@ implementation for health checking that all built-in executors rely on.
 ### On the Differences Between Checks and Health Checks
 When humans read data from a sensor, they may interpret these data and act on
 them. For example, if they check air temperature, they usually interpret
-temperature readings and say whether it’s cold or warm outside; they may also
+temperature readings and say whether it's cold or warm outside; they may also
 act on the interpretation and decide to apply sunscreen or put on an extra
 jacket.
 
-Similar reasoning can be applied to checking task’s state in Mesos:
+Similar reasoning can be applied to checking task's state in Mesos:
 
 1. Perform a check.
 2. Optionally interpret the result and, for example, declare the task either
@@ -114,7 +114,7 @@ Mesos health checks do all of the above, 1+2+3: they run the check, declare the
 task healthy or not, and kill it after `consecutive_failures` have occurred.
 Though efficient and scalable, this strategy is inflexible for the needs of
 frameworks which may want to run an arbitrary check without Mesos interpreting
-the result in any way, for example, to transmit the task’s internal state
+the result in any way, for example, to transmit the task's internal state
 transitions and make global decisions.
 
 Conceptually, a health check is a check with an interpretation and a kill
