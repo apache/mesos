@@ -67,8 +67,14 @@ message Call {
   }
 
   // Request to subscribe with the master.
+  //
+  // TODO(bbannier): Once we have implemented a call to update a
+  // resource provider, consider removing resources here and instead
+  // moving to a protocol where a resource provider first subscribes
+  // and then updates its resources.
   message Subscribe {
     required ResourceProviderInfo resource_provider_info = 1;
+    repeated Resource resources = 2;
   }
 
   // Notify the master about the status of an operation.

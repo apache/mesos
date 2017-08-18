@@ -69,6 +69,7 @@ message Call {
   // Request to subscribe with the master.
   message Subscribe {
     required ResourceProviderInfo resource_provider_info = 1;
+    repeated Resource resources = 2;
   }
 
   // Notify the master about the status of an operation.
