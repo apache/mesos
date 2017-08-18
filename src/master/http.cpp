@@ -855,6 +855,10 @@ Future<Response> Master::Http::subscribe(
 
           http.send<mesos::master::Event, v1::master::Event>(event);
 
+          mesos::master::Event heartbeatEvent;
+          heartbeatEvent.set_type(mesos::master::Event::HEARTBEAT);
+          http.send<mesos::master::Event, v1::master::Event>(heartbeatEvent);
+
           return ok;
     }));
 }

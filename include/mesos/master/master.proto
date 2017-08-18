@@ -484,6 +484,15 @@ message Event {
     FRAMEWORK_UPDATED = 7; // See `FrameworkUpdated` below.
     FRAMEWORK_REMOVED = 8; // See `FrameworkRemoved` below.
 
+    // Periodic message sent by the master to the subscriber according to
+    // 'Subscribed.heartbeat_interval_seconds'. If the subscriber does not
+    // receive any events (including heartbeats) for an extended period of
+    // time (e.g., 5 x heartbeat_interval_seconds), it is likely that the
+    // connection is lost or there is a network partition. In that case,
+    // the subscriber should close the existing subscription connection and
+    // resubscribe using a backoff strategy.
+    HEARTBEAT = 9;
+
     // TODO(vinod): Fill in more events.
   }
 
