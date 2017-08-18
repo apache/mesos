@@ -117,6 +117,12 @@ Resources devolve(const v1::Resources& resources)
 }
 
 
+ResourceProviderID devolve(const v1::ResourceProviderID& resourceProviderId)
+{
+  return devolve<ResourceProviderID>(resourceProviderId);
+}
+
+
 SlaveID devolve(const v1::AgentID& agentId)
 {
   // NOTE: Not using 'devolve<v1::AgentID, SlaveID>(agentId)' since

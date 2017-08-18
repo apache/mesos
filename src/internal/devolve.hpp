@@ -62,6 +62,7 @@ InverseOffer devolve(const v1::InverseOffer& inverseOffer);
 Offer devolve(const v1::Offer& offer);
 Resource devolve(const v1::Resource& resource);
 Resources devolve(const v1::Resources& resources);
+ResourceProviderID devolve(const v1::ResourceProviderID& resourceProviderId);
 SlaveID devolve(const v1::AgentID& agentId);
 SlaveInfo devolve(const v1::AgentInfo& agentInfo);
 TaskID devolve(const v1::TaskID& taskId);
