@@ -115,7 +115,7 @@ set(MESOS_TESTS_SRC
   protobuf_io_tests.cpp
   rate_limiting_tests.cpp
   resource_offers_tests.cpp
-  resource_provider_http_api_tests.cpp
+  resource_provider_manager_tests.cpp
   resource_provider_validation_tests.cpp
   resources_tests.cpp
   role_tests.cpp

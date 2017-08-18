@@ -62,7 +62,7 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class ResourceProviderHttpApiTest
+class ResourceProviderManagerHttpApiTest
   : public MesosTest,
     public WithParamInterface<ContentType> {};
 
@@ -70,11 +70,11 @@ class ResourceProviderHttpApiTest
 // The tests are parameterized by the content type of the request.
 INSTANTIATE_TEST_CASE_P(
     ContentType,
-    ResourceProviderHttpApiTest,
+    ResourceProviderManagerHttpApiTest,
     Values(ContentType::PROTOBUF, ContentType::JSON));
 
 
-TEST_F(ResourceProviderHttpApiTest, NoContentType)
+TEST_F(ResourceProviderManagerHttpApiTest, NoContentType)
 {
   http::Request request;
   request.method = "POST";
@@ -93,7 +93,7 @@ TEST_F(ResourceProviderHttpApiTest, NoContentType)
 
 // This test sends a valid JSON blob that cannot be deserialized
 // into a valid protobuf resulting in a BadRequest.
-TEST_F(ResourceProviderHttpApiTest, ValidJsonButInvalidProtobuf)
+TEST_F(ResourceProviderManagerHttpApiTest, ValidJsonButInvalidProtobuf)
 {
   JSON::Object object;
   object.values["string"] = "valid_json";
@@ -117,7 +117,7 @@ TEST_F(ResourceProviderHttpApiTest, ValidJsonButInvalidProtobuf)
 }
 
 
-TEST_P(ResourceProviderHttpApiTest, MalformedContent)
+TEST_P(ResourceProviderManagerHttpApiTest, MalformedContent)
 {
   const ContentType contentType = GetParam();
 
@@ -151,7 +151,7 @@ TEST_P(ResourceProviderHttpApiTest, MalformedContent)
 }
 
 
-TEST_P(ResourceProviderHttpApiTest, UnsupportedContentMediaType)
+TEST_P(ResourceProviderManagerHttpApiTest, UnsupportedContentMediaType)
 {
   Call call;
   call.set_type(Call::SUBSCRIBE);
@@ -183,7 +183,7 @@ TEST_P(ResourceProviderHttpApiTest, UnsupportedContentMediaType)
 }
 
 
-TEST_P(ResourceProviderHttpApiTest, Subscribe)
+TEST_P(ResourceProviderManagerHttpApiTest, Subscribe)
 {
   Call call;
   call.set_type(Call::SUBSCRIBE);
@@ -232,7 +232,7 @@ TEST_P(ResourceProviderHttpApiTest, Subscribe)
 
 // This test starts an agent and connects directly with its resource
 // provider endpoint.
-TEST_P(ResourceProviderHttpApiTest, AgentEndpoint)
+TEST_P(ResourceProviderManagerHttpApiTest, AgentEndpoint)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
