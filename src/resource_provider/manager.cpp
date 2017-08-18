@@ -120,11 +120,15 @@ struct ResourceProvider
 {
   ResourceProvider(
       const ResourceProviderInfo& _info,
-      const HttpConnection& _http)
-    : info(_info), http(_http) {}
+      const HttpConnection& _http,
+      const Resources& _resources)
+    : info(_info),
+      http(_http),
+      resources(_resources) {}
 
   ResourceProviderInfo info;
   HttpConnection http;
+  Resources resources;
 };
 
 
@@ -297,7 +301,14 @@ void ResourceProviderManagerProcess::subscribe(
     subscribe.resource_provider_info();
   resourceProviderInfo.mutable_id()->CopyFrom(newResourceProviderId());
 
-  ResourceProvider resourceProvider(resourceProviderInfo, http);
+  // Inject the `ResourceProviderID` for all subscribed resources.
+  Resources resources;
+  foreach (Resource resource, subscribe.resources()) {
+    resource.mutable_provider_id()->CopyFrom(resourceProviderInfo.id());
+    resources += resource;
+  }
+
+  ResourceProvider resourceProvider(resourceProviderInfo, http, resources);
 
   Event event;
   event.set_type(Event::SUBSCRIBED);
