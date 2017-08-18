@@ -1498,7 +1498,7 @@ string Master::Http::FRAMEWORKS_HELP()
         "",
         "Query parameters:",
         ">        framework_id=VALUE   The ID of the framework returned "
-        "(when no framework ID specified, all frameworks will be returned)."),
+        "(if no framework ID is specified, all frameworks will be returned)."),
     AUTHENTICATION(true),
     AUTHORIZATION(
         "This endpoint might be filtered based on the user accessing it.",

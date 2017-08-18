@@ -812,7 +812,7 @@ Future<Response> Http::executor(
 string Http::RESOURCE_PROVIDER_HELP() {
   return HELP(
     TLDR(
-        "Endpoint for the Local Resource Provider HTTP API."),
+        "Endpoint for the local resource provider HTTP API."),
     DESCRIPTION(
         "This endpoint is used by the local resource providers to interact",
         "with the agent via Call/Event messages.",
