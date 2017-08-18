@@ -29,9 +29,9 @@
 #include "resource_provider/http_connection.hpp"
 #include "resource_provider/validation.hpp"
 
-using process::dispatch;
 using process::Future;
 using process::Owned;
+using process::dispatch;
 using process::spawn;
 using process::terminate;
 using process::wait;

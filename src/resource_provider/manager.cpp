@@ -252,7 +252,6 @@ Future<http::Response> ResourceProviderManagerProcess::api(
     return ok;
   }
 
-
   if (!resourceProviders.contains(call.resource_provider_id())) {
     return BadRequest("Resource provider cannot be found");
   }
