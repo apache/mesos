@@ -35,6 +35,7 @@ layout: documentation
 * [Monitoring](monitoring.md)
 * [Operational Guide](operational-guide.md)
 * [Roles](roles.md)
+* [Secrets](secrets.md) for managing secrets within Mesos.
 * [SSL](ssl.md) for enabling and enforcing SSL communication.
 * [Nested Container and Task Group (Pod)](nested-container-and-task-group.md)
 * [Tools](tools.md) for setting up and running a Mesos cluster.
