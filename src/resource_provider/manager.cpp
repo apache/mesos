@@ -83,9 +83,11 @@ namespace internal {
 struct HttpConnection
 {
   HttpConnection(const http::Pipe::Writer& _writer,
-                 ContentType _contentType)
+                 ContentType _contentType,
+                 UUID _streamId)
     : writer(_writer),
       contentType(_contentType),
+      streamId(_streamId),
       encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
 
   // Converts the message to an Event before sending.
@@ -109,6 +111,7 @@ struct HttpConnection
 
   http::Pipe::Writer writer;
   ContentType contentType;
+  UUID streamId;
   ::recordio::Encoder<v1::resource_provider::Event> encoder;
 };
 
@@ -208,15 +211,62 @@ Future<http::Response> ResourceProviderManagerProcess::api(
         "Failed to validate resource_provider::Call: " + error->message);
   }
 
-  ContentType acceptType;
-  if (request.acceptsMediaType(APPLICATION_JSON)) {
-    acceptType = ContentType::JSON;
-  } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
-    acceptType = ContentType::PROTOBUF;
-  } else {
-    return NotAcceptable(
-        string("Expecting 'Accept' to allow ") +
-        "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
+  if (call.type() == Call::SUBSCRIBE) {
+    // We default to JSON 'Content-Type' in the response since an empty
+    // 'Accept' header results in all media types considered acceptable.
+    ContentType acceptType = ContentType::JSON;
+
+    if (request.acceptsMediaType(APPLICATION_JSON)) {
+      acceptType = ContentType::JSON;
+    } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
+      acceptType = ContentType::PROTOBUF;
+    } else {
+      return NotAcceptable(
+          string("Expecting 'Accept' to allow ") +
+          "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
+    }
+
+    if (request.headers.contains("Mesos-Stream-Id")) {
+      return BadRequest(
+          "Subscribe calls should not include the 'Mesos-Stream-Id' header");
+    }
+
+    Pipe pipe;
+    OK ok;
+
+    ok.headers["Content-Type"] = stringify(acceptType);
+    ok.type = http::Response::PIPE;
+    ok.reader = pipe.reader();
+
+    // Generate a stream ID and return it in the response.
+    UUID streamId = UUID::random();
+    ok.headers["Mesos-Stream-Id"] = streamId.toString();
+
+    HttpConnection http(pipe.writer(), acceptType, streamId);
+    subscribe(http, call.subscribe());
+
+    return ok;
+  }
+
+
+  if (!resourceProviders.contains(call.resource_provider_id())) {
+    return BadRequest("Resource provider cannot be found");
+  }
+
+  auto resourceProvider = resourceProviders.at(call.resource_provider_id());
+
+  // This isn't a `SUBSCRIBE` call, so the request should include a stream ID.
+  if (!request.headers.contains("Mesos-Stream-Id")) {
+    return BadRequest(
+        "All non-subscribe calls should include to 'Mesos-Stream-Id' header");
+  }
+
+  const string& streamId = request.headers.at("Mesos-Stream-Id");
+  if (streamId != resourceProvider.http.streamId.toString()) {
+    return BadRequest(
+        "The stream ID '" + streamId + "' included in this request "
+        "didn't match the stream ID currently associated with "
+        " resource provider ID " + resourceProvider.info.id().value());
   }
 
   switch(call.type()) {
@@ -225,26 +275,11 @@ Future<http::Response> ResourceProviderManagerProcess::api(
     }
 
     case Call::SUBSCRIBE: {
-      Pipe pipe;
-      OK ok;
-
-      ok.headers["Content-Type"] = stringify(acceptType);
-      ok.type = http::Response::PIPE;
-      ok.reader = pipe.reader();
-
-      HttpConnection http(pipe.writer(), acceptType);
-      subscribe(http, call.subscribe());
-
-      return ok;
+      // `SUBSCRIBE` call should have been handled above.
+      LOG(FATAL) << "Unexpected 'SUBSCRIBE' call";
     }
 
     case Call::UPDATE: {
-      if (!resourceProviders.contains(call.resource_provider_id())) {
-        return BadRequest("Resource provider cannot be found");
-      }
-
-      auto resourceProvider = resourceProviders.at(call.resource_provider_id());
-
       update(&resourceProvider, call.update());
       return Accepted();
     }
