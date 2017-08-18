@@ -115,6 +115,7 @@ For example, `http://agent.com:5051/files/browse`.
 ### slave(id) ###
 * [/api/v1](slave/api/v1.md)
 * [/api/v1/executor](slave/api/v1/executor.md)
+* [/api/v1/resource_provider](slave/api/v1/resource_provider.md)
 * [/containers](slave/containers.md)
 * [/flags](slave/flags.md)
 * [/health](slave/health.md)
