@@ -212,6 +212,33 @@ Cannot be used in conjunction with <code>--ip</code>.
 </tr>
 <tr>
   <td>
+    --ip6=VALUE
+  </td>
+  <td>
+IPv6 address to listen on. This cannot be used in conjunction
+with <code>--ip6_discovery_command</code>.
+<p/>
+NOTE: Currently Mesos doesn't listen on IPv6 sockets and hence
+this IPv6 address is only used to advertise IPv6 addresses for
+containers running on the host network.
+  </td>
+</tr>
+<tr>
+  <td>
+    --ip6_discovery_command=VALUE
+  </td>
+  <td>
+Optional IPv6 discovery binary: if set, it is expected to emit
+the IPv6 address on which Mesos will try to bind when IPv6 socket
+support is enabled in Mesos.
+<p/>
+NOTE: Currently Mesos doesn't listen on IPv6 sockets and hence
+this IPv6 address is only used to advertise IPv6 addresses for
+containers running on the host network.
+  </td>
+</tr>
+<tr>
+  <td>
     --modules=VALUE
   </td>
   <td>
@@ -1649,6 +1676,16 @@ terminations may occur.
   <td>
 Parent directory for fetcher cache directories
 (one subdirectory per agent). (default: /tmp/mesos/fetch)
+
+Directory for the fetcher cache. The agent will clear this directory
+on startup. It is recommended to set this value to a separate volume
+for several reasons:
+<ul>
+<li> The cache directories are transient and not meant to be
+     backed up. Upon restarting the agent, the cache is always empty. </li>
+<li> The cache and container sandboxes can potentially interfere with
+     each other when occupying a shared space (i.e. disk contention). </li>
+</ul>
   </td>
 </tr>
 <tr>
@@ -2071,6 +2108,18 @@ state as possible is recovered.
 (default: true)
   </td>
 </tr>
+<tr>
+  <td>
+    --secret_resolver=VALUE
+  </td>
+  <td>
+The name of the secret resolver module to use for resolving
+environment and file-based secrets. If this flag is not specified,
+the default behavior is to resolve value-based secrets and error on
+reference-based secrets.
+  </td>
+</tr>
+
 <tr>
   <td>
     --[no-]switch_user
