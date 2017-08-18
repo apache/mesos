@@ -28,6 +28,8 @@
 
 #include "internal/devolve.hpp"
 
+#include "resource_provider/detector.hpp"
+
 using std::queue;
 
 using process::Owned;
@@ -113,7 +115,7 @@ void StorageLocalResourceProviderProcess::received(const Event& event)
 void StorageLocalResourceProviderProcess::initialize()
 {
   driver.reset(new Driver(
-      url,
+      Owned<EndpointDetector>(new ConstantEndpointDetector(url)),
       contentType,
       defer(self(), &Self::connected),
       defer(self(), &Self::disconnected),
@@ -123,7 +125,8 @@ void StorageLocalResourceProviderProcess::initialize()
           received(devolve(event));
           events.pop();
         }
-      })));
+      }),
+      None())); // TODO(nfnt): Add authentication as part of MESOS-7854.
 }
 
 
