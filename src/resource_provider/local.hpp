@@ -17,6 +17,7 @@
 #ifndef __RESOURCE_PROVIDER_LOCAL_HPP__
 #define __RESOURCE_PROVIDER_LOCAL_HPP__
 
+#include <process/http.hpp>
 #include <process/owned.hpp>
 
 #include <stout/try.hpp>
@@ -30,6 +31,7 @@ class LocalResourceProvider
 {
 public:
   static Try<process::Owned<LocalResourceProvider>> create(
+      const process::http::URL& url,
       const ResourceProviderInfo& info);
 
   virtual ~LocalResourceProvider() = default;

@@ -63,6 +63,7 @@ protected:
 
 
 Driver::Driver(
+    const process::http::URL& url,
     ContentType contentType,
     const function<void(void)>& connected,
     const function<void(void)>& disconnected,

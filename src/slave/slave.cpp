@@ -49,6 +49,8 @@
 #include <process/reap.hpp>
 #include <process/time.hpp>
 
+#include <process/ssl/flags.hpp>
+
 #include <stout/bytes.hpp>
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
@@ -413,8 +415,22 @@ void Slave::initialize()
       << mkdir.error();
   }
 
+  string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+  if (process::network::openssl::flags().enabled) {
+    scheme = "https";
+  }
+#endif
+
+  process::http::URL localResourceProviderURL(
+      scheme,
+      self().address.ip,
+      self().address.port,
+      self().id + "/api/v1/resource_provider");
+
   Try<Owned<LocalResourceProviderDaemon>> _localResourceProviderDaemon =
-    LocalResourceProviderDaemon::create(flags);
+    LocalResourceProviderDaemon::create(localResourceProviderURL, flags);
 
   if (_localResourceProviderDaemon.isError()) {
     EXIT(EXIT_FAILURE)

@@ -55,9 +55,11 @@ class LocalResourceProviderDaemonProcess
 {
 public:
   LocalResourceProviderDaemonProcess(
+      const process::http::URL& _url,
       const string& _workDir,
       const Option<string>& _configDir)
     : ProcessBase(process::ID::generate("local-resource-provider-daemon")),
+      url(_url),
       workDir(_workDir),
       configDir(_configDir) {}
 
@@ -78,6 +80,7 @@ private:
 
   Try<Nothing> load(const string& path);
 
+  const process::http::URL url;
   const string workDir;
   const Option<string> configDir;
 
@@ -144,7 +147,7 @@ Try<Nothing> LocalResourceProviderDaemonProcess::load(const string& path)
   }
 
   Try<Owned<LocalResourceProvider>> provider =
-    LocalResourceProvider::create(info.get());
+    LocalResourceProvider::create(url, info.get());
 
   if (provider.isError()) {
     return Error(
@@ -159,6 +162,7 @@ Try<Nothing> LocalResourceProviderDaemonProcess::load(const string& path)
 
 
 Try<Owned<LocalResourceProviderDaemon>> LocalResourceProviderDaemon::create(
+    const process::http::URL& url,
     const slave::Flags& flags)
 {
   // We require that the config directory exists to create a daemon.
@@ -168,15 +172,17 @@ Try<Owned<LocalResourceProviderDaemon>> LocalResourceProviderDaemon::create(
   }
 
   return new LocalResourceProviderDaemon(
+      url,
       flags.work_dir,
       configDir);
 }
 
 
 LocalResourceProviderDaemon::LocalResourceProviderDaemon(
+    const process::http::URL& url,
     const string& workDir,
     const Option<string>& configDir)
-  : process(new LocalResourceProviderDaemonProcess(workDir, configDir))
+  : process(new LocalResourceProviderDaemonProcess(url, workDir, configDir))
 {
   spawn(CHECK_NOTNULL(process.get()));
 }

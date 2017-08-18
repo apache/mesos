@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include <process/http.hpp>
 #include <process/owned.hpp>
 
 #include <stout/option.hpp>
@@ -40,6 +41,7 @@ class LocalResourceProviderDaemon
 {
 public:
   static Try<process::Owned<LocalResourceProviderDaemon>> create(
+      const process::http::URL& url,
       const slave::Flags& flags);
 
   ~LocalResourceProviderDaemon();
@@ -52,6 +54,7 @@ public:
 
 private:
   LocalResourceProviderDaemon(
+      const process::http::URL& url,
       const std::string& workDir,
       const Option<std::string>& configDir);
 

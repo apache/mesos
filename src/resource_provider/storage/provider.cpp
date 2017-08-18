@@ -52,8 +52,10 @@ class StorageLocalResourceProviderProcess
 {
 public:
   explicit StorageLocalResourceProviderProcess(
+      const process::http::URL& _url,
       const ResourceProviderInfo& _info)
     : ProcessBase(process::ID::generate("storage-local-resource-provider")),
+      url(_url),
       contentType(ContentType::PROTOBUF),
       info(_info) {}
 
@@ -70,6 +72,7 @@ public:
 private:
   void initialize() override;
 
+  const process::http::URL url;
   const ContentType contentType;
   ResourceProviderInfo info;
   Owned<v1::resource_provider::Driver> driver;
@@ -110,6 +113,7 @@ void StorageLocalResourceProviderProcess::received(const Event& event)
 void StorageLocalResourceProviderProcess::initialize()
 {
   driver.reset(new Driver(
+      url,
       contentType,
       defer(self(), &Self::connected),
       defer(self(), &Self::disconnected),
@@ -124,16 +128,18 @@ void StorageLocalResourceProviderProcess::initialize()
 
 
 Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
+    const process::http::URL& url,
     const ResourceProviderInfo& info)
 {
   return Owned<LocalResourceProvider>(
-      new StorageLocalResourceProvider(info));
+      new StorageLocalResourceProvider(url, info));
 }
 
 
 StorageLocalResourceProvider::StorageLocalResourceProvider(
+    const process::http::URL& url,
     const ResourceProviderInfo& info)
-  : process(new StorageLocalResourceProviderProcess(info))
+  : process(new StorageLocalResourceProviderProcess(url, info))
 {
   spawn(CHECK_NOTNULL(process.get()));
 }
