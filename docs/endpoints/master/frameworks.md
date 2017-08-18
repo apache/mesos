@@ -20,6 +20,9 @@ current master is not the leader.
 Returns 503 SERVICE_UNAVAILABLE if the leading master cannot be
 found.
 
+Query parameters:
+>        framework_id=VALUE   The ID of the framework returned (if no framework ID is specified, all frameworks will be returned).
+
 
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is

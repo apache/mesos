@@ -24,6 +24,9 @@ This endpoint shows information about the agents which are registered
 in this master or recovered from registry, formatted as a JSON
 object.
 
+Query parameters:
+>        slave_id=VALUE       The ID of the slave returned (when no slave_id is specified, all slaves will be returned).
+
 
 ### AUTHENTICATION ###
 This endpoint requires authentication iff HTTP authentication is

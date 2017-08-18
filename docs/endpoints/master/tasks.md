@@ -26,9 +26,11 @@ accessing the endpoint.
 
 Query parameters:
 
+>        framework_id=VALUE   Only return tasks belonging to the framework with this ID.
 >        limit=VALUE          Maximum number of tasks returned (default is 100).
 >        offset=VALUE         Starts task list at offset.
 >        order=(asc|desc)     Ascending or descending sort order (default is descending).
+>        task_id=VALUE        Only return tasks with this ID (should be used together with parameter 'framework_id').
 
 
 ### AUTHENTICATION ###
