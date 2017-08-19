@@ -2366,6 +2366,19 @@ The following events are currently sent by the master. The canonical source of t
 
 The first event sent by the master when a client sends a `SUBSCRIBE` request on the persistent connection. This includes a snapshot of the cluster state. See `SUBSCRIBE` above for details. Subsequent changes to the cluster state can result in more events (currently only `TASK_ADDED` and `TASK_UPDATED` are supported).
 
+### HEARTBEAT
+
+Periodically sent by the master to the subscriber according to 'Subscribed.heartbeat_interval_seconds'. If the subscriber does not receive any events (including heartbeats) for an extended period of time (e.g., 5 x heartbeat_interval_seconds), it is likely that the connection is lost or there is a network partition. In that case, the subscriber should close the existing subscription connection and resubscribe using a backoff strategy.
+
+```
+HEARTBEAT Event (JSON)
+
+<event-length>
+{
+  "type": "HEARTBEAT",
+}
+```
+
 ### TASK_ADDED
 
 Sent whenever a task has been added to the master. This can happen either when a new task launch is processed by the master or when an agent re-registers with a failed over master.
