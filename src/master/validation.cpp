@@ -222,6 +222,12 @@ Option<Error> validate(
         return Error("Expecting 'remove_quota' to be present");
       }
       return None();
+
+    case mesos::master::Call::TEARDOWN:
+      if (!call.has_teardown()) {
+        return Error("Expecting 'teardown' to be present");
+      }
+      return None();
   }
 
   UNREACHABLE();

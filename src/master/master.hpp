@@ -1421,6 +1421,11 @@ private:
             principal) const;
 
     process::Future<process::http::Response> _teardown(
+        const FrameworkID& id,
+        const Option<process::http::authentication::Principal>&
+            principal) const;
+
+    process::Future<process::http::Response> __teardown(
         const FrameworkID& id) const;
 
     process::Future<process::http::Response> _updateMaintenanceSchedule(
@@ -1645,6 +1650,11 @@ private:
         ContentType contentType) const;
 
     process::Future<process::http::Response> readFile(
+        const mesos::master::Call& call,
+        const Option<process::http::authentication::Principal>& principal,
+        ContentType contentType) const;
+
+    process::Future<process::http::Response> teardown(
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;

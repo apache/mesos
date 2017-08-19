@@ -776,6 +776,9 @@ Future<Response> Master::Http::api(
 
     case mesos::master::Call::REMOVE_QUOTA:
       return quotaHandler.remove(call, principal);
+
+    case mesos::master::Call::TEARDOWN:
+      return teardown(call, principal, acceptType);
   }
 
   UNREACHABLE();
@@ -3785,6 +3788,14 @@ Future<Response> Master::Http::teardown(
   FrameworkID id;
   id.set_value(value.get());
 
+  return _teardown(id, principal);
+}
+
+
+Future<Response> Master::Http::_teardown(
+    const FrameworkID& id,
+    const Option<Principal>& principal) const
+{
   Framework* framework = master->getFramework(id);
 
   if (framework == nullptr) {
@@ -3793,7 +3804,7 @@ Future<Response> Master::Http::teardown(
 
   // Skip authorization if no ACLs were provided to the master.
   if (master->authorizer.isNone()) {
-    return _teardown(id);
+    return __teardown(id);
   }
 
   authorization::Request teardown;
@@ -3815,12 +3826,13 @@ Future<Response> Master::Http::teardown(
       if (!authorized) {
         return Forbidden();
       }
-      return _teardown(id);
+
+      return __teardown(id);
     }));
 }
 
 
-Future<Response> Master::Http::_teardown(const FrameworkID& id) const
+Future<Response> Master::Http::__teardown(const FrameworkID& id) const
 {
   Framework* framework = master->getFramework(id);
 
@@ -3832,6 +3844,17 @@ Future<Response> Master::Http::_teardown(const FrameworkID& id) const
   master->removeFramework(framework);
 
   return OK();
+}
+
+
+Future<Response> Master::Http::teardown(
+    const mesos::master::Call& call,
+    const Option<Principal>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::TEARDOWN, call.type());
+
+  return _teardown(call.teardown().framework_id(), principal);
 }
 
 
