@@ -3002,6 +3002,198 @@ TEST_P(MasterAPITest, ReadFileInvalidPath)
 }
 
 
+// This test verifies that when the operator API TEARDOWN call is made,
+// the framework is shutdown and removed. It also confirms that authorization
+// of this call is performed correctly.
+TEST_P(MasterAPITest, Teardown)
+{
+  ContentType contentType = GetParam();
+
+  ACLs acls;
+
+  // Only allow DEFAULT_CREDENTIAL to teardown frameworks.
+  {
+    mesos::ACL::TeardownFramework* acl = acls.add_teardown_frameworks();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_framework_principals()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    mesos::ACL::TeardownFramework* acl = acls.add_teardown_frameworks();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_framework_principals()->add_values(
+        DEFAULT_CREDENTIAL.principal());
+  }
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Result<Authorizer*> authorizer = Authorizer::create(acls);
+
+  Try<Owned<cluster::Master>> master =
+    StartMaster(authorizer.get(), masterFlags);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
+
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
+
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
+  TestContainerizer containerizer(executorId, executor);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected))
+    .WillRepeatedly(Return()); // Ignore subsequent connections.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillRepeatedly(Return()); // Ignore offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  {
+    v1::scheduler::Call call;
+    call.set_type(v1::scheduler::Call::SUBSCRIBE);
+
+    v1::scheduler::Call::Subscribe* subscribe = call.mutable_subscribe();
+    v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+    frameworkInfo.set_user("root");
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId = subscribed->framework_id();
+
+  // There should be one framework in the response of the 'GET_FRAMEWORKS' call.
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::GET_FRAMEWORKS);
+
+    Future<v1::master::Response> v1Response =
+        post(master.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_FRAMEWORKS, v1Response->type());
+
+    v1::master::Response::GetFrameworks frameworks =
+        v1Response->get_frameworks();
+
+    ASSERT_EQ(1, frameworks.frameworks_size());
+  }
+
+  // Send teardown with principal that is not authorized.
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::TEARDOWN);
+
+    v1::master::Call::Teardown* teardown = v1Call.mutable_teardown();
+
+    teardown->mutable_framework_id()->CopyFrom(frameworkId);
+
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2),
+        serialize(contentType, v1Call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Forbidden().status, response);
+  }
+
+  // There should still be one framework in the response.
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::GET_FRAMEWORKS);
+
+    Future<v1::master::Response> v1Response =
+        post(master.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_FRAMEWORKS, v1Response->type());
+
+    v1::master::Response::GetFrameworks frameworks =
+        v1Response->get_frameworks();
+
+    ASSERT_EQ(1, frameworks.frameworks_size());
+  }
+
+  Future<ShutdownFrameworkMessage> shutdownFrameworkMessage =
+    FUTURE_PROTOBUF(ShutdownFrameworkMessage(), _, _);
+
+  EXPECT_CALL(*scheduler, disconnected(_));
+
+  // Send the teardown call with the correct credential, it will teardown the
+  // framework.
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::TEARDOWN);
+
+    v1::master::Call::Teardown* teardown = v1Call.mutable_teardown();
+
+    teardown->mutable_framework_id()->CopyFrom(frameworkId);
+
+    Future<http::Response> response = http::post(
+        master.get()->pid,
+        "api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        serialize(contentType, v1Call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
+
+  AWAIT_READY(shutdownFrameworkMessage);
+
+  // There should be one framework in the 'completed_frameworks' field of
+  // the response for the 'GET_FRAMEWORKS' call.
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::GET_FRAMEWORKS);
+
+    Future<v1::master::Response> v1Response =
+        post(master.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_FRAMEWORKS, v1Response->type());
+
+    v1::master::Response::GetFrameworks frameworks =
+        v1Response->get_frameworks();
+
+    ASSERT_EQ(0, frameworks.frameworks_size());
+    ASSERT_EQ(1, frameworks.completed_frameworks_size());
+  }
+
+  EXPECT_CALL(*executor, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(*executor, disconnected(_))
+    .Times(AtMost(1));
+}
+
+
 class AgentAPITest
   : public MesosTest,
     public WithParamInterface<ContentType>
