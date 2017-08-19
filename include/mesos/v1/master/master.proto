@@ -499,6 +499,10 @@ message Event {
     // Snapshot of the entire cluster state. Further updates to the
     // cluster state are sent as separate events on the stream.
     optional Response.GetState get_state = 1;
+
+    // This value will be set if the master is sending heartbeats to
+    // subscribers. See the comment above on 'HEARTBEAT' for more details.
+    optional double heartbeat_interval_seconds = 2;
   }
 
   // Forwarded by the master when a task becomes known to it. This can happen

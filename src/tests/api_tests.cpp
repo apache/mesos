@@ -2417,6 +2417,11 @@ TEST_P(MasterAPITest, Heartbeat)
   AWAIT_READY(event);
 
   EXPECT_EQ(v1::master::Event::SUBSCRIBED, event->get().type());
+  ASSERT_TRUE(event->get().subscribed().has_heartbeat_interval_seconds());
+  EXPECT_EQ(
+      DEFAULT_HEARTBEAT_INTERVAL.secs(),
+      event->get().subscribed().heartbeat_interval_seconds());
+
   const v1::master::Response::GetState& getState =
       event->get().subscribed().get_state();
 
@@ -2434,10 +2439,11 @@ TEST_P(MasterAPITest, Heartbeat)
   event = decoder.read();
   EXPECT_TRUE(event.isPending());
 
+  Clock::pause();
+
   // Expects a heartbeat event after every heartbeat interval.
   for (int i = 0; i < 10; i++) {
     // Advance the clock to receive another heartbeat.
-    Clock::pause();
     Clock::advance(DEFAULT_HEARTBEAT_INTERVAL);
 
     AWAIT_READY(event);
@@ -2446,6 +2452,8 @@ TEST_P(MasterAPITest, Heartbeat)
     event = decoder.read();
     EXPECT_TRUE(event.isPending());
   }
+
+  Clock::resume();
 }
 
 

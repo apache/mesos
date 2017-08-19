@@ -853,6 +853,9 @@ Future<Response> Master::Http::subscribe(
                   executorsApprover,
                   rolesAcceptor));
 
+          event.mutable_subscribed()->set_heartbeat_interval_seconds(
+              DEFAULT_HEARTBEAT_INTERVAL.secs());
+
           http.send<mesos::master::Event, v1::master::Event>(event);
 
           mesos::master::Event heartbeatEvent;
