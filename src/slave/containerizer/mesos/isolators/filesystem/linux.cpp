@@ -207,7 +207,7 @@ LinuxFilesystemIsolatorProcess::~LinuxFilesystemIsolatorProcess() {}
 
 bool LinuxFilesystemIsolatorProcess::supportsNesting()
 {
-    return true;
+  return true;
 }
 
 
