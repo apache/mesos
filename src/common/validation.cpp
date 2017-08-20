@@ -200,6 +200,73 @@ Option<Error> validateCommandInfo(const CommandInfo& command)
   return validateEnvironment(command.environment());
 }
 
+
+Option<Error> validateVolume(const Volume& volume)
+{
+  // TODO(jieyu): Add a validation for path.
+
+  // Only one of the following fields can be set:
+  //   1. host_path
+  //   2. image
+  //   3. source
+  int count = 0;
+  if (volume.has_host_path()) { count++; }
+  if (volume.has_image()) { count++; }
+  if (volume.has_source()) { count++; }
+
+  if (count != 1) {
+    return Error(
+        "Only one of them should be set: "
+        "'host_path', 'image' and 'source'");
+  }
+
+  if (volume.has_source()) {
+    switch (volume.source().type()) {
+      case Volume::Source::DOCKER_VOLUME:
+        if (!volume.source().has_docker_volume()) {
+          return Error(
+              "'source.docker_volume' is not set for DOCKER_VOLUME volume");
+        }
+        break;
+      case Volume::Source::HOST_PATH:
+        if (!volume.source().has_host_path()) {
+          return Error(
+              "'source.host_path' is not set for HOST_PATH volume");
+        }
+        break;
+      case Volume::Source::SANDBOX_PATH:
+        if (!volume.source().has_sandbox_path()) {
+          return Error(
+              "'source.sandbox_path' is not set for SANDBOX_PATH volume");
+        }
+        break;
+      case Volume::Source::SECRET:
+        if (!volume.source().has_secret()) {
+          return Error(
+              "'source.secret' is not set for SECRET volume");
+        }
+        break;
+      default:
+        return Error("'source.type' is unknown");
+    }
+  }
+
+  return None();
+}
+
+
+Option<Error> validateContainerInfo(const ContainerInfo& containerInfo)
+{
+  foreach (const Volume& volume, containerInfo.volumes()) {
+    Option<Error> error = validateVolume(volume);
+    if (error.isSome()) {
+      return Error("Invalid volume: " + error->message);
+    }
+  }
+
+  return None();
+}
+
 } // namespace validation {
 } // namespace common {
 } // namespace internal {

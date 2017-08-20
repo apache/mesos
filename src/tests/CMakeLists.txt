@@ -95,6 +95,7 @@ set(MESOS_TESTS_SRC
   authentication_tests.cpp
   check_tests.cpp
   command_executor_tests.cpp
+  common_validation_tests.cpp
   credentials_tests.cpp
   default_executor_tests.cpp
   exception_tests.cpp

@@ -47,6 +47,10 @@ Option<Error> validateEnvironment(const Environment& environment);
 
 Option<Error> validateCommandInfo(const CommandInfo& command);
 
+Option<Error> validateVolume(const Volume& volume);
+
+Option<Error> validateContainerInfo(const ContainerInfo& containerInfo);
+
 } // namespace validation {
 } // namespace common {
 } // namespace internal {
