@@ -984,6 +984,21 @@ Option<Error> validateCommandInfo(const ExecutorInfo& executor)
 }
 
 
+// Validates the `ContainerInfo` contained within a `ExecutorInfo`.
+Option<Error> validateContainerInfo(const ExecutorInfo& executor)
+{
+  if (executor.has_container()) {
+    Option<Error> error =
+      common::validation::validateContainerInfo(executor.container());
+    if (error.isSome()) {
+      return Error("Executor's `ContainerInfo` is invalid: " + error->message);
+    }
+  }
+
+  return None();
+}
+
+
 Option<Error> validate(
     const ExecutorInfo& executor,
     Framework* framework,
@@ -1024,6 +1039,7 @@ Option<Error> validate(const ExecutorInfo& executor)
     internal::validateExecutorID,
     internal::validateShutdownGracePeriod,
     internal::validateCommandInfo,
+    internal::validateContainerInfo
   };
 
   foreach (const auto& validator, executorValidators) {
@@ -1202,6 +1218,21 @@ Option<Error> validateCommandInfo(const TaskInfo& task)
 }
 
 
+// Validates the `ContainerInfo` contained within a `TaskInfo`.
+Option<Error> validateContainerInfo(const TaskInfo& task)
+{
+  if (task.has_container()) {
+    Option<Error> error =
+      common::validation::validateContainerInfo(task.container());
+    if (error.isSome()) {
+      return Error("Task's `ContainerInfo` is invalid: " + error->message);
+    }
+  }
+
+  return None();
+}
+
+
 // Validates task specific fields except its executor (if it exists).
 Option<Error> validateTask(
     const TaskInfo& task,
@@ -1221,7 +1252,8 @@ Option<Error> validateTask(
     lambda::bind(internal::validateCheck, task),
     lambda::bind(internal::validateHealthCheck, task),
     lambda::bind(internal::validateResources, task),
-    lambda::bind(internal::validateCommandInfo, task)
+    lambda::bind(internal::validateCommandInfo, task),
+    lambda::bind(internal::validateContainerInfo, task)
   };
 
   foreach (const lambda::function<Option<Error>()>& validator, validators) {

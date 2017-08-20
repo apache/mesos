@@ -182,6 +182,15 @@ Option<Error> validate(
         }
       }
 
+      if (call.launch_nested_container().has_container()) {
+        error = common::validation::validateContainerInfo(
+            call.launch_nested_container().container());
+        if (error.isSome()) {
+          return Error("'launch_nested_container.container' is invalid"
+                       ": " + error->message);
+        }
+      }
+
       return None();
     }
 
@@ -278,6 +287,15 @@ Option<Error> validate(
             call.launch_nested_container_session().command());
         if (error.isSome()) {
           return Error("'launch_nested_container_session.command' is invalid"
+                       ": " + error->message);
+        }
+      }
+
+      if (call.launch_nested_container_session().has_container()) {
+        error = common::validation::validateContainerInfo(
+            call.launch_nested_container_session().container());
+        if (error.isSome()) {
+          return Error("'launch_nested_container_session.container' is invalid"
                        ": " + error->message);
         }
       }
