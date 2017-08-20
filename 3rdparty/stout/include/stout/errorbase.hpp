@@ -37,6 +37,11 @@ class Error
 public:
   explicit Error(const std::string& _message) : message(_message) {}
 
+  bool operator==(const Error& that) const
+  {
+    return message == that.message;
+  }
+
   const std::string message;
 };
 
