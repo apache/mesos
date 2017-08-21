@@ -41,11 +41,13 @@
 
 #include <stout/check.hpp>
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/recordio.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
@@ -136,6 +138,49 @@ static pid_t cloneWithSetns(
   }
 }
 #endif
+
+
+// Reads `ProcessIO::Data` records from a string containing "Record-IO"
+// data encoded in protobuf messages, and returns the stdout and stderr.
+//
+// NOTE: This function ignores any `ProcessIO::Control` records.
+//
+// TODO(gkleiman): This function is very similar to one in `api_tests.cpp`, we
+// should refactor them into a common helper when fixing MESOS-7903.
+static Try<tuple<string, string>> decodeProcessIOData(const string& data)
+{
+  string stdoutReceived;
+  string stderrReceived;
+
+  recordio::Decoder<v1::agent::ProcessIO> decoder(
+      lambda::bind(
+          deserialize<v1::agent::ProcessIO>,
+          ContentType::PROTOBUF,
+          lambda::_1));
+
+  Try<std::deque<Try<v1::agent::ProcessIO>>> records = decoder.decode(data);
+
+  if (records.isError()) {
+    return Error(records.error());
+  }
+
+  while (!records->empty()) {
+    Try<v1::agent::ProcessIO> record = records->front();
+    records->pop_front();
+
+    if (record.isError()) {
+      return Error(record.error());
+    }
+
+    if (record->data().type() == v1::agent::ProcessIO::Data::STDOUT) {
+      stdoutReceived += record->data().data();
+    } else if (record->data().type() == v1::agent::ProcessIO::Data::STDERR) {
+      stderrReceived += record->data().data();
+    }
+  }
+
+  return std::make_tuple(stdoutReceived, stderrReceived);
+}
 
 
 CheckerProcess::CheckerProcess(
@@ -542,6 +587,10 @@ void CheckerProcess::__nestedCommandCheck(
   //
   // This means that this future will not be completed until after the
   // check command has finished or the connection has been closed.
+  //
+  // TODO(gkleiman): The output of timed-out checks is lost, we'll
+  // probably have to call `Connection::send` with `streamed = true`
+  // to be able to log it. See MESOS-7903.
   connection.send(request, false)
     .after(checkTimeout,
            defer(self(),
@@ -581,6 +630,27 @@ void CheckerProcess::___nestedCommandCheck(
 
     promise->discard();
     return;
+  }
+
+  Try<tuple<string, string>> checkOutput =
+    decodeProcessIOData(launchResponse.body);
+
+  if (checkOutput.isError()) {
+    LOG(WARNING) << "Failed to decode the output of the " << name
+                 << " for task '" << taskId << "': " << checkOutput.error();
+  } else {
+    string stdoutReceived;
+    string stderrReceived;
+
+    tie(stdoutReceived, stderrReceived) = checkOutput.get();
+
+    LOG(INFO) << "Output of the " << name << " for task '" << taskId
+              << "' (stdout):" << std::endl
+              << stdoutReceived;
+
+    LOG(INFO) << "Output of the " << name << " for task '" << taskId
+              << "' (stderr):" << std::endl
+              << stderrReceived;
   }
 
   waitNestedContainer(checkContainerId)
