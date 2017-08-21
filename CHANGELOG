@@ -1356,7 +1356,7 @@ All Issues:
   * [MESOS-6150] - Introduce the new isolator recover interface for nested container support.
   * [MESOS-6151] - Populate `CommandInfo` correctly for default executors.
   * [MESOS-6156] - Make the `network/cni` isolator nesting aware.
-  * [MESOS-6160] - Add protobuf definition for a Volume::Source that specifies a path from parent contianer's sandbox.
+  * [MESOS-6160] - Add protobuf definition for a Volume::Source that specifies a path from parent container's sandbox.
   * [MESOS-6186] - Make the generic `cgroups` isolator nesting aware.
   * [MESOS-6188] - Make the `gpu/nvidia` isolator nesting aware.
   * [MESOS-6189] - Add a virtual method to Isolator to indicate if it supports nesting.
