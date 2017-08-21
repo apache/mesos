@@ -1572,7 +1572,7 @@ volumes that each container uses.
   </td>
   <td>
 Whether to enable disk quota enforcement for containers. This flag
-is used for the <code>disk/du</code> isolator. (default: false)
+is used by the <code>disk/du</code> and <code>disk/xfs</code> isolators. (default: false)
   </td>
 </tr>
 <tr>

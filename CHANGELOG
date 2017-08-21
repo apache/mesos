@@ -2,6 +2,10 @@ Release Notes - Mesos - Version 1.4.0
 -------------------------------------------
 This release contains the following new features:
 
+  * [MESOS-5116] - The `disk/xfs` isolator now supports the
+    `--enforce_container_disk_quota` flag to efficiently measure disk
+    usage without enforcing usage constraints.
+
   * [MESOS-6223] - Agents are now allowed to recover the agent ID
     after a host reboot. See docs/upgrades.md for details.
 

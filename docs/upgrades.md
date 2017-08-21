@@ -51,6 +51,7 @@ We categorize the changes as follows:
       <li>A <a href="#1-4-x-ambient-capabilities">Container capabilities are made ambient if supported</a></li>
       <li>A <a href="#1-4-x-bounding-capabilities">Support for explicit bounding capabilities</a></li>
       <li>C <a href="#1-4-x-agent-recovery">Agent recovery post reboot</a></li>
+      <li>C <a href="#1-4-x-xfs-no-enforce">XFS disk isolator support for not enforcing disk limits</a></li>
     </ul>
   </td>
 
@@ -345,6 +346,10 @@ We categorize the changes as follows:
 <a name="1-4-x-allocator-update-slave"></a>
 
 * The semantics of the optional resource argument passed in `Allocator::updateSlave` was change. While previously the passed value denoted a new amount of oversubscribed (revocable) resources on the agent, it now denotes the new amount of total resources on the agent. This requires custom allocator implementations to update their interpretation of the passed value.
+
+<a name="1-4-x-xfs-no-enforce"></a>
+
+* The XFS Disk Isolator now supports the `--no-enforce_container_disk_quota` option to efficiently measure disk resource usage without enforcing any usage limits.
 
 ## Upgrading from 1.2.x to 1.3.x ##
 
