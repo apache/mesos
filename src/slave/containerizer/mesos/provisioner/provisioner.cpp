@@ -405,7 +405,7 @@ Future<Nothing> ProvisionerProcess::recover(
   // A successful provisioner recovery depends on:
   //  1) Recovery of known containers (done above).
   //  2) Successful cleanup of unknown containers.
-  //  `3) Successful store recovery.
+  //  3) Successful store recovery.
   //
   // TODO(jieyu): Do not recover 'store' before unknown containers are
   // cleaned up. In the future, we may want to cleanup unused rootfses
