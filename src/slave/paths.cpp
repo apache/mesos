@@ -69,7 +69,7 @@ const char RESOURCES_TARGET_FILE[] = "resources.target";
 const char SLAVES_DIR[] = "slaves";
 const char FRAMEWORKS_DIR[] = "frameworks";
 const char EXECUTORS_DIR[] = "executors";
-const char CONTAINERS_DIR[] = "runs";
+const char EXECUTOR_RUNS_DIR[] = "runs";
 
 
 Try<ExecutorRunPath> parseExecutorRunPath(
@@ -103,7 +103,7 @@ Try<ExecutorRunPath> parseExecutorRunPath(
   if (tokens[0] == SLAVES_DIR &&
       tokens[2] == FRAMEWORKS_DIR &&
       tokens[4] == EXECUTORS_DIR &&
-      tokens[6] == CONTAINERS_DIR) {
+      tokens[6] == EXECUTOR_RUNS_DIR) {
     ExecutorRunPath path;
 
     path.slaveId.set_value(tokens[1]);
@@ -248,7 +248,7 @@ Try<list<string>> getExecutorRunPaths(
 {
   return fs::list(path::join(
       getExecutorPath(rootDir, slaveId, frameworkId, executorId),
-      CONTAINERS_DIR,
+      EXECUTOR_RUNS_DIR,
       "*"));
 }
 
@@ -262,7 +262,7 @@ string getExecutorRunPath(
 {
   return path::join(
       getExecutorPath(rootDir, slaveId, frameworkId, executorId),
-      CONTAINERS_DIR,
+      EXECUTOR_RUNS_DIR,
       stringify(containerId));
 }
 
@@ -311,7 +311,7 @@ string getExecutorLatestRunPath(
 {
   return path::join(
       getExecutorPath(rootDir, slaveId, frameworkId, executorId),
-      CONTAINERS_DIR,
+      EXECUTOR_RUNS_DIR,
       LATEST_SYMLINK);
 }
 
