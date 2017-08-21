@@ -260,7 +260,7 @@ void Fetcher::kill(const ContainerID& containerId)
 
 
 FetcherProcess::Metrics::Metrics(FetcherProcess *fetcher)
-  : task_fetches_total("containerizer/fetcher/task_fetches_total"),
+  : task_fetches_succeeded("containerizer/fetcher/task_fetches_succeeded"),
     task_fetches_failed("containerizer/fetcher/task_fetches_failed"),
     cache_size_total_bytes(
         "containerizer/fetcher/cache_size_total_bytes",
@@ -275,7 +275,7 @@ FetcherProcess::Metrics::Metrics(FetcherProcess *fetcher)
           return fetcher->cache.usedSpace().bytes();
         })
 {
-  process::metrics::add(task_fetches_total);
+  process::metrics::add(task_fetches_succeeded);
   process::metrics::add(task_fetches_failed);
   process::metrics::add(cache_size_total_bytes);
   process::metrics::add(cache_size_used_bytes);
@@ -284,7 +284,7 @@ FetcherProcess::Metrics::Metrics(FetcherProcess *fetcher)
 
 FetcherProcess::Metrics::~Metrics()
 {
-  process::metrics::remove(task_fetches_total);
+  process::metrics::remove(task_fetches_succeeded);
   process::metrics::remove(task_fetches_failed);
 
   // Wait for the metrics to be removed before we allow the destructor
@@ -374,8 +374,6 @@ Future<Nothing> FetcherProcess::fetch(
     const string& sandboxDirectory,
     const Option<string>& user)
 {
-  ++metrics.task_fetches_total;
-
   VLOG(1) << "Starting to fetch URIs for container: " << containerId
           << ", directory: " << sandboxDirectory;
 
@@ -573,6 +571,8 @@ Future<Nothing> FetcherProcess::__fetch(
 
   return run(containerId, sandboxDirectory, user, info)
     .repair(defer(self(), [=](const Future<Nothing>& future) {
+      ++metrics.task_fetches_failed;
+
       LOG(ERROR) << "Failed to run mesos-fetcher: " << future.failure();
 
       foreachvalue (const Option<shared_ptr<Cache::Entry>>& entry, entries) {
@@ -587,7 +587,6 @@ Future<Nothing> FetcherProcess::__fetch(
         }
       }
 
-      ++metrics.task_fetches_failed;
       return future; // Always propagate the failure!
     })
     // Call to `operator` here forces the conversion on MSVC. This is implicit
@@ -595,6 +594,8 @@ Future<Nothing> FetcherProcess::__fetch(
     .operator std::function<process::Future<Nothing>(
         const process::Future<Nothing> &)>())
     .then(defer(self(), [=]() {
+      ++metrics.task_fetches_succeeded;
+
       foreachvalue (const Option<shared_ptr<Cache::Entry>>& entry, entries) {
         if (entry.isSome()) {
           entry.get()->unreference();

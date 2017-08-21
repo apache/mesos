@@ -1533,9 +1533,9 @@ on the agent.
 </tr>
 <tr>
   <td>
-  <code>containerizer/fetcher/task_fetches_total</code>
+  <code>containerizer/fetcher/task_fetches_succeeded</code>
   </td>
-  <td>Total number of times the Mesos fetcher tried to fetch URIs for a task.</td>
+  <td>Total number of times the Mesos fetcher successfully fetched all the URIs for a task.</td>
   <td>Counter</td>
 </tr>
 <tr>
