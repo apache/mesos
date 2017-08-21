@@ -645,12 +645,10 @@ void CheckerProcess::___nestedCommandCheck(
     tie(stdoutReceived, stderrReceived) = checkOutput.get();
 
     LOG(INFO) << "Output of the " << name << " for task '" << taskId
-              << "' (stdout):" << std::endl
-              << stdoutReceived;
+              << "' (stdout):" << std::endl << stdoutReceived;
 
     LOG(INFO) << "Output of the " << name << " for task '" << taskId
-              << "' (stderr):" << std::endl
-              << stderrReceived;
+              << "' (stderr):" << std::endl << stderrReceived;
   }
 
   waitNestedContainer(checkContainerId)
