@@ -73,20 +73,22 @@ namespace tests {
 class FetcherTest : public TemporaryDirectoryTest
 {
 public:
-  static void verifyMetrics(unsigned totalCount, unsigned errorCount)
+  static void verifyMetrics(unsigned successCount, unsigned errorCount)
   {
     JSON::Object metrics = Metrics();
 
     // First verify that each metric is present.
     ASSERT_EQ(
-        1u, metrics.values.count("containerizer/fetcher/task_fetches_total"));
+        1u,
+        metrics.values.count("containerizer/fetcher/task_fetches_succeeded"));
     ASSERT_EQ(
-        1u, metrics.values.count("containerizer/fetcher/task_fetches_failed"));
+        1u,
+        metrics.values.count("containerizer/fetcher/task_fetches_failed"));
 
     // Next verify the actual values.
     EXPECT_SOME_EQ(
-      totalCount,
-      metrics.at<JSON::Number>("containerizer/fetcher/task_fetches_total"));
+      successCount,
+      metrics.at<JSON::Number>("containerizer/fetcher/task_fetches_succeeded"));
     EXPECT_SOME_EQ(
       errorCount,
       metrics.at<JSON::Number>("containerizer/fetcher/task_fetches_failed"));
@@ -229,7 +231,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, AbsoluteCustomSubdirectoryFails)
 
   EXPECT_FALSE(os::exists(localFile));
 
-  verifyMetrics(1, 1);
+  verifyMetrics(0, 1);
 }
 
 
@@ -271,7 +273,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, InvalidUser)
 
   EXPECT_FALSE(os::exists(localFile));
 
-  verifyMetrics(1, 1);
+  verifyMetrics(0, 1);
 }
 
 
@@ -303,7 +305,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, NonExistingFile)
   // See FetcherProcess::run().
   EXPECT_TRUE(strings::contains(fetch.failure(), "Failed to fetch"));
 
-  verifyMetrics(1, 1);
+  verifyMetrics(0, 1);
 }
 
 
@@ -330,7 +332,7 @@ TEST_F(FetcherTest, MalformedURI)
   // See Fetcher::basename().
   EXPECT_TRUE(strings::contains(fetch.failure(), "Malformed"));
 
-  verifyMetrics(1, 1);
+  verifyMetrics(0, 1);
 }
 
 
@@ -401,7 +403,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, RelativeFilePath)
 
     EXPECT_FALSE(os::exists(localFile));
 
-    verifyMetrics(1, 1);
+    verifyMetrics(0, 1);
   }
 
   {
@@ -907,7 +909,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, UNZIP_ExtractInvalidFile)
 
   ASSERT_SOME_EQ("hello hello\n", os::read(extractedFile));
 
-  verifyMetrics(1, 1);
+  verifyMetrics(0, 1);
 }
 
 

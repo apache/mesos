@@ -255,7 +255,7 @@ private:
     // a single task asks for multiple artifacts, the total number of
     // fetches will only go up by one. And if any of those artifacts
     // fail to fetch, the failure count will only increase by one.
-    process::metrics::Counter task_fetches_total;
+    process::metrics::Counter task_fetches_succeeded;
     process::metrics::Counter task_fetches_failed;
 
     process::metrics::Gauge cache_size_total_bytes;
