@@ -37,6 +37,32 @@ namespace slave {
 namespace containerizer {
 namespace paths {
 
+
+// The containerizer uses the runtime directory to checkpoint things
+// for each container, like the PID of the first process executed
+// within a container (i.e., the "PID 1") or the LaunchInfo associated
+// with the given container.
+//
+// The file system layout is as follows:
+//
+//   root ('--runtime_dir' flag)
+//   |-- containers
+//       |-- <container_id>
+//           |-- containers
+//           |   |-- <container_id>
+//           |   |   |-- <more nesting of containers>
+//           |   |-- pid
+//           |   |-- ...
+//           |-- force_destroy_on_recovery
+//           |-- io_switchboard
+//           |   |-- pid
+//           |   |-- socket
+//           |-- launch_info
+//           |-- pid
+//           |-- status
+//           |-- termination
+
+
 constexpr char PID_FILE[] = "pid";
 constexpr char STATUS_FILE[] = "status";
 constexpr char TERMINATION_FILE[] = "termination";
@@ -69,19 +95,9 @@ std::string buildPath(
     const Mode& mode);
 
 
-// The containerizer uses the runtime directory (flag 'runtime_dir')
-// to checkpoint things for each container, e.g., the PID of the first
-// process executed within a container (i.e., the "PID 1") gets
-// checkpointed in a file called 'pid'. The following helper function
-// constructs the path for a container given the 'runtimeDir' that was
-// used as well as the container `containerId`. For example, given two
-// containers, one with ID 'a9dd' and one nested within 'a9dd' with ID
-// '4e3a' and with the flag 'runtime_dir' set to '/var/run/mesos' you
-// would have a directory structure that looks like:
-//
-// /var/run/mesos/containers/a9dd
-// /var/run/mesos/containers/a9dd/pid
-// /var/run/mesos/containers/a9dd/containers/4e3a/pid
+// The following helper function constructs the path
+// for a container given the 'runtimeDir' that was
+// used as well as the container `containerId`.
 std::string getRuntimePath(
     const std::string& runtimeDir,
     const ContainerID& containerId);
