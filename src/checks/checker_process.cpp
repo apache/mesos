@@ -914,32 +914,35 @@ Future<int> CheckerProcess::_httpCheck(
 
   int exitCode = status->get();
   if (exitCode != 0) {
-    const Future<string>& error = std::get<2>(t);
-    if (!error.isReady()) {
+    const Future<string>& commandError = std::get<2>(t);
+    if (!commandError.isReady()) {
       return Failure(
           string(HTTP_CHECK_COMMAND) + " " + WSTRINGIFY(exitCode) +
           "; reading stderr failed: " +
-          (error.isFailed() ? error.failure() : "discarded"));
+          (commandError.isFailed() ? commandError.failure() : "discarded"));
     }
 
     return Failure(
         string(HTTP_CHECK_COMMAND) + " " + WSTRINGIFY(exitCode) + ": " +
-        error.get());
+        commandError.get());
   }
 
-  const Future<string>& output = std::get<1>(t);
-  if (!output.isReady()) {
+  const Future<string>& commandOutput = std::get<1>(t);
+  if (!commandOutput.isReady()) {
     return Failure(
         "Failed to read stdout from " + string(HTTP_CHECK_COMMAND) + ": " +
-        (output.isFailed() ? output.failure() : "discarded"));
+        (commandOutput.isFailed() ? commandOutput.failure() : "discarded"));
   }
 
+  VLOG(1) << "Output of the " << name << " for task '" << taskId
+          << "': " << commandOutput.get();
+
   // Parse the output and get the HTTP status code.
-  Try<int> statusCode = numify<int>(output.get());
+  Try<int> statusCode = numify<int>(commandOutput.get());
   if (statusCode.isError()) {
     return Failure(
         "Unexpected output from " + string(HTTP_CHECK_COMMAND) + ": " +
-        output.get());
+        commandOutput.get());
   }
 
   return statusCode.get();
@@ -1068,7 +1071,8 @@ Future<bool> CheckerProcess::_tcpCheck(
 
   const Future<string>& commandOutput = std::get<1>(t);
   if (commandOutput.isReady()) {
-    VLOG(1) << string(TCP_CHECK_COMMAND) << ": " << commandOutput.get();
+    VLOG(1) << "Output of the " << name << " for task '" << taskId
+            << "': " << commandOutput.get();
   }
 
   if (exitCode != 0) {
