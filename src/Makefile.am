@@ -24,6 +24,7 @@ include ../3rdparty/versions.am
 
 # TODO(charles): Move these into an included automakefile and have
 # them include $(top_builddir) as appropriate.
+CSI = 3rdparty/csi-$(CSI_VERSION)
 LEVELDB = 3rdparty/leveldb-$(LEVELDB_VERSION)
 PIP = 3rdparty/pip-$(PIP_VERSION)
 SETUPTOOLS = 3rdparty/setuptools-$(SETUPTOOLS_VERSION)
@@ -57,15 +58,6 @@ testlibexecdir = $(pkglibexecdir)/tests
 # Directory where Mesos modules are installed.
 pkgmoduledir = $(pkglibdir)/modules
 relative_pkgmoduledir = $(PACKAGE)/modules
-
-if WITH_BUNDLED_PROTOBUF
-# Protocol buffer compiler.
-PROTOC = ../$(PROTOBUF)/src/protoc
-else
-PROTOC = @PROTOCOMPILER@
-endif
-
-PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir)
 
 # Initialize variables here so we can use += operator everywhere else.
 lib_LTLIBRARIES =
@@ -176,6 +168,7 @@ endif
 
 if ENABLE_GRPC
 if WITH_BUNDLED_GRPC
+MESOS_CPPFLAGS += -I../$(GRPC)/include
 LIB_GRPC = ../$(GRPC)/libs/opt/libgrpc++.a	\
            ../$(GRPC)/libs/opt/libgrpc.a	\
            ../$(GRPC)/libs/opt/libgpr.a		\
@@ -218,9 +211,11 @@ endif
 if WITH_BUNDLED_PROTOBUF
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 LIB_PROTOBUF = ../$(PROTOBUF)/src/libprotobuf.la
+PROTOC = ../$(PROTOBUF)/src/protoc
 else
 LIB_PROTOBUF = -lprotobuf
 LDADD += -lprotobuf
+PROTOC = @PROTOCOMPILER@
 endif
 
 if WITH_BUNDLED_STOUT
@@ -237,6 +232,12 @@ LDADD += -lzookeeper_mt
 endif
 
 MESOS_CPPFLAGS += -DHAS_AUTHENTICATION=1
+
+# Set up include paths for the protocol buffer compiler.
+PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir)
+if ENABLE_GRPC
+PROTOCFLAGS += -I../$(CSI)
+endif
 
 # README: we build the Mesos library out of a collection of
 # convenience libraries (that is, libraries that do not get installed
@@ -363,6 +364,14 @@ CXX_PROTOS +=								\
   slave/containerizer/mesos/isolators/network/cni/spec.pb.cc		\
   slave/containerizer/mesos/isolators/network/cni/spec.pb.h
 
+if ENABLE_GRPC
+CXX_CSI_PROTOS =							\
+  csi/csi.grpc.pb.cc							\
+  csi/csi.grpc.pb.h							\
+  csi/csi.pb.cc								\
+  csi/csi.pb.h
+endif
+
 CXX_LOG_PROTOS =							\
   messages/log.pb.cc							\
   messages/log.pb.h
@@ -402,6 +411,7 @@ V1_PYTHON_PROTOS =                                                      \
   python/interface/src/mesos/v1/interface/scheduler_pb2.py
 
 BUILT_SOURCES +=							\
+  $(CXX_CSI_PROTOS)							\
   $(CXX_LOG_PROTOS)							\
   $(CXX_PROTOS)								\
   $(CXX_STATE_PROTOS)							\
@@ -411,6 +421,7 @@ BUILT_SOURCES +=							\
   $(V1_PYTHON_PROTOS)
 
 CLEANFILES +=								\
+  $(CXX_CSI_PROTOS)							\
   $(CXX_LOG_PROTOS)							\
   $(CXX_PROTOS)								\
   $(CXX_STATE_PROTOS)							\
@@ -420,13 +431,19 @@ CLEANFILES +=								\
   $(V1_PYTHON_PROTOS)
 
 
-# Targets for generating C++ protocol buffer code.
+# Targets for generating C++ protocol buffer and gRPC code.
 ../include/mesos/%.pb.cc ../include/mesos/%.pb.h: $(top_srcdir)/include/mesos/%.proto
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+
+csi/%.pb.cc csi/%.pb.h: ../$(CSI)/%.proto
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=csi $^
 
 %.pb.cc %.pb.h: %.proto
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
+csi/%.grpc.pb.cc csi/%.grpc.pb.h: ../$(CSI)/%.proto
+	$(PROTOC) $(PROTOCFLAGS) --grpc_out=csi $^		\
+	          --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN)
 
 # Targets for generating Java protocol buffer code.
 java/generated/org/apache/mesos/executor/Protos.java: $(EXECUTOR_PROTO)
@@ -1374,7 +1391,7 @@ endif
 
 if ENABLE_SSL
 libmesos_no_3rdparty_la_SOURCES +=					\
-  authentication/executor/jwt_secret_generator.cpp				\
+  authentication/executor/jwt_secret_generator.cpp			\
   authentication/executor/jwt_secret_generator.hpp
 endif
 
@@ -1419,6 +1436,21 @@ BUILD_FLAGS = $(echo $(MESOS_CPPFLAGS) $(CPPFLAGS) | $(SED) 's/\"/\\\"/g')	\
 libbuild_la_CPPFLAGS += -DBUILD_FLAGS="\"$$BUILD_FLAGS\""
 
 libmesos_no_3rdparty_la_LIBADD += libbuild.la
+
+
+if ENABLE_GRPC
+# Convenience library for build the CSI client.
+noinst_LTLIBRARIES += libcsi.la
+libcsi_la_SOURCES =							\
+  csi/client.cpp
+libcsi_la_SOURCES +=							\
+  csi/client.hpp							\
+  csi/spec.hpp
+nodist_libcsi_la_SOURCES = $(CXX_CSI_PROTOS)
+libcsi_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+
+libmesos_no_3rdparty_la_LIBADD += libcsi.la
+endif
 
 
 # Convenience library for building the replicated log in order to
@@ -2446,7 +2478,7 @@ mesos_tests_CPPFLAGS += -isystem ../$(GMOCK)/include
 mesos_tests_CPPFLAGS += -DTESTLIBEXECDIR=\"$(testlibexecdir)\"
 mesos_tests_CPPFLAGS += -DSBINDIR=\"$(sbindir)\"
 
-mesos_tests_LDADD = ../3rdparty/libgmock.la libmesos.la $(LDADD)
+mesos_tests_LDADD = ../3rdparty/libgmock.la libmesos.la $(LIB_GRPC) $(LDADD)
 
 if !OS_FREEBSD
   mesos_tests_LDADD += -ldl # FreeBSD includes dynamic lib utils in libc.
@@ -2487,6 +2519,13 @@ if ENABLE_PORT_MAPPING_ISOLATOR
 mesos_tests_SOURCES +=						\
   tests/containerizer/port_mapping_tests.cpp			\
   tests/containerizer/routing_tests.cpp
+endif
+
+if ENABLE_GRPC
+mesos_tests_SOURCES +=						\
+  tests/csi_client_tests.cpp					\
+  tests/mock_csi_plugin.cpp					\
+  tests/mock_csi_plugin.hpp
 endif
 
 if ENABLE_SSL

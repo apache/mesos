@@ -50,6 +50,7 @@ include versions.am
 
 BOOST = boost-$(BOOST_VERSION)
 CONCURRENTQUEUE = concurrentqueue-$(CONCURRENTQUEUE_VERSION)
+CSI = csi-$(CSI_VERSION)
 ELFIO = elfio-$(ELFIO_VERSION)
 GLOG = glog-$(GLOG_VERSION)
 GOOGLETEST = googletest-release-$(GOOGLETEST_VERSION)
@@ -71,6 +72,7 @@ ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
 EXTRA_DIST =			\
   $(BOOST).tar.gz		\
   $(CONCURRENTQUEUE).tar.gz	\
+  $(CSI).tar.gz			\
   $(ELFIO).tar.gz		\
   $(GLOG).tar.gz		\
   $(GOOGLETEST).tar.gz		\
@@ -112,6 +114,7 @@ EXTRA_DIST +=		\
 CLEAN_EXTRACTED =		\
   $(BOOST)			\
   $(CONCURRENTQUEUE)		\
+  $(CSI)			\
   $(ELFIO)			\
   $(GLOG)			\
   $(GOOGLETEST)			\
@@ -330,6 +333,10 @@ else
 $(GRPC)-build-stamp:
 	touch $@
 endif
+endif
+
+if ENABLE_GRPC
+ALL_LOCAL += $(CSI)-stamp
 endif
 
 # Convenience library for gmock/gtest.
