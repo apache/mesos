@@ -107,10 +107,6 @@ private:
     Option<pid_t> pid = None();
   };
 
-  // Helper for determining the cgroup for a container (i.e., the path
-  // in a cgroup subsystem).
-  string cgroup(const ContainerID& containerId);
-
   // Helper for parsing the cgroup path to determine the container ID
   // it belongs to.
   Option<ContainerID> parse(const string& cgroup);
@@ -175,6 +171,19 @@ bool LinuxLauncher::available()
   //   2. 'freezer' subsytem is enabled.
   Try<bool> freezer = cgroups::enabled("freezer");
   return ::geteuid() == 0 && freezer.isSome() && freezer.get();
+}
+
+
+string LinuxLauncher::cgroup(
+    const string& cgroupsRoot,
+    const ContainerID& containerId)
+{
+  return path::join(
+      cgroupsRoot,
+      containerizer::paths::buildPath(
+          containerId,
+          CGROUP_SEPARATOR,
+          containerizer::paths::JOIN));
 }
 
 
@@ -454,7 +463,7 @@ Try<pid_t> LinuxLauncherProcess::fork(
   parentHooks.emplace_back(Subprocess::ParentHook([=](pid_t child) {
     return cgroups::isolate(
         freezerHierarchy,
-        cgroup(containerId),
+        LinuxLauncher::cgroup(this->flags.cgroups_root, containerId),
         child);
   }));
 
@@ -519,6 +528,9 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
     }
   }
 
+  const string cgroup =
+    LinuxLauncher::cgroup(flags.cgroups_root, container->id);
+
   // We remove the container so that we don't attempt multiple
   // destroys simultaneously and no other functions will return
   // information about the container that is currently being (or has
@@ -534,7 +546,7 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
   // is considered partially destroyed if we have recovered it from
   // ContainerState but we don't have a freezer cgroup for it. If this
   // is a partially destroyed container than there is nothing to do.
-  Try<bool> exists = cgroups::exists(freezerHierarchy, cgroup(container->id));
+  Try<bool> exists = cgroups::exists(freezerHierarchy, cgroup);
   if (exists.isError()) {
     return Failure("Failed to determine if cgroup exists: " + exists.error());
   }
@@ -545,7 +557,7 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
     return Nothing();
   }
 
-  LOG(INFO) << "Using freezer to destroy cgroup " << cgroup(container->id);
+  LOG(INFO) << "Using freezer to destroy cgroup " << cgroup;
 
   // TODO(benh): If this is the last container at a nesting level,
   // should we also delete the `CGROUP_SEPARATOR` cgroup too?
@@ -554,7 +566,7 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
   // retry?
   return cgroups::destroy(
       freezerHierarchy,
-      cgroup(container->id),
+      cgroup,
       cgroups::DESTROY_TIMEOUT);
 }
 
@@ -575,17 +587,6 @@ Future<ContainerStatus> LinuxLauncherProcess::status(
   }
 
   return status;
-}
-
-
-string LinuxLauncherProcess::cgroup(const ContainerID& containerId)
-{
-  return path::join(
-      flags.cgroups_root,
-      containerizer::paths::buildPath(
-          containerId,
-          CGROUP_SEPARATOR,
-          containerizer::paths::JOIN));
 }
 
 

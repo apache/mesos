@@ -37,6 +37,12 @@ public:
   // Returns 'true' if prerequisites for using LinuxLauncher are available.
   static bool available();
 
+  // Helper for determining the cgroup for a container (i.e., the path
+  // in a cgroup subsystem).
+  static std::string cgroup(
+      const std::string& cgroupsRoot,
+      const ContainerID& containerId);
+
   virtual ~LinuxLauncher();
 
   virtual process::Future<hashset<ContainerID>> recover(
