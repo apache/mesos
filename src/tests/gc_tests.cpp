@@ -128,6 +128,13 @@ TEST_F(GarbageCollectorTest, Schedule)
   AWAIT_READY(scheduleDispatch3);
   Clock::settle();
 
+  JSON::Object metrics = Metrics();
+
+  ASSERT_EQ(1u, metrics.values.count("gc/path_removals_pending"));
+  EXPECT_SOME_EQ(
+      3u,
+      metrics.at<JSON::Number>("gc/path_removals_pending"));
+
   // Advance the clock to trigger the GC of file1 and file2.
   Clock::advance(Seconds(10));
   Clock::settle();
@@ -147,6 +154,22 @@ TEST_F(GarbageCollectorTest, Schedule)
   AWAIT_READY(schedule3);
 
   EXPECT_FALSE(os::exists(file3));
+
+  metrics = Metrics();
+
+  ASSERT_EQ(1u, metrics.values.count("gc/path_removals_pending"));
+  ASSERT_EQ(1u, metrics.values.count("gc/path_removals_succeeded"));
+  ASSERT_EQ(1u, metrics.values.count("gc/path_removals_failed"));
+
+  EXPECT_SOME_EQ(
+      0u,
+      metrics.at<JSON::Number>("gc/path_removals_pending"));
+  EXPECT_SOME_EQ(
+      3u,
+      metrics.at<JSON::Number>("gc/path_removals_succeeded"));
+  EXPECT_SOME_EQ(
+      0u,
+      metrics.at<JSON::Number>("gc/path_removals_failed"));
 
   Clock::resume();
 }
@@ -980,6 +1003,23 @@ TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
   EXPECT_TRUE(os::exists(sandbox));
   EXPECT_TRUE(os::exists(path::join(sandbox, mountPoint)));
   EXPECT_FALSE(os::exists(path::join(sandbox, regularFile)));
+
+  // Verify that GC metrics show that we performed 1 path removal that failed.
+  JSON::Object metrics = Metrics();
+
+  ASSERT_EQ(1u, metrics.values.count("gc/path_removals_pending"));
+  ASSERT_EQ(1u, metrics.values.count("gc/path_removals_succeeded"));
+  ASSERT_EQ(1u, metrics.values.count("gc/path_removals_failed"));
+
+  EXPECT_SOME_EQ(
+      0u,
+      metrics.at<JSON::Number>("gc/path_removals_pending"));
+  EXPECT_SOME_EQ(
+      0u,
+      metrics.at<JSON::Number>("gc/path_removals_succeeded"));
+  EXPECT_SOME_EQ(
+      1u,
+      metrics.at<JSON::Number>("gc/path_removals_failed"));
 
   Clock::resume();
   driver.stop();
