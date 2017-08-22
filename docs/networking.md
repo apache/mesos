@@ -66,7 +66,7 @@ an IP network.
 
 ### <a name="attaching-containers"></a>Attaching containers to IP networks
 
-#### <a name="attaching-contianers-mesos"></a>Mesos containerizer
+#### <a name="attaching-containers-mesos"></a>Mesos containerizer
 
 `MesosContainerizer` has the [`network/cni`](cni.md) isolator enabled
 by default, which implements CNI (Container Network Interface). The
