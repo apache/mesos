@@ -27,8 +27,8 @@
 
 #include <stout/tests/utils.hpp>
 
-#include "grpc_tests.pb.h"
 #include "grpc_tests.grpc.pb.h"
+#include "grpc_tests.pb.h"
 
 namespace client = process::grpc::client;
 
@@ -92,7 +92,8 @@ private:
 };
 
 
-class GRPCClientTest : public TemporaryDirectoryTest {
+class GRPCClientTest : public TemporaryDirectoryTest
+{
 protected:
   string server_address() const
   {
@@ -114,8 +115,7 @@ TEST_F(GRPCClientTest, Success)
   client::Runtime runtime;
   Channel channel(server_address());
 
-  Future<Pong> pong = runtime.call(
-      channel, GRPC_RPC(PingPong, Send), Ping());
+  Future<Pong> pong = runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
 
   AWAIT_EXPECT_READY(pong);
 
@@ -160,12 +160,9 @@ TEST_F(GRPCClientTest, ConcurrentRPCs)
   client::Runtime runtime;
   Channel channel(server_address());
 
-  Future<Pong> pong1 = runtime.call(
-      channel, GRPC_RPC(PingPong, Send), Ping());
-  Future<Pong> pong2 = runtime.call(
-      channel, GRPC_RPC(PingPong, Send), Ping());
-  Future<Pong> pong3 = runtime.call(
-      channel, GRPC_RPC(PingPong, Send), Ping());
+  Future<Pong> pong1 = runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
+  Future<Pong> pong2 = runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
+  Future<Pong> pong3 = runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
 
   AWAIT_READY(processed1->future());
   AWAIT_READY(processed2->future());
@@ -198,8 +195,7 @@ TEST_F(GRPCClientTest, Failed)
   client::Runtime runtime;
   Channel channel(server_address());
 
-  Future<Pong> pong = runtime.call(
-      channel, GRPC_RPC(PingPong, Send), Ping());
+  Future<Pong> pong = runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
 
   AWAIT_EXPECT_FAILED(pong);
 
@@ -222,8 +218,7 @@ TEST_F(GRPCClientTest, DiscardedBeforeServerStarted)
   client::Runtime runtime;
   Channel channel(server_address());
 
-  Future<Pong> pong = runtime.call(
-      channel, GRPC_RPC(PingPong, Send), Ping());
+  Future<Pong> pong = runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
   pong.discard();
 
   ASSERT_SOME(server.Startup(server_address()));
@@ -259,8 +254,7 @@ TEST_F(GRPCClientTest, DiscardedWhenServerProcessing)
 
   ASSERT_SOME(server.Startup(server_address()));
 
-  Future<Pong> pong = runtime.call(
-      channel, GRPC_RPC(PingPong, Send), Ping());
+  Future<Pong> pong = runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
   AWAIT_READY(processed->future());
 
   pong.discard();
@@ -297,8 +291,7 @@ TEST_F(GRPCClientTest, ClientShutdown)
   client::Runtime runtime;
   Channel channel(server_address());
 
-  Future<Pong> pong = runtime.call(
-      channel, GRPC_RPC(PingPong, Send), Ping());
+  Future<Pong> pong = runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
 
   AWAIT_READY(processed->future());
 
@@ -319,8 +312,7 @@ TEST_F(GRPCClientTest, ServerUnreachable)
   client::Runtime runtime;
   Channel channel("nosuchhost");
 
-  Future<Pong> pong = runtime.call(
-      channel, GRPC_RPC(PingPong, Send), Ping());
+  Future<Pong> pong = runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
 
   runtime.terminate();
   AWAIT_ASSERT_READY(runtime.wait());
@@ -349,8 +341,7 @@ TEST_F(GRPCClientTest, ServerTimeout)
   client::Runtime runtime;
   Channel channel(server_address());
 
-  Future<Pong> pong = runtime.call(
-      channel, GRPC_RPC(PingPong, Send), Ping());
+  Future<Pong> pong = runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
 
   // TODO(chhsiao): The gRPC library returns a failure after the default
   // timeout (5 seconds) is passed, no matter when the `CompletionQueue`
