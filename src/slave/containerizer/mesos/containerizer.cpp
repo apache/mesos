@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <set>
 
 #include <mesos/module/isolator.hpp>
@@ -151,9 +152,24 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     SecretResolver* secretResolver,
     const Option<NvidiaComponents>& nvidia)
 {
-  // Modify `flags` based on the deprecated `isolation` flag (and then
-  // use `flags_` in the rest of this function).
-  Flags flags_ = flags;
+  Try<hashset<string>> isolations = [&flags]() -> Try<hashset<string>> {
+    const vector<string> tokens(strings::tokenize(flags.isolation, ","));
+    hashset<string> isolations(set<string>(tokens.begin(), tokens.end()));
+
+    if (tokens.size() != isolations.size()) {
+      return Error("Duplicate entries found in --isolation flag '" +
+                  stringify(tokens) + "'");
+    }
+
+    return isolations;
+  }();
+
+  if (isolations.isError()) {
+    return Error(isolations.error());
+  }
+
+  // TODO(jpeach) We need to preserve the original ordering of the
+  // `--isolation` flag as per MESOS-7643.
 
   if (flags.isolation == "process") {
     LOG(WARNING) << "The 'process' isolation flag is deprecated, "
@@ -161,39 +177,56 @@ Try<MesosContainerizer*> MesosContainerizer::create(
                  << "'--isolation=posix/cpu,posix/mem' (or "
                  << "'--isolation=windows/cpu' if you are on Windows).";
 
+    isolations->erase("process");
+
 #ifndef __WINDOWS__
-    flags_.isolation = "posix/cpu,posix/mem";
+    isolations->insert("posix/cpu");
+    isolations->insert("posix/mem");
 #else
-    flags_.isolation = "windows/cpu";
+    isolations->insert("windows/cpu");
 #endif // __WINDOWS__
   } else if (flags.isolation == "cgroups") {
     LOG(WARNING) << "The 'cgroups' isolation flag is deprecated, "
                  << "please update your flags to"
                  << " '--isolation=cgroups/cpu,cgroups/mem'.";
 
-    flags_.isolation = "cgroups/cpu,cgroups/mem";
+    isolations->erase("cgroups");
+    isolations->insert("cgroups/cpu");
+    isolations->insert("cgroups/mem");
   }
 
   // One and only one filesystem isolator is required. The filesystem
   // isolator is responsible for preparing the filesystems for
   // containers (e.g., prepare filesystem roots, volumes, etc.). If
   // the user does not specify one, 'filesystem/posix' (or
-  // 'filesystem/windows' on Windows) will be used
-  //
-  // TODO(jieyu): Check that only one filesystem isolator is used.
-  if (!strings::contains(flags_.isolation, "filesystem/")) {
+  // 'filesystem/windows' on Windows) will be used.
+  switch (std::count_if(
+      isolations->begin(),
+      isolations->end(),
+      [](const string& s) {
+        return strings::startsWith(s, "filesystem/");
+      })) {
+    case 0:
 #ifndef __WINDOWS__
-    flags_.isolation += ",filesystem/posix";
+      isolations->insert("filesystem/posix");
 #else
-    flags_.isolation += ",filesystem/windows";
+      isolations->insert("filesystem/windows");
 #endif // __WINDOWS__
+      break;
+
+    case 1:
+      break;
+
+    default:
+      return Error(
+          "Using multiple filesystem isolators simultaneously is disallowed");
   }
 
-  if (strings::contains(flags_.isolation, "posix/disk")) {
+  if (isolations->contains("posix/disk")) {
     LOG(WARNING) << "'posix/disk' has been renamed as 'disk/du', "
                  << "please update your --isolation flag to use 'disk/du'";
 
-    if (strings::contains(flags_.isolation, "disk/du")) {
+    if (isolations->contains("disk/du")) {
       return Error(
           "Using 'posix/disk' and 'disk/du' simultaneously is disallowed");
     }
@@ -204,10 +237,22 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   // isolator is responsible for preparing the network namespace for
   // containers. If the user does not specify one, 'network/cni'
   // isolator will be used.
+  switch (std::count_if(
+      isolations->begin(),
+      isolations->end(),
+      [](const string& s) {
+        return strings::startsWith(s, "network/");
+      })) {
+    case 0:
+      isolations->insert("network/cni");
+      break;
 
-  // TODO(jieyu): Check that only one network isolator is used.
-  if (!strings::contains(flags_.isolation, "network/")) {
-    flags_.isolation += ",network/cni";
+    case 1:
+      break;
+
+    default:
+      return Error(
+          "Using multiple network isolators simultaneously is disallowed");
   }
 
   // Always enable 'volume/image' on linux if 'filesystem/linux' is
@@ -216,57 +261,54 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   // TODO(gilbert): Make sure the 'gpu/nvidia' isolator to be created
   // after all volume isolators, so that the nvidia gpu libraries
   // '/usr/local/nvidia' will be overwritten.
-  if (strings::contains(flags_.isolation, "filesystem/linux") &&
-      !strings::contains(flags_.isolation, "volume/image")) {
-    flags_.isolation += ",volume/image";
+  if (isolations->contains("filesystem/linux")) {
+    isolations->insert("volume/image");
   }
 #endif // __linux__
 
   // Always add environment secret isolator.
-  if (!strings::contains(flags_.isolation, "environment_secret")) {
-    flags_.isolation += ",environment_secret";
-  }
+  isolations->insert("environment_secret");
 
 #ifdef __linux__
-  if (flags_.image_providers.isSome()) {
+  if (flags.image_providers.isSome()) {
     // The 'filesystem/linux' isolator and 'linux' launcher are required
     // for the mesos containerizer to support container images.
-    if (!strings::contains(flags_.isolation, "filesystem/linux")) {
+    if (!isolations->contains("filesystem/linux")) {
       return Error("The 'filesystem/linux' isolator must be enabled for"
-                   " container image support.");
+                   " container image support");
     }
 
-    if (flags_.launcher != "linux") {
+    if (flags.launcher != "linux") {
       return Error("The 'linux' launcher must be used for container"
-                   " image support.");
+                   " image support");
     }
   }
 #endif // __linux__
 
-  LOG(INFO) << "Using isolation: " << flags_.isolation;
+  LOG(INFO) << "Using isolation " << stringify(isolations.get());
 
   // Create the launcher for the MesosContainerizer.
-  Try<Launcher*> launcher = [&flags_]() -> Try<Launcher*> {
+  Try<Launcher*> launcher = [&flags]() -> Try<Launcher*> {
 #ifdef __linux__
-    if (flags_.launcher == "linux") {
-      return LinuxLauncher::create(flags_);
-    } else if (flags_.launcher == "posix") {
-      return SubprocessLauncher::create(flags_);
+    if (flags.launcher == "linux") {
+      return LinuxLauncher::create(flags);
+    } else if (flags.launcher == "posix") {
+      return SubprocessLauncher::create(flags);
     } else {
-      return Error("Unknown or unsupported launcher: " + flags_.launcher);
+      return Error("Unknown or unsupported launcher: " + flags.launcher);
     }
 #elif defined(__WINDOWS__)
-    if (flags_.launcher != "windows") {
-      return Error("Unsupported launcher: " + flags_.launcher);
+    if (flags.launcher != "windows") {
+      return Error("Unsupported launcher: " + flags.launcher);
     }
 
-    return SubprocessLauncher::create(flags_);
+    return SubprocessLauncher::create(flags);
 #else
-    if (flags_.launcher != "posix") {
-      return Error("Unsupported launcher: " + flags_.launcher);
+    if (flags.launcher != "posix") {
+      return Error("Unsupported launcher: " + flags.launcher);
     }
 
-    return SubprocessLauncher::create(flags_);
+    return SubprocessLauncher::create(flags);
 #endif // __linux__
   }();
 
@@ -275,7 +317,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   }
 
   Try<Owned<Provisioner>> _provisioner =
-    Provisioner::create(flags_, secretResolver);
+    Provisioner::create(flags, secretResolver);
 
   if (_provisioner.isError()) {
     return Error("Failed to create provisioner: " + _provisioner.error());
@@ -389,14 +431,6 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       }},
   };
 
-  vector<string> tokens = strings::tokenize(flags_.isolation, ",");
-  set<string> isolations = set<string>(tokens.begin(), tokens.end());
-
-  if (tokens.size() != isolations.size()) {
-    return Error("Duplicate entries found in --isolation flag '" +
-                 stringify(tokens) + "'");
-  }
-
   vector<Owned<Isolator>> isolators;
 
   // Note: For cgroups, we only create `CgroupsIsolatorProcess` once.
@@ -404,7 +438,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   // been created or not.
   bool cgroupsIsolatorCreated = false;
 
-  foreach (const string& isolation, isolations) {
+  foreach (const string& isolation, isolations.get()) {
     if (strings::startsWith(isolation, "cgroups/")) {
       if (cgroupsIsolatorCreated) {
         // Skip when `CgroupsIsolatorProcess` have been created.
@@ -416,7 +450,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
     Try<Isolator*> isolator = [&]() -> Try<Isolator*> {
       if (creators.contains(isolation)) {
-        return creators.at(isolation)(flags_);
+        return creators.at(isolation)(flags);
       } else if (ModuleManager::contains<Isolator>(isolation)) {
         return ModuleManager::create<Isolator>(isolation);
       }
@@ -439,7 +473,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   }
 
   return MesosContainerizer::create(
-      flags_,
+      flags,
       local,
       fetcher,
       Owned<Launcher>(launcher.get()),
