@@ -41,13 +41,19 @@ namespace socket {
 
 static Option<net::IP> IP(nl_addr* _ip)
 {
-  Option<net::IP> result;
   if (_ip != nullptr && nl_addr_get_len(_ip) != 0) {
-    struct in_addr* addr = (struct in_addr*) nl_addr_get_binary_addr(_ip);
-    result = net::IP(*addr);
+    if (nl_addr_get_family(_ip) == AF_INET) {
+      struct in_addr* addr = (struct in_addr*)nl_addr_get_binary_addr(_ip);
+      return net::IP(*addr);
+    }
+
+    if (nl_addr_get_family(_ip) == AF_INET6) {
+      struct in6_addr* addr = (struct in6_addr*)nl_addr_get_binary_addr(_ip);
+      return net::IP(*addr);
+    }
   }
 
-  return result;
+  return None();
 }
 
 
