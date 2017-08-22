@@ -381,12 +381,6 @@ AC_ARG_WITH([network-isolator],
              enable_port_mapping_isolator=yes],
             [])
 
-AC_ARG_WITH([nl],
-            AS_HELP_STRING([--with-nl=@<:@DIR@:>@],
-                           [specify where to locate the libnl3 library
-                            (required for network-isolator). [default: /usr]]),
-            [], [])
-
 AC_ARG_WITH([nvml],
             AS_HELP_STRING([--with-nvml@<:@=DIR@:>@],
                            [excludes building and using the bundled NVML headers
@@ -1362,78 +1356,21 @@ fi
 AM_CONDITIONAL([WITH_BUNDLED_LIBPROCESS], [test "x$with_bundled_libprocess" = "xyes"])
 
 
-# Perform necessary configuration for network isolator.
+# Perform necessary configuration for port mapping isolator.
 if test "x$enable_port_mapping_isolator" = "xyes"; then
-  if test -n "`echo $with_nl`"; then
-    CPPFLAGS="-isystem ${with_nl}/include/libnl3 $CPPFLAGS"
-    LDFLAGS="-L${with_nl}/lib $LDFLAGS"
-  else
-    CPPFLAGS="-isystem /usr/include/libnl3 $CPPFLAGS"
-  fi
 
   # Check for OS support.
   AS_IF([test "$OS_NAME" = "linux"],
         [],
-        [AC_MSG_ERROR([cannot build network isolator
+        [AC_MSG_ERROR([cannot build port mapping isolator
 -------------------------------------------------------------------
-Network isolator is only supported on Linux!
--------------------------------------------------------------------
-  ])])
-
-  # Check for libnl (both headers and libraries).
-  AC_CHECK_LIB([nl-3], [nl_has_capability], [],
-               [AC_MSG_ERROR([cannot find libnl-3
--------------------------------------------------------------------
-We need libnl-3 for building network isolator!
-
-Please install libnl3 (version 3.2.26 or higher):
-https://github.com/thom311/libnl/releases
+The port mapping isolator is only supported on Linux
 -------------------------------------------------------------------
   ])])
 
-  AC_CHECK_HEADERS([netlink/netlink.h libnl3/netlink/netlink.h],
-                   [break]
-                   [AC_MSG_ERROR([cannot find libnl-3 headers
--------------------------------------------------------------------
-We need libnl-3 headers for building network isolator!
-
-Please install libnl3 (version 3.2.26 or higher):
-https://github.com/thom311/libnl/releases
--------------------------------------------------------------------
-  ])])
-
-  # Check for libnl-route (both headers and libraries).
-  AC_CHECK_LIB([nl-route-3], [rtnl_u32_get_classid], [],
-               [AC_MSG_ERROR([cannot find libnl-route-3
--------------------------------------------------------------------
-We need libnl-route-3 for building network isolator!
-
-Please install libnl3 (version 3.2.26 or higher):
-https://github.com/thom311/libnl/releases
--------------------------------------------------------------------
-  ])])
-
-  AC_CHECK_HEADERS([netlink/route/link/veth.h libnl3/netlink/route/link/veth.h],
-                   [break]
-                   [AC_MSG_ERROR([cannot find libnl-route-3 headers
--------------------------------------------------------------------
-We need libnl-route-3 headers for building network isolator!
-
-Please install libnl3 (version 3.2.26 or higher):
-https://github.com/thom311/libnl/releases
--------------------------------------------------------------------
-  ])])
-
-  # Check for libnl-idiag-3 (both headers and libraries).
-  AC_CHECK_LIB([nl-idiag-3], [idiagnl_msg_alloc_cache], [],
-               [AC_MSG_ERROR([cannot find libnl-idiag-3
--------------------------------------------------------------------
-We need libnl-idiag-3 for building network isolator!
-
-Please install libnl3 (version 3.2.26 or higher):
-https://github.com/thom311/libnl/releases
--------------------------------------------------------------------
-  ])])
+  MESOS_HAVE_LIBNL3([], [
+    MESOS_MSG_LIBNL3_ERROR([libnl-3 is required for building the port mapping isolator])
+  ])
 
   AC_DEFINE([ENABLE_PORT_MAPPING_ISOLATOR])
 fi
