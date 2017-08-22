@@ -1065,6 +1065,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   common/resources_utils.hpp						\
   common/status_utils.hpp						\
   common/validation.hpp							\
+  common/values.hpp							\
   credentials/credentials.hpp						\
   docker/docker.hpp							\
   docker/executor.hpp							\

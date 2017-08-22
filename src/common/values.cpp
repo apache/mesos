@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdint.h>
+#include "common/values.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -32,7 +32,6 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
-#include <stout/interval.hpp>
 #include <stout/strings.hpp>
 
 using std::max;
@@ -40,6 +39,9 @@ using std::min;
 using std::ostream;
 using std::string;
 using std::vector;
+
+using mesos::internal::values::intervalSetToRanges;
+using mesos::internal::values::rangesToIntervalSet;
 
 namespace mesos {
 
@@ -277,35 +279,6 @@ void coalesce(Value::Ranges* result, const Value::Range& addedRange)
 }
 
 
-// Convert Ranges value to IntervalSet value.
-IntervalSet<uint64_t> rangesToIntervalSet(const Value::Ranges& ranges)
-{
-  IntervalSet<uint64_t> set;
-
-  foreach (const Value::Range& range, ranges.range()) {
-    set += (Bound<uint64_t>::closed(range.begin()),
-            Bound<uint64_t>::closed(range.end()));
-  }
-
-  return set;
-}
-
-
-// Convert IntervalSet value to Ranges value.
-Value::Ranges intervalSetToRanges(const IntervalSet<uint64_t>& set)
-{
-  Value::Ranges ranges;
-
-  foreach (const Interval<uint64_t>& interval, set) {
-    Value::Range* range = ranges.add_range();
-    range->set_begin(interval.lower());
-    range->set_end(interval.upper() - 1);
-  }
-
-  return ranges;
-}
-
-
 ostream& operator<<(ostream& stream, const Value::Ranges& ranges)
 {
   stream << "[";
@@ -406,8 +379,8 @@ Value::Ranges& operator-=(Value::Ranges& _left, const Value::Ranges& _right)
 {
   IntervalSet<uint64_t> left, right;
 
-  left = rangesToIntervalSet(_left);
-  right = rangesToIntervalSet(_right);
+  left = rangesToIntervalSet<uint64_t>(_left).get();
+  right = rangesToIntervalSet<uint64_t>(_right).get();
   _left = intervalSetToRanges(left - right);
 
   return _left;
@@ -661,5 +634,4 @@ Try<Value> parse(const string& text)
 
 } // namespace values {
 } // namespace internal {
-
 } // namespace mesos {

@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdint.h>
+
 #include <sstream>
 
 #include <gtest/gtest.h>
@@ -24,6 +26,8 @@
 #include <stout/interval.hpp>
 #include <stout/try.hpp>
 
+#include "common/values.hpp"
+
 #include "master/master.hpp"
 
 using namespace mesos::internal::values;
@@ -32,8 +36,6 @@ namespace mesos {
   extern void coalesce(Value::Ranges* ranges);
   extern void coalesce(Value::Ranges* ranges, const Value::Range& range);
 
-  extern IntervalSet<uint64_t> rangesToIntervalSet(const Value::Ranges& ranges);
-  extern Value::Ranges intervalSetToRanges(const IntervalSet<uint64_t>& set);
 } // namespace mesos {
 
 namespace mesos {
@@ -333,7 +335,7 @@ TEST(ValuesTest, RangesToIntervalSet)
   range->set_end(8);
 
   // Convert Ranges value to IntervalSet value.
-  set = mesos::rangesToIntervalSet(ranges);
+  set = rangesToIntervalSet<uint64_t>(ranges).get();
 
   // Verify converting result which should be {[1,2), [3-6), [7-9)}.
   ASSERT_EQ(3U, set.intervalCount());
@@ -363,7 +365,7 @@ TEST(ValuesTest, IntervalSetToRanges)
   set += (Bound<uint64_t>::closed(7), Bound<uint64_t>::closed(9));
 
   // Convert IntervalSet value to Ranges value.
-  ranges = mesos::intervalSetToRanges(set);
+  ranges = intervalSetToRanges(set);
 
   // Verify converting result which should be [1-1, 3-4, 7-9].
   ASSERT_EQ(3, ranges.range_size());
