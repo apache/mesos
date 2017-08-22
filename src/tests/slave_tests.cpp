@@ -31,7 +31,6 @@
 
 #include <mesos/authentication/http/basic_authenticator_factory.hpp>
 
-
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -66,6 +65,7 @@
 
 #include "slave/constants.hpp"
 #include "slave/gc.hpp"
+#include "slave/gc_process.hpp"
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 

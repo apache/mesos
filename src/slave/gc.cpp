@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "slave/gc.hpp"
+
 #include <list>
 
 #include <process/async.hpp>
@@ -29,7 +31,7 @@
 
 #include "logging/logging.hpp"
 
-#include "slave/gc.hpp"
+#include "slave/gc_process.hpp"
 
 using namespace process;
 

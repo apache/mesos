@@ -60,6 +60,7 @@
 
 #include "slave/constants.hpp"
 #include "slave/gc.hpp"
+#include "slave/gc_process.hpp"
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 

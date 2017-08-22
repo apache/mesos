@@ -23,6 +23,8 @@
 
 #include <mesos/v1/scheduler.hpp>
 
+#include "slave/gc_process.hpp"
+
 #include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"

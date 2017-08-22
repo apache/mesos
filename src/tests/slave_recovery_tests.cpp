@@ -54,6 +54,7 @@
 #include "master/detector/standalone.hpp"
 
 #include "slave/gc.hpp"
+#include "slave/gc_process.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 #include "slave/state.hpp"
