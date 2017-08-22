@@ -152,7 +152,7 @@ static Try<tuple<string, string>> decodeProcessIOData(const string& data)
   string stdoutReceived;
   string stderrReceived;
 
-  recordio::Decoder<v1::agent::ProcessIO> decoder(
+  ::recordio::Decoder<v1::agent::ProcessIO> decoder(
       lambda::bind(
           deserialize<v1::agent::ProcessIO>,
           ContentType::PROTOBUF,
