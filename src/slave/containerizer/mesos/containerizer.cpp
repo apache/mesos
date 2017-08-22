@@ -420,8 +420,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
     {"network/cni", &NetworkCniIsolatorProcess::create},
 #endif // __linux__
-    // NOTE: Network isolation is currently not supported on Windows builds.
-#if !defined(__WINDOWS__) && defined(ENABLE_PORT_MAPPING_ISOLATOR)
+
+#ifdef ENABLE_PORT_MAPPING_ISOLATOR
     {"network/port_mapping", &PortMappingIsolatorProcess::create},
 #endif
 
