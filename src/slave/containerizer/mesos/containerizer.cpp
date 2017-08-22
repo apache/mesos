@@ -77,7 +77,8 @@
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
 #ifdef __WINDOWS__
-#include "slave/containerizer/mesos/isolators/windows.hpp"
+#include "slave/containerizer/mesos/isolators/windows/cpu.hpp"
+#include "slave/containerizer/mesos/isolators/windows/mem.hpp"
 #include "slave/containerizer/mesos/isolators/filesystem/windows.hpp"
 #endif // __WINDOWS__
 
@@ -181,7 +182,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     LOG(WARNING) << "The 'process' isolation flag is deprecated, "
                  << "please update your flags to "
                  << "'--isolation=posix/cpu,posix/mem' (or "
-                 << "'--isolation=windows/cpu' if you are on Windows).";
+                 << "'--isolation=windows/cpu,windows/mem' "
+                 << "if you are on Windows).";
 
     isolations->erase("process");
 
@@ -190,6 +192,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     isolations->insert("posix/mem");
 #else
     isolations->insert("windows/cpu");
+    isolations->insert("windows/mem");
 #endif // __WINDOWS__
   } else if (flags.isolation == "cgroups") {
     LOG(WARNING) << "The 'cgroups' isolation flag is deprecated, "
@@ -388,6 +391,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #endif // ENABLE_XFS_DISK_ISOLATOR
 #else
     {"windows/cpu", &WindowsCpuIsolatorProcess::create},
+    {"windows/mem", &WindowsMemIsolatorProcess::create},
 #endif // __WINDOWS__
 
 #ifdef __linux__

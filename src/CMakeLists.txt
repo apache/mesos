@@ -291,7 +291,11 @@ set(AGENT_SRC
   slave/containerizer/mesos/provisioner/docker/store.cpp
   slave/resource_estimators/noop.cpp)
 
-if (NOT WIN32)
+if (WIN32)
+  list(APPEND AGENT_SRC
+    slave/containerizer/mesos/isolators/windows/cpu.cpp
+    slave/containerizer/mesos/isolators/windows/mem.cpp)
+else ()
   list(APPEND AGENT_SRC
     slave/containerizer/mesos/isolators/environment_secret.cpp
     slave/containerizer/mesos/isolators/docker/volume/driver.cpp

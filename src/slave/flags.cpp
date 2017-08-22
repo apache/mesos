@@ -114,7 +114,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::isolation,
       "isolation",
       "Isolation mechanisms to use, e.g., `posix/cpu,posix/mem` (or \n"
-      "`windows/cpu` if you are on Windows), or\n"
+      "`windows/cpu,windows/mem` if you are on Windows), or\n"
       "`cgroups/cpu,cgroups/mem`, or `network/port_mapping`\n"
       "(configure with flag: `--with-network-isolator` to enable),\n"
       "or `gpu/nvidia` for nvidia specific gpu isolation,\n"
@@ -124,7 +124,7 @@ mesos::internal::slave::Flags::Flags()
 #ifndef __WINDOWS__
       "posix/cpu,posix/mem"
 #else
-      "windows/cpu"
+      "windows/cpu,windows/mem"
 #endif // __WINDOWS__
       );
 
