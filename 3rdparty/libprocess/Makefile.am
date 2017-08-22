@@ -325,27 +325,15 @@ libprocess_tests_LDADD =		\
   libprocess.la
 
 if ENABLE_GRPC
-libprocess_tests_SOURCES +=				\
-  src/tests/grpc_tests.cpp				\
+libprocess_tests_SOURCES +=		\
+  src/tests/grpc_tests.cpp		\
   src/tests/grpc_tests.proto
 
-GRPC_TESTS_GENERATED_SOURCES =				\
-  grpc_tests.pb.h					\
-  grpc_tests.pb.cc					\
-  grpc_tests.grpc.pb.h					\
-  grpc_tests.grpc.pb.cc
-
-# Use a pseudo-target here to avoid multiple protoc invocations.
-$(GRPC_TESTS_GENERATED_SOURCES): grpc_tests_proto
-
-grpc_tests_proto: src/tests/grpc_tests.proto		\
-                  $(PROTOBUF)-build-stamp		\
-                  $(GRPC)-build-stamp
-	$(PROTOC) $<					\
-	  -I$(srcdir)/src/tests				\
-	  --cpp_out=$(builddir)				\
-	  --grpc_out=$(builddir)			\
-	  --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN)
+GRPC_TESTS_PROTOS =			\
+  grpc_tests.grpc.pb.cc			\
+  grpc_tests.grpc.pb.h			\
+  grpc_tests.pb.cc			\
+  grpc_tests.pb.h
 endif
 
 if ENABLE_SSL
@@ -396,15 +384,24 @@ libprocess_tests_LDADD +=		\
   $(LIB_EV)
 endif
 
-BUILT_SOURCES =							\
-  $(BUNDLED_DEPS)						\
-  $(GRPC_TESTS_GENERATED_SOURCES)
+BUILT_SOURCES =				\
+  $(BUNDLED_DEPS)
 
-nodist_libprocess_tests_SOURCES =				\
-  $(GRPC_TESTS_GENERATED_SOURCES)
+nodist_libprocess_tests_SOURCES =	\
+  $(GRPC_TESTS_PROTOS)
 
-CLEANFILES =							\
-  $(GRPC_TESTS_GENERATED_SOURCES)
+CLEANFILES =				\
+  $(GRPC_TESTS_PROTOS)
+
+
+# Targets for generating C++ protocol buffer and gRPC code for tests.
+%.pb.cc %.pb.h: src/tests/%.proto
+	$(PROTOC) -I$(^D) --cpp_out=. $^
+
+%.grpc.pb.cc %.grpc.pb.h: src/tests/%.proto
+	$(PROTOC) -I$(^D) --grpc_out=. $^			\
+	          --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN)
+
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
@@ -413,7 +410,7 @@ CLEANFILES =							\
 check-local: tests
 	$(TEST_DRIVER) ./libprocess-tests
 
-tests: all $(BUNDLED_DEPS)
+tests: all $(BUNDLED_DEPS) $(GRPC_TESTS_PROTOS)
 	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
