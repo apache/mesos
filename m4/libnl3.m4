@@ -39,8 +39,7 @@ AC_DEFUN([MESOS_HAVE_LIBNL3], [
 
 AC_ARG_WITH([nl],
   AS_HELP_STRING([--with-nl=@<:@DIR@:>@],
-                 [specify where to locate the libnl3 library [default: /usr]]),
-  [], []
+                 [specify where to locate the libnl3 library [default: /usr]])
 )
 
 # Make sure we only manipulate the compiler flags the first time
