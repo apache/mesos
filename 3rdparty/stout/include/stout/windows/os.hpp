@@ -20,6 +20,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <stout/duration.hpp>
 #include <stout/none.hpp>
@@ -77,7 +78,7 @@ inline Try<std::string> nodename()
   COMPUTER_NAME_FORMAT format = ComputerNamePhysicalDnsHostname;
   DWORD size = 0;
   if (::GetComputerNameExW(format, nullptr, &size) == 0) {
-    if (GetLastError() != ERROR_MORE_DATA) {
+    if (::GetLastError() != ERROR_MORE_DATA) {
       return WindowsError();
     }
   }
@@ -402,9 +403,9 @@ inline Try<std::list<std::string>> glob(const std::string& pattern) = delete;
 // Returns the total number of cpus (cores).
 inline Try<long> cpus()
 {
-  SYSTEM_INFO sysInfo;
-  ::GetSystemInfo(&sysInfo);
-  return static_cast<long>(sysInfo.dwNumberOfProcessors);
+  SYSTEM_INFO sys_info;
+  ::GetSystemInfo(&sys_info);
+  return static_cast<long>(sys_info.dwNumberOfProcessors);
 }
 
 // Returns load struct with average system loads for the last
@@ -513,7 +514,7 @@ inline Result<PROCESSENTRY32W> process_entry(pid_t pid)
     // should return `None`, since we won't find the PID we're looking for, but
     // we elect to return `Error` because something terrible has probably
     // happened.
-    if (GetLastError() != ERROR_SUCCESS) {
+    if (::GetLastError() != ERROR_SUCCESS) {
       return WindowsError("os::process_entry: Call to `Process32First` failed");
     } else {
       return Error("os::process_entry: Call to `Process32First` failed");
@@ -529,7 +530,7 @@ inline Result<PROCESSENTRY32W> process_entry(pid_t pid)
 
     has_next = Process32Next(safe_snapshot_handle.get(), &process_entry);
     if (has_next == FALSE) {
-      DWORD last_error = GetLastError();
+      DWORD last_error = ::GetLastError();
       if (last_error != ERROR_NO_MORE_FILES && last_error != ERROR_SUCCESS) {
         return WindowsError(
             "os::process_entry: Call to `Process32Next` failed");
@@ -659,20 +660,20 @@ inline Try<SharedHandle> open_job(
     BOOL inherit_handles,
     const std::wstring& name)
 {
-  SharedHandle jobHandle(
+  SharedHandle job_handle(
       ::OpenJobObjectW(
           desired_access,
           inherit_handles,
           name.data()),
       ::CloseHandle);
 
-  if (jobHandle.get() == nullptr) {
+  if (job_handle.get_handle() == nullptr) {
     return WindowsError(
         "os::open_job: Call to `OpenJobObject` failed for job: " +
         stringify(name));
   }
 
-  return jobHandle;
+  return job_handle;
 }
 
 
@@ -684,50 +685,50 @@ inline Try<SharedHandle> open_job(
 // before the returned handle is closed.
 inline Try<SharedHandle> create_job(const std::wstring& name)
 {
-  SharedHandle jobHandle(
+  SharedHandle job_handle(
       ::CreateJobObjectW(
           nullptr,       // Use a default security descriptor, and
                          // the created handle cannot be inherited.
           name.data()),  // The name of the job.
       ::CloseHandle);
 
-  if (jobHandle.get_handle() == nullptr) {
+  if (job_handle.get_handle() == nullptr) {
     return WindowsError(
         "os::create_job: Call to `CreateJobObject` failed for job: " +
         stringify(name));
   }
 
-  JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = { { 0 }, 0 };
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
 
   // The job object will be terminated when the job handle closes. This allows
   // the job tree to be terminated in case of errors by closing the handle.
   // We set this flag so that the death of the agent process will
   // always kill any running jobs, as the OS will close the remaining open
   // handles if all destructors failed to run (catastrophic death).
-  jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+  info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 
-  const BOOL setInformationResult = ::SetInformationJobObject(
-      jobHandle.get_handle(),
+  const BOOL result = ::SetInformationJobObject(
+      job_handle.get_handle(),
       JobObjectExtendedLimitInformation,
-      &jeli,
-      sizeof(jeli));
+      &info,
+      sizeof(info));
 
-  if (setInformationResult == FALSE) {
+  if (result == FALSE) {
     return WindowsError(
         "os::create_job: `SetInformationJobObject` failed for job: " +
         stringify(name));
   }
 
-  return jobHandle;
+  return job_handle;
 }
 
 
-// `assign_job` assigns a process with `pid` to the job object `jobHandle`.
+// `assign_job` assigns a process with `pid` to the job object `job_handle`.
 // Every process started by the `pid` process using `CreateProcess`
 // will also be owned by the job object.
-inline Try<Nothing> assign_job(SharedHandle jobHandle, pid_t pid) {
+inline Try<Nothing> assign_job(SharedHandle job_handle, pid_t pid) {
   // Get process handle for `pid`.
-  SharedHandle processHandle(
+  SharedHandle process_handle(
       ::OpenProcess(
           // Required access rights to assign to a Job Object.
           PROCESS_SET_QUOTA | PROCESS_TERMINATE,
@@ -735,16 +736,16 @@ inline Try<Nothing> assign_job(SharedHandle jobHandle, pid_t pid) {
           pid),
       ::CloseHandle);
 
-  if (processHandle.get_handle() == nullptr) {
+  if (process_handle.get_handle() == nullptr) {
     return WindowsError(
         "os::assign_job: Call to `OpenProcess` failed");
   }
 
-  const BOOL assignResult = ::AssignProcessToJobObject(
-      jobHandle.get_handle(),
-      processHandle.get_handle());
+  const BOOL result = ::AssignProcessToJobObject(
+      job_handle.get_handle(),
+      process_handle.get_handle());
 
-  if (assignResult == FALSE) {
+  if (result == FALSE) {
     return WindowsError(
         "os::assign_job: Call to `AssignProcessToJobObject` failed");
   };
@@ -754,16 +755,16 @@ inline Try<Nothing> assign_job(SharedHandle jobHandle, pid_t pid) {
 
 
 // The `kill_job` function wraps the Windows sytem call `TerminateJobObject`
-// for the job object `jobHandle`. This will call `TerminateProcess`
+// for the job object `job_handle`. This will call `TerminateProcess`
 // for every associated child process.
-inline Try<Nothing> kill_job(SharedHandle jobHandle)
+inline Try<Nothing> kill_job(SharedHandle job_handle)
 {
-  const BOOL terminateResult = ::TerminateJobObject(
-      jobHandle.get_handle(),
+  const BOOL result = ::TerminateJobObject(
+      job_handle.get_handle(),
       // The exit code to be used by all processes in the job object.
       1);
 
-  if (terminateResult == FALSE) {
+  if (result == FALSE) {
     return WindowsError(
         "os::kill_job: Call to `TerminateJobObject` failed");
   }
@@ -801,12 +802,12 @@ inline std::string host_default_path()
   // NOTE: On Windows, this code must run on the host where we are
   // expecting to `exec` the task, because the value of
   // `%SYSTEMROOT%` is not identical on all platforms.
-  const Option<std::string> systemRootEnv = os::getenv("SYSTEMROOT");
-  const std::string systemRoot = systemRootEnv.isSome()
-    ? systemRootEnv.get()
+  const Option<std::string> system_root_env = os::getenv("SYSTEMROOT");
+  const std::string system_root = system_root_env.isSome()
+    ? system_root_env.get()
     : "C:\\WINDOWS";
 
-  return strings::join(";", systemRoot, path::join(systemRoot, "system32"));
+  return strings::join(";", system_root, path::join(system_root, "system32"));
 }
 
 } // namespace os {
