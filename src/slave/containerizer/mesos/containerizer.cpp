@@ -1409,6 +1409,30 @@ Future<bool> MesosContainerizerProcess::_launch(
   // Determine the launch command for the container.
   if (!launchInfo.has_command()) {
     launchInfo.mutable_command()->CopyFrom(container->config.command_info());
+  } else {
+    // For command tasks, merge the launch commands with the executor
+    // launch command.
+    if (container->config.has_task_info()) {
+      // Isolators are not supposed to set any other fields in the
+      // command except the arguments for the command executor.
+      CHECK(launchInfo.command().uris().empty())
+        << "Isolators mutate 'uris' in container launch command";
+      CHECK(!launchInfo.command().has_environment())
+        << "Isolators mutate 'environment' in container launch command";
+      CHECK(!launchInfo.command().has_shell())
+        << "Isolators mutate 'shell' in container launch command";
+      CHECK(!launchInfo.command().has_value())
+        << "Isolators mutate 'value' in container launch command";
+      CHECK(!launchInfo.command().has_user())
+        << "Isolators mutate 'user' in container launch command";
+
+      // NOTE: The ordering here is important because we want the
+      // command executor arguments to be in front of the arguments
+      // set by isolators. See details in MESOS-7909.
+      CommandInfo launchCommand = container->config.command_info();
+      launchCommand.MergeFrom(launchInfo.command());
+      launchInfo.mutable_command()->CopyFrom(launchCommand);
+    }
   }
 
   // For command tasks specifically, we should add the task_environment
