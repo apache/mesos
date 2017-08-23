@@ -15,6 +15,15 @@ Feature Graduations:
 All Experimental Features:
 
 
+Release Notes - Mesos - Version 1.4.1 (WIP)
+-------------------------------------------
+* This is a bug fix release.
+
+All Issues:
+** Bug
+  * [MESOS-7865] - Agent may process a kill task and still launch the task.
+
+
 Release Notes - Mesos - Version 1.4.0 (WIP)
 -------------------------------------------
 This release contains the following new features:
