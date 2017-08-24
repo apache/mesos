@@ -88,6 +88,7 @@ All Issues:
   * [MESOS-6743] - Docker executor hangs forever if `docker stop` fails.
   * [MESOS-6950] - Launching two tasks with the same Docker image simultaneously may cause a staging dir never cleaned up.
   * [MESOS-7652] - Docker image with universal containerizer does not work if WORKDIR is missing in the rootfs.
+  * [MESOS-7863] - Agent may drop pending kill task status updates.
   * [MESOS-7865] - Agent may process a kill task and still launch the task.
 
 
