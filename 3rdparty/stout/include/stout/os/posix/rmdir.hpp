@@ -22,6 +22,7 @@
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/path.hpp>
+#include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/exists.hpp>
@@ -45,6 +46,8 @@ inline Try<Nothing> rmdir(
     bool removeRoot = true,
     bool continueOnError = false)
 {
+  unsigned int errorCount = 0;
+
   if (!recursive) {
     if (::rmdir(directory.c_str()) < 0) {
       return ErrnoError();
@@ -81,6 +84,7 @@ inline Try<Nothing> rmdir(
               LOG(ERROR) << "Failed to delete directory "
                          << path::join(directory, node->fts_path)
                          << ": " << os::strerror(errno);
+              ++errorCount;
             } else {
               Error error = ErrnoError();
               fts_close(tree);
@@ -101,6 +105,7 @@ inline Try<Nothing> rmdir(
               LOG(ERROR) << "Failed to delete path "
                          << path::join(directory, node->fts_path)
                          << ": " << os::strerror(errno);
+              ++errorCount;
             } else {
               Error error = ErrnoError();
               fts_close(tree);
@@ -113,11 +118,8 @@ inline Try<Nothing> rmdir(
       }
     }
 
-    // If 'continueOnError' is true, we have already logged individual errors.
     if (errno != 0) {
-      Error error = continueOnError
-        ? Error("rmdir failed in 'continueOnError' mode")
-        : ErrnoError();
+      Error error = ErrnoError("fts_read failed");
       fts_close(tree);
       return error;
     }
@@ -125,6 +127,10 @@ inline Try<Nothing> rmdir(
     if (fts_close(tree) < 0) {
       return ErrnoError();
     }
+  }
+
+  if (errorCount > 0) {
+    return Error("Failed to delete " + stringify(errorCount) + " paths");
   }
 
   return Nothing();
