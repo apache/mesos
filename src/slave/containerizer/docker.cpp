@@ -1422,7 +1422,18 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
   foreach (const Environment::Variable& variable,
            container->containerConfig.executor_info()
              .command().environment().variables()) {
-    environment[variable.name()] = variable.value();
+    const string& name = variable.name();
+    const string& value = variable.value();
+
+    if (environment.count(name)) {
+      VLOG(1) << "Overwriting environment variable '"
+              << name << "', original: '"
+              << environment[name] << "', new: '"
+              << value << "', for container "
+              << container->id;
+    }
+
+    environment[name] = value;
   }
 
   // Pass GLOG flag to the executor.
