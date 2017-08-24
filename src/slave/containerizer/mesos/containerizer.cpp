@@ -71,8 +71,8 @@
 #include "slave/containerizer/mesos/isolators/posix.hpp"
 #include "slave/containerizer/mesos/isolators/posix/disk.hpp"
 #include "slave/containerizer/mesos/isolators/posix/rlimits.hpp"
+#include "slave/containerizer/mesos/isolators/volume/host_path.hpp"
 #include "slave/containerizer/mesos/isolators/volume/sandbox_path.hpp"
-#include "slave/containerizer/mesos/isolators/volume/secret.hpp"
 
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
@@ -95,7 +95,9 @@
 #include "slave/containerizer/mesos/isolators/namespaces/ipc.hpp"
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
 #include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
+#include "slave/containerizer/mesos/isolators/volume/host_path.hpp"
 #include "slave/containerizer/mesos/isolators/volume/image.hpp"
+#include "slave/containerizer/mesos/isolators/volume/secret.hpp"
 #endif // __linux__
 
 #ifdef ENABLE_PORT_MAPPING_ISOLATOR
@@ -255,14 +257,14 @@ Try<MesosContainerizer*> MesosContainerizer::create(
           "Using multiple network isolators simultaneously is disallowed");
   }
 
-  // Always enable 'volume/image' on linux if 'filesystem/linux' is
-  // enabled, to ensure backwards compatibility.
-  //
   // TODO(gilbert): Make sure the 'gpu/nvidia' isolator to be created
   // after all volume isolators, so that the nvidia gpu libraries
   // '/usr/local/nvidia' will be overwritten.
   if (isolations->contains("filesystem/linux")) {
+    // Always enable 'volume/image', 'volume/host_path'  on linux if
+    // 'filesystem/linux' is enabled for backwards compatibility.
     isolations->insert("volume/image");
+    isolations->insert("volume/host_path");
   }
 #endif // __linux__
 
@@ -392,6 +394,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"docker/volume", &DockerVolumeIsolatorProcess::create},
     {"linux/capabilities", &LinuxCapabilitiesIsolatorProcess::create},
+    {"volume/host_path", &VolumeHostPathIsolatorProcess::create},
 
     {"volume/image",
       [&provisioner] (const Flags& flags) -> Try<Isolator*> {

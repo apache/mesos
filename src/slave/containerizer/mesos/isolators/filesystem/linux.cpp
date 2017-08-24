@@ -468,45 +468,41 @@ Try<vector<CommandInfo>> LinuxFilesystemIsolatorProcess::getPreExecCommands(
           "Both 'host_path' and 'container_path' of a volume are relative");
     }
 
+    // Host volumes are now handled by 'volume/host_path' isolator.
+    if (path::absolute(volume.host_path())) {
+      continue;
+    }
+
     // Determine the source of the mount.
-    string source;
+    // Path is interpreted as relative to the work directory.
+    string source = path::join(
+        containerConfig.directory(),
+        volume.host_path());
 
-    if (strings::startsWith(volume.host_path(), "/")) {
-      source = volume.host_path();
+    // TODO(jieyu): We need to check that source resolves under the
+    // work directory because a user can potentially use a container
+    // path like '../../abc'.
 
-      // An absolute path must already exist.
-      if (!os::exists(source)) {
-        return Error("Absolute host path '" + source + "' does not exist");
+    // NOTE: Chown should be avoided if the source directory already
+    // exists because it may be owned by some other user and should
+    // not be mutated.
+    if (!os::exists(source)) {
+      Try<Nothing> mkdir = os::mkdir(source);
+      if (mkdir.isError()) {
+        return Error(
+            "Failed to create the source of the mount at '" +
+            source + "': " + mkdir.error());
       }
-    } else {
-      // Path is interpreted as relative to the work directory.
-      source = path::join(containerConfig.directory(), volume.host_path());
 
-      // TODO(jieyu): We need to check that source resolves under the
-      // work directory because a user can potentially use a container
-      // path like '../../abc'.
+      LOG(INFO) << "Changing the ownership of the sandbox volume at '"
+                << source << "' with UID " << uid << " and GID " << gid;
 
-      // NOTE: Chown should be avoided if the source directory already
-      // exists because it may be owned by some other user and should
-      // not be mutated.
-      if (!os::exists(source)) {
-        Try<Nothing> mkdir = os::mkdir(source);
-        if (mkdir.isError()) {
-          return Error(
-              "Failed to create the source of the mount at '" +
-              source + "': " + mkdir.error());
-        }
-
-        LOG(INFO) << "Changing the ownership of the sandbox volume at '"
-                  << source << "' with UID " << uid << " and GID " << gid;
-
-        Try<Nothing> chown = os::chown(uid, gid, source, false);
-        if (chown.isError()) {
-          return Error(
-              "Failed to change the ownership of the sandbox volume at '" +
-              source + "' with UID " + stringify(uid) + " and GID " +
-              stringify(gid) + ": " + chown.error());
-        }
+      Try<Nothing> chown = os::chown(uid, gid, source, false);
+      if (chown.isError()) {
+        return Error(
+            "Failed to change the ownership of the sandbox volume at '" +
+            source + "' with UID " + stringify(uid) + " and GID " +
+            stringify(gid) + ": " + chown.error());
       }
     }
 
@@ -515,97 +511,52 @@ Try<vector<CommandInfo>> LinuxFilesystemIsolatorProcess::getPreExecCommands(
     // a directory, or the path of a file.
     string target;
 
-    if (strings::startsWith(volume.container_path(), "/")) {
-      if (containerConfig.has_rootfs()) {
-        target = path::join(
-            containerConfig.rootfs(),
-            volume.container_path());
+    CHECK(strings::startsWith(volume.container_path(), "/"));
 
-        if (os::stat::isfile(source)) {
-          // The file volume case.
-          Try<Nothing> mkdir = os::mkdir(Path(target).dirname());
-          if (mkdir.isError()) {
-            return Error(
-                "Failed to create directory '" +
-                Path(target).dirname() + "' "
-                "for the target mount file: " + mkdir.error());
-          }
-
-          Try<Nothing> touch = os::touch(target);
-          if (touch.isError()) {
-            return Error(
-                "Failed to create the target mount file at '" +
-                target + "': " + touch.error());
-          }
-        } else {
-          Try<Nothing> mkdir = os::mkdir(target);
-          if (mkdir.isError()) {
-            return Error(
-                "Failed to create the target of the mount at '" +
-                target + "': " + mkdir.error());
-          }
-        }
-      } else {
-        target = volume.container_path();
-
-        // An absolute path must already exist. This is because we
-        // want to avoid creating mount points outside the work
-        // directory in the host filesystem.
-        if (!os::exists(target)) {
-          return Error("Absolute container path '" + target + "' "
-                       "does not exist");
-        }
-      }
-
-      // TODO(jieyu): We need to check that target resolves under
-      // 'rootfs' because a user can potentially use a container path
-      // like '/../../abc'.
-    } else {
-      if (containerConfig.has_rootfs()) {
-        target = path::join(containerConfig.rootfs(),
-                            flags.sandbox_directory,
-                            volume.container_path());
-      } else {
-        target = path::join(containerConfig.directory(),
-                            volume.container_path());
-      }
-
-      // TODO(jieyu): We need to check that target resolves under the
-      // sandbox because a user can potentially use a container path
-      // like '../../abc'.
-
-      // NOTE: We cannot create the mount point at 'target' if
-      // container has rootfs defined. The bind mount of the sandbox
-      // will hide what's inside 'target'. So we should always create
-      // the mount point in 'directory'.
-      string mountPoint = path::join(
-          containerConfig.directory(),
+    if (containerConfig.has_rootfs()) {
+      target = path::join(
+          containerConfig.rootfs(),
           volume.container_path());
 
       if (os::stat::isfile(source)) {
         // The file volume case.
-        Try<Nothing> mkdir = os::mkdir(Path(mountPoint).dirname());
+        Try<Nothing> mkdir = os::mkdir(Path(target).dirname());
         if (mkdir.isError()) {
           return Error(
-              "Failed to create the target mount file directory at '" +
-              Path(mountPoint).dirname() + "': " + mkdir.error());
+              "Failed to create directory '" +
+              Path(target).dirname() + "' "
+              "for the target mount file: " + mkdir.error());
         }
 
-        Try<Nothing> touch = os::touch(mountPoint);
+        Try<Nothing> touch = os::touch(target);
         if (touch.isError()) {
           return Error(
               "Failed to create the target mount file at '" +
               target + "': " + touch.error());
         }
       } else {
-        Try<Nothing> mkdir = os::mkdir(mountPoint);
+        Try<Nothing> mkdir = os::mkdir(target);
         if (mkdir.isError()) {
           return Error(
               "Failed to create the target of the mount at '" +
-              mountPoint + "': " + mkdir.error());
+              target + "': " + mkdir.error());
         }
       }
+    } else {
+      target = volume.container_path();
+
+      // An absolute path must already exist. This is because we
+      // want to avoid creating mount points outside the work
+      // directory in the host filesystem.
+      if (!os::exists(target)) {
+        return Error("Absolute container path '" + target + "' "
+                     "does not exist");
+      }
     }
+
+    // TODO(jieyu): We need to check that target resolves under
+    // 'rootfs' because a user can potentially use a container path
+    // like '/../../abc'.
 
     // TODO(jieyu): Consider the mode in the volume.
     CommandInfo command;
