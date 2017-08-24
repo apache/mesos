@@ -270,6 +270,16 @@ JSON::Object model(const NetworkInfo& info)
     object.values["name"] = info.name();
   }
 
+  if (info.port_mappings().size() > 0) {
+    JSON::Array array;
+    array.values.reserve(info.port_mappings().size()); // MESOS-2353
+    foreach (const NetworkInfo::PortMapping& portMapping,
+             info.port_mappings()) {
+      array.values.push_back(JSON::protobuf(portMapping));
+    }
+    object.values["port_mappings"] = std::move(array);
+  }
+
   return object;
 }
 
@@ -629,6 +639,15 @@ static void json(JSON::ObjectWriter* writer, const NetworkInfo& info)
 
   if (info.has_name()) {
     writer->field("name", info.name());
+  }
+
+  if (info.port_mappings().size() > 0) {
+    writer->field("port_mappings", [&info](JSON::ArrayWriter* writer) {
+      foreach(const NetworkInfo::PortMapping& portMapping,
+              info.port_mappings()) {
+        writer->element(JSON::Protobuf(portMapping));
+      }
+    });
   }
 }
 
