@@ -466,8 +466,8 @@ Try<vector<CommandInfo>> LinuxFilesystemIsolatorProcess::getPreExecCommands(
     // If both 'host_path' and 'container_path' are relative paths,
     // return an error because the user can just directly access the
     // volume in the work directory.
-    if (!strings::startsWith(volume.host_path(), "/") &&
-        !strings::startsWith(volume.container_path(), "/")) {
+    if (!path::absolute(volume.host_path()) &&
+        !path::absolute(volume.container_path())) {
       return Error(
           "Both 'host_path' and 'container_path' of a volume are relative");
     }
@@ -515,7 +515,7 @@ Try<vector<CommandInfo>> LinuxFilesystemIsolatorProcess::getPreExecCommands(
     // a directory, or the path of a file.
     string target;
 
-    CHECK(strings::startsWith(volume.container_path(), "/"));
+    CHECK(path::absolute(volume.container_path()));
 
     if (containerConfig.has_rootfs()) {
       target = path::join(
