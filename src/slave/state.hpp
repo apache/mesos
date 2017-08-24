@@ -100,22 +100,6 @@ Try<Nothing> checkpoint(
   return ::protobuf::write(path, messages);
 }
 
-
-inline Try<Nothing> checkpoint(
-    const std::string& path,
-    const Resources& resources_)
-{
-  google::protobuf::RepeatedPtrField<Resource> resources = resources_;
-
-  // We ignore the `Try` from `downgradeResources` here because for now,
-  // we checkpoint the result either way.
-  // TODO(mpark): Do something smarter with the result once something like
-  // an agent recovery capability is introduced.
-  downgradeResources(&resources);
-
-  return checkpoint(path, resources);
-}
-
 }  // namespace internal {
 
 
