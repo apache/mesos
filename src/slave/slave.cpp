@@ -2884,6 +2884,8 @@ void Slave::killTask(
       // launched.
       statusUpdate(update, UPID());
     }
+
+    return;
   }
 
   Executor* executor = framework->getExecutor(taskId);
