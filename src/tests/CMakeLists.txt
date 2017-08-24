@@ -239,6 +239,7 @@ if (LINUX)
     containerizer/rootfs.cpp
     containerizer/runtime_isolator_tests.cpp
     containerizer/sched_tests.cpp
+    containerizer/volume_host_path_isolator_tests.cpp
     containerizer/volume_image_isolator_tests.cpp
     containerizer/volume_secret_isolator_tests.cpp
     )
