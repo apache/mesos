@@ -138,7 +138,7 @@ TEST_F(SlaveStateTest, CheckpointProtobufMessage)
 TEST_F(SlaveStateTest, CheckpointRepeatedProtobufMessages)
 {
   // Checkpoint resources.
-  const Resources expected =
+  const google::protobuf::RepeatedPtrField<Resource> expected =
     Resources::parse("cpus:2;mem:512;cpus(role):4;mem(role):1024").get();
 
   const string file = "resources-file";
@@ -148,8 +148,6 @@ TEST_F(SlaveStateTest, CheckpointRepeatedProtobufMessages)
     ::protobuf::read<RepeatedPtrField<Resource>>(file);
 
   ASSERT_SOME(actual);
-
-  convertResourceFormat(&actual.get(), POST_RESERVATION_REFINEMENT);
 
   EXPECT_SOME_EQ(expected, actual);
 }

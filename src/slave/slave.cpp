@@ -1208,7 +1208,18 @@ void Slave::registered(
       const string path = paths::getSlaveInfoPath(metaDir, slaveId);
 
       VLOG(1) << "Checkpointing SlaveInfo to '" << path << "'";
-      CHECK_SOME(state::checkpoint(path, info));
+
+      {
+        // The `SlaveInfo.resources` does not include dynamic reservations,
+        // which means it cannot contain reservation refinements, so
+        // `downgradeResources` should always succeed.
+        SlaveInfo info_ = info;
+
+        Try<Nothing> result = downgradeResources(info_.mutable_resources());
+        CHECK_SOME(result);
+
+        CHECK_SOME(state::checkpoint(path, info_));
+      }
 
       // Setup a timer so that the agent attempts to re-register if it
       // doesn't receive a ping from the master for an extended period
@@ -3433,10 +3444,28 @@ void Slave::checkpointResources(vector<Resource> _checkpointedResources)
   // Since we commit the checkpoint after all operations are successful,
   // we avoid a case of inconsistency between the master and the agent if
   // the agent restarts during handling of CheckpointResourcesMessage.
-  CHECK_SOME(state::checkpoint(
-      paths::getResourcesTargetPath(metaDir),
-      newCheckpointedResources))
-    << "Failed to checkpoint resources target " << newCheckpointedResources;
+
+  {
+    // If the checkpointed resources don't have reservation refinements,
+    // checkpoint them on the agent in "pre-reservation-refinement" format
+    // for backward compatibility with old agents. If downgrading is
+    // not possible without losing information, checkpoint the resources in
+    // the "post-reservation-refinement" format. We ignore the return
+    // value of `downgradeResources` because for now, we checkpoint the result
+    // either way.
+    //
+    // TODO(mpark): Do something smarter with the result once something
+    // like agent capability requirements is introduced.
+    RepeatedPtrField<Resource> newCheckpointedResources_ =
+      newCheckpointedResources;
+
+    downgradeResources(&newCheckpointedResources_);
+
+    CHECK_SOME(state::checkpoint(
+        paths::getResourcesTargetPath(metaDir),
+        newCheckpointedResources_))
+      << "Failed to checkpoint resources target " << newCheckpointedResources_;
+  }
 
   Try<Nothing> syncResult = syncCheckpointedResources(
       newCheckpointedResources);
@@ -7748,7 +7777,22 @@ void Executor::checkpointExecutor()
       slave->metaDir, slave->info.id(), frameworkId, id);
 
   VLOG(1) << "Checkpointing ExecutorInfo to '" << path << "'";
-  CHECK_SOME(state::checkpoint(path, info));
+
+  {
+    // If the checkpointed resources don't have reservation refinements,
+    // checkpoint them on the agent in "pre-reservation-refinement" format
+    // for backward compatibility with old agents. If downgrading is
+    // not possible without losing information, checkpoint the resources in
+    // the "post-reservation-refinement" format. We ignore the return
+    // value of `downgradeResources` because for now, we checkpoint the result
+    // either way.
+    //
+    // TODO(mpark): Do something smarter with the result once something
+    // like agent capability requirements is introduced.
+    ExecutorInfo info_ = info;
+    downgradeResources(info_.mutable_resources());
+    CHECK_SOME(state::checkpoint(path, info_));
+  }
 
   // Create the meta executor directory.
   // NOTE: This creates the 'latest' symlink in the meta directory.
@@ -7776,7 +7820,22 @@ void Executor::checkpointTask(const Task& task)
       task.task_id());
 
   VLOG(1) << "Checkpointing TaskInfo to '" << path << "'";
-  CHECK_SOME(state::checkpoint(path, task));
+
+  {
+    // If the checkpointed resources don't have reservation refinements,
+    // checkpoint them on the agent in "pre-reservation-refinement" format
+    // for backward compatibility with old agents. If downgrading is
+    // not possible without losing information, checkpoint the resources in
+    // the "post-reservation-refinement" format. We ignore the return
+    // value of `downgradeResources` because for now, we checkpoint the result
+    // either way.
+    //
+    // TODO(mpark): Do something smarter with the result once something
+    // like agent capability requirements is introduced.
+    Task task_ = task;
+    downgradeResources(task_.mutable_resources());
+    CHECK_SOME(state::checkpoint(path, task_));
+  }
 }
 
 
