@@ -67,7 +67,11 @@ namespace slave {
 Try<Isolator*> LinuxFilesystemIsolatorProcess::create(const Flags& flags)
 {
   if (geteuid() != 0) {
-    return Error("LinuxFilesystemIsolator requires root privileges");
+    return Error("'filesystem/linux' isolator requires root privileges");
+  }
+
+  if (flags.launcher != "linux") {
+    return Error("'filesystem/linux' isolator requires 'linux' launcher");
   }
 
   // Make sure that slave's working directory is in a shared mount so
