@@ -270,7 +270,12 @@ public:
         flags.docker,
         flags.docker_socket);
 
-    if (docker.isError()) {
+    if (!docker.isError()) {
+      Try<Nothing> version = docker.get()->validateVersion(Version(1, 9, 0));
+      if (version.isError()) {
+        dockerUserNetworkError = version.error();
+      }
+    } else {
       dockerError = docker.error();
     }
 #else
@@ -285,15 +290,30 @@ public:
         << "-------------------------------------------------------------"
         << std::endl;
     }
+
+    if (dockerUserNetworkError.isSome()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any Docker user network tests because:\n"
+        << dockerUserNetworkError->message << "\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
   }
 
   bool disable(const ::testing::TestInfo* test) const
   {
-    return matches(test, "DOCKER_") && dockerError.isSome();
+    if (dockerError.isSome()) {
+      return matches(test, "DOCKER_");
+    }
+
+    return matches(test, "DOCKER_USERNETWORK_") &&
+      dockerUserNetworkError.isSome();
   }
 
 private:
   Option<Error> dockerError;
+  Option<Error> dockerUserNetworkError;
 };
 
 
