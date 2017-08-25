@@ -91,8 +91,7 @@ TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_VerifyDeviceAccess)
   // Assume at least one GPU is available for isolation.
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "filesystem/linux,cgroups/devices,gpu/nvidia";
-  flags.nvidia_gpu_devices = vector<unsigned int>({0u});
-  flags.resources = "gpus:1";
+  flags.resources = "cpus:1"; // To override the default with gpus:0.
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
