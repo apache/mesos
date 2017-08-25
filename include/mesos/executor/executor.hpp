@@ -17,10 +17,10 @@
 #ifndef __EXECUTOR_PROTO_HPP__
 #define __EXECUTOR_PROTO_HPP__
 
-// NOTE: This header only becomes valid after running protoc
-// and generating the equivalent .ph.h files
-// See: src/messages/mesos.proto
-#include <executor/executor.pb.h>
+#include <ostream>
+
+// ONLY USEFUL AFTER RUNNING PROTOC.
+#include <mesos/executor/executor.pb.h>
 
 namespace mesos {
 namespace executor {
