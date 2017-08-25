@@ -455,7 +455,7 @@ TEST_F(RmdirContinueOnErrorTest, RemoveWithContinueOnError)
   EXPECT_TRUE(os::exists(regularFile));
 
   // Run rmdir with `continueOnError = true`.
-  ASSERT_SOME(os::rmdir(directory, true, true, true));
+  ASSERT_ERROR(os::rmdir(directory, true, true, true));
 
   EXPECT_TRUE(os::exists(directory));
   EXPECT_TRUE(os::exists(mountPoint_));
