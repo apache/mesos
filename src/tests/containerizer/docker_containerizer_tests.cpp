@@ -20,6 +20,7 @@
 
 #include <mesos/slave/container_logger.hpp>
 
+#include <process/io.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/owned.hpp>
@@ -76,6 +77,8 @@ using testing::DoDefault;
 using testing::Eq;
 using testing::Invoke;
 using testing::Return;
+
+constexpr char DOCKER_IPv6_NETWORK[] = "mesos-docker-ip6-test";
 
 namespace process {
 
@@ -4710,6 +4713,250 @@ TEST_F(DockerContainerizerIPv6Test, ROOT_DOCKER_LaunchIPv6HostNetwork)
     exists(docker, containerId.get(), ContainerState::RUNNING));
 }
 
+
+// Fixture for testing IPv6 support for docker containers on docker
+// user network.
+class DockerContainerizerIPv6UserNetworkTest : public DockerContainerizerTest
+{
+protected:
+  virtual void SetUp()
+  {
+    DockerContainerizerTest::SetUp();
+
+    Try<string> dockerCommand = strings::format(
+        "docker network create --driver=bridge --ipv6 "
+        "--subnet=fd01::/64 %s",
+        DOCKER_IPv6_NETWORK);
+
+    Try<Subprocess> s = subprocess(
+        dockerCommand.get(),
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PIPE());
+
+    ASSERT_SOME(s) << "Unable to create the docker IPv6 network: "
+                   << DOCKER_IPv6_NETWORK;
+
+    Future<string> err = io::read(s->err().get());
+
+    // Wait for the network to be created.
+    AWAIT_READY(s->status());
+    AWAIT_READY(err);
+
+    ASSERT_SOME(s->status().get());
+    ASSERT_EQ(s->status().get().get(), 0)
+      << "Unable to create the docker IPv6 network "
+      << DOCKER_IPv6_NETWORK
+      << " : " << err.get();
+  }
+
+  virtual void TearDown()
+  {
+    DockerContainerizerTest::TearDown();
+
+    Try<string> dockerCommand = strings::format(
+        "docker network rm %s",
+        DOCKER_IPv6_NETWORK);
+
+    Try<Subprocess> s = subprocess(
+        dockerCommand.get(),
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PATH("/dev/null"),
+        Subprocess::PIPE());
+
+    // This is best effort cleanup. In case of an error just a log an
+    // error.
+    ASSERT_SOME(s) << "Unable to delete the docker IPv6 network: "
+                   << DOCKER_IPv6_NETWORK;
+
+    Future<string> err = io::read(s->err().get());
+
+    // Wait for the network to be deleted.
+    AWAIT_READY(s->status());
+    AWAIT_READY(err);
+    ASSERT_SOME(s->status().get());
+
+    ASSERT_EQ(s->status().get().get(), 0)
+      << "Unable to delete the docker IPv6 network "
+      << DOCKER_IPv6_NETWORK
+      << " : " << err.get();
+  }
+};
+
+
+// Launches a docker container on the docker user network. The docker network
+// is assumed to have an IPv4 address and an IPv6 address. The test passes if
+// the Mesos state correctly exposes both the IPv4 and IPv6 address.
+TEST_F(
+    DockerContainerizerIPv6UserNetworkTest,
+    ROOT_DOCKER_USERNETWORK_LaunchIPv6Container)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher(flags);
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &dockerContainerizer, flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      SLEEP_COMMAND(10000));
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  dockerInfo.set_network(ContainerInfo::DockerInfo::USER);
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  // Setup the docker IPv6 network.
+  NetworkInfo networkInfo;
+  networkInfo.set_name(DOCKER_IPv6_NETWORK);
+  containerInfo.add_network_infos()->CopyFrom(networkInfo);
+
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(DoDefault());
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  ASSERT_TRUE(statusRunning->has_data());
+
+  // Now verify the ContainerStatus fields in the TaskStatus.
+  ASSERT_TRUE(statusRunning->has_container_status());
+  EXPECT_TRUE(statusRunning->container_status().has_container_id());
+  ASSERT_EQ(1, statusRunning->container_status().network_infos().size());
+  ASSERT_EQ(2, statusRunning->container_status().network_infos(0).ip_addresses().size()); // NOLINT(whitespace/line_length)
+
+  Option<string> containerIPv4 = None();
+  Option<string> containerIPv6 = None();
+
+  foreach(const NetworkInfo::IPAddress& ipAddress,
+          statusRunning->container_status().network_infos(0).ip_addresses()) {
+    if (ipAddress.protocol() == NetworkInfo::IPv4) {
+      containerIPv4 = ipAddress.ip_address();
+    }
+
+    if (ipAddress.protocol() == NetworkInfo::IPv6) {
+      containerIPv6 = ipAddress.ip_address();
+    }
+  }
+
+  ASSERT_SOME(containerIPv4);
+  ASSERT_SOME(containerIPv6);
+
+  // Check if container information is exposed through slave's state endpoint.
+  Future<http::Response> response = http::get(
+      slave.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+  ASSERT_SOME(parse);
+
+  // Verify that the slave state information has the same container
+  // status as received in the status update message.
+  for (int i = 0; i < 2; i++) {
+    Result<JSON::String> protocol = parse->find<JSON::String>(
+        "frameworks[0].executors[0].tasks[0].statuses[0]"
+        ".container_status.network_infos[0].ip_addresses[" +
+        stringify(i) + "].protocol");
+
+    ASSERT_SOME(protocol);
+
+    Result<JSON::String> ip = parse->find<JSON::String>(
+        "frameworks[0].executors[0].tasks[0].statuses[0]"
+        ".container_status.network_infos[0].ip_addresses[" +
+        stringify(i) + "].ip_address");
+
+    ASSERT_SOME(ip);
+
+    if (protocol.get().value == "IPv4") {
+      EXPECT_EQ(ip.get().value, containerIPv4.get());
+    } else {
+      EXPECT_EQ(ip.get().value, containerIPv6.get());
+    }
+
+    LOG(INFO) << "IP: " << ip.get().value;
+  }
+
+  ASSERT_TRUE(exists(docker, containerId.get()));
+
+  Future<Option<ContainerTermination>> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
+
+  ASSERT_FALSE(
+    exists(docker, containerId.get(), ContainerState::RUNNING));
+}
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
