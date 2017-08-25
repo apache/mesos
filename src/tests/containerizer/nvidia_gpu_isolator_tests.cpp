@@ -649,6 +649,98 @@ TEST_F(NvidiaGpuTest, ROOT_NVIDIA_GPU_VolumeShouldInject)
   ASSERT_FALSE(volume->shouldInject(manifest.get()));
 }
 
+
+// This test verifies that the DefaultExecutor is able to launch tasks
+// with restricted access to GPUs.
+// It launches a task with 1 GPU and verifies that a call to
+// `nvidia-smi` both succeeds and reports exactly 1 GPU available.
+TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_DefaultExecutorVerifyDeviceAccess)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Turn on Nvidia GPU isolation.
+  // Assume at least one GPU is available for isolation.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,cgroups/devices,gpu/nvidia";
+  flags.resources = "cpus:1"; // To override the default with gpus:0.
+
+#ifndef USE_SSL_SOCKET
+  // Disable operator API authentication for the default executor. Executor
+  // authentication currently has SSL as a dependency, so we cannot require
+  // executors to authenticate with the agent operator API if Mesos was not
+  // built with SSL support.
+  flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::GPU_RESOURCES);
+
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  Resources resources = Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  ExecutorInfo executorInfo;
+  executorInfo.set_type(ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId.get());
+  executorInfo.mutable_resources()->CopyFrom(resources);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers->size());
+
+  const Offer& offer = offers->front();
+  const SlaveID& slaveId = offer.slave_id();
+
+  TaskInfo taskInfo = createTask(
+      slaveId,
+      Resources::parse("cpus:0.1;mem:128;gpus:1").get(),
+      "NUM_GPUS=`nvidia-smi --list-gpus | wc -l`;\n"
+      "if [ \"$NUM_GPUS\" != \"1\" ]; then\n"
+      "  exit 1;\n"
+      "fi");
+
+  TaskGroupInfo taskGroup = createTaskGroupInfo({taskInfo});
+
+  Future<TaskStatus> statusRunning, statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.acceptOffers({offer.id()}, {LAUNCH_GROUP(executorInfo, taskGroup)});
+
+  AWAIT_READY(statusRunning);
+  ASSERT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  ASSERT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
