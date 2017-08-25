@@ -197,7 +197,7 @@ alternate HTTP authenticator module using <code>--modules</code>.
   </td>
   <td>
 IP address to listen on. This cannot be used in conjunction
-with <code>--ip_discovery_command</code>. (master default: 5050; agent default: 5051)
+with <code>--ip_discovery_command</code>.
   </td>
 </tr>
 <tr>
@@ -299,7 +299,7 @@ manifest files). Cannot be used in conjunction with <code>--modules</code>.
     --port=VALUE
   </td>
   <td>
-Port to listen on.
+Port to listen on. (master default: 5050; agent default: 5051)
   </td>
 </tr>
 <tr>
