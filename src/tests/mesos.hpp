@@ -552,15 +552,36 @@ inline TImage createDockerImage(const std::string& imageName)
 
 
 template <typename TVolume>
-inline TVolume createVolumeFromHostPath(
+inline TVolume createVolumeSandboxPath(
+    const std::string& containerPath,
+    const std::string& sandboxPath,
+    const typename TVolume::Mode& mode)
+{
+  TVolume volume;
+  volume.set_container_path(containerPath);
+  volume.set_mode(mode);
+
+  // TODO(jieyu): Use TVolume::Source::SANDBOX_PATH.
+  volume.set_host_path(sandboxPath);
+
+  return volume;
+}
+
+
+template <typename TVolume>
+inline TVolume createVolumeHostPath(
     const std::string& containerPath,
     const std::string& hostPath,
     const typename TVolume::Mode& mode)
 {
   TVolume volume;
   volume.set_container_path(containerPath);
-  volume.set_host_path(hostPath);
   volume.set_mode(mode);
+
+  typename TVolume::Source* source = volume.mutable_source();
+  source->set_type(TVolume::Source::HOST_PATH);
+  source->mutable_host_path()->set_path(hostPath);
+
   return volume;
 }
 
@@ -1207,9 +1228,16 @@ inline Image createDockerImage(Args&&... args)
 
 
 template <typename... Args>
-inline Volume createVolumeFromHostPath(Args&&... args)
+inline Volume createVolumeSandboxPath(Args&&... args)
 {
-  return common::createVolumeFromHostPath<Volume>(std::forward<Args>(args)...);
+  return common::createVolumeSandboxPath<Volume>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Volume createVolumeHostPath(Args&&... args)
+{
+  return common::createVolumeHostPath<Volume>(std::forward<Args>(args)...);
 }
 
 
@@ -1433,9 +1461,17 @@ inline mesos::v1::Image createDockerImage(Args&&... args)
 
 
 template <typename... Args>
-inline mesos::v1::Volume createVolumeFromHostPath(Args&&... args)
+inline mesos::v1::Volume createVolumeSandboxPath(Args&&... args)
 {
-  return common::createVolumeFromHostPath<mesos::v1::Volume>(
+  return common::createVolumeSandboxPath<mesos::v1::Volume>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Volume createVolumeHostPath(Args&&... args)
+{
+  return common::createVolumeHostPath<mesos::v1::Volume>(
       std::forward<Args>(args)...);
 }
 

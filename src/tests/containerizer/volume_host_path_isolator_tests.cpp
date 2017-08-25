@@ -86,7 +86,7 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_VolumeFromHost)
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("/tmp", sandbox.get(), Volume::RW)}));
+      {createVolumeHostPath("/tmp", sandbox.get(), Volume::RW)}));
 
   string dir = path::join(sandbox.get(), "dir");
   ASSERT_SOME(os::mkdir(dir));
@@ -146,7 +146,7 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_FileVolumeFromHost)
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("/tmp/test/file.txt", file, Volume::RW)}));
+      {createVolumeHostPath("/tmp/test/file.txt", file, Volume::RW)}));
 
   string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
@@ -200,7 +200,7 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("mountpoint", sandbox.get(), Volume::RW)}));
+      {createVolumeHostPath("mountpoint", sandbox.get(), Volume::RW)}));
 
   string dir = path::join(sandbox.get(), "dir");
   ASSERT_SOME(os::mkdir(dir));
@@ -260,7 +260,7 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("mountpoint/file.txt", file, Volume::RW)}));
+      {createVolumeHostPath("mountpoint/file.txt", file, Volume::RW)}));
 
   string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
@@ -349,8 +349,8 @@ TEST_F(VolumeHostPathIsolatorMesosTest,
 
   task.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("/tmp", dir1, Volume::RW),
-       createVolumeFromHostPath("relative_dir", dir2, Volume::RW)}));
+      {createVolumeHostPath("/tmp", dir1, Volume::RW),
+       createVolumeHostPath("relative_dir", dir2, Volume::RW)}));
 
   driver.launchTasks(offer.id(), {task});
 

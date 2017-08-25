@@ -215,7 +215,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("/tmp", "tmp", Volume::RW)}));
+      {createVolumeSandboxPath("/tmp", "tmp", Volume::RW)}));
 
   string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
@@ -272,7 +272,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxVolumeOwnership)
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("/tmp", "tmp", Volume::RW)}));
+      {createVolumeSandboxPath("/tmp", "tmp", Volume::RW)}));
 
   string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
@@ -411,7 +411,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
 
   executor.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("/absolute_path", "volume", Volume::RW)}));
+      {createVolumeSandboxPath("/absolute_path", "volume", Volume::RW)}));
 
   // Create a persistent volume.
   string volume = slave::paths::getPersistentVolumePath(
@@ -917,7 +917,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
 
   task.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("/tmp", dir1, Volume::RW)}));
+      {createVolumeHostPath("/tmp", dir1, Volume::RW)}));
 
   // Create the persistent volumes and launch task via `acceptOffers`.
   driver.acceptOffers(
@@ -1048,7 +1048,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
 
   task.mutable_container()->CopyFrom(createContainerInfo(
       "test_image",
-      {createVolumeFromHostPath("/tmp", dir1, Volume::RW)}));
+      {createVolumeHostPath("/tmp", dir1, Volume::RW)}));
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
