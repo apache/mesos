@@ -2383,6 +2383,142 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   }
 }
 
+
+// Tests a healthy docker task via CMD health checks using the
+// DefaultExecutor.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HealthCheckTest, DefaultExecutorWithDockerImageCommandHealthCheck)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+#ifndef USE_SSL_SOCKET
+  // Disable operator API authentication for the default executor. Executor
+  // authentication currently has SSL as a dependency, so we cannot require
+  // executors to authenticate with the agent operator API if Mesos was not
+  // built with SSL support.
+  flags.authenticate_http_readwrite = false;
+
+  // Set permissive ACLs in the agent so that the local authorizer will be
+  // loaded and implicit executor authorization will be tested.
+  ACLs acls;
+  acls.set_permissive(true);
+
+  flags.acls = acls;
+#endif // USE_SSL_SOCKET
+
+  Fetcher fetcher(flags);
+
+  // We have to explicitly create a `Containerizer` in non-local mode,
+  // because `LaunchNestedContainerSession` (used by command health
+  // checks) tries to start a IO switchboard, which doesn't work in
+  // local mode yet.
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(agent);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusHealthy;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusHealthy));
+
+  TaskInfo task = createTask(offers->front(), "sleep 120");
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.mutable_docker()->set_image("alpine");
+
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  HealthCheck healthCheck;
+
+  healthCheck.set_type(HealthCheck::COMMAND);
+  healthCheck.mutable_command()->set_value("exit $STATUS");
+  healthCheck.set_delay_seconds(0);
+  healthCheck.set_interval_seconds(0);
+  healthCheck.set_grace_period_seconds(0);
+
+  Environment::Variable* variable = healthCheck.mutable_command()->
+    mutable_environment()->mutable_variables()->Add();
+  variable->set_name("STATUS");
+  variable->set_value("0");
+
+  task.mutable_health_check()->CopyFrom(healthCheck);
+
+  Resources executorResources =
+    allocatedResources(Resources::parse("cpus:0.1;mem:32;disk:32").get(), "*");
+
+  task.mutable_resources()->CopyFrom(task.resources() - executorResources);
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task);
+
+  ExecutorInfo executor;
+  executor.mutable_executor_id()->set_value("default");
+  executor.set_type(ExecutorInfo::DEFAULT);
+  executor.mutable_framework_id()->CopyFrom(frameworkId.get());
+  executor.mutable_resources()->CopyFrom(executorResources);
+  executor.mutable_shutdown_grace_period()->set_nanoseconds(Seconds(10).ns());
+
+  driver.acceptOffers(
+      {offers->front().id()}, {LAUNCH_GROUP(executor, taskGroup)});
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(statusHealthy);
+  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
+  EXPECT_TRUE(statusHealthy.get().has_healthy());
+  EXPECT_TRUE(statusHealthy.get().healthy());
+
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+
+  AWAIT_READY(containerIds);
+
+  driver.stop();
+  driver.join();
+
+  // Cleanup all mesos launched containers.
+  foreach (const ContainerID& containerId, containerIds.get()) {
+    AWAIT_READY(containerizer->wait(containerId));
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
