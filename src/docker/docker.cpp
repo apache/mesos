@@ -319,11 +319,14 @@ Try<Docker::Container> Docker::Container::create(const string& output)
   bool started = startedAtValue.get().value != "0001-01-01T00:00:00Z";
 
   Option<string> ipAddress;
+  Option<string> ip6Address;
   bool findDeprecatedIP = false;
+
   Result<JSON::String> networkMode =
     json.find<JSON::String>("HostConfig.NetworkMode");
+
   if (!networkMode.isSome()) {
-    // We need to fail back to the old field as Docker added NetworkMode
+    // We need to fallback to the old field as Docker added NetworkMode
     // since Docker remote API 1.15.
     VLOG(1) << "Unable to detect HostConfig.NetworkMode, "
             << "attempting deprecated IP field";
@@ -341,13 +344,29 @@ Try<Docker::Container> Docker::Container::create(const string& output)
       json.find<JSON::String>(addressLocation);
 
     if (!ipAddressValue.isSome()) {
-      // We also need to failback to the old field as the IP Address
+      // We also need to fallback to the old field as the IP Address
       // field location also changed since Docker remote API 1.20.
       VLOG(1) << "Unable to detect IP Address at '" << addressLocation << "',"
               << " attempting deprecated field";
       findDeprecatedIP = true;
     } else if (!ipAddressValue->value.empty()) {
       ipAddress = ipAddressValue->value;
+    }
+
+    // Check if the container has an IPv6 address.
+    //
+    // NOTE: For IPv6 we don't need to worry about the old method of
+    // looking at the deprecated "NetworkSettings.IPAddress" since we
+    // want to support IPv6 addresses for docker versions that support
+    // USER mode networking, which is a relatively recent feature.
+    string address6Location = "NetworkSettings.Networks." +
+                              networkMode->value + ".GlobalIPv6Address";
+
+    Result<JSON::String> ip6AddressValue =
+      json.find<JSON::String>(address6Location);
+
+    if (ip6AddressValue.isSome() && !ip6AddressValue->value.empty()) {
+      ip6Address = ip6AddressValue->value;
     }
   }
 
@@ -478,6 +497,7 @@ Try<Docker::Container> Docker::Container::create(const string& output)
       optionalPid,
       started,
       ipAddress,
+      ip6Address,
       devices,
       dns,
       dnsOptions,

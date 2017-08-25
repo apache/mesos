@@ -221,12 +221,8 @@ public:
           status.mutable_task_id()->CopyFrom(taskId.get());
           status.set_state(TASK_RUNNING);
           status.set_data(container.output);
-          if (container.ipAddress.isSome()) {
-            // TODO(karya): Deprecated -- Remove after 0.25.0 has shipped.
-            Label* label = status.mutable_labels()->add_labels();
-            label->set_key("Docker.NetworkSettings.IPAddress");
-            label->set_value(container.ipAddress.get());
-
+          if (container.ipAddress.isSome() ||
+              container.ip6Address.isSome()) {
             NetworkInfo* networkInfo =
               status.mutable_container_status()->add_network_infos();
 
@@ -238,8 +234,26 @@ public:
               networkInfo->clear_ip_addresses();
             }
 
-            NetworkInfo::IPAddress* ipAddress = networkInfo->add_ip_addresses();
-            ipAddress->set_ip_address(container.ipAddress.get());
+            auto setIPAddresses = [=](const string& ip, bool ipv6) {
+              NetworkInfo::IPAddress* ipAddress =
+                networkInfo->add_ip_addresses();
+
+              ipAddress->set_ip_address(ip);
+
+              // NOTE: By default the protocol is set to IPv4 and therefore
+              // we explicitly set the protocol only for an IPv6 address.
+              if (ipv6) {
+                ipAddress->set_protocol(NetworkInfo::IPv6);
+              }
+            };
+
+            if (container.ipAddress.isSome()) {
+              setIPAddresses(container.ipAddress.get(), false);
+            }
+
+            if (container.ip6Address.isSome()) {
+              setIPAddresses(container.ip6Address.get(), true);
+            }
 
             containerNetworkInfo = *networkInfo;
           }

@@ -109,9 +109,13 @@ public:
     // needed since pid is empty when the container terminates.
     const bool started;
 
-    // Returns the IPAddress of the container, or None if no IP has
-    // been not been assigned.
+    // Returns the IPv4 address of the container, or `None()` if no
+    // IPv4 address has been assigned.
     const Option<std::string> ipAddress;
+
+    // Returns the IPv6 address of the container, or `None()` if no
+    // IPv6 address has been assigned.
+    const Option<std::string> ip6Address;
 
     const std::vector<Device> devices;
 
@@ -126,26 +130,28 @@ public:
 
   private:
     Container(
-        const std::string& output,
-        const std::string& id,
-        const std::string& name,
-        const Option<pid_t>& pid,
-        bool started,
-        const Option<std::string>& ipAddress,
-        const std::vector<Device>& devices,
-        const std::vector<std::string>& dns,
-        const std::vector<std::string>& dnsOptions,
-        const std::vector<std::string>& dnsSearch)
-      : output(output),
-        id(id),
-        name(name),
-        pid(pid),
-        started(started),
-        ipAddress(ipAddress),
-        devices(devices),
-        dns(dns),
-        dnsOptions(dnsOptions),
-        dnsSearch(dnsSearch) {}
+        const std::string& _output,
+        const std::string& _id,
+        const std::string& _name,
+        const Option<pid_t>& _pid,
+        bool _started,
+        const Option<std::string>& _ipAddress,
+        const Option<std::string>& _ip6Address,
+        const std::vector<Device>& _devices,
+        const std::vector<std::string>& _dns,
+        const std::vector<std::string>& _dnsOptions,
+        const std::vector<std::string>& _dnsSearch)
+      : output(_output),
+        id(_id),
+        name(_name),
+        pid(_pid),
+        started(_started),
+        ipAddress(_ipAddress),
+        ip6Address(_ip6Address),
+        devices(_devices),
+        dns(_dns),
+        dnsOptions(_dnsOptions),
+        dnsSearch(_dnsSearch) {}
   };
 
   class Image
