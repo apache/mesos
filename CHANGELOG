@@ -929,7 +929,6 @@ All Issues:
   * [MESOS-6950] - Launching two tasks with the same Docker image simultaneously may cause a staging dir never cleaned up.
   * [MESOS-7540] - Add an agent flag for executor re-registration timeout.
   * [MESOS-7569] - Allow "old" executors with half-open connections to be preserved during agent upgrade / restart.
-  * [MESOS-7652] - Docker image with universal containerizer does not work if WORKDIR is missing in the rootfs.
   * [MESOS-7689] - Libprocess can crash on malformed request paths for libprocess messages.
   * [MESOS-7690] - The agent can crash when an unknown executor tries to register.
   * [MESOS-7581] - Fix interference of external Boost installations when using some unbundled dependencies.
