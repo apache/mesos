@@ -61,6 +61,7 @@
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
 #include "common/http.hpp"
@@ -2695,6 +2696,51 @@ void ExpectNoFutureUnionHttpProtobufs(
 // We use this matcher to only satisfy the StatusUpdate future if the
 // StatusUpdate came from the corresponding task.
 MATCHER_P(TaskStatusEq, task, "") { return arg.task_id() == task.task_id(); }
+
+
+struct ParamExecutorType
+{
+public:
+  struct Printer
+  {
+    std::string operator()(
+        const ::testing::TestParamInfo<ParamExecutorType>& info) const
+    {
+      switch (info.param.type) {
+        case COMMAND:
+          return "CommandExecutor";
+        case DEFAULT:
+          return "DefaultExecutor";
+        default:
+          UNREACHABLE();
+      }
+    }
+  };
+
+  static ParamExecutorType commandExecutor()
+  {
+    return ParamExecutorType(COMMAND);
+  }
+
+  static ParamExecutorType defaultExecutor()
+  {
+    return ParamExecutorType(DEFAULT);
+  }
+
+  bool isCommandExecutor() const { return type == COMMAND; }
+  bool isDefaultExecutor() const { return type == DEFAULT; }
+
+private:
+  enum Type
+  {
+    COMMAND,
+    DEFAULT
+  };
+
+  ParamExecutorType(Type _type) : type(_type) {}
+
+  Type type;
+};
 
 } // namespace tests {
 } // namespace internal {

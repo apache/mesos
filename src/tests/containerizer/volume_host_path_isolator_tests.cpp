@@ -39,6 +39,10 @@ using std::map;
 using std::string;
 using std::vector;
 
+using testing::TestParamInfo;
+using testing::Values;
+using testing::WithParamInterface;
+
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
@@ -282,13 +286,23 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
 }
 
 
-class VolumeHostPathIsolatorMesosTest : public MesosTest {};
+class VolumeHostPathIsolatorMesosTest
+  : public MesosTest,
+    public WithParamInterface<ParamExecutorType> {};
+
+
+INSTANTIATE_TEST_CASE_P(
+    ExecutorType,
+    VolumeHostPathIsolatorMesosTest,
+    Values(
+        ParamExecutorType::commandExecutor(),
+        ParamExecutorType::defaultExecutor()),
+    ParamExecutorType::Printer());
 
 
 // This test verifies that the framework can launch a command task
 // that specifies both container image and host volumes.
-TEST_F(VolumeHostPathIsolatorMesosTest,
-       ROOT_ChangeRootFilesystemCommandExecutorWithHostVolumes)
+TEST_P(VolumeHostPathIsolatorMesosTest, ROOT_ChangeRootFilesystem)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -301,6 +315,14 @@ TEST_F(VolumeHostPathIsolatorMesosTest,
   flags.docker_registry = registry;
   flags.docker_store_dir = path::join(sandbox.get(), "store");
   flags.image_providers = "docker";
+
+#ifndef USE_SSL_SOCKET
+  // Disable operator API authentication for the default executor.
+  // Executor authentication currently has SSL as a dependency, so we
+  // cannot require executors to authenticate with the agent operator
+  // API if Mesos was not built with SSL support.
+  flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -315,7 +337,9 @@ TEST_F(VolumeHostPathIsolatorMesosTest,
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _));
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -343,7 +367,7 @@ TEST_F(VolumeHostPathIsolatorMesosTest,
 
   TaskInfo task = createTask(
       offer.slave_id(),
-      offer.resources(),
+      Resources::parse("cpus:0.1;mem:32;disk:32").get(),
       "test -f /tmp/testfile && test -d " +
       path::join(flags.sandbox_directory, "relative_dir"));
 
@@ -352,7 +376,27 @@ TEST_F(VolumeHostPathIsolatorMesosTest,
       {createVolumeHostPath("/tmp", dir1, Volume::RW),
        createVolumeHostPath("relative_dir", dir2, Volume::RW)}));
 
-  driver.launchTasks(offer.id(), {task});
+  if (GetParam().isCommandExecutor()) {
+    driver.acceptOffers(
+        {offer.id()},
+        {LAUNCH({task})});
+  } else if (GetParam().isDefaultExecutor()) {
+    ExecutorInfo executor;
+    executor.mutable_executor_id()->set_value("default");
+    executor.set_type(ExecutorInfo::DEFAULT);
+    executor.mutable_framework_id()->CopyFrom(frameworkId.get());
+    executor.mutable_resources()->CopyFrom(
+        Resources::parse("cpus:0.1;mem:32;disk:32").get());
+
+    TaskGroupInfo taskGroup;
+    taskGroup.add_tasks()->CopyFrom(task);
+
+    driver.acceptOffers(
+        {offer.id()},
+        {LAUNCH_GROUP(executor, taskGroup)});
+  } else {
+    FAIL() << "Unexpected executor type";
+  }
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
