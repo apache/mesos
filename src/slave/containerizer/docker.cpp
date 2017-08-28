@@ -1867,6 +1867,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
     }
 
     ResourceStatistics result;
+
 #ifdef __linux__
     const Try<ResourceStatistics> cgroupStats = cgroupsStatistics(pid);
     if (cgroupStats.isError()) {
