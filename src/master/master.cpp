@@ -6345,31 +6345,24 @@ void Master::__reregisterSlave(
     }
   }
 
-  // If the agent is not refinement-capable, convert its resources
-  // from the "pre-refinement" format to the "post-refinement" format.
-  //
-  // TODO(neilc): The agent should be changed to send resources in
-  // pre-refinement format if possible, for compatibility with old
-  // masters. After that change is made, we should change this logic
-  // to convert the agent resources to post-refinement format
-  // unconditionally.
-  if (!slaveCapabilities.reservationRefinement) {
-    foreach (Task& task, tasks) {
+  // Currently, The agent always downgrades the resources such that
+  // a 1.4.0 agent can speak to a pre-1.4.0 master. We therefore
+  // unconditionally upgrade the resources back here.
+  foreach (Task& task, tasks) {
+    convertResourceFormat(
+        task.mutable_resources(), POST_RESERVATION_REFINEMENT);
+  }
+
+  foreach (ExecutorInfo& executor, executorInfos) {
+    convertResourceFormat(
+        executor.mutable_resources(), POST_RESERVATION_REFINEMENT);
+  }
+
+  foreach (Archive::Framework& completedFramework,
+           completedFrameworks) {
+    foreach (Task& task, *completedFramework.mutable_tasks()) {
       convertResourceFormat(
           task.mutable_resources(), POST_RESERVATION_REFINEMENT);
-    }
-
-    foreach (ExecutorInfo& executor, executorInfos) {
-      convertResourceFormat(
-          executor.mutable_resources(), POST_RESERVATION_REFINEMENT);
-    }
-
-    foreach (Archive::Framework& completedFramework,
-             completedFrameworks) {
-      foreach (Task& task, *completedFramework.mutable_tasks()) {
-        convertResourceFormat(
-            task.mutable_resources(), POST_RESERVATION_REFINEMENT);
-      }
     }
   }
 
