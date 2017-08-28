@@ -24,14 +24,15 @@
 #include "none.hpp"
 #include "option.hpp"
 
-
 // Provides a hash map via 'std::unordered_map'. We inherit from it to add
 // new functions as well as to provide better names for some of the
 // existing functions.
-
 template <typename Key,
           typename Value,
-          typename Hash = std::hash<Key>,
+          typename Hash = typename std::conditional<
+            std::is_enum<Key>::value,
+            EnumClassHash,
+            std::hash<Key>>::type,
           typename Equal = std::equal_to<Key>>
 class hashmap : public std::unordered_map<Key, Value, Hash, Equal>
 {
