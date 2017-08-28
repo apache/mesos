@@ -2780,6 +2780,112 @@ TYPED_TEST(SlaveRecoveryTest, RebootWithSlaveInfoMismatch)
 }
 
 
+// When the agent is down we modify the BOOT_ID_FILE to simulate a
+// reboot and change the resources flag to cause a mismatch between
+// the recovered agent's info and the one of the new agent to make it
+// recover as a new one. We restart the recovered agent before it
+// registers with the master to ensure it still recovers as a new
+// agent after that.
+TYPED_TEST(SlaveRecoveryTest, RebootWithSlaveInfoMismatchAndRestart)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.resources = "cpus:8;mem:4096;disk:2048";
+
+  Fetcher fetcher(flags);
+
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  // Capture offer in order to get the agent ID.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+  SlaveID slaveId1 = offers.get()[0].slave_id();
+
+  EXPECT_CALL(sched, offerRescinded(_, _))
+    .Times(AtMost(1));
+
+  slave.get()->terminate();
+
+  // Modify the boot ID to simulate a reboot.
+  ASSERT_SOME(os::write(
+      paths::getBootIdPath(paths::getMetaRootDir(flags.work_dir)),
+      "rebooted! ;)"));
+
+  // Change agent's resources to cause agent info mismatch.
+  flags.resources = "cpus:4;mem:2048;disk:2048";
+
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
+
+  // Capture offer in order to get the new agent ID.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Clock::pause();
+  Clock::settle();
+
+  // Simulate an agent restart before reregistration completes.
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    DROP_PROTOBUF(RegisterSlaveMessage(), _, master.get()->pid);
+
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(flags.registration_backoff_factor);
+  Clock::settle();
+
+  AWAIT_READY(registerSlaveMessage);
+
+  slave.get()->terminate();
+
+  Clock::resume();
+
+  // Verify that the last agent instance removed the "latest" symlink
+  // when it detected agent info discrepancy.
+  const string latest =
+    paths::getLatestSlavePath(paths::getMetaRootDir(flags.work_dir));
+  ASSERT_FALSE(os::exists(latest));
+
+  // Start the agent again to verify that it still successfully
+  // recovers as a new one.
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Verify that the agent registered as a new one.
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+  EXPECT_NE(slaveId1, offers->at(0).slave_id());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // When the slave is down we remove the "latest" symlink in the
 // executor's run directory, to simulate a situation where the
 // recovered slave (--no-strict) cannot recover the executor and
