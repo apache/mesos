@@ -1843,9 +1843,6 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
 {
   CHECK(!containerId.has_parent());
 
-#ifndef __linux__
-  return Failure("Does not support usage() on non-linux platform");
-#else
   if (!containers_.contains(containerId)) {
     return Failure("Unknown container: " + stringify(containerId));
   }
@@ -1869,12 +1866,15 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
       return Failure("Container is being removed: " + stringify(containerId));
     }
 
+    ResourceStatistics result;
+#ifdef __linux__
     const Try<ResourceStatistics> cgroupStats = cgroupsStatistics(pid);
     if (cgroupStats.isError()) {
       return Failure("Failed to collect cgroup stats: " + cgroupStats.error());
     }
 
-    ResourceStatistics result = cgroupStats.get();
+    result = cgroupStats.get();
+#endif // __linux__
 
     // Set the resource allocations.
     const Resources& resource = container->resources;
@@ -1919,7 +1919,6 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
 
         return collectUsage(pid.get());
       }));
-#endif // __linux__
 }
 
 
