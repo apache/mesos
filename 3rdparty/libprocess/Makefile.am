@@ -307,6 +307,7 @@ libprocess_tests_SOURCES =					\
   src/tests/socket_tests.cpp					\
   src/tests/sequence_tests.cpp					\
   src/tests/shared_tests.cpp					\
+  src/tests/state_machine_tests.cpp				\
   src/tests/statistics_tests.cpp				\
   src/tests/subprocess_tests.cpp				\
   src/tests/system_tests.cpp					\

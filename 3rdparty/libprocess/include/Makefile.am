@@ -63,6 +63,7 @@ nobase_include_HEADERS =		\
   process/sequence.hpp			\
   process/shared.hpp			\
   process/socket.hpp			\
+  process/state_machine.hpp		\
   process/statistics.hpp		\
   process/system.hpp			\
   process/subprocess.hpp		\
