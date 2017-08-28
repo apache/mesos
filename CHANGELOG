@@ -43,14 +43,8 @@ Deprecations/Removals:
     deprecated in favor of `--effective_capabilities`
 
 Unresolved Critical Issues:
-  * [MESOS-7714] - Fix agent downgrade for reservation refinement
-  * [MESOS-7865] - Agent may process a kill task and still launch the task.
-  * [MESOS-7744] - Mesos Agent Sends TASK_KILL status update to Master, and still launches task
-  * [MESOS-7783] - Framework might not receive status update when a just launched task is killed immediately
-  * [MESOS-7863] - Agent may drop pending kill task status updates.
   * [MESOS-7643] - The order of isolators provided in '--isolation' flag is not preserved and instead sorted alphabetically
   * [MESOS-7402] - Quota is over-allocated when used with hierarchical roles.
-  * [MESOS-7215] - Race condition on re-registration of non-partition-aware frameworks
 
 Additional API Changes:
 
