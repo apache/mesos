@@ -6098,6 +6098,14 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
       // Cleaning up the slave state to avoid any state recovery for the
       // old agent.
       slaveState = None();
+
+      // Remove the "latest" symlink if it exists to "checkpoint" the
+      // decision to recover as a new agent.
+      const string& latest = paths::getLatestSlavePath(metaDir);
+      if (os::exists(latest)) {
+        CHECK_SOME(os::rm(latest))
+          << "Failed to remove latest symlink '" << latest << "'";
+      }
     } else {
       info = slaveState->info.get(); // Recover the slave info.
 
