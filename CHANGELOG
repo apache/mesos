@@ -168,6 +168,7 @@ All Resolved Issues:
   * [MESOS-7871] - Agent fails assertion during request to '/state'
   * [MESOS-7888] - Track fetcher task success and failures
   * [MESOS-7909] - Ordering dependency between 'linux/capabilities' and 'docker/runtime' isolator.
+  * [MESOS-7922] - Fix communication between old masters and new agents.
 
 ** Documentation
   * [MESOS-7246] - Add documentation for AGENT_ADDED/AGENT_REMOVED events.
