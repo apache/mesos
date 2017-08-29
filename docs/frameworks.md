@@ -20,6 +20,7 @@ layout: documentation
 * [Cray Chapel](https://github.com/nqn/mesos-chapel) is a productive parallel programming language. The Chapel Mesos scheduler lets you run Chapel programs on Mesos.
 * [Dpark](https://github.com/douban/dpark) is a Python clone of Spark, a MapReduce-like framework written in Python, running on Mesos.
 * [Exelixi](https://github.com/mesosphere/exelixi) is a distributed framework for running genetic algorithms at scale.
+* [Flink](https://ci.apache.org/projects/flink/flink-docs-release-1.3/setup/mesos.html) is an open source platform for distributed stream and batch data processing.
 * [Hadoop](https://github.com/mesos/hadoop) Running Hadoop on Mesos distributes MapReduce jobs efficiently across an entire cluster.
 * [Hama](http://wiki.apache.org/hama/GettingStartedMesos) is a distributed computing framework based on Bulk Synchronous Parallel computing techniques for massive scientific computations e.g., matrix, graph and network algorithms.
 * [MPI](https://github.com/mesosphere/mesos-hydra) is a message-passing system designed to function on a wide variety of parallel computers.
