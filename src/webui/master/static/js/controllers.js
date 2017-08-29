@@ -832,6 +832,12 @@
             return $scope.executor_id === executor.id;
           }
 
+          function setRole(tasks) {
+            _.each(tasks, function(task) {
+              task.role = $scope.framework.role;
+            });
+          }
+
           // Look for the executor; it's either active or completed.
           $scope.executor =
             _.find($scope.framework.executors, matchExecutor) ||
@@ -848,12 +854,6 @@
           // can use the 'role' of the framework.
           if (!("role" in $scope.executor)) {
             $scope.executor.role = $scope.framework.role;
-
-            function setRole(tasks) {
-              _.each(tasks, function(task) {
-                task.role = $scope.framework.role;
-              });
-            }
 
             setRole($scope.executor.tasks);
             setRole($scope.executor.queued_tasks);
