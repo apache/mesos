@@ -2187,6 +2187,328 @@ TEST_P(MasterAPITest, Subscribe)
 }
 
 
+// Verifies that operators subscribed to the master's operator API event
+// stream only receive events that they are authorized to see.
+TEST_P(MasterAPITest, EventAuthorizationFiltering)
+{
+  ContentType contentType = GetParam();
+
+  ACLs acls;
+
+  // Only authorize the default credential to view tasks and frameworks of
+  // the user 'root', thus task events related to other users will be invisible
+  // to the default credential.
+
+  {
+    mesos::ACL::ViewTask* acl = acls.add_view_tasks();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_users()->add_values("root");
+  }
+
+  {
+    mesos::ACL::ViewTask* acl = acls.add_view_tasks();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Result<Authorizer*> authorizer = Authorizer::create(acls);
+
+  Try<Owned<cluster::Master>> master =
+    StartMaster(authorizer.get(), masterFlags);
+
+  ASSERT_SOME(master);
+
+  ExecutorInfo executorInfo1;
+  ExecutorID executorId1;
+  {
+    executorId1.set_value("executor_id_1");
+    executorInfo1.set_name("executor_info_1");
+    executorInfo1.mutable_executor_id()->CopyFrom(executorId1);
+  }
+
+  ExecutorInfo executorInfo2;
+  ExecutorID executorId2;
+  {
+    executorId2.set_value("executor_id_2");
+    executorInfo2.set_name("executor_info_2");
+    executorInfo2.mutable_executor_id()->CopyFrom(executorId2);
+  }
+
+  MockExecutor executor1(executorId1);
+  MockExecutor executor2(executorId2);
+
+  hashmap<ExecutorID, Executor*> executors;
+  executors[executorId1] = &executor1;
+  executors[executorId2] = &executor2;
+
+  TestContainerizer containerizer(executors);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers1;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  {
+    v1::scheduler::Call call;
+    call.set_type(v1::scheduler::Call::SUBSCRIBE);
+
+    v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+    frameworkInfo.set_user("root");
+    call.mutable_subscribe()->mutable_framework_info()
+      ->CopyFrom(frameworkInfo);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+
+  // Launch a task using the scheduler. This should result in a `TASK_ADDED`
+  // event when the task is launched followed by a `TASK_UPDATED` event after
+  // the task transitions to running state.
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  AWAIT_READY(offers1);
+  ASSERT_FALSE(offers1->offers().empty());
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::SUBSCRIBE);
+
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+
+  headers["Accept"] = stringify(contentType);
+
+  Future<http::Response> response = http::streaming::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+  ASSERT_EQ(http::Response::PIPE, response->type);
+  ASSERT_SOME(response->reader);
+
+  http::Pipe::Reader reader = response->reader.get();
+
+  auto deserializer =
+    lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
+
+  Reader<v1::master::Event> decoder(
+      Decoder<v1::master::Event>(deserializer), reader);
+
+  {
+    Future<Result<v1::master::Event>> event = decoder.read();
+    AWAIT_READY(event);
+
+    ASSERT_EQ(v1::master::Event::SUBSCRIBED, event->get().type());
+    const v1::master::Response::GetState& getState =
+        event->get().subscribed().get_state();
+
+    EXPECT_EQ(1u, getState.get_frameworks().frameworks_size());
+    EXPECT_EQ(1u, getState.get_agents().agents_size());
+    EXPECT_EQ(0u, getState.get_tasks().tasks_size());
+    EXPECT_EQ(0u, getState.get_executors().executors_size());
+  }
+
+  {
+    Future<Result<v1::master::Event>> event = decoder.read();
+
+    AWAIT_READY(event);
+
+    EXPECT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
+  }
+
+  Future<Result<v1::master::Event>> event = decoder.read();
+  EXPECT_TRUE(event.isPending());
+
+  Future<mesos::v1::scheduler::Event::Update> update;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  EXPECT_CALL(executor1, registered(_, _, _, _));
+  EXPECT_CALL(executor2, registered(_, _, _, _));
+
+  Future<TaskInfo> execTask1;
+  EXPECT_CALL(executor1, launchTask(_, _))
+    .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
+                    FutureArg<1>(&execTask1)));
+
+  const v1::Offer& offer1 = offers1->offers(0);
+
+  v1::TaskInfo task1;
+  {
+    task1.set_name("task1");
+    task1.mutable_task_id()->set_value("1");
+    task1.mutable_agent_id()->CopyFrom(offer1.agent_id());
+    task1.mutable_resources()->CopyFrom(
+        v1::Resources::parse("cpus:0.1;mem:32;disk:32").get());
+    task1.mutable_executor()->CopyFrom(evolve(executorInfo1));
+    task1.mutable_executor()->mutable_command()->set_value("sleep 1000");
+    task1.mutable_executor()->mutable_command()->set_user("root");
+  }
+
+  {
+    v1::scheduler::Call call;
+    call.set_type(v1::scheduler::Call::ACCEPT);
+
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+
+    v1::scheduler::Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer1.id());
+
+    // Set 0s filter to immediately get another offer.
+    v1::Filters filters;
+    filters.set_refuse_seconds(0);
+    accept->mutable_filters()->CopyFrom(filters);
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH);
+
+    operation->mutable_launch()->add_task_infos()->CopyFrom(task1);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(event);
+
+  ASSERT_EQ(v1::master::Event::TASK_ADDED, event->get().type());
+  ASSERT_EQ(task1.task_id(), event->get().task_added().task().task_id());
+
+  AWAIT_READY(update);
+
+  {
+    v1::scheduler::Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(v1::scheduler::Call::ACKNOWLEDGE);
+
+    v1::scheduler::Call::Acknowledge* acknowledge =
+      call.mutable_acknowledge();
+    acknowledge->mutable_task_id()->CopyFrom(task1.task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer1.agent_id());
+    acknowledge->set_uuid(update->status().uuid());
+
+    mesos.send(call);
+  }
+
+  event = decoder.read();
+
+  AWAIT_READY(event);
+
+  ASSERT_EQ(v1::master::Event::TASK_UPDATED, event->get().type());
+  ASSERT_EQ(v1::TASK_RUNNING,
+            event->get().task_updated().state());
+  ASSERT_EQ(v1::TASK_RUNNING,
+            event->get().task_updated().status().state());
+  ASSERT_EQ(task1.task_id(),
+            event->get().task_updated().status().task_id());
+
+  Future<v1::scheduler::Event::Offers> offers2;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore further offers.
+
+  Clock::pause();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::resume();
+
+  AWAIT_READY(offers2);
+  ASSERT_FALSE(offers2->offers().empty());
+
+  const v1::Offer& offer2 = offers2->offers(0);
+
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&update))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  Future<TaskInfo> execTask2;
+  EXPECT_CALL(executor2, launchTask(_, _))
+    .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
+                    FutureArg<1>(&execTask2)));
+
+  v1::TaskInfo task2;
+  {
+    task2.set_name("task2");
+    task2.mutable_task_id()->set_value("2");
+    task2.mutable_agent_id()->CopyFrom(offer2.agent_id());
+    task2.mutable_resources()->CopyFrom(
+        v1::Resources::parse("cpus:0.1;mem:32;disk:32").get());
+    task2.mutable_executor()->CopyFrom(evolve(executorInfo2));
+    task2.mutable_executor()->mutable_command()->set_value("sleep 1000");
+    task2.mutable_executor()->mutable_command()->set_user("foo");
+  }
+
+  {
+    v1::scheduler::Call call;
+    call.set_type(v1::scheduler::Call::ACCEPT);
+
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+
+    v1::scheduler::Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer2.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH);
+
+    operation->mutable_launch()->add_task_infos()->CopyFrom(task2);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(update);
+
+  event = decoder.read();
+  EXPECT_TRUE(event.isPending());
+
+  // To ensure that the TASK_ADDED event for task2 was filtered correctly,
+  // we wait for the next heartbeat event.
+  Clock::pause();
+  Clock::advance(DEFAULT_HEARTBEAT_INTERVAL);
+  Clock::resume();
+
+  AWAIT_READY(event);
+  EXPECT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
+
+  EXPECT_TRUE(reader.close());
+
+  EXPECT_CALL(executor1, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(executor2, shutdown(_))
+    .Times(AtMost(1));
+}
+
+
 // This test tries to verify that a client subscribed to the 'api/v1' endpoint
 // can receive `FRAMEWORK_ADDED`, `FRAMEWORK_UPDATED` and 'FRAMEWORK_REMOVED'
 // events.

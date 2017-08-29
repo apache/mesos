@@ -845,7 +845,7 @@ Future<Response> Master::Http::subscribe(
           ok.reader = pipe.reader();
 
           HttpConnection http{pipe.writer(), contentType, UUID::random()};
-          master->subscribe(http);
+          master->subscribe(http, principal);
 
           mesos::master::Event event;
           event.set_type(mesos::master::Event::SUBSCRIBED);
