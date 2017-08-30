@@ -1624,6 +1624,97 @@ void discardPromises(std::set<Promise<T>*>* promises, const Future<T>& future)
   }
 }
 
+
+// Returns a future that will not propagate a discard through to the
+// future passed in as an argument. This can be very valuable if you
+// want to block some future from getting discarded.
+//
+// Example:
+//
+//   Promise<int> promise;
+//   Future<int> future = undiscardable(promise.future());
+//   future.discard();
+//   assert(!promise.future().hasDiscard());
+//
+// Or another example, when chaining futures:
+//
+//   Future<int> future = undiscardable(
+//       foo()
+//         .then([]() { ...; })
+//         .then([]() { ...; }));
+//
+// This will guarantee that a discard _will not_ propagate to `foo()`
+// or any of the futures returned from the invocations of `.then()`.
+template <typename T>
+Future<T> undiscardable(const Future<T>& future)
+{
+  std::shared_ptr<Promise<T>> promise(new Promise<T>());
+  future.onAny([promise](const Future<T>& future) {
+    promise->associate(future);
+  });
+  return promise->future();
+}
+
+
+// Decorator that for some callable `f` invokes
+// `undiscardable(f(args))` for some `args`. This is used by the
+// overload of `undiscardable()` that takes callables instead of a
+// specialization of `Future`.
+//
+// TODO(benh): Factor out a generic decorator pattern to be used in
+// other circumstances, e.g., to replace `_Deferred`.
+template <typename F>
+struct UndiscardableDecorator
+{
+  template <
+    typename G,
+    typename std::enable_if<
+      std::is_constructible<F, G>::value, int>::type = 0>
+  UndiscardableDecorator(G&& g) : f(std::forward<G>(g)) {}
+
+  template <typename... Args>
+  auto operator()(Args&&... args)
+    -> decltype(std::declval<F&>()(std::forward<Args>(args)...))
+  {
+    using Result =
+      typename std::decay<decltype(f(std::forward<Args>(args)...))>::type;
+
+    static_assert(
+        is_specialization_of<Future, Result>::value,
+        "Expecting Future<T> to be returned from undiscarded(...)");
+
+    return undiscardable(f(std::forward<Args>(args)...));
+  }
+
+  F f;
+};
+
+
+// An overload of `undiscardable()` above that takes and returns a
+// callable. The returned callable has decorated the provided callable
+// `f` such that when the returned callable is invoked it will in turn
+// invoke `undiscardable(f(args))` for some `args`. See
+// `UndiscardableDecorator` above for more details.
+//
+// Example:
+//
+//   Future<int> future = foo()
+//     .then(undiscardable([]() { ...; }));
+//
+// This guarantees that even if `future` is discarded the discard will
+// not propagate into the lambda passed into `.then()`.
+template <
+  typename F,
+  typename std::enable_if<
+    !is_specialization_of<
+      Future,
+      typename std::decay<F>::type>::value, int>::type = 0>
+UndiscardableDecorator<typename std::decay<F>::type> undiscardable(F&& f)
+{
+  return UndiscardableDecorator<
+    typename std::decay<F>::type>(std::forward<F>(f));
+}
+
 }  // namespace process {
 
 #endif // __PROCESS_FUTURE_HPP__
