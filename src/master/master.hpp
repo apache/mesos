@@ -611,7 +611,6 @@ protected:
 
   void ___reregisterSlave(
       Slave* slave,
-      const std::vector<Task>& tasks,
       const std::vector<FrameworkInfo>& frameworks);
 
   // 'future' is the future returned by the authenticator.

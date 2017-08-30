@@ -6210,7 +6210,7 @@ void Master::_reregisterSlave(
 
     // Inform the agent of the master's version of its checkpointed
     // resources and the new framework pids for its tasks.
-    ___reregisterSlave(slave, tasks, frameworks);
+    ___reregisterSlave(slave, frameworks);
 
     slaves.reregistering.erase(slaveInfo.id());
     return;
@@ -6505,7 +6505,7 @@ void Master::__reregisterSlave(
     }
   }
 
-  ___reregisterSlave(slave, tasks, frameworks);
+  ___reregisterSlave(slave, frameworks);
 
   slaves.reregistering.erase(slaveInfo.id());
 }
@@ -6513,7 +6513,6 @@ void Master::__reregisterSlave(
 
 void Master::___reregisterSlave(
     Slave* slave,
-    const vector<Task>& tasks,
     const vector<FrameworkInfo>& frameworks)
 {
   CHECK_NOTNULL(slave);
