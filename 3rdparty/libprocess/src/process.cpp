@@ -3209,6 +3209,18 @@ UPID ProcessManager::spawn(ProcessBase* process, bool manage)
 {
   CHECK(process != nullptr);
 
+  if (process->state.load() != ProcessBase::State::BOTTOM) {
+    LOG(WARNING)
+      << "Attempted to spawn a process (" << process->self()
+      << ") that has already been initialized";
+
+    if (manage) {
+      delete process;
+    }
+
+    return UPID();
+  }
+
   // If the `ProcessManager` is cleaning itself up, no further processes
   // may be spawned.
   if (finalizing.load()) {
@@ -3225,7 +3237,14 @@ UPID ProcessManager::spawn(ProcessBase* process, bool manage)
 
   synchronized (processes_mutex) {
     if (processes.count(process->pid.id) > 0) {
-      VLOG(1) << "Attempting to spawn already spawned process " << process->pid;
+      LOG(WARNING)
+        << "Attempted to spawn already running process " << process->pid;
+
+      // TODO(benh): we should be deleting `process` here, this is a
+      // long standing bug. This isn't straightforward because we
+      // can't delete it within the `synchronized (processes_mutex)`
+      // block.
+
       return UPID();
     } else {
       processes[process->pid.id] = process;
@@ -3783,7 +3802,11 @@ ProcessBase::ProcessBase(const string& id)
 }
 
 
-ProcessBase::~ProcessBase() {}
+ProcessBase::~ProcessBase()
+{
+  CHECK(state.load() == ProcessBase::State::BOTTOM ||
+        state.load() == ProcessBase::State::TERMINATING);
+}
 
 
 template <>
