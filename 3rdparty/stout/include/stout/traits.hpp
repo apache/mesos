@@ -13,6 +13,13 @@
 #ifndef __STOUT_TRAITS_HPP__
 #define __STOUT_TRAITS_HPP__
 
+template <template <typename...> class T, typename U>
+struct is_specialization_of : std::false_type {};
+
+template <template <typename...> class T, typename... Args>
+struct is_specialization_of<T, T<Args...>> : std::true_type {};
+
+
 // Lambda (or functor) traits.
 template <typename T>
 struct LambdaTraits : public LambdaTraits<decltype(&T::operator())> {};
