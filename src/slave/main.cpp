@@ -81,8 +81,6 @@ using mesos::master::detector::MasterDetector;
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
 
-using mesos::master::detector::MasterDetector;
-
 using mesos::slave::QoSController;
 using mesos::slave::ResourceEstimator;
 
