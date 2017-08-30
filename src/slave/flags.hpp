@@ -182,6 +182,8 @@ public:
   Option<std::string> advertise_port;
   Option<std::string> master;
 
+  Duration zk_session_timeout;
+
   // Optional IP discover script that will set the slave's IP.
   // If set, its output is expected to be a valid parseable IP string.
   Option<std::string> ip_discovery_command;

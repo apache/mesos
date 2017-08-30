@@ -1257,6 +1257,13 @@ mesos::internal::slave::Flags::Flags()
       "  `zk://username:password@host1:port1,host2:port2,.../path`\n"
       "  `file:///path/to/file` (where file contains one of the above)");
 
+  // TODO(xujyan): Pull master constant ZOOKEEPER_SESSION_TIMEOUT into
+  // a common constants header.
+  add(&Flags::zk_session_timeout,
+      "zk_session_timeout",
+      "ZooKeeper session timeout.",
+      Seconds(10));
+
   add(&Flags::ip_discovery_command,
       "ip_discovery_command",
       "Optional IP discovery binary: if set, it is expected to emit\n"
