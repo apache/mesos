@@ -310,6 +310,14 @@ Port to listen on. (master default: 5050; agent default: 5051)
 Show version and exit. (default: false)
   </td>
 </tr>
+<tr>
+  <td>
+    --zk_session_timeout=VALUE
+  </td>
+  <td>
+ZooKeeper session timeout. (default: 10secs)
+  </td>
+</tr>
 </table>
 
 *These logging options can also be supplied to both masters and agents.*
@@ -938,14 +946,6 @@ advertise offers for. The file is watched and periodically re-read to
 refresh the agent whitelist. By default there is no whitelist: all
 machines are accepted. Path can be of the form
 <code>file:///path/to/file</code> or <code>/path/to/file</code>.
-  </td>
-</tr>
-<tr>
-  <td>
-    --zk_session_timeout=VALUE
-  </td>
-  <td>
-ZooKeeper session timeout. (default: 10secs)
   </td>
 </tr>
 </table>
