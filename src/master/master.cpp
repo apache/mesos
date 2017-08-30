@@ -9073,7 +9073,8 @@ Future<Nothing> Master::apply(Slave* slave, const Offer::Operation& operation)
 }
 
 
-void Master::_apply(Slave* slave, const Offer::Operation& operation) {
+void Master::_apply(Slave* slave, const Offer::Operation& operation)
+{
   CHECK_NOTNULL(slave);
 
   slave->apply(operation);
