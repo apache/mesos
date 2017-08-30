@@ -49,6 +49,8 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
+#include "slave/containerizer/mesos/containerizer.hpp"
+
 using mesos::master::detector::MasterDetector;
 
 using mesos::v1::scheduler::Call;
@@ -70,6 +72,12 @@ using testing::_;
 using testing::DoAll;
 using testing::Return;
 using testing::WithParamInterface;
+
+using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::MesosContainerizer;
+
+using mesos::slave::ContainerTermination;
 
 namespace mesos {
 namespace internal {
@@ -1370,6 +1378,127 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   AWAIT_READY(runningUpdate);
   ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
   ASSERT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
+}
+
+
+// This is a regression test for MESOS-7926. It verifies that if
+// the default executor process is killed, the future of the nested
+// container destroy will be discarded and that discard will
+// not propagate back to the executor container destroy, to make
+// sure the executor container destroy can be finished correctly.
+TEST_P(DefaultExecutorTest, SigkillExecutor)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.containerizers = GetParam();
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(DoAll(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO),
+                    FutureSatisfy(&connected)));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      "test_default_executor",
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT);
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId,
+      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
+      "sleep 1000");
+
+  Future<v1::scheduler::Event::Update> update;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
+
+  AWAIT_READY(update);
+
+  ASSERT_EQ(TASK_RUNNING, update->status().state());
+  EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
+  EXPECT_TRUE(update->status().has_timestamp());
+  ASSERT_TRUE(update->status().has_container_status());
+
+  v1::ContainerStatus status = update->status().container_status();
+
+  ASSERT_TRUE(status.has_container_id());
+  EXPECT_TRUE(status.container_id().has_parent());
+
+  v1::ContainerID executorContainerId = status.container_id().parent();
+
+  Future<Option<ContainerTermination>> wait =
+    containerizer->wait(devolve(executorContainerId));
+
+  Future<ContainerStatus> executorStatus =
+    containerizer->status(devolve(executorContainerId));
+
+  AWAIT_READY(executorStatus);
+  ASSERT_TRUE(executorStatus->has_executor_pid());
+
+  ASSERT_SOME(os::killtree(executorStatus->executor_pid(), SIGKILL));
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
 }
 
 
