@@ -15,6 +15,10 @@ news:
 ##   - title: (required)
 ##     date: (required)
 ##     blog: (required)
+  - title: Mesos 1.1.3 is released!
+    date: August 31, 2017
+    blog: mesos-1-1-3-released
+    target_version: 1.1.3
   - title: Mesos 1.3.1 is released!
     date: August 15, 2017
     blog: mesos-1-3-1-released
@@ -138,6 +142,8 @@ versions:
 ##                 after we create the ReleaseNote for 0.28.1, we get the link:
 ##                 https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12335359.
 ##                 At here, 12335359 is the jira_version of 0.28.1.
+  - version: 1.1.3
+    jira_version: 12340629
   - version: 1.3.1
     jira_version: 12340495
   - version: 1.2.2
