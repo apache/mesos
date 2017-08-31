@@ -1952,7 +1952,12 @@ Future<Option<ContainerTermination>> MesosContainerizerProcess::wait(
     return None();
   }
 
-  return containers_.at(containerId)->termination.future()
+  // NOTE: Use 'undiscardable' here to make sure discard from the
+  // caller does not propagate into 'termination.future()' which will
+  // be used in 'destroy()'. We don't want a discard on 'wait()' call
+  // to affect future calls to 'destroy()'. See more details in
+  // MESOS-7926.
+  return undiscardable(containers_.at(containerId)->termination.future())
     .then(Option<ContainerTermination>::some);
 }
 
@@ -2149,7 +2154,12 @@ Future<bool> MesosContainerizerProcess::destroy(
   const Owned<Container>& container = containers_.at(containerId);
 
   if (container->state == DESTROYING) {
-    return container->termination.future()
+    // NOTE: Use 'undiscardable' here to make sure discard from the
+    // caller does not propagate into 'termination.future()' which
+    // will be used in 'wait()'. We don't want a discard on
+    // 'destroy()' call to affect future calls to 'wait()'. See more
+    // details in MESOS-7926.
+    return undiscardable(container->termination.future())
       .then([]() { return true; });
   }
 
@@ -2173,7 +2183,12 @@ Future<bool> MesosContainerizerProcess::destroy(
       return Nothing();
     }));
 
-  return container->termination.future()
+  // NOTE: Use 'undiscardable' here to make sure discard from the
+  // caller does not propagate into 'termination.future()' which will
+  // be used in 'wait()'. We don't want a discard on 'destroy()' call
+  // to affect future calls to 'wait()'. See more details in
+  // MESOS-7926.
+  return undiscardable(container->termination.future())
     .then([]() { return true; });
 }
 
