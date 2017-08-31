@@ -917,8 +917,8 @@ All Issues:
     * [MESOS-7062] - Add a test for a MULTI_ROLE framework receiving offers for each of its roles.
 
 
-Release Notes - Mesos - Version 1.1.3 (WIP)
--------------------------------------------
+Release Notes - Mesos - Version 1.1.3
+-------------------------------------
 * This is a bug fix release.
 
 All Issues:
