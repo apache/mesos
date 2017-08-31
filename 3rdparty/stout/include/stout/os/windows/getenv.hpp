@@ -38,7 +38,11 @@ inline Option<std::string> getenv(const std::string& key)
   // that.
   DWORD buffer_size = ::GetEnvironmentVariableW(wide_key.data(), nullptr, 0);
   if (buffer_size == 0) {
-    return None();
+    if (::GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
+      return None();
+    }
+
+    return "";
   }
 
   std::vector<wchar_t> environment;
@@ -49,9 +53,12 @@ inline Option<std::string> getenv(const std::string& key)
 
   if (value_size == 0) {
     // If `value_size == 0` here, that probably means the environment variable
-    // was deleted between when we checked and when we allocated the buffer. We
-    // report `None` to indicate the environment variable was not found.
-    return None();
+    // was deleted between when we checked and when we allocated the buffer.
+    if (::GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
+      return None();
+    }
+
+    return "";
   }
 
   return stringify(std::wstring(environment.data()));
