@@ -42,6 +42,7 @@
 #include <stout/result.hpp>
 #include <stout/result_of.hpp>
 #include <stout/synchronized.hpp>
+#include <stout/traits.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/strerror.hpp>
