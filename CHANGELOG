@@ -4,6 +4,7 @@ Release Notes - Mesos - Version 1.4.1 (WIP)
 
 All Issues:
 ** Bug
+  * [MESOS-7872] - Scheduler hang when registration fails.
   * [MESOS-7912] - Master WebUI not working in Chrome.
 
 
