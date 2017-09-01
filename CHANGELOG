@@ -411,6 +411,7 @@ All Issues:
   * [MESOS-7858] - Launching a nested container with namespace/pid isolation, with glibc < 2.25, may deadlock the LinuxLauncher and MesosContainerizer.
   * [MESOS-7863] - Agent may drop pending kill task status updates.
   * [MESOS-7865] - Agent may process a kill task and still launch the task.
+  * [MESOS-7872] - Scheduler hang when registration fails.
   * [MESOS-7909] - Ordering dependency between 'linux/capabilities' and 'docker/runtime' isolator.
   * [MESOS-7926] - Abnormal termination of default executor can cause MesosContainerizer::destroy to fail.
 
