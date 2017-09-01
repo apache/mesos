@@ -42,6 +42,7 @@
 #include <stout/path.hpp>
 
 #include <stout/os/exists.hpp>
+#include <stout/os/killtree.hpp>
 
 #include "slave/paths.hpp"
 
