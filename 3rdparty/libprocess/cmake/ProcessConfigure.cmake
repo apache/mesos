@@ -48,23 +48,6 @@ set(PROCESS_PACKAGE_VERSION 0.0.1)
 set(PROCESS_PACKAGE_SOVERSION 0)
 set(PROCESS_TARGET process-${PROCESS_PACKAGE_VERSION})
 
-# SOURCE GROUPS. Allows IDEs to group header files for projects taking a
-# dependency on this package.
-########################################################################
-file(
-  GLOB_RECURSE
-  PROCESS_HEADERS
-  "${PROCESS_INCLUDE_DIR}/process/*.hpp"
-  )
-
-macro(GROUP_PROCESS_HEADERS)
-  GROUP_SOURCE(
-    "Libprocess Public Headers"
-    "${PROCESS_INCLUDE_DIR}/process"
-    "${PROCESS_INCLUDE_DIR}/process"
-    "*.h*")
-endmacro()
-
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
