@@ -13,6 +13,7 @@ All Issues:
   * [MESOS-7872] - Scheduler hang when registration fails.
   * [MESOS-7909] - Ordering dependency between 'linux/capabilities' and 'docker/runtime' isolator.
   * [MESOS-7926] - Abnormal termination of default executor can cause MesosContainerizer::destroy to fail.
+  * [MESOS-7934] - OOM due to LibeventSSLSocket send incorrectly returning 0 after shutdown.
 
 
 Release Notes - Mesos - Version 1.2.2
