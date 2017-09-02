@@ -132,6 +132,142 @@ if (WIN32)
 endif ()
 
 
+# BUILD JAVA ARTIFACTS.
+#######################
+if (HAS_JAVA)
+  # Build the Mesos JAR.
+  #
+  # NOTE: We do not utilize CMake's `UseJava` module for a few reasons:
+  #   (1) `add_jar()` calls `javac`, but we use Maven.
+  #   (2) `add_jar()` does not support something like `IMPORTED`.
+  #   (3) `create_javah()` checks the existence of each JAR in the given class
+  #       path at configuration time, even though it depends on `mesos-jar` to
+  #       run Maven at build time. Coupled with (1) and (2) this makes it
+  #       impossible to use.
+  set(MESOS_JAR ${CMAKE_CURRENT_BINARY_DIR}/java/target/mesos-${MESOS_PACKAGE_VERSION}.jar)
+  set(PROTOBUF_JAR ${CMAKE_CURRENT_BINARY_DIR}/java/target/dependency/protobuf-java-3.3.0.jar)
+
+  # This file is generated into the build tree.
+  set(MESOS_JAVA_LIBRARY java/generated/org/apache/mesos/MesosNativeLibrary.java)
+  configure_file(${MESOS_JAVA_LIBRARY}.in ${MESOS_JAVA_LIBRARY})
+
+  set(MESOS_JAR_SRC
+    java/src/org/apache/mesos/ExecutorDriver.java
+    java/src/org/apache/mesos/Executor.java
+    java/src/org/apache/mesos/Log.java
+    java/src/org/apache/mesos/MesosExecutorDriver.java
+    java/src/org/apache/mesos/MesosSchedulerDriver.java
+    java/src/org/apache/mesos/SchedulerDriver.java
+    java/src/org/apache/mesos/Scheduler.java
+    java/src/org/apache/mesos/state/AbstractState.java
+    java/src/org/apache/mesos/state/InMemoryState.java
+    java/src/org/apache/mesos/state/LevelDBState.java
+    java/src/org/apache/mesos/state/LogState.java
+    java/src/org/apache/mesos/state/State.java
+    java/src/org/apache/mesos/state/Variable.java
+    java/src/org/apache/mesos/state/ZooKeeperState.java
+    java/src/org/apache/mesos/v1/scheduler/V1Mesos.java
+    java/src/org/apache/mesos/v1/scheduler/Mesos.java
+    java/src/org/apache/mesos/v1/scheduler/Scheduler.java
+    java/src/org/apache/mesos/v1/scheduler/V0Mesos.java
+    ${CMAKE_CURRENT_BINARY_DIR}/${MESOS_JAVA_LIBRARY})
+
+  configure_file(java/mesos.pom.in java/mesos.pom)
+
+  add_custom_command(
+    COMMENT "Building ${MESOS_JAR} using Maven..."
+    OUTPUT ${MESOS_JAR}
+    COMMAND mvn -B -f mesos.pom clean package
+    DEPENDS ${MESOS_JAR_SRC} ${JAVA_PROTOBUF_SRC}
+    WORKING_DIRECTORY java)
+
+  add_custom_target(mesos-jar DEPENDS ${MESOS_JAR})
+
+  # TODO(andschwa): Build the Example JAR.
+  set(EXAMPLE_JAR_SRC
+    examples/java/TestExceptionFramework.java
+    examples/java/TestExecutor.java
+    examples/java/TestFramework.java
+    examples/java/TestLog.java
+    examples/java/TestMultipleExecutorsFramework.java
+    examples/java/V1TestFramework.java)
+
+  set(JAVA_SRC
+    java/jni/convert.cpp
+    java/jni/construct.cpp
+    java/jni/org_apache_mesos_Log.cpp
+    java/jni/org_apache_mesos_MesosExecutorDriver.cpp
+    java/jni/org_apache_mesos_MesosNativeLibrary.cpp
+    java/jni/org_apache_mesos_MesosSchedulerDriver.cpp
+    java/jni/org_apache_mesos_state_AbstractState.cpp
+    java/jni/org_apache_mesos_state_LevelDBState.cpp
+    java/jni/org_apache_mesos_state_LogState.cpp
+    java/jni/org_apache_mesos_state_Variable.cpp
+    java/jni/org_apache_mesos_state_ZooKeeperState.cpp
+    java/jni/org_apache_mesos_v1_scheduler_V1Mesos.cpp
+    java/jni/org_apache_mesos_v1_scheduler_V0Mesos.cpp
+    jvm/jvm.cpp
+    jvm/org/apache/log4j.cpp
+    jvm/org/apache/zookeeper.cpp)
+
+  # These are generated and so must be included.
+  set(JAVA_H
+    java/jni/org_apache_mesos_Log.h
+    java/jni/org_apache_mesos_MesosExecutorDriver.h
+    java/jni/org_apache_mesos_MesosSchedulerDriver.h
+    java/jni/org_apache_mesos_state_AbstractState.h
+    java/jni/org_apache_mesos_state_LevelDBState.h
+    java/jni/org_apache_mesos_state_LogState.h
+    java/jni/org_apache_mesos_state_Variable.h
+    java/jni/org_apache_mesos_state_ZooKeeperState.h
+    java/jni/org_apache_mesos_v1_scheduler_V1Mesos.h
+    java/jni/org_apache_mesos_v1_scheduler_V0Mesos.h)
+
+  set(JAVA_CLASSES
+    org.apache.mesos.Log
+    org.apache.mesos.MesosExecutorDriver
+    org.apache.mesos.MesosSchedulerDriver
+    org.apache.mesos.state.AbstractState
+    org.apache.mesos.state.LevelDBState
+    org.apache.mesos.state.LogState
+    org.apache.mesos.state.Variable
+    org.apache.mesos.state.ZooKeeperState
+    org.apache.mesos.v1.scheduler.V1Mesos
+    org.apache.mesos.v1.scheduler.V0Mesos)
+
+  # This generates the header files.
+  if (WIN32)
+    set(COLON ";")
+  else ()
+    set(COLON ":")
+  endif ()
+
+  add_custom_command(
+    OUTPUT ${JAVA_H}
+    COMMAND ${Java_JAVAH_EXECUTABLE} -d java/jni -classpath "${MESOS_JAR}${COLON}${PROTOBUF_JAR}" ${JAVA_CLASSES}
+    DEPENDS mesos-jar make_bin_jni_dir)
+
+  # We include the headers here to establish the dependency
+  # on the above custom command.
+  add_library(
+    mesos-java ${MESOS_DEFAULT_LIBRARY_LINKAGE}
+    ${JAVA_SRC}
+    ${JAVA_H})
+
+  target_link_libraries(
+    mesos-java
+    stout
+    zookeeper
+    ${MESOS_PROTOBUF_TARGET}
+    ${JNI_LIBRARIES})
+
+  target_include_directories(
+    mesos-java PUBLIC
+    ${JNI_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}/java/jni)
+endif ()
+
+
 # Configure Mesos files.
 ########################
 configure_file(
@@ -588,7 +724,10 @@ add_dependencies(
 
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
-target_link_libraries(${MESOS_LIBS_TARGET} ${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})
+target_link_libraries(${MESOS_LIBS_TARGET} PUBLIC
+  ${MESOS_PROTOBUF_TARGET}
+  ${AGENT_LIBS}
+  $<$<BOOL:${HAS_JAVA}>:mesos-java>)
 
 # BUILD THE MESOS EXECUTABLES.
 ##############################

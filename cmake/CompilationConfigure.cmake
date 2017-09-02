@@ -27,6 +27,30 @@ endif ()
 
 option(BUILD_SHARED_LIBS "Build shared libraries." ${DEFAULT_BUILD_SHARED_LIBS})
 
+option(ENABLE_JAVA "Build Java components. Warning: this is SLOW." OFF)
+if (ENABLE_JAVA)
+  include(FindJava)
+  find_package(Java COMPONENTS Development)
+
+  if (NOT JAVA_FOUND)
+    message(FATAL_ERROR "Java was not found!")
+  endif ()
+
+  include(FindJNI)
+  if (NOT JNI_FOUND)
+    message(FATAL_ERROR "JNI Java libraries were not found!")
+  endif ()
+
+  find_program(MVN mvn)
+  if (NOT MVN)
+    message(FATAL_ERROR "Maven was not found!")
+  endif ()
+
+  if (Java_FOUND AND JNI_FOUND AND MVN)
+    set(HAS_JAVA TRUE)
+  endif ()
+endif ()
+
 option(ENABLE_PRECOMPILED_HEADERS
   "Enable auto-generated precompiled headers using cotire" ${WIN32})
 
@@ -376,18 +400,13 @@ configure_file(
   @ONLY
   )
 
-# TODO(hausdorff): (MESOS-5902) Populate this value when we integrate Java
-# support.
-set(BUILD_JAVA_JVM_LIBRARY "")
-
 # NOTE: The quotes in these definitions are necessary. Without them, the
 # preprocessor will interpret the symbols as (e.g.) int literals and uquoted
 # identifiers, rather than the string values our code expects.
 list(APPEND MESOS_CPPFLAGS
   -DUSE_STATIC_LIB
   -DUSE_CMAKE_BUILD_CONFIG
-  -DBUILD_JAVA_JVM_LIBRARY="${BUILD_JAVA_JVM_LIBRARY}"
-  )
+  -DBUILD_JAVA_JVM_LIBRARY="${JAVA_JVM_LIBRARY}")
 
 # TODO(hausdorff): (MESOS-5455) `BUILD_FLAGS` is currently a placeholder value.
 add_definitions(${MESOS_CPPFLAGS} -DBUILD_FLAGS="")

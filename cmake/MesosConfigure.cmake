@@ -90,6 +90,16 @@ add_custom_target(
   make_bin_src_dir ALL
   COMMAND ${CMAKE_COMMAND} -E make_directory ${MESOS_BIN_SRC_DIR})
 
+add_custom_target(
+  make_bin_java_dir ALL
+  DEPENDS make_bin_src_dir
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${MESOS_BIN_SRC_DIR}/java/generated)
+
+add_custom_target(
+  make_bin_jni_dir ALL
+  DEPENDS make_bin_src_dir
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${MESOS_BIN_SRC_DIR}/java/jni)
+
 # CONFIGURE AGENT.
 ##################
 include(AgentConfigure)
@@ -166,14 +176,17 @@ set(MESOS_PROTOBUF_TARGET mesos-protobufs
 
 # MESOS SCRIPT CONFIGURATION.
 #############################
+# Define variables required to configure these scripts,
+# and also the Java build script `mesos.pom.in`.
+set(abs_top_srcdir "${CMAKE_SOURCE_DIR}")
+set(abs_top_builddir "${CMAKE_BINARY_DIR}")
+
 if (NOT WIN32)
   # Create build bin/ directory. We will place configured scripts here.
   file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
   file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin/tmp")
 
   # Define the variables required to configure these scripts.
-  set(abs_top_srcdir "${CMAKE_SOURCE_DIR}")
-  set(abs_top_builddir "${CMAKE_BINARY_DIR}")
   set(VERSION "${PACKAGE_VERSION}")
 
   # Find all scripts to configure. The scripts are in the bin/ directory, and
