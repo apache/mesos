@@ -14,89 +14,100 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# PROTO_TO_INCLUDE_DIR is a convenience function that will: (1) compile .proto
-# files found in the Mesos public-facing `include/` directory, (2) place the
-# generated files in the build folder, but with an identical directory
-# structure, and (3) export variables holding the fully qualified path to the
-# generated files, based on a name structure the user specifies with the
-# `BASE_NAME` and `BASE_DIR_STRUCTURE` parameters.
+# PROTOC_GENERATE is a convenience function that will:
+#   (1) Compile .proto files found in the Mesos public-facing `include/`
+#       directory, or with the option `INTERNAL` the Mesos `src/` directory.
+#       The `JAVA` option flag will generate the Java Protobuf files to
+#       `src/java/generated`.
+#   (2) Place the generated files in the build folder, but with an identical
+#       directory structure.
+#   (3) Append to list variables `PUBLIC_PROTOBUF_SRC`, `INTERNAL_PROTOBUF_SRC`,
+#       and `JAVA_PROTOBUF_SRC` (depending on options passed in) the fully
+#       qualified path to the generated files. This export is a *side effect*
+#       and modifies the variables in the parent scope.
 #
-# For example, if suppose wish to compile `include/mesos/mesos.proto`. We might
-# pass in the following values for the parameters:
+# For example, if suppose wish to compile `include/mesos/mesos.proto`,
+# we might pass in the following values for the parameters:
 #
-#   BASE_NAME:          MESOS       (i.e., basis for the exported var names)
-#   BASE_DIR_STRUCTURE: mesos/mesos (i.e., where `mesos/mesos.proto` would be
-#                                    the relative path to the .proto file, we'd
-#                                    use this "root name" to generate files
-#                                    like `mesos/mesos.pb.cc`
+#   PROTOC_GENERATE(TARGET mesos/mesos)
+#
+# Where `mesos/mesos.proto` would be the relative path to the .proto file,
+# we'd use this "root name" to generate files like `mesos/mesos.pb.cc`
 #
 # In this case, this function would:
 #
-#   (1) compile the `include/mesos/mesos.proto`, which would generate the files
-#       `build/include/mesos/mesos.pb.h` and `build/include/mesos/mesos.pb.cc`
-#   (2) export the following variables, based on the `BASE_NAME` parameter
-#       (a) MESOS_PROTO:    ${MESOS_ROOT}/include/mesos/mesos.proto
-#       (b) MESOS_PROTO_CC: ${MESOS_ROOT}/build/include/mesos/mesos.pb.cc
-#       (a) MESOS_PROTO_H:   ${MESOS_ROOT}/build/include/mesos/mesos.pb.h
-function(PROTOC_TO_INCLUDE_DIR BASE_NAME BASE_DIR_STRUCTURE)
+#   (1) Compile the `include/mesos/mesos.proto`, which would generate the files
+#       `build/include/mesos/mesos.pb.h` and `build/include/mesos/mesos.pb.cc`.
+#   (2) Append the path `${MESOS_ROOT}/build/include/mesos/mesos.pb.cc` to
+#       the parent scope variable `PUBLIC_PROTOBUF_SRC`.
+#
+# NOTE: The `protoc` binary used here is an imported executable target from
+# `3rdparty/CMakeLists.txt`. However, this is not strictly necessary, and
+# `protoc` could be supplied in `PATH`.
+function(PROTOC_GENERATE)
+  set(options OPTIONAL INTERNAL JAVA)
+  set(oneValueArgs TARGET)
+  cmake_parse_arguments(PROTOC "${options}" "${oneValueArgs}" "" ${ARGN})
 
-  set(TO_INCLUDE_DIR
+  if (PROTOC_INTERNAL)
+    set(CPP_OUT ${MESOS_BIN_SRC_DIR})
+  else ()
+    set(CPP_OUT ${MESOS_BIN_INCLUDE_DIR})
+  endif ()
+
+  set(PROTOC_OPTIONS
     -I${MESOS_PUBLIC_INCLUDE_DIR}
     -I${MESOS_SRC_DIR}
-    --cpp_out=${MESOS_BIN_INCLUDE_DIR})
+    --cpp_out=${CPP_OUT})
 
-  # Names of variables we will be publicly exporting.
-  set(PROTO_VAR ${BASE_NAME}_PROTO)    # e.g., MESOS_PROTO
-  set(CC_VAR    ${BASE_NAME}_PROTO_CC) # e.g., MESOS_PROTO_CC
-  set(H_VAR     ${BASE_NAME}_PROTO_H)  # e.g., MESOS_PROTO_H
+  if (PROTOC_JAVA AND HAS_JAVA)
+    list(APPEND PROTOC_OPTIONS
+      --java_out=${MESOS_BIN_SRC_DIR}/java/generated)
+  endif ()
 
-  # Fully qualified paths for the input .proto files and the output C files.
-  set(PROTO ${MESOS_PUBLIC_INCLUDE_DIR}/${BASE_DIR_STRUCTURE}.proto)
-  set(CC    ${MESOS_BIN_INCLUDE_DIR}/${BASE_DIR_STRUCTURE}.pb.cc)
-  set(H     ${MESOS_BIN_INCLUDE_DIR}/${BASE_DIR_STRUCTURE}.pb.h)
+  # Fully qualified paths for the input .proto files and the output C file.
+  if (PROTOC_INTERNAL) # to src dir
+    set(PROTO ${MESOS_SRC_DIR}/${PROTOC_TARGET}.proto)
+  else () # to public include dir
+    set(PROTO ${MESOS_PUBLIC_INCLUDE_DIR}/${PROTOC_TARGET}.proto)
+  endif ()
 
-  # Export variables holding the target filenames.
-  set(${PROTO_VAR} ${PROTO} PARENT_SCOPE) # e.g., mesos/mesos.proto
-  set(${CC_VAR}    ${CC}    PARENT_SCOPE) # e.g., mesos/mesos.pb.cc
-  set(${H_VAR}     ${H}     PARENT_SCOPE) # e.g., mesos/mesos.pb.h
+  set(CC ${CPP_OUT}/${PROTOC_TARGET}.pb.cc)
 
-  # Compile the .proto file.
-  ADD_CUSTOM_COMMAND(
-    OUTPUT ${CC} ${H}
-    COMMAND ${PROTOC} ${TO_INCLUDE_DIR} ${PROTO}
-    DEPENDS make_bin_include_dir ${PROTO}
-    WORKING_DIRECTORY ${MESOS_BIN})
-endfunction()
-
-# PROTO_TO_SRC_DIR is similar to `PROTO_TO_INCLUDE_DIR`, except it acts on the
-# Mesos `src/` directory instead of the public-facing `include/` directory (see
-# documentation for `PROTO_TO_INCLUDE_DIR` for details).
-function(PROTOC_TO_SRC_DIR BASE_NAME BASE_DIR_STRUCTURE)
-
-  set(TO_SRC_DIR
-    -I${MESOS_PUBLIC_INCLUDE_DIR}
-    -I${MESOS_SRC_DIR}
-    --cpp_out=${MESOS_BIN_SRC_DIR})
-
-  # Names of variables we will be publicly exporting.
-  set(PROTO_VAR ${BASE_NAME}_PROTO)    # e.g., MESOS_PROTO
-  set(CC_VAR    ${BASE_NAME}_PROTO_CC) # e.g., MESOS_PROTO_CC
-  set(H_VAR     ${BASE_NAME}_PROTO_H)  # e.g., MESOS_PROTO_H
-
-  # Fully qualified paths for the input .proto files and the output C files.
-  set(PROTO ${MESOS_SRC_DIR}/${BASE_DIR_STRUCTURE}.proto)
-  set(CC    ${MESOS_BIN_SRC_DIR}/${BASE_DIR_STRUCTURE}.pb.cc)
-  set(H     ${MESOS_BIN_SRC_DIR}/${BASE_DIR_STRUCTURE}.pb.h)
+  # Fully qualified path for the Java file.
+  if (PROTOC_JAVA AND HAS_JAVA)
+    get_filename_component(PROTOC_JAVA_DIR ${PROTOC_TARGET} DIRECTORY)
+    set(JAVA ${MESOS_BIN_SRC_DIR}/java/generated/org/apache/${PROTOC_JAVA_DIR}/Protos.java)
+  endif ()
 
   # Export variables holding the target filenames.
-  set(${PROTO_VAR} ${PROTO} PARENT_SCOPE) # e.g., mesos/mesos.proto
-  set(${CC_VAR}    ${CC}    PARENT_SCOPE) # e.g., mesos/mesos.pb.cc
-  set(${H_VAR}     ${H}     PARENT_SCOPE) # e.g., mesos/mesos.pb.h
+  if (PROTOC_INTERNAL)
+    list(APPEND INTERNAL_PROTOBUF_SRC ${CC})
+    set(INTERNAL_PROTOBUF_SRC ${INTERNAL_PROTOBUF_SRC} PARENT_SCOPE)
+  else ()
+    list(APPEND PUBLIC_PROTOBUF_SRC ${CC})
+    set(PUBLIC_PROTOBUF_SRC ${PUBLIC_PROTOBUF_SRC} PARENT_SCOPE)
+  endif ()
+
+  if (PROTOC_JAVA AND HAS_JAVA)
+    list(APPEND JAVA_PROTOBUF_SRC ${JAVA})
+    set(JAVA_PROTOBUF_SRC ${JAVA_PROTOBUF_SRC} PARENT_SCOPE)
+  endif ()
+
+  if (PROTOC_INTERNAL)
+    set(PROTOC_DEPENDS make_bin_src_dir)
+  else ()
+    set(PROTOC_DEPENDS make_bin_include_dir)
+  endif ()
+
+  if (PROTOC_JAVA AND HAS_JAVA)
+    list(APPEND PROTOC_DEPENDS make_bin_java_dir)
+  endif ()
 
   # Compile the .proto file.
-  ADD_CUSTOM_COMMAND(
-    OUTPUT ${CC} ${H}
-    COMMAND ${PROTOC} ${TO_SRC_DIR} ${PROTO}
-    DEPENDS make_bin_src_dir ${PROTO}
+  add_custom_command(
+    OUTPUT ${CC} ${H} ${JAVA}
+    COMMAND protoc ${PROTOC_OPTIONS} ${PROTO}
+    DEPENDS ${PROTOC_DEPENDS} ${PROTO}
     WORKING_DIRECTORY ${MESOS_BIN})
 endfunction()

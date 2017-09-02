@@ -19,95 +19,57 @@
 include(MesosProtobuf)
 
 # Build the protobuf structs.
-PROTOC_TO_INCLUDE_DIR(ACLS                  mesos/authorizer/acls)
-PROTOC_TO_INCLUDE_DIR(AGENT                 mesos/agent/agent)
-PROTOC_TO_INCLUDE_DIR(ALLOCATOR             mesos/allocator/allocator)
-PROTOC_TO_INCLUDE_DIR(APPC_SPEC             mesos/appc/spec)
-PROTOC_TO_INCLUDE_DIR(AUTHENTICATION        mesos/authentication/authentication)
-PROTOC_TO_INCLUDE_DIR(AUTHORIZATION         mesos/authorizer/authorizer)
-PROTOC_TO_INCLUDE_DIR(CONTAINERIZER         mesos/slave/containerizer)
-PROTOC_TO_INCLUDE_DIR(DOCKER_SPEC           mesos/docker/spec)
-PROTOC_TO_INCLUDE_DIR(DOCKER_V1             mesos/docker/v1)
-PROTOC_TO_INCLUDE_DIR(DOCKER_V2             mesos/docker/v2)
-PROTOC_TO_INCLUDE_DIR(EXECUTOR              mesos/executor/executor)
-PROTOC_TO_INCLUDE_DIR(FETCHER               mesos/fetcher/fetcher)
-PROTOC_TO_INCLUDE_DIR(HOOK                  mesos/module/hook)
-PROTOC_TO_INCLUDE_DIR(MAINTENANCE           mesos/maintenance/maintenance)
-PROTOC_TO_INCLUDE_DIR(MASTER                mesos/master/master)
-PROTOC_TO_INCLUDE_DIR(MESOS                 mesos/mesos)
-PROTOC_TO_INCLUDE_DIR(MODULE                mesos/module/module)
-PROTOC_TO_INCLUDE_DIR(OVERSUBSCRIPTION      mesos/slave/oversubscription)
-PROTOC_TO_INCLUDE_DIR(OCI_SPEC              mesos/oci/spec)
-PROTOC_TO_INCLUDE_DIR(QUOTA                 mesos/quota/quota)
-PROTOC_TO_INCLUDE_DIR(RESOURCE_PROVIDER     mesos/resource_provider/resource_provider)
-PROTOC_TO_INCLUDE_DIR(SCHEDULER             mesos/scheduler/scheduler)
-PROTOC_TO_INCLUDE_DIR(STATE                 mesos/state/state)
-PROTOC_TO_INCLUDE_DIR(URI                   mesos/uri/uri)
-PROTOC_TO_INCLUDE_DIR(V1_AGENT              mesos/v1/agent/agent)
-PROTOC_TO_INCLUDE_DIR(V1_ALLOCATOR          mesos/v1/allocator/allocator)
-PROTOC_TO_INCLUDE_DIR(V1_EXECUTOR           mesos/v1/executor/executor)
-PROTOC_TO_INCLUDE_DIR(V1_MAINTENANCE        mesos/v1/maintenance/maintenance)
-PROTOC_TO_INCLUDE_DIR(V1_MASTER             mesos/v1/master/master)
-PROTOC_TO_INCLUDE_DIR(V1_MESOS              mesos/v1/mesos)
-PROTOC_TO_INCLUDE_DIR(V1_QUOTA              mesos/v1/quota/quota)
-PROTOC_TO_INCLUDE_DIR(V1_RESOURCE_PROVIDER  mesos/v1/resource_provider/resource_provider)
-PROTOC_TO_INCLUDE_DIR(V1_SCHEDULER          mesos/v1/scheduler/scheduler)
+#
+# NOTE: `PROTOC_GENERATE` will list append to `PUBLIC_PROTOBUF_SRC`,
+# `INTERNAL_PROTOBUF_SRC`, and/or `JAVA_PROTOBUF_SRC` depending on the
+# `INTERNAL` and `JAVA` options.
+set(PUBLIC_PROTOBUF_SRC "")
+PROTOC_GENERATE(TARGET mesos/agent/agent)
+PROTOC_GENERATE(TARGET mesos/allocator/allocator)
+PROTOC_GENERATE(TARGET mesos/appc/spec)
+PROTOC_GENERATE(TARGET mesos/authentication/authentication)
+PROTOC_GENERATE(TARGET mesos/authorizer/acls)
+PROTOC_GENERATE(TARGET mesos/authorizer/authorizer)
+PROTOC_GENERATE(TARGET mesos/docker/spec)
+PROTOC_GENERATE(TARGET mesos/docker/v1)
+PROTOC_GENERATE(TARGET mesos/docker/v2)
+PROTOC_GENERATE(TARGET mesos/maintenance/maintenance)
+PROTOC_GENERATE(TARGET mesos/master/master)
+PROTOC_GENERATE(TARGET mesos/module/hook)
+PROTOC_GENERATE(TARGET mesos/module/module)
+PROTOC_GENERATE(TARGET mesos/oci/spec)
+PROTOC_GENERATE(TARGET mesos/quota/quota)
+PROTOC_GENERATE(TARGET mesos/resource_provider/resource_provider)
+PROTOC_GENERATE(TARGET mesos/slave/containerizer)
+PROTOC_GENERATE(TARGET mesos/slave/oversubscription)
+PROTOC_GENERATE(TARGET mesos/state/state)
+PROTOC_GENERATE(TARGET mesos/uri/uri)
 
-PROTOC_TO_SRC_DIR(INTERNAL_FLAGS                messages/flags)
-PROTOC_TO_SRC_DIR(INTERNAL_LOG                  messages/log)
-PROTOC_TO_SRC_DIR(INTERNAL_MESSAGES             messages/messages)
-PROTOC_TO_SRC_DIR(INTERNAL_STATE                messages/state)
-PROTOC_TO_SRC_DIR(ISOLATOR_CNI_SPEC             slave/containerizer/mesos/isolators/network/cni/spec)
-PROTOC_TO_SRC_DIR(ISOLATOR_DOCKER_VOLUME_STATE  slave/containerizer/mesos/isolators/docker/volume/state)
-PROTOC_TO_SRC_DIR(PROVISIONER_DOCKER            slave/containerizer/mesos/provisioner/docker/message)
-PROTOC_TO_SRC_DIR(REGISTRY                      master/registry)
+# NOTE: The JAVA option is a noop if Java is disabled.
+set(JAVA_PROTOBUF_SRC "")
+PROTOC_GENERATE(JAVA TARGET mesos/executor/executor)
+PROTOC_GENERATE(JAVA TARGET mesos/fetcher/fetcher)
+PROTOC_GENERATE(JAVA TARGET mesos/mesos)
+PROTOC_GENERATE(JAVA TARGET mesos/scheduler/scheduler)
+PROTOC_GENERATE(JAVA TARGET mesos/v1/agent/agent)
+PROTOC_GENERATE(JAVA TARGET mesos/v1/allocator/allocator)
+PROTOC_GENERATE(JAVA TARGET mesos/v1/executor/executor)
+PROTOC_GENERATE(JAVA TARGET mesos/v1/maintenance/maintenance)
+PROTOC_GENERATE(JAVA TARGET mesos/v1/master/master)
+PROTOC_GENERATE(JAVA TARGET mesos/v1/mesos)
+PROTOC_GENERATE(JAVA TARGET mesos/v1/quota/quota)
+PROTOC_GENERATE(JAVA TARGET mesos/v1/resource_provider/resource_provider)
+PROTOC_GENERATE(JAVA TARGET mesos/v1/scheduler/scheduler)
 
-set(PUBLIC_PROTOBUF_SRC
-  ${ACLS_PROTO_CC}
-  ${AGENT_PROTO_CC}
-  ${ALLOCATOR_PROTO_CC}
-  ${APPC_SPEC_PROTO_CC}
-  ${AUTHENTICATION_PROTO_CC}
-  ${AUTHORIZATION_PROTO_CC}
-  ${CONTAINERIZER_PROTO_CC}
-  ${DOCKER_SPEC_PROTO_CC}
-  ${DOCKER_V1_PROTO_CC}
-  ${DOCKER_V2_PROTO_CC}
-  ${EXECUTOR_PROTO_CC}
-  ${FETCHER_PROTO_CC}
-  ${HOOK_PROTO_CC}
-  ${MAINTENANCE_PROTO_CC}
-  ${MASTER_PROTO_CC}
-  ${MESOS_PROTO_CC}
-  ${MODULE_PROTO_CC}
-  ${OCI_SPEC_PROTO_CC}
-  ${OVERSUBSCRIPTION_PROTO_CC}
-  ${QUOTA_PROTO_CC}
-  ${RESOURCE_PROVIDER_PROTO_CC}
-  ${SCHEDULER_PROTO_CC}
-  ${STATE_PROTO_CC}
-  ${URI_PROTO_CC}
-  ${V1_AGENT_PROTO_CC}
-  ${V1_ALLOCATOR_PROTO_CC}
-  ${V1_EXECUTOR_PROTO_CC}
-  ${V1_MAINTENANCE_PROTO_CC}
-  ${V1_MASTER_PROTO_CC}
-  ${V1_MESOS_PROTO_CC}
-  ${V1_QUOTA_PROTO_CC}
-  ${V1_RESOURCE_PROVIDER_PROTO_CC}
-  ${V1_SCHEDULER_PROTO_CC}
-  )
-
-set(INTERNAL_PROTOBUF_SRC
-  ${INTERNAL_FLAGS_PROTO_CC}
-  ${INTERNAL_LOG_PROTO_CC}
-  ${INTERNAL_MESSAGES_PROTO_CC}
-  ${INTERNAL_STATE_PROTO_CC}
-  ${ISOLATOR_CNI_SPEC_PROTO_CC}
-  ${ISOLATOR_DOCKER_VOLUME_STATE_PROTO_CC}
-  ${PROVISIONER_DOCKER_PROTO_CC}
-  ${REGISTRY_PROTO_CC}
-  )
+set(INTERNAL_PROTOBUF_SRC "")
+PROTOC_GENERATE(INTERNAL TARGET messages/flags)
+PROTOC_GENERATE(INTERNAL TARGET messages/log)
+PROTOC_GENERATE(INTERNAL TARGET messages/messages)
+PROTOC_GENERATE(INTERNAL TARGET messages/state)
+PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/network/cni/spec)
+PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/docker/volume/state)
+PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/provisioner/docker/message)
+PROTOC_GENERATE(INTERNAL TARGET master/registry)
 
 
 # BUILD PROTOBUFS.
