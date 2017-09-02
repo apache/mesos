@@ -46,16 +46,16 @@ function(FIND_PACKAGE_HELPER PACKAGE_NAME HEADER_FILE)
   find_path(
     ${PACKAGE_NAME}_INCLUDE_DIR
     ${HEADER_FILE}
-    HINTS ${POSSIBLE_${PACKAGE_NAME}_INCLUDE_DIRS}
-    )
+    HINTS ${POSSIBLE_${PACKAGE_NAME}_INCLUDE_DIRS})
 
   # Check if the header file was found.
   string(
     COMPARE NOTEQUAL
     "${PACKAGE_NAME}_INCLUDE_DIR-NOTFOUND"
     ${${PACKAGE_NAME}_INCLUDE_DIR}
-    ${PACKAGE_NAME}_INCLUDE_DIR_FOUND # Output variable.
-    )
+
+    # Output variable.
+    ${PACKAGE_NAME}_INCLUDE_DIR_FOUND)
 
   # Error out if the header is not found.
   if (NOT ${${PACKAGE_NAME}_INCLUDE_DIR_FOUND})
@@ -74,15 +74,23 @@ function(FIND_PACKAGE_HELPER PACKAGE_NAME HEADER_FILE)
       ${PACKAGE_NAME}_LIB_PATH
       NAMES ${LIBRARY_NAME}
       PATHS ${POSSIBLE_${PACKAGE_NAME}_LIB_DIRS}
-      )
+      NO_DEFAULT_PATH)
+
+    # NOTE: We call this again to search the default paths,
+    # but it will only do so if it wasn't found above.
+    # This is recommended by the CMake documentation.
+    find_library(
+      ${PACKAGE_NAME}_LIB_PATH
+      NAMES ${LIBRARY_NAME})
 
     # Check if the library was found.
     string(
       COMPARE NOTEQUAL
       "${PACKAGE_NAME}_LIB_PATH-NOTFOUND"
       ${${PACKAGE_NAME}_LIB_PATH}
-      ${PACKAGE_NAME}_LIB_PATH_FOUND # Output variable.
-      )
+
+      # Output variable.
+      ${PACKAGE_NAME}_LIB_PATH_FOUND)
 
     # Error out if any of the libraries are not found.
     if (NOT ${${PACKAGE_NAME}_LIB_PATH_FOUND})
