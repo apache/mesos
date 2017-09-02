@@ -475,6 +475,11 @@ private:
 
   std::shared_ptr<Gate> gate;
 
+  // Whether or not the runtime should delete this process after it
+  // has terminated. Note that failure to spawn the process will leave
+  // the process unmanaged and thus it may leak!
+  bool manage = false;
+
   // Process PID.
   UPID pid;
 };
@@ -564,7 +569,8 @@ long workers();
  * Spawn a new process.
  *
  * @param process Process to be spawned.
- * @param manage Whether process should get garbage collected.
+ * @param manage Whether process should get deleted by the runtime
+ *     after terminating.
  */
 UPID spawn(ProcessBase* process, bool manage = false);
 
