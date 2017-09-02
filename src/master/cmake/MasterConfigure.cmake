@@ -14,15 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# TODO(andschwa): Import this properly.
+set(SASL_LFLAG sasl2)
+
 # Define process library dependencies. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
 set(MASTER_DEPENDENCIES
   ${MASTER_DEPENDENCIES}
-  ${PROCESS_DEPENDENCIES}
-  ${PROCESS_TARGET}
-  ${ZOOKEEPER_TARGET}
-  ${LEVELDB_TARGET}
   make_bin_include_dir
   make_bin_src_dir
   )
@@ -42,11 +41,6 @@ set(MASTER_INCLUDE_DIRS
 
 set(MASTER_3RDPARTY_INCLUDE_DIRS
   ${MASTER_3RDPARTY_INCLUDE_DIRS}
-  ${PROCESS_INCLUDE_DIRS}
-  ${PROCESS_3RDPARTY_INCLUDE_DIRS}
-  ${ZOOKEEPER_INCLUDE_DIR}
-  ${ZOOKEEPER_INCLUDE_GENDIR}
-  ${LEVELDB_INCLUDE_DIR}
   )
 
 # Define third-party lib install directories. Used to tell the compiler
@@ -55,8 +49,6 @@ set(MASTER_3RDPARTY_INCLUDE_DIRS
 ########################################################################
 set(MASTER_LIB_DIRS
   ${MASTER_LIB_DIRS}
-  ${PROCESS_LIB_DIRS}
-  ${ZOOKEEPER_LIB_DIR}
   )
 
 # Define third-party libs. Used to generate flags that the linker uses to
@@ -64,21 +56,14 @@ set(MASTER_LIB_DIRS
 #########################################################################
 set(MASTER_LIBS
   ${MASTER_LIBS}
-  ${PROCESS_LIBS}
-  ${ZOOKEEPER_LFLAG}
-  ${PROCESS_TARGET}
+  process
+  zookeeper
   )
 
 if (NOT WIN32)
   set(MASTER_LIBS
     ${MASTER_LIBS}
-    ${LEVELDB_LFLAG}
+    leveldb
     ${SASL_LFLAG}
     )
-endif ()
-
-if (NOT ENABLE_LIBEVENT)
-  set(MASTER_LIBS ${MASTER_LIBS} ${LIBEV_LFLAG})
-else ()
-  set(MASTER_LIBS ${MASTER_LIBS} ${LIBEVENT_LFLAG})
 endif ()

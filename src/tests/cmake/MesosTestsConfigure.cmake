@@ -52,7 +52,6 @@ add_definitions(-DSBINDIR="${S_BIN_DIR}")
 set(MESOS_TESTS_DEPENDENCIES
   ${MESOS_TESTS_DEPENDENCIES}
   ${MESOS_TARGET}
-  ${GOOGLETEST_TARGET}
   )
 
 # DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
@@ -66,8 +65,6 @@ set(MESOS_TESTS_INCLUDE_DIRS
 set(MESOS_3RDPARTY_TESTS_INCLUDE_DIRS
   ${MESOS_3RDPARTY_TESTS_INCLUDE_DIRS}
   ${AGENT_3RDPARTY_INCLUDE_DIRS}
-  ${GMOCK_INCLUDE_DIR}
-  ${GTEST_INCLUDE_DIR}
   )
 
 # DEFINE THIRD-PARTY LIB INSTALL DIRECTORIES. Used to tell the compiler
@@ -76,8 +73,6 @@ set(MESOS_3RDPARTY_TESTS_INCLUDE_DIRS
 ########################################################################
 set(MESOS_TESTS_LIB_DIRS
   ${MESOS_TESTS_LIB_DIRS}
-  ${GMOCK_LIB_DIR}
-  ${GTEST_LIB_DIR}
   )
 
 # DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
@@ -86,10 +81,9 @@ set(MESOS_TESTS_LIB_DIRS
 set(MESOS_TESTS_LIBS
   ${MESOS_TESTS_LIBS}
   ${MESOS_LIBS_TARGET}
-  ${PROCESS_TARGET}
   ${MESOS_LIBS}
-  ${GMOCK_LFLAG}
-  ${GTEST_LFLAG}
+  process
+  googletest
   )
 
 if (NOT WIN32)

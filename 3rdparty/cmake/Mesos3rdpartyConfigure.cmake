@@ -19,20 +19,6 @@
 set(MESOS_3RDPARTY_SRC ${CMAKE_SOURCE_DIR}/3rdparty)
 set(MESOS_3RDPARTY_BIN ${CMAKE_BINARY_DIR}/3rdparty)
 
-if (NOT WIN32)
-  # LevelDB does not build on Windows.
-  EXTERNAL("leveldb" ${LEVELDB_VERSION} "${MESOS_3RDPARTY_BIN}")
-endif ()
-
-# Convenience variables for include directories of third-party dependencies.
-set(LEVELDB_INCLUDE_DIR ${LEVELDB_ROOT}/include)
-
-# Convenience variables for "lflags", the symbols we pass to CMake to generate
-# things like `-L/path/to/glog` or `-lglog`.
-if (NOT WIN32)
-  set(LEVELDB_LFLAG   ${LEVELDB_ROOT}/out-static/libleveldb.a)
-endif ()
-
 # Configure Windows use of the GNU patch utility;
 # we attempt to find it in its default location,
 # but this path may be customized.
