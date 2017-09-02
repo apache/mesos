@@ -394,7 +394,7 @@ void LibeventSSLSocketImpl::event_callback(short events)
     }
 
     if (current_send_request.get() != nullptr) {
-      current_send_request->promise.set(0);
+      current_send_request->promise.fail("Failed send: connection closed");
     }
 
     if (current_connect_request.get() != nullptr) {
