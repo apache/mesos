@@ -179,6 +179,7 @@ All Resolved Issues:
   * [MESOS-7888] - Track fetcher task success and failures
   * [MESOS-7909] - Ordering dependency between 'linux/capabilities' and 'docker/runtime' isolator.
   * [MESOS-7922] - Fix communication between old masters and new agents.
+  * [MESOS-7934] - OOM due to LibeventSSLSocket send incorrectly return 0, repeatedly.
 
 ** Documentation
   * [MESOS-7246] - Add documentation for AGENT_ADDED/AGENT_REMOVED events.
