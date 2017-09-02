@@ -890,4 +890,36 @@ TEST_F(SSLTest, SilentSocket)
   EXPECT_EQ(data, response->body);
 }
 
+
+// This test was added due to an OOM issue: MESOS-7934.
+TEST_F(SSLTest, ShutdownThenSend)
+{
+  Clock::pause();
+
+  Try<Socket> server = setup_server({
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()}});
+
+  ASSERT_SOME(server);
+  ASSERT_SOME(server.get().address());
+  ASSERT_SOME(server.get().address().get().hostname());
+
+  Future<Socket> socket = server.get().accept();
+
+  Clock::settle();
+  EXPECT_TRUE(socket.isPending());
+
+  Try<Socket> client = Socket::create(SocketImpl::Kind::SSL);
+  ASSERT_SOME(client);
+  AWAIT_ASSERT_READY(client->connect(server->address().get()));
+
+  AWAIT_ASSERT_READY(socket);
+
+  EXPECT_SOME(Socket(socket.get()).shutdown());
+
+  // This send should fail now that the socket is shut down.
+  AWAIT_FAILED(Socket(socket.get()).send("Hello World"));
+}
+
 #endif // USE_SSL_SOCKET
