@@ -133,6 +133,16 @@ set(MESOS_TESTS_SRC
   zookeeper_url_tests.cpp
   )
 
+if (HAS_JAVA)
+  set(MESOS_TESTS_SRC
+    ${MESOS_TESTS_SRC}
+    group_tests.cpp
+    registrar_zookeeper_tests.cpp
+    zookeeper.cpp
+    zookeeper_test_server.cpp
+    zookeeper_tests.cpp)
+endif ()
+
 if (ENABLE_SSL)
   set(MESOS_TESTS_SRC
     ${MESOS_TESTS_SRC}

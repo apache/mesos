@@ -54,11 +54,16 @@ const Duration ZooKeeperTest::NO_TIMEOUT = Seconds(10);
 void ZooKeeperTest::SetUpTestCase()
 {
   if (!Jvm::created()) {
+    const string zookeeper = "zookeeper-" ZOOKEEPER_VERSION;
     string zkHome =
-      path::join(flags.build_dir, "/3rdparty/zookeeper-" ZOOKEEPER_VERSION);
+      path::join(flags.build_dir, "3rdparty", zookeeper);
+#ifdef USE_CMAKE_BUILD_CONFIG
+    // CMake build directory is further nested.
+    zkHome = path::join(zkHome, "src", zookeeper);
+#endif // USE_CMAKE_BUILD_CONFIG
 
     string classpath = "-Djava.class.path=" +
-      path::join(zkHome, "zookeeper-" ZOOKEEPER_VERSION ".jar");
+      path::join(zkHome, zookeeper + ".jar");
 
     // Now add all the libraries in 'lib' too.
     Try<list<string>> jars = fs::list(path::join(zkHome, "lib", "*.jar"));
@@ -66,7 +71,13 @@ void ZooKeeperTest::SetUpTestCase()
     CHECK_SOME(jars);
 
     foreach (const string& jar, jars.get()) {
+#ifdef __WINDOWS__
+      // TODO(andschwa): `fs::list` on Windows only returns the file names, not
+      // the full paths. Remove this work-around when MESOS-7803 is resolved.
+      classpath += ";" + path::join(zkHome, "lib", jar);
+#else
       classpath += ":" + jar;
+#endif
     }
 
     LOG(INFO) << "Using Java classpath: " << classpath;
