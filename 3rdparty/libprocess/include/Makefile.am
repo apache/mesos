@@ -29,7 +29,6 @@ nobase_include_HEADERS =		\
   process/filter.hpp			\
   process/firewall.hpp			\
   process/future.hpp			\
-  process/gc.hpp			\
   process/gmock.hpp			\
   process/grpc.hpp			\
   process/gtest.hpp			\

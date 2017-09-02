@@ -37,7 +37,6 @@
 #include <process/executor.hpp>
 #include <process/filter.hpp>
 #include <process/future.hpp>
-#include <process/gc.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/network.hpp>
