@@ -14,6 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# OpenSSL: Cryptography and SSL/TLS Toolkit.
+# https://www.openssl.org
+############################################
+if (ENABLE_SSL)
+  find_package(OpenSSL REQUIRED)
+endif ()
+
+
 # SOURCE FILES FOR THE PROCESS LIBRARY.
 #######################################
 
@@ -97,41 +105,25 @@ if (ENABLE_SSL)
   endif ()
 endif ()
 
-# INCLUDE DIRECTIVES FOR PROCESS LIBRARY (generates, e.g., -I/path/to/thing
-# on Linux).
-###########################################################################
-include_directories(SYSTEM ${PROCESS_3RDPARTY_INCLUDE_DIRS})
-include_directories(${PROCESS_INCLUDE_DIRS})
+add_library(process ${PROCESS_SRC})
 
-# LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
-# Linux).
-###########################################################################
-link_directories(${PROCESS_LIB_DIRS})
+target_link_libraries(
+  process PUBLIC
+  stout
+  http_parser
+  $<$<BOOL:${ENABLE_SSL}>:OpenSSL::SSL>
+  $<$<BOOL:${ENABLE_SSL}>:OpenSSL::Crypto>)
 
-# THE PROCESS LIBRARY (generates, e.g., libprocess.so, etc., on Linux).
-#######################################################################
-add_library(${PROCESS_TARGET} ${PROCESS_SRC})
+target_link_libraries(
+  process PRIVATE
+  concurrentqueue
+  $<IF:$<BOOL:${ENABLE_LIBEVENT}>,libevent,libev>)
 
-set_target_properties(
-  ${PROCESS_TARGET} PROPERTIES
-  VERSION ${PROCESS_PACKAGE_VERSION}
-  SOVERSION ${PROCESS_PACKAGE_SOVERSION}
-  )
+target_compile_definitions(
+  process PRIVATE
+  $<$<BOOL:${ENABLE_LOCK_FREE_RUN_QUEUE}>:LOCK_FREE_RUN_QUEUE>
+  $<$<BOOL:${ENABLE_LOCK_FREE_EVENT_QUEUE}>:LOCK_FREE_EVENT_QUEUE>
+  $<$<BOOL:${ENABLE_LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE}>:LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE>)
 
-add_dependencies(${PROCESS_TARGET} ${PROCESS_DEPENDENCIES})
-
-# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
-######################################################
-target_link_libraries(${PROCESS_TARGET} ${PROCESS_LIBS})
-
-if (ENABLE_LOCK_FREE_RUN_QUEUE)
-  target_compile_definitions(${PROCESS_TARGET} PRIVATE LOCK_FREE_RUN_QUEUE)
-endif ()
-
-if (ENABLE_LOCK_FREE_EVENT_QUEUE)
-  target_compile_definitions(${PROCESS_TARGET} PRIVATE LOCK_FREE_EVENT_QUEUE)
-endif ()
-
-if (ENABLE_LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE)
-  target_compile_definitions(${PROCESS_TARGET} PRIVATE LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE)
-endif ()
+target_include_directories(process PUBLIC ../include)
+target_include_directories(process PRIVATE .)
