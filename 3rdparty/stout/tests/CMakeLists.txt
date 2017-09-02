@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO(andschwa): Remove this when gmock and gtest can be included.
-include(StoutTestsConfigure)
-
 # STOUT TESTS.
 ##############
 set(STOUT_ROOT_TESTS_SRC
@@ -87,7 +84,7 @@ if (NOT WIN32)
     )
 endif ()
 
-if (LINUX)
+if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
   set(STOUT_ROOT_TESTS_SRC ${STOUT_ROOT_TESTS_SRC} proc_tests.cpp)
 endif ()
 
@@ -102,25 +99,15 @@ set(STOUT_TESTS_SRC
 ##############################################################################
 add_custom_command(
   OUTPUT protobuf_tests.pb.h protobuf_tests.pb.cc
-  COMMAND ${PROTOC}
-    -I${CMAKE_SOURCE_DIR}/3rdparty/stout/tests
-    --cpp_out=.
-    ${CMAKE_SOURCE_DIR}/3rdparty/stout/tests/protobuf_tests.proto
-  DEPENDS ${CMAKE_SOURCE_DIR}/3rdparty/stout/tests/protobuf_tests.proto)
-
-# TODO(andschwa): Remove when gmock and gtest are top-level targets.
-link_directories(${STOUT_TEST_LIB_DIRS})
+  COMMAND protoc
+    -I${CMAKE_CURRENT_SOURCE_DIR}
+    --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/protobuf_tests.proto
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf_tests.proto)
 
 add_executable(stout-tests EXCLUDE_FROM_ALL ${STOUT_TESTS_SRC})
-
-# TODO(andschwa): Remove when gmock and gtest are top-level targets.
-add_dependencies(stout-tests ${STOUT_TEST_DEPENDENCIES})
-target_include_directories(stout-tests PRIVATE
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${STOUT_TEST_3RDPARTY_INCLUDE_DIRS})
-
-# TODO(andschwa): Link to gmock and gtest explicitly.
-target_link_libraries(stout-tests stout ${STOUT_TEST_LIBS})
+target_link_libraries(stout-tests PRIVATE stout googletest)
+target_include_directories(stout-tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
 #########################################################
