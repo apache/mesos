@@ -337,19 +337,34 @@ void LibeventSSLSocketImpl::event_callback(short events)
 {
   CHECK(__in_event_loop__);
 
+  // TODO(bmahler): Libevent's invariant is that `events` contains:
+  //
+  //   (1) one of BEV_EVENT_READING or BEV_EVENT_WRITING to
+  //       indicate whether the event was on the read or write path.
+  //
+  //   (2) one of BEV_EVENT_EOF, BEV_EVENT_ERROR, BEV_EVENT_TIMEOUT,
+  //       BEV_EVENT_CONNECTED.
+  //
+  // (1) allows us to handle read and write errors separately.
+  // HOWEVER, for SSL bufferevents in 2.0.x, libevent never seems
+  // to tell us about BEV_EVENT_READING or BEV_EVENT_WRITING,
+  // which forces us to write incorrect logic here by treating all
+  // events as affecting both reads and writes.
+  //
+  // This has been fixed in 2.1.x:
+  //   2.1 "What's New":
+  //     https://github.com/libevent/libevent/blob/release-2.1.8-stable/whatsnew-2.1.txt#L333-L335 // NOLINT
+  //   Commit:
+  //     https://github.com/libevent/libevent/commit/f7eb69ace
+  //
+  // We should require 2.1.x so that we can correctly distinguish
+  // between the read and write errors, and not have two code paths
+  // depending on the libevent version, see MESOS-5999, MESOS-6770.
+
   Owned<RecvRequest> current_recv_request;
   Owned<SendRequest> current_send_request;
   Owned<ConnectRequest> current_connect_request;
 
-  // In all of the following conditions, we're interested in swapping
-  // the value of the requests with null (if they are already null,
-  // then there's no harm).
-  //
-  // TODO(bmahler): If we receive an EOF because the receiving
-  // side only shutdown writes on its socket, we can technically
-  // still send data on the socket!
-  //   See: http://www.unixguide.net/network/socketfaq/2.6.shtml
-  //   Related JIRA: MESOS-5999
   if (events & BEV_EVENT_EOF ||
       events & BEV_EVENT_CONNECTED ||
       events & BEV_EVENT_ERROR) {
@@ -360,21 +375,19 @@ void LibeventSSLSocketImpl::event_callback(short events)
     }
   }
 
-  // If a request below is null, then no such request is in progress,
-  // either because it was never created, it has already been
-  // completed, or it has been discarded.
-
-  // The case below where `EVUTIL_SOCKET_ERROR() == 0` will catch
-  // unclean shutdowns of the socket.
+  // First handle EOF, we also look for `BEV_EVENT_ERROR` with
+  // `EVUTIL_SOCKET_ERROR() == 0` since this occurs as a result
+  // of a "dirty" SSL shutdown (i.e. TCP close before SSL close)
+  // or when this socket has been shut down and further sends
+  // are performed.
   //
-  // TODO(greggomann): We should make use of the `BEV_EVENT_READING`
-  // and `BEV_EVENT_WRITING` flags to handle read and write errors
-  // differently. Related JIRA: MESOS-6770
+  // TODO(bmahler): We don't expose "dirty" SSL shutdowns as
+  // recv errors, but perhaps we should?
   if (events & BEV_EVENT_EOF ||
      (events & BEV_EVENT_ERROR && EVUTIL_SOCKET_ERROR() == 0)) {
-    // At end of file, close the connection.
     if (current_recv_request.get() != nullptr) {
       received_eof = true;
+
       // Drain any remaining data from the bufferevent or complete the
       // promise with 0 to signify EOF. Because we set `received_eof`,
       // subsequent calls to `recv` will return 0 if there is no data
