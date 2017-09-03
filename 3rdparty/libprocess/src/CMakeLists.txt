@@ -24,21 +24,7 @@ endif ()
 
 # SOURCE FILES FOR THE PROCESS LIBRARY.
 #######################################
-
-if (WIN32)
-  set(PROCESS_SRC
-    ${PROCESS_SRC}
-    subprocess_windows.cpp
-    )
-else ()
-  set(PROCESS_SRC
-    ${PROCESS_SRC}
-    subprocess_posix.cpp
-    )
-endif ()
-
 set(PROCESS_SRC
-  ${PROCESS_SRC}
   authenticator_manager.cpp
   authenticator_manager.hpp
   authenticator.cpp
@@ -69,23 +55,30 @@ set(PROCESS_SRC
   socket.cpp
   subprocess.cpp
   time.cpp
-  timeseries.cpp
-  )
+  timeseries.cpp)
+
+if (WIN32)
+  set(PROCESS_SRC
+    ${PROCESS_SRC}
+    subprocess_windows.cpp)
+else ()
+  set(PROCESS_SRC
+    ${PROCESS_SRC}
+    subprocess_posix.cpp)
+endif ()
 
 if (ENABLE_LIBEVENT)
   set(PROCESS_SRC
     ${PROCESS_SRC}
     libevent.hpp
     libevent.cpp
-    libevent_poll.cpp
-    )
+    libevent_poll.cpp)
 else ()
   set(PROCESS_SRC
     ${PROCESS_SRC}
     libev.hpp
     libev.cpp
-    libev_poll.cpp
-    )
+    libev_poll.cpp)
 endif ()
 
 if (ENABLE_SSL)
@@ -94,14 +87,12 @@ if (ENABLE_SSL)
     jwt.cpp
     jwt_authenticator.cpp
     openssl.cpp
-    ssl/utilities.cpp
-    )
+    ssl/utilities.cpp)
 
   if (ENABLE_LIBEVENT)
     set(PROCESS_SRC
       ${PROCESS_SRC}
-      libevent_ssl_socket.cpp
-      )
+      libevent_ssl_socket.cpp)
   endif ()
 endif ()
 

@@ -17,7 +17,6 @@
 # PROCESS TESTS.
 ################
 set(PROCESS_TESTS_SRC
-  ${PROCESS_TESTS_SRC}
   main.cpp
   after_tests.cpp
   collect_tests.cpp
@@ -40,23 +39,20 @@ set(PROCESS_TESTS_SRC
   subprocess_tests.cpp
   system_tests.cpp
   time_tests.cpp
-  timeseries_tests.cpp
-  )
+  timeseries_tests.cpp)
 
 if (NOT WIN32)
   set(PROCESS_TESTS_SRC
     ${PROCESS_TESTS_SRC}
     io_tests.cpp
-    reap_tests.cpp
-    )
+    reap_tests.cpp)
 endif ()
 
 if (ENABLE_SSL)
   set(PROCESS_TESTS_SRC
     ${PROCESS_TESTS_SRC}
     jwt_tests.cpp
-    ssl_tests.cpp
-    )
+    ssl_tests.cpp)
 endif ()
 
 add_library(process-interface INTERFACE)
