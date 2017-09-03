@@ -55,8 +55,7 @@ set(STOUT_ROOT_TESTS_SRC
   version_tests.cpp)
 
 if (NOT WIN32)
-  set(STOUT_ROOT_TESTS_SRC
-    ${STOUT_ROOT_TESTS_SRC}
+  list(APPEND STOUT_ROOT_TESTS_SRC
     protobuf_tests.cpp
     protobuf_tests.pb.cc
     svn_tests.cpp)
@@ -72,14 +71,14 @@ set(STOUT_OS_TESTS_SRC
   os/systems_tests.cpp)
 
 if (NOT WIN32)
-  set(STOUT_OS_TESTS_SRC
-    ${STOUT_OS_TESTS_SRC}
+  list(APPEND STOUT_OS_TESTS_SRC
     os/sendfile_tests.cpp
     os/signals_tests.cpp)
 endif ()
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-  set(STOUT_ROOT_TESTS_SRC ${STOUT_ROOT_TESTS_SRC} proc_tests.cpp)
+  list(APPEND STOUT_ROOT_TESTS_SRC
+    proc_tests.cpp)
 endif ()
 
 set(STOUT_TESTS_SRC
