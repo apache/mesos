@@ -37,8 +37,7 @@ if (WIN32)
       "Also delete CMakeCache.txt to clear the cache. "
       "Mesos for Windows requires GnuWin32 patch.exe "
       "to apply updates. You may get it from "
-      "http://gnuwin32.sourceforge.net/packages/patch.htm"
-      )
+      "http://gnuwin32.sourceforge.net/packages/patch.htm")
   else ()
     message(
       STATUS

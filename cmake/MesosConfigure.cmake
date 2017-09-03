@@ -65,8 +65,7 @@ set(
   ${MESOS_BIN_INCLUDE_DIR}
   ${MESOS_BIN_INCLUDE_DIR}/mesos
   ${MESOS_BIN_SRC_DIR}
-  ${MESOS_SRC_DIR}
-  )
+  ${MESOS_SRC_DIR})
 
 # Make directories that generated Mesos code goes into.
 add_custom_target(

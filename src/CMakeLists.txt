@@ -561,8 +561,7 @@ set(MESOS_SRC
   ${V1_SRC}
   ${VERSION_SRC}
   ${WATCHER_SRC}
-  ${ZOOKEEPER_SRC}
-  )
+  ${ZOOKEEPER_SRC})
 
 if (NOT WIN32)
   set(MESOS_SRC

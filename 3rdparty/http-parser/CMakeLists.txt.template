@@ -26,10 +26,8 @@ project(http-parser)
 include_directories(.)
 
 set(HTTP_PARSER_SRC
-  ${HTTP_PARSER_SRC}
   http_parser.c
-  http_parser.h
-  )
+  http_parser.h)
 
 add_definitions(-D HTTP_PARSER_STRICT=0)
 add_definitions(-fPIC)

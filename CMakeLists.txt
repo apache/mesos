@@ -81,8 +81,7 @@ set(CPACK_SOURCE_IGNORE_FILES
   /mpi/;
   /site/;
   /support/;
-  ${CMAKE_BINARY_DIR};
-  )
+  ${CMAKE_BINARY_DIR};)
 
 # Convert the ignore list to a string (as required by CPack).
 set(CPACK_SOURCE_IGNORE_FILES "${CPACK_SOURCE_IGNORE_FILES}")

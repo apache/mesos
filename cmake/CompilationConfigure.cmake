@@ -80,8 +80,7 @@ if (WIN32)
     message(
       FATAL_ERROR
       "The x64 toolset MUST be used. See MESOS-6720 for details. "
-      "Please use `cmake -T ${PREFERRED_TOOLSET}`."
-  )
+      "Please use `cmake -T ${PREFERRED_TOOLSET}`.")
   endif ()
 endif ()
 
@@ -188,8 +187,7 @@ if (WIN32)
     message(
       WARNING
       "Mesos is deprecating support for ${CMAKE_GENERATOR}. "
-      "Please use ${PREFERRED_GENERATOR}."
-  )
+      "Please use ${PREFERRED_GENERATOR}.")
   endif ()
 
   # We don't support compilation against mingw headers (which, e.g., Clang on
@@ -299,8 +297,7 @@ if (WIN32)
   list(APPEND MESOS_CPPFLAGS
     -D_SCL_SECURE_NO_WARNINGS
     -D_CRT_SECURE_NO_WARNINGS
-    -D_CRT_NONSTDC_NO_WARNINGS
-    )
+    -D_CRT_NONSTDC_NO_WARNINGS)
 
   # Directory structure definitions.
   # TODO(hausdorff): (MESOS-5455) These are placeholder values.
@@ -328,8 +325,7 @@ list(APPEND MESOS_CPPFLAGS
   -DPKGLIBEXECDIR="${PKG_LIBEXEC_INSTALL_DIR}"
   -DLIBDIR="${LIB_INSTALL_DIR}"
   -DVERSION="${PACKAGE_VERSION}"
-  -DPKGDATADIR="${DATA_INSTALL_PREFIX}"
-  )
+  -DPKGDATADIR="${DATA_INSTALL_PREFIX}")
 
 if (ENABLE_SSL)
   list(APPEND MESOS_CPPFLAGS -DUSE_SSL_SOCKET=1)
@@ -375,8 +371,7 @@ endif ()
 configure_file(
   "${CMAKE_SOURCE_DIR}/src/common/build_config.hpp.in"
   "${CMAKE_BINARY_DIR}/src/common/build_config.hpp"
-  @ONLY
-  )
+  @ONLY)
 
 # NOTE: The quotes in these definitions are necessary. Without them, the
 # preprocessor will interpret the symbols as (e.g.) int literals and uquoted
