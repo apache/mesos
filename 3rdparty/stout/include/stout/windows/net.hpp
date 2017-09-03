@@ -13,9 +13,6 @@
 #ifndef __STOUT_WINDOWS_NET_HPP__
 #define __STOUT_WINDOWS_NET_HPP__
 
-#include <iphlpapi.h>
-#pragma comment(lib, "IPHLPAPI.lib")
-
 #include <set>
 #include <string>
 #include <vector>

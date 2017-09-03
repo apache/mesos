@@ -13,9 +13,6 @@
 #ifndef __STOUT_WINDOWS_MAC_HPP__
 #define __STOUT_WINDOWS_MAC_HPP__
 
-#include <iphlpapi.h>
-#pragma comment(lib, "IPHLPAPI.lib")
-
 #include <algorithm>
 #include <vector>
 
@@ -23,6 +20,7 @@
 #include <stout/none.hpp>
 #include <stout/result.hpp>
 #include <stout/stringify.hpp>
+#include <stout/windows.hpp>
 
 
 // Network utilities.

@@ -32,6 +32,6 @@ target_link_libraries(
   zlib
   $<$<PLATFORM_ID:Linux>:rt dl svn>
   $<$<PLATFORM_ID:Darwin>:svn>
-  $<$<PLATFORM_ID:Windows>:ws2_32 Mswsock Secur32 Userenv>)
+  $<$<PLATFORM_ID:Windows>:Ws2_32 IPHlpAPI Mswsock Secur32 Userenv>)
 
 add_subdirectory(tests)
