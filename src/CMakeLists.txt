@@ -244,7 +244,6 @@ configure_file(
 # SOURCE FILES FOR THE MESOS LIBRARY.
 #####################################
 set(AGENT_SRC
-  ${AGENT_SRC}
   slave/constants.cpp
   slave/container_logger.cpp
   slave/flags.cpp
@@ -291,8 +290,7 @@ set(AGENT_SRC
   slave/resource_estimators/noop.cpp)
 
 if (NOT WIN32)
-  set(AGENT_SRC
-    ${AGENT_SRC}
+  list(APPEND AGENT_SRC
     slave/containerizer/mesos/isolators/environment_secret.cpp
     slave/containerizer/mesos/isolators/docker/volume/driver.cpp
     slave/containerizer/mesos/isolators/docker/volume/paths.cpp
@@ -312,16 +310,14 @@ set(AUTHENTICATION_SRC
   authentication/http/combined_authenticator.cpp)
 
 if (NOT WIN32)
-  set(AUTHENTICATION_SRC
-    ${AUTHENTICATION_SRC}
+  list(APPEND AUTHENTICATION_SRC
     authentication/cram_md5/authenticatee.cpp
     authentication/cram_md5/authenticator.cpp
     authentication/cram_md5/auxprop.cpp)
 endif ()
 
 if (ENABLE_SSL)
-  set(AUTHENTICATION_SRC
-    ${AUTHENTICATION_SRC}
+  list(APPEND AUTHENTICATION_SRC
     authentication/executor/jwt_secret_generator.cpp)
 endif ()
 
@@ -488,8 +484,7 @@ set(STATE_SRC
   state/in_memory.cpp)
 
 if (NOT WIN32)
-  set(STATE_SRC
-    ${STATE_SRC}
+  list(APPEND STATE_SRC
     state/leveldb.cpp
     state/log.cpp
     state/zookeeper.cpp)
@@ -502,8 +497,7 @@ set(URI_SRC
   uri/fetchers/curl.cpp)
 
 if (NOT WIN32)
-  set(URI_SRC
-    ${URI_SRC}
+  list(APPEND URI_SRC
     uri/fetchers/docker.cpp
     uri/fetchers/hadoop.cpp)
 endif ()
@@ -564,8 +558,7 @@ set(MESOS_SRC
   ${ZOOKEEPER_SRC})
 
 if (NOT WIN32)
-  set(MESOS_SRC
-    ${MESOS_SRC}
+  list(APPEND MESOS_SRC
     ${HDFS_SRC}
     ${LOG_SRC}
     ${POSIX_SRC})

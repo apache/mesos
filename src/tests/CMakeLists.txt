@@ -25,15 +25,13 @@ set(TEST_HELPER_SRC
   utils.cpp)
 
 if (NOT WIN32)
-  set(TEST_HELPER_SRC
-    ${TEST_HELPER_SRC}
+  list(APPEND TEST_HELPER_SRC
     kill_policy_test_helper.cpp
     containerizer/memory_test_helper.cpp)
 endif ()
 
 if (LINUX)
-  set(TEST_HELPER_SRC
-    ${TEST_HELPER_SRC}
+  list(APPEND TEST_HELPER_SRC
     containerizer/capabilities_test_helper.cpp
     containerizer/setns_test_helper.cpp)
 endif ()
@@ -60,16 +58,14 @@ set(MESOS_TESTS_UTILS_SRC
   containerizer/launcher.cpp)
 
 if (NOT WIN32)
-  set(MESOS_TESTS_UTILS_SRC
-    ${MESOS_TESTS_UTILS_SRC}
+  list(APPEND MESOS_TESTS_UTILS_SRC
     kill_policy_test_helper.cpp
     script.cpp
     containerizer/memory_test_helper.cpp)
 endif ()
 
 if (LINUX)
-  set(MESOS_TESTS_UTILS_SRC
-    ${MESOS_TESTS_UTILS_SRC}
+  list(APPEND MESOS_TESTS_UTILS_SRC
     containerizer/capabilities_test_helper.cpp
     containerizer/setns_test_helper.cpp)
 endif ()
@@ -124,8 +120,7 @@ set(MESOS_TESTS_SRC
   zookeeper_url_tests.cpp)
 
 if (HAS_JAVA)
-  set(MESOS_TESTS_SRC
-    ${MESOS_TESTS_SRC}
+  list(APPEND MESOS_TESTS_SRC
     group_tests.cpp
     registrar_zookeeper_tests.cpp
     zookeeper.cpp
@@ -134,25 +129,21 @@ if (HAS_JAVA)
 endif ()
 
 if (ENABLE_SSL)
-  set(MESOS_TESTS_SRC
-    ${MESOS_TESTS_SRC}
+  list(APPEND MESOS_TESTS_SRC
     secret_generator_tests.cpp)
 endif ()
 
-set(MESOS_TESTS_SRC
-  ${MESOS_TESTS_SRC}
+list(APPEND MESOS_TESTS_SRC
   common/http_tests.cpp
   common/recordio_tests.cpp
   common/type_utils_tests.cpp)
 
-set(MESOS_TESTS_SRC
-  ${MESOS_TESTS_SRC}
+list(APPEND MESOS_TESTS_SRC
   containerizer/containerizer_tests.cpp
   containerizer/docker_tests.cpp)
 
 if (NOT WIN32)
-  set(MESOS_TESTS_SRC
-    ${MESOS_TESTS_SRC}
+  list(APPEND MESOS_TESTS_SRC
     authorization_tests.cpp
     container_logger_tests.cpp
     cram_md5_authentication_tests.cpp
@@ -185,12 +176,10 @@ if (NOT WIN32)
     teardown_tests.cpp
     upgrade_tests.cpp)
 
-  set(MESOS_TESTS_SRC
-    ${MESOS_TESTS_SRC}
+  list(APPEND MESOS_TESTS_SRC
     common/command_utils_tests.cpp)
 
-  set(MESOS_TESTS_SRC
-    ${MESOS_TESTS_SRC}
+  list(APPEND MESOS_TESTS_SRC
     containerizer/appc_spec_tests.cpp
     containerizer/composing_containerizer_tests.cpp
     containerizer/cpu_isolator_tests.cpp
@@ -212,8 +201,7 @@ if (NOT WIN32)
 endif ()
 
 if (LINUX)
-  set(MESOS_TESTS_SRC
-    ${MESOS_TESTS_SRC}
+  list(APPEND MESOS_TESTS_SRC
     ldcache_tests.cpp
     ldd_tests.cpp
     containerizer/capabilities_tests.cpp
