@@ -60,17 +60,8 @@ add_subdirectory(src)
 
 # TESTS.
 ########
-add_custom_target(
-  check ${STOUT_TESTS_TARGET}
-  COMMAND ${PROCESS_TESTS_TARGET}
-  COMMAND ${MESOS_TESTS_TARGET}
-  DEPENDS ${STOUT_TESTS_TARGET} ${PROCESS_TESTS_TARGET} ${MESOS_TESTS_TARGET}
-  )
-
-add_custom_target(
-  tests
-  DEPENDS ${STOUT_TESTS_TARGET} ${PROCESS_TESTS_TARGET} ${MESOS_TESTS_TARGET}
-  )
+add_custom_target(check COMMAND ctest -V -C $<CONFIG> DEPENDS tests)
+add_custom_target(tests DEPENDS stout-tests libprocess-tests mesos-tests)
 
 # PACKAGING.
 ############
