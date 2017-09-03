@@ -14,39 +14,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-include(ExternalProject)
-
-if (BUILD_SHARED_LIBS)
-  set(LIBRARY_LINKAGE SHARED)
-  set(LIBRARY_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
-else ()
-  set(LIBRARY_LINKAGE STATIC)
-  set(LIBRARY_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
-endif ()
-
-
-# Define sources of third-party dependencies.
-#############################################
+# URLs for each downloaded or bundled third-party dependency.
+#############################################################
 if (REBUNDLED)
   set(FETCH_URL ${CMAKE_CURRENT_SOURCE_DIR})
 else ()
   set(FETCH_URL ${3RDPARTY_DEPENDENCIES})
 endif ()
 
-
-# DEPENDENCIES FOR THE PROCESS LIBRARY AND STOUT.
-#
-# Downloads, configures, and compiles the third-party libraries for the process
-# library (located in `3rdparty/`, i.e. not the `mesos-3rdparty` repository).
-###############################################################################
+# TODO(andschwa): Move each URL to the dependency itself.
 set(BOOST_URL           ${FETCH_URL}/boost-${BOOST_VERSION}.tar.gz)
 set(CONCURRENTQUEUE_URL ${FETCH_URL}/concurrentqueue-${CONCURRENTQUEUE_VERSION}.tar.gz)
 set(ELFIO_URL           ${FETCH_URL}/elfio-${ELFIO_VERSION}.tar.gz)
 set(GLOG_URL            ${FETCH_URL}/glog-${GLOG_VERSION}.tar.gz)
+set(GOOGLETEST_URL      ${FETCH_URL}/googletest-release-${GOOGLETEST_VERSION}.tar.gz)
 set(HTTP_PARSER_URL     ${FETCH_URL}/http-parser-${HTTP_PARSER_VERSION}.tar.gz)
 set(PICOJSON_URL        ${FETCH_URL}/picojson-${PICOJSON_VERSION}.tar.gz)
-set(NVML_URL            ${FETCH_URL}/nvml-${NVML_VERSION}.tar.gz)
+set(PROTOBUF_URL        ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
+set(LEVELDB_URL         ${FETCH_URL}/leveldb-${LEVELDB_VERSION}.tar.gz)
 set(LIBEV_URL           ${FETCH_URL}/libev-${LIBEV_VERSION}.tar.gz)
+set(NVML_URL            ${FETCH_URL}/nvml-${NVML_VERSION}.tar.gz)
+set(ZOOKEEPER_URL       ${FETCH_URL}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
 
 # NOTE: libevent doesn't come rebundled, so this URL is always the same. But,
 # it's only downloaded if `ENABLE_LIBEVENT` is set.
@@ -65,6 +53,42 @@ if (WIN32)
   set(GLOG_URL   ${3RDPARTY_DEPENDENCIES}/glog-${GLOG_VERSION}.tar.gz)
 endif ()
 
+
+# Helper utilities for dealing with third-party dependencies.
+#############################################################
+# ExternalProject: Create custom targets to build projects in external trees.
+# https://cmake.org/cmake/help/latest/module/ExternalProject.html
+include(ExternalProject)
+
+# This adds our FindApr and FindSvn packages.
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/stout/cmake)
+
+# This adds our `external()` and `patch_command()` functions.
+list(APPEND CMAKE_MODULE_PATH
+  ${CMAKE_CURRENT_SOURCE_DIR}/libprocess/cmake/macros)
+
+include(External)
+include(PatchCommand)
+
+# Variables for current specified linkage.
+# NOTE: Not all third-party dependencies will respect this.
+if (BUILD_SHARED_LIBS)
+  set(LIBRARY_LINKAGE SHARED)
+  set(LIBRARY_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX})
+else ()
+  set(LIBRARY_LINKAGE STATIC)
+  set(LIBRARY_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
+endif ()
+
+# Sets a variable CMAKE_NOOP as noop operation.
+#
+# NOTE: This is especially important when building third-party libraries on
+# Windows; the default behavior of `ExternalProject` is to try to assume that
+# third-party libraries can be configured/built/installed with CMake, so in
+# cases where this isn't true, we have to "trick" CMake into skipping those
+# steps by giving it a noop command to run instead.
+set(CMAKE_NOOP ${CMAKE_COMMAND} -E echo)
+
 # This `CMAKE_FORWARD_ARGS` variable is sent as the `CMAKE_ARGS` argument to
 # the `ExternalProject_Add` macro (along with any per-project arguments), and
 # is used when the external project is configured as a CMake project.
@@ -78,9 +102,7 @@ list(APPEND CMAKE_FORWARD_ARGS
   # TODO(andschwa): Set the CMAKE_GENERATOR explicitly as an argmuent to
   # `ExternalProject_Add`.
   -G${CMAKE_GENERATOR}
-
-  -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
-  )
+  -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS})
 
 # This only matters for single-configuration generators.
 # E.g. Makefile, but not Visual Studio.
@@ -90,20 +112,13 @@ endif ()
 
 foreach (lang C CXX)
   list(APPEND CMAKE_FORWARD_ARGS
-    -DCMAKE_${lang}_FLAGS=${CMAKE_${lang}_FLAGS}
-    )
+    -DCMAKE_${lang}_FLAGS=${CMAKE_${lang}_FLAGS})
 
   foreach (config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
     list(APPEND CMAKE_FORWARD_ARGS
-      -DCMAKE_${lang}_FLAGS_${config}=${CMAKE_${lang}_FLAGS_${config}}
-      )
+      -DCMAKE_${lang}_FLAGS_${config}=${CMAKE_${lang}_FLAGS_${config}})
   endforeach ()
 endforeach ()
-
-
-# Third-party libraries. Tell the build system how to pull in and build third-
-# party libraries at compile time, using the ExternalProject_Add macro.
-##############################################################################
 
 # This function works around a CMake issue with setting include directories of
 # imported libraries built with `ExternalProject_Add`.
@@ -112,6 +127,12 @@ function(MAKE_INCLUDE_DIR TARGET)
   get_target_property(DIR ${TARGET} INTERFACE_INCLUDE_DIRECTORIES)
   file(MAKE_DIRECTORY ${DIR})
 endfunction()
+
+
+# Third-party libraries. Adds CMake imported or interface targets for each
+# dependency. Bundled dependencies are built with `ExternalProject_Add`,
+# otherwise `find_package()` is used.
+##########################################################################
 
 # Boost: C++ Libraries.
 # http://www.boost.org
@@ -537,16 +558,6 @@ set_target_properties(
   INTERFACE_COMPILE_DEFINITIONS HAVE_LIBZ)
 
 
-# DEPENDENCIES FOR THE PROCESS LIBRARY TESTS AND STOUT TESTS.
-#
-# Downloads, configures, and compiles the third-party libraries for the process
-# library tests (located in `3rdparty/`).
-###############################################################################
-list(
-  APPEND CMAKE_MODULE_PATH
-  ${CMAKE_SOURCE_DIR}/3rdparty/stout/cmake)
-
-
 # Google Test: Google's C++ test framework (GoogleTest and GoogleMock).
 # https://github.com/google/googletest
 #######################################################################
@@ -588,8 +599,6 @@ endif ()
 
 MAKE_INCLUDE_DIR(gmock)
 MAKE_INCLUDE_DIR(gtest)
-
-set(GOOGLETEST_URL ${FETCH_URL}/googletest-release-${GOOGLETEST_VERSION}.tar.gz)
 
 ExternalProject_Add(
   ${GOOGLETEST_TARGET}
@@ -645,8 +654,6 @@ endif ()
 
 MAKE_INCLUDE_DIR(protobuf)
 
-set(PROTOBUF_URL ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
-
 ExternalProject_Add(
   ${PROTOBUF_TARGET}
   PREFIX            ${PROTOBUF_CMAKE_ROOT}
@@ -655,28 +662,6 @@ ExternalProject_Add(
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${PROTOBUF_URL}
   URL_HASH          ${PROTOBUF_HASH})
-
-
-# BUILDING THE STOUT LIBRARY AND ITS TESTS.
-#
-# Builds, configures, and compiles the stout library and assorted tests.
-########################################################################
-add_subdirectory(stout)
-
-
-# BUILDING THE PROCESS LIBRARY AND ITS TESTS.
-#
-# Builds, configures, and compiles the process library and assorted tests.
-##########################################################################
-add_subdirectory(libprocess)
-
-
-# BUILDING THE MESOS DEPENDENCIES.
-#
-# Downloads, configures, and compiles the third-party libraries for the mesos.
-###################################################
-set(LEVELDB_URL   ${FETCH_URL}/leveldb-${LEVELDB_VERSION}.tar.gz)
-set(ZOOKEEPER_URL ${FETCH_URL}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
 
 
 # Apache ZooKeeper: C Client Library to ZooKeeper.
@@ -765,3 +750,9 @@ if (NOT WIN32)
     URL               ${LEVELDB_URL}
     URL_HASH          ${LEVELDB_HASH})
 endif ()
+
+
+# In-tree dependencies.
+#######################
+add_subdirectory(stout)
+add_subdirectory(libprocess)
