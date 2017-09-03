@@ -50,12 +50,6 @@ enable_testing()
 #####################
 include(CompilationConfigure)
 
-# THIRD-PARTY CONFIGURATION.
-############################
-# NOTE: The third-party configuration variables exported here are used
-# throughout the project, so it's important that this config script goes here.
-include(Mesos3rdpartyConfigure)
-
 if (BUILD_SHARED_LIBS)
   set(MESOS_DEFAULT_LIBRARY_LINKAGE "SHARED")
   set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
