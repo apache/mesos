@@ -58,40 +58,34 @@ set(PROCESS_SRC
   timeseries.cpp)
 
 if (WIN32)
-  set(PROCESS_SRC
-    ${PROCESS_SRC}
+  list(APPEND PROCESS_SRC
     subprocess_windows.cpp)
 else ()
-  set(PROCESS_SRC
-    ${PROCESS_SRC}
+  list(APPEND PROCESS_SRC
     subprocess_posix.cpp)
 endif ()
 
 if (ENABLE_LIBEVENT)
-  set(PROCESS_SRC
-    ${PROCESS_SRC}
+  list(APPEND PROCESS_SRC
     libevent.hpp
     libevent.cpp
     libevent_poll.cpp)
 else ()
-  set(PROCESS_SRC
-    ${PROCESS_SRC}
+  list(APPEND PROCESS_SRC
     libev.hpp
     libev.cpp
     libev_poll.cpp)
 endif ()
 
 if (ENABLE_SSL)
-  set(PROCESS_SRC
-    ${PROCESS_SRC}
+  list(APPEND PROCESS_SRC
     jwt.cpp
     jwt_authenticator.cpp
     openssl.cpp
     ssl/utilities.cpp)
 
   if (ENABLE_LIBEVENT)
-    set(PROCESS_SRC
-      ${PROCESS_SRC}
+    list(APPEND PROCESS_SRC
       libevent_ssl_socket.cpp)
   endif ()
 endif ()

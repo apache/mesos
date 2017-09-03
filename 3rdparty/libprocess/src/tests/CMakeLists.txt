@@ -42,15 +42,13 @@ set(PROCESS_TESTS_SRC
   timeseries_tests.cpp)
 
 if (NOT WIN32)
-  set(PROCESS_TESTS_SRC
-    ${PROCESS_TESTS_SRC}
+  list(APPEND PROCESS_TESTS_SRC
     io_tests.cpp
     reap_tests.cpp)
 endif ()
 
 if (ENABLE_SSL)
-  set(PROCESS_TESTS_SRC
-    ${PROCESS_TESTS_SRC}
+  list(APPEND PROCESS_TESTS_SRC
     jwt_tests.cpp
     ssl_tests.cpp)
 endif ()
