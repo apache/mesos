@@ -17,7 +17,6 @@
 # STOUT TESTS.
 ##############
 set(STOUT_ROOT_TESTS_SRC
-  ${STOUT_ROOT_TESTS_SRC}
   base64_tests.cpp
   bits_tests.cpp
   bytes_tests.cpp
@@ -53,35 +52,30 @@ set(STOUT_ROOT_TESTS_SRC
   try_tests.cpp
   uuid_tests.cpp
   variant_tests.cpp
-  version_tests.cpp
-  )
+  version_tests.cpp)
 
 if (NOT WIN32)
   set(STOUT_ROOT_TESTS_SRC
     ${STOUT_ROOT_TESTS_SRC}
     protobuf_tests.cpp
     protobuf_tests.pb.cc
-    svn_tests.cpp
-    )
+    svn_tests.cpp)
 endif ()
 
 set(STOUT_OS_TESTS_SRC
-  ${STOUT_OS_TESTS_SRC}
   os/env_tests.cpp
   os/filesystem_tests.cpp
   os/process_tests.cpp
   os/rmdir_tests.cpp
   os/socket_tests.cpp
   os/strerror_tests.cpp
-  os/systems_tests.cpp
-  )
+  os/systems_tests.cpp)
 
 if (NOT WIN32)
   set(STOUT_OS_TESTS_SRC
     ${STOUT_OS_TESTS_SRC}
     os/sendfile_tests.cpp
-    os/signals_tests.cpp
-    )
+    os/signals_tests.cpp)
 endif ()
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -89,11 +83,9 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 endif ()
 
 set(STOUT_TESTS_SRC
-  ${STOUT_TESTS_SRC}
   ${STOUT_HEADERS}
   ${STOUT_ROOT_TESTS_SRC}
-  ${STOUT_OS_TESTS_SRC}
-  )
+  ${STOUT_OS_TESTS_SRC})
 
 # THE C++ PROTOCOL BUFFER CODE (protobuf_tests.pb.h and protobuf_tests.pb.cc).
 ##############################################################################

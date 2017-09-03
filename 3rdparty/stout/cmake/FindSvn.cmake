@@ -26,19 +26,16 @@ execute_process(
 set(POSSIBLE_SVN_INCLUDE_DIRS
   ${SVN_PREFIX}/include/subversion-1
   /usr/include/subversion-1
-  /usr/local/include/subversion-1
-  )
+  /usr/local/include/subversion-1)
 
 set(POSSIBLE_SVN_LIB_DIRS
   ${SVN_PREFIX}/lib
   /usr/lib
-  /usr/local/lib
-  )
+  /usr/local/lib)
 
 set(SVN_LIBRARY_NAMES
   svn_delta-1
   svn_diff-1
-  svn_subr-1
-  )
+  svn_subr-1)
 
 FIND_PACKAGE_HELPER(SVN svn_client.h)

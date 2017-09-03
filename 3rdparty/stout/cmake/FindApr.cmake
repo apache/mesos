@@ -29,15 +29,13 @@ set(POSSIBLE_APR_INCLUDE_DIRS
   /usr/local/include/apr-1.0
   /usr/local/apr/include/apr-1
   /usr/include/apr-1
-  /usr/include/apr-1.0
-  )
+  /usr/include/apr-1.0)
 
 set(POSSIBLE_APR_LIB_DIRS
   ${APR_PREFIX}/libexec/lib
   /usr/local/apr/lib
   /usr/local/lib
-  /usr/lib
-  )
+  /usr/lib)
 
 set(APR_LIBRARY_NAMES apr-1)
 
