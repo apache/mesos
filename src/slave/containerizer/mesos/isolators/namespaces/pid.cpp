@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/mount.h>
+
 #include <process/id.hpp>
 
 #include <stout/strings.hpp>
@@ -29,6 +31,7 @@ using process::Owned;
 using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerMountInfo;
 using mesos::slave::Isolator;
 
 namespace mesos {
@@ -121,17 +124,18 @@ Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
   // Mount /proc with standard options for the container's pid
   // namespace to show the container's pids (and other /proc files),
   // not the parent's. This technique was taken from unshare.c in
-  // utils-linux for --mount-proc. We use the -n flag so the mount is
-  // not added to the mtab where it will not be correctly removed when
-  // the namespace terminates.
+  // utils-linux for --mount-proc.
   //
   // NOTE: 'filesystem/linux' isolator will make sure mounts in the
   // child mount namespace will not be propagated back to the host
   // mount namespace.
   //
   // TOOD(jieyu): Consider unmount the existing /proc.
-  launchInfo.add_pre_exec_commands()->set_value(
-      "mount -n -t proc proc /proc -o nosuid,noexec,nodev");
+  ContainerMountInfo* mount = launchInfo.add_mounts();
+  mount->set_source("proc");
+  mount->set_target("/proc");
+  mount->set_type("proc");
+  mount->set_flags(MS_NOSUID | MS_NODEV | MS_NOEXEC);
 
   return launchInfo;
 }

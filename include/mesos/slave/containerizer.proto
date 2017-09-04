@@ -167,6 +167,30 @@ message ContainerConfig {
 
 
 /**
+ * Describes a single mount for the container.
+ */
+message ContainerMountInfo {
+  // The path to the mount point. It must be an absolute path in the
+  // agent's root filesystem.
+  required string target = 1;
+
+  // The source of the mount. This can be the path to a device, a file
+  // or a directory. The path must be an absolute path in the agent's
+  // root filesystem.
+  optional string source = 2;
+
+  // The type of the filesystem to be mounted.
+  optional string type = 3;
+
+  // Mount flags.
+  optional uint32 flags = 4;
+
+  // Mount options of the filesystem to be used.
+  optional string options = 5;
+}
+
+
+/**
  * Protobuf returned by Isolator::prepare(). The command is executed
  * by the Launcher in the containerized context.
  * Note: Currently, any URIs or Environment in the CommandInfo will be
@@ -209,6 +233,10 @@ message ContainerLaunchInfo {
   // working directory in the host filesystem, which may be different
   // from the task working directory when task defines an image.
   optional string working_directory = 6;
+
+  // The additional mounts for the container. The mounts specified in
+  // this list will be mounted in order.
+  repeated ContainerMountInfo mounts = 17;
 
   // (Linux only) The capabilities requested for the container.
   // The capabilities are set while launching the container.

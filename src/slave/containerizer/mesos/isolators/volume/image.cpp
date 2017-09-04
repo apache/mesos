@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/mount.h>
+
 #include <list>
 #include <string>
 #include <vector>
@@ -49,6 +51,7 @@ using process::Shared;
 using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerMountInfo;
 using mesos::slave::Isolator;
 
 namespace mesos {
@@ -229,14 +232,10 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::_prepare(
           "Provisioned rootfs '" + source + "' does not exist");
     }
 
-    CommandInfo* command = launchInfo.add_pre_exec_commands();
-    command->set_shell(false);
-    command->set_value("mount");
-    command->add_arguments("mount");
-    command->add_arguments("-n");
-    command->add_arguments("--rbind");
-    command->add_arguments(source);
-    command->add_arguments(target);
+    ContainerMountInfo* mount = launchInfo.add_mounts();
+    mount->set_source(source);
+    mount->set_target(target);
+    mount->set_flags(MS_BIND | MS_REC);
   }
 
   return launchInfo;

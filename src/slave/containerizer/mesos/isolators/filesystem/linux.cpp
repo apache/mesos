@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/mount.h>
+
 #include <list>
 #include <sstream>
 #include <string>
@@ -58,6 +60,7 @@ using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerState;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerMountInfo;
 using mesos::slave::Isolator;
 
 namespace mesos {
@@ -347,66 +350,15 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
   ContainerLaunchInfo launchInfo;
   launchInfo.add_clone_namespaces(CLONE_NEWNS);
 
-  // Prepare the commands that will be run in the container's mount
-  // namespace right after forking the executor process. We use these
-  // commands to mount those volumes specified in the container info
-  // so that they don't pollute the host mount namespace.
-  Try<vector<CommandInfo>> commands =
-    getPreExecCommands(containerId, containerConfig);
-
-  if (commands.isError()) {
-    return Failure("Failed to get pre-exec commands: " + commands.error());
-  }
-
-  foreach (const CommandInfo& command, commands.get()) {
-    launchInfo.add_pre_exec_commands()->CopyFrom(command);
-  }
-
-  // Currently, we only need to update resources for top level containers.
-  if (containerId.has_parent()) {
-    return launchInfo;
-  }
-
-  return update(containerId, containerConfig.executor_info().resources())
-    .then([launchInfo]() -> Future<Option<ContainerLaunchInfo>> {
-      return launchInfo;
-    });
-}
-
-
-Try<vector<CommandInfo>> LinuxFilesystemIsolatorProcess::getPreExecCommands(
-    const ContainerID& containerId,
-    const ContainerConfig& containerConfig)
-{
-  vector<CommandInfo> commands;
+  // Prepare the mounts that will be run in the container's mount
+  // namespace right after forking the executor process so that they
+  // don't pollute the host mount namespace.
 
   // Make sure mounts in the container mount namespace do not
   // propagate back to the host mount namespace.
-  // NOTE: We cannot simply run `mount --make-rslave /`, for more info
-  // please refer to comments in mount.hpp.
-  CommandInfo command;
-  command.set_shell(false);
-  command.set_value(path::join(flags.launcher_dir, "mesos-containerizer"));
-  command.add_arguments("mesos-containerizer");
-  command.add_arguments(MesosContainerizerMount::NAME);
-
-  MesosContainerizerMount::Flags mountFlags;
-  mountFlags.operation = MesosContainerizerMount::MAKE_RSLAVE;
-  mountFlags.path = "/";
-
-  foreachvalue (const flags::Flag& flag, mountFlags) {
-    const Option<string> value = flag.stringify(mountFlags);
-    if (value.isSome()) {
-      command.add_arguments(
-          "--" + flag.effective_name().value + "=" + value.get());
-    }
-  }
-
-  commands.push_back(command);
-
-  if (!containerConfig.has_container_info()) {
-    return commands;
-  }
+  ContainerMountInfo* mount = launchInfo.add_mounts();
+  mount->set_target("/");
+  mount->set_flags(MS_SLAVE | MS_REC);
 
   // Bind mount the sandbox if the container specifies a rootfs.
   if (containerConfig.has_rootfs()) {
@@ -419,24 +371,26 @@ Try<vector<CommandInfo>> LinuxFilesystemIsolatorProcess::getPreExecCommands(
     // comments in 'provisioner/backend.hpp' for details.
     Try<Nothing> mkdir = os::mkdir(sandbox);
     if (mkdir.isError()) {
-      return Error(
+      return Failure(
           "Failed to create sandbox mount point at '" +
           sandbox + "': " + mkdir.error());
     }
 
-    CommandInfo command;
-    command.set_shell(false);
-    command.set_value("mount");
-    command.add_arguments("mount");
-    command.add_arguments("-n");
-    command.add_arguments("--rbind");
-    command.add_arguments(containerConfig.directory());
-    command.add_arguments(sandbox);
-
-    commands.push_back(command);
+    mount = launchInfo.add_mounts();
+    mount->set_source(containerConfig.directory());
+    mount->set_target(sandbox);
+    mount->set_flags(MS_BIND | MS_REC);
   }
 
-  return commands;
+  // Currently, we only need to update resources for top level containers.
+  if (containerId.has_parent()) {
+    return launchInfo;
+  }
+
+  return update(containerId, containerConfig.executor_info().resources())
+    .then([launchInfo]() -> Future<Option<ContainerLaunchInfo>> {
+      return launchInfo;
+    });
 }
 
 

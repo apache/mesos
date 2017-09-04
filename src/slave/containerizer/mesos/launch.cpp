@@ -73,6 +73,7 @@ using mesos::internal::capabilities::ProcessCapabilities;
 #endif // __linux__
 
 using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerMountInfo;
 
 namespace mesos {
 namespace internal {
@@ -420,6 +421,25 @@ int MesosContainerizerLaunch::execute()
     }
   }
 #endif // __WINDOWS__
+
+#ifdef __linux__
+  foreach (const ContainerMountInfo& mount, launchInfo.mounts()) {
+    Try<Nothing> mnt = fs::mount(
+        (mount.has_source() ? Option<string>(mount.source()) : None()),
+        mount.target(),
+        (mount.has_type() ? Option<string>(mount.type()) : None()),
+        (mount.has_flags() ? mount.flags() : 0),
+        (mount.has_options() ? Option<string>(mount.options()) : None()));
+
+    if (mnt.isError()) {
+      cerr << "Failed to prepare mount '" << JSON::protobuf(mount)
+           << "': " << mnt.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+
+    cout << "Prepared mount '" << JSON::protobuf(mount) << "'" << endl;
+  }
+#endif // __linux__
 
   // Run additional preparation commands. These are run as the same
   // user and with the environment as the agent.

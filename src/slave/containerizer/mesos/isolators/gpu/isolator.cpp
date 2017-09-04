@@ -16,6 +16,8 @@
 
 #include <stdint.h>
 
+#include <sys/mount.h>
+
 // This header include must be enclosed in an `extern "C"` block to
 // workaround a bug in glibc <= 2.12 (see MESOS-7378).
 //
@@ -65,6 +67,7 @@ using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerMountInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -400,9 +403,15 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
           " '" + target + "': " + mkdir.error());
     }
 
-    launchInfo.add_pre_exec_commands()->set_value(
-      "mount --no-mtab --rbind --read-only " +
-      volume.HOST_PATH() + " " + target);
+    ContainerMountInfo* mount = launchInfo.add_mounts();
+    mount->set_source(volume.HOST_PATH());
+    mount->set_target(target);
+    mount->set_flags(MS_RDONLY | MS_BIND | MS_REC);
+
+    // NOTE: MS_REMOUNT is needed to make a bind mount read only.
+    mount = launchInfo.add_mounts();
+    mount->set_target(target);
+    mount->set_flags(MS_RDONLY | MS_REMOUNT | MS_BIND | MS_REC);
   }
 
   return launchInfo;

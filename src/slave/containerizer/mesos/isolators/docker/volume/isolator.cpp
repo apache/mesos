@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/mount.h>
+
 #include <process/collect.hpp>
 #include <process/id.hpp>
 
@@ -40,6 +42,7 @@ using mesos::internal::slave::docker::volume::DriverClient;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerMountInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -493,18 +496,10 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     LOG(INFO) << "Mounting docker volume mount point '" << source
               << "' to '" << target << "' for container " << containerId;
 
-    // Launch mount command as a non-shell subprocess to avoid
-    // injecting arbitrary shell commands (e.g., user defined
-    // 'container_path' in volume can be postfixed with any
-    // unsafe arbitrary commands).
-    CommandInfo* command = launchInfo.add_pre_exec_commands();
-    command->set_shell(false);
-    command->set_value("mount");
-    command->add_arguments("mount");
-    command->add_arguments("-n");
-    command->add_arguments("--rbind");
-    command->add_arguments(source);
-    command->add_arguments(target);
+    ContainerMountInfo* mount = launchInfo.add_mounts();
+    mount->set_source(source);
+    mount->set_target(target);
+    mount->set_flags(MS_BIND | MS_REC);
   }
 
   return launchInfo;

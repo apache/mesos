@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/mount.h>
+
 #include <set>
 
 #include <process/id.hpp>
@@ -35,6 +37,7 @@ using std::string;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerMountInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -209,8 +212,10 @@ Future<Option<ContainerLaunchInfo>> SharedFilesystemIsolatorProcess::prepare(
       }
     }
 
-    launchInfo.add_pre_exec_commands()->set_value(
-        "mount -n --bind " + hostPath + " " + volume.container_path());
+    ContainerMountInfo* mount = launchInfo.add_mounts();
+    mount->set_source(hostPath);
+    mount->set_target(volume.container_path());
+    mount->set_flags(MS_BIND | MS_REC);
   }
 
   return launchInfo;
