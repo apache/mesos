@@ -14,24 +14,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <glog/logging.h>
+
+#include <process/future.hpp>
 #include <process/id.hpp>
 
 #include <stout/foreach.hpp>
 #include <stout/fs.hpp>
+#include <stout/option.hpp>
+#include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/exists.hpp>
 #include <stout/os/mkdir.hpp>
+#include <stout/os/stat.hpp>
+#include <stout/os/touch.hpp>
 
-#ifdef __linux__
-#include "linux/ns.hpp"
-#endif // __linux__
+#include "common/validation.hpp"
 
 #include "slave/containerizer/mesos/isolators/volume/sandbox_path.hpp"
 
 using std::list;
 using std::string;
 
+using process::ErrnoFailure;
 using process::Failure;
 using process::Future;
 using process::Owned;
@@ -108,9 +115,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
   const ContainerInfo& containerInfo = containerConfig.container_info();
 
   if (containerInfo.type() != ContainerInfo::MESOS) {
-    return Failure(
-        "Can only prepare the sandbox volume isolator "
-        "for a MESOS container");
+    return Failure("Only support MESOS containers");
   }
 
   if (!bindMountSupported && containerConfig.has_rootfs()) {
@@ -122,9 +127,41 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
   ContainerLaunchInfo launchInfo;
 
   foreach (const Volume& volume, containerInfo.volumes()) {
-    if (!volume.has_source() ||
-        !volume.source().has_type() ||
-        volume.source().type() != Volume::Source::SANDBOX_PATH) {
+    // NOTE: The validation here is for backwards compatibility. For
+    // example, if an old master (no validation code) is used to
+    // launch a task with a volume.
+    Option<Error> error = common::validation::validateVolume(volume);
+    if (error.isSome()) {
+      return Failure("Invalid volume: " + error->message);
+    }
+
+    Option<Volume::Source::SandboxPath> sandboxPath;
+
+    // NOTE: This is the legacy way of specifying the Volume. The
+    // 'host_path' can be relative in legacy mode, representing
+    // SANDBOX_PATH volumes.
+    if (volume.has_host_path() &&
+        !path::absolute(volume.host_path())) {
+      sandboxPath = Volume::Source::SandboxPath();
+      sandboxPath->set_type(Volume::Source::SandboxPath::SELF);
+      sandboxPath->set_path(volume.host_path());
+    }
+
+    if (volume.has_source() &&
+        volume.source().has_type() &&
+        volume.source().type() == Volume::Source::SANDBOX_PATH) {
+      CHECK(volume.source().has_sandbox_path());
+
+      if (path::absolute(volume.source().sandbox_path().path())) {
+        return Failure(
+            "Path '" + volume.source().sandbox_path().path() + "' "
+            "in SANDBOX_PATH volume is absolute");
+      }
+
+      sandboxPath = volume.source().sandbox_path();
+    }
+
+    if (sandboxPath.isNone()) {
       continue;
     }
 
@@ -134,64 +171,83 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
           "SANDBOX_PATH volume is not supported for DEBUG containers");
     }
 
-    if (!volume.source().has_sandbox_path()) {
-      return Failure("volume.source.sandbox_path is not specified");
+    if (!bindMountSupported && path::absolute(volume.container_path())) {
+      return Failure(
+          "The 'linux' launcher and 'filesystem/linux' isolator "
+          "must be enabled to support SANDBOX_PATH volume with "
+          "absolute container path");
     }
 
-    const Volume::Source::SandboxPath& sandboxPath =
-      volume.source().sandbox_path();
+    // TODO(jieyu): We need to check that source resolves under the
+    // work directory because a user can potentially use a container
+    // path like '../../abc'.
 
-    // TODO(jieyu): Support other type of SANDBOX_PATH (e.g., SELF).
-    if (!sandboxPath.has_type() ||
-        sandboxPath.type() != Volume::Source::SandboxPath::PARENT) {
-      return Failure("Only PARENT sandbox path is supported");
-    }
-
-    if (!containerId.has_parent()) {
-      return Failure("PARENT sandbox path only works for nested container");
-    }
-
-    // TODO(jieyu): Validate sandboxPath.path for other invalid chars.
-    if (strings::contains(sandboxPath.path(), ".") ||
-        strings::contains(sandboxPath.path(), " ")) {
-      return Failure("Invalid char found in volume.source.sandbox_path.path");
-    }
-
-    if (!sandboxes.contains(containerId.parent())) {
-      return Failure("Failed to locate the sandbox for the parent container");
+    if (!sandboxPath->has_type()) {
+      return Failure("Unknown SANDBOX_PATH volume type");
     }
 
     // Prepare the source.
-    const string source = path::join(
-        sandboxes[containerId.parent()],
-        sandboxPath.path());
+    string source;
+    string sourceRoot; // The parent directory of 'source'.
 
-    // NOTE: Chown should be avoided if the source directory already
+    switch (sandboxPath->type()) {
+      case Volume::Source::SandboxPath::SELF:
+        // NOTE: For this case, the user can simply create a symlink
+        // in its sandbox. No need for a volume.
+        if (!path::absolute(volume.container_path())) {
+          return Failure(
+              "'container_path' is relative for "
+              "SANDBOX_PATH volume SELF type");
+        }
+
+        sourceRoot = containerConfig.directory();
+        source = path::join(sourceRoot, sandboxPath->path());
+        break;
+      case Volume::Source::SandboxPath::PARENT:
+        if (!containerId.has_parent()) {
+          return Failure(
+              "SANDBOX_PATH volume PARENT type "
+              "only works for nested container");
+        }
+
+        if (!sandboxes.contains(containerId.parent())) {
+          return Failure(
+              "Failed to locate the sandbox for the parent container");
+        }
+
+        sourceRoot = sandboxes[containerId.parent()];
+        source = path::join(sourceRoot, sandboxPath->path());
+        break;
+      default:
+        return Failure("Unknown SANDBOX_PATH volume type");
+    }
+
+    // NOTE: Chown should be avoided if the 'source' directory already
     // exists because it may be owned by some other user and should
     // not be mutated.
     if (!os::exists(source)) {
       Try<Nothing> mkdir = os::mkdir(source);
       if (mkdir.isError()) {
         return Failure(
-            "Failed to create the directory in the parent sandbox: " +
-            mkdir.error());
+            "Failed to create the directory '" + source + "' "
+            "in the sandbox: " + mkdir.error());
       }
 
-      // Get the parent sandbox user and group info for the source path.
+      // Get 'sourceRoot''s user and group info for the source path.
       struct stat s;
-      if (::stat(sandboxes[containerId.parent()].c_str(), &s) < 0) {
-        return Failure(ErrnoError(
-            "Failed to stat '" + sandboxes[containerId.parent()] + "'"));
+
+      if (::stat(sourceRoot.c_str(), &s) < 0) {
+        return ErrnoFailure("Failed to stat '" + sourceRoot + "'");
       }
 
-      LOG(INFO) << "Changing the ownership of the sandbox_path volume at '"
+      LOG(INFO) << "Changing the ownership of the SANDBOX_PATH volume at '"
                 << source << "' with UID " << s.st_uid << " and GID "
                 << s.st_gid;
 
       Try<Nothing> chown = os::chown(s.st_uid, s.st_gid, source, false);
       if (chown.isError()) {
         return Failure(
-            "Failed to change the ownership of the sandbox_path volume at '" +
+            "Failed to change the ownership of the SANDBOX_PATH volume at '" +
             source + "' with UID " + stringify(s.st_uid) + " and GID " +
             stringify(s.st_gid) + ": " + chown.error());
       }
@@ -201,33 +257,57 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
     string target;
 
     if (path::absolute(volume.container_path())) {
-      if (!bindMountSupported) {
-        return Failure(
-            "The 'linux' launcher and 'filesystem/linux' isolator must be "
-            "enabled to support absolute container path");
-      }
+      CHECK(bindMountSupported);
 
       if (containerConfig.has_rootfs()) {
         target = path::join(
             containerConfig.rootfs(),
             volume.container_path());
 
-        Try<Nothing> mkdir = os::mkdir(target);
-        if (mkdir.isError()) {
-          return Failure(
-              "Failed to create the target of the mount at '" +
-              target + "': " + mkdir.error());
+        if (os::stat::isdir(source)) {
+          Try<Nothing> mkdir = os::mkdir(target);
+          if (mkdir.isError()) {
+            return Failure(
+                "Failed to create the mount point at "
+                "'" + target + "': " + mkdir.error());
+          }
+        } else {
+          // The file (regular file or device file) bind mount case.
+          Try<Nothing> mkdir = os::mkdir(Path(target).dirname());
+          if (mkdir.isError()) {
+            return Failure(
+                "Failed to create directory "
+                "'" + Path(target).dirname() + "' "
+                "for the mount point: " + mkdir.error());
+          }
+
+          Try<Nothing> touch = os::touch(target);
+          if (touch.isError()) {
+            return Failure(
+                "Failed to touch the mount point at "
+                "'" + target + "': " + touch.error());
+          }
         }
       } else {
         target = volume.container_path();
 
+        // An absolute 'container_path' must already exist if the
+        // container rootfs is the same as the host. This is because
+        // we want to avoid creating mount points outside the work
+        // directory in the host filesystem.
         if (!os::exists(target)) {
           return Failure(
-              "Absolute container path '" + target + "' "
-              "does not exist");
+              "Mount point '" + target + "' is an absolute path. "
+              "It must exist if the container shares the host filesystem");
         }
       }
+
+      // TODO(jieyu): We need to check that target resolves under
+      // 'rootfs' because a user can potentially use a container path
+      // like '/../../abc'.
     } else {
+      CHECK_EQ(Volume::Source::SandboxPath::PARENT, sandboxPath->type());
+
       if (containerConfig.has_rootfs()) {
         target = path::join(
             containerConfig.rootfs(),
@@ -249,11 +329,29 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
             containerConfig.directory(),
             volume.container_path());
 
-        Try<Nothing> mkdir = os::mkdir(mountPoint);
-        if (mkdir.isError()) {
-          return Failure(
-              "Failed to create the target of the mount at '" +
-              mountPoint + "': " + mkdir.error());
+        if (os::stat::isdir(source)) {
+          Try<Nothing> mkdir = os::mkdir(mountPoint);
+          if (mkdir.isError()) {
+            return Failure(
+                "Failed to create the mount point at "
+                "'" + mountPoint + "': " + mkdir.error());
+          }
+        } else {
+          // The file (regular file or device file) bind mount case.
+          Try<Nothing> mkdir = os::mkdir(Path(mountPoint).dirname());
+          if (mkdir.isError()) {
+            return Failure(
+                "Failed to create the directory "
+                "'" + Path(mountPoint).dirname() + "' "
+                "for the mount point: " + mkdir.error());
+          }
+
+          Try<Nothing> touch = os::touch(mountPoint);
+          if (touch.isError()) {
+            return Failure(
+                "Failed to touch the mount point at "
+                "'" + mountPoint+ "': " + touch.error());
+          }
         }
       }
     }

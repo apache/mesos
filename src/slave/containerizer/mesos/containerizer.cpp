@@ -261,10 +261,12 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   // after all volume isolators, so that the nvidia gpu libraries
   // '/usr/local/nvidia' will be overwritten.
   if (isolations->contains("filesystem/linux")) {
-    // Always enable 'volume/image', 'volume/host_path'  on linux if
-    // 'filesystem/linux' is enabled for backwards compatibility.
+    // Always enable 'volume/image', 'volume/host_path',
+    // 'volume/sandbox_path' on linux if 'filesystem/linux' is enabled
+    // for backwards compatibility.
     isolations->insert("volume/image");
     isolations->insert("volume/host_path");
+    isolations->insert("volume/sandbox_path");
   }
 #endif // __linux__
 
