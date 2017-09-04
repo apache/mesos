@@ -1231,6 +1231,7 @@ Future<Response> Http::state(
   Future<Owned<ObjectApprover>> tasksApprover;
   Future<Owned<ObjectApprover>> executorsApprover;
   Future<Owned<ObjectApprover>> flagsApprover;
+  Future<Owned<ObjectApprover>> rolesApprover;
 
   if (slave->authorizer.isSome()) {
     Option<authorization::Subject> subject = createSubject(principal);
@@ -1246,21 +1247,27 @@ Future<Response> Http::state(
 
     flagsApprover = slave->authorizer.get()->getObjectApprover(
         subject, authorization::VIEW_FLAGS);
+
+    rolesApprover = slave->authorizer.get()->getObjectApprover(
+        subject, authorization::VIEW_ROLE);
   } else {
     frameworksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     tasksApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     executorsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
     flagsApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
+    rolesApprover = Owned<ObjectApprover>(new AcceptingObjectApprover());
   }
 
   return collect(
       frameworksApprover,
       tasksApprover,
       executorsApprover,
-      flagsApprover)
+      flagsApprover,
+      rolesApprover)
     .then(defer(
         slave->self(),
         [this, request](const tuple<Owned<ObjectApprover>,
+                                    Owned<ObjectApprover>,
                                     Owned<ObjectApprover>,
                                     Owned<ObjectApprover>,
                                     Owned<ObjectApprover>>& approvers)
@@ -1273,10 +1280,12 @@ Future<Response> Http::state(
         Owned<ObjectApprover> tasksApprover;
         Owned<ObjectApprover> executorsApprover;
         Owned<ObjectApprover> flagsApprover;
+        Owned<ObjectApprover> rolesApprover;
         tie(frameworksApprover,
             tasksApprover,
             executorsApprover,
-            flagsApprover) = approvers;
+            flagsApprover,
+            rolesApprover) = approvers;
 
         writer->field("version", MESOS_VERSION);
 
@@ -1309,21 +1318,34 @@ Future<Response> Http::state(
         const Resources& totalResources = slave->totalResources;
 
         writer->field("resources", totalResources);
-        writer->field("reserved_resources", totalResources.reservations());
+        writer->field(
+            "reserved_resources",
+            [&totalResources, &rolesApprover](JSON::ObjectWriter* writer) {
+              foreachpair (const string& role,
+                           const Resources& resources,
+                           totalResources.reservations()) {
+                if (approveViewRole(rolesApprover, role)) {
+                  writer->field(role, resources);
+                }
+              }
+            });
+
         writer->field("unreserved_resources", totalResources.unreserved());
 
         writer->field(
             "reserved_resources_full",
-            [&totalResources](JSON::ObjectWriter* writer) {
+            [&totalResources, &rolesApprover](JSON::ObjectWriter* writer) {
               foreachpair (const string& role,
                            const Resources& resources,
                            totalResources.reservations()) {
-                writer->field(role, [&resources](JSON::ArrayWriter* writer) {
-                  foreach (Resource resource, resources) {
-                    convertResourceFormat(&resource, ENDPOINT);
-                    writer->element(JSON::Protobuf(resource));
-                  }
-                });
+                if (approveViewRole(rolesApprover, role)) {
+                  writer->field(role, [&resources](JSON::ArrayWriter* writer) {
+                    foreach (Resource resource, resources) {
+                      convertResourceFormat(&resource, ENDPOINT);
+                      writer->element(JSON::Protobuf(resource));
+                    }
+                  });
+                }
               }
             });
 
@@ -1345,7 +1367,16 @@ Future<Response> Http::state(
         }
 
         writer->field(
-            "reserved_resources_allocated", allocatedResources.reservations());
+            "reserved_resources_allocated",
+            [&allocatedResources, &rolesApprover](JSON::ObjectWriter* writer) {
+              foreachpair (const string& role,
+                           const Resources& resources,
+                           allocatedResources.reservations()) {
+                if (approveViewRole(rolesApprover, role)) {
+                  writer->field(role, resources);
+                }
+              }
+            });
 
         writer->field(
             "unreserved_resources_allocated", allocatedResources.unreserved());
