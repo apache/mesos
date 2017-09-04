@@ -183,123 +183,6 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
 }
 
 
-// This test verifies that a volume with a relative host path is
-// properly created in the container's sandbox and is properly mounted
-// in the container's mount namespace.
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_VolumeFromSandbox)
-{
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
-
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
-
-  Fetcher fetcher(flags);
-
-  Try<MesosContainerizer*> create =
-    MesosContainerizer::create(flags, true, &fetcher);
-
-  ASSERT_SOME(create);
-
-  Owned<Containerizer> containerizer(create.get());
-
-  ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
-
-  ExecutorInfo executor = createExecutorInfo(
-      "test_executor",
-      "echo abc > /tmp/file");
-
-  executor.mutable_container()->CopyFrom(createContainerInfo(
-      "test_image",
-      {createVolumeSandboxPath("/tmp", "tmp", Volume::RW)}));
-
-  string directory = path::join(flags.work_dir, "sandbox");
-  ASSERT_SOME(os::mkdir(directory));
-
-  Future<bool> launch = containerizer->launch(
-      containerId,
-      createContainerConfig(None(), executor, directory),
-      map<string, string>(),
-      None());
-
-  AWAIT_READY(launch);
-
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
-
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
-  ASSERT_TRUE(wait->get().has_status());
-  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
-
-  EXPECT_SOME_EQ("abc\n", os::read(path::join(directory, "tmp", "file")));
-}
-
-
-// This is a regression test for MESOS-5187. It is a ROOT test to
-// simulate the scenario that the framework user is non-root while
-// the agent process is root, to make sure that non-root user can
-// still have the permission to write to the volume as expected.
-TEST_F(LinuxFilesystemIsolatorTest, ROOT_SandboxVolumeOwnership)
-{
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
-
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
-
-  Fetcher fetcher(flags);
-
-  Try<MesosContainerizer*> create =
-    MesosContainerizer::create(flags, true, &fetcher);
-
-  ASSERT_SOME(create);
-
-  Owned<Containerizer> containerizer(create.get());
-
-  ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
-
-  ExecutorInfo executor = createExecutorInfo(
-      "test_executor",
-      "echo abc > /tmp/file");
-
-  executor.mutable_container()->CopyFrom(createContainerInfo(
-      "test_image",
-      {createVolumeSandboxPath("/tmp", "tmp", Volume::RW)}));
-
-  string directory = path::join(flags.work_dir, "sandbox");
-  ASSERT_SOME(os::mkdir(directory));
-
-  // Simulate the executor sandbox ownership as the user
-  // from FrameworkInfo.
-  ASSERT_SOME(os::chown("nobody", directory));
-
-  Future<bool> launch = containerizer->launch(
-      containerId,
-      createContainerConfig(None(), executor, directory, "nobody"),
-      map<string, string>(),
-      None());
-
-  AWAIT_READY(launch);
-
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
-
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
-  ASSERT_TRUE(wait->get().has_status());
-  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
-
-  EXPECT_SOME_EQ("abc\n", os::read(path::join(directory, "tmp", "file")));
-}
-
-
 // This test verifies that persistent volumes are properly mounted in
 // the container's root filesystem.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
@@ -367,10 +250,10 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 }
 
 
-// This test verifies that if a persistent volume and host volume
-// are both specified and the host path of the host volume is the
-// same relative path as the persistent volume's container path,
-// the persistent volume will not be neglect and is mounted
+// This test verifies that if a persistent volume and SANDBOX_PATH
+// volume are both specified and the 'path' of the SANDBOX_PATH volume
+// is the same relative path as the persistent volume's container
+// path, the persistent volume will not be neglect and is mounted
 // correctly. This is a regression test for MESOS-7770.
 TEST_F(LinuxFilesystemIsolatorTest,
        ROOT_PersistentVolumeAndHostVolumeWithRootFilesystem)
@@ -396,9 +279,9 @@ TEST_F(LinuxFilesystemIsolatorTest,
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  // Write to an absolute path in the container's mount namespace
-  // to verify mounts of the host volume and the persistent volume
-  // are done in the proper order.
+  // Write to an absolute path in the container's mount namespace to
+  // verify mounts of the SANDBOX_PATH volume and the persistent
+  // volume are done in the proper order.
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
       "echo abc > /absolute_path/file");
