@@ -3101,9 +3101,7 @@ void ProcessManager::handle(
   }
 
   synchronized (firewall_mutex) {
-    // Don't use a const reference, since it cannot be guaranteed
-    // that the rules don't keep an internal state.
-    foreach (Owned<firewall::FirewallRule>& rule, firewallRules) {
+    foreach (const Owned<firewall::FirewallRule>& rule, firewallRules) {
       Option<Response> rejection = rule->apply(socket, *request);
       if (rejection.isSome()) {
         VLOG(1) << "Returning '"<< rejection.get().status << "' for '"
