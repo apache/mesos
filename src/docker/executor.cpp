@@ -787,8 +787,6 @@ int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  process::initialize();
-
   mesos::internal::docker::Flags flags;
 
   // Load flags from environment and command line.
@@ -902,6 +900,8 @@ int main(int argc, char** argv)
   if (flags.launcher_dir.isNone()) {
     EXIT(EXIT_FAILURE) << flags.usage("Missing required option --launcher_dir");
   }
+
+  process::initialize();
 
   // The 2nd argument for docker create is set to false so we skip
   // validation when creating a docker abstraction, as the slave

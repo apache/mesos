@@ -1467,14 +1467,12 @@ public:
 
 int main(int argc, char** argv)
 {
-  process::initialize();
-
-  Flags flags;
   mesos::FrameworkID frameworkId;
   mesos::ExecutorID executorId;
   string scheme = "http"; // Default scheme.
   ::URL agent;
   string sandboxDirectory;
+  Flags flags;
 
   // Load flags from command line.
   Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
@@ -1528,6 +1526,8 @@ int main(int argc, char** argv)
     EXIT(EXIT_FAILURE)
       << "Expecting 'MESOS_SLAVE_PID' to be set in the environment";
   }
+
+  process::initialize();
 
   UPID upid(value.get());
   CHECK(upid) << "Failed to parse MESOS_SLAVE_PID '" << value.get() << "'";

@@ -224,9 +224,9 @@ int main(int argc, char** argv)
   // The order of initialization is as follows:
   // * Windows socket stack.
   // * Validate flags.
+  // * Logging
   // * Log build information.
   // * Libprocess
-  // * Logging
   // * Version process
   // * Firewall rules: should be initialized before initializing HTTP endpoints.
   // * Modules: Load module libraries and manifests before they
@@ -266,6 +266,13 @@ int main(int argc, char** argv)
   if (load.isError()) {
     cerr << flags.usage(load.error()) << endl;
     return EXIT_FAILURE;
+  }
+
+  logging::initialize(argv[0], flags, true); // Catch signals.
+
+  // Log any flag warnings (after logging is initialized).
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
   }
 
   // Check that agent's version has the expected format (SemVer).
@@ -376,14 +383,6 @@ int main(int argc, char** argv)
           READONLY_HTTP_AUTHENTICATION_REALM)) {
     EXIT(EXIT_FAILURE) << "The call to `process::initialize()` in the agent's "
                        << "`main()` was not the function's first invocation";
-  }
-
-  // TODO(alexr): This should happen before we start using glog, see MESOS-7586.
-  logging::initialize(argv[0], flags, true); // Catch signals.
-
-  // Log any flag warnings (after logging is initialized).
-  foreach (const flags::Warning& warning, load->warnings) {
-    LOG(WARNING) << warning.message;
   }
 
   spawn(new VersionProcess(), true);

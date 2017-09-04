@@ -1209,11 +1209,10 @@ public:
 
 int main(int argc, char** argv)
 {
-  Flags flags;
   mesos::FrameworkID frameworkId;
   mesos::ExecutorID executorId;
 
-  process::initialize();
+  Flags flags;
 
   // Load flags from command line.
   Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
@@ -1267,6 +1266,8 @@ int main(int argc, char** argv)
 
     shutdownGracePeriod = parse.get();
   }
+
+  process::initialize();
 
   Owned<mesos::internal::CommandExecutor> executor(
       new mesos::internal::CommandExecutor(
