@@ -592,5 +592,8 @@ int main(int argc, char* argv[])
     }
   }
 
+  LOG(INFO) << "Successfully fetched all URIs into "
+            << "'" << sandboxDirectory << "'";
+
   return 0;
 }
