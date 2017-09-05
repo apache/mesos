@@ -42,7 +42,7 @@ case $OS in
     append_dockerfile "RUN yum install -y which"
     append_dockerfile "RUN yum groupinstall -y 'Development Tools'"
     append_dockerfile "RUN yum install -y epel-release" # Needed for clang.
-    append_dockerfile "RUN yum install -y clang git maven cmake"
+    append_dockerfile "RUN yum install -y clang git maven"
     append_dockerfile "RUN yum install -y java-1.8.0-openjdk-devel python-devel python-six zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-utils-devel libevent-devel libev-devel"
 
     # Add an unprivileged user.
@@ -62,7 +62,7 @@ case $OS in
     # IBM Power only supports Ubuntu 14.04 and gcc compiler.
     [ "$(uname -m)" = "x86_64" ] && CLANG_PKG=clang-3.5 || CLANG_PKG=
     append_dockerfile "RUN apt-get update"
-    append_dockerfile "RUN apt-get -y install build-essential $CLANG_PKG git maven autoconf libtool cmake"
+    append_dockerfile "RUN apt-get -y install build-essential $CLANG_PKG git maven autoconf libtool"
     append_dockerfile "RUN apt-get -y install openjdk-7-jdk python-dev python-six libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev libev-dev"
     append_dockerfile "RUN apt-get -y install wget curl sed"
 
@@ -74,6 +74,10 @@ case $OS in
     exit 1
     ;;
 esac
+
+# Install a more recent version of CMake than can be installed via packages.
+append_dockerfile "RUN curl -sSL https://cmake.org/files/v3.8/cmake-3.8.2-Linux-x86_64.sh -o /tmp/install-cmake.sh"
+append_dockerfile "RUN chmod u+x /tmp/install-cmake.sh && /tmp/install-cmake.sh --skip-license --prefix=/usr/local"
 
 case $COMPILER in
   gcc)
