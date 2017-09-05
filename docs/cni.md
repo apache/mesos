@@ -28,6 +28,7 @@ default.
   - [A bridge network](#a-bridge-network)
   - [A port-mapper plugin for CNI networks](#a-port-mapper-plugin)
   - [A Calico network](#a-calico-network)
+  - [A Cilium network](#a-cilium-network)
   - [A Weave network](#a-weave-network)
 
 
@@ -486,6 +487,17 @@ For information on setting up and using Calico-CNI, see [Calico's
 guide on adding Calico-CNI to
 Mesos](https://github.com/projectcalico/calico-containers/blob/master/docs/mesos/ManualInstallCalicoCNI.md).
 
+#### <a name="a-cilium-network">A Cilium network</a>
+
+[Cilium](https://www.cilium.io) provides a CNI plugin that works with Mesos.
+
+Cilium brings HTTP-aware network security filtering to Linux container
+frameworks. Using a new Linux kernel technology called BPF, Cilium
+provides a simple and efficient way to define and enforce both
+network-layer and HTTP-layer security policies.
+
+For more information on using Cilium with Mesos, check out the
+[Getting Started Using Mesos Guide](http://docs.cilium.io/try-mesos).
 
 #### <a name="a-weave-network">A Weave network</a>
 
