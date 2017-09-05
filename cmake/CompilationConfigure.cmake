@@ -26,7 +26,6 @@ else ()
 endif ()
 
 option(BUILD_SHARED_LIBS "Build shared libraries." ${DEFAULT_BUILD_SHARED_LIBS})
-set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 option(ENABLE_JAVA "Build Java components. Warning: this is SLOW." OFF)
 if (ENABLE_JAVA)
@@ -221,7 +220,24 @@ if (NOT WIN32)
       "flag. Please use a different C++ compiler.")
   endif ()
 
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  string(APPEND CMAKE_CXX_FLAGS " -std=c++11")
+
+  # Warn about use of format functions that can produce security issues.
+  string(APPEND CMAKE_CXX_FLAGS " -Wformat-security")
+
+  # Protect many of the functions with stack guards. The exact flag
+  # depends on compiler support.
+  CHECK_CXX_COMPILER_FLAG(-fstack-protector-strong STRONG_STACK_PROTECTORS)
+  CHECK_CXX_COMPILER_FLAG(-fstack-protector STACK_PROTECTORS)
+  if (STRONG_STACK_PROTECTORS)
+    string(APPEND CMAKE_CXX_FLAGS " -fstack-protector-strong")
+  elseif (STACK_PROTECTORS)
+    string(APPEND CMAKE_CXX_FLAGS " -fstack-protector")
+  else ()
+    message(
+      WARNING
+      "The compiler ${CMAKE_CXX_COMPILER} cannot apply stack protectors.")
+  endif ()
 
   # Directory structure for some build artifacts.
   # This is defined for use in tests.
@@ -311,6 +327,7 @@ if (WIN32)
   set(S_BIN_DIR               "WARNINGDONOTUSEME")
 endif ()
 
+
 # GLOBAL CONFIGURATION.
 #######################
 if (HAS_AUTHENTICATION)
@@ -320,6 +337,12 @@ if (HAS_AUTHENTICATION)
   # `HAS_AUTHENTICATION` is set.
   list(APPEND MESOS_CPPFLAGS -DHAS_AUTHENTICATION=1)
 endif ()
+
+# Produce position independent libraries/executables so that we take
+# better advantage of Address space layout randomization (ASLR).
+# This helps guard against ROP and return-to-libc attacks,
+# and other general exploits that rely on deterministic offsets.
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 list(APPEND MESOS_CPPFLAGS
   -DPKGLIBEXECDIR="${PKG_LIBEXEC_INSTALL_DIR}"
