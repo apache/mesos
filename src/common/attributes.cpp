@@ -55,30 +55,20 @@ bool Attributes::operator==(const Attributes& that) const
     return false;
   }
 
+  // We don't enforce that attributes (name, type, value tuples) are
+  // unique and don't check that both attribute sets contain equal
+  // number of duplicate attributes. This will be changed when we
+  // enforce attribute name uniqueness after adding SET type support
+  // for attributes (MESOS-1215).
   foreach (const Attribute& attribute, attributes) {
-    Option<Attribute> maybeAttribute = that.get(attribute);
-    if (maybeAttribute.isNone()) {
-        return false;
+    if (!that.contains(attribute)) {
+      return false;
     }
-    const Attribute& thatAttribute = maybeAttribute.get();
-    switch (attribute.type()) {
-    case Value::SCALAR:
-      if (!(attribute.scalar() == thatAttribute.scalar())) {
-        return false;
-      }
-      break;
-    case Value::RANGES:
-      if (!(attribute.ranges() == thatAttribute.ranges())) {
-        return false;
-      }
-      break;
-    case Value::TEXT:
-      if (!(attribute.text() == thatAttribute.text())) {
-        return false;
-      }
-      break;
-    case Value::SET:
-      LOG(FATAL) << "Sets not supported for attributes";
+  }
+
+  foreach (const Attribute& attribute, that) {
+    if (!contains(attribute)) {
+      return false;
     }
   }
 
@@ -96,6 +86,39 @@ const Option<Attribute> Attributes::get(const Attribute& thatAttribute) const
   }
 
   return None();
+}
+
+
+bool Attributes::contains(const Attribute& attribute) const
+{
+  foreach (const Attribute& attr, attributes) {
+    if (attr.name() == attribute.name() && attr.type() == attribute.type()) {
+      switch (attr.type()) {
+        case Value::SCALAR:
+          if (attr.scalar() == attribute.scalar()) {
+            return true;
+          }
+          break;
+
+        case Value::RANGES:
+          if (attr.ranges() == attribute.ranges()) {
+            return true;
+          }
+          break;
+
+        case Value::TEXT:
+          if (attr.text() == attribute.text()) {
+            return true;
+          }
+          break;
+
+        case Value::SET:
+          LOG(FATAL) << "Sets not supported for attributes";
+      }
+    }
+  }
+
+  return false;
 }
 
 

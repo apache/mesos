@@ -68,6 +68,9 @@ TEST(AttributesTest, Equality)
   EXPECT_NE(a, Attributes::parse(""));
   EXPECT_NE(a, Attributes::parse("cpus:45.55;ports:45.55;rack:45.55"));
   EXPECT_NE(Attributes::parse(""), a);
+  EXPECT_EQ(
+      Attributes::parse("rack:rack1;dedicated:customer1;dedicated:customer2"),
+      Attributes::parse("dedicated:customer2;dedicated:customer1;rack:rack1"));
 }
 
 } // namespace tests {

@@ -87,10 +87,16 @@ public:
     return attributes.Get(index);
   }
 
+  // Gets an attribute with the same name and type as the given
+  // attribute.
   const Option<Attribute> get(const Attribute& thatAttribute) const;
 
   template <typename T>
   T get(const std::string& name, const T& t) const;
+
+  // Checks if these Attributes contain an attribute with the same
+  // name, type and value as the given attribute.
+  bool contains(const Attribute& attribute) const;
 
   typedef google::protobuf::RepeatedPtrField<Attribute>::iterator
   iterator;
