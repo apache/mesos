@@ -566,12 +566,12 @@ endif ()
 
 # Include source for linux build.
 if (LINUX)
-  set(MESOS_SRC ${MESOS_SRC} ${LINUX_SRC})
+  list(APPEND MESOS_SRC ${LINUX_SRC})
 endif ()
 
 # Include source for Windows build.
 if (WIN32)
-  set(MESOS_SRC ${MESOS_SRC} ${WIN32_SRC})
+  list(APPEND MESOS_SRC ${WIN32_SRC})
 endif ()
 
 # Generate all binaries in the same folder.
