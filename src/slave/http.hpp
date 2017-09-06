@@ -28,6 +28,8 @@
 
 #include <mesos/authorizer/authorizer.hpp>
 
+#include "common/http.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -213,28 +215,66 @@ private:
       ContentType acceptType,
       const Option<process::http::authentication::Principal>& principal) const;
 
-  process::Future<process::http::Response> _launchNestedContainer(
+  process::Future<process::http::Response> launchContainer(
+      const mesos::agent::Call& call,
+      ContentType acceptType,
+      const Option<process::http::authentication::Principal>& principal) const;
+
+  process::Future<process::http::Response> _launchContainer(
       const ContainerID& containerId,
       const CommandInfo& commandInfo,
+      const Option<Resources>& resources,
       const Option<ContainerInfo>& containerInfo,
       const Option<mesos::slave::ContainerClass>& containerClass,
       ContentType acceptType,
-      const process::Owned<ObjectApprover>& approver) const;
+      const process::Owned<AuthorizationAcceptor>& authorizer) const;
 
   process::Future<process::http::Response> waitNestedContainer(
       const mesos::agent::Call& call,
       ContentType acceptType,
       const Option<process::http::authentication::Principal>& principal) const;
 
+  process::Future<process::http::Response> waitContainer(
+      const mesos::agent::Call& call,
+      ContentType acceptType,
+      const Option<process::http::authentication::Principal>& principal) const;
+
+  process::Future<process::http::Response> _waitContainer(
+      const ContainerID& containerId,
+      ContentType acceptType,
+      const process::Owned<AuthorizationAcceptor>& authorizer,
+      const bool deprecated) const;
+
   process::Future<process::http::Response> killNestedContainer(
       const mesos::agent::Call& call,
       ContentType acceptType,
       const Option<process::http::authentication::Principal>& principal) const;
 
+  process::Future<process::http::Response> killContainer(
+      const mesos::agent::Call& call,
+      ContentType acceptType,
+      const Option<process::http::authentication::Principal>& principal) const;
+
+  process::Future<process::http::Response> _killContainer(
+      const ContainerID& containerId,
+      const int signal,
+      ContentType acceptType,
+      const process::Owned<AuthorizationAcceptor>& authorizer) const;
+
   process::Future<process::http::Response> removeNestedContainer(
       const mesos::agent::Call& call,
       ContentType acceptType,
       const Option<process::http::authentication::Principal>& principal) const;
+
+  process::Future<process::http::Response> removeContainer(
+      const mesos::agent::Call& call,
+      ContentType acceptType,
+      const Option<process::http::authentication::Principal>& principal) const;
+
+  process::Future<process::http::Response> _removeContainer(
+      const ContainerID& containerId,
+      ContentType acceptType,
+      const process::Owned<AuthorizationAcceptor>& authorizer) const;
 
   process::Future<process::http::Response> launchNestedContainerSession(
       const mesos::agent::Call& call,
