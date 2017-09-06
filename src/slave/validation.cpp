@@ -18,6 +18,8 @@
 
 #include <string>
 
+#include <mesos/resources.hpp>
+
 #include <mesos/agent/agent.hpp>
 
 #include <stout/stringify.hpp>
@@ -26,6 +28,7 @@
 
 #include "checks/checker.hpp"
 
+#include "common/resources_utils.hpp"
 #include "common/validation.hpp"
 
 using std::string;
@@ -343,6 +346,140 @@ Option<Error> validate(
 
       if (error.isSome()) {
         return Error("'attach_container_output.container_id' is invalid"
+                     ": " + error->message);
+      }
+
+      return None();
+    }
+
+    case mesos::agent::Call::LAUNCH_CONTAINER: {
+      if (!call.has_launch_container()) {
+        return Error("Expecting 'launch_container' to be present");
+      }
+
+      Option<Error> error = validation::container::validateContainerId(
+          call.launch_container().container_id());
+
+      if (error.isSome()) {
+        return Error(
+            "'launch_container.container_id' is invalid: " + error->message);
+      }
+
+      // Nested containers share resources with their parent so are
+      // not allowed to specify resources in this call.
+      if (call.launch_container().container_id().has_parent() &&
+          call.launch_container().resources().size() != 0) {
+        return Error(
+            "Resources may not be specified when using "
+            "'launch_container' to launch nested containers");
+      }
+
+      // General resource validation first.
+      error = Resources::validate(call.launch_container().resources());
+      if (error.isSome()) {
+        return Error("Invalid resources: " + error.get().message);
+      }
+
+      error = common::validation::validateGpus(
+          call.launch_container().resources());
+
+      if (error.isSome()) {
+        return Error("Invalid GPU resources: " + error.get().message);
+      }
+
+      // Because standalone containers are launched outside of the master's
+      // offer cycle, some resource types or fields may not be specified.
+      foreach (Resource resource, call.launch_container().resources()) {
+        // Normalize the resources (in place) to simplify validation.
+        convertResourceFormat(&resource, POST_RESERVATION_REFINEMENT);
+
+        // Standalone containers may only use unreserved resources.
+        // There is no accounting in the master for resources consumed
+        // by standalone containers, so allowing reserved resources would
+        // only increase code complexity with no change in behavior.
+        if (Resources::isReserved(resource)) {
+          return Error("'launch_container.resources' must be unreserved");
+        }
+
+        // NOTE: The master normally requires all volumes be persistent,
+        // and that all persistent volumes belong to a role. Standalone
+        // containers therefore cannot use persistent volumes.
+        if (Resources::isPersistentVolume(resource)) {
+          return Error(
+              "'launch_container.resources' may not use persistent volumes");
+        }
+
+        // Standalone containers are expected to occupy resources *not*
+        // advertised by the agent and hence do not need to worry about
+        // being preempted or throttled.
+        if (Resources::isRevocable(resource)) {
+          return Error("'launch_container.resources' must be non-revocable");
+        }
+      }
+
+      if (call.launch_container().has_command()) {
+        error = common::validation::validateCommandInfo(
+            call.launch_container().command());
+        if (error.isSome()) {
+          return Error(
+              "'launch_container.command' is invalid: " + error->message);
+        }
+      }
+
+      if (call.launch_container().has_container()) {
+        error = common::validation::validateContainerInfo(
+            call.launch_container().container());
+        if (error.isSome()) {
+          return Error(
+              "'launch_container.container' is invalid: " + error->message);
+        }
+      }
+
+      return None();
+    }
+
+    case mesos::agent::Call::WAIT_CONTAINER: {
+      if (!call.has_wait_container()) {
+        return Error("Expecting 'wait_container' to be present");
+      }
+
+      Option<Error> error = validation::container::validateContainerId(
+          call.wait_container().container_id());
+
+      if (error.isSome()) {
+        return Error("'wait_container.container_id' is invalid"
+                     ": " + error->message);
+      }
+
+      return None();
+    }
+
+    case mesos::agent::Call::KILL_CONTAINER: {
+      if (!call.has_kill_container()) {
+        return Error("Expecting 'kill_container' to be present");
+      }
+
+      Option<Error> error = validation::container::validateContainerId(
+          call.kill_container().container_id());
+
+      if (error.isSome()) {
+        return Error("'kill_container.container_id' is invalid"
+                     ": " + error->message);
+      }
+
+      return None();
+    }
+
+    case mesos::agent::Call::REMOVE_CONTAINER: {
+      if (!call.has_remove_container()) {
+        return Error("Expecting 'remove_container' to be present");
+      }
+
+      Option<Error> error = validation::container::validateContainerId(
+          call.remove_container().container_id());
+
+      if (error.isSome()) {
+        return Error("'remove_container.container_id' is invalid"
                      ": " + error->message);
       }
 
