@@ -397,6 +397,54 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
 
       return None();
     }
+    case Offer::Operation::CREATE_VOLUME: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_create_volume()) {
+        return Error(
+            "A CREATE_VOLUME offer operation must have"
+            " the Offer.Operation.create_volume field set.");
+      }
+
+      return None();
+    }
+    case Offer::Operation::DESTROY_VOLUME: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_destroy_volume()) {
+        return Error(
+            "A DESTROY_VOLUME offer operation must have"
+            " the Offer.Operation.destroy_volume field set.");
+      }
+
+      return None();
+    }
+    case Offer::Operation::CREATE_BLOCK: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_create_block()) {
+        return Error(
+            "A CREATE_BLOCK offer operation must have"
+            " the Offer.Operation.create_block field set.");
+      }
+
+      return None();
+    }
+    case Offer::Operation::DESTROY_BLOCK: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_destroy_block()) {
+        return Error(
+            "A DESTROY_BLOCK offer operation must have"
+            " the Offer.Operation.destroy_block field set.");
+      }
+
+      return None();
+    }
     case Offer::Operation::UNKNOWN: {
       // TODO(mpark): Once we perform a sanity check validation for
       // offer operations as specified in MESOS-7760, this should no

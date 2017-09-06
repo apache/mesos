@@ -4037,7 +4037,11 @@ void Master::accept(
           case Offer::Operation::RESERVE:
           case Offer::Operation::UNRESERVE:
           case Offer::Operation::CREATE:
-          case Offer::Operation::DESTROY: {
+          case Offer::Operation::DESTROY:
+          case Offer::Operation::CREATE_VOLUME:
+          case Offer::Operation::DESTROY_VOLUME:
+          case Offer::Operation::CREATE_BLOCK:
+          case Offer::Operation::DESTROY_BLOCK: {
             drop(framework, operation, error->message);
             break;
           }
@@ -4083,7 +4087,11 @@ void Master::accept(
       case Offer::Operation::RESERVE:
       case Offer::Operation::UNRESERVE:
       case Offer::Operation::CREATE:
-      case Offer::Operation::DESTROY: {
+      case Offer::Operation::DESTROY:
+      case Offer::Operation::CREATE_VOLUME:
+      case Offer::Operation::DESTROY_VOLUME:
+      case Offer::Operation::CREATE_BLOCK:
+      case Offer::Operation::DESTROY_BLOCK: {
         // No-op.
         break;
       }
@@ -4252,6 +4260,26 @@ void Master::accept(
             authorizeDestroyVolume(
                 operation.destroy(), principal));
 
+        break;
+      }
+
+      case Offer::Operation::CREATE_VOLUME: {
+        // TODO(nfnt): Implement authorization for 'CREATE_VOLUME'.
+        break;
+      }
+
+      case Offer::Operation::DESTROY_VOLUME: {
+        // TODO(nfnt): Implement authorization for 'DESTROY_VOLUME'.
+        break;
+      }
+
+      case Offer::Operation::CREATE_BLOCK: {
+        // TODO(nfnt): Implement authorization for 'CREATE_BLOCK'.
+        break;
+      }
+
+      case Offer::Operation::DESTROY_BLOCK: {
+        // TODO(nfnt): Implement authorization for 'DESTROY_BLOCK'.
         break;
       }
 
@@ -5026,6 +5054,30 @@ void Master::_accept(
 
         send(slave->pid, message);
 
+        break;
+      }
+
+      case Offer::Operation::CREATE_VOLUME: {
+        // TODO(nfnt): Provide an implementation for 'CREATE_VOLUME'.
+        drop(framework, operation, "Unimplemented");
+        break;
+      }
+
+      case Offer::Operation::DESTROY_VOLUME: {
+        // TODO(nfnt): Provide an implementation for 'DESTROY_VOLUME'.
+        drop(framework, operation, "Unimplemented");
+        break;
+      }
+
+      case Offer::Operation::CREATE_BLOCK: {
+        // TODO(nfnt): Provide an implementation for 'CREATE_BLOCK'.
+        drop(framework, operation, "Unimplemented");
+        break;
+      }
+
+      case Offer::Operation::DESTROY_BLOCK: {
+        // TODO(nfnt): Provide an implementation for 'DESTROY_BLOCK'.
+        drop(framework, operation, "Unimplemented");
         break;
       }
 
