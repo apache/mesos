@@ -531,6 +531,8 @@ void Slave::initialize()
 #endif // __linux__
         break;
       }
+      case Resource::DiskInfo::Source::BLOCK:
+      case Resource::DiskInfo::Source::RAW:
       case Resource::DiskInfo::Source::UNKNOWN: {
         EXIT(EXIT_FAILURE)
           << "Unsupported 'DiskInfo.Source.Type' in '" << resource << "'";

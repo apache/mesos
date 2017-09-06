@@ -517,6 +517,8 @@ string getPersistentVolumePath(
       CHECK(volume.disk().source().mount().has_root());
       return volume.disk().source().mount().root();
     }
+    case Resource::DiskInfo::Source::BLOCK:
+    case Resource::DiskInfo::Source::RAW:
     case Resource::DiskInfo::Source::UNKNOWN:
       LOG(FATAL) << "Unsupported DiskInfo.Source.type";
       break;

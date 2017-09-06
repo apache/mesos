@@ -1296,12 +1296,13 @@ message Resource {
     optional Volume volume = 2;
 
     // Describes where a disk originates from.
-    // TODO(jmlvanre): Add support for BLOCK devices.
     message Source {
       enum Type {
         UNKNOWN = 0;
         PATH = 1;
         MOUNT = 2;
+        BLOCK = 3;
+        RAW = 4;
       }
 
       // A folder that can be located on a separate disk device. This

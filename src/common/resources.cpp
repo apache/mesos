@@ -848,6 +848,11 @@ Option<Error> Resources::validate(const Resource& resource)
         case Resource::DiskInfo::Source::MOUNT:
           // `PATH` and `MOUNT` contain only `optional` members.
           break;
+        case Resource::DiskInfo::Source::BLOCK:
+        case Resource::DiskInfo::Source::RAW:
+          // TODO(bbannier): Update with validation once the exact format of
+          // `BLOCK` and `RAW` messages have taken some form.
+          break;
         case Resource::DiskInfo::Source::UNKNOWN:
           return Error(
               "Unsupported 'DiskInfo.Source.Type' in "
@@ -2141,6 +2146,10 @@ ostream& operator<<(ostream& stream, const Resource::DiskInfo::Source& source)
       return stream << "PATH"
                     << (source.path().has_root() ? ":" + source.path().root()
                                                  : "");
+    case Resource::DiskInfo::Source::BLOCK:
+      return stream << "BLOCK";
+    case Resource::DiskInfo::Source::RAW:
+      return stream << "RAW";
     case Resource::DiskInfo::Source::UNKNOWN:
       return stream << "UNKNOWN";
   }
