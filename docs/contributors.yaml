@@ -356,6 +356,14 @@
   jira_user: jjanco
   reviewboard_user: jjanco
 
+- name: Jack Yang
+  affiliations:
+    - {organization: is-land}
+  emails:
+    - jack@is-land.com.tw
+  jira_user: jackyoh
+  reviewboard_user: jackyoh
+
 - name: Jan Schlicht
   affiliations:
     - {organization: Mesosphere}
