@@ -299,8 +299,10 @@ public:
       case TASK_ERROR:
         taskActive = false;
 
-        ++metrics.abnormal_terminations;
-        break;
+        if (status.reason() != TaskStatus::REASON_INVALID_OFFERS) {
+          ++metrics.abnormal_terminations;
+          break;
+        }
       default:
         break;
     }

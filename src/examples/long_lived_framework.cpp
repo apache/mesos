@@ -325,7 +325,11 @@ protected:
         status.state() == TaskState::TASK_LOST ||
         status.state() == TaskState::TASK_FAILED ||
         status.state() == TaskState::TASK_ERROR) {
-      ++metrics.abnormal_terminations;
+      // Launch on an invalid offer should not be
+      // counted as abnormal termination.
+      if (status.reason() != TaskStatus::REASON_INVALID_OFFERS) {
+        ++metrics.abnormal_terminations;
+      }
     }
   }
 

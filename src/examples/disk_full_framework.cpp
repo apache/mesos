@@ -254,7 +254,11 @@ public:
       }
 
       taskActive = false;
-      ++metrics.abnormal_terminations;
+
+      if (status.reason() != TaskStatus::REASON_INVALID_OFFERS) {
+        ++metrics.abnormal_terminations;
+      }
+
       break;
     case TASK_STARTING:
     case TASK_RUNNING:
