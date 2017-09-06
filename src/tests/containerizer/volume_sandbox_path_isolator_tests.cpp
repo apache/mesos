@@ -28,7 +28,9 @@
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 
+#ifdef __linux__
 #include "tests/containerizer/docker_archive.hpp"
+#endif
 
 using std::map;
 using std::string;
@@ -50,6 +52,7 @@ namespace tests {
 class VolumeSandboxPathIsolatorTest : public MesosTest {};
 
 
+#ifdef __linux__
 // This test verifies that a SANDBOX_PATH volume with SELF type is
 // properly created in the container's sandbox and is properly mounted
 // in the container's mount namespace.
@@ -104,6 +107,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, ROOT_SelfType)
 
   EXPECT_SOME_EQ("abc\n", os::read(path::join(directory, "tmp", "file")));
 }
+#endif // __linux__
 
 
 // This test verifies that sandbox path volume allows two containers
@@ -209,6 +213,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedParentTypeVolume)
 }
 
 
+#ifdef __linux__
 // This is a regression test for MESOS-5187. It is a ROOT test to
 // simulate the scenario that the framework user is non-root while
 // the agent process is root, to make sure that non-root user can
@@ -268,6 +273,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, ROOT_SelfTypeOwnership)
 
   EXPECT_SOME_EQ("abc\n", os::read(path::join(directory, "tmp", "file")));
 }
+#endif // __linux__
 
 
 // This is a regression test for MESOS-7830. It is a ROOT test to
