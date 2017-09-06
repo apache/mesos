@@ -321,6 +321,17 @@ void ResourceProviderManagerProcess::subscribe(
   }
 
   resourceProviders.put(resourceProviderInfo.id(), std::move(resourceProvider));
+
+  ResourceProviderMessage message;
+  message.type = ResourceProviderMessage::Type::UPDATE_TOTAL_RESOURCES;
+
+  ResourceProviderMessage::UpdateTotalResources updateTotalResources;
+  updateTotalResources.id = resourceProviderInfo.id();
+  updateTotalResources.total = resources;
+
+  message.updateTotalResources = std::move(updateTotalResources);
+
+  messages.put(std::move(message));
 }
 
 

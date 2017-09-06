@@ -16,23 +16,39 @@
 
 #include <string>
 
+#include <gtest/gtest.h>
+
+#include <mesos/http.hpp>
+#include <mesos/resources.hpp>
+
+#include <mesos/v1/mesos.hpp>
+
 #include <mesos/v1/resource_provider/resource_provider.hpp>
 
 #include <process/clock.hpp>
 #include <process/gmock.hpp>
+#include <process/gtest.hpp>
 #include <process/http.hpp>
 
+#include <stout/duration.hpp>
+#include <stout/error.hpp>
+#include <stout/gtest.hpp>
 #include <stout/lambda.hpp>
+#include <stout/option.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/recordio.hpp>
+#include <stout/result.hpp>
 #include <stout/stringify.hpp>
+#include <stout/try.hpp>
 
 #include "common/http.hpp"
 #include "common/recordio.hpp"
 
-#include "slave/slave.hpp"
+#include "internal/devolve.hpp"
 
 #include "resource_provider/manager.hpp"
+
+#include "slave/slave.hpp"
 
 #include "tests/mesos.hpp"
 
@@ -48,6 +64,7 @@ using mesos::v1::resource_provider::Event;
 using process::Clock;
 using process::Future;
 using process::Owned;
+using process::PID;
 
 using process::http::BadRequest;
 using process::http::OK;
@@ -190,6 +207,9 @@ TEST_P(ResourceProviderManagerHttpApiTest, Subscribe)
 
   Call::Subscribe* subscribe = call.mutable_subscribe();
 
+  const v1::Resources resources = v1::Resources::parse("disk:4").get();
+  subscribe->mutable_resources()->CopyFrom(resources);
+
   mesos::v1::ResourceProviderInfo* info =
     subscribe->mutable_resource_provider_info();
 
@@ -226,7 +246,32 @@ TEST_P(ResourceProviderManagerHttpApiTest, Subscribe)
 
   // Check event type is subscribed and the resource provider id is set.
   ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
-  ASSERT_NE("", event->get().subscribed().provider_id().value());
+
+  mesos::v1::ResourceProviderID resourceProviderId =
+    event->get().subscribed().provider_id();
+
+  EXPECT_FALSE(resourceProviderId.value().empty());
+
+  // The manager will send out a message informing its subscriber
+  // about the newly added resources.
+  Future<ResourceProviderMessage> message = manager.messages().get();
+
+  AWAIT_READY(message);
+
+  EXPECT_EQ(
+      ResourceProviderMessage::Type::UPDATE_TOTAL_RESOURCES,
+      message->type);
+
+  // We expect `ResourceProviderID`s to be set for all subscribed resources.
+  // Inject them into the test expectation.
+  Resources expectedResources;
+  foreach (v1::Resource resource, resources) {
+    resource.mutable_provider_id()->CopyFrom(resourceProviderId);
+    expectedResources += devolve(resource);
+  }
+
+  EXPECT_EQ(devolve(resourceProviderId), message->updateTotalResources->id);
+  EXPECT_EQ(expectedResources, message->updateTotalResources->total);
 }
 
 
@@ -290,8 +335,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, AgentEndpoint)
   ASSERT_SOME(event.get());
 
   // Check event type is subscribed and the resource provider id is set.
-  ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
-  ASSERT_NE("", event->get().subscribed().provider_id().value());
+  EXPECT_EQ(Event::SUBSCRIBED, event->get().type());
+  EXPECT_FALSE(event->get().subscribed().provider_id().value().empty());
 }
 
 } // namespace tests {

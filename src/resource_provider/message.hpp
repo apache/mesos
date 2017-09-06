@@ -17,6 +17,11 @@
 #ifndef __RESOURCE_PROVIDER_MESSAGE_HPP__
 #define __RESOURCE_PROVIDER_MESSAGE_HPP__
 
+#include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
+
+#include <stout/option.hpp>
+
 namespace mesos {
 namespace internal {
 
@@ -24,9 +29,17 @@ struct ResourceProviderMessage
 {
   enum class Type
   {
+    UPDATE_TOTAL_RESOURCES
+  };
+
+  struct UpdateTotalResources {
+    ResourceProviderID id;
+    Resources total;
   };
 
   Type type;
+
+  Option<UpdateTotalResources> updateTotalResources;
 };
 
 } // namespace internal {
