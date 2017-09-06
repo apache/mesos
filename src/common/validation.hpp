@@ -51,6 +51,9 @@ Option<Error> validateVolume(const Volume& volume);
 
 Option<Error> validateContainerInfo(const ContainerInfo& containerInfo);
 
+Option<Error> validateGpus(
+    const google::protobuf::RepeatedPtrField<Resource>& resources);
+
 } // namespace validation {
 } // namespace common {
 } // namespace internal {

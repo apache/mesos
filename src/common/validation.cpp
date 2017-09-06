@@ -21,6 +21,8 @@
 #include <algorithm>
 #include <cctype>
 
+#include <mesos/resources.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/stringify.hpp>
 #include <stout/unreachable.hpp>
@@ -28,6 +30,8 @@
 #include <stout/os/constants.hpp>
 
 using std::string;
+
+using google::protobuf::RepeatedPtrField;
 
 namespace mesos {
 namespace internal {
@@ -262,6 +266,19 @@ Option<Error> validateContainerInfo(const ContainerInfo& containerInfo)
     if (error.isSome()) {
       return Error("Invalid volume: " + error->message);
     }
+  }
+
+  return None();
+}
+
+
+// Validates that the `gpus` resource is not fractional.
+// We rely on scalar resources only having 3 digits of precision.
+Option<Error> validateGpus(const RepeatedPtrField<Resource>& resources)
+{
+  double gpus = Resources(resources).gpus().getOrElse(0.0);
+  if (static_cast<long long>(gpus * 1000.0) % 1000 != 0) {
+    return Error("The 'gpus' resource must be an unsigned integer");
   }
 
   return None();
