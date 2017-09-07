@@ -2661,11 +2661,6 @@ uninstall-hook:
 check-local: tests
 	$(TEST_DRIVER) ./mesos-tests
 
-# We use distclean-local to remove core file left by sefgaulting perf. This can
-# be removed once (MESOS-7160) has been fixed.
-distclean-local:
-	-rm -f core
-
 if INSTALL_TESTS
 # If we enabled test installation, we can run the tests from the
 # installation tree.
