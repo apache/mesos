@@ -186,6 +186,8 @@ public:
       status.set_message(
         "Failed to create docker run options: " + runOptions.error());
 
+      LOG(ERROR) << status.message();
+
       driver->sendStatusUpdate(status);
 
       _stop();
@@ -532,6 +534,8 @@ private:
 
       message = "Container " + WSTRINGIFY(status);
     }
+
+    LOG(INFO) << message;
 
     CHECK_SOME(taskId);
 
