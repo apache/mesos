@@ -25,6 +25,9 @@
 #include <set>
 #include <string>
 
+#include <glog/logging.h>
+#include <glog/raw_logging.h>
+
 #include <process/subprocess.hpp>
 
 #include <stout/foreach.hpp>
@@ -32,6 +35,8 @@
 #include <stout/protobuf.hpp>
 #include <stout/path.hpp>
 #include <stout/unreachable.hpp>
+
+#include <stout/os/write.hpp>
 
 #include <mesos/mesos.hpp>
 #include <mesos/type_utils.hpp>
@@ -131,14 +136,15 @@ static void signalSafeWriteStatus(int status)
 {
   const string statusString = std::to_string(status);
 
-  Try<Nothing> write = os::write(
-      containerStatusFd.get(),
-      statusString);
+  ssize_t result =
+    os::signal_safe::write(containerStatusFd.get(), statusString);
 
-  if (write.isError()) {
-    os::write(STDERR_FILENO,
-              "Failed to write container status '" +
-              statusString + "': " + ::strerror(errno));
+  if (result < 0) {
+    // NOTE: We use RAW_LOG instead of LOG because RAW_LOG doesn't
+    // allocate any memory or grab locks. And according to
+    // https://code.google.com/p/google-glog/issues/detail?id=161
+    // it should work in 'most' cases in signal handlers.
+    RAW_LOG(ERROR, "Failed to write container status '%d': %d", status, errno);
   }
 }
 
