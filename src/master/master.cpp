@@ -6820,27 +6820,60 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
     newOversubscribed = oversubscribedResources;
   }
 
-  slave->totalResources =
+  const Resources newSlaveResources =
     newTotal.getOrElse(slave->totalResources.nonRevocable()) +
     newOversubscribed.getOrElse(slave->totalResources.revocable());
+
+  if (newSlaveResources == slave->totalResources) {
+    LOG(INFO) << "Ignoring update on agent " << *slave
+              << " as it reports no changes";
+    return;
+  }
+
+  slave->totalResources = newSlaveResources;
 
   // Now update the agent's resources in the allocator.
   allocator->updateSlave(slaveId, slave->totalResources);
 
-  // Then rescind any outstanding offers with revocable resources.
+  // Then rescind outstanding offers affected by the update.
   // NOTE: Need a copy of offers because the offers are removed inside the loop.
   foreach (Offer* offer, utils::copy(slave->offers)) {
+    bool rescind = false;
+
     const Resources& offered = offer->resources();
-    if (!offered.revocable().empty()) {
+    // Since updates of the agent's oversubscribed resources are sent at regular
+    // intervals, we only rescind offers containing revocable resources to
+    // reduce churn.
+    if (hasOversubscribed && !offered.revocable().empty()) {
       LOG(INFO) << "Removing offer " << offer->id()
-                << " with revocable resources " << offered
-                << " on agent " << *slave;
+                << " with revocable resources " << offered << " on agent "
+                << *slave;
 
-      allocator->recoverResources(
-          offer->framework_id(), offer->slave_id(), offered, None());
-
-      removeOffer(offer, true); // Rescind.
+      rescind = true;
     }
+
+    // For updates to the agent's total resources all offers are rescinded.
+    //
+    // TODO(bbannier): Only rescind offers possibly containing removed
+    // resources.
+    if (hasTotal) {
+      LOG(INFO) << "Removing offer " << offer->id() << " with resources "
+                << offered << " on agent " << *slave;
+
+      rescind = true;
+    }
+
+    if (!rescind) {
+      continue;
+    }
+
+    allocator->recoverResources(
+        offer->framework_id(),
+        offer->slave_id(),
+        offered,
+        None());
+
+    removeOffer(offer, true); // Rescind.
   }
 
   // NOTE: We don't need to rescind inverse offers here as they are unrelated to
