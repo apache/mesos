@@ -18,6 +18,7 @@
 #include <ostream>
 
 #include <glog/logging.h>
+#include <glog/raw_logging.h>
 
 #include <stout/attributes.hpp>
 
@@ -28,6 +29,25 @@
 //
 // Ex: EXIT(EXIT_FAILURE) << "Cgroups are not present in this system.";
 #define EXIT(status) __Exit(__FILE__, __LINE__, status).stream()
+
+// Async-signal safe exit which prints a message.
+//
+// NOTE: We use RAW_LOG instead of LOG because RAW_LOG doesn't
+// allocate any memory or grab locks. And according to
+// https://code.google.com/p/google-glog/issues/detail?id=161
+// it should work in 'most' cases in signal handlers.
+//
+// NOTE: We expect that compiler supports `,##__VA_ARGS__`, see:
+// https://stackoverflow.com/questions/5588855
+#define SAFE_EXIT(status, fmt, ...)                                       \
+  do {                                                                    \
+    if (status) {                                                         \
+      RAW_LOG(ERROR, "EXIT with status %d: " fmt, status, ##__VA_ARGS__); \
+    } else {                                                              \
+      RAW_LOG(INFO, "EXIT with status %d: " fmt, status, ##__VA_ARGS__);  \
+    }                                                                     \
+    ::_exit(status);                                                      \
+  } while (0)
 
 
 struct __Exit
