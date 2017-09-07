@@ -26,6 +26,7 @@
 
 #include <stout/check.hpp>
 #include <stout/error.hpp>
+#include <stout/exit.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashset.hpp>
 #include <stout/nothing.hpp>
@@ -191,7 +192,8 @@ inline int childMain(
 
   os::execvpe(path.c_str(), argv, envp);
 
-  ABORT("Failed to os::execvpe on path '" + path + "': " + os::strerror(errno));
+  SAFE_EXIT(
+      errno, "Failed to os::execvpe on path '%s': %d", path.c_str(), errno);
 }
 
 
