@@ -2171,6 +2171,7 @@ message TaskStatus {
   }
 
   // Detailed reason for the task status update.
+  // Refer to docs/task-state-reasons.md for additional explanation.
   //
   // TODO(bmahler): Differentiate between slave removal reasons
   // (e.g. unhealthy vs. unregistered for maintenance).

@@ -68,6 +68,7 @@ layout: documentation
 * [Javadoc](/api/latest/java/) documents the old Java API.
 * [Operator HTTP API](operator-http-api.md) describes the new HTTP API for communication between operators and Mesos master/agent.
 * [Scheduler HTTP API](scheduler-http-api.md) describes the new HTTP API for communication between schedulers and the Mesos master.
+* [Task State Reasons](task-state-reasons.md) describes how task state reasons are used in Mesos.
 * [Versioning](versioning.md) describes HTTP API and release versioning.
 
 
