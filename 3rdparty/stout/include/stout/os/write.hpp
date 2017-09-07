@@ -13,6 +13,8 @@
 #ifndef __STOUT_OS_WRITE_HPP__
 #define __STOUT_OS_WRITE_HPP__
 
+#include <cstring>
+
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
@@ -31,14 +33,14 @@
 
 namespace os {
 
-// Write out the string to the file at the current fd position.
-inline Try<Nothing> write(int_fd fd, const std::string& message)
+namespace signal_safe {
+
+inline ssize_t write_impl(int_fd fd, const char* buffer, size_t count)
 {
   size_t offset = 0;
 
-  while (offset < message.length()) {
-    ssize_t length =
-      os::write(fd, message.data() + offset, message.length() - offset);
+  while (offset < count) {
+    ssize_t length = os::write(fd, buffer + offset, count - offset);
 
     if (length < 0) {
 #ifdef __WINDOWS__
@@ -51,10 +53,49 @@ inline Try<Nothing> write(int_fd fd, const std::string& message)
       if (net::is_restartable_error(error)) {
         continue;
       }
-      return ErrnoError();
+      return -1;
     }
 
     offset += length;
+  }
+
+  return offset;
+}
+
+
+inline ssize_t write(int_fd fd, const char* message)
+{
+  // `strlen` declared as async-signal safe in POSIX.1-2016 standard.
+  return write_impl(fd, message, std::strlen(message));
+}
+
+
+inline ssize_t write(int_fd fd, const std::string& message)
+{
+  return write_impl(fd, message.data(), message.length());
+}
+
+
+template <typename T, typename... Args>
+inline ssize_t write(int_fd fd, const T& message, Args... args)
+{
+  ssize_t result = write(fd, message);
+  if (result < 0) {
+    return result;
+  }
+
+  return write(fd, args...);
+}
+
+} // namespace signal_safe {
+
+
+// Write out the string to the file at the current fd position.
+inline Try<Nothing> write(int_fd fd, const std::string& message)
+{
+  ssize_t result = signal_safe::write(fd, message);
+  if (result < 0) {
+    return ErrnoError();
   }
 
   return Nothing();

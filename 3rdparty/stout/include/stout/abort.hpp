@@ -59,6 +59,8 @@ inline NORETURN void _Abort(const char* prefix, const char* message)
   // In fact, it is highly unlikely that strlen would be
   // implemented in an unsafe manner:
   // http://austingroupbugs.net/view.php?id=692
+  // NOTE: we can't use `signal_safe::write`, because it's defined in the header
+  // which can't be included due to circular dependency of headers.
   while (::write(STDERR_FILENO, prefix, prefix_len) == -1 &&
          errno == EINTR);
   while (message != nullptr &&
