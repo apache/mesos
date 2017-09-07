@@ -1,15 +1,5 @@
-Release Notes - Mesos - Version 1.4.1 (WIP)
--------------------------------------------
-* This is a bug fix release.
-
-All Issues:
-** Bug
-  * [MESOS-7872] - Scheduler hang when registration fails.
-  * [MESOS-7912] - Master WebUI not working in Chrome.
-
-
-Release Notes - Mesos - Version 1.4.0 (WIP)
--------------------------------------------
+Release Notes - Mesos - Version 1.4.0
+-------------------------------------
 This release contains the following new features:
 
   * [MESOS-5116] - The `disk/xfs` isolator now supports the
@@ -45,7 +35,6 @@ This release contains the following new features:
     maximum privileges that a task may acquire.
 
 Deprecations/Removals:
-
   * [MESOS-7671] - LinuxInfo.capabilities is deprecated in favor
     of LinuxInfo.effective_capabilities.
 
@@ -57,7 +46,6 @@ Unresolved Critical Issues:
   * [MESOS-7402] - Quota is over-allocated when used with hierarchical roles.
 
 Additional API Changes:
-
   * [MESOS-7755] The interpretation of the optional resource argument
     passed in `Allocator::updateSlave` was changed from the total
     amount of oversubscribed resources on the agent to the new total
@@ -176,11 +164,14 @@ All Resolved Issues:
   * [MESOS-7865] - Agent may process a kill task and still launch the task.
   * [MESOS-7869] - Build fails with `--disable-zlib` or `--with-zlib=DIR`
   * [MESOS-7871] - Agent fails assertion during request to '/state'
+  * [MESOS-7872] - Scheduler hang when registration fails.
   * [MESOS-7888] - Track fetcher task success and failures
   * [MESOS-7909] - Ordering dependency between 'linux/capabilities' and 'docker/runtime' isolator.
+  * [MESOS-7912] - Master WebUI not working in Chrome.
+  * [MESOS-7921] - process::EventQueue sometimes crashes
   * [MESOS-7922] - Fix communication between old masters and new agents.
   * [MESOS-7926] - Abnormal termination of default executor can cause MesosContainerizer::destroy to fail.
-  * [MESOS-7934] - OOM due to LibeventSSLSocket send incorrectly return 0, repeatedly.
+  * [MESOS-7934] - OOM due to LibeventSSLSocket send incorrectly returning 0 after shutdown.
 
 ** Documentation
   * [MESOS-7246] - Add documentation for AGENT_ADDED/AGENT_REMOVED events.
