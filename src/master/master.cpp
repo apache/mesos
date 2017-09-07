@@ -6608,6 +6608,15 @@ void Master::___reregisterSlave(
     }
   }
 
+  // Send checkpointed resources to the agent. This is important for
+  // the cases where the master didn't fail over. In that case, the
+  // master might have already applied an operation that the agent
+  // didn't see (e.g., due to a breaking connection). This message
+  // will sync the state between the master and the agent about
+  // checkpointed resources.
+  //
+  // TODO(jieyu): This message is not necessary for the case where the
+  // master fails over. Consider moving this to `reconcileKnownSlave`.
   CheckpointResourcesMessage message;
 
   message.mutable_resources()->CopyFrom(slave->checkpointedResources);
