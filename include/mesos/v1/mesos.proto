@@ -2155,9 +2155,6 @@ message TaskStatus {
 
   // Detailed reason for the task status update.
   // Refer to docs/task-state-reasons.md for additional explanation.
-  //
-  // TODO(bmahler): Differentiate between agent removal reasons
-  // (e.g. unhealthy vs. unregistered for maintenance).
   enum Reason {
     // TODO(jieyu): The default value when a caller doesn't check for
     // presence is 0 and so ideally the 0 reason is not a valid one.
