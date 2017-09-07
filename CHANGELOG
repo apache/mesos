@@ -2112,6 +2112,7 @@ All Issues:
     * [MESOS-5572] - Change Operator API RPC handlers return type to http::Response
     * [MESOS-5576] - Masters may drop the first message they send between masters after a network partition
     * [MESOS-5581] - Guarantee ordering between Isolators
+    * [MESOS-5582] - Create a `cgroups/devices` isolator.
     * [MESOS-5592] - Pass NetworkInfo to CNI Plugins
     * [MESOS-5593] - Devolve v1 operator protos before using them in Master/Agent.
     * [MESOS-5617] - Mesos website preview incorrect in facebook
