@@ -45,7 +45,12 @@ popd # $MESOS_DIR
 pushd "$MESOS_SITE_DIR"
 
 git add .
-git commit -m "Updated the website built from mesos SHA: $MESOS_HEAD_SHA."
-git push origin HEAD:refs/heads/asf-site
+
+if ! git diff --cached --quiet; then
+  git commit -m "Updated the website built from mesos SHA: $MESOS_HEAD_SHA."
+  git push origin HEAD:refs/heads/asf-site
+else
+  echo "No changes to website detected"
+fi
 
 popd # $MESOS_SITE_DIR
