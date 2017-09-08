@@ -163,6 +163,12 @@ following procedure should be followed:
    executors now have authentication tokens and support authentication, their
    requests to the agent will authenticate successfully.
 
+Note that HTTP executors make use of the agent operator API in order to make
+nested container calls. This means that authentication of the v1 agent operator
+API should not be enabled (via `--authenticate_http_readwrite`) when HTTP
+executor authentication is disabled, or HTTP executors will not be able to
+function correctly.
+
 ### Framework
 
 If framework authentication is enabled, each framework must be configured to
