@@ -19,11 +19,6 @@ Release Notes - Mesos - Version 1.4.1 (WIP)
 -------------------------------------------
 * This is a bug fix release.
 
-All Issues:
-** Bug
-  * [MESOS-7872] - Scheduler hang when registration fails.
-  * [MESOS-7912] - Master WebUI not working in Chrome.
-
 
 Release Notes - Mesos - Version 1.4.0 (WIP)
 -------------------------------------------
@@ -49,6 +44,10 @@ This release contains the following new features:
     hierarchical roles, see: MESOS-7402) and thus it is not recommended
     for production usage at this time.
 
+  * [MESOS-7418, MESOS-7088] - File-based secrets are now supported for Mesos
+    and Universal containerizer. Image-pull secrets are supported for Docker
+    registry credentials.
+
   * [MESOS-7477] - Linux ambient capabilites are now supported, so
     frameworks can run tasks that use ambient capabilites to grant
     limited additional privileged to tasks.
@@ -58,15 +57,17 @@ This release contains the following new features:
     maximum privileges that a task may acquire.
 
 Deprecations/Removals:
-
   * [MESOS-7671] - LinuxInfo.capabilities is deprecated in favor
     of LinuxInfo.effective_capabilities.
 
   * [MESOS-7477] - The agent `--allowed_capabilities` flag is
-    deprecated in favor of `--effective_capabilities`.
+    deprecated in favor of `--effective_capabilities`
+
+Unresolved Critical Issues:
+  * [MESOS-7643] - The order of isolators provided in '--isolation' flag is not preserved and instead sorted alphabetically
+  * [MESOS-7402] - Quota is over-allocated when used with hierarchical roles.
 
 Additional API Changes:
-
   * [MESOS-7755] The interpretation of the optional resource argument
     passed in `Allocator::updateSlave` was changed from the total
     amount of oversubscribed resources on the agent to the new total
@@ -77,6 +78,220 @@ Additional API Changes:
 Feature Graduations:
   * [MESOS-2533] - Support HTTP checks in Mesos.
   * [MESOS-3567] - Support TCP checks in Mesos.
+
+All Resolved Issues:
+
+** Bug
+  * [MESOS-1987] - Add support for SemVer build and prerelease labels to stout.
+  * [MESOS-4210] - Investigate increasing protobuf protocol message size limit.
+  * [MESOS-4331] - git commit-msg hook completely breaks fixup commits.
+  * [MESOS-4467] - Implement `sleep` in Windows
+  * [MESOS-4983] - Segfault in ProcessTest.Spawn with GCC 6
+  * [MESOS-4992] - sandbox uri does not work outisde mesos http server
+  * [MESOS-5187] - The filesystem/linux isolator does not set the permissions of the host_path.
+  * [MESOS-5903] - `GTEST_IS_THREADSAFE` guards prevent many tests from being run on Windows.
+  * [MESOS-5937] - `flags::parse` assumes the filesystem is rooted at '/'
+  * [MESOS-5938] - `net::links` is not implemented on Windows.
+  * [MESOS-6115] - Source tree contains compiled protobuf source
+  * [MESOS-6539] - Compile warning in GMock: "binding dereferenced null pointer to reference"
+  * [MESOS-6743] - Docker executor hangs forever if `docker stop` fails.
+  * [MESOS-6814] - Make sure compilation configuration is propagated correctly to third party dependencies
+  * [MESOS-6817] - Audit the use of UNICODE-related code paths
+  * [MESOS-6916] - Improve health checks validation.
+  * [MESOS-6950] - Launching two tasks with the same Docker image simultaneously may cause a staging dir never cleaned up
+  * [MESOS-6961] - Executors don't use glog for logging.
+  * [MESOS-7017] - HTTP API responses can crash the master.
+  * [MESOS-7115] - Agent should prefer LOG(FATAL) over EXIT().
+  * [MESOS-7173] - CMake does not define `GIT_SHA` etc. in build.cpp
+  * [MESOS-7186] - Metrics about used/allocated shared resources are incorrect accounted.
+  * [MESOS-7193] - Use of `GTEST_IS_THREADSAFE` in asserts is problematic.
+  * [MESOS-7252] - Need to fix resource check in long-lived framework
+  * [MESOS-7268] - CNI isolator should mount network related /etc/* files in readonly mode
+  * [MESOS-7351] - CMake < 3.8.0 cannot find VS2017 tools
+  * [MESOS-7373] - Remove thread_local workaround on OSX
+  * [MESOS-7374] - Running DOCKER images in Mesos Container Runtime without `linux/filesystem` isolation enabled renders host unusable
+  * [MESOS-7378] - Build failure with glibc 2.12.
+  * [MESOS-7381] - Flaky tests in NestedMesosContainerizerTest
+  * [MESOS-7389] - Mesos 1.2.0 crashes with pre-1.0 Mesos agents.
+  * [MESOS-7403] - Resources::apply(const Offer::Operation&) should fail when a shared persistent volume can't be removed
+  * [MESOS-7441] - RegisterSlaveValidationTest.DropInvalidRegistration is flaky
+  * [MESOS-7457] - HierarchicalAllocatorTest.NestedRoleQuota is flaky
+  * [MESOS-7458] - webui display of framework resources is confusing
+  * [MESOS-7459] - Fix the duration.hpp warning
+  * [MESOS-7462] - Flaky test HierarchicalAllocatorTest.NestedRoleDRF
+  * [MESOS-7464] - Recent Docker versions cannot be parsed by stout.
+  * [MESOS-7468] - Could not copy the sandbox path on WebUI
+  * [MESOS-7471] - Provisioner recover should not always assume 'rootfses' dir exists.
+  * [MESOS-7476] - Restrict capabilities to only the bounding set.
+  * [MESOS-7484] - VersionTest.ParseInvalid aborts on Windows.
+  * [MESOS-7496] - The /debug:fastlink linker option is not being respected
+  * [MESOS-7498] - Remove need to set environment variable `PreferredToolArchitecture`
+  * [MESOS-7502] - Build error on Windows when using "int" for a file descriptor
+  * [MESOS-7507] - Add a metric for the network size of replicas for the registry.
+  * [MESOS-7515] - MasterAllocatorTest/0.ResourcesUnused is flaky
+  * [MESOS-7524] - Basic fetcher success metrics
+  * [MESOS-7545] - Volume secret isolator breaks Windows build
+  * [MESOS-7552] - MasterAllocatorTest/0.FrameworkExited is flaky
+  * [MESOS-7569] - Allow "old" executors with half-open connections to be preserved during agent upgrade / restart.
+  * [MESOS-7581] - Specifying an unbundled dependency can cause build to pick up wrong Boost version
+  * [MESOS-7584] - ASF Jenkins build errors out on missing 'python-six' dependency
+  * [MESOS-7597] - libprocess build is broken
+  * [MESOS-7618] - CMake files incompatible with multi-configuration generators
+  * [MESOS-7627] - Mesos slave stucks
+  * [MESOS-7638] - The command `false` does not exist on Windows
+  * [MESOS-7640] - Docker containerizer fails to set sandbox logs ownership correctly.
+  * [MESOS-7652] - Docker image with universal containerizer does not work if WORKDIR is missing in the rootfs.
+  * [MESOS-7655] - Reservation Refinement: Update the resources logic.
+  * [MESOS-7662] - Documentation regarding TASK_LOST is misleading
+  * [MESOS-7666] - Update the agent to use the new resource format
+  * [MESOS-7667] - Update the master to use the new resource format.
+  * [MESOS-7669] - Update the test utilities to produce the resources in the new format
+  * [MESOS-7671] - Let frameworks specify the task bounding capabilities.
+  * [MESOS-7674] - Update the generic Protobuf to JSON facility to not output deprecated fields
+  * [MESOS-7679] - V1 Operator API update for reservation refinement.
+  * [MESOS-7689] - Libprocess can crash on malformed request paths for libprocess messages.
+  * [MESOS-7690] - The agent can crash when an unknown executor tries to register.
+  * [MESOS-7700] - Prevent reserve/create operations with refined reservations on non-capable agents.
+  * [MESOS-7703] - Mesos fails to exec a custom executor when no shell is used
+  * [MESOS-7711] - Master updates registry for reregistering agents even when they haven't been unreachable
+  * [MESOS-7714] - Fix agent downgrade for reservation refinement
+  * [MESOS-7716] - Mesos 1.2.0 agent crashes Mesos 1.4.0 master
+  * [MESOS-7725] - PersistentVolumeEndpointsTest.ReserveAndSlaveRemoval test is flaky
+  * [MESOS-7728] - Java HTTP adapter crashes JVM when leading master disconnects.
+  * [MESOS-7735] - The master crashes when state endpoint is hit during a task authorization.
+  * [MESOS-7744] - Mesos Agent Sends TASK_KILL status update to Master, and still launches task
+  * [MESOS-7751] - Mesos failed to build on Windows due to error C2039: 'parse': is not a member of 'mesos::internal::protobuf'
+  * [MESOS-7753] - `log.LearnedMessage` could be rejected due to being sent from '@0.0.0.0:0'
+  * [MESOS-7758] - Stout doesn't build standalone.
+  * [MESOS-7761] - Website ruby deps do not bundle on macOS
+  * [MESOS-7765] - MasterTest.KillUnknownTask is failling due to a bug in `net::IPv4::ANY()`
+  * [MESOS-7769] - libprocess initializes to bind to random port if --ip is not specified
+  * [MESOS-7770] - Persistent volume might not be mounted if there is a sandbox volume whose source is the same as the target of the persistent volume.
+  * [MESOS-7772] - Copy-n-paste error in slave/main.cpp
+  * [MESOS-7775] - Eliminate extra process abort in a subprocess watchdog
+  * [MESOS-7777] - Agent failed to recover due to mount namespace leakage in Docker 1.12/1.13
+  * [MESOS-7778] - Hide per-platform subprocess headers.
+  * [MESOS-7783] - Framework might not receive status update when a just launched task is killed immediately
+  * [MESOS-7794] - Mesos failed with error c2102 when build in conformance mode (/permissive-)
+  * [MESOS-7796] - LIBPROCESS_IP isn't passed on to the fetcher
+  * [MESOS-7797] - Hard-coded forward slash breaks windows docker container task in DC/OS
+  * [MESOS-7805] - mesos-execute has incorrect example TaskInfo in help string
+  * [MESOS-7817] - CreateProcess wrapper's error message is bad
+  * [MESOS-7821] - Resource refinement does downgrade task.executor.resources in LAUNCH_GROUP handler.
+  * [MESOS-7830] - Sandbox_path volume does not have ownership set correctly.
+  * [MESOS-7831] - Resource refinement is not applied to tasks in completed_frameworks.
+  * [MESOS-7849] - The rlimits and linux/capabilities isolators should support nested containers
+  * [MESOS-7858] - Launching a nested container with namespace/pid isolation, with glibc < 2.25, may deadlock the LinuxLauncher and MesosContainerizer
+  * [MESOS-7863] - Agent may drop pending kill task status updates.
+  * [MESOS-7865] - Agent may process a kill task and still launch the task.
+  * [MESOS-7869] - Build fails with `--disable-zlib` or `--with-zlib=DIR`
+  * [MESOS-7871] - Agent fails assertion during request to '/state'
+  * [MESOS-7872] - Scheduler hang when registration fails.
+  * [MESOS-7888] - Track fetcher task success and failures
+  * [MESOS-7909] - Ordering dependency between 'linux/capabilities' and 'docker/runtime' isolator.
+  * [MESOS-7912] - Master WebUI not working in Chrome.
+  * [MESOS-7921] - process::EventQueue sometimes crashes
+  * [MESOS-7922] - Fix communication between old masters and new agents.
+  * [MESOS-7926] - Abnormal termination of default executor can cause MesosContainerizer::destroy to fail.
+  * [MESOS-7934] - OOM due to LibeventSSLSocket send incorrectly returning 0 after shutdown.
+
+** Documentation
+  * [MESOS-7246] - Add documentation for AGENT_ADDED/AGENT_REMOVED events.
+  * [MESOS-7349] - Document Mesos "check" feature.
+  * [MESOS-7501] - Change legacy --with-network-isolator to --with-port-mapping-isolator
+
+** Epic
+  * [MESOS-6975] - Prevent pre-1.0 agents from registering with 1.3+ master.
+  * [MESOS-7088] - Support private registry credential per container.
+  * [MESOS-7623] - Automatically publish website through CI
+
+** Improvement
+  * [MESOS-5116] - Investigate supporting accounting only mode in XFS isolator
+  * [MESOS-5417] - define WSTRINGIFY behaviour on Windows
+  * [MESOS-6053] - Combine test helpers into one single binary.
+  * [MESOS-6223] - Allow agents to re-register post a host reboot
+  * [MESOS-6535] - The default executor should support kill policies
+  * [MESOS-6549] - Asynchronous dir removal in agent GC
+  * [MESOS-6782] - Inherit Environment from parent container when launching DEBUG container.
+  * [MESOS-6905] - Task status updates caused by task health update do not set appropriate reason.
+  * [MESOS-6976] - Disallow (re-)registration attempts by old agents.
+  * [MESOS-6977] - Cleanup tech debt in master for old agents
+  * [MESOS-6978] - Update webui to remove orphan tasks
+  * [MESOS-7006] - Launch docker containers with --cpus instead of cpu-shares
+  * [MESOS-7015] - Frameworks should be able to (re)register in suppressed state
+  * [MESOS-7092] - Health checker duplicates a lot of checker's functionality.
+  * [MESOS-7228] - Upgrade Mesos to build with proto3.
+  * [MESOS-7327] - Add a test with multiple tasks and checks for the default executor.
+  * [MESOS-7343] - Add a ReviewBot for testing patches on Windows
+  * [MESOS-7355] - Set MESOS_SANDBOX in debug containers.
+  * [MESOS-7364] - Upgrade vendored GMock / GTest
+  * [MESOS-7401] - Optionally reject messages when UPIDs does not match IP.
+  * [MESOS-7418] - Add support for file-based secrets
+  * [MESOS-7429] - Allow isolators to inject task-specific environment variables.
+  * [MESOS-7451] - Expose MOUNT volumes of an agent in master's v0 HTTP API
+  * [MESOS-7477] - Support ambient capabilities.
+  * [MESOS-7540] - Add an agent flag for executor re-registration timeout.
+  * [MESOS-7542] - Add executor reconnection retry logic to the agent
+  * [MESOS-7572] - Attach latest symlink when executor is registered.
+  * [MESOS-7585] - Added 'mesos config show' command to the new Mesos CLI.
+  * [MESOS-7608] - Protobuf definitions for domains
+  * [MESOS-7609] - Protobuf definitions for region-aware framework capability
+  * [MESOS-7610] - Support domains in master and agent
+  * [MESOS-7611] - Prevent master from joining mixed-region cluster
+  * [MESOS-7612] - Prevent agent with misconfigured domain from registering
+  * [MESOS-7614] - Only offer resources on remote agents to region-aware frameworks
+  * [MESOS-7630] - Add simple filtering to unversioned operator API
+  * [MESOS-7644] - Add DomainInfo to offers
+  * [MESOS-7782] - Add fetcher cache size metrics.
+  * [MESOS-7792] - Add support for ECDH ciphers
+  * [MESOS-7808] - Bundling gRPC into 3rdparty
+  * [MESOS-7809] - Building gRPC with Autotools
+  * [MESOS-7810] - gRPC support in libprocess
+  * [MESOS-7814] - Improve the test frameworks.
+  * [MESOS-7862] - Get rid of timestamp and date in generated javadoc files
+  * [MESOS-7870] - Refactor libssl and libcrypto checks for building gRPC
+  * [MESOS-7881] - Building gRPC with CMake
+
+** Task
+  * [MESOS-6101] - Add Framwork events to master's operator API
+  * [MESOS-6162] - Add support for cgroups blkio subsystem blkio statistics.
+  * [MESOS-6441] - Display reservations in the agent page in the webui.
+  * [MESOS-7149] - Support reservations for role subtrees
+  * [MESOS-7283] - Add ability to initialize a test cluster for Mesos CLI unit-test infrastructure
+  * [MESOS-7304] - Fetcher should not depend on SlaveID.
+  * [MESOS-7315] - Design doc for resource provider and storage integration.
+  * [MESOS-7414] - Enable authorization for master's logging API calls: GET_LOGGING_LEVEL  and SET_LOGGING_LEVEL
+  * [MESOS-7415] - Add authorization to master's operator maintenance API in v0 and v1
+  * [MESOS-7416] - Filter results of `/master/slaves` and the v1 call GET_AGENTS
+  * [MESOS-7417] - Design doc for file-based secrets.
+  * [MESOS-7433] - Set working directory in DEBUG containers.
+  * [MESOS-7449] - Refactor containerizers to not depend on TaskInfo or ExecutorInfo
+  * [MESOS-7488] - Add `--ip6` and `--ip6_discovery_command` flag to Mesos agent
+  * [MESOS-7505] - Enable hierarchical roles
+  * [MESOS-7560] - Add 'type' and 'name' to ResourceProviderInfo.
+  * [MESOS-7571] - Add `--resource_provider_config_dir` flag to the agent.
+  * [MESOS-7576] - Add master flag `--filter-gpu-resources={true|false}`
+  * [MESOS-7582] - Add Config class to manage the Mesos CLI config file.
+  * [MESOS-7591] - Update master to use resource provider IDs instead of agent ID in allocator calls.
+  * [MESOS-7593] - Update offer handling in the master to consider local resource providers
+  * [MESOS-7624] - Move website from svn to git
+  * [MESOS-7625] - Create script to automate publishing website
+  * [MESOS-7626] - Create a CI job to publish the website
+  * [MESOS-7631] - DefautlExecutor needs to inform tasks about IP addresses
+  * [MESOS-7632] - Add `HIERARCHICAL_ROLE` agent capability
+  * [MESOS-7633] - Prevent hierarchical roles from being allocated resources from non-HIERARCHICAL_ROLE agents.
+  * [MESOS-7665] - V0 Operator API update for reservation refinement.
+  * [MESOS-7668] - Update authorization to handle reservation refinement.
+  * [MESOS-7696] - Update resource provider design in the master
+  * [MESOS-7709] - Add --default_container_dns flag to the agent.
+  * [MESOS-7713] - Optimize number of copies made in dispatch/defer mechanism
+  * [MESOS-7755] - Update allocator to support updating agent total resources
+  * [MESOS-7757] - Update master to handle updates to agent total resources
+  * [MESOS-7767] - Make `net::IP` fields protected to allow for inheritance
+  * [MESOS-7780] - Add `SUBSCRIBE` call handling to the resource provider manager
+  * [MESOS-7806] - Add copy assignment operator to `net::IP::Network`
+  * [MESOS-7853] - Support shared PID namespace.
+  * [MESOS-7879] - The kill nested container call should provide ability to specify a signal.
 
 
 Release Notes - Mesos - Version 1.3.2 (WIP)
