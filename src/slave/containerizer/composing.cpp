@@ -340,6 +340,11 @@ Future<bool> ComposingContainerizerProcess::_launch(
     // Note that we don't update the state if a destroy is in progress.
     if (container->state == LAUNCHING) {
       container->state = LAUNCHED;
+
+      // This is needed for eventually removing the given container from
+      // the list of active containers.
+      container->containerizer->wait(containerId)
+        .onAny(defer(self(), &Self::destroy, containerId));
     }
 
     // Note that the return value is not impacted
@@ -483,6 +488,11 @@ Future<bool> ComposingContainerizerProcess::_launch(
     // Note that we don't update the state if a destroy is in progress.
     if (container->state == LAUNCHING) {
       container->state = LAUNCHED;
+
+      // This is needed for eventually removing the given container from
+      // the list of active containers.
+      container->containerizer->wait(containerId)
+        .onAny(defer(self(), &Self::destroy, containerId));
     }
 
     // Note that the return value is not impacted
@@ -650,11 +660,6 @@ Future<bool> ComposingContainerizerProcess::kill(
   if (!containers_.contains(containerId)) {
     return false;
   }
-
-  // This is needed for eventually removing the given container from
-  // the list of active containers.
-  containers_.at(containerId)->containerizer->wait(containerId)
-    .onAny(defer(self(), &Self::destroy, containerId));
 
   return containers_.at(containerId)->containerizer->kill(containerId, signal);
 }
