@@ -16,8 +16,3 @@ without any actual isolation, only resource usage reporting.
 ### The `network/cni` Isolator
 
 This is described in a [separate document](cni.md).
-
-
-### The `posix/rlimits` Isolator
-
-This is described in a [separate document](posix_rlimits.md).

@@ -7,8 +7,10 @@ layout: documentation
 
 This document describes the `posix/rlimits` isolator. The isolator adds support
 for setting POSIX resource limits (rlimits) for containers launched using the
-[Mesos containerizer](mesos-containerizer.md).
+[Mesos containerizer](../mesos-containerizer.md).
 
+To enable the POSIX Resource Limits support, append `posix/rlimits` to
+the `--isolation` flag when starting the agent.
 
 ## POSIX Resource Limits
 
