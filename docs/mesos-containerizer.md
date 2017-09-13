@@ -21,6 +21,7 @@ without any actual isolation, only resource usage reporting.
 - [docker/runtime](isolators/docker-runtime.md)
 - [docker/volume](isolators/docker-volume.md)
 - [filesystem/shared](isolators/filesystem-shared.md)
+- [gpu/nvidia](gpu-support.md)
 - [linux/capabilities](isolators/linux-capabilities.md)
 - [namespaces/ipc](isolators/namespaces-ipc.md)
 - [namespaces/pid](isolators/namespaces-pid.md)
