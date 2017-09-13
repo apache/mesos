@@ -13,27 +13,6 @@ can selectively enable different isolators.
 It also provides basic support for POSIX systems (e.g., OSX) but
 without any actual isolation, only resource usage reporting.
 
-### Pid Namespace
-
-The Pid Namespace isolator can be used to isolate each container in
-a separate pid namespace with two main benefits:
-
-1. Visibility: Processes running in the container (executor and
-   descendants) are unable to see or signal processes outside the
-   namespace.
-
-2. Clean termination: Termination of the leading process in a pid
-   namespace will result in the kernel terminating all other processes
-   in the namespace.
-
-The Launcher will use (2) during destruction of a container in
-preference to the freezer cgroup, avoiding known kernel issues related
-to freezing cgroups under OOM conditions.
-
-/proc will be mounted for containers so tools such as 'ps' will work
-correctly.
-
-
 ### Posix Disk Isolator
 
 The Posix Disk isolator provides basic disk isolation. It is able to
