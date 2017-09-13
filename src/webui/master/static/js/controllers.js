@@ -230,6 +230,34 @@
       _.each(framework.unreachable_tasks, setTaskMetadata);
       _.each(framework.completed_tasks, setTaskMetadata);
 
+      framework.running_tasks = 0;
+      framework.staging_tasks = 0;
+      framework.starting_tasks = 0;
+      framework.killing_tasks = 0;
+
+      _.each(framework.tasks, function(task) {
+        switch (task.state) {
+            case "TASK_RUNNING": framework.running_tasks++; break;
+            case "TASK_STAGING": framework.staging_tasks++; break;
+            case "TASK_STARTING": framework.starting_tasks++; break;
+            case "TASK_KILLING": framework.killing_tasks++; break;
+        }
+      })
+
+      framework.finished_tasks = 0;
+      framework.killed_tasks = 0;
+      framework.failed_tasks = 0;
+      framework.lost_tasks = 0;
+
+      _.each(framework.completed_tasks, function(task) {
+        switch (task.state) {
+            case "TASK_FINISHED": framework.finished_tasks++; break;
+            case "TASK_KILLED": framework.killed_tasks++; break;
+            case "TASK_FAILED": framework.failed_tasks++; break;
+            case "TASK_LOST": framework.lost_tasks++; break;
+        }
+      })
+
       $scope.active_tasks = $scope.active_tasks.concat(framework.tasks);
       $scope.unreachable_tasks = $scope.unreachable_tasks.concat(framework.unreachable_tasks);
       $scope.completed_tasks =
