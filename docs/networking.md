@@ -27,7 +27,7 @@ Model](https://github.com/docker/libnetwork).
 Note that while IP-per-container is one way to achieve network
 isolation between containers, there are other alternatives to
 implement network isolation within `MesosContainerizer`, e.g.,  using
-the [port-mapping network isolator](port-mapping-isolator.md).
+the [port-mapping network isolator](isolators/network-port-mapping.md).
 
 While the two container run-time engines use different mechanisms to
 provide networking support for containers, the interface to specify
