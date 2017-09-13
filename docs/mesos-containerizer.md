@@ -13,11 +13,6 @@ can selectively enable different isolators.
 It also provides basic support for POSIX systems (e.g., OSX) but
 without any actual isolation, only resource usage reporting.
 
-### The `docker/volume` Isolator
-
-This is described in a [separate document](docker-volume.md).
-
-
 ### The `namespaces/ipc` Isolator
 
 The IPC Namespace isolator can be used on Linux to place tasks

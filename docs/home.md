@@ -25,7 +25,7 @@ layout: documentation
   * [Docker Containerizer](docker-containerizer.md) for launching a Docker image as a Task, or as an Executor.
   * [Mesos Containerizer](mesos-containerizer.md) default containerizer, supports both Linux and POSIX systems.
     * [CNI support](cni.md)
-    * [Docker Volume Support](docker-volume.md)
+    * [Docker Volume Support](isolators/docker-volume.md)
 * [Framework Rate Limiting](framework-rate-limiting.md)
 * [Task Health Checking](health-checks.md)
 * [High Availability](high-availability.md) for running multiple masters simultaneously.

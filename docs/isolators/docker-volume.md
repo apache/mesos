@@ -6,7 +6,7 @@ layout: documentation
 # Docker Volume Support in Mesos Containerizer
 
 Mesos 1.0 adds Docker volume support to the
-[MesosContainerizer](mesos-containerizer.md) (a.k.a., the universal
+[MesosContainerizer](../mesos-containerizer.md) (a.k.a., the universal
 containerizer) by introducing the new `docker/volume` isolator.
 
 This document describes the motivation, overall architecture, configuration
@@ -27,7 +27,7 @@ steps for enabling Docker volume isolator, and required framework changes.
 ## <a name="motivation"></a>Motivation
 
 The integration of external storage in Mesos is an attractive feature.  The
-Mesos [persistent volume](persistent-volume.md) primitives allow stateful
+Mesos [persistent volume](../persistent-volume.md) primitives allow stateful
 services to persist data on an agent's local storage. However, the amount of
 storage capacity that can be directly attached to a single agent is
 limited---certain applications (e.g., databases) would like to access more data
@@ -51,7 +51,7 @@ orchestrate containers on a wide variety of external storage technologies.
 
 ## <a name="how-does-it-work"></a>How does it work?
 
-![Docker Volume Isolator Architecture](images/docker-volume-isolator.png)
+![Docker Volume Isolator Architecture](../images/docker-volume-isolator.png)
 
 The `docker/volume` isolator interacts with Docker volume plugins using
 [dvdcli](https://github.com/emccode/dvdcli), an open-source command line tool
@@ -287,12 +287,13 @@ volumes with the same `driver` and `name`.
 
 ## <a name="limitations"></a>Limitations
 
-Using the same Docker volume in both the
-[DockerContainerizer](docker-containerizer.md) and the MesosContainerizer
-simultaneously is **strongly discouraged**, because the MesosContainerizer has its
-own reference counting to decide when to unmount a Docker volume. Otherwise, it
-would be problematic if a Docker volume is unmounted by MesosContainerizer but
-the DockerContainerizer is still using it.
+Using the same Docker volume in both the [Docker
+Containerizer](../docker-containerizer.md) and the [Mesos
+Containerizer](../mesos-containerizer.md) simultaneously is **strongly
+discouraged**, because the MesosContainerizer has its own reference
+counting to decide when to unmount a Docker volume. Otherwise, it
+would be problematic if a Docker volume is unmounted by
+MesosContainerizer but the DockerContainerizer is still using it.
 
 ## <a name="test-it-out"></a>Test it out!
 
@@ -365,7 +366,7 @@ Create another task to verify the file `myfile` was created successfully.
     --volumes=<path>/myvolume.json
 ```
 
-Check the [sandbox](sandbox.md#where-is-it)
+Check the [sandbox](../sandbox.md#where-is-it)
 for the second task to check the file `myfile` was created successfully.
 
 ```{.console}
