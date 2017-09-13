@@ -1496,10 +1496,11 @@ TEST_P(DefaultExecutorTest, SigkillExecutor)
 
   ASSERT_SOME(os::killtree(executorStatus->executor_pid(), SIGKILL));
 
+  // In this test we do not care about the exact value of the returned status
+  // code, but ensure that `wait` future enters the ready state.
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
   ASSERT_TRUE(wait.get()->has_status());
-  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
 }
 
 
