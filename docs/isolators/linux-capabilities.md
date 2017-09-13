@@ -4,7 +4,7 @@ This document describes the `linux/capabilities` isolator. The
 isolator adds support for controlling [Linux
 Capabilities](http://man7.org/linux/man-pages/man7/capabilities.7.html)
 of containers launched using the
-[MesosContainerizer](mesos-containerizer.md)
+[MesosContainerizer](../mesos-containerizer.md)
 
 The Linux capabilities isolator allows operators to control which
 privileged operations Mesos tasks may perform. Operators can specify

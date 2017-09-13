@@ -236,7 +236,7 @@ user is not specified, `root` will be used by default. The operator or
 the framework can limit the
 [capabilities](http://man7.org/linux/man-pages/man7/capabilities.7.html)
 of the container by using the
-[linux/capabilities](linux_capabilities.md) isolator.
+[linux/capabilities](isolators/linux-capabilities.md) isolator.
 
 Currently, we support `host`, `bridge` and user defined networks
 ([reference](https://docs.docker.com/engine/userguide/networking/)).
