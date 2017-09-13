@@ -156,6 +156,7 @@
           if (isStateTerminal(task.state)) {
               task.finish_time = lastStatus.timestamp * 1000;
           }
+          task.healthy = lastStatus.healthy;
       }
     };
 
@@ -838,6 +839,15 @@
             });
           }
 
+          function setHealth(tasks) {
+            _.each(tasks, function(task) {
+              var lastStatus = _.last(task.statuses);
+              if (lastStatus) {
+                  task.healthy = lastStatus.healthy;
+              }
+            })
+          };
+
           // Look for the executor; it's either active or completed.
           $scope.executor =
             _.find($scope.framework.executors, matchExecutor) ||
@@ -860,6 +870,7 @@
             setRole($scope.executor.completed_tasks);
           }
 
+          setHealth($scope.executor.tasks);
           setTaskSandbox($scope.executor);
 
           $('#agent').show();

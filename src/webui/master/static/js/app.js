@@ -88,6 +88,14 @@
         return state.substring(5);
       };
     })
+    .filter('taskHealth', function() {
+      return function(health) {
+        if (health != null) {
+           return health ? "healthy" : "unhealthy";
+        }
+        return "-";
+      }
+    })
     .filter('isoDate', function($filter) {
       return function(date) {
         var i = parseInt(date, 10);
