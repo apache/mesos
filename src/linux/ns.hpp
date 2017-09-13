@@ -129,7 +129,11 @@ inline std::set<std::string> namespaces()
   Try<std::list<std::string>> entries = os::ls("/proc/self/ns");
   if (entries.isSome()) {
     foreach (const std::string& entry, entries.get()) {
-      result.insert(entry);
+      // Introduced in Linux 4.12, pid_for_children is a handle for the PID
+      // namespace of child processes created by the current process.
+      if (entry != "pid_for_children") {
+        result.insert(entry);
+      }
     }
   }
   return result;
