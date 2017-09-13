@@ -183,7 +183,7 @@ TEST_F(ContainerLoggerTest, DefaultToSandbox)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   // We'll start a task that outputs to stdout.
   TaskInfo task = createTask(offers.get()[0], "echo 'Hello World!'");
@@ -284,7 +284,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   // Start a task that spams stdout with 11 MB of (mostly blank) output.
   // The logrotate container logger module is loaded with parameters that limit
@@ -434,7 +434,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_CustomRotateOptions)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   const string customConfig = "some-custom-logrotate-option";
 
@@ -540,7 +540,7 @@ TEST_F(ContainerLoggerTest, LOGROTATE_ModuleFDOwnership)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   // Start a task that will keep running until the end of the test.
   TaskInfo task = createTask(offers.get()[0], "sleep 100");
@@ -665,7 +665,7 @@ TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   // Start a task that spams stdout with 3 MB of (mostly blank) output.
   // The logrotate container logger module is loaded with parameters that limit

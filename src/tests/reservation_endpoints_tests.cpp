@@ -1592,7 +1592,7 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 

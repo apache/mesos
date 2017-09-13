@@ -170,7 +170,7 @@ TEST_P(DefaultExecutorTest, TaskRunning)
       frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -276,7 +276,7 @@ TEST_P(DefaultExecutorTest, KillTask)
       frameworkId);
 
   AWAIT_READY(offers1);
-  EXPECT_FALSE(offers1->offers().empty());
+  ASSERT_FALSE(offers1->offers().empty());
 
   const v1::Offer& offer1 = offers1->offers(0);
   const v1::AgentID& agentId = offer1.agent_id();
@@ -480,7 +480,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
       frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -633,7 +633,7 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
   executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -713,7 +713,7 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
       frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -813,7 +813,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnTaskFailure)
       frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -907,7 +907,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
       frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -1042,7 +1042,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -1247,7 +1247,7 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
       frameworkId);
 
   AWAIT_READY(offers1);
-  EXPECT_FALSE(offers1->offers().empty());
+  ASSERT_FALSE(offers1->offers().empty());
 
   const v1::Offer& offer1 = offers1->offers(0);
   const v1::AgentID& agentId = offer1.agent_id();
@@ -1285,7 +1285,7 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
   EXPECT_TRUE(update1->status().has_timestamp());
 
   AWAIT_READY(offers2);
-  EXPECT_FALSE(offers2->offers().empty());
+  ASSERT_FALSE(offers2->offers().empty());
 
   const v1::Offer& offer2 = offers2->offers(0);
 
@@ -1480,7 +1480,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
 
@@ -1602,7 +1602,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
 

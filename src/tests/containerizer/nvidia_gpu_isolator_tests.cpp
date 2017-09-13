@@ -335,7 +335,7 @@ TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_FractionalResources)
   // Launch a task requesting a fractional number
   // of GPUs and verify that it fails as expected.
   AWAIT_READY(offers);
-  EXPECT_EQ(1u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task = createTask(
       offers.get()[0].slave_id(),
@@ -707,7 +707,7 @@ TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_DefaultExecutorVerifyDeviceAccess)
   executorInfo.mutable_resources()->CopyFrom(resources);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers->size());
+  ASSERT_FALSE(offers->empty());
 
   const Offer& offer = offers->front();
   const SlaveID& slaveId = offer.slave_id();

@@ -161,7 +161,7 @@ TEST_F(ExceptionTest, DisallowSchedulerCallbacksOnAbort)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   // None of these callbacks should be invoked.
   EXPECT_CALL(sched, offerRescinded(&driver, _))

@@ -255,7 +255,7 @@ TEST_P(LinuxCapabilitiesIsolatorTest, ROOT_Ping)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   // We use 'ping' as the command since it has file capabilities
   // (`NET_RAW` and `NET_ADMIN` in permitted set). This allows us to

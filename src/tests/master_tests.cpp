@@ -8255,7 +8255,7 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
       evolve<v1::Resource>(outboundResources(resources)));
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();

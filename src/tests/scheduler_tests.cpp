@@ -459,7 +459,7 @@ TEST_P(SchedulerTest, TaskRunning)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   EXPECT_CALL(*executor, connected(_))
     .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
@@ -589,7 +589,7 @@ TEST_P(SchedulerTest, TaskGroupRunning)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   Future<RunTaskGroupMessage> runTaskGroupMessage =
     FUTURE_PROTOBUF(RunTaskGroupMessage(), master.get()->pid, slave.get()->pid);
@@ -783,7 +783,7 @@ TEST_P(SchedulerTest, ReconcileTask)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   EXPECT_CALL(*executor, connected(_))
     .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
@@ -911,7 +911,7 @@ TEST_P(SchedulerTest, KillTask)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   EXPECT_CALL(*executor, connected(_))
     .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
@@ -1057,7 +1057,7 @@ TEST_P(SchedulerTest, ShutdownExecutor)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   EXPECT_CALL(*executor, connected(_))
     .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
@@ -1274,7 +1274,7 @@ TEST_P(SchedulerTest, Revive)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers1);
-  EXPECT_FALSE(offers1->offers().empty());
+  ASSERT_FALSE(offers1->offers().empty());
 
   const v1::Offer& offer = offers1->offers(0);
 
@@ -1317,7 +1317,7 @@ TEST_P(SchedulerTest, Revive)
   }
 
   AWAIT_READY(offers2);
-  EXPECT_FALSE(offers2->offers().empty());
+  ASSERT_FALSE(offers2->offers().empty());
   ASSERT_EQ(offer.resources(), offers2->offers(0).resources());
 }
 
@@ -1372,7 +1372,7 @@ TEST_P(SchedulerTest, Suppress)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers1);
-  EXPECT_FALSE(offers1->offers().empty());
+  ASSERT_FALSE(offers1->offers().empty());
 
   const v1::Offer& offer = offers1->offers(0);
 
@@ -1432,7 +1432,7 @@ TEST_P(SchedulerTest, Suppress)
 
   AWAIT_READY(offers2);
 
-  EXPECT_FALSE(offers2->offers().empty());
+  ASSERT_FALSE(offers2->offers().empty());
   ASSERT_EQ(offer.resources(), offers2->offers(0).resources());
 }
 
@@ -1572,7 +1572,7 @@ TEST_P(SchedulerTest, Message)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   EXPECT_CALL(*executor, connected(_))
     .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
@@ -2031,7 +2031,7 @@ TEST_P(SchedulerSSLTest, RunTaskAndTeardown)
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   EXPECT_CALL(*executor, connected(_))
     .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));

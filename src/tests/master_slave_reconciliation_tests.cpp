@@ -194,7 +194,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 
   AWAIT_READY(offers);
 
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task;
   task.set_name("test task");
@@ -289,7 +289,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileDroppedTask)
 
   AWAIT_READY(offers);
 
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task;
   task.set_name("test task");
@@ -411,7 +411,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
   AWAIT_READY(reregisterSlaveMessage);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task;
   task.set_name("test task");
@@ -511,7 +511,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   // No TASK_LOST updates should occur!
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -580,7 +580,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task;
   task.set_name("test task");
@@ -668,7 +668,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task;
   task.set_name("test task");

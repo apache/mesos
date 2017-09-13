@@ -257,7 +257,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   AWAIT_READY(frameworkIdSuperhero);
 
   AWAIT_READY(offersSuperhero);
-  EXPECT_FALSE(offersSuperhero->empty());
+  ASSERT_FALSE(offersSuperhero->empty());
 
   // Define a task which will run on executorSuperhero of frameworkSuperhero.
   TaskInfo taskSuperhero;
@@ -306,7 +306,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   AWAIT_READY(frameworkIdMuggle);
 
   AWAIT_READY(offersMuggle);
-  EXPECT_FALSE(offersMuggle->empty());
+  ASSERT_FALSE(offersMuggle->empty());
 
   // Define a task which will run on executorMuggle of frameworkMuggle.
   TaskInfo taskMuggle;
@@ -612,7 +612,7 @@ TYPED_TEST(SlaveAuthorizerTest, AuthorizeRunTaskOnAgent)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers.get().empty());
 
   Offer offer = offers.get()[0];
 
@@ -716,7 +716,7 @@ TEST_F(ExecutorAuthorizationTest, RunTaskGroup)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
+  ASSERT_FALSE(offers.get().empty());
 
   Offer offer = offers.get()[0];
 
@@ -838,7 +838,7 @@ TEST_F(ExecutorAuthorizationTest, FailedSubscribe)
   executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   Future<v1::executor::Mesos*> executorLib;
   EXPECT_CALL(*executor, connected(_))
@@ -997,7 +997,7 @@ TEST_F(ExecutorAuthorizationTest, FailedApiCalls)
   executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   Future<v1::executor::Mesos*> executorLib;
   EXPECT_CALL(*executor, connected(_))

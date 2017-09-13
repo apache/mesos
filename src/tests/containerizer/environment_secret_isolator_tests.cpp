@@ -81,7 +81,7 @@ TEST_F(EnvironmentSecretIsolatorTest, ResolveSecret)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   const string commandString = strings::format(
       "env; test \"$%s\" = \"%s\"",

@@ -94,7 +94,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
   EXPECT_GE(10u, offers->size());
 
   Resources resources(offers.get()[0].resources());
@@ -173,7 +173,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedWhenUnused)
   driver1.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   vector<TaskInfo> tasks; // Use nothing!
   driver1.launchTasks(offers.get()[0].id(), tasks);
@@ -223,7 +223,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   driver1.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task;
   task.set_name("");

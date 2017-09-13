@@ -287,7 +287,7 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -369,7 +369,7 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -448,7 +448,7 @@ TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -520,7 +520,7 @@ TEST_P(PersistentVolumeTest, PreparePersistentVolume)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -588,7 +588,7 @@ TEST_P(PersistentVolumeTest, MasterFailover)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_FALSE(offers1->empty());
+  ASSERT_FALSE(offers1->empty());
 
   Offer offer1 = offers1.get()[0];
 
@@ -644,7 +644,7 @@ TEST_P(PersistentVolumeTest, MasterFailover)
   AWAIT_READY(slaveReregistered);
 
   AWAIT_READY(offers2);
-  EXPECT_FALSE(offers2->empty());
+  ASSERT_FALSE(offers2->empty());
 
   Offer offer2 = offers2.get()[0];
 
@@ -691,7 +691,7 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -787,7 +787,7 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -951,7 +951,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -1064,7 +1064,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers1);
-  EXPECT_FALSE(offers1->empty());
+  ASSERT_FALSE(offers1->empty());
 
   Offer offer1 = offers1.get()[0];
 
@@ -1235,7 +1235,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers1);
-  EXPECT_FALSE(offers1->empty());
+  ASSERT_FALSE(offers1->empty());
 
   Offer offer1 = offers1.get()[0];
 
@@ -1314,7 +1314,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
   driver2.start();
 
   AWAIT_READY(offers2);
-  EXPECT_FALSE(offers2->empty());
+  ASSERT_FALSE(offers2->empty());
 
   Offer offer2 = offers2.get()[0];
 
@@ -1408,7 +1408,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
   driver.start();
 
   AWAIT_READY(offers1);
-  EXPECT_FALSE(offers1->empty());
+  ASSERT_FALSE(offers1->empty());
 
   Offer offer1 = offers1.get()[0];
 
@@ -1485,7 +1485,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
   AWAIT_READY(slaveReregistered);
 
   AWAIT_READY(offers2);
-  EXPECT_FALSE(offers2->empty());
+  ASSERT_FALSE(offers2->empty());
 
   Offer offer2 = offers2.get()[0];
 
@@ -1553,7 +1553,7 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -1642,7 +1642,7 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
 
   // Await the offer containing the persistent volume.
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -1673,7 +1673,7 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -1708,7 +1708,7 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
   Clock::resume();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -1763,7 +1763,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleIterations)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -1901,7 +1901,7 @@ TEST_P(PersistentVolumeTest, SlaveRecovery)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -2052,7 +2052,7 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -2086,7 +2086,7 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
 
   // Await the offer containing the persistent volume.
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -2118,7 +2118,7 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -2204,7 +2204,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -2238,7 +2238,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
 
   // Await the offer containing the persistent volume.
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -2268,7 +2268,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -2364,7 +2364,7 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -2390,7 +2390,7 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
     Clock::advance(masterFlags.allocation_interval);
 
     AWAIT_READY(offers);
-    EXPECT_FALSE(offers->empty());
+    ASSERT_FALSE(offers->empty());
 
     offer = offers.get()[0];
 
@@ -2421,7 +2421,7 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -2446,7 +2446,7 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -2471,7 +2471,7 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   driver1.reviveOffers();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -2489,7 +2489,7 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -2588,7 +2588,7 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Offer offer = offers.get()[0];
 
@@ -2614,7 +2614,7 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
     Clock::advance(masterFlags.allocation_interval);
 
     AWAIT_READY(offers);
-    EXPECT_FALSE(offers->empty());
+    ASSERT_FALSE(offers->empty());
 
     offer = offers.get()[0];
 
@@ -2645,7 +2645,7 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -2670,7 +2670,7 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -2695,7 +2695,7 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   driver1.reviveOffers();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 
@@ -2713,7 +2713,7 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   offer = offers.get()[0];
 

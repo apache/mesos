@@ -349,7 +349,7 @@ TEST_F(TeardownTest, RecoveredFrameworkAfterMasterFailover)
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task = createTask(offers.get()[0], "sleep 100");
 

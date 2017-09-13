@@ -85,7 +85,7 @@ TEST_F(RegistrarZooKeeperTest, TaskRunning)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   TaskInfo task = createTask(offers.get()[0], "dummy", DEFAULT_EXECUTOR_ID);
 

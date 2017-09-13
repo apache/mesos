@@ -1223,7 +1223,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
 
   // Ensure we receive some regular resource offers.
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  ASSERT_FALSE(offers->offers().empty());
 
   // All the offers should have unavailability.
   foreach (const v1::Offer& offer, offers->offers()) {

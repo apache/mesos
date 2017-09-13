@@ -325,7 +325,7 @@ TEST_F(HealthCheckTest, HealthyTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   vector<TaskInfo> tasks =
     populateTasks(SLEEP_COMMAND(120), "exit 0", offers.get()[0]);
@@ -468,7 +468,7 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   // Make use of 'populateTasks()' to avoid duplicate code.
   vector<TaskInfo> tasks =
@@ -603,7 +603,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -698,7 +698,7 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   CommandInfo command;
   command.set_shell(false);
@@ -764,7 +764,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthStatusChange)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   // Create a temporary file.
   Try<string> temporaryPath = os::mktemp(path::join(os::getcwd(), "XXXXXX"));
@@ -876,7 +876,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -1012,7 +1012,7 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   vector<TaskInfo> tasks = populateTasks(
     SLEEP_COMMAND(120), "exit 1", offers.get()[0], 0, 4);
@@ -1101,7 +1101,7 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   map<string, string> env;
   env["STATUS"] = "0";
@@ -1157,7 +1157,7 @@ TEST_F(HealthCheckTest, GracePeriod)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
 #ifndef __WINDOWS__
   const string falseCommand = "false";
@@ -1219,7 +1219,7 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   vector<TaskInfo> tasks = populateTasks(
       SLEEP_COMMAND(120),
@@ -1291,7 +1291,7 @@ TEST_F(HealthCheckTest, HealthyToUnhealthyTransitionWithinGracePeriod)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   // Create a temporary file.
   const string tmpPath = path::join(os::getcwd(), "healthyToUnhealthy");
@@ -1369,7 +1369,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTP)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1458,7 +1458,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1538,7 +1538,7 @@ TEST_F(HealthCheckTest, HealthyTaskViaTCP)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1621,7 +1621,7 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaHTTPWithContainerImage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1709,7 +1709,7 @@ TEST_F(HealthCheckTest,
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1804,7 +1804,7 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaTCPWithContainerImage)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -1904,7 +1904,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -2035,7 +2035,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -2171,7 +2171,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   const uint16_t testPort = getFreePort().get();
 
@@ -2315,7 +2315,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_FALSE(offers->empty());
+  ASSERT_FALSE(offers->empty());
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusHealthy;
@@ -2444,7 +2444,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  ASSERT_FALSE(offers->empty());
 
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusHealthy;
