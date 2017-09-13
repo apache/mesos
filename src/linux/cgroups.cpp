@@ -1916,7 +1916,10 @@ Result<string> cgroup(pid_t pid, const string& subsystem)
   foreach (const string& line, strings::tokenize(read.get(), "\n")) {
     vector<string> tokens = strings::tokenize(line, ":");
 
-    if (tokens.size() != 3) {
+    // The second field is empty for cgroups v2 hierarchy.
+    if (tokens.size() == 2) {
+      continue;
+    } else if (tokens.size() != 3) {
       return Error("Unexpected format in " + path);
     }
 
