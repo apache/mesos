@@ -495,9 +495,7 @@ private:
       CHECK(WIFEXITED(status) || WIFSIGNALED(status))
         << "Unexpected wait status " << status;
 
-      if (WSUCCEEDED(status)) {
-        state = TASK_FINISHED;
-      } else if (killed) {
+      if (killed) {
         // Send TASK_KILLED if the task was killed as a result of
         // kill() or shutdown(). Note that in general there is a
         // race between signaling the container and it terminating
@@ -507,6 +505,8 @@ private:
         // determine whether the container was terminated via
         // our signal or terminated on its own.
         state = TASK_KILLED;
+      } else if (WSUCCEEDED(status)) {
+        state = TASK_FINISHED;
       } else {
         state = TASK_FAILED;
       }
