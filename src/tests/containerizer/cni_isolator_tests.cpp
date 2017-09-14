@@ -1420,13 +1420,7 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
 
   AWAIT_READY(statusKilled);
 
-  // The executor would issue a SIGTERM to the container, followed by
-  // a SIGKILL (in case the container ignores the SIGTERM). The
-  // "nginx:alpine" container returns an "EXIT_STATUS" of 0 on
-  // receiving a SIGTERM making the executor send a `TASK_FINISHED`
-  // instead of a `TASK_KILLED`, hence checking for `TASK_FINISHED`
-  // instead of `TASK_KILLED`.
-  EXPECT_EQ(TASK_FINISHED, statusKilled.get().state());
+  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
 
   AWAIT_READY(gcSchedule);
 
