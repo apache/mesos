@@ -39,3 +39,5 @@ Mesos supports the following built-in isolators (not a complete list).
 - [network/cni](cni.md)
 - [network/port_mapping](isolators/network-port-mapping.md)
 - [posix/rlimits](isolators/posix-rlimits.md)
+- [volume/host_path](container-volume.md#host_path-volume-source)
+- [volume/sandbox_path](container-volume.md#sandbox_path-volume-source)
