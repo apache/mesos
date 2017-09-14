@@ -809,12 +809,12 @@ protected:
       CHECK(WIFEXITED(status) || WIFSIGNALED(status))
         << "Unexpected wait status " << status;
 
-      if (WSUCCEEDED(status)) {
-        taskState = TASK_FINISHED;
-      } else if (container->killing) {
+      if (container->killing) {
         // Send TASK_KILLED if the task was killed as a result of
         // `killTask()` or `shutdown()`.
         taskState = TASK_KILLED;
+      } else if (WSUCCEEDED(status)) {
+        taskState = TASK_FINISHED;
       } else {
         taskState = TASK_FAILED;
       }
