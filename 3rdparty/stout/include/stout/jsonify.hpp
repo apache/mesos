@@ -14,7 +14,7 @@
 #define __STOUT_JSONIFY__
 
 #ifndef __WINDOWS__
-#include <xlocale.h>
+#include <locale.h>
 #endif // __WINDOWS__
 
 #include <clocale>
