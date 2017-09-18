@@ -52,7 +52,7 @@ class Flags :
 /**
  * Factory method for creating a Fetcher instance.
  */
-Try<process::Owned<Fetcher>> create(const Option<Flags>& flags = None());
+Try<process::Owned<Fetcher>> create(const Option<Flags>& _flags = None());
 
 } // namespace fetcher {
 } // namespace uri {
