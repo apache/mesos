@@ -176,7 +176,7 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  logging::initialize(argv[0], flags, true); // Catch signals.
+  logging::initialize(argv[0], true, flags); // Catch signals.
 
   // Log any flag warnings (after logging is initialized).
   foreach (const flags::Warning& warning, load->warnings) {

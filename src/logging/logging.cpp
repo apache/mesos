@@ -123,8 +123,8 @@ google::LogSeverity getLogSeverity(const string& logging_level)
 
 void initialize(
     const string& _argv0,
-    const Option<Flags>& _flags,
-    bool installFailureSignalHandler)
+    bool installFailureSignalHandler,
+    const Option<Flags>& _flags)
 {
   static Once* initialized = new Once();
 

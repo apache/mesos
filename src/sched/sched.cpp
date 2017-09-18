@@ -1735,7 +1735,7 @@ void MesosSchedulerDriver::initialize() {
   // Initialize logging.
   // TODO(benh): Replace whitespace in framework.name() with '_'?
   if (flags.initialize_driver_logging) {
-    logging::initialize(framework.name(), flags);
+    logging::initialize(framework.name(), false, flags);
   } else {
     VLOG(1) << "Disabling initialization of GLOG logging";
   }

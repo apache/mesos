@@ -176,7 +176,7 @@ public:
 
     // Initialize logging.
     if (flags.initialize_driver_logging) {
-      logging::initialize("mesos", flags);
+      logging::initialize("mesos", false, flags);
     } else {
       VLOG(1) << "Disabling initialization of GLOG logging";
     }

@@ -314,7 +314,7 @@ int main(int argc, char** argv)
   }
 
   // We want the logger to catch failure signals.
-  mesos::internal::logging::initialize(argv[0], flags, true);
+  mesos::internal::logging::initialize(argv[0], true, flags);
 
   // Log any flag warnings (after logging is initialized).
   foreach (const flags::Warning& warning, load->warnings) {

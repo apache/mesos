@@ -123,7 +123,7 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
     }
 
     process::initialize();
-    logging::initialize(argv[0], flags);
+    logging::initialize(argv[0], false, flags);
 
     // Log any flag warnings (after logging is initialized).
     foreach (const flags::Warning& warning, load->warnings) {

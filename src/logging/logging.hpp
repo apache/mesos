@@ -29,8 +29,8 @@ namespace logging {
 
 void initialize(
     const std::string& argv0,
-    const Option<Flags>& _flags = None(),
-    bool installFailureSignalHandler = false);
+    bool installFailureSignalHandler,
+    const Option<Flags>& _flags = None());
 
 
 // Returns the log file for the provided severity level.

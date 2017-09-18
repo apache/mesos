@@ -357,7 +357,7 @@ int main(int argc, char** argv)
 
   taskResources.allocate(framework.role());
 
-  logging::initialize(argv[0], flags, true); // Catch signals.
+  logging::initialize(argv[0], true, flags); // Catch signals.
 
   NoExecutorScheduler scheduler(
       framework,

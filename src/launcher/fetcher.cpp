@@ -519,7 +519,7 @@ int main(int argc, char* argv[])
 
   CHECK_SOME(load) << "Could not load flags: " << load.error();
 
-  logging::initialize(argv[0], flags, true); // Catch signals.
+  logging::initialize(argv[0], true, flags); // Catch signals.
 
   // Log any flag warnings (after logging is initialized).
   foreach (const flags::Warning& warning, load->warnings) {
