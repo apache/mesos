@@ -24,6 +24,8 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include "logging/logging.hpp"
+
 #include "slave/containerizer/mesos/io/switchboard.hpp"
 
 namespace io = process::io;
@@ -63,9 +65,18 @@ int main(int argc, char** argv)
 
   // Load and validate flags from the environment and command line.
   Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
-  if (load.isError()) {
-    EXIT(EXIT_FAILURE) << flags.usage(load.error());
+
+  if (flags.help) {
+    std::cout << flags.usage() << std::endl;
+    return EXIT_SUCCESS;
   }
+
+  if (load.isError()) {
+    std::cerr << flags.usage(load.error()) << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  mesos::internal::logging::initialize(argv[0], false);
 
   // Verify non-optional flags have valid values.
   if (flags.stdin_to_fd.isNone()) {

@@ -47,6 +47,8 @@
 
 #include "common/parse.hpp"
 
+#include "logging/logging.hpp"
+
 using std::queue;
 using std::string;
 using std::vector;
@@ -573,11 +575,20 @@ public:
 int main(int argc, char** argv)
 {
   Flags flags;
+
   Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
-  if (load.isError()) {
-    EXIT(EXIT_FAILURE) << flags.usage(load.error());
+  if (flags.help) {
+    std::cout << flags.usage() << std::endl;
+    return EXIT_SUCCESS;
   }
+
+  if (load.isError()) {
+    std::cerr << flags.usage(load.error()) << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  mesos::internal::logging::initialize(argv[0], false);
 
   // Log any flag warnings.
   foreach (const flags::Warning& warning, load->warnings) {

@@ -67,7 +67,8 @@ int main(int argc, char** argv)
 {
 #ifdef __WINDOWS__
   if (!net::wsa_initialize()) {
-    EXIT(EXIT_FAILURE) << "WSA failed to initialize";
+    cerr << "WSA failed to initialize" << endl;
+    return EXIT_FAILURE;
   }
 
   // When we're running a debug build, the Windows implementation of the C
@@ -81,21 +82,34 @@ int main(int argc, char** argv)
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  using mesos::internal::tests::flags; // Needed to disabmiguate.
+  using mesos::internal::tests::flags; // Needed to disambiguate.
 
   // Load flags from environment and command line but allow unknown
   // flags (since we might have gtest/gmock flags as well).
   Try<flags::Warnings> load = flags.load("MESOS_", argc, argv, true);
+
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    testing::InitGoogleTest(&argc, argv); // Get usage from gtest too.
+    return EXIT_SUCCESS;
+  }
 
   if (load.isError()) {
     cerr << flags.usage(load.error()) << endl;
     return EXIT_FAILURE;
   }
 
-  if (flags.help) {
-    cout << flags.usage() << endl;
-    testing::InitGoogleTest(&argc, argv); // Get usage from gtest too.
-    return EXIT_SUCCESS;
+  // Be quiet by default!
+  if (!flags.verbose) {
+    flags.quiet = true;
+  }
+
+  // Initialize logging.
+  logging::initialize(argv[0], true, flags);
+
+  // Log any flag warnings (after logging is initialized).
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
   }
 
 // TODO(josephw): Modules are not supported on Windows (MESOS-5994).
@@ -116,8 +130,7 @@ int main(int argc, char** argv)
 
   Try<Nothing> result = tests::initModules(flags.modules);
   if (result.isError()) {
-    cerr << "Error initializing modules: " << result.error() << endl;
-    return EXIT_FAILURE;
+    EXIT(EXIT_FAILURE) << "Error initializing modules: " << result.error();
   }
 #endif // __WINDOWS__
 
@@ -136,25 +149,12 @@ int main(int argc, char** argv)
                        << "`main()` was not the function's first invocation";
   }
 
-  // Be quiet by default!
-  if (!flags.verbose) {
-    flags.quiet = true;
-  }
-
-  // Initialize logging.
-  logging::initialize(argv[0], true, flags);
-
-  // Log any flag warnings (after logging is initialized).
-  foreach (const flags::Warning& warning, load->warnings) {
-    LOG(WARNING) << warning.message;
-  }
-
   // Initialize gmock/gtest.
   testing::InitGoogleTest(&argc, argv);
   testing::FLAGS_gtest_death_test_style = "threadsafe";
 
-  cout << "Source directory: " << flags.source_dir << endl;
-  cout << "Build directory: " << flags.build_dir << endl;
+  LOG(INFO) << "Source directory: " << flags.source_dir;
+  LOG(INFO) << "Build directory: " << flags.build_dir;
 
   // Instantiate our environment. Note that it will be managed by
   // gtest after we add it via testing::AddGlobalTestEnvironment.

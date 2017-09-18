@@ -116,28 +116,23 @@ int testTCPConnect(const string& ip, int port)
 
 int main(int argc, char *argv[])
 {
-#ifdef __WINDOWS__
-  if (!net::wsa_initialize()) {
-    EXIT(EXIT_FAILURE) << "WSA failed to initialize";
-  }
-#endif // __WINDOWS__
-
   Flags flags;
 
   Try<flags::Warnings> load = flags.load(None(), argc, argv);
+
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
+  }
 
   if (load.isError()) {
     cerr << flags.usage(load.error()) << endl;
     return EXIT_FAILURE;
   }
 
+  // Log any flag warnings.
   foreach (const flags::Warning& warning, load->warnings) {
     cerr << warning.message << endl;
-  }
-
-  if (flags.help) {
-    cout << flags.usage() << endl;
-    return EXIT_SUCCESS;
   }
 
   if (flags.ip.isNone()) {
@@ -150,11 +145,19 @@ int main(int argc, char *argv[])
     return EXIT_FAILURE;
   }
 
+#ifdef __WINDOWS__
+  if (!net::wsa_initialize()) {
+    cerr << "WSA failed to initialize" << endl;
+    return EXIT_FAILURE;
+  }
+#endif // __WINDOWS__
+
   int result = testTCPConnect(flags.ip.get(), flags.port.get());
 
 #ifdef __WINDOWS__
   if (!net::wsa_cleanup()) {
-    EXIT(EXIT_FAILURE) << "Failed to finalize the WSA socket stack";
+    cerr << "Failed to finalize the WSA socket stack" << endl;
+    return EXIT_FAILURE;
   }
 #endif // __WINDOWS__
 

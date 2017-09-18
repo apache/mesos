@@ -38,6 +38,9 @@
 using namespace mesos;
 using namespace mesos::internal;
 
+using std::cerr;
+using std::cout;
+using std::endl;
 using std::string;
 using std::vector;
 
@@ -292,27 +295,34 @@ int main(int argc, char** argv)
 
   Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
-  if (load.isError()) {
-    EXIT(EXIT_FAILURE) << flags.usage(load.error());
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
+
+  if (load.isError()) {
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
+  }
+
+  if (flags.master.isNone()) {
+    cerr << flags.usage("Missing required option --master") << endl;
+    return EXIT_FAILURE;
+  }
+
+  if (flags.principal.isSome() != flags.secret.isSome()) {
+    cerr << flags.usage(
+                "Both --principal and --secret are required"
+                " to enable authentication")
+         << endl;
+    return EXIT_FAILURE;
+  }
+
+  logging::initialize(argv[0], true, flags); // Catch signals.
 
   // Log any flag warnings.
   foreach (const flags::Warning& warning, load->warnings) {
     LOG(WARNING) << warning.message;
-  }
-
-  if (flags.help) {
-    EXIT(EXIT_SUCCESS) << flags.usage();
-  }
-
-  if (flags.master.isNone()) {
-    EXIT(EXIT_FAILURE) << flags.usage("Missing required option --master");
-  }
-
-  if (flags.principal.isSome() != flags.secret.isSome()) {
-    EXIT(EXIT_FAILURE) << flags.usage(
-        "Both --principal and --secret are required"
-        " to enable authentication");
   }
 
   FrameworkInfo framework;
@@ -356,8 +366,6 @@ int main(int argc, char** argv)
   }
 
   taskResources.allocate(framework.role());
-
-  logging::initialize(argv[0], true, flags); // Catch signals.
 
   NoExecutorScheduler scheduler(
       framework,

@@ -417,20 +417,24 @@ int main(int argc, char** argv)
 
   Try<flags::Warnings> load = flags.load(None(), argc, argv);
 
-  if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    EXIT(EXIT_FAILURE);
-  } else if (flags.master.isNone()) {
-    cerr << "Missing --master" << endl;
-    usage(argv[0], flags);
-    EXIT(EXIT_FAILURE);
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
 
-  process::initialize();
+  if (load.isError()) {
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
+  }
+
+  if (flags.master.isNone()) {
+    cerr << flags.usage("Missing --master") << endl;
+    return EXIT_FAILURE;
+  }
+
   mesos::internal::logging::initialize(argv[0], true, flags); // Catch signals.
 
-  // Log any flag warnings (after logging is initialized).
+  // Log any flag warnings.
   foreach (const flags::Warning& warning, load->warnings) {
     LOG(WARNING) << warning.message;
   }

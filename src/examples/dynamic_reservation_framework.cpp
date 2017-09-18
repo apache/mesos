@@ -17,8 +17,6 @@
 #include <string>
 #include <vector>
 
-#include <glog/logging.h>
-
 #include <mesos/resources.hpp>
 #include <mesos/scheduler.hpp>
 #include <mesos/type_utils.hpp>
@@ -34,8 +32,13 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
+#include "logging/logging.hpp"
+
 using namespace mesos;
 
+using std::cerr;
+using std::cout;
+using std::endl;
 using std::string;
 using std::vector;
 
@@ -363,16 +366,31 @@ int main(int argc, char** argv)
   Flags flags;
 
   Try<flags::Warnings> load = flags.load(None(), argc, argv);
-  if (load.isError()) {
-    EXIT(EXIT_FAILURE) << flags.usage(load.error());
-  } else if (flags.master.isNone()) {
-    EXIT(EXIT_FAILURE) << flags.usage("Missing --master");
-  } else if (flags.role.isNone()) {
-    EXIT(EXIT_FAILURE) << flags.usage("Missing --role");
-  } else if (flags.role.get() == "*") {
-    EXIT(EXIT_FAILURE)
-      << flags.usage("Role is incorrect; the default '*' role cannot be used");
+
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
   }
+
+  if (load.isError()) {
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
+  }
+
+  if (flags.master.isNone()) {
+    cerr << flags.usage("Missing --master") << endl;
+    return EXIT_FAILURE;
+  } else if (flags.role.isNone()) {
+    cerr << flags.usage("Missing --role") << endl;
+    return EXIT_FAILURE;
+  } else if (flags.role.get() == "*") {
+    cerr << flags.usage(
+                "Role is incorrect; the default '*' role cannot be used")
+         << endl;
+    return EXIT_FAILURE;
+  }
+
+  internal::logging::initialize(argv[0], false);
 
   // Log any flag warnings.
   foreach (const flags::Warning& warning, load->warnings) {

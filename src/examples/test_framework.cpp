@@ -239,14 +239,19 @@ int main(int argc, char** argv)
 
   Try<flags::Warnings> load = flags.load(None(), argc, argv);
 
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    return EXIT_SUCCESS;
+  }
+
   if (load.isError()) {
-    cerr << load.error() << endl;
-    usage(argv[0], flags);
-    exit(EXIT_FAILURE);
-  } else if (flags.master.isNone()) {
-    cerr << "Missing --master" << endl;
-    usage(argv[0], flags);
-    exit(EXIT_FAILURE);
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
+  }
+
+  if (flags.master.isNone()) {
+    cerr << flags.usage("Missing --master") << endl;
+    return EXIT_FAILURE;
   }
 
   internal::logging::initialize(argv[0], true, flags); // Catch signals.

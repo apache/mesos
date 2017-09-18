@@ -80,7 +80,7 @@ int main(int argc, char** argv)
 
   // Log any flag warnings.
   foreach (const flags::Warning& warning, load->warnings) {
-    LOG(WARNING) << warning.message;
+    cerr << warning.message << endl;
   }
 
   if (flags.pid.isNone()) {

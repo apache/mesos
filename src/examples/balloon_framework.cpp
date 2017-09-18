@@ -14,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <glog/logging.h>
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -44,6 +42,8 @@
 #include <stout/stringify.hpp>
 
 #include "common/parse.hpp"
+
+#include "logging/logging.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -488,8 +488,21 @@ int main(int argc, char** argv)
   Flags flags;
   Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
+  if (flags.help) {
+    std::cout << flags.usage() << std::endl;
+    return EXIT_SUCCESS;
+  }
+
   if (load.isError()) {
-    EXIT(EXIT_FAILURE) << flags.usage(load.error());
+    std::cerr << flags.usage(load.error()) << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  logging::initialize(argv[0], false);
+
+  // Log any flag warnings.
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
   }
 
   const Resources resources = Resources::parse(
@@ -558,11 +571,6 @@ int main(int argc, char** argv)
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   BalloonScheduler scheduler(framework, executor, flags);
-
-  // Log any flag warnings (after logging is initialized by the scheduler).
-  foreach (const flags::Warning& warning, load->warnings) {
-    LOG(WARNING) << warning.message;
-  }
 
   MesosSchedulerDriver* driver;
 

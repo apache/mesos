@@ -14,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <glog/logging.h>
-
 #include <string>
 #include <vector>
 
@@ -39,6 +37,8 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
+
+#include "logging/logging.hpp"
 
 using namespace mesos;
 
@@ -444,8 +444,21 @@ int main(int argc, char** argv)
   Flags flags;
   Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
+  if (flags.help) {
+    std::cout << flags.usage() << std::endl;
+    return EXIT_SUCCESS;
+  }
+
   if (load.isError()) {
-    EXIT(EXIT_FAILURE) << flags.usage(load.error());
+    std::cerr << flags.usage(load.error()) << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  internal::logging::initialize(argv[0], false);
+
+  // Log any flag warnings.
+  foreach (const flags::Warning& warning, load->warnings) {
+    LOG(WARNING) << warning.message;
   }
 
   FrameworkInfo framework;

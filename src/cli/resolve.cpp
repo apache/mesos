@@ -70,19 +70,19 @@ int main(int argc, char** argv)
   // them from argv.
   Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
 
-  if (load.isError()) {
-    cerr << flags.usage(load.error()) << endl;
-    return EXIT_FAILURE;
-  }
-
   if (flags.help) {
     cout << flags.usage() << endl;
     return EXIT_SUCCESS;
   }
 
+  if (load.isError()) {
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
+  }
+
   // Log any flag warnings.
   foreach (const flags::Warning& warning, load->warnings) {
-    LOG(WARNING) << warning.message;
+    cerr << warning.message << endl;
   }
 
   // 'master' argument must be the only argument left after parsing.
