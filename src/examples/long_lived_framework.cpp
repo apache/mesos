@@ -575,7 +575,6 @@ public:
 int main(int argc, char** argv)
 {
   Flags flags;
-
   Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
 
   if (flags.help) {
