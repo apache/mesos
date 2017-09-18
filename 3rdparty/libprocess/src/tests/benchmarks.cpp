@@ -543,7 +543,7 @@ public:
 
     AWAIT_READY(promise.future());
 
-    cout << name <<  " elapsed: " << watch.elapsed() << endl;
+    cout << name << " elapsed: " << watch.elapsed() << endl;
 
     terminate(process.get());
     wait(process.get());

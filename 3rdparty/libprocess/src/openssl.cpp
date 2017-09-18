@@ -542,7 +542,7 @@ void reinitialize()
         unsigned long error = ERR_get_error();
         EXIT(EXIT_FAILURE)
           << "Could not load CA file and/or directory (OpenSSL error #"
-          << stringify(error)  << "): "
+          << stringify(error) << "): "
           << error_string(error) << " -> "
           << (ca_file != nullptr ? (stringify("FILE: ") + ca_file) : "")
           << (ca_dir != nullptr ? (stringify("DIR: ") + ca_dir) : "");
