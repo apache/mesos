@@ -1552,7 +1552,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
            << " bytes of data under egress rate limit " << rate.bytes()
            << "Bytes/s...';";
 
-  command2 << "{ time -p echo " << data  << " | nc localhost "
+  command2 << "{ time -p echo " << data << " | nc localhost "
            << invalidPort << " ; } 2> " << transmissionTime << " && ";
 
   // Touch the guard file.
@@ -1716,7 +1716,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
            << " bytes of data under egress rate limit " << rate.bytes()
            << "Bytes/s...';";
 
-  command2 << "{ time -p echo " << data  << " | nc " << hostIP << " "
+  command2 << "{ time -p echo " << data << " | nc " << hostIP << " "
            << invalidPort << " ; } 2> " << transmissionTime << " && ";
 
   // Touch the guard file.

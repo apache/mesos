@@ -3967,7 +3967,7 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   // it.
   script << "ethtool -K " << eth0 << " rx off\n";
   script << "ip link set " << eth0 << " address " << hostMAC << " up\n";
-  script << "ip addr add " << hostIPNetwork  << " dev " << eth0 << "\n";
+  script << "ip addr add " << hostIPNetwork << " dev " << eth0 << "\n";
 
   // Set up the default gateway to match that of eth0.
   script << "ip route add default via " << hostDefaultGateway << "\n";

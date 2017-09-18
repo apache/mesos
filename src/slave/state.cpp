@@ -557,7 +557,7 @@ Try<RunState> RunState::recover(
   // The marker could be absent if the slave died before the executor
   // registered with the slave.
   if (!os::exists(path)) {
-    LOG(WARNING) << "Failed to find '" <<  paths::LIBPROCESS_PID_FILE
+    LOG(WARNING) << "Failed to find '" << paths::LIBPROCESS_PID_FILE
                  << "' or '" << paths::HTTP_MARKER_FILE
                  << "' for container " << containerId
                  << " of executor '" << executorId

@@ -4506,8 +4506,8 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
 
   Executor* executor = framework->getExecutor(status.task_id());
   if (executor == nullptr) {
-    LOG(WARNING)  << "Could not find the executor for "
-                  << "status update " << update;
+    LOG(WARNING) << "Could not find the executor for "
+                 << "status update " << update;
     metrics.valid_status_updates++;
 
     // NOTE: We forward the update here because this update could be

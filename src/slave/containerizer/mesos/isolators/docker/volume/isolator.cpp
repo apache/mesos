@@ -491,7 +491,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     const string& target = targets[i];
 
     LOG(INFO) << "Mounting docker volume mount point '" << source
-              << "' to '" << target  << "' for container " << containerId;
+              << "' to '" << target << "' for container " << containerId;
 
     // Launch mount command as a non-shell subprocess to avoid
     // injecting arbitrary shell commands (e.g., user defined
