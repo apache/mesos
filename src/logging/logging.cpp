@@ -48,6 +48,8 @@ using fLB::FLAGS_drop_log_memory;
 
 using process::Once;
 
+using std::cerr;
+using std::endl;
 using std::string;
 
 // Captures the stack trace and exits when a pure virtual method is
@@ -121,7 +123,7 @@ google::LogSeverity getLogSeverity(const string& logging_level)
 
 void initialize(
     const string& _argv0,
-    const Flags& flags,
+    const Option<Flags>& _flags,
     bool installFailureSignalHandler)
 {
   static Once* initialized = new Once();
@@ -132,23 +134,30 @@ void initialize(
 
   argv0 = _argv0;
 
+  // Use the default flags if not specified.
+  Flags flags;
+  if (_flags.isSome()) {
+    flags = _flags.get();
+
+    FLAGS_minloglevel = getLogSeverity(flags.logging_level);
+    FLAGS_logbufsecs = flags.logbufsecs;
+  }
+
   if (flags.logging_level != "INFO" &&
       flags.logging_level != "WARNING" &&
       flags.logging_level != "ERROR") {
-    EXIT(EXIT_FAILURE)
-      << "'" << flags.logging_level
-      << "' is not a valid logging level. Possible values for"
-      << " 'logging_level' flag are: 'INFO', 'WARNING', 'ERROR'.";
+    cerr << "'" << flags.logging_level << "' is not a valid logging level."
+         << " Possible values for 'logging_level' flag are:"
+         << " 'INFO', 'WARNING', 'ERROR'." << endl;
+    exit(EXIT_FAILURE);
   }
-
-  FLAGS_minloglevel = getLogSeverity(flags.logging_level);
 
   if (flags.log_dir.isSome()) {
     Try<Nothing> mkdir = os::mkdir(flags.log_dir.get());
     if (mkdir.isError()) {
-      EXIT(EXIT_FAILURE)
-        << "Could not initialize logging: Failed to create directory "
-        << flags.log_dir.get() << ": " << mkdir.error();
+      cerr << "Could not initialize logging: Failed to create directory "
+           << flags.log_dir.get() << ": " << mkdir.error() << endl;
+      exit(EXIT_FAILURE);
     }
     FLAGS_log_dir = flags.log_dir.get();
     // Do not log to stderr instead of log files.
@@ -171,8 +180,6 @@ void initialize(
   } else {
     FLAGS_stderrthreshold = FLAGS_minloglevel;
   }
-
-  FLAGS_logbufsecs = flags.logbufsecs;
 
 #ifdef __linux__
   // Do not drop in-memory buffers of log contents. When set to true, this flag

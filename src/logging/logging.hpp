@@ -29,7 +29,7 @@ namespace logging {
 
 void initialize(
     const std::string& argv0,
-    const Flags& flags,
+    const Option<Flags>& _flags = None(),
     bool installFailureSignalHandler = false);
 
 
