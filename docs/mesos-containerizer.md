@@ -26,7 +26,7 @@ can write modules that implement custom isolators.
 
 Mesos supports the following built-in isolators.
 
-- environment\_secret
+- [environment\_secret](secrets.md#environment-based-secrets)
 - appc/runtime
 - cgroups/blkio
 - cgroups/cpu
@@ -58,4 +58,4 @@ Mesos supports the following built-in isolators.
 - [volume/host_path](container-volume.md#host_path-volume-source)
 - volume/image
 - [volume/sandbox_path](container-volume.md#sandbox_path-volume-source)
-- volume/secret
+- [volume/secret](secrets.md#file-based-secrets)
