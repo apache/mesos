@@ -132,3 +132,7 @@ the parent container.
 ## `DOCKER_VOLUME` Volume Source
 
 See more details in this [doc](isolators/docker-volume.md).
+
+## `SECRET` Volume Source
+
+See more details in this [doc](secrets.md#file-based-secrets).
