@@ -211,6 +211,13 @@ std::string getExecutorSentinelPath(
     const ContainerID& containerId);
 
 
+// Returns the "virtual" path used to expose the executor's sandbox
+// via the /files endpoints: `/frameworks/FID/executors/EID/latest`.
+std::string getExecutorVirtualPath(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId);
+
+
 std::string getExecutorLatestRunPath(
     const std::string& rootDir,
     const SlaveID& slaveId,

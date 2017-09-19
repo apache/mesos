@@ -303,6 +303,20 @@ string getExecutorSentinelPath(
 }
 
 
+string getExecutorVirtualPath(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
+{
+  return path::join(
+      stringify(os::PATH_SEPARATOR) + FRAMEWORKS_DIR,
+      stringify(frameworkId),
+      EXECUTORS_DIR,
+      stringify(executorId),
+      EXECUTOR_RUNS_DIR,
+      LATEST_SYMLINK);
+}
+
+
 string getExecutorLatestRunPath(
     const string& rootDir,
     const SlaveID& slaveId,

@@ -5568,16 +5568,27 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
     const string path = paths::getExecutorPath(
         flags.work_dir, info.id(), framework->id(), executor->id);
 
-    // Make sure we detach the "latest" symlink.
+    // Make sure we detach both real and virtual paths for "latest"
+    // symlink. We prefer users to use the virtual paths because
+    // they do not expose the `work_dir` and agent ID, but the real
+    // paths remains for compatibility reason.
     const string latestPath = paths::getExecutorLatestRunPath(
         flags.work_dir,
         info.id(),
         framework->id(),
         executor->id);
 
+    const string virtualLatestPath = paths::getExecutorVirtualPath(
+        framework->id(),
+        executor->id);
+
     os::utime(path); // Update the modification time.
     garbageCollect(path)
-      .then(defer(self(), &Self::detachFile, latestPath));
+      .then(defer(self(), [=]() {
+        detachFile(latestPath);
+        detachFile(virtualLatestPath);
+        return Nothing();
+      }));
   }
 
   if (executor->checkpoint) {
@@ -7287,12 +7298,29 @@ Executor* Framework::addExecutor(const ExecutorInfo& executorInfo)
           executorId);
     };
 
-  // Attach the "latest" symlink. This allows for frameworks to
-  // easily construct paths to the sandbox directory for a given task
-  // without having to know the container id.
-  string latestPath = paths::getExecutorLatestRunPath(
+  // We expose the executor's sandbox in the /files endpoints
+  // via the following paths:
+  //
+  //  (1) /agent_workdir/frameworks/FID/executors/EID/runs/CID
+  //  (2) /agent_workdir/frameworks/FID/executors/EID/runs/latest
+  //  (3) /frameworks/FID/executors/EID/runs/latest
+  //
+  // Originally we just exposed the real path (1) and later
+  // exposed the 'latest' symlink (2) since it's not easy for
+  // users to know the run's container ID. We deprecated
+  // (1) and (2) by exposing a virtual path (3) since we do not
+  // want to expose the agent's work directory and it's not
+  // something users care about in this context.
+  //
+  // TODO(zhitao): Remove (1) and (2) per MESOS-7960 once we
+  // pass 2.0. They remain now for backwards compatibility.
+  const string latestPath = paths::getExecutorLatestRunPath(
       slave->flags.work_dir,
       slave->info.id(),
+      id(),
+      executorInfo.executor_id());
+
+  const string virtualLatestPath = paths::getExecutorVirtualPath(
       id(),
       executorInfo.executor_id());
 
@@ -7303,6 +7331,14 @@ Executor* Framework::addExecutor(const ExecutorInfo& executorInfo)
         lambda::_1,
         executor->directory,
         latestPath));
+
+  slave->files->attach(executor->directory, virtualLatestPath, authorize)
+    .onAny(defer(
+        slave,
+        &Slave::fileAttached,
+        lambda::_1,
+        executor->directory,
+        virtualLatestPath));
 
   slave->files->attach(executor->directory, executor->directory, authorize)
     .onAny(defer(
@@ -7470,12 +7506,29 @@ void Framework::recoverExecutor(
           executorId);
     };
 
-  // Attach the "latest" symlink. This allows for frameworks to
-  // easily construct paths to the sandbox directory for a given task
-  // without having to know the container id.
-  string latestPath = paths::getExecutorLatestRunPath(
+  // We expose the executor's sandbox in the /files endpoints
+  // via the following paths:
+  //
+  //  (1) /agent_workdir/frameworks/FID/executors/EID/runs/CID
+  //  (2) /agent_workdir/frameworks/FID/executors/EID/runs/latest
+  //  (3) /frameworks/FID/executors/EID/runs/latest
+  //
+  // Originally we just exposed the real path (1) and later
+  // exposed the 'latest' symlink (2) since it's not easy for
+  // users to know the run's container ID. We deprecated
+  // (1) and (2) by exposing a virtual path (3) since we do not
+  // want to expose the agent's work directory and it's not
+  // something users care about in this context.
+  //
+  // TODO(zhitao): Remove (1) and (2) per MESOS-7960 once we
+  // pass 2.0. They remain now for backwards compatibility.
+  const string latestPath = paths::getExecutorLatestRunPath(
       slave->flags.work_dir,
       slave->info.id(),
+      id(),
+      state.id);
+
+  const string virtualLatestPath = paths::getExecutorVirtualPath(
       id(),
       state.id);
 
@@ -7486,6 +7539,14 @@ void Framework::recoverExecutor(
         lambda::_1,
         executor->directory,
         latestPath));
+
+  slave->files->attach(executor->directory, virtualLatestPath, authorize)
+    .onAny(defer(
+        slave,
+        &Slave::fileAttached,
+        lambda::_1,
+        executor->directory,
+        virtualLatestPath));
 
   // Expose the executor's files.
   slave->files->attach(executor->directory, executor->directory, authorize)
