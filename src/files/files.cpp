@@ -103,11 +103,11 @@ public:
   // Files implementation.
   Future<Nothing> attach(
       const string& path,
-      const string& name,
+      const string& virtualPath,
       const Option<lambda::function<Future<bool>(
           const Option<Principal>&)>>& authorized);
 
-  void detach(const string& name);
+  void detach(const string& virtualPath);
 
   Future<Try<list<FileInfo>, FilesError>> browse(
       const string& path,
@@ -306,7 +306,7 @@ void FilesProcess::initialize()
 
 Future<Nothing> FilesProcess::attach(
     const string& path,
-    const string& name,
+    const string& virtualPath,
     const Option<lambda::function<Future<bool>(const Option<Principal>&)>>&
         authorized)
 {
@@ -328,24 +328,26 @@ Future<Nothing> FilesProcess::attach(
                    (access.isError() ? access.error() : "Access denied"));
   }
 
-  // To simplify the read/browse logic, strip any trailing / from the name.
-  string cleanedName = strings::remove(name, "/", strings::SUFFIX);
+  // To simplify the read/browse logic, strip any trailing / from the virtual
+  // path.
+  string cleanedVirtualPath =
+    strings::remove(virtualPath, "/", strings::SUFFIX);
 
   // TODO(bmahler): Do we want to always wipe out the previous path?
-  paths[cleanedName] = result.get();
+  paths[cleanedVirtualPath] = result.get();
 
   if (authorized.isSome()) {
-    authorizations[cleanedName] = authorized.get();
+    authorizations[cleanedVirtualPath] = authorized.get();
   }
 
   return Nothing();
 }
 
 
-void FilesProcess::detach(const string& name)
+void FilesProcess::detach(const string& virtualPath)
 {
-  paths.erase(name);
-  authorizations.erase(name);
+  paths.erase(virtualPath);
+  authorizations.erase(virtualPath);
 }
 
 
@@ -829,8 +831,8 @@ Future<http::Response> FilesProcess::debug(
     const Option<Principal>& principal)
 {
   JSON::Object object;
-  foreachpair (const string& name, const string& path, paths) {
-    object.values[name] = path;
+  foreachpair (const string& virtualPath, const string& path, paths) {
+    object.values[virtualPath] = path;
   }
 
   const Option<string>& jsonp = request.url.query.get("jsonp");
@@ -937,17 +939,22 @@ Files::~Files()
 
 Future<Nothing> Files::attach(
     const string& path,
-    const string& name,
+    const string& virtualPath,
     const Option<lambda::function<Future<bool>(const Option<Principal>&)>>&
         authorized)
 {
-  return dispatch(process, &FilesProcess::attach, path, name, authorized);
+  return dispatch(
+      process,
+      &FilesProcess::attach,
+      path,
+      virtualPath,
+      authorized);
 }
 
 
-void Files::detach(const string& name)
+void Files::detach(const string& virtualPath)
 {
-  dispatch(process, &FilesProcess::detach, name);
+  dispatch(process, &FilesProcess::detach, virtualPath);
 }
 
 

@@ -65,10 +65,10 @@ public:
 
 
 // Provides an abstraction for browsing and reading files via HTTP
-// endpoints. A path (file or directory) may be "attached" to a name
+// endpoints. A path (file or directory) may be "attached" to a virtual path
 // (similar to "mounting" a device) for subsequent browsing and
 // reading of any files and directories it contains. The "mounting" of
-// paths to names enables us to do a form of chrooting for better
+// paths to virtual paths enables us to do a form of chrooting for better
 // security and isolation of files.
 class Files
 {
@@ -78,16 +78,16 @@ public:
   ~Files();
 
   // Returns the result of trying to attach the specified path
-  // (directory or file) at the specified name.
+  // (directory or file) at the specified virtual path.
   process::Future<Nothing> attach(
       const std::string& path,
-      const std::string& name,
+      const std::string& virtualPath,
       const Option<lambda::function<process::Future<bool>(
           const Option<process::http::authentication::Principal>&)>>&
               authorized = None());
 
-  // Removes the specified name.
-  void detach(const std::string& name);
+  // Removes the specified virtual path.
+  void detach(const std::string& virtualPath);
 
   // Returns a file listing for a directory similar to `ls -l`.
   process::Future<Try<std::list<FileInfo>, FilesError>> browse(
