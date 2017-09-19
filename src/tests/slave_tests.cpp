@@ -69,6 +69,7 @@
 #include "slave/gc_process.hpp"
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
+#include "slave/paths.hpp"
 
 #include "slave/containerizer/fetcher.hpp"
 #include "slave/containerizer/fetcher_process.hpp"
@@ -7792,6 +7793,192 @@ TEST_F(SlaveTest, IgnoreV0ExecutorIfItReregistersWithoutReconnect)
 
   Clock::settle();
   EXPECT_TRUE(executorShutdown.isPending());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that an executor's latest run directory can
+// be browsed via the `/files` endpoint both while the executor is
+// still running and after the executor terminates.
+//
+// Note that we only test the recommended virtual path format:
+//   `/framework/FID/executor/EID/latest`.
+TEST_F(SlaveTest, BrowseExecutorSandboxByVirtualPath)
+{
+  master::Flags masterFlags = this->CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags agentFlags = this->CreateSlaveFlags();
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, agentFlags);
+  ASSERT_SOME(slave);
+
+  // Ensure slave has finished recovery.
+  AWAIT_READY(__recover);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Advance the clock to trigger both agent registration and a batch
+  // allocation.
+  Clock::advance(agentFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers->empty());
+
+  Resources executorResources = Resources::parse("cpus:0.1;mem:32").get();
+  executorResources.allocate("*");
+
+  TaskID taskId;
+  taskId.set_value("1");
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->MergeFrom(taskId);
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(
+      Resources(offers.get()[0].resources()) - executorResources);
+
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  task.mutable_executor()->mutable_resources()->CopyFrom(executorResources);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status->state());
+
+  // Manually inject a file into the sandbox.
+  FrameworkID frameworkId = offers->front().framework_id();
+  SlaveID slaveId = offers->front().slave_id();
+
+  const string latestRunPath = paths::getExecutorLatestRunPath(
+    agentFlags.work_dir, slaveId, frameworkId, DEFAULT_EXECUTOR_ID);
+  EXPECT_TRUE(os::exists(latestRunPath));
+  ASSERT_SOME(os::write(path::join(latestRunPath, "foo.bar"), "testing"));
+
+  const string virtualPath =
+    paths::getExecutorVirtualPath(frameworkId, DEFAULT_EXECUTOR_ID);
+
+  const process::UPID files("files", slave.get()->pid.address);
+
+  {
+    const string query = string("path=") + virtualPath;
+    Future<Response> response = process::http::get(
+        files,
+        "browse",
+        query,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_ASSERT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Array> parse = JSON::parse<JSON::Array>(response->body);
+    ASSERT_SOME(parse);
+    EXPECT_NE(0, parse->values.size());
+  }
+
+  {
+    const string query =
+      string("path=") + path::join(virtualPath, "foo.bar") + "&offset=0";
+    process::UPID files("files", slave.get()->pid.address);
+    Future<Response> response = process::http::get(
+        files,
+        "read",
+        query,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    JSON::Object expected;
+    expected.values["offset"] = 0;
+    expected.values["data"] = "testing";
+
+    AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+  }
+
+  // Now destroy the executor and make sure that the sandbox is
+  // still available. We're sure that the GC won't prune the
+  // sandbox since the clock is paused.
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status2));
+
+  EXPECT_CALL(sched, executorLost(_, _, _, _))
+    .Times(AtMost(1));
+
+  AWAIT_READY(containerizer.destroy(frameworkId, DEFAULT_EXECUTOR_ID));
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_FAILED, status2->state());
+
+  {
+    const string query = string("path=") + virtualPath;
+    Future<Response> response = process::http::get(
+        files,
+        "browse",
+        query,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_ASSERT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Array> parse = JSON::parse<JSON::Array>(response->body);
+    ASSERT_SOME(parse);
+    EXPECT_NE(0, parse->values.size());
+  }
+
+  {
+    const string query =
+      string("path=") + path::join(virtualPath, "foo.bar") + "&offset=0";
+    process::UPID files("files", slave.get()->pid.address);
+    Future<Response> response = process::http::get(
+        files,
+        "read",
+        query,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    JSON::Object expected;
+    expected.values["offset"] = 0;
+    expected.values["data"] = "testing";
+
+    AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+  }
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
 
   driver.stop();
   driver.join();
