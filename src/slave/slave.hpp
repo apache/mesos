@@ -375,7 +375,8 @@ public:
       const Option<TaskInfo>& taskInfo);
 
   void fileAttached(const process::Future<Nothing>& result,
-                    const std::string& path);
+                    const std::string& path,
+                    const std::string& virtualPath);
 
   Nothing detachFile(const std::string& path);
 

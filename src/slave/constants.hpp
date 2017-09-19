@@ -164,6 +164,9 @@ Duration DEFAULT_MASTER_PING_TIMEOUT();
 // Name of the executable for default executor.
 constexpr char MESOS_DEFAULT_EXECUTOR[] = "mesos-default-executor";
 
+// Virtual path on which agent logs are mounted in `/files/` endpoint.
+constexpr char AGENT_LOG_VIRTUAL_PATH[] = "/slave/log";
+
 std::vector<SlaveInfo::Capability> AGENT_CAPABILITIES();
 
 } // namespace slave {

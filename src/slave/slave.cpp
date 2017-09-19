@@ -809,11 +809,13 @@ void Slave::initialize()
   // Expose the log file for the webui. Fall back to 'log_dir' if
   // an explicit file was not specified.
   if (flags.external_log_file.isSome()) {
-    files->attach(flags.external_log_file.get(), "/slave/log", authorize)
+    files->attach(
+        flags.external_log_file.get(), AGENT_LOG_VIRTUAL_PATH, authorize)
       .onAny(defer(self(),
                    &Self::fileAttached,
                    lambda::_1,
-                   flags.external_log_file.get()));
+                   flags.external_log_file.get(),
+                   AGENT_LOG_VIRTUAL_PATH));
   } else if (flags.log_dir.isSome()) {
     Try<string> log =
       logging::getLogFile(logging::getLogSeverity(flags.logging_level));
@@ -821,8 +823,12 @@ void Slave::initialize()
     if (log.isError()) {
       LOG(ERROR) << "Agent log file cannot be found: " << log.error();
     } else {
-      files->attach(log.get(), "/slave/log", authorize)
-        .onAny(defer(self(), &Self::fileAttached, lambda::_1, log.get()));
+      files->attach(log.get(), AGENT_LOG_VIRTUAL_PATH, authorize)
+        .onAny(defer(self(),
+                     &Self::fileAttached,
+                     lambda::_1,
+                     log.get(),
+                     AGENT_LOG_VIRTUAL_PATH));
     }
   }
 
@@ -936,12 +942,17 @@ void Slave::shutdown(const UPID& from, const string& message)
 }
 
 
-void Slave::fileAttached(const Future<Nothing>& result, const string& path)
+void Slave::fileAttached(
+    const Future<Nothing>& result,
+    const string& path,
+    const string& virtualPath)
 {
   if (result.isReady()) {
-    VLOG(1) << "Successfully attached file '" << path << "'";
+    VLOG(1) << "Successfully attached '" << path << "'"
+            << " to virtual path '" << virtualPath << "'";
   } else {
-    LOG(ERROR) << "Failed to attach file '" << path << "': "
+    LOG(ERROR) << "Failed to attach '" << path << "'"
+               << " to virtual path '" << virtualPath << "': "
                << (result.isFailed() ? result.failure() : "discarded");
   }
 }
@@ -7286,10 +7297,20 @@ Executor* Framework::addExecutor(const ExecutorInfo& executorInfo)
       executorInfo.executor_id());
 
   slave->files->attach(executor->directory, latestPath, authorize)
-    .onAny(defer(slave, &Slave::fileAttached, lambda::_1, executor->directory));
+    .onAny(defer(
+        slave,
+        &Slave::fileAttached,
+        lambda::_1,
+        executor->directory,
+        latestPath));
 
   slave->files->attach(executor->directory, executor->directory, authorize)
-    .onAny(defer(slave, &Slave::fileAttached, lambda::_1, executor->directory));
+    .onAny(defer(
+        slave,
+        &Slave::fileAttached,
+        lambda::_1,
+        executor->directory,
+        executor->directory));
 
   return executor;
 }
@@ -7459,11 +7480,21 @@ void Framework::recoverExecutor(
       state.id);
 
   slave->files->attach(executor->directory, latestPath, authorize)
-    .onAny(defer(slave, &Slave::fileAttached, lambda::_1, executor->directory));
+    .onAny(defer(
+        slave,
+        &Slave::fileAttached,
+        lambda::_1,
+        executor->directory,
+        latestPath));
 
   // Expose the executor's files.
   slave->files->attach(executor->directory, executor->directory, authorize)
-    .onAny(defer(slave, &Slave::fileAttached, lambda::_1, executor->directory));
+    .onAny(defer(
+        slave,
+        &Slave::fileAttached,
+        lambda::_1,
+        executor->directory,
+        executor->directory));
 
   // Add the executor to the framework.
   executors[executor->id] = executor;
