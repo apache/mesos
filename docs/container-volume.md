@@ -17,7 +17,14 @@ the following fields must be specified:
 - `source`: Describe where the volume originates from. See more
   details in the following section.
 
-## `HOST_PATH` Volume Source
+## Volume Source Types
+
+- [HOST\_PATH](#host_path-volume-source)
+- [SANDBOX\_PATH](#sandbox_path-volume-source)
+- [DOCKER\_VOLUME](#docker_volume-volume-source)
+- [SECRET](#secret-volume-source)
+
+### HOST\_PATH Volume Source
 
 This volume source represents a path on the host filesystem. The path
 can either point to a directory or a file (either a regular file or a
@@ -52,7 +59,7 @@ flag when starting the agent. This isolator depends on
 [Docker Containerizer](docker-containerizer.md) supports `HOST_PATH`
 volume as well.
 
-## `SANDBOX_PATH` Volume Source
+### SANDBOX\_PATH Volume Source
 
 There are currently two types of `SANDBOX_PATH` volume sources:
 [`SELF`](#self-type) and [`PARENT`](#parent-type).
@@ -65,7 +72,7 @@ the `--isolation` flag when starting the agent.
 The [Docker Containerizer](docker-containerizer.md) only supports
 `SELF` type `SANDBOX_PATH` volumes currently.
 
-### `SELF` Type
+#### `SELF` Type
 
 This represents a path in the container's own sandbox. The path can
 point to either a directory or a file in the sandbox of the container.
@@ -99,7 +106,7 @@ subdirectory in the container sandbox to another subdirectory in the
 container sandbox. In that case, the user can just create a symlink,
 instead of using a volume.
 
-### `PARENT` Type
+#### PARENT Type
 
 This represents a path in the sandbox of the parent container. The
 path can point to either a directory or a file in the sandbox of the
@@ -129,10 +136,10 @@ sandbox of the container.
 The ownership of the volume will be the same as that of the sandbox of
 the parent container.
 
-## `DOCKER_VOLUME` Volume Source
+### DOCKER\_VOLUME Volume Source
 
 See more details in this [doc](isolators/docker-volume.md).
 
-## `SECRET` Volume Source
+### SECRET Volume Source
 
 See more details in this [doc](secrets.md#file-based-secrets).
