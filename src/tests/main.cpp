@@ -90,7 +90,7 @@ int main(int argc, char** argv)
 
   if (flags.help) {
     cout << flags.usage() << endl;
-    testing::InitGoogleTest(&argc, argv); // Get usage from gtest too.
+    testing::InitGoogleMock(&argc, argv); // Get usage from gtest too.
     return EXIT_SUCCESS;
   }
 
@@ -150,7 +150,7 @@ int main(int argc, char** argv)
   }
 
   // Initialize gmock/gtest.
-  testing::InitGoogleTest(&argc, argv);
+  testing::InitGoogleMock(&argc, argv);
   testing::FLAGS_gtest_death_test_style = "threadsafe";
 
   LOG(INFO) << "Source directory: " << flags.source_dir;
