@@ -179,7 +179,16 @@ inline Try<std::set<pid_t>> pids(Option<pid_t> group, Option<pid_t> session)
     max_items *= 2;
   } while (bytes_returned >= size_in_bytes);
 
-  return std::set<pid_t>(processes.begin(), processes.end());
+  std::set<pid_t> pids_set(processes.begin(), processes.end());
+
+  // NOTE: The PID `0` will always be returned by `EnumProcesses`; however, it
+  // is the PID of Windows' System Idle Process. While the PID is valid, using
+  // it for anything is almost always invalid. For instance, `OpenProcess` will
+  // fail with an invalid parameter error if the user tries to get a handle for
+  // PID `0`. In the interest of safety, we prevent the `pids` API from ever
+  // including the PID `0`.
+  pids_set.erase(0);
+  return pids_set;
 }
 
 
@@ -534,6 +543,13 @@ inline Result<PROCESSENTRY32W> process_entry(pid_t pid)
 // something went wrong.
 inline Result<Process> process(pid_t pid)
 {
+  if (pid == 0) {
+    // The 0th PID is that of the System Idle Process on Windows. However, it is
+    // invalid to attempt to get a proces handle or else perform any operation
+    // on this pseudo-process.
+    return Error("os::process: Invalid parameter: pid == 0");
+  }
+
   // Find process with pid.
   Result<PROCESSENTRY32W> entry = process_entry(pid);
 
@@ -548,7 +564,8 @@ inline Result<Process> process(pid_t pid)
       false,
       pid);
 
-  if (process_handle == INVALID_HANDLE_VALUE) {
+  // ::OpenProcess returns `NULL`, not `INVALID_HANDLE_VALUE` on failure.
+  if (process_handle == nullptr) {
     return WindowsError("os::process: Call to `OpenProcess` failed");
   }
 

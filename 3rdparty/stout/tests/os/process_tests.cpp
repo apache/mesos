@@ -44,6 +44,7 @@ using std::string;
 
 const unsigned int init_pid =
 #ifdef __WINDOWS__
+    // NOTE: This is also known as the System Idle Process.
     0;
 #else
     1;
@@ -105,8 +106,9 @@ TEST_F(ProcessTest, Process)
   // Assert init.
   Result<Process> init_process = os::process(init_pid);
 #ifdef __WINDOWS__
-  // NOTE: On Windows, inspecting other processes usually requires privileges.
-  // So we expect it to error out instead of succeed, unlike the POSIX version.
+  // NOTE: On Windows, the init process is a pseudo-process, and it is not
+  // possible to get a handle to it. So we expect it to error out instead of
+  // succeed, unlike the POSIX version.
   EXPECT_ERROR(init_process);
 #elif __FreeBSD__
   // In a FreeBSD jail, we wont find an init process.
@@ -173,7 +175,14 @@ TEST_F(ProcessTest, Pids)
 #ifdef __FreeBSD__
   if (!isJailed()) {
 #endif
+#ifdef __WINDOWS__
+    // On Windows, we explicitly do not return the PID of the System Idle
+    // Process, because doing so can cause unexpected bugs.
+    EXPECT_EQ(0u, pids.get().count(init_pid));
+#else
+    // Elsewhere we always expect exactly 1 init PID.
     EXPECT_EQ(1u, pids.get().count(init_pid));
+#endif
 #ifdef __FreeBSD__
   }
 #endif
