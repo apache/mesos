@@ -5,6 +5,7 @@ This release contains the following new features:
 All Resolved Issues:
 
 **Bug
+ * [MESOS-7873] - Expose `ExecutorInfo.ContainerInfo.NetworkInfo` in Mesos `state` endpoint.
  * [MESOS-7968] - Handle `/proc/self/ns/pid_for_children` when parsing available namespace.
  * [MESOS-7969] - Handle cgroups v2 hierarchy when parsing /proc/self/cgroups.
  * [MESOS-7980] - Stout fails to compile with libc >= 2.26.
