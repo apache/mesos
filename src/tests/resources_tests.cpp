@@ -2248,6 +2248,96 @@ TEST(DiskResourcesTest, DiskSourceEquals)
 }
 
 
+class DiskResourcesSourceTest
+  : public ::testing::Test,
+    public ::testing::WithParamInterface<
+        std::tr1::tuple<Resource::DiskInfo::Source::Type, bool>> {};
+
+
+INSTANTIATE_TEST_CASE_P(
+    TypeAndIdentity,
+    DiskResourcesSourceTest,
+    ::testing::Combine(
+        // We test all source types.
+        ::testing::Values(
+            Resource::DiskInfo::Source::RAW,
+            Resource::DiskInfo::Source::PATH,
+            Resource::DiskInfo::Source::BLOCK,
+            Resource::DiskInfo::Source::MOUNT),
+        // We test the case where the source has identity (i.e., has
+        // an `id` set) and where not.
+        ::testing::Bool()));
+
+
+TEST_P(DiskResourcesSourceTest, SourceIdentity)
+{
+  const std::tr1::tuple<Resource::DiskInfo::Source::Type, bool>& parameters =
+    GetParam();
+
+  Resource::DiskInfo::Source::Type type = std::tr1::get<0>(parameters);
+  bool hasIdentity = std::tr1::get<1>(parameters);
+
+  // Create a disk, possibly with an id to signify identiy.
+  Resource::DiskInfo::Source source;
+  source.set_type(type);
+
+  if (hasIdentity) {
+    source.set_id("id");
+  }
+
+  // Create two disk resources with the created source.
+  Resource disk1 = Resources::parse("disk", "1", "*").get();
+  disk1.mutable_disk()->mutable_source()->CopyFrom(source);
+  const Resources r1 = disk1;
+
+  EXPECT_TRUE(r1.contains(r1));
+
+  Resource disk2 = Resources::parse("disk", "2", "*").get();
+  disk2.mutable_disk()->mutable_source()->CopyFrom(source);
+  const Resources r2 = disk2;
+
+  // We perform three checks here: checks involving `r1` and `r2`
+  // test subtraction semantics while tests of the size of the
+  // resources test addition semantics.
+  switch (type) {
+    case Resource::DiskInfo::Source::RAW: {
+      if (hasIdentity) {
+        // `RAW` resources with source identity cannot be added or split.
+        EXPECT_FALSE(r2.contains(r1));
+        EXPECT_NE(r2, r1 + r1);
+        EXPECT_EQ(2u, (r1 + r1).size());
+      } else {
+        // `RAW` resources without source identity can be added and split.
+        EXPECT_TRUE(r2.contains(r1));
+        EXPECT_EQ(r2, r1 + r1);
+        EXPECT_EQ(1u, (r1 + r1).size());
+      }
+      break;
+    }
+    case Resource::DiskInfo::Source::BLOCK:
+    case Resource::DiskInfo::Source::MOUNT: {
+      // `BLOCK` or `MOUNT` resources cannot be added or split,
+      // regardless of identity.
+      EXPECT_FALSE(r2.contains(r1));
+      EXPECT_NE(r2, r1 + r1);
+      EXPECT_EQ(2u, (r1 + r1).size());
+      break;
+    }
+    case Resource::DiskInfo::Source::PATH: {
+      // `PATH` resources can be added and split, regardless of identity.
+      EXPECT_TRUE(r2.contains(r1));
+      EXPECT_EQ(r2, r1 + r1);
+      EXPECT_EQ(1u, (r1 + r1).size());
+      break;
+    }
+    case Resource::DiskInfo::Source::UNKNOWN: {
+      FAIL() << "Unexpected source type";
+      break;
+    }
+  }
+}
+
+
 TEST(DiskResourcesTest, Addition)
 {
   Resources r1 = createDiskResource("10", "role", None(), "path");

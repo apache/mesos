@@ -1323,6 +1323,9 @@ message Resource {
       required Type type = 1;
       optional Path path = 2;
       optional Mount mount = 3;
+
+      optional string id = 4; // EXPERIMENTAL.
+      optional Labels metadata = 5; // EXPERIMENTAL.
     }
 
     optional Source source = 3;

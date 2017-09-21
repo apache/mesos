@@ -182,6 +182,14 @@ bool operator==(
     return false;
   }
 
+  if (left.has_id() && left.id() != right.id()) {
+    return false;
+  }
+
+  if (left.has_metadata() && left.metadata() != right.metadata()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -350,11 +358,29 @@ static bool addable(const Resource& left, const Resource& right)
   if (left.has_disk()) {
     if (left.disk() != right.disk()) { return false; }
 
-    // Two non-shared resources that represent exclusive 'MOUNT' disks
-    // cannot be added together; this would defeat the exclusivity.
-    if (left.disk().has_source() &&
-        left.disk().source().type() == Resource::DiskInfo::Source::MOUNT) {
-      return false;
+    if (left.disk().has_source()) {
+      switch (left.disk().source().type()) {
+        case Resource::DiskInfo::Source::PATH: {
+          // Two PATH resources can be added if their disks are identical.
+          break;
+        }
+        case Resource::DiskInfo::Source::BLOCK:
+        case Resource::DiskInfo::Source::MOUNT: {
+          // Two resources that represent exclusive 'MOUNT' or 'BLOCK' disks
+          // cannot be added together; this would defeat the exclusivity.
+          return false;
+        }
+        case Resource::DiskInfo::Source::RAW: {
+          // We can only add resources representing 'RAW' disks if
+          // they have no identity or are identical.
+          if (left.disk().source().has_id()) {
+            return false;
+          }
+          break;
+        }
+        case Resource::DiskInfo::Source::UNKNOWN:
+          UNREACHABLE();
+      }
     }
 
     // TODO(jieyu): Even if two Resource objects with DiskInfo have
@@ -437,13 +463,33 @@ static bool subtractable(const Resource& left, const Resource& right)
   if (left.has_disk()) {
     if (left.disk() != right.disk()) { return false; }
 
-    // Two resources that represent exclusive 'MOUNT' disks cannot be
-    // subtracted from each other if they are not the exact same mount;
-    // this would defeat the exclusivity.
-    if (left.disk().has_source() &&
-        left.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
-        left != right) {
-      return false;
+    if (left.disk().has_source()) {
+      switch (left.disk().source().type()) {
+        case Resource::DiskInfo::Source::PATH: {
+          // Two PATH resources can be subtracted if their disks are identical.
+          break;
+        }
+        case Resource::DiskInfo::Source::BLOCK:
+        case Resource::DiskInfo::Source::MOUNT: {
+          // Two resources that represent exclusive 'MOUNT' or 'BLOCK' disks
+          // cannot be subtracted from each other if they are not the exact same
+          // mount; this would defeat the exclusivity.
+          if (left != right) {
+            return false;
+          }
+          break;
+        }
+        case Resource::DiskInfo::Source::RAW: {
+          // We can only subtract resources representing 'RAW' disks
+          // if they have no identity.
+          if (left.disk().source().has_id() && left != right) {
+            return false;
+          }
+          break;
+        }
+        case Resource::DiskInfo::Source::UNKNOWN:
+          UNREACHABLE();
+      }
     }
 
     // NOTE: For Resource objects that have DiskInfo, we can only subtract
