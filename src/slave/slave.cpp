@@ -108,6 +108,8 @@
 #include <slave/posix_signalhandler.hpp>
 #endif // __WINDOWS__
 
+namespace http = process::http;
+
 using google::protobuf::RepeatedPtrField;
 
 using mesos::SecretGenerator;
@@ -423,7 +425,7 @@ void Slave::initialize()
   }
 #endif
 
-  process::http::URL localResourceProviderURL(
+  http::URL localResourceProviderURL(
       scheme,
       self().address.ip,
       self().address.port,
@@ -714,7 +716,7 @@ void Slave::initialize()
         // and operators/tooling to use this endpoint?
         READWRITE_HTTP_AUTHENTICATION_REALM,
         Http::API_HELP(),
-        [this](const process::http::Request& request,
+        [this](const http::Request& request,
                const Option<Principal>& principal) {
           logRequest(request);
           return http.api(request, principal);
@@ -724,7 +726,7 @@ void Slave::initialize()
   route("/api/v1/executor",
         EXECUTOR_HTTP_AUTHENTICATION_REALM,
         Http::EXECUTOR_HELP(),
-        [this](const process::http::Request& request,
+        [this](const http::Request& request,
                const Option<Principal>& principal) {
           logRequest(request);
           return http.executor(request, principal);
@@ -733,7 +735,7 @@ void Slave::initialize()
   route("/api/v1/resource_provider",
         READWRITE_HTTP_AUTHENTICATION_REALM,
         Http::RESOURCE_PROVIDER_HELP(),
-        [this](const process::http::Request& request,
+        [this](const http::Request& request,
                const Option<Principal>& principal) {
           logRequest(request);
           return resourceProviderManager.api(request, principal);
@@ -744,7 +746,7 @@ void Slave::initialize()
   route("/state.json",
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
-        [this](const process::http::Request& request,
+        [this](const http::Request& request,
                const Option<Principal>& principal) {
           logRequest(request);
           return http.state(request, principal);
@@ -752,7 +754,7 @@ void Slave::initialize()
   route("/state",
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
-        [this](const process::http::Request& request,
+        [this](const http::Request& request,
                const Option<Principal>& principal) {
           logRequest(request);
           return http.state(request, principal);
@@ -760,20 +762,20 @@ void Slave::initialize()
   route("/flags",
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::FLAGS_HELP(),
-        [this](const process::http::Request& request,
+        [this](const http::Request& request,
                const Option<Principal>& principal) {
           logRequest(request);
           return http.flags(request, principal);
         });
   route("/health",
         Http::HEALTH_HELP(),
-        [this](const process::http::Request& request) {
+        [this](const http::Request& request) {
           return http.health(request);
         });
   route("/monitor/statistics",
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::STATISTICS_HELP(),
-        [this](const process::http::Request& request,
+        [this](const http::Request& request,
                const Option<Principal>& principal) {
           logRequest(request);
           return http.statistics(request, principal);
@@ -783,7 +785,7 @@ void Slave::initialize()
   route("/monitor/statistics.json",
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::STATISTICS_HELP(),
-        [this](const process::http::Request& request,
+        [this](const http::Request& request,
                const Option<Principal>& principal) {
           logRequest(request);
           return http.statistics(request, principal);
@@ -791,7 +793,7 @@ void Slave::initialize()
   route("/containers",
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::CONTAINERS_HELP(),
-        [this](const process::http::Request& request,
+        [this](const http::Request& request,
                const Option<Principal>& principal) {
           logRequest(request);
           return http.containers(request, principal);
