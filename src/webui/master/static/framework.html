@@ -45,6 +45,48 @@
         <dd>{{framework.tasks.length | number}}</dd>
       </dl>
 
+      <h4>Tasks</h4>
+      <table class="table table-condensed">
+        <tbody>
+          <tr>
+            <td>Staging</td>
+            <td class="text-right">{{framework.staging_tasks | number}}</td>
+          </tr>
+          <tr>
+            <td>Starting</td>
+            <td class="text-right">{{framework.starting_tasks | number}}</td>
+          </tr>
+          <tr>
+            <td>Running</td>
+            <td class="text-right">{{framework.running_tasks | number}}</td>
+          </tr>
+          <tr>
+            <td>Unreachable</td>
+            <td class="text-right">{{framework.unreachable_tasks.length | number}}</td>
+          </tr>
+          <tr>
+            <td>Killing</td>
+            <td class="text-right">{{framework.killing_tasks | number}}</td>
+          </tr>
+          <tr>
+            <td>Finished</td>
+            <td class="text-right">{{framework.finished_tasks | number}}</td>
+          </tr>
+          <tr>
+            <td>Killed</td>
+            <td class="text-right">{{framework.killed_tasks | number}}</td>
+          </tr>
+          <tr>
+            <td>Failed</td>
+            <td class="text-right">{{framework.failed_tasks | number}}</td>
+          </tr>
+          <tr>
+            <td>Lost</td>
+            <td class="text-right">{{framework.lost_tasks | number}}</td>
+          </tr>
+        </tbody>
+      </table>
+
       <h4>Resources</h4>
       <table class="table table-condensed">
         <thead>
