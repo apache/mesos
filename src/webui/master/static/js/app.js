@@ -84,12 +84,17 @@
       paginationConfig.rotate = false;
     }])
     .filter('truncateMesosID', function() {
+      // Returns a truncated ID, for example:
+      // Input: 9d4b2f2b-a759-4458-bebf-7d3507a6f0ca-S9
+      // Output: ...bebf-7d3507a6f0ca-S9
+      //
+      // Note that an ellipsis is used for display purposes.
       return function(id) {
         if (id) {
           var truncatedIdParts = id.split('-');
 
           if (truncatedIdParts.length > 3) {
-            return '…' + truncatedIdParts.splice(3, 3).join('-');
+            return '\u2026' + truncatedIdParts.splice(3, 3).join('-');
           } else {
             return id;
           }
