@@ -1,0 +1,2 @@
+LOGS=/var/log/mesos
+ULIMIT="-n 16384"

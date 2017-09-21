@@ -1,0 +1,10 @@
+description "mesos master"
+
+# Start just after the System-V jobs (rc) to ensure networking and zookeeper
+# are started. This is as simple as possible to ensure compatibility with
+# Ubuntu, Debian, CentOS, and RHEL distros. See:
+# http://upstart.ubuntu.com/cookbook/#standard-idioms
+start on stopped rc RUNLEVEL=[2345]
+respawn
+
+exec /usr/bin/mesos-init-wrapper master

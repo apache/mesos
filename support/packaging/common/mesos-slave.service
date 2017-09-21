@@ -1,0 +1,16 @@
+[Unit]
+Description=Mesos Agent
+After=network.target
+Wants=network.target
+
+[Service]
+ExecStart=/usr/bin/mesos-init-wrapper agent
+KillMode=process
+Restart=always
+RestartSec=20
+LimitNOFILE=16384
+CPUAccounting=true
+MemoryAccounting=true
+
+[Install]
+WantedBy=multi-user.target

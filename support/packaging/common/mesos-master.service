@@ -1,0 +1,13 @@
+[Unit]
+Description=Mesos Master
+After=network.target
+Wants=network.target
+
+[Service]
+ExecStart=/usr/bin/mesos-init-wrapper master
+Restart=always
+RestartSec=20
+LimitNOFILE=16384
+
+[Install]
+WantedBy=multi-user.target

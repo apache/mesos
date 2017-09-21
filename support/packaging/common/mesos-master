@@ -1,0 +1,2 @@
+PORT=5050
+ZK=`cat /etc/mesos/zk`

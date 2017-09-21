@@ -1,0 +1,52 @@
+def dockerArgs() {
+  def workspace_dir = pwd()
+  sh "mkdir -p ${workspace_dir}/.m2"
+
+  def args = "-e MESOS_TAG=${params.MESOS_TAG}"
+      args = "${args} -e MESOS_RELEASE=${params.MESOS_RELEASE}"
+      args = "${args} -v=/etc/passwd:/etc/passwd"
+      args = "${args} -v=/etc/group:/etc/group"
+      args = "${args} -v=${workspace_dir}/.m2:$HOME/.m2:rw,z"
+  return args
+}
+
+parallel(centos7: {
+  node {
+    checkout scm
+
+    def img
+    if (params.REBUILD_DOCKER_IMAGE == "true") {
+      img = docker.build("mesos/packaging:centos7",
+                         "-f support/packaging/centos/centos7.dockerfile support/packaging/centos")
+    } else {
+      img = docker.image("mesos/packaging:centos7")
+    }
+
+    img.inside(dockerArgs()) {
+      sh 'hostname && hostname && cat /etc/*rel* || true'
+      sh 'support/packaging/centos/build_rpm.sh'
+    }
+
+    archiveArtifacts artifacts: '**/*.rpm', fingerprint: true
+  }
+},
+centos6: {
+  node {
+    checkout scm
+
+    def img
+    if (params.REBUILD_DOCKER_IMAGE == "true") {
+      img = docker.build("mesos/packaging:centos6",
+                         "-f support/packaging/centos/centos6.dockerfile support/packaging/centos")
+    } else {
+      img = docker.image("mesos/packaging:centos6")
+    }
+
+    img.inside(dockerArgs()) {
+      sh 'hostname && hostname && cat /etc/*rel* || true'
+      sh 'support/packaging/centos/build_rpm.sh'
+    }
+
+    archiveArtifacts artifacts: '**/*.rpm', fingerprint: true
+  }
+})

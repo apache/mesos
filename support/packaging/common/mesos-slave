@@ -1,0 +1,1 @@
+MASTER=`cat /etc/mesos/zk`
