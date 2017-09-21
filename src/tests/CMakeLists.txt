@@ -75,6 +75,7 @@ endif ()
 #######################
 set(MESOS_TESTS_SRC
   ${MESOS_TESTS_UTILS_SRC}
+  agent_container_api_tests.cpp
   anonymous_tests.cpp
   api_tests.cpp
   attributes_tests.cpp

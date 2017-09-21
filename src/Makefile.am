@@ -2385,6 +2385,7 @@ endif
 mesos_tests_SOURCES =						\
   slave/qos_controllers/load.cpp				\
   tests/active_user_test_helper.cpp				\
+  tests/agent_container_api_tests.cpp				\
   tests/anonymous_tests.cpp					\
   tests/api_tests.cpp						\
   tests/attributes_tests.cpp					\
