@@ -174,7 +174,15 @@ bool operator==(
     return false;
   }
 
+  if (left.has_path() != right.has_path()) {
+    return false;
+  }
+
   if (left.has_path() && left.path() != right.path()) {
+    return false;
+  }
+
+  if (left.has_mount() != right.has_mount()) {
     return false;
   }
 
