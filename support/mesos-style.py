@@ -279,9 +279,6 @@ class PyLinter(LinterBase):
     """The linter for Python files, uses pylint."""
     linter_type = 'Python'
 
-    source_dirs = [os.path.join('src', 'python', 'cli_new'),
-                   os.path.join('src', 'python', 'lib')]
-
     exclude_files = '(' \
                     r'protobuf\-2\.4\.1|' \
                     r'googletest\-release\-1\.8\.0|' \
@@ -295,6 +292,20 @@ class PyLinter(LinterBase):
 
     comment_prefix = '#'
 
+    def __init__(self):
+        python_dir = os.path.join('src', 'python')
+        cli_dir = os.path.join(python_dir, 'cli_new')
+        lib_dir = os.path.join(python_dir, 'lib')
+
+        self.config = {
+            'bootstrap_dir': cli_dir,
+            'virtualenv_dir': os.path.join(cli_dir, '.virtualenv'),
+            'pylint_config': os.path.join(python_dir, 'pylint.config'),
+            'pylint_cmd': os.path.join(cli_dir, '.virtualenv', 'bin', 'pylint')
+        }
+
+        self.source_dirs = [cli_dir, lib_dir]
+
     def run_lint(self, source_paths):
         """
         Runs pylint over given files.
@@ -302,19 +313,19 @@ class PyLinter(LinterBase):
         https://google.github.io/styleguide/pyguide.html
         """
 
-        cli_dir = os.path.abspath(self.source_dirs[0])
-        source_files = ' '.join(source_paths)
+        source_files = ''
+        for source_dir in self.source_dirs:
+            source_dir_files = []
+            for source_path in source_paths:
+                if source_path.startswith(source_dir):
+                    source_dir_files.append(source_path)
+
+            source_files = ' '.join([source_files, ' '.join(source_dir_files)])
 
         process = subprocess.Popen(
             [('. {virtualenv_dir}/bin/activate;'
-              ' PYTHONPATH={lib_dir}:{bin_dir} pylint'
-              ' --rcfile={config} --ignore={ignore} {files}').
-             format(virtualenv_dir=os.path.join(cli_dir, '.virtualenv'),
-                    lib_dir=os.path.join(cli_dir, 'lib'),
-                    bin_dir=os.path.join(cli_dir, 'bin'),
-                    config=os.path.join(cli_dir, 'pylint.config'),
-                    ignore=os.path.join(cli_dir, 'bin', 'mesos'),
-                    files=source_files)],
+              '{pylint_cmd} --rcfile={pylint_config} {files}').
+             format(files=source_files, **self.config)],
             shell=True, stdout=subprocess.PIPE)
 
         num_errors = 0
@@ -326,9 +337,7 @@ class PyLinter(LinterBase):
         return num_errors
 
     def __should_build_virtualenv(self, file_list):
-        cli_dir = os.path.abspath(self.source_dirs[0])
-
-        if not os.path.isdir(os.path.join(cli_dir, '.virtualenv')):
+        if not os.path.isdir(self.config['virtualenv_dir']):
             print 'Virtualenv for python linter not detected ... building'
             return True
 
@@ -353,12 +362,10 @@ class PyLinter(LinterBase):
 
     def __build_virtualenv(self):
         """Rebuild the virtualenv."""
-        cli_dir = os.path.abspath(self.source_dirs[0])
-
         print 'Rebuilding virtualenv ...'
 
         process = subprocess.Popen(
-            [os.path.join(cli_dir, 'bootstrap')],
+            [os.path.join(self.config['bootstrap_dir'], 'bootstrap')],
             stdout=subprocess.PIPE)
 
         output = ''
