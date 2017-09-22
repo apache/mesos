@@ -30,10 +30,10 @@ import parse
 
 import cli.http as http
 
-from cli.tests.constants import DEFAULT_AGENT_IP
-from cli.tests.constants import DEFAULT_AGENT_PORT
-from cli.tests.constants import DEFAULT_MASTER_IP
-from cli.tests.constants import DEFAULT_MASTER_PORT
+from cli.tests.constants import TEST_AGENT_IP
+from cli.tests.constants import TEST_AGENT_PORT
+from cli.tests.constants import TEST_MASTER_IP
+from cli.tests.constants import TEST_MASTER_PORT
 
 from cli.exceptions import CLIException
 
@@ -159,9 +159,9 @@ class Master(Executable):
             flags = {}
 
         if "ip" not in flags:
-            flags["ip"] = DEFAULT_MASTER_IP
+            flags["ip"] = TEST_MASTER_IP
         if "port" not in flags:
-            flags["port"] = DEFAULT_MASTER_PORT
+            flags["port"] = TEST_MASTER_PORT
         if "work_dir" not in flags:
             flags["work_dir"] = tempfile.mkdtemp()
 
@@ -202,13 +202,13 @@ class Agent(Executable):
             flags = {}
 
         if "ip" not in flags:
-            flags["ip"] = DEFAULT_AGENT_IP
+            flags["ip"] = TEST_AGENT_IP
         if "port" not in flags:
-            flags["port"] = DEFAULT_AGENT_PORT
+            flags["port"] = TEST_AGENT_PORT
         if "master" not in flags:
             flags["master"] = "{ip}:{port}".format(
-                ip=DEFAULT_MASTER_IP,
-                port=DEFAULT_MASTER_PORT)
+                ip=TEST_MASTER_IP,
+                port=TEST_MASTER_PORT)
         if "work_dir" not in flags:
             flags["work_dir"] = tempfile.mkdtemp()
         if "runtime_dir" not in flags:
@@ -296,8 +296,8 @@ class Task(Executable):
 
         if "master" not in flags:
             flags["master"] = "{ip}:{port}".format(
-                ip=DEFAULT_MASTER_IP,
-                port=DEFAULT_MASTER_PORT)
+                ip=TEST_MASTER_IP,
+                port=TEST_MASTER_PORT)
         if "name" not in flags:
             flags["name"] = "task-{id}".format(id=Task.count)
             Task.count += 1
