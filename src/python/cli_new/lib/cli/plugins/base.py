@@ -171,6 +171,9 @@ class PluginBase(object):
                     version=self.VERSION,
                     options_first=True)
 
+            if "alias" in self.COMMANDS[cmd]:
+                cmd = self.COMMANDS[cmd]["alias"]
+
             self.__setup__(cmd, argv)
             getattr(self, cmd.replace("-", "_"))(arguments)
         else:
