@@ -17,12 +17,15 @@
 #include <process/id.hpp>
 #include <process/process.hpp>
 
+#include <stout/nothing.hpp>
+#include <stout/result_of.hpp>
+
 namespace process {
 
 // Provides an abstraction that can take a standard function object
-// and defer it without needing a process. Each converted function
-// object will get execute serially with respect to one another when
-// invoked.
+// and defer or asynchronously execute it without needing a process.
+// Each converted function object will get execute serially with respect
+// to one another when invoked.
 class Executor
 {
 public:
@@ -39,7 +42,7 @@ public:
 
   void stop()
   {
-    terminate(&process);
+    terminate(process);
 
     // TODO(benh): Note that this doesn't wait because that could
     // cause a deadlock ... thus, the semantics here are that no more
@@ -60,6 +63,41 @@ private:
   Executor& operator=(const Executor&);
 
   ProcessBase process;
+
+
+public:
+  template <
+      typename F,
+      typename R = typename result_of<F()>::type,
+      typename std::enable_if<!std::is_void<R>::value, int>::type = 0>
+  auto execute(F&& f)
+    -> decltype(dispatch(process, std::function<R()>(std::forward<F>(f))))
+  {
+    // NOTE: Currently we cannot pass a mutable lambda into `dispatch()`
+    // because it would be captured by copy, so we convert `f` into a
+    // `std::function` to bypass this restriction.
+    return dispatch(process, std::function<R()>(std::forward<F>(f)));
+  }
+
+  // NOTE: This overload for `void` returns `Future<Nothing>` so we can
+  // chain. This follows the same behavior as `async()`.
+  template <
+      typename F,
+      typename R = typename result_of<F()>::type,
+      typename std::enable_if<std::is_void<R>::value, int>::type = 0>
+  Future<Nothing> execute(F&& f)
+  {
+    // NOTE: Currently we cannot pass a mutable lambda into `dispatch()`
+    // because it would be captured by copy, so we convert `f` into a
+    // `std::function` to bypass this restriction. This wrapper also
+    // avoids `f` being evaluated when it is a nested bind.
+    // TODO(chhsiao): Capture `f` by forwarding once we switch to C++14.
+    return dispatch(
+        process,
+        std::bind(
+            [](const std::function<R()>& f_) { f_(); return Nothing(); },
+            std::function<R()>(std::forward<F>(f))));
+  }
 };
 
 
