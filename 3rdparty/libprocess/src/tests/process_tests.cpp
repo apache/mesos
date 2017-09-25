@@ -31,6 +31,7 @@
 
 #include <process/async.hpp>
 #include <process/clock.hpp>
+#include <process/count_down_latch.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
@@ -70,6 +71,7 @@ namespace inet4 = process::network::inet4;
 
 using process::async;
 using process::Clock;
+using process::CountDownLatch;
 using process::defer;
 using process::Deferred;
 using process::Event;
@@ -102,6 +104,7 @@ using std::vector;
 using testing::_;
 using testing::Assign;
 using testing::DoAll;
+using testing::InvokeWithoutArgs;
 using testing::Return;
 using testing::ReturnArg;
 
@@ -1201,20 +1204,17 @@ public:
 };
 
 
-TEST(ProcessTest, THREADSAFE_Executor)
+TEST(ProcessTest, THREADSAFE_Executor_Defer)
 {
-  std::atomic_bool event1Called(false);
-  std::atomic_bool event2Called(false);
-
   EventReceiver receiver;
+  Executor executor;
+
+  CountDownLatch event1Called;
 
   EXPECT_CALL(receiver, event1(42))
-    .WillOnce(Assign(&event1Called, true));
-
-  EXPECT_CALL(receiver, event2("event2"))
-    .WillOnce(Assign(&event2Called, true));
-
-  Executor executor;
+    .WillOnce(InvokeWithoutArgs([&]() {
+      event1Called.decrement();
+    }));
 
   Deferred<void(int)> event1 =
     executor.defer([&receiver](int i) {
@@ -1223,6 +1223,15 @@ TEST(ProcessTest, THREADSAFE_Executor)
 
   event1(42);
 
+  AWAIT_READY(event1Called.triggered());
+
+  CountDownLatch event2Called;
+
+  EXPECT_CALL(receiver, event2("event2"))
+    .WillOnce(InvokeWithoutArgs([&]() {
+      event2Called.decrement();
+    }));
+
   Deferred<void(const string&)> event2 =
     executor.defer([&receiver](const string& s) {
       return receiver.event2(s);
@@ -1230,8 +1239,60 @@ TEST(ProcessTest, THREADSAFE_Executor)
 
   event2("event2");
 
-  while (event1Called.load() == false);
-  while (event2Called.load() == false);
+  AWAIT_READY(event2Called.triggered());
+}
+
+
+TEST(ProcessTest, THREADSAFE_Executor_Execute)
+{
+  Executor executor;
+
+  // A void immutable lambda.
+  CountDownLatch f1Result;
+  auto f1 = [&f1Result] {
+    f1Result.decrement();
+  };
+
+  // Specify the return type explicitly for type checking. Same below.
+  Future<Nothing> f1Called = executor.execute(f1);
+
+  AWAIT_READY(f1Called);
+  AWAIT_READY(f1Result.triggered());
+
+  // A void mutable bind.
+  CountDownLatch f2Result;
+  int f2State = 0;
+  auto f2 = [&f2Result, f2State](int) mutable -> void {
+    f2State++;
+    f2Result.decrement();
+  };
+
+  Future<Nothing> f2Called = executor.execute(std::bind(f2, 42));
+
+  AWAIT_READY(f2Called);
+  AWAIT_READY(f2Result.triggered());
+
+  // A non-void immutable lambda.
+  const string f3Result = "f3";
+  auto f3 = [&f3Result] {
+    return f3Result;
+  };
+
+  Future<string> f3Called = executor.execute(f3);
+
+  AWAIT_EXPECT_EQ(f3Result, f3Called);
+
+  // A mutable bind returning a future.
+  const string f4Result = "f4";
+  int f4State = 0;
+  auto f4 = [&f4Result, f4State](int) mutable -> Future<string> {
+    f4State++;
+    return f4Result;
+  };
+
+  Future<string> f4Called = executor.execute(std::bind(f4, 42));
+
+  AWAIT_EXPECT_EQ(f4Result, f4Called);
 }
 
 
