@@ -199,6 +199,15 @@ def join_plugin_paths(settings, config):
     return builtin_paths + config_paths
 
 
+# TODO(agrillet): Implement this function appropriately (MESOS-8012).
+def zookeeper_resolve_leader(addresses, path):
+    """Resolve the leader using a znode path."""
+    # pylint: disable=unused-argument, unreachable
+    raise CLIException("Using ZooKeeper to resolve the leading master"
+                       " is not yet supported. See MESOS-8012")
+    return ""
+
+
 class Table(object):
     """
     Defines a custom table structure for printing to the terminal.

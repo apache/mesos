@@ -21,6 +21,10 @@ Config class to manage the configuration file.
 import os
 import toml
 
+import cli
+
+from cli.constants import DEFAULT_MASTER_IP
+from cli.constants import DEFAULT_MASTER_PORT
 from cli.exceptions import CLIException
 
 
@@ -43,6 +47,78 @@ class Config(object):
         except Exception as exception:
             raise CLIException("Error loading config file as TOML: {error}"
                                .format(error=exception))
+
+    def master(self):
+        """
+        Parse the master info in the configuration file and return
+        its IP address and the port where Mesos is running.
+        """
+        master = "{ip}:{port}".format(ip=DEFAULT_MASTER_IP,
+                                      port=DEFAULT_MASTER_PORT)
+
+        if "master" in self.data:
+            if not isinstance(self.data["master"], dict):
+                raise CLIException("The 'master' field must be a dictionary")
+
+            if ("address" not in self.data["master"] and
+                    "zookeeper" not in self.data["master"]):
+                raise CLIException("The 'master' field must either"
+                                   " contain an 'address' field or"
+                                   " a 'zookeeper' dictionary")
+            if ("address" in self.data["master"] and
+                    "zookeeper" in self.data["master"]):
+                raise CLIException("The 'master' field should only contain "
+                                   " an 'address' field or a 'zookeeper'"
+                                   " dictionary but not both")
+
+            if "address" in self.data["master"]:
+                master_address = self.data["master"]["address"]
+                try:
+                    cli.util.verify_address_format(master_address)
+                except Exception as exception:
+                    raise CLIException("The 'master' address {address} is"
+                                       " formatted incorrectly: {error}"
+                                       .format(address=master_address,
+                                               error=exception))
+                master = self.data["master"]["address"]
+
+            if "zookeeper" in self.data["master"]:
+                zk_field = self.data["master"]["zookeeper"]
+
+                if ("addresses" not in zk_field or
+                        not isinstance(zk_field["addresses"], list)):
+                    raise CLIException("The 'zookeeper' field must contain"
+                                       " an 'addresses' list")
+
+                if ("path" not in zk_field or
+                        not isinstance(zk_field["path"], unicode)):
+                    raise CLIException("The 'zookeeper' field must contain"
+                                       " a 'path' field")
+
+                if not zk_field["path"].startswith("/"):
+                    raise CLIException("The 'zookeeper' field 'path'"
+                                       " must start with a '/'")
+                if len(zk_field["path"]) == 1:
+                    raise CLIException("The 'zookeeper' field 'path' should"
+                                       " be nested ('/' is not supported)")
+
+                for address in zk_field["addresses"]:
+                    try:
+                        cli.util.verify_address_format(address)
+                    except Exception as exception:
+                        raise CLIException("The 'zookeeper' address {address}"
+                                           " is formatted incorrectly: {error}"
+                                           .format(address=address,
+                                                   error=exception))
+                try:
+                    master = cli.util.zookeeper_resolve_leader(
+                        zk_field["addresses"], zk_field["path"])
+                except Exception as exception:
+                    raise CLIException("Could not resolve the"
+                                       " leading master: {error}"
+                                       .format(error=exception))
+
+        return master
 
     def plugins(self):
         """

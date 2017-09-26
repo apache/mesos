@@ -77,6 +77,20 @@ plugins = [
   "</absolute/path/to/plugin-1/directory>",
   "</absolute/path/to/plugin-2/directory>"
 ]
+
+# The `master` is a field that has to be composed of an
+# `address` or `zookeeper` field, but not both. For example:
+[master]
+  address = "10.10.0.30:5050"
+  # The `zookeeper` field has an `addresses` array and a `path` field.
+  # It exists but its backend has not been implemented yet (MESOS-8012).
+  # [master.zookeeper]
+  #   addresses = [
+  #     "10.10.0.31:5050",
+  #     "10.10.0.32:5050",
+  #     "10.10.0.33:5050"
+  #   ]
+  #   path = "/mesos"
 ```
 
 You can override the location of this configuration file using
