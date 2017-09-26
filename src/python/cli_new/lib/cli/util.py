@@ -22,6 +22,7 @@ import imp
 import importlib
 import os
 import re
+import socket
 import textwrap
 
 from cli.exceptions import CLIException
@@ -150,6 +151,37 @@ def format_subcommands_help(cmd):
             flag_string += "  %s%s%s\n" % (flag, " " * num_spaces, flags[flag])
 
     return (arguments, short_help, long_help, flag_string)
+
+
+def verify_address_format(address):
+    """
+    Verify that an address ip and port are correct.
+    """
+    # We use 'basestring' as the type of address because it can be
+    # 'str' or 'unicode' depending on the source of the address (e.g.
+    # a config file or a flag). Both types inherit from basestring.
+    if not isinstance(address, basestring):
+        raise CLIException("The address must be a string")
+
+    address_pattern = re.compile(r'[0-9]+(?:\.[0-9]+){3}:[0-9]+')
+    if not address_pattern.match(address):
+        raise CLIException("The address '{address}' does not match"
+                           " the expected format '<ip>:<port>'"
+                           .format(address=address))
+
+    colon_pos = address.rfind(':')
+    ip = address[:colon_pos]
+    port = int(address[colon_pos+1:])
+
+    try:
+        socket.inet_aton(ip)
+    except socket.error as err:
+        raise CLIException("The IP '{ip}' is not valid: {error}"
+                           .format(ip=ip, error=err))
+
+    # A correct port number is between these two values.
+    if port < 0 or port > 65535:
+        raise CLIException("The port '{port}' is not valid")
 
 
 def join_plugin_paths(settings, config):
