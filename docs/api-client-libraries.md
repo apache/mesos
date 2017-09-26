@@ -53,6 +53,11 @@ run into any issues, file them with the library maintainers.*
   <td>Go</td>
 </tr>
 <tr>
+  <td><a href="https://github.com/verizonlabs/mesos-framework-sdk">
+  mesos-framework-sdk</a></td>
+  <td>Go</td>
+</tr>
+<tr>
   <td><a href="https://github.com/nokia/mesos-scala-api">
   mesos-scala-api</a></td>
   <td>Scala</td>
@@ -101,6 +106,11 @@ run into any issues, file them with the library maintainers.*
 <tr>
   <td><a href="https://github.com/mesos/mesos-go">
   mesos-go</a></td>
+  <td>Go</td>
+</tr>
+<tr>
+  <td><a href="https://github.com/verizonlabs/mesos-framework-sdk">
+  mesos-framework-sdk</a></td>
   <td>Go</td>
 </tr>
 <tr>
