@@ -18,6 +18,7 @@
 This is the main executable of the mesos-cli unit tests.
 """
 
+import os
 import unittest
 
 from termcolor import colored
@@ -30,6 +31,8 @@ from cli.tests import TestInfrastructure
 
 if __name__ == '__main__':
     CLITestCase.MESOS_BUILD_DIR = CLITestCase.default_mesos_build_dir()
+    os.environ["MESOS_CLI_CONFIG"] = os.path.join(os.path.dirname(__file__),
+                                                  "default_config.toml")
 
     print colored("Running the Mesos CLI unit tests", "yellow")
     unittest.main(verbosity=2, testRunner=unittest.TextTestRunner)
