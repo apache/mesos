@@ -29,13 +29,14 @@
     <tr ng-repeat="framework in $data  | filter: { active: true }">
       <td>
         <a href="{{'#/frameworks/' + framework.id}}">
-          {{(framework.id | truncateMesosID) || framework.name}}</a>
+          {{framework.id | truncateMesosID}}
+        </a>
         <button class="btn btn-xs btn-toggle btn-default"
-          clipboard
-          data-clipboard-text="{{framework.id}}"
-          tooltip="Copy ID"
-          tooltip-placement="right"
-          tooltip-trigger="clipboardhover">
+                clipboard
+                data-clipboard-text="{{framework.id}}"
+                tooltip="Copy ID"
+                tooltip-placement="right"
+                tooltip-trigger="clipboardhover">
         </button>
       </td>
       <td ng-switch="!!framework.webui_url">
@@ -91,7 +92,8 @@
   <tr ng-repeat="framework in $data  | filter: { active: false }">
     <td>
       <a href="{{'#/frameworks/' + framework.id}}">
-        {{(framework.id | truncateMesosID) || framework.name}}</a>
+        {{framework.id | truncateMesosID}}
+      </a>
       <button class="btn btn-xs btn-toggle btn-default"
               clipboard
               data-clipboard-text="{{framework.id}}"
@@ -147,13 +149,14 @@
     <tr ng-repeat="framework in $data">
       <td>
         <a href="{{'#/frameworks/' + framework.id}}" title="{{framework.id}}">
-          {{framework.id | truncateMesosID}}</a>
+          {{framework.id | truncateMesosID}}
+        </a>
         <button class="btn btn-xs btn-toggle btn-default"
-          clipboard
-          data-clipboard-text="{{framework.id}}"
-          tooltip="Copy ID"
-          tooltip-placement="right"
-          tooltip-trigger="clipboardhover">
+                clipboard
+                data-clipboard-text="{{framework.id}}"
+                tooltip="Copy ID"
+                tooltip-placement="right"
+                tooltip-trigger="clipboardhover">
         </button>
       </td>
       <td>{{framework.hostname}}</td>

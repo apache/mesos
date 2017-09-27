@@ -174,8 +174,15 @@
         <tr ng-repeat="task in $data">
           <td>
             <a href="#/frameworks/{{task.framework_id}}/">
-              {{task.framework_id}}
+              {{task.framework_id | truncateMesosID}}
             </a>
+            <button class="btn btn-xs btn-toggle btn-default"
+                    clipboard
+                    data-clipboard-text="{{task.framework_id}}"
+                    tooltip="Copy ID"
+                    tooltip-placement="right"
+                    tooltip-trigger="clipboardhover">
+            </button>
           </td>
           <td>
             <a href="#/agents/{{task.slave_id}}/frameworks/{{task.framework_id}}/executors/{{task.executor_id}}">
@@ -227,8 +234,15 @@
         <tr ng-repeat="task in $data">
           <td>
             <a href="#/frameworks/{{task.framework_id}}/">
-              {{task.framework_id}}
+              {{task.framework_id | truncateMesosID}}
             </a>
+            <button class="btn btn-xs btn-toggle btn-default"
+                    clipboard
+                    data-clipboard-text="{{task.framework_id}}"
+                    tooltip="Copy ID"
+                    tooltip-placement="right"
+                    tooltip-trigger="clipboardhover">
+            </button>
           </td>
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
@@ -261,7 +275,18 @@
           <td colspan="8">No completed tasks.</td>
         </tr>
         <tr ng-repeat="task in $data">
-          <td>{{task.framework_id}}</td>
+         <td>
+            <a href="#/frameworks/{{task.framework_id}}/">
+              {{task.framework_id | truncateMesosID}}
+            </a>
+            <button class="btn btn-xs btn-toggle btn-default"
+                    clipboard
+                    data-clipboard-text="{{task.framework_id}}"
+                    tooltip="Copy ID"
+                    tooltip-placement="right"
+                    tooltip-trigger="clipboardhover">
+            </button>
+          </td>
           <td>{{task.id}}</td>
           <td>{{task.name}}</td>
           <td>{{task.role}}</td>
