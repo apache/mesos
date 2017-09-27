@@ -610,22 +610,20 @@ message CheckpointResourcesMessage {
 message UpdateSlaveMessage {
   required SlaveID slave_id = 1;
 
-  // This message can contain one of `oversubscribed_resources` or
-  // `total_resources`. Callers are expected to set the `type` field
-  // to denote which field should be examined. For backwards
-  // compatibility we interpret an unset `type` field as if it was
-  // `OVERSUBSCRIBED`.
+  // This message can contain `oversubscribed_resources` or
+  // `total_resources`. Callers are expected to set the respective
+  // categories in `resource_categories` to denote which fields should
+  // be examined. For backwards compatibility we interpret an unset
+  // `category` field as if only oversubscribed was set.
   //
-  // It is suggested that callers use the `total_resources` field
-  // exclusively as the `oversubscribed_resources` field might be
-  // removed in the future.
-  enum Type {
-    UNKNOWN = 0;
-    OVERSUBSCRIBED = 1;
-    TOTAL = 2;
+  // Oversubscribed resources must be revocable, while total resources
+  // must be non-revocable.
+  message ResourceCategories {
+    optional bool total = 1;
+    optional bool oversubscribed = 2;
   }
 
-  optional Type type = 3;
+  optional ResourceCategories resource_categories = 5;
 
   repeated Resource oversubscribed_resources = 2;
   repeated Resource total_resources = 4;

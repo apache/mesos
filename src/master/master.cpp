@@ -6782,41 +6782,47 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
   // updating the agent in the allocator. This would lead us to
   // re-send out the stale oversubscribed resources!
 
-  // If the caller did not specify a type we assume we should set
-  // `oversubscribedResources` to be backwards-compatibility with
-  // older clients.
-  const UpdateSlaveMessage::Type type =
-    message.has_type() ? message.type() : UpdateSlaveMessage::OVERSUBSCRIBED;
+  // If the caller did not specify a resource category we assume we should set
+  // `oversubscribedResources` to be backwards-compatibility with older clients.
+  const bool hasOversubscribed =
+    (message.has_resource_categories() &&
+     message.resource_categories().has_oversubscribed() &&
+     message.resource_categories().oversubscribed()) ||
+    !message.has_resource_categories();
 
-  switch (type) {
-    case UpdateSlaveMessage::OVERSUBSCRIBED: {
-      const Resources oversubscribedResources =
-        message.oversubscribed_resources();
+  const bool hasTotal =
+    message.has_resource_categories() &&
+    message.resource_categories().has_total() &&
+    message.resource_categories().total();
 
-      LOG(INFO) << "Received update of agent " << *slave << " with total"
-                << " oversubscribed resources " << oversubscribedResources;
+  Option<Resources> newTotal;
+  Option<Resources> newOversubscribed;
 
-      slave->totalResources =
-        slave->totalResources.nonRevocable() +
-        oversubscribedResources.revocable();
-      break;
-    }
-    case UpdateSlaveMessage::TOTAL: {
-      const Resources totalResources =
-        message.total_resources();
+  if (hasTotal) {
+    const Resources& totalResources = message.total_resources();
 
-      LOG(INFO) << "Received update of agent " << *slave << " with total"
-                << " resources " << totalResources;
+    LOG(INFO) << "Received update of agent " << *slave << " with total"
+              << " resources " << totalResources;
 
-      slave->totalResources = totalResources;
-      break;
-    }
-    case UpdateSlaveMessage::UNKNOWN: {
-      LOG(WARNING) << "Ignoring update on agent " << slaveId
-                   << " since the update type is not understood";
-      return;
-    }
+    newTotal = totalResources;
   }
+
+  // Since `total` always overwrites an existing total, we apply
+  // `oversubscribed` after updating the total to be able to
+  // independently apply it regardless of whether `total` was sent.
+  if (hasOversubscribed) {
+    const Resources& oversubscribedResources =
+      message.oversubscribed_resources();
+
+    LOG(INFO) << "Received update of agent " << *slave << " with total"
+              << " oversubscribed resources " << oversubscribedResources;
+
+    newOversubscribed = oversubscribedResources;
+  }
+
+  slave->totalResources =
+    newTotal.getOrElse(slave->totalResources.nonRevocable()) +
+    newOversubscribed.getOrElse(slave->totalResources.revocable());
 
   // Now update the agent's resources in the allocator.
   allocator->updateSlave(slaveId, slave->totalResources);
