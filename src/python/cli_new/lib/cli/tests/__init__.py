@@ -20,5 +20,7 @@ Mesos CLI unit tests module.
 
 # pylint: disable=W0401
 from .base import *
+
+from .agent import *
 from .task import *
 from .tests import *

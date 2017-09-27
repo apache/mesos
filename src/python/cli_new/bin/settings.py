@@ -38,6 +38,7 @@ PROJECT_DIR = os.path.join(os.path.dirname(__file__), os.pardir)
 
 # The builtin plugins.
 PLUGINS = [
+    os.path.join(PROJECT_DIR, "lib", "mesos", "plugins", "agent"),
     os.path.join(PROJECT_DIR, "lib", "mesos", "plugins", "config"),
     os.path.join(PROJECT_DIR, "lib", "mesos", "plugins", "task")
 ]
