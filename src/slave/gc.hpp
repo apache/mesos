@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include <process/executor.hpp>
 #include <process/future.hpp>
 #include <process/id.hpp>
 #include <process/owned.hpp>
@@ -140,6 +141,9 @@ private:
   hashmap<std::string, process::Timeout> timeouts;
 
   process::Timer timer;
+
+  // For executing path removals in a separate actor.
+  process::Executor executor;
 };
 
 } // namespace slave {
