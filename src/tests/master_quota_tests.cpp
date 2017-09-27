@@ -31,6 +31,7 @@
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
+#include <stout/format.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
@@ -159,7 +160,6 @@ protected:
 //   * Role is absent.
 //   * Role is an empty string.
 //   * Role is '*'?
-//   * Resources with the same name are present.
 
 // Verifies that a request for a non-existent role is rejected when
 // using an explicitly configured list of role names.
@@ -313,6 +313,36 @@ TEST_F(MasterQuotaTest, SetRequestWithInvalidData)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
       << response->body;
   }
+
+  // A quota set request with a duplicate resource name should
+  // return '400 Bad Request'.
+  {
+    Resource cpusResource = Resources::parse("cpus", "1", "*").get();
+    cpusResource.clear_role();
+
+    // Manually construct a bad request because `Resources` class merges
+    // resources with same name so we cannot use it.
+    const string badRequest = strings::format(
+        "{\"role\": \"%s\", \"guarantee\":[%s, %s]}",
+        ROLE1,
+        stringify(JSON::protobuf(cpusResource)),
+        stringify(JSON::protobuf(cpusResource))).get();
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        badRequest);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+    AWAIT_EXPECT_RESPONSE_BODY_EQ(
+        "Failed to validate set quota request:"
+        " QuotaInfo contains duplicate resource name 'cpus'",
+        response)
+     << response->body;
+  }
+
 
   // A quota set request with the `DiskInfo` field set should return
   // '400 Bad Request'.
