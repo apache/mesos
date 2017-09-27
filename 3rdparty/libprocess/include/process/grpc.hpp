@@ -188,8 +188,8 @@ private:
     std::unique_ptr<std::thread> looper;
     ::grpc::CompletionQueue queue;
     ProcessBase process;
-    std::atomic_flag lock;
-    bool terminating;
+    std::atomic_flag lock = ATOMIC_FLAG_INIT;
+    bool terminating = false;
     Promise<Nothing> terminated;
   };
 

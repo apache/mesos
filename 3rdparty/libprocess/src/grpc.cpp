@@ -32,9 +32,7 @@ Future<Nothing> Runtime::wait()
 
 
 Runtime::Data::Data()
-  : process(ID::generate("__grpc_client__")),
-    lock(ATOMIC_FLAG_INIT),
-    terminating(false)
+  : process(ID::generate("__grpc_client__"))
 {
   spawn(process);
 
