@@ -2953,7 +2953,7 @@ void ProcessManager::handle(
     // from `SocketManager::finalize()` due to it closing all active sockets
     // during libprocess finalization.
     parse(*request)
-      .onAny([this, socket, request](const Future<MessageEvent*>& future) {
+      .onAny([socket, request](const Future<MessageEvent*>& future) {
         // Get the HttpProxy pid for this socket.
         PID<HttpProxy> proxy = socket_manager->proxy(socket);
 
@@ -3003,7 +3003,7 @@ void ProcessManager::handle(
 
         // TODO(benh): Use the sender PID when delivering in order to
         // capture happens-before timing relationships for testing.
-        bool accepted = deliver(event->message.to, event);
+        bool accepted = process_manager->deliver(event->message.to, event);
 
         // NOTE: prior to commit d5fe51c on April 11, 2014 we needed
         // to ignore sending responses in the event the receiver was a
