@@ -524,6 +524,9 @@ private:
   void _forwardOversubscribed(
       const process::Future<Resources>& oversubscribable);
 
+  void handleResourceProviderMessage(
+      const process::Future<ResourceProviderMessage>& message);
+
   // Gauge methods.
   double _frameworks_active()
   {
@@ -568,8 +571,8 @@ private:
   // Resources that are checkpointed by the slave.
   Resources checkpointedResources;
 
-  // The current total resources of the agent, i.e.,
-  // `info.resources()` with checkpointed resources applied.
+  // The current total resources of the agent, i.e., `info.resources()` with
+  // checkpointed resources applied and resource provider resources.
   Resources totalResources;
 
   Option<process::UPID> master;

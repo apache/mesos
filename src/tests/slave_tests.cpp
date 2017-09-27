@@ -31,6 +31,8 @@
 
 #include <mesos/authentication/http/basic_authenticator_factory.hpp>
 
+#include <mesos/v1/resource_provider/resource_provider.hpp>
+
 #include <process/clock.hpp>
 #include <process/collect.hpp>
 #include <process/future.hpp>
@@ -40,6 +42,8 @@
 #include <process/pid.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
+
+#include <process/ssl/flags.hpp>
 
 #include <stout/hashset.hpp>
 #include <stout/json.hpp>
@@ -8489,6 +8493,121 @@ TEST_P(DefaultContainerDNSFlagTest, ValidateFlag)
       EXPECT_ERROR(load);
     }
   }
+}
+
+
+// This test checks that when a resource provider subscribes with the
+// agent's resource provider manager, the agent send an
+// `UpdateSlaveMessage` reflecting the updated capacity.
+//
+// TODO(bbannier): We should also add tests for the agent behavior
+// with resource providers where the agent ultimately resends the
+// previous total when the master fails over, of for the interaction
+// with the usual oversubscription protocol (oversubscribed resources
+// vs. updates of total).
+TEST_F(SlaveTest, ResourceProviderSubscribe)
+{
+  Clock::pause();
+
+  // Start an agent an a master.
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Specify the agent resources so we can check the reported total later.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.authenticate_http_readwrite = false;
+  slaveFlags.resources = "cpus:2;mem:512;disk:512;ports:[]";
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Register a local resource provider with the agent.
+  v1::MockResourceProvider resourceProvider;
+
+  Future<Nothing> connected;
+  EXPECT_CALL(resourceProvider, connected())
+    .WillOnce(FutureSatisfy(&connected));
+
+  string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+  if (process::network::openssl::flags().enabled) {
+    scheme = "https";
+  }
+#endif
+
+  process::http::URL url(
+      scheme,
+      slave.get()->pid.address.ip,
+      slave.get()->pid.address.port,
+      slave.get()->pid.id + "/api/v1/resource_provider");
+
+  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+
+  resourceProvider.start(
+      endpointDetector,
+      ContentType::PROTOBUF,
+      v1::DEFAULT_CREDENTIAL);
+
+  AWAIT_READY(connected);
+
+  Future<mesos::v1::resource_provider::Event::Subscribed> subscribed;
+  EXPECT_CALL(resourceProvider, subscribed(_))
+    .WillOnce(FutureArg<0>(&subscribed));
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  mesos::v1::resource_provider::Call call;
+  call.set_type(mesos::v1::resource_provider::Call::SUBSCRIBE);
+
+  mesos::v1::resource_provider::Call::Subscribe* subscribe =
+    call.mutable_subscribe();
+
+  v1::Resources resourceProviderResources =
+    v1::Resources::parse("disk:8096").get();
+
+  subscribe->mutable_resources()->CopyFrom(resourceProviderResources);
+
+  mesos::v1::ResourceProviderInfo* info =
+    subscribe->mutable_resource_provider_info();
+
+  info->set_type("org.apache.mesos.resource_provider.test");
+  info->set_name("test");
+
+  resourceProvider.send(call);
+
+  // The subscription event contains the assigned resource provider id.
+  AWAIT_READY(subscribed);
+
+  const mesos::v1::ResourceProviderID& resourceProviderId =
+    subscribed->provider_id();
+
+  AWAIT_READY(updateSlaveMessage);
+
+  EXPECT_TRUE(updateSlaveMessage->has_resource_categories());
+  EXPECT_TRUE(updateSlaveMessage->resource_categories().has_total());
+  EXPECT_TRUE(updateSlaveMessage->resource_categories().total());
+
+  // We expect the updated agent total to contain both the resources of the
+  // agent and of the newly subscribed resource provider. The resources from the
+  // resource provider have a matching `ResourceProviderId` set.
+  Resources expectedResources =
+    Resources::parse(slaveFlags.resources.get()).get();
+
+  foreach (v1::Resource resource, resourceProviderResources) {
+    resource.mutable_provider_id()->CopyFrom(resourceProviderId);
+    expectedResources += devolve(resource);
+  }
+
+  EXPECT_EQ(expectedResources, updateSlaveMessage->total_resources());
 }
 
 } // namespace tests {
