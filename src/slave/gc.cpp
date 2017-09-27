@@ -18,7 +18,6 @@
 
 #include <list>
 
-#include <process/async.hpp>
 #include <process/check.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -226,7 +225,10 @@ void GarbageCollectorProcess::remove(const Timeout& removalTime)
       return Nothing();
     };
 
-    async(rmdirs)
+    // NOTE: All `rmdirs` calls are dispatched to one executor so that:
+    //   1. They do not block other dispatches (MESOS-6549).
+    //   2. They do not occupy all worker threads (MESOS-7964).
+    executor.execute(rmdirs)
       .onAny(defer(self(), &Self::_remove, lambda::_1, infos));
   } else {
     // This occurs when either:
