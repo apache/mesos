@@ -2324,6 +2324,41 @@ HTTP/1.1 202 Accepted
 
 ```
 
+### MARK_AGENT_GONE
+
+This call can be used by operators to assert that an agent instance has
+failed and is never coming back (e.g., ephemeral instance from cloud provider).
+The master would shutdown the agent and send `TASK_GONE_BY_OPERATOR` updates
+for all the running tasks. This signal can be used by stateful frameworks to
+re-schedule their workloads (volumes, reservations etc.) to other agent
+instances. It is possible that the tasks might still be running if the
+operator's assertion was wrong and the agent was partitioned away from
+the master. The agent would be shutdown when it tries to re-register with the
+master when the partition heals. This call is idempotent.
+
+```
+MARK_AGENT_GONE HTTP Request (JSON):
+
+POST /api/v1  HTTP/1.1
+
+Host: masterhost:5050
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "MARK_AGENT_GONE",
+  "mark_agent_gone": {
+    "agent_id": {
+      "value": "3192b9d1-db71-4699-ae25-e28dfbf42de1"
+    }
+  }
+}
+
+MARK_AGENT_GONE HTTP Response (JSON):
+
+HTTP/1.1 200 OK
+```
+
 ## Events
 
 Currently, the only call that results in a streaming response is the `SUBSCRIBE` call sent to the master API.
