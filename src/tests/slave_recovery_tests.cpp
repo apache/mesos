@@ -3024,7 +3024,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
 
 // The slave is asked to shutdown. When it comes back up, it should
-// register as a new slave.
+// re-register as the same agent.
 TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
@@ -3134,8 +3134,8 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   EXPECT_EQ(Resources(offers1.get()[0].resources()),
             Resources(offers3.get()[0].resources()));
 
-  // Ensure the slave id is different.
-  EXPECT_NE(
+  // Ensure the slave id is same.
+  EXPECT_EQ(
       offers1.get()[0].slave_id().value(), offers3.get()[0].slave_id().value());
 
   driver.stop();

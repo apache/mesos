@@ -281,9 +281,11 @@ TEST_F(GarbageCollectorTest, Prune)
 class GarbageCollectorIntegrationTest : public MesosTest {};
 
 
-// This test ensures that garbage collection removes
+// This test ensures that garbage collection does not remove
 // the slave working directory after a slave restart.
-TEST_F(GarbageCollectorIntegrationTest, Restart)
+//
+// TODO(andschwa): Enable this when MESOS-7604 is fixed.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(GarbageCollectorIntegrationTest, Restart)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -371,22 +373,21 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
 
   Clock::pause();
 
-  Future<Nothing> schedule =
-    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
   slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(schedule);
-
-  Clock::settle(); // Wait for GarbageCollectorProcess::schedule to complete.
+  // Wait for the agent to finish recovery.
+  AWAIT_READY(__recover);
+  Clock::settle();
 
   Clock::advance(flags.gc_delay);
 
   Clock::settle();
 
-  // By this time the old slave directory should be cleaned up.
-  ASSERT_FALSE(os::exists(slaveDir));
+  // By this time the old slave directory should not be cleaned up.
+  ASSERT_TRUE(os::exists(slaveDir));
 
   Clock::resume();
 

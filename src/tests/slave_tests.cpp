@@ -8254,7 +8254,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
 // successfully. Note that shutting down the agent gracefully (killing
 // all tasks) is necessary, because changing the agent's domain is an
 // incompatible change to its SlaveInfo.
-TEST_F(SlaveTest, ChangeDomain)
+//
+// TODO(anand): Re-enable this test when fault domain upgrade is supported.
+TEST_F(SlaveTest, DISABLED_ChangeDomain)
 {
   Clock::pause();
 
