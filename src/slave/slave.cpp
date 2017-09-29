@@ -886,15 +886,6 @@ void Slave::finalize()
       shutdownFramework(UPID(), frameworkId);
     }
   }
-
-  if (state == TERMINATING) {
-    // We remove the "latest" symlink in meta directory, so that the
-    // slave doesn't recover the state when it restarts and registers
-    // as a new slave with the master.
-    if (os::exists(paths::getLatestSlavePath(metaDir))) {
-      CHECK_SOME(os::rm(paths::getLatestSlavePath(metaDir)));
-    }
-  }
 }
 
 
