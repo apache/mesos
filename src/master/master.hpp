@@ -732,6 +732,11 @@ protected:
       const std::string& removalCause,
       Option<process::metrics::Counter> reason = None());
 
+  void __removeSlave(
+      Slave* slave,
+      const std::string& message,
+      const Option<TimeInfo>& unreachableTime);
+
   // Validates that the framework is authenticated, if required.
   Option<Error> validateFrameworkAuthentication(
       const FrameworkInfo& frameworkInfo,

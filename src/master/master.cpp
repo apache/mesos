@@ -7175,107 +7175,9 @@ void Master::_markUnreachable(
   ++metrics->slave_removals;
   ++metrics->slave_removals_reason_unhealthy;
 
-  // We want to remove the slave first, to avoid the allocator
-  // re-allocating the recovered resources.
-  //
-  // NOTE: Removing the slave is not sufficient for recovering the
-  // resources in the allocator, because the "Sorters" are updated
-  // only within recoverResources() (see MESOS-621). The calls to
-  // recoverResources() below are therefore required, even though
-  // the slave is already removed.
-  allocator->removeSlave(slave->id);
-
-  // Transition tasks to TASK_UNREACHABLE / TASK_LOST and remove them.
-  // We only use TASK_UNREACHABLE if the framework has opted in to the
-  // PARTITION_AWARE capability.
-  foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
-    Framework* framework = getFramework(frameworkId);
-    CHECK_NOTNULL(framework);
-
-    TaskState newTaskState = TASK_UNREACHABLE;
-    if (!framework->capabilities.partitionAware) {
-      newTaskState = TASK_LOST;
-    }
-
-    foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
-      const StatusUpdate& update = protobuf::createStatusUpdate(
-          task->framework_id(),
-          task->slave_id(),
-          task->task_id(),
-          newTaskState,
-          TaskStatus::SOURCE_MASTER,
-          None(),
-          "Agent " + slave->info.hostname() + " is unreachable: " + message,
-          TaskStatus::REASON_SLAVE_REMOVED,
-          (task->has_executor_id() ?
-              Option<ExecutorID>(task->executor_id()) : None()),
-          None(),
-          None(),
-          None(),
-          None(),
-          unreachableTime);
-
-      updateTask(task, update);
-      removeTask(task);
-
-      if (!framework->connected()) {
-        LOG(WARNING) << "Dropping update " << update
-                     << " for disconnected "
-                     << " framework " << frameworkId;
-      } else {
-        forward(update, UPID(), framework);
-      }
-    }
-  }
-
-  // Remove executors from the slave for proper resource accounting.
-  foreachkey (const FrameworkID& frameworkId, utils::copy(slave->executors)) {
-    foreachkey (const ExecutorID& executorId,
-                utils::copy(slave->executors[frameworkId])) {
-      removeExecutor(slave, frameworkId, executorId);
-    }
-  }
-
-  foreach (Offer* offer, utils::copy(slave->offers)) {
-    // TODO(vinod): We don't need to call 'Allocator::recoverResources'
-    // once MESOS-621 is fixed.
-    allocator->recoverResources(
-        offer->framework_id(), slave->id, offer->resources(), None());
-
-    // Remove and rescind offers.
-    removeOffer(offer, true); // Rescind!
-  }
-
-  // Remove inverse offers because sending them for a slave that is
-  // unreachable doesn't make sense.
-  foreach (InverseOffer* inverseOffer, utils::copy(slave->inverseOffers)) {
-    // We don't need to update the allocator because we've already called
-    // `RemoveSlave()`.
-    // Remove and rescind inverse offers.
-    removeInverseOffer(inverseOffer, true); // Rescind!
-  }
-
-  // Mark the slave as being unreachable.
-  slaves.registered.remove(slave);
-  slaves.removed.put(slave->id, Nothing());
   slaves.unreachable[slave->id] = unreachableTime;
-  authenticated.erase(slave->pid);
 
-  // Remove the slave from the `machines` mapping.
-  CHECK(machines.contains(slave->machineId));
-  CHECK(machines[slave->machineId].slaves.contains(slave->id));
-  machines[slave->machineId].slaves.erase(slave->id);
-
-  // Kill the slave observer.
-  terminate(slave->observer);
-  wait(slave->observer);
-  delete slave->observer;
-
-  // TODO(benh): unlink(slave->pid);
-
-  sendSlaveLost(slave->info);
-
-  delete slave;
+  __removeSlave(slave, message, unreachableTime);
 }
 
 
@@ -8915,6 +8817,118 @@ void Master::_removeSlave(
   if (!subscribers.subscribed.empty()) {
     subscribers.send(protobuf::master::event::createAgentRemoved(slave->id));
   }
+
+  delete slave;
+}
+
+
+void Master::__removeSlave(
+    Slave* slave,
+    const string& message,
+    const Option<TimeInfo>& unreachableTime)
+{
+  // We want to remove the slave first, to avoid the allocator
+  // re-allocating the recovered resources.
+  //
+  // NOTE: Removing the slave is not sufficient for recovering the
+  // resources in the allocator, because the "Sorters" are updated
+  // only within recoverResources() (see MESOS-621). The calls to
+  // recoverResources() below are therefore required, even though
+  // the slave is already removed.
+  allocator->removeSlave(slave->id);
+
+  // Transition tasks to TASK_UNREACHABLE/TASK_LOST
+  // and remove them. We only use TASK_UNREACHABLE if
+  // the framework has opted in to the PARTITION_AWARE capability.
+  foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
+    Framework* framework = getFramework(frameworkId);
+    CHECK_NOTNULL(framework);
+
+    TaskState newTaskState = TASK_UNREACHABLE;
+    TaskStatus::Reason newTaskReason = TaskStatus::REASON_SLAVE_REMOVED;
+
+    if (!framework->capabilities.partitionAware) {
+      newTaskState = TASK_LOST;
+    } else {
+      newTaskState = TASK_UNREACHABLE;
+    }
+
+    foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          task->framework_id(),
+          task->slave_id(),
+          task->task_id(),
+          newTaskState,
+          TaskStatus::SOURCE_MASTER,
+          None(),
+          message,
+          newTaskReason,
+          (task->has_executor_id() ?
+              Option<ExecutorID>(task->executor_id()) : None()),
+          None(),
+          None(),
+          None(),
+          None(),
+          unreachableTime.isSome() ? unreachableTime : None());
+
+      updateTask(task, update);
+      removeTask(task);
+
+      if (!framework->connected()) {
+        LOG(WARNING) << "Dropping update " << update
+                     << " for disconnected "
+                     << " framework " << frameworkId;
+      } else {
+        forward(update, UPID(), framework);
+      }
+    }
+  }
+
+  // Remove executors from the slave for proper resource accounting.
+  foreachkey (const FrameworkID& frameworkId, utils::copy(slave->executors)) {
+    foreachkey (const ExecutorID& executorId,
+                utils::copy(slave->executors[frameworkId])) {
+      removeExecutor(slave, frameworkId, executorId);
+    }
+  }
+
+  foreach (Offer* offer, utils::copy(slave->offers)) {
+    // TODO(vinod): We don't need to call 'Allocator::recoverResources'
+    // once MESOS-621 is fixed.
+    allocator->recoverResources(
+        offer->framework_id(), slave->id, offer->resources(), None());
+
+    // Remove and rescind offers.
+    removeOffer(offer, true); // Rescind!
+  }
+
+  // Remove inverse offers because sending them for a slave that is
+  // unreachable doesn't make sense.
+  foreach (InverseOffer* inverseOffer, utils::copy(slave->inverseOffers)) {
+    // We don't need to update the allocator because we've already called
+    // `RemoveSlave()`.
+    // Remove and rescind inverse offers.
+    removeInverseOffer(inverseOffer, true); // Rescind!
+  }
+
+  // Mark the slave as being removed.
+  slaves.registered.remove(slave);
+  slaves.removed.put(slave->id, Nothing());
+  authenticated.erase(slave->pid);
+
+  // Remove the slave from the `machines` mapping.
+  CHECK(machines.contains(slave->machineId));
+  CHECK(machines[slave->machineId].slaves.contains(slave->id));
+  machines[slave->machineId].slaves.erase(slave->id);
+
+  // Kill the slave observer.
+  terminate(slave->observer);
+  wait(slave->observer);
+  delete slave->observer;
+
+  // TODO(benh): unlink(slave->pid);
+
+  sendSlaveLost(slave->info);
 
   delete slave;
 }
