@@ -779,6 +779,9 @@ Future<Response> Master::Http::api(
 
     case mesos::master::Call::TEARDOWN:
       return teardown(call, principal, acceptType);
+
+    case mesos::master::Call::MARK_AGENT_GONE:
+      return markAgentGone(call, principal, acceptType);
   }
 
   UNREACHABLE();
@@ -5284,6 +5287,104 @@ Future<Response> Master::Http::unreserveResources(
     call.unreserve_resources().resources();
 
   return _unreserve(slaveId, resources, principal);
+}
+
+
+Future<Response> Master::Http::markAgentGone(
+    const mesos::master::Call& call,
+    const Option<Principal>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::MARK_AGENT_GONE, call.type());
+
+  const SlaveID& slaveId = call.mark_agent_gone().slave_id();
+
+  LOG(INFO) << "Marking agent '" << slaveId << "' as gone";
+
+  if (master->slaves.gone.contains(slaveId)) {
+    LOG(WARNING) << "Not marking agent '" << slaveId
+                 << "' as gone because it has already transitioned to gone";
+    return OK();
+  }
+
+  // We return a `ServiceUnavailable` (retryable error) if there is
+  // an ongoing registry transition to gone/removed/unreachable.
+  if (master->slaves.markingGone.contains(slaveId)) {
+    LOG(WARNING) << "Not marking agent '" << slaveId
+                 << "' as gone because another gone transition"
+                 << " is already in progress";
+
+    return ServiceUnavailable(
+        "Agent '" + stringify(slaveId) + "' is already being transitioned"
+        + " to gone");
+  }
+
+  if (master->slaves.removing.contains(slaveId)) {
+    LOG(WARNING) << "Not marking agent '" << slaveId
+                 << "' as gone because another remove transition"
+                 << " is already in progress";
+
+    return ServiceUnavailable(
+        "Agent '" + stringify(slaveId) + "' is being transitioned to removed");
+  }
+
+  if (master->slaves.markingUnreachable.contains(slaveId)) {
+    LOG(WARNING) << "Not marking agent '" << slaveId
+                 << "' as gone because another unreachable transition"
+                 << " is already in progress";
+
+    return ServiceUnavailable(
+        "Agent '" + stringify(slaveId) + "' is being transitioned to"
+        + " unreachable");
+  }
+
+  // We currently support marking an agent gone if the agent
+  // is present in the list of active, unreachable or recovered agents.
+  bool found = false;
+
+  if (master->slaves.registered.contains(slaveId)) {
+    found = true;
+  } else if(master->slaves.recovered.contains(slaveId)) {
+    found = true;
+  } else if (master->slaves.unreachable.contains(slaveId)) {
+    found = true;
+  }
+
+  if (!found) {
+    return NotFound("Agent '" + stringify(slaveId) + "' not found");
+  }
+
+  master->slaves.markingGone.insert(slaveId);
+
+  TimeInfo goneTime = protobuf::getCurrentTime();
+
+  Future<bool> gone = master->registrar->apply(Owned<Operation>(
+      new MarkSlaveGone(slaveId, goneTime)));
+
+  gone.onAny(defer(
+      master->self(), [this, slaveId, goneTime](Future<bool> registrarResult) {
+    CHECK(!registrarResult.isDiscarded());
+
+    if (registrarResult.isFailed()) {
+      LOG(FATAL) << "Failed to mark agent " << slaveId
+                 << " as gone in the registry: "
+                 << registrarResult.failure();
+    }
+
+    Slave* slave = master->slaves.registered.get(slaveId);
+
+    // This can happen if the agent that is being marked as
+    // gone is not currently registered (unreachable/recovered).
+    if (slave == nullptr) {
+      return;
+    }
+
+    master->markGone(slave, goneTime);
+  }));
+
+  return gone.then([]() -> Future<Response> {
+    return OK();
+  });
 }
 
 } // namespace master {

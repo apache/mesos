@@ -1723,6 +1723,11 @@ Future<Nothing> Master::_recover(const Registry& registry)
     slaves.unreachable[unreachable.id()] = unreachable.timestamp();
   }
 
+  foreach (const Registry::GoneSlave& gone,
+           registry.gone().slaves()) {
+    slaves.gone[gone.id()] = gone.timestamp();
+  }
+
   // Set up a timer for age-based registry GC.
   scheduleRegistryGc();
 
@@ -2008,6 +2013,26 @@ Nothing Master::markUnreachableAfterFailover(const SlaveInfo& slave)
     LOG(INFO) << "Canceling transition of agent "
               << slave.id() << " (" << slave.hostname() << ")"
               << " to unreachable because it is re-registering";
+
+    ++metrics->slave_unreachable_canceled;
+    return Nothing();
+  }
+
+  if (slaves.markingGone.contains(slave.id())) {
+    LOG(INFO) << "Canceling transition of agent "
+              << slave.id() << " (" << slave.hostname() << ")"
+              << " to unreachable because an agent gone"
+              << " operation is in progress";
+
+    ++metrics->slave_unreachable_canceled;
+    return Nothing();
+  }
+
+  if (slaves.gone.contains(slave.id())) {
+    LOG(INFO) << "Canceling transition of agent "
+              << slave.id() << " (" << slave.hostname() << ")"
+              << " to unreachable because the agent has"
+              << " been marked gone";
 
     ++metrics->slave_unreachable_canceled;
     return Nothing();
@@ -6056,6 +6081,24 @@ void Master::reregisterSlave(
     return;
   }
 
+  if (slaves.markingGone.contains(slaveInfo.id())) {
+    LOG(INFO)
+      << "Ignoring re-register agent message from agent "
+      << slaveInfo.id() << " at " << from << " ("
+      << slaveInfo.hostname() << ") as a gone operation is already in progress";
+    return;
+  }
+
+  if (slaves.gone.contains(slaveInfo.id())) {
+    LOG(WARNING) << "Refusing re-registration of agent at " << from
+                 << " because it is already marked gone";
+
+    ShutdownMessage message;
+    message.set_message("Agent has been marked gone");
+    send(from, message);
+    return;
+  }
+
   Option<Error> error = validation::master::message::reregisterSlave(
       slaveInfo, tasks, checkpointedResources, executorInfos, frameworks);
 
@@ -7122,6 +7165,20 @@ void Master::markUnreachable(const SlaveID& slaveId, const string& message)
     return;
   }
 
+  if (slaves.markingGone.contains(slaveId)) {
+    LOG(INFO) << "Canceling transition of agent " << slaveId
+              << " to unreachable because an agent gone"
+              << " operation is in progress";
+    return;
+  }
+
+  if (slaves.gone.contains(slaveId)) {
+    LOG(INFO) << "Canceling transition of agent " << slaveId
+              << " to unreachable because the agent has"
+              << " been marked gone";
+    return;
+  }
+
   LOG(INFO) << "Marking agent " << *slave
             << " unreachable: " << message;
 
@@ -7178,6 +7235,23 @@ void Master::_markUnreachable(
   slaves.unreachable[slave->id] = unreachableTime;
 
   __removeSlave(slave, message, unreachableTime);
+}
+
+
+void Master::markGone(Slave* slave, const TimeInfo& goneTime)
+{
+  CHECK_NOTNULL(slave);
+  CHECK(slaves.markingGone.contains(slave->info.id()));
+  slaves.markingGone.erase(slave->info.id());
+
+  slaves.gone[slave->id] = goneTime;
+
+  // Shutdown the agent if it transitioned to gone.
+  ShutdownMessage message;
+  message.set_message("Agent has been marked gone");
+  send(slave->pid, message);
+
+  __removeSlave(slave, "Agent has been marked gone", None());
 }
 
 
@@ -7312,9 +7386,10 @@ void Master::_reconcileTasks(
   //   (3) Task is unknown, slave is registered: TASK_UNKNOWN.
   //   (4) Task is unknown, slave is transitioning: no-op.
   //   (5) Task is unknown, slave is unreachable: TASK_UNREACHABLE.
-  //   (6) Task is unknown, slave is unknown: TASK_UNKNOWN.
+  //   (6) Task is unknown, slave is gone: TASK_GONE_BY_OPERATOR.
+  //   (7) Task is unknown, slave is unknown: TASK_UNKNOWN.
   //
-  // For cases (3), (5), and (6), TASK_LOST is sent instead if the
+  // For cases (3), (5), (6) and (7) TASK_LOST is sent instead if the
   // framework has not opted-in to the PARTITION_AWARE capability.
   foreach (const TaskStatus& status, statuses) {
     Option<SlaveID> slaveId = None();
@@ -7411,8 +7486,26 @@ void Master::_reconcileTasks(
           None(),
           None(),
           unreachableTime);
+    } else if (slaveId.isSome() && slaves.gone.contains(slaveId.get())) {
+      // (6) Slave is gone: TASK_GONE_BY_OPERATOR. If the framework
+      // does not have the PARTITION_AWARE capability, send TASK_LOST
+      // for backward compatibility.
+      TaskState taskState = TASK_GONE_BY_OPERATOR;
+      if (!framework->capabilities.partitionAware) {
+        taskState = TASK_LOST;
+      }
+
+      update = protobuf::createStatusUpdate(
+          framework->id(),
+          slaveId.get(),
+          status.task_id(),
+          taskState,
+          TaskStatus::SOURCE_MASTER,
+          None(),
+          "Reconciliation: Task is gone",
+          TaskStatus::REASON_RECONCILIATION);
     } else {
-      // (6) Task is unknown, slave is unknown: TASK_UNKNOWN. If the
+      // (7) Task is unknown, slave is unknown: TASK_UNKNOWN. If the
       // framework does not have the PARTITION_AWARE capability, send
       // TASK_LOST for backward compatibility.
       TaskState taskState = TASK_UNKNOWN;
@@ -8665,6 +8758,12 @@ void Master::removeSlave(
     return;
   }
 
+  if (slaves.markingGone.contains(slave->id)) {
+    LOG(WARNING) << "Ignoring removal of agent " << *slave
+                 << " that is in the process of being marked gone";
+    return;
+  }
+
   // This should not be possible, but we protect against it anyway for
   // the sake of paranoia.
   if (slaves.removing.contains(slave->id)) {
@@ -8837,8 +8936,8 @@ void Master::__removeSlave(
   // the slave is already removed.
   allocator->removeSlave(slave->id);
 
-  // Transition tasks to TASK_UNREACHABLE/TASK_LOST
-  // and remove them. We only use TASK_UNREACHABLE if
+  // Transition tasks to TASK_UNREACHABLE/TASK_GONE_BY_OPERATOR/TASK_LOST
+  // and remove them. We only use TASK_UNREACHABLE/TASK_GONE_BY_OPERATOR if
   // the framework has opted in to the PARTITION_AWARE capability.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
     Framework* framework = getFramework(frameworkId);
@@ -8850,7 +8949,12 @@ void Master::__removeSlave(
     if (!framework->capabilities.partitionAware) {
       newTaskState = TASK_LOST;
     } else {
-      newTaskState = TASK_UNREACHABLE;
+      if (unreachableTime.isSome()) {
+        newTaskState = TASK_UNREACHABLE;
+      } else {
+        newTaskState = TASK_GONE_BY_OPERATOR;
+        newTaskReason = TaskStatus::REASON_SLAVE_REMOVED_BY_OPERATOR;
+      }
     }
 
     foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {

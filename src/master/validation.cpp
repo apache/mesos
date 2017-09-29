@@ -228,6 +228,12 @@ Option<Error> validate(
         return Error("Expecting 'teardown' to be present");
       }
       return None();
+
+    case mesos::master::Call::MARK_AGENT_GONE:
+      if (!call.has_mark_agent_gone()) {
+        return Error("Expecting 'mark_agent_gone' to be present");
+      }
+      return None();
   }
 
   UNREACHABLE();

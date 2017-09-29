@@ -491,6 +491,8 @@ public:
       const SlaveID& slaveId,
       const std::string& message);
 
+  void markGone(Slave* slave, const TimeInfo& goneTime);
+
   void authenticate(
       const process::UPID& from,
       const process::UPID& pid);
@@ -1665,6 +1667,11 @@ private:
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> markAgentGone(
+        const mesos::master::Call& call,
+        const Option<process::http::authentication::Principal>& principal,
+        ContentType contentType) const;
+
     Master* master;
 
     // NOTE: The quota specific pieces of the Operator API are factored
@@ -1829,6 +1836,9 @@ private:
     // Slaves that are in the process of being marked unreachable.
     hashset<SlaveID> markingUnreachable;
 
+    // Slaves that are in the process of being marked gone.
+    hashset<SlaveID> markingGone;
+
     // This collection includes agents that have gracefully shutdown,
     // as well as those that have been marked unreachable. We keep a
     // cache here to prevent this from growing in an unbounded manner.
@@ -1848,6 +1858,13 @@ private:
     // GC behavior is governed by the `registry_gc_interval`,
     // `registry_max_agent_age`, and `registry_max_agent_count` flags.
     LinkedHashMap<SlaveID, TimeInfo> unreachable;
+
+    // Slaves that have been marked gone. We recover this from the
+    // registry, so it includes slaves marked as gone by other instances
+    // of the master. Note that we use a LinkedHashMap to ensure the order
+    // of elements here matches the order in the registry's gone list, which
+    // matches the order in which agents are marked gone.
+    LinkedHashMap<SlaveID, TimeInfo> gone;
 
     // This rate limiter is used to limit the removal of slaves failing
     // health checks.
