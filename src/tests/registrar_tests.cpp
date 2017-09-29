@@ -339,6 +339,68 @@ TEST_F(RegistrarTest, MarkUnreachable)
 }
 
 
+// Verify that an admitted slave can be marked as gone.
+TEST_F(RegistrarTest, MarkGone)
+{
+  Registrar registrar(flags, state);
+  AWAIT_READY(registrar.recover(master));
+
+  SlaveID id1;
+  id1.set_value("1");
+
+  SlaveInfo info1;
+  info1.set_hostname("localhost");
+  info1.mutable_id()->CopyFrom(id1);
+
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+
+  AWAIT_TRUE(
+      registrar.apply(
+          Owned<Operation>(
+              new MarkSlaveGone(info1.id(), protobuf::getCurrentTime()))));
+}
+
+
+// Verify that an unreachable slave can be marked as gone.
+TEST_F(RegistrarTest, MarkUnreachableGone)
+{
+  Registrar registrar(flags, state);
+  AWAIT_READY(registrar.recover(master));
+
+  SlaveID id1;
+  id1.set_value("1");
+
+  SlaveInfo info1;
+  info1.set_hostname("localhost");
+  info1.mutable_id()->CopyFrom(id1);
+
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+
+  AWAIT_TRUE(
+    registrar.apply(
+        Owned<Operation>(
+            new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
+
+  AWAIT_TRUE(
+    registrar.apply(
+        Owned<Operation>(
+            new MarkSlaveGone(info1.id(), protobuf::getCurrentTime()))));
+
+  // If a slave is already gone, trying to mark it gone again should fail.
+  AWAIT_FALSE(
+      registrar.apply(
+          Owned<Operation>(
+              new MarkSlaveGone(info1.id(), protobuf::getCurrentTime()))));
+
+  // If a slave is already gone, trying to mark it unreachable
+  // again should fail.
+  AWAIT_FALSE(
+      registrar.apply(
+          Owned<Operation>(
+              new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
+}
+
+
 TEST_F(RegistrarTest, PruneUnreachable)
 {
   Registrar registrar(flags, state);

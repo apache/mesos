@@ -54,6 +54,17 @@ message Registry {
     repeated UnreachableSlave slaves = 1;
   }
 
+  message GoneSlave {
+    required SlaveID id = 1;
+
+    // The time when the slave was marked gone by the master.
+    required TimeInfo timestamp = 2;
+  }
+
+  message GoneSlaves {
+    repeated GoneSlave slaves = 1;
+  }
+
   message Machine {
     required MachineInfo info = 1;
   }
@@ -85,6 +96,14 @@ message Registry {
   // size of this list is limited by the `registry_max_agent_age` and
   // `registry_max_agent_count` flags.
   optional UnreachableSlaves unreachable = 7;
+
+  // Slaves that have been explicitly marked as failed (no longer running)
+  // by the operator. They may or may not still be running.
+  //
+  // New entries are added to the end of this list; hence the first
+  // element of the list was added first (although if there is clock
+  // drift, it might not necessarily have the smallest timestamp).
+  optional GoneSlaves gone = 8;
 
   // Holds a list of machines and some status information about each.
   // See comments in `MachineInfo` for more information.

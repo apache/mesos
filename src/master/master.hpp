@@ -2287,6 +2287,77 @@ private:
 };
 
 
+// Move a slave from the list of admitted/unreachable slaves
+// to the list of gone slaves.
+class MarkSlaveGone : public Operation
+{
+public:
+  MarkSlaveGone(const SlaveID& _id, const TimeInfo& _goneTime)
+    : id(_id), goneTime(_goneTime) {}
+
+protected:
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs)
+  {
+    // Check whether the slave is already in the gone list. As currently
+    // implemented, this should not be possible: the master will not
+    // try to transition an already gone slave.
+    for (int i = 0; i < registry->gone().slaves().size(); i++) {
+      const Registry::GoneSlave& slave = registry->gone().slaves(i);
+
+      if (slave.id() == id) {
+        return Error("Agent " + stringify(id) + " already marked as gone");
+      }
+    }
+
+    // Check whether the slave is in the admitted/unreachable list.
+    bool found = false;
+    if (slaveIDs->contains(id)) {
+      found = true;
+      for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+        const Registry::Slave& slave = registry->slaves().slaves(i);
+
+        if (slave.info().id() == id) {
+          registry->mutable_slaves()->mutable_slaves()->DeleteSubrange(i, 1);
+          slaveIDs->erase(id);
+          break;
+        }
+      }
+    }
+
+    if (!found) {
+      for (int i = 0; i < registry->unreachable().slaves().size(); i++) {
+        const Registry::UnreachableSlave& slave =
+          registry->unreachable().slaves(i);
+
+        if (slave.id() == id) {
+          registry->mutable_unreachable()->mutable_slaves()->DeleteSubrange(
+              i, 1);
+
+          found = true;
+          break;
+        }
+      }
+    }
+
+    if (found) {
+      Registry::GoneSlave* gone = registry->mutable_gone()->add_slaves();
+
+      gone->mutable_id()->CopyFrom(id);
+      gone->mutable_timestamp()->CopyFrom(goneTime);
+
+      return true; // Mutation;
+    }
+
+    // Should not happen.
+    return Error("Failed to find agent " + stringify(id));
+  }
+
+private:
+  const SlaveID id;
+  const TimeInfo goneTime;
+};
+
+
 inline std::ostream& operator<<(
     std::ostream& stream,
     const Framework& framework);
