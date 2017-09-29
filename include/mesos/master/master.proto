@@ -89,6 +89,8 @@ message Call {
     REMOVE_QUOTA = 30;       // See 'RemoveQuota' below.
 
     TEARDOWN = 31;       // See 'Teardown' below.
+
+    MARK_AGENT_GONE = 32; // See 'MarkAgentGone' below.
   }
 
   // Provides a snapshot of the current metrics tracked by the master.
@@ -196,6 +198,21 @@ message Call {
     required FrameworkID framework_id = 1;
   }
 
+  // Mark an agent as gone. This can be used by an operator to assert
+  // that the agent instance has failed and is never coming back (e.g.,
+  // ephemeral instance from cloud provider). The master would shutdown
+  // the agent and send 'TASK_GONE_BY_OPERATOR' updates for all the running
+  // tasks. The persistent volumes/reservations on the agent won't be
+  // accessible anymore.
+  //
+  // NOTE: It is possible that the tasks might still be running
+  // if the operator's assertion was wrong and the agent was partitioned
+  // away from the master. The agent would be shutdown when it tries to
+  // re-register with the master when the partition heals.
+  message MarkAgentGone {
+    required SlaveID slave_id = 1;
+  }
+
   optional Type type = 1;
 
   optional GetMetrics get_metrics = 2;
@@ -213,6 +230,7 @@ message Call {
   optional SetQuota set_quota = 14;
   optional RemoveQuota remove_quota = 15;
   optional Teardown teardown = 16;
+  optional MarkAgentGone mark_agent_gone = 17;
 }
 
 
