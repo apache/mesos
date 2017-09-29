@@ -404,6 +404,16 @@ message ACL {
     // access.
     required Entity machines = 2;
   }
+
+  // Which principals are authorized to mark an agent as gone.
+  message MarkAgentGone {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity agents = 2;
+  }
 }
 
 
@@ -474,4 +484,5 @@ message ACLs {
   repeated ACL.StartMaintenance start_maintenances = 37;
   repeated ACL.StopMaintenance stop_maintenances = 38;
   repeated ACL.GetMaintenanceStatus get_maintenance_statuses = 39;
+  repeated ACL.MarkAgentGone mark_agents_gone = 40;
 }

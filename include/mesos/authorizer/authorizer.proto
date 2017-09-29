@@ -213,6 +213,10 @@ enum Action {
 
   // This action will set objects of type `MachineID`.
   GET_MAINTENANCE_STATUS = 33;
+
+  // This action will not fill in any object fields, since a principal is
+  // either allowed to mark an agent as gone or is unauthorized.
+  MARK_AGENT_GONE = 34;
 }
 
 

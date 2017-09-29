@@ -3583,6 +3583,63 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, MarkRegisteredAgentGone)
 }
 
 
+// This test verifies that unauthorized principals are unable to
+// mark agents as gone.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest,
+                                MarkRegisteredAgentGoneUnauthorized)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+
+  {
+    // Default principal is not allowed to mark agents as gone.
+    mesos::ACL::MarkAgentGone* acl =
+      masterFlags.acls.get().add_mark_agents_gone();
+
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_agents()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Ensure that the agent is registered successfully with the master
+  // before marking it as gone.
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Mark the agent as gone. This should fail due to an authorization error.
+
+  ContentType contentType = GetParam();
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::MARK_AGENT_GONE);
+
+  v1::master::Call::MarkAgentGone* markAgentGone =
+    v1Call.mutable_mark_agent_gone();
+
+  markAgentGone->mutable_agent_id()->CopyFrom(
+      evolve(slaveRegisteredMessage->slave_id()));
+
+  Future<http::Response> response = http::post(
+      master.get()->pid,
+      "api/v1",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Forbidden().status, response);
+}
+
+
 // This test verifies that the master correctly sends 'TASK_GONE_BY_OPERATOR'
 // status updates when an agent running the tasks is marked as gone.
 //

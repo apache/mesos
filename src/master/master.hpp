@@ -1672,6 +1672,9 @@ private:
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> _markAgentGone(
+        const SlaveID& slaveId) const;
+
     Master* master;
 
     // NOTE: The quota specific pieces of the Operator API are factored

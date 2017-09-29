@@ -5297,8 +5297,37 @@ Future<Response> Master::Http::markAgentGone(
 {
   CHECK_EQ(mesos::master::Call::MARK_AGENT_GONE, call.type());
 
+  Future<Owned<ObjectApprover>> approver;
+
+  if (master->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = master->authorizer.get()->getObjectApprover(
+        subject, authorization::MARK_AGENT_GONE);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
   const SlaveID& slaveId = call.mark_agent_gone().slave_id();
 
+  return approver.then(defer(master->self(),
+      [this, slaveId](const Owned<ObjectApprover>& approver)
+          -> Future<Response> {
+    Try<bool> approved = approver->approved((ObjectApprover::Object()));
+
+    if (approved.isError()) {
+      return InternalServerError("Authorization error: " + approved.error());
+    } else if (!approved.get()) {
+      return Forbidden();
+    }
+
+    return _markAgentGone(slaveId);
+  }));
+}
+
+
+Future<Response> Master::Http::_markAgentGone(const SlaveID& slaveId) const
+{
   LOG(INFO) << "Marking agent '" << slaveId << "' as gone";
 
   if (master->slaves.gone.contains(slaveId)) {

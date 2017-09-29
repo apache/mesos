@@ -398,6 +398,7 @@ public:
           break;
         case authorization::GET_MAINTENANCE_SCHEDULE:
         case authorization::GET_MAINTENANCE_STATUS:
+        case authorization::MARK_AGENT_GONE:
         case authorization::REGISTER_AGENT:
         case authorization::SET_LOG_LEVEL:
         case authorization::START_MAINTENANCE:
@@ -666,6 +667,7 @@ public:
         case authorization::KILL_NESTED_CONTAINER:
         case authorization::LAUNCH_NESTED_CONTAINER:
         case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
+        case authorization::MARK_AGENT_GONE:
         case authorization::REGISTER_AGENT:
         case authorization::REMOVE_NESTED_CONTAINER:
         case authorization::RUN_TASK:
@@ -876,6 +878,7 @@ public:
       case authorization::KILL_NESTED_CONTAINER:
       case authorization::LAUNCH_NESTED_CONTAINER:
       case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
+      case authorization::MARK_AGENT_GONE:
       case authorization::REGISTER_AGENT:
       case authorization::REMOVE_NESTED_CONTAINER:
       case authorization::RUN_TASK:
@@ -1040,6 +1043,7 @@ public:
       case authorization::GET_MAINTENANCE_SCHEDULE:
       case authorization::GET_MAINTENANCE_STATUS:
       case authorization::KILL_NESTED_CONTAINER:
+      case authorization::MARK_AGENT_GONE:
       case authorization::REGISTER_AGENT:
       case authorization::REMOVE_NESTED_CONTAINER:
       case authorization::RUN_TASK:
@@ -1328,6 +1332,17 @@ private:
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.machines();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::MARK_AGENT_GONE:
+        foreach (const ACL::MarkAgentGone& acl,
+                 acls.mark_agents_gone()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.agents();
 
           acls_.push_back(acl_);
         }
