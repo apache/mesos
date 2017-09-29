@@ -1678,7 +1678,9 @@ enum TaskState {
   // the TASK_KILLING_STATE capability.
   TASK_KILLING = 8;  // The task is being killed by the executor.
 
-  TASK_FINISHED = 2; // TERMINAL: The task finished successfully.
+  // The task finished successfully on its own without external interference.
+  TASK_FINISHED = 2; // TERMINAL.
+
   TASK_FAILED = 3;   // TERMINAL: The task failed to finish successfully.
   TASK_KILLED = 4;   // TERMINAL: The task was killed by the executor.
   TASK_ERROR = 7;    // TERMINAL: The task description contains an error.
