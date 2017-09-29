@@ -1848,69 +1848,81 @@ void Master::doRegistryGc()
   // concurrently). In this situation, we skip removing any elements
   // we don't find.
 
-  size_t unreachableCount = slaves.unreachable.size();
-  TimeInfo currentTime = protobuf::getCurrentTime();
-  hashset<SlaveID> toRemove;
+  auto prune = [this](const LinkedHashMap<SlaveID, TimeInfo>& slaves) {
+    size_t count = slaves.size();
+    TimeInfo currentTime = protobuf::getCurrentTime();
+    hashset<SlaveID> toRemove;
 
-  foreachpair (const SlaveID& slave,
-               const TimeInfo& unreachableTime,
-               slaves.unreachable) {
-    // Count-based GC.
-    CHECK(toRemove.size() <= unreachableCount);
+    foreachpair (const SlaveID& slave,
+                 const TimeInfo& removalTime,
+                 slaves) {
+      // Count-based GC.
+      CHECK(toRemove.size() <= count);
 
-    size_t liveCount = unreachableCount - toRemove.size();
-    if (liveCount > flags.registry_max_agent_count) {
-      toRemove.insert(slave);
-      continue;
+      size_t liveCount = count - toRemove.size();
+      if (liveCount > flags.registry_max_agent_count) {
+        toRemove.insert(slave);
+        continue;
+      }
+
+      // Age-based GC.
+      Duration age = Nanoseconds(
+          currentTime.nanoseconds() - removalTime.nanoseconds());
+
+      if (age > flags.registry_max_agent_age) {
+        toRemove.insert(slave);
+      }
     }
 
-    // Age-based GC.
-    Duration age = Nanoseconds(
-        currentTime.nanoseconds() - unreachableTime.nanoseconds());
+    return toRemove;
+  };
 
-    if (age > flags.registry_max_agent_age) {
-      toRemove.insert(slave);
-    }
-  }
+  hashset<SlaveID> toRemoveUnreachable = prune(slaves.unreachable);
+  hashset<SlaveID> toRemoveGone = prune(slaves.gone);
 
-  if (toRemove.empty()) {
+  if (toRemoveUnreachable.empty() && toRemoveGone.empty()) {
     VLOG(1) << "Skipping periodic registry garbage collection: "
             << "no agents qualify for removal";
     return;
   }
 
-  VLOG(1) << "Attempting to remove " << toRemove.size()
-          << " unreachable agents from the registry";
+  VLOG(1) << "Attempting to remove " << toRemoveUnreachable.size()
+          << " unreachable and " << toRemoveGone.size()
+          << " gone agents from the registry";
 
-  registrar->apply(Owned<Operation>(new PruneUnreachable(toRemove)))
+  registrar->apply(Owned<Operation>(
+      new Prune(toRemoveUnreachable, toRemoveGone)))
     .onAny(defer(self(),
                  &Self::_doRegistryGc,
-                 toRemove,
+                 toRemoveUnreachable,
+                 toRemoveGone,
                  lambda::_1));
 }
 
 
 void Master::_doRegistryGc(
-    const hashset<SlaveID>& toRemove,
+    const hashset<SlaveID>& toRemoveUnreachable,
+    const hashset<SlaveID>& toRemoveGone,
     const Future<bool>& registrarResult)
 {
   CHECK(!registrarResult.isDiscarded());
   CHECK(!registrarResult.isFailed());
 
-  // `PruneUnreachable` registry operation should never fail.
+  // `Prune` registry operation should never fail.
   CHECK(registrarResult.get());
 
   // Update in-memory state to be consistent with registry changes. If
   // there was a concurrent registry operation that also modified the
-  // unreachable list (e.g., an agent in `toRemove` concurrently
+  // unreachable/gone list (e.g., an agent in `toRemoveXXX` concurrently
   // reregistered), entries in `toRemove` might not appear in
-  // `slaves.unreachable`.
+  // `slaves.unreachable` or `slaves.gone`.
   //
   // TODO(neilc): It would be nice to verify that the effect of these
   // in-memory updates is equivalent to the changes made by the registry
   // operation, but there isn't an easy way to do that.
-  size_t numRemoved = 0;
-  foreach (const SlaveID& slave, toRemove) {
+
+  size_t numRemovedUnreachable = 0;
+  foreach (const SlaveID& slave, toRemoveUnreachable) {
     if (!slaves.unreachable.contains(slave)) {
       LOG(WARNING) << "Failed to garbage collect " << slave
                    << " from the unreachable list";
@@ -1918,12 +1930,25 @@ void Master::_doRegistryGc(
     }
 
     slaves.unreachable.erase(slave);
-    numRemoved++;
+    numRemovedUnreachable++;
+  }
+
+  size_t numRemovedGone = 0;
+  foreach (const SlaveID& slave, toRemoveGone) {
+    if (!slaves.gone.contains(slave)) {
+      LOG(WARNING) << "Failed to garbage collect " << slave
+                   << " from the gone list";
+      continue;
+    }
+
+    slaves.gone.erase(slave);
+    numRemovedGone++;
   }
 
   // TODO(neilc): Add a metric for # of agents discarded from the registry?
-  LOG(INFO) << "Garbage collected " << numRemoved
-            << " unreachable agents from the registry";
+  LOG(INFO) << "Garbage collected " << numRemovedUnreachable
+            << " unreachable and " << numRemovedGone
+            << " gone agents from the registry";
 }
 
 

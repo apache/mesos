@@ -3191,19 +3191,19 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   // this should result in attempting to prune `slave1` and `slave2`
   // from the unreachable list. We intercept the registry operation to
   // force the race condition with the reregistration of `slave2`.
-  Future<Owned<master::Operation>> pruneUnreachable;
-  Promise<bool> pruneUnreachableContinue;
+  Future<Owned<master::Operation>> prune;
+  Promise<bool> pruneContinue;
   EXPECT_CALL(*master.get()->registrar.get(), apply(_))
-    .WillOnce(DoAll(FutureArg<0>(&pruneUnreachable),
-                    Return(pruneUnreachableContinue.future())));
+    .WillOnce(DoAll(FutureArg<0>(&prune),
+                    Return(pruneContinue.future())));
 
   Clock::advance(masterFlags.registry_gc_interval);
 
-  AWAIT_READY(pruneUnreachable);
+  AWAIT_READY(prune);
   EXPECT_NE(
       nullptr,
-      dynamic_cast<master::PruneUnreachable*>(
-          pruneUnreachable->get()));
+      dynamic_cast<master::Prune*>(
+          prune->get()));
 
   // Apply the registry operation to mark the slave reachable, then
   // pass the result back to the master to allow it to continue. We
@@ -3224,10 +3224,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   // Apply the registry operation to prune the unreachable list, then
   // pass the result back to the master to allow it to continue.
   Future<bool> applyPrune =
-    master.get()->registrar->unmocked_apply(pruneUnreachable.get());
+    master.get()->registrar->unmocked_apply(prune.get());
 
   AWAIT_READY(applyPrune);
-  pruneUnreachableContinue.set(applyPrune.get());
+  pruneContinue.set(applyPrune.get());
 
   // We expect that `slave1` has been removed from the unreachable
   // list, `slave2` is registered, and `slave3` is still in the

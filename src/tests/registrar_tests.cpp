@@ -401,7 +401,7 @@ TEST_F(RegistrarTest, MarkUnreachableGone)
 }
 
 
-TEST_F(RegistrarTest, PruneUnreachable)
+TEST_F(RegistrarTest, Prune)
 {
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
@@ -420,8 +420,16 @@ TEST_F(RegistrarTest, PruneUnreachable)
   info2.set_hostname("localhost");
   info2.mutable_id()->CopyFrom(id2);
 
+  SlaveID id3;
+  id3.set_value("3");
+
+  SlaveInfo info3;
+  info3.set_hostname("localhost");
+  info3.mutable_id()->CopyFrom(id3);
+
   AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
   AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info2))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info3))));
 
   AWAIT_TRUE(
       registrar.apply(
@@ -433,17 +441,37 @@ TEST_F(RegistrarTest, PruneUnreachable)
           Owned<Operation>(
               new MarkSlaveUnreachable(info2, protobuf::getCurrentTime()))));
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new PruneUnreachable({id1}))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new PruneUnreachable({id2}))));
+  AWAIT_TRUE(
+      registrar.apply(
+          Owned<Operation>(
+              new MarkSlaveGone(info3.id(), protobuf::getCurrentTime()))));
+
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({id1}, {}))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({id2}, {}))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({}, {id3}))));
 
   AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info2))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info3))));
 
   AWAIT_TRUE(
       registrar.apply(
           Owned<Operation>(
               new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new PruneUnreachable({id1}))));
+  AWAIT_TRUE(
+      registrar.apply(
+          Owned<Operation>(
+              new MarkSlaveUnreachable(info2, protobuf::getCurrentTime()))));
+
+  AWAIT_TRUE(
+      registrar.apply(
+          Owned<Operation>(
+              new MarkSlaveGone(info3.id(), protobuf::getCurrentTime()))));
+
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({id1}, {}))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({id2}, {}))));
+  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({}, {id3}))));
 }
 
 
@@ -1495,7 +1523,9 @@ TEST_P(Registrar_BENCHMARK_Test, GcManyAgents)
 
   // Do GC.
   watch.start();
-  result = registrar.apply(Owned<Operation>(new PruneUnreachable(toRemove)));
+  result = registrar.apply(Owned<Operation>(
+      new Prune(toRemove, hashset<SlaveID>())));
+
   AWAIT_READY_FOR(result, Minutes(5));
   cout << "Garbage collected " << toRemove.size() << " agents in "
        << watch.elapsed() << endl;

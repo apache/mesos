@@ -8759,6 +8759,139 @@ TEST_P(MasterTestPrePostReservationRefinement, CreateAndDestroyVolumesV1)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, v1DestroyVolumesResponse);
 }
 
+
+// This test checks that the master correctly garbage collects
+// information about gone agents from the registry using the
+// count-based GC criterion.
+//
+// TODO(andschwa): Enable this when MESOS-7604 is fixed.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(MasterTest, RegistryGcByCount)
+{
+  // Configure GC to only keep the most recent gone agent in the gone list.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry_max_agent_count = 1;
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Ensure that the agent is registered successfully with the master
+  // before marking it as gone.
+  AWAIT_READY(slaveRegisteredMessage);
+
+  ContentType contentType = ContentType::PROTOBUF;
+
+  const SlaveID& slaveId = slaveRegisteredMessage->slave_id();
+
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::MARK_AGENT_GONE);
+
+    v1::master::Call::MarkAgentGone* markAgentGone =
+      v1Call.mutable_mark_agent_gone();
+
+    markAgentGone->mutable_agent_id()->CopyFrom(evolve(slaveId));
+
+    Future<process::http::Response> response = process::http::post(
+        master.get()->pid,
+        "api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        serialize(contentType, v1Call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  }
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  slave::Flags slaveFlags2 = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get(), slaveFlags2);
+  ASSERT_SOME(slave2);
+
+  AWAIT_READY(slaveRegisteredMessage2);
+
+  const SlaveID& slaveId2 = slaveRegisteredMessage2->slave_id();
+
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::MARK_AGENT_GONE);
+
+    v1::master::Call::MarkAgentGone* markAgentGone =
+      v1Call.mutable_mark_agent_gone();
+
+    markAgentGone->mutable_agent_id()->CopyFrom(evolve(slaveId2));
+
+    Future<process::http::Response> response = process::http::post(
+        master.get()->pid,
+        "api/v1",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        serialize(contentType, v1Call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  }
+
+  // Advance the clock to cause GC to be performed.
+  Clock::pause();
+  Clock::advance(masterFlags.registry_gc_interval);
+  Clock::settle();
+
+  // Start a framework and do explicit reconciliation for a random task ID
+  // on `slave1` and `slave2`. Since, `slave1` has been GC'ed from the list
+  // of gone agents, a 'TASK_UNKNOWN' update should be received for it.
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  TaskStatus status1;
+  status1.mutable_task_id()->set_value(UUID::random().toString());
+  status1.mutable_slave_id()->CopyFrom(slaveId);
+  status1.set_state(TASK_STAGING); // Dummy value.
+
+  TaskStatus status2;
+  status2.mutable_task_id()->set_value(UUID::random().toString());
+  status2.mutable_slave_id()->CopyFrom(slaveId2);
+  status2.set_state(TASK_STAGING); // Dummy value.
+
+  Future<TaskStatus> reconcileUpdate1;
+  Future<TaskStatus> reconcileUpdate2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&reconcileUpdate1))
+    .WillOnce(FutureArg<1>(&reconcileUpdate2));
+
+  driver.reconcileTasks({status1, status2});
+
+  AWAIT_READY(reconcileUpdate1);
+  AWAIT_READY(reconcileUpdate2);
+
+  ASSERT_EQ(TASK_UNKNOWN, reconcileUpdate1->state());
+  ASSERT_EQ(TASK_GONE_BY_OPERATOR, reconcileUpdate2->state());
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

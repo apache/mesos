@@ -1028,7 +1028,8 @@ private:
   void doRegistryGc();
 
   void _doRegistryGc(
-      const hashset<SlaveID>& toRemove,
+      const hashset<SlaveID>& toRemoveUnreachable,
+      const hashset<SlaveID>& toRemoveGone,
       const process::Future<bool>& registrarResult);
 
   process::Future<bool> authorizeLogAccess(
@@ -2239,45 +2240,69 @@ private:
 };
 
 
-class PruneUnreachable : public Operation
+class Prune : public Operation
 {
 public:
-  explicit PruneUnreachable(const hashset<SlaveID>& _toRemove)
-    : toRemove(_toRemove) {}
+  explicit Prune(
+      const hashset<SlaveID>& _toRemoveUnreachable,
+      const hashset<SlaveID>& _toRemoveGone)
+    : toRemoveUnreachable(_toRemoveUnreachable),
+      toRemoveGone(_toRemoveGone) {}
 
 protected:
   virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* /*slaveIDs*/)
   {
-    // Attempt to remove the SlaveIDs in `toRemove` from the
-    // unreachable list. Some SlaveIDs in `toRemove` might not appear
+    // Attempt to remove the SlaveIDs in the `toRemoveXXX` from the
+    // unreachable/gone list. Some SlaveIDs in `toRemoveXXX` might not appear
     // in the registry; this is possible if there was a concurrent
     // registry operation.
     //
     // TODO(neilc): This has quadratic worst-case behavior, because
     // `DeleteSubrange` for a `repeated` object takes linear time.
     bool mutate = false;
-    int i = 0;
-    while (i < registry->unreachable().slaves().size()) {
-      const Registry::UnreachableSlave& slave =
-        registry->unreachable().slaves(i);
 
-      if (toRemove.contains(slave.id())) {
-        Registry::UnreachableSlaves* unreachable =
-          registry->mutable_unreachable();
+    {
+      int i = 0;
+      while (i < registry->unreachable().slaves().size()) {
+        const Registry::UnreachableSlave& slave =
+          registry->unreachable().slaves(i);
 
-        unreachable->mutable_slaves()->DeleteSubrange(i, i+1);
-        mutate = true;
-        continue;
+        if (toRemoveUnreachable.contains(slave.id())) {
+          Registry::UnreachableSlaves* unreachable =
+            registry->mutable_unreachable();
+
+          unreachable->mutable_slaves()->DeleteSubrange(i, i+1);
+          mutate = true;
+          continue;
+        }
+
+        i++;
       }
+    }
 
-      i++;
+    {
+      int i = 0;
+      while (i < registry->gone().slaves().size()) {
+        const Registry::GoneSlave& slave = registry->gone().slaves(i);
+
+        if (toRemoveGone.contains(slave.id())) {
+          Registry::GoneSlaves* gone = registry->mutable_gone();
+
+          gone->mutable_slaves()->DeleteSubrange(i, i+1);
+          mutate = true;
+          continue;
+        }
+
+        i++;
+      }
     }
 
     return mutate;
   }
 
 private:
-  const hashset<SlaveID> toRemove;
+  const hashset<SlaveID> toRemoveUnreachable;
+  const hashset<SlaveID> toRemoveGone;
 };
 
 

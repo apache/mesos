@@ -591,18 +591,18 @@ mesos::internal::master::Flags::Flags()
       "Maximum length of time to store information in the registry about\n"
       "agents that are not currently connected to the cluster. This\n"
       "information allows frameworks to determine the status of unreachable\n"
-      "and removed agents. Note that the registry always stores information\n"
-      "on all connected agents. If there are more than\n"
-      "`registry_max_agent_count` partitioned or removed agents, agent\n"
+      "and gone agents. Note that the registry always stores\n"
+      "information on all connected agents. If there are more than\n"
+      "`registry_max_agent_count` partitioned/gone agents, agent\n"
       "information may be discarded from the registry sooner than indicated\n"
       "by this parameter.",
       DEFAULT_REGISTRY_MAX_AGENT_AGE);
 
   add(&Flags::registry_max_agent_count,
       "registry_max_agent_count",
-      "Maximum number of disconnected agents to store in the registry.\n"
-      "This information allows frameworks to determine the status of\n"
-      "disconnected agents. Note that the registry always stores\n"
+      "Maximum number of partitioned/gone agents to store in the\n"
+      "registry. This information allows frameworks to determine the status\n"
+      "of disconnected agents. Note that the registry always stores\n"
       "information about all connected agents. See also the\n"
       "`registry_max_agent_age` flag.",
       DEFAULT_REGISTRY_MAX_AGENT_COUNT);
