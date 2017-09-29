@@ -1273,7 +1273,10 @@ TEST(ProcessTest, THREADSAFE_Executor_Execute)
   AWAIT_READY(f2Result.triggered());
 
   // A non-void immutable lambda.
-  const string f3Result = "f3";
+  // NOTE: It appears that g++ throws away the cv-qualifiers when doing
+  // the lvalue-to-rvalue conversion for the returned string but clang
+  // does not, so `f3` should return a non-constant string.
+  string f3Result = "f3";
   auto f3 = [&f3Result] {
     return f3Result;
   };
