@@ -147,6 +147,7 @@
           <th data-key="name">Name</th>
           <th data-key="role">Role</th>
           <th data-key="state">State</th>
+          <th data-key="healthy">Health</th>
           <th data-key="start_time">Started</th>
           <th data-key="host">Host</th>
           <th></th>
@@ -162,6 +163,7 @@
           <td>{{task.name}}</td>
           <td>{{task.role}}</td>
           <td>{{task.state | truncateMesosState}}</td>
+          <td class="task-{{task.healthy | taskHealth}}">{{task.healthy | taskHealth}}</td>
           <td>
             <m-timestamp value="{{task.start_time}}"></m-timestamp>
           </td>

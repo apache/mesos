@@ -109,6 +109,18 @@
         return state.substring(5);
       };
     })
+    .filter('taskHealth', function() {
+      return function(healthy) {
+        if (healthy == null) {
+          return "-";
+        }
+
+        // Note that this string value is relied on to match
+        // against CSS classes to color the UI. Changing this
+        // also requires an update to the CSS.
+        return healthy ? "healthy" : "unhealthy";
+      }
+    })
     .filter('isoDate', function($filter) {
       return function(date) {
         var i = parseInt(date, 10);
