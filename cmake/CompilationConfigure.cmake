@@ -106,19 +106,6 @@ option(
   "Build libprocess with lock free run queue"
   FALSE)
 
-option(
-  HAS_AUTHENTICATION
-  "Build Mesos against authentication libraries"
-  TRUE)
-
-if (WIN32 AND HAS_AUTHENTICATION)
-  message(
-    FATAL_ERROR
-    "Windows builds of Mesos currently do not support agent to master "
-    "authentication. To build without this capability, pass "
-    "`-DHAS_AUTHENTICATION=0` as an argument when you run CMake.")
-endif ()
-
 # If 'REBUNDLED' is set to FALSE, this will cause Mesos to build against the
 # specified dependency repository. This is especially useful for Windows
 # builds, because building on MSVC 1900 requires newer versions of some
@@ -330,14 +317,6 @@ endif ()
 
 # GLOBAL CONFIGURATION.
 #######################
-if (HAS_AUTHENTICATION)
-  # NOTE: This conditional is required. It is not sufficient to set
-  # `-DHAS_AUTHENTICATION=${HAS_AUTHENTICATION}`, as this will define the
-  # symbol, and our intention is to only define it if the CMake variable
-  # `HAS_AUTHENTICATION` is set.
-  list(APPEND MESOS_CPPFLAGS -DHAS_AUTHENTICATION=1)
-endif ()
-
 # Produce position independent libraries/executables so that we take
 # better advantage of Address space layout randomization (ASLR).
 # This helps guard against ROP and return-to-libc attacks,

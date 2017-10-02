@@ -52,7 +52,7 @@ REM You can pass in other flags by setting `OTHER_CMAKE_OPTIONS` before
 REM calling the script. For example, the ASF CI will add `-DPATCHEXE_PATH=...`
 REM because the path to GNU Patch is not the default.
 if not defined CMAKE_GENERATOR (set CMAKE_GENERATOR=Visual Studio 15 2017 Win64)
-cmake .. -G "%CMAKE_GENERATOR%" -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0 %OTHER_CMAKE_OPTIONS%
+cmake .. -G "%CMAKE_GENERATOR%" -T "host=x64" -DENABLE_LIBEVENT=1 %OTHER_CMAKE_OPTIONS%
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 REM Build and run the stout tests.

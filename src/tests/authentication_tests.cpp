@@ -55,9 +55,7 @@ class AuthenticationTest : public MesosTest {};
 
 // This test verifies that an unauthenticated framework is
 // denied registration by the master.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, UnauthenticatedFramework)
+TEST_F(AuthenticationTest, UnauthenticatedFramework)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -82,9 +80,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, UnauthenticatedFramework)
 
 // This test verifies that an unauthenticated slave is
 // denied registration by the master.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, UnauthenticatedSlave)
+TEST_F(AuthenticationTest, UnauthenticatedSlave)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -108,10 +104,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, UnauthenticatedSlave)
 
 // This test verifies that when the master is started with framework
 // authentication disabled, it registers unauthenticated frameworks.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
-                                DisableFrameworkAuthentication)
+TEST_F(AuthenticationTest, DisableFrameworkAuthentication)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false; // Disable authentication.
@@ -140,9 +133,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 
 // This test verifies that when the master is started with slave
 // authentication disabled, it registers unauthenticated slaves.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, DisableSlaveAuthentication)
+TEST_F(AuthenticationTest, DisableSlaveAuthentication)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_agents = false; // Disable authentication.
@@ -170,10 +161,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, DisableSlaveAuthentication)
 // This test verifies that an authenticated framework is denied
 // registration by the master if it uses a different
 // FrameworkInfo.principal than Credential.principal.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
-                                MismatchedFrameworkInfoPrincipal)
+TEST_F(AuthenticationTest, MismatchedFrameworkInfoPrincipal)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -203,11 +191,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 // registration by the master if it uses a different
 // FrameworkInfo::principal than Credential.principal, even
 // when authentication is not required.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    AuthenticationTest,
-    DisabledFrameworkAuthenticationPrincipalMismatch)
+TEST_F(AuthenticationTest, DisabledFrameworkAuthenticationPrincipalMismatch)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false; // Authentication not required.
@@ -239,10 +223,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 // This test verifies that if a Framework successfully authenticates
 // but does not set FrameworkInfo::principal, it is allowed to
 // register.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
-                                UnspecifiedFrameworkInfoPrincipal)
+TEST_F(AuthenticationTest, UnspecifiedFrameworkInfoPrincipal)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -270,9 +251,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 
 // This test verifies that when the master is started with
 // authentication disabled, it registers authenticated frameworks.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, AuthenticatedFramework)
+TEST_F(AuthenticationTest, AuthenticatedFramework)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_frameworks = false; // Disable authentication.
@@ -301,9 +280,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, AuthenticatedFramework)
 
 // This test verifies that when the master is started with slave
 // authentication disabled, it registers authenticated slaves.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, AuthenticatedSlave)
+TEST_F(AuthenticationTest, AuthenticatedSlave)
 {
   master::Flags flags = CreateMasterFlags();
   flags.authenticate_agents = false; // Disable authentication.
@@ -328,10 +305,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, AuthenticatedSlave)
 
 // This test verifies that the framework properly retries
 // authentication when authenticate message is lost.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
-                                RetryFrameworkAuthentication)
+TEST_F(AuthenticationTest, RetryFrameworkAuthentication)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -368,9 +342,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 
 // This test verifies that the slave properly retries
 // authentication when authenticate message is lost.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, RetrySlaveAuthentication)
+TEST_F(AuthenticationTest, RetrySlaveAuthentication)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -403,10 +375,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, RetrySlaveAuthentication)
 // This test verifies that the framework properly retries
 // authentication when an intermediate message in SASL protocol
 // is lost.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
-                                DropIntermediateSASLMessage)
+TEST_F(AuthenticationTest, DropIntermediateSASLMessage)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -450,10 +419,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 // This test verifies that the slave properly retries
 // authentication when an intermediate message in SASL protocol
 // is lost.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
-                                DropIntermediateSASLMessageForSlave)
+TEST_F(AuthenticationTest, DropIntermediateSASLMessageForSlave)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -495,9 +461,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 // the framework is authenticated but the framework to think
 // otherwise. The framework should retry authentication and
 // eventually register.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, DropFinalSASLMessage)
+TEST_F(AuthenticationTest, DropFinalSASLMessage)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -544,10 +508,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, DropFinalSASLMessage)
 // the slave is authenticated but the slave to think
 // otherwise. The slave should retry authentication and
 // eventually register.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
-                                DropFinalSASLMessageForSlave)
+TEST_F(AuthenticationTest, DropFinalSASLMessageForSlave)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -586,9 +547,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 // This test verifies that when a master fails over while a framework
 // authentication attempt is in progress the framework properly
 // authenticates.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, MasterFailover)
+TEST_F(AuthenticationTest, MasterFailover)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -630,10 +589,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, MasterFailover)
 // This test verifies that when a master fails over while a slave
 // authentication attempt is in progress the slave properly
 // authenticates.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
-                                MasterFailoverDuringSlaveAuthentication)
+TEST_F(AuthenticationTest, MasterFailoverDuringSlaveAuthentication)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -670,9 +626,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 // This test verifies that if the scheduler retries authentication
 // before the original authentication finishes (e.g., new master
 // detected due to leader election), it is handled properly.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, LeaderElection)
+TEST_F(AuthenticationTest, LeaderElection)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -709,10 +663,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, LeaderElection)
 // This test verifies that if the slave retries authentication
 // before the original authentication finishes (e.g., new master
 // detected due to leader election), it is handled properly.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
-                                LeaderElectionDuringSlaveAuthentication)
+TEST_F(AuthenticationTest, LeaderElectionDuringSlaveAuthentication)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -744,9 +695,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest,
 // This test verifies that if a scheduler fails over in the midst of
 // authentication it successfully re-authenticates and re-registers
 // with the master when it comes back up.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, SchedulerFailover)
+TEST_F(AuthenticationTest, SchedulerFailover)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -813,9 +762,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, SchedulerFailover)
 // This test verifies that a scheduler's re-registration will be
 // rejected if it specifies a principal different from what's used in
 // authentication.
-// TODO(hausdorff): Enable on Windows when we enable authentication
-// to the master. See MESOS-6733 and MESOS-6697.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, RejectedSchedulerFailover)
+TEST_F(AuthenticationTest, RejectedSchedulerFailover)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

@@ -306,15 +306,11 @@ set(APPC_SRC
   appc/spec.cpp)
 
 set(AUTHENTICATION_SRC
+  authentication/cram_md5/authenticatee.cpp
+  authentication/cram_md5/authenticator.cpp
+  authentication/cram_md5/auxprop.cpp
   authentication/http/basic_authenticator_factory.cpp
   authentication/http/combined_authenticator.cpp)
-
-if (NOT WIN32)
-  list(APPEND AUTHENTICATION_SRC
-    authentication/cram_md5/authenticatee.cpp
-    authentication/cram_md5/authenticator.cpp
-    authentication/cram_md5/auxprop.cpp)
-endif ()
 
 if (ENABLE_SSL)
   list(APPEND AUTHENTICATION_SRC
@@ -611,13 +607,14 @@ target_include_directories(
 target_link_libraries(
   mesos PUBLIC
   process
+  sasl2
   zookeeper
   mesos-protobufs
   $<$<PLATFORM_ID:Linux>:nvml>
   $<$<BOOL:${HAS_JAVA}>:mesos-java>)
 
 if (NOT WIN32)
-  target_link_libraries(mesos PUBLIC leveldb sasl2)
+  target_link_libraries(mesos PUBLIC leveldb)
 endif ()
 
 if (ENABLE_PRECOMPILED_HEADERS)

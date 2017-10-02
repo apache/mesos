@@ -79,14 +79,6 @@ the CMake build system.
   </tr>
   <tr>
     <td>
-      -DHAS_AUTHENTICATION
-    </td>
-    <td>
-      Build Mesos with support for authentication. [default=TRUE]
-    </td>
-  </tr>
-  <tr>
-    <td>
       -DREBUNDLED
     </td>
     <td>

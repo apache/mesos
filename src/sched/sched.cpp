@@ -341,7 +341,6 @@ protected:
       // is safe even if no timer is active or pending.
       Clock::cancel(frameworkRegistrationTimer);
 
-#ifdef HAS_AUTHENTICATION
       if (credential.isSome()) {
         // Authenticate with the master.
         // TODO(adam-mesos): Consider adding an initial delay like we do for
@@ -358,15 +357,6 @@ protected:
         // (e.g., rate limiting tests).
         doReliableRegistration(flags.registration_backoff_factor);
       }
-#else
-      // Authentication not enabled on this platform. Proceed with registration
-      // without authentication.
-      reauthenticate = false;
-      LOG(INFO) << "Authentication is not available on this platform. "
-                   "Attempting to register without authentication";
-
-      doReliableRegistration(flags.registration_backoff_factor);
-#endif // HAS_AUTHENTICATION
     } else {
       // In this case, we don't actually invoke Scheduler::error
       // since we might get reconnected to a master imminently.
@@ -378,7 +368,6 @@ protected:
       .onAny(defer(self(), &SchedulerProcess::detected, lambda::_1));
   }
 
-#ifdef HAS_AUTHENTICATION
   void authenticate()
   {
     if (!running.load()) {
@@ -537,7 +526,6 @@ protected:
       LOG(WARNING) << "Authentication timed out";
     }
   }
-#endif // HAS_AUTHENTICATION
 
   void drop(const Event& event, const string& message)
   {
@@ -825,13 +813,9 @@ protected:
       return;
     }
 
-#ifdef HAS_AUTHENTICATION
     if (credential.isSome() && !authenticated) {
       return;
     }
-#else
-    authenticated = false;
-#endif // HAS_AUTHENTICATION
 
     VLOG(1) << "Sending SUBSCRIBE call to " << master.get().pid();
 

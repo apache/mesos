@@ -491,34 +491,18 @@ void Master::initialize()
       << " Must be within [0%-100%]";
   }
 
-#ifdef HAS_AUTHENTICATION
   // Log authentication state.
   if (flags.authenticate_frameworks) {
     LOG(INFO) << "Master only allowing authenticated frameworks to register";
   } else {
     LOG(INFO) << "Master allowing unauthenticated frameworks to register";
   }
-#else
-  if (flags.authenticate_frameworks) {
-    EXIT(EXIT_FAILURE) << "Authentication is not supported on this platform, "
-                          "but --authenticate flag was passed as argument to "
-                          "master";
-  }
-#endif // HAS_AUTHENTICATION
 
-#ifdef HAS_AUTHENTICATION
   if (flags.authenticate_agents) {
     LOG(INFO) << "Master only allowing authenticated agents to register";
   } else {
     LOG(INFO) << "Master allowing unauthenticated agents to register";
   }
-#else
-  if (flags.authenticate_agents) {
-    EXIT(EXIT_FAILURE) << "Authentication is not supported on this platform, "
-                          "but --authenticate_slaves was passed as argument to "
-                          "master";
-  }
-#endif // HAS_AUTHENTICATION
 
   if (flags.authenticate_http_frameworks) {
     LOG(INFO) << "Master only allowing authenticated HTTP frameworks to "
@@ -544,7 +528,6 @@ void Master::initialize()
     credentials = _credentials.get();
   }
 
-#ifdef HAS_AUTHENTICATION
   // Extract authenticator names and validate them.
   authenticatorNames = strings::split(flags.authenticators, ",");
   if (authenticatorNames.empty()) {
@@ -602,7 +585,6 @@ void Master::initialize()
       authenticator = None();
     }
   }
-#endif // HAS_AUTHENTICATION
 
   if (flags.authenticate_http_readonly) {
     Try<Nothing> result = initializeHttpAuthenticators(

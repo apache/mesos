@@ -49,7 +49,7 @@ Following are the instructions for Windows 10.
     # Configure using CMake for an out-of-tree build.
     mkdir build
     cd build
-    cmake .. -G "Visual Studio 15 2017 Win64" -T "host=x64" -DENABLE_LIBEVENT=1 -DHAS_AUTHENTICATION=0
+    cmake .. -G "Visual Studio 15 2017 Win64" -T "host=x64" -DENABLE_LIBEVENT=1
 
     # Build Mesos.
     # To build just the Mesos agent, add `--target mesos-agent`.

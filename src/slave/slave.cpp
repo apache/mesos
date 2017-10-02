@@ -1060,13 +1060,10 @@ void Slave::authenticate()
 
   CHECK(authenticatee == nullptr);
 
-#ifdef HAS_AUTHENTICATION
-  // On Windows CRAMMD5Authenticatee is not supported.
   if (authenticateeName == DEFAULT_AUTHENTICATEE) {
     LOG(INFO) << "Using default CRAM-MD5 authenticatee";
     authenticatee = new cram_md5::CRAMMD5Authenticatee();
   }
-#endif // HAS_AUTHENTICATION
 
   if (authenticatee == nullptr) {
     Try<Authenticatee*> module =

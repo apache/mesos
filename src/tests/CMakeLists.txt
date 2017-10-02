@@ -79,9 +79,11 @@ set(MESOS_TESTS_SRC
   api_tests.cpp
   attributes_tests.cpp
   authentication_tests.cpp
+  authorization_tests.cpp
   check_tests.cpp
   command_executor_tests.cpp
   common_validation_tests.cpp
+  cram_md5_authentication_tests.cpp
   credentials_tests.cpp
   default_executor_tests.cpp
   exception_tests.cpp
@@ -110,6 +112,7 @@ set(MESOS_TESTS_SRC
   scheduler_event_call_tests.cpp
   scheduler_http_api_tests.cpp
   scheduler_tests.cpp
+  slave_authorization_tests.cpp
   slave_tests.cpp
   slave_validation_tests.cpp
   sorter_tests.cpp
@@ -144,9 +147,7 @@ list(APPEND MESOS_TESTS_SRC
 
 if (NOT WIN32)
   list(APPEND MESOS_TESTS_SRC
-    authorization_tests.cpp
     container_logger_tests.cpp
-    cram_md5_authentication_tests.cpp
     disk_quota_tests.cpp
     dynamic_weights_tests.cpp
     examples_tests.cpp
@@ -170,7 +171,6 @@ if (NOT WIN32)
     registrar_tests.cpp
     reservation_endpoints_tests.cpp
     reservation_tests.cpp
-    slave_authorization_tests.cpp
     slave_recovery_tests.cpp
     state_tests.cpp
     teardown_tests.cpp

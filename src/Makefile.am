@@ -231,8 +231,6 @@ LIB_ZOOKEEPER = -lzookeeper_mt
 LDADD += -lzookeeper_mt
 endif
 
-MESOS_CPPFLAGS += -DHAS_AUTHENTICATION=1
-
 # Set up include paths for the protocol buffer compiler.
 PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir)
 if ENABLE_GRPC

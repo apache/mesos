@@ -104,10 +104,8 @@ master::Flags MesosTest::CreateMasterFlags()
 
   flags.authenticate_http_readonly = true;
   flags.authenticate_http_readwrite = true;
-#ifdef HAS_AUTHENTICATION
   flags.authenticate_frameworks = true;
   flags.authenticate_agents = true;
-#endif // HAS_AUTHENTICATION
 
   flags.authenticate_http_frameworks = true;
   flags.http_framework_authenticators = "basic";
@@ -179,7 +177,6 @@ slave::Flags MesosTest::CreateSlaveFlags()
   flags.docker_store_dir = path::join(directory.get(), "store", "docker");
 
   {
-#ifdef HAS_AUTHENTICATION
     // Create a default credential file for master/agent authentication.
     const string& path = path::join(directory.get(), "credential");
 
@@ -203,7 +200,6 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
     // Set default (permissive) ACLs.
     flags.acls = ACLs();
-#endif // HAS_AUTHENTICATION
   }
 
   flags.authenticate_http_readonly = true;
