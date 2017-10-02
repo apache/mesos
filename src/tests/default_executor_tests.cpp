@@ -1374,7 +1374,10 @@ struct LauncherAndIsolationParam
 
 // This test verifies that URIs set on tasks are fetched and made available to
 // them when started by the DefaultExecutor.
-TEST_P(DefaultExecutorTest, TaskWithFileURI)
+//
+// TODO(josephw): Reenable this test once URIs are constructed without using
+// the `path` helpers. This should be fixed along with MESOS-6705.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskWithFileURI)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1471,7 +1474,11 @@ TEST_P(DefaultExecutorTest, TaskWithFileURI)
 
 // This test verifies that URIs set on Docker tasks are fetched and made
 // available to them when started by the DefaultExecutor.
-TEST_P(DefaultExecutorTest, ROOT_INTERNET_CURL_DockerTaskWithFileURI)
+//
+// TODO(josephw): Reenable this test once URIs are constructed without using
+// the `path` helpers. This should be fixed along with MESOS-6705.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    DefaultExecutorTest, ROOT_INTERNET_CURL_DockerTaskWithFileURI)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
