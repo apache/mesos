@@ -13,6 +13,23 @@
 #ifndef __STOUT_WINDOWS_HPP__
 #define __STOUT_WINDOWS_HPP__
 
+// We include `WinSock2.h` before `Windows.h` explicitly to avoid symbol
+// re-definitions. This is a documented pattern, because `Windows.h` will
+// otherwise include `winsock.h` for "historical reasons". Note that
+// `winsock.h` is for Windows Sockets 1.1, last used in Windows 2000.
+//
+// NOTE: The capitalization of these headers is based on the files
+// included in the SDK, rather than MSDN documentation.
+//
+// https://msdn.microsoft.com/en-us/library/windows/desktop/ms738562(v=vs.85).aspx
+// NOLINT(whitespace/line_length)
+#include <WinSock2.h> // For Windows Sockets 2.
+#include <WS2tcpip.h> // For `getaddrinfo` etc.
+#include <iphlpapi.h> // For `GetAdaptersInfo`.
+#include <MSWSock.h>  // For `TransmitFile`.
+#include <winioctl.h> // For `DeviceIoControl`
+#include <Windows.h>  // For everything else.
+
 #include <direct.h>   // For `_mkdir`.
 #include <errno.h>    // For `_set_errno`.
 #include <fcntl.h>    // For file access flags like `_O_CREAT`.
@@ -22,15 +39,7 @@
 
 #include <sys/stat.h> // For permissions flags.
 
-#include <BaseTsd.h>  // For `SSIZE_T`.
-// We include `Winsock2.h` before `Windows.h` explicitly to avoid symbold
-// re-definitions. This is a known pattern in the windows community.
-#include <WS2tcpip.h>
-#include <Winsock2.h>
-#include <iphlpapi.h>
-#include <mswsock.h>
-#include <winioctl.h>
-#include <Windows.h>
+#include <basetsd.h>  // For `SSIZE_T`.
 
 #include <memory>
 

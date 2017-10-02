@@ -13,12 +13,6 @@
 #ifndef __STOUT_WINDOWS_OS_HPP__
 #define __STOUT_WINDOWS_OS_HPP__
 
-#include <direct.h>
-#include <io.h>
-#include <Psapi.h>
-#include <TlHelp32.h>
-#include <Userenv.h>
-
 #include <sys/utime.h>
 
 #include <list>
@@ -45,6 +39,15 @@
 
 #include <stout/os/raw/environment.hpp>
 #include <stout/os/windows/fd.hpp>
+
+// NOTE: These system headers must be included after `stout/windows.hpp`
+// as they may include `Windows.h`. See comments in `stout/windows.hpp`
+// for why this ordering is important.
+#include <direct.h>
+#include <io.h>
+#include <Psapi.h>
+#include <TlHelp32.h>
+#include <Userenv.h>
 
 namespace os {
 namespace internal {

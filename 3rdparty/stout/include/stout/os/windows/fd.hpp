@@ -13,9 +13,6 @@
 #ifndef __STOUT_OS_WINDOWS_FD_HPP__
 #define __STOUT_OS_WINDOWS_FD_HPP__
 
-#include <windows.h>
-#include <WinSock2.h>
-
 #include <array>
 #include <memory>
 #include <ostream>
@@ -24,6 +21,7 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
+#include <stout/windows.hpp> // For `WinSock2.h`.
 
 namespace os {
 

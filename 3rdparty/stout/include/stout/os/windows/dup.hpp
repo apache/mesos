@@ -13,12 +13,10 @@
 #ifndef __STOUT_OS_WINDOWS_DUP_HPP__
 #define __STOUT_OS_WINDOWS_DUP_HPP__
 
-#include <io.h>
-#include <Winsock2.h>
-
 #include <stout/error.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
+#include <stout/windows.hpp> // For `WinSock2.h`.
 
 #include <stout/os/windows/fd.hpp>
 

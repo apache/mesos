@@ -22,7 +22,8 @@
 #include <stout/nothing.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
-#include <stout/windows.hpp>
+#include <stout/windows.hpp> // For `iphlpapi.h`.
+
 #include <stout/windows/os.hpp>
 
 

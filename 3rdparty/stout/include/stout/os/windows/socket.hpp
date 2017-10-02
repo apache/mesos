@@ -13,12 +13,13 @@
 #ifndef __STOUT_OS_WINDOWS_SOCKET_HPP__
 #define __STOUT_OS_WINDOWS_SOCKET_HPP__
 
-#include <winsock.h>
-
 #include <glog/logging.h>
 
 #include <stout/abort.hpp>
+#include <stout/windows.hpp> // For `WinSock2.h`.
+
 #include <stout/os/windows/fd.hpp>
+
 
 namespace net {
 

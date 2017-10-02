@@ -17,7 +17,7 @@
 
 #include <stout/error.hpp>
 #include <stout/try.hpp>
-#include <stout/windows.hpp>
+#include <stout/windows.hpp> // For `winioctl.h`.
 
 #include <stout/os/windows/fd.hpp>
 

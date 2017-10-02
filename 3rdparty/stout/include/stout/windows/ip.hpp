@@ -20,7 +20,7 @@
 #include <stout/none.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
-#include <stout/windows.hpp>
+#include <stout/windows.hpp> // For `iphlpapi.h`.
 
 
 namespace net {
