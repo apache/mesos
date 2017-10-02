@@ -16,43 +16,24 @@
 
 # GENERAL OPTIONS.
 ##################
-option(VERBOSE "Enable verbose CMake statements and compilation output" ON)
+option(VERBOSE
+  "Enable verbose CMake statements and compilation output."
+  TRUE)
 set(CMAKE_VERBOSE_MAKEFILE ${VERBOSE})
 
 if (NOT WIN32)
-  set(DEFAULT_BUILD_SHARED_LIBS ON)
+  set(DEFAULT_BUILD_SHARED_LIBS TRUE)
 else ()
-  set(DEFAULT_BUILD_SHARED_LIBS OFF)
+  set(DEFAULT_BUILD_SHARED_LIBS FALSE)
 endif ()
 
-option(BUILD_SHARED_LIBS "Build shared libraries." ${DEFAULT_BUILD_SHARED_LIBS})
-
-option(ENABLE_JAVA "Build Java components. Warning: this is SLOW." OFF)
-if (ENABLE_JAVA)
-  include(FindJava)
-  find_package(Java COMPONENTS Development)
-
-  if (NOT JAVA_FOUND)
-    message(FATAL_ERROR "Java was not found!")
-  endif ()
-
-  include(FindJNI)
-  if (NOT JNI_FOUND)
-    message(FATAL_ERROR "JNI Java libraries were not found!")
-  endif ()
-
-  find_program(MVN mvn)
-  if (NOT MVN)
-    message(FATAL_ERROR "Maven was not found!")
-  endif ()
-
-  if (Java_FOUND AND JNI_FOUND AND MVN)
-    set(HAS_JAVA TRUE)
-  endif ()
-endif ()
+option(BUILD_SHARED_LIBS
+  "Build shared libraries."
+  ${DEFAULT_BUILD_SHARED_LIBS})
 
 option(ENABLE_PRECOMPILED_HEADERS
-  "Enable auto-generated precompiled headers using cotire" ${WIN32})
+  "Enable auto-generated precompiled headers using cotire"
+  ${WIN32})
 
 if (NOT WIN32 AND ENABLE_PRECOMPILED_HEADERS)
   message(
@@ -88,23 +69,50 @@ endif ()
 ###################
 option(
   REBUNDLED
-  "Use dependencies from the 3rdparty folder (instead of internet)"
+  "Use dependencies from the 3rdparty folder (instead of internet)."
   TRUE)
 
 option(
   ENABLE_LIBEVENT
-  "Use libevent instead of libev as the core event loop implementation"
+  "Use libevent instead of libev as the core event loop implementation."
   FALSE)
 
 option(
   ENABLE_SSL
-  "Build libprocess with SSL support"
+  "Build libprocess with SSL support."
   FALSE)
 
 option(
   ENABLE_LOCK_FREE_RUN_QUEUE
-  "Build libprocess with lock free run queue"
+  "Build libprocess with lock free run queue."
   FALSE)
+
+option(ENABLE_JAVA
+  "Build Java components. Warning: this is SLOW."
+  FALSE)
+
+if (ENABLE_JAVA)
+  include(FindJava)
+  find_package(Java COMPONENTS Development)
+
+  if (NOT JAVA_FOUND)
+    message(FATAL_ERROR "Java was not found!")
+  endif ()
+
+  include(FindJNI)
+  if (NOT JNI_FOUND)
+    message(FATAL_ERROR "JNI Java libraries were not found!")
+  endif ()
+
+  find_program(MVN mvn)
+  if (NOT MVN)
+    message(FATAL_ERROR "Maven was not found!")
+  endif ()
+
+  if (Java_FOUND AND JNI_FOUND AND MVN)
+    set(HAS_JAVA TRUE)
+  endif ()
+endif ()
 
 # If 'REBUNDLED' is set to FALSE, this will cause Mesos to build against the
 # specified dependency repository. This is especially useful for Windows
@@ -260,7 +268,7 @@ if (WIN32)
   if (BUILD_SHARED_LIBS)
     message(WARNING "Building with shared libraries is a work-in-progress.")
 
-    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 
     # Use dynamic CRT.
     set(CRT " /MD")
