@@ -47,6 +47,7 @@ if (WIN32)
   set(CURL_URL   ${3RDPARTY_DEPENDENCIES}/curl-${CURL_VERSION}.tar.gz)
   set(LIBAPR_URL ${3RDPARTY_DEPENDENCIES}/libapr-${LIBAPR_VERSION}.tar.gz)
   set(ZLIB_URL   ${3RDPARTY_DEPENDENCIES}/zlib-${ZLIB_VERSION}.tar.gz)
+  set(SASL2_URL  ${3RDPARTY_DEPENDENCIES}/cyrus-sasl-${SASL2_VERSION}.tar.gz)
 
   # NOTE: The Windows version of Glog is patched and only available in the
   # 3rdparty repo, not the local repo.
@@ -184,6 +185,37 @@ ExternalProject_Add(
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${CONCURRENTQUEUE_URL}
   URL_HASH          ${CONCURRENTQUEUE_HASH})
+
+
+if (WIN32)
+  # Cyrus SASL: Authentication protocol/mechanism interface (Based on IETF RFC 4422)
+  # https://cyrusimap.org/sasl/
+  ##################################################################################
+  EXTERNAL(sasl2 ${SASL2_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+  add_library(sasl2 STATIC IMPORTED GLOBAL)
+  add_dependencies(sasl2 ${SASL2_TARGET})
+
+  set_target_properties(
+    sasl2 PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${SASL2_ROOT}-build/Debug/libsasl2${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${SASL2_ROOT}-build/Release/libsasl2${LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${SASL2_ROOT}-build/include
+    INTERFACE_COMPILE_DEFINITIONS LIBSASL_EXPORTS=1)
+
+  # Patch SASL to include a minimal CMake build system which encompasses
+  # only the parts that Mesos relies on (CRAM MD5).
+  PATCH_CMD(SASL2_PATCH_CMD cyrus-sasl-${SASL2_VERSION}.patch)
+
+  MAKE_INCLUDE_DIR(sasl2)
+
+  ExternalProject_Add(
+    ${SASL2_TARGET}
+    PREFIX            ${SASL2_CMAKE_ROOT}
+    PATCH_COMMAND     ${SASL2_PATCH_CMD}
+    INSTALL_COMMAND   ${CMAKE_NOOP}
+    URL               ${SASL2_URL}
+    URL_HASH          ${SASL2_HASH})
+endif ()
 
 
 # ELFIO: library for reading and generating ELF files.

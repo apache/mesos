@@ -1,0 +1,127 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+new file mode 100644
+index 0000000..ae81f5c
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,40 @@
++cmake_minimum_required (VERSION 3.8)
++project (libsasl2)
++
++string(APPEND CMAKE_C_FLAGS_RELEASE " /MT")
++string(APPEND CMAKE_C_FLAGS_DEBUG   " /MTd")
++
++string(APPEND CMAKE_CXX_FLAGS_RELEASE " /MT")
++string(APPEND CMAKE_CXX_FLAGS_DEBUG   " /MTd")
++
++file(COPY
++  include/hmac-md5.h
++  include/md5.h
++  include/md5global.h
++  include/prop.h
++  include/sasl.h
++  include/saslplug.h
++  include/saslutil.h
++  DESTINATION include/sasl)
++
++# Add the minimal set of files required to build CRAM MD5 support.
++add_library(
++  libsasl2 STATIC
++  common/plugin_common.c
++  lib/auxprop.c
++  lib/canonusr.c
++  lib/checkpw.c
++  lib/client.c
++  lib/common.c
++  lib/config.c
++  lib/external.c
++  lib/getsubopt.c
++  lib/md5.c
++  lib/saslutil.c
++  lib/server.c
++  lib/seterror.c
++  lib/windlopen.c
++  plugins/cram.c)
++
++target_compile_definitions(libsasl2 PUBLIC LIBSASL_EXPORTS=1)
++target_include_directories(libsasl2 PUBLIC win32/include include common)
+diff --git a/include/md5global.h b/include/md5global.h
+index 414bac6..c939a22 100644
+--- a/include/md5global.h
++++ b/include/md5global.h
+@@ -18,11 +18,9 @@ typedef unsigned char *POINTER;
+ typedef signed char INT1;		/*  8 bits */
+ typedef short INT2;			/* 16 bits */
+ typedef int INT4;			/* 32 bits */
+-typedef long INT8;			/* 64 bits */
+ typedef unsigned char UINT1;		/*  8 bits */
+ typedef unsigned short UINT2;		/* 16 bits */
+ typedef unsigned int UINT4;		/* 32 bits */
+-typedef unsigned long UINT8;		/* 64 bits */
+ 
+ /* PROTO_LIST is defined depending on how PROTOTYPES is defined above.
+ If using PROTOTYPES, then PROTO_LIST returns the list, otherwise it
+diff --git a/lib/windlopen.c b/lib/windlopen.c
+index 70ac6b5..758c934 100644
+--- a/lib/windlopen.c
++++ b/lib/windlopen.c
+@@ -49,6 +49,7 @@
+ #include <config.h>
+ #include <sasl.h>
+ #include "saslint.h"
++#include "staticopen.h"
+ 
+ #define DLL_SUFFIX	".dll"
+ #define DLL_MASK	"*" DLL_SUFFIX
+@@ -190,6 +191,18 @@ int _sasl_load_plugins(const add_plugin_list_t *entrypoints,
+ 	|| ! verifyfile_cb->proc)
+ 	return SASL_BADPARAM;
+ 
++	for (cur_ep = entrypoints; cur_ep->entryname; cur_ep++)
++	{
++		if (strcmp("sasl_server_plug_init", cur_ep->entryname) == 0)
++		{
++			sasl_server_add_plugin("CRAM-MD5", crammd5_server_plug_init);
++		}
++		else if (strcmp("sasl_client_plug_init", cur_ep->entryname) == 0)
++		{
++			sasl_client_add_plugin("CRAM-MD5", crammd5_client_plug_init);
++		}
++	}
++
+     /* get the path to the plugins */
+     result = ((sasl_getpath_t *)(getpath_cb->proc))(getpath_cb->context,
+ 						    &path);
+diff --git a/win32/include/config.h b/win32/include/config.h
+index 8d8548e..c0f7236 100644
+--- a/win32/include/config.h
++++ b/win32/include/config.h
+@@ -92,18 +92,9 @@ typedef int		    intptr_t;
+ #define SASL_BERKELEYDB 1
+ 
+ /* which mechs can we link statically? */
+-#define STATIC_ANONYMOUS 1
+ #define STATIC_CRAMMD5 1
+-#define STATIC_DIGESTMD5 1
+-#define STATIC_SCRAM 1
+-#define STATIC_GSSAPIV2 1
+ /* #undef STATIC_KERBEROS4 */
+-#define STATIC_LOGIN 1
+ /* #undef STATIC_MYSQL */
+-#define STATIC_OTP 1
+-#define STATIC_PLAIN 1
+-#define STATIC_SASLDB 1
+-#define STATIC_SRP 1
+ 
+ /* ------------------------------------------------------------ */
+ 
+@@ -117,8 +117,8 @@ typedef int		    intptr_t;
+ /* Windows calls these functions something else
+  */
+ #define strcasecmp   stricmp
+-#define snprintf    _snprintf
+-#define strncasecmp  strnicmp
++//#define snprintf    _snprintf
++#define strncasecmp  _strnicmp
+ 
+ #define MAXHOSTNAMELEN 1024
+ 
