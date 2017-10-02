@@ -215,6 +215,12 @@ if (WIN32)
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${SASL2_URL}
     URL_HASH          ${SASL2_HASH})
+else ()
+  find_library(SASL2_LIB sasl2)
+
+  if (NOT SASL2_LIB)
+    message(FATAL_ERROR "Could not find sasl2 dependency.")
+  endif ()
 endif ()
 
 
