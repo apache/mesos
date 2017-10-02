@@ -162,6 +162,7 @@
           <th data-key="name">Task Name</th>
           <th data-key="role">Role</th>
           <th data-key="state">State</th>
+          <th data-key="healthy">Health</th>
           <th data-key="start_time" data-sort>Started</th>
           <th data-key="host">Host</th>
           <th></th>
@@ -169,7 +170,7 @@
       </thead>
       <tbody>
         <tr data-ng-if="active_tasks.length === 0">
-          <td colspan="7">No active tasks.</td>
+          <td colspan="8">No active tasks.</td>
         </tr>
         <tr ng-repeat="task in $data">
           <td>
@@ -192,6 +193,7 @@
           <td>{{task.name}}</td>
           <td>{{task.role}}</td>
           <td>{{task.state | truncateMesosState}}</td>
+          <td class="task-{{task.healthy | taskHealth}}">{{task.healthy | taskHealth}}</td>
           <td>
             <m-timestamp value="{{task.start_time}}"></m-timestamp>
           </td>

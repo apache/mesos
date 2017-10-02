@@ -185,3 +185,13 @@ a.badge-type:hover {
 .hidden-text {
   font-size: 0;
 }
+
+.task-healthy {
+  color: #27c97b;
+  text-transform: capitalize;
+}
+
+.task-unhealthy {
+  color: #f33745;
+  text-transform: capitalize;
+}

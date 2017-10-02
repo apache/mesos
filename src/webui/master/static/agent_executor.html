@@ -136,6 +136,7 @@
           <th data-key="name">Name</th>
           <th data-key="role">Role</th>
           <th data-key="state">State</th>
+          <th data-key="healthy">Health</th>
           <th data-key="resources.cpus">CPUs (allocated)</th>
           <th data-key="resources.gpus">GPUs (allocated)</th>
           <th data-key="resources.mem">Mem (allocated)</th>
@@ -149,6 +150,7 @@
           <td>{{task.name}}</td>
           <td>{{task.role}}</td>
           <td>{{task.state}}</td>
+          <td class="task-{{task.healthy | taskHealth}}">{{task.healthy | taskHealth}}</td>
           <td>{{task.resources.cpus | number}}</td>
           <td>{{task.resources.gpus | number}}</td>
           <td>{{task.resources.mem * (1024 * 1024) | dataSize}}</td>
