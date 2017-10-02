@@ -594,6 +594,17 @@ set_target_properties(
   VERSION ${MESOS_PACKAGE_VERSION}
   SOVERSION ${MESOS_PACKAGE_SOVERSION})
 
+# NOTE: The quotes in these definitions are necessary. Without them, the
+# preprocessor will interpret the symbols as (e.g.) int literals and unquoted
+# identifiers, rather than the string values our code expects.
+target_compile_definitions(
+  mesos PUBLIC
+  USE_CMAKE_BUILD_CONFIG
+  BUILD_JAVA_JVM_LIBRARY="${JAVA_JVM_LIBRARY}"
+
+  # TODO(andschwa): (MESOS-5455) `BUILD_FLAGS` is currently a placeholder value.
+  BUILD_FLAGS="")
+
 target_include_directories(
   mesos PUBLIC
   ${MESOS_PUBLIC_INCLUDE_DIR}
