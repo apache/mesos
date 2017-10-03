@@ -5,9 +5,6 @@ layout: documentation
 
 # Operator HTTP API
 
-Mesos 1.0.0 added **experimental** support for v1 Operator HTTP API.
-
-
 ## Overview
 
 Both masters and agents provide the `/api/v1` endpoint as the base URL for performing operator-related operations.

@@ -11,6 +11,8 @@ Additional API Changes:
 Unresolved Critical Issues:
 
 Feature Graduations:
+* v1 Operator API is now considered stable.
+
 
 All Experimental Features:
 
