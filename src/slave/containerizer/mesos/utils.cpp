@@ -60,22 +60,22 @@ Try<pid_t> getMountNamespaceTarget(pid_t parent)
 {
   Try<ino_t> parentNamespace = ns::getns(parent, "mnt");
   if (parentNamespace.isError()) {
-    return Error("Cannot get 'mnt' namespace for"
-                 " process '" + stringify(parent) + "'");
+    return Error("Cannot get 'mnt' namespace for process"
+                 " '" + stringify(parent) + "': " + parentNamespace.error());
   }
 
   // Search for a new mount namespace in all direct children.
   Try<set<pid_t>> children = os::children(parent, false);
   if (children.isError()) {
     return Error("Cannot get children for process"
-                 " '" + stringify(parent) + "'");
+                 " '" + stringify(parent) + "': " + children.error());
   }
 
   foreach (pid_t child, children.get()) {
     Try<ino_t> childNamespace = ns::getns(child, "mnt");
     if (childNamespace.isError()) {
-      return Error("Cannot get 'mnt' namespace for"
-                   " child process '" + stringify(child) + "'");
+      return Error("Cannot get 'mnt' namespace for child process"
+                   " '" + stringify(child) + "': " + childNamespace.error());
     }
 
     if (parentNamespace.get() != childNamespace.get()) {
@@ -89,14 +89,15 @@ Try<pid_t> getMountNamespaceTarget(pid_t parent)
     if (children2.isError()) {
       return Error("Cannot get 2nd-level children for process"
                    " '" + stringify(parent) + "' with child"
-                   " '" + stringify(child) + "'");
+                   " '" + stringify(child) + "': " + children2.error());
     }
 
     foreach (pid_t child2, children2.get()) {
       Try<ino_t> child2Namespace = ns::getns(child2, "mnt");
       if (child2Namespace.isError()) {
-        return Error("Cannot get 'mnt' namespace for 2nd-level"
-                     " child process '" + stringify(child2) + "'");
+        return Error("Cannot get 'mnt' namespace for 2nd-level child process"
+                     " '" + stringify(child2) +
+                     "': " + child2Namespace.error());
       }
 
       if (parentNamespace.get() != child2Namespace.get()) {
