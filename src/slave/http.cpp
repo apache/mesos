@@ -2405,17 +2405,33 @@ Future<Response> Http::_launchNestedContainer(
       map<string, string>(),
       None());
 
+  // TODO(jieyu): If the http connection breaks, the handler will
+  // trigger a discard on the returned future. That'll result in the
+  // future 'launched' transitioning into DISCARDED state. However,
+  // this does not mean the launch was discarded correctly and it
+  // requires a destroy. See MESOS-8039 for more details.
+  //
   // TODO(bmahler): The containerizers currently require that
   // the caller calls destroy if the launch fails. See MESOS-6214.
   launched
-    .onFailed(defer(slave->self(), [=](const string& failure) {
-      LOG(WARNING) << "Failed to launch nested container " << containerId
-                   << ": " << failure;
+    .onAny(defer(slave->self(), [=](const Future<bool>& launch) {
+      if (launch.isReady()) {
+        return;
+      }
+
+      LOG(WARNING) << "Failed to launch nested container "
+                   << containerId << ": "
+                   << (launch.isFailed() ? launch.failure() : "discarded");
 
       slave->containerizer->destroy(containerId)
-        .onFailed([=](const string& failure) {
-          LOG(ERROR) << "Failed to destroy nested container " << containerId
-                     << " after launch failure: " << failure;
+        .onAny([=](const Future<bool>& destroy) {
+          if (destroy.isReady()) {
+            return;
+          }
+
+          LOG(ERROR) << "Failed to destroy nested container "
+                     << containerId << " after launch failure: "
+                     << (destroy.isFailed() ? destroy.failure() : "discarded");
         });
     }));
 
