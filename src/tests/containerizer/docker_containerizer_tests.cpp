@@ -4137,6 +4137,129 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToRunning)
 }
 
 
+// This test ensures that a task will transition from `TASK_KILLING`
+// to `TASK_KILLED` rather than `TASK_FINISHED` when it is killed,
+// even if it returns an "EXIT_STATUS" of 0 on receiving a SIGTERM.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToFinished)
+{
+  Shared<Docker> docker(new MockDocker(
+      tests::flags.docker, tests::flags.docker_socket));
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+
+  Fetcher fetcher(agentFlags);
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(agentFlags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer containerizer(
+      agentFlags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), &containerizer, agentFlags);
+
+  ASSERT_SOME(agent);
+
+  // Start the framework with the task killing capability.
+  FrameworkInfo::Capability capability;
+  capability.set_type(FrameworkInfo::Capability::TASK_KILLING_STATE);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->CopyFrom(capability);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->CopyFrom(offer.slave_id());
+  task.mutable_resources()->CopyFrom(offer.resources());
+
+  CommandInfo command;
+  command.set_shell(false);
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // The "nginx:alpine" container returns an "EXIT_STATUS" of 0 on
+  // receiving a SIGTERM.
+  //
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("nginx:alpine");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_command()->CopyFrom(command);
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(containerizer, launch(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&containerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusKilling;
+  Future<TaskStatus> statusKilled;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusKilling))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  driver.launchTasks(offers->front().id(), {task});
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // Docker executor will call "docker stop ..." to send SIGTERM
+  // to kill the task.
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(statusKilling);
+  EXPECT_EQ(TASK_KILLING, statusKilling->state());
+
+  AWAIT_READY(statusKilled);
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
+
+  Future<Option<ContainerTermination>> termination =
+    containerizer.wait(containerId.get());
+
+  driver.stop();
+  driver.join();
+
+  AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
+}
+
+
 // This test ensures that when `cgroups_enable_cfs` is set on agent,
 // the docker container launched through docker containerizer has
 // `cpuQuotas` limit.
