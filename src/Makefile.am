@@ -82,6 +82,15 @@ LDADD =
 
 AM_LDFLAGS =
 
+if DISABLE_LIBTOOL_WRAPPERS
+# This is used to force libtool to generate executables instead of wrapper
+# scripts. A wrapper script might trigger relinking, which takes quite a while
+# on slow machines, thus causing failure of tests.
+# NOTE: Disabling libtool wrapper should only be used when building a mesos to
+# be tested within the build tree, see `info libtool` for details.
+AM_LDFLAGS += -no-install
+endif
+
 # Use -Wl,--as-needed to AM_LDFLAGS since we link against all the
 # libraries programs may depend upon, not the exact one. --as-needed
 # causes the linker to only link to the ones a program actually uses,
@@ -2546,7 +2555,6 @@ mesos_tests_SOURCES +=						\
 
 mesos_tests_CPPFLAGS += $(JAVA_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DZOOKEEPER_VERSION=\"$(ZOOKEEPER_VERSION)\"
-mesos_tests_LDFLAGS = $(AM_LDFLAGS)
 mesos_tests_DEPENDENCIES += $(EXAMPLES_JAR)
 
 EXAMPLESCRIPTSJAVA =						\

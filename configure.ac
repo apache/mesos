@@ -231,6 +231,16 @@ AC_ARG_ENABLE([install-module-dependencies],
                               for module development]),
               [], [enable_install_module_dependencies=no])
 
+AC_ARG_ENABLE([libtool-wrappers],
+              AS_HELP_STRING([--disable-libtool-wrappers],
+                             [Directly create binaries instead of libtool
+                              wrapper scripts to prevent relinking when first
+                              executing binaries from the build directory. This
+                              flag leads to binaries with the build directory
+                              encoded in the executables' RPATH which makes them
+                              in general unfit for installation.
+                              USE WITH CARE.]))
+
 AC_ARG_ENABLE([optimize],
               AS_HELP_STRING([--enable-optimize],
                              [enable optimizations. If CFLAGS/CXXFLAGS are set,
@@ -652,6 +662,9 @@ case "${target_os}" in
   *)
     AC_MSG_ERROR("Mesos is currently unsupported on your platform.")
 esac
+
+AM_CONDITIONAL([DISABLE_LIBTOOL_WRAPPERS],
+               [test x"$enable_libtool_wrappers" = "xno"])
 
 # Used for conditionally including source files.
 AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
