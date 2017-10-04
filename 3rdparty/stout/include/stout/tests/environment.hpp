@@ -53,6 +53,11 @@ public:
       return true;
     }
 
+    if (test->value_param() != nullptr &&
+        strings::contains(test->value_param(), pattern)) {
+      return true;
+    }
+
     return false;
   }
 };
