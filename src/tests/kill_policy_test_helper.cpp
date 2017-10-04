@@ -58,6 +58,15 @@ int KillPolicyTestHelper::execute()
   action.sa_handler = sigtermHandler;
   sigaction(SIGTERM, &action, nullptr);
 
+  // Create a file in the sandbox which can be considered as
+  // a signal that this test helper has been fully started.
+  Try<Nothing> touch = os::touch(KillPolicyTestHelper::NAME);
+  if (touch.isError()) {
+    std::cerr << "Failed to create file '" << KillPolicyTestHelper::NAME
+              << "': " << touch.error() << std::endl;
+    return EXIT_FAILURE;
+  }
+
   // Block the process until we get a signal.
   pause();
 

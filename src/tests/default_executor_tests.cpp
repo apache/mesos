@@ -48,6 +48,7 @@
 
 #include "tests/cluster.hpp"
 #include "tests/containerizer.hpp"
+#include "tests/kill_policy_test_helper.hpp"
 #include "tests/mesos.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
@@ -1406,6 +1407,186 @@ TEST_P(DefaultExecutorTest, SigkillExecutor)
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
   ASSERT_TRUE(wait.get()->has_status());
+}
+
+
+// This test verifies that a task will transition from `TASK_KILLING`
+// to `TASK_KILLED` rather than `TASK_FINISHED` when it is killed,
+// even if it returns an "EXIT_STATUS" of 0 on receiving a SIGTERM.
+TEST_P(DefaultExecutorTest, ROOT_NoTransitionFromKillingToFinished)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.containerizers = GetParam();
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+        detector.get(),
+        containerizer.get(),
+        flags);
+
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  // Start the framework with the task killing capability.
+  v1::FrameworkInfo::Capability capability;
+  capability.set_type(v1::FrameworkInfo::Capability::TASK_KILLING_STATE);
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->CopyFrom(capability);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      v1::DEFAULT_EXECUTOR_ID,
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT,
+      frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  v1::CommandInfo commandInfo;
+  commandInfo.set_shell(false);
+  commandInfo.set_value(getTestHelperPath("test-helper"));
+  commandInfo.add_arguments("test-helper");
+  commandInfo.add_arguments(KillPolicyTestHelper::NAME);
+  commandInfo.add_arguments("--sleep_duration=0");
+
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId,
+      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
+      commandInfo);
+
+  Future<v1::scheduler::Event::Update> startingUpdate;
+  Future<v1::scheduler::Event::Update> runningUpdate;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&startingUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&runningUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  mesos.send(
+      v1::createCallAccept(
+          frameworkId,
+          offer,
+          {v1::LAUNCH_GROUP(
+              executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
+
+  AWAIT_READY(startingUpdate);
+  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+
+  AWAIT_READY_FOR(runningUpdate, Seconds(60));
+  ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
+
+  v1::ContainerStatus status = runningUpdate->status().container_status();
+
+  ASSERT_TRUE(status.has_container_id());
+  EXPECT_TRUE(status.container_id().has_parent());
+
+  v1::ContainerID executorContainerId = status.container_id().parent();
+
+  Future<Option<ContainerTermination>> wait =
+    containerizer->wait(devolve(executorContainerId));
+
+  string executorSandbox = slave::paths::getExecutorLatestRunPath(
+      flags.work_dir,
+      devolve(agentId),
+      devolve(frameworkId),
+      devolve(executorInfo.executor_id()));
+
+  string filePath = path::join(
+      executorSandbox,
+      "tasks",
+      taskInfo.task_id().value(),
+      KillPolicyTestHelper::NAME);
+
+  // Wait up to 5 seconds for the `test-helper` program to create a file into
+  // its sandbox which is a signal that the task has been fully started.
+  Duration waited = Duration::zero();
+  do {
+    if (os::exists(filePath)) {
+      break;
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < Seconds(5));
+
+  EXPECT_TRUE(os::exists(filePath));
+
+  Future<v1::scheduler::Event::Update> killingUpdate;
+  Future<v1::scheduler::Event::Update> killedUpdate;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&killingUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&killedUpdate),
+              v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  // Now kill the task in the task group, the default executor will
+  // call the agent to send SIGTERM to the container. The `test-helper`
+  // program will return an "EXIT_STATUS" of 0 on receiving a SIGTERM.
+  mesos.send(v1::createCallKill(frameworkId, taskInfo.task_id()));
+
+  AWAIT_READY(killingUpdate);
+  ASSERT_EQ(TASK_KILLING, killingUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), killingUpdate->status().task_id());
+
+  AWAIT_READY(killedUpdate);
+  ASSERT_EQ(TASK_KILLED, killedUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), killedUpdate->status().task_id());
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  ASSERT_EQ(0, wait.get()->status());
 }
 
 
