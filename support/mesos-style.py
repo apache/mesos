@@ -352,6 +352,7 @@ class PyLinter(LinterBase):
         python_dir = os.path.join('src', 'python')
         cli_dir = os.path.join(python_dir, 'cli_new')
         lib_dir = os.path.join(python_dir, 'lib')
+        support_dir = 'support'
 
         self.config = {
             'bootstrap_dir': cli_dir,
@@ -360,7 +361,7 @@ class PyLinter(LinterBase):
             'pylint_cmd': os.path.join(cli_dir, '.virtualenv', 'bin', 'pylint')
         }
 
-        self.source_dirs = [cli_dir, lib_dir]
+        self.source_dirs = [cli_dir, lib_dir, support_dir]
 
     def run_lint(self, source_paths):
         """

@@ -36,6 +36,7 @@ $ cd /path/to/mesos
 $ [ do some work on your branch off of master, make commit(s) ]
 $ ./support/post-reviews.py
 """
+# pylint: skip-file
 
 import argparse
 import atexit
