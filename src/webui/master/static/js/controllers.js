@@ -42,7 +42,7 @@
     localStorage.setItem(storageKey, url);
 
     var pailer =
-      window.open('/static/pailer.html', storageKey, 'width=580px, height=700px');
+      window.open('static/pailer.html', storageKey, 'width=580px, height=700px');
 
     // Need to use window.onload instead of document.ready to make
     // sure the title doesn't get overwritten.
@@ -534,7 +534,7 @@
     var update = function() {
       // TODO(haosdent): Send requests to the leading master directly
       // once `leadingMasterURL` is public.
-      $http.jsonp('/master/roles?jsonp=JSON_CALLBACK')
+      $http.jsonp('master/roles?jsonp=JSON_CALLBACK')
       .success(function(response) {
         $scope.roles = response;
       })
@@ -559,7 +559,7 @@
     var update = function() {
       // TODO(haosdent): Send requests to the leading master directly
       // once `leadingMasterURL` is public.
-      $http.jsonp('/master/maintenance/schedule?jsonp=JSON_CALLBACK')
+      $http.jsonp('master/maintenance/schedule?jsonp=JSON_CALLBACK')
       .success(function(response) {
         $scope.maintenance = response;
       })
