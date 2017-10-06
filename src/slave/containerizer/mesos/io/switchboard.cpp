@@ -64,6 +64,10 @@
 #include "common/recordio.hpp"
 #include "common/status_utils.hpp"
 
+#ifdef __linux__
+#include "linux/systemd.hpp"
+#endif // __linux__
+
 #include "slave/flags.hpp"
 #include "slave/state.hpp"
 
@@ -557,6 +561,18 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   VLOG(1) << "Launching '" << IOSwitchboardServer::NAME << "' with flags '"
           << switchboardFlags << "' for container " << containerId;
 
+  // If we are on systemd, then extend the life of the process as we
+  // do with the executor. Any grandchildren's lives will also be
+  // extended.
+  vector<Subprocess::ParentHook> parentHooks;
+
+#ifdef __linux__
+  if (systemd::enabled()) {
+    parentHooks.emplace_back(Subprocess::ParentHook(
+        &systemd::mesos::extendLifetime));
+  }
+#endif // __linux__
+
   // Launch the io switchboard server process.
   // We `dup()` the `stdout` and `stderr` passed to us by the
   // container logger over the `stdout` and `stderr` of the io
@@ -572,7 +588,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
       &switchboardFlags,
       environment,
       None(),
-      {},
+      parentHooks,
       {Subprocess::ChildHook::SETSID(),
        Subprocess::ChildHook::UNSET_CLOEXEC(stdinToFd),
        Subprocess::ChildHook::UNSET_CLOEXEC(stdoutFromFd),
