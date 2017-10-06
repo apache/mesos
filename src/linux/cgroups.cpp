@@ -3131,4 +3131,14 @@ Try<Nothing> classid(
 
 } // namespace net_cls {
 
+
+namespace named {
+
+Result<string> cgroup(const string& hierarchyName, pid_t pid)
+{
+  return internal::cgroup(pid, "name=" + hierarchyName);
+}
+
+} // namespace named {
+
 } // namespace cgroups {

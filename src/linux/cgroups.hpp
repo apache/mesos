@@ -999,6 +999,18 @@ Try<Nothing> classid(
 
 } // namespace net_cls {
 
+
+// Named hierarchy.
+namespace named {
+
+// Returns the cgroup that the specified pid is a member of within the
+// given named hierarchy is mounted or None if the named hierarchy is
+// not mounted or the pid is not a member of a cgroup.
+Result<std::string> cgroup(const std::string& hierarchyName, pid_t pid);
+
+} // namespace named {
+
+
 } // namespace cgroups {
 
 namespace std {
