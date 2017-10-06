@@ -919,6 +919,8 @@ Future<Nothing> HierarchicalAllocatorProcess::updateAvailable(
   //   where A = allocate, R = reserve, U = updateAvailable
   Try<Resources> updatedAvailable = slave.available().apply(operations);
   if (updatedAvailable.isError()) {
+    VLOG(1) << "Failed to update available resources on agent " << slaveId
+            << ": " << updatedAvailable.error();
     return Failure(updatedAvailable.error());
   }
 
