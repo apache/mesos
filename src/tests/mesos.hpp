@@ -941,12 +941,25 @@ inline typename TResource::DiskInfo createDiskInfo(
 // Helper for creating a disk source with type `PATH`.
 template <typename TResource>
 inline typename TResource::DiskInfo::Source createDiskSourcePath(
-    const std::string& root)
+    const Option<std::string>& root,
+    const Option<std::string>& id = None(),
+    const Option<std::string>& profile = None())
 {
   typename TResource::DiskInfo::Source source;
 
   source.set_type(TResource::DiskInfo::Source::PATH);
-  source.mutable_path()->set_root(root);
+
+  if (root.isSome()) {
+    source.mutable_path()->set_root(root.get());
+  }
+
+  if (id.isSome()) {
+    source.set_id(id.get());
+  }
+
+  if (profile.isSome()) {
+    source.set_profile(profile.get());
+  }
 
   return source;
 }
@@ -955,12 +968,25 @@ inline typename TResource::DiskInfo::Source createDiskSourcePath(
 // Helper for creating a disk source with type `MOUNT`.
 template <typename TResource>
 inline typename TResource::DiskInfo::Source createDiskSourceMount(
-    const std::string& root)
+    const Option<std::string>& root,
+    const Option<std::string>& id = None(),
+    const Option<std::string>& profile = None())
 {
   typename TResource::DiskInfo::Source source;
 
   source.set_type(TResource::DiskInfo::Source::MOUNT);
-  source.mutable_mount()->set_root(root);
+
+  if (root.isSome()) {
+    source.mutable_mount()->set_root(root.get());
+  }
+
+  if (id.isSome()) {
+    source.set_id(id.get());
+  }
+
+  if (profile.isSome()) {
+    source.set_profile(profile.get());
+  }
 
   return source;
 }

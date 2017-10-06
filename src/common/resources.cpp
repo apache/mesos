@@ -206,6 +206,14 @@ bool operator==(
     return false;
   }
 
+  if (left.has_profile() != right.has_profile()) {
+    return false;
+  }
+
+  if (left.has_profile() && left.profile() != right.profile()) {
+    return false;
+  }
+
   return true;
 }
 

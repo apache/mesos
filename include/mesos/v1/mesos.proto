@@ -1326,6 +1326,14 @@ message Resource {
 
       optional string id = 4; // EXPERIMENTAL.
       optional Labels metadata = 5; // EXPERIMENTAL.
+
+      // This field serves as an indirection to a set of storage
+      // vendor specific disk parameters which describe the properties
+      // of the disk. The operator will setup mappings between a
+      // profile name to a set of vendor specific disk parameters. And
+      // the framework will do disk selection based on profile names,
+      // instead of vendor specific disk parameters.
+      optional string profile = 6; // EXPERIMENTAL.
     }
 
     optional Source source = 3;

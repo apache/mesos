@@ -2250,12 +2250,14 @@ TEST(DiskResourcesTest, DiskSourceEquals)
 
 class DiskResourcesSourceTest
   : public ::testing::Test,
-    public ::testing::WithParamInterface<
-        std::tr1::tuple<Resource::DiskInfo::Source::Type, bool>> {};
+    public ::testing::WithParamInterface<std::tr1::tuple<
+        Resource::DiskInfo::Source::Type,
+        bool,
+        bool>> {};
 
 
 INSTANTIATE_TEST_CASE_P(
-    TypeAndIdentity,
+    TypeIdentityProfile,
     DiskResourcesSourceTest,
     ::testing::Combine(
         // We test all source types.
@@ -2266,16 +2268,19 @@ INSTANTIATE_TEST_CASE_P(
             Resource::DiskInfo::Source::MOUNT),
         // We test the case where the source has identity (i.e., has
         // an `id` set) and where not.
+        ::testing::Bool(),
+        // We test the case where the source has profile (i.e., has
+        // an `profile` set) and where not.
         ::testing::Bool()));
 
 
 TEST_P(DiskResourcesSourceTest, SourceIdentity)
 {
-  const std::tr1::tuple<Resource::DiskInfo::Source::Type, bool>& parameters =
-    GetParam();
+  auto parameters = GetParam();
 
   Resource::DiskInfo::Source::Type type = std::tr1::get<0>(parameters);
   bool hasIdentity = std::tr1::get<1>(parameters);
+  bool hasProfile = std::tr1::get<2>(parameters);
 
   // Create a disk, possibly with an id to signify identiy.
   Resource::DiskInfo::Source source;
@@ -2283,6 +2288,10 @@ TEST_P(DiskResourcesSourceTest, SourceIdentity)
 
   if (hasIdentity) {
     source.set_id("id");
+  }
+
+  if (hasProfile) {
+    source.set_profile("profile");
   }
 
   // Create two disk resources with the created source.
