@@ -189,7 +189,8 @@ def verify_review(review_request):
                              "OS='ubuntu:14.04' "
                              "BUILDTOOL='autotools' "
                              "COMPILER='gcc' "
-                             "CONFIGURATION='--verbose' "
+                             "CONFIGURATION='--verbose "
+                             "--disable-libtool-wrappers' "
                              "ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1'")
 
             command = "%s; ./support/docker-build.sh" % configuration
