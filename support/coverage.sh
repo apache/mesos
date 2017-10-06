@@ -19,7 +19,7 @@ fi
 pushd build
 
 # Reconfigure with gcov support.
-CXXFLAGS="-pg --coverage" CFLAGS="-pg --coverage" LDFLAGS="-lgcov" ../configure --disable-optimize
+CXXFLAGS="-pg --coverage" CFLAGS="-pg --coverage" LDFLAGS="-lgcov" ../configure --disable-optimize --disable-libtool-wrappers
 
 # Ensure no old data is in the tree.
 find -name \*.gcda | xargs rm
