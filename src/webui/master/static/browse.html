@@ -73,7 +73,7 @@
             </td>
             <td>
               <a data-ng-show="file.mode[0] != 'd'"
-                 href="//{{agent_host}}/files/download?path={{encodeURIComponent(file.path)}}">
+                 href="{{agent_url_prefix}}/files/download?path={{encodeURIComponent(file.path)}}">
                 <button class="btn btn-xs btn-default" type="button">
                   Download
                 </button>

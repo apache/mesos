@@ -27,10 +27,46 @@
     return false;
   }
 
-  // Invokes the pailer for the specified host and path using the
-  // specified window_title.
-  function pailer(host, path, window_title) {
-    var url = '//' + host + '/files/read?path=' + path;
+  // Returns the URL prefix for an agent, there are two cases
+  // to consider:
+  //
+  //   (1) Some endpoints for the agent process itself require
+  //       the agent PID.name in the path, this is to ensure
+  //       that the webui works correctly when running against
+  //       mesos-local or other instances of multiple agents
+  //       running within the same "host:port":
+  //
+  //         //hostname:port/slave(1)
+  //         //hostname:port/slave(2)
+  //         ...
+  //
+  //   (2) Some endpoints for other components in the agent
+  //       do not require the agent PID.name in the path, since
+  //       a single endpoint serves multiple agents within the
+  //       same process. In this case we just return:
+  //
+  //         //hostname:port
+  //
+  // Note that there are some clashing issues in mesos-local
+  // (e.g., hosting '/slave/log' for each agent log, we don't
+  // namespace metrics within '/metrics/snapshot', etc).
+  function agentURLPrefix(agent, includeId) {
+    var port = agent.pid.substring(agent.pid.lastIndexOf(':') + 1);
+    var id = agent.pid.substring(0, agent.pid.indexOf('@'));
+
+    var url = '//' + agent.hostname + ':' + port;
+
+    if (includeId) {
+      url += '/' + id;
+    }
+
+    return url;
+  }
+
+  // Invokes the pailer, building the endpoint URL with the specified urlPrefix
+  // and path.
+  function pailer(urlPrefix, path, window_title) {
+    var url = urlPrefix + '/files/read?path=' + path;
 
     // The randomized `storageKey` is removed from `localStorage` once the
     // pailer window loads the URL into its `sessionStorage`, therefore
@@ -521,7 +557,7 @@
         ).open();
       } else {
         pailer(
-            $scope.$location.host() + ':' + $scope.$location.port(),
+            '//' + $scope.$location.host() + ':' + $scope.$location.port(),
             '/master/log',
             'Mesos Master');
       }
@@ -618,10 +654,7 @@
         return;
       }
 
-      var pid = $scope.agents[$routeParams.agent_id].pid;
-      var hostname = $scope.agents[$routeParams.agent_id].hostname;
-      var id = pid.substring(0, pid.indexOf('@'));
-      var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
+      var agent = $scope.agents[$routeParams.agent_id];
 
       $scope.log = function($event) {
         if (!$scope.state.external_log_file && !$scope.state.log_dir) {
@@ -631,16 +664,20 @@
             [{label: 'Continue'}]
           ).open();
         } else {
-          pailer(host, '/slave/log', 'Mesos Agent');
+          pailer(agentURLPrefix(agent, false), '/slave/log', 'Mesos Agent');
         }
       };
 
+
       // Set up polling for the monitor if this is the first update.
       if (!$top.started()) {
-        $top.start(host, id, $scope);
+        $top.start(
+          agentURLPrefix(agent, true) + '/monitor/statistics?jsonp=JSON_CALLBACK',
+          $scope
+        );
       }
 
-      $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
+      $http.jsonp(agentURLPrefix(agent, true) + '/state?jsonp=JSON_CALLBACK')
         .success(function (response) {
           $scope.state = response;
 
@@ -718,7 +755,7 @@
           $('#alert').show();
         });
 
-      $http.jsonp('//' + host + '/metrics/snapshot?jsonp=JSON_CALLBACK')
+      $http.jsonp(agentURLPrefix(agent, false) + '/metrics/snapshot?jsonp=JSON_CALLBACK')
         .success(function (response) {
           $scope.staging_tasks = response['slave/tasks_staging'];
           $scope.starting_tasks = response['slave/tasks_starting'];
@@ -757,17 +794,17 @@
         return;
       }
 
-      var pid = $scope.agents[$routeParams.agent_id].pid;
-      var hostname = $scope.agents[$routeParams.agent_id].hostname;
-      var id = pid.substring(0, pid.indexOf('@'));
-      var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
+      var agent = $scope.agents[$routeParams.agent_id];
 
       // Set up polling for the monitor if this is the first update.
       if (!$top.started()) {
-        $top.start(host, id, $scope);
+        $top.start(
+          agentURLPrefix(agent, true) + '/monitor/statistics?jsonp=JSON_CALLBACK',
+          $scope
+        );
       }
 
-      $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
+      $http.jsonp(agentURLPrefix(agent, true) + '/state?jsonp=JSON_CALLBACK')
         .success(function (response) {
           $scope.state = response;
 
@@ -844,17 +881,17 @@
         return;
       }
 
-      var pid = $scope.agents[$routeParams.agent_id].pid;
-      var hostname = $scope.agents[$routeParams.agent_id].hostname;
-      var id = pid.substring(0, pid.indexOf('@'));
-      var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
+      var agent = $scope.agents[$routeParams.agent_id];
 
       // Set up polling for the monitor if this is the first update.
       if (!$top.started()) {
-        $top.start(host, id, $scope);
+        $top.start(
+          agentURLPrefix(agent, true) + '/monitor/statistics?jsonp=JSON_CALLBACK',
+          $scope
+        );
       }
 
-      $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
+      $http.jsonp(agentURLPrefix(agent, true) + '/state?jsonp=JSON_CALLBACK')
         .success(function (response) {
           $scope.state = response;
 
@@ -972,15 +1009,10 @@
         return goBack("Agent with ID '" + $routeParams.agent_id + "' does not exist.");
       }
 
-      var pid = agent.pid;
-      var hostname = $scope.agents[$routeParams.agent_id].hostname;
-      var id = pid.substring(0, pid.indexOf('@'));
-      var port = pid.substring(pid.lastIndexOf(':') + 1);
-      var host = hostname + ":" + port;
-
       // Request agent details to get access to the route executor's "directory"
       // to navigate directly to the executor's sandbox.
-      $http.jsonp('//' + host + '/' + id + '/state?jsonp=JSON_CALLBACK')
+      var url = agentURLPrefix(agent, true) + '/state?jsonp=JSON_CALLBACK';
+      $http.jsonp(url)
         .success(function(response) {
 
           function matchFramework(framework) {
@@ -1051,13 +1083,12 @@
         .error(function(response) {
           $alert.danger({
             bullets: [
-              "The agent's hostname, '" + hostname + "', is not accessible from your network",
-              "The agent's port, '" + port + "', is not accessible from your network",
-              "The agent timed out or went offline"
+             "The agent is not accessible",
+             "The agent timed out or went offline"
             ],
             message: "Potential reasons:",
             title: "Failed to connect to agent '" + $routeParams.agent_id +
-              "' on '" + host + "'."
+              "' on '" + url + "'."
           });
 
           // Is the agent dead? Navigate home since returning to the agent might
@@ -1087,17 +1118,18 @@
         $scope.agent_id = $routeParams.agent_id;
         $scope.path = $routeParams.path;
 
-        var pid = $scope.agents[$routeParams.agent_id].pid;
-        var hostname = $scope.agents[$routeParams.agent_id].hostname;
-        var id = pid.substring(0, pid.indexOf('@'));
-        var host = hostname + ":" + pid.substring(pid.lastIndexOf(':') + 1);
-        var url = '//' + host + '/files/browse?jsonp=JSON_CALLBACK';
+        var agent = $scope.agents[$routeParams.agent_id];
 
-        $scope.agent_host = host;
+        // This variable is used in 'browse.html' to generate the '/files'
+        // links, so we have to pass `includeId=false` (see agentURLPrefix for
+        // more details).
+        $scope.agent_url_prefix = agentURLPrefix(agent, false);
 
         $scope.pail = function($event, path) {
-          pailer(host, path, decodeURIComponent(path));
+          pailer(agentURLPrefix(agent, false), path, decodeURIComponent(path));
         };
+
+        var url = agentURLPrefix(agent, false) + '/files/browse?jsonp=JSON_CALLBACK';
 
         // TODO(bmahler): Try to get the error code / body in the error callback.
         // This wasn't working with the current version of angular.

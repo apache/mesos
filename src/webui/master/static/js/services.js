@@ -278,16 +278,15 @@
   };
 
   // Arguments:
-  //   host: host of agent.
-  //   id: id of agent.
+  //   url: the URL of the Agent's container statistics endpoint.
   //   scope: $scope service from Angular.
-  Top.prototype.start = function(host, id, scope) {
+  Top.prototype.start = function(url, scope) {
     if (this.started()) {
       // TODO(bmahler): Consider logging a warning here.
       return;
     }
 
-    this.endpoint = '//' + host + '/' + id + '/monitor/statistics?jsonp=JSON_CALLBACK';
+    this.endpoint = url;
     this.scope = scope;
 
     // Initial poll is immediate.
