@@ -107,6 +107,8 @@ private:
     Option<pid_t> pid = None();
   };
 
+  Future<Nothing> _destroy(const ContainerID& containerId);
+
   // Helper for parsing the cgroup path to determine the container ID
   // it belongs to.
   Option<ContainerID> parse(const string& cgroup);
@@ -146,21 +148,54 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
   LOG(INFO) << "Using " << freezerHierarchy.get()
             << " as the freezer hierarchy for the Linux launcher";
 
-  // On systemd environments we currently migrate executor pids into a separate
-  // executor slice. This allows the life-time of the executor to be extended
-  // past the life-time of the slave. See MESOS-3352.
+  // On systemd environments, we currently do the following:
   //
-  // The LinuxLauncherProcess takes responsibility for creating and
-  // starting this slice. It then migrates executor pids into this
-  // slice before it "unpauses" the executor. This is the same pattern
-  // as the freezer.
+  // (1) For Mesos version < 1.6, we migrate executor pids into a
+  // separate slice. This allows the life-time of the executor to be
+  // extended past the life-time of the slave. See MESOS-3352.
+  //
+  // (2) For Mesos version >= 1.6, we create the cgroups under the
+  // systemd hierarchy directly, and use the same layout as that in
+  // the freezer hierarchy. This should prevent systemd from migrating
+  // pids in other hierarchies as well because the pids are unknown to
+  // systemd.
+  Option<string> systemdHierarchy;
+
+  if (systemd::enabled()) {
+    systemdHierarchy = systemd::hierarchy();
+
+    // Create the root cgroup if does not exist.
+    Try<bool> exists = cgroups::exists(
+        systemdHierarchy.get(),
+        flags.cgroups_root);
+
+    if (exists.isError()) {
+      return Error(
+          "Failed to check the existence of cgroup root '" +
+          flags.cgroups_root + "' under systemd hierarchy '" +
+          systemdHierarchy.get() + "': " + exists.error());
+    }
+
+    if (!exists.get()) {
+      Try<Nothing> create = cgroups::create(
+          systemdHierarchy.get(),
+          flags.cgroups_root);
+
+      if (create.isError()) {
+        return Error(
+            "Failed to create cgroup root under systemd hierarchy: " +
+            create.error());
+      }
+    }
+
+    LOG(INFO) << "Using " << systemdHierarchy.get()
+              << " as the systemd hierarchy for the Linux launcher";
+  }
 
   return new LinuxLauncher(
       flags,
       freezerHierarchy.get(),
-      systemd::enabled() ?
-        Some(systemd::hierarchy()) :
-        Option<string>::none());
+      systemdHierarchy);
 }
 
 
@@ -266,18 +301,41 @@ Future<hashset<ContainerID>> LinuxLauncherProcess::recover(
     const list<ContainerState>& states)
 {
   // Recover all of the "containers" we know about based on the
-  // existing cgroups.
-  Try<vector<string>> cgroups =
+  // existing cgroups. Note that we check both the freezer hierarchy
+  // and the systemd hierarchy (if enabled), and combine the results.
+  hashset<string> cgroups;
+
+  Try<vector<string>> freezerCgroups =
     cgroups::get(freezerHierarchy, flags.cgroups_root);
 
-  if (cgroups.isError()) {
+  if (freezerCgroups.isError()) {
     return Failure(
         "Failed to get cgroups from " +
         path::join(freezerHierarchy, flags.cgroups_root) +
-        ": "+ cgroups.error());
+        ": "+ freezerCgroups.error());
   }
 
-  foreach (const string& cgroup, cgroups.get()) {
+  foreach (const string& cgroup, freezerCgroups.get()) {
+    cgroups.insert(cgroup);
+  }
+
+  if (systemdHierarchy.isSome()) {
+    Try<vector<string>> systemdCgroups =
+      cgroups::get(systemdHierarchy.get(), flags.cgroups_root);
+
+    if (systemdCgroups.isError()) {
+      return Failure(
+          "Failed to get cgroups from " +
+          path::join(systemdHierarchy.get(), flags.cgroups_root) +
+          ": " + systemdCgroups.error());
+    }
+
+    foreach (const string& cgroup, systemdCgroups.get()) {
+      cgroups.insert(cgroup);
+    }
+  }
+
+  foreach (const string& cgroup, cgroups) {
     // Need to parse the cgroup to see if it's one we created (i.e.,
     // matches our separator structure) or one that someone else
     // created (e.g., in the future we might have nested containers
@@ -309,9 +367,9 @@ Future<hashset<ContainerID>> LinuxLauncherProcess::recover(
     expected.insert(state.container_id());
 
     if (!containers.contains(state.container_id())) {
-      // The fact that we did not have a freezer cgroup for this
-      // container implies this container has already been destroyed
-      // but we need to add it to `containers` so that when
+      // The fact that we did not have a freezer (or systemd) cgroup
+      // for this container implies this container has already been
+      // destroyed but we need to add it to `containers` so that when
       // `LinuxLauncher::destroy` does get called below for this
       // container we will not fail.
       Container container;
@@ -336,38 +394,50 @@ Future<hashset<ContainerID>> LinuxLauncherProcess::recover(
   // cgroup.
 
   // If we are on a systemd environment, check that container pids are
-  // still in the `MESOS_EXECUTORS_SLICE`. If they are not, warn the
-  // operator that resource isolation may be invalidated.
+  // either in the `MESOS_EXECUTORS_SLICE`, or under Mesos cgroup root
+  // under the systemd hierarchy. If they are not, warn the operator
+  // that resource isolation may be invalidated.
+  //
+  // TODO(jmlvanre): Add a flag that enforces this rather than just
+  // logs a warning (i.e., we exit if a pid was found in the freezer
+  // but not in the `MESOS_EXECUTORS_SLICE` or Mesos cgroup root under
+  // the systemd hierarhcy). We need a flag to support the upgrade
+  // path.
   if (systemdHierarchy.isSome()) {
-    Result<set<pid_t>> mesosExecutorSlicePids = cgroups::processes(
-        systemdHierarchy.get(),
-        systemd::mesos::MESOS_EXECUTORS_SLICE);
+    foreachvalue (const Container& container, containers) {
+      if (container.pid.isNone()) {
+        continue;
+      }
 
-    // If we error out trying to read the pids from the
-    // `MESOS_EXECUTORS_SLICE` we fail. This is a programmer error
-    // as we did not set up the slice correctly.
-    if (mesosExecutorSlicePids.isError()) {
-      return Failure("Failed to read pids from systemd '" +
-                     stringify(systemd::mesos::MESOS_EXECUTORS_SLICE) + "'");
-    }
+      pid_t pid = container.pid.get();
 
-    if (mesosExecutorSlicePids.isSome()) {
-      foreachvalue (const Container& container, containers) {
-        if (container.pid.isNone()) {
-          continue;
-        }
+      // No need to proceed the check if the pid does not exist
+      // anymore. This is possible if the container terminates when
+      // the agent is down.
+      if (os::kill(pid, 0) != 0) {
+        continue;
+      }
 
-        if (mesosExecutorSlicePids.get().count(container.pid.get()) != 0) {
-          // TODO(jmlvanre): Add a flag that enforces this rather
-          // than just logs a warning (i.e., we exit if a pid was
-          // found in the freezer but not in the
-          // `MESOS_EXECUTORS_SLICE`. We need a flag to support the
-          // upgrade path.
-          LOG(WARNING)
-            << "Couldn't find pid '" << container.pid.get() << "' in '"
-            << systemd::mesos::MESOS_EXECUTORS_SLICE << "'. This can lead to"
-            << " lack of proper resource isolation";
-        }
+      Result<string> cgroup = cgroups::named::cgroup("systemd", pid);
+      if (!cgroup.isSome()) {
+        LOG(ERROR) << "Failed to get cgroup in systemd hierarchy for "
+                   << "container pid " << pid << ": "
+                   << (cgroup.isError() ? cgroup.error() : "Not found");
+        continue;
+      }
+
+      bool inMesosCgroupRoot =
+        strings::startsWith(cgroup.get(), flags.cgroups_root);
+
+      bool inMesosExecutorSlice =
+        strings::contains(cgroup.get(), systemd::mesos::MESOS_EXECUTORS_SLICE);
+
+      if (!inMesosCgroupRoot && !inMesosExecutorSlice) {
+        LOG(WARNING)
+          << "Couldn't find pid " << pid << " in either Mesos cgroup root '"
+          << flags.cgroups_root << "' under systemd hierarchy, or systemd "
+          << "slice '" << systemd::mesos::MESOS_EXECUTORS_SLICE << "'; "
+          << "This can lead to lack of proper resource isolation";
       }
     }
   }
@@ -441,23 +511,16 @@ Try<pid_t> LinuxLauncherProcess::fork(
 
   cloneFlags |= SIGCHLD; // Specify SIGCHLD as child termination signal.
 
-  // NOTE: The ordering of the hooks is:
+  // The ordering of the hooks is:
+  // (1) Create the freezer cgroup, and add the child to the cgroup.
+  // (2) Create the systemd cgroup, and add the child to the cgroup.
   //
-  // (1) Add the child to the systemd slice.
-  // (2) Create the freezer cgroup for the child.
-  //
-  // But since both have to happen or the child will terminate the
-  // ordering is immaterial.
-
-  // Hook to extend the life of the child (and all of its
-  // descendants) using a systemd slice.
+  // NOTE: The order is important here because the destory code will
+  // always kill the container based on the pids in the freezer
+  // cgroup. The systemd cgroup will be removed after that. Therefore,
+  // we want to make sure that if the pid is in the systemd cgroup, it
+  // must be in the freezer cgroup.
   vector<Subprocess::ParentHook> parentHooks;
-
-  if (systemdHierarchy.isSome()) {
-    parentHooks.emplace_back(Subprocess::ParentHook([](pid_t child) {
-      return systemd::mesos::extendLifetime(child);
-    }));
-  }
 
   // Hook for creating and assigning the child into a freezer cgroup.
   parentHooks.emplace_back(Subprocess::ParentHook([=](pid_t child) {
@@ -466,6 +529,16 @@ Try<pid_t> LinuxLauncherProcess::fork(
         LinuxLauncher::cgroup(this->flags.cgroups_root, containerId),
         child);
   }));
+
+  // Hook for creating and assigning the child into a systemd cgroup.
+  if (systemdHierarchy.isSome()) {
+    parentHooks.emplace_back(Subprocess::ParentHook([=](pid_t child) {
+      return cgroups::isolate(
+          systemdHierarchy.get(),
+          LinuxLauncher::cgroup(this->flags.cgroups_root, containerId),
+          child);
+    }));
+  }
 
   Try<Subprocess> child = subprocess(
       path,
@@ -554,10 +627,12 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
   if (!exists.get()) {
     LOG(WARNING) << "Couldn't find freezer cgroup for container "
                  << container->id << " so assuming partially destroyed";
-    return Nothing();
+
+    return _destroy(containerId);
   }
 
-  LOG(INFO) << "Using freezer to destroy cgroup " << cgroup;
+  LOG(INFO) << "Destroying cgroup '"
+            << path::join(freezerHierarchy, cgroup) << "'";
 
   // TODO(benh): If this is the last container at a nesting level,
   // should we also delete the `CGROUP_SEPARATOR` cgroup too?
@@ -566,6 +641,38 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
   // retry?
   return cgroups::destroy(
       freezerHierarchy,
+      cgroup,
+      cgroups::DESTROY_TIMEOUT)
+    .then(defer(
+        self(),
+        &LinuxLauncherProcess::_destroy,
+        containerId));
+}
+
+
+Future<Nothing> LinuxLauncherProcess::_destroy(const ContainerID& containerId)
+{
+  if (systemdHierarchy.isNone()) {
+    return Nothing();
+  }
+
+  const string cgroup =
+    LinuxLauncher::cgroup(flags.cgroups_root, containerId);
+
+  Try<bool> exists = cgroups::exists(systemdHierarchy.get(), cgroup);
+  if (exists.isError()) {
+    return Failure("Failed to determine if cgroup exists: " + exists.error());
+  }
+
+  if (!exists.get()) {
+    return Nothing();
+  }
+
+  LOG(INFO) << "Destroying cgroup '"
+            << path::join(systemdHierarchy.get(), cgroup) << "'";
+
+  return cgroups::destroy(
+      systemdHierarchy.get(),
       cgroup,
       cgroups::DESTROY_TIMEOUT);
 }
