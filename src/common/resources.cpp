@@ -146,7 +146,7 @@ bool operator==(
     return false;
   }
 
-  return left.root() == right.root();
+  return true;
 }
 
 
