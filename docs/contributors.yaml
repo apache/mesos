@@ -584,6 +584,12 @@
   jira_user: bernadinm
   reviewboard_user: bernadinm
 
+- name: Nathan Jackson
+  emails:
+    - nate.ds.jackson@gmail.com
+  jira_user: csnate
+  reviewboard_user: csnate
+
 - name: Neil Conway
   affiliations:
     - {organization: Mesosphere}
