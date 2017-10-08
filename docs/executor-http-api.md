@@ -280,20 +280,18 @@ LAUNCH_GROUP Event (JSON)
     "task_group" : {
       "tasks" : [
         {
-          "task": {
-            "name": "dummy-task",
-            "task_id": {
-              "value": "d40f3f3e-bbe3-44af-a230-4cb1eae72f67"
-            },
-            "agent_id": {
-              "value": "f1c9cdc5-195e-41a7-a0d7-adaa9af07f81"
-            },
-            "command": {
-              "value": "sleep",
-              "arguments": [
-                "100"
-              ]
-            }
+          "name": "dummy-task",
+          "task_id": {
+            "value": "d40f3f3e-bbe3-44af-a230-4cb1eae72f67"
+          },
+          "agent_id": {
+            "value": "f1c9cdc5-195e-41a7-a0d7-adaa9af07f81"
+          },
+          "command": {
+            "value": "sleep",
+            "arguments": [
+              "100"
+            ]
           }
         }
       ]
