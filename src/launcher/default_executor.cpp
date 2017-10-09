@@ -893,6 +893,14 @@ protected:
         Owned<Container> container_ = containers.at(taskId);
         container_->killingTaskGroup = true;
 
+        // Ignore if the task is already being killed. This can happen
+        // when the scheduler tries to kill multiple tasks in the task
+        // group simultaneously and then one of the tasks is killed
+        // while the other tasks are still being killed, see MESOS-8051.
+        if (container_->killing) {
+          continue;
+        }
+
         kill(container_);
       }
     }
