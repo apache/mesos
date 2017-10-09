@@ -637,7 +637,7 @@ protected:
   // When a slave that was previously registered with this master
   // re-registers, we need to reconcile the master's view of the
   // slave's tasks and executors.  This function also sends the
-  // `ReregisterSlaveMessage`.
+  // `SlaveReregisteredMessage`.
   void reconcileKnownSlave(
       Slave* slave,
       const std::vector<ExecutorInfo>& executors,
