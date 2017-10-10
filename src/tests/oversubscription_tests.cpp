@@ -289,13 +289,6 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
   Future<SlaveRegisteredMessage> slaveRegistered =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Future<UpdateSlaveMessage> updateTotal, updateOversubscribed;
-  {
-    ::testing::InSequence dummy;
-    updateTotal = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
-    updateOversubscribed = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
-  }
-
   MockResourceEstimator resourceEstimator;
 
   EXPECT_CALL(resourceEstimator, initialize(_));
@@ -314,28 +307,26 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
 
   AWAIT_READY(slaveRegistered);
 
-  AWAIT_READY(updateTotal);
-  ASSERT_TRUE(updateTotal->has_resource_categories());
-  ASSERT_TRUE(updateTotal->resource_categories().has_total());
-  ASSERT_TRUE(updateTotal->resource_categories().total());
+  Future<UpdateSlaveMessage> update =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Clock::pause();
   // No update should be sent until there is an estimate.
   Clock::advance(flags.oversubscribed_resources_interval);
   Clock::settle();
 
-  ASSERT_FALSE(updateOversubscribed.isReady());
+  ASSERT_FALSE(update.isReady());
 
   // Inject an estimation of oversubscribable resources.
   Resources resources = createRevocableResources("cpus", "1");
   estimations.put(resources);
 
-  AWAIT_READY(updateOversubscribed);
+  AWAIT_READY(update);
 
-  EXPECT_TRUE(updateOversubscribed->has_resource_categories());
-  EXPECT_TRUE(updateOversubscribed->resource_categories().has_oversubscribed());
-  EXPECT_TRUE(updateOversubscribed->resource_categories().oversubscribed());
-  EXPECT_EQ(updateOversubscribed->oversubscribed_resources(), resources);
+  EXPECT_TRUE(update->has_resource_categories());
+  EXPECT_TRUE(update->resource_categories().has_oversubscribed());
+  EXPECT_TRUE(update->resource_categories().oversubscribed());
+  EXPECT_EQ(update->oversubscribed_resources(), resources);
 
   // Ensure the metric is updated.
   JSON::Object metrics = Metrics();
@@ -343,7 +334,7 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
       1u,
       metrics.values.count("master/messages_update_slave"));
   ASSERT_EQ(
-      2u,
+      1u,
       metrics.values["master/messages_update_slave"]);
 
   ASSERT_EQ(
@@ -910,7 +901,6 @@ TEST_F(OversubscriptionTest, Reregistration)
 
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegistered);
-
   AWAIT_READY(update);
   ASSERT_TRUE(update->has_resource_categories());
   ASSERT_TRUE(update->resource_categories().has_oversubscribed());
@@ -930,7 +920,6 @@ TEST_F(OversubscriptionTest, Reregistration)
   // Clock::settle();
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregistered);
-
   AWAIT_READY(update);
   EXPECT_TRUE(update->has_resource_categories());
   EXPECT_TRUE(update->resource_categories().has_oversubscribed());
