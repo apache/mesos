@@ -31,9 +31,9 @@
   // to consider:
   //
   //   (1) Some endpoints for the agent process itself require
-  //       the agent PID.name in the path, this is to ensure
-  //       that the webui works correctly when running against
-  //       mesos-local or other instances of multiple agents
+  //       the agent PID.name (processId) in the path, this is
+  //       to ensure that the webui works correctly when running
+  //       against mesos-local or other instances of multiple agents
   //       running within the same "host:port":
   //
   //         //hostname:port/slave(1)
@@ -50,14 +50,14 @@
   // Note that there are some clashing issues in mesos-local
   // (e.g., hosting '/slave/log' for each agent log, we don't
   // namespace metrics within '/metrics/snapshot', etc).
-  function agentURLPrefix(agent, includeId) {
+  function agentURLPrefix(agent, includeProcessId) {
     var port = agent.pid.substring(agent.pid.lastIndexOf(':') + 1);
-    var id = agent.pid.substring(0, agent.pid.indexOf('@'));
+    var processId = agent.pid.substring(0, agent.pid.indexOf('@'));
 
     var url = '//' + agent.hostname + ':' + port;
 
-    if (includeId) {
-      url += '/' + id;
+    if (includeProcessId) {
+      url += '/' + processId;
     }
 
     return url;
@@ -1121,8 +1121,8 @@
         var agent = $scope.agents[$routeParams.agent_id];
 
         // This variable is used in 'browse.html' to generate the '/files'
-        // links, so we have to pass `includeId=false` (see agentURLPrefix for
-        // more details).
+        // links, so we have to pass `includeProcessId=false` (see
+        // `agentURLPrefix`for more details).
         $scope.agent_url_prefix = agentURLPrefix(agent, false);
 
         $scope.pail = function($event, path) {
