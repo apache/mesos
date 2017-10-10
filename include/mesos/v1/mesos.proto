@@ -957,6 +957,15 @@ message AgentInfo {
       // NOTE: Resources are said to have refined reservations if it uses the
       // `Resource.reservations` field, and `Resource.reservations_size() > 1`.
       RESERVATION_REFINEMENT = 3;
+
+      // This expresses the ability for the agent to handle resource
+      // provider related operations. This includes the following:
+      //
+      // (1) The ability to report resources that are provided by some
+      //     local resource providers through the resource provider API.
+      //
+      // (2) The ability to provide offer operations feedback.
+      RESOURCE_PROVIDER = 4;
     }
 
     // Enum fields should be optional, see: MESOS-4997.
