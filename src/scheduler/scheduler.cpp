@@ -41,6 +41,8 @@
 
 #include <mesos/master/detector.hpp>
 
+#include <mesos/module/http_authenticatee.hpp>
+
 #include <process/async.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
@@ -73,6 +75,8 @@
 #include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
+#include "authentication/http/basic_authenticatee.hpp"
+
 #include "common/http.hpp"
 #include "common/recordio.hpp"
 
@@ -86,6 +90,8 @@
 #include "master/validation.hpp"
 
 #include "messages/messages.hpp"
+
+#include "module/manager.hpp"
 
 #include "scheduler/flags.hpp"
 
@@ -254,37 +260,9 @@ public:
     request.headers = {{"Accept", stringify(contentType)},
                        {"Content-Type", stringify(contentType)}};
 
-    // TODO(anand): Add support for other authentication schemes.
-
-    if (credential.isSome()) {
-      request.headers["Authorization"] =
-        "Basic " +
-        base64::encode(credential->principal() + ":" + credential->secret());
-    }
-
-    CHECK_SOME(connections);
-
-    Future<Response> response;
-    if (call.type() == Call::SUBSCRIBE) {
-      state = SUBSCRIBING;
-
-      // Send a streaming request for Subscribe call.
-      response = connections->subscribe.send(request, true);
-    } else {
-      CHECK_SOME(streamId);
-
-      // Set the stream ID associated with this connection.
-      request.headers["Mesos-Stream-Id"] = streamId->toString();
-
-      response = connections->nonSubscribe.send(request);
-    }
-
-    CHECK_SOME(connectionId);
-    response.onAny(defer(self(),
-                         &Self::_send,
-                         connectionId.get(),
-                         call,
-                         lambda::_1));
+    // TODO(tillt): Add support for multi-step authentication protocols.
+    authenticatee->authenticate(request, credential)
+      .onAny(defer(self(), &Self::_send, call, lambda::_1));
   }
 
   void reconnect()
@@ -307,6 +285,54 @@ public:
 protected:
   virtual void initialize()
   {
+    // Initialize modules.
+    if (flags.modules.isSome() && flags.modulesDir.isSome()) {
+      EXIT(EXIT_FAILURE) << "Only one of MESOS_MODULES or MESOS_MODULES_DIR "
+                         << "should be specified";
+    }
+
+    if (flags.modulesDir.isSome()) {
+      Try<Nothing> result =
+        modules::ModuleManager::load(flags.modulesDir.get());
+
+      if (result.isError()) {
+        EXIT(EXIT_FAILURE) << "Error loading modules: " << result.error();
+      }
+    }
+
+    if (flags.modules.isSome()) {
+      Try<Nothing> result = modules::ModuleManager::load(flags.modules.get());
+
+      if (result.isError()) {
+        EXIT(EXIT_FAILURE) << "Error loading modules: " << result.error();
+      }
+    }
+
+    // Initialize authenticatee.
+    if (flags.httpAuthenticatee == DEFAULT_BASIC_HTTP_AUTHENTICATEE) {
+      LOG(INFO) << "Using default '" << DEFAULT_BASIC_HTTP_AUTHENTICATEE
+                << "' HTTP authenticatee";
+
+      authenticatee = Owned<mesos::http::authentication::Authenticatee>(
+          new mesos::http::authentication::BasicAuthenticatee);
+    } else {
+      LOG(INFO) << "Using '" << flags.httpAuthenticatee
+                << "' HTTP authenticatee";
+
+      Try<mesos::http::authentication::Authenticatee*> createdAuthenticatee =
+        modules::ModuleManager::create<
+            mesos::http::authentication::Authenticatee>(
+                flags.httpAuthenticatee);
+
+      if (createdAuthenticatee.isError()) {
+        EXIT(EXIT_FAILURE) << "Failed to load HTTP authenticatee: "
+                           << createdAuthenticatee.error();
+      }
+
+      authenticatee = Owned<mesos::http::authentication::Authenticatee>(
+          createdAuthenticatee.get());
+    }
+
     // Start detecting masters.
     detection = detector->detect()
       .onAny(defer(self(), &MesosProcess::detected, lambda::_1));
@@ -513,7 +539,43 @@ protected:
     LOG(WARNING) << "Dropping " << call.type() << ": " << message;
   }
 
-  void _send(
+  void _send(const Call& call, const Future<::Request>& future)
+  {
+    if (!future.isReady()) {
+      LOG(ERROR) << "HTTP authenticatee "
+                 << (future.isFailed() ? "failed: " + future.failure()
+                                       : "discarded");
+      return;
+    }
+
+    ::Request request = future.get();
+
+    CHECK_SOME(connections);
+
+    Future<Response> response;
+    if (call.type() == Call::SUBSCRIBE) {
+      state = SUBSCRIBING;
+
+      // Send a streaming request for Subscribe call.
+      response = connections->subscribe.send(request, true);
+    } else {
+      CHECK_SOME(streamId);
+
+      // Set the stream ID associated with this connection.
+      request.headers["Mesos-Stream-Id"] = streamId->toString();
+
+      response = connections->nonSubscribe.send(request);
+    }
+
+    CHECK_SOME(connectionId);
+    response.onAny(defer(self(),
+                         &Self::__send,
+                         connectionId.get(),
+                         call,
+                         lambda::_1));
+  }
+
+  void __send(
       const UUID& _connectionId,
       const Call& call,
       const Future<Response>& response)
@@ -539,7 +601,7 @@ protected:
     if (response->code == process::http::Status::OK) {
       // Only SUBSCRIBE call should get a "200 OK" response.
       CHECK_EQ(Call::SUBSCRIBE, call.type());
-      CHECK_EQ(response->type, http::Response::PIPE);
+      CHECK_EQ(response->type, process::http::Response::PIPE);
       CHECK_SOME(response->reader);
 
       state = SUBSCRIBED;
@@ -783,6 +845,8 @@ private:
   Option<::URL> master;
   Option<UUID> streamId;
   const Flags flags;
+
+  Owned<mesos::http::authentication::Authenticatee> authenticatee;
 
   // Master detection future.
   process::Future<Option<mesos::MasterInfo>> detection;
