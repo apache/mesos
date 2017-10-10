@@ -310,6 +310,7 @@ set(AUTHENTICATION_SRC
   authentication/cram_md5/authenticatee.cpp
   authentication/cram_md5/authenticator.cpp
   authentication/cram_md5/auxprop.cpp
+  authentication/http/basic_authenticatee.cpp
   authentication/http/basic_authenticator_factory.cpp
   authentication/http/combined_authenticator.cpp)
 

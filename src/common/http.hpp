@@ -48,6 +48,9 @@ namespace internal {
 // Name of the default, basic authenticator.
 constexpr char DEFAULT_BASIC_HTTP_AUTHENTICATOR[] = "basic";
 
+// Name of the default, basic authenticatee.
+constexpr char DEFAULT_BASIC_HTTP_AUTHENTICATEE[] = "basic";
+
 // Name of the default, JWT authenticator.
 constexpr char DEFAULT_JWT_HTTP_AUTHENTICATOR[] = "jwt";
 
