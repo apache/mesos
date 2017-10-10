@@ -722,6 +722,7 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/detector.hpp			\
   $(top_srcdir)/include/mesos/module/hook.hpp				\
   $(top_srcdir)/include/mesos/module/hook.proto				\
+  $(top_srcdir)/include/mesos/module/http_authenticatee.hpp		\
   $(top_srcdir)/include/mesos/module/http_authenticator.hpp		\
   $(top_srcdir)/include/mesos/module/isolator.hpp			\
   $(top_srcdir)/include/mesos/module/module.hpp				\
