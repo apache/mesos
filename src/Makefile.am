@@ -627,12 +627,17 @@ authentication_HEADERS =						\
   $(top_srcdir)/include/mesos/authentication/authentication.hpp		\
   $(top_srcdir)/include/mesos/authentication/authentication.proto	\
   $(top_srcdir)/include/mesos/authentication/authenticator.hpp		\
-  $(top_srcdir)/include/mesos/authentication/secret_generator.hpp	\
-  $(top_srcdir)/include/mesos/authentication/http/basic_authenticator_factory.hpp	\
-  $(top_srcdir)/include/mesos/authentication/http/combined_authenticator.hpp
+  $(top_srcdir)/include/mesos/authentication/secret_generator.hpp
 
 nodist_authentication_HEADERS =						\
   ../include/mesos/authentication/authentication.pb.h
+
+httpauthenticationdir = $(pkgincludedir)/authentication/http
+
+httpauthentication_HEADERS =						\
+  $(top_srcdir)/include/mesos/authentication/http/authenticatee.hpp	\
+  $(top_srcdir)/include/mesos/authentication/http/basic_authenticator_factory.hpp	\
+  $(top_srcdir)/include/mesos/authentication/http/combined_authenticator.hpp
 
 authorizerdir = $(pkgincludedir)/authorizer
 
