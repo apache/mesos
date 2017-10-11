@@ -102,7 +102,7 @@ config file for pulling images from private registries. We allow
 operators to specify a shared docker config file using an agent flag.
 This docker config file will be used to pull images from private
 registries for all containers. See [configuration
-documentation](configuration.md) for detail. Operators can either
+documentation](configuration/agent.md) for detail. Operators can either
 specify the flag as an absolute path pointing to the docker config
 file (need to manually configure `.docker/config.json` or `.dockercfg`
 on each agent), or specify the flag as a JSON-formatted string.  For

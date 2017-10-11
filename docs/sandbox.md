@@ -168,4 +168,4 @@ After the delay, the files are deleted.
 Additionally, according to the `--disk_watch_interval` agent flag, files
 scheduled for garbage collection are pruned based on the available disk and
 the `--gc_disk_headroom` agent flag.
-See [the formula here](configuration.md#gc_disk_headroom).
+See [the formula here](configuration/agent.md#gc_disk_headroom).

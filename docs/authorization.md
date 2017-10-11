@@ -15,7 +15,7 @@ A reference implementation _local authorizer_ provides basic security for most
 use cases. This authorizer is configured using Access Control Lists (ACLs).
 Alternative implementations could express their authorization rules in
 different ways. The local authorizer is used if the
-[`--authorizers`](configuration.md) flag is not specified (or manually set to
+[`--authorizers`](configuration/master.md) flag is not specified (or manually set to
 the default value `local`) and ACLs are specified via the
 [`--acls`](configuration.md) flag.
 

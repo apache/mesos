@@ -33,7 +33,7 @@ Download and install the MSI from [CMake.org][cmake-download].
 
 # Supported options
 
-See [configuration options](configuration.md#cmake-configuration-options).
+See [configuration options](configuration/cmake.md).
 
 # Examples
 

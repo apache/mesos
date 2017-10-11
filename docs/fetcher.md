@@ -22,7 +22,7 @@ The Mesos fetcher can copy files from a local filesytem and it also natively
 supports the HTTP, HTTPS, FTP and FTPS protocols. If the requested URI is based
 on some other protocol, then the fetcher tries to utilise a local Hadoop client
 and hence supports any protocol supported by the Hadoop client, e.g., HDFS, S3.
-See the agent [configuration documentation](configuration.md)
+See the agent [configuration documentation](configuration/agent.md)
 for how to configure the agent with a path to the Hadoop client.
 
 By default, each requested URI is downloaded directly into the sandbox directory

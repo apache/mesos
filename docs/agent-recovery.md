@@ -41,7 +41,7 @@ A framework can control whether its executors will be recovered by setting the `
 
 ## Agent Configuration
 
-Three [configuration flags](configuration.md) control the recovery behavior of a Mesos agent:
+Three [configuration flags](configuration/agent.md) control the recovery behavior of a Mesos agent:
 
 * `strict`: Whether to do agent recovery in strict mode [Default: true].
     - If strict=true, all recovery errors are considered fatal.

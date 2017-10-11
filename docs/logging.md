@@ -21,7 +21,8 @@ Roughly, these categories are:
 The Mesos Master and Agent use the
 [Google's logging library](https://github.com/google/glog).
 For information regarding the command-line options used to configure this
-library, see the [configuration documentation](configuration.md).
+library, see the
+[configuration documentation](configuration/master-and-agent.md#logging-options).
 Google logging options that are not explicitly mentioned there can be
 configured via environment variables.
 

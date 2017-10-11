@@ -195,7 +195,7 @@ Operators can either specify the flag as an absolute path pointing to
 the docker config file (need to manually configure
 `.docker/config.json` or `.dockercfg` on each agent), or specify the
 flag as a JSON-formatted string. See [configuration
-documentation](configuration.md) for detail. For example:
+documentation](configuration/agent.md) for detail. For example:
 
     --docker_config=file:///home/vagrant/.docker/config.json
 
