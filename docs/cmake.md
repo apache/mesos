@@ -309,6 +309,12 @@ CMake project. If either the `CONFIGURE_COMMAND` or `BUILD_COMMAND` arguments of
 This variable ensures that compilation configurations are properly propagated to
 third-party dependencies, such as compiler flags.
 
+### `CMAKE_SSL_FORWARD_ARGS`
+
+The `CMAKE_SSL_FORWARD_ARGS` variable defined in `3rdparty/CMakeLists.txt`
+is like `CMAKE_FORWARD_ARGS`, but only used for specific external projects
+that find and link against OpenSSL.
+
 ## `LIBRARY_LINKAGE`
 
 This variable is a shortcut used in `3rdparty/CMakeLists.txt`. It is set to
