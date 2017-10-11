@@ -120,6 +120,25 @@ foreach (lang C CXX)
   endforeach ()
 endforeach ()
 
+# For 3rdparty dependencies that use CMake to find and build against
+# OpenSSL, we forward any user-supplied options for the `FindOpenSSL` module.
+if (ENABLE_SSL)
+  if (OPENSSL_ROOT_DIR)
+    list(APPEND CMAKE_SSL_FORWARD_ARGS
+      -DOPENSSL_ROOT_DIR=${OPENSSL_ROOT_DIR})
+  endif ()
+
+  if (OPENSSL_USE_STATIC_LIBS)
+    list(APPEND CMAKE_SSL_FORWARD_ARGS
+      -DOPENSSL_USE_STATIC_LIBS=${OPENSSL_USE_STATIC_LIBS})
+  endif ()
+
+  if (OPENSSL_MSVC_STATIC_RT)
+    list(APPEND CMAKE_SSL_FORWARD_ARGS
+      -DOPENSSL_MSVC_STATIC_RT=${OPENSSL_MSVC_STATIC_RT})
+  endif ()
+endif ()
+
 # This function works around a CMake issue with setting include directories of
 # imported libraries built with `ExternalProject_Add`.
 # https://gitlab.kitware.com/cmake/cmake/issues/15052
@@ -426,8 +445,9 @@ if (ENABLE_LIBEVENT)
   endif ()
 
   set(LIBEVENT_CMAKE_ARGS
-    # NOTE: Libevent does not respect the BUILD_SHARED_LIBS global flag.
     ${CMAKE_FORWARD_ARGS}
+    ${CMAKE_SSL_FORWARD_ARGS}
+    # NOTE: Libevent does not respect the BUILD_SHARED_LIBS global flag.
     -DEVENT__BUILD_SHARED_LIBRARIES=${BUILD_SHARED_LIBS}
     -DEVENT__DISABLE_OPENSSL=$<NOT:$<BOOL:${ENABLE_SSL}>>
     -DCMAKE_C_FLAGS=$<IF:$<PLATFORM_ID:Windows>,"",-fPIC>
@@ -435,10 +455,6 @@ if (ENABLE_LIBEVENT)
     -DEVENT__DISABLE_REGRESS=ON
     -DEVENT__DISABLE_SAMPLES=ON
     -DEVENT__DISABLE_TESTS=ON)
-
-  if (OPENSSL_ROOT_DIR)
-    list(APPEND LIBEVENT_CMAKE_ARGS -DOPENSSL_ROOT_DIR=${OPENSSL_ROOT_DIR})
-  endif ()
 
   MAKE_INCLUDE_DIR(libevent)
   GET_BYPRODUCTS(libevent)
@@ -541,7 +557,7 @@ if (NOT WIN32)
 endif ()
 
 
-# curl: Command line tool and library for transferring data with URLs.
+# cURL: Command line tool and library for transferring data with URLs.
 # https://curl.haxx.se
 ######################################################################
 if (WIN32)
@@ -549,8 +565,13 @@ if (WIN32)
   add_library(curl ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
   add_dependencies(curl ${CURL_TARGET})
 
-  # NOTE: curl does not respect BUILD_SHARED_LIBS.
-  set(CURL_CMAKE_ARGS ${CMAKE_FORWARD_ARGS} -DBUILD_CURL_TESTS=OFF)
+  set(CURL_CMAKE_ARGS
+    ${CMAKE_FORWARD_ARGS}
+    ${CMAKE_SSL_FORWARD_ARGS}
+    -DBUILD_CURL_TESTS=OFF
+    -DCMAKE_USE_OPENSSL=${ENABLE_SSL})
+
+  # NOTE: cURL does not respect BUILD_SHARED_LIBS.
   if (NOT BUILD_SHARED_LIBS)
     # This is both a CMake argument and a pre-processor definition.
     list(APPEND CURL_CMAKE_ARGS -DCURL_STATICLIB=ON)

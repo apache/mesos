@@ -277,6 +277,12 @@ if (WIN32)
     set(CRT " /MT")
   endif ()
 
+  if (ENABLE_SSL)
+    # NOTE: We don't care about using the debug version because OpenSSL includes
+    # an adapter. However, we prefer OpenSSL to use the multi-threaded CRT.
+    set(OPENSSL_MSVC_STATIC_RT TRUE)
+  endif ()
+
   # NOTE: We APPEND ${CRT} rather than REPLACE so it gets picked up by
   # dependencies.
   foreach (lang C CXX)
