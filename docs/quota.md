@@ -51,6 +51,11 @@ In computer science, a "quota" usually refers to one of the following:
 In Mesos, a quota is a **guaranteed** resource allocation that a role may rely
 on; in other words, a minimum share a role is entitled to receive.
 
+﻿**NOTE:** The built-in wDRF allocator extends this contract, and based on the
+definition above, treats quota as the pair of both the minimal and maximal share
+a role is entitled to receive. See
+[wDRF implementation notes](#allocatorEnforcement) for details.
+
 
 ## Motivation and Limitations
 
