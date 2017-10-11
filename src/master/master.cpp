@@ -6313,11 +6313,47 @@ void Master::_reregisterSlave(
     CHECK(slave->active)
       << "Unexpected connected but deactivated agent " << *slave;
 
-    // Inform the agent of the master's version of its checkpointed
-    // resources and the new framework pids for its tasks.
+    // Inform the agent of the new framework pids for its tasks.
     ___reregisterSlave(slave, frameworks);
 
     slaves.reregistering.erase(slaveInfo.id());
+
+    // Send checkpointed resources to the agent. This is important for
+    // the cases where the master didn't fail over. In that case, the
+    // master might have already applied an operation that the agent
+    // didn't see (e.g., due to a breaking connection). This message
+    // will sync the state between the master and the agent about
+    // checkpointed resources.
+    CheckpointResourcesMessage message;
+
+    message.mutable_resources()->CopyFrom(slave->checkpointedResources);
+
+    if (!slave->capabilities.reservationRefinement) {
+      // If the agent is not refinement-capable, don't send it
+      // checkpointed resources that contain refined reservations. This
+      // might occur if a reservation refinement is created but never
+      // reaches the agent (e.g., due to network partition), and then
+      // the agent is downgraded before the partition heals.
+      //
+      // TODO(neilc): It would probably be better to prevent the agent
+      // from re-registering in this scenario.
+      Try<Nothing> result = downgradeResources(message.mutable_resources());
+      if (result.isError()) {
+        LOG(WARNING) << "Not sending updated checkpointed resouces "
+                     << slave->checkpointedResources
+                     << " with refined reservations, since agent " << *slave
+                     << " is not RESERVATION_REFINEMENT-capable.";
+
+        return;
+      }
+    }
+
+    LOG(INFO) << "Sending updated checkpointed resources "
+              << slave->checkpointedResources
+              << " to agent " << *slave;
+
+    send(slave->pid, message);
+
     return;
   }
 
@@ -6657,45 +6693,6 @@ void Master::___reregisterSlave(
       recoverFramework(frameworkInfo, {});
     }
   }
-
-  // Send checkpointed resources to the agent. This is important for
-  // the cases where the master didn't fail over. In that case, the
-  // master might have already applied an operation that the agent
-  // didn't see (e.g., due to a breaking connection). This message
-  // will sync the state between the master and the agent about
-  // checkpointed resources.
-  //
-  // TODO(jieyu): This message is not necessary for the case where the
-  // master fails over. Consider moving this to `reconcileKnownSlave`.
-  CheckpointResourcesMessage message;
-
-  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
-
-  if (!slave->capabilities.reservationRefinement) {
-    // If the agent is not refinement-capable, don't send it
-    // checkpointed resources that contain refined reservations. This
-    // might occur if a reservation refinement is created but never
-    // reaches the agent (e.g., due to network partition), and then
-    // the agent is downgraded before the partition heals.
-    //
-    // TODO(neilc): It would probably be better to prevent the agent
-    // from re-registering in this scenario.
-    Try<Nothing> result = downgradeResources(message.mutable_resources());
-    if (result.isError()) {
-      LOG(WARNING) << "Not sending updated checkpointed resouces "
-                   << slave->checkpointedResources
-                   << " with refined reservations, since agent " << *slave
-                   << " is not RESERVATION_REFINEMENT-capable.";
-
-      return;
-    }
-  }
-
-  LOG(INFO) << "Sending updated checkpointed resources "
-            << slave->checkpointedResources
-            << " to agent " << *slave;
-
-  send(slave->pid, message);
 }
 
 
