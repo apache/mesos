@@ -165,7 +165,9 @@ def ssl_create_default_context():
     Equivalent to `ssl.create_default_context` with default arguments and
     certificate/hostname verification disabled.
     See: https://github.com/python/cpython/blob/2.7/Lib/ssl.py#L410
+    This function requires Python >= 2.7.9.
     """
+    # pylint: disable=no-member
     context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
 
     # SSLv2 considered harmful.
@@ -185,7 +187,9 @@ def ssl_create_default_context():
 
 def fetch_patch(options):
     """Fetches a patch from Review Board or GitHub."""
+    # pylint: disable=unexpected-keyword-arg
     if platform.system() == 'Windows':
+        # This call requires Python >= 2.7.9.
         response = urllib2.urlopen(
             patch_url(options),
             context=ssl_create_default_context())
