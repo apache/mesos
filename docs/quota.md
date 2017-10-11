@@ -49,7 +49,8 @@ In computer science, a "quota" usually refers to one of the following:
 * A pair of both.
 
 In Mesos, a quota is a **guaranteed** resource allocation that a role may rely
-on; in other words, a minimum share a role is entitled to receive.
+on; and based on the definition above, refers to the pair of both, the
+minimal and maximal share a role is entitled to receive.
 
 
 ## Motivation and Limitations
