@@ -248,6 +248,12 @@ Try<X509*> generate_x509(
       return Error("Failed to get IP/4 address");
     }
 
+#ifdef __WINDOWS__
+    // cURL defines `in_addr_t` as `unsigned long` for Windows,
+    // so we do too for consistency.
+    typedef unsigned long in_addr_t;
+#endif // __WINDOWS__
+
     // For `iPAddress` we hand over a binary value as part of the
     // specification.
     if (ASN1_STRING_set(
