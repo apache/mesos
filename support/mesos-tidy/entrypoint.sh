@@ -23,7 +23,6 @@ SRCDIR=/tmp/SRC
 
 # Prepare sources
 git clone --depth 1 file:///SRC "${SRCDIR}"
-(cd "${SRCDIR}" && ./bootstrap)
 
 # Configure sources
 cmake -DCMAKE_BUILD_TYPE=Release \
