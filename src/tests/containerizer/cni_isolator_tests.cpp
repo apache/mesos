@@ -857,11 +857,19 @@ TEST_F(CniIsolatorTest, ROOT_DynamicAddDelofCniConfig)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning));
 
+  Future<Nothing> ack =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
   driver.launchTasks(offer2.id(), {task}, filters);
 
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(task.task_id(), statusRunning->task_id());
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // To avoid having the agent resending the `TASK_RUNNING` update, which can
+  // happen due to clock manipulation below, wait for the status update
+  // acknowledgement to reach the agent.
+  AWAIT_READY(ack);
 
   // Testing dynamic deletion of CNI networks.
   rm = os::rm(path::join(cniConfigDir, "mockConfig"));
