@@ -6766,7 +6766,11 @@ TEST_F(SlaveTest, RunTaskGroupGenerateSecretAfterShutdown)
 // generation is enabled and HTTP executor authentication is not required will
 // be able to re-subscribe successfully when the agent is restarted with
 // required HTTP executor authentication.
-TEST_F(SlaveTest, RestartSlaveRequireExecutorAuthentication)
+//
+// TODO(andschwa): Enable this test after fixing MESOS-7604.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    SlaveTest,
+    RestartSlaveRequireExecutorAuthentication)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -6839,7 +6843,13 @@ TEST_F(SlaveTest, RestartSlaveRequireExecutorAuthentication)
     v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
 
   // Create a task which should run indefinitely.
-  v1::TaskInfo taskInfo = v1::createTask(agentId, resources, "cat");
+  const string command =
+#ifdef __WINDOWS__
+    "more";
+#else
+    "cat";
+#endif // __WINDOWS__
+  v1::TaskInfo taskInfo = v1::createTask(agentId, resources, command);
 
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo);
