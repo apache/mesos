@@ -33,9 +33,9 @@ class LibeventSSLSocketImpl : public SocketImpl
 {
 public:
   // See 'Socket::create()'.
-  static Try<std::shared_ptr<SocketImpl>> create(int s);
+  static Try<std::shared_ptr<SocketImpl>> create(int_fd s);
 
-  LibeventSSLSocketImpl(int _s);
+  LibeventSSLSocketImpl(int_fd _s);
 
   ~LibeventSSLSocketImpl() override;
 
@@ -71,7 +71,7 @@ private:
   struct AcceptRequest
   {
     AcceptRequest(
-        int _socket,
+        int_fd _socket,
         evconnlistener* _listener,
         const Option<net::IP>& _ip)
       : peek_event(nullptr),
@@ -81,7 +81,7 @@ private:
     event* peek_event;
     Promise<std::shared_ptr<SocketImpl>> promise;
     evconnlistener* listener;
-    int socket;
+    int_fd socket;
     Option<net::IP> ip;
   };
 
@@ -110,7 +110,7 @@ private:
   // This is a private constructor used by the accept helper
   // functions.
   LibeventSSLSocketImpl(
-      int _s,
+      int_fd _s,
       bufferevent* bev,
       Option<std::string>&& peer_hostname);
 

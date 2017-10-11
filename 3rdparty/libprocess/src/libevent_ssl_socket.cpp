@@ -84,7 +84,7 @@ namespace process {
 namespace network {
 namespace internal {
 
-Try<std::shared_ptr<SocketImpl>> LibeventSSLSocketImpl::create(int s)
+Try<std::shared_ptr<SocketImpl>> LibeventSSLSocketImpl::create(int_fd s)
 {
   openssl::initialize();
 
@@ -476,7 +476,7 @@ void LibeventSSLSocketImpl::event_callback(short events)
 }
 
 
-LibeventSSLSocketImpl::LibeventSSLSocketImpl(int _s)
+LibeventSSLSocketImpl::LibeventSSLSocketImpl(int_fd _s)
   : SocketImpl(_s),
     bev(nullptr),
     listener(nullptr),
@@ -487,7 +487,7 @@ LibeventSSLSocketImpl::LibeventSSLSocketImpl(int _s)
 
 
 LibeventSSLSocketImpl::LibeventSSLSocketImpl(
-    int _s,
+    int_fd _s,
     bufferevent* _bev,
     Option<string>&& _peer_hostname)
   : SocketImpl(_s),
@@ -855,7 +855,11 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
           // descriptor and close it after it has finished reading it.
           int result = evbuffer_add_file(
               bufferevent_get_output(self->bev),
+#ifdef __WINDOWS__
+              owned_fd.crt(),
+#else
               owned_fd,
+#endif // __WINDOWS__
               offset,
               size);
           CHECK_EQ(0, result);
@@ -883,7 +887,7 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
   listener = evconnlistener_new(
       base,
       [](evconnlistener* listener,
-         int socket,
+         evutil_socket_t socket,
          sockaddr* addr,
          int addr_length,
          void* arg) {
