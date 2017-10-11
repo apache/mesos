@@ -24,10 +24,18 @@ RUN apt-get update
 RUN apt-get install -qy --no-install-recommends \
   build-essential \
   ca-certificates \
-  cmake \
+  curl \
   git \
   python-dev && \
   apt-get clean
+
+# Mesos requires at least cmake-3.7.0 on Linux and cmake-3.8.0 on Windows.
+#
+# TODO(abudnik): Skip this step when a newer version of CMake package is
+# available in OS repository.
+RUN curl -sSL https://cmake.org/files/v3.8/cmake-3.8.2-Linux-x86_64.sh \
+    -o /tmp/install-cmake.sh && \
+    sh /tmp/install-cmake.sh --skip-license --prefix=/usr/local
 
 RUN \
   git clone --depth 1 -b release_39 http://llvm.org/git/llvm /tmp/llvm && \
