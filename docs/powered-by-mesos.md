@@ -43,6 +43,7 @@ layout: documentation
 * [eBay](http://www.ebay.com)
 * [Ericsson](http://www.ericsson.com/)
 * [Football Radar](http://www.footballradar.com)
+* [FORTH-ICS](https://www.ics.forth.gr)
 * [Foursquare](http://www.foursquare.com)
 * [GenOuest](http://www.genouest.org)
 * [Gigawatt IO](http://gigawatt.io)
