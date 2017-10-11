@@ -81,6 +81,11 @@ public:
 
   WindowsFD(SOCKET socket) : type_(FD_SOCKET), socket_(socket) {}
 
+  // On Windows, libevent's `evutil_socket_t` is set to `intptr_t`.
+  WindowsFD(intptr_t socket)
+    : type_(FD_SOCKET),
+      socket_(static_cast<SOCKET>(socket)) {}
+
   WindowsFD(const WindowsFD&) = default;
   WindowsFD(WindowsFD&&) = default;
 
@@ -107,7 +112,6 @@ public:
     return socket_;
   }
 
-  // On Windows, libevent's `evutil_socket_t` is set to `intptr_t`.
   operator intptr_t() const
   {
     CHECK_EQ(FD_SOCKET, type());
