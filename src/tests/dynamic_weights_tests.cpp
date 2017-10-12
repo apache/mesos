@@ -95,9 +95,7 @@ protected:
             "weights",
             createBasicAuthHeaders(credential)));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
-
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
     AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
     Try<JSON::Value> parse = JSON::parse(response->body);
@@ -167,8 +165,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           badRequest));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -189,8 +186,7 @@ TEST_F(DynamicWeightsTest, PutInvalidRequest)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           badRequest));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -214,8 +210,7 @@ TEST_F(DynamicWeightsTest, ZeroWeight)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -239,8 +234,7 @@ TEST_F(DynamicWeightsTest, NegativeWeight)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -264,8 +258,7 @@ TEST_F(DynamicWeightsTest, NonNumericWeight)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -288,8 +281,7 @@ TEST_F(DynamicWeightsTest, MissingRole)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           "weights=[{\"weight\":2.0}]"));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response1)
-    << response1->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response1);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -304,8 +296,7 @@ TEST_F(DynamicWeightsTest, MissingRole)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response2)
-    << response2->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response2);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -333,8 +324,7 @@ TEST_F(DynamicWeightsTest, UnknownRole)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -364,8 +354,7 @@ TEST_F(DynamicWeightsTest, UpdateWeightsWithExplictRoles)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, UPDATED_WEIGHTS1);
 }
@@ -395,8 +384,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
           createBasicAuthHeaders(credential),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response1)
-    << response1->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response1);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 
@@ -411,8 +399,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedUpdateWeightRequest)
           None(),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response2)
-    << response2->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response2);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -440,8 +427,7 @@ TEST_F(DynamicWeightsTest, UnauthenticatedQueryWeightRequest)
           "weights",
           createBasicAuthHeaders(credential)));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 }
 
 
@@ -484,8 +470,7 @@ TEST_F(DynamicWeightsTest, AuthorizedGetWeightsRequest)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, GET_WEIGHTS1);
 
@@ -528,8 +513,7 @@ TEST_F(DynamicWeightsTest, AuthorizedWeightUpdateRequest)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, UPDATED_WEIGHTS1);
 }
@@ -573,8 +557,7 @@ TEST_F(DynamicWeightsTest, AuthorizedUpdateWeightRequestWithoutPrincipal)
           None(),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL, UPDATED_WEIGHTS1);
 }
@@ -605,8 +588,7 @@ TEST_F(DynamicWeightsTest, UnauthorizedWeightUpdateRequest)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 
   checkWithGetRequest(master.get()->pid, DEFAULT_CREDENTIAL);
 }
@@ -659,8 +641,7 @@ TEST_F(DynamicWeightsTest, RecoveredWeightsFromRegistry)
             createBasicAuthHeaders(DEFAULT_CREDENTIAL),
             strings::format("%s", JSON::protobuf(infos)).get()));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     checkWithGetRequest(
         master.get()->pid,

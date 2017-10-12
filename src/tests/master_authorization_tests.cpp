@@ -1392,8 +1392,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateSummaryEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -1413,8 +1412,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateSummaryEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -1569,8 +1567,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -1598,8 +1595,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -1758,8 +1754,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterFrameworksEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -1787,8 +1782,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterFrameworksEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -1949,8 +1943,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterTasksEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -1969,8 +1962,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterTasksEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -2022,8 +2014,7 @@ TYPED_TEST(MasterAuthorizerTest, ViewFlags)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     response = http::get(
         master.get()->pid,
@@ -2031,8 +2022,7 @@ TYPED_TEST(MasterAuthorizerTest, ViewFlags)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -2051,8 +2041,7 @@ TYPED_TEST(MasterAuthorizerTest, ViewFlags)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-        << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 
     response = http::get(
         master.get()->pid,
@@ -2060,8 +2049,7 @@ TYPED_TEST(MasterAuthorizerTest, ViewFlags)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -2119,8 +2107,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterRolesEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -2138,8 +2125,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterRolesEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -2279,8 +2265,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -2309,8 +2294,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);

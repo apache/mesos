@@ -1276,8 +1276,7 @@ TEST_F(RegistrarTest, Authentication)
 
   // Requests without credentials should be rejected.
   Future<Response> response = process::http::get(registrar.pid(), "registry");
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 
   Credential badCredential;
   badCredential.set_principal("bad-principal");
@@ -1289,8 +1288,7 @@ TEST_F(RegistrarTest, Authentication)
       "registry",
       None(),
       createBasicAuthHeaders(badCredential));
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 
   // Requests with good credentials should be permitted.
   response = process::http::get(
@@ -1298,8 +1296,7 @@ TEST_F(RegistrarTest, Authentication)
       "registry",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   AWAIT_READY(authentication::unsetAuthenticator(AUTHENTICATION_REALM));
 }

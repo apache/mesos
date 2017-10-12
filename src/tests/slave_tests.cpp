@@ -2448,8 +2448,7 @@ TEST_F(SlaveTest, StatisticsEndpointAuthentication)
           agent.get()->pid,
           statisticsEndpoint);
 
-      AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
-          << response->body;
+      AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
     }
 
     // Incorrectly authenticated requests are rejected.
@@ -2464,8 +2463,7 @@ TEST_F(SlaveTest, StatisticsEndpointAuthentication)
           None(),
           createBasicAuthHeaders(badCredential));
 
-      AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response)
-          << response->body;
+      AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
     }
 
     // Correctly authenticated requests succeed.
@@ -2476,8 +2474,7 @@ TEST_F(SlaveTest, StatisticsEndpointAuthentication)
           None(),
           createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-      AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-          << response->body;
+      AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
     }
   }
 }

@@ -340,8 +340,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -402,8 +401,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-      << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -509,8 +507,7 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     response = http::get(
         agent.get()->pid,
@@ -518,8 +515,7 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -538,8 +534,7 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-        << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 
     response = http::get(
         agent.get()->pid,
@@ -547,8 +542,7 @@ TYPED_TEST(SlaveAuthorizerTest, ViewFlags)
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-        << response->body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(parse);
@@ -1311,8 +1305,7 @@ TEST_P(SlaveEndpointTest, AuthorizedRequest)
 
   EXPECT_EQ("/" + endpoint, request->object().value());
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 }
 
 
@@ -1346,8 +1339,7 @@ TEST_P(SlaveEndpointTest, UnauthorizedRequest)
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
 }
 
 
@@ -1377,8 +1369,7 @@ TEST_P(SlaveEndpointTest, NoAuthorizer)
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 }
 
 } // namespace tests {

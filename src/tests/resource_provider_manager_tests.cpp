@@ -206,8 +206,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, UnsupportedContentMediaType)
 
   Future<http::Response> response = manager.api(request, None());
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(UnsupportedMediaType().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(UnsupportedMediaType().status, response);
 }
 
 
@@ -240,7 +239,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, Subscribe)
 
   Future<http::Response> response = manager.api(request, None());
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   ASSERT_EQ(http::Response::PIPE, response->type);
 
   Option<http::Pipe::Reader> reader = response->reader;

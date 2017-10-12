@@ -1735,8 +1735,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
           createBasicAuthHeaders(DEFAULT_CREDENTIAL),
           strings::format("%s", JSON::protobuf(infos)).get()));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response->body;
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // 'updateWeights' will rescind all outstanding offers and the rescinded
   // offer resources will only be available to the updated weights once
