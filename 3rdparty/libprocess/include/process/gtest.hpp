@@ -381,7 +381,8 @@ inline ::testing::AssertionResult AwaitAssertResponseStatusEq(
         << "Value of: (" << actualExpr << ").get().status\n"
         << "  Actual: " << ::testing::PrintToString(actual.get().status) << "\n"
         << "Expected: " << expectedExpr << "\n"
-        << "Which is: " << ::testing::PrintToString(expected);
+        << "Which is: " << ::testing::PrintToString(expected) << "\n"
+        << "    Body: " << ::testing::PrintToString(actual.get().body);
     }
   }
 
