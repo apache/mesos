@@ -1121,6 +1121,11 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
   Filters filters;
   filters.set_refuse_seconds(0);
 
+  // We don't care about the fate of the task in this test as we
+  // express the expectations through offers.
+  EXPECT_CALL(sched1, statusUpdate(_, _))
+    .WillRepeatedly(DoDefault());
+
   driver1.acceptOffers(
       {offer1.id()},
       {CREATE(allVolumes),
@@ -1162,9 +1167,6 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
   // 4. framework1 kills the task which results in an offer to framework1
   //    with the shared volumes. At this point, both frameworks will have
   //    the shared resource in their pending offers.
-  EXPECT_CALL(sched1, statusUpdate(_, _))
-    .WillOnce(DoDefault());
-
   driver1.killTask(task.task_id());
 
   // Advance the clock until the allocator allocates
