@@ -896,9 +896,7 @@ TEST_F(ReservationEndpointsTest, NoHeader)
       None(),
       createRequestBody(slaveId, dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 
   response = process::http::post(
       master.get()->pid,
@@ -906,9 +904,7 @@ TEST_F(ReservationEndpointsTest, NoHeader)
       None(),
       createRequestBody(slaveId, dynamicallyReserved));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 }
 
 
@@ -943,15 +939,11 @@ TEST_F(ReservationEndpointsTest, BadCredentials)
   Future<Response> response =
     process::http::post(master.get()->pid, "reserve", headers, body);
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 
   response = process::http::post(master.get()->pid, "unreserve", headers, body);
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 }
 
 

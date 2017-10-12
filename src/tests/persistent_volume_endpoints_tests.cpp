@@ -715,9 +715,7 @@ TEST_F(PersistentVolumeEndpointsTest, NoHeader)
       None(),
       createRequestBody(slaveId, "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 
   response = process::http::post(
       master.get()->pid,
@@ -725,9 +723,7 @@ TEST_F(PersistentVolumeEndpointsTest, NoHeader)
       None(),
       createRequestBody(slaveId, "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 }
 
 
@@ -770,16 +766,12 @@ TEST_F(PersistentVolumeEndpointsTest, BadCredentials)
   Future<Response> response =
     process::http::post(master.get()->pid, "create-volumes", headers, body);
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 
   response =
     process::http::post(master.get()->pid, "destroy-volumes", headers, body);
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, response);
 }
 
 
@@ -1268,9 +1260,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
       createBasicAuthHeaders(failedCredential),
       createRequestBody(slaveId, "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status,
-      createResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, createResponse);
 
   // The successful creation attempt.
   createResponse = process::http::post(
@@ -1314,9 +1304,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
       createBasicAuthHeaders(failedCredential),
       createRequestBody(slaveId, "volumes", volume));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized({}).status,
-      destroyResponse);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Unauthorized({}).status, destroyResponse);
 
   driver.stop();
   driver.join();

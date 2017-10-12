@@ -4928,8 +4928,7 @@ TEST_F(MasterTest, RecoveredSlaves)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-    AWAIT_EXPECT_RESPONSE_HEADER_EQ(
-        APPLICATION_JSON, "Content-Type", response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
 
@@ -4952,8 +4951,7 @@ TEST_F(MasterTest, RecoveredSlaves)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);;
-    AWAIT_EXPECT_RESPONSE_HEADER_EQ(
-        APPLICATION_JSON, "Content-Type", response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
 
