@@ -165,14 +165,6 @@ inline BOOL GetMessage(
 #define X_OK 0x0 // No such permission on Windows.
 #define F_OK 0x0
 
-#define O_RDONLY _O_RDONLY
-#define O_WRONLY _O_WRONLY
-#define O_RDWR _O_RDWR
-#define O_CREAT _O_CREAT
-#define O_TRUNC _O_TRUNC
-#define O_APPEND _O_APPEND
-#define O_CLOEXEC _O_NOINHERIT
-
 #define MAXHOSTNAMELEN NI_MAXHOST
 
 #define PATH_MAX _MAX_PATH
