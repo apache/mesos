@@ -641,15 +641,16 @@ protected:
     TaskState taskState;
     Option<string> message;
 
-    Option<int> status = waitResponse->wait_nested_container().exit_status();
-
-    if (status.isNone()) {
+    if (!waitResponse->wait_nested_container().has_exit_status()) {
       taskState = TASK_FAILED;
+      message = "Command terminated with unknown status";
     } else {
-      CHECK(WIFEXITED(status.get()) || WIFSIGNALED(status.get()))
-        << "Unexpected wait status " << status.get();
+      int status = waitResponse->wait_nested_container().exit_status();
 
-      if (WSUCCEEDED(status.get())) {
+      CHECK(WIFEXITED(status) || WIFSIGNALED(status))
+        << "Unexpected wait status " << status;
+
+      if (WSUCCEEDED(status)) {
         taskState = TASK_FINISHED;
       } else if (container->killing) {
         // Send TASK_KILLED if the task was killed as a result of
@@ -659,7 +660,7 @@ protected:
         taskState = TASK_FAILED;
       }
 
-      message = "Command " + WSTRINGIFY(status.get());
+      message = "Command " + WSTRINGIFY(status);
     }
 
     if (unhealthy) {
@@ -673,8 +674,8 @@ protected:
 
     LOG(INFO)
       << "Child container " << container->containerId << " of task '" << taskId
-      << "' in state " << stringify(taskState) << " terminated with status "
-      << (status.isSome() ? WSTRINGIFY(status.get()) : "unknown");
+      << "' completed in state " << stringify(taskState)
+      << ": " << message.get();
 
     // Shutdown the executor if all the active child containers have terminated.
     if (containers.empty()) {
