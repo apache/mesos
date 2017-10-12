@@ -20,6 +20,8 @@ import "mesos/mesos.proto";
 
 package mesos.scheduler;
 
+option cc_enable_arenas = true;
+
 option java_package = "org.apache.mesos.scheduler";
 option java_outer_classname = "Protos";
 

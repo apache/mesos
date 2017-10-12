@@ -24,6 +24,8 @@ import "mesos/quota/quota.proto";
 
 package mesos.master;
 
+option cc_enable_arenas = true;
+
 option java_package = "org.apache.mesos.master";
 option java_outer_classname = "Protos";
 

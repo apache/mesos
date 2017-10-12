@@ -21,6 +21,8 @@ import "mesos/resource_provider/resource_provider.proto";
 
 package mesos.internal;
 
+option cc_enable_arenas = true;
+
 // TODO(benh): Consider splitting these messages into different "packages"
 // which represent which messages get handled by which components (e.g., the
 // "mesos.executor" package includes messages that the executor handles).
