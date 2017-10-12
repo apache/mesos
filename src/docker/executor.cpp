@@ -159,14 +159,6 @@ public:
 
     LOG(INFO) << "Starting task " << taskId.get();
 
-    // Send initial TASK_STARTING update.
-    // TODO(alexr): Use `protobuf::createTaskStatus()`
-    // instead of manually setting fields.
-    TaskStatus starting;
-    starting.mutable_task_id()->CopyFrom(task.task_id());
-    starting.set_state(TASK_STARTING);
-    driver->sendStatusUpdate(starting);
-
     CHECK(task.has_container());
     CHECK(task.has_command());
 
