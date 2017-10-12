@@ -43,6 +43,39 @@ We categorize the changes as follows:
   </thead>
 <tr>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
+  1.5.x
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+    <ul style="padding-left:10px;">
+      <li>C <a href="#1-5-x-task-starting">Built-int executors send a TASK_STARTING update</a></li>
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+
+</tr>
+
+<tr>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
   1.4.x
   </td>
 
@@ -315,6 +348,18 @@ We categorize the changes as follows:
   </td>
 </tr>
 </table>
+
+## Upgrading from 1.4.x to 1.5.x ##
+
+<a name="1-5-x-task-starting"></a>
+
+* The built-in executors will now send a `TASK_STARTING` status update for
+  every task they've successfully received and are about to start.
+  The possibility of any executor sending this update has been documented since
+  the beginning of Mesos, but prior to this version the built-in executors did
+  not actually send it. This means that all schedulers using one of the built-in
+  executors must be upgraded to expect `TASK_STARTING` updates before upgrading
+  Mesos itself.
 
 ## Upgrading from 1.3.x to 1.4.x ##
 

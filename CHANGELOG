@@ -7,6 +7,8 @@ Deprecations/Removals:
 Additional API Changes:
   * [MESOS-7660] `Filter::refuse_seconds` is now capped to 31536000
     seconds (365 days).
+  * [MESOS-7941] Built-in executors will now send a TASK_STARTING
+    status update when a task is starting.
 
 Unresolved Critical Issues:
 
