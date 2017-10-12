@@ -179,13 +179,19 @@ TEST_F(PosixRLimitsIsolatorTest, UnsetLimits)
 
   container->mutable_rlimit_info()->CopyFrom(rlimitInfo);
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinal;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinal));
 
   driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(task.task_id(), statusStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(task.task_id(), statusRunning->task_id());
@@ -321,13 +327,19 @@ TEST_F(PosixRLimitsIsolatorTest, TaskExceedingLimit)
 
   container->mutable_rlimit_info()->CopyFrom(rlimitInfo);
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFailed;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFailed));
 
   driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(task.task_id(), statusStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(task.task_id(), statusRunning->task_id());
@@ -476,14 +488,15 @@ TEST_F(PosixRLimitsIsolatorTest, NestedContainers)
   // that they transition from TASK_RUNNING to TASK_FINISHED.
   enum class Stage
   {
+    STARTING,
     INITIAL,
     RUNNING,
     FINISHED
   };
 
   hashmap<TaskID, Stage> taskStages;
-  taskStages[task1.task_id()] = Stage::INITIAL;
-  taskStages[task2.task_id()] = Stage::INITIAL;
+  taskStages[task1.task_id()] = Stage::STARTING;
+  taskStages[task2.task_id()] = Stage::STARTING;
 
   foreach (const Future<TaskStatus>& taskStatus, taskStatuses) {
     AWAIT_READY(taskStatus);
@@ -492,6 +505,13 @@ TEST_F(PosixRLimitsIsolatorTest, NestedContainers)
     ASSERT_SOME(taskStage);
 
     switch (taskStage.get()) {
+      case Stage::STARTING: {
+        ASSERT_EQ(TASK_STARTING, taskStatus->state())
+          << taskStatus->DebugString();
+
+        taskStages[taskStatus->task_id()] = Stage::INITIAL;
+        break;
+      }
       case Stage::INITIAL: {
         ASSERT_EQ(TASK_RUNNING, taskStatus->state())
           << taskStatus->DebugString();

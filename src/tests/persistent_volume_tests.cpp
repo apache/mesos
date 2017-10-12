@@ -806,9 +806,11 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
       taskResources,
       "echo abc > path1/file");
 
+  Future<TaskStatus> status0;
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status0))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2));
 
@@ -822,6 +824,10 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
       {offer.id()},
       {CREATE(volume),
        LAUNCH({task})});
+
+  AWAIT_READY(status0);
+  EXPECT_EQ(task.task_id(), status0->task_id());
+  EXPECT_EQ(TASK_STARTING, status0->state());
 
   AWAIT_READY(status1);
   EXPECT_EQ(task.task_id(), status1->task_id());
@@ -982,21 +988,25 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
       taskResources2.get() + volume,
       "echo task2 > path1/file2");
 
-  // We should receive a TASK_RUNNING followed by a TASK_FINISHED for
-  // each of the 2 tasks. We do not check for the actual task state
-  // since it's not the primary objective of the test. We instead
-  // verify that the paths are created by the tasks after we receive
-  // enough status updates.
+  // We should receive a TASK_STARTING, followed by a TASK_RUNNING
+  // and a TASK_FINISHED for each of the 2 tasks.
+  // We do not check for the actual task state since it's not the
+  // primary objective of the test. We instead verify that the paths
+  // are created by the tasks after we receive enough status updates.
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
   Future<TaskStatus> status3;
   Future<TaskStatus> status4;
+  Future<TaskStatus> status5;
+  Future<TaskStatus> status6;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2))
     .WillOnce(FutureArg<1>(&status3))
-    .WillOnce(FutureArg<1>(&status4));
+    .WillOnce(FutureArg<1>(&status4))
+    .WillOnce(FutureArg<1>(&status5))
+    .WillOnce(FutureArg<1>(&status6));
 
   driver.acceptOffers(
       {offer.id()},
@@ -1009,6 +1019,8 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
   AWAIT_READY(status2);
   AWAIT_READY(status3);
   AWAIT_READY(status4);
+  AWAIT_READY(status5);
+  AWAIT_READY(status6);
 
   const string& volumePath = slave::paths::getPersistentVolumePath(
       slaveFlags.work_dir,
@@ -1256,10 +1268,12 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
       Resources::parse("cpus:1;mem:128").get() + volume,
       "echo abc > path1/file1 && sleep 1000");
 
-  // We should receive a TASK_RUNNING for the launched task.
+  // We should receive a TASK_STARTING and a TASK_RUNNING for the launched task.
+  Future<TaskStatus> status0;
   Future<TaskStatus> status1;
 
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
+    .WillOnce(FutureArg<1>(&status0))
     .WillOnce(FutureArg<1>(&status1));
 
   // We use a filter of 0 seconds so the resources will be available
@@ -1272,6 +1286,9 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
       {CREATE(volume),
        LAUNCH({task1})},
       filters);
+
+  AWAIT_READY(status0);
+  EXPECT_EQ(TASK_STARTING, status0->state());
 
   AWAIT_READY(status1);
   EXPECT_EQ(TASK_RUNNING, status1->state());
@@ -1329,11 +1346,13 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
       Resources::parse("cpus:1;mem:256").get() + volume,
       "echo abc > path1/file2 && sleep 1000");
 
-  // We should receive a TASK_RUNNING for the launched task.
+  // We should receive a TASK_STARTING and a TASK_RUNNING for the launched task.
   Future<TaskStatus> status2;
+  Future<TaskStatus> status3;
 
   EXPECT_CALL(sched2, statusUpdate(&driver2, _))
-    .WillOnce(FutureArg<1>(&status2));
+    .WillOnce(FutureArg<1>(&status2))
+    .WillOnce(FutureArg<1>(&status3));
 
   driver2.acceptOffers(
       {offer2.id()},
@@ -1341,7 +1360,10 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
       filters);
 
   AWAIT_READY(status2);
-  EXPECT_EQ(TASK_RUNNING, status2->state());
+  EXPECT_EQ(TASK_STARTING, status2->state());
+
+  AWAIT_READY(status3);
+  EXPECT_EQ(TASK_RUNNING, status3->state());
 
   // Collect metrics based on both frameworks. Note that the `cpus_used` and
   // `mem_used` is updated, but `disk_used` does not change since both tasks
@@ -1432,13 +1454,17 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
       taskResources.get() + volume,
       "sleep 1000");
 
-  // We should receive a TASK_RUNNING for each of the tasks.
+  // We should receive a TASK_STARTING and a TASK_RUNNING for each of the tasks.
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
+  Future<TaskStatus> status3;
+  Future<TaskStatus> status4;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status1))
-    .WillOnce(FutureArg<1>(&status2));
+    .WillOnce(FutureArg<1>(&status2))
+    .WillOnce(FutureArg<1>(&status3))
+    .WillOnce(FutureArg<1>(&status4));
 
   Future<CheckpointResourcesMessage> checkpointResources =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, slave.get()->pid);
@@ -1449,11 +1475,14 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
        LAUNCH({task1, task2})});
 
   AWAIT_READY(checkpointResources);
-  AWAIT_READY(status1);
-  EXPECT_EQ(TASK_RUNNING, status1->state());
 
-  AWAIT_READY(status2);
-  EXPECT_EQ(TASK_RUNNING, status2->state());
+  // We only check the first and the last status, because the two in between
+  // could arrive in any order.
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_STARTING, status1->state());
+
+  AWAIT_READY(status4);
+  EXPECT_EQ(TASK_RUNNING, status4->state());
 
   // This is to make sure CheckpointResourcesMessage is processed.
   Clock::pause();
@@ -1596,16 +1625,20 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  // We should receive a TASK_RUNNING each of the 2 tasks. We track task
-  // termination by a TASK_FINISHED for the short-lived task.
+  // We should receive a TASK_STARTING and a TASK_RUNNING each of the 2 tasks.
+  // We track task termination by a TASK_FINISHED for the short-lived task.
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
   Future<TaskStatus> status3;
+  Future<TaskStatus> status4;
+  Future<TaskStatus> status5;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2))
-    .WillOnce(FutureArg<1>(&status3));
+    .WillOnce(FutureArg<1>(&status3))
+    .WillOnce(FutureArg<1>(&status4))
+    .WillOnce(FutureArg<1>(&status5));
 
   driver.acceptOffers(
       {offer.id()},
@@ -1614,18 +1647,23 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
        LAUNCH({task1, task2})},
       filters);
 
-  // Wait for TASK_RUNNING for both the tasks, and TASK_FINISHED for
-  // the short-lived task.
+  // Wait for TASK_STARTING and TASK_RUNNING for both the tasks,
+  // and TASK_FINISHED for the short-lived task.
   AWAIT_READY(status1);
   AWAIT_READY(status2);
   AWAIT_READY(status3);
+  AWAIT_READY(status4);
+  AWAIT_READY(status5);
 
   hashset<TaskID> tasksRunning;
   hashset<TaskID> tasksFinished;
-  vector<Future<TaskStatus>> statuses{status1, status2, status3};
+  vector<Future<TaskStatus>> statuses {
+    status1, status2, status3, status4, status5};
 
   foreach (const Future<TaskStatus>& status, statuses) {
-    if (status->state() == TASK_RUNNING) {
+    if (status->state() == TASK_STARTING) {
+      // ignore
+    } else if (status->state() == TASK_RUNNING) {
       tasksRunning.insert(status->task_id());
     } else {
       tasksFinished.insert(status->task_id());
@@ -1684,15 +1722,15 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
 
   // We kill the long-lived task and wait for TASK_KILLED, so we can
   // DESTROY the persistent volume once the task terminates.
-  Future<TaskStatus> status4;
+  Future<TaskStatus> status6;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status4));
+    .WillOnce(FutureArg<1>(&status6));
 
   driver.killTask(task1.task_id());
 
-  AWAIT_READY(status4);
-  EXPECT_EQ(task1.task_id(), status4->task_id());
-  EXPECT_EQ(TASK_KILLED, status4->state());
+  AWAIT_READY(status6);
+  EXPECT_EQ(task1.task_id(), status6->task_id());
+  EXPECT_EQ(TASK_KILLED, status6->state());
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -1921,25 +1959,37 @@ TEST_P(PersistentVolumeTest, SlaveRecovery)
       taskResources,
       "while true; do test -d path1; done");
 
+  Future<TaskStatus> status0;
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status0))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2));
 
-  Future<Nothing> ack =
+  Future<Nothing> ack1 =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  Future<Nothing> ack2 =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   driver.acceptOffers(
       {offer.id()},
       {CREATE(volume), LAUNCH({task})});
 
+  AWAIT_READY(status0);
+  EXPECT_EQ(task.task_id(), status0->task_id());
+  EXPECT_EQ(TASK_STARTING, status0->state());
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack1);
+
   AWAIT_READY(status1);
   EXPECT_EQ(task.task_id(), status1->task_id());
   EXPECT_EQ(TASK_RUNNING, status1->state());
 
   // Wait for the ACK to be checkpointed.
-  AWAIT_READY(ack);
+  AWAIT_READY(ack2);
 
   // Restart the slave.
   slave.get()->terminate();

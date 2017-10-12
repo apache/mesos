@@ -1889,14 +1889,20 @@ TEST_F(TaskValidationTest, TaskReusesUnreachableTaskID)
   Offer offer1 = offers1.get()[0];
   TaskInfo task1 = createTask(offer1, "sleep 60");
 
+  Future<TaskStatus> startingStatus;
   Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&startingStatus))
     .WillOnce(FutureArg<1>(&runningStatus));
 
   Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
       slave1.get()->pid, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offer1.id(), {task1});
+
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+  EXPECT_EQ(task1.task_id(), startingStatus->task_id());
 
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus->state());

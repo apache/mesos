@@ -1987,9 +1987,13 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   filters.set_refuse_seconds(0);
 
   // Expect a TASK_RUNNING status.
-  EXPECT_CALL(sched, statusUpdate(&driver, _));
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .Times(2);
 
-  Future<Nothing> _statusUpdateAcknowledgement =
+  Future<Nothing> _statusUpdateAcknowledgement1 =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  Future<Nothing> _statusUpdateAcknowledgement2 =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   // Expect another resource offer.
@@ -1999,7 +2003,8 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   driver.acceptOffers({offer.id()}, {LAUNCH({taskInfo})}, filters);
 
   // Wait for TASK_RUNNING update ack.
-  AWAIT_READY(_statusUpdateAcknowledgement);
+  AWAIT_READY(_statusUpdateAcknowledgement1);
+  AWAIT_READY(_statusUpdateAcknowledgement2);
 
   response = process::http::get(
       master.get()->pid,
