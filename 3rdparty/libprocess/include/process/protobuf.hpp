@@ -128,7 +128,6 @@ protected:
     send(from, message);
   }
 
-  // TODO(vinod): Use ENUM_PARAMS for the overloads.
   // Installs that take the sender as the first argument.
   template <typename M>
   void install(void (T::*method)(const process::UPID&, const M&))
@@ -141,6 +140,9 @@ protected:
                    lambda::_1, lambda::_2);
     delete m;
   }
+
+  template <typename M, typename P>
+  using MessageProperty = P(M::*)() const;
 
   template <typename M>
   void install(void (T::*method)(const process::UPID&))
@@ -155,184 +157,22 @@ protected:
   }
 
   template <typename M,
-            typename P1, typename P1C>
+            typename ...P, typename ...PC>
   void install(
-      void (T::*method)(const process::UPID&, P1C),
-      P1 (M::*param1)() const)
+      void (T::*method)(const process::UPID&, PC...),
+      MessageProperty<M, P>... param)
   {
     google::protobuf::Message* m = new M();
     T* t = static_cast<T*>(this);
     protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&handler1<M, P1, P1C>,
-                   t, method, param1,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C>
-  void install(
-      void (T::*method)(const process::UPID&, P1C, P2C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&handler2<M, P1, P1C, P2, P2C>,
-                   t, method, p1, p2,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C>
-  void install(
-      void (T::*method)(const process::UPID&, P1C, P2C, P3C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&handler3<M, P1, P1C, P2, P2C, P3, P3C>,
-                   t, method, p1, p2, p3,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C>
-  void install(
-      void (T::*method)(const process::UPID&, P1C, P2C, P3C, P4C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&handler4<M, P1, P1C, P2, P2C, P3, P3C, P4, P4C>,
-                   t, method, p1, p2, p3, p4,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C>
-  void install(
-      void (T::*method)(const process::UPID&, P1C, P2C, P3C, P4C, P5C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&handler5<M, P1, P1C, P2, P2C, P3, P3C, P4, P4C, P5, P5C>,
-                   t, method, p1, p2, p3, p4, p5,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C,
-            typename P6, typename P6C>
-  void install(
-      void (T::*method)(const process::UPID&, P1C, P2C, P3C, P4C, P5C, P6C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      P6 (M::*p6)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&handler6<M, P1, P1C, P2, P2C, P3, P3C,
-                                P4, P4C, P5, P5C, P6, P6C>,
-                   t, method, p1, p2, p3, p4, p5, p6,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C,
-            typename P6, typename P6C,
-            typename P7, typename P7C>
-  void install(
-      void (T::*method)(const process::UPID&, P1C, P2C, P3C,
-                                              P4C, P5C, P6C, P7C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      P6 (M::*p6)() const,
-      P7 (M::*p7)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&handler7<M, P1, P1C, P2, P2C, P3, P3C,
-                                P4, P4C, P5, P5C, P6, P6C, P7, P7C>,
-                   t, method, p1, p2, p3, p4, p5, p6, p7,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C,
-            typename P6, typename P6C,
-            typename P7, typename P7C,
-            typename P8, typename P8C>
-  void install(
-      void (T::*method)(const process::UPID&, P1C, P2C, P3C,
-                                              P4C, P5C, P6C, P7C, P8C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      P6 (M::*p6)() const,
-      P7 (M::*p7)() const,
-      P8 (M::*p8)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&handler8<M, P1, P1C, P2, P2C, P3, P3C,
-                                P4, P4C, P5, P5C, P6, P6C,
-                                P7, P7C, P8, P8C>,
-                   t, method, p1, p2, p3, p4, p5, p6, p7, p8,
-                   lambda::_1, lambda::_2);
+      lambda::bind(static_cast<void(&)(
+                       T*,
+                       void (T::*)(const process::UPID&, PC...),
+                       const process::UPID&,
+                       const std::string&,
+                       MessageProperty<M, P>...)>(handlerN),
+                   t, method,
+                   lambda::_1, lambda::_2, param...);
     delete m;
   }
 
@@ -362,151 +202,22 @@ protected:
   }
 
   template <typename M,
-            typename P1, typename P1C>
+            typename ...P, typename ...PC>
   void install(
-      void (T::*method)(P1C),
-      P1 (M::*param1)() const)
+      void (T::*method)(PC...),
+      MessageProperty<M, P>... param)
   {
     google::protobuf::Message* m = new M();
     T* t = static_cast<T*>(this);
     protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&_handler1<M, P1, P1C>,
-                   t, method, param1,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C>
-  void install(
-      void (T::*method)(P1C, P2C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&_handler2<M, P1, P1C, P2, P2C>,
-                   t, method, p1, p2,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C>
-  void install(
-      void (T::*method)(P1C, P2C, P3C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&_handler3<M, P1, P1C, P2, P2C, P3, P3C>,
-                   t, method, p1, p2, p3,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C>
-  void install(
-      void (T::*method)(P1C, P2C, P3C, P4C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&_handler4<M, P1, P1C, P2, P2C, P3, P3C, P4, P4C>,
-                   t, method, p1, p2, p3, p4,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C>
-  void install(
-      void (T::*method)(P1C, P2C, P3C, P4C, P5C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&_handler5<M, P1, P1C, P2, P2C, P3, P3C, P4, P4C, P5, P5C>,
-                   t, method, p1, p2, p3, p4, p5,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C,
-            typename P6, typename P6C>
-  void install(
-      void (T::*method)(P1C, P2C, P3C, P4C, P5C, P6C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      P6 (M::*p6)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&_handler6<M, P1, P1C, P2, P2C, P3, P3C,
-                                 P4, P4C, P5, P5C, P6, P6C>,
-                   t, method, p1, p2, p3, p4, p5, p6,
-                   lambda::_1, lambda::_2);
-    delete m;
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C,
-            typename P6, typename P6C,
-            typename P7, typename P7C>
-  void install(
-      void (T::*method)(P1C, P2C, P3C, P4C, P5C, P6C, P7C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      P6 (M::*p6)() const,
-      P7 (M::*p7)() const)
-  {
-    google::protobuf::Message* m = new M();
-    T* t = static_cast<T*>(this);
-    protobufHandlers[m->GetTypeName()] =
-      lambda::bind(&_handler7<M, P1, P1C, P2, P2C, P3, P3C,
-                                 P4, P4C, P5, P5C, P6, P6C, P7, P7C>,
-                   t, method, p1, p2, p3, p4, p5, p6, p7,
-                   lambda::_1, lambda::_2);
+      lambda::bind(static_cast<void(&)(
+                       T*,
+                       void (T::*)(PC...),
+                       const process::UPID&,
+                       const std::string&,
+                       MessageProperty<M, P>...)>(_handlerN),
+                   t, method,
+                   lambda::_1, lambda::_2, param...);
     delete m;
   }
 
@@ -541,244 +252,18 @@ private:
   }
 
   template <typename M,
-            typename P1, typename P1C>
-  static void handler1(
+            typename ...P, typename ...PC>
+  static void handlerN(
       T* t,
-      void (T::*method)(const process::UPID&, P1C),
-      P1 (M::*p1)() const,
+      void (T::*method)(const process::UPID&, PC...),
       const process::UPID& sender,
-      const std::string& data)
+      const std::string& data,
+      MessageProperty<M, P>... p)
   {
     M m;
     m.ParseFromString(data);
     if (m.IsInitialized()) {
-      (t->*method)(sender, google::protobuf::convert((&m->*p1)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C>
-  static void handler2(
-      T* t,
-      void (T::*method)(const process::UPID&, P1C, P2C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      const process::UPID& sender,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(sender,
-                   google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C>
-  static void handler3(
-      T* t,
-      void (T::*method)(const process::UPID&, P1C, P2C, P3C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      const process::UPID& sender,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(sender,
-                   google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()),
-                   google::protobuf::convert((&m->*p3)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C>
-  static void handler4(
-      T* t,
-      void (T::*method)(const process::UPID&, P1C, P2C, P3C, P4C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      const process::UPID& sender,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(sender,
-                   google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()),
-                   google::protobuf::convert((&m->*p3)()),
-                   google::protobuf::convert((&m->*p4)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C>
-  static void handler5(
-      T* t,
-      void (T::*method)(const process::UPID&, P1C, P2C, P3C, P4C, P5C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      const process::UPID& sender,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(sender,
-                   google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()),
-                   google::protobuf::convert((&m->*p3)()),
-                   google::protobuf::convert((&m->*p4)()),
-                   google::protobuf::convert((&m->*p5)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C,
-            typename P6, typename P6C>
-  static void handler6(
-      T* t,
-      void (T::*method)(const process::UPID&, P1C, P2C, P3C, P4C, P5C, P6C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      P6 (M::*p6)() const,
-      const process::UPID& sender,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(sender,
-                   google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()),
-                   google::protobuf::convert((&m->*p3)()),
-                   google::protobuf::convert((&m->*p4)()),
-                   google::protobuf::convert((&m->*p5)()),
-                   google::protobuf::convert((&m->*p6)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C,
-            typename P6, typename P6C,
-            typename P7, typename P7C>
-  static void handler7(
-      T* t,
-      void (T::*method)(
-          const process::UPID&, P1C, P2C, P3C, P4C, P5C, P6C, P7C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      P6 (M::*p6)() const,
-      P7 (M::*p7)() const,
-      const process::UPID& sender,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(sender,
-                   google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()),
-                   google::protobuf::convert((&m->*p3)()),
-                   google::protobuf::convert((&m->*p4)()),
-                   google::protobuf::convert((&m->*p5)()),
-                   google::protobuf::convert((&m->*p6)()),
-                   google::protobuf::convert((&m->*p7)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C,
-            typename P6, typename P6C,
-            typename P7, typename P7C,
-            typename P8, typename P8C>
-  static void handler8(
-      T* t,
-      void (T::*method)(
-          const process::UPID&, P1C, P2C, P3C, P4C, P5C, P6C, P7C, P8C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      P6 (M::*p6)() const,
-      P7 (M::*p7)() const,
-      P8 (M::*p8)() const,
-      const process::UPID& sender,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(sender,
-                   google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()),
-                   google::protobuf::convert((&m->*p3)()),
-                   google::protobuf::convert((&m->*p4)()),
-                   google::protobuf::convert((&m->*p5)()),
-                   google::protobuf::convert((&m->*p6)()),
-                   google::protobuf::convert((&m->*p7)()),
-                   google::protobuf::convert((&m->*p8)()));
+      (t->*method)(sender, google::protobuf::convert((m.*p)())...);
     } else {
       LOG(WARNING) << "Initialization errors: "
                    << m.InitializationErrorString();
@@ -813,195 +298,18 @@ private:
   }
 
   template <typename M,
-            typename P1, typename P1C>
-  static void _handler1(
+            typename ...P, typename ...PC>
+  static void _handlerN(
       T* t,
-      void (T::*method)(P1C),
-      P1 (M::*p1)() const,
+      void (T::*method)(PC...),
       const process::UPID&,
-      const std::string& data)
+      const std::string& data,
+      MessageProperty<M, P>... p)
   {
     M m;
     m.ParseFromString(data);
     if (m.IsInitialized()) {
-      (t->*method)(google::protobuf::convert((&m->*p1)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C>
-  static void _handler2(
-      T* t,
-      void (T::*method)(P1C, P2C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      const process::UPID&,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C>
-  static void _handler3(
-      T* t,
-      void (T::*method)(P1C, P2C, P3C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      const process::UPID&,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()),
-                   google::protobuf::convert((&m->*p3)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C>
-  static void _handler4(
-      T* t,
-      void (T::*method)(P1C, P2C, P3C, P4C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      const process::UPID&,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()),
-                   google::protobuf::convert((&m->*p3)()),
-                   google::protobuf::convert((&m->*p4)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C>
-  static void _handler5(
-      T* t,
-      void (T::*method)(P1C, P2C, P3C, P4C, P5C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      const process::UPID&,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()),
-                   google::protobuf::convert((&m->*p3)()),
-                   google::protobuf::convert((&m->*p4)()),
-                   google::protobuf::convert((&m->*p5)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C,
-            typename P6, typename P6C>
-  static void _handler6(
-      T* t,
-      void (T::*method)(P1C, P2C, P3C, P4C, P5C, P6C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      P6 (M::*p6)() const,
-      const process::UPID&,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()),
-                   google::protobuf::convert((&m->*p3)()),
-                   google::protobuf::convert((&m->*p4)()),
-                   google::protobuf::convert((&m->*p5)()),
-                   google::protobuf::convert((&m->*p6)()));
-    } else {
-      LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
-    }
-  }
-
-  template <typename M,
-            typename P1, typename P1C,
-            typename P2, typename P2C,
-            typename P3, typename P3C,
-            typename P4, typename P4C,
-            typename P5, typename P5C,
-            typename P6, typename P6C,
-            typename P7, typename P7C>
-  static void _handler7(
-      T* t,
-      void (T::*method)(P1C, P2C, P3C, P4C, P5C, P6C, P7C),
-      P1 (M::*p1)() const,
-      P2 (M::*p2)() const,
-      P3 (M::*p3)() const,
-      P4 (M::*p4)() const,
-      P5 (M::*p5)() const,
-      P6 (M::*p6)() const,
-      P7 (M::*p7)() const,
-      const process::UPID&,
-      const std::string& data)
-  {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(google::protobuf::convert((&m->*p1)()),
-                   google::protobuf::convert((&m->*p2)()),
-                   google::protobuf::convert((&m->*p3)()),
-                   google::protobuf::convert((&m->*p4)()),
-                   google::protobuf::convert((&m->*p5)()),
-                   google::protobuf::convert((&m->*p6)()),
-                   google::protobuf::convert((&m->*p7)()));
+      (t->*method)(google::protobuf::convert((m.*p)())...);
     } else {
       LOG(WARNING) << "Initialization errors: "
                    << m.InitializationErrorString();
