@@ -114,7 +114,13 @@ if __name__ == '__main__':
 
     print 'Pushing commits to', remote
 
-    if not options['dry_run']:
+    if options['dry_run']:
+        check_output(['git',
+                      'push',
+                      '--dry-run',
+                      remote,
+                      'master:master'])
+    else:
         check_output(['git',
                       'push',
                       remote,
