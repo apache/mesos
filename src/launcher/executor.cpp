@@ -525,6 +525,10 @@ protected:
     taskData = TaskData(task);
     taskId = task.task_id();
 
+    // Send initial TASK_STARTING update.
+    TaskStatus starting = createTaskStatus(taskId.get(), TASK_STARTING);
+    forward(starting);
+
     // Capture the kill policy.
     if (task.has_kill_policy()) {
       killPolicy = task.kill_policy();
@@ -1016,7 +1020,6 @@ private:
     // If a check for the task has been defined, `check_status` field in each
     // task status must be set to a valid `CheckStatusInfo` message even if
     // there is no check status available yet.
-    CHECK(taskData.isSome());
     if (taskData->taskInfo.has_check()) {
       CheckStatusInfo checkStatusInfo;
       checkStatusInfo.set_type(taskData->taskInfo.check().type());
