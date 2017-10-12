@@ -1811,9 +1811,7 @@ TEST_F(HttpAuthenticationTest, Unauthorized)
   Future<http::Response> response =
     http::get(http.process->self(), "authenticated");
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      http::Unauthorized({}).status,
-      response);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Unauthorized({}).status, response);
 
   EXPECT_EQ(
       authentication.unauthorized->headers.get("WWW-Authenticate"),
@@ -1971,9 +1969,7 @@ TEST_F(HttpAuthenticationTest, Basic)
   {
     Future<http::Response> response = http::get(*http.process, "authenticated");
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        http::Unauthorized({}).status,
-        response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Unauthorized({}).status, response);
   }
 
   // Wrong password provided.
@@ -1985,9 +1981,7 @@ TEST_F(HttpAuthenticationTest, Basic)
     Future<http::Response> response =
       http::get(http.process->self(), "authenticated", None(), headers);
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        http::Unauthorized({}).status,
-        response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Unauthorized({}).status, response);
   }
 
   // Wrong username provided.
@@ -1999,9 +1993,7 @@ TEST_F(HttpAuthenticationTest, Basic)
     Future<http::Response> response =
       http::get(http.process->self(), "authenticated", None(), headers);
 
-    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-        http::Unauthorized({}).status,
-        response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Unauthorized({}).status, response);
   }
 
   // Right credentials provided.
