@@ -113,6 +113,15 @@ class MasterAPITest
     public WithParamInterface<ContentType>
 {
 public:
+  virtual master::Flags CreateMasterFlags()
+  {
+    // Turn off periodic allocations to avoid the race between
+    // `HierarchicalAllocator::updateAvailable()` and periodic allocations.
+    master::Flags flags = MesosTest::CreateMasterFlags();
+    flags.allocation_interval = Seconds(1000);
+    return flags;
+  }
+
   // Helper function to post a request to "/api/v1" master endpoint and return
   // the response.
   Future<v1::master::Response> post(
@@ -973,11 +982,7 @@ TEST_P(MasterAPITest, ReserveResources)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
 
-  // Set a low allocation interval to speed up this test.
-  master::Flags flags = MesosTest::CreateMasterFlags();
-  flags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(&allocator, flags);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -1018,9 +1023,6 @@ TEST_P(MasterAPITest, ReserveResources)
   EXPECT_TRUE(Resources(offer.resources()).contains(
       allocatedResources(unreserved, frameworkInfo.role())));
 
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
-
   // Expect an offer to be rescinded!
   EXPECT_CALL(sched, offerRescinded(_, _));
 
@@ -1044,6 +1046,12 @@ TEST_P(MasterAPITest, ReserveResources)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Accepted().status, response);
 
+  // Summon an offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.reviveOffers();
+
   AWAIT_READY(offers);
 
   ASSERT_EQ(1u, offers->size());
@@ -1065,11 +1073,7 @@ TEST_P(MasterAPITest, UnreserveResources)
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
 
-  // Set a low allocation interval to speed up this test.
-  master::Flags flags = MesosTest::CreateMasterFlags();
-  flags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(&allocator, flags);
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
   Future<SlaveID> slaveId;
@@ -1130,9 +1134,6 @@ TEST_P(MasterAPITest, UnreserveResources)
   EXPECT_TRUE(Resources(offer.resources()).contains(
       allocatedResources(dynamicallyReserved, frameworkInfo.role())));
 
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
-
   // Expect an offer to be rescinded!
   EXPECT_CALL(sched, offerRescinded(_, _));
 
@@ -1154,6 +1155,12 @@ TEST_P(MasterAPITest, UnreserveResources)
     stringify(contentType));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Accepted().status, unreserveResponse);
+
+  // Summon an offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.reviveOffers();
 
   AWAIT_READY(offers);
 
@@ -2206,6 +2213,7 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
   }
 
   master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
   Result<Authorizer*> authorizer = Authorizer::create(acls);
 
   Try<Owned<cluster::Master>> master =
@@ -3751,6 +3759,15 @@ class AgentAPITest
     public WithParamInterface<ContentType>
 {
 public:
+  virtual master::Flags CreateMasterFlags()
+  {
+    // Turn off periodic allocations to avoid the race between
+    // `HierarchicalAllocator::updateAvailable()` and periodic allocations.
+    master::Flags flags = MesosTest::CreateMasterFlags();
+    flags.allocation_interval = Seconds(1000);
+    return flags;
+  }
+
   // Helper function to post a request to "/api/v1" agent endpoint and return
   // the response.
   Future<v1::agent::Response> post(
