@@ -2300,8 +2300,6 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
   AWAIT_READY(offers1);
   ASSERT_FALSE(offers1->offers().empty());
 
-  v1::AgentID agentId(offers1->offers()[0].agent_id());
-
   v1::master::Call v1Call;
   v1Call.set_type(v1::master::Call::SUBSCRIBE);
 
@@ -2354,11 +2352,9 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
   Future<Result<v1::master::Event>> event = decoder.read();
   EXPECT_TRUE(event.isPending());
 
-  Future<mesos::v1::scheduler::Event::Update> updateRunning1;
+  Future<mesos::v1::scheduler::Event::Update> update;
   EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(DoAll(
-      FutureArg<1>(&updateRunning1),
-      v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+    .WillOnce(FutureArg<1>(&update));
 
   EXPECT_CALL(executor1, registered(_, _, _, _));
   EXPECT_CALL(executor2, registered(_, _, _, _));
@@ -2409,11 +2405,21 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
   ASSERT_EQ(v1::master::Event::TASK_ADDED, event->get().type());
   ASSERT_EQ(task1.task_id(), event->get().task_added().task().task_id());
 
-  // AWAIT_READY(updateStarting1);
-  // EXPECT_EQ(updateStarting1->status().state(), TASK_STARTING);
+  AWAIT_READY(update);
 
-  AWAIT_READY(updateRunning1);
-  EXPECT_EQ(updateRunning1->status().state(), TASK_RUNNING);
+  {
+    v1::scheduler::Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(v1::scheduler::Call::ACKNOWLEDGE);
+
+    v1::scheduler::Call::Acknowledge* acknowledge =
+      call.mutable_acknowledge();
+    acknowledge->mutable_task_id()->CopyFrom(task1.task_id());
+    acknowledge->mutable_agent_id()->CopyFrom(offer1.agent_id());
+    acknowledge->set_uuid(update->status().uuid());
+
+    mesos.send(call);
+  }
 
   event = decoder.read();
 
@@ -2441,9 +2447,8 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
 
   const v1::Offer& offer2 = offers2->offers(0);
 
-  Future<mesos::v1::scheduler::Event::Update> updateRunning2;
   EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&updateRunning2))
+    .WillOnce(FutureArg<1>(&update))
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   Future<TaskInfo> execTask2;
@@ -2480,7 +2485,7 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
     mesos.send(call);
   }
 
-  AWAIT_READY(updateRunning2);
+  AWAIT_READY(update);
 
   event = decoder.read();
   EXPECT_TRUE(event.isPending());
@@ -4438,10 +4443,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetFrameworks)
   command.set_value("sleep 1000");
   task.mutable_command()->MergeFrom(command);
 
-  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   ContentType contentType = GetParam();
@@ -4462,9 +4465,6 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetFrameworks)
   }
 
   driver.launchTasks(offer.id(), {task});
-
-  AWAIT_READY(statusStarting);
-  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -4546,10 +4546,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetExecutors)
   command.set_value("sleep 1000");
   task.mutable_command()->MergeFrom(command);
 
-  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   ContentType contentType = GetParam();
@@ -4570,9 +4568,6 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetExecutors)
   }
 
   driver.launchTasks(offer.id(), {task});
-
-  AWAIT_READY(statusStarting);
-  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -4658,10 +4653,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetTasks)
   command.set_value("sleep 1000");
   task.mutable_command()->MergeFrom(command);
 
-  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   ContentType contentType = GetParam();
@@ -4685,9 +4678,6 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetTasks)
   }
 
   driver.launchTasks(offer.id(), {task});
-
-  AWAIT_READY(statusStarting);
-  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -4826,10 +4816,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
   command.set_value("sleep 1000");
   task.mutable_command()->MergeFrom(command);
 
-  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   ContentType contentType = GetParam();
@@ -4854,9 +4842,6 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
   }
 
   driver.launchTasks(offer.id(), {task});
-
-  AWAIT_READY(statusStarting);
-  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -5567,15 +5552,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, LaunchNestedContainerSession)
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&status));
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_STARTING, status->state());
+  ASSERT_EQ(TASK_RUNNING, status->state());
 
   // Launch a nested container session that runs a command
   // that writes something to stdout and stderr and exits.
@@ -5689,15 +5673,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&status));
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_STARTING, status->state());
+  ASSERT_EQ(TASK_RUNNING, status->state());
 
   // Attempt to launch a nested container which does nothing.
 
@@ -5786,15 +5769,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&status));
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_STARTING, status->state());
+  ASSERT_EQ(TASK_RUNNING, status->state());
 
   // Launch a nested container session that runs a command
   // that writes something to stdout and stderr and exits.
@@ -5904,15 +5886,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&status));
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_STARTING, status->state());
+  ASSERT_EQ(TASK_RUNNING, status->state());
 
   // Launch a nested container session that runs `cat` so that it never exits.
 
@@ -6209,15 +6190,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&status));
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(status);
-  ASSERT_EQ(TASK_STARTING, status->state());
+  ASSERT_EQ(TASK_RUNNING, status->state());
 
   // Launch a nested container session which runs a shell.
 
@@ -6816,21 +6796,16 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   const Offer& offer = offers.get()[0];
 
-  Future<TaskStatus> statusStarting;
-  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&statusStarting))
-    .WillOnce(FutureArg<1>(&statusRunning));
+    .WillOnce(FutureArg<1>(&status));
 
   TaskInfo taskInfo = createTask(offer, "sleep 1000");
 
   driver.acceptOffers({offer.id()}, {LAUNCH({taskInfo})});
 
-  AWAIT_READY(statusStarting);
-  ASSERT_EQ(TASK_STARTING, statusStarting->state());
-
-  AWAIT_READY(statusRunning);
-  ASSERT_EQ(TASK_RUNNING, statusRunning->state());
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status->state());
 
   Future<hashset<ContainerID>> containerIds = containerizer->containers();
   AWAIT_READY(containerIds);

@@ -986,10 +986,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, VolumesInOverlappingHierarchies)
         taskResources,
         "! (ls -Av path | grep -q .)");
 
-    // We expect three status updates for the task.
-    Future<TaskStatus> status0, status1, status2;
+    // We expect two status updates for the task.
+    Future<TaskStatus> status1, status2;
     EXPECT_CALL(sched, statusUpdate(&driver, _))
-      .WillOnce(FutureArg<1>(&status0))
       .WillOnce(FutureArg<1>(&status1))
       .WillOnce(FutureArg<1>(&status2));
 
@@ -997,11 +996,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, VolumesInOverlappingHierarchies)
     driver.acceptOffers(
         {offer.id()},
         {RESERVE(reservedDisk), CREATE(volume), LAUNCH({task})});
-
-    AWAIT_READY(status0);
-
-    EXPECT_EQ(task.task_id(), status0->task_id());
-    EXPECT_EQ(TASK_STARTING, status0->state());
 
     AWAIT_READY(status1);
 

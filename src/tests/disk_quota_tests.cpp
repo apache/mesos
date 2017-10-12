@@ -219,19 +219,13 @@ TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
       Resources::parse("cpus:1;mem:128;disk:1").get(),
       "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 1000");
 
-  Future<TaskStatus> status0;
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status0))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2));
 
   driver.launchTasks(offer.id(), {task});
-
-  AWAIT_READY(status0);
-  EXPECT_EQ(task.task_id(), status0->task_id());
-  EXPECT_EQ(TASK_STARTING, status0->state());
 
   AWAIT_READY(status1);
   EXPECT_EQ(task.task_id(), status1->task_id());
@@ -319,11 +313,9 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
       taskResources,
       "dd if=/dev/zero of=volume_path/file bs=1048576 count=2 && sleep 1000");
 
-  Future<TaskStatus> status0;
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status0))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2));
 
@@ -332,10 +324,6 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
       {offer.id()},
       {CREATE(volume),
       LAUNCH({task})});
-
-  AWAIT_READY(status0);
-  EXPECT_EQ(task.task_id(), status0->task_id());
-  EXPECT_EQ(TASK_STARTING, status0->state());
 
   AWAIT_READY(status1);
   EXPECT_EQ(task.task_id(), status1->task_id());
@@ -407,22 +395,16 @@ TEST_F(DiskQuotaTest, NoQuotaEnforcement)
       Resources::parse("cpus:1;mem:128;disk:1").get(),
       "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 1000");
 
-  Future<TaskStatus> statusStarting;
-  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusStarting))
-    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(statusStarting);
-  EXPECT_EQ(task.task_id(), statusStarting->task_id());
-  EXPECT_EQ(TASK_STARTING, statusStarting->state());
-
-  AWAIT_READY(statusRunning);
-  EXPECT_EQ(task.task_id(), statusRunning->task_id());
-  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
 
@@ -541,11 +523,9 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
       "dd if=/dev/zero of=path1/file bs=1048576 count=2 && "
       "sleep 1000");
 
-  Future<TaskStatus> status0;
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status0))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
@@ -554,10 +534,6 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
       {offer.id()},
       {CREATE(volume),
        LAUNCH({task})});
-
-  AWAIT_READY(status0);
-  EXPECT_EQ(task.task_id(), status0->task_id());
-  EXPECT_EQ(TASK_STARTING, status0->state());
 
   AWAIT_READY(status1);
   EXPECT_EQ(task.task_id(), status1->task_id());
@@ -678,22 +654,16 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
       Resources::parse("cpus:1;mem:128;disk:3").get(),
       "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 1000");
 
-  Future<TaskStatus> statusStarting;
-  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusStarting))
-    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&status))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(statusStarting);
-  EXPECT_EQ(task.task_id(), statusStarting->task_id());
-  EXPECT_EQ(TASK_STARTING, statusStarting->state());
-
-  AWAIT_READY(statusRunning);
-  EXPECT_EQ(task.task_id(), statusRunning->task_id());
-  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  AWAIT_READY(status);
+  EXPECT_EQ(task.task_id(), status->task_id());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
 

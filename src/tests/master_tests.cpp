@@ -2786,34 +2786,22 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
 
   TaskInfo task = createTask(offers.get()[0], "sleep 100");
 
-  Future<TaskStatus> startingStatus;
   Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&startingStatus))
-    .WillOnce(FutureArg<1>(&runningStatus))
-    .WillRepeatedly(Return());
+    .WillOnce(FutureArg<1>(&runningStatus));
 
-  Future<Nothing> statusUpdateAck1 = FUTURE_DISPATCH(
-      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
-
-  Future<Nothing> statusUpdateAck2 = FUTURE_DISPATCH(
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
       slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offers.get()[0].id(), {task});
-
-  AWAIT_READY(startingStatus);
-  EXPECT_EQ(TASK_STARTING, startingStatus->state());
-  EXPECT_EQ(task.task_id(), startingStatus->task_id());
-
-  const SlaveID slaveId = startingStatus->slave_id();
-
-  AWAIT_READY(statusUpdateAck1);
 
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus->state());
   EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  AWAIT_READY(statusUpdateAck2);
+  const SlaveID slaveId = runningStatus->slave_id();
+
+  AWAIT_READY(statusUpdateAck);
 
   // Step 4: Simulate master failover. We leave the slave without a
   // master so it does not attempt to re-register.
@@ -6842,31 +6830,20 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
 
   TaskInfo task = createTask(offers.get()[0], "sleep 100");
 
-  Future<TaskStatus> startingStatus;
   Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&startingStatus))
     .WillOnce(FutureArg<1>(&runningStatus));
 
-  Future<Nothing> statusUpdateAck1 = FUTURE_DISPATCH(
-      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
-
-  Future<Nothing> statusUpdateAck2 = FUTURE_DISPATCH(
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
       slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offers.get()[0].id(), {task});
-
-  AWAIT_READY(startingStatus);
-  EXPECT_EQ(TASK_STARTING, startingStatus->state());
-  EXPECT_EQ(task.task_id(), startingStatus->task_id());
-
-  AWAIT_READY(statusUpdateAck1);
 
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus->state());
   EXPECT_EQ(task.task_id(), runningStatus->task_id());
 
-  AWAIT_READY(statusUpdateAck2);
+  AWAIT_READY(statusUpdateAck);
 
   // Simulate master failover. We leave the scheduler without a master
   // so it does not attempt to re-register yet.
@@ -7073,25 +7050,14 @@ TEST_F(MasterTest, AgentRestartNoReregister)
 
   TaskInfo task = createTask(offer, "sleep 100");
 
-  Future<TaskStatus> startingStatus;
   Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&startingStatus))
     .WillOnce(FutureArg<1>(&runningStatus));
 
-  Future<Nothing> statusUpdateAck1 = FUTURE_DISPATCH(
-    slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
-
-  Future<Nothing> statusUpdateAck2 = FUTURE_DISPATCH(
-    slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
+      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offer.id(), {task});
-
-  AWAIT_READY(startingStatus);
-  EXPECT_EQ(TASK_STARTING, startingStatus->state());
-  EXPECT_EQ(task.task_id(), startingStatus->task_id());
-
-  AWAIT_READY(statusUpdateAck1);
 
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus->state());
@@ -7099,7 +7065,7 @@ TEST_F(MasterTest, AgentRestartNoReregister)
 
   const SlaveID slaveId = runningStatus->slave_id();
 
-  AWAIT_READY(statusUpdateAck2);
+  AWAIT_READY(statusUpdateAck);
 
   Clock::pause();
 
@@ -7452,17 +7418,11 @@ TEST_F(MasterTest, TaskWithTinyResources)
       Resources::parse("cpus:0.00001;mem:1").get(),
       SLEEP_COMMAND(1000));
 
-  Future<TaskStatus> startingStatus;
   Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&startingStatus))
     .WillOnce(FutureArg<1>(&runningStatus));
 
   driver.launchTasks(offer.id(), {task});
-
-  AWAIT_READY(startingStatus);
-  EXPECT_EQ(TASK_STARTING, startingStatus->state());
-  EXPECT_EQ(task.task_id(), startingStatus->task_id());
 
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus->state());
@@ -7548,17 +7508,11 @@ TEST_F(MasterTest, MultiRoleSchedulerUnsubscribeFromRole)
 
   TaskInfo task = createTask(offer.slave_id(), resources, "sleep 60");
 
-  Future<TaskStatus> startingStatus;
   Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
-    .WillOnce(FutureArg<1>(&startingStatus))
     .WillOnce(FutureArg<1>(&runningStatus));
 
   driver1.launchTasks(offer.id(), {task});
-
-  AWAIT_READY(startingStatus);
-  EXPECT_EQ(TASK_STARTING, startingStatus->state());
-  EXPECT_EQ(task.task_id(), startingStatus->task_id());
 
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus->state());
@@ -7856,17 +7810,11 @@ TEST_F(MasterTest, AgentDomainDifferentRegion)
     // Check that we can launch a task in a remote region.
     TaskInfo task = createTask(offer, "sleep 60");
 
-    Future<TaskStatus> startingStatus;
     Future<TaskStatus> runningStatus;
     EXPECT_CALL(sched, statusUpdate(&driver, _))
-      .WillOnce(FutureArg<1>(&startingStatus))
       .WillOnce(FutureArg<1>(&runningStatus));
 
     driver.launchTasks(offer.id(), {task});
-
-    AWAIT_READY(startingStatus);
-    EXPECT_EQ(TASK_STARTING, startingStatus->state());
-    EXPECT_EQ(task.task_id(), startingStatus->task_id());
 
     AWAIT_READY(runningStatus);
     EXPECT_EQ(TASK_RUNNING, runningStatus->state());
@@ -8321,11 +8269,9 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo);
 
-  Future<v1::scheduler::Event::Update> startingUpdate;
-  Future<v1::scheduler::Event::Update> runningUpdate;
+  Future<v1::scheduler::Event::Update> update;
   EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&startingUpdate))
-    .WillOnce(FutureArg<1>(&runningUpdate));
+    .WillOnce(FutureArg<1>(&update));
 
   {
     Call call;
@@ -8347,17 +8293,11 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
     mesos.send(call);
   }
 
-  AWAIT_READY(startingUpdate);
+  AWAIT_READY(update);
 
-  EXPECT_EQ(TASK_STARTING, startingUpdate->status().state());
-  EXPECT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
-  EXPECT_TRUE(startingUpdate->status().has_timestamp());
-
-  AWAIT_READY(runningUpdate);
-
-  EXPECT_EQ(TASK_STARTING, runningUpdate->status().state());
-  EXPECT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
-  EXPECT_TRUE(runningUpdate->status().has_timestamp());
+  EXPECT_EQ(TASK_RUNNING, update->status().state());
+  EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
+  EXPECT_TRUE(update->status().has_timestamp());
 
   // Ensure that the task sandbox symbolic link is created.
   EXPECT_TRUE(os::exists(path::join(

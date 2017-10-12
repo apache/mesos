@@ -371,7 +371,6 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // Expect one TASK_STARTING and one TASK_RUNNING update
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
@@ -401,21 +400,16 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   // recovers 'offered' resources portion.
   TaskInfo taskInfo = createTask(offer.slave_id(), available, "sleep 1000");
 
-  // Expect a TASK_STARTING and a TASK_RUNNING status.
-  EXPECT_CALL(sched, statusUpdate(_, _)).
-    WillRepeatedly(Return());
+  // Expect a TASK_RUNNING status.
+  EXPECT_CALL(sched, statusUpdate(_, _));
 
-  Future<Nothing> _statusUpdateAcknowledgement1 =
-    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
-
-  Future<Nothing> _statusUpdateAcknowledgement2 =
+  Future<Nothing> _statusUpdateAcknowledgement =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   driver.acceptOffers({offer.id()}, {LAUNCH({taskInfo})});
 
-  // Wait for update acks.
-  AWAIT_READY(_statusUpdateAcknowledgement1);
-  AWAIT_READY(_statusUpdateAcknowledgement2);
+  // Wait for TASK_RUNNING update ack.
+  AWAIT_READY(_statusUpdateAcknowledgement);
 
   // Summon an offer to receive the 'offered' resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -553,21 +547,16 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   // recovers 'offered' resources portion.
   TaskInfo taskInfo = createTask(offer.slave_id(), available, "sleep 1000");
 
-  // Expect a TASK_STARTING and a TASK_RUNNING status.
-  EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillRepeatedly(Return());
+  // Expect a TASK_RUNNING status.
+  EXPECT_CALL(sched, statusUpdate(_, _));
 
-  Future<Nothing> _statusUpdateAcknowledgement1 =
-    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
-
-  Future<Nothing> _statusUpdateAcknowledgement2 =
+  Future<Nothing> _statusUpdateAcknowledgement =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   driver.acceptOffers({offer.id()}, {LAUNCH({taskInfo})});
 
-  // Wait for update acks from TASK_STARTING and TASK_RUNNING.
-  AWAIT_READY(_statusUpdateAcknowledgement1);
-  AWAIT_READY(_statusUpdateAcknowledgement2);
+  // Wait for TASK_RUNNING update ack.
+  AWAIT_READY(_statusUpdateAcknowledgement);
 
   // Summon an offer to receive the 'offered' resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1607,11 +1596,9 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
 
   Offer offer = offers.get()[0];
 
-  Future<TaskStatus> statusStarting;
-  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&statusStarting))
-    .WillOnce(FutureArg<1>(&statusRunning));
+    .WillOnce(FutureArg<1>(&status));
 
   Resources taskResources = Resources::parse(
       "cpus(role):2;mem(role):512;cpus:2;mem:1024").get();
@@ -1620,11 +1607,8 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
 
   driver.acceptOffers({offer.id()}, {LAUNCH({task})});
 
-  AWAIT_READY(statusStarting);
-  ASSERT_EQ(TASK_STARTING, statusStarting->state());
-
-  AWAIT_READY(statusRunning);
-  ASSERT_EQ(TASK_RUNNING, statusRunning->state());
+  AWAIT_READY(status);
+  ASSERT_EQ(TASK_RUNNING, status->state());
 
   Future<Response> response = process::http::get(
       agent.get()->pid,

@@ -2209,20 +2209,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   TaskInfo task = createTask(offer, "sleep 60");
 
-  Future<TaskStatus> startingStatus;
   Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched1, statusUpdate(&driver1, _))
-    .WillOnce(FutureArg<1>(&startingStatus))
     .WillOnce(FutureArg<1>(&runningStatus));
 
   Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
       slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
 
   driver1.launchTasks(offer.id(), {task});
-
-  AWAIT_READY(startingStatus);
-  EXPECT_EQ(TASK_STARTING, startingStatus->state());
-  EXPECT_EQ(task.task_id(), startingStatus->task_id());
 
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus->state());

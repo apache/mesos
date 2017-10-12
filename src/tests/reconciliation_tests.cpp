@@ -1178,25 +1178,14 @@ TEST_F(ReconciliationTest, PartitionedAgentThenMasterFailover)
   // Launch `task` using `sched`.
   TaskInfo task = createTask(offer, "sleep 60");
 
-  Future<TaskStatus> startingStatus;
   Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&startingStatus))
     .WillOnce(FutureArg<1>(&runningStatus));
 
-  Future<Nothing> statusUpdateAck1 = FUTURE_DISPATCH(
-      slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
-
-  Future<Nothing> statusUpdateAck2 = FUTURE_DISPATCH(
+  Future<Nothing> statusUpdateAck = FUTURE_DISPATCH(
       slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offer.id(), {task});
-
-  AWAIT_READY(startingStatus);
-  EXPECT_EQ(TASK_STARTING, startingStatus->state());
-  EXPECT_EQ(task.task_id(), startingStatus->task_id());
-
-  AWAIT_READY(statusUpdateAck1);
 
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus->state());
@@ -1204,7 +1193,7 @@ TEST_F(ReconciliationTest, PartitionedAgentThenMasterFailover)
 
   const SlaveID slaveId = runningStatus->slave_id();
 
-  AWAIT_READY(statusUpdateAck2);
+  AWAIT_READY(statusUpdateAck);
 
   // Now, induce a partition of the slave by having the master
   // timeout the slave.

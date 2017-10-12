@@ -757,7 +757,7 @@ TEST_F(OversubscriptionTest, FixedResourceEstimator)
 
   AWAIT_READY(status);
   EXPECT_EQ(task.task_id(), status->task_id());
-  EXPECT_EQ(TASK_STARTING, status->state());
+  EXPECT_EQ(TASK_RUNNING, status->state());
 
   // Advance the clock for the slave to trigger the calculation of the
   // total oversubscribed resources. As we described above, we don't
@@ -1023,19 +1023,14 @@ TEST_F(OversubscriptionTest, QoSCorrectionKill)
 
   TaskInfo task = createTask(offers.get()[0], "sleep 10");
 
-  Future<TaskStatus> status0;
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status0))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   driver.launchTasks(offers.get()[0].id(), {task});
-
-  AWAIT_READY(status0);
-  ASSERT_EQ(TASK_STARTING, status0->state());
 
   AWAIT_READY(status1);
   ASSERT_EQ(TASK_RUNNING, status1->state());
@@ -1137,19 +1132,14 @@ TEST_F(OversubscriptionTest, QoSCorrectionKillPartitionAware)
 
   TaskInfo task = createTask(offers.get()[0], "sleep 10");
 
-  Future<TaskStatus> status0;
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status0))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   driver.launchTasks(offers.get()[0].id(), {task});
-
-  AWAIT_READY(status0);
-  ASSERT_EQ(TASK_STARTING, status0->state());
 
   AWAIT_READY(status1);
   ASSERT_EQ(TASK_RUNNING, status1->state());
