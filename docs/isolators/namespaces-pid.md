@@ -27,3 +27,22 @@ to freezing cgroups under OOM conditions.
 
 `/proc` will be mounted for containers so tools such as `ps` will work
 correctly.
+
+To enable the PID Namespace isolator, append `namespaces/pid` to the
+`--isolation` flag when starting the agent. By default, each container
+will have its own PID namespace if this isolator is enabled.
+
+Framework users can allow a container to share pid namespace with its
+parent by setting the `ContainerInfo.linux_info.share_pid_namespace`
+field to `true`. If the container is a top level container, it will
+share the pid namespace with the agent. If the container is a nested
+container, it will share the pid namespace with its parent container.
+The container will have its own pid namespace if the
+`ContainerInfo.linux_info.share_pid_namespace` field is set to `false`.
+
+As a security measure, operators can disallow any container to share
+the agent's PID namespace by setting the agent flag
+`--disallow_sharing_agent_pid_namespace` to `true`. If this agent flag
+is set as `true` and the framework requests to launch a top level
+container which shares its pid namespace with the agent, the container
+launch will be rejected.
