@@ -15,6 +15,7 @@
 
 #include <glog/logging.h>
 
+#include <google/protobuf/arena.h>
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>
 
@@ -232,13 +233,15 @@ private:
       const process::UPID& sender,
       const std::string& data)
   {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(sender, m);
+    google::protobuf::Arena arena;
+    M* m = CHECK_NOTNULL(google::protobuf::Arena::CreateMessage<M>(&arena));
+    m->ParseFromString(data);
+
+    if (m->IsInitialized()) {
+      (t->*method)(sender, *m);
     } else {
       LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
+                   << m->InitializationErrorString();
     }
   }
 
@@ -260,13 +263,15 @@ private:
       const std::string& data,
       MessageProperty<M, P>... p)
   {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(sender, google::protobuf::convert((m.*p)())...);
+    google::protobuf::Arena arena;
+    M* m = CHECK_NOTNULL(google::protobuf::Arena::CreateMessage<M>(&arena));
+    m->ParseFromString(data);
+
+    if (m->IsInitialized()) {
+      (t->*method)(sender, google::protobuf::convert((m->*p)())...);
     } else {
       LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
+                   << m->InitializationErrorString();
     }
   }
 
@@ -278,13 +283,15 @@ private:
       const process::UPID&,
       const std::string& data)
   {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(m);
+    google::protobuf::Arena arena;
+    M* m = CHECK_NOTNULL(google::protobuf::Arena::CreateMessage<M>(&arena));
+    m->ParseFromString(data);
+
+    if (m->IsInitialized()) {
+      (t->*method)(*m);
     } else {
       LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
+                   << m->InitializationErrorString();
     }
   }
 
@@ -306,13 +313,15 @@ private:
       const std::string& data,
       MessageProperty<M, P>... p)
   {
-    M m;
-    m.ParseFromString(data);
-    if (m.IsInitialized()) {
-      (t->*method)(google::protobuf::convert((m.*p)())...);
+    google::protobuf::Arena arena;
+    M* m = CHECK_NOTNULL(google::protobuf::Arena::CreateMessage<M>(&arena));
+    m->ParseFromString(data);
+
+    if (m->IsInitialized()) {
+      (t->*method)(google::protobuf::convert((m->*p)())...);
     } else {
       LOG(WARNING) << "Initialization errors: "
-                   << m.InitializationErrorString();
+                   << m->InitializationErrorString();
     }
   }
 
