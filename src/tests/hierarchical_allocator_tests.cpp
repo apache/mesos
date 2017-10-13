@@ -5039,6 +5039,234 @@ TEST_P(HierarchicalAllocatorTestWithParam, AllocateSharedResources)
 }
 
 
+// Resource sharing types used for the PersistentVolumes benchmark test:
+//
+// 1. `REGULAR` uses no shared resources.
+// 2. `SHARED` only uses shared resources.
+// 3. `MIXED` uses half the agents with shared resources, and the remaining
+//    half with regular resources.
+enum Sharedness
+{
+  REGULAR,
+  SHARED,
+  MIXED
+};
+
+
+ostream& operator<<(ostream& stream, Sharedness type)
+{
+  switch (type) {
+    case REGULAR: stream << "Regular"; break;
+    case SHARED: stream << "Shared"; break;
+    case MIXED: stream << "Mixed"; break;
+    default:
+      UNREACHABLE();
+  }
+
+  return stream;
+}
+
+
+class HierarchicalAllocations_BENCHMARK_Test
+  : public HierarchicalAllocatorTestBase,
+    public WithParamInterface<std::tr1::tuple<size_t, size_t, Sharedness>> {};
+
+
+INSTANTIATE_TEST_CASE_P(
+    AllResources,
+    HierarchicalAllocations_BENCHMARK_Test,
+    ::testing::Combine(
+      ::testing::Values(1000U, 5000U, 10000U, 20000U, 30000U, 50000U),
+      ::testing::Values(1U, 50U, 100U, 200U, 500U, 1000U, 3000U, 6000U),
+      ::testing::Values(
+          Sharedness::REGULAR,
+          Sharedness::SHARED,
+          Sharedness::MIXED))
+    );
+
+
+// This benchmark simulates a number of frameworks that tests the allocation
+// times with various combinations of resources over all agents in a cluster.
+TEST_P(HierarchicalAllocations_BENCHMARK_Test, PersistentVolumes)
+{
+  size_t agentCount = std::tr1::get<0>(GetParam());
+  size_t frameworkCount = std::tr1::get<1>(GetParam());
+  Sharedness sharedness = std::tr1::get<2>(GetParam());
+
+  // Pause the clock because we want to manually drive the allocations.
+  Clock::pause();
+
+  struct OfferedResources
+  {
+    FrameworkID   frameworkId;
+    SlaveID       slaveId;
+    Resources     resources;
+  };
+
+  vector<OfferedResources> offers;
+
+  auto offerCallback = [&offers](
+      const FrameworkID& frameworkId,
+      const hashmap<string, hashmap<SlaveID, Resources>>& resources_)
+  {
+    foreachkey (const string& role, resources_) {
+      foreachpair (const SlaveID& slaveId,
+                   const Resources& resources,
+                   resources_.at(role)) {
+        offers.push_back(OfferedResources{frameworkId, slaveId, resources});
+      }
+    }
+  };
+
+  cout << "Using " << agentCount << " agents and "
+       << frameworkCount << " frameworks "
+       << "with resource sharedness " << sharedness << endl;
+
+  initialize(master::Flags(), offerCallback);
+
+  vector<FrameworkInfo> frameworks;
+  frameworks.reserve(frameworkCount);
+
+  // Create the frameworks.
+  for (size_t i = 0; i < frameworkCount; i++) {
+    FrameworkInfo framework = createFrameworkInfo({"test"});
+    if (sharedness != REGULAR) {
+      framework.add_capabilities()->set_type(
+          FrameworkInfo::Capability::SHARED_RESOURCES);
+    }
+
+    frameworks.push_back(framework);
+  }
+
+  vector<SlaveInfo> agents;
+  agents.reserve(agentCount);
+
+  Resources agentResources = Resources::parse(
+      "cpus(test):24;mem(test):4096;disk(test):3072;"
+      "ports(test):[31000-32000]").get();
+
+  // Create the agents.
+  for (size_t i = 0; i < agentCount; i++) {
+    // Add a persistent volume of size 1024 MB as follows:
+    // (1) REGULAR: Use a regular non-shared persistent volume.
+    // (2) SHARED: Use a shared persistent volume.
+    // (3) MIXED: Make every alternate slave contain a shared
+    //     persistent volume.
+    Resource volume = createPersistentVolume(
+        Megabytes(1024),
+        "test",
+        "id" + stringify(i),
+        "path" + stringify(i),
+        None(),
+        None(),
+        None());
+
+    // Make the persistent volume shared if:
+    // (1) Test mode is SHARED; or
+    // (2) Test mode is MIXED, and for every even iteration.
+    if ((sharedness == SHARED) ||
+        ((sharedness == MIXED) && (i % 2 == 0))) {
+      volume.mutable_shared();
+    }
+
+    agents.push_back(createSlaveInfo(agentResources + volume));
+  }
+
+  Stopwatch watch;
+  watch.start();
+
+  foreach (const FrameworkInfo& framework, frameworks) {
+    allocator->addFramework(framework.id(), framework, {}, true, {});
+  }
+
+  // Wait for all the `addFramework` operations to be processed.
+  Clock::settle();
+
+  watch.stop();
+
+  cout << "Added " << frameworkCount << " frameworks"
+       << " in " << watch.elapsed() << endl;
+
+  Resources _allocation = Resources::parse(
+      "cpus(test):16;mem(test):1024;disk(test):1024").get();
+
+  Try<::mesos::Value::Ranges> ranges = fragment(createRange(31000, 32000), 16);
+  ASSERT_SOME(ranges);
+  ASSERT_EQ(16, ranges->range_size());
+
+  Resource ports = createPorts(ranges.get());
+  ports.add_reservations()->CopyFrom(createStaticReservationInfo("test"));
+
+  _allocation += ports;
+
+  const Resources allocation = allocatedResources(_allocation, "*");
+
+  watch.start();
+
+  // Add the agents, using round-robin to choose which framework
+  // to allocate a slice of the slave's resources to.
+  for (size_t i = 0; i < agents.size(); i++) {
+    // Add some used resources on each agent.
+    hashmap<FrameworkID, Resources> used;
+    used[frameworks[i % frameworkCount].id()] = allocation;
+
+    allocator->addSlave(
+        agents[i].id(),
+        agents[i],
+        AGENT_CAPABILITIES(),
+        None(),
+        agents[i].resources(),
+        used);
+  }
+
+  // Wait for all the `addSlave` operations to be processed.
+  Clock::settle();
+
+  watch.stop();
+
+  cout << "Added " << agentCount << " agents"
+       << " in " << watch.elapsed() << endl;
+
+  // Now perform allocations. To ensure the test can run in a timely manner,
+  // we always perform a fixed number of allocations. We ensure we run the
+  // allocation cycle enough times such that every framework receives at least
+  // one offer.
+  size_t allocationsCount = 6;
+
+  // Now perform the allocations. Loop enough times for all the frameworks
+  // to get offered all the resources.
+  for (size_t count = 0; count < allocationsCount; count++) {
+    foreach (const OfferedResources& offer, offers) {
+      allocator->recoverResources(
+          offer.frameworkId,
+          offer.slaveId,
+          offer.resources,
+          None());
+    }
+
+    Clock::settle();
+    offers.clear();
+
+    Stopwatch watch;
+
+    watch.start();
+
+    // Advance the clock and trigger a batch allocation cycle.
+    Clock::advance(flags.allocation_interval);
+    Clock::settle();
+
+    watch.stop();
+
+    cout << "round " << count
+         << " allocate() took " << watch.elapsed()
+         << " to make " << offers.size() << " offers"
+         << endl;
+  }
+
+  Clock::resume();
+}
+
+
 class HierarchicalAllocator_BENCHMARK_Test
   : public HierarchicalAllocatorTestBase,
     public WithParamInterface<std::tuple<size_t, size_t>> {};
