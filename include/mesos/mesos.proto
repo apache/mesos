@@ -1343,7 +1343,12 @@ message Resource {
       optional Path path = 2;
       optional Mount mount = 3;
 
+      // An identifier for this source. This field maps onto CSI
+      // volume IDs and is not expected to be set by frameworks.
       optional string id = 4; // EXPERIMENTAL.
+
+      // Additional metadata for this source. This field maps onto CSI
+      // volume metadata and is not expected to be set by frameworks.
       optional Labels metadata = 5; // EXPERIMENTAL.
 
       // This field serves as an indirection to a set of storage
