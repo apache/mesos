@@ -83,7 +83,7 @@ layout: documentation
   * [Allocation Module](allocation-module.md) for how to write custom resource allocators.
 
 ## Community
-* [Getting Involved](../community/)
+* [Getting Involved](/community/)
 * [List of Mesos Users](powered-by-mesos.md)
 * [3rd Party Frameworks](frameworks.md)
 * [3rd Party Tools](tools.md) for developers and operators.
