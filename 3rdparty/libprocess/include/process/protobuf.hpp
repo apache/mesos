@@ -79,12 +79,7 @@ const T& convert(const T& t)
 template <typename T>
 std::vector<T> convert(const google::protobuf::RepeatedPtrField<T>& items)
 {
-  std::vector<T> result;
-  for (int i = 0; i < items.size(); i++) {
-    result.push_back(items.Get(i));
-  }
-
-  return result;
+  return std::vector<T>(items.begin(), items.end());
 }
 
 } // namespace protobuf {
