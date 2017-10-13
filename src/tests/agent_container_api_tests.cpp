@@ -530,6 +530,213 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentContainerAPITest, NestedContainerLaunch)
   EXPECT_TRUE(checkWaitContainerResponse(wait, SIGKILL));
 }
 
+
+// This test launches a parent and nested container, simulates an agent
+// failover, and then waits/kills the containers.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentContainerAPITest, RecoverNestedContainer)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.launcher = std::get<1>(std::get<3>(GetParam()));
+  slaveFlags.isolation = std::get<0>(std::get<3>(GetParam()));
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Try<v1::ContainerID> parentContainerId =
+    launchParentContainer(master.get()->pid, slave.get()->pid);
+
+  ASSERT_SOME(parentContainerId);
+
+  // Launch a nested container.
+  v1::ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  containerId.mutable_parent()->CopyFrom(parentContainerId.get());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::OK().status,
+      launchNestedContainer(slave.get()->pid, containerId));
+
+  // Simulate an agent failover.
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  slave.get()->terminate();
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Now kill and wait for the (recovered) container to exit.
+  Future<v1::agent::Response> wait =
+    deserialize(waitNestedContainer(slave.get()->pid, containerId));
+
+  EXPECT_TRUE(wait.isPending());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::OK().status,
+      killNestedContainer(slave.get()->pid, containerId));
+
+  AWAIT_READY(wait);
+  EXPECT_TRUE(checkWaitContainerResponse(wait, SIGKILL));
+}
+
+
+// This test checks that using the KILL or WAIT container calls on
+// a non-existent ContainerID returns a 404 Not Found.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentContainerAPITest, NestedContainerNotFound)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.launcher = std::get<1>(std::get<3>(GetParam()));
+  slaveFlags.isolation = std::get<0>(std::get<3>(GetParam()));
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Wait for the agent to finish registering.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+  AWAIT_READY(slaveRegisteredMessage);
+
+  v1::ContainerID unknownContainerId;
+  unknownContainerId.set_value(UUID::random().toString());
+  unknownContainerId.mutable_parent()->set_value(UUID::random().toString());
+
+  // Expect a 404 for waiting on unknown containers.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::NotFound().status,
+      waitNestedContainer(slave.get()->pid, unknownContainerId));
+
+  // Expect a 404 for waiting on unknown containers.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::NotFound().status,
+      killNestedContainer(slave.get()->pid, unknownContainerId));
+}
+
+
+// This test attempts to give invalid ContainerInfo when launching a
+// nested container. The invalid nested container LAUNCH call is expected
+// to give a 400 Bad Request, but the parent container should be otherwise
+// unaffected.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    AgentContainerAPITest, NestedContainerLaunchFalse)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.launcher = std::get<1>(std::get<3>(GetParam()));
+  slaveFlags.isolation = std::get<0>(std::get<3>(GetParam()));
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Try<v1::ContainerID> parentContainerId =
+    launchParentContainer(master.get()->pid, slave.get()->pid);
+
+  ASSERT_SOME(parentContainerId);
+
+  // Try to launch an "unsupported" container.
+  // In this case, we try to specify a nested container that expects
+  // the Docker containerizer, even though the parent was made with
+  // the Mesos containerizer.
+  v1::ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  containerId.mutable_parent()->CopyFrom(parentContainerId.get());
+
+  mesos::v1::ContainerInfo containerInfo;
+  containerInfo.set_type(mesos::v1::ContainerInfo::DOCKER);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::BadRequest().status,
+      launchNestedContainer(
+          slave.get()->pid, containerId, None(), containerInfo));
+}
+
+
+// This test launches three total layers of nested containers,
+// one parent, nested, and double-nested container. Each nested container
+// is killed and reaped like any other nested container.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    AgentContainerAPITest, TwoLevelNestedContainerLaunch)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.launcher = std::get<1>(std::get<3>(GetParam()));
+  slaveFlags.isolation = std::get<0>(std::get<3>(GetParam()));
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Try<v1::ContainerID> parentContainerId =
+    launchParentContainer(master.get()->pid, slave.get()->pid);
+
+  ASSERT_SOME(parentContainerId);
+
+  // Launch the first nested container and wait for it to finish.
+  v1::ContainerID childContainerId;
+  childContainerId.set_value(UUID::random().toString());
+  childContainerId.mutable_parent()->CopyFrom(parentContainerId.get());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::OK().status,
+      launchNestedContainer(slave.get()->pid, childContainerId));
+
+  // Launch the second nested container underneath the first nested contaienr
+  // and wait for it to finish.
+  v1::ContainerID grandchildContainerId;
+  grandchildContainerId.set_value(UUID::random().toString());
+  grandchildContainerId.mutable_parent()->CopyFrom(childContainerId);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::OK().status,
+      launchNestedContainer(slave.get()->pid, grandchildContainerId));
+
+  // Start waiting for each nested container to exit.
+  Future<v1::agent::Response> waitChild =
+    deserialize(waitNestedContainer(slave.get()->pid, childContainerId));
+
+  Future<v1::agent::Response> waitgrandChild =
+    deserialize(waitNestedContainer(slave.get()->pid, grandchildContainerId));
+
+  EXPECT_TRUE(waitChild.isPending());
+  EXPECT_TRUE(waitgrandChild.isPending());
+
+  // Kill the grandchild container.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::OK().status,
+      killNestedContainer(slave.get()->pid, grandchildContainerId));
+
+  AWAIT_READY(waitgrandChild);
+  EXPECT_TRUE(checkWaitContainerResponse(waitgrandChild, SIGKILL));
+
+  // The child container should still be running.
+  EXPECT_TRUE(waitChild.isPending());
+
+  // Kill the child container.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::OK().status,
+      killNestedContainer(slave.get()->pid, childContainerId));
+
+  AWAIT_READY(waitChild);
+  EXPECT_TRUE(checkWaitContainerResponse(waitChild, SIGKILL));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
