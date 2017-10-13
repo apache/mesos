@@ -211,10 +211,10 @@ inline void setenv(
 {
   // Do not set the variable if already set and `overwrite` was not specified.
   //
-  // Per MSDN[1], `GetEnvironmentVariable` returns 0 on error and sets the
+  // Per MSDN, `GetEnvironmentVariable` returns 0 on error and sets the
   // error code to `ERROR_ENVVAR_NOT_FOUND` if the variable was not found.
   //
-  // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms683188(v=vs.85).aspx
+  // https://msdn.microsoft.com/en-us/library/windows/desktop/ms683188(v=vs.85).aspx // NOLINT(whitespace/line_length)
   if (!overwrite &&
       ::GetEnvironmentVariableW(wide_stringify(key).data(), nullptr, 0) != 0 &&
       ::GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
@@ -720,6 +720,43 @@ inline Try<SharedHandle> create_job(const std::wstring& name)
   }
 
   return job_handle;
+}
+
+
+// `get_job_info` gets the job object information for the process group
+// represented by `pid`, assuming it is assigned to a job object. This function
+// will fail otherwise.
+//
+// https://msdn.microsoft.com/en-us/library/windows/desktop/ms684925(v=vs.85).aspx // NOLINT(whitespace/line_length)
+inline Try<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION> get_job_info(pid_t pid)
+{
+  Try<std::wstring> name = os::name_job(pid);
+  if (name.isError()) {
+    return Error(name.error());
+  }
+
+  Try<SharedHandle> job_handle = os::open_job(
+      JOB_OBJECT_QUERY,
+      false,
+      name.get());
+  if (job_handle.isError()) {
+    return Error(job_handle.error());
+  }
+
+  JOBOBJECT_BASIC_ACCOUNTING_INFORMATION info = {};
+
+  BOOL result = ::QueryInformationJobObject(
+    job_handle.get().get_handle(),
+    JobObjectBasicAccountingInformation,
+    &info,
+    sizeof(info),
+    nullptr);
+  if (result == FALSE) {
+    return WindowsError(
+      "os::get_job_info: call to `QueryInformationJobObject` failed");
+  }
+
+  return info;
 }
 
 
