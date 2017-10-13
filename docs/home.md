@@ -3,123 +3,112 @@ title: Apache Mesos - Documentation Home
 layout: documentation
 ---
 
-# Documentation
-
-
-## Mesos Fundamentals
-
+## Fundamentals
 * [Mesos Architecture](architecture.md) providing an overview of Mesos concepts.
 * [Video and Slides of Mesos Presentations](presentations.md)
+* [Academic Papers and Project History](https://www.usenix.org/conference/nsdi11/mesos-platform-fine-grained-resource-sharing-data-center)
 
-
-## Running Mesos
-
+## Build / Installation
 * [Getting Started](getting-started.md) for basic instructions on compiling and installing Mesos.
-* [Agent Recovery](agent-recovery.md) for doing seamless agent upgrades and allowing executors to survive `mesos-agent` crashes.
+* [CMake](cmake.md) for details about using the new CMake build system.
+* [Windows Support](windows.md) for the state of Windows support in Mesos.
+
+## Administration
+* [Configuration](configuration.md) for command-line arguments.
+* [High Availability Master Setup](high-availability.md)
+  * [Replicated Log](replicated-log-internals.md) for information on the Mesos replicated log.
+* [Fault Tolerant Agent Setup](agent-recovery.md)
+* [Framework Rate Limiting](framework-rate-limiting.md)
+* [Maintenance](maintenance.md) for performing maintenance on a Mesos cluster.
+* [Upgrades](upgrades.md) for upgrading a Mesos cluster.
+* [Logging](logging.md)
+* [Monitoring](monitoring.md)
+* [Operational Guide](operational-guide.md)
+* [Fetcher Cache Configuration](fetcher.md)
+
+## Resource Management
+* [Attributes and Resources](attributes-resources.md) for how to describe the agents that comprise a cluster.
+* [Using Resource Roles](roles.md)
+  * [Resource Role Weights](weights.md) for fair sharing.
+  * [Resource Role Quota](quota.md) for how to configure Mesos to provide guaranteed resource allocations for use by a role.
+  * [Reservations](reservation.md) for how operators and frameworks can reserve resources on individual agents for use by a role.
+  * [Shared Resources](shared-resources.md) for how to share persistent volumes between tasks managed by different executors on the same agent.
+* [Oversubscription](oversubscription.md) for how to configure Mesos to take advantage of unused resources to launch "best-effort" tasks.
+
+## Security
 * [Authentication](authentication.md)
 * [Authorization](authorization.md)
-* [CMake](cmake.md) for details about using the new CMake build system.
-* [Configuration](configuration.md) for command-line arguments.
-* [Container Image](container-image.md) for supporting container images in Mesos containerizer.
-* [Container Volume](container-volume.md) for using container volumes.
-* [Containerizers](containerizers.md) for containerizer overview and use cases.
+* [SSL](ssl.md)
+* [Secrets](secrets.md) for managing secrets within Mesos.
+
+## Containerization
+* [Containerizer Overview](containerizers.md)
   * [Containerizer Internals](containerizer-internals.md) for implementation details of containerizers.
   * [Docker Containerizer](docker-containerizer.md) for launching a Docker image as a Task, or as an Executor.
   * [Mesos Containerizer](mesos-containerizer.md) default containerizer, supports both Linux and POSIX systems.
-    * [CNI support](cni.md)
+    * [Container Images](container-image.md) for supporting container images in Mesos containerizer.
     * [Docker Volume Support](isolators/docker-volume.md)
-* [Framework Rate Limiting](framework-rate-limiting.md)
-* [Task Health Checking](health-checks.md)
-* [High Availability](high-availability.md) for running multiple masters simultaneously.
-* [HTTP Endpoints](endpoints/) for available HTTP endpoints.
-* [Logging](logging.md)
-* [Maintenance](maintenance.md) for performing maintenance on a Mesos cluster.
-* [Monitoring](monitoring.md)
-* [Operational Guide](operational-guide.md)
-* [Roles](roles.md)
-* [Secrets](secrets.md) for managing secrets within Mesos.
-* [SSL](ssl.md) for enabling and enforcing SSL communication.
+    * [Nvidia GPU Support](gpu-support.md) for how to run Mesos with Nvidia GPU support.
+* [Container Sandboxes](sandbox.md)
+* [Container Volumes](container-volume.md)
 * [Nested Container and Task Group (Pod)](nested-container-and-task-group.md)
-* [Tools](tools.md) for setting up and running a Mesos cluster.
-* [Upgrades](upgrades.md) for upgrading a Mesos cluster.
-* [Weights](weights.md)
-* [Windows Support](windows.md) for the state of Windows support in Mesos.
 
-
-## Advanced Features
-
-* [Attributes and Resources](attributes-resources.md) for how to describe the agents that comprise a cluster.
-* [Fetcher Cache](fetcher.md) for how to configure the Mesos fetcher cache.
-* [Multiple Disks](multiple-disk.md) for how to allow tasks to use multiple isolated disk resources.
-* [Networking](networking.md)
+## Networking
+* [Networking Overview](networking.md)
+  * [Networking in Detail](networking-for-mesos-managed-containers.md)
   * [Container Network Interface (CNI)](cni.md)
   * [Port Mapping Isolator](isolators/network-port-mapping.md)
-* [Nvidia GPU Support](gpu-support.md) for how to run Mesos with Nvidia GPU support.
-* [Oversubscription](oversubscription.md) for how to configure Mesos to take advantage of unused resources to launch "best-effort" tasks.
-* [Persistent Volume](persistent-volume.md) for how to allow tasks to access persistent storage resources.
-* [Quota](quota.md) for how to configure Mesos to provide guaranteed resource allocations for use by a role.
-* [Replicated Log](replicated-log-internals.md) for information on the Mesos replicated log.
-* [Reservation](reservation.md) for how operators and frameworks can reserve resources on individual agents for use by a role.
-* [Shared Resources](shared-resources.md) for how to share persistent volumes between tasks managed by different executors on the same agent.
 
+## Storage
+* [Multiple Disks](multiple-disk.md) for how to allow tasks to use multiple isolated disk resources.
+* [Persistent Volume](persistent-volume.md) for how to allow tasks to access persistent storage resources.
 
 ## APIs
+* [HTTP Endpoints](endpoints/) for available HTTP endpoints.
 * [API Client Libraries](api-client-libraries.md) lists client libraries for the HTTP APIs.
-* [Doxygen](/api/latest/c++/namespacemesos.html) documents the C++ API.
-* [Executor HTTP API](executor-http-api.md) describes the new HTTP API for communication between executors and the Mesos agent.
-* [Javadoc](/api/latest/java/) documents the old Java API.
-* [Operator HTTP API](operator-http-api.md) describes the new HTTP API for communication between operators and Mesos master/agent.
-* [Scheduler HTTP API](scheduler-http-api.md) describes the new HTTP API for communication between schedulers and the Mesos master.
-* [Task State Reasons](task-state-reasons.md) describes how task state reasons are used in Mesos.
-* [Versioning](versioning.md) describes HTTP API and release versioning.
-
-
-## Running Mesos Frameworks
-
-* [Mesos frameworks](frameworks.md) for a list of apps built on top of Mesos and instructions on how to run them.
-* [Sandbox](sandbox.md) describes a useful debugging arena for most users.
-
-
-## Developing Mesos Frameworks
-
-* [Designing Highly Available Mesos Frameworks](high-availability-framework-guide.md)
-* [Developer Tools](tools.md) for hacking on Mesos or writing frameworks.
-* [Framework Development Guide](app-framework-development-guide.md) describes how to build applications on top of Mesos.
-* [Reconciliation](reconciliation.md) for ensuring a framework's state remains eventually consistent in the face of failures.
-
-
-## Extending Mesos
-
-* [Allocation Modules](allocation-module.md) for how to write custom resource allocators.
+* [API Versioning](versioning.md) describes HTTP API and release versioning.
+* Writing Frameworks
+  * [Framework Development Guide](app-framework-development-guide.md) describes how to build applications on top of Mesos.
+  * [Guide for Designing Highly Available Mesos Frameworks](high-availability-framework-guide.md)
+  * [Reconciliation](reconciliation.md) for ensuring a framework's state remains eventually consistent in the face of failures.
+  * [Task State Reasons](task-state-reasons.md) describes how task state reasons are used in Mesos.
+  * [Task Health Checking](health-checks.md)
+* API References:
+  * [v0 Java API](/api/latest/java/)
+  * [v0 C++ API](/api/latest/c++/namespacemesos.html)
+  * [v1 Operator HTTP API](operator-http-api.md) for communication between operators and Mesos master/agent.
+  * [v1 Scheduler HTTP API](scheduler-http-api.md) for communication between schedulers and the Mesos master.
+  * [v1 Executor HTTP API](executor-http-api.md) describes the new HTTP API for communication between executors and the Mesos agent.
 * [Mesos Modules](modules.md) for specifying Mesos modules for master, agent and tests.
+  * [Allocation Module](allocation-module.md) for how to write custom resource allocators.
 
-
-## Contributing to Mesos
-
-* [Committers and Maintainers](committers.md) a listing of project committers and component maintainers; useful when seeking feedback.
-* [Committing](committing.md) guidelines for committing changes.
+## Community
+* [Getting Involved](../community/)
+* [List of Mesos Users](powered-by-mesos.md)
+* [3rd Party Frameworks](frameworks.md)
+* [3rd Party Tools](tools.md) for developers and operators.
 * [Development Roadmap](roadmap.md)
-* [Documentation Guide](documentation-guide.md)
-  * [C++ Style Guide](c++-style-guide.md)
-  * [Doxygen Style Guide](doxygen-style-guide.md)
-  * [Markdown Style Guide](markdown-style-guide.md)
-* [Doxygen](/api/latest/c++/) documents the internal Mesos APIs.
-* [Effective Code Reviewing](effective-code-reviewing.md) guidelines, tips, and learnings for how to do effective code reviews.
-* [Engineering Principles and Practices](engineering-principles-and-practices.md) to serve as a shared set of project-level values for the community.
-* [Release Guide](release-guide.md)
-* [Reopening a Review](reopening-reviews.md) for our policy around reviving reviews on ReviewBoard.
-* [Reporting an Issue, Improvement, or Feature](reporting-a-bug.md) for getting started with JIRA.
-* [Submitting a Patch](submitting-a-patch.md) for getting started with ReviewBoard and our tooling around it.
-* [Testing Patterns](testing-patterns.md) for tips and tricks used in Mesos tests.
+* [Design Docs](design-docs.md) list of design documents for various Mesos features.
 * [Working groups](working-groups.md) a listing of groups working on different components.
 
-
-## More Info about Mesos
-
-* [Academic Papers and Project History](https://www.usenix.org/conference/nsdi11/mesos-platform-fine-grained-resource-sharing-data-center)
-* [Design docs](design-docs.md) list of design documents for various Mesos features
-* [Powered by Mesos](powered-by-mesos.md) lists organizations and software that are powered by Apache Mesos.
-
+### Contributing
+* [Reporting an Issue, Improvement, or Feature](reporting-a-bug.md) for getting started with JIRA.
+* [Submitting a Patch](submitting-a-patch.md) for getting started with ReviewBoard and our tooling around it.
+* [Engineering Principles and Practices](engineering-principles-and-practices.md) to serve as a shared set of project-level values for the community.
+* Style Guides:
+  * [Documentation Style Guide](documentation-guide.md)
+  * [C++ Style Guide](c++-style-guide.md)
+    * [Clang-Format](clang-format.md) for automatic formatting.
+  * [Doxygen Style Guide](doxygen-style-guide.md)
+  * [Markdown Style Guide](markdown-style-guide.md)
+* [Testing Patterns](testing-patterns.md) for tips and tricks used in Mesos tests.
+* [C++ Doxygen Reference](/api/latest/c++/) for internal APIs.
+* [Committers and Maintainers](committers.md) a listing of project committers and component maintainers; useful when seeking feedback.
+  * [Committing](committing.md) guidelines for committing changes.
+  * [Release Guide](release-guide.md)
+  * [Committer Candidate Checklist](committer-candidate-checklist.md) for becoming a committer.
+* [Effective Code Reviewing](effective-code-reviewing.md) guidelines, tips, and learnings for how to do effective code reviews.
+* [Reopening a Review](reopening-reviews.md) for our policy around reviving reviews on ReviewBoard.
 
 ## Books on Mesos
 
