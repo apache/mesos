@@ -63,6 +63,7 @@ using process::http::Response;
 using process::http::Unauthorized;
 
 using testing::_;
+using testing::Not;
 using testing::Return;
 
 namespace mesos {
@@ -1802,8 +1803,10 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
 
   const SlaveID& slaveId1 = slave1RegisteredMessage->slave_id();
 
+  // Capture the registration message for the second agent.
   Future<SlaveRegisteredMessage> slave2RegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+    FUTURE_PROTOBUF(
+        SlaveRegisteredMessage(), master.get()->pid, Not(slave1.get()->pid));
 
   // Each slave needs its own flags to ensure work_dirs are unique.
   slave::Flags slave2Flags = CreateSlaveFlags();
