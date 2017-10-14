@@ -3438,6 +3438,18 @@ void Slave::checkpointResources(vector<Resource> _checkpointedResources)
   //      happens, we expect framework to reconcile based on the
   //      offers they get.
 
+  // An agent with resource providers requires an offer operation feedback
+  // protocol instead of simply checkpointing results by the master. Fail hard
+  // here instead of applying an incompatible message.
+  const bool hasResourceProviders = std::any_of(
+      totalResources.begin(),
+      totalResources.end(),
+      [](const Resource& resource) { return resource.has_provider_id(); });
+
+  CHECK(!hasResourceProviders)
+    << "Master protocol for offer operations is incompatible with agent with "
+       "resource providers";
+
   convertResourceFormat(&_checkpointedResources, POST_RESERVATION_REFINEMENT);
 
   Resources newCheckpointedResources = _checkpointedResources;
