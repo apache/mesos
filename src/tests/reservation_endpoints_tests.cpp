@@ -975,13 +975,9 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
   unreserve->mutable_reserver_principals()->add_values(
       DEFAULT_CREDENTIAL.principal());
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
-
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
-  masterFlags.roles = frameworkInfo.role();
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -1005,7 +1001,7 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        createFrameworkInfo().role(), DEFAULT_CREDENTIAL.principal()));
 
   // Reserve the resources.
   Future<Response> response = process::http::post(
@@ -1093,13 +1089,9 @@ TEST_F(ReservationEndpointsTest, BadReserveACL)
   reserve->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
   reserve->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
-
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
-  masterFlags.roles = frameworkInfo.role();
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -1123,7 +1115,7 @@ TEST_F(ReservationEndpointsTest, BadReserveACL)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        createFrameworkInfo().role(), DEFAULT_CREDENTIAL.principal()));
 
   // Attempt to reserve the resources.
   Future<Response> response = process::http::post(
@@ -1149,13 +1141,9 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
   unreserve->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
   unreserve->mutable_reserver_principals()->set_type(mesos::ACL::Entity::NONE);
 
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
-
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
-  masterFlags.roles = frameworkInfo.role();
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -1179,7 +1167,7 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        createFrameworkInfo().role(), DEFAULT_CREDENTIAL.principal()));
 
   // Reserve the resources.
   Future<Response> response = process::http::post(
@@ -1364,8 +1352,7 @@ TEST_F(ReservationEndpointsTest, NonMatchingPrincipal)
 // and no ACLs are set in the master.
 TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
 {
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  FrameworkInfo frameworkInfo = createFrameworkInfo();
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
