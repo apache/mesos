@@ -14,6 +14,9 @@
 #define __WINDOWS_CTRLHANDLER_HPP__
 
 #include <functional>
+#include <mutex>
+
+#include <stout/synchronized.hpp>
 
 namespace os {
 namespace internal {
@@ -22,8 +25,7 @@ namespace internal {
 
 // Not using extern as this is used only by the executable. The signal
 // handler should be configured once. Configuring it multiple times will
-// overwrite any previous handlers. Configuring from multiple threads
-// simultaneously has undefined behavior.
+// overwrite any previous handlers.
 static std::function<void(int, int)>* signaledWrapper = nullptr;
 
 inline BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
@@ -49,19 +51,24 @@ inline BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
 
 inline int installCtrlHandler(const std::function<void(int, int)>* signal)
 {
-  // NOTE: We only expect this function to be called called multiple
+  // NOTE: We only expect this function to be called multiple
   // times inside tests and `mesos-local`.
-  if (signaledWrapper != nullptr) {
-    delete signaledWrapper;
-  }
 
-  if (signal != nullptr) {
-    signaledWrapper = new std::function<void(int, int)>(*signal);
-    return SetConsoleCtrlHandler(CtrlHandler, TRUE);
-  } else {
-    delete signaledWrapper;
-    signaledWrapper = nullptr;
-    return SetConsoleCtrlHandler(CtrlHandler, FALSE);
+  static std::mutex mutex;
+
+  synchronized (mutex) {
+    if (signaledWrapper != nullptr) {
+      delete signaledWrapper;
+    }
+
+    if (signal != nullptr) {
+      signaledWrapper = new std::function<void(int, int)>(*signal);
+      return SetConsoleCtrlHandler(CtrlHandler, TRUE);
+    } else {
+      delete signaledWrapper;
+      signaledWrapper = nullptr;
+      return SetConsoleCtrlHandler(CtrlHandler, FALSE);
+    }
   }
 }
 
