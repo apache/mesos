@@ -2212,12 +2212,9 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
     acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
   }
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
   Result<Authorizer*> authorizer = Authorizer::create(acls);
 
-  Try<Owned<cluster::Master>> master =
-    StartMaster(authorizer.get(), masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster(authorizer.get());
 
   ASSERT_SOME(master);
 
@@ -2389,11 +2386,6 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
     v1::scheduler::Call::Accept* accept = call.mutable_accept();
     accept->add_offer_ids()->CopyFrom(offer1.id());
 
-    // Set 0s filter to immediately get another offer.
-    v1::Filters filters;
-    filters.set_refuse_seconds(0);
-    accept->mutable_filters()->CopyFrom(filters);
-
     v1::Offer::Operation* operation = accept->add_operations();
     operation->set_type(v1::Offer::Operation::LAUNCH);
 
@@ -2435,14 +2427,19 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
   ASSERT_EQ(task1.task_id(),
             event->get().task_updated().status().task_id());
 
+  // Summon an offer.
   Future<v1::scheduler::Event::Offers> offers2;
   EXPECT_CALL(*scheduler, offers(_, _))
     .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return()); // Ignore further offers.
 
-  Clock::pause();
-  Clock::advance(masterFlags.allocation_interval);
-  Clock::resume();
+  {
+    v1::scheduler::Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(v1::scheduler::Call::REVIVE);
+
+    mesos.send(call);
+  }
 
   AWAIT_READY(offers2);
   ASSERT_FALSE(offers2->offers().empty());
