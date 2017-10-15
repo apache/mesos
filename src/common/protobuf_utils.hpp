@@ -88,7 +88,8 @@ StatusUpdate createStatusUpdate(
     const Option<CheckStatusInfo>& checkStatus = None(),
     const Option<Labels>& labels = None(),
     const Option<ContainerStatus>& containerStatus = None(),
-    const Option<TimeInfo>& unreachableTime = None());
+    const Option<TimeInfo>& unreachableTime = None(),
+    const Option<Resources>& limitedResources = None());
 
 
 StatusUpdate createStatusUpdate(

@@ -110,7 +110,8 @@ StatusUpdate createStatusUpdate(
     const Option<CheckStatusInfo>& checkStatus,
     const Option<Labels>& labels,
     const Option<ContainerStatus>& containerStatus,
-    const Option<TimeInfo>& unreachableTime)
+    const Option<TimeInfo>& unreachableTime,
+    const Option<Resources>& limitedResources)
 {
   StatusUpdate update;
 
@@ -166,6 +167,20 @@ StatusUpdate createStatusUpdate(
 
   if (unreachableTime.isSome()) {
     status->mutable_unreachable_time()->CopyFrom(unreachableTime.get());
+  }
+
+  if (limitedResources.isSome()) {
+    // Check that we are only sending the `Limitation` field when the
+    // reason is a container limitation.
+    CHECK_SOME(reason);
+    CHECK(
+        reason.get() == TaskStatus::REASON_CONTAINER_LIMITATION ||
+        reason.get() == TaskStatus::REASON_CONTAINER_LIMITATION_DISK ||
+        reason.get() == TaskStatus::REASON_CONTAINER_LIMITATION_MEMORY)
+      << reason.get();
+
+    status->mutable_limitation()->mutable_resources()->CopyFrom(
+        limitedResources.get());
   }
 
   return update;

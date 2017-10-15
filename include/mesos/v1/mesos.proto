@@ -2277,6 +2277,10 @@ message TaskStatus {
   // status updates for tasks running on agents that are unreachable
   // (e.g., partitioned away from the master).
   optional TimeInfo unreachable_time = 14;
+
+  // If the reason field indicates a container resource limitation,
+  // this field optionally contains additional information.
+  optional TaskResourceLimitation limitation = 16;
 }
 
 
