@@ -2440,21 +2440,13 @@ void MesosContainerizerProcess::______destroy(
   // registered. This could occur if the limitation (e.g., an OOM)
   // killed the executor and we triggered destroy() off the executor
   // exit.
-  if (!container->limitations.empty()) {
+  if (container->limitation.isSome()) {
     termination.set_state(TaskState::TASK_FAILED);
+    termination.set_message(container->limitation->message());
 
-    // We concatenate the messages if there are multiple limitations.
-    vector<string> messages;
-
-    foreach (const ContainerLimitation& limitation, container->limitations) {
-      messages.push_back(limitation.message());
-
-      if (limitation.has_reason()) {
-        termination.add_reasons(limitation.reason());
-      }
+    if (container->limitation->has_reason()) {
+      termination.add_reasons(container->limitation->reason());
     }
-
-    termination.set_message(strings::join("; ", messages));
   }
 
   // Now that we are done destroying the container we need to cleanup
@@ -2669,7 +2661,7 @@ void MesosContainerizerProcess::limited(
               << " resource " << future.get().resources()
               << " and will be terminated";
 
-    containers_.at(containerId)->limitations.push_back(future.get());
+    containers_.at(containerId)->limitation = future.get();
   } else {
     // TODO(idownes): A discarded future will not be an error when
     // isolators discard their promises after cleanup.

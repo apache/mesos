@@ -329,9 +329,9 @@ private:
     // calling cleanup after all isolators have finished isolating.
     process::Future<std::list<Nothing>> isolation;
 
-    // We keep track of any limitations received from each isolator so
-    // we can determine the cause of a container termination.
-    std::vector<mesos::slave::ContainerLimitation> limitations;
+    // We keep track of any limitation received from an isolator
+    // so we can determine the cause of a container termination.
+    Option<mesos::slave::ContainerLimitation> limitation;
 
     // We keep track of the resources for each container so we can set
     // the ResourceStatistics limits in usage().
