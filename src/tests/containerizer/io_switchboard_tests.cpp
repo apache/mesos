@@ -900,9 +900,9 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
   ASSERT_TRUE(wait.get()->has_status());
   EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
 
-  ASSERT_TRUE(wait.get()->reasons().size() == 1);
+  ASSERT_TRUE(wait.get()->has_reason());
   ASSERT_EQ(TaskStatus::REASON_IO_SWITCHBOARD_EXITED,
-            wait.get()->reasons().Get(0));
+            wait.get()->reason());
 
   wait = containerizer->wait(containerId);
 

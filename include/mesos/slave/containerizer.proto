@@ -245,6 +245,6 @@ message ContainerTermination {
   // The 'state', 'reasons' and 'message' of a status update for
   // non-terminal tasks when the executor is terminated.
   optional TaskState state = 4;
-  repeated TaskStatus.Reason reasons = 5;
+  optional TaskStatus.Reason reason = 5;
   optional string message = 2;
 }

@@ -2445,7 +2445,7 @@ void MesosContainerizerProcess::______destroy(
     termination.set_message(container->limitation->message());
 
     if (container->limitation->has_reason()) {
-      termination.add_reasons(container->limitation->reason());
+      termination.set_reason(container->limitation->reason());
     }
   }
 
