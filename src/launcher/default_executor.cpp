@@ -799,6 +799,8 @@ protected:
 
     TaskState taskState;
     Option<string> message;
+    Option<TaskStatus::Reason> reason;
+    Option<TaskResourceLimitation> limitation;
 
     if (!waitResponse->wait_nested_container().has_exit_status()) {
       taskState = TASK_FAILED;
@@ -822,11 +824,38 @@ protected:
       message = "Command " + WSTRINGIFY(status);
     }
 
+    // Note that we always prefer the task state and reason from the
+    // agent response over what we can determine ourselves because
+    // in general, the agent has more specific information about why
+    // the container exited (e.g. this might be a container resource
+    // limitation).
+    if (waitResponse->wait_nested_container().has_state()) {
+      taskState = waitResponse->wait_nested_container().state();
+    }
+
+    if (waitResponse->wait_nested_container().has_reason()) {
+      reason = waitResponse->wait_nested_container().reason();
+    }
+
+    if (waitResponse->wait_nested_container().has_message()) {
+      if (message.isSome()) {
+        message->append(
+            ": " +  waitResponse->wait_nested_container().message());
+      } else {
+        message = waitResponse->wait_nested_container().message();
+      }
+    }
+
+    if (waitResponse->wait_nested_container().has_limitation()) {
+      limitation = waitResponse->wait_nested_container().limitation();
+    }
+
     TaskStatus taskStatus = createTaskStatus(
         taskId,
         taskState,
-        None(),
-        message);
+        reason,
+        message,
+        limitation);
 
     // Indicate that a task has been unhealthy upon termination.
     if (unhealthy) {
@@ -1241,7 +1270,8 @@ private:
       const TaskID& taskId,
       const TaskState& state,
       const Option<TaskStatus::Reason>& reason = None(),
-      const Option<string>& message = None())
+      const Option<string>& message = None(),
+      const Option<TaskResourceLimitation>& limitation = None())
   {
     TaskStatus status = protobuf::createTaskStatus(
         taskId,
@@ -1258,6 +1288,10 @@ private:
 
     if (message.isSome()) {
       status.set_message(message.get());
+    }
+
+    if (limitation.isSome()) {
+      status.mutable_limitation()->CopyFrom(limitation.get());
     }
 
     CHECK(containers.contains(taskId));
