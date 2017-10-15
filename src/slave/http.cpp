@@ -2512,6 +2512,23 @@ Future<Response> Http::waitNestedContainer(
             waitNestedContainer->set_exit_status(termination->status());
           }
 
+          if (termination->has_state()) {
+            waitNestedContainer->set_state(termination->state());
+          }
+
+          if (termination->has_reason()) {
+            waitNestedContainer->set_reason(termination->reason());
+          }
+
+          if (!termination->limited_resources().empty()) {
+            waitNestedContainer->mutable_limitation()->mutable_resources()
+              ->CopyFrom(termination->limited_resources());
+          }
+
+          if (termination->has_message()) {
+            waitNestedContainer->set_message(termination->message());
+          }
+
           return OK(serialize(acceptType, evolve(response)),
                     stringify(acceptType));
         });

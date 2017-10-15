@@ -247,4 +247,11 @@ message ContainerTermination {
   optional TaskState state = 4;
   optional TaskStatus.Reason reason = 5;
   optional string message = 2;
+
+  // If the container was terminated due to a resource limitation,
+  // this is the resource that caused the termination.
+  //
+  // NOTE: 'Resources' is used here because the resource may span
+  // multiple roles (e.g. `"mem(*):1;mem(role):2"`).
+  repeated Resource limited_resources = 6;
 }

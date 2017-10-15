@@ -338,6 +338,15 @@ message Response {
     // family of macros to extract whether the process exited cleanly and
     // what the exit code was.
     optional int32 exit_status = 1;
+
+    optional TaskState state = 2;
+    optional TaskStatus.Reason reason = 3;
+
+    // This field will be populated if the task was terminated due to
+    // a resource limitation.
+    optional TaskResourceLimitation limitation = 4;
+
+    optional string message = 5;
   }
 
   optional Type type = 1;

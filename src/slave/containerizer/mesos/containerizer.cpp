@@ -2685,6 +2685,11 @@ void MesosContainerizerProcess::limited(
     if (future->has_reason()) {
       termination->set_reason(future->reason());
     }
+
+    if (!future->resources().empty()) {
+        termination->mutable_limited_resources()->CopyFrom(
+            future->resources());
+    }
   } else {
     // TODO(idownes): A discarded future will not be an error when
     // isolators discard their promises after cleanup.
