@@ -710,6 +710,10 @@ protected:
     if (status.has_check_status()) {
       cout << "  check status: " << status.check_status() << endl;
     }
+    if (status.has_limitation() && !status.limitation().resources().empty()) {
+      cout << "  resource limit violation: "
+           << status.limitation().resources() << endl;
+    }
 
     if (status.has_uuid()) {
       Call call;
