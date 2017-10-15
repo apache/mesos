@@ -2106,6 +2106,18 @@ enum TaskState {
 
 
 /**
+ * Describes a resource limitation that caused a task failure.
+ */
+message TaskResourceLimitation {
+  // This field contains the resource whose limits were violated.
+  //
+  // NOTE: 'Resources' is used here because the resource may span
+  // multiple roles (e.g. `"mem(*):1;mem(role):2"`).
+  repeated Resource resources = 1;
+}
+
+
+/**
 * Describes the status of a check. Type and the corresponding field, i.e.,
 * `command` or `http` must be set. If the result of the check is not available
 * (e.g., the check timed out), these fields must contain empty messages, i.e.,
