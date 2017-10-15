@@ -612,7 +612,8 @@ Future<bool> MesosContainerizer::destroy(const ContainerID& containerId)
 {
   return dispatch(process.get(),
                   &MesosContainerizerProcess::destroy,
-                  containerId);
+                  containerId,
+                  None());
 }
 
 
@@ -1003,7 +1004,7 @@ Future<Nothing> MesosContainerizerProcess::__recover(
   // Destroy all the orphan containers.
   foreach (const ContainerID& containerId, orphans) {
     LOG(INFO) << "Cleaning up orphan container " << containerId;
-    destroy(containerId);
+    destroy(containerId, None());
   }
 
   return Nothing();
@@ -2166,7 +2167,8 @@ Future<ContainerStatus> MesosContainerizerProcess::status(
 
 
 Future<bool> MesosContainerizerProcess::destroy(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const Option<ContainerTermination>& termination)
 {
   if (!containers_.contains(containerId)) {
     // This can happen due to the race between destroys initiated by
@@ -2213,12 +2215,12 @@ Future<bool> MesosContainerizerProcess::destroy(
 
   list<Future<bool>> destroys;
   foreach (const ContainerID& child, container->children) {
-    destroys.push_back(destroy(child));
+    destroys.push_back(destroy(child, termination));
   }
 
   await(destroys)
     .then(defer(self(), [=](const list<Future<bool>>& futures) {
-      _destroy(containerId, previousState, futures);
+      _destroy(containerId, termination, previousState, futures);
       return Nothing();
     }));
 
@@ -2234,6 +2236,7 @@ Future<bool> MesosContainerizerProcess::destroy(
 
 void MesosContainerizerProcess::_destroy(
     const ContainerID& containerId,
+    const Option<ContainerTermination>& termination,
     const State& previousState,
     const list<Future<bool>>& destroys)
 {
@@ -2272,6 +2275,7 @@ void MesosContainerizerProcess::_destroy(
           self(),
           &Self::_____destroy,
           containerId,
+          termination,
           list<Future<Nothing>>()));
 
     return;
@@ -2295,7 +2299,7 @@ void MesosContainerizerProcess::_destroy(
           container->status.isSome()
             ? container->status.get()
             : None())
-      .onAny(defer(self(), &Self::____destroy, containerId));
+      .onAny(defer(self(), &Self::____destroy, containerId, termination));
 
     return;
   }
@@ -2307,7 +2311,7 @@ void MesosContainerizerProcess::_destroy(
     // Wait for the isolators to finish isolating before we start
     // to destroy the container.
     container->isolation
-      .onAny(defer(self(), &Self::__destroy, containerId));
+      .onAny(defer(self(), &Self::__destroy, containerId, termination));
 
     return;
   }
@@ -2317,23 +2321,30 @@ void MesosContainerizerProcess::_destroy(
     fetcher->kill(containerId);
   }
 
-  __destroy(containerId);
+  __destroy(containerId, termination);
 }
 
 
 void MesosContainerizerProcess::__destroy(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const Option<ContainerTermination>& termination)
 {
   CHECK(containers_.contains(containerId));
 
   // Kill all processes then continue destruction.
   launcher->destroy(containerId)
-    .onAny(defer(self(), &Self::___destroy, containerId, lambda::_1));
+    .onAny(defer(
+        self(),
+        &Self::___destroy,
+        containerId,
+        termination,
+        lambda::_1));
 }
 
 
 void MesosContainerizerProcess::___destroy(
     const ContainerID& containerId,
+    const Option<ContainerTermination>& termination,
     const Future<Nothing>& future)
 {
   CHECK(containers_.contains(containerId));
@@ -2361,22 +2372,29 @@ void MesosContainerizerProcess::___destroy(
   CHECK_SOME(container->status);
 
   container->status.get()
-    .onAny(defer(self(), &Self::____destroy, containerId));
+    .onAny(defer(self(), &Self::____destroy, containerId, termination));
 }
 
 
 void MesosContainerizerProcess::____destroy(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    const Option<ContainerTermination>& termination)
 {
   CHECK(containers_.contains(containerId));
 
   cleanupIsolators(containerId)
-    .onAny(defer(self(), &Self::_____destroy, containerId, lambda::_1));
+    .onAny(defer(
+        self(),
+        &Self::_____destroy,
+        containerId,
+        termination,
+        lambda::_1));
 }
 
 
 void MesosContainerizerProcess::_____destroy(
     const ContainerID& containerId,
+    const Option<ContainerTermination>& termination,
     const Future<list<Future<Nothing>>>& cleanups)
 {
   // This should not occur because we only use the Future<list> to
@@ -2407,12 +2425,18 @@ void MesosContainerizerProcess::_____destroy(
   }
 
   provisioner->destroy(containerId)
-    .onAny(defer(self(), &Self::______destroy, containerId, lambda::_1));
+    .onAny(defer(
+        self(),
+        &Self::______destroy,
+        containerId,
+        termination,
+        lambda::_1));
 }
 
 
 void MesosContainerizerProcess::______destroy(
     const ContainerID& containerId,
+    const Option<ContainerTermination>& _termination,
     const Future<bool>& destroy)
 {
   CHECK(containers_.contains(containerId));
@@ -2430,23 +2454,14 @@ void MesosContainerizerProcess::______destroy(
 
   ContainerTermination termination;
 
+  if (_termination.isSome()) {
+    termination = _termination.get();
+  }
+
   if (container->status.isSome() &&
       container->status->isReady() &&
       container->status->get().isSome()) {
     termination.set_status(container->status->get().get());
-  }
-
-  // NOTE: We may not see a limitation in time for it to be
-  // registered. This could occur if the limitation (e.g., an OOM)
-  // killed the executor and we triggered destroy() off the executor
-  // exit.
-  if (container->limitation.isSome()) {
-    termination.set_state(TaskState::TASK_FAILED);
-    termination.set_message(container->limitation->message());
-
-    if (container->limitation->has_reason()) {
-      termination.set_reason(container->limitation->reason());
-    }
   }
 
   // Now that we are done destroying the container we need to cleanup
@@ -2530,7 +2545,7 @@ Future<bool> MesosContainerizerProcess::kill(
     LOG(WARNING) << "Unable to find the pid for container " << containerId
                  << ", destroying it";
 
-    destroy(containerId);
+    destroy(containerId, None());
     return true;
   }
 
@@ -2643,7 +2658,7 @@ void MesosContainerizerProcess::reaped(const ContainerID& containerId)
   LOG(INFO) << "Container " << containerId << " has exited";
 
   // The executor has exited so destroy the container.
-  destroy(containerId);
+  destroy(containerId, None());
 }
 
 
@@ -2656,12 +2671,20 @@ void MesosContainerizerProcess::limited(
     return;
   }
 
+  Option<ContainerTermination> termination = None();
+
   if (future.isReady()) {
     LOG(INFO) << "Container " << containerId << " has reached its limit for"
               << " resource " << future.get().resources()
               << " and will be terminated";
 
-    containers_.at(containerId)->limitation = future.get();
+    termination = ContainerTermination();
+    termination->set_state(TaskState::TASK_FAILED);
+    termination->set_message(future->message());
+
+    if (future->has_reason()) {
+      termination->set_reason(future->reason());
+    }
   } else {
     // TODO(idownes): A discarded future will not be an error when
     // isolators discard their promises after cleanup.
@@ -2671,7 +2694,7 @@ void MesosContainerizerProcess::limited(
   }
 
   // The container has been affected by the limitation so destroy it.
-  destroy(containerId);
+  destroy(containerId, termination);
 }
 
 

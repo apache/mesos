@@ -170,7 +170,8 @@ public:
       int_fd pipeWrite);
 
   virtual process::Future<bool> destroy(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      const Option<mesos::slave::ContainerTermination>& termination);
 
   virtual process::Future<bool> kill(
       const ContainerID& containerId,
@@ -229,30 +230,38 @@ private:
   // Continues 'destroy()' once nested containers are handled.
   void _destroy(
       const ContainerID& containerId,
+      const Option<mesos::slave::ContainerTermination>& termination,
       const State& previousState,
       const std::list<process::Future<bool>>& destroys);
 
   // Continues '_destroy()' once isolators has completed.
-  void __destroy(const ContainerID& containerId);
+  void __destroy(
+      const ContainerID& containerId,
+      const Option<mesos::slave::ContainerTermination>& termination);
 
   // Continues '__destroy()' once all processes have been killed
   // by the launcher.
   void ___destroy(
       const ContainerID& containerId,
+      const Option<mesos::slave::ContainerTermination>& termination,
       const process::Future<Nothing>& future);
 
   // Continues '___destroy()' once we get the exit status of the container.
-  void ____destroy(const ContainerID& containerId);
+  void ____destroy(
+      const ContainerID& containerId,
+      const Option<mesos::slave::ContainerTermination>& termination);
 
   // Continues '____destroy()' once all isolators have completed
   // cleanup.
   void _____destroy(
       const ContainerID& containerId,
+      const Option<mesos::slave::ContainerTermination>& termination,
       const process::Future<std::list<process::Future<Nothing>>>& cleanups);
 
   // Continues '_____destroy()' once provisioner have completed destroy.
   void ______destroy(
       const ContainerID& containerId,
+      const Option<mesos::slave::ContainerTermination>& termination,
       const process::Future<bool>& destroy);
 
   // Call back for when an isolator limits a container and impacts the
@@ -328,10 +337,6 @@ private:
     // 'isolator->isolate' futures so that destroy will only start
     // calling cleanup after all isolators have finished isolating.
     process::Future<std::list<Nothing>> isolation;
-
-    // We keep track of any limitation received from an isolator
-    // so we can determine the cause of a container termination.
-    Option<mesos::slave::ContainerLimitation> limitation;
 
     // We keep track of the resources for each container so we can set
     // the ResourceStatistics limits in usage().
