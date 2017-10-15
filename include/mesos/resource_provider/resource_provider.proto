@@ -45,7 +45,13 @@ message Event {
   // Received when the master wants to send an operation to the
   // resource provider.
   message Operation {
-    optional Offer.Operation operation = 1;
+    required FrameworkID framework_id = 1;
+    required Offer.Operation info = 2;
+
+    // This is the internal UUID for the operation, which is kept
+    // independently from the framework-specified operation ID, which
+    // is optional.
+    required bytes operation_uuid = 3;
   }
 
   optional Type type = 1;
@@ -62,8 +68,8 @@ message Call {
     // in a backwards-compatible way. See: MESOS-4997.
     UNKNOWN = 0;
 
-    SUBSCRIBE = 1;    // See 'Subscribe' below.
-    UPDATE = 2;       // See 'Update' below.
+    SUBSCRIBE = 1;                     // See 'Subscribe'.
+    UPDATE_OFFER_OPERATION_STATUS = 2; // See 'UpdateOfferOperationStatus'.
   }
 
   // Request to subscribe with the master.
@@ -74,25 +80,25 @@ message Call {
   // and then updates its resources.
   message Subscribe {
     required ResourceProviderInfo resource_provider_info = 1;
+
+    // This includes pending operations and those that have
+    // unacknowledged statuses.
+    repeated OfferOperation operations = 3;
+
+    // The total resources provided by this resource provider.
     repeated Resource resources = 2;
   }
 
-  // Notify the master about the status of an operation.
-  message Update {
-    enum State {
-      // This must be the first enum value in this list, to
-      // ensure that if 'state' is not set, the default value
-      // is UNKNOWN. This enables enum values to be added
-      // in a backwards-compatible way. See: MESOS-4997.
-      UNKNOWN = 0;
+  // Notify the master about the status of an offer operation.
+  message UpdateOfferOperationStatus {
+    required FrameworkID framework_id = 1;
+    required OfferOperationStatus status = 2;
+    optional OfferOperationStatus latest_status = 3;
 
-      OK = 1;
-      FAILED = 2;
-    }
-
-    required State state = 1;
-    required Offer.Operation operation = 2;
-    repeated Resource converted_resources = 3;
+    // This is the internal UUID for the operation, which is kept
+    // independently from the framework-specified operation ID, which
+    // is optional.
+    required bytes operation_uuid = 4;
   }
 
   // Identifies who generated this call.
@@ -107,5 +113,5 @@ message Call {
 
   optional Type type = 2;
   optional Subscribe subscribe = 3;
-  optional Update update = 4;
+  optional UpdateOfferOperationStatus update_offer_operation_status = 4;
 }

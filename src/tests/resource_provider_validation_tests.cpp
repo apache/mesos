@@ -54,25 +54,31 @@ TEST(ResourceProviderCallValidationTest, Subscribe)
 }
 
 
-TEST(ResourceProviderCallValidationTest, Update)
+TEST(ResourceProviderCallValidationTest, UpdateOfferOperationStatus)
 {
   Call call;
-  call.set_type(Call::UPDATE);
+  call.set_type(Call::UPDATE_OFFER_OPERATION_STATUS);
 
-  // Expecting a resource provider ID and `Call::Update`.
+  // Expecting a resource provider ID and `Call::UpdateOfferOperationStatus`.
   Option<Error> error = call::validate(call);
   EXPECT_SOME(error);
 
   ResourceProviderID* id = call.mutable_resource_provider_id();
   id->set_value(UUID::random().toString());
 
-  // Still expecting `Call::Update`.
+  // Still expecting `Call::UpdateOfferOperationStatus`.
   error = call::validate(call);
   EXPECT_SOME(error);
 
-  Call::Update* update = call.mutable_update();
-  update->set_state(Call::Update::OK);
-  update->mutable_operation();
+  Call::UpdateOfferOperationStatus* update =
+    call.mutable_update_offer_operation_status();
+
+  update->mutable_framework_id()->set_value(UUID::random().toString());
+  update->set_operation_uuid(UUID::random().toBytes());
+
+  OfferOperationStatus* status = update->mutable_status();
+  status->mutable_operation_id()->set_value(UUID::random().toString());
+  status->set_state(OFFER_OPERATION_FINISHED);
 
   error = call::validate(call);
   EXPECT_NONE(error);

@@ -151,9 +151,9 @@ private:
       const HttpConnection& http,
       const Call::Subscribe& subscribe);
 
-  void update(
+  void updateOfferOperationStatus(
       ResourceProvider* resourceProvider,
-      const Call::Update& update);
+      const Call::UpdateOfferOperationStatus& update);
 
   ResourceProviderID newResourceProviderId();
 };
@@ -282,8 +282,11 @@ Future<http::Response> ResourceProviderManagerProcess::api(
       LOG(FATAL) << "Unexpected 'SUBSCRIBE' call";
     }
 
-    case Call::UPDATE: {
-      update(&resourceProvider, call.update());
+    case Call::UPDATE_OFFER_OPERATION_STATUS: {
+      updateOfferOperationStatus(
+          &resourceProvider,
+          call.update_offer_operation_status());
+
       return Accepted();
     }
   }
@@ -335,11 +338,11 @@ void ResourceProviderManagerProcess::subscribe(
 }
 
 
-void ResourceProviderManagerProcess::update(
+void ResourceProviderManagerProcess::updateOfferOperationStatus(
     ResourceProvider* resourceProvider,
-    const Call::Update& update)
+    const Call::UpdateOfferOperationStatus& update)
 {
-  // TODO(nfnt): Implement the 'UPDATE' call handler.
+  // TODO(nfnt): Implement the 'UPDATE_OFFER_OPERATION_STATUS' call handler.
 }
 
 

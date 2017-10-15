@@ -107,6 +107,15 @@ message ResourceProviderID {
 
 
 /**
+ * A framework-generated ID to distinguish an offer operation. The ID
+ * must be unique within the framework.
+ */
+message OfferOperationID {
+  required string value = 1;
+}
+
+
+/**
  * Represents time since the epoch, in nanoseconds.
  */
 message TimeInfo {
@@ -1869,6 +1878,7 @@ message Offer {
     }
 
     optional Type type = 1;
+    optional OfferOperationID id = 12;
     optional Launch launch = 2;
     optional LaunchGroup launch_group = 7;
     optional Reserve reserve = 3;
@@ -2133,6 +2143,68 @@ message TaskResourceLimitation {
   // NOTE: 'Resources' is used here because the resource may span
   // multiple roles (e.g. `"mem(*):1;mem(role):2"`).
   repeated Resource resources = 1;
+}
+
+
+/**
+ * Describes an offer operation, similar to `Offer.Operation`, with
+ * some additional information.
+ */
+message OfferOperation {
+  required FrameworkID framework_id = 1;
+  required Offer.Operation info = 2;
+
+  // All the statuses known to this offer operation. Some of the
+  // statuses in this list might not have been acknowledged yet. The
+  // statuses are ordered.
+  repeated OfferOperationStatus statuses = 3;
+
+  // This is the internal UUID for the operation, which is kept
+  // independently from the framework-specified operation ID, which is
+  // optional.
+  required bytes operation_uuid = 4;
+}
+
+
+/**
+ * Describes possible offer operation states.
+ */
+enum OfferOperationState {
+  // Default value if the enum is not set. See MESOS-4997.
+  OFFER_OPERATION_UNSUPPORTED = 0;
+
+  // Initial state.
+  OFFER_OPERATION_PENDING = 1;
+
+  // The operation was successfully applied.
+  // This state is terminal.
+  OFFER_OPERATION_FINISHED = 2;
+
+  // The operation failed to apply.
+  // This state is terminal.
+  OFFER_OPERATION_FAILED = 3;
+
+  // The operation description contains an error.
+  OFFER_OPERATION_ERROR = 4;
+}
+
+
+/**
+ * Describes the current status of an offer operation.
+ */
+message OfferOperationStatus {
+  optional OfferOperationID operation_id = 1;
+  required OfferOperationState state = 2;
+  optional string message = 3;
+
+  // Converted resources after applying the operation. This only
+  // applies if the `state` is `OFFER_OPERATION_FINISHED`.
+  repeated Resource converted_resources = 4;
+
+  // Statuses that are delivered reliably to the scheduler will
+  // include a `status_uuid`. The status is considered delivered once
+  // it is acknowledged by the scheduler.
+  optional bytes status_uuid = 5;
 }
 
 
