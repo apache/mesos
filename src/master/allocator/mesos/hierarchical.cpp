@@ -133,10 +133,12 @@ private:
 
 HierarchicalAllocatorProcess::Framework::Framework(
     const FrameworkInfo& frameworkInfo,
-    const set<string>& _suppressedRoles)
+    const set<string>& _suppressedRoles,
+    bool _active)
   : roles(protobuf::framework::getRoles(frameworkInfo)),
     suppressedRoles(_suppressedRoles),
-    capabilities(frameworkInfo.capabilities()) {}
+    capabilities(frameworkInfo.capabilities()),
+    active(_active) {}
 
 
 void HierarchicalAllocatorProcess::initialize(
@@ -259,7 +261,8 @@ void HierarchicalAllocatorProcess::addFramework(
   CHECK(initialized);
   CHECK(!frameworks.contains(frameworkId));
 
-  frameworks.insert({frameworkId, Framework(frameworkInfo, suppressedRoles)});
+  frameworks.insert(
+      {frameworkId, Framework(frameworkInfo, suppressedRoles, active)});
 
   const Framework& framework = frameworks.at(frameworkId);
 
@@ -314,7 +317,7 @@ void HierarchicalAllocatorProcess::removeFramework(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
-  CHECK(frameworks.contains(frameworkId));
+  CHECK(frameworks.contains(frameworkId)) << frameworkId;
 
   const Framework& framework = frameworks.at(frameworkId);
 
@@ -362,7 +365,9 @@ void HierarchicalAllocatorProcess::activateFramework(
   CHECK(initialized);
   CHECK(frameworks.contains(frameworkId));
 
-  const Framework& framework = frameworks.at(frameworkId);
+  Framework& framework = frameworks.at(frameworkId);
+
+  framework.active = true;
 
   // Activate all roles for this framework except the roles that
   // are marked as deactivated.
@@ -387,7 +392,7 @@ void HierarchicalAllocatorProcess::deactivateFramework(
     const FrameworkID& frameworkId)
 {
   CHECK(initialized);
-  CHECK(frameworks.contains(frameworkId));
+  CHECK(frameworks.contains(frameworkId)) << frameworkId;
 
   Framework& framework = frameworks.at(frameworkId);
 
@@ -401,6 +406,8 @@ void HierarchicalAllocatorProcess::deactivateFramework(
     // of the resources that it is using. We might be able to collapse
     // the added/removed and activated/deactivated in the future.
   }
+
+  framework.active = false;
 
   // Do not delete the filters contained in this
   // framework's `offerFilters` hashset yet, see comments in
@@ -1576,6 +1583,8 @@ void HierarchicalAllocatorProcess::__allocate()
         CHECK(frameworks.contains(frameworkId));
 
         const Framework& framework = frameworks.at(frameworkId);
+        CHECK(framework.active) << frameworkId;
+
         Slave& slave = slaves.at(slaveId);
 
         // Only offer resources from slaves that have GPUs to
@@ -1954,6 +1963,16 @@ void HierarchicalAllocatorProcess::deallocate()
         foreachkey (const string& frameworkId_, allocation) {
           FrameworkID frameworkId;
           frameworkId.set_value(frameworkId_);
+
+          CHECK(frameworks.contains(frameworkId)) << frameworkId;
+
+          const Framework& framework = frameworks.at(frameworkId);
+
+          // No need to deallocate for an inactive framework as the master
+          // will not send it inverse offers.
+          if (!framework.active) {
+            continue;
+          }
 
           // If this framework doesn't already have inverse offers for the
           // specified slave.

@@ -299,9 +299,10 @@ protected:
 
   struct Framework
   {
-    explicit Framework(
+    Framework(
         const FrameworkInfo& frameworkInfo,
-        const std::set<std::string>& _suppressedRoles);
+        const std::set<std::string>& suppressedRoles,
+        bool active);
 
     std::set<std::string> roles;
 
@@ -314,6 +315,8 @@ protected:
     // were allocated to.
     hashmap<std::string, hashmap<SlaveID, hashset<OfferFilter*>>> offerFilters;
     hashmap<SlaveID, hashset<InverseOfferFilter*>> inverseOfferFilters;
+
+    bool active;
   };
 
   double _event_queue_dispatches()
