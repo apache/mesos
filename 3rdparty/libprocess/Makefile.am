@@ -348,7 +348,12 @@ libprocess_tests_SOURCES +=		\
 endif
 
 benchmarks_SOURCES =			\
-  src/tests/benchmarks.cpp
+  src/tests/benchmarks.cpp		\
+  src/tests/benchmarks.proto
+
+BENCHMARKS_PROTOS =			\
+  benchmarks.pb.cc			\
+  benchmarks.pb.h
 
 benchmarks_CPPFLAGS =			\
   -I$(srcdir)/src			\
@@ -358,6 +363,7 @@ benchmarks_CPPFLAGS =			\
 
 benchmarks_LDADD =			\
   $(LIB_GMOCK)				\
+  $(LIB_PROTOBUF)			\
   libprocess.la
 
 # Used for testing remote links.
@@ -387,10 +393,14 @@ endif
 BUILT_SOURCES =				\
   $(BUNDLED_DEPS)
 
+nodist_benchmarks_SOURCES =		\
+  $(BENCHMARKS_PROTOS)
+
 nodist_libprocess_tests_SOURCES =	\
   $(GRPC_TESTS_PROTOS)
 
 CLEANFILES =				\
+  $(BENCHMARKS_PROTOS)			\
   $(GRPC_TESTS_PROTOS)
 
 
@@ -410,7 +420,7 @@ CLEANFILES =				\
 check-local: tests
 	$(TEST_DRIVER) ./libprocess-tests
 
-tests: all $(BUNDLED_DEPS) $(GRPC_TESTS_PROTOS)
+tests: all $(BUNDLED_DEPS) $(BENCHMARKS_PROTOS) $(GRPC_TESTS_PROTOS)
 	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
 
 # TODO(benh): Fix shared builds (tests need libglog, libev, etc).
