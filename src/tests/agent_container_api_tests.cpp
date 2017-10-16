@@ -623,6 +623,43 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentContainerAPITest, NestedContainerNotFound)
 }
 
 
+// This test runs tries to launch a nested container that fails upon
+// launch (rather than validation) and expects a 400 Bad Request in response.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    AgentContainerAPITest, NestedContainerFailLaunch)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.launcher = std::get<1>(std::get<3>(GetParam()));
+  slaveFlags.isolation = std::get<0>(std::get<3>(GetParam()));
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Try<v1::ContainerID> parentContainerId =
+    launchParentContainer(master.get()->pid, slave.get()->pid);
+
+  ASSERT_SOME(parentContainerId);
+
+  // Launch a nested container that needs to fetch a URI that
+  // doesn't exist. The launch should therefore fail.
+  v1::ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  containerId.mutable_parent()->CopyFrom(parentContainerId.get());
+
+  mesos::v1::CommandInfo commandInfo;
+  commandInfo.add_uris()->set_value("This file doesn't exist");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::BadRequest().status,
+      launchNestedContainer(slave.get()->pid, containerId, commandInfo));
+}
+
+
 // This test attempts to give invalid ContainerInfo when launching a
 // nested container. The invalid nested container LAUNCH call is expected
 // to give a 400 Bad Request, but the parent container should be otherwise

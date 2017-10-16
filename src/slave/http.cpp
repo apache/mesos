@@ -2554,6 +2554,11 @@ Future<Response> Http::_launchContainer(
         return BadRequest("The provided ContainerInfo is not supported");
       }
       return OK();
+    })
+    .repair([](const Future<Response>& launch) {
+      // NOTE: Failures are automatically translated into 500 Internal Server
+      // Errors, but a launch failure is likely due to user input.
+      return BadRequest(launch.failure());
     });
 }
 
