@@ -48,7 +48,7 @@ Processes provide execution contexts (only one thread executing within
 a process at a time so no need for per process synchronization).
 
 <!---
-~~~{.cpp}
+```cpp
 using namespace process;
 
 class MyProcess : public Process<MyProcess> {};
@@ -61,7 +61,7 @@ int main(int argc, char** argv)
   wait(process);
   return 0;
 }
-~~~
+```
 ---->
 
 ### `delay`
@@ -74,7 +74,7 @@ int main(int argc, char** argv)
 `dispatch` schedules a method for asynchronous execution.
 
 <!---
-~~~{.cpp}
+```cpp
 using namespace process;
 
 class QueueProcess : public Process<QueueProcess>
@@ -98,7 +98,7 @@ int main(int argc, char** argv)
 
   ...;
 }
-~~~
+```
 ---->
 
 
@@ -122,7 +122,7 @@ As an example, consider the following function, which spawns a process
 and registers two callbacks on it, one using `defer` and another
 without it:
 
-~~~{.cpp}
+```cpp
 using namespace process;
 
 void foo()
@@ -153,18 +153,18 @@ void foo()
 
   terminate(process);
 }
-~~~
+```
 
 As another example, consider this excerpt from the Mesos project's
 `src/master/master.cpp`:
 
-~~~{.cpp}
+```cpp
 // Start contending to be a leading master and detecting the current leader.
 // NOTE: `.onAny` passes the relevant future to its callback as a parameter, and
 // `lambda::_1` facilitates this when using `defer`.
 contender->contend()
   .onAny(defer(self(), &Master::contended, lambda::_1));
-~~~
+```
 
 Why use `defer` in this context rather than just executing
 `Master::detected` synchronously? To answer this, we need to remember
@@ -188,7 +188,7 @@ some circumstances, you actually don't need to defer back to your own
 process, but you often want to defer. A good example of that is
 handling HTTP requests. Consider this example:
 
-~~~{.cpp}
+```cpp
 using namespace process;
 
 using std::string;
@@ -206,7 +206,7 @@ public:
     });
   }
 };
-~~~
+```
 
 Now, while this is totally legal and correct code, the callback
 executed after `functionWhichReturnsAFutureOfString` is completed
@@ -219,7 +219,7 @@ run this lambda using an execution context that libprocess can pick
 for us (from a pool of threads). We do so by removing `self()` as the
 first argument to `defer`:
 
-~~~{.cpp}
+```cpp
 using namespace process;
 
 using std::string;
@@ -237,7 +237,7 @@ public:
     });
   }
 };
-~~~
+```
 
 _Note that even in this example_ we still want to use `defer`! Why?
 Because otherwise we are blocking the execution context (i.e.,
@@ -251,7 +251,7 @@ define a method for our `HttpProcess` class which accepts an input
 string and returns a future via an asyncronous method called
 `asyncStoreData`:
 
-~~~{.cpp}
+```cpp
 using namespace process;
 
 using std::string;
@@ -284,7 +284,7 @@ Future<int> HttpProcess::inputHandler(const string input)
       return bytes;
     });
 }
-~~~
+```
 
 When the callback is registered on the `Future<int>` returned by
 `asyncStoreData`, a lambda is passed directly to `then`. This means
@@ -296,12 +296,12 @@ originally invoked `inputHandler` will have been destroyed, making
 `this` a dangling pointer. In order to avoid this possibility, the
 callback should be registered as follows:
 
-~~~{.cpp}
+```cpp
   return asyncStoreData(input)
     .then(defer(self(), [this](int bytes) -> Future<int> {
       ...
     }));
-~~~
+```
 
 The lambda is then guaranteed to execute within the execution context
 of the current process, and we know that `this` will still be a valid
@@ -339,7 +339,7 @@ having an actual reference (pointer) to it (necessary for remote
 processes).
 
 <!---
-~~~{.cpp}
+```cpp
 using namespace process;
 
 int main(int argc, char** argv)
@@ -356,7 +356,7 @@ int main(int argc, char** argv)
 
   return 0;
 }
-~~~
+```
 ---->
 
 ---
@@ -375,7 +375,7 @@ explain the concepts.
 First, you can construct a `Promise` of a particular type by
 doing the following:
 
-~~~{.cpp}
+```cpp
 using namespace process;
 
 int main(int argc, char** argv)
@@ -384,7 +384,7 @@ int main(int argc, char** argv)
 
   return 0;
 }
-~~~
+```
 
 A `Promise` is not copyable or assignable, in order to encourage
 strict ownership rules between processes (i.e., it's hard to
@@ -394,7 +394,7 @@ reason about multiple actors concurrently trying to complete a
 You can get a `Future` from a `Promise` using the
 `Promise::future()` method:
 
-~~~{.cpp}
+```cpp
 using namespace process;
 
 int main(int argc, char** argv)
@@ -405,14 +405,14 @@ int main(int argc, char** argv)
 
   return 0;
 }
-~~~
+```
 
 Note that the templated type of the future must be the exact
 same as the promise: you cannot create a covariant or
 contravariant future. Unlike `Promise`, a `Future` can be both
 copied and assigned:
 
-~~~{.cpp}
+```cpp
 using namespace process;
 
 int main(int argc, char** argv)
@@ -431,7 +431,7 @@ int main(int argc, char** argv)
 
   return 0;
 }
-~~~
+```
 
 The result encapsulated in the `Future`/`Promise` can be in one
 of four states: `PENDING`, `READY`, `FAILED`, `DISCARDED`. When
@@ -439,7 +439,7 @@ a `Promise` is first created the result is `PENDING`. When you
 complete a `Promise` using the `Promise::set()` method the
 result becomes `READY`:
 
-~~~{.cpp}
+```cpp
 using namespace process;
 
 int main(int argc, char** argv)
@@ -454,7 +454,7 @@ int main(int argc, char** argv)
 
   return 0;
 }
-~~~
+```
 
 > NOTE: `CHECK` is a macro from `gtest` which acts like an
 > `assert` but prints a stack trace and does better signal
@@ -478,7 +478,7 @@ TODO(benh):
 
 `Future::then` allows to invoke callbacks once a future is completed.
 
-~~~{.cpp}
+```cpp
 using namespace process;
 
 int main(int argc, char** argv)
@@ -495,7 +495,7 @@ int main(int argc, char** argv)
 
   ...;
 }
-~~~
+```
 
 
 ### `Promise`
@@ -503,7 +503,7 @@ int main(int argc, char** argv)
 A `promise` is an object that can fulfill a [futures](#future), i.e. assign a result value to it.
 
 
-~~~{.cpp}
+```cpp
 using namespace process;
 
 template <typename T>
@@ -537,7 +537,7 @@ int main(int argc, char** argv)
 
   ...;
 }
-~~~
+```
 
 
 -->
@@ -553,7 +553,7 @@ of communication.
 `route` installs an HTTP endpoint onto a process. Let's define a simple process
 that installs an endpoint upon initialization:
 
-~~~{.cpp}
+```cpp
 using namespace process;
 using namespace process::http;
 
@@ -585,7 +585,7 @@ public:
 
   Owned<HttpProcess> process;
 };
-~~~
+```
 
 Now if our program instantiates this class, we can do something like:
 `$ curl localhost:1234/testing?value=42`
@@ -601,19 +601,19 @@ according to the `--port` command-line flag.
 containing the response. We can pass it either a libprocess `UPID` or a `URL`.
 Here's an example hitting the endpoint assuming we have a `UPID` named `upid`:
 
-~~~{.cpp}
+```cpp
 Future<Response> future = get(upid, "testing");
-~~~
+```
 
 Or let's assume our serving process has been set up on a remote server and we
 want to hit its endpoint. We'll construct a `URL` for the address and then call
 `get`:
 
-~~~{.cpp}
+```cpp
 URL url = URL("http", "hostname", 1234, "/testing");
 
 Future<Response> future = get(url);
-~~~
+```
 
 ### `post` and `requestDelete`
 
@@ -626,7 +626,7 @@ A `Connection` represents a connection to an HTTP server. `connect`
 can be used to connect to a server, and returns a `Future` containing the
 `Connection`. Let's open a connection to a server and send some requests:
 
-~~~{.cpp}
+```cpp
 Future<Connection> connect = connect(url);
 
 connect.await();
@@ -640,7 +640,7 @@ request.body = "Amazing prose goes here.";
 request.keepAlive = true;
 
 Future<Response> response = connection.send(request);
-~~~
+```
 
 It's also worth noting that if multiple requests are sent in succession on a
 `Connection`, they will be automatically pipelined.
@@ -657,7 +657,7 @@ amount of system time has elapsed).
 
 To invoke a function after a certain amount of time has elapsed, use `delay`:
 
-~~~{.cpp}
+```cpp
 using namespace process;
 
 class DelayedProcess : public Process<DelayedProcess>
@@ -693,13 +693,13 @@ int main()
 
   return 0;
 }
-~~~
+```
 
 This invokes the `action` function after (at least) five seconds of time
 have elapsed. When writing unit tests for this code, blocking the test for five
 seconds is undesirable. To avoid this, we can use `Clock::advance`:
 
-~~~{.cpp}
+```cpp
 
 int main()
 {
@@ -726,7 +726,7 @@ int main()
 
   return 0;
 }
-~~~
+```
 
 
 ## <a name="miscellaneous-primitives"></a> Miscellaneous Primitives
