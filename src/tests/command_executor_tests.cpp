@@ -151,9 +151,6 @@ TEST_P(CommandExecutorTest, NoTaskKillingCapability)
 
 // This test ensures that the command executor sends TASK_KILLING
 // to frameworks that support the capability.
-// TODO(hausdorff): Enable test. The executor tests use the replicated log
-// by default. This is not currently supported on Windows, so they will all
-// fail until that changes.
 TEST_P(CommandExecutorTest, TaskKillingCapability)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
