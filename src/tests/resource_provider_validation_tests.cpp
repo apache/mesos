@@ -101,7 +101,8 @@ TEST(ResourceProviderCallValidationTest, UpdateState)
   error = call::validate(call);
   EXPECT_SOME(error);
 
-  call.mutable_update_state();
+  Call::UpdateState* updateState = call.mutable_update_state();
+  updateState->set_resource_version_uuid(UUID::random().toBytes());
 
   error = call::validate(call);
   EXPECT_NONE(error);

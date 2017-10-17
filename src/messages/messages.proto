@@ -605,6 +605,19 @@ message CheckpointResourcesMessage {
 
 
 /**
+ * Describes a resource version using a UUID. It is used to establish
+ * the relationship between an offer operation and the resources that
+ * offer operation is operating on.
+ */
+message ResourceVersionUUID {
+  // If not set, it represents resources directly from the agent (not
+  // having a backing resource provider).
+  optional ResourceProviderID resource_provider_id = 1;
+  required bytes uuid = 2;
+}
+
+
+/**
  * This message is sent by the agent to the master to inform the
  * master about the total amount of oversubscribed (allocated and
  * allocatable), or total resources. For `RESOURCE_PROVIDER` capable
@@ -639,6 +652,19 @@ message UpdateSlaveMessage {
   // Pending operations or terminal operations that have
   // unacknowledged status updates, which are known to this agent.
   optional OfferOperations offer_operations = 6;
+
+  // Used to establish the relationship between the operation and the
+  // resources that the operation is operating on. Each resource
+  // provider will keep a resource version UUID, and change it when
+  // it believes that the resources from this resource provider are
+  // out of sync from the master's view.  The master will keep track
+  // of the last known resource version UUID for each resource
+  // provider, and attach the resource version UUID in each operation
+  // it sends out. The resource provider should reject operations that
+  // have a different resource version UUID than that it maintains,
+  // because this means the operation is operating on resources that
+  // might have already been invalidated.
+  repeated ResourceVersionUUID resource_version_uuids = 7;
 }
 
 
@@ -675,6 +701,19 @@ message ApplyOfferOperationMessage {
   // independently from the framework-specified operation ID, which is
   // optional.
   required bytes operation_uuid = 3;
+
+  // Used to establish the relationship between the operation and the
+  // resources that the operation is operating on. Each resource
+  // provider will keep a resource version UUID, and change it when
+  // it believes that the resources from this resource provider are
+  // out of sync from the master's view.  The master will keep track
+  // of the last known resource version UUID for each resource
+  // provider, and attach the resource version UUID in each operation
+  // it sends out. The resource provider should reject operations that
+  // have a different resource version UUID than that it maintains,
+  // because this means the operation is operating on resources that
+  // might have already been invalidated.
+  required ResourceVersionUUID resource_version_uuid = 4;
 }
 
 

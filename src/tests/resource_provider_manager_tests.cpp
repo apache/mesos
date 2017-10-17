@@ -286,6 +286,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
     Call::UpdateState* updateState = call.mutable_update_state();
 
     updateState->mutable_resources()->CopyFrom(v1::Resources(resources));
+    updateState->set_resource_version_uuid(UUID::random().toBytes());
 
     http::Request request;
     request.method = "POST";

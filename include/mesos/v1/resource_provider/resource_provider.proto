@@ -52,6 +52,20 @@ message Event {
     // independently from the framework specified operation id, which is
     // optional.
     required bytes operation_uuid = 3;
+
+    // Used to establish the relationship between the operation and
+    // the resources that the operation is operating on. Each resource
+    // provider will keep a resource version UUID, and change it when
+    // it believes that the resources from this resource provider are
+    // out of sync from the master's view. The master will keep track
+    // of the last known resource version UUID for each resource
+    // provider, and attach the resource version UUID in each
+    // operation it sends out. The resource provider should reject
+    // operations that have a different resource version UUID than
+    // that it maintains, because this means the operation is
+    // operating on resources that might have already been
+    // invalidated.
+    required bytes resource_version_uuid = 4;
   }
 
   optional Type type = 1;
@@ -98,6 +112,20 @@ message Call {
 
     // The total resources provided by this resource provider.
     repeated Resource resources = 2;
+
+    // Used to establish the relationship between the operation and
+    // the resources that the operation is operating on. Each resource
+    // provider will keep a resource version UUID, and change it when
+    // it believes that the resources from this resource provider are
+    // out of sync from the master's view. The master will keep track
+    // of the last known resource version UUID for each resource
+    // provider, and attach the resource version UUID in each
+    // operation it sends out. The resource provider should reject
+    // operations that have a different resource version UUID than
+    // that it maintains, because this means the operation is
+    // operating on resources that might have already been
+    // invalidated.
+    required bytes resource_version_uuid = 3;
   }
 
   // Identifies who generated this call.
