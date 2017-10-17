@@ -57,6 +57,12 @@ struct SlaveState;
 class Containerizer
 {
 public:
+  enum class LaunchResult {
+    SUCCESS,
+    ALREADY_LAUNCHED,
+    NOT_SUPPORTED,
+  };
+
   // Attempts to create a containerizer as specified by 'isolation' in
   // flags.
   static Try<Containerizer*> create(
@@ -87,10 +93,7 @@ public:
   // a nested container.
   // NOTE: For nested containers, the required `directory` field of
   // the ContainerConfig will be determined by the containerizer.
-  //
-  // Returns true if launching this container is supported and it has
-  // been launched, otherwise false or a failure if something went wrong.
-  virtual process::Future<bool> launch(
+  virtual process::Future<LaunchResult> launch(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig,
       const std::map<std::string, std::string>& environment,

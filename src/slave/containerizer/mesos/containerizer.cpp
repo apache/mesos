@@ -559,7 +559,7 @@ Future<Nothing> MesosContainerizer::recover(
 }
 
 
-Future<bool> MesosContainerizer::launch(
+Future<Containerizer::LaunchResult> MesosContainerizer::launch(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig,
     const map<string, string>& environment,
@@ -1047,21 +1047,19 @@ Future<Nothing> MesosContainerizerProcess::__recover(
 // 4. Fetch any URIs.
 // 5. Signal the helper process to continue. It will first execute any
 //    preparation commands from isolators and then exec the starting command.
-Future<bool> MesosContainerizerProcess::launch(
+Future<Containerizer::LaunchResult> MesosContainerizerProcess::launch(
     const ContainerID& containerId,
     const ContainerConfig& _containerConfig,
     const map<string, string>& environment,
     const Option<std::string>& pidCheckpointPath)
 {
   if (containers_.contains(containerId)) {
-    return Failure(
-        (containerId.has_parent() ? "Nested container" : "Container") +
-        stringify(containerId) + " already started");
+    return Containerizer::LaunchResult::ALREADY_LAUNCHED;
   }
 
   if (_containerConfig.has_container_info() &&
       _containerConfig.container_info().type() != ContainerInfo::MESOS) {
-    return false;
+    return Containerizer::LaunchResult::NOT_SUPPORTED;
   }
 
   // NOTE: We make a copy of the ContainerConfig because we may need
@@ -1238,19 +1236,22 @@ Future<bool> MesosContainerizerProcess::launch(
       containerConfig.container_info().mesos().image());
 
   return container->provisioning
-    .then(defer(self(),
-                [=](const ProvisionInfo& provisionInfo) -> Future<bool> {
-      return prepare(containerId, provisionInfo)
-        .then(defer(self(), [this, containerId] () {
-          return ioSwitchboard->extractContainerIO(containerId);
-        }))
-        .then(defer(self(),
-                    &Self::_launch,
-                    containerId,
-                    lambda::_1,
-                    environment,
-                    pidCheckpointPath));
-    }));
+    .then(defer(
+        self(),
+        [=](const ProvisionInfo& provisionInfo)
+            -> Future<Containerizer::LaunchResult> {
+          return prepare(containerId, provisionInfo)
+            .then(defer(self(), [this, containerId] () {
+              return ioSwitchboard->extractContainerIO(containerId);
+            }))
+            .then(defer(
+                self(),
+                &Self::_launch,
+                containerId,
+                lambda::_1,
+                environment,
+                pidCheckpointPath));
+        }));
 }
 
 
@@ -1367,7 +1368,7 @@ Future<Nothing> MesosContainerizerProcess::fetch(
 }
 
 
-Future<bool> MesosContainerizerProcess::_launch(
+Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
     const ContainerID& containerId,
     const Option<ContainerIO>& containerIO,
     const map<string, string>& environment,
@@ -1908,7 +1909,7 @@ Future<bool> MesosContainerizerProcess::_launch(
 }
 
 
-Future<bool> MesosContainerizerProcess::isolate(
+Future<Nothing> MesosContainerizerProcess::isolate(
     const ContainerID& containerId,
     pid_t _pid)
 {
@@ -1958,11 +1959,11 @@ Future<bool> MesosContainerizerProcess::isolate(
 
   container->isolation = future;
 
-  return future.then([]() { return true; });
+  return future.then([]() { return Nothing(); });
 }
 
 
-Future<bool> MesosContainerizerProcess::exec(
+Future<Containerizer::LaunchResult> MesosContainerizerProcess::exec(
     const ContainerID& containerId,
     int_fd pipeWrite)
 {
@@ -1994,7 +1995,7 @@ Future<bool> MesosContainerizerProcess::exec(
 
   transition(containerId, RUNNING);
 
-  return true;
+  return Containerizer::LaunchResult::SUCCESS;
 }
 
 

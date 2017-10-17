@@ -2512,7 +2512,7 @@ Future<Response> Http::_launchContainer(
     containerConfig.set_directory(directory);
   }
 
-  Future<bool> launched = slave->containerizer->launch(
+  Future<Containerizer::LaunchResult> launched = slave->containerizer->launch(
       containerId,
       containerConfig,
       map<string, string>(),
@@ -2526,34 +2526,46 @@ Future<Response> Http::_launchContainer(
   //
   // TODO(bmahler): The containerizers currently require that
   // the caller calls destroy if the launch fails. See MESOS-6214.
-  launched
-    .onAny(defer(slave->self(), [=](const Future<bool>& launch) {
-      if (launch.isReady()) {
-        return;
-      }
+  launched.onAny(defer(
+      slave->self(),
+      [=](const Future<Containerizer::LaunchResult>& launchResult) {
+        if (launchResult.isReady()) {
+          return;
+        }
 
-      LOG(WARNING) << "Failed to launch container "
-                   << containerId << ": "
-                   << (launch.isFailed() ? launch.failure() : "discarded");
+        LOG(WARNING)
+          << "Failed to launch container " << containerId << ": "
+          << (launchResult.isFailed() ? launchResult.failure() : "discarded");
 
-      slave->containerizer->destroy(containerId)
-        .onAny([=](const Future<bool>& destroy) {
-          if (destroy.isReady()) {
-            return;
-          }
+        slave->containerizer->destroy(containerId)
+          .onAny([=](const Future<bool>& destroy) {
+            if (destroy.isReady()) {
+              return;
+            }
 
-          LOG(ERROR) << "Failed to destroy container "
-                     << containerId << " after launch failure: "
-                     << (destroy.isFailed() ? destroy.failure() : "discarded");
-        });
-    }));
+            LOG(ERROR)
+              << "Failed to destroy container " << containerId
+              << " after launch failure: "
+              << (destroy.isFailed() ? destroy.failure() : "discarded");
+          });
+      }));
 
   return launched
-    .then([](bool launched) -> Response {
-      if (!launched) {
-        return BadRequest("The provided ContainerInfo is not supported");
+    .then([](const Containerizer::LaunchResult launchResult) -> Response {
+      switch (launchResult) {
+        case Containerizer::LaunchResult::SUCCESS:
+          return OK();
+        case Containerizer::LaunchResult::ALREADY_LAUNCHED:
+          return Accepted();
+        case Containerizer::LaunchResult::NOT_SUPPORTED:
+          return BadRequest("The provided ContainerInfo is not supported");
+
+        // NOTE: By not setting a default we leverage the compiler
+        // errors when the enumeration is augmented to find all
+        // the cases we need to provide.
       }
-      return OK();
+
+      UNREACHABLE();
     })
     .repair([](const Future<Response>& launch) {
       // NOTE: Failures are automatically translated into 500 Internal Server

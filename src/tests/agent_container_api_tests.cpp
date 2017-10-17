@@ -774,6 +774,68 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_TRUE(checkWaitContainerResponse(waitChild, SIGKILL));
 }
 
+
+// This test runs tries to send multiple calls to launch the same container
+// The first call is expected to succeed with 200 OK, and subsequent calls
+// should return 202 Accepted.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    AgentContainerAPITest, NestedContainerIdempotentLaunch)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.launcher = std::get<1>(std::get<3>(GetParam()));
+  slaveFlags.isolation = std::get<0>(std::get<3>(GetParam()));
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Try<v1::ContainerID> parentContainerId =
+    launchParentContainer(master.get()->pid, slave.get()->pid);
+
+  ASSERT_SOME(parentContainerId);
+
+  // Launch a nested container and wait for it to finish.
+  v1::ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+  containerId.mutable_parent()->CopyFrom(parentContainerId.get());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::OK().status,
+      launchNestedContainer(slave.get()->pid, containerId));
+
+  // NOTE: There should be an even number of launch requests to guard
+  // against regression related to MESOS-6214. e.g. If a launch request
+  // detects the container is already running, the containerizer should
+  // not accidentally destroy the container.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::Accepted().status,
+      launchNestedContainer(slave.get()->pid, containerId));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::Accepted().status,
+      launchNestedContainer(slave.get()->pid, containerId));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::Accepted().status,
+      launchNestedContainer(slave.get()->pid, containerId));
+
+  Future<v1::agent::Response> wait =
+    deserialize(waitNestedContainer(slave.get()->pid, containerId));
+
+  EXPECT_TRUE(wait.isPending());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::OK().status,
+      killNestedContainer(slave.get()->pid, containerId));
+
+  AWAIT_READY(wait);
+  EXPECT_TRUE(checkWaitContainerResponse(wait, SIGKILL));
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

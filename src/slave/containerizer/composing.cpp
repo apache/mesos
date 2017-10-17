@@ -65,7 +65,7 @@ public:
   Future<Nothing> recover(
       const Option<state::SlaveState>& state);
 
-  Future<bool> launch(
+  Future<Containerizer::LaunchResult> launch(
       const ContainerID& containerId,
       const ContainerConfig& config,
       const map<string, string>& environment,
@@ -103,18 +103,18 @@ private:
       const hashset<ContainerID>& containers);
   static Future<Nothing> ___recover();
 
-  Future<bool> _launch(
+  Future<Containerizer::LaunchResult> _launch(
       const ContainerID& containerId,
       const ContainerConfig& config,
       const map<string, string>& environment,
       const Option<std::string>& pidCheckpointPath,
       vector<Containerizer*>::iterator containerizer,
-      bool launched);
+      Containerizer::LaunchResult launchResult);
 
   // Continuation for nested containers.
-  Future<bool> _launch(
+  Future<Containerizer::LaunchResult> _launch(
       const ContainerID& containerId,
-      bool launched);
+      Containerizer::LaunchResult launchResult);
 
   vector<Containerizer*> containerizers_;
 
@@ -170,7 +170,7 @@ Future<Nothing> ComposingContainerizer::recover(
 }
 
 
-Future<bool> ComposingContainerizer::launch(
+Future<Containerizer::LaunchResult> ComposingContainerizer::launch(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig,
     const map<string, string>& environment,
@@ -321,22 +321,22 @@ Future<Nothing> ComposingContainerizerProcess::___recover()
 }
 
 
-Future<bool> ComposingContainerizerProcess::_launch(
+Future<Containerizer::LaunchResult> ComposingContainerizerProcess::_launch(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig,
     const map<string, string>& environment,
     const Option<std::string>& pidCheckpointPath,
     vector<Containerizer*>::iterator containerizer,
-    bool launched)
+    Containerizer::LaunchResult launchResult)
 {
   if (!containers_.contains(containerId)) {
     // If we are here a destroy started and finished in the interim.
-    return launched;
+    return launchResult;
   }
 
   Container* container = containers_.at(containerId);
 
-  if (launched) {
+  if (launchResult == Containerizer::LaunchResult::SUCCESS) {
     // Note that we don't update the state if a destroy is in progress.
     if (container->state == LAUNCHING) {
       container->state = LAUNCHED;
@@ -349,7 +349,7 @@ Future<bool> ComposingContainerizerProcess::_launch(
 
     // Note that the return value is not impacted
     // by whether a destroy is currently in progress.
-    return true;
+    return Containerizer::LaunchResult::SUCCESS;
   }
 
   // If we are here, the launch is not supported by `containerizer`.
@@ -370,9 +370,8 @@ Future<bool> ComposingContainerizerProcess::_launch(
     containers_.erase(containerId);
     delete container;
 
-    // We return false here because none of the
-    // containerizers support the launch.
-    return false;
+    // None of the containerizers support the launch.
+    return Containerizer::LaunchResult::NOT_SUPPORTED;
   }
 
   if (container->state == DESTROYING) {
@@ -412,14 +411,14 @@ Future<bool> ComposingContainerizerProcess::_launch(
 }
 
 
-Future<bool> ComposingContainerizerProcess::launch(
+Future<Containerizer::LaunchResult> ComposingContainerizerProcess::launch(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig,
     const map<string, string>& environment,
     const Option<std::string>& pidCheckpointPath)
 {
   if (containers_.contains(containerId)) {
-    return Failure("Duplicate container found");
+    return Containerizer::LaunchResult::ALREADY_LAUNCHED;
   }
 
   Container* container = new Container();
@@ -473,18 +472,18 @@ Future<bool> ComposingContainerizerProcess::launch(
 }
 
 
-Future<bool> ComposingContainerizerProcess::_launch(
+Future<Containerizer::LaunchResult> ComposingContainerizerProcess::_launch(
     const ContainerID& containerId,
-    bool launched)
+    Containerizer::LaunchResult launchResult)
 {
   if (!containers_.contains(containerId)) {
     // If we are here a destroy started and finished in the interim.
-    return launched;
+    return launchResult;
   }
 
   Container* container = containers_.at(containerId);
 
-  if (launched) {
+  if (launchResult == Containerizer::LaunchResult::SUCCESS) {
     // Note that we don't update the state if a destroy is in progress.
     if (container->state == LAUNCHING) {
       container->state = LAUNCHED;
@@ -497,7 +496,7 @@ Future<bool> ComposingContainerizerProcess::_launch(
 
     // Note that the return value is not impacted
     // by whether a destroy is currently in progress.
-    return true;
+    return Containerizer::LaunchResult::SUCCESS;
   }
 
   // If we are here, the launch is not supported by the containerizer.
@@ -512,8 +511,7 @@ Future<bool> ComposingContainerizerProcess::_launch(
   containers_.erase(containerId);
   delete container;
 
-  // We return false here because the launch is not supported.
-  return false;
+  return Containerizer::LaunchResult::NOT_SUPPORTED;
 }
 
 

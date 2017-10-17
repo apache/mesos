@@ -78,7 +78,7 @@ public:
   virtual process::Future<Nothing> recover(
       const Option<state::SlaveState>& state);
 
-  virtual process::Future<bool> launch(
+  virtual process::Future<Containerizer::LaunchResult> launch(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig,
       const std::map<std::string, std::string>& environment,
@@ -143,7 +143,7 @@ public:
   virtual process::Future<Nothing> recover(
       const Option<state::SlaveState>& state);
 
-  virtual process::Future<bool> launch(
+  virtual process::Future<Containerizer::LaunchResult> launch(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig,
       const std::map<std::string, std::string>& environment,
@@ -165,7 +165,7 @@ public:
   virtual process::Future<Option<mesos::slave::ContainerTermination>> wait(
       const ContainerID& containerId);
 
-  virtual process::Future<bool> exec(
+  virtual process::Future<Containerizer::LaunchResult> exec(
       const ContainerID& containerId,
       int_fd pipeWrite);
 
@@ -217,13 +217,13 @@ private:
   process::Future<Nothing> fetch(
       const ContainerID& containerId);
 
-  process::Future<bool> _launch(
+  process::Future<Containerizer::LaunchResult> _launch(
       const ContainerID& containerId,
       const Option<mesos::slave::ContainerIO>& containerIO,
       const std::map<std::string, std::string>& environment,
       const Option<std::string>& pidCheckpointPath);
 
-  process::Future<bool> isolate(
+  process::Future<Nothing> isolate(
       const ContainerID& containerId,
       pid_t _pid);
 
