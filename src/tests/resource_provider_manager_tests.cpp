@@ -369,10 +369,18 @@ TEST_F(ResourceProviderRegistrarTest, AgentRegistrar)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
 
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
+
+  // The agent will send `UpdateSlaveMessage` after it has created its
+  // meta directories. Await the message to make sure the agent
+  // registrar can create its store in the meta hierarchy.
+  AWAIT_READY(updateSlaveMessage);
 
   Try<Owned<Registrar>> registrar =
     Registrar::create(flags, slaveRegisteredMessage->slave_id());
