@@ -58,6 +58,7 @@ using namespace process;
 
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::executorEnvironment;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::FetcherProcess;
@@ -129,7 +130,7 @@ TEST_F(MesosContainerizerTest, Launch)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -138,7 +139,7 @@ TEST_F(MesosContainerizerTest, Launch)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
@@ -174,7 +175,7 @@ TEST_F(MesosContainerizerTest, StandaloneLaunch)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           createCommandInfo("exit 42"),
@@ -183,7 +184,7 @@ TEST_F(MesosContainerizerTest, StandaloneLaunch)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
@@ -222,7 +223,7 @@ TEST_F(MesosContainerizerTest, Destroy)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -231,7 +232,7 @@ TEST_F(MesosContainerizerTest, Destroy)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
@@ -274,7 +275,7 @@ TEST_F(MesosContainerizerTest, StatusWithContainerID)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -283,7 +284,7 @@ TEST_F(MesosContainerizerTest, StatusWithContainerID)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<ContainerStatus> status = containerizer->status(containerId);
   AWAIT_READY(status);
@@ -374,7 +375,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -384,7 +385,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
       None());
 
   // Wait until the launch completes.
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Wait for the child (preparation script + executor) to complete.
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
@@ -421,7 +422,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -431,7 +432,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
       None());
 
   // Wait until the launch completes.
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Wait for the child (preparation script + executor) to complete.
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
@@ -480,7 +481,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -490,7 +491,7 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
       None());
 
   // Wait until the launch completes.
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Wait for the child (preparation script(s) + executor) to complete.
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
@@ -559,14 +560,14 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
       None(),
       false);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executorInfo, sandbox.get()),
       environment,
       None());
 
   // Wait until the launch completes.
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Wait for the child (preparation script + executor) to complete.
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
@@ -620,7 +621,7 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
   string command =
     "(echo '" + errMsg + "' 1>&2) && echo '" + outMsg + "'";
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -630,7 +631,7 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
       None());
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Wait on the container.
   Future<Option<ContainerTermination>> wait =
@@ -677,14 +678,14 @@ TEST_F(MesosContainerizerExecuteTest, ROOT_SandboxFileOwnership)
   ExecutorInfo executor = createExecutorInfo("executor", "exit 0");
   executor.mutable_command()->set_user(user);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, sandbox.get()),
       map<string, string>(),
       None());
 
   // Wait for the launch to complete.
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Result<uid_t> uid = os::getuid(user);
   ASSERT_SOME(uid);
@@ -965,7 +966,7 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
   ExecutorInfo executorInfo = createExecutorInfo("executor", "exit 0");
   executorInfo.mutable_container()->CopyFrom(containerInfo);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(taskInfo, executorInfo, sandbox.get()),
       map<string, string>(),
@@ -1049,7 +1050,7 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
   ExecutorInfo executorInfo = createExecutorInfo("executor", "exit 0");
   executorInfo.mutable_container()->CopyFrom(containerInfo);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(taskInfo, executorInfo, sandbox.get()),
       map<string, string>(),
@@ -1140,7 +1141,7 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
   ExecutorInfo executorInfo = createExecutorInfo("executor", "exit 0");
   executorInfo.mutable_container()->CopyFrom(containerInfo);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(taskInfo, executorInfo, sandbox.get()),
       map<string, string>(),
@@ -1218,7 +1219,7 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
     .WillOnce(DoAll(InvokeDestroyAndWait(testLauncher),
                     Return(Failure("Destroy failure"))));
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           taskInfo,
@@ -1227,7 +1228,7 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
       map<string, string>(),
       None());
 
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 

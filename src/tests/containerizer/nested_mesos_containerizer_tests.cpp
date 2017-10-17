@@ -47,6 +47,7 @@
 #include "tests/environment.hpp"
 #include "tests/mesos.hpp"
 
+using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 
@@ -195,7 +196,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNested)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -204,7 +205,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNested)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Now launch nested container.
   ContainerID nestedContainerId;
@@ -217,7 +218,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNested)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(
       nestedContainerId);
@@ -278,7 +279,7 @@ TEST_F(NestedMesosContainerizerTest,
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
@@ -289,7 +290,7 @@ TEST_F(NestedMesosContainerizerTest,
           executor.executor_id(),
           containerId));
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<ContainerStatus> status = containerizer->status(containerId);
   AWAIT_READY(status);
@@ -304,7 +305,7 @@ TEST_F(NestedMesosContainerizerTest,
     nestedContainerId.mutable_parent()->CopyFrom(containerId);
     nestedContainerId.set_value(UUID::random().toString());
 
-    Future<bool> launchNested = containerizer->launch(
+    Future<Containerizer::LaunchResult> launchNested = containerizer->launch(
         nestedContainerId,
         createContainerConfig(
             createCommandInfo("exit $" + envKey),
@@ -313,7 +314,7 @@ TEST_F(NestedMesosContainerizerTest,
         map<string, string>(),
         None());
 
-    AWAIT_ASSERT_TRUE(launchNested);
+    AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launchNested);
 
     Future<Option<ContainerTermination>> waitNested = containerizer->wait(
         nestedContainerId);
@@ -338,7 +339,7 @@ TEST_F(NestedMesosContainerizerTest,
     nestedContainerId.mutable_parent()->CopyFrom(containerId);
     nestedContainerId.set_value(UUID::random().toString());
 
-    Future<bool> launchNested = containerizer->launch(
+    Future<Containerizer::LaunchResult> launchNested = containerizer->launch(
         nestedContainerId,
         createContainerConfig(
             nestedCommand,
@@ -347,7 +348,7 @@ TEST_F(NestedMesosContainerizerTest,
         map<string, string>(),
         None());
 
-    AWAIT_ASSERT_TRUE(launchNested);
+    AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launchNested);
 
     Future<Option<ContainerTermination>> waitNested = containerizer->wait(
         nestedContainerId);
@@ -389,7 +390,7 @@ TEST_F(NestedMesosContainerizerTest,
     nestedContainerId.mutable_parent()->CopyFrom(containerId);
     nestedContainerId.set_value(UUID::random().toString());
 
-    Future<bool> launchNested = containerizer->launch(
+    Future<Containerizer::LaunchResult> launchNested = containerizer->launch(
         nestedContainerId,
         createContainerConfig(
             createCommandInfo("exit $" + envKey),
@@ -398,7 +399,7 @@ TEST_F(NestedMesosContainerizerTest,
         map<string, string>(),
         None());
 
-    AWAIT_ASSERT_TRUE(launchNested);
+    AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launchNested);
 
     Future<Option<ContainerTermination>> waitNested = containerizer->wait(
         nestedContainerId);
@@ -472,7 +473,7 @@ TEST_F(NestedMesosContainerizerTest,
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -481,7 +482,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Wait for the parent container to start running its task
   // before launching a debug container inside it.
@@ -508,7 +509,7 @@ TEST_F(NestedMesosContainerizerTest,
         "read PARENT_SANDBOX <&" + stringify(pipes[0]) + ";"
         "[ ${PARENT_SANDBOX} == ${MESOS_SANDBOX} ] && exit 0 || exit 1;");
 
-    Future<bool> launchNested = containerizer->launch(
+    Future<Containerizer::LaunchResult> launchNested = containerizer->launch(
         nestedContainerId,
         createContainerConfig(
             nestedCommand,
@@ -517,7 +518,7 @@ TEST_F(NestedMesosContainerizerTest,
         map<string, string>(),
         None());
 
-    AWAIT_ASSERT_TRUE(launchNested);
+    AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launchNested);
 
     Future<Option<ContainerTermination>> waitNested = containerizer->wait(
         nestedContainerId);
@@ -596,7 +597,7 @@ TEST_F(NestedMesosContainerizerTest,
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -610,7 +611,7 @@ TEST_F(NestedMesosContainerizerTest,
           executor.executor_id(),
           containerId));
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Wait for the parent container to start running its task
   // before launching a debug container inside it.
@@ -630,7 +631,7 @@ TEST_F(NestedMesosContainerizerTest,
     nestedContainerId.mutable_parent()->CopyFrom(containerId);
     nestedContainerId.set_value(UUID::random().toString());
 
-    Future<bool> launchNested = containerizer->launch(
+    Future<Containerizer::LaunchResult> launchNested = containerizer->launch(
         nestedContainerId,
         createContainerConfig(
             createCommandInfo("ls " + filename),
@@ -639,7 +640,7 @@ TEST_F(NestedMesosContainerizerTest,
         map<string, string>(),
         None());
 
-    AWAIT_ASSERT_TRUE(launchNested);
+    AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launchNested);
 
     Future<Option<ContainerTermination>> waitNested = containerizer->wait(
         nestedContainerId);
@@ -680,7 +681,7 @@ TEST_F(NestedMesosContainerizerTest,
     nestedContainerId.mutable_parent()->CopyFrom(containerId);
     nestedContainerId.set_value(UUID::random().toString());
 
-    Future<bool> launchNested = containerizer->launch(
+    Future<Containerizer::LaunchResult> launchNested = containerizer->launch(
         nestedContainerId,
         createContainerConfig(
             createCommandInfo("ls " + filename),
@@ -689,7 +690,7 @@ TEST_F(NestedMesosContainerizerTest,
         map<string, string>(),
         None());
 
-    AWAIT_ASSERT_TRUE(launchNested);
+    AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launchNested);
 
     Future<Option<ContainerTermination>> waitNested = containerizer->wait(
         nestedContainerId);
@@ -741,7 +742,7 @@ TEST_F(NestedMesosContainerizerTest,
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -750,7 +751,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Now launch nested container.
   ContainerID nestedContainerId;
@@ -779,7 +780,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(
       nestedContainerId);
@@ -807,7 +808,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   wait = containerizer->wait(nestedContainerId);
 
@@ -860,7 +861,7 @@ TEST_F(NestedMesosContainerizerTest,
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -872,7 +873,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Launch the first nested container which will share pid namespace
   // with the parent container.
@@ -892,7 +893,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(
       nestedContainerId1);
@@ -917,7 +918,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   wait = containerizer->wait(nestedContainerId2);
 
@@ -1066,7 +1067,7 @@ TEST_F(NestedMesosContainerizerTest,
   // Launch a debug container inside the command task and check for
   // the existence of a file we know to be inside the `alpine` docker
   // image (but not on the host filesystem).
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       nestedContainerId,
       createContainerConfig(
           createCommandInfo(
@@ -1079,7 +1080,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait =
     containerizer->wait(nestedContainerId);
@@ -1128,7 +1129,7 @@ TEST_F(NestedMesosContainerizerTest,
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
@@ -1139,7 +1140,7 @@ TEST_F(NestedMesosContainerizerTest,
           executor.executor_id(),
           containerId));
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<ContainerStatus> status = containerizer->status(containerId);
   AWAIT_READY(status);
@@ -1161,7 +1162,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   status = containerizer->status(nestedContainerId);
   AWAIT_READY(status);
@@ -1241,7 +1242,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyNested)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -1250,7 +1251,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyNested)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Now launch nested container.
   ContainerID nestedContainerId;
@@ -1263,7 +1264,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyNested)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> nestedWait = containerizer->wait(
       nestedContainerId);
@@ -1318,7 +1319,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyParent)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -1327,7 +1328,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyParent)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Now launch nested container.
   ContainerID nestedContainerId;
@@ -1340,7 +1341,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_DestroyParent)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
@@ -1411,7 +1412,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentExit)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
@@ -1419,7 +1420,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentExit)
 
   close(pipes[0]); // We're never going to read.
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Now launch nested container.
   ContainerID nestedContainerId;
@@ -1432,7 +1433,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentExit)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
@@ -1507,13 +1508,13 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentSigterm)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   close(pipes[1]);
 
@@ -1528,7 +1529,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentSigterm)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
@@ -1597,7 +1598,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNested)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
@@ -1608,7 +1609,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNested)
           executor.executor_id(),
           containerId));
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<ContainerStatus> status = containerizer->status(containerId);
   AWAIT_READY(status);
@@ -1627,7 +1628,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNested)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   status = containerizer->status(nestedContainerId);
   AWAIT_READY(status);
@@ -1778,7 +1779,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNestedLauncherOrphans)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
@@ -1789,7 +1790,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNestedLauncherOrphans)
           executor.executor_id(),
           containerId));
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<ContainerStatus> status = containerizer->status(containerId);
   AWAIT_READY(status);
@@ -1973,7 +1974,7 @@ TEST_F(NestedMesosContainerizerTest,
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
@@ -1984,7 +1985,7 @@ TEST_F(NestedMesosContainerizerTest,
           executor.executor_id(),
           containerId));
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<ContainerStatus> status = containerizer->status(containerId);
   AWAIT_READY(status);
@@ -2113,7 +2114,7 @@ TEST_F(NestedMesosContainerizerTest,
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory.get()),
       map<string, string>(),
@@ -2124,7 +2125,7 @@ TEST_F(NestedMesosContainerizerTest,
           executor.executor_id(),
           containerId));
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<ContainerStatus> status = containerizer->status(containerId);
   AWAIT_READY(status);
@@ -2143,7 +2144,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   status = containerizer->status(nestedContainerId1);
   AWAIT_READY(status);
@@ -2356,7 +2357,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_AgentEnvironmentNotLeaked)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -2365,7 +2366,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_AgentEnvironmentNotLeaked)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Now launch nested container.
   ContainerID nestedContainerId;
@@ -2395,7 +2396,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_AgentEnvironmentNotLeaked)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(
       nestedContainerId);
@@ -2444,7 +2445,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_Remove)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -2453,7 +2454,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_Remove)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Now launch nested container.
   ContainerID nestedContainerId;
@@ -2466,7 +2467,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_Remove)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait =
     containerizer->wait(nestedContainerId);
@@ -2533,7 +2534,7 @@ TEST_F(NestedMesosContainerizerTest,
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(
           None(),
@@ -2542,7 +2543,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Now launch nested container.
   ContainerID nestedContainerId;
@@ -2555,7 +2556,7 @@ TEST_F(NestedMesosContainerizerTest,
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait =
     containerizer->wait(nestedContainerId);

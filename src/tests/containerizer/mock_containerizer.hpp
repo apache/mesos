@@ -48,7 +48,7 @@ public:
 
   MOCK_METHOD4(
       launch,
-      process::Future<bool>(
+      process::Future<slave::Containerizer::LaunchResult>(
           const ContainerID&,
           const mesos::slave::ContainerConfig&,
           const std::map<std::string, std::string>&,

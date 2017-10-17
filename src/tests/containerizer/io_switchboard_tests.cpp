@@ -63,6 +63,7 @@ namespace paths = mesos::internal::slave::containerizer::paths;
 using mesos::agent::Call;
 using mesos::agent::ProcessIO;
 
+using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::IOSwitchboardServer;
 using mesos::internal::slave::MesosContainerizer;
@@ -742,13 +743,13 @@ TEST_F(IOSwitchboardTest, ContainerAttach)
   executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
   executorInfo.mutable_container()->mutable_tty_info();
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executorInfo, directory.get()),
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<http::Connection> connection = containerizer->attach(containerId);
   AWAIT_READY(connection);
@@ -807,13 +808,13 @@ TEST_F(IOSwitchboardTest, OutputRedirectionWithTTY)
   executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
   executorInfo.mutable_container()->mutable_tty_info();
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executorInfo, directory.get()),
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
@@ -861,13 +862,13 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
       "sleep 1000",
       "cpus:1");
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executorInfo, directory.get()),
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   ContainerID childContainerId;
   childContainerId.mutable_parent()->CopyFrom(containerId);
@@ -882,7 +883,7 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
       map<string, string>(),
       None());
 
-  AWAIT_ASSERT_TRUE(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Result<pid_t> pid = paths::getContainerIOSwitchboardPid(
         flags.runtime_dir, childContainerId);

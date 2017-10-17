@@ -86,7 +86,7 @@ public:
     return Nothing();
   }
 
-  Future<bool> launch(
+  Future<slave::Containerizer::LaunchResult> launch(
       const ContainerID& containerId,
       const ContainerConfig& containerConfig,
       const map<string, string>& environment,
@@ -110,7 +110,7 @@ public:
     if (containerId.has_parent()) {
       // Launching a nested container via the test containerizer is a
       // no-op for now.
-      return true;
+      return slave::Containerizer::LaunchResult::SUCCESS;
     }
 
     CHECK(executors.contains(containerConfig.executor_info().executor_id()))
@@ -196,7 +196,7 @@ public:
       }
     }
 
-    return true;
+    return slave::Containerizer::LaunchResult::SUCCESS;
   }
 
   Future<Nothing> update(
@@ -450,7 +450,7 @@ Future<Nothing> TestContainerizer::_recover(
 }
 
 
-Future<bool> TestContainerizer::_launch(
+Future<slave::Containerizer::LaunchResult> TestContainerizer::_launch(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig,
     const map<string, string>& environment,

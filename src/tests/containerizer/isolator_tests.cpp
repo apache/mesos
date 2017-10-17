@@ -47,6 +47,7 @@ using std::string;
 using process::Future;
 using process::Owned;
 
+using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 
@@ -121,17 +122,17 @@ TEST_F(NamespacesIsolatorTest, ROOT_PidNamespace)
   const string command =
     "stat -Lc %i /proc/self/ns/pid > ns && (cat /proc/1/comm > init)";
 
-  process::Future<bool> launch = containerizer.get()->launch(
-      containerId,
-      createContainerConfig(
-          None(),
-          createExecutorInfo("executor", command),
-          directory),
-      std::map<string, string>(),
-      None());
+  process::Future<Containerizer::LaunchResult> launch =
+    containerizer.get()->launch(
+        containerId,
+        createContainerConfig(
+            None(),
+            createExecutorInfo("executor", command),
+            directory),
+        std::map<string, string>(),
+        None());
 
-  AWAIT_READY(launch);
-  ASSERT_TRUE(launch.get());
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Wait on the container.
   Future<Option<ContainerTermination>> wait =
@@ -189,14 +190,14 @@ TEST_F(NamespacesIsolatorTest, ROOT_SharePidNamespace)
   container->set_type(ContainerInfo::MESOS);
   container->mutable_linux_info()->set_share_pid_namespace(true);
 
-  process::Future<bool> launch = containerizer.get()->launch(
-      containerId,
-      containerConfig,
-      std::map<string, string>(),
-      None());
+  process::Future<Containerizer::LaunchResult> launch =
+    containerizer.get()->launch(
+        containerId,
+        containerConfig,
+        std::map<string, string>(),
+        None());
 
-  AWAIT_READY(launch);
-  ASSERT_TRUE(launch.get());
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Wait on the container.
   Future<Option<ContainerTermination>> wait =
@@ -242,11 +243,12 @@ TEST_F(NamespacesIsolatorTest, ROOT_SharePidNamespaceWhenDisallow)
   container->set_type(ContainerInfo::MESOS);
   container->mutable_linux_info()->set_share_pid_namespace(true);
 
-  process::Future<bool> launch = containerizer.get()->launch(
-      containerId,
-      containerConfig,
-      std::map<string, string>(),
-      None());
+  process::Future<Containerizer::LaunchResult> launch =
+    containerizer.get()->launch(
+        containerId,
+        containerConfig,
+        std::map<string, string>(),
+        None());
 
   AWAIT_FAILED(launch);
 }
@@ -276,17 +278,17 @@ TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespace)
     "echo " + stringify(shmmaxValue) + " > /proc/sys/kernel/shmmax;"
     "cp /proc/sys/kernel/shmmax shmmax";
 
-  process::Future<bool> launch = containerizer.get()->launch(
-      containerId,
-      createContainerConfig(
-          None(),
-          createExecutorInfo("executor", command),
-          directory),
-      std::map<string, string>(),
-      None());
+  process::Future<Containerizer::LaunchResult> launch =
+    containerizer.get()->launch(
+        containerId,
+        createContainerConfig(
+            None(),
+            createExecutorInfo("executor", command),
+            directory),
+        std::map<string, string>(),
+        None());
 
-  AWAIT_READY(launch);
-  ASSERT_TRUE(launch.get());
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Wait on the container.
   Future<Option<ContainerTermination>> wait =

@@ -86,7 +86,7 @@ public:
 
   MOCK_METHOD4(
       launch,
-      process::Future<bool>(
+      process::Future<slave::Containerizer::LaunchResult>(
           const ContainerID&,
           const mesos::slave::ContainerConfig&,
           const std::map<std::string, std::string>&,
@@ -138,7 +138,7 @@ private:
   process::Future<Nothing> _recover(
       const Option<slave::state::SlaveState>& state);
 
-  process::Future<bool> _launch(
+  process::Future<slave::Containerizer::LaunchResult> _launch(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig,
       const std::map<std::string, std::string>& environment,

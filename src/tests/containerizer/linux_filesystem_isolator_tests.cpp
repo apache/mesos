@@ -106,13 +106,13 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
   string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory),
       map<string, string>(),
       None());
 
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
@@ -158,13 +158,13 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
   string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory),
       map<string, string>(),
       None());
 
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   JSON::Object stats = Metrics();
   EXPECT_EQ(1u, stats.values.count(
@@ -231,13 +231,13 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
   string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory),
       map<string, string>(),
       None());
 
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
@@ -307,13 +307,13 @@ TEST_F(LinuxFilesystemIsolatorTest,
   string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory),
       map<string, string>(),
       None());
 
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
@@ -372,13 +372,13 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
   string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory),
       map<string, string>(),
       None());
 
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
@@ -444,13 +444,13 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
   string directory1 = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory1));
 
-  Future<bool> launch1 = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch1 = containerizer->launch(
       containerId1,
       createContainerConfig(None(), executor1, directory1),
       map<string, string>(),
       None());
 
-  AWAIT_READY(launch1);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch1);
 
   ExecutorInfo executor2 = createExecutorInfo(
       "test_executor2",
@@ -461,13 +461,13 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
   string directory2 = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory2));
 
-  Future<bool> launch2 = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch2 = containerizer->launch(
       containerId2,
       createContainerConfig(None(), executor2, directory2),
       map<string, string>(),
       None());
 
-  AWAIT_READY(launch1);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch1);
 
   // Wait on the containers.
   Future<Option<ContainerTermination>> wait1 =
@@ -616,13 +616,13 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeMountPointCleanup)
   string directory = path::join(flags.work_dir, "sandbox");
   ASSERT_SOME(os::mkdir(directory));
 
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(None(), executor, directory),
       map<string, string>(),
       None());
 
-  AWAIT_READY(launch);
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   ASSERT_SOME(os::touch(path::join(directory, "volume", "abc")));
 

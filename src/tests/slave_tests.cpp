@@ -968,18 +968,17 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
 
   SlaveID slaveID;
   slaveID.set_value(UUID::random().toString());
-  Future<bool> launch = containerizer->launch(
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(task, executor, sandbox.get(), "nobody"),
       map<string, string>(),
       None());
-  AWAIT_READY(launch);
 
   // TODO(spikecurtis): With agent capabilities (MESOS-3362), the
   // Containerizer should fail this request since none of the listed
   // isolators can handle NetworkInfo, which implies
   // IP-per-container.
-  EXPECT_TRUE(launch.get());
+  AWAIT_EXPECT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
   // Wait for the container to terminate before shutting down.
   AWAIT_READY(containerizer->wait(containerId));
@@ -7228,7 +7227,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, DefaultExecutorCommandInfo)
   Future<ContainerConfig> containerConfig;
   EXPECT_CALL(containerizer, launch(_, _, _, _))
     .WillOnce(DoAll(FutureArg<1>(&containerConfig),
-                    Return(Future<bool>())));
+                    Return(Future<Containerizer::LaunchResult>())));
 
   const v1::Offer& offer = offers->offers(0);
   const SlaveID slaveId = devolve(offer.agent_id());

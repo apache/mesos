@@ -4587,7 +4587,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   Future<Nothing> launch;
   EXPECT_CALL(containerizer1, launch(_, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&launch),
-                    Return(Future<bool>())));
+                    Return(Future<Containerizer::LaunchResult>())));
 
   // No status update should be sent for now.
   EXPECT_CALL(sched, statusUpdate(_, _))
