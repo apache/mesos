@@ -1784,21 +1784,25 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
       break;
     }
 
-    case Offer::Operation::CREATE_VOLUME:
-      // TODO(nfnt): Implement this.
+    case Offer::Operation::CREATE_VOLUME: {
+      // CreateVolume operation does not alter the offered resources.
       break;
+    }
 
-    case Offer::Operation::DESTROY_VOLUME:
-      // TODO(nfnt): Implement this.
+    case Offer::Operation::DESTROY_VOLUME: {
+      // DestroyVolume operation does not alter the offered resources.
       break;
+    }
 
-    case Offer::Operation::CREATE_BLOCK:
-      // TODO(nfnt): Implement this.
+    case Offer::Operation::CREATE_BLOCK: {
+      // CreateBlock operation does not alter the offered resources.
       break;
+    }
 
-    case Offer::Operation::DESTROY_BLOCK:
-      // TODO(nfnt): Implement this.
+    case Offer::Operation::DESTROY_BLOCK: {
+      // DestroyBlock operation does not alter the offered resources.
       break;
+    }
 
     case Offer::Operation::UNKNOWN:
       return Error("Unknown offer operation");
