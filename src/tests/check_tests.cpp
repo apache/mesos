@@ -2832,7 +2832,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, TCPCheckDelivered)
   // Acknowledge (to be able to get the next update).
   acknowledge(&mesos, frameworkId, taskStarting);
 
-
   AWAIT_READY(updateTaskRunning);
   const v1::TaskStatus& taskRunning = updateTaskRunning->status();
 

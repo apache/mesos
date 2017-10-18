@@ -6866,12 +6866,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_CALL(*scheduler, update(_, _))
     .WillOnce(
       DoAll(
-        FutureArg<1>(&updateStarting),
-        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+          FutureArg<1>(&updateStarting),
+          v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(
       DoAll(
-        FutureArg<1>(&updateRunning),
-        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+          FutureArg<1>(&updateRunning),
+          v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   v1::Resources resources =

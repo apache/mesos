@@ -2357,8 +2357,8 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
   Future<mesos::v1::scheduler::Event::Update> updateRunning1;
   EXPECT_CALL(*scheduler, update(_, _))
     .WillOnce(DoAll(
-      FutureArg<1>(&updateRunning1),
-      v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+        FutureArg<1>(&updateRunning1),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
 
   EXPECT_CALL(executor1, registered(_, _, _, _));
   EXPECT_CALL(executor2, registered(_, _, _, _));

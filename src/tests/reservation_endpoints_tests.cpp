@@ -409,8 +409,8 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   TaskInfo taskInfo = createTask(offer.slave_id(), available, "sleep 1000");
 
   // Expect a TASK_STARTING and a TASK_RUNNING status.
-  EXPECT_CALL(sched, statusUpdate(_, _)).
-    WillRepeatedly(Return());
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillRepeatedly(Return());
 
   Future<Nothing> _statusUpdateAcknowledgement1 =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);

@@ -180,8 +180,8 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   Future<v1::scheduler::Event::Update> runningUpdate;
   EXPECT_CALL(*scheduler, update(_, _))
     .WillOnce(DoAll(
-      FutureArg<1>(&startingUpdate),
-      v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+        FutureArg<1>(&startingUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(FutureArg<1>(&runningUpdate))
     .WillRepeatedly(Return());
 
@@ -1233,13 +1233,12 @@ TEST_P(DefaultExecutorTest, SigkillExecutor)
   Future<v1::scheduler::Event::Update> runningUpdate;
   EXPECT_CALL(*scheduler, update(_, _))
     .WillOnce(DoAll(
-      FutureArg<1>(&startingUpdate),
-      v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+        FutureArg<1>(&startingUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(DoAll(
-      FutureArg<1>(&runningUpdate),
-      v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+        FutureArg<1>(&runningUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillRepeatedly(Return());
-
 
   v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
       executorInfo,

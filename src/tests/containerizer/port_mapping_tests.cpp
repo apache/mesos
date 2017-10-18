@@ -2326,7 +2326,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
   driver.launchTasks(offers.get()[0].id(), {task1, task2});
 
   // Only check the first and the last status, as the other two might
-  // be interleaved between TASK_STARTING and TASK_RUNNING
+  // be interleaved between TASK_STARTING and TASK_RUNNING.
   AWAIT_READY(status1);
   ASSERT_EQ(TASK_STARTING, status1->state());
 

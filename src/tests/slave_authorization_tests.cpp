@@ -640,7 +640,7 @@ TYPED_TEST(SlaveAuthorizerTest, AuthorizeRunTaskOnAgent)
       {offer.id()},
       {LAUNCH({task1, task2})});
 
-  // Wait for TASK_FAILED for 1st task, and TASK_STARTING followed by
+  // Wait for TASK_ERROR for 1st task, and TASK_STARTING followed by
   // TASK_RUNNING for 2nd task.
   AWAIT_READY(status0);
   AWAIT_READY(status1);
@@ -648,7 +648,7 @@ TYPED_TEST(SlaveAuthorizerTest, AuthorizeRunTaskOnAgent)
 
   // Validate both the statuses. Note that the order of receiving the
   // status updates for the 2 tasks is not deterministic, but we know
-  // that task2's  TASK_RUNNING ARRIVES after TASK_STARTING.
+  // that task2's TASK_RUNNING arrives after TASK_STARTING.
   hashmap<TaskID, TaskStatus> statuses;
   statuses[status0->task_id()] = status0.get();
   statuses[status1->task_id()] = status1.get();
