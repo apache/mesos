@@ -275,3 +275,14 @@ img {
 .share {
   display: block;
 }
+
+*:hover > .anchorjs-link {
+  text-decoration: none;
+  color: black;
+  font-size: 0.8em;
+}
+
+.anchorjs-link {
+  color: black;
+  font-size: 0.8em;
+}
