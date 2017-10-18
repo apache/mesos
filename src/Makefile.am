@@ -1752,14 +1752,14 @@ nobase_dist_pkgdata_DATA +=						\
 
 # Need to distribute/install third-party javascript.
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/js/angular-1.2.3.js				\
-  webui/master/static/js/angular-1.2.3.min.js				\
-  webui/master/static/js/angular-route-1.2.3.js				\
-  webui/master/static/js/angular-route-1.2.3.min.js			\
+  webui/master/static/js/angular-1.2.32.js				\
+  webui/master/static/js/angular-1.2.32.min.js				\
+  webui/master/static/js/angular-route-1.2.32.js			\
+  webui/master/static/js/angular-route-1.2.32.min.js			\
   webui/master/static/js/clipboard-1.5.16.js				\
   webui/master/static/js/clipboard-1.5.16.min.js			\
-  webui/master/static/js/jquery-1.7.1.js				\
-  webui/master/static/js/jquery-1.7.1.min.js				\
+  webui/master/static/js/jquery-3.2.1.js				\
+  webui/master/static/js/jquery-3.2.1.min.js				\
   webui/master/static/js/relative-date.js				\
   webui/master/static/js/ui-bootstrap-tpls-0.9.0.js			\
   webui/master/static/js/ui-bootstrap-tpls-0.9.0.min.js			\
