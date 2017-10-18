@@ -5669,7 +5669,8 @@ TEST_F(SlaveTest, ExecutorShutdownGracePeriod)
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
 
   driver.start();
 
