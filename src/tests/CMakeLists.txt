@@ -157,6 +157,7 @@ if (NOT WIN32)
     logging_tests.cpp
     master_allocator_tests.cpp
     master_authorization_tests.cpp
+    master_benchmarks.cpp
     master_contender_detector_tests.cpp
     master_quota_tests.cpp
     master_tests.cpp
