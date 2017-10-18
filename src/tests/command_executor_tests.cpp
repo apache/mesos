@@ -125,11 +125,16 @@ TEST_P(CommandExecutorTest, NoTaskKillingCapability)
       offers->front().resources(),
       SLEEP_COMMAND(1000));
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offers->front().id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -193,11 +198,16 @@ TEST_P(CommandExecutorTest, TaskKillingCapability)
       offers->front().resources(),
        SLEEP_COMMAND(1000));
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offers->front().id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -296,18 +306,23 @@ TEST_P(CommandExecutorTest, NoTransitionFromKillingToRunning)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusHealthy;
   Future<TaskStatus> statusKilling;
   Future<TaskStatus> statusKilled;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusHealthy))
     .WillOnce(FutureArg<1>(&statusKilling))
     .WillOnce(FutureArg<1>(&statusKilled));
 
   driver.launchTasks(offers->front().id(), tasks);
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -385,10 +400,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HTTPCommandExecutorTest, TerminateWithACK)
       offers->front().resources(),
       "sleep 1");
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
 
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
@@ -398,7 +415,11 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HTTPCommandExecutorTest, TerminateWithACK)
 
   driver.launchTasks(offers->front().id(), {task});
 
-  // Scheduler should first receive TASK_RUNNING followed by TASK_FINISHED.
+  // Scheduler should first receive TASK_STARTING, followed by TASK_RUNNING
+  // and TASK_FINISHED.
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
@@ -461,9 +482,10 @@ TEST_F(HTTPCommandExecutorTest, ExplicitAcknowledgements)
       offers->front().resources(),
       SLEEP_COMMAND(1000));
 
-  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusStarting;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&statusRunning));
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   // Ensure no status update acknowledgements are sent from the driver
   // to the master until the explicit acknowledgement is sent.
@@ -475,9 +497,9 @@ TEST_F(HTTPCommandExecutorTest, ExplicitAcknowledgements)
 
   driver.launchTasks(offers->front().id(), {task});
 
-  AWAIT_READY(statusRunning);
-  EXPECT_TRUE(statusRunning->has_slave_id());
-  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  AWAIT_READY(statusStarting);
+  EXPECT_TRUE(statusStarting->has_slave_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   // Now send the acknowledgement.
   Future<mesos::scheduler::Call> acknowledgement = FUTURE_CALL(
@@ -486,7 +508,7 @@ TEST_F(HTTPCommandExecutorTest, ExplicitAcknowledgements)
       _,
       master.get()->pid);
 
-  driver.acknowledgeStatusUpdate(statusRunning.get());
+  driver.acknowledgeStatusUpdate(statusStarting.get());
 
   AWAIT_READY(acknowledgement);
 

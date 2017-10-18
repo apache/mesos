@@ -176,9 +176,14 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
 
-  Future<v1::scheduler::Event::Update> update;
+  Future<v1::scheduler::Event::Update> startingUpdate;
+  Future<v1::scheduler::Event::Update> runningUpdate;
   EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&update));
+    .WillOnce(DoAll(
+      FutureArg<1>(&startingUpdate),
+      v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(FutureArg<1>(&runningUpdate))
+    .WillRepeatedly(Return());
 
   v1::TaskInfo taskInfo =
     v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
@@ -190,11 +195,13 @@ TEST_P(DefaultExecutorTest, TaskRunning)
           {v1::LAUNCH_GROUP(
               executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
 
-  AWAIT_READY(update);
+  AWAIT_READY(startingUpdate);
 
-  ASSERT_EQ(TASK_RUNNING, update->status().state());
-  EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
-  EXPECT_TRUE(update->status().has_timestamp());
+  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  EXPECT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
+  EXPECT_TRUE(startingUpdate->status().has_timestamp());
+
+  AWAIT_READY(runningUpdate);
 
   // Ensure that the task sandbox symbolic link is created.
   EXPECT_TRUE(os::exists(path::join(
@@ -290,16 +297,26 @@ TEST_P(DefaultExecutorTest, KillTask)
 
   const hashset<v1::TaskID> tasks1{taskInfo1.task_id(), taskInfo2.task_id()};
 
+  Future<v1::scheduler::Event::Update> startingUpdate1;
+  Future<v1::scheduler::Event::Update> startingOrRunningUpdate1;
+  Future<v1::scheduler::Event::Update> startingOrRunningUpdate2;
   Future<v1::scheduler::Event::Update> runningUpdate1;
-  Future<v1::scheduler::Event::Update> runningUpdate2;
   EXPECT_CALL(*scheduler, update(_, _))
     .WillOnce(
         DoAll(
-            FutureArg<1>(&runningUpdate1),
+            FutureArg<1>(&startingUpdate1),
             v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(
         DoAll(
-            FutureArg<1>(&runningUpdate2),
+            FutureArg<1>(&startingOrRunningUpdate1),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&startingOrRunningUpdate2),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&runningUpdate1),
             v1::scheduler::SendAcknowledge(frameworkId, agentId)));
 
   Future<v1::scheduler::Event::Offers> offers2;
@@ -320,17 +337,19 @@ TEST_P(DefaultExecutorTest, KillTask)
     mesos.send(call);
   }
 
+  AWAIT_READY(startingUpdate1);
+  ASSERT_EQ(TASK_STARTING, startingUpdate1->status().state());
+
   AWAIT_READY(runningUpdate1);
   ASSERT_EQ(TASK_RUNNING, runningUpdate1->status().state());
-
-  AWAIT_READY(runningUpdate2);
-  ASSERT_EQ(TASK_RUNNING, runningUpdate2->status().state());
 
   // When running a task, TASK_RUNNING updates for the tasks in a
   // task group can be received in any order.
   const hashset<v1::TaskID> tasksRunning{
-    runningUpdate1->status().task_id(),
-    runningUpdate2->status().task_id()};
+    startingUpdate1->status().task_id(),
+    startingOrRunningUpdate1->status().task_id(),
+    startingOrRunningUpdate2->status().task_id(),
+    runningUpdate1->status().task_id()};
 
   ASSERT_EQ(tasks1, tasksRunning);
 
@@ -340,8 +359,13 @@ TEST_P(DefaultExecutorTest, KillTask)
   v1::TaskInfo taskInfo3 =
     v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
 
+  Future<v1::scheduler::Event::Update> startingUpdate3;
   Future<v1::scheduler::Event::Update> runningUpdate3;
   EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&startingUpdate3),
+            v1::scheduler::SendAcknowledge(frameworkId, offer2.agent_id())))
     .WillOnce(
         DoAll(
             FutureArg<1>(&runningUpdate3),
@@ -354,6 +378,10 @@ TEST_P(DefaultExecutorTest, KillTask)
           offer2,
           {v1::LAUNCH_GROUP(
               executorInfo, v1::createTaskGroupInfo({taskInfo3}))}));
+
+  AWAIT_READY(startingUpdate3);
+  ASSERT_EQ(TASK_STARTING, startingUpdate3->status().state());
+  ASSERT_EQ(taskInfo3.task_id(), startingUpdate3->status().task_id());
 
   AWAIT_READY(runningUpdate3);
   ASSERT_EQ(TASK_RUNNING, runningUpdate3->status().state());
@@ -486,6 +514,22 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
 
+  auto acknowledge = [&](const Future<v1::scheduler::Event::Update>& update) {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACKNOWLEDGE);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+
+    acknowledge->mutable_task_id()->CopyFrom(
+        update->status().task_id());
+
+    acknowledge->mutable_agent_id()->CopyFrom(agentId);
+    acknowledge->set_uuid(update->status().uuid());
+
+    mesos.send(call);
+  };
+
   // The first task exits with a non-zero status code.
   v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "exit 1");
 
@@ -494,9 +538,13 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
 
   const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
 
+  Future<v1::scheduler::Event::Update> startingUpdate1;
+  Future<v1::scheduler::Event::Update> startingUpdate2;
   Future<v1::scheduler::Event::Update> runningUpdate1;
   Future<v1::scheduler::Event::Update> runningUpdate2;
   EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&startingUpdate1))
+    .WillOnce(FutureArg<1>(&startingUpdate2))
     .WillOnce(FutureArg<1>(&runningUpdate1))
     .WillOnce(FutureArg<1>(&runningUpdate2));
 
@@ -506,6 +554,15 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
           offer,
           {v1::LAUNCH_GROUP(
               executorInfo, v1::createTaskGroupInfo({taskInfo1, taskInfo2}))}));
+
+  AWAIT_READY(startingUpdate1);
+  ASSERT_EQ(TASK_STARTING, startingUpdate1->status().state());
+
+  AWAIT_READY(startingUpdate2);
+  ASSERT_EQ(TASK_STARTING, startingUpdate2->status().state());
+
+  acknowledge(startingUpdate1);
+  acknowledge(startingUpdate2);
 
   AWAIT_READY(runningUpdate1);
   ASSERT_EQ(TASK_RUNNING, runningUpdate1->status().state());
@@ -528,38 +585,8 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
     .WillOnce(FutureArg<1>(&update2));
 
   // Acknowledge the TASK_RUNNING updates to receive the next updates.
-
-  {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::ACKNOWLEDGE);
-
-    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
-
-    acknowledge->mutable_task_id()->CopyFrom(
-        runningUpdate1->status().task_id());
-
-    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
-    acknowledge->set_uuid(runningUpdate1->status().uuid());
-
-    mesos.send(call);
-  }
-
-  {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::ACKNOWLEDGE);
-
-    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
-
-    acknowledge->mutable_task_id()->CopyFrom(
-        runningUpdate2->status().task_id());
-
-    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
-    acknowledge->set_uuid(runningUpdate2->status().uuid());
-
-    mesos.send(call);
-  }
+  acknowledge(runningUpdate1);
+  acknowledge(runningUpdate2);
 
   // Updates for the tasks in a task group can be received in any order.
   set<pair<v1::TaskID, v1::TaskState>> taskStates;
@@ -657,7 +684,7 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
 
   AWAIT_READY(update);
 
-  ASSERT_EQ(TASK_RUNNING, update->status().state());
+  ASSERT_EQ(TASK_STARTING, update->status().state());
   EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
   EXPECT_TRUE(update->status().has_timestamp());
 }
@@ -723,12 +750,22 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
 
   v1::TaskInfo task2 = v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
 
-  Future<Event::Update> updateRunning1;
+  Future<Event::Update> updateStarting1;
+  Future<Event::Update> updateStartingOrRunning1;
+  Future<Event::Update> updateStartingOrRunning2;
   Future<Event::Update> updateRunning2;
   EXPECT_CALL(*scheduler, update(_, _))
     .WillOnce(
         DoAll(
-            FutureArg<1>(&updateRunning1),
+            FutureArg<1>(&updateStarting1),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&updateStartingOrRunning1),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&updateStartingOrRunning2),
             v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(
         DoAll(
@@ -742,17 +779,30 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
           {v1::LAUNCH_GROUP(
               executorInfo, v1::createTaskGroupInfo({task1, task2}))}));
 
-  AWAIT_READY(updateRunning1);
+
+  AWAIT_READY(updateStarting1);
+  AWAIT_READY(updateStartingOrRunning1);
+  AWAIT_READY(updateStartingOrRunning2);
   AWAIT_READY(updateRunning2);
 
-  ASSERT_EQ(TASK_RUNNING, updateRunning1->status().state());
+  ASSERT_EQ(TASK_STARTING, updateStarting1->status().state());
   ASSERT_EQ(TASK_RUNNING, updateRunning2->status().state());
 
-  ASSERT_TRUE(updateRunning1->status().has_container_status());
-  ASSERT_TRUE(updateRunning2->status().has_container_status());
+  // Select the two TASK_RUNNING updates from the first four updates
+  Event::Update update1 = updateStartingOrRunning1.get();
+  if (update1.status().state() == v1::TASK_STARTING) {
+    update1 = updateStartingOrRunning2.get();
+  }
+  Event::Update update2 = updateRunning2.get();
 
-  v1::ContainerStatus status1 = updateRunning1->status().container_status();
-  v1::ContainerStatus status2 = updateRunning2->status().container_status();
+  ASSERT_EQ(TASK_RUNNING, update1.status().state());
+  ASSERT_EQ(TASK_RUNNING, update2.status().state());
+
+  ASSERT_TRUE(update1.status().has_container_status());
+  ASSERT_TRUE(update2.status().has_container_status());
+
+  v1::ContainerStatus status1 = update1.status().container_status();
+  v1::ContainerStatus status2 = update2.status().container_status();
 
   ASSERT_TRUE(status1.has_container_id());
   ASSERT_TRUE(status2.has_container_id());
@@ -822,9 +872,14 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnTaskFailure)
   // The task exits with a non-zero status code.
   v1::TaskInfo taskInfo = v1::createTask(agentId, resources, "exit 1");
 
+  Future<v1::scheduler::Event::Update> startingUpdate;
   Future<v1::scheduler::Event::Update> runningUpdate;
   Future<v1::scheduler::Event::Update> failedUpdate;
   EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&startingUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(
         DoAll(
             FutureArg<1>(&runningUpdate),
@@ -841,6 +896,9 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnTaskFailure)
           offer,
           {v1::LAUNCH_GROUP(
               executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
+
+  AWAIT_READY(startingUpdate);
+  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
 
   AWAIT_READY(runningUpdate);
   ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
@@ -923,9 +981,19 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
 
   const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
 
+  Future<v1::scheduler::Event::Update> startingUpdate1;
+  Future<v1::scheduler::Event::Update> startingUpdate2;
   Future<v1::scheduler::Event::Update> runningUpdate1;
   Future<v1::scheduler::Event::Update> runningUpdate2;
   EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&startingUpdate1),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&startingUpdate2),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(
         DoAll(
             FutureArg<1>(&runningUpdate1),
@@ -946,8 +1014,11 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
           {v1::LAUNCH_GROUP(
               executorInfo, v1::createTaskGroupInfo({taskInfo1, taskInfo2}))}));
 
-  AWAIT_READY(runningUpdate1);
-  ASSERT_EQ(TASK_RUNNING, runningUpdate1->status().state());
+  AWAIT_READY(startingUpdate1);
+  ASSERT_EQ(TASK_STARTING, startingUpdate1->status().state());
+
+  // We only check the first and last update, because the other two might
+  // arrive in a different order.
 
   AWAIT_READY(runningUpdate2);
   ASSERT_EQ(TASK_RUNNING, runningUpdate2->status().state());
@@ -955,6 +1026,8 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   // When running a task, TASK_RUNNING updates for the tasks in a
   // task group can be received in any order.
   const hashset<v1::TaskID> tasksRunning{
+    startingUpdate1->status().task_id(),
+    startingUpdate2->status().task_id(),
     runningUpdate1->status().task_id(),
     runningUpdate2->status().task_id()};
 
@@ -1071,15 +1144,15 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   v1::Offer::Operation launchGroup =
     v1::LAUNCH_GROUP(executorInfo, v1::createTaskGroupInfo({taskInfo}));
 
-  Future<v1::scheduler::Event::Update> runningUpdate;
+  Future<v1::scheduler::Event::Update> startingUpdate;
   EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&runningUpdate));
+    .WillOnce(FutureArg<1>(&startingUpdate));
 
   mesos.send(v1::createCallAccept(frameworkId, offer, {reserve, launchGroup}));
 
-  AWAIT_READY(runningUpdate);
-  ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
-  ASSERT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
+  AWAIT_READY(startingUpdate);
+  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
 }
 
 
@@ -1156,9 +1229,17 @@ TEST_P(DefaultExecutorTest, SigkillExecutor)
       v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
       "sleep 1000");
 
-  Future<v1::scheduler::Event::Update> update;
+  Future<v1::scheduler::Event::Update> startingUpdate;
+  Future<v1::scheduler::Event::Update> runningUpdate;
   EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&update));
+    .WillOnce(DoAll(
+      FutureArg<1>(&startingUpdate),
+      v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(DoAll(
+      FutureArg<1>(&runningUpdate),
+      v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillRepeatedly(Return());
+
 
   v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
       executorInfo,
@@ -1166,14 +1247,19 @@ TEST_P(DefaultExecutorTest, SigkillExecutor)
 
   mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
 
-  AWAIT_READY(update);
+  AWAIT_READY(startingUpdate);
 
-  ASSERT_EQ(TASK_RUNNING, update->status().state());
-  EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
-  EXPECT_TRUE(update->status().has_timestamp());
-  ASSERT_TRUE(update->status().has_container_status());
+  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  EXPECT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
 
-  v1::ContainerStatus status = update->status().container_status();
+  AWAIT_READY(runningUpdate);
+
+  ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
+  EXPECT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
+  EXPECT_TRUE(runningUpdate->status().has_timestamp());
+  ASSERT_TRUE(runningUpdate->status().has_container_status());
+
+  v1::ContainerStatus status = runningUpdate->status().container_status();
 
   ASSERT_TRUE(status.has_container_id());
   EXPECT_TRUE(status.container_id().has_parent());
@@ -1263,8 +1349,13 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
   containerInfo->set_type(mesos::v1::ContainerInfo::MESOS);
   containerInfo->mutable_linux_info()->set_share_pid_namespace(true);
 
+  Future<v1::scheduler::Event::Update> update0;
   Future<v1::scheduler::Event::Update> update1;
   EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&update0),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(FutureArg<1>(&update1));
 
   Future<v1::scheduler::Event::Offers> offers2;
@@ -1301,8 +1392,13 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
   containerInfo->mutable_linux_info()->set_share_pid_namespace(true);
 
   Future<v1::scheduler::Event::Update> update2;
+  Future<v1::scheduler::Event::Update> update3;
   EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&update2));
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&update2),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(FutureArg<1>(&update3));
 
   // Launch the second task group.
   launchGroup = v1::LAUNCH_GROUP(
@@ -1313,9 +1409,14 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
 
   AWAIT_READY(update2);
 
-  ASSERT_EQ(TASK_RUNNING, update2->status().state());
+  ASSERT_EQ(TASK_STARTING, update2->status().state());
   EXPECT_EQ(taskInfo2.task_id(), update2->status().task_id());
-  EXPECT_TRUE(update2->status().has_timestamp());
+
+  AWAIT_READY(update3);
+
+  ASSERT_EQ(TASK_RUNNING, update3->status().state());
+  EXPECT_EQ(taskInfo2.task_id(), update3->status().task_id());
+  EXPECT_TRUE(update3->status().has_timestamp());
 
   string executorSandbox = slave::paths::getExecutorLatestRunPath(
       flags.work_dir,
@@ -1422,9 +1523,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
 
+  Future<v1::scheduler::Event::Update> starting;
   Future<v1::scheduler::Event::Update> running;
   Future<v1::scheduler::Event::Update> failed;
   EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&starting),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(
         DoAll(
             FutureArg<1>(&running),
@@ -1448,11 +1554,12 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
           {v1::LAUNCH_GROUP(
               executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
 
-  Future<Nothing> ack =
-    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+  AWAIT_READY(starting);
+
+  EXPECT_EQ(TASK_STARTING, starting->status().state());
+  EXPECT_EQ(taskInfo.task_id(), starting->status().task_id());
 
   AWAIT_READY(running);
-  AWAIT_READY(ack);
 
   EXPECT_EQ(TASK_RUNNING, running->status().state());
   EXPECT_EQ(taskInfo.task_id(), running->status().task_id());
@@ -1559,9 +1666,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskWithFileURI)
 
   taskInfo.mutable_command()->add_uris()->set_value("file://" + testFilePath);
 
+  Future<v1::scheduler::Event::Update> startingUpdate;
   Future<v1::scheduler::Event::Update> runningUpdate;
   Future<v1::scheduler::Event::Update> finishedUpdate;
   EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&startingUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(
         DoAll(
             FutureArg<1>(&runningUpdate),
@@ -1577,6 +1689,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskWithFileURI)
           offer,
           {v1::LAUNCH_GROUP(
               executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
+
+  AWAIT_READY(startingUpdate);
+  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
 
   AWAIT_READY(runningUpdate);
   ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
@@ -1674,9 +1790,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   container->set_type(mesos::v1::ContainerInfo::MESOS);
   container->mutable_mesos()->mutable_image()->CopyFrom(image);
 
+  Future<v1::scheduler::Event::Update> startingUpdate;
   Future<v1::scheduler::Event::Update> runningUpdate;
   Future<v1::scheduler::Event::Update> finishedUpdate;
   EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&startingUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(
         DoAll(
             FutureArg<1>(&runningUpdate),
@@ -1692,6 +1813,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
           offer,
           {v1::LAUNCH_GROUP(
               executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
+
+  AWAIT_READY(startingUpdate);
+  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
 
   AWAIT_READY(runningUpdate);
   ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
@@ -1845,9 +1970,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       executorInfo,
       v1::createTaskGroupInfo({taskInfo}));
 
+  Future<Event::Update> updateStarting;
   Future<Event::Update> updateRunning;
   Future<Event::Update> updateFinished;
   EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateStarting),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
     .WillOnce(DoAll(FutureArg<1>(&updateRunning),
                     v1::scheduler::SendAcknowledge(
                         frameworkId,
@@ -1858,6 +1988,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       frameworkId,
       offer,
       {reserve, create, launchGroup}));
+
+  AWAIT_READY(updateStarting);
+  ASSERT_EQ(TASK_STARTING, updateStarting->status().state());
+  ASSERT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
 
   AWAIT_READY(updateRunning);
   ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());
@@ -1963,9 +2097,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       executorInfo,
       v1::createTaskGroupInfo({taskInfo}));
 
+  Future<Event::Update> updateStarting;
   Future<Event::Update> updateRunning;
   Future<Event::Update> updateFinished;
   EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateStarting),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
     .WillOnce(DoAll(FutureArg<1>(&updateRunning),
                     v1::scheduler::SendAcknowledge(
                         frameworkId,
@@ -1976,6 +2115,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       frameworkId,
       offer,
       {reserve, create, launchGroup}));
+
+  AWAIT_READY(updateStarting);
+  ASSERT_EQ(TASK_STARTING, updateStarting->status().state());
+  ASSERT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
 
   AWAIT_READY(updateRunning);
   ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());
@@ -2125,7 +2268,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       "consumer");
   consumerInfo.mutable_container()->CopyFrom(containerInfo);
 
-  vector<Future<v1::scheduler::Event::Update>> updates(4);
+  vector<Future<v1::scheduler::Event::Update>> updates(6);
 
   {
     // This variable doesn't have to be used explicitly. We need it so that the
@@ -2157,6 +2300,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   enum class Stage
   {
     INITIAL,
+    STARTING,
     RUNNING,
     FINISHED
   };
@@ -2175,6 +2319,13 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
     switch (taskStage.get()) {
       case Stage::INITIAL: {
+        ASSERT_EQ(TASK_STARTING, taskStatus.state());
+
+        taskStages[taskStatus.task_id()] = Stage::STARTING;
+
+        break;
+      }
+      case Stage::STARTING: {
         ASSERT_EQ(TASK_RUNNING, taskStatus.state());
 
         taskStages[taskStatus.task_id()] = Stage::RUNNING;
@@ -2334,7 +2485,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       "consumer");
   consumerInfo.mutable_container()->CopyFrom(containerInfo);
 
-  vector<Future<v1::scheduler::Event::Update>> updates(4);
+  vector<Future<v1::scheduler::Event::Update>> updates(6);
 
   {
     // This variable doesn't have to be used explicitly. We need it so that the
@@ -2369,6 +2520,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   enum class Stage
   {
     INITIAL,
+    STARTING,
     RUNNING,
     FINISHED
   };
@@ -2387,6 +2539,13 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
     switch (taskStage.get()) {
       case Stage::INITIAL: {
+        ASSERT_EQ(TASK_STARTING, taskStatus.state());
+
+        taskStages[taskStatus.task_id()] = Stage::STARTING;
+
+        break;
+      }
+      case Stage::STARTING: {
         ASSERT_EQ(TASK_RUNNING, taskStatus.state());
 
         taskStages[taskStatus.task_id()] = Stage::RUNNING;
@@ -2525,9 +2684,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       executorInfo,
       v1::createTaskGroupInfo({taskInfo}));
 
+  Future<Event::Update> updateStarting;
   Future<Event::Update> updateRunning;
   Future<Event::Update> updateHealthy;
   EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&updateStarting),
+            v1::scheduler::SendAcknowledge(frameworkId, offer.agent_id())))
     .WillOnce(
         DoAll(
             FutureArg<1>(&updateRunning),
@@ -2541,6 +2705,10 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       frameworkId,
       offer,
       {reserve, create, launchGroup}));
+
+  AWAIT_READY(updateStarting);
+  ASSERT_EQ(TASK_STARTING, updateStarting->status().state());
+  ASSERT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
 
   AWAIT_READY(updateRunning);
   ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());

@@ -107,15 +107,19 @@ TEST_F(EnvironmentSecretIsolatorTest, ResolveSecret)
       Resources::parse("cpus:0.1;mem:32").get(),
       command);
 
-  // NOTE: Successful tasks will output two status updates.
+  // NOTE: Successful tasks will output three status updates.
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting.get().state());
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
   AWAIT_READY(statusFinished);
@@ -212,9 +216,11 @@ TEST_F(EnvironmentSecretIsolatorTest, ResolveSecretDefaultExecutor)
       command);
 
   // NOTE: Successful tasks will output two status updates.
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
@@ -222,6 +228,8 @@ TEST_F(EnvironmentSecretIsolatorTest, ResolveSecretDefaultExecutor)
 
   driver.acceptOffers({offer.id()}, {LAUNCH_GROUP(executorInfo, taskGroup)});
 
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY(statusFinished);

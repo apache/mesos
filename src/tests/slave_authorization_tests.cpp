@@ -627,10 +627,12 @@ TYPED_TEST(SlaveAuthorizerTest, AuthorizeRunTaskOnAgent)
   // The first task should fail since the task user `foo` is not an
   // authorized user that can launch a task. However, the second task
   // should succeed.
+  Future<TaskStatus> status0;
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status0))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2));
 
@@ -638,16 +640,19 @@ TYPED_TEST(SlaveAuthorizerTest, AuthorizeRunTaskOnAgent)
       {offer.id()},
       {LAUNCH({task1, task2})});
 
-  // Wait for TASK_FAILED for 1st task, and TASK_RUNNING for 2nd task.
+  // Wait for TASK_FAILED for 1st task, and TASK_STARTING followed by
+  // TASK_RUNNING for 2nd task.
+  AWAIT_READY(status0);
   AWAIT_READY(status1);
   AWAIT_READY(status2);
 
   // Validate both the statuses. Note that the order of receiving the
-  // status updates for the 2 tasks is not deterministic.
-  hashmap<TaskID, TaskStatus> statuses {
-    {status1->task_id(), status1.get()},
-    {status2->task_id(), status2.get()}
-  };
+  // status updates for the 2 tasks is not deterministic, but we know
+  // that task2's  TASK_RUNNING ARRIVES after TASK_STARTING.
+  hashmap<TaskID, TaskStatus> statuses;
+  statuses[status0->task_id()] = status0.get();
+  statuses[status1->task_id()] = status1.get();
+  statuses[status2->task_id()] = status2.get();
 
   ASSERT_TRUE(statuses.contains(task1.task_id()));
   EXPECT_EQ(TASK_ERROR, statuses.at(task1.task_id()).state());
@@ -741,7 +746,7 @@ TEST_F(ExecutorAuthorizationTest, RunTaskGroup)
   AWAIT_READY(status);
 
   ASSERT_EQ(task.task_id(), status->task_id());
-  EXPECT_EQ(TASK_RUNNING, status->state());
+  EXPECT_EQ(TASK_STARTING, status->state());
 
   driver.stop();
   driver.join();

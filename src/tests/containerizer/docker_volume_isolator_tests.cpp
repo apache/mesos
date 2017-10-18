@@ -342,14 +342,19 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsWithVolumes)
     .WillOnce(DoAll(FutureArg<1>(&unmount2Name),
                     Return(Nothing())));
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
   driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -589,21 +594,32 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsSlaveRecovery)
     .WillOnce(DoAll(FutureArg<1>(&mount2Name),
                     Return(mountPoint2)));
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
-  Future<Nothing> ack =
+  Future<Nothing> ack1 =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  Future<Nothing> ack2 =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack1);
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   // Wait for the ACK to be checkpointed.
-  AWAIT_READY(ack);
+  AWAIT_READY(ack2);
 
   // Stop the slave after TASK_RUNNING is received.
   slave.get()->terminate();
@@ -769,12 +785,16 @@ TEST_F(DockerVolumeIsolatorTest,
   EXPECT_CALL(*mockClient, unmount(driver1, _))
     .WillOnce(Return(Nothing()));
 
+  Future<TaskStatus> statusStarting1;
   Future<TaskStatus> statusRunning1;
   Future<TaskStatus> statusKilled1;
+  Future<TaskStatus> statusStarting2;
   Future<TaskStatus> statusRunning2;
   Future<TaskStatus> statusKilled2;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting1))
+    .WillOnce(FutureArg<1>(&statusStarting2))
     .WillOnce(FutureArg<1>(&statusRunning1))
     .WillOnce(FutureArg<1>(&statusRunning2))
     .WillOnce(FutureArg<1>(&statusKilled1))
@@ -782,8 +802,10 @@ TEST_F(DockerVolumeIsolatorTest,
 
   driver.launchTasks(offer.id(), {task1, task2});
 
-  AWAIT_READY(statusRunning1);
-  EXPECT_EQ(TASK_RUNNING, statusRunning1->state());
+  // TASK_STARTING and TASK_RUNNING updates might arrive interleaved,
+  // so we only check the first and the last where the values are known.
+  AWAIT_READY(statusStarting1);
+  EXPECT_EQ(TASK_STARTING, statusStarting1->state());
 
   AWAIT_READY(statusRunning2);
   EXPECT_EQ(TASK_RUNNING, statusRunning2->state());
@@ -910,14 +932,19 @@ TEST_F(DockerVolumeIsolatorTest,
     .WillOnce(DoAll(FutureArg<1>(&unmountName),
                     Return(Nothing())));
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
   driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -1052,14 +1079,19 @@ TEST_F(DockerVolumeIsolatorTest,
     .WillOnce(DoAll(FutureArg<1>(&unmountName),
                     Return(Nothing())));
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
   driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());

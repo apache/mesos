@@ -1030,11 +1030,16 @@ TEST_F(NestedMesosContainerizerTest,
 
   task.mutable_container()->CopyFrom(createContainerInfo("alpine"));
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offers->at(0).id(), {task});
+
+  AWAIT_READY(statusRunning);
+  ASSERT_EQ(TASK_STARTING, statusStarting->state());
 
   // We wait wait up to 120 seconds
   // to download the docker image.

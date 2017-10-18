@@ -1988,16 +1988,15 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
 
   TaskInfo taskInfo = createTask(offer.slave_id(), taskResources, "sleep 1000");
 
-  // Expect a TASK_RUNNING status.
-  EXPECT_CALL(sched, statusUpdate(&driver, _));
-
-  Future<Nothing> _statusUpdateAcknowledgement =
-    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+  Future<TaskStatus> starting;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&starting))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   driver.acceptOffers({offer.id()}, {LAUNCH({taskInfo})});
 
-  // Wait for TASK_RUNNING update ack.
-  AWAIT_READY(_statusUpdateAcknowledgement);
+  AWAIT_READY(starting);
+  EXPECT_EQ(TASK_STARTING, starting->state());
 
   // Summon an offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))

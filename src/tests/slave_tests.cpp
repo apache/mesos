@@ -680,16 +680,22 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithArguments)
 
   task.mutable_command()->MergeFrom(command);
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  // Scheduler should first receive TASK_RUNNING followed by the
-  // TASK_FINISHED from the executor.
+  // Scheduler should first receive TASK_STARTING, followed by
+  // TASK_RUNNING and TASK_FINISHED from the executor.
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusStarting->source());
+
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning->source());
@@ -746,11 +752,16 @@ TEST_F(SlaveTest, CommandTaskWithKillPolicy)
   task.mutable_kill_policy()->mutable_grace_period()->set_nanoseconds(
       gracePeriod.ns());
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -1051,16 +1062,22 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   task.mutable_command()->MergeFrom(command);
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  // Scheduler should first receive TASK_RUNNING followed by the
-  // TASK_FINISHED from the executor.
+  // Scheduler should first receive TASK_STARTING followed by
+  // TASK_RUNNING and TASK_FINISHED from the executor.
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusStarting->source());
+
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning->source());
@@ -2381,15 +2398,21 @@ TEST_F(SlaveTest, StatisticsEndpointRunningExecutor)
       Resources::parse("cpus:1;mem:32").get(),
       SLEEP_COMMAND(1000));
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status->task_id());
-  EXPECT_EQ(TASK_RUNNING, status->state());
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(task.task_id(), statusStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   // Hit the statistics endpoint and expect the response contains the
   // resource statistics for the running container.
@@ -5207,16 +5230,21 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorEnvironmentVariables)
 
   task.mutable_command()->MergeFrom(command);
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFinished;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  // Scheduler should first receive TASK_RUNNING followed by the
-  // TASK_FINISHED from the executor.
+  // Scheduler should first receive TASK_STARTING, followed by
+  // TASK_STARTING and TASK_FINISHED from the executor.
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
@@ -5562,7 +5590,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, HTTPSchedulerSlaveRestart)
   UPID executorPid = registerExecutorMessage->from;
 
   AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status->state());
+  EXPECT_EQ(TASK_STARTING, status->state());
 
   // Restart the slave.
   slave.get()->terminate();
@@ -6829,13 +6857,22 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->offers().empty());
 
-  Future<v1::scheduler::Event::Update> update;
-
-  EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&update));
-
   const v1::Offer offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
+
+  Future<v1::scheduler::Event::Update> updateStarting;
+  Future<v1::scheduler::Event::Update> updateRunning;
+
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+      DoAll(
+        FutureArg<1>(&updateStarting),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(
+      DoAll(
+        FutureArg<1>(&updateRunning),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   v1::Resources resources =
     v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
@@ -6878,28 +6915,15 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
     mesos.send(call);
   }
 
-  AWAIT_READY(update);
+  AWAIT_READY(updateStarting);
 
-  ASSERT_EQ(TASK_RUNNING, update->status().state());
-  ASSERT_EQ(taskInfo.task_id(), update->status().task_id());
+  ASSERT_EQ(TASK_STARTING, updateStarting->status().state());
+  ASSERT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
 
-  Future<Nothing> _statusUpdateAcknowledgement =
-    FUTURE_DISPATCH(slave.get()->pid, &Slave::_statusUpdateAcknowledgement);
+  AWAIT_READY(updateRunning);
 
-  {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::ACKNOWLEDGE);
-
-    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
-    acknowledge->mutable_task_id()->CopyFrom(update->status().task_id());
-    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
-    acknowledge->set_uuid(update->status().uuid());
-
-    mesos.send(call);
-  }
-
-  AWAIT_READY(_statusUpdateAcknowledgement);
+  ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());
+  ASSERT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
 
   // Restart the agent.
   slave.get()->terminate();
@@ -8177,11 +8201,18 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
 
   TaskInfo task = createTask(offers->front(), "sleep 1000");
 
+  Future<TaskStatus> statusUpdate0;
   Future<TaskStatus> statusUpdate1;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusUpdate0))
     .WillOnce(FutureArg<1>(&statusUpdate1));
 
   driver.launchTasks(offers->front().id(), {task});
+
+  AWAIT_READY(statusUpdate0);
+  ASSERT_EQ(TASK_STARTING, statusUpdate0->state());
+
+  driver.acknowledgeStatusUpdate(statusUpdate0.get());
 
   AWAIT_READY(statusUpdate1);
   ASSERT_EQ(TASK_RUNNING, statusUpdate1->state());

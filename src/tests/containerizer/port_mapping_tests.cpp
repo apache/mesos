@@ -2314,17 +2314,23 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
 
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
+  Future<TaskStatus> status3;
+  Future<TaskStatus> status4;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2))
+    .WillOnce(FutureArg<1>(&status3))
+    .WillOnce(FutureArg<1>(&status4))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   driver.launchTasks(offers.get()[0].id(), {task1, task2});
 
+  // Only check the first and the last status, as the other two might
+  // be interleaved between TASK_STARTING and TASK_RUNNING
   AWAIT_READY(status1);
-  ASSERT_EQ(TASK_RUNNING, status1->state());
+  ASSERT_EQ(TASK_STARTING, status1->state());
 
-  AWAIT_READY(status2);
+  AWAIT_READY(status4);
   ASSERT_EQ(TASK_RUNNING, status2->state());
 
   // Obtain the container IDs.
