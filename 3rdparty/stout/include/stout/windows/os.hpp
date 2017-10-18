@@ -18,10 +18,12 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <set>
 #include <string>
 #include <vector>
 
+#include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
@@ -843,6 +845,26 @@ inline Try<std::set<Process>> get_job_processes(pid_t pid)
   // If it was bigger than 32K, something else has gone wrong.
 
   return Error("os::get_job_processes: failed to get processes");
+}
+
+
+inline Try<Bytes> get_job_mem(pid_t pid) {
+  const Try<std::set<Process>> processes = os::get_job_processes(pid);
+  if (processes.isError()) {
+    return Error(processes.error());
+  }
+
+  return std::accumulate(
+    processes.get().cbegin(),
+    processes.get().cend(),
+    Bytes(0),
+    [](const Bytes& bytes, const Process& process) {
+      if (process.rss.isNone()) {
+        return bytes;
+      }
+
+      return bytes + process.rss.get();
+    });
 }
 
 
