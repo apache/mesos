@@ -77,6 +77,7 @@ using process::Future;
 using process::Owned;
 using process::PID;
 
+using process::http::Accepted;
 using process::http::BadRequest;
 using process::http::OK;
 using process::http::UnsupportedMediaType;
@@ -210,78 +211,107 @@ TEST_P(ResourceProviderManagerHttpApiTest, UnsupportedContentMediaType)
 }
 
 
-TEST_P(ResourceProviderManagerHttpApiTest, Subscribe)
+TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
 {
-  Call call;
-  call.set_type(Call::SUBSCRIBE);
-
-  Call::Subscribe* subscribe = call.mutable_subscribe();
-
-  const v1::Resources resources = v1::Resources::parse("disk:4").get();
-  subscribe->mutable_resources()->CopyFrom(resources);
-
-  mesos::v1::ResourceProviderInfo* info =
-    subscribe->mutable_resource_provider_info();
-
-  info->set_type("org.apache.mesos.rp.test");
-  info->set_name("test");
-
   const ContentType contentType = GetParam();
-
-  http::Request request;
-  request.method = "POST";
-  request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
-  request.headers["Accept"] = stringify(contentType);
-  request.headers["Content-Type"] = stringify(contentType);
-  request.body = serialize(contentType, call);
 
   ResourceProviderManager manager;
 
-  Future<http::Response> response = manager.api(request, None());
+  Option<UUID> streamId;
+  Option<mesos::v1::ResourceProviderID> resourceProviderId;
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-  ASSERT_EQ(http::Response::PIPE, response->type);
+  // First, subscribe to the manager to get the ID.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
 
-  Option<http::Pipe::Reader> reader = response->reader;
-  ASSERT_SOME(reader);
+    Call::Subscribe* subscribe = call.mutable_subscribe();
 
-  recordio::Reader<Event> responseDecoder(
-      ::recordio::Decoder<Event>(
-          lambda::bind(deserialize<Event>, contentType, lambda::_1)),
-      reader.get());
+    mesos::v1::ResourceProviderInfo* info =
+      subscribe->mutable_resource_provider_info();
 
-  Future<Result<Event>> event = responseDecoder.read();
-  AWAIT_READY(event);
-  ASSERT_SOME(event.get());
+    info->set_type("org.apache.mesos.rp.test");
+    info->set_name("test");
 
-  // Check event type is subscribed and the resource provider id is set.
-  ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
+    http::Request request;
+    request.method = "POST";
+    request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    request.headers["Accept"] = stringify(contentType);
+    request.headers["Content-Type"] = stringify(contentType);
+    request.body = serialize(contentType, call);
 
-  mesos::v1::ResourceProviderID resourceProviderId =
-    event->get().subscribed().provider_id();
+    Future<http::Response> response = manager.api(request, None());
 
-  EXPECT_FALSE(resourceProviderId.value().empty());
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    ASSERT_EQ(http::Response::PIPE, response->type);
 
-  // The manager will send out a message informing its subscriber
-  // about the newly added resources.
-  Future<ResourceProviderMessage> message = manager.messages().get();
+    ASSERT_TRUE(response->headers.contains("Mesos-Stream-Id"));
+    Try<UUID> uuid = UUID::fromString(response->headers.at("Mesos-Stream-Id"));
 
-  AWAIT_READY(message);
+    CHECK_SOME(uuid);
+    streamId = uuid.get();
 
-  EXPECT_EQ(
-      ResourceProviderMessage::Type::UPDATE_TOTAL_RESOURCES,
-      message->type);
+    Option<http::Pipe::Reader> reader = response->reader;
+    ASSERT_SOME(reader);
 
-  // We expect `ResourceProviderID`s to be set for all subscribed resources.
-  // Inject them into the test expectation.
-  Resources expectedResources;
-  foreach (v1::Resource resource, resources) {
-    resource.mutable_provider_id()->CopyFrom(resourceProviderId);
-    expectedResources += devolve(resource);
+    recordio::Reader<Event> responseDecoder(
+        ::recordio::Decoder<Event>(
+            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
+        reader.get());
+
+    Future<Result<Event>> event = responseDecoder.read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+
+    // Check event type is subscribed and the resource provider id is set.
+    ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
+
+    resourceProviderId = event->get().subscribed().provider_id();
+
+    EXPECT_FALSE(resourceProviderId->value().empty());
   }
 
-  EXPECT_EQ(devolve(resourceProviderId), message->updateTotalResources->id);
-  EXPECT_EQ(expectedResources, message->updateTotalResources->total);
+  // Then, update the total resources to the manager.
+  {
+    std::vector<v1::Resource> resources =
+      v1::Resources::fromString("disk:4").get();
+    foreach (v1::Resource& resource, resources) {
+      resource.mutable_provider_id()->CopyFrom(resourceProviderId.get());
+    }
+
+    Call call;
+    call.set_type(Call::UPDATE_STATE);
+    call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
+
+    Call::UpdateState* updateState = call.mutable_update_state();
+
+    updateState->mutable_resources()->CopyFrom(v1::Resources(resources));
+
+    http::Request request;
+    request.method = "POST";
+    request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    request.headers["Accept"] = stringify(contentType);
+    request.headers["Content-Type"] = stringify(contentType);
+    request.headers["Mesos-Stream-Id"] = stringify(streamId.get());
+    request.body = serialize(contentType, call);
+
+    Future<http::Response> response = manager.api(request, None());
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+
+    // The manager will send out a message informing its subscriber
+    // about the newly added resources.
+    Future<ResourceProviderMessage> message = manager.messages().get();
+
+    AWAIT_READY(message);
+
+    EXPECT_EQ(
+        ResourceProviderMessage::Type::UPDATE_TOTAL_RESOURCES,
+        message->type);
+    EXPECT_EQ(
+        devolve(resourceProviderId.get()), message->updateTotalResources->id);
+    EXPECT_EQ(devolve(resources), message->updateTotalResources->total);
+  }
 }
 
 

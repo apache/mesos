@@ -84,6 +84,29 @@ TEST(ResourceProviderCallValidationTest, UpdateOfferOperationStatus)
   EXPECT_NONE(error);
 }
 
+
+TEST(ResourceProviderCallValidationTest, UpdateState)
+{
+  Call call;
+  call.set_type(Call::UPDATE_STATE);
+
+  // Expecting a resource provider ID and `Call::UpdateState`.
+  Option<Error> error = call::validate(call);
+  EXPECT_SOME(error);
+
+  ResourceProviderID* id = call.mutable_resource_provider_id();
+  id->set_value(UUID::random().toString());
+
+  // Still expecting `Call::UpdateState`.
+  error = call::validate(call);
+  EXPECT_SOME(error);
+
+  call.mutable_update_state();
+
+  error = call::validate(call);
+  EXPECT_NONE(error);
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

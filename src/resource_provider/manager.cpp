@@ -120,11 +120,9 @@ struct ResourceProvider
 {
   ResourceProvider(
       const ResourceProviderInfo& _info,
-      const HttpConnection& _http,
-      const Resources& _resources)
+      const HttpConnection& _http)
     : info(_info),
-      http(_http),
-      resources(_resources) {}
+      http(_http) {}
 
   ResourceProviderInfo info;
   HttpConnection http;
@@ -154,6 +152,10 @@ private:
   void updateOfferOperationStatus(
       ResourceProvider* resourceProvider,
       const Call::UpdateOfferOperationStatus& update);
+
+  void updateState(
+      ResourceProvider* resourceProvider,
+      const Call::UpdateState& update);
 
   ResourceProviderID newResourceProviderId();
 };
@@ -289,6 +291,11 @@ Future<http::Response> ResourceProviderManagerProcess::api(
 
       return Accepted();
     }
+
+    case Call::UPDATE_STATE: {
+      updateState(&resourceProvider, call.update_state());
+      return Accepted();
+    }
   }
 
   UNREACHABLE();
@@ -301,16 +308,15 @@ void ResourceProviderManagerProcess::subscribe(
 {
   ResourceProviderInfo resourceProviderInfo =
     subscribe.resource_provider_info();
-  resourceProviderInfo.mutable_id()->CopyFrom(newResourceProviderId());
 
-  // Inject the `ResourceProviderID` for all subscribed resources.
-  Resources resources;
-  foreach (Resource resource, subscribe.resources()) {
-    resource.mutable_provider_id()->CopyFrom(resourceProviderInfo.id());
-    resources += resource;
+  // TODO(chhsiao): Reject the subscription if it contains an unknown ID
+  // or there is already a subscribed instance with the same ID, and add
+  // tests for re-subscriptions.
+  if (!resourceProviderInfo.has_id()) {
+    resourceProviderInfo.mutable_id()->CopyFrom(newResourceProviderId());
   }
 
-  ResourceProvider resourceProvider(resourceProviderInfo, http, resources);
+  ResourceProvider resourceProvider(resourceProviderInfo, http);
 
   Event event;
   event.set_type(Event::SUBSCRIBED);
@@ -324,17 +330,6 @@ void ResourceProviderManagerProcess::subscribe(
   }
 
   resourceProviders.put(resourceProviderInfo.id(), std::move(resourceProvider));
-
-  ResourceProviderMessage message;
-  message.type = ResourceProviderMessage::Type::UPDATE_TOTAL_RESOURCES;
-
-  ResourceProviderMessage::UpdateTotalResources updateTotalResources;
-  updateTotalResources.id = resourceProviderInfo.id();
-  updateTotalResources.total = resources;
-
-  message.updateTotalResources = std::move(updateTotalResources);
-
-  messages.put(std::move(message));
 }
 
 
@@ -343,6 +338,33 @@ void ResourceProviderManagerProcess::updateOfferOperationStatus(
     const Call::UpdateOfferOperationStatus& update)
 {
   // TODO(nfnt): Implement the 'UPDATE_OFFER_OPERATION_STATUS' call handler.
+}
+
+
+void ResourceProviderManagerProcess::updateState(
+    ResourceProvider* resourceProvider,
+    const Call::UpdateState& update)
+{
+  Resources resources;
+
+  foreach (const Resource& resource, update.resources()) {
+    CHECK_EQ(resource.provider_id(), resourceProvider->info.id());
+    resources += resource;
+  }
+
+  resourceProvider->resources = std::move(resources);
+
+  // TODO(chhsiao): Report pending operations.
+
+  ResourceProviderMessage::UpdateTotalResources updateTotalResources;
+  updateTotalResources.id = resourceProvider->info.id();
+  updateTotalResources.total = resourceProvider->resources;
+
+  ResourceProviderMessage message;
+  message.type = ResourceProviderMessage::Type::UPDATE_TOTAL_RESOURCES;
+  message.updateTotalResources = std::move(updateTotalResources);
+
+  messages.put(std::move(message));
 }
 
 

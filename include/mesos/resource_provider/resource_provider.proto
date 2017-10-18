@@ -70,23 +70,12 @@ message Call {
 
     SUBSCRIBE = 1;                     // See 'Subscribe'.
     UPDATE_OFFER_OPERATION_STATUS = 2; // See 'UpdateOfferOperationStatus'.
+    UPDATE_STATE = 3;                  // See 'UpdateState'.
   }
 
   // Request to subscribe with the master.
-  //
-  // TODO(bbannier): Once we have implemented a call to update a
-  // resource provider, consider removing resources here and instead
-  // moving to a protocol where a resource provider first subscribes
-  // and then updates its resources.
   message Subscribe {
     required ResourceProviderInfo resource_provider_info = 1;
-
-    // This includes pending operations and those that have
-    // unacknowledged statuses.
-    repeated OfferOperation operations = 3;
-
-    // The total resources provided by this resource provider.
-    repeated Resource resources = 2;
   }
 
   // Notify the master about the status of an offer operation.
@@ -99,6 +88,16 @@ message Call {
     // independently from the framework-specified operation ID, which
     // is optional.
     required bytes operation_uuid = 4;
+  }
+
+  // Notify the master about the total resources and pending operations.
+  message UpdateState {
+    // This includes pending operations and those that have
+    // unacknowledged statuses.
+    repeated OfferOperation operations = 1;
+
+    // The total resources provided by this resource provider.
+    repeated Resource resources = 2;
   }
 
   // Identifies who generated this call.
@@ -114,4 +113,5 @@ message Call {
   optional Type type = 2;
   optional Subscribe subscribe = 3;
   optional UpdateOfferOperationStatus update_offer_operation_status = 4;
+  optional UpdateState update_state = 5;
 }
