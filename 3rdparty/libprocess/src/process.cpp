@@ -3232,7 +3232,7 @@ UPID ProcessManager::spawn(ProcessBase* process, bool manage)
   // Add process to the run queue (so 'initialize' will get invoked).
   enqueue(process);
 
-  VLOG(2) << "Spawned process " << pid;
+  VLOG(3) << "Spawned process " << pid;
 
   return pid;
 }
@@ -3242,7 +3242,7 @@ void ProcessManager::resume(ProcessBase* process)
 {
   __process__ = process;
 
-  VLOG(2) << "Resuming " << process->pid << " at " << Clock::now();
+  VLOG(3) << "Resuming " << process->pid << " at " << Clock::now();
 
   bool terminate = false;
   bool blocked = false;
@@ -3380,7 +3380,7 @@ void ProcessManager::resume(ProcessBase* process)
 
 void ProcessManager::cleanup(ProcessBase* process)
 {
-  VLOG(2) << "Cleaning up " << process->pid;
+  VLOG(3) << "Cleaning up " << process->pid;
 
   // Invariant today is that all processes must be initialized and
   // have their state transition to READY before being terminated.
@@ -3552,7 +3552,7 @@ bool ProcessManager::wait(const UPID& pid)
   }
 
   if (process != nullptr) {
-    VLOG(2) << "Donating thread to " << process->pid << " while waiting";
+    VLOG(3) << "Donating thread to " << process->pid << " while waiting";
     ProcessBase* donator = __process__;
     resume(process);
     running.fetch_sub(1);
