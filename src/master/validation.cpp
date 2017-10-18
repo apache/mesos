@@ -894,7 +894,7 @@ Option<Error> validateCompatibleExecutorInfo(
   if (executorInfo.isSome() && executor != executorInfo.get()) {
     return Error(
         "ExecutorInfo is not compatible with existing ExecutorInfo"
-        " with same ExecutorID).\n"
+        " with same ExecutorID.\n"
         "------------------------------------------------------------\n"
         "Existing ExecutorInfo:\n" +
         stringify(executorInfo.get()) + "\n"
