@@ -83,7 +83,7 @@
     // Need to use window.onload instead of document.ready to make
     // sure the title doesn't get overwritten.
     pailer.onload = function() {
-      pailer.document.title = window_title + ' (' + host + ')';
+      pailer.document.title = window_title;
     };
   }
 
@@ -559,7 +559,7 @@
         pailer(
             '//' + $scope.$location.host() + ':' + $scope.$location.port(),
             '/master/log',
-            'Mesos Master');
+            'Mesos Master (' + $scope.$location.host() + ':' + $scope.$location.port() + ')');
       }
     };
   });
@@ -664,7 +664,7 @@
             [{label: 'Continue'}]
           ).open();
         } else {
-          pailer(agentURLPrefix(agent, false), '/slave/log', 'Mesos Agent');
+          pailer(agentURLPrefix(agent, false), '/slave/log', 'Mesos Agent (' + agent.id + ')');
         }
       };
 
@@ -1126,7 +1126,10 @@
         $scope.agent_url_prefix = agentURLPrefix(agent, false);
 
         $scope.pail = function($event, path) {
-          pailer(agentURLPrefix(agent, false), path, decodeURIComponent(path));
+          pailer(
+            agentURLPrefix(agent, false),
+            path,
+            decodeURIComponent(path) + ' (' + agent.id + ')');
         };
 
         var url = agentURLPrefix(agent, false) + '/files/browse?jsonp=JSON_CALLBACK';
