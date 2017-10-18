@@ -346,7 +346,7 @@ private:
   {
     // Only send a heartbeat if the connection is not closed.
     if (http.closed().isPending()) {
-      VLOG(1) << "Sending heartbeat to " << logMessage;
+      VLOG(2) << "Sending heartbeat to " << logMessage;
 
       Message message(heartbeatMessage);
       http.send<Message, Event>(message);

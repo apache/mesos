@@ -4963,7 +4963,7 @@ void Slave::executorMessage(
 // within that (more generous) timeout.
 void Slave::ping(const UPID& from, bool connected)
 {
-  VLOG(1) << "Received ping from " << from;
+  VLOG(2) << "Received ping from " << from;
 
   if (!connected && state == RUNNING) {
     // This could happen if there is a one-way partition between
@@ -6489,7 +6489,7 @@ Future<Nothing> Slave::garbageCollect(const string& path)
 
 void Slave::forwardOversubscribed()
 {
-  VLOG(1) << "Querying resource estimator for oversubscribable resources";
+  VLOG(2) << "Querying resource estimator for oversubscribable resources";
 
   resourceEstimator->oversubscribable()
     .onAny(defer(self(), &Self::_forwardOversubscribed, lambda::_1));
@@ -6503,7 +6503,7 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
                << (oversubscribable.isFailed()
                    ? oversubscribable.failure() : "future discarded");
   } else {
-    VLOG(1) << "Received oversubscribable resources "
+    VLOG(2) << "Received oversubscribable resources "
             << oversubscribable.get() << " from the resource estimator";
 
     // Oversubscribable resources must be tagged as revocable.
