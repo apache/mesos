@@ -38,9 +38,9 @@ public:
       if (!data->locked) {
         data->locked = true;
       } else {
-        Owned<Promise<Nothing>> promise(new Promise<Nothing>());
-        data->promises.push(promise);
-        future = promise->future();
+        Promise<Nothing> waiter;
+        future = waiter.future();
+        data->waiters.push(std::move(waiter));
       }
     }
 
@@ -52,20 +52,20 @@ public:
     // NOTE: We need to grab the promise 'date->promises.front()' but
     // set it outside of the critical section because setting it might
     // trigger callbacks that try to reacquire the lock.
-    Owned<Promise<Nothing>> promise;
+    Option<Promise<Nothing>> waiter;
 
     synchronized (data->lock) {
-      if (!data->promises.empty()) {
+      if (!data->waiters.empty()) {
         // TODO(benh): Skip a future that has been discarded?
-        promise = data->promises.front();
-        data->promises.pop();
+        waiter = std::move(data->waiters.front());
+        data->waiters.pop();
       } else {
         data->locked = false;
       }
     }
 
-    if (promise.get() != nullptr) {
-      promise->set(Nothing());
+    if (waiter.isSome()) {
+      waiter->set(Nothing());
     }
   }
 
@@ -87,7 +87,7 @@ private:
     bool locked;
 
     // Represents "waiters" for this lock.
-    std::queue<Owned<Promise<Nothing>>> promises;
+    std::queue<Promise<Nothing>> waiters;
   };
 
   std::shared_ptr<Data> data;
