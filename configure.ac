@@ -215,6 +215,11 @@ AC_ARG_ENABLE([port-mapping-isolator],
                              [enable port mapping network isolator]),
               [], [enable_port_mapping_isolator=no])
 
+AC_ARG_ENABLE([network-ports-isolator],
+              AS_HELP_STRING([--enable-network-ports-isolator],
+                             [enable network ports isolator]),
+              [], [enable_network_ports_isolator=no])
+
 AC_ARG_ENABLE([java],
               AS_HELP_STRING([--disable-java],
                              [don't build Java bindings]),
@@ -1390,6 +1395,32 @@ fi
 
 AM_CONDITIONAL([ENABLE_PORT_MAPPING_ISOLATOR],
                [test "x$enable_port_mapping_isolator" = "xyes"])
+
+
+if test "x$enable_network_ports_isolator" = "xyes"; then
+
+  AS_IF([test "$OS_NAME" = "linux"],
+        [],
+        [AC_MSG_ERROR([cannot build network/ports isolator
+-------------------------------------------------------------------
+The network/ports isolator is only supported on Linux
+-------------------------------------------------------------------
+  ])])
+
+  MESOS_HAVE_LIBNL3([], [
+    MESOS_MSG_LIBNL3_ERROR([libnl-3 is required for building the network/ports isolator])
+  ])
+
+  AC_DEFINE([ENABLE_NETWORK_PORTS_ISOLATOR])
+fi
+
+AM_CONDITIONAL([ENABLE_NETWORK_PORTS_ISOLATOR],
+               [test "x$enable_network_ports_isolator" = "xyes"])
+
+
+AM_CONDITIONAL(
+  [ENABLE_LINUX_ROUTING],
+  [test "x$enable_network_ports_isolator" = "xyes" -o "x$enable_port_mapping_isolator" = "xyes"])
 
 
 # If the user has asked not to include the bundled NVML headers for

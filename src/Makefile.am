@@ -1361,56 +1361,72 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/xfs/disk.hpp
 endif
 
-MESOS_NETWORK_ISOLATOR_FILES =						\
+MESOS_LINUX_ROUTING_FILES =						\
   linux/routing/handle.cpp						\
-  linux/routing/route.cpp						\
-  linux/routing/utils.cpp						\
-  linux/routing/diagnosis/diagnosis.cpp					\
-  linux/routing/filter/basic.cpp					\
-  linux/routing/filter/icmp.cpp						\
-  linux/routing/filter/ip.cpp						\
-  linux/routing/link/link.cpp						\
-  linux/routing/link/veth.cpp						\
-  linux/routing/queueing/fq_codel.cpp					\
-  linux/routing/queueing/htb.cpp					\
-  linux/routing/queueing/ingress.cpp					\
-  slave/containerizer/mesos/isolators/network/port_mapping.cpp
-
-MESOS_NETWORK_ISOLATOR_FILES +=						\
   linux/routing/handle.hpp						\
   linux/routing/internal.hpp						\
+  linux/routing/route.cpp						\
   linux/routing/route.hpp						\
+  linux/routing/utils.cpp						\
   linux/routing/utils.hpp						\
+  linux/routing/diagnosis/diagnosis.cpp					\
   linux/routing/diagnosis/diagnosis.hpp					\
   linux/routing/filter/action.hpp					\
+  linux/routing/filter/basic.cpp					\
   linux/routing/filter/basic.hpp					\
   linux/routing/filter/filter.hpp					\
   linux/routing/filter/handle.hpp					\
+  linux/routing/filter/icmp.cpp						\
   linux/routing/filter/icmp.hpp						\
   linux/routing/filter/internal.hpp					\
+  linux/routing/filter/ip.cpp						\
   linux/routing/filter/ip.hpp						\
   linux/routing/filter/priority.hpp					\
   linux/routing/link/internal.hpp					\
+  linux/routing/link/link.cpp						\
   linux/routing/link/link.hpp						\
+  linux/routing/link/veth.cpp						\
   linux/routing/link/veth.hpp						\
   linux/routing/queueing/discipline.hpp					\
+  linux/routing/queueing/fq_codel.cpp					\
   linux/routing/queueing/fq_codel.hpp					\
+  linux/routing/queueing/htb.cpp					\
   linux/routing/queueing/htb.hpp					\
+  linux/routing/queueing/ingress.cpp					\
   linux/routing/queueing/ingress.hpp					\
   linux/routing/queueing/internal.hpp					\
-  linux/routing/queueing/statistics.hpp					\
-  slave/containerizer/mesos/isolators/network/port_mapping.hpp
+  linux/routing/queueing/statistics.hpp
+
+MESOS_NETWORK_PORTS_ISOLATOR_FILES =					\
+  slave/containerizer/mesos/isolators/network/ports.cpp			\
+  slave/containerizer/mesos/isolators/network/ports.hpp
+
+MESOS_PORT_MAPPING_ISOLATOR_FILES =					\
+  slave/containerizer/mesos/isolators/network/port_mapping.hpp		\
+  slave/containerizer/mesos/isolators/network/port_mapping.cpp
+
+if ENABLE_LINUX_ROUTING
+libmesos_no_3rdparty_la_SOURCES += $(MESOS_LINUX_ROUTING_FILES)
+else
+EXTRA_DIST += $(MESOS_LINUX_ROUTING_FILES)
+endif
+
+if ENABLE_NETWORK_PORTS_ISOLATOR
+libmesos_no_3rdparty_la_SOURCES += $(MESOS_NETWORK_PORTS_ISOLATOR_FILES)
+else
+EXTRA_DIST += $(MESOS_NETWORK_PORTS_ISOLATOR_FILES)
+endif
+
+if ENABLE_PORT_MAPPING_ISOLATOR
+libmesos_no_3rdparty_la_SOURCES += $(MESOS_PORT_MAPPING_ISOLATOR_FILES)
+else
+EXTRA_DIST += $(MESOS_PORT_MAPPING_ISOLATOR_FILES)
+endif
 
 if OS_LINUX
 libmesos_no_3rdparty_la_SOURCES += $(MESOS_LINUX_FILES)
 else
 EXTRA_DIST += $(MESOS_LINUX_FILES)
-endif
-
-if ENABLE_PORT_MAPPING_ISOLATOR
-libmesos_no_3rdparty_la_SOURCES += $(MESOS_NETWORK_ISOLATOR_FILES)
-else
-EXTRA_DIST += $(MESOS_NETWORK_ISOLATOR_FILES)
 endif
 
 if ENABLE_SSL
@@ -2541,10 +2557,14 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/volume_secret_isolator_tests.cpp
 endif
 
+if ENABLE_LINUX_ROUTING
+mesos_tests_SOURCES +=						\
+  tests/containerizer/routing_tests.cpp
+endif
+
 if ENABLE_PORT_MAPPING_ISOLATOR
 mesos_tests_SOURCES +=						\
-  tests/containerizer/port_mapping_tests.cpp			\
-  tests/containerizer/routing_tests.cpp
+  tests/containerizer/port_mapping_tests.cpp
 endif
 
 if ENABLE_GRPC
