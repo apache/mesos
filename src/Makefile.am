@@ -2567,6 +2567,11 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/port_mapping_tests.cpp
 endif
 
+if ENABLE_NETWORK_PORTS_ISOLATOR
+mesos_tests_SOURCES +=						\
+  tests/containerizer/ports_isolator_tests.cpp
+endif
+
 if ENABLE_GRPC
 mesos_tests_SOURCES +=						\
   tests/csi_client_tests.cpp					\
