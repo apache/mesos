@@ -104,6 +104,10 @@
 #include "slave/containerizer/mesos/isolators/network/port_mapping.hpp"
 #endif
 
+#ifdef ENABLE_NETWORK_PORTS_ISOLATOR
+#include "slave/containerizer/mesos/isolators/network/ports.hpp"
+#endif
+
 #if ENABLE_XFS_DISK_ISOLATOR
 #include "slave/containerizer/mesos/isolators/xfs/disk.hpp"
 #endif
@@ -433,6 +437,10 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
 #ifdef ENABLE_PORT_MAPPING_ISOLATOR
     {"network/port_mapping", &PortMappingIsolatorProcess::create},
+#endif
+
+#ifdef ENABLE_NETWORK_PORTS_ISOLATOR
+    {"network/ports", &NetworkPortsIsolatorProcess::create},
 #endif
 
     {"environment_secret",
