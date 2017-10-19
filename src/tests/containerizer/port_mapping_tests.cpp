@@ -2210,14 +2210,20 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
   // Start a long running task using network islator.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
+  Future<TaskStatus> status0;
   Future<TaskStatus> status1;
   Future<TaskStatus> status2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status0))
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status0);
+  EXPECT_EQ(task.task_id(), status0->task_id());
+  EXPECT_EQ(TASK_STARTING, status0->state());
 
   AWAIT_READY(status1);
   EXPECT_EQ(task.task_id(), status1->task_id());
