@@ -153,7 +153,7 @@ public:
 private:
   struct Waiter
   {
-    enum { READ, WRITE} type;
+    enum { READ, WRITE } type;
     Promise<Nothing> promise;
   };
 
