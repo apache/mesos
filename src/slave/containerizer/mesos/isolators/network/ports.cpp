@@ -341,6 +341,7 @@ Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
 
   return new MesosIsolator(process::Owned<MesosIsolatorProcess>(
       new NetworkPortsIsolatorProcess(
+          strings::contains(flags.isolation, "network/cni"),
           flags.container_ports_watch_interval,
           flags.cgroups_root,
           freezerHierarchy.get(),
@@ -349,11 +350,13 @@ Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
 
 
 NetworkPortsIsolatorProcess::NetworkPortsIsolatorProcess(
+    bool _cniIsolatorEnabled,
     const Duration& _watchInterval,
     const string& _cgroupsRoot,
     const string& _freezerHierarchy,
     const Option<IntervalSet<uint16_t>>& _agentPorts)
   : ProcessBase(process::ID::generate("network-ports-isolator")),
+    cniIsolatorEnabled(_cniIsolatorEnabled),
     watchInterval(_watchInterval),
     cgroupsRoot(_cgroupsRoot),
     freezerHierarchy(_freezerHierarchy),
@@ -368,16 +371,73 @@ bool NetworkPortsIsolatorProcess::supportsNesting()
 }
 
 
+// Return whether this ContainerInfo has a NetworkInfo with a name. This
+// is our signal that the container is (or will be) joined to a CNI network.
+static bool hasNamedNetwork(const ContainerInfo& container_info)
+{
+  foreach (const auto& networkInfo, container_info.network_infos()) {
+    if (networkInfo.has_name()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 Future<Nothing> NetworkPortsIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
+  // First, recover all the root level containers.
   foreach (const auto& state, states) {
+    if (state.container_id().has_parent()) {
+      continue;
+    }
+
     CHECK(!infos.contains(state.container_id()))
       << "Duplicate ContainerID " << state.container_id();
 
-    infos.emplace(state.container_id(), Owned<Info>(new Info()));
+    if (!cniIsolatorEnabled) {
+      infos.emplace(state.container_id(), Owned<Info>(new Info()));
+      update(state.container_id(), state.executor_info().resources());
+      continue;
+    }
+
+    // A root level container ought to always have an executor_info.
+    CHECK(state.has_executor_info());
+
+    // Ignore containers that will be network isolated by the
+    // `network/cni` isolator on the rationale that they ought
+    // to be getting a per-container IP address.
+    if (!state.executor_info().has_container() ||
+        !hasNamedNetwork(state.executor_info().container())) {
+      infos.emplace(state.container_id(), Owned<Info>(new Info()));
+
+      // Update the resources for this container so that we can isolate
+      // it from now until the executor re-registers and the containerizer
+      // sends us a new update.
+      update(state.container_id(), state.executor_info().resources());
+    }
   }
+
+  // Now that we know which root level containers we are isolating, we can
+  // decide which child containers we also want.
+  foreach (const auto& state, states) {
+    if (!state.container_id().has_parent()) {
+      continue;
+    }
+
+    CHECK(!infos.contains(state.container_id()))
+      << "Duplicate ContainerID " << state.container_id();
+
+    if (infos.contains(protobuf::getRootContainerId(state.container_id()))) {
+      infos.emplace(state.container_id(), Owned<Info>(new Info()));
+    }
+  }
+
+  // We don't need to worry about any orphans since we don't have any state
+  // to clean up and we know the containerizer will destroy them soon.
 
   return Nothing();
 }
@@ -391,10 +451,25 @@ Future<Option<ContainerLaunchInfo>> NetworkPortsIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
-  // TODO(jpeach) Figure out how to ignore tasks that are not going to use the
-  // host network. If they are in a network namespace (CNI network) then
-  // there's no point restricting them and we would have to implement any
-  // restructions by entering the right namespaces anyway.
+  if (cniIsolatorEnabled) {
+    // A nested container implicitly joins a parent CNI network. The
+    // network configuration is always set from the top of the tree of
+    // nested containers, so we know that we should only isolate the
+    // child if we already have the root of the container tree.
+    if (containerId.has_parent()) {
+      if (!infos.contains(protobuf::getRootContainerId(containerId))) {
+        return None();
+      }
+    } else {
+      // Ignore containers that will be network isolated by the
+      // `network/cni` isolator on the rationale that they ought
+      // to be getting a per-container IP address.
+      if (containerConfig.has_container_info() &&
+          hasNamedNetwork(containerConfig.container_info())) {
+        return None();
+      }
+    }
+  }
 
   infos.emplace(containerId, Owned<Info>(new Info()));
 
@@ -504,7 +579,7 @@ Future<Nothing> NetworkPortsIsolatorProcess::check(
 
       LOG(INFO) << message;
 
-      infos.at(containerId)->limitation.set(
+      info->limitation.set(
           protobuf::slave::createContainerLimitation(
               Resources(resource),
               message,

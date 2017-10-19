@@ -83,6 +83,7 @@ protected:
 
 private:
   NetworkPortsIsolatorProcess(
+      bool _cniIsolatorEnabled,
       const Duration& _watchInterval,
       const std::string& _cgroupsRoot,
       const std::string& _freezerHierarchy,
@@ -94,6 +95,7 @@ private:
     process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
 
+  const bool cniIsolatorEnabled;
   const Duration watchInterval;
   const std::string cgroupsRoot;
   const std::string freezerHierarchy;
