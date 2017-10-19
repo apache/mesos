@@ -46,7 +46,6 @@
 #include <deque>
 #include <fstream>
 #include <iomanip>
-#include <iostream>
 #include <list>
 #include <map>
 #include <memory> // TODO(benh): Replace shared_ptr with unique_ptr.
@@ -3343,13 +3342,12 @@ void ProcessManager::resume(ProcessBase* process)
       try {
         process->serve(*event);
       } catch (const std::exception& e) {
-        std::cerr << "libprocess: " << process->pid
-                  << " terminating due to "
-                  << e.what() << std::endl;
+        LOG(ERROR) << "libprocess: " << process->pid
+                   << " terminating due to " << e.what();
         terminate = true;
       } catch (...) {
-        std::cerr << "libprocess: " << process->pid
-                  << " terminating due to unknown exception" << std::endl;
+        LOG(ERROR) << "libprocess: " << process->pid
+                   << " terminating due to unknown exception";
         terminate = true;
       }
 
@@ -4271,8 +4269,8 @@ bool wait(const UPID& pid, const Duration& duration)
   // This could result in a deadlock if some code decides to wait on a
   // process that has invoked that code!
   if (__process__ != nullptr && __process__->self() == pid) {
-    std::cerr << "\n**** DEADLOCK DETECTED! ****\nYou are waiting on process "
-              << pid << " that it is currently executing." << std::endl;
+    LOG(ERROR) << "\n**** DEADLOCK DETECTED! ****\nYou are waiting on process "
+               << pid << " that it is currently executing.";
   }
 
   if (duration == Seconds(-1)) {
