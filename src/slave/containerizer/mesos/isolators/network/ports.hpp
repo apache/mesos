@@ -24,6 +24,7 @@
 
 #include <process/owned.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/interval.hpp>
 
@@ -36,6 +37,9 @@
 namespace mesos {
 namespace internal {
 namespace slave {
+
+constexpr Duration PORTS_WATCH_INTERVAL = Minutes(1);
+
 
 // The `network/ports` isolator provides isolation of TCP listener
 // ports for tasks that share the host network namespace. It ensures
@@ -72,14 +76,26 @@ public:
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId);
 
+  // Public only for testing.
+  process::Future<Nothing> check(
+      const hashmap<ContainerID, IntervalSet<uint16_t>>& listeners);
+
+protected:
+  virtual void initialize();
+
 private:
-  NetworkPortsIsolatorProcess();
+  NetworkPortsIsolatorProcess(
+      const std::string& _cgroupsRoot,
+      const std::string& _freezerHierarchy);
 
   struct Info
   {
     Option<IntervalSet<uint16_t>> ports;
     process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
+
+  const std::string cgroupsRoot;
+  const std::string freezerHierarchy;
 
   hashmap<ContainerID, process::Owned<Info>> infos;
 };
