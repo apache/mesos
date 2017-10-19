@@ -62,6 +62,9 @@ Try<pid_t> getMountNamespaceTarget(pid_t parent)
   if (parentNamespace.isError()) {
     return Error("Cannot get 'mnt' namespace for process"
                  " '" + stringify(parent) + "': " + parentNamespace.error());
+  } else if (parentNamespace.isNone()) {
+    return Error("Cannot get 'mnt' namespace for non-existing process"
+                 " '" + stringify(parent) + "'");
   }
 
   // Search for a new mount namespace in all direct children.
@@ -76,6 +79,10 @@ Try<pid_t> getMountNamespaceTarget(pid_t parent)
     if (childNamespace.isError()) {
       return Error("Cannot get 'mnt' namespace for child process"
                    " '" + stringify(child) + "': " + childNamespace.error());
+    } else if (childNamespace.isNone()) {
+      VLOG(1) << "Cannot get 'mnt' namespace for non-existing child process"
+                 " '" + stringify(child) + "'";
+      continue;
     }
 
     if (parentNamespace.get() != childNamespace.get()) {
@@ -98,6 +105,10 @@ Try<pid_t> getMountNamespaceTarget(pid_t parent)
         return Error("Cannot get 'mnt' namespace for 2nd-level child process"
                      " '" + stringify(child2) +
                      "': " + child2Namespace.error());
+      } else if (child2Namespace.isNone()) {
+        VLOG(1) << "Cannot get 'mnt' namespace for non-existing 2nd-level"
+                   " child process '" + stringify(child2) + "'";
+        continue;
       }
 
       if (parentNamespace.get() != child2Namespace.get()) {
