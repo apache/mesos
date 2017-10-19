@@ -38,9 +38,6 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-constexpr Duration PORTS_WATCH_INTERVAL = Minutes(1);
-
-
 // The `network/ports` isolator provides isolation of TCP listener
 // ports for tasks that share the host network namespace. It ensures
 // that tasks listen only on ports for which they hold `ports` resources.
@@ -85,6 +82,7 @@ protected:
 
 private:
   NetworkPortsIsolatorProcess(
+      const Duration& _watchInterval,
       const std::string& _cgroupsRoot,
       const std::string& _freezerHierarchy);
 
@@ -94,6 +92,7 @@ private:
     process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
 
+  const Duration watchInterval;
   const std::string cgroupsRoot;
   const std::string freezerHierarchy;
 

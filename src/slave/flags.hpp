@@ -143,7 +143,12 @@ public:
   bool network_enable_socket_statistics_summary;
   bool network_enable_socket_statistics_details;
   bool network_enable_snmp_statistics;
-#endif
+#endif // ENABLE_PORT_MAPPING_ISOLATOR
+
+#ifdef ENABLE_NETWORK_PORTS_ISOLATOR
+  Duration container_ports_watch_interval;
+#endif // ENABLE_NETWORK_PORTS_ISOLATOR
+
   Option<std::string> network_cni_plugins_dir;
   Option<std::string> network_cni_config_dir;
   Duration container_disk_watch_interval;

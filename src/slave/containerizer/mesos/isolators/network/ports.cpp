@@ -269,15 +269,18 @@ Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
 
   return new MesosIsolator(process::Owned<MesosIsolatorProcess>(
       new NetworkPortsIsolatorProcess(
+          flags.container_ports_watch_interval,
           flags.cgroups_root,
           freezerHierarchy.get())));
 }
 
 
 NetworkPortsIsolatorProcess::NetworkPortsIsolatorProcess(
+    const Duration& _watchInterval,
     const string& _cgroupsRoot,
     const string& _freezerHierarchy)
   : ProcessBase(process::ID::generate("network-ports-isolator")),
+    watchInterval(_watchInterval),
     cgroupsRoot(_cgroupsRoot),
     freezerHierarchy(_freezerHierarchy)
 {
@@ -447,8 +450,8 @@ void NetworkPortsIsolatorProcess::initialize()
   // loop to schedule against (the ports isolator process) has been spawned.
   process::loop(
       self,
-      []() {
-        return process::after(PORTS_WATCH_INTERVAL);
+      [=]() {
+        return process::after(watchInterval);
       },
       [=](const Nothing&) {
         return process::async(

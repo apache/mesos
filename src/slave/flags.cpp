@@ -1003,6 +1003,14 @@ mesos::internal::slave::Flags::Flags()
 
 #endif // ENABLE_PORT_MAPPING_ISOLATOR
 
+#ifdef ENABLE_NETWORK_PORTS_ISOLATOR
+  add(&Flags::container_ports_watch_interval,
+      "container_ports_watch_interval",
+      "Interval at which the `network/ports` isolator should check for\n"
+      "containers listening on ports they don't have resources for.",
+      Seconds(30));
+#endif // ENABLE_NETWORK_PORTS_ISOLATOR
+
   add(&Flags::network_cni_plugins_dir,
       "network_cni_plugins_dir",
       "A search path for CNI plugin binaries. The `network/cni`\n"
