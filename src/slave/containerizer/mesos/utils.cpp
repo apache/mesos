@@ -58,7 +58,7 @@ namespace slave {
 // tasks with the default (a.k.a. "pod" executor).
 Try<pid_t> getMountNamespaceTarget(pid_t parent)
 {
-  Try<ino_t> parentNamespace = ns::getns(parent, "mnt");
+  Result<ino_t> parentNamespace = ns::getns(parent, "mnt");
   if (parentNamespace.isError()) {
     return Error("Cannot get 'mnt' namespace for process"
                  " '" + stringify(parent) + "': " + parentNamespace.error());
@@ -72,7 +72,7 @@ Try<pid_t> getMountNamespaceTarget(pid_t parent)
   }
 
   foreach (pid_t child, children.get()) {
-    Try<ino_t> childNamespace = ns::getns(child, "mnt");
+    Result<ino_t> childNamespace = ns::getns(child, "mnt");
     if (childNamespace.isError()) {
       return Error("Cannot get 'mnt' namespace for child process"
                    " '" + stringify(child) + "': " + childNamespace.error());
@@ -93,7 +93,7 @@ Try<pid_t> getMountNamespaceTarget(pid_t parent)
     }
 
     foreach (pid_t child2, children2.get()) {
-      Try<ino_t> child2Namespace = ns::getns(child2, "mnt");
+      Result<ino_t> child2Namespace = ns::getns(child2, "mnt");
       if (child2Namespace.isError()) {
         return Error("Cannot get 'mnt' namespace for 2nd-level child process"
                      " '" + stringify(child2) +

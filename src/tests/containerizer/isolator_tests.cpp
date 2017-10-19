@@ -145,7 +145,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_PidNamespace)
   EXPECT_EQ(0, wait->get().status());
 
   // Check that the command was run in a different pid namespace.
-  Try<ino_t> testPidNamespace = ns::getns(::getpid(), "pid");
+  Result<ino_t> testPidNamespace = ns::getns(::getpid(), "pid");
   ASSERT_SOME(testPidNamespace);
 
   Try<string> containerPidNamespace = os::read(path::join(directory, "ns"));
@@ -210,7 +210,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_SharePidNamespace)
   EXPECT_EQ(0, wait->get().status());
 
   // Check that the command was run in the same pid namespace.
-  Try<ino_t> testPidNamespace = ns::getns(::getpid(), "pid");
+  Result<ino_t> testPidNamespace = ns::getns(::getpid(), "pid");
   ASSERT_SOME(testPidNamespace);
 
   Try<string> containerPidNamespace = os::read(path::join(directory, "ns"));
@@ -300,7 +300,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespace)
   EXPECT_EQ(0, wait->get().status());
 
   // Check that the command was run in a different IPC namespace.
-  Try<ino_t> testIPCNamespace = ns::getns(::getpid(), "ipc");
+  Result<ino_t> testIPCNamespace = ns::getns(::getpid(), "ipc");
   ASSERT_SOME(testIPCNamespace);
 
   Try<string> containerIPCNamespace = os::read(path::join(directory, "ns"));
