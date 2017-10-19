@@ -59,6 +59,7 @@ nobase_include_HEADERS =		\
   process/queue.hpp			\
   process/reap.hpp			\
   process/run.hpp			\
+  process/rwlock.hpp			\
   process/sequence.hpp			\
   process/shared.hpp			\
   process/socket.hpp			\
