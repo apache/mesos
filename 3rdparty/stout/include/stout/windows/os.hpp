@@ -659,7 +659,7 @@ inline Try<std::wstring> name_job(pid_t pid) {
 // do not inherit this handle.
 inline Try<SharedHandle> open_job(
     const DWORD desired_access,
-    BOOL inherit_handles,
+    const BOOL inherit_handles,
     const std::wstring& name)
 {
   SharedHandle job_handle(
@@ -678,6 +678,20 @@ inline Try<SharedHandle> open_job(
   return job_handle;
 }
 
+
+
+inline Try<SharedHandle> open_job(
+  const DWORD desired_access,
+  const BOOL inherit_handles,
+  const pid_t pid)
+{
+  Try<std::wstring> name = os::name_job(pid);
+  if (name.isError()) {
+    return Error(name.error());
+  }
+
+  return open_job(desired_access, inherit_handles, name.get());
+}
 
 // `create_job` function creates a named job object using `name`.
 // This returns the safe job handle, which closes the job handle
@@ -732,15 +746,10 @@ inline Try<SharedHandle> create_job(const std::wstring& name)
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms684925(v=vs.85).aspx // NOLINT(whitespace/line_length)
 inline Try<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION> get_job_info(pid_t pid)
 {
-  Try<std::wstring> name = os::name_job(pid);
-  if (name.isError()) {
-    return Error(name.error());
-  }
-
   Try<SharedHandle> job_handle = os::open_job(
       JOB_OBJECT_QUERY,
       false,
-      name.get());
+      pid);
   if (job_handle.isError()) {
     return Error(job_handle.error());
   }
@@ -805,15 +814,11 @@ Result<std::set<Process>> _get_job_processes(const SharedHandle& job_handle) {
 
 inline Try<std::set<Process>> get_job_processes(pid_t pid)
 {
-  Try<std::wstring> name = os::name_job(pid);
-  if (name.isError()) {
-    return Error(name.error());
-  }
-
+  // TODO(andschwa): Overload open_job to use pid.
   Try<SharedHandle> job_handle = os::open_job(
     JOB_OBJECT_QUERY,
     false,
-    name.get());
+    pid);
   if (job_handle.isError()) {
     return Error(job_handle.error());
   }
@@ -895,15 +900,10 @@ inline Try<Nothing> set_job_cpu_limit(pid_t pid, double cpus)
     control_info.CpuRate = 1;
   }
 
-  Try<std::wstring> name = os::name_job(pid);
-  if (name.isError()) {
-    return Error(name.error());
-  }
-
   Try<SharedHandle> job_handle = os::open_job(
       JOB_OBJECT_SET_ATTRIBUTES,
       false,
-      name.get());
+      pid);
   if (job_handle.isError()) {
     return Error(job_handle.error());
   }
@@ -933,15 +933,10 @@ inline Try<Nothing> set_job_mem_limit(pid_t pid, Bytes limit)
   info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_JOB_MEMORY;
   info.JobMemoryLimit = limit.bytes();
 
-  Try<std::wstring> name = os::name_job(pid);
-  if (name.isError()) {
-    return Error(name.error());
-  }
-
   Try<SharedHandle> job_handle = os::open_job(
       JOB_OBJECT_SET_ATTRIBUTES,
       false,
-      name.get());
+      pid);
   if (job_handle.isError()) {
     return Error(job_handle.error());
   }
