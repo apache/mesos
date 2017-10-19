@@ -32,6 +32,7 @@ set(PROCESS_TESTS_SRC
   owned_tests.cpp
   process_tests.cpp
   queue_tests.cpp
+  rwlock_tests.cpp
   sequence_tests.cpp
   shared_tests.cpp
   socket_tests.cpp
