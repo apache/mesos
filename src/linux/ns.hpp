@@ -39,6 +39,7 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/proc.hpp>
+#include <stout/result.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
@@ -233,12 +234,8 @@ inline Try<Nothing> setns(pid_t pid, const std::string& ns)
 // pid. The inode number identifies the namespace and can be used for
 // comparisons, i.e., two processes with the same inode for a given
 // namespace type are in the same namespace.
-inline Try<ino_t> getns(pid_t pid, const std::string& ns)
+inline Result<ino_t> getns(pid_t pid, const std::string& ns)
 {
-  if (!os::exists(pid)) {
-    return Error("Pid " + stringify(pid) + " does not exist");
-  }
-
   if (ns::namespaces().count(ns) < 1) {
     return Error("Namespace '" + ns + "' is not supported");
   }
@@ -246,8 +243,13 @@ inline Try<ino_t> getns(pid_t pid, const std::string& ns)
   std::string path = path::join("/proc", stringify(pid), "ns", ns);
   struct stat s;
   if (::stat(path.c_str(), &s) < 0) {
-    return ErrnoError("Failed to stat " + ns + " namespace handle"
-                      " for pid " + stringify(pid));
+    if (errno == ENOENT) {
+      // Process is gone.
+      return None();
+    } else {
+      return ErrnoError("Failed to stat " + ns + " namespace handle"
+                        " for pid " + stringify(pid));
+    }
   }
 
   return s.st_ino;

@@ -161,10 +161,10 @@ TEST(NsTest, ROOT_getns)
   ASSERT_NE(-1, pid);
 
   // Continue in parent.
-  Try<ino_t> nsParent = ns::getns(::getpid(), ns);
+  Result<ino_t> nsParent = ns::getns(::getpid(), ns);
   ASSERT_SOME(nsParent);
 
-  Try<ino_t> nsChild = ns::getns(pid, ns);
+  Result<ino_t> nsChild = ns::getns(pid, ns);
   ASSERT_SOME(nsChild);
 
   // Child should be in a different namespace.
@@ -217,7 +217,7 @@ TEST(NsTest, ROOT_clone)
       continue;
     }
 
-    Try<ino_t> inode = ns::getns(parent, ns);
+    Result<ino_t> inode = ns::getns(parent, ns);
     ASSERT_SOME(inode);
     EXPECT_SOME_NE(inode.get(), ns::getns(getpid(), ns));
     EXPECT_SOME_EQ(inode.get(), ns::getns(child.get(), ns));
