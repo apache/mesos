@@ -27,6 +27,7 @@
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/interval.hpp>
+#include <stout/option.hpp>
 
 #include "linux/routing/diagnosis/diagnosis.hpp"
 
@@ -84,7 +85,8 @@ private:
   NetworkPortsIsolatorProcess(
       const Duration& _watchInterval,
       const std::string& _cgroupsRoot,
-      const std::string& _freezerHierarchy);
+      const std::string& _freezerHierarchy,
+      const Option<IntervalSet<uint16_t>>& agentPorts);
 
   struct Info
   {
@@ -95,6 +97,7 @@ private:
   const Duration watchInterval;
   const std::string cgroupsRoot;
   const std::string freezerHierarchy;
+  const Option<IntervalSet<uint16_t>> agentPorts;
 
   hashmap<ContainerID, process::Owned<Info>> infos;
 };

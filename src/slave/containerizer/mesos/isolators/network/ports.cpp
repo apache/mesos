@@ -36,6 +36,8 @@
 
 #include "linux/cgroups.hpp"
 
+#include "slave/constants.hpp"
+
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 
 using std::list;
@@ -72,6 +74,7 @@ static hashmap<ContainerID, IntervalSet<uint16_t>>
 collectContainerListeners(
     const string& cgroupsRoot,
     const string& freezerHierarchy,
+    const Option<IntervalSet<uint16_t>>& agentPorts,
     const hashset<ContainerID>& containerIds)
 {
   hashmap<ContainerID, IntervalSet<uint16_t>> listeners;
@@ -144,7 +147,11 @@ collectContainerListeners(
           }
         }
 
-        listeners[containerId].add(address.port);
+        // If we are filtering by agent ports, then we only collect this
+        // listen socket if it falls within the agent port range.
+        if (agentPorts.isNone() || agentPorts->contains(address.port)) {
+          listeners[containerId].add(address.port);
+        }
       }
     }
   }
@@ -250,6 +257,23 @@ Try<vector<uint32_t>> NetworkPortsIsolatorProcess::getProcessSockets(pid_t pid)
 }
 
 
+// Return true if any "ports" resources are specified in the flags. This
+// is later used to distinguish between empty an unspecified ports.
+static bool havePortsResource(const Flags& flags)
+{
+  vector<Resource> resourceList = Resources::fromString(
+      flags.resources.getOrElse(""), flags.default_role).get();
+
+  foreach(const auto& resource, resourceList) {
+    if (resource.name() == "ports") {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
 {
   if (flags.launcher != "linux") {
@@ -267,22 +291,73 @@ Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
         freezerHierarchy.error());
   }
 
+
+  Option<IntervalSet<uint16_t>> agentPorts = None();
+
+  // If we are only watching the ports in the agent resources, figure
+  // out what the agent ports will be by checking the resources flag
+  // and falling back to the default.
+  if (flags.check_agent_port_range_only) {
+    Try<Resources> resources = Resources::parse(
+        flags.resources.getOrElse(""),
+        flags.default_role);
+
+    if (resources.isError()) {
+      return Error(
+          "Failed to parse agent resources: " + resources.error());
+    }
+
+    // Mirroring the logic in Containerizer::resources(), we need
+    // to distinguish between an empty ports resource and a missing
+    // ports resource.
+    if (!havePortsResource(flags)) {
+      // Apply the defaults, if no ports were specified.
+      resources = Resources(
+          Resources::parse(
+              "ports",
+              stringify(DEFAULT_PORTS),
+              flags.default_role).get());
+
+      agentPorts =
+        rangesToIntervalSet<uint16_t>(resources->ports().get()).get();
+    } else if (resources->ports().isSome()) {
+      // Use the given non-empty ports resource.
+      Try<IntervalSet<uint16_t>> ports =
+        rangesToIntervalSet<uint16_t>(resources->ports().get());
+
+      if (ports.isError()) {
+        return Error(
+            "Invalid ports resource '" +
+            stringify(resources->ports().get()) +
+            "': " + ports.error());
+      }
+
+      agentPorts = ports.get();
+    } else {
+      // An empty ports resource was specified.
+      agentPorts = IntervalSet<uint16_t>{};
+    }
+  }
+
   return new MesosIsolator(process::Owned<MesosIsolatorProcess>(
       new NetworkPortsIsolatorProcess(
           flags.container_ports_watch_interval,
           flags.cgroups_root,
-          freezerHierarchy.get())));
+          freezerHierarchy.get(),
+          agentPorts)));
 }
 
 
 NetworkPortsIsolatorProcess::NetworkPortsIsolatorProcess(
     const Duration& _watchInterval,
     const string& _cgroupsRoot,
-    const string& _freezerHierarchy)
+    const string& _freezerHierarchy,
+    const Option<IntervalSet<uint16_t>>& _agentPorts)
   : ProcessBase(process::ID::generate("network-ports-isolator")),
     watchInterval(_watchInterval),
     cgroupsRoot(_cgroupsRoot),
-    freezerHierarchy(_freezerHierarchy)
+    freezerHierarchy(_freezerHierarchy),
+    agentPorts(_agentPorts)
 {
 }
 
@@ -458,6 +533,7 @@ void NetworkPortsIsolatorProcess::initialize()
             &collectContainerListeners,
             cgroupsRoot,
             freezerHierarchy,
+            agentPorts,
             infos.keys())
           .then(defer(self, &NetworkPortsIsolatorProcess::check, lambda::_1))
           .then([]() -> ControlFlow<Nothing> { return Continue(); });
