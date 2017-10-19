@@ -1815,6 +1815,26 @@ inline mesos::v1::scheduler::Call createCallAccept(
   return call;
 }
 
+
+inline mesos::v1::scheduler::Call createCallKill(
+    const mesos::v1::FrameworkID& frameworkId,
+    const mesos::v1::TaskID& taskId,
+    const Option<mesos::v1::KillPolicy>& killPolicy = None())
+{
+  mesos::v1::scheduler::Call call;
+  call.set_type(mesos::v1::scheduler::Call::KILL);
+  call.mutable_framework_id()->CopyFrom(frameworkId);
+
+  mesos::v1::scheduler::Call::Kill* kill = call.mutable_kill();
+  kill->mutable_task_id()->CopyFrom(taskId);
+
+  if (killPolicy.isSome()) {
+    kill->mutable_kill_policy()->CopyFrom(killPolicy.get());
+  }
+
+  return call;
+}
+
 } // namespace v1 {
 
 

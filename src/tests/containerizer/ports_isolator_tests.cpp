@@ -22,7 +22,10 @@
 #include <process/gtest.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/gtest.hpp>
+
+#include "internal/devolve.hpp"
 
 #include "master/detector/standalone.hpp"
 
@@ -43,8 +46,12 @@ using process::Clock;
 using process::Future;
 using process::Owned;
 
+using mesos::v1::scheduler::Event;
+
 using std::string;
 using std::vector;
+
+using testing::DoAll;
 
 using namespace routing::diagnosis;
 
@@ -67,7 +74,8 @@ public:
   // cause the agent to time out on receiving the acknowledgement, at which
   // point it will re-send and the test will intercept an unexpected duplicate
   // status update.
-  void awaitStatusUpdateAcked(Future<TaskStatus>& status)
+  template <typename Update>
+  void awaitStatusUpdateAcked(Future<Update>& status)
   {
     Future<Nothing> ack =
       FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
@@ -114,15 +122,17 @@ public:
 
 
 // Select a random port from an offer.
-static uint16_t selectRandomPort(const Resources& resources)
+template <typename R>
+static uint16_t selectRandomPort(const R& resources)
 {
-  Value::Range ports = resources.ports()->range(0);
+  auto ports = resources.ports()->range(0);
   return ports.begin() + std::rand() % (ports.end() - ports.begin() + 1);
 }
 
 
 // Select a random port that is not the same as the one given.
-static uint16_t selectOtherPort(const Resources& resources, uint16_t port)
+template <typename R>
+static uint16_t selectOtherPort(const R& resources, uint16_t port)
 {
   uint16_t selected;
 
@@ -1076,6 +1086,534 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverGoodTask)
 
   driver.stop();
   driver.join();
+}
+
+
+// Verify that a nested container that listens on ports it does
+// not hold resources for is detected and killed.
+TEST_F(NetworkPortsIsolatorTest, ROOT_NC_TaskGroup)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/ports";
+  flags.launcher = "linux";
+  flags.check_agent_port_range_only = true;
+
+#ifndef USE_SSL_SOCKET
+  // Disable operator API authentication for the default executor.
+  // Executor authentication currently has SSL as a dependency, so we
+  // cannot require executors to authenticate with the agent operator
+  // API if Mesos was not built with SSL support.
+  flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(DoAll(v1::scheduler::SendSubscribe(frameworkInfo),
+                    FutureSatisfy(&connected)));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      v1::DEFAULT_EXECUTOR_ID,
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT,
+      frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0, offers->offers().size());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+  uint16_t taskPort = selectRandomPort(v1::Resources(offer.resources()));
+  uint16_t usedPort =
+    selectOtherPort(v1::Resources(offer.resources()), taskPort);
+
+  v1::Resources resources = v1::Resources::parse(
+      "cpus:1;mem:32;"
+      "ports:[" + stringify(taskPort) + "," + stringify(taskPort) + "]").get();
+
+  // Use "nc -k" so nc keeps running after accepting the healthcheck connection.
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId,
+      resources,
+      "nc -k -l " + stringify(usedPort));
+
+  addTcpHealthCheck(taskInfo, usedPort);
+
+  Future<Event::Update> updateStarting;
+  Future<Event::Update> updateRunning;
+  Future<Event::Update> updateHealth;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateStarting),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
+    .WillOnce(DoAll(FutureArg<1>(&updateRunning),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
+    .WillOnce(DoAll(FutureArg<1>(&updateHealth),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())));
+
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
+
+  awaitStatusUpdateAcked(updateStarting);
+  ASSERT_EQ(v1::TASK_STARTING, updateStarting->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
+
+  awaitStatusUpdateAcked(updateRunning);
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
+
+  // This update is sent when the first healthcheck succeeds.
+  awaitStatusUpdateAcked(updateHealth);
+  ASSERT_EQ(taskInfo.task_id(), updateHealth->status().task_id());
+  expectHealthyStatus(devolve(updateHealth->status()));
+
+  Future<Event::Update> updateFinished;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateFinished),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())));
+
+  Future<Nothing> failure;
+  EXPECT_CALL(*scheduler, failure(_, _))
+    .WillOnce(FutureSatisfy(&failure));
+
+  Clock::pause();
+  Clock::settle();
+
+  Future<Nothing> check =
+    FUTURE_DISPATCH(_, &NetworkPortsIsolatorProcess::check);
+
+  Clock::advance(flags.container_ports_watch_interval);
+  AWAIT_READY(check);
+
+  Clock::settle();
+  Clock::resume();
+
+  // Wait for the final status update which should tell us the
+  // task has been killed.
+  AWAIT_READY(updateFinished);
+  AWAIT_READY(failure);
+
+  ASSERT_EQ(v1::TASK_FAILED, updateFinished->status().state())
+    << JSON::protobuf(updateFinished->status());
+
+  EXPECT_EQ(taskInfo.task_id(), updateFinished->status().task_id())
+    << JSON::protobuf(updateFinished->status());
+
+  // Depending on event ordering, the status source can be SOURCE_AGENT or
+  // SOURCE_EXECUTOR. It doesn't matter who sends it, since we expect the
+  // contents of the update to be identical.
+  EXPECT_NE(v1::TaskStatus::SOURCE_MASTER, updateFinished->status().source())
+    << JSON::protobuf(updateFinished->status());
+
+  expectPortsLimitation(devolve(updateFinished->status()), usedPort);
+}
+
+
+// Test that after we recover a task, the isolator notices that it
+// is using the wrong ports and kills it.
+TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverNestedBadTask)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  const string slaveId = "RecoverNestedBadTask";
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+
+#ifndef USE_SSL_SOCKET
+  // Disable operator API authentication for the default executor.
+  // Executor authentication currently has SSL as a dependency, so we
+  // cannot require executors to authenticate with the agent operator
+  // API if Mesos was not built with SSL support.
+  flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), slaveId, flags);
+
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(DoAll(v1::scheduler::SendSubscribe(frameworkInfo),
+                    FutureSatisfy(&connected)));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      v1::DEFAULT_EXECUTOR_ID,
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT,
+      frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0, offers->offers().size());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+  uint16_t taskPort = selectRandomPort(v1::Resources(offer.resources()));
+  uint16_t usedPort =
+    selectOtherPort(v1::Resources(offer.resources()), taskPort);
+
+  v1::Resources resources = v1::Resources::parse(
+      "cpus:1;mem:32;"
+      "ports:[" + stringify(taskPort) + "," + stringify(taskPort) + "]").get();
+
+  // Use "nc -k" so nc keeps running after accepting the healthcheck connection.
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId,
+      resources,
+      "nc -k -l " + stringify(usedPort));
+
+  addTcpHealthCheck(taskInfo, usedPort);
+
+  Future<Event::Update> updateStarting;
+  Future<Event::Update> updateRunning;
+  Future<Event::Update> updateHealth;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateStarting),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
+    .WillOnce(DoAll(FutureArg<1>(&updateRunning),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
+    .WillOnce(DoAll(FutureArg<1>(&updateHealth),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())));
+
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
+
+  awaitStatusUpdateAcked(updateStarting);
+  ASSERT_EQ(v1::TASK_STARTING, updateStarting->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
+
+  awaitStatusUpdateAcked(updateRunning);
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
+
+  // This update is sent when the first healthcheck succeeds.
+  awaitStatusUpdateAcked(updateHealth);
+  ASSERT_EQ(taskInfo.task_id(), updateHealth->status().task_id());
+  expectHealthyStatus(devolve(updateHealth->status()));
+
+  // Restart the agent.
+  slave.get()->terminate();
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Add `network/ports` isolation to the restarted agent. This tests that when
+  // the isolator goes through recovery we will notice the nc command listening
+  // and terminate it.
+  flags.isolation = "network/ports";
+  flags.check_agent_port_range_only = true;
+
+  slave = cluster::Slave::start(detector.get(), flags, slaveId);
+  ASSERT_SOME(slave);
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(slaveReregisteredMessage);
+
+  Future<Event::Update> updateFinished;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateFinished),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())));
+
+  Future<Nothing> failure;
+  EXPECT_CALL(*scheduler, failure(_, _))
+    .WillOnce(FutureSatisfy(&failure));
+
+  // Now force a ports check, which should terminate the nc command.
+  Clock::pause();
+
+  Future<Nothing> check =
+    FUTURE_DISPATCH(_, &NetworkPortsIsolatorProcess::check);
+
+  Clock::advance(flags.container_ports_watch_interval);
+  AWAIT_READY(check);
+
+  Clock::settle();
+  Clock::resume();
+
+  // Wait for the final status update which should tell us the
+  // task has been killed.
+  AWAIT_READY(updateFinished);
+  AWAIT_READY(failure);
+
+  ASSERT_EQ(v1::TASK_FAILED, updateFinished->status().state())
+    << JSON::protobuf(updateFinished->status());
+
+  EXPECT_EQ(taskInfo.task_id(), updateFinished->status().task_id())
+    << JSON::protobuf(updateFinished->status());
+
+  // Depending on event ordering, the status source can be SOURCE_AGENT or
+  // SOURCE_EXECUTOR. It doesn't matter who sends it, since we expect the
+  // contents of the update to be identical.
+  EXPECT_NE(v1::TaskStatus::SOURCE_MASTER, updateFinished->status().source())
+    << JSON::protobuf(updateFinished->status());
+
+  EXPECT_EQ(
+      v1::TaskStatus::REASON_CONTAINER_LIMITATION,
+      updateFinished->status().reason())
+    << JSON::protobuf(updateFinished->status());
+
+  expectPortsLimitation(devolve(updateFinished->status()), usedPort);
+}
+
+
+// This test verifies that the `network/ports` isolator does not kill a
+// well-behaved nested container when it recovers it after an agent restart.
+TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverNestedGoodTask)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  const string slaveId = "RecoverNestedGoodTask";
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+
+#ifndef USE_SSL_SOCKET
+  // Disable operator API authentication for the default executor.
+  // Executor authentication currently has SSL as a dependency, so we
+  // cannot require executors to authenticate with the agent operator
+  // API if Mesos was not built with SSL support.
+  flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), slaveId, flags);
+
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(DoAll(v1::scheduler::SendSubscribe(frameworkInfo),
+                    FutureSatisfy(&connected)));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      v1::DEFAULT_EXECUTOR_ID,
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT,
+      frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_NE(0, offers->offers().size());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+  uint16_t taskPort = selectRandomPort(v1::Resources(offer.resources()));
+
+  v1::Resources resources = v1::Resources::parse(
+      "cpus:1;mem:32;"
+      "ports:[" + stringify(taskPort) + "," + stringify(taskPort) + "]").get();
+
+  // Use "nc -k" so nc keeps running after accepting the healthcheck connection.
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId,
+      resources,
+      "nc -k -l " + stringify(taskPort));
+
+  addTcpHealthCheck(taskInfo, taskPort);
+
+  Future<Event::Update> updateStarting;
+  Future<Event::Update> updateRunning;
+  Future<Event::Update> updateHealth;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateStarting),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
+    .WillOnce(DoAll(FutureArg<1>(&updateRunning),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
+    .WillOnce(DoAll(FutureArg<1>(&updateHealth),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())));
+
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo}));
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
+
+  awaitStatusUpdateAcked(updateStarting);
+  ASSERT_EQ(v1::TASK_STARTING, updateStarting->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
+
+  awaitStatusUpdateAcked(updateRunning);
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
+
+  // This update is sent when the first healthcheck succeeds.
+  awaitStatusUpdateAcked(updateHealth);
+  ASSERT_EQ(taskInfo.task_id(), updateHealth->status().task_id());
+  expectHealthyStatus(devolve(updateHealth->status()));
+
+  // Restart the agent.
+  slave.get()->terminate();
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Add `network/ports` isolation to the restarted agent. This tests that
+  // when the isolator goes through recovery we will notice the nc command
+  // listening and will let it continue running.
+  flags.isolation = "network/ports";
+  flags.check_agent_port_range_only = true;
+
+  slave = cluster::Slave::start(detector.get(), flags, slaveId);
+  ASSERT_SOME(slave);
+
+  // Wait for the slave to re-register.
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // We expect that the task will continue to run, so the health check
+  // status won't change and we will not get any status updates from it.
+  EXPECT_CALL(*scheduler, update(_, _)).Times(0);
+
+  // Now force a ports check to ensure that we have an opportunity to
+  // kill the task but correctly leave it alone.
+  Clock::pause();
+
+  Future<Nothing> check =
+    FUTURE_DISPATCH(_, &NetworkPortsIsolatorProcess::check);
+
+  Clock::advance(flags.container_ports_watch_interval);
+  AWAIT_READY(check);
+
+  Clock::settle();
+  Clock::resume();
+
+  Future<Event::Update> updateKilled;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateKilled),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
+    .RetiresOnSaturation();
+
+  mesos.send(v1::createCallKill(frameworkId, taskInfo.task_id()));
+
+  // Since the task is still running, we should be able to kill it
+  // and receive the expected status update state.
+  awaitStatusUpdateAcked(updateKilled);
+  ASSERT_EQ(v1::TASK_KILLED, updateKilled->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateKilled->status().task_id());
 }
 
 } // namespace tests {
