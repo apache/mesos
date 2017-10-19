@@ -16,7 +16,14 @@
 
 #include "slave/containerizer/mesos/isolators/network/ports.hpp"
 
+#include <dirent.h>
+
+#include <sys/types.h>
+
 #include <process/id.hpp>
+
+#include <stout/numify.hpp>
+#include <stout/path.hpp>
 
 #include "common/protobuf_utils.hpp"
 #include "common/values.hpp"
@@ -37,9 +44,108 @@ using mesos::slave::Isolator;
 
 using mesos::internal::values::rangesToIntervalSet;
 
+using namespace routing::diagnosis;
+
 namespace mesos {
 namespace internal {
 namespace slave {
+
+// Return a hashmap of routing::diagnosis::socket::Info structures
+// for all listening sockets, indexed by the socket inode.
+Try<hashmap<uint32_t, socket::Info>>
+NetworkPortsIsolatorProcess::getListeningSockets()
+{
+  Try<vector<socket::Info>> socketInfos = socket::infos(
+      AF_INET,
+      socket::state::LISTEN);
+
+  if (socketInfos.isError()) {
+    return Error(socketInfos.error());
+  }
+
+  hashmap<uint32_t, socket::Info> inodes;
+
+  foreach (const socket::Info& info, socketInfos.get()) {
+    // The inode should never be 0. This would only happen if the kernel
+    // didn't return the inode in the sockdiag response, which would imply
+    // a very old kernel or a problem between the kernel and libnl.
+    if (info.inode != 0) {
+      inodes.emplace(info.inode, info);
+    }
+  }
+
+  return inodes;
+}
+
+
+// Extract the inode field from a /proc/$PID/fd entry. The format of
+// the socket entry is "socket:[nnnn]" where nnnn is the numberic inode
+// number of the socket.
+static uint32_t extractSocketInode(const string& sock)
+{
+  const size_t s = sizeof("socket:[]") - 1;
+  const string val = sock.substr(s - 1, sock.size() - s);
+
+  Try<uint32_t> value = numify<uint32_t>(val);
+  CHECK_SOME(value);
+
+  return value.get();
+}
+
+
+// Return the inodes of all the sockets open in the the given process.
+Try<vector<uint32_t>> NetworkPortsIsolatorProcess::getProcessSockets(pid_t pid)
+{
+  const string fdPath = path::join("/proc", stringify(pid), "fd");
+
+  DIR* dir = opendir(fdPath.c_str());
+  if (dir == nullptr) {
+    return ErrnoError("Failed to open directory '" + fdPath + "'");
+  }
+
+  vector<uint32_t> inodes;
+  struct dirent* entry;
+  char target[NAME_MAX];
+
+  while (true) {
+    errno = 0;
+    if ((entry = readdir(dir)) == nullptr) {
+      // If errno is non-zero, readdir failed.
+      if (errno != 0) {
+        Error error = ErrnoError("Failed to read directory '" + fdPath + "'");
+        CHECK_EQ(closedir(dir), 0) << os::strerror(errno);
+        return error;
+      }
+
+      // Otherwise we just reached the end of the directory and we are done.
+      CHECK_EQ(closedir(dir), 0) << os::strerror(errno);
+      return inodes;
+    }
+
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+      continue;
+    }
+
+    ssize_t nbytes = readlinkat(
+        dirfd(dir), entry->d_name, target, sizeof(target) - 1);
+
+    if (nbytes == -1) {
+      Error error = ErrnoError(
+          "Failed to read symbolic link '" +
+          path::join(fdPath, entry->d_name) + "'");
+
+      CHECK_EQ(closedir(dir), 0) << os::strerror(errno);
+      return error;
+    }
+
+    target[nbytes] = '\0';
+
+    if (strings::startsWith(target, "socket:[")) {
+      inodes.push_back(extractSocketInode(target));
+    }
+  }
+}
+
 
 Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
 {
