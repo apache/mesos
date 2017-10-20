@@ -760,6 +760,92 @@ inline Try<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION> get_job_info(pid_t pid)
 }
 
 
+template <size_t max_pids>
+Result<std::set<Process>> _get_job_processes(const SharedHandle& job_handle) {
+  // This is a statically allocated `JOBOBJECT_BASIC_PROCESS_ID_LIST`. We lie to
+  // the Windows API and construct our own struct to avoid (a) having to do
+  // hairy size calculations and (b) having to allocate dynamically, and then
+  // worry about deallocating.
+  struct {
+    DWORD     NumberOfAssignedProcesses;
+    DWORD     NumberOfProcessIdsInList;
+    ULONG_PTR ProcessIdList[max_pids];
+  } pid_list;
+
+  BOOL result = ::QueryInformationJobObject(
+    job_handle.get_handle(),
+    JobObjectBasicProcessIdList,
+    reinterpret_cast<JOBOBJECT_BASIC_PROCESS_ID_LIST*>(&pid_list),
+    sizeof(pid_list),
+    nullptr);
+
+  // `ERROR_MORE_DATA` indicates we need a larger `max_pids`.
+  if (result == FALSE && ::GetLastError() == ERROR_MORE_DATA) {
+    return None();
+  }
+
+  if (result == FALSE) {
+    return WindowsError(
+      "os::_get_job_processes: call to `QueryInformationJobObject` failed");
+  }
+
+  std::set<Process> processes;
+  for (DWORD i = 0; i < pid_list.NumberOfProcessIdsInList; ++i) {
+    Result<Process> process = os::process(pid_list.ProcessIdList[i]);
+    if (process.isSome()) {
+      processes.insert(process.get());
+    }
+  }
+
+  return processes;
+}
+
+
+inline Try<std::set<Process>> get_job_processes(pid_t pid)
+{
+  Try<std::wstring> name = os::name_job(pid);
+  if (name.isError()) {
+    return Error(name.error());
+  }
+
+  Try<SharedHandle> job_handle = os::open_job(
+    JOB_OBJECT_QUERY,
+    false,
+    name.get());
+  if (job_handle.isError()) {
+    return Error(job_handle.error());
+  }
+
+  // Try to enumerate the processes with three sizes: 32, 1K, and 32K.
+
+  Result<std::set<Process>> result =
+    os::_get_job_processes<32>(job_handle.get());
+  if (result.isError()) {
+    return Error(result.error());
+  } else if (result.isSome()) {
+    return result.get();
+  }
+
+  result = os::_get_job_processes<32*32>(job_handle.get());
+  if (result.isError()) {
+    return Error(result.error());
+  } else if (result.isSome()) {
+    return result.get();
+  }
+
+  result = os::_get_job_processes<32*32*32>(job_handle.get());
+  if (result.isError()) {
+    return Error(result.error());
+  } else if (result.isSome()) {
+    return result.get();
+  }
+
+  // If it was bigger than 32K, something else has gone wrong.
+
+  return Error("os::get_job_processes: failed to get processes");
+}
+
+
 // `set_job_cpu_limit` sets a CPU limit for the process represented by
 // `pid`, assuming it is assigned to a job object. This function will fail
 // otherwise. This limit is a hard cap enforced by the OS.
