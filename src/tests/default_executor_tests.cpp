@@ -40,6 +40,7 @@
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
 #include <stout/path.hpp>
+#include <stout/uri.hpp>
 
 #include <stout/os/exists.hpp>
 #include <stout/os/killtree.hpp>
@@ -2012,10 +2013,7 @@ struct LauncherAndIsolationParam
 
 // This test verifies that URIs set on tasks are fetched and made available to
 // them when started by the DefaultExecutor.
-//
-// TODO(josephw): Reenable this test once URIs are constructed without using
-// the `path` helpers. This should be fixed along with MESOS-6705.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskWithFileURI)
+TEST_P(DefaultExecutorTest, TaskWithFileURI)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -2074,12 +2072,29 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskWithFileURI)
   string testFilePath = path::join(fromPath, "testFile");
   EXPECT_SOME(os::write(testFilePath, "pizza"));
 
+#ifndef __WINDOWS__
+  const std::string contentTest = "test `cat testFile` = pizza";
+#else
+  const std::string contentTest = "";
+#endif // __WINDOWS__
+
   v1::TaskInfo taskInfo = v1::createTask(
       agentId,
       v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
-      "test `cat testFile` = pizza");
+      contentTest);
 
-  taskInfo.mutable_command()->add_uris()->set_value("file://" + testFilePath);
+#ifdef __WINDOWS__
+  taskInfo.mutable_command()->set_shell(false);
+  taskInfo.mutable_command()->set_value("powershell.exe");
+  taskInfo.mutable_command()->add_arguments("powershell.exe");
+  taskInfo.mutable_command()->add_arguments("-NoProfile");
+  taskInfo.mutable_command()->add_arguments("-Command");
+  taskInfo.mutable_command()->add_arguments(
+      "if ((Get-Content testFile) -NotMatch 'pizza') { exit 1 }");
+#endif // __WINDOWS__
+
+  taskInfo.mutable_command()->add_uris()->set_value(
+      uri::from_path(testFilePath));
 
   Future<v1::scheduler::Event::Update> startingUpdate;
   Future<v1::scheduler::Event::Update> runningUpdate;
@@ -2122,8 +2137,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskWithFileURI)
 // This test verifies that URIs set on Docker tasks are fetched and made
 // available to them when started by the DefaultExecutor.
 //
-// TODO(josephw): Reenable this test once URIs are constructed without using
-// the `path` helpers. This should be fixed along with MESOS-6705.
+// TODO(coffler): This test is dependent on alpine image. For Windows,
+// we'll need to port to use a Windows container, using PowerShell
+// snippet from test "TaskWithFileURI" rather than Linux "test" command.
 TEST_P_TEMP_DISABLED_ON_WINDOWS(
     DefaultExecutorTest, ROOT_INTERNET_CURL_DockerTaskWithFileURI)
 {
@@ -2195,7 +2211,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
       "test `cat testFile` = pizza");
 
-  taskInfo.mutable_command()->add_uris()->set_value("file://" + testFilePath);
+  taskInfo.mutable_command()->add_uris()->set_value(
+      uri::from_path(testFilePath));
 
   mesos::v1::Image image;
   image.set_type(mesos::v1::Image::DOCKER);
