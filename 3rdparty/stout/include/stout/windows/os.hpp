@@ -777,6 +777,44 @@ inline Try<Nothing> set_job_cpu_limit(pid_t pid, double cpus)
 }
 
 
+// `set_job_mem_limit` sets a memory limit for the process represented by
+// `pid`, assuming it is assigned to a job object. This function will fail
+// otherwise. This limit is a hard cap enforced by the OS.
+//
+// https://msdn.microsoft.com/en-us/library/windows/desktop/ms684156(v=vs.85).aspx // NOLINT(whitespace/line_length)
+inline Try<Nothing> set_job_mem_limit(pid_t pid, Bytes limit)
+{
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
+  info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_JOB_MEMORY;
+  info.JobMemoryLimit = limit.bytes();
+
+  Try<std::wstring> name = os::name_job(pid);
+  if (name.isError()) {
+    return Error(name.error());
+  }
+
+  Try<SharedHandle> job_handle = os::open_job(
+      JOB_OBJECT_SET_ATTRIBUTES,
+      false,
+      name.get());
+  if (job_handle.isError()) {
+    return Error(job_handle.error());
+  }
+
+  BOOL result = ::SetInformationJobObject(
+    job_handle.get().get_handle(),
+    JobObjectExtendedLimitInformation,
+    &info,
+    sizeof(info));
+  if (result == FALSE) {
+    return WindowsError(
+      "os::set_job_mem_limit: call to `SetInformationJobObject` failed");
+  }
+
+  return Nothing();
+}
+
+
 // `assign_job` assigns a process with `pid` to the job object `job_handle`.
 // Every process started by the `pid` process using `CreateProcess`
 // will also be owned by the job object.
