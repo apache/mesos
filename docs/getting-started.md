@@ -38,7 +38,7 @@ Following are the instructions for stock Ubuntu 14.04. If you are using a differ
     $ sudo apt-get update
 
     # Install a few utility tools.
-    $ sudo apt-get install -y tar wget git
+    $ sudo apt-get install -y tar wget git curl
 
     # Install the latest OpenJDK.
     $ sudo apt-get install -y openjdk-7-jdk
@@ -57,7 +57,7 @@ Following are the instructions for stock Ubuntu 16.04. If you are using a differ
     $ sudo apt-get update
 
     # Install a few utility tools.
-    $ sudo apt-get install -y tar wget git
+    $ sudo apt-get install -y tar wget git curl
 
     # Install the latest OpenJDK.
     $ sudo apt-get install -y openjdk-8-jdk
