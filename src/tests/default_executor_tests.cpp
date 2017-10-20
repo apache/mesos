@@ -944,34 +944,29 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   // The first task finishes successfully while the second
   // task is explicitly killed later.
 
-  v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "exit 0");
+  v1::TaskInfo task1 = v1::createTask(agentId, resources, "exit 0");
 
-  v1::TaskInfo taskInfo2 =
-    v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
+  v1::TaskInfo task2 = v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
 
-  const hashset<v1::TaskID> tasks{taskInfo1.task_id(), taskInfo2.task_id()};
+  const hashset<v1::TaskID> taskIds{task1.task_id(), task2.task_id()};
 
-  Future<v1::scheduler::Event::Update> startingUpdate1;
-  Future<v1::scheduler::Event::Update> startingUpdate2;
-  Future<v1::scheduler::Event::Update> runningUpdate1;
-  Future<v1::scheduler::Event::Update> runningUpdate2;
-  EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(
-        DoAll(
-            FutureArg<1>(&startingUpdate1),
-            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
-    .WillOnce(
-        DoAll(
-            FutureArg<1>(&startingUpdate2),
-            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
-    .WillOnce(
-        DoAll(
-            FutureArg<1>(&runningUpdate1),
-            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
-    .WillOnce(
-        DoAll(
-            FutureArg<1>(&runningUpdate2),
-            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+  // We expect two TASK_STARTING, two TASK_RUNNING, and one TASK_FINISHED
+  // updates.
+  vector<Future<v1::scheduler::Event::Update>> updates(5);
+
+  {
+    // This variable doesn't have to be used explicitly. We need it so that the
+    // futures are satisfied in the order in which the updates are received.
+    testing::InSequence inSequence;
+
+    foreach (Future<v1::scheduler::Event::Update>& update, updates) {
+      EXPECT_CALL(*scheduler, update(_, _))
+        .WillOnce(
+            DoAll(
+                FutureArg<1>(&update),
+                v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+    }
+  }
 
   Future<v1::scheduler::Event::Failure> executorFailure;
   EXPECT_CALL(*scheduler, failure(_, _))
@@ -982,49 +977,77 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
           frameworkId,
           offer,
           {v1::LAUNCH_GROUP(
-              executorInfo, v1::createTaskGroupInfo({taskInfo1, taskInfo2}))}));
+              executorInfo, v1::createTaskGroupInfo({task1, task2}))}));
 
-  AWAIT_READY(startingUpdate1);
-  ASSERT_EQ(TASK_STARTING, startingUpdate1->status().state());
+  enum class Stage
+  {
+    INITIAL,
+    STARTING,
+    RUNNING,
+    FINISHED
+  };
 
-  // We only check the first and last update, because the other two might
-  // arrive in a different order.
+  hashmap<v1::TaskID, Stage> taskStages;
+  taskStages[task1.task_id()] = Stage::INITIAL;
+  taskStages[task2.task_id()] = Stage::INITIAL;
 
-  AWAIT_READY(runningUpdate2);
-  ASSERT_EQ(TASK_RUNNING, runningUpdate2->status().state());
+  foreach (Future<v1::scheduler::Event::Update>& update, updates) {
+    AWAIT_READY(update);
 
-  // When running a task, TASK_RUNNING updates for the tasks in a
-  // task group can be received in any order.
-  const hashset<v1::TaskID> tasksRunning{
-    startingUpdate1->status().task_id(),
-    startingUpdate2->status().task_id(),
-    runningUpdate1->status().task_id(),
-    runningUpdate2->status().task_id()};
+    const v1::TaskStatus& taskStatus = update->status();
 
-  ASSERT_EQ(tasks, tasksRunning);
+    Option<Stage> taskStage = taskStages.get(taskStatus.task_id());
+    ASSERT_SOME(taskStage);
 
-  Future<v1::scheduler::Event::Update> finishedUpdate;
-  EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&finishedUpdate));
+    switch (taskStage.get()) {
+      case Stage::INITIAL: {
+        ASSERT_EQ(TASK_STARTING, taskStatus.state());
 
-  AWAIT_READY(finishedUpdate);
-  ASSERT_EQ(TASK_FINISHED, finishedUpdate->status().state());
-  ASSERT_EQ(taskInfo1.task_id(), finishedUpdate->status().task_id());
+        taskStages[taskStatus.task_id()] = Stage::STARTING;
 
-  // The executor should still be alive after the task
-  // has finished successfully.
+        break;
+      }
+      case Stage::STARTING: {
+        ASSERT_EQ(TASK_RUNNING, taskStatus.state());
+
+        taskStages[taskStatus.task_id()] = Stage::RUNNING;
+
+        break;
+      }
+      case Stage::RUNNING: {
+        ASSERT_EQ(TASK_FINISHED, taskStatus.state());
+
+        taskStages[taskStatus.task_id()] = Stage::FINISHED;
+
+        break;
+      }
+      case Stage::FINISHED: {
+        FAIL() << "Unexpected task update: " << update->DebugString();
+        break;
+      }
+    }
+  }
+
+  // `task1` should have finished, `task2` should still be running.
+  ASSERT_EQ(Stage::FINISHED, taskStages[task1.task_id()]);
+  ASSERT_EQ(Stage::RUNNING, taskStages[task2.task_id()]);
+
+  // The executor should still be alive after task1 has finished successfully.
   ASSERT_TRUE(executorFailure.isPending());
 
   Future<v1::scheduler::Event::Update> killedUpdate;
   EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&killedUpdate));
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&killedUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
 
   // Now kill the second task in the task group.
-  mesos.send(v1::createCallKill(frameworkId, taskInfo2.task_id()));
+  mesos.send(v1::createCallKill(frameworkId, task2.task_id()));
 
   AWAIT_READY(killedUpdate);
   ASSERT_EQ(TASK_KILLED, killedUpdate->status().state());
-  ASSERT_EQ(taskInfo2.task_id(), killedUpdate->status().task_id());
+  ASSERT_EQ(task2.task_id(), killedUpdate->status().task_id());
 
   // The executor should commit suicide after the task is killed.
   AWAIT_READY(executorFailure);
