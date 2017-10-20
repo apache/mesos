@@ -1816,6 +1816,28 @@ inline mesos::v1::scheduler::Call createCallAccept(
 }
 
 
+inline mesos::v1::scheduler::Call createCallAcknowledge(
+    const mesos::v1::FrameworkID& frameworkId,
+    const mesos::v1::AgentID& agentId,
+    const mesos::v1::scheduler::Event::Update& update)
+{
+  mesos::v1::scheduler::Call call;
+  call.set_type(mesos::v1::scheduler::Call::ACKNOWLEDGE);
+  call.mutable_framework_id()->CopyFrom(frameworkId);
+
+  mesos::v1::scheduler::Call::Acknowledge* acknowledge =
+    call.mutable_acknowledge();
+
+  acknowledge->mutable_task_id()->CopyFrom(
+      update.status().task_id());
+
+  acknowledge->mutable_agent_id()->CopyFrom(agentId);
+  acknowledge->set_uuid(update.status().uuid());
+
+  return call;
+}
+
+
 inline mesos::v1::scheduler::Call createCallKill(
     const mesos::v1::FrameworkID& frameworkId,
     const mesos::v1::TaskID& taskId,

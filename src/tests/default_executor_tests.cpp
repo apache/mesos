@@ -398,16 +398,7 @@ TEST_P(DefaultExecutorTest, KillTask)
     .WillOnce(FutureArg<1>(&executorFailure));
 
   // Now kill a task in the first task group.
-  {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::KILL);
-
-    Call::Kill* kill = call.mutable_kill();
-    kill->mutable_task_id()->CopyFrom(taskInfo1.task_id());
-
-    mesos.send(call);
-  }
+  mesos.send(v1::createCallKill(frameworkId, taskInfo1.task_id()));
 
   // All the tasks in the first task group should be killed.
 
@@ -434,16 +425,7 @@ TEST_P(DefaultExecutorTest, KillTask)
     .WillOnce(FutureArg<1>(&killedUpdate3));
 
   // Now kill the only task present in the second task group.
-  {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::KILL);
-
-    Call::Kill* kill = call.mutable_kill();
-    kill->mutable_task_id()->CopyFrom(taskInfo3.task_id());
-
-    mesos.send(call);
-  }
+  mesos.send(v1::createCallKill(frameworkId, taskInfo3.task_id()));
 
   AWAIT_READY(killedUpdate3);
   ASSERT_EQ(TASK_KILLED, killedUpdate3->status().state());
@@ -514,22 +496,6 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   const v1::Offer& offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
 
-  auto acknowledge = [&](const Future<v1::scheduler::Event::Update>& update) {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::ACKNOWLEDGE);
-
-    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
-
-    acknowledge->mutable_task_id()->CopyFrom(
-        update->status().task_id());
-
-    acknowledge->mutable_agent_id()->CopyFrom(agentId);
-    acknowledge->set_uuid(update->status().uuid());
-
-    mesos.send(call);
-  };
-
   // The first task exits with a non-zero status code.
   v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "exit 1");
 
@@ -561,8 +527,10 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   AWAIT_READY(startingUpdate2);
   ASSERT_EQ(TASK_STARTING, startingUpdate2->status().state());
 
-  acknowledge(startingUpdate1);
-  acknowledge(startingUpdate2);
+  mesos.send(
+      v1::createCallAcknowledge(frameworkId, agentId, startingUpdate1.get()));
+  mesos.send(
+      v1::createCallAcknowledge(frameworkId, agentId, startingUpdate2.get()));
 
   AWAIT_READY(runningUpdate1);
   ASSERT_EQ(TASK_RUNNING, runningUpdate1->status().state());
@@ -585,8 +553,10 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
     .WillOnce(FutureArg<1>(&update2));
 
   // Acknowledge the TASK_RUNNING updates to receive the next updates.
-  acknowledge(runningUpdate1);
-  acknowledge(runningUpdate2);
+  mesos.send(
+      v1::createCallAcknowledge(frameworkId, agentId, runningUpdate1.get()));
+  mesos.send(
+      v1::createCallAcknowledge(frameworkId, agentId, runningUpdate2.get()));
 
   // Updates for the tasks in a task group can be received in any order.
   set<pair<v1::TaskID, v1::TaskState>> taskStates;
@@ -1050,16 +1020,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
     .WillOnce(FutureArg<1>(&killedUpdate));
 
   // Now kill the second task in the task group.
-  {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::KILL);
-
-    Call::Kill* kill = call.mutable_kill();
-    kill->mutable_task_id()->CopyFrom(taskInfo2.task_id());
-
-    mesos.send(call);
-  }
+  mesos.send(v1::createCallKill(frameworkId, taskInfo2.task_id()));
 
   AWAIT_READY(killedUpdate);
   ASSERT_EQ(TASK_KILLED, killedUpdate->status().state());
