@@ -181,22 +181,76 @@ TEST_F(FsTest, Touch)
 
 
 #ifdef __WINDOWS__
-// This test attempts to perform some basic file operations on a file
-// with an absolute path longer than the `MAX_PATH`.
-TEST_F(FsTest, LongPath)
+// This tests the expected behavior of the `longpath` helper.
+TEST_F(FsTest, WindowsInternalLongPath)
 {
-  string testdir = os::getcwd();
-  while (testdir.length() <= MAX_PATH)
-  {
-    testdir = path::join(testdir, UUID::random().toString());
-  }
-  ASSERT_TRUE(testdir.length() > MAX_PATH);
+  using ::internal::windows::longpath;
 
+  // Not absolute.
+  EXPECT_EQ(longpath("path"), wide_stringify("path"));
+
+  // Absolute, but short.
+  EXPECT_EQ(longpath("C:\\path"), wide_stringify("C:\\path"));
+
+  // Edge case exactly one under `max_path_length`.
+  const size_t max_path_length = 248;
+  const string root = "C:\\";
+  string path = root + string(max_path_length - root.length() - 1, 'c');
+  EXPECT_EQ(path.length(), max_path_length - 1);
+  EXPECT_EQ(longpath(path), wide_stringify(path));
+
+  // Edge case exactly at `max_path_length`.
+  path += "c";
+  EXPECT_EQ(path.length(), max_path_length);
+  EXPECT_EQ(longpath(path), wide_stringify(os::LONGPATH_PREFIX + path));
+
+  // Edge case exactly one over `max_path_length`.
+  path += "c";
+  EXPECT_EQ(path.length(), max_path_length + 1);
+  EXPECT_EQ(longpath(path), wide_stringify(os::LONGPATH_PREFIX + path));
+
+  // Idempotency.
+  EXPECT_EQ(longpath(os::LONGPATH_PREFIX + path),
+            wide_stringify(os::LONGPATH_PREFIX + path));
+}
+
+
+// This test attempts to perform some basic file operations on a file
+// with an absolute path at exactly the internal `MAX_PATH` of 248.
+TEST_F(FsTest, CreateDirectoryAtMaxPath)
+{
+  const size_t max_path_length = 248;
+  const string testdir = path::join(
+    sandbox.get(),
+    string(max_path_length - sandbox.get().length() - 1 /* separator */, 'c'));
+
+  EXPECT_EQ(testdir.length(), max_path_length);
   ASSERT_SOME(os::mkdir(testdir));
 
   const string testfile = path::join(testdir, "file.txt");
 
-  ASSERT_SOME(os::touch(testfile));
+  EXPECT_SOME(os::touch(testfile));
+  EXPECT_TRUE(os::exists(testfile));
+  EXPECT_SOME_TRUE(os::access(testfile, R_OK | W_OK));
+  EXPECT_SOME_EQ(testfile, os::realpath(testfile));
+}
+
+
+// This test attempts to perform some basic file operations on a file
+// with an absolute path longer than the `MAX_PATH`.
+TEST_F(FsTest, CreateDirectoryLongerThanMaxPath)
+{
+  string testdir = sandbox.get();
+  while (testdir.length() <= MAX_PATH) {
+    testdir = path::join(testdir, UUID::random().toString());
+  }
+
+  EXPECT_TRUE(testdir.length() > MAX_PATH);
+  ASSERT_SOME(os::mkdir(testdir));
+
+  const string testfile = path::join(testdir, "file.txt");
+
+  EXPECT_SOME(os::touch(testfile));
   EXPECT_TRUE(os::exists(testfile));
   EXPECT_SOME_TRUE(os::access(testfile, R_OK | W_OK));
   EXPECT_SOME_EQ(testfile, os::realpath(testfile));

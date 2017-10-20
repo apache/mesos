@@ -27,18 +27,18 @@ namespace internal {
 namespace windows {
 
 // This function idempotently prepends "\\?\" to the given path iff:
-// (1) The path's length is greater than 248, the minimum Windows API limit.
-//     This limit is neither `NAME_MAX` nor `PATH_MAX`; it is an arbitrary
-//     limit of `CreateDirectory` and is the smallest such limit.
+// (1) The path's length is greater than or equal to 248, the minimum Windows
+//     API limit. This limit is neither `NAME_MAX` nor `PATH_MAX`; it is an
+//     arbitrary limit of `CreateDirectoryW` and is the smallest such limit.
 // (2) The path is absolute (otherwise the marker is meaningless).
 // (3) The path does not already have the marker (idempotent).
 //
-// It then converts the path to UTF-16, appropriate for use in Uniode versions
+// It then converts the path to UTF-16, appropriate for use in Unicode versions
 // of Windows filesystem APIs which support lengths greater than NAME_MAX.
 inline std::wstring longpath(const std::string& path)
 {
   const size_t max_path_length = 248;
-  if (path.size() > max_path_length &&
+  if (path.size() >= max_path_length &&
       path::absolute(path) &&
       !strings::startsWith(path, os::LONGPATH_PREFIX)) {
     return wide_stringify(os::LONGPATH_PREFIX + path);
