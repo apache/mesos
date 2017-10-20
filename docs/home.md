@@ -9,7 +9,8 @@ layout: documentation
 * [Academic Papers and Project History](https://www.usenix.org/conference/nsdi11/mesos-platform-fine-grained-resource-sharing-data-center)
 
 ## Build / Installation
-* [Getting Started](getting-started.md) for basic instructions on compiling and installing Mesos.
+* [Building](building.md) for basic instructions on compiling and installing Mesos.
+* [Configuration](configuration.md) for build configuration options.
 * [CMake](cmake.md) for details about using the new CMake build system.
 * [Windows Support](windows.md) for the state of Windows support in Mesos.
 
