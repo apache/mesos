@@ -1,0 +1,15 @@
+<% wrap_layout :layout do  %>
+<div class="row">
+  <div class="col-md-2">
+    <ul class="list-group">
+      <li class="list-group-item"><a href="/documentation/latest/building/">How To Build</a></li>
+      <li class="list-group-item"><a href="/documentation/latest/beginner-contribution">Beginner Contribution</a></li>
+      <li class="list-group-item"><a href="/documentation/latest/advanced-contribution">Advanced Contribution</a></li>
+      <li class="list-group-item"><a href="https://issues.apache.org/jira/browse/MESOS">JIRA Issue Tracker</a></li>
+    </li>
+  </div>
+  <div class="col-md-10">
+    <%= yield %>
+  </div>
+</div>
+<% end %>
