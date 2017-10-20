@@ -256,6 +256,41 @@ static Try<Nothing> installResourceLimits(const RLimitInfo& limits)
 }
 
 
+static Try<Nothing> enterChroot(const string& rootfs)
+{
+#ifdef __WINDOWS__
+  return Error("Changing rootfs is not supported on Windows");
+#else
+  // Verify that rootfs is an absolute path.
+  Result<string> realpath = os::realpath(rootfs);
+  if (realpath.isError()) {
+    return Error(
+        "Failed to determine if rootfs '" + rootfs +
+        "' is an absolute path: " + realpath.error());
+  } else if (realpath.isNone()) {
+    return Error("Rootfs path '" + rootfs + "' does not exist");
+  } else if (realpath.get() != rootfs) {
+    return Error("Rootfs path '" + rootfs + "' is not an absolute path");
+  }
+
+#ifdef __linux__
+  Try<Nothing> chroot = fs::chroot::enter(rootfs);
+#else
+  // For any other platform we'll just use POSIX chroot.
+  Try<Nothing> chroot = os::chroot(rootfs);
+#endif // __linux__
+
+  if (chroot.isError()) {
+    return Error(
+        "Failed to enter chroot '" + rootfs + "': " +
+        chroot.error());
+  }
+
+  return Nothing();
+#endif // __WINDOWS__
+}
+
+
 int MesosContainerizerLaunch::execute()
 {
   if (flags.help) {
@@ -533,44 +568,17 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __linux__
 
-#ifndef __WINDOWS__
   // Change root to a new root, if provided.
   if (launchInfo.has_rootfs()) {
     cout << "Changing root to " << launchInfo.rootfs() << endl;
 
-    // Verify that rootfs is an absolute path.
-    Result<string> realpath = os::realpath(launchInfo.rootfs());
-    if (realpath.isError()) {
-      cerr << "Failed to determine if rootfs is an absolute path: "
-           << realpath.error() << endl;
-      exitWithStatus(EXIT_FAILURE);
-    } else if (realpath.isNone()) {
-      cerr << "Rootfs path does not exist" << endl;
-      exitWithStatus(EXIT_FAILURE);
-    } else if (realpath.get() != launchInfo.rootfs()) {
-      cerr << "Rootfs path is not an absolute path" << endl;
-      exitWithStatus(EXIT_FAILURE);
-    }
-
-#ifdef __linux__
-    Try<Nothing> chroot = fs::chroot::enter(launchInfo.rootfs());
-#else
-    // For any other platform we'll just use POSIX chroot.
-    Try<Nothing> chroot = os::chroot(launchInfo.rootfs());
-#endif // __linux__
+    Try<Nothing> chroot = enterChroot(launchInfo.rootfs());
 
     if (chroot.isError()) {
-      cerr << "Failed to enter chroot '" << launchInfo.rootfs()
-           << "': " << chroot.error();
+      cerr << chroot.error() << endl;
       exitWithStatus(EXIT_FAILURE);
     }
   }
-#else
-  if (launchInfo.has_rootfs()) {
-    cerr << "Changing rootfs is not supported on Windows" << endl;
-    exitWithStatus(EXIT_FAILURE);
-  }
-#endif // __WINDOWS__
 
   // Install resource limits for the process.
   if (launchInfo.has_rlimits()) {
