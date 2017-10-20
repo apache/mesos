@@ -236,6 +236,26 @@ static void exitWithStatus(int status)
 }
 
 
+static Try<Nothing> installResourceLimits(const RLimitInfo& limits)
+{
+#ifdef __WINDOWS__
+  return Error("Rlimits are not supported on Windows");
+#else
+  foreach (const RLimitInfo::RLimit& limit, limits.rlimits()) {
+    Try<Nothing> set = rlimits::set(limit);
+    if (set.isError()) {
+      return Error(
+          "Failed to set " +
+          RLimitInfo::RLimit::Type_Name(limit.type()) + " limit: " +
+          set.error());
+    }
+  }
+
+  return Nothing();
+#endif // __WINDOWS__
+}
+
+
 int MesosContainerizerLaunch::execute()
 {
   if (flags.help) {
@@ -552,23 +572,15 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
-#ifndef __WINDOWS__
-  // Setting resource limits for the process.
+  // Install resource limits for the process.
   if (launchInfo.has_rlimits()) {
-    foreach (const RLimitInfo::RLimit& limit, launchInfo.rlimits().rlimits()) {
-      Try<Nothing> set = rlimits::set(limit);
-      if (set.isError()) {
-        cerr << "Failed to set rlimit: " << set.error() << endl;
-        exitWithStatus(EXIT_FAILURE);
-      }
+    Try<Nothing> set = installResourceLimits(launchInfo.rlimits());
+
+    if (set.isError()) {
+      cerr << set.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
     }
   }
-#else
-  if (launchInfo.has_rlimits()) {
-    cerr << "Rlimits are not supported on Windows" << endl;
-    exitWithStatus(EXIT_FAILURE);
-  }
-#endif // __WINDOWS__
 
   if (launchInfo.has_working_directory()) {
     // If working directory does not exist (e.g., being removed from
