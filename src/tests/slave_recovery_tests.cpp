@@ -3354,16 +3354,28 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   Future<Message> registerExecutorMessage =
     FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
 
+  Future<Nothing> startingStatus;
   Future<Nothing> runningStatus;
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureSatisfy(&startingStatus))
     .WillOnce(FutureSatisfy(&runningStatus));
+
+  Future<Nothing> startingAck =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+  Future<Nothing> runningAck =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(registerExecutorMessage);
 
-  // Wait for TASK_RUNNING update.
+  // Wait for the acknowledgement of the TASK_RUNNING update
+  // to make sure the next sent status update is not a repeat
+  // of the unacknowledged TASK_RUNNING.
+  AWAIT_READY(startingStatus);
+  AWAIT_READY(startingAck);
   AWAIT_READY(runningStatus);
+  AWAIT_READY(runningAck);
 
   EXPECT_CALL(sched, slaveLost(_, _))
     .Times(AtMost(1));
