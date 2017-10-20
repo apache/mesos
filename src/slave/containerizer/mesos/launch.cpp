@@ -709,6 +709,24 @@ int MesosContainerizerLaunch::execute()
     ? os::Shell::name
     : launchInfo.command().value().c_str());
 
+#ifndef __WINDOWS__
+  // Search executable in the current working directory as well.
+  // execvpe and execvp will only search executable from the current
+  // working directory if environment variable PATH is not set.
+  // TODO(aaron.wood): 'os::which' current does not work on Windows.
+  // Remove the ifndef guard once it's supported on Windows.
+  if (!path::absolute(executable) &&
+      launchInfo.has_working_directory()) {
+    Option<string> which = os::which(
+        executable,
+        launchInfo.working_directory());
+
+    if (which.isSome()) {
+      executable = which.get();
+    }
+  }
+#endif // __WINDOWS__
+
   os::raw::Argv argv(launchInfo.command().shell()
     ? vector<string>({
           os::Shell::arg0,
@@ -833,24 +851,6 @@ int MesosContainerizerLaunch::execute()
       signalSafeWriteStatus(status);
       os::close(containerStatusFd.get());
       ::_exit(EXIT_SUCCESS);
-    }
-  }
-#endif // __WINDOWS__
-
-#ifndef __WINDOWS__
-  // Search executable in the current working directory as well.
-  // execvpe and execvp will only search executable from the current
-  // working directory if environment variable PATH is not set.
-  // TODO(aaron.wood): 'os::which' current does not work on Windows.
-  // Remove the ifndef guard once it's supported on Windows.
-  if (!path::absolute(executable) &&
-      launchInfo.has_working_directory()) {
-    Option<string> which = os::which(
-        executable,
-        launchInfo.working_directory());
-
-    if (which.isSome()) {
-      executable = which.get();
     }
   }
 #endif // __WINDOWS__
