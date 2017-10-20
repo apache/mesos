@@ -60,3 +60,5 @@ Mesos supports the following built-in isolators.
 - volume/image
 - [volume/sandbox_path](container-volume.md#sandbox_path-volume-source)
 - [volume/secret](secrets.md#file-based-secrets)
+- [windows/cpu](isolators/windows.md#cpu-limits)
+- [windows/mem](isolators/windows.md#memory-limits)
