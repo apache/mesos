@@ -723,6 +723,60 @@ inline Try<SharedHandle> create_job(const std::wstring& name)
 }
 
 
+// `set_job_cpu_limit` sets a CPU limit for the process represented by
+// `pid`, assuming it is assigned to a job object. This function will fail
+// otherwise. This limit is a hard cap enforced by the OS.
+//
+// https://msdn.microsoft.com/en-us/library/windows/desktop/hh448384(v=vs.85).aspx // NOLINT(whitespace/line_length)
+inline Try<Nothing> set_job_cpu_limit(pid_t pid, double cpus)
+{
+  JOBOBJECT_CPU_RATE_CONTROL_INFORMATION control_info = {};
+  control_info.ControlFlags =
+    JOB_OBJECT_CPU_RATE_CONTROL_ENABLE |
+    JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP;
+
+  // This `CpuRate` is the number of cycles per 10,000 cycles, or a percentage
+  // times 100, e.g. 20% yields 20 * 100 = 2,000. However, the `cpus` argument
+  // represents 1 CPU core with `1.0`, so a 100% CPU limit on a quad-core
+  // machine would be `4.0 cpus`. Thus a mapping of `cpus` to `CpuRate` is
+  // `(cpus / os::cpus()) * 100 * 100`, or the requested `cpus` divided by the
+  // number of CPUs to obtain a fractional representation, multiplied by 100 to
+  // make it a percentage, multiplied again by 100 to become a `CpuRate`.
+  Try<long> total_cpus = os::cpus();
+  control_info.CpuRate =
+    static_cast<DWORD>((cpus / total_cpus.get()) * 100 * 100);
+  // This must not be set to 0, so 1 is the minimum.
+  if (control_info.CpuRate < 1) {
+    control_info.CpuRate = 1;
+  }
+
+  Try<std::wstring> name = os::name_job(pid);
+  if (name.isError()) {
+    return Error(name.error());
+  }
+
+  Try<SharedHandle> job_handle = os::open_job(
+      JOB_OBJECT_SET_ATTRIBUTES,
+      false,
+      name.get());
+  if (job_handle.isError()) {
+    return Error(job_handle.error());
+  }
+
+  BOOL result = ::SetInformationJobObject(
+    job_handle.get().get_handle(),
+    JobObjectCpuRateControlInformation,
+    &control_info,
+    sizeof(control_info));
+  if (result == FALSE) {
+    return WindowsError(
+      "os::set_job_cpu_limit: call to `SetInformationJobObject` failed");
+  }
+
+  return Nothing();
+}
+
+
 // `assign_job` assigns a process with `pid` to the job object `job_handle`.
 // Every process started by the `pid` process using `CreateProcess`
 // will also be owned by the job object.
