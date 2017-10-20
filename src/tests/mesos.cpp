@@ -688,7 +688,7 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
     flags.isolation = "posix/cpu,posix/mem";
   }
 #elif defined(__WINDOWS__)
-  flags.isolation = "windows/cpu";
+  flags.isolation = "windows/cpu,windows/mem";
 #else
   flags.isolation = "posix/cpu,posix/mem";
 #endif

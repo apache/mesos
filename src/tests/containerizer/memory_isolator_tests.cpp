@@ -51,10 +51,14 @@ class MemoryIsolatorTest
 
 // These tests are parameterized by the isolation flag.
 static vector<string>* isolators = new vector<string>({
+#ifndef __WINDOWS__
   "posix/mem",
 #ifdef __linux__
   "cgroups/mem",
 #endif // __linux__
+#else
+  "windows/mem",
+#endif // __WINDOWS__
 });
 
 
@@ -108,7 +112,7 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  TaskInfo task = createTask(offers.get()[0], "sleep 120");
+  TaskInfo task = createTask(offers.get()[0], SLEEP_COMMAND(120));
 
   Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
@@ -135,7 +139,16 @@ TEST_P(MemoryIsolatorTest, ROOT_MemUsage)
 
   // TODO(jieyu): Consider using a program that predictably increases
   // RSS so that we can set more meaningful expectation here.
+#ifdef __WINDOWS__
+  // NOTE: Windows reports `mem_total_bytes` instead of `mem_rss_bytes` because
+  // of the change in meaning in 0.23.0. The `mem_rss_bytes` represents only
+  // anonymous memory usage, but the "working set size" reported by Windows
+  // corresponds to the total memory of a process in RAM.
+  EXPECT_LT(0u, usage->mem_total_bytes());
+#else
+  // TODO(andschwa): Consider testing `mem_total_bytes` for other platforms.
   EXPECT_LT(0u, usage->mem_rss_bytes());
+#endif // __WINDOWS__
 
   driver.stop();
   driver.join();

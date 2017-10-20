@@ -145,6 +145,8 @@ list(APPEND MESOS_TESTS_SRC
 
 list(APPEND MESOS_TESTS_SRC
   containerizer/containerizer_tests.cpp
+  containerizer/cpu_isolator_tests.cpp
+  containerizer/memory_isolator_tests.cpp
   containerizer/docker_tests.cpp)
 
 if (NOT WIN32)
@@ -185,13 +187,11 @@ if (NOT WIN32)
   list(APPEND MESOS_TESTS_SRC
     containerizer/appc_spec_tests.cpp
     containerizer/composing_containerizer_tests.cpp
-    containerizer/cpu_isolator_tests.cpp
     containerizer/docker_containerizer_tests.cpp
     containerizer/docker_spec_tests.cpp
     containerizer/environment_secret_isolator_tests.cpp
     containerizer/io_switchboard_tests.cpp
     containerizer/isolator_tests.cpp
-    containerizer/memory_isolator_tests.cpp
     containerizer/mesos_containerizer_paths_tests.cpp
     containerizer/mesos_containerizer_tests.cpp
     containerizer/oci_spec_tests.cpp
