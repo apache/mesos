@@ -92,8 +92,9 @@ layout: documentation
 * [Working groups](working-groups.md) a listing of groups working on different components.
 
 ### Contributing
-* [Reporting an Issue, Improvement, or Feature](reporting-a-bug.md) for getting started with JIRA.
-* [Submitting a Patch](submitting-a-patch.md) for getting started with ReviewBoard and our tooling around it.
+* [Reporting an Issue, Improvement, or Feature](reporting-an-issue.md) for getting started with JIRA.
+* [Beginner Guide for Contributors](beginner-contribution.md) to get started contributing to Mesos for the first time.
+* [Advanced Contribution Guide](advanced-contribution.md) to learn the typical workflow used when contributing to Mesos.
 * [Engineering Principles and Practices](engineering-principles-and-practices.md) to serve as a shared set of project-level values for the community.
 * Style Guides:
   * [Documentation Style Guide](documentation-guide.md)
