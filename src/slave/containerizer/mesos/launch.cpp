@@ -237,6 +237,31 @@ static void exitWithStatus(int status)
 }
 
 
+static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
+{
+#ifdef __linux__
+  foreach (const ContainerMountInfo& mount, launchInfo.mounts()) {
+    Try<Nothing> mnt = fs::mount(
+        (mount.has_source() ? Option<string>(mount.source()) : None()),
+        mount.target(),
+        (mount.has_type() ? Option<string>(mount.type()) : None()),
+        (mount.has_flags() ? mount.flags() : 0),
+        (mount.has_options() ? Option<string>(mount.options()) : None()));
+
+    if (mnt.isError()) {
+      return Error(
+          "Failed to mount '" + stringify(JSON::protobuf(mount)) +
+          "': " + mnt.error());
+    }
+
+    cout << "Prepared mount '" << JSON::protobuf(mount) << "'" << endl;
+  }
+#endif // __linux__
+
+  return Nothing();
+}
+
+
 static Try<Nothing> installResourceLimits(const RLimitInfo& limits)
 {
 #ifdef __WINDOWS__
@@ -422,24 +447,11 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
-#ifdef __linux__
-  foreach (const ContainerMountInfo& mount, launchInfo.mounts()) {
-    Try<Nothing> mnt = fs::mount(
-        (mount.has_source() ? Option<string>(mount.source()) : None()),
-        mount.target(),
-        (mount.has_type() ? Option<string>(mount.type()) : None()),
-        (mount.has_flags() ? mount.flags() : 0),
-        (mount.has_options() ? Option<string>(mount.options()) : None()));
-
-    if (mnt.isError()) {
-      cerr << "Failed to prepare mount '" << JSON::protobuf(mount)
-           << "': " << mnt.error() << endl;
-      exitWithStatus(EXIT_FAILURE);
-    }
-
-    cout << "Prepared mount '" << JSON::protobuf(mount) << "'" << endl;
+  Try<Nothing> mount = prepareMounts(launchInfo);
+  if (mount.isError()) {
+    cerr << "Failed to prepare mounts: " << mount.error() << endl;
+    exitWithStatus(EXIT_FAILURE);
   }
-#endif // __linux__
 
   // Run additional preparation commands. These are run as the same
   // user and with the environment as the agent.
