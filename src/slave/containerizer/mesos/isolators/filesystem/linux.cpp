@@ -350,16 +350,6 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
   ContainerLaunchInfo launchInfo;
   launchInfo.add_clone_namespaces(CLONE_NEWNS);
 
-  // Prepare the mounts that will be run in the container's mount
-  // namespace right after forking the executor process so that they
-  // don't pollute the host mount namespace.
-
-  // Make sure mounts in the container mount namespace do not
-  // propagate back to the host mount namespace.
-  ContainerMountInfo* mount = launchInfo.add_mounts();
-  mount->set_target("/");
-  mount->set_flags(MS_SLAVE | MS_REC);
-
   // Bind mount the sandbox if the container specifies a rootfs.
   if (containerConfig.has_rootfs()) {
     string sandbox = path::join(
@@ -376,7 +366,7 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
           sandbox + "': " + mkdir.error());
     }
 
-    mount = launchInfo.add_mounts();
+    ContainerMountInfo* mount = launchInfo.add_mounts();
     mount->set_source(containerConfig.directory());
     mount->set_target(sandbox);
     mount->set_flags(MS_BIND | MS_REC);

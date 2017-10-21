@@ -21,6 +21,7 @@
 #endif // __linux__
 #include <string.h>
 
+#include <algorithm>
 #include <iostream>
 #include <set>
 #include <string>
@@ -240,6 +241,39 @@ static void exitWithStatus(int status)
 static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
 {
 #ifdef __linux__
+  bool cloneMountNamespace = std::find(
+      launchInfo.clone_namespaces().begin(),
+      launchInfo.clone_namespaces().end(),
+      CLONE_NEWNS) != launchInfo.clone_namespaces().end();
+
+  if (!cloneMountNamespace) {
+    // Mounts are not supported if the mount namespace is not cloned.
+    // Otherwise, we'll pollute the parent mount namespace.
+    return Nothing();
+  }
+
+  // If there is no shared mount (i.e., "bidirectional" propagation),
+  // mark the root as recursively slave propagation (i.e.,
+  // --make-rslave) so that mounts do not leak to parent mount
+  // namespace.
+  bool hasSharedMount = std::find_if(
+      launchInfo.mounts().begin(),
+      launchInfo.mounts().end(),
+      [](const ContainerMountInfo& mount) {
+        return (mount.flags() & MS_SHARED) != 0;
+      }) != launchInfo.mounts().end();
+
+  if (!hasSharedMount) {
+    Try<Nothing> mnt =
+      fs::mount(None(), "/", None(), MS_SLAVE | MS_REC, None());
+
+    if (mnt.isError()) {
+      return Error("Failed to mark '/' as rslave: " + mnt.error());
+    }
+
+    cout << "Marked '/' as rslave" << endl;
+  }
+
   foreach (const ContainerMountInfo& mount, launchInfo.mounts()) {
     Try<Nothing> mnt = fs::mount(
         (mount.has_source() ? Option<string>(mount.source()) : None()),
@@ -577,6 +611,12 @@ int MesosContainerizerLaunch::execute()
 
 #ifdef __linux__
   if (flags.namespace_mnt_target.isSome()) {
+    if (!launchInfo.mounts().empty()) {
+      cerr << "Mounts are not supported if "
+           << "'namespace_mnt_target' is set" << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+
     string path = path::join(
         "/proc",
         stringify(flags.namespace_mnt_target.get()),
@@ -592,6 +632,12 @@ int MesosContainerizerLaunch::execute()
   }
 
   if (flags.unshare_namespace_mnt) {
+    if (!launchInfo.mounts().empty()) {
+      cerr << "Mounts are not supported if "
+           << "'unshare_namespace_mnt' is set" << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+
     if (unshare(CLONE_NEWNS) != 0) {
       cerr << "Failed to unshare mount namespace: "
            << os::strerror(errno) << endl;
