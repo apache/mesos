@@ -3246,6 +3246,7 @@ void ProcessManager::resume(ProcessBase* process)
 
   VLOG(2) << "Resuming " << process->pid << " at " << Clock::now();
 
+  bool manage = process->manage;
   bool terminate = false;
   bool blocked = false;
 
@@ -3262,6 +3263,11 @@ void ProcessManager::resume(ProcessBase* process)
     process->state.store(state);
   }
 
+  // We must hold a reference to the process because it's possible
+  // that another worker races ahead and deletes the process after
+  // we set the state to BLOCKED (see the comment below).
+  ProcessReference reference = process->reference;
+
   while (!terminate && !blocked) {
     Event* event = nullptr;
 
@@ -3272,23 +3278,31 @@ void ProcessManager::resume(ProcessBase* process)
     if (!process->events->consumer.empty()) {
       event = process->events->consumer.dequeue();
     } else {
+      // We now transition the process to BLOCKED. It's possible that
+      // events get enqueued while we're still in the READY state.
+      // If this happens, the process would not have been enqueued
+      // into the run queue and we need to continue processing the
+      // events!
+      //
+      // However, when checking for such events, we need to be
+      // careful not to process the events if they were enqueued
+      // *after* we transitioned to BLOCKED. In this case, the
+      // process was put in the run queue and transitioned back
+      // to READY by `ProcessBase::enqueue`. So, we check for this
+      // case by seeing if we can atomically swap the state from
+      // BLOCKED to READY.
+      //
+      // We also need to make sure we hold a reference to the
+      // process when we check the queue again (see the reference
+      // held above the loop), as it's possible that another worker
+      // thread dequeued the process off the run queue and raced
+      // ahead processing a termination event and deleted the
+      // process!
       state = ProcessBase::State::BLOCKED;
       process->state.store(state);
       blocked = true;
 
-      // Now check that we didn't miss any events that got added
-      // before we set ourselves to BLOCKED since we won't have been
-      // added to the run queue in those circumstances so we need to
-      // serve those events!
       if (!process->events->consumer.empty()) {
-        // Make sure the state is in READY! Either we need to
-        // explicitly do this because `ProcessBase::enqueue` saw us as
-        // READY (or BOTTOM) and didn't change the state or we're
-        // racing with `ProcessBase::enqueue` because they saw us at
-        // BLOCKED and are trying to change the state. If they change
-        // the state then they'll also enqueue this process, which
-        // means we need to bail because another thread might resume
-        // (and the reason we'll bail is because `blocked` is true)!
         if (process->state.compare_exchange_strong(
                 state,
                 ProcessBase::State::READY)) {
@@ -3359,11 +3373,8 @@ void ProcessManager::resume(ProcessBase* process)
     }
   }
 
-  // Must read and store if we are managing `process` because in the
-  // event we are not managing `process` it might get deallocated
-  // after we open the gate in `ProcessManager::cleanup()` and thus
-  // can't be dereferenced.
-  bool manage = process->manage;
+  // Clear the reference before we cleanup!
+  reference = ProcessReference();
 
   if (terminate) {
     cleanup(process);
