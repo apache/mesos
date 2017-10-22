@@ -30,6 +30,7 @@ Release Notes - Mesos - Version 1.4.1 (WIP)
  * [MESOS-7968] - Handle `/proc/self/ns/pid_for_children` when parsing available namespace.
  * [MESOS-7969] - Handle cgroups v2 hierarchy when parsing /proc/self/cgroups.
  * [MESOS-7980] - Stout fails to compile with libc >= 2.26.
+ * [MESOS-8090] - Mesos 1.4.0 crashes with 1.3.x agent with oversubscription
  * [MESOS-8135] - Masters can lose track of tasks' executor IDs.
 
 
