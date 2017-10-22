@@ -13,6 +13,7 @@ All Resolved Issues:
  * [MESOS-7980] - Stout fails to compile with libc >= 2.26.
  * [MESOS-8051] - Killing TASK_GROUP fail to kill some tasks.
  * [MESOS-8080] - The default executor does not propagate missing task exit status correctly.
+ * [MESOS-8090] - Mesos 1.4.0 crashes with 1.3.x agent with oversubscription
  * [MESOS-8135] - Masters can lose track of tasks' executor IDs.
  * [MESOS-8169] - Incorrect master validation forces executor IDs to be globally unique.
 
