@@ -6669,6 +6669,17 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
   // updating the agent in the allocator. This would lead us to
   // re-send out the stale oversubscribed resources!
 
+  // Make a copy of the message so we can transform its resources.
+  UpdateSlaveMessage message_(message);
+
+  convertResourceFormat(
+      message_.mutable_oversubscribed_resources(),
+      POST_RESERVATION_REFINEMENT);
+
+  convertResourceFormat(
+      message_.mutable_total_resources(),
+      POST_RESERVATION_REFINEMENT);
+
   // If the caller did not specify a type we assume we should set
   // `oversubscribedResources` to be backwards-compatibility with
   // older clients.
@@ -6678,7 +6689,7 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
   switch (type) {
     case UpdateSlaveMessage::OVERSUBSCRIBED: {
       const Resources oversubscribedResources =
-        message.oversubscribed_resources();
+        message_.oversubscribed_resources();
 
       LOG(INFO) << "Received update of agent " << *slave << " with total"
                 << " oversubscribed resources " << oversubscribedResources;
@@ -6690,7 +6701,7 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
     }
     case UpdateSlaveMessage::TOTAL: {
       const Resources totalResources =
-        message.total_resources();
+        message_.total_resources();
 
       LOG(INFO) << "Received update of agent " << *slave << " with total"
                 << " resources " << totalResources;
