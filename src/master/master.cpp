@@ -6798,8 +6798,19 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
   Option<Resources> newTotal;
   Option<Resources> newOversubscribed;
 
+  // Make a copy of the message so we can transform its resources.
+  UpdateSlaveMessage message_(message);
+
+  convertResourceFormat(
+      message_.mutable_oversubscribed_resources(),
+      POST_RESERVATION_REFINEMENT);
+
+  convertResourceFormat(
+      message_.mutable_total_resources(),
+      POST_RESERVATION_REFINEMENT);
+
   if (hasTotal) {
-    const Resources& totalResources = message.total_resources();
+    const Resources& totalResources = message_.total_resources();
 
     LOG(INFO) << "Received update of agent " << *slave << " with total"
               << " resources " << totalResources;
@@ -6812,7 +6823,7 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
   // independently apply it regardless of whether `total` was sent.
   if (hasOversubscribed) {
     const Resources& oversubscribedResources =
-      message.oversubscribed_resources();
+      message_.oversubscribed_resources();
 
     LOG(INFO) << "Received update of agent " << *slave << " with total"
               << " oversubscribed resources " << oversubscribedResources;
