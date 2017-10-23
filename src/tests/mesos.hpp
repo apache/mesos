@@ -673,7 +673,8 @@ template <typename TVolume>
 inline TVolume createVolumeHostPath(
     const std::string& containerPath,
     const std::string& hostPath,
-    const typename TVolume::Mode& mode)
+    const typename TVolume::Mode& mode,
+    const Option<MountPropagation::Mode>& mountPropagationMode = None())
 {
   TVolume volume;
   volume.set_container_path(containerPath);
@@ -682,6 +683,13 @@ inline TVolume createVolumeHostPath(
   typename TVolume::Source* source = volume.mutable_source();
   source->set_type(TVolume::Source::HOST_PATH);
   source->mutable_host_path()->set_path(hostPath);
+
+  if (mountPropagationMode.isSome()) {
+    source
+      ->mutable_host_path()
+      ->mutable_mount_propagation()
+      ->set_mode(mountPropagationMode.get());
+  }
 
   return volume;
 }

@@ -21,6 +21,7 @@
 #include <process/owned.hpp>
 #include <process/gtest.hpp>
 
+#include <stout/format.hpp>
 #include <stout/gtest.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -285,6 +286,68 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
   ASSERT_SOME(wait.get());
   ASSERT_TRUE(wait->get().has_status());
   EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
+}
+
+
+TEST_F(VolumeHostPathIsolatorTest, ROOT_MountPropagation)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  string mountDirectory = path::join(flags.work_dir, "mount_directory");
+  string mountPoint = path::join(mountDirectory, "mount_point");
+  string filePath = path::join(mountPoint, "foo");
+
+  ASSERT_SOME(os::mkdir(mountPoint));
+
+  ExecutorInfo executor = createExecutorInfo(
+      "test_executor",
+      strings::format(
+          "mount -t tmpfs tmpfs %s; touch %s",
+          mountPoint,
+          filePath).get());
+
+  executor.mutable_container()->CopyFrom(createContainerInfo(
+      None(),
+      {createVolumeHostPath(
+          mountDirectory,
+          mountDirectory,
+          Volume::RW,
+          MountPropagation::BIDIRECTIONAL)}));
+
+  string directory = path::join(flags.work_dir, "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(None(), executor, directory),
+      map<string, string>(),
+      None());
+
+  AWAIT_READY(launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
+
+  // If the mount propagation has been setup properly, we should see
+  // the file we touch'ed in 'mountPoint'.
+  EXPECT_TRUE(os::exists(filePath));
 }
 
 

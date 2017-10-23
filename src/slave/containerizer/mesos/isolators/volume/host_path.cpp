@@ -22,6 +22,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 
@@ -32,6 +33,8 @@
 
 #include "common/validation.hpp"
 
+#include "linux/fs.hpp"
+
 #include "slave/containerizer/mesos/isolators/volume/host_path.hpp"
 
 using std::string;
@@ -39,6 +42,8 @@ using std::string;
 using process::Failure;
 using process::Future;
 using process::Owned;
+
+using mesos::MountPropagation;
 
 using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
@@ -109,6 +114,7 @@ Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
     }
 
     Option<string> hostPath;
+    bool mountPropagationBidirectional = false;
 
     // NOTE: This is the legacy way of specifying the Volume. The
     // 'host_path' can be relative in legacy mode, representing
@@ -123,13 +129,21 @@ Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
         volume.source().type() == Volume::Source::HOST_PATH) {
       CHECK(volume.source().has_host_path());
 
-      if (!path::absolute(volume.source().host_path().path())) {
+      const Volume::Source::HostPath& hostPathInfo =
+        volume.source().host_path();
+
+      if (!path::absolute(hostPathInfo.path())) {
         return Failure(
-            "Path '" + volume.source().host_path().path() + "' "
+            "Path '" + hostPathInfo.path() + "' "
             "in HOST_PATH volume is not absolute");
       }
 
-      hostPath = volume.source().host_path().path();
+      hostPath = hostPathInfo.path();
+
+      mountPropagationBidirectional =
+        hostPathInfo.has_mount_propagation() &&
+        hostPathInfo.mount_propagation().mode() ==
+          MountPropagation::BIDIRECTIONAL;
     }
 
     if (hostPath.isNone()) {
@@ -243,11 +257,57 @@ Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
       }
     }
 
-    // TODO(jieyu): Consider the mode in the volume.
-    ContainerMountInfo* mount = launchInfo.add_mounts();
-    mount->set_source(hostPath.get());
-    mount->set_target(mountPoint);
-    mount->set_flags(MS_BIND | MS_REC);
+    if (mountPropagationBidirectional) {
+      // First, find the mount entry that is the parent of the host
+      // volume source. If it is not a shared mount, return a failure.
+
+      // Get realpath here because the mount table uses realpaths.
+      Result<string> realHostPath = os::realpath(hostPath.get());
+      if (!realHostPath.isSome()) {
+        return Failure(
+            "Failed to get the realpath of the host path '" +
+            hostPath.get() + "': " +
+            (realHostPath.isError() ? realHostPath.error() : "Not found"));
+      }
+
+      Try<fs::MountInfoTable::Entry> sourceMountEntry =
+        fs::MountInfoTable::findByTarget(realHostPath.get());
+
+      if (sourceMountEntry.isError()) {
+        return Failure(
+            "Cannot find the mount containing host path '" +
+            hostPath.get() + "': " + sourceMountEntry.error());
+      }
+
+      if (sourceMountEntry->shared().isNone()) {
+        return Failure(
+            "Cannot setup bidirectional mount propagation for host path '" +
+            hostPath.get() + "' because it is not under a shared mount");
+      }
+
+      LOG(INFO) << "Mark '" << sourceMountEntry->target
+                << "' as shared for container " << containerId;
+
+      // This tells the launch helper to NOT mark the mount as slave
+      // (otherwise, the propagation won't work).
+      ContainerMountInfo* mount = launchInfo.add_mounts();
+      mount->set_target(sourceMountEntry->target);
+      mount->set_flags(MS_SHARED);
+    }
+
+    // NOTE: 'hostPath' and 'mountPoint' are equal only when the
+    // container does not define its own image and shares the host
+    // filesystem (otherwise, the mount point should be under
+    // container's rootfs, which won't be equal to 'hostPath'). As a
+    // result, no need for the bind mount because the 'hostPath' is
+    // already accessible in the container.
+    if (hostPath.get() != mountPoint) {
+      // TODO(jieyu): Consider the mode in the volume.
+      ContainerMountInfo* mount = launchInfo.add_mounts();
+      mount->set_source(hostPath.get());
+      mount->set_target(mountPoint);
+      mount->set_flags(MS_BIND | MS_REC);
+    }
   }
 
   return launchInfo;

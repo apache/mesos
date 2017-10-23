@@ -31,6 +31,7 @@
 
 #include <process/subprocess.hpp>
 
+#include <stout/adaptor.hpp>
 #include <stout/foreach.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
@@ -249,13 +250,33 @@ static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
   if (!cloneMountNamespace) {
     // Mounts are not supported if the mount namespace is not cloned.
     // Otherwise, we'll pollute the parent mount namespace.
+    if (!launchInfo.mounts().empty()) {
+      return Error(
+          "Mounts are not supported if the mount namespace is not cloned");
+    }
+
     return Nothing();
   }
 
-  // If there is no shared mount (i.e., "bidirectional" propagation),
-  // mark the root as recursively slave propagation (i.e.,
-  // --make-rslave) so that mounts do not leak to parent mount
-  // namespace.
+  // Now, setup the mount propagation for the container.
+  //   1) If there is no shared mount (i.e., "bidirectional"
+  //      propagation), mark the root as recursively slave propagation
+  //      (i.e., --make-rslave) so that mounts do not leak to parent
+  //      mount namespace.
+  //   2) If there exist shared mounts, scan the mount table and mark
+  //      the rest as shared mounts one by one.
+  //
+  // TODO(jieyu): Currently, if the container has its own rootfs, the
+  // 'fs::chroot::enter' function will mark `/` as recursively slave.
+  // This will cause problems for shared mounts. As a result,
+  // bidirectional mount propagation does not work for containers that
+  // have rootfses.
+  //
+  // TODO(jieyu): Another caveat right now is that the CNI isolator
+  // will mark `/` as recursively slave in `isolate()` method if the
+  // container joins a named network. As a result, bidirectional mount
+  // propagation currently does not work for containers that want to
+  // join a CNI network.
   bool hasSharedMount = std::find_if(
       launchInfo.mounts().begin(),
       launchInfo.mounts().end(),
@@ -272,9 +293,100 @@ static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
     }
 
     cout << "Marked '/' as rslave" << endl;
+  } else {
+    hashset<string> sharedMountTargets;
+    foreach (const ContainerMountInfo& mount, launchInfo.mounts()) {
+      // Skip normal mounts.
+      if ((mount.flags() & MS_SHARED) == 0) {
+        continue;
+      }
+
+      sharedMountTargets.insert(mount.target());
+    }
+
+    Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+    if (table.isError()) {
+      return Error("Failed to get mount table: " + table.error());
+    }
+
+    foreach (const fs::MountInfoTable::Entry& entry,
+             adaptor::reverse(table->entries)) {
+      if (!sharedMountTargets.contains(entry.target)) {
+        Try<Nothing> mnt = fs::mount(
+            None(),
+            entry.target,
+            None(),
+            MS_SLAVE,
+            None());
+
+        if (mnt.isError()) {
+          return Error(
+              "Failed to mark '" + entry.target +
+              "' as slave: " + mnt.error());
+        }
+      }
+    }
   }
 
   foreach (const ContainerMountInfo& mount, launchInfo.mounts()) {
+    // Skip those mounts that are used for setting up propagation.
+    if ((mount.flags() & MS_SHARED) != 0) {
+      continue;
+    }
+
+    // If bidirectional mount exists, we will not mark `/` as
+    // recursively slave (otherwise, the bidirectional mount
+    // propagation won't work).
+    //
+    // At the same time, we want to prevent mounts in the child
+    // process from being propagated to the host mount namespace,
+    // except for the ones that set the propagation mode to be
+    // bidirectional. This ensures a clean host mount table, and
+    // greatly simplifies the container cleanup.
+    //
+    // If the target of a volume mount is under a non shared mount,
+    // the mount won't be propagated to the host mount namespace,
+    // which is what we want. Otherwise, the volume mount will be
+    // propagated to the host mount namespace, which will make proper
+    // cleanup almost impossible. Therefore, we perform a sanity check
+    // here to make sure the propagation to host mount namespace does
+    // not happen.
+    //
+    // One implication of this check is that: if the target of a
+    // volume mount is under a mount that has to be shared (e.g.,
+    // explicitly specified by the user using 'MountPropagation' in
+    // HOST_PATH volume), the volume mount will fail.
+    //
+    // TODO(jieyu): Some isolators are still using `pre_exe_commands`
+    // to do mounts. Those isolators thus will escape this check. We
+    // should consider forcing all isolators to use
+    // `ContainerMountInfo` for volume mounts.
+    if (hasSharedMount) {
+      Result<string> realTargetPath = os::realpath(mount.target());
+      if (!realTargetPath.isSome()) {
+        return Error(
+            "Failed to get the realpath of the mount target '" +
+            mount.target() + "': " +
+            (realTargetPath.isError() ? realTargetPath.error() : "Not found"));
+      }
+
+      Try<fs::MountInfoTable::Entry> entry =
+        fs::MountInfoTable::findByTarget(realTargetPath.get());
+
+      if (entry.isError()) {
+        return Error(
+            "Cannot find the mount containing the mount target '" +
+            mount.target() + "': " + entry.error());
+      }
+
+      if (entry->shared().isSome()) {
+        return Error(
+            "Cannot perform mount '" + stringify(JSON::protobuf(mount)) +
+            "' because the target is under a shared mount "
+            "'" + entry->target + "'");
+      }
+    }
+
     Try<Nothing> mnt = fs::mount(
         (mount.has_source() ? Option<string>(mount.source()) : None()),
         mount.target(),

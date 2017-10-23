@@ -2640,6 +2640,31 @@ message Image {
 
 
 /**
+ * Describes how the mount will be propagated for a volume. See the
+ * following doc for more details about mount propagation:
+ * https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt
+ */
+message MountPropagation {
+  enum Mode {
+    UNKNOWN = 0;
+
+    // The volume in a container will receive new mounts from the host
+    // or other containers, but filesystems mounted inside the
+    // container won't be propagated to the host or other containers.
+    // This is currently the default behavior for all volumes.
+    HOST_TO_CONTAINER = 1;
+
+    // The volume in a container will receive new mounts from the host
+    // or other containers, and its own mounts will be propagated from
+    // the container to the host or other containers.
+    BIDIRECTIONAL = 2;
+  }
+
+  optional Mode mode = 1;
+}
+
+
+/**
  * Describes a volume mapping either from host to container or vice
  * versa. Both paths can either refer to a directory or a file.
  */
@@ -2699,6 +2724,7 @@ message Volume {
     // Absolute path pointing to a directory or file on the host.
     message HostPath {
       required string path = 1;
+      optional MountPropagation mount_propagation = 2;
     }
 
     // Describe a path from a container's sandbox. The container can
