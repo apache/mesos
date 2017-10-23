@@ -8068,10 +8068,15 @@ TEST_F(MasterTest, IgnoreOldAgentReregistration)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
+  Clock::pause();
+
   StandaloneMasterDetector detector(master.get()->pid);
   slave::Flags slaveFlags = CreateSlaveFlags();
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
+
+  Clock::settle();
+  Clock::advance(slaveFlags.registration_backoff_factor);
 
   AWAIT_READY(slaveRegisteredMessage);
 
@@ -8079,13 +8084,11 @@ TEST_F(MasterTest, IgnoreOldAgentReregistration)
   Future<ReregisterSlaveMessage> reregisterSlaveMessage =
     DROP_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
-  Clock::pause();
-
   // Simulate a new master detected event on the slave,
   // so that the slave will attempt to re-register.
   detector.appoint(master.get()->pid);
 
-  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::settle();
   Clock::advance(slaveFlags.registration_backoff_factor);
 
   AWAIT_READY(reregisterSlaveMessage);
