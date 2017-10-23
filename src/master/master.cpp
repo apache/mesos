@@ -1700,7 +1700,16 @@ Future<Nothing> Master::recover()
 Future<Nothing> Master::_recover(const Registry& registry)
 {
   foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
-    slaves.recovered.put(slave.info().id(), slave.info());
+    SlaveInfo slaveInfo = slave.info();
+
+    // We store the `SlaveInfo`'s resources in the `pre-reservation-refinement`
+    // in order to support downgrades. We convert them back to `post-` format
+    // here so that we can keep our invariant of working with `post-` format
+    // resources within master memory.
+    convertResourceFormat(
+      slaveInfo.mutable_resources(), POST_RESERVATION_REFINEMENT);
+
+    slaves.recovered.put(slaveInfo.id(), slaveInfo);
   }
 
   foreach (const Registry::UnreachableSlave& unreachable,
