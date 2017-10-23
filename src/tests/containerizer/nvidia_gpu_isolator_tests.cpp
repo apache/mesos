@@ -131,12 +131,16 @@ TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_VerifyDeviceAccess)
       Resources::parse("cpus:0.1;mem:128").get(),
       "nvidia-smi");
 
-  Future<TaskStatus> statusRunning1, statusFailed1;
+  Future<TaskStatus> statusStarting1, statusRunning1, statusFailed1;
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting1))
     .WillOnce(FutureArg<1>(&statusRunning1))
     .WillOnce(FutureArg<1>(&statusFailed1));
 
   driver.launchTasks(offers1.get()[0].id(), {task1});
+
+  AWAIT_READY(statusStarting1);
+  ASSERT_EQ(TASK_STARTING, statusStarting1->state());
 
   AWAIT_READY(statusRunning1);
   ASSERT_EQ(TASK_RUNNING, statusRunning1->state());
@@ -157,12 +161,16 @@ TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_VerifyDeviceAccess)
       "  exit 1;\n"
       "fi");
 
-  Future<TaskStatus> statusRunning2, statusFinished2;
+  Future<TaskStatus> statusStarting2, statusRunning2, statusFinished2;
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting2))
     .WillOnce(FutureArg<1>(&statusRunning2))
     .WillOnce(FutureArg<1>(&statusFinished2));
 
   driver.launchTasks(offers2.get()[0].id(), {task2});
+
+  AWAIT_READY(statusStarting2);
+  ASSERT_EQ(TASK_STARTING, statusStarting2->state());
 
   AWAIT_READY(statusRunning2);
   ASSERT_EQ(TASK_RUNNING, statusRunning2->state());
@@ -244,8 +252,9 @@ TEST_F(NvidiaGpuTest, ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_NvidiaDockerImage)
   container->set_type(ContainerInfo::MESOS);
   container->mutable_mesos()->mutable_image()->CopyFrom(image);
 
-  Future<TaskStatus> statusRunning1, statusFinished1;
+  Future<TaskStatus> statusStarting1, statusRunning1, statusFinished1;
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting1))
     .WillOnce(FutureArg<1>(&statusRunning1))
     .WillOnce(FutureArg<1>(&statusFinished1));
 
@@ -253,6 +262,9 @@ TEST_F(NvidiaGpuTest, ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_NvidiaDockerImage)
 
   // We wait wait up to 120 seconds
   // to download the docker image.
+  AWAIT_READY_FOR(statusStarting1, Seconds(120));
+  ASSERT_EQ(TASK_RUNNING, statusRunning1->state());
+
   AWAIT_READY_FOR(statusRunning1, Seconds(120));
   ASSERT_EQ(TASK_RUNNING, statusRunning1->state());
 
@@ -273,12 +285,16 @@ TEST_F(NvidiaGpuTest, ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_NvidiaDockerImage)
   container->set_type(ContainerInfo::MESOS);
   container->mutable_mesos()->mutable_image()->CopyFrom(image);
 
-  Future<TaskStatus> statusRunning2, statusFailed2;
+  Future<TaskStatus> statusStarting2, statusRunning2, statusFailed2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting2))
     .WillOnce(FutureArg<1>(&statusRunning2))
     .WillOnce(FutureArg<1>(&statusFailed2));
 
   driver.launchTasks(offers2->at(0).id(), {task2});
+
+  AWAIT_READY(statusStarting2);
+  ASSERT_EQ(TASK_STARTING, statusStarting2->state());
 
   AWAIT_READY_FOR(statusRunning2, Seconds(120));
   ASSERT_EQ(TASK_RUNNING, statusRunning2->state());
@@ -722,13 +738,17 @@ TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_DefaultExecutorVerifyDeviceAccess)
 
   TaskGroupInfo taskGroup = createTaskGroupInfo({taskInfo});
 
-  Future<TaskStatus> statusRunning, statusFinished;
+  Future<TaskStatus> statusStarting, statusRunning, statusFinished;
 
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
   driver.acceptOffers({offer.id()}, {LAUNCH_GROUP(executorInfo, taskGroup)});
+
+  AWAIT_READY(statusStarting);
+  ASSERT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   ASSERT_EQ(TASK_RUNNING, statusRunning->state());
