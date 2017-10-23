@@ -975,11 +975,28 @@ message AgentInfo {
 
 
 /**
+ * Describes a CSI plugin.
+ */
+message CSIPluginInfo {
+  required string name = 1;
+  required CommandInfo command = 2;
+  repeated Resource resources = 3;
+  optional ContainerInfo container = 4;
+}
+
+
+/**
  * Describes a resource provider. Note that the 'id' field is only available
  * after a resource provider is registered with the master, and is made
  * available here to facilitate re-registration.
  */
 message ResourceProviderInfo {
+  message StorageInfo {
+    repeated CSIPluginInfo csi_plugins = 1;
+    required string controller_plugin = 2;
+    required string node_plugin = 3;
+  }
+
   optional ResourceProviderID id = 1;
   repeated Attribute attributes = 2;
 
@@ -996,6 +1013,8 @@ message ResourceProviderInfo {
   // instances of a type of resource provider. The name field is used
   // to distinguish these instances.
   required string name = 4;
+
+  optional StorageInfo storage = 5;
 }
 
 
