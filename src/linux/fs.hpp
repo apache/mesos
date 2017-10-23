@@ -271,8 +271,11 @@ struct MountInfoTable {
       const std::string& lines,
       bool hierarchicalSort = true);
 
-  // TODO(jieyu): Introduce 'find' methods to find entries that match
-  // the given conditions (e.g., target, root, devno, etc.).
+  // Find the mount table entry by the given target path. If there is
+  // no mount table entry that matches the exact target path, return
+  // the mount table entry that is the immediate parent of the given
+  // target path (similar to `findmnt --target [TARGET]`).
+  static Try<Entry> findByTarget(const std::string& target);
 
   std::vector<Entry> entries;
 };

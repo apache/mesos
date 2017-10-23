@@ -32,11 +32,14 @@ extern "C" {
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include <stout/tests/utils.hpp>
 
 #include "linux/fs.hpp"
+
+#include "tests/environment.hpp"
 
 using std::set;
 using std::string;
@@ -316,6 +319,59 @@ TEST_F(FsTest, ROOT_SlaveMount)
   // Clean up the mount.
   EXPECT_SOME(fs::unmount(target));
   EXPECT_SOME(fs::unmount(directory));
+}
+
+
+TEST_F(FsTest, ROOT_FindTargetInMountInfoTable)
+{
+  Try<string> base = environment->mkdtemp();
+  ASSERT_SOME(base);
+
+  const string sourceDir = path::join(base.get(), "sourceDir");
+  const string targetDir = path::join(base.get(), "targetDir");
+  const string sourceFile = path::join(base.get(), "sourceFile");
+  const string targetFile = path::join(base.get(), "targetFile");
+
+  // `targetDirUnrelated` is a prefix of `targetDir`, but under the
+  // same base directory.
+  const string sourceDirUnrelated = path::join(base.get(), "source");
+  const string targetDirUnrelated = path::join(base.get(), "target");
+
+  const string file = path::join(targetDir, "file");
+
+  ASSERT_SOME(os::mkdir(sourceDir));
+  ASSERT_SOME(os::mkdir(targetDir));
+  ASSERT_SOME(os::touch(sourceFile));
+  ASSERT_SOME(os::touch(targetFile));
+  ASSERT_SOME(os::mkdir(sourceDirUnrelated));
+  ASSERT_SOME(os::mkdir(targetDirUnrelated));
+
+  ASSERT_SOME(fs::mount(sourceDir, targetDir, None(), MS_BIND, None()));
+  ASSERT_SOME(fs::mount(sourceFile, targetFile, None(), MS_BIND, None()));
+
+  ASSERT_SOME(fs::mount(
+      sourceDirUnrelated,
+      targetDirUnrelated,
+      None(),
+      MS_BIND,
+      None()));
+
+  ASSERT_SOME(os::touch(file));
+
+  Try<MountInfoTable> table = MountInfoTable::read();
+  ASSERT_SOME(table);
+
+  Try<MountInfoTable::Entry> entry = table->findByTarget(targetDir);
+  ASSERT_SOME(entry);
+  EXPECT_EQ(entry->target, targetDir);
+
+  entry = table->findByTarget(file);
+  ASSERT_SOME(entry);
+  EXPECT_EQ(entry->target, targetDir);
+
+  entry = table->findByTarget(targetFile);
+  ASSERT_SOME(entry);
+  EXPECT_EQ(entry->target, targetFile);
 }
 
 } // namespace tests {

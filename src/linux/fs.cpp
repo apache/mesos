@@ -49,6 +49,7 @@ extern "C" {
 #include <stout/os.hpp>
 
 #include <stout/os/read.hpp>
+#include <stout/os/realpath.hpp>
 #include <stout/os/shell.hpp>
 #include <stout/os/stat.hpp>
 
@@ -230,6 +231,44 @@ Try<MountInfoTable> MountInfoTable::read(
   }
 
   return MountInfoTable::read(lines.get(), hierarchicalSort);
+}
+
+
+Try<MountInfoTable::Entry> MountInfoTable::findByTarget(
+    const std::string& target)
+{
+  Result<string> realTarget = os::realpath(target);
+  if (!realTarget.isSome()) {
+    return Error(
+        "Failed to get the realpath of '" + target + "'"
+        ": " + (realTarget.isError() ? realTarget.error() : "Not found"));
+  }
+
+  Try<MountInfoTable> table = read(None(), true);
+  if (table.isError()) {
+    return Error("Failed to get mount table: " + table.error());
+  }
+
+  // Trying to find the mount entry that contains the 'realTarget'. We
+  // achieve that by doing a reverse traverse of the mount table to
+  // find the first entry whose target is a prefix of the specified
+  // 'realTarget'.
+  foreach (const Entry& entry, adaptor::reverse(table->entries)) {
+    if (entry.target == realTarget.get()) {
+      return entry;
+    }
+
+    // NOTE: We have to use `path::join(entry.target, "")` here
+    // to make sure the parent is a directory.
+    if (strings::startsWith(realTarget.get(), path::join(entry.target, ""))) {
+      return entry;
+    }
+  }
+
+  // It's unlikely that we cannot find the immediate parent because
+  // '/' is always mounted and will be the immediate parent if no
+  // other mounts found in between.
+  return Error("Not found");
 }
 
 
