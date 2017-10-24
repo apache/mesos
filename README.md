@@ -19,7 +19,7 @@ version can be found on the Mesos website's [Documentation](http://mesos.apache.
 
 # Installation
 
-Instructions are included on the [Getting Started](http://mesos.apache.org/gettingstarted/) page.
+Instructions are included on the [Getting Started](http://mesos.apache.org/getting-started/) page.
 
 # License
 
