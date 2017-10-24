@@ -560,6 +560,14 @@
   jira_user: megha.sharma
   reviewboard_user: megha.sharma
 
+- name: Meng Zhu
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - mzhu@mesosphere.com
+  jira_user: mzhu
+  reviewboard_user: mzhu
+
 - name: Michael Lunoe
   affiliations:
     - {organization: Mesosphere}
