@@ -311,6 +311,9 @@ public:
   // Tests if the given Resource object has refined reservations.
   static bool hasRefinedReservations(const Resource& resource);
 
+  // Tests if the given Resource object is provided by a resource provider.
+  static bool hasResourceProvider(const Resource& resource);
+
   // Returns the role to which the given Resource object is reserved for.
   // This must be called only when the resource is reserved!
   static const std::string& reservationRole(const Resource& resource);

@@ -1232,6 +1232,15 @@ bool Resources::hasRefinedReservations(const Resource& resource)
 }
 
 
+bool Resources::hasResourceProvider(const Resource& resource)
+{
+  CHECK(!resource.has_role()) << resource;
+  CHECK(!resource.has_reservation()) << resource;
+
+  return resource.has_provider_id();
+}
+
+
 const string& Resources::reservationRole(const Resource& resource)
 {
   CHECK_GT(resource.reservations_size(), 0);
