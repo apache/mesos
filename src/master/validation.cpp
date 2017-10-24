@@ -2268,6 +2268,96 @@ Option<Error> validate(
   return None();
 }
 
+
+Option<Error> validate(const Offer::Operation::CreateVolume& createVolume)
+{
+  const Resource& source = createVolume.source();
+
+  Option<Error> error = resource::validate(Resources(source));
+  if (error.isSome()) {
+    return Error("Invalid resource: " + error->message);
+  }
+
+  if (!Resources::hasResourceProvider(source)) {
+    return Error("Does not have a resource provider");
+  }
+
+  if (!Resources::isDisk(source, Resource::DiskInfo::Source::RAW)) {
+    return Error("'source' is not a RAW disk resource");
+  }
+
+  if (createVolume.target_type() != Resource::DiskInfo::Source::MOUNT &&
+      createVolume.target_type() != Resource::DiskInfo::Source::PATH) {
+    return Error("'target_type' is neither MOUNT or PATH");
+  }
+
+  return None();
+}
+
+
+Option<Error> validate(const Offer::Operation::DestroyVolume& destroyVolume)
+{
+  const Resource& volume = destroyVolume.volume();
+
+  Option<Error> error = resource::validate(Resources(volume));
+  if (error.isSome()) {
+    return Error("Invalid resource: " + error->message);
+  }
+
+  if (!Resources::hasResourceProvider(volume)) {
+    return Error("Does not have a resource provider");
+  }
+
+  if (!Resources::isDisk(volume, Resource::DiskInfo::Source::MOUNT) &&
+      !Resources::isDisk(volume, Resource::DiskInfo::Source::PATH)) {
+    return Error("'volume' is neither a MOUTN or PATH disk resource");
+  }
+
+  return None();
+}
+
+
+Option<Error> validate(const Offer::Operation::CreateBlock& createBlock)
+{
+  const Resource& source = createBlock.source();
+
+  Option<Error> error = resource::validate(Resources(source));
+  if (error.isSome()) {
+    return Error("Invalid resource: " + error.get().message);
+  }
+
+  if (!Resources::hasResourceProvider(source)) {
+    return Error("Does not have a resource provider");
+  }
+
+  if (!Resources::isDisk(source, Resource::DiskInfo::Source::RAW)) {
+    return Error("'source' is not a RAW disk resource");
+  }
+
+  return None();
+}
+
+
+Option<Error> validate(const Offer::Operation::DestroyBlock& destroyBlock)
+{
+  const Resource& block = destroyBlock.block();
+
+  Option<Error> error = resource::validate(Resources(block));
+  if (error.isSome()) {
+    return Error("Invalid resource: " + error.get().message);
+  }
+
+  if (!Resources::hasResourceProvider(block)) {
+    return Error("Does not have a resource provider");
+  }
+
+  if (!Resources::isDisk(block, Resource::DiskInfo::Source::BLOCK)) {
+    return Error("'block' is not a BLOCK disk resource");
+  }
+
+  return None();
+}
+
 } // namespace operation {
 
 } // namespace validation {

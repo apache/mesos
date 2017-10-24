@@ -306,6 +306,12 @@ Option<Error> validate(
     const hashmap<FrameworkID, hashmap<TaskID, TaskInfo>>& pendingTasks,
     const Option<FrameworkInfo>& frameworkInfo = None());
 
+
+Option<Error> validate(const Offer::Operation::CreateVolume& createVolume);
+Option<Error> validate(const Offer::Operation::DestroyVolume& destroyVolume);
+Option<Error> validate(const Offer::Operation::CreateBlock& createBlock);
+Option<Error> validate(const Offer::Operation::DestroyBlock& destroyBlock);
+
 } // namespace operation {
 
 } // namespace validation {

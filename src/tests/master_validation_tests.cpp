@@ -1219,6 +1219,170 @@ TEST_F(DestroyOperationValidationTest, UnknownPersistentVolume)
 }
 
 
+TEST(OperationValidationTest, CreateVolume)
+{
+  Resource disk1 = createDiskResource(
+      "10", "*", None(), None(), createDiskSourceRaw());
+
+  Resource disk2 = createDiskResource(
+      "20", "*", None(), None(), createDiskSourceMount());
+
+  Resource disk3 = createDiskResource(
+      "30", "*", None(), None(), createDiskSourceRaw());
+
+  disk1.mutable_provider_id()->set_value("provider1");
+  disk2.mutable_provider_id()->set_value("provider2");
+
+  Offer::Operation::CreateVolume createVolume;
+  createVolume.mutable_source()->CopyFrom(disk1);
+  createVolume.set_target_type(Resource::DiskInfo::Source::MOUNT);
+
+  Option<Error> error = operation::validate(createVolume);
+  EXPECT_NONE(error);
+
+  createVolume.mutable_source()->CopyFrom(disk2);
+  createVolume.set_target_type(Resource::DiskInfo::Source::MOUNT);
+
+  error = operation::validate(createVolume);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "'source' is not a RAW disk resource"));
+
+  createVolume.mutable_source()->CopyFrom(disk3);
+  createVolume.set_target_type(Resource::DiskInfo::Source::PATH);
+
+  error = operation::validate(createVolume);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "Does not have a resource provider"));
+
+  createVolume.mutable_source()->CopyFrom(disk1);
+  createVolume.set_target_type(Resource::DiskInfo::Source::BLOCK);
+
+  error = operation::validate(createVolume);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "'target_type' is neither MOUNT or PATH"));
+}
+
+
+TEST(OperationValidationTest, DestroyVolume)
+{
+  Resource disk1 = createDiskResource(
+      "10", "*", None(), None(), createDiskSourceMount());
+
+  Resource disk2 = createDiskResource(
+      "20", "*", None(), None(), createDiskSourcePath());
+
+  Resource disk3 = createDiskResource(
+      "30", "*", None(), None(), createDiskSourceRaw());
+
+  disk1.mutable_provider_id()->set_value("provider1");
+  disk3.mutable_provider_id()->set_value("provider3");
+
+  Offer::Operation::DestroyVolume destroyVolume;
+  destroyVolume.mutable_volume()->CopyFrom(disk1);
+
+  Option<Error> error = operation::validate(destroyVolume);
+  EXPECT_NONE(error);
+
+  destroyVolume.mutable_volume()->CopyFrom(disk2);
+
+  error = operation::validate(destroyVolume);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "Does not have a resource provider"));
+
+  destroyVolume.mutable_volume()->CopyFrom(disk3);
+
+  error = operation::validate(destroyVolume);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "'volume' is neither a MOUTN or PATH disk resource"));
+}
+
+
+TEST(OperationValidationTest, CreateBlock)
+{
+  Resource disk1 = createDiskResource(
+      "10", "*", None(), None(), createDiskSourceRaw());
+
+  Resource disk2 = createDiskResource(
+      "20", "*", None(), None(), createDiskSourceMount());
+
+  Resource disk3 = createDiskResource(
+      "30", "*", None(), None(), createDiskSourceRaw());
+
+  disk1.mutable_provider_id()->set_value("provider1");
+  disk2.mutable_provider_id()->set_value("provider2");
+
+  Offer::Operation::CreateBlock createBlock;
+  createBlock.mutable_source()->CopyFrom(disk1);
+
+  Option<Error> error = operation::validate(createBlock);
+  EXPECT_NONE(error);
+
+  createBlock.mutable_source()->CopyFrom(disk2);
+
+  error = operation::validate(createBlock);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "'source' is not a RAW disk resource"));
+
+  createBlock.mutable_source()->CopyFrom(disk3);
+
+  error = operation::validate(createBlock);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "Does not have a resource provider"));
+}
+
+
+TEST(OperationValidationTest, DestroyBlock)
+{
+  Resource disk1 = createDiskResource(
+      "10", "*", None(), None(), createDiskSourceBlock());
+
+  Resource disk2 = createDiskResource(
+      "20", "*", None(), None(), createDiskSourceBlock());
+
+  Resource disk3 = createDiskResource(
+      "30", "*", None(), None(), createDiskSourceMount());
+
+  disk1.mutable_provider_id()->set_value("provider1");
+  disk3.mutable_provider_id()->set_value("provider3");
+
+  Offer::Operation::DestroyBlock destroyBlock;
+  destroyBlock.mutable_block()->CopyFrom(disk1);
+
+  Option<Error> error = operation::validate(destroyBlock);
+  EXPECT_NONE(error);
+
+  destroyBlock.mutable_block()->CopyFrom(disk2);
+
+  error = operation::validate(destroyBlock);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "Does not have a resource provider"));
+
+  destroyBlock.mutable_block()->CopyFrom(disk3);
+
+  error = operation::validate(destroyBlock);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "'block' is not a BLOCK disk resource"));
+}
+
+
 // TODO(jieyu): All of the task validation tests have the same flow:
 // launch a task, expect an update of a particular format (invalid w/
 // message). Consider providing common functionalities in the test
