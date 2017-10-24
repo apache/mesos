@@ -10,6 +10,7 @@ layout: documentation
 The purpose of this document is to provide a first-time introduction to the process of contributing to Mesos. It focuses on submitting small documentation-only patches or trivial fixes via GitHub pull requests. If you'd like an introduction to the standard day-to-day workflow for advanced Mesos contributors, see our [advanced contribution guide](advanced-contribution.md).
 
 ## Quick Summary
+
 To propose a small change to Mesos, simply open a PR against our public GitHub mirror at [https://github.com/apache/mesos](https://github.com/apache/mesos). Further instructions can be found below if needed.
 
 ## Download the Mesos Repository
@@ -18,7 +19,7 @@ First, download the latest development version of the Mesos codebase. In order t
 
 If you're proposing a documentation-only change, then you don't need to build Mesos to get started.
 
-If you're making a functional change to the code, then you should build Mesos first. Once you have the Mesos source code on your local machine, you can install the necessary dependencies and build it. Instructions for this process can be found in the [Getting Started](getting-started.md) page. Note that the `bootstrap` script in the repository's root directory will install git hooks which will help you adhere to Mesos style when committing.
+If you're making a functional change to the code, then you should build Mesos first. Once you have the Mesos source code on your local machine, you can install the necessary dependencies and build it. Instructions for this process can be found in the [building](building.md) page. Note that the `bootstrap` script in the repository's root directory will install git hooks which will help you adhere to Mesos style when committing.
 
 ## Find a Problem to Solve
 
