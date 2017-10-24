@@ -1179,6 +1179,19 @@ bool Resources::isPersistentVolume(const Resource& resource)
 }
 
 
+bool Resources::isDisk(
+    const Resource& resource,
+    const Resource::DiskInfo::Source::Type& type)
+{
+  CHECK(!resource.has_role()) << resource;
+  CHECK(!resource.has_reservation()) << resource;
+
+  return resource.has_disk() &&
+         resource.disk().has_source() &&
+         resource.disk().source().type() == type;
+}
+
+
 bool Resources::isReserved(
     const Resource& resource,
     const Option<string>& role)

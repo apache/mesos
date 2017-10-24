@@ -276,6 +276,11 @@ public:
   // Tests if the given Resource object is a persistent volume.
   static bool isPersistentVolume(const Resource& resource);
 
+  // Tests if the given Resource object is a disk of the specified type.
+  static bool isDisk(
+      const Resource& resource,
+      const Resource::DiskInfo::Source::Type& type);
+
   // Tests if the given Resource object is reserved. If the role is
   // specified, tests that it's reserved for the given role.
   static bool isReserved(
