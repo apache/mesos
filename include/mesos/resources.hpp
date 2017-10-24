@@ -464,12 +464,13 @@ public:
   // example frameworks to leverage.
   Option<Resources> find(const Resources& targets) const;
 
-  // Certain offer operations (e.g., RESERVE, UNRESERVE, CREATE or
-  // DESTROY) alter the offered resources. The following methods
-  // provide a convenient way to get the transformed resources by
-  // applying the given offer operation(s). Returns an Error if the
-  // offer operation(s) cannot be applied.
-  Try<Resources> apply(const Offer::Operation& operation) const;
+  // Certain offer operations alter the offered resources. The
+  // following methods provide a convenient way to get the transformed
+  // resources by applying the given offer operation(s). Returns an
+  // Error if the offer operation(s) cannot be applied.
+  Try<Resources> apply(
+      const Offer::Operation& operation,
+      const Option<Resources>& convertedResources = None()) const;
 
   template <typename Iterable>
   Try<Resources> apply(const Iterable& operations) const

@@ -778,11 +778,32 @@ void HierarchicalAllocatorProcess::updateAllocation(
     //  }
 
     // Update the offered resources based on this operation.
-    Try<Resources> _updatedOfferedResources = updatedOfferedResources.apply(
-        operation);
+    switch (operation.type()) {
+      case Offer::Operation::LAUNCH:
+      case Offer::Operation::LAUNCH_GROUP:
+        // No need to apply LAUNCH and LAUNCH_GROUP.
+        break;
+      case Offer::Operation::RESERVE:
+      case Offer::Operation::UNRESERVE:
+      case Offer::Operation::CREATE:
+      case Offer::Operation::DESTROY: {
+        Try<Resources> _updatedOfferedResources =
+          updatedOfferedResources.apply(operation);
 
-    CHECK_SOME(_updatedOfferedResources);
-    updatedOfferedResources = _updatedOfferedResources.get();
+        CHECK_SOME(_updatedOfferedResources);
+        updatedOfferedResources = _updatedOfferedResources.get();
+        break;
+      }
+      case Offer::Operation::CREATE_VOLUME:
+      case Offer::Operation::DESTROY_VOLUME:
+      case Offer::Operation::CREATE_BLOCK:
+      case Offer::Operation::DESTROY_BLOCK:
+        // TODO(jieyu): Add implementations here.
+        break;
+      case Offer::Operation::UNKNOWN:
+        UNREACHABLE();
+        break;
+    }
 
     if (operation.type() == Offer::Operation::LAUNCH) {
       foreach (const TaskInfo& task, operation.launch().task_infos()) {
@@ -862,13 +883,35 @@ void HierarchicalAllocatorProcess::updateAllocation(
 
   // We strip `AllocationInfo` from operations in order to apply them
   // successfully, since agent's total is stored as unallocated resources.
-  vector<Offer::Operation> strippedOperations = operations;
-  foreach (Offer::Operation& operation, strippedOperations) {
-    protobuf::stripAllocationInfo(&operation);
+  vector<Offer::Operation> strippedOperations;
+  foreach (Offer::Operation operation, operations) {
+    switch (operation.type()) {
+      case Offer::Operation::LAUNCH:
+      case Offer::Operation::LAUNCH_GROUP:
+        // No need to apply LAUNCH and LAUNCH_GROUP.
+        break;
+      case Offer::Operation::RESERVE:
+      case Offer::Operation::UNRESERVE:
+      case Offer::Operation::CREATE:
+      case Offer::Operation::DESTROY:
+        protobuf::stripAllocationInfo(&operation);
+        strippedOperations.push_back(operation);
+        break;
+      case Offer::Operation::CREATE_VOLUME:
+      case Offer::Operation::DESTROY_VOLUME:
+      case Offer::Operation::CREATE_BLOCK:
+      case Offer::Operation::DESTROY_BLOCK:
+        // TODO(jieyu): Add implementations here.
+        break;
+      case Offer::Operation::UNKNOWN:
+        UNREACHABLE();
+        break;
+    }
   }
 
   Try<Resources> updatedTotal = slave.total.apply(strippedOperations);
   CHECK_SOME(updatedTotal);
+
   updateSlaveTotal(slaveId, updatedTotal.get());
 
   // Update the total resources in the framework sorter.

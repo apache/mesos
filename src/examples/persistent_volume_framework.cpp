@@ -239,9 +239,8 @@ public:
               operations.push_back(CREATE(volume));
               operations.push_back(LAUNCH({task}));
 
-              resources = offered.apply(vector<Offer::Operation>{
-                  CREATE(volume),
-                  LAUNCH({task})});
+              resources = offered.apply(
+                  vector<Offer::Operation>{CREATE(volume)});
 
               CHECK_SOME(resources);
               offered = resources.get();

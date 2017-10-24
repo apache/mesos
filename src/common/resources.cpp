@@ -1623,20 +1623,25 @@ Option<Resources> Resources::find(const Resources& targets) const
 }
 
 
-Try<Resources> Resources::apply(const Offer::Operation& operation) const
+Try<Resources> Resources::apply(
+    const Offer::Operation& operation,
+    const Option<Resources>& convertedResources) const
 {
   Resources result = *this;
 
   switch (operation.type()) {
     case Offer::Operation::LAUNCH:
-      // Launch operation does not alter the offered resources.
-      break;
+      return Error("Cannot apply LAUNCH Operation");
 
     case Offer::Operation::LAUNCH_GROUP:
-      // LaunchGroup operation does not alter the offered resources.
-      break;
+      return Error("Cannot apply LAUNCH_GROUP Operation");
 
     case Offer::Operation::RESERVE: {
+      if (convertedResources.isSome()) {
+        return Error(
+            "Converted resources not expected for RESERVE Operation");
+      }
+
       Option<Error> error = validate(operation.reserve().resources());
       if (error.isSome()) {
         return Error("Invalid RESERVE Operation: " + error->message);
@@ -1666,6 +1671,11 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
     }
 
     case Offer::Operation::UNRESERVE: {
+      if (convertedResources.isSome()) {
+        return Error(
+            "Converted resources not expected for UNRESERVE Operation");
+      }
+
       Option<Error> error = validate(operation.unreserve().resources());
       if (error.isSome()) {
         return Error("Invalid UNRESERVE Operation: " + error->message);
@@ -1695,6 +1705,11 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
     }
 
     case Offer::Operation::CREATE: {
+      if (convertedResources.isSome()) {
+        return Error(
+            "Converted resources not expected for CREATE Operation");
+      }
+
       Option<Error> error = validate(operation.create().volumes());
       if (error.isSome()) {
         return Error("Invalid CREATE Operation: " + error->message);
@@ -1738,6 +1753,11 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
     }
 
     case Offer::Operation::DESTROY: {
+      if (convertedResources.isSome()) {
+        return Error(
+            "Converted resources not expected for DESTROY Operation");
+      }
+
       Option<Error> error = validate(operation.destroy().volumes());
       if (error.isSome()) {
         return Error("Invalid DESTROY Operation: " + error->message);
@@ -1785,22 +1805,78 @@ Try<Resources> Resources::apply(const Offer::Operation& operation) const
     }
 
     case Offer::Operation::CREATE_VOLUME: {
-      // CreateVolume operation does not alter the offered resources.
+      if (convertedResources.isNone()) {
+        return Error(
+            "Converted resources not specified for CREATE_VOLUME Operation");
+      }
+
+      const Resource& consumed = operation.create_volume().source();
+
+      if (!result.contains(consumed)) {
+        return Error(
+            "Invalid CREATE_VOLUME Operation: " + stringify(result) +
+            " does not contain " + stringify(consumed));
+      }
+
+      result.subtract(consumed);
+      result += convertedResources.get();
       break;
     }
 
     case Offer::Operation::DESTROY_VOLUME: {
-      // DestroyVolume operation does not alter the offered resources.
+      if (convertedResources.isNone()) {
+        return Error(
+            "Converted resources not specified for DESTROY_VOLUME Operation");
+      }
+
+      const Resource& consumed = operation.destroy_volume().volume();
+
+      if (!result.contains(consumed)) {
+        return Error(
+            "Invalid DESTROY_VOLUME Operation: " + stringify(result) +
+            " does not contain " + stringify(consumed));
+      }
+
+      result.subtract(consumed);
+      result += convertedResources.get();
       break;
     }
 
     case Offer::Operation::CREATE_BLOCK: {
-      // CreateBlock operation does not alter the offered resources.
+      if (convertedResources.isNone()) {
+        return Error(
+            "Converted resources not specified for CREATE_BLOCK Operation");
+      }
+
+      const Resource& consumed = operation.create_block().source();
+
+      if (!result.contains(consumed)) {
+        return Error(
+            "Invalid CREATE_BLOCK Operation: " + stringify(result) +
+            " does not contain " + stringify(consumed));
+      }
+
+      result.subtract(consumed);
+      result += convertedResources.get();
       break;
     }
 
     case Offer::Operation::DESTROY_BLOCK: {
-      // DestroyBlock operation does not alter the offered resources.
+      if (convertedResources.isNone()) {
+        return Error(
+            "Converted resources not specified for DESTROY_BLOCK Operation");
+      }
+
+      const Resource& consumed = operation.destroy_block().block();
+
+      if (!result.contains(consumed)) {
+        return Error(
+            "Invalid DESTROY_BLOCK Operation: " + stringify(result) +
+            " does not contain " + stringify(consumed));
+      }
+
+      result.subtract(consumed);
+      result += convertedResources.get();
       break;
     }
 
