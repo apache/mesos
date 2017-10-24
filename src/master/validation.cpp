@@ -16,6 +16,8 @@
 
 #include "master/validation.hpp"
 
+#include <algorithm>
+#include <iterator>
 #include <set>
 #include <string>
 #include <vector>
@@ -792,6 +794,46 @@ Option<Error> validateAllocatedToSingleRole(const Resources& resources)
 
   return None();
 }
+
+namespace internal {
+
+// Validates that all the given resources are from the same resource
+// provider. Resources that do not have resource provider ID are
+// assumed to be from the agent (default resource provider).
+Option<Error> validateSingleResourceProvider(
+    const RepeatedPtrField<Resource>& resources)
+{
+  hashset<Option<ResourceProviderID>> resourceProviderIds;
+
+  foreach (const Resource& resource, resources) {
+    resourceProviderIds.insert(resource.has_provider_id()
+      ? resource.provider_id()
+      : Option<ResourceProviderID>::none());
+  }
+
+  if (resourceProviderIds.size() != 1) {
+    if (resourceProviderIds.contains(None())) {
+      return Error("Some resources have a resource provider and some do not");
+    }
+
+    vector<ResourceProviderID> ids;
+    std::transform(
+        resourceProviderIds.begin(),
+        resourceProviderIds.end(),
+        std::back_inserter(ids),
+        [](const Option<ResourceProviderID>& id) {
+          return id.get();
+        });
+
+    return Error(
+        "The resources have multiple resource providers: " +
+        strings::join(", ", ids));
+  }
+
+  return None();
+}
+
+} // namespace internal {
 
 
 Option<Error> validate(const RepeatedPtrField<Resource>& resources)

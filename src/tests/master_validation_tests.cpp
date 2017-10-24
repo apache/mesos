@@ -258,6 +258,69 @@ TEST_F(ResourceValidationTest, SharedPersistentVolume)
 }
 
 
+TEST_F(ResourceValidationTest, SingleResourceProvider)
+{
+  Resource r1 = Resources::parse("disk", "128", "*").get();
+  r1.mutable_provider_id()->set_value("provider1");
+
+  Resource r2 = Resources::parse("cpu", "4", "*").get();
+  r2.mutable_provider_id()->set_value("provider2");
+
+  Resource r3 = Resources::parse("mem", "256", "*").get();
+  r3.mutable_provider_id()->set_value("provider2");
+
+  Resource r4 = Resources::parse("disk", "64", "*").get();
+
+  {
+    Resources resources = r1;
+
+    EXPECT_NONE(resource::internal::validateSingleResourceProvider(resources));
+  }
+
+  {
+    Resources resources = r4;
+
+    EXPECT_NONE(resource::internal::validateSingleResourceProvider(resources));
+  }
+
+  {
+    Resources resources;
+    resources += r2;
+    resources += r3;
+
+    EXPECT_NONE(resource::internal::validateSingleResourceProvider(resources));
+  }
+
+  {
+    Resources resources;
+    resources += r1;
+    resources += r2;
+
+    Option<Error> error =
+      resource::internal::validateSingleResourceProvider(resources);
+
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "The resources have multiple resource providers"));
+  }
+
+  {
+    Resources resources;
+    resources += r1;
+    resources += r4;
+
+    Option<Error> error =
+      resource::internal::validateSingleResourceProvider(resources);
+
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Some resources have a resource provider and some do not"));
+  }
+}
+
+
 class ReserveOperationValidationTest : public MesosTest {};
 
 

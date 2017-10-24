@@ -133,6 +133,14 @@ Option<Error> validate(
 
 namespace resource {
 
+// Functions in this namespace are only exposed for testing.
+namespace internal {
+
+Option<Error> validateSingleResourceProvider(
+    const google::protobuf::RepeatedPtrField<Resource>& resources);
+
+} // namespace internal {
+
 // Validates resources specified by frameworks.
 // NOTE: We cannot take 'Resources' here because invalid resources are
 // silently ignored within its constructor.
