@@ -137,6 +137,6 @@ layout: documentation
     <a href="https://www.manning.com/books/mesos-in-action" class="thumbnail">
       <img src="https://images.manning.com/255/340/resize/book/d/62f5c9b-0946-4569-ad50-ffdb84876ddc/Ignazio-Mesos-HI.png" alt="Mesos in Action by Roger Ignazio">
     </a>
-  <p class="text-center">Mesos in Action by Roger Ignazio (Manning, 2016)
+    <p class="text-center">Mesos in Action by Roger Ignazio (Manning, 2016)</p>
   </div>
 </div>
