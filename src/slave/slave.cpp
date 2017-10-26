@@ -668,6 +668,9 @@ void Slave::initialize()
       &Slave::checkpointResources,
       &CheckpointResourcesMessage::resources);
 
+  install<ApplyOfferOperationMessage>(
+      &Slave::applyOfferOperation);
+
   install<StatusUpdateAcknowledgementMessage>(
       &Slave::statusUpdateAcknowledgement,
       &StatusUpdateAcknowledgementMessage::slave_id,
@@ -3622,6 +3625,12 @@ Try<Nothing> Slave::syncCheckpointedResources(
   }
 
   return Nothing();
+}
+
+
+void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
+{
+  // TODO(nfnt): Provide implementation here.
 }
 
 

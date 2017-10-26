@@ -197,6 +197,8 @@ public:
 
   void checkpointResources(std::vector<Resource> checkpointedResources);
 
+  void applyOfferOperation(const ApplyOfferOperationMessage& message);
+
   void subscribe(
       HttpConnection http,
       const executor::Call::Subscribe& subscribe,
