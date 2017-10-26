@@ -2236,8 +2236,14 @@ Option<Error> validate(
     return Error("Not a persistent volume: " + error.get().message);
   }
 
-  if (!checkpointedResources.contains(volumes)) {
-    return Error("Persistent volumes not found");
+  foreach (const Resource volume, volumes) {
+    if (Resources::hasResourceProvider(volume)) {
+      continue;
+    }
+
+    if (!checkpointedResources.contains(volume)) {
+      return Error("Persistent volumes not found");
+    }
   }
 
   // Ensure the volumes being destroyed are not in use currently.

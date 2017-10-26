@@ -3449,6 +3449,44 @@ void ExpectNoFutureUnionHttpProtobufs(
 }
 
 
+// This matcher is used to match a vector of resource offers that
+// contains an offer having any resource that passes the filter.
+MATCHER_P(OffersHaveAnyResource, filter, "")
+{
+  foreach (const Offer& offer, arg) {
+    foreach (const Resource& resource, offer.resources()) {
+      if (filter(resource)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+
+// This matcher is used to match a vector of resource offers that
+// contains an offer having the specified resource.
+MATCHER_P(OffersHaveResource, resource, "")
+{
+  foreach (const Offer& offer, arg) {
+    Resources resources = offer.resources();
+
+    // If `resource` is not allocated, we are matching offers against
+    // resources constructed from scratch, so we strip off allocations.
+    if (!resource.has_allocation_info()) {
+      resources.unallocate();
+    }
+
+    if (resources.contains(resource)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 // This matcher is used to match the task id of `TaskStatus` message.
 MATCHER_P(TaskStatusTaskIdEq, taskInfo, "")
 {

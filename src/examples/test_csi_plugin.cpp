@@ -241,7 +241,7 @@ Status TestCSIPlugin::GetSupportedVersions(
     const csi::GetSupportedVersionsRequest* request,
     csi::GetSupportedVersionsResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   response->add_supported_versions()->CopyFrom(version);
 
@@ -254,7 +254,7 @@ Status TestCSIPlugin::GetPluginInfo(
     const csi::GetPluginInfoRequest* request,
     csi::GetPluginInfoResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   Option<Error> error = validateVersion(request->version());
   if (error.isSome()) {
@@ -273,7 +273,7 @@ Status TestCSIPlugin::CreateVolume(
     const csi::CreateVolumeRequest* request,
     csi::CreateVolumeResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   // TODO(chhsiao): Validate required fields.
 
@@ -337,6 +337,8 @@ Status TestCSIPlugin::CreateVolume(
 
   response->mutable_volume_info()->set_id(volume.id);
   response->mutable_volume_info()->set_capacity_bytes(volume.size.bytes());
+  (*response->mutable_volume_info()->mutable_attributes())["path"] =
+    getVolumePath(volume);
 
   if (alreadyExists) {
     return Status(
@@ -353,7 +355,7 @@ Status TestCSIPlugin::DeleteVolume(
     const csi::DeleteVolumeRequest* request,
     csi::DeleteVolumeResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   // TODO(chhsiao): Validate required fields.
 
@@ -391,7 +393,7 @@ Status TestCSIPlugin::ControllerPublishVolume(
     const csi::ControllerPublishVolumeRequest* request,
     csi::ControllerPublishVolumeResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   // TODO(chhsiao): Validate required fields.
 
@@ -404,6 +406,14 @@ Status TestCSIPlugin::ControllerPublishVolume(
     return Status(
         grpc::NOT_FOUND,
         "Volume '" + request->volume_id() + "' is not found");
+  }
+
+  const Volume& volume = volumes.at(request->volume_id());
+  const string path = getVolumePath(volume);
+
+  auto it = request->volume_attributes().find("path");
+  if (it == request->volume_attributes().end() || it->second != path) {
+    return Status(grpc::INVALID_ARGUMENT, "Invalid volume attributes");
   }
 
   if (request->node_id() != NODE_ID) {
@@ -422,7 +432,7 @@ Status TestCSIPlugin::ControllerUnpublishVolume(
     const csi::ControllerUnpublishVolumeRequest* request,
     csi::ControllerUnpublishVolumeResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   // TODO(chhsiao): Validate required fields.
 
@@ -453,7 +463,7 @@ Status TestCSIPlugin::ValidateVolumeCapabilities(
     const csi::ValidateVolumeCapabilitiesRequest* request,
     csi::ValidateVolumeCapabilitiesResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   // TODO(chhsiao): Validate required fields.
 
@@ -466,6 +476,14 @@ Status TestCSIPlugin::ValidateVolumeCapabilities(
     return Status(
         grpc::NOT_FOUND,
         "Volume '" + request->volume_id() + "' is not found");
+  }
+
+  const Volume& volume = volumes.at(request->volume_id());
+  const string path = getVolumePath(volume);
+
+  auto it = request->volume_attributes().find("path");
+  if (it == request->volume_attributes().end() || it->second != path) {
+    return Status(grpc::INVALID_ARGUMENT, "Invalid volume attributes");
   }
 
   foreach (const csi::VolumeCapability& capability,
@@ -497,7 +515,7 @@ Status TestCSIPlugin::ListVolumes(
     const csi::ListVolumesRequest* request,
     csi::ListVolumesResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   Option<Error> error = validateVersion(request->version());
   if (error.isSome()) {
@@ -529,7 +547,7 @@ Status TestCSIPlugin::GetCapacity(
     const csi::GetCapacityRequest* request,
     csi::GetCapacityResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   Option<Error> error = validateVersion(request->version());
   if (error.isSome()) {
@@ -563,7 +581,7 @@ Status TestCSIPlugin::ControllerProbe(
     const csi::ControllerProbeRequest* request,
     csi::ControllerProbeResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   Option<Error> error = validateVersion(request->version());
   if (error.isSome()) {
@@ -579,7 +597,7 @@ Status TestCSIPlugin::ControllerGetCapabilities(
     const csi::ControllerGetCapabilitiesRequest* request,
     csi::ControllerGetCapabilitiesResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   Option<Error> error = validateVersion(request->version());
   if (error.isSome()) {
@@ -604,7 +622,7 @@ Status TestCSIPlugin::NodePublishVolume(
     const csi::NodePublishVolumeRequest* request,
     csi::NodePublishVolumeResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   // TODO(chhsiao): Validate required fields.
 
@@ -617,6 +635,14 @@ Status TestCSIPlugin::NodePublishVolume(
     return Status(
         grpc::NOT_FOUND,
         "Volume '" + request->volume_id() + "' is not found");
+  }
+
+  const Volume& volume = volumes.at(request->volume_id());
+  const string path = getVolumePath(volume);
+
+  auto it = request->volume_attributes().find("path");
+  if (it == request->volume_attributes().end() || it->second != path) {
+    return Status(grpc::INVALID_ARGUMENT, "Invalid volume attributes");
   }
 
   if (!os::exists(request->target_path())) {
@@ -637,9 +663,6 @@ Status TestCSIPlugin::NodePublishVolume(
       return Status::OK;
     }
   }
-
-  const Volume& volume = volumes.at(request->volume_id());
-  const string path = getVolumePath(volume);
 
   Try<Nothing> mount = fs::mount(
       path,
@@ -678,7 +701,7 @@ Status TestCSIPlugin::NodeUnpublishVolume(
     const csi::NodeUnpublishVolumeRequest* request,
     csi::NodeUnpublishVolumeResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   Option<Error> error = validateVersion(request->version());
   if (error.isSome()) {
@@ -730,7 +753,7 @@ Status TestCSIPlugin::GetNodeID(
     const csi::GetNodeIDRequest* request,
     csi::GetNodeIDResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   Option<Error> error = validateVersion(request->version());
   if (error.isSome()) {
@@ -748,7 +771,7 @@ Status TestCSIPlugin::NodeProbe(
     const csi::NodeProbeRequest* request,
     csi::NodeProbeResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   Option<Error> error = validateVersion(request->version());
   if (error.isSome()) {
@@ -764,7 +787,7 @@ Status TestCSIPlugin::NodeGetCapabilities(
     const csi::NodeGetCapabilitiesRequest* request,
     csi::NodeGetCapabilitiesResponse* response)
 {
-  LOG(INFO) << request->GetDescriptor()->name() << " '" << request << "'";
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
   Option<Error> error = validateVersion(request->version());
   if (error.isSome()) {
