@@ -363,10 +363,24 @@ endif ()
 string(TIMESTAMP BUILD_DATE "%Y-%m-%d %H:%M:%S UTC" UTC)
 string(TIMESTAMP BUILD_TIME "%s" UTC)
 if (WIN32)
-  set(BUILD_USER "$ENV{USERNAME}")
+  set(BUILD_USER $ENV{USERNAME})
 else ()
-  set(BUILD_USER "$ENV{USER}")
+  set(BUILD_USER $ENV{USER})
 endif ()
+
+# NOTE: This is not quite the same as the Autotools build, as most definitions,
+# include directories, etc. are embedded as target properties within the CMake
+# graph. However, this is simply a "helper" variable anyway, so providing the
+# "global" compile definitions (at least, those of this directory), is close
+# enough to the intent.
+#
+# This code sets the variable `BUILD_FLAGS_RAW` to the content of the
+# directory's `COMPILE_DEFINITIONS` property. The backslashes are then escaped
+# and the final string is saved into the `BUILD_FLAGS` variable.
+get_directory_property(BUILD_FLAGS_RAW COMPILE_DEFINITIONS)
+string(REPLACE "\"" "\\\"" BUILD_FLAGS "${BUILD_FLAGS_RAW}")
+
+set(BUILD_JAVA_JVM_LIBRARY ${JAVA_JVM_LIBRARY})
 
 # When building from source, from a git clone, emit some extra build info.
 if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")

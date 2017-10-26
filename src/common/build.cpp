@@ -48,7 +48,12 @@ const string USER = "";
 #endif
 
 const string FLAGS = BUILD_FLAGS;
+
+#ifdef BUILD_JAVA_JVM_LIBRARY
 const string JAVA_JVM_LIBRARY = BUILD_JAVA_JVM_LIBRARY;
+#else
+const string JAVA_JVM_LIBRARY = "";
+#endif
 
 #ifdef BUILD_GIT_SHA
 const Option<string> GIT_SHA = string(BUILD_GIT_SHA);

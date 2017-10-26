@@ -17,9 +17,14 @@
 #ifndef __COMMON_BUILD_CONFIG_HPP__
 #define __COMMON_BUILD_CONFIG_HPP__
 
+// NOTE: The quotes in these definitions are necessary. Without them, the
+// preprocessor will interpret the symbols as (e.g.) int literals and unquoted
+// identifiers, rather than the string values our code expects.
 #cmakedefine BUILD_DATE "@BUILD_DATE@"
 #cmakedefine BUILD_TIME "@BUILD_TIME@"
 #cmakedefine BUILD_USER "@BUILD_USER@"
+#cmakedefine BUILD_FLAGS "@BUILD_FLAGS@"
+#cmakedefine BUILD_JAVA_JVM_LIBRARY "@BUILD_JAVA_JVM_LIBRARY@"
 
 #cmakedefine BUILD_GIT_SHA "@BUILD_GIT_SHA@"
 #cmakedefine BUILD_GIT_BRANCH "@BUILD_GIT_BRANCH@"
