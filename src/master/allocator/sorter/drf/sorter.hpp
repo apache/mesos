@@ -346,7 +346,9 @@ struct DRFSorter::Node
     void subtract(const SlaveID& slaveId, const Resources& toRemove)
     {
       CHECK(resources.contains(slaveId));
-      CHECK(resources.at(slaveId).contains(toRemove));
+      CHECK(resources.at(slaveId).contains(toRemove))
+        << "Resources " << resources.at(slaveId) << " at agent " << slaveId
+        << " does not contain " << toRemove;
 
       resources[slaveId] -= toRemove;
 
@@ -364,7 +366,9 @@ struct DRFSorter::Node
         totals[resource.name()] -= resource.scalar();
       }
 
-      CHECK(scalarQuantities.contains(quantitiesToRemove));
+      CHECK(scalarQuantities.contains(quantitiesToRemove))
+        << scalarQuantities << " does not contain " << quantitiesToRemove;
+
       scalarQuantities -= quantitiesToRemove;
 
       if (resources[slaveId].empty()) {
@@ -382,8 +386,13 @@ struct DRFSorter::Node
       const Resources newAllocationQuantity =
         newAllocation.createStrippedScalarQuantity();
 
-      CHECK(resources[slaveId].contains(oldAllocation));
-      CHECK(scalarQuantities.contains(oldAllocationQuantity));
+      CHECK(resources.contains(slaveId));
+      CHECK(resources[slaveId].contains(oldAllocation))
+        << "Resources " << resources[slaveId] << " at agent " << slaveId
+        << " does not contain " << oldAllocation;
+
+      CHECK(scalarQuantities.contains(oldAllocationQuantity))
+        << scalarQuantities << " does not contain " << oldAllocationQuantity;
 
       resources[slaveId] -= oldAllocation;
       resources[slaveId] += newAllocation;
