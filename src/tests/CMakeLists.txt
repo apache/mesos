@@ -264,16 +264,7 @@ add_executable(test-helper EXCLUDE_FROM_ALL ${TEST_HELPER_SRC})
 target_link_libraries(test-helper PRIVATE mesos-tests-interface)
 
 # The tests require these binaries.
-add_dependencies(
-  mesos-tests
-  test-helper
-  mesos-agent
-  mesos-default-executor
-  mesos-docker-executor
-  mesos-executor
-  mesos-containerizer
-  mesos-tcp-connect
-  mesos-usage)
+add_dependencies(mesos-tests test-helper mesos-agent)
 
 if (NOT WIN32)
   # The tests require these binaries.
@@ -281,13 +272,10 @@ if (NOT WIN32)
   add_dependencies(
     mesos-tests
     mesos-execute
-    mesos-fetcher
-    mesos-log
     mesos-local
-    mesos-master
-    mesos-io-switchboard
-    mesos-cni-port-mapper
-    mesos-logrotate-logger)
+    mesos-log
+    mesos-logrotate-logger
+    mesos-master)
 
   # The tests require all the test modules. These are not directly linked but
   # instead loaded at runtime, hence the manual dependency here.

@@ -21,4 +21,5 @@ if (NOT WIN32)
   ###########################################################
   add_executable(mesos-local main.cpp)
   target_link_libraries(mesos-local PRIVATE mesos)
+  add_dependencies(mesos-local mesos-agent mesos-master)
 endif ()

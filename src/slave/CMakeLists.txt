@@ -23,3 +23,21 @@ add_subdirectory(resource_estimators)
 #######################
 add_executable(mesos-agent main.cpp)
 target_link_libraries(mesos-agent PRIVATE mesos)
+
+# Add binary dependencies
+add_dependencies(
+  mesos-agent
+  mesos-containerizer
+  mesos-default-executor
+  mesos-docker-executor
+  mesos-executor
+  mesos-tcp-connect
+  mesos-usage)
+
+if (NOT WIN32)
+  add_dependencies(
+    mesos-agent
+    mesos-cni-port-mapper
+    mesos-fetcher
+    mesos-io-switchboard)
+endif ()
