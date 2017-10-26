@@ -426,7 +426,7 @@ Try<pid_t> LinuxLauncherProcess::fork(
   }
 
   // Ensure we didn't pass `enterNamespaces`
-  // if we aren't forking a nested contiainer.
+  // if we aren't forking a nested container.
   if (!containerId.has_parent() && enterNamespaces.isSome()) {
     return Error("Cannot enter parent namespaces for non-nested container");
   }
