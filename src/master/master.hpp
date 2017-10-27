@@ -2719,6 +2719,14 @@ struct Framework
     }
   }
 
+  void addOfferOperation(process::Owned<OfferOperation> operation)
+  {
+    Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+    CHECK_SOME(uuid);
+
+    offerOperations.put(uuid.get(), operation);
+  }
+
   const FrameworkID id() const { return info.id(); }
 
   // Update fields in 'info' using those in 'newInfo'. Currently this
@@ -2973,6 +2981,10 @@ struct Framework
   // and `removeExecutor()` are used, and provide a const view into
   // the executors.
   hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo>> executors;
+
+  // Pending operations or terminal operations that have
+  // unacknowledged status updates.
+  hashmap<UUID, process::Owned<OfferOperation>> offerOperations;
 
   // NOTE: For the used and offered resources below, we keep the
   // total as well as partitioned by SlaveID.

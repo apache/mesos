@@ -393,6 +393,19 @@ Option<ContainerStatus> getTaskContainerStatus(const Task& task)
 }
 
 
+OfferOperation createOfferOperation(
+    const Offer::Operation& info,
+    const FrameworkID& frameworkId)
+{
+  OfferOperation operation;
+  operation.mutable_framework_id()->CopyFrom(frameworkId);
+  operation.mutable_info()->CopyFrom(info);
+  operation.set_operation_uuid(UUID::random().toBytes());
+
+  return operation;
+}
+
+
 /**
  * Creates a MasterInfo protobuf from the process's UPID.
  *

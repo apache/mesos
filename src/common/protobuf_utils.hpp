@@ -149,6 +149,11 @@ Option<CheckStatusInfo> getTaskCheckStatus(const Task& task);
 Option<ContainerStatus> getTaskContainerStatus(const Task& task);
 
 
+OfferOperation createOfferOperation(
+    const Offer::Operation& info,
+    const FrameworkID& frameworkId);
+
+
 // Helper function that creates a MasterInfo from UPID.
 MasterInfo createMasterInfo(const process::UPID& pid);
 
