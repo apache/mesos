@@ -286,3 +286,7 @@ img {
   color: black;
   font-size: 0.8em;
 }
+
+.thumbnail > img {
+  height: 200px;
+}
