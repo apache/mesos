@@ -474,6 +474,9 @@ public:
       const FrameworkID& frameworkId,
       const std::vector<TaskStatus>& statuses);
 
+  void offerOperationStatusUpdate(
+      const OfferOperationStatusUpdate& message);
+
   void exitedExecutor(
       const process::UPID& from,
       const SlaveID& slaveId,

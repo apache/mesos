@@ -877,6 +877,9 @@ void Master::initialize()
       &ReconcileTasksMessage::framework_id,
       &ReconcileTasksMessage::statuses);
 
+  install<OfferOperationStatusUpdate>(
+      &Master::offerOperationStatusUpdate);
+
   install<ExitedExecutorMessage>(
       &Master::exitedExecutor,
       &ExitedExecutorMessage::slave_id,
@@ -7223,6 +7226,13 @@ void Master::forward(
   message.mutable_update()->MergeFrom(update);
   message.set_pid(acknowledgee);
   framework->send(message);
+}
+
+
+void Master::offerOperationStatusUpdate(
+    const OfferOperationStatusUpdate& message)
+{
+  // TODO(jieyu): Provide implementation here.
 }
 
 
