@@ -139,4 +139,10 @@ layout: documentation
     </a>
     <p class="text-center">Mesos in Action by Roger Ignazio (Manning, 2016)</p>
   </div>
+  <div class="col-xs-6 col-md-4">
+    <a href="https://www.packtpub.com/big-data-and-business-intelligence/apache-mesos-cookbook" class="thumbnail">
+      <img src="https://d255esdrn735hr.cloudfront.net/sites/default/files/imagecache/ppv4_main_book_cover/9781785884627.png" alt="Apache Mesos Cookbook by David Blomquist, Tomasz Janiszewski">
+    </a>
+    <p class="text-center">Apache Mesos Cookbook by David Blomquist, Tomasz Janiszewski (Packt, August 2017)</p>
+  </div>
 </div>
