@@ -100,6 +100,7 @@ layout: documentation
 * [Shopee](http://www.shopee.sg)
 * [Sigmoid Analytics](http://www.sigmoidanalytics.com/)
 * [SiQueries](https://siqueries.com)
+* [SliceLife](https://slicelife.com)
 * [Sloppy.io](http://sloppy.io)
 * [SmartProcure](https://smartprocure.us)
 * [Squarespace](http://squarespace.com)
