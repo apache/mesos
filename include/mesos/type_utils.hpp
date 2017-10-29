@@ -108,6 +108,14 @@ inline bool operator==(const OfferID& left, const OfferID& right)
 
 
 inline bool operator==(
+    const OfferOperationID& left,
+    const OfferOperationID& right)
+{
+  return left.value() == right.value();
+}
+
+
+inline bool operator==(
     const ResourceProviderID& left,
     const ResourceProviderID& right)
 {
@@ -233,6 +241,14 @@ inline bool operator!=(const ExecutorID& left, const ExecutorID& right)
 
 
 inline bool operator!=(const FrameworkID& left, const FrameworkID& right)
+{
+  return left.value() != right.value();
+}
+
+
+inline bool operator!=(
+    const OfferOperationID& left,
+    const OfferOperationID& right)
 {
   return left.value() != right.value();
 }
@@ -663,6 +679,22 @@ struct hash<mesos::MachineID>
     size_t seed = 0;
     boost::hash_combine(seed, strings::lower(machineId.hostname()));
     boost::hash_combine(seed, machineId.ip());
+    return seed;
+  }
+};
+
+
+template <>
+struct hash<mesos::OfferOperationID>
+{
+  typedef size_t result_type;
+
+  typedef mesos::OfferOperationID argument_type;
+
+  result_type operator()(const argument_type& offerOperationId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, offerOperationId.value());
     return seed;
   }
 };
