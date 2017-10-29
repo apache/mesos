@@ -2725,6 +2725,10 @@ struct Framework
     CHECK_SOME(uuid);
 
     offerOperations.put(uuid.get(), operation);
+
+    if (operation->info().has_id()) {
+      offerOperationUUIDs.put(operation->info().id(), uuid.get());
+    }
   }
 
   const FrameworkID id() const { return info.id(); }
@@ -2985,6 +2989,10 @@ struct Framework
   // Pending operations or terminal operations that have
   // unacknowledged status updates.
   hashmap<UUID, process::Owned<OfferOperation>> offerOperations;
+
+  // The map from the framework-specified operation ID to the
+  // corresponding internal operation UUID.
+  hashmap<OfferOperationID, UUID> offerOperationUUIDs;
 
   // NOTE: For the used and offered resources below, we keep the
   // total as well as partitioned by SlaveID.
