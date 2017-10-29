@@ -686,6 +686,22 @@ struct hash<mesos::v1::OfferOperationID>
   }
 };
 
+
+template <>
+struct hash<mesos::v1::ResourceProviderID>
+{
+  typedef size_t result_type;
+
+  typedef mesos::v1::ResourceProviderID argument_type;
+
+  result_type operator()(const argument_type& resourceProviderId) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, resourceProviderId.value());
+    return seed;
+  }
+};
+
 } // namespace std {
 
 #endif // __MESOS_V1_HPP__
