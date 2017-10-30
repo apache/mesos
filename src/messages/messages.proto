@@ -705,7 +705,9 @@ message OfferOperationStatusUpdate {
 
 
 /**
- * This message is sent from the master to the agent to apply an offer
+ * This message is sent from the master to the resource provider
+ * manager (either on the agent for local resource providers, or on
+ * the master for external resource providers) to apply an offer
  * operation.
  *
  * See resource_provider::Event::OPERATION.

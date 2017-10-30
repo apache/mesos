@@ -23,6 +23,8 @@
 #include <process/owned.hpp>
 #include <process/queue.hpp>
 
+#include "messages/messages.hpp"
+
 #include "resource_provider/message.hpp"
 
 namespace mesos {
@@ -48,6 +50,8 @@ public:
   process::Future<process::http::Response> api(
       const process::http::Request& request,
       const Option<process::http::authentication::Principal>& principal) const;
+
+  void applyOfferOperation(const ApplyOfferOperationMessage& message) const;
 
   // Returns a stream of messages from the resource provider manager.
   process::Queue<ResourceProviderMessage> messages() const;

@@ -3626,7 +3626,39 @@ Try<Nothing> Slave::syncCheckpointedResources(
 
 void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
 {
-  // TODO(nfnt): Provide implementation here.
+  Try<UUID> uuid = UUID::fromBytes(message.operation_uuid());
+  if (uuid.isError()) {
+    LOG(ERROR) << "Failed to parse offer operation UUID for operation "
+               << "'" << message.operation_info().id() << "' "
+               << "from framework " << message.framework_id()
+               << ": " << uuid.error();
+    return;
+  }
+
+  Result<ResourceProviderID> resourceProviderId =
+    getResourceProviderId(message.operation_info());
+
+  if (resourceProviderId.isError()) {
+    LOG(ERROR) << "Failed to get the resource provider ID of operation "
+               << "'" << message.operation_info().id() << "' "
+               << "(uuid: " << uuid->toString() << ") from framework "
+               << message.framework_id() << ": " << resourceProviderId.error();
+    return;
+  }
+
+  if (resourceProviderId.isSome()) {
+    resourceProviderManager.applyOfferOperation(message);
+    return;
+  }
+
+  // TODO(jieyu): Handle operations for agent default resources. To
+  // support rollback, the agent need to checkpoint the total
+  // resources using the old format (i.e., using `resources.info`).
+  // It's OK that the offer operations are not checkpointed atomically
+  // with the total resources for agent default resources. This is
+  // because the master does not rely on operation feedback to update
+  // the allocation for old operations, and agent default resources
+  // only support old operations.
 }
 
 

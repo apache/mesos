@@ -37,6 +37,7 @@
 
 #include "common/http.hpp"
 #include "common/recordio.hpp"
+#include "common/resources_utils.hpp"
 
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
@@ -52,7 +53,6 @@ using mesos::resource_provider::Event;
 
 using process::Failure;
 using process::Future;
-using process::Owned;
 using process::Process;
 using process::ProcessBase;
 using process::Queue;
@@ -140,9 +140,9 @@ public:
       const http::Request& request,
       const Option<Principal>& principal);
 
-  Queue<ResourceProviderMessage> messages;
+  void applyOfferOperation(const ApplyOfferOperationMessage& message);
 
-  hashmap<ResourceProviderID, ResourceProvider> resourceProviders;
+  Queue<ResourceProviderMessage> messages;
 
 private:
   void subscribe(
@@ -158,6 +158,11 @@ private:
       const Call::UpdateState& update);
 
   ResourceProviderID newResourceProviderId();
+
+  struct ResourceProviders
+  {
+    hashmap<ResourceProviderID, ResourceProvider> subscribed;
+  } resourceProviders;
 };
 
 
@@ -254,11 +259,12 @@ Future<http::Response> ResourceProviderManagerProcess::api(
     return ok;
   }
 
-  if (!resourceProviders.contains(call.resource_provider_id())) {
-    return BadRequest("Resource provider cannot be found");
+  if (!resourceProviders.subscribed.contains(call.resource_provider_id())) {
+    return BadRequest("Resource provider is not subscribed");
   }
 
-  auto resourceProvider = resourceProviders.at(call.resource_provider_id());
+  ResourceProvider& resourceProvider =
+    resourceProviders.subscribed.at(call.resource_provider_id());
 
   // This isn't a `SUBSCRIBE` call, so the request should include a stream ID.
   if (!request.headers.contains("Mesos-Stream-Id")) {
@@ -302,6 +308,69 @@ Future<http::Response> ResourceProviderManagerProcess::api(
 }
 
 
+void ResourceProviderManagerProcess::applyOfferOperation(
+    const ApplyOfferOperationMessage& message)
+{
+  const Offer::Operation& operation = message.operation_info();
+  const FrameworkID& frameworkId = message.framework_id();
+
+  Try<UUID> uuid = UUID::fromBytes(message.operation_uuid());
+  if (uuid.isError()) {
+    LOG(ERROR) << "Failed to parse offer operation UUID for operation "
+               << "'" << operation.id() << "' from framework "
+               << frameworkId << ": " << uuid.error();
+    return;
+  }
+
+  Result<ResourceProviderID> resourceProviderId =
+    getResourceProviderId(operation);
+
+  if (!resourceProviderId.isSome()) {
+    LOG(ERROR) << "Failed to get the resource provider ID of operation "
+               << "'" << operation.id() << "' (uuid: " << uuid->toString()
+               << ") from framework " << frameworkId << ": "
+               << (resourceProviderId.isError() ? resourceProviderId.error()
+                                                : "Not found");
+    return;
+  }
+
+  if (!resourceProviders.subscribed.contains(resourceProviderId.get())) {
+    LOG(WARNING) << "Dropping operation '" << operation.id() << "' (uuid: "
+                 << uuid.get() << ") from framework " << frameworkId
+                 << " because resource provider " << resourceProviderId.get()
+                 << " is not subscribed";
+    return;
+  }
+
+  ResourceProvider& resourceProvider =
+    resourceProviders.subscribed.at(resourceProviderId.get());
+
+  CHECK(message.resource_version_uuid().has_resource_provider_id());
+
+  CHECK_EQ(message.resource_version_uuid().resource_provider_id(),
+           resourceProviderId.get())
+    << "Resource provider ID "
+    << message.resource_version_uuid().resource_provider_id()
+    << " in resource version UUID does not match that in the operation "
+    << resourceProviderId.get();
+
+  Event event;
+  event.set_type(Event::OPERATION);
+  event.mutable_operation()->mutable_framework_id()->CopyFrom(frameworkId);
+  event.mutable_operation()->mutable_info()->CopyFrom(operation);
+  event.mutable_operation()->set_operation_uuid(message.operation_uuid());
+  event.mutable_operation()->set_resource_version_uuid(
+      message.resource_version_uuid().uuid());
+
+  if (!resourceProvider.http.send(event)) {
+    LOG(WARNING) << "Failed to send operation '" << operation.id() << "' "
+                 << "(uuid: " << uuid.get() << ") from framework "
+                 << frameworkId << " to resource provider "
+                 << resourceProviderId.get() << ": connection closed";
+  }
+}
+
+
 void ResourceProviderManagerProcess::subscribe(
     const HttpConnection& http,
     const Call::Subscribe& subscribe)
@@ -309,27 +378,36 @@ void ResourceProviderManagerProcess::subscribe(
   ResourceProviderInfo resourceProviderInfo =
     subscribe.resource_provider_info();
 
-  // TODO(chhsiao): Reject the subscription if it contains an unknown ID
-  // or there is already a subscribed instance with the same ID, and add
-  // tests for re-subscriptions.
+  LOG(INFO) << "Subscribing resource provider " << resourceProviderInfo;
+
   if (!resourceProviderInfo.has_id()) {
+    // The resource provider is subscribing for the first time.
     resourceProviderInfo.mutable_id()->CopyFrom(newResourceProviderId());
+
+    ResourceProvider resourceProvider(resourceProviderInfo, http);
+
+    Event event;
+    event.set_type(Event::SUBSCRIBED);
+    event.mutable_subscribed()->mutable_provider_id()->CopyFrom(
+        resourceProvider.info.id());
+
+    if (!resourceProvider.http.send(event)) {
+      LOG(WARNING) << "Failed to send SUBSCRIBED event to resource provider "
+                   << resourceProvider.info.id() << ": connection closed";
+    }
+
+    // TODO(jieyu): Start heartbeat for the resource provider.
+
+    resourceProviders.subscribed.put(
+        resourceProviderInfo.id(),
+        resourceProvider);
+
+    return;
   }
 
-  ResourceProvider resourceProvider(resourceProviderInfo, http);
-
-  Event event;
-  event.set_type(Event::SUBSCRIBED);
-  event.mutable_subscribed()->mutable_provider_id()->CopyFrom(
-      resourceProvider.info.id());
-
-  if (!resourceProvider.http.send(event)) {
-    LOG(WARNING) << "Unable to send event to resource provider "
-                 << stringify(resourceProvider.info.id())
-                 << ": connection closed";
-  }
-
-  resourceProviders.put(resourceProviderInfo.id(), std::move(resourceProvider));
+  // TODO(chhsiao): Reject the subscription if it contains an unknown
+  // ID or there is already a subscribed instance with the same ID,
+  // and add tests for re-subscriptions.
 }
 
 
@@ -399,6 +477,16 @@ Future<http::Response> ResourceProviderManager::api(
       &ResourceProviderManagerProcess::api,
       request,
       principal);
+}
+
+
+void ResourceProviderManager::applyOfferOperation(
+    const ApplyOfferOperationMessage& message) const
+{
+  return dispatch(
+      process.get(),
+      &ResourceProviderManagerProcess::applyOfferOperation,
+      message);
 }
 
 
