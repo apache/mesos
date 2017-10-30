@@ -46,6 +46,15 @@ Try<Resources> applyCheckpointedResources(
     const Resources& checkpointedResources);
 
 
+// Returns the resource provider ID associated with the given
+// operation. Returns None() if the operation is for agent default
+// resources. We assume the given operation is validated. Therefore,
+// the specified operation should not contain resources from more than
+// one resource provider.
+Result<ResourceProviderID> getResourceProviderId(
+    const Offer::Operation& operation);
+
+
 // Resource format options to be used with the `convertResourceFormat` function.
 //
 // The preconditions of the options are asymmetric, centered around the

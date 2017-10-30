@@ -91,6 +91,54 @@ Try<Resources> applyCheckpointedResources(
 }
 
 
+Result<ResourceProviderID> getResourceProviderId(
+    const Offer::Operation& operation)
+{
+  Option<Resource> resource;
+
+  switch (operation.type()) {
+    case Offer::Operation::LAUNCH:
+      return Error("Unexpected LAUNCH operation");
+    case Offer::Operation::LAUNCH_GROUP:
+      return Error("Unexpected LAUNCH_GROUP operation");
+    case Offer::Operation::RESERVE:
+      resource = operation.reserve().resources(0);
+      break;
+    case Offer::Operation::UNRESERVE:
+      resource = operation.unreserve().resources(0);
+      break;
+    case Offer::Operation::CREATE:
+      resource = operation.create().volumes(0);
+      break;
+    case Offer::Operation::DESTROY:
+      resource = operation.destroy().volumes(0);
+      break;
+    case Offer::Operation::CREATE_VOLUME:
+      resource = operation.create_volume().source();
+      break;
+    case Offer::Operation::DESTROY_VOLUME:
+      resource = operation.destroy_volume().volume();
+      break;
+    case Offer::Operation::CREATE_BLOCK:
+      resource = operation.create_block().source();
+      break;
+    case Offer::Operation::DESTROY_BLOCK:
+      resource = operation.destroy_block().block();
+      break;
+    case Offer::Operation::UNKNOWN:
+      return Error("Unknown offer operation");
+  }
+
+  CHECK_SOME(resource);
+
+  if (resource->has_provider_id()) {
+    return resource->provider_id();
+  }
+
+  return None();
+}
+
+
 void convertResourceFormat(Resource* resource, ResourceFormat format)
 {
   switch (format) {
