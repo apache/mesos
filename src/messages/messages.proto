@@ -376,6 +376,23 @@ message StatusUpdateAcknowledgementMessage {
 
 
 /**
+ * This message is used by the master to forward a framework's offer operation
+ * update acknowledgement to the relevant agent.
+ *
+ * See scheduler::Call::AcknowledgeOfferOperationUpdate.
+ */
+message OfferOperationUpdateAcknowledgementMessage {
+  // The UUID from the `OfferOperationStatus` being acknowledged.
+  required bytes status_uuid = 1;
+
+  // The UUID from the relevant `OfferOperation`.
+  required bytes operation_uuid = 2;
+
+  optional ResourceProviderID resource_provider_id = 3;
+}
+
+
+/**
  * Notifies the scheduler that the agent was lost.
  *
  * See scheduler::Event::Failure.
