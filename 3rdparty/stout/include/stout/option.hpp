@@ -16,6 +16,9 @@
 #include <assert.h>
 
 #include <algorithm>
+#include <functional>
+
+#include <boost/functional/hash.hpp>
 
 #include <stout/none.hpp>
 #include <stout/some.hpp>
@@ -215,5 +218,26 @@ Option<T> max(const T& left, const Option<T>& right)
 {
   return max(Option<T>(left), right);
 }
+
+namespace std {
+
+template <typename T>
+struct hash<Option<T>>
+{
+  typedef size_t result_type;
+
+  typedef Option<T> argument_type;
+
+  result_type operator()(const argument_type& option) const
+  {
+    size_t seed = 0;
+    if (option.isSome()) {
+      boost::hash_combine(seed, hash<T>()(option.get()));
+    }
+    return seed;
+  }
+};
+
+} // namespace std {
 
 #endif // __STOUT_OPTION_HPP__
