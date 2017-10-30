@@ -5599,6 +5599,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, HTTPSchedulerSlaveRestart)
   ASSERT_SOME(_containerizer);
   containerizer.reset(_containerizer.get());
 
+  Future<ReregisterExecutorMessage> reregisterExecutorMessage =
+    FUTURE_PROTOBUF(ReregisterExecutorMessage(), _, _);
+
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
      FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
@@ -5613,12 +5616,15 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, HTTPSchedulerSlaveRestart)
   slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  Clock::settle();
+  // Let the executor re-register.
+  AWAIT_READY(reregisterExecutorMessage);
 
-  // Ensure the slave considers itself recovered.
+  // Ensure the slave considers itself recovered and re-registers.
+  Clock::settle();
   Clock::advance(flags.executor_reregistration_timeout);
 
-  Clock::resume();
+  Clock::settle();
+  Clock::advance(flags.registration_backoff_factor);
 
   AWAIT_READY(slaveReregisteredMessage);
   AWAIT_READY(updateFrameworkMessage);
@@ -5663,6 +5669,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, HTTPSchedulerSlaveRestart)
 
   driver.stop();
   driver.join();
+
+  // We must resume the clock to ensure the agent can reap the
+  // executor after we destroy it.
+  Clock::resume();
 }
 
 
