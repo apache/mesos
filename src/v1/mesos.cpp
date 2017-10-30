@@ -509,6 +509,12 @@ ostream& operator<<(ostream& stream, const OfferID& offerId)
 }
 
 
+ostream& operator<<(ostream& stream, const OfferOperationID& offerOperationId)
+{
+  return stream << offerOperationId.value();
+}
+
+
 ostream& operator<<(ostream& stream, const RateLimits& limits)
 {
   return stream << limits.DebugString();

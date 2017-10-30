@@ -371,6 +371,11 @@ std::ostream& operator<<(std::ostream& stream, const MasterInfo& master);
 std::ostream& operator<<(std::ostream& stream, const OfferID& offerId);
 
 
+std::ostream& operator<<(
+    std::ostream& stream,
+    const OfferOperationID& offerOperationId);
+
+
 std::ostream& operator<<(std::ostream& stream, const RateLimits& limits);
 
 
