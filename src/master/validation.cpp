@@ -591,9 +591,29 @@ Option<Error> validate(
       return None();
     }
 
+    case mesos::scheduler::Call::ACKNOWLEDGE_OFFER_OPERATION_UPDATE: {
+      if (!call.has_acknowledge_offer_operation_update()) {
+        return Error(
+            "Expecting 'acknowledge_offer_operation_update' to be present");
+      }
+
+      Try<UUID> uuid = UUID::fromBytes(
+          call.acknowledge_offer_operation_update().status_uuid());
+      if (uuid.isError()) {
+        return uuid.error();
+      }
+      return None();
+    }
+
     case mesos::scheduler::Call::RECONCILE:
       if (!call.has_reconcile()) {
         return Error("Expecting 'reconcile' to be present");
+      }
+      return None();
+
+    case mesos::scheduler::Call::RECONCILE_OFFER_OPERATIONS:
+      if (!call.has_reconcile_offer_operations()) {
+        return Error("Expecting 'reconcile_offer_operations' to be present");
       }
       return None();
 

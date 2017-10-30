@@ -153,6 +153,10 @@ public:
           break;
         }
 
+        // TODO(greggomann): Implement handling of offer operation updates.
+        case Event::OFFER_OPERATION_UPDATE:
+          break;
+
         case Event::MESSAGE: {
           cout << endl << "Received a MESSAGE event" << endl;
           break;

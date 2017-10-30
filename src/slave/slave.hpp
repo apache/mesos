@@ -284,6 +284,10 @@ public:
       const TaskID& taskId,
       const std::string& uuid);
 
+  void offerOperationUpdateAcknowledgement(
+      const process::UPID& from,
+      const OfferOperationUpdateAcknowledgementMessage& acknowledgement);
+
   void _statusUpdateAcknowledgement(
       const process::Future<bool>& future,
       const TaskID& taskId,

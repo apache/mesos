@@ -629,6 +629,10 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
       break;
     }
 
+    // TODO(greggomann): Implement offer operation update acknowledgement.
+    case Call::ACKNOWLEDGE_OFFER_OPERATION_UPDATE:
+      break;
+
     case Call::RECONCILE: {
       vector<TaskStatus> statuses;
 
@@ -642,6 +646,10 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
       driver->reconcileTasks(statuses);
       break;
     }
+
+    // TODO(greggomann): Implement offer operation update reconciliation.
+    case Call::RECONCILE_OFFER_OPERATIONS:
+      break;
 
     case Call::MESSAGE: {
       driver->sendFrameworkMessage(

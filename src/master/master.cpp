@@ -2492,8 +2492,26 @@ void Master::receive(
       break;
     }
 
+    case scheduler::Call::ACKNOWLEDGE_OFFER_OPERATION_UPDATE: {
+      Try<UUID> uuid = UUID::fromBytes(
+          call.acknowledge_offer_operation_update().status_uuid());
+      if (uuid.isError()) {
+        drop(from, call, uuid.error());
+        return;
+      }
+
+      acknowledgeOfferOperationUpdate(
+          framework,
+          call.acknowledge_offer_operation_update());
+      break;
+    }
+
     case scheduler::Call::RECONCILE:
       reconcile(framework, call.reconcile());
+      break;
+
+    case scheduler::Call::RECONCILE_OFFER_OPERATIONS:
+      reconcileOfferOperations(framework, call.reconcile_offer_operations());
       break;
 
     case scheduler::Call::MESSAGE:
@@ -5749,6 +5767,12 @@ void Master::acknowledge(
 }
 
 
+// TODO(greggomann): Implement offer operation update acknowledgement.
+void Master::acknowledgeOfferOperationUpdate(
+    Framework* framework,
+    const scheduler::Call::AcknowledgeOfferOperationUpdate& acknowledge) {}
+
+
 void Master::schedulerMessage(
     const UPID& from,
     const SlaveID& slaveId,
@@ -7746,6 +7770,12 @@ void Master::_reconcileTasks(
     }
   }
 }
+
+
+// TODO(greggomann): Implement offer operation update reconciliation.
+void Master::reconcileOfferOperations(
+    Framework* framework,
+    const scheduler::Call::ReconcileOfferOperations& reconcile) {}
 
 
 void Master::frameworkFailoverTimeout(const FrameworkID& frameworkId,

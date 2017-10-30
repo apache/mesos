@@ -1005,9 +1005,17 @@ private:
       Framework* framework,
       const scheduler::Call::Acknowledge& acknowledge);
 
+  void acknowledgeOfferOperationUpdate(
+      Framework* framework,
+      const scheduler::Call::AcknowledgeOfferOperationUpdate& acknowledge);
+
   void reconcile(
       Framework* framework,
       const scheduler::Call::Reconcile& reconcile);
+
+  void reconcileOfferOperations(
+      Framework* framework,
+      const scheduler::Call::ReconcileOfferOperations& reconcile);
 
   void message(
       Framework* framework,

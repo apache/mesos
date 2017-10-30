@@ -1120,9 +1120,17 @@ Future<Response> Master::Http::scheduler(
       master->acknowledge(framework, call.acknowledge());
       return Accepted();
 
+    // TODO(greggomann): Implement offer operation update acknowledgement.
+    case scheduler::Call::ACKNOWLEDGE_OFFER_OPERATION_UPDATE:
+      return Forbidden("Offer operation updates are not yet implemented");
+
     case scheduler::Call::RECONCILE:
       master->reconcile(framework, call.reconcile());
       return Accepted();
+
+    // TODO(greggomann): Implement offer operation update reconciliation.
+    case scheduler::Call::RECONCILE_OFFER_OPERATIONS:
+      return Forbidden("Offer operation reconciliation is not yet implemented");
 
     case scheduler::Call::MESSAGE:
       master->message(framework, call.message());

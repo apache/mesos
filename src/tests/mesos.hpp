@@ -2181,6 +2181,9 @@ public:
       rescindInverseOffers,
       void(Mesos*, const typename Event::RescindInverseOffer&));
   MOCK_METHOD2_T(update, void(Mesos*, const typename Event::Update&));
+  MOCK_METHOD2_T(
+      offerOperationUpdate,
+      void(Mesos*, const typename Event::OfferOperationUpdate&));
   MOCK_METHOD2_T(message, void(Mesos*, const typename Event::Message&));
   MOCK_METHOD2_T(failure, void(Mesos*, const typename Event::Failure&));
   MOCK_METHOD2_T(error, void(Mesos*, const typename Event::Error&));
@@ -2205,6 +2208,9 @@ public:
         break;
       case Event::UPDATE:
         update(mesos, event.update());
+        break;
+      case Event::OFFER_OPERATION_UPDATE:
+        offerOperationUpdate(mesos, event.offer_operation_update());
         break;
       case Event::MESSAGE:
         message(mesos, event.message());

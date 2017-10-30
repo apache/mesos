@@ -678,6 +678,9 @@ void Slave::initialize()
       &StatusUpdateAcknowledgementMessage::task_id,
       &StatusUpdateAcknowledgementMessage::uuid);
 
+  install<OfferOperationUpdateAcknowledgementMessage>(
+      &Slave::offerOperationUpdateAcknowledgement);
+
   install<RegisterExecutorMessage>(
       &Slave::registerExecutor,
       &RegisterExecutorMessage::framework_id,
@@ -3680,6 +3683,12 @@ void Slave::statusUpdateAcknowledgement(
                  frameworkId,
                  UUID::fromBytes(uuid).get()));
 }
+
+
+// TODO(greggomann): Implement offer operation update acknowledgement.
+void Slave::offerOperationUpdateAcknowledgement(
+    const UPID& from,
+    const OfferOperationUpdateAcknowledgementMessage& acknowledgement) {}
 
 
 void Slave::_statusUpdateAcknowledgement(

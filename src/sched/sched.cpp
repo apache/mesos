@@ -655,6 +655,10 @@ protected:
         break;
       }
 
+      // TODO(greggomann): Implement handling of offer operation updates.
+      case Event::OFFER_OPERATION_UPDATE:
+        break;
+
       case Event::MESSAGE: {
         if (!event.has_message()) {
           drop(event, "Expecting 'message' to be present");

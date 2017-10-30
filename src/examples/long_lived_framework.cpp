@@ -211,6 +211,10 @@ protected:
           break;
         }
 
+        // TODO(greggomann): Implement handling of offer operation updates.
+        case Event::OFFER_OPERATION_UPDATE:
+          break;
+
         case Event::FAILURE: {
           const Event::Failure& failure = event.failure();
 
