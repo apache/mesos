@@ -1855,8 +1855,9 @@ private:
     hashset<SlaveID> markingGone;
 
     // This collection includes agents that have gracefully shutdown,
-    // as well as those that have been marked unreachable. We keep a
-    // cache here to prevent this from growing in an unbounded manner.
+    // as well as those that have been marked unreachable or gone. We
+    // keep a cache here to prevent this from growing in an unbounded
+    // manner.
     //
     // TODO(bmahler): Ideally we could use a cache with set semantics.
     //
