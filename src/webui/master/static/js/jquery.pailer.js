@@ -6,7 +6,7 @@
 // bytes). This function should expect an "options" object with the
 // fields 'offset' and 'length' set for reading the data. The result
 // from of the function should be a "promise" like value which has a
-// 'success' and 'error' callback which each take a function. An
+// 'then' and 'fail' callback which each take a function. An
 // object with at least two fields defined ('offset' and 'data') is
 // expected on success. The length of 'data' may be smaller than the
 // amount requested. If the offset requested is greater than the
@@ -119,7 +119,7 @@
     this_.indicate('(LOADING)');
 
     this_.read({'offset': -1})
-      .success(function(data) {
+      .then(function(data) {
         this_.indicate('');
 
         // Get the last page of data.
@@ -133,7 +133,7 @@
         this_.element.html('');
         setTimeout(function() { this_.tail(); }, 0);
       })
-      .error(function(response, msg, code) {
+      .fail(function(response, msg, code) {
         if ([401, 403].indexOf(response.status) > -1) {
           // Unauthorized user.
           this_.indicate('YOU ARE UNAUTHORIZED TO ACCESS THIS CONTENT');
@@ -182,7 +182,7 @@
 
     var read = function(offset, length) {
       this_.read({'offset': offset, 'length': length})
-        .success(function(data) {
+        .then(function(data) {
           if (data.data.length < length) {
             buffer += data.data;
             read(offset + data.data.length, length - data.data.length);
@@ -214,7 +214,7 @@
             this_.paging = false;
           }
         })
-        .error(function() {
+        .fail(function() {
           this_.indicate('(FAILED TO PAGE ... RETRYING)');
           setTimeout(function() {
             this_.indicate('');
@@ -235,7 +235,7 @@
     }
 
     this_.read({'offset': this_.end, 'length': this_.truncate_length})
-      .success(function(data) {
+      .then(function(data) {
         var scrollTop = this_.element.scrollTop();
         var height = this_.element.height();
         var scrollHeight = this_.element[0].scrollHeight;
@@ -283,7 +283,7 @@
           setTimeout(function() { this_.tail(); }, 1000);
         }
       })
-      .error(function() {
+      .fail(function() {
         this_.indicate('(FAILED TO TAIL ... RETRYING)');
         this_.initialized = false;
         setTimeout(function() {
@@ -318,8 +318,8 @@
     var settings = $.extend({
       read: function() {
         return {
-          success: function() {},
-          error: function(f) { f(); }
+          then: function() {},
+          fail: function(f) { f(); }
         };
       },
       'page_size': 8 * 4096, // 8 "pages".
