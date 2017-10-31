@@ -62,9 +62,19 @@ case $OS in
     # IBM Power only supports Ubuntu 14.04 and gcc compiler.
     [ "$(uname -m)" = "x86_64" ] && CLANG_PKG=clang-3.5 || CLANG_PKG=
     append_dockerfile "RUN apt-get update"
-    append_dockerfile "RUN apt-get -y install build-essential $CLANG_PKG git maven autoconf libtool"
-    append_dockerfile "RUN apt-get -y install openjdk-7-jdk python-dev python-six libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev libev-dev"
-    append_dockerfile "RUN apt-get -y install wget curl sed"
+    append_dockerfile "RUN apt-get install -y build-essential $CLANG_PKG git maven autoconf libtool"
+    append_dockerfile "RUN apt-get install -y python-dev python-six libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev libev-dev"
+    append_dockerfile "RUN apt-get install -y wget curl sed"
+
+    case $OS in
+      *16.04*)
+        echo "Install Ubuntu 16.04 LTS (Xenial Xerus) specific packages"
+        append_dockerfile "RUN apt-get install -y openjdk-8-jdk zlib1g-dev"
+       ;;
+      *)
+        append_dockerfile "RUN apt-get install -y openjdk-7-jdk"
+       ;;
+    esac
 
     # Add an unpriviliged user.
     append_dockerfile "RUN adduser --disabled-password --gecos '' mesos"
