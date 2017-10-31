@@ -73,6 +73,7 @@ function(PROTOC_GENERATE)
   endif ()
 
   set(CC ${CPP_OUT}/${PROTOC_TARGET}.pb.cc)
+  set(H ${CPP_OUT}/${PROTOC_TARGET}.pb.h)
 
   # Fully qualified path for the Java file.
   if (PROTOC_JAVA AND HAS_JAVA)
