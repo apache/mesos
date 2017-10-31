@@ -18,6 +18,8 @@
 
 #include <process/id.hpp>
 
+#include <stout/os.hpp>
+
 #include <stout/os/strerror.hpp>
 
 #include "linux/ns.hpp"

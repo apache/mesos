@@ -20,6 +20,7 @@
 
 #include <mesos/type_utils.hpp>
 
+#include <process/collect.hpp>
 #include <process/io.hpp>
 #include <process/pid.hpp>
 #include <process/subprocess.hpp>

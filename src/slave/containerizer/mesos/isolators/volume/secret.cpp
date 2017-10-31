@@ -31,6 +31,7 @@
 #include <stout/strings.hpp>
 
 #include <stout/os/mkdir.hpp>
+#include <stout/os/touch.hpp>
 #include <stout/os/write.hpp>
 
 #ifdef __linux__

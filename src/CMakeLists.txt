@@ -367,6 +367,7 @@ set(LINUX_SRC
   linux/fs.cpp
   linux/ldcache.cpp
   linux/ldd.cpp
+  linux/ns.cpp
   linux/perf.cpp
   linux/systemd.cpp
   slave/containerizer/mesos/linux_launcher.cpp
