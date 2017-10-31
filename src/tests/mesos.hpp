@@ -1917,6 +1917,7 @@ inline mesos::v1::scheduler::Call createCallAcknowledge(
 inline mesos::v1::scheduler::Call createCallKill(
     const mesos::v1::FrameworkID& frameworkId,
     const mesos::v1::TaskID& taskId,
+    const Option<mesos::v1::AgentID>& agentId = None(),
     const Option<mesos::v1::KillPolicy>& killPolicy = None())
 {
   mesos::v1::scheduler::Call call;
@@ -1925,6 +1926,10 @@ inline mesos::v1::scheduler::Call createCallKill(
 
   mesos::v1::scheduler::Call::Kill* kill = call.mutable_kill();
   kill->mutable_task_id()->CopyFrom(taskId);
+
+  if (agentId.isSome()) {
+    kill->mutable_agent_id()->CopyFrom(agentId.get());
+  }
 
   if (killPolicy.isSome()) {
     kill->mutable_kill_policy()->CopyFrom(killPolicy.get());

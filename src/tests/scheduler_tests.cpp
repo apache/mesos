@@ -1026,17 +1026,8 @@ TEST_P(SchedulerTest, KillTask)
     .WillOnce(v1::executor::SendUpdateFromTaskID(
         frameworkId, evolve(executorId), v1::TASK_KILLED));
 
-  {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::KILL);
-
-    Call::Kill* kill = call.mutable_kill();
-    kill->mutable_task_id()->CopyFrom(taskInfo.task_id());
-    kill->mutable_agent_id()->CopyFrom(offer.agent_id());
-
-    mesos.send(call);
-  }
+  mesos.send(
+      v1::createCallKill(frameworkId, taskInfo.task_id(), offer.agent_id()));
 
   AWAIT_READY(update2);
 

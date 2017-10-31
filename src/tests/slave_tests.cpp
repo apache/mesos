@@ -4449,17 +4449,8 @@ TEST_F(SlaveTest, KillTaskUnregisteredHTTPExecutor)
     .WillOnce(FutureArg<1>(&update1))
     .WillOnce(FutureArg<1>(&update2));
 
-  {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::KILL);
-
-    Call::Kill* kill = call.mutable_kill();
-    kill->mutable_task_id()->CopyFrom(task1.task_id());
-    kill->mutable_agent_id()->CopyFrom(offer.agent_id());
-
-    mesos.send(call);
-  }
+  mesos.send(
+      v1::createCallKill(frameworkId, task1.task_id(), offer.agent_id()));
 
   AWAIT_READY(update1);
   AWAIT_READY(update2);
@@ -7147,17 +7138,8 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
     .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
                     FutureSatisfy(&removeFramework)));
 
-  {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::KILL);
-
-    Call::Kill* kill = call.mutable_kill();
-    kill->mutable_task_id()->CopyFrom(taskInfo1.task_id());
-    kill->mutable_agent_id()->CopyFrom(offer.agent_id());
-
-    mesos.send(call);
-  }
+  mesos.send(
+      v1::createCallKill(frameworkId, taskInfo1.task_id(), offer.agent_id()));
 
   AWAIT_READY(killTask);
 
@@ -7426,17 +7408,8 @@ TEST_F(SlaveTest, KillQueuedTaskGroup)
 
   // Kill a task in the task group before the executor
   // subscribes with the agent.
-  {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::KILL);
-
-    Call::Kill* kill = call.mutable_kill();
-    kill->mutable_task_id()->CopyFrom(taskInfo2.task_id());
-    kill->mutable_agent_id()->CopyFrom(offer.agent_id());
-
-    mesos.send(call);
-  }
+  mesos.send(
+      v1::createCallKill(frameworkId, taskInfo2.task_id(), offer.agent_id()));
 
   AWAIT_READY(update1);
   AWAIT_READY(update2);
