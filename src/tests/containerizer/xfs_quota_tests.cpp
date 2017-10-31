@@ -414,26 +414,32 @@ TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuota)
       Resources::parse("cpus:1;mem:128;disk:1").get(),
       "dd if=/dev/zero of=file bs=1048576 count=2");
 
-  Future<TaskStatus> status1;
-  Future<TaskStatus> status2;
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
+  Future<TaskStatus> failedStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status1))
-    .WillOnce(FutureArg<1>(&status2));
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&failedStatus));
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(status1);
-  EXPECT_EQ(task.task_id(), status1->task_id());
-  EXPECT_EQ(TASK_RUNNING, status1->state());
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
 
-  AWAIT_READY(status2);
-  EXPECT_EQ(task.task_id(), status2->task_id());
-  EXPECT_EQ(TASK_FAILED, status2->state());
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+
+  AWAIT_READY(failedStatus);
+  EXPECT_EQ(task.task_id(), failedStatus->task_id());
+  EXPECT_EQ(TASK_FAILED, failedStatus->state());
 
   // Unlike the 'disk/du' isolator, the reason for task failure
   // should be that dd got an IO error.
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, status2->source());
-  EXPECT_EQ("Command exited with status 1", status2->message());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, failedStatus->source());
+  EXPECT_EQ("Command exited with status 1", failedStatus->message());
 
   driver.stop();
   driver.join();
@@ -480,23 +486,29 @@ TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuotaNoEnforce)
       Resources::parse("cpus:1;mem:128;disk:1").get(),
       "dd if=/dev/zero of=file bs=1048576 count=2");
 
-  Future<TaskStatus> status1;
-  Future<TaskStatus> status2;
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
+  Future<TaskStatus> finishedStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status1))
-    .WillOnce(FutureArg<1>(&status2));
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&finishedStatus));
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(status1);
-  EXPECT_EQ(task.task_id(), status1->task_id());
-  EXPECT_EQ(TASK_RUNNING, status1->state());
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
 
   // We expect the task to succeed even though it exceeded
   // the disk quota.
-  AWAIT_READY(status2);
-  EXPECT_EQ(task.task_id(), status2->task_id());
-  EXPECT_EQ(TASK_FINISHED, status2->state());
+  AWAIT_READY(finishedStatus);
+  EXPECT_EQ(task.task_id(), finishedStatus->task_id());
+  EXPECT_EQ(TASK_FINISHED, finishedStatus->state());
 
   driver.stop();
   driver.join();
@@ -551,16 +563,22 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
       Resources::parse("cpus:1;mem:128;disk:3").get(),
       "dd if=/dev/zero of=file bs=1048576 count=4 || sleep 1000");
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status->task_id());
-  EXPECT_EQ(TASK_RUNNING, status->state());
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
 
   Future<hashset<ContainerID>> containers = containerizer.get()->containers();
   AWAIT_READY(containers);
@@ -648,16 +666,22 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatisticsNoEnforce)
       Resources::parse("cpus:1;mem:128;disk:3").get(),
       "dd if=/dev/zero of=file bs=1048576 count=4 && sleep 1000");
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status->task_id());
-  EXPECT_EQ(TASK_RUNNING, status->state());
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
 
   Future<hashset<ContainerID>> containers = containerizer.get()->containers();
   AWAIT_READY(containers);
@@ -749,16 +773,22 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
       Resources::parse("cpus:1;mem:128;disk:1").get(),
       "dd if=/dev/zero of=file bs=1048576 count=1; sleep 1000");
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> runningStatus;
+  Future<TaskStatus> startingStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
     .WillOnce(Return());
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status->task_id());
-  EXPECT_EQ(TASK_RUNNING, status->state());
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
 
   Future<ResourceUsage> usage1 =
     process::dispatch(slave.get()->pid, &Slave::usage);
@@ -873,15 +903,21 @@ TEST_F(ROOT_XFS_QuotaTest, CheckpointRecovery)
       Resources::parse("cpus:1;mem:128;disk:1").get(),
       "dd if=/dev/zero of=file bs=1048576 count=1; sleep 1000");
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus));
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status->task_id());
-  EXPECT_EQ(TASK_RUNNING, status->state());
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
 
   Future<ResourceUsage> usage1 =
     process::dispatch(slave.get()->pid, &Slave::usage);
@@ -986,15 +1022,21 @@ TEST_F(ROOT_XFS_QuotaTest, RecoverOldContainers)
       Resources::parse("cpus:1;mem:128;disk:1").get(),
       "dd if=/dev/zero of=file bs=1024 count=1; sleep 1000");
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningstatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningstatus));
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(status);
-  EXPECT_EQ(task.task_id(), status->task_id());
-  EXPECT_EQ(TASK_RUNNING, status->state());
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningstatus);
+  EXPECT_EQ(task.task_id(), runningstatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningstatus->state());
 
   {
     Future<ResourceUsage> usage =
