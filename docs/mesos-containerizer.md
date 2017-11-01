@@ -26,7 +26,6 @@ can write modules that implement custom isolators.
 
 Mesos supports the following built-in isolators.
 
-- [environment\_secret](secrets.md#environment-based-secrets)
 - appc/runtime
 - [cgroups/blkio](isolators/cgroups-blkio.md)
 - [cgroups/cpu](isolators/cgroups-cpu.md)
@@ -42,6 +41,7 @@ Mesos supports the following built-in isolators.
 - [disk/xfs](isolators/disk-xfs.md)
 - [docker/runtime](isolators/docker-runtime.md)
 - [docker/volume](isolators/docker-volume.md)
+- [environment\_secret](secrets.md#environment-based-secrets)
 - filesystem/linux
 - filesystem/posix
 - [filesystem/shared](isolators/filesystem-shared.md)
@@ -52,6 +52,7 @@ Mesos supports the following built-in isolators.
 - [namespaces/pid](isolators/namespaces-pid.md)
 - [network/cni](cni.md)
 - [network/port_mapping](isolators/network-port-mapping.md)
+- [network/ports](isolators/network-ports.md)
 - posix/cpu
 - posix/mem
 - [posix/rlimits](isolators/posix-rlimits.md)

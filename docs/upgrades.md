@@ -48,17 +48,21 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
     <ul style="padding-left:10px;">
-      <li>C <a href="#1-5-x-task-starting">Built-int executors send a TASK_STARTING update</a></li>
+      <li>C <a href="#1-5-x-task-starting">Built-in executors send a TASK_STARTING update</a></li>
+      <li>A <a href="#1-5-x-network-ports-isolator">Network ports isolator</a></li>
     </ul>
   </td>
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
     <ul style="padding-left:10px;">
+      <li>A <a href="#1-5-x-network-ports-isolator">container_ports_watch_interval</a></li>
+      <li>A <a href="#1-5-x-network-ports-isolator">check_agent_port_range_only</a></li>
     </ul>
   </td>
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
     <ul style="padding-left:10px;">
+      <li>A <a href="#1-5-x-task-resource-limitation">Added the TaskStatus.limitation message</a></li>
     </ul>
   </td>
 
@@ -360,6 +364,18 @@ We categorize the changes as follows:
   not actually send it. This means that all schedulers using one of the built-in
   executors must be upgraded to expect `TASK_STARTING` updates before upgrading
   Mesos itself.
+
+<a name="1-5-x-task-resource-limitation"></a>
+
+* A new field, `limitation`, was added to the `TaskStatus` message. This
+  field is a `TaskResourceLimitation` message that describes the resources
+  that caused a task to fail with a resource limitation reason.
+
+<a name="1-5-x-network-ports-isolator"></a>
+
+* A new [`network/ports`](isolators/network-ports.md) isolator has been added. The isolator supports the following new agent flags:
+  * `--container_ports_watch_interval` specifies the interval at which the isolator reconciles port assignments.
+  * `--check_agent_port_range_only` excludes ports outside the agent's range from port reconcilation.
 
 ## Upgrading from 1.3.x to 1.4.x ##
 

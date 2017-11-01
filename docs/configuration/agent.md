@@ -333,6 +333,18 @@ Name of the root cgroup. (default: mesos)
 </tr>
 <tr>
   <td>
+    --[no-]check_agent_port_range_only
+  </td>
+  <td>
+When this is true, the `network/ports` isolator allows tasks to
+listen on additional ports provided they fall outside the range
+published by the agent's resources. Otherwise tasks are restricted
+to only listen on ports for which they have been assigned resources.
+(default: false)
+  </td>
+</tr>
+<tr>
+  <td>
     --container_disk_watch_interval=VALUE
   </td>
   <td>
@@ -349,6 +361,16 @@ The name of the container logger to use for logging container
 (i.e., executor and task) stdout and stderr. The default
 container logger writes to <code>stdout</code> and <code>stderr</code> files
 in the sandbox directory.
+  </td>
+</tr>
+<tr>
+  <td>
+    --container_ports_watch_interval=VALUE
+  </td>
+Interval at which the `network/ports` isolator should check for
+containers listening on ports they don't have resources for.
+(default: 30secs)
+  <td>
   </td>
 </tr>
 <tr>
