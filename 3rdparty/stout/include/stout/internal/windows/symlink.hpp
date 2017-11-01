@@ -21,11 +21,38 @@
 #include <stout/internal/windows/longpath.hpp>
 #include <stout/internal/windows/reparsepoint.hpp>
 
-#include <stout/os/realpath.hpp>
-
 
 namespace internal {
 namespace windows {
+
+// Get the full / absolute path. Does not check for existence, and does not
+// resolve symlinks.
+inline Result<std::string> fullpath(const std::string& path)
+{
+  // First query for the buffer size required.
+  const DWORD length =
+    ::GetFullPathNameW(longpath(path).data(), 0, nullptr, nullptr);
+
+  if (length == 0) {
+    return WindowsError("Failed to retrieve fullpath buffer size");
+  }
+
+  std::vector<wchar_t> buffer;
+  buffer.reserve(static_cast<size_t>(length));
+
+  const DWORD result =
+    ::GetFullPathNameW(longpath(path).data(), length, buffer.data(), nullptr);
+
+  if (result == 0) {
+    return WindowsError("Failed to determine fullpath");
+  }
+
+  return strings::remove(
+      stringify(std::wstring(buffer.data())),
+      os::LONGPATH_PREFIX,
+      strings::Mode::PREFIX);
+}
+
 
 // Gets symlink data for a given path, if it exists.
 //
@@ -52,7 +79,7 @@ namespace windows {
 inline Try<SymbolicLink> query_symbolic_link_data(const std::string& path)
 {
   // Convert to absolute path because Windows APIs expect it.
-  const Result<std::string> absolute_path = os::realpath(path);
+  const Result<std::string> absolute_path = fullpath(path);
   if (!absolute_path.isSome()) {
     return Error(absolute_path.error());
   }

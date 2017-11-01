@@ -21,6 +21,8 @@
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include <stout/internal/windows/longpath.hpp>
 #include <stout/internal/windows/symlink.hpp>
 
