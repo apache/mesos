@@ -83,7 +83,7 @@ See more information in the [CMake documentation](../cmake.md).
       will acquire the dependency from the location specified by the
       <code>3RDPARTY_DEPENDENCIES</code>, which by default points to the
       official Mesos <a
-      href="https://github.com/3rdparty/mesos-3rdparty">third-party dependency
+      href="https://github.com/mesos/3rdparty">third-party dependency
       mirror</a>. [default=TRUE]
     </td>
   </tr>
@@ -141,10 +141,10 @@ See more information in the [CMake documentation](../cmake.md).
       newer versions of some dependencies, and since Windows does not have a
       package manager, we must acquire system dependencies like cURL. This
       parameter can be either a URL (for example, pointing at the Mesos official
-      <a href="https://github.com/3rdparty/mesos-3rdparty">third-party
+      <a href="https://github.com/mesos/3rdparty">third-party
       dependency mirror</a>), or a local folder (for example, a local clone of
       the dependency mirror).
-      [default="https://github.com/3rdparty/mesos-3rdparty/raw/master"]
+      [default="https://github.com/mesos/3rdparty/raw/master"]
     </td>
   </tr>
   <tr>

@@ -256,7 +256,7 @@ as `$<$<CONFIG:Debug>:DEBUG_MODE>`.
 ## `3RDPARTY_DEPENDENCIES`
 
 Until Mesos on Windows is stable, we keep some dependencies in an external
-repository, [mesos-3rdparty](https://github.com/3rdparty/mesos-3rdparty). When
+repository, [3rdparty](https://github.com/mesos/3rdparty). When
 all dependencies are bundled with Mesos, this extra repository will no longer be
 necessary. Until then, the CMake variable `3RDPARTY_DEPENDENCIES` points by
 default to this URL, but it can also point to the on-disk location of a local
