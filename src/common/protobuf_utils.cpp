@@ -36,6 +36,7 @@
 #include <stout/foreach.hpp>
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
+#include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
 #include <stout/os/permissions.hpp>
@@ -393,13 +394,61 @@ Option<ContainerStatus> getTaskContainerStatus(const Task& task)
 }
 
 
+bool isTerminalState(const OfferOperationState& state)
+{
+  switch (state) {
+    case OFFER_OPERATION_FINISHED:
+    case OFFER_OPERATION_FAILED:
+    case OFFER_OPERATION_ERROR:
+      return true;
+    case OFFER_OPERATION_PENDING:
+    case OFFER_OPERATION_UNSUPPORTED:
+      return false;
+  }
+
+  UNREACHABLE();
+}
+
+
+OfferOperationStatus createOfferOperationStatus(
+    const OfferOperationState& state,
+    const Option<OfferOperationID>& operationId,
+    const Option<string>& message,
+    const Option<Resources>& convertedResources,
+    const Option<UUID>& statusUUID)
+{
+  OfferOperationStatus status;
+  status.set_state(state);
+
+  if (operationId.isSome()) {
+    status.mutable_operation_id()->CopyFrom(operationId.get());
+  }
+
+  if (message.isSome()) {
+    status.set_message(message.get());
+  }
+
+  if (convertedResources.isSome()) {
+    status.mutable_converted_resources()->CopyFrom(convertedResources.get());
+  }
+
+  if (statusUUID.isSome()) {
+    status.set_status_uuid(statusUUID->toBytes());
+  }
+
+  return status;
+}
+
+
 OfferOperation createOfferOperation(
     const Offer::Operation& info,
+    const OfferOperationStatus& latestStatus,
     const FrameworkID& frameworkId)
 {
   OfferOperation operation;
   operation.mutable_framework_id()->CopyFrom(frameworkId);
   operation.mutable_info()->CopyFrom(info);
+  operation.mutable_latest_status()->CopyFrom(latestStatus);
   operation.set_operation_uuid(UUID::random().toBytes());
 
   return operation;
