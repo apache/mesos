@@ -52,7 +52,7 @@ namespace windows {
 // well-worn path used by Boost FS[1], among others. See documentation
 // here[2][3].
 //
-// [1] http://www.boost.org/doc/libs/1_46_1/libs/filesystem/v3/src/operations.cpp
+// [1] http://www.boost.org/doc/libs/1_46_1/libs/filesystem/v3/src/operations.cpp // NOLINT(whitespace/line_length)
 // [2] https://msdn.microsoft.com/en-us/library/cc232007.aspx
 // [3] https://msdn.microsoft.com/en-us/library/cc232005.aspx
 typedef struct _REPARSE_DATA_BUFFER
@@ -88,7 +88,7 @@ typedef struct _REPARSE_DATA_BUFFER
     // offset and length of each in this struct to calculate where each starts
     // and ends.
     //
-    // https://msdn.microsoft.com/en-us/library/windows/hardware/ff552012(v=vs.85).aspx
+    // https://msdn.microsoft.com/en-us/library/windows/hardware/ff552012(v=vs.85).aspx // NOLINT(whitespace/line_length)
     WCHAR PathBuffer[MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
   } SymbolicLinkReparseBuffer;
 } REPARSE_DATA_BUFFER;
@@ -149,13 +149,69 @@ inline Try<SymbolicLink> build_symbolic_link(const REPARSE_DATA_BUFFER& data)
 }
 
 
+// Attempts to get a file or folder handle for an absolute path, and follows
+// symlinks. That is, if the path points at a symlink, the handle will refer to
+// the file or folder the symlink points at, rather than the symlink itself.
+inline Try<SharedHandle> get_handle_follow(const std::string& absolute_path)
+{
+  const Try<DWORD> attributes = get_file_attributes(longpath(absolute_path));
+
+  if (attributes.isError()) {
+    return Error(attributes.error());
+  }
+
+  bool resolved_path_is_directory = attributes.get() & FILE_ATTRIBUTE_DIRECTORY;
+
+  // NOTE: The name of `CreateFile` is misleading: it is also used to retrieve
+  // handles to existing files or directories as if it were actually `OpenPath`
+  // (which does not exist). We use `OPEN_EXISTING` but not
+  // `FILE_FLAG_OPEN_REPARSE_POINT` to explicitily follow (resolve) symlinks in
+  // the path to the file or directory.
+  //
+  // Note also that `CreateFile` will appropriately generate a handle for
+  // either a folder or a file, as long as the appropriate flag is being set:
+  // `FILE_FLAG_BACKUP_SEMANTICS`.
+  //
+  // The `FILE_FLAG_BACKUP_SEMANTICS` flag is being set whenever the target is
+  // a directory. According to MSDN[1]: "You must set this flag to obtain a
+  // handle to a directory. A directory handle can be passed to some functions
+  // instead of a file handle". More `FILE_FLAG_BACKUP_SEMANTICS` documentation
+  // can be found in MSDN[2].
+  //
+  // The `GENERIC_READ` flag is being used because it's the most common way of
+  // opening a file for reading only. The `FILE_SHARE_READ` allows other
+  // processes to read the file at the same time. MSDN[1] provides a more
+  // detailed explanation of these flags.
+  //
+  // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx // NOLINT(whitespace/line_length)
+  // [2] https://msdn.microsoft.com/en-us/library/windows/desktop/aa364399(v=vs.85).aspx // NOLINT(whitespace/line_length)
+  const DWORD access_flags = resolved_path_is_directory
+    ? FILE_FLAG_BACKUP_SEMANTICS
+    : FILE_ATTRIBUTE_NORMAL;
+
+  const HANDLE handle = ::CreateFileW(
+      longpath(absolute_path).data(),
+      GENERIC_READ,     // Open the file for reading only.
+      FILE_SHARE_READ,  // Just reading this file, allow others to do the same.
+      nullptr,          // Ignored.
+      OPEN_EXISTING,    // Open existing file.
+      access_flags,     // Open file, not the symlink itself.
+      nullptr);         // Ignored.
+
+  if (handle == INVALID_HANDLE_VALUE) {
+    return WindowsError();
+  }
+
+  return SharedHandle(handle, ::CloseHandle);
+}
+
+
 // Attempts to get a file or folder handle for an absolute path, and does not
 // follow symlinks. That is, if the path points at a symlink, the handle will
 // refer to the symlink rather than the file or folder the symlink points at.
 inline Try<SharedHandle> get_handle_no_follow(const std::string& absolute_path)
 {
-  const Try<DWORD> attributes = ::internal::windows::get_file_attributes(
-      ::internal::windows::longpath(absolute_path));
+  const Try<DWORD> attributes = get_file_attributes(longpath(absolute_path));
 
   if (attributes.isError()) {
     return Error(attributes.error());
@@ -182,8 +238,8 @@ inline Try<SharedHandle> get_handle_no_follow(const std::string& absolute_path)
   // processes to read the file at the same time. MSDN[1] provides a more
   // detailed explanation of these flags.
   //
-  // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
-  // [2] https://msdn.microsoft.com/en-us/library/windows/desktop/aa364399(v=vs.85).aspx
+  // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx // NOLINT(whitespace/line_length)
+  // [2] https://msdn.microsoft.com/en-us/library/windows/desktop/aa364399(v=vs.85).aspx // NOLINT(whitespace/line_length)
   const DWORD access_flags = resolved_path_is_directory
     ? (FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
     : FILE_FLAG_OPEN_REPARSE_POINT;
@@ -198,12 +254,10 @@ inline Try<SharedHandle> get_handle_no_follow(const std::string& absolute_path)
       nullptr);         // Ignored.
 
   if (handle == INVALID_HANDLE_VALUE) {
-    return WindowsError(
-        "'internal::windows::get_handle_no_follow': 'CreateFile' call failed "
-        "at path '" + absolute_path + "'");
+    return WindowsError();
   }
 
-  return SharedHandle(handle, CloseHandle);
+  return SharedHandle(handle, ::CloseHandle);
 }
 
 
@@ -226,9 +280,9 @@ inline Try<SymbolicLink> get_symbolic_link_data(const HANDLE handle)
   // Finally, for context, it may be worth looking at the MSDN
   // documentation[3] for `DeviceIoControl` itself.
   //
-  // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/aa364571(v=vs.85).aspx
+  // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/aa364571(v=vs.85).aspx // NOLINT(whitespace/line_length)
   // [2] https://svn.boost.org/trac/boost/ticket/4663
-  // [3] https://msdn.microsoft.com/en-us/library/windows/desktop/aa363216(v=vs.85).aspx
+  // [3] https://msdn.microsoft.com/en-us/library/windows/desktop/aa363216(v=vs.85).aspx // NOLINT(whitespace/line_length)
   REPARSE_DATA_BUFFER buffer;
   DWORD ignored = 0;
 
