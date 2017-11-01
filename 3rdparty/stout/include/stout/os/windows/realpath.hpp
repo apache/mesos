@@ -18,21 +18,28 @@
 #include <stout/result.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
+#include <stout/windows.hpp>
 
 #include <stout/internal/windows/longpath.hpp>
+#include <stout/internal/windows/reparsepoint.hpp>
 
 
 namespace os {
 
+// This should behave like the POSIX `realpath` API: specifically it should
+// resolve symlinks in the path, and succeed only if the target file exists.
+// This requires that the user has permissions to resolve each component of the
+// path.
 inline Result<std::string> realpath(const std::string& path)
 {
-  // TODO(andschwa): Test the existence of `path` to be consistent with POSIX
-  // `::realpath`.
-
-  std::wstring longpath = ::internal::windows::longpath(path);
+  const Try<SharedHandle> handle = ::internal::windows::get_handle_follow(path);
+  if (handle.isError()) {
+    return Error(handle.error());
+  }
 
   // First query for the buffer size required.
-  DWORD length = GetFullPathNameW(longpath.data(), 0, nullptr, nullptr);
+  DWORD length = ::GetFinalPathNameByHandleW(
+      handle.get().get_handle(), nullptr, 0, FILE_NAME_NORMALIZED);
   if (length == 0) {
     return WindowsError("Failed to retrieve realpath buffer size");
   }
@@ -40,8 +47,8 @@ inline Result<std::string> realpath(const std::string& path)
   std::vector<wchar_t> buffer;
   buffer.reserve(static_cast<size_t>(length));
 
-  DWORD result =
-    GetFullPathNameW(longpath.data(), length, buffer.data(), nullptr);
+  DWORD result = ::GetFinalPathNameByHandleW(
+      handle.get().get_handle(), buffer.data(), length, FILE_NAME_NORMALIZED);
 
   if (result == 0) {
     return WindowsError("Failed to determine realpath");
