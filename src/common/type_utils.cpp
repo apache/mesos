@@ -613,6 +613,12 @@ ostream& operator<<(ostream& stream, const OfferOperationID& offerOperationId)
 }
 
 
+ostream& operator<<(ostream& stream, const OfferOperationState& state)
+{
+  return stream << OfferOperationState_Name(state);
+}
+
+
 ostream& operator<<(ostream& stream, const RateLimits& limits)
 {
   return stream << limits.DebugString();
