@@ -162,7 +162,11 @@ constexpr Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
 Duration DEFAULT_MASTER_PING_TIMEOUT();
 
 // Name of the executable for default executor.
+#ifdef __WINDOWS__
+constexpr char MESOS_DEFAULT_EXECUTOR[] = "mesos-default-executor.exe";
+#else
 constexpr char MESOS_DEFAULT_EXECUTOR[] = "mesos-default-executor";
+#endif // __WINDOWS__
 
 // Virtual path on which agent logs are mounted in `/files/` endpoint.
 constexpr char AGENT_LOG_VIRTUAL_PATH[] = "/slave/log";
