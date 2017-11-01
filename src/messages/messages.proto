@@ -686,14 +686,16 @@ message UpdateSlaveMessage {
 
 
 /**
- * This message is sent from the agent to the master to update the
- * status of an offer operation.
+ * This message is sent from the resource provider manager (either on
+ * the agent for local resource providers, or on the master for
+ * external resource providers) to update the status of an offer
+ * operation.
  *
  * See resource_provider::Call::UPDATE_OFFER_OPERATION_STATUS.
  */
 message OfferOperationStatusUpdate {
   required FrameworkID framework_id = 1;
-  required SlaveID slave_id = 2;
+  optional SlaveID slave_id = 2;
   required OfferOperationStatus status = 3;
   optional OfferOperationStatus latest_status = 4;
 
