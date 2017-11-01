@@ -5145,15 +5145,18 @@ void Master::_accept(
                   << operation.create_volume().source() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        Owned<OfferOperation> offerOperation(new OfferOperation(
-            protobuf::createOfferOperation(operation, frameworkId)));
+        OfferOperation* offerOperation = new OfferOperation(
+            protobuf::createOfferOperation(
+                operation,
+                protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
+                frameworkId));
+
+        addOfferOperation(framework, slave, offerOperation);
 
         ApplyOfferOperationMessage message;
         message.mutable_framework_id()->CopyFrom(frameworkId);
         message.mutable_operation_info()->CopyFrom(offerOperation->info());
         message.set_operation_uuid(offerOperation->operation_uuid());
-
-        framework->addOfferOperation(std::move(offerOperation));
 
         send(slave->pid, message);
         break;
@@ -5185,15 +5188,18 @@ void Master::_accept(
                   << operation.destroy_volume().volume() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        Owned<OfferOperation> offerOperation(new OfferOperation(
-            protobuf::createOfferOperation(operation, frameworkId)));
+        OfferOperation* offerOperation = new OfferOperation(
+            protobuf::createOfferOperation(
+                operation,
+                protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
+                frameworkId));
+
+        addOfferOperation(framework, slave, offerOperation);
 
         ApplyOfferOperationMessage message;
         message.mutable_framework_id()->CopyFrom(frameworkId);
         message.mutable_operation_info()->CopyFrom(offerOperation->info());
         message.set_operation_uuid(offerOperation->operation_uuid());
-
-        framework->addOfferOperation(std::move(offerOperation));
 
         send(slave->pid, message);
         break;
@@ -5225,15 +5231,18 @@ void Master::_accept(
                   << operation.create_block().source() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        Owned<OfferOperation> offerOperation(new OfferOperation(
-            protobuf::createOfferOperation(operation, frameworkId)));
+        OfferOperation* offerOperation = new OfferOperation(
+            protobuf::createOfferOperation(
+                operation,
+                protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
+                frameworkId));
+
+        addOfferOperation(framework, slave, offerOperation);
 
         ApplyOfferOperationMessage message;
         message.mutable_framework_id()->CopyFrom(frameworkId);
         message.mutable_operation_info()->CopyFrom(offerOperation->info());
         message.set_operation_uuid(offerOperation->operation_uuid());
-
-        framework->addOfferOperation(std::move(offerOperation));
 
         send(slave->pid, message);
         break;
@@ -5265,15 +5274,18 @@ void Master::_accept(
                   << operation.destroy_block().block() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        Owned<OfferOperation> offerOperation(new OfferOperation(
-            protobuf::createOfferOperation(operation, frameworkId)));
+        OfferOperation* offerOperation = new OfferOperation(
+            protobuf::createOfferOperation(
+                operation,
+                protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
+                frameworkId));
+
+        addOfferOperation(framework, slave, offerOperation);
 
         ApplyOfferOperationMessage message;
         message.mutable_framework_id()->CopyFrom(frameworkId);
         message.mutable_operation_info()->CopyFrom(offerOperation->info());
         message.set_operation_uuid(offerOperation->operation_uuid());
-
-        framework->addOfferOperation(std::move(offerOperation));
 
         send(slave->pid, message);
         break;
@@ -7263,9 +7275,56 @@ void Master::forward(
 
 
 void Master::offerOperationStatusUpdate(
-    const OfferOperationStatusUpdate& message)
+    const OfferOperationStatusUpdate& update)
 {
-  // TODO(jieyu): Provide implementation here.
+  CHECK(update.has_slave_id())
+    << "External resource provider is not supported yet";
+
+  const SlaveID& slaveId = update.slave_id();
+  const FrameworkID& frameworkId = update.framework_id();
+
+  Try<UUID> uuid = UUID::fromString(update.operation_uuid());
+  if (uuid.isError()) {
+    LOG(ERROR) << "Failed to parse offer operation UUID for operation "
+               << "'" << update.status().operation_id() << "' "
+               << "from framework " << frameworkId << ": " << uuid.error();
+    return;
+  }
+
+  Slave* slave = slaves.registered.get(slaveId);
+
+  // This is possible if the agent is marked as unreachable or gone,
+  // or has initiated a graceful shutdown. In either of those cases,
+  // ignore the offer operation status update.
+  //
+  // TODO(jieyu): If the agent is unreachable or has initiated a
+  // graceful shutdown, we can still forward the update to the
+  // framework so that the framework can get notified about the offer
+  // operation early. However, the acknowledgement of the update won't
+  // be able to reach the agent in those cases. If the agent is gone,
+  // we cannot forward the update because the master might already
+  // tell the framework that the operation is gone.
+  if (slave == nullptr) {
+    LOG(WARNING) << "Ignoring status update for offer operation '"
+                 << update.status().operation_id() << "' (uuid: "
+                 << uuid->toString() << ") for framework "
+                 << frameworkId << " because agent "
+                 << slaveId << " is not registered";
+    return;
+  }
+
+  OfferOperation* operation = slave->getOfferOperation(uuid.get());
+  if (operation == nullptr) {
+    LOG(ERROR) << "Failed to find the offer operation '"
+               << update.status().operation_id() << "' (uuid: "
+               << uuid->toString() << ") from framework "
+               << frameworkId << " on agent " << slaveId;
+    return;
+  }
+
+  updateOfferOperation(operation, update);
+
+  // TODO(jieyu): Forward the status update to the framework.
 }
 
 
@@ -8426,6 +8485,10 @@ void Master::recoverFramework(
         framework->addExecutor(slave->id, executor);
       }
     }
+
+    foreachvalue (OfferOperation* operation, slave->offerOperations) {
+      framework->addOfferOperation(operation);
+    }
   }
 
   addFramework(framework, suppressedRoles);
@@ -9486,6 +9549,27 @@ void Master::removeExecutor(
 }
 
 
+void Master::addOfferOperation(
+    Framework* framework,
+    Slave* slave,
+    OfferOperation* operation)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+  CHECK_NOTNULL(operation);
+
+  slave->addOfferOperation(operation);
+  framework->addOfferOperation(operation);
+}
+
+
+void Master::updateOfferOperation(
+    OfferOperation* operation,
+    OfferOperationStatusUpdate update)
+{
+}
+
+
 Future<Nothing> Master::apply(Slave* slave, const Offer::Operation& operation)
 {
   CHECK_NOTNULL(slave);
@@ -10368,6 +10452,24 @@ void Slave::removeTask(Task* task)
   }
 
   killedTasks.remove(frameworkId, taskId);
+}
+
+
+void Slave::addOfferOperation(OfferOperation* operation)
+{
+  Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+  CHECK_SOME(uuid);
+
+  offerOperations.put(uuid.get(), operation);
+}
+
+
+OfferOperation* Slave::getOfferOperation(const UUID& uuid) const
+{
+  if (offerOperations.contains(uuid)) {
+    return offerOperations.at(uuid);
+  }
+  return nullptr;
 }
 
 

@@ -146,6 +146,9 @@ struct Slave
 
   void removeTask(Task* task);
 
+  void addOfferOperation(OfferOperation* operation);
+  OfferOperation* getOfferOperation(const UUID& uuid) const;
+
   void addOffer(Offer* offer);
 
   void removeOffer(Offer* offer);
@@ -227,6 +230,10 @@ struct Slave
   // Tasks that were asked to kill by frameworks.
   // This is used for reconciliation when the slave re-registers.
   multihashmap<FrameworkID, TaskID> killedTasks;
+
+  // Pending operations or terminal operations that have
+  // unacknowledged status updates on this agent.
+  hashmap<UUID, OfferOperation*> offerOperations;
 
   // Active offers on this slave.
   hashset<Offer*> offers;
@@ -475,7 +482,7 @@ public:
       const std::vector<TaskStatus>& statuses);
 
   void offerOperationStatusUpdate(
-      const OfferOperationStatusUpdate& message);
+      const OfferOperationStatusUpdate& update);
 
   void exitedExecutor(
       const process::UPID& from,
@@ -863,6 +870,18 @@ protected:
       Slave* slave,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
+
+  // Adds the given offer operation to the framework and the agent.
+  void addOfferOperation(
+      Framework* framework,
+      Slave* slave,
+      OfferOperation* operation);
+
+  // Transitions the offer operation, and recovers resources if the
+  // offer operation becomes terminal.
+  void updateOfferOperation(
+      OfferOperation* operation,
+      OfferOperationStatusUpdate update);
 
   // Attempts to update the allocator by applying the given operation.
   // If successful, updates the slave's resources, sends a
@@ -2731,7 +2750,7 @@ struct Framework
     }
   }
 
-  void addOfferOperation(process::Owned<OfferOperation> operation)
+  void addOfferOperation(OfferOperation* operation)
   {
     Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
     CHECK_SOME(uuid);
@@ -3000,7 +3019,7 @@ struct Framework
 
   // Pending operations or terminal operations that have
   // unacknowledged status updates.
-  hashmap<UUID, process::Owned<OfferOperation>> offerOperations;
+  hashmap<UUID, OfferOperation*> offerOperations;
 
   // The map from the framework-specified operation ID to the
   // corresponding internal operation UUID.
