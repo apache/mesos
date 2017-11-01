@@ -87,6 +87,7 @@ layout: documentation
 * [ProfitStars](http://www.profitstars.com)
 * [Qubit](http://www.qubitproducts.com)
 * [Qunar](http://www.qunar.com)
+* [Recombee](https://www.recombee.com)
 * [RelateIQ](http://www.relateiq.com)
 * [Revisely](http://revise.ly)
 * [Sabre Labs](http://www.sabre.com)
