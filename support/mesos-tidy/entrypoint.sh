@@ -30,6 +30,11 @@ cmake -DCMAKE_BUILD_TYPE=Release \
       ${CMAKE_ARGS} \
       "${SRCDIR}"
 
+# We build `stout-tests` here as a build target in order to force
+# the generation of `protobuf-tests.pb.h`. This is pretty hacky
+# for what we want to do, but it's okay for now.
+cmake --build 3rdparty/stout/tests --target stout-tests -- -j $(nproc)
+
 # Build the external dependencies.
 # TODO(mpark): Use an external dependencies target once MESOS-6924 is resolved.
 cmake --build 3rdparty --target boost-1.53.0 -- -j $(nproc)
