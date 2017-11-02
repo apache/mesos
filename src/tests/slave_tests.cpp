@@ -2759,9 +2759,11 @@ TEST_F(SlaveTest, ContainersEndpoint)
   EXPECT_CALL(containerizer, usage(_))
     .WillOnce(Return(statistics1));
 
-  // Will be called once during the second request.
+  // Will be called once during the second request and might be called if
+  // the `TASK_FAILED` update reaches the agent before the test finishes.
   EXPECT_CALL(containerizer, status(_))
-    .WillOnce(Return(containerStatus1));
+    .WillOnce(Return(containerStatus1))
+    .WillRepeatedly(Return(containerStatus1));
 
   {
     Future<Response> response = process::http::get(
