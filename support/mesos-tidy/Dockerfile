@@ -38,9 +38,9 @@ RUN curl -sSL https://cmake.org/files/v3.8/cmake-3.8.2-Linux-x86_64.sh \
     sh /tmp/install-cmake.sh --skip-license --prefix=/usr/local
 
 RUN \
-  git clone --depth 1 -b release_39 http://llvm.org/git/llvm /tmp/llvm && \
-  git clone --depth 1 -b mesos_39 http://github.com/mesos/clang.git /tmp/llvm/tools/clang && \
-  git clone --depth 1 -b mesos_39 http://github.com/mesos/clang-tools-extra.git /tmp/llvm/tools/clang/tools/extra && \
+  git clone --depth 1 -b release_50 http://llvm.org/git/llvm /tmp/llvm && \
+  git clone --depth 1 -b mesos_50 http://github.com/mesos/clang.git /tmp/llvm/tools/clang && \
+  git clone --depth 1 -b mesos_50 http://github.com/mesos/clang-tools-extra.git /tmp/llvm/tools/clang/tools/extra && \
   \
   cmake /tmp/llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt && \
   cmake --build tools/clang/lib/Headers --target install -- -j $(nproc) && \

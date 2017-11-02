@@ -47,4 +47,4 @@ Optionally, the set of checks to perform can be specified in a
 Results from 3rdparty external dependencies are filtered from the result set.
 
 
-[custom-clang-tidy]: https://github.com/mesos/clang-tools-extra/tree/mesos_39
+[custom-clang-tidy]: https://github.com/mesos/clang-tools-extra/tree/mesos_50
