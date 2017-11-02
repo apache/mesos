@@ -639,6 +639,115 @@ TEST_P(SchedulerHttpApiTest, UpdateHttpToPidScheduler)
 }
 
 
+// This test verifies that we are able to upgrade from a PID based
+// framework to HTTP framework and then downgrade back.
+TEST_P(SchedulerHttpApiTest, UpdateHttpToPidSchedulerAndBack)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_failover_timeout(Weeks(2).secs());
+
+  // Start a PID based scheduler instance first.
+  MockScheduler scheduler;
+  MesosSchedulerDriver driver(
+      &scheduler,
+      devolve(frameworkInfo),
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(scheduler, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+  ASSERT_NE("", frameworkId.get().value());
+
+  frameworkInfo.mutable_id()->CopyFrom(evolve(frameworkId.get()));
+
+  // Expect "Framework failed over" message.
+  EXPECT_CALL(scheduler, error(&driver, _));
+
+  // Fail over to an HTTP based scheduler instance.
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+  call.mutable_framework_id()->CopyFrom(frameworkInfo.id());
+  call.mutable_subscribe()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+  // Retrieve content type passed as a parameter to this test.
+  const string contentType = GetParam();
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = contentType;
+
+  Future<Response> response = process::http::streaming::post(
+      master.get()->pid,
+      "api/v1/scheduler",
+      headers,
+      serialize(call, contentType),
+      contentType);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+  ASSERT_EQ(Response::PIPE, response.get().type);
+
+  Option<Pipe::Reader> reader = response.get().reader;
+  ASSERT_SOME(reader);
+
+  auto deserializer = lambda::bind(
+      &SchedulerHttpApiTest::deserialize, this, contentType, lambda::_1);
+
+  Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+
+  // Get SUBSCRIBED event and check framework ID.
+  Future<Result<Event>> event = responseDecoder.read();
+  AWAIT_READY(event);
+  ASSERT_SOME(event.get());
+  ASSERT_EQ(Event::SUBSCRIBED, event.get()->type());
+  ASSERT_EQ(frameworkInfo.id(), event.get()->subscribed().framework_id());
+
+  driver.stop();
+  driver.join();
+
+  // Fail over back to a PID based scheduler instance.
+  MockScheduler scheduler2;
+  MesosSchedulerDriver driver2(
+      &scheduler2,
+      devolve(frameworkInfo),
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(scheduler2, registered(&driver2, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  driver2.start();
+
+  AWAIT_READY(frameworkId);
+  ASSERT_EQ(devolve(frameworkInfo.id()), frameworkId.get());
+
+  TaskStatus status;
+  status.mutable_task_id()->set_value("task-1");
+
+  Future<TaskStatus> reconciledStatus;
+  EXPECT_CALL(scheduler2, statusUpdate(&driver2, _))
+    .WillOnce(FutureArg<1>(&reconciledStatus));
+
+  // Reconcile a non-existing task to exercise message handling. The
+  // master used to crash when processing a message from a framework
+  // that upgraded to an HTTP based driver and downgraded back to a
+  // PID based driver, due to missing metrics.
+  driver2.reconcileTasks({status});
+
+  AWAIT_READY(reconciledStatus);
+
+  driver2.stop();
+  driver2.join();
+}
+
+
 TEST_P(SchedulerHttpApiTest, NotAcceptable)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
