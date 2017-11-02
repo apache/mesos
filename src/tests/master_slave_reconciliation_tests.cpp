@@ -714,6 +714,202 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
   driver.join();
 }
 
+
+// This test verifies that when re-registering, the slave sends the
+// executor ID of a non-command executor task, but not the one of a
+// command executor task. We then check that the master's API has
+// task IDs absent only for the command executor case.
+//
+// This was motivated by MESOS-8135.
+TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTaskExecutorIds)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+#ifndef USE_SSL_SOCKET
+  // Disable operator API authentication for the default executor. Executor
+  // authentication currently has SSL as a dependency, so we cannot require
+  // executors to authenticate with the agent operator API if Mesos was not
+  // built with SSL support.
+  flags.authenticate_http_readwrite = false;
+#endif // USE_SSL_SOCKET
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers->size());
+
+  const Offer& offer = offers->front();
+  const SlaveID& slaveId = offer.slave_id();
+
+  Resources resources = Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  TaskInfo commandExecutorTask =
+    createTask(slaveId, resources, SLEEP_COMMAND(1000));
+
+  TaskInfo defaultExecutorTask =
+    createTask(slaveId, resources, SLEEP_COMMAND(1000));
+
+  ExecutorInfo defaultExecutorInfo;
+  defaultExecutorInfo.set_type(ExecutorInfo::DEFAULT);
+  defaultExecutorInfo.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+  defaultExecutorInfo.mutable_framework_id()->CopyFrom(frameworkId.get());
+  defaultExecutorInfo.mutable_resources()->CopyFrom(resources);
+
+  // We expect two TASK_STARTING and two TASK_RUNNING updates.
+  vector<Future<TaskStatus>> taskStatuses(4);
+
+  {
+    // This variable doesn't have to be used explicitly.
+    testing::InSequence inSequence;
+
+    foreach (Future<TaskStatus>& taskStatus, taskStatuses) {
+      EXPECT_CALL(sched, statusUpdate(&driver, _))
+        .WillOnce(FutureArg<1>(&taskStatus));
+    }
+
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillRepeatedly(Return()); // Ignore subsequent updates.
+  }
+
+  driver.acceptOffers(
+      {offer.id()},
+      {LAUNCH({commandExecutorTask}),
+       LAUNCH_GROUP(
+           defaultExecutorInfo, createTaskGroupInfo({defaultExecutorTask}))});
+
+  // We track the status updates of each task separately, to verify
+  // that they transition from TASK_RUNNING to TASK_FINISHED.
+  hashmap<TaskID, TaskState> taskStates;
+  taskStates[commandExecutorTask.task_id()] = TASK_STAGING;
+  taskStates[defaultExecutorTask.task_id()] = TASK_STAGING;
+
+  foreach (const Future<TaskStatus>& taskStatus, taskStatuses) {
+    AWAIT_READY(taskStatus);
+
+    Option<TaskState> taskState = taskStates.get(taskStatus->task_id());
+    ASSERT_SOME(taskState);
+
+    switch (taskState.get()) {
+      case TASK_STAGING: {
+        ASSERT_EQ(TASK_STARTING, taskStatus->state())
+          << taskStatus->DebugString();
+
+        taskStates[taskStatus->task_id()] = TASK_STARTING;
+        break;
+      }
+      case TASK_STARTING: {
+        ASSERT_EQ(TASK_RUNNING, taskStatus->state())
+          << taskStatus->DebugString();
+
+        taskStates[taskStatus->task_id()] = TASK_RUNNING;
+        break;
+      }
+      default: {
+        FAIL() << "Unexpected task update: " << taskStatus->DebugString();
+        break;
+      }
+    }
+  }
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  // Simulate a spurious master change event (e.g., due to ZooKeeper
+  // expiration) at the slave to force re-registration.
+  detector.appoint(master.get()->pid);
+
+  // Expect to receive the 'ReregisterSlaveMessage' containing the
+  // active frameworks.
+  AWAIT_READY(reregisterSlaveMessage);
+
+  // Both tasks should be present; the command executor task shouldn't have an
+  // executor ID, but the default executor task should have one.
+  EXPECT_EQ(2u, reregisterSlaveMessage->tasks().size());
+  foreach (const Task& task, reregisterSlaveMessage->tasks()) {
+    if (task.task_id() == commandExecutorTask.task_id()) {
+      EXPECT_FALSE(task.has_executor_id())
+        << "The command executor ID is present, but it"
+        << " shouldn't be sent to the master";
+    } else {
+      EXPECT_TRUE(task.has_executor_id())
+        << "The default executor ID is missing";
+    }
+  }
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Check the response of the master state endpoint.
+  Future<process::http::Response> response = process::http::get(
+      master.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Array> tasks = parse->find<JSON::Array>("frameworks[0].tasks");
+  ASSERT_SOME(tasks);
+  ASSERT_EQ(2u, tasks->values.size());
+
+  ASSERT_SOME(parse->find<JSON::String>("frameworks[0].tasks[0].id"));
+
+  // Since tasks are stored in a hashmap, there is no strict guarantee of
+  // their ordering when listed.
+  std::string commandExecutorTaskExecutorId;
+  std::string defaultExecutorTaskExecutorId;
+  if (parse->find<JSON::String>("frameworks[0].tasks[0].id")->value ==
+      commandExecutorTask.task_id().value()) {
+    commandExecutorTaskExecutorId =
+      parse->find<JSON::String>("frameworks[0].tasks[0].executor_id")->value;
+    defaultExecutorTaskExecutorId =
+      parse->find<JSON::String>("frameworks[0].tasks[1].executor_id")->value;
+  } else {
+    defaultExecutorTaskExecutorId =
+      parse->find<JSON::String>("frameworks[0].tasks[0].executor_id")->value;
+    commandExecutorTaskExecutorId =
+      parse->find<JSON::String>("frameworks[0].tasks[1].executor_id")->value;
+  }
+
+  // The executor ID of the default executor task should be correct.
+  EXPECT_EQ(defaultExecutorInfo.executor_id().value(),
+            defaultExecutorTaskExecutorId);
+
+  // The executor ID of the command executor task should be empty.
+  EXPECT_EQ("", commandExecutorTaskExecutorId);
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
