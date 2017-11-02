@@ -4475,16 +4475,18 @@ void Master::_accept(
   // the LAUNCH case below.
   Resources offeredSharedResources = offeredResources.shared();
 
-  // Maintain a list of operations to pass to the allocator.
-  // Note that this list could be different than `accept.operations()`
-  // because:
+  // Maintain a list of resource conversions to pass to the allocator
+  // as a result of offer operations. Note that:
   // 1) We drop invalid operations.
-  // 2) For LAUNCH operations we change the operation to drop invalid tasks.
-  // 3) We don't pass LAUNCH_GROUP to the allocator as we don't currently
-  //    support use cases that require the allocator to be aware of it.
+  // 2) For LAUNCH operations, we drop invalid tasks. LAUNCH operation
+  //    will result in resource conversions because of shared
+  //    resources.
+  // 3) Currently, LAUNCH_GROUP won't result in resource conversions
+  //    because shared resources are not supported yet if the
+  //    framework uses LAUNCH_GROUP operation.
   //
-  // The operation order should remain unchanged.
-  vector<Offer::Operation> operations;
+  // The order of the conversions is important and preserved.
+  vector<ResourceConversion> conversions;
 
   // The order of `authorizations` must match the order of the operations in
   // `accept.operations()`, as they are iterated through simultaneously.
@@ -4538,7 +4540,15 @@ void Master::_accept(
         }
 
         // Test the given operation on the included resources.
-        Try<Resources> resources = _offeredResources.apply(operation);
+        Try<vector<ResourceConversion>> _conversions =
+          getResourceConversions(operation);
+
+        if (_conversions.isError()) {
+          drop(framework, operation, _conversions.error());
+          continue;
+        }
+
+        Try<Resources> resources = _offeredResources.apply(_conversions.get());
         if (resources.isError()) {
           drop(framework, operation, resources.error());
           continue;
@@ -4552,7 +4562,10 @@ void Master::_accept(
 
         _apply(slave, operation);
 
-        operations.push_back(operation);
+        conversions.insert(
+            conversions.end(),
+            _conversions->begin(),
+            _conversions->end());
 
         break;
       }
@@ -4593,7 +4606,15 @@ void Master::_accept(
         }
 
         // Test the given operation on the included resources.
-        Try<Resources> resources = _offeredResources.apply(operation);
+        Try<vector<ResourceConversion>> _conversions =
+          getResourceConversions(operation);
+
+        if (_conversions.isError()) {
+          drop(framework, operation, _conversions.error());
+          continue;
+        }
+
+        Try<Resources> resources = _offeredResources.apply(_conversions.get());
         if (resources.isError()) {
           drop(framework, operation, resources.error());
           continue;
@@ -4607,7 +4628,10 @@ void Master::_accept(
 
         _apply(slave, operation);
 
-        operations.push_back(operation);
+        conversions.insert(
+            conversions.end(),
+            _conversions->begin(),
+            _conversions->end());
 
         break;
       }
@@ -4657,7 +4681,16 @@ void Master::_accept(
           continue;
         }
 
-        Try<Resources> resources = _offeredResources.apply(operation);
+        // Test the given operation on the included resources.
+        Try<vector<ResourceConversion>> _conversions =
+          getResourceConversions(operation);
+
+        if (_conversions.isError()) {
+          drop(framework, operation, _conversions.error());
+          continue;
+        }
+
+        Try<Resources> resources = _offeredResources.apply(_conversions.get());
         if (resources.isError()) {
           drop(framework, operation, resources.error());
           continue;
@@ -4672,7 +4705,10 @@ void Master::_accept(
 
         _apply(slave, operation);
 
-        operations.push_back(operation);
+        conversions.insert(
+            conversions.end(),
+            _conversions->begin(),
+            _conversions->end());
 
         break;
       }
@@ -4738,7 +4774,16 @@ void Master::_accept(
           }
         }
 
-        Try<Resources> resources = _offeredResources.apply(operation);
+        // Test the given operation on the included resources.
+        Try<vector<ResourceConversion>> _conversions =
+          getResourceConversions(operation);
+
+        if (_conversions.isError()) {
+          drop(framework, operation, _conversions.error());
+          continue;
+        }
+
+        Try<Resources> resources = _offeredResources.apply(_conversions.get());
         if (resources.isError()) {
           drop(framework, operation, resources.error());
           continue;
@@ -4753,18 +4798,15 @@ void Master::_accept(
 
         _apply(slave, operation);
 
-        operations.push_back(operation);
+        conversions.insert(
+            conversions.end(),
+            _conversions->begin(),
+            _conversions->end());
 
         break;
       }
 
       case Offer::Operation::LAUNCH: {
-        // For the LAUNCH operation we drop invalid tasks. Therefore
-        // we create a new copy with only the valid tasks to pass to
-        // the allocator.
-        Offer::Operation _operation;
-        _operation.set_type(Offer::Operation::LAUNCH);
-
         foreach (const TaskInfo& task, operation.launch().task_infos()) {
           Future<bool> authorization = authorizations.front();
           authorizations.pop_front();
@@ -4868,6 +4910,29 @@ void Master::_accept(
             CHECK(available.contains(consumed))
               << available << " does not contain " << consumed;
 
+            // Determine the additional instances of shared resources
+            // needed to be added to the allocations since we support
+            // tasks requesting more instances of shared resources
+            // than those being offered.
+            const Resources& consumedShared = consumed.shared();
+
+            // Check that offered resources contain at least one copy
+            // of each consumed shared resource (guaranteed by master
+            // validation).
+            foreach (const Resource& resource, consumedShared) {
+              CHECK(offeredSharedResources.contains(resource));
+            }
+
+            Resources additional = consumedShared - _offeredResources.shared();
+            if (!additional.empty()) {
+              LOG(INFO) << "Allocating additional resources " << additional
+                        << " for task " << task.task_id()
+                        << " of framework " << *framework
+                        << " on agent " << *slave;
+
+              conversions.emplace_back(Resources(), additional);
+            }
+
             _offeredResources -= consumed;
 
             RunTaskMessage message;
@@ -4912,11 +4977,7 @@ void Master::_accept(
 
             send(slave->pid, message);
           }
-
-          _operation.mutable_launch()->add_task_infos()->CopyFrom(task);
         }
-
-        operations.push_back(_operation);
 
         break;
       }
@@ -5299,12 +5360,12 @@ void Master::_accept(
   }
 
   // Update the allocator based on the offer operations.
-  if (!operations.empty()) {
+  if (!conversions.empty()) {
     allocator->updateAllocation(
         frameworkId,
         slaveId,
         offeredResources,
-        operations);
+        conversions);
   }
 
   if (!_offeredResources.empty()) {

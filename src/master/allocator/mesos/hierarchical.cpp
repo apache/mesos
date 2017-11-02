@@ -724,7 +724,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& offeredResources,
-    const vector<Offer::Operation>& operations)
+    const vector<ResourceConversion>& conversions)
 {
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
@@ -750,101 +750,22 @@ void HierarchicalAllocatorProcess::updateAllocation(
     frameworkSorter->allocation(frameworkId.value(), slaveId);
 
   // We keep a copy of the offered resources here and it is updated
-  // by the operations.
-  Resources updatedOfferedResources = offeredResources;
-
-  // Accumulate consumed resources for all tasks in all `LAUNCH` operations.
+  // by the specified resource conversions.
   //
-  // For LAUNCH operations we support tasks requesting more instances of
-  // shared resources than those being offered. We keep track of total
-  // consumed resources to determine the additional instances and allocate
-  // them as part of updating the framework's allocation (i.e., add
-  // them to the allocated resources in the allocator and in each
-  // of the sorters).
-  Resources consumed;
+  // The resources in the resource conversions should have been
+  // normalized by the master (contains proper AllocationInfo).
+  //
+  // TODO(bmahler): Check that the resources in the resource
+  // conversions have AllocationInfo set. The master should enforce
+  // this. E.g.
+  //
+  //  foreach (const ResourceConversion& conversion, conversions) {
+  //    CHECK_NONE(validateConversionOnAllocatedResources(conversion));
+  //  }
+  Try<Resources> _updatedOfferedResources = offeredResources.apply(conversions);
+  CHECK_SOME(_updatedOfferedResources);
 
-  // Used for logging.
-  hashset<TaskID> taskIds;
-
-  foreach (const Offer::Operation& operation, operations) {
-    // The operations should have been normalized by the master via
-    // `protobuf::injectAllocationInfo()`.
-    //
-    // TODO(bmahler): Check that the operations have the allocation
-    // info set. The master should enforce this. E.g.
-    //
-    //  foreach (const Offer::Operation& operation, operations) {
-    //    CHECK_NONE(validateOperationOnAllocatedResources(operation));
-    //  }
-
-    // Update the offered resources based on this operation.
-    switch (operation.type()) {
-      case Offer::Operation::LAUNCH:
-      case Offer::Operation::LAUNCH_GROUP:
-        // No need to apply LAUNCH and LAUNCH_GROUP.
-        break;
-      case Offer::Operation::RESERVE:
-      case Offer::Operation::UNRESERVE:
-      case Offer::Operation::CREATE:
-      case Offer::Operation::DESTROY: {
-        Try<Resources> _updatedOfferedResources =
-          updatedOfferedResources.apply(operation);
-
-        CHECK_SOME(_updatedOfferedResources);
-        updatedOfferedResources = _updatedOfferedResources.get();
-        break;
-      }
-      case Offer::Operation::CREATE_VOLUME:
-      case Offer::Operation::DESTROY_VOLUME:
-      case Offer::Operation::CREATE_BLOCK:
-      case Offer::Operation::DESTROY_BLOCK:
-        // TODO(jieyu): Add implementations here.
-        break;
-      case Offer::Operation::UNKNOWN:
-        UNREACHABLE();
-        break;
-    }
-
-    if (operation.type() == Offer::Operation::LAUNCH) {
-      foreach (const TaskInfo& task, operation.launch().task_infos()) {
-        taskIds.insert(task.task_id());
-
-        // For now we only need to look at the task resources and
-        // ignore the executor resources.
-        //
-        // TODO(anindya_sinha): For simplicity we currently don't
-        // allow shared resources in ExecutorInfo. The reason is that
-        // the allocator has no idea if the executor within the task
-        // represents a new executor. Therefore we cannot reliably
-        // determine if the executor resources are needed for this task.
-        // The TODO is to support it. We need to pass in the information
-        // pertaining to the executor before enabling shared resources
-        // in the executor.
-        consumed += task.resources();
-      }
-    }
-  }
-
-  // Check that offered resources contain at least one copy of each
-  // consumed shared resource (guaranteed by master validation).
-  Resources consumedShared = consumed.shared();
-  Resources updatedOfferedShared = updatedOfferedResources.shared();
-
-  foreach (const Resource& resource, consumedShared) {
-    CHECK(updatedOfferedShared.contains(resource));
-  }
-
-  // Determine the additional instances of shared resources needed to be
-  // added to the allocations.
-  Resources additional = consumedShared - updatedOfferedShared;
-
-  if (!additional.empty()) {
-    LOG(INFO) << "Allocating additional resources " << additional
-              << " for tasks " << stringify(taskIds)
-              << " of framework " << frameworkId << " on agent " << slaveId;
-
-    updatedOfferedResources += additional;
-  }
+  const Resources& updatedOfferedResources = _updatedOfferedResources.get();
 
   // Update the per-slave allocation.
   slave.allocated -= offeredResources;
@@ -880,36 +801,34 @@ void HierarchicalAllocatorProcess::updateAllocation(
   // the agent's total resources shouldn't contain:
   // 1. The additionally allocated shared resources.
   // 2. `AllocationInfo` as set in `updatedOfferedResources`.
-
-  // We strip `AllocationInfo` from operations in order to apply them
+  //
+  // We strip `AllocationInfo` from conversions in order to apply them
   // successfully, since agent's total is stored as unallocated resources.
-  vector<Offer::Operation> strippedOperations;
-  foreach (Offer::Operation operation, operations) {
-    switch (operation.type()) {
-      case Offer::Operation::LAUNCH:
-      case Offer::Operation::LAUNCH_GROUP:
-        // No need to apply LAUNCH and LAUNCH_GROUP.
-        break;
-      case Offer::Operation::RESERVE:
-      case Offer::Operation::UNRESERVE:
-      case Offer::Operation::CREATE:
-      case Offer::Operation::DESTROY:
-        protobuf::stripAllocationInfo(&operation);
-        strippedOperations.push_back(operation);
-        break;
-      case Offer::Operation::CREATE_VOLUME:
-      case Offer::Operation::DESTROY_VOLUME:
-      case Offer::Operation::CREATE_BLOCK:
-      case Offer::Operation::DESTROY_BLOCK:
-        // TODO(jieyu): Add implementations here.
-        break;
-      case Offer::Operation::UNKNOWN:
-        UNREACHABLE();
-        break;
+  vector<ResourceConversion> strippedConversions;
+  foreach (const ResourceConversion& conversion, conversions) {
+    // TODO(jieyu): Ideally, we should make sure agent's total
+    // resources are consistent with agent's allocation in terms of
+    // shared resources. In other words, we should increase agent's
+    // total resources as well for those additional allocation we did
+    // for shared resources. However, that means we need to update the
+    // agent's total resources when performing allocation for shared
+    // resources (in `__allocate()`). For now, we detect "additional"
+    // allocation for shared resources by checking if a conversion has
+    // an empty `consumed` field.
+    if (conversion.consumed.empty()) {
+      continue;
     }
+
+    Resources consumed = conversion.consumed;
+    Resources converted = conversion.converted;
+
+    consumed.unallocate();
+    converted.unallocate();
+
+    strippedConversions.emplace_back(consumed, converted);
   }
 
-  Try<Resources> updatedTotal = slave.total.apply(strippedOperations);
+  Try<Resources> updatedTotal = slave.total.apply(strippedConversions);
   CHECK_SOME(updatedTotal);
 
   updateSlaveTotal(slaveId, updatedTotal.get());
@@ -919,7 +838,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
   frameworkSorter->add(slaveId, updatedOfferedResources);
 
   // Check that the unreserved quantities for framework allocations
-  // have not changed by the above operations.
+  // have not changed by the above resource conversions.
   const Resources updatedFrameworkAllocation =
     frameworkSorter->allocation(frameworkId.value(), slaveId);
 

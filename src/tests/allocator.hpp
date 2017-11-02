@@ -427,7 +427,7 @@ public:
       const FrameworkID&,
       const SlaveID&,
       const Resources&,
-      const std::vector<Offer::Operation>&));
+      const std::vector<ResourceConversion>&));
 
   MOCK_METHOD2(updateAvailable, process::Future<Nothing>(
       const SlaveID&,

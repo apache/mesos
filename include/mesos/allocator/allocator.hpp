@@ -268,7 +268,7 @@ public:
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& offeredResources,
-      const std::vector<Offer::Operation>& operations) = 0;
+      const std::vector<ResourceConversion>& conversions) = 0;
 
   /**
    * Updates available resources on an agent based on a sequence of offer

@@ -164,7 +164,7 @@ public:
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& offeredResources,
-      const std::vector<Offer::Operation>& operations);
+      const std::vector<ResourceConversion>& conversions);
 
   process::Future<Nothing> updateAvailable(
       const SlaveID& slaveId,

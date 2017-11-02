@@ -1527,9 +1527,12 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
   create.set_type(Offer::Operation::CREATE);
   create.mutable_create()->add_volumes()->CopyFrom(volume);
 
+  Try<vector<ResourceConversion>> conversions = getResourceConversions(create);
+  ASSERT_SOME(conversions);
+
   // Ensure the offer operation can be applied.
   Try<Resources> updated =
-    allocation->resources.at("role1").at(slave.id()).apply(create);
+    allocation->resources.at("role1").at(slave.id()).apply(conversions.get());
 
   ASSERT_SOME(updated);
 
@@ -1538,7 +1541,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
       framework.id(),
       slave.id(),
       allocation->resources.at("role1").at(slave.id()),
-      {create});
+      conversions.get());
 
   // Now recover the resources, and expect the next allocation to
   // contain the updated resources.
@@ -1600,9 +1603,12 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
 
   Offer::Operation create = CREATE(volume);
 
+  Try<vector<ResourceConversion>> conversions = getResourceConversions(create);
+  ASSERT_SOME(conversions);
+
   // Ensure the offer operation can be applied.
   Try<Resources> update =
-    allocation->resources.at("role1").at(slave.id()).apply(create);
+    allocation->resources.at("role1").at(slave.id()).apply(conversions.get());
 
   ASSERT_SOME(update);
 
@@ -1611,7 +1617,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
       framework.id(),
       slave.id(),
       allocation->resources.at("role1").at(slave.id()),
-      {create});
+      conversions.get());
 
   // Now recover the resources, and expect the next allocation to
   // contain the updated resources.
@@ -1636,16 +1642,19 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
   // destroy the shared volume.
   Offer::Operation destroy = DESTROY(volume);
 
+  conversions = getResourceConversions(destroy);
+  ASSERT_SOME(conversions);
+
   // Update the allocation in the allocator.
   allocator->updateAllocation(
       framework.id(),
       slave.id(),
       allocation->resources.at("role1").at(slave.id()),
-      {destroy});
+      conversions.get());
 
   // The resources to recover should be equal to the agent's original
   // resources now that the shared volume is created and then destroyed.
-  update = update->apply(destroy);
+  update = update->apply(conversions.get());
   ASSERT_SOME_EQ(allocatedResources(slave.resources(), "role1"), update);
 
   allocator->recoverResources(
@@ -1701,9 +1710,12 @@ TEST_F(HierarchicalAllocatorTest, SharedResourcesCapability)
 
   Offer::Operation create = CREATE(volume);
 
+  Try<vector<ResourceConversion>> conversions = getResourceConversions(create);
+  ASSERT_SOME(conversions);
+
   // Ensure the offer operation can be applied.
   Try<Resources> update =
-    allocation->resources.at("role1").at(slave.id()).apply(create);
+    allocation->resources.at("role1").at(slave.id()).apply(conversions.get());
 
   ASSERT_SOME(update);
 
@@ -1712,7 +1724,7 @@ TEST_F(HierarchicalAllocatorTest, SharedResourcesCapability)
       framework1.id(),
       slave.id(),
       allocation->resources.at("role1").at(slave.id()),
-      {create});
+      conversions.get());
 
   // Now recover the resources, and expect the next allocation to
   // contain the updated resources.
@@ -4989,6 +5001,7 @@ TEST_P(HierarchicalAllocatorTestWithParam, AllocateSharedResources)
   // Create a shared volume.
   Resource volume = createDiskResource(
       "5", "role1", "id1", None(), None(), true);
+
   Offer::Operation create = CREATE(volume);
 
   protobuf::injectAllocationInfo(&create, allocationInfo);
@@ -4998,13 +5011,13 @@ TEST_P(HierarchicalAllocatorTestWithParam, AllocateSharedResources)
       slave.id(),
       Resources::parse("cpus:1;mem:5").get() + volume,
       "echo abc > path1/file");
-  Offer::Operation launch = LAUNCH({task});
 
-  protobuf::injectAllocationInfo(&launch, allocationInfo);
+  Try<vector<ResourceConversion>> conversions = getResourceConversions(create);
+  ASSERT_SOME(conversions);
 
   // Ensure the CREATE operation can be applied.
   Try<Resources> updated =
-    allocation->resources.at("role1").at(slave.id()).apply(create);
+    allocation->resources.at("role1").at(slave.id()).apply(conversions.get());
 
   ASSERT_SOME(updated);
 
@@ -5014,7 +5027,7 @@ TEST_P(HierarchicalAllocatorTestWithParam, AllocateSharedResources)
       framework1.id(),
       slave.id(),
       allocation->resources.at("role1").at(slave.id()),
-      {create, launch});
+      conversions.get());
 
   // Now recover the resources, and expect the next allocation to contain
   // the updated resources. Note that the volume is not recovered as it is
@@ -5032,7 +5045,7 @@ TEST_P(HierarchicalAllocatorTestWithParam, AllocateSharedResources)
       framework2.id(),
       {{"role1", {{slave.id(),
           updated.get() -
-          launch.launch().task_infos(0).resources() +
+          allocatedResources(task.resources(), "role1") +
           create.create().volumes()}}}});
 
   AWAIT_EXPECT_EQ(expected, allocations.get());
