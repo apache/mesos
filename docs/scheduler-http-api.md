@@ -108,7 +108,7 @@ Connection: close
    "subscribe"	: {
       "framework_info"	: {
         "user" :  "foo",
-        "name" :  "Example HTTP Framework"
+        "name" :  "Example HTTP Framework",
         "roles": ["test"],
         "capabilities" : [{"type": "MULTI_ROLE"}]
       }
