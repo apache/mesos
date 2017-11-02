@@ -8527,14 +8527,6 @@ void Master::failoverFramework(Framework* framework, const HttpConnection& http)
     Option<string> principal = frameworks.principals[framework->pid.get()];
 
     frameworks.principals.erase(framework->pid.get());
-
-    // Remove the metrics for the principal if this framework is the
-    // last one with this principal.
-    if (principal.isSome() &&
-        !frameworks.principals.containsValue(principal.get())) {
-      CHECK(metrics->frameworks.contains(principal.get()));
-      metrics->frameworks.erase(principal.get());
-    }
   }
 
   framework->updateConnection(http);
