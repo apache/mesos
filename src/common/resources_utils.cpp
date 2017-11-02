@@ -19,6 +19,8 @@
 
 #include "common/resources_utils.hpp"
 
+using std::vector;
+
 using google::protobuf::RepeatedPtrField;
 
 namespace mesos {
@@ -88,6 +90,135 @@ Try<Resources> applyCheckpointedResources(
   }
 
   return totalResources;
+}
+
+
+namespace internal {
+
+// NOTE: Use template here so that it works for both internal and v1.
+template <typename TResources,
+          typename TResource,
+          typename TResourceConversion,
+          typename TOfferOperation>
+Try<vector<TResourceConversion>> getResourceConversions(
+    const TOfferOperation& operation)
+{
+  vector<TResourceConversion> conversions;
+
+  switch (operation.type()) {
+    case TOfferOperation::UNKNOWN:
+      return Error("Unknown offer operation");
+
+    case TOfferOperation::LAUNCH:
+    case TOfferOperation::LAUNCH_GROUP:
+    case TOfferOperation::CREATE_VOLUME:
+    case TOfferOperation::DESTROY_VOLUME:
+    case TOfferOperation::CREATE_BLOCK:
+    case TOfferOperation::DESTROY_BLOCK:
+      return Error("Offer operation not supported");
+
+    case TOfferOperation::RESERVE: {
+      foreach (const TResource& reserved, operation.reserve().resources()) {
+        // Note that we only allow "pushing" a single reservation at time.
+        TResources consumed = TResources(reserved).popReservation();
+        conversions.emplace_back(consumed, reserved);
+      }
+      break;
+    }
+
+    case TOfferOperation::UNRESERVE: {
+      foreach (const TResource& reserved, operation.unreserve().resources()) {
+        // Note that we only allow "popping" a single reservation at time.
+        TResources converted = TResources(reserved).popReservation();
+        conversions.emplace_back(reserved, converted);
+      }
+      break;
+    }
+
+    case TOfferOperation::CREATE: {
+      foreach (const TResource& volume, operation.create().volumes()) {
+        // Strip persistence and volume from the disk info so that we
+        // can subtract it from the original resources.
+        // TODO(jieyu): Non-persistent volumes are not supported for
+        // now. Persistent volumes can only be be created from regular
+        // disk resources. Revisit this once we start to support
+        // non-persistent volumes.
+        TResource stripped = volume;
+
+        if (stripped.disk().has_source()) {
+          stripped.mutable_disk()->clear_persistence();
+          stripped.mutable_disk()->clear_volume();
+        } else {
+          stripped.clear_disk();
+        }
+
+        // Since we only allow persistent volumes to be shared, the
+        // original resource must be non-shared.
+        stripped.clear_shared();
+
+        conversions.emplace_back(stripped, volume);
+      }
+      break;
+    }
+
+    case TOfferOperation::DESTROY: {
+      foreach (const TResource& volume, operation.destroy().volumes()) {
+        // Strip persistence and volume from the disk info so that we
+        // can subtract it from the original resources.
+        TResource stripped = volume;
+
+        if (stripped.disk().has_source()) {
+          stripped.mutable_disk()->clear_persistence();
+          stripped.mutable_disk()->clear_volume();
+        } else {
+          stripped.clear_disk();
+        }
+
+        // Since we only allow persistent volumes to be shared, we
+        // return the resource to non-shared state after destroy.
+        stripped.clear_shared();
+
+        conversions.emplace_back(
+            volume,
+            stripped,
+            [volume](const TResources& resources) -> Try<Nothing> {
+              if (resources.contains(volume)) {
+                return Error(
+                  "Persistent volume " + stringify(volume) + " cannot be "
+                  "removed due to additional shared copies");
+              }
+              return Nothing();
+            });
+      }
+      break;
+    }
+  }
+
+  return conversions;
+}
+
+} // namespace internal {
+
+
+Try<vector<ResourceConversion>> getResourceConversions(
+    const Offer::Operation& operation)
+{
+  return internal::getResourceConversions<
+      Resources,
+      Resource,
+      ResourceConversion,
+      Offer::Operation>(operation);
+}
+
+
+Try<vector<v1::ResourceConversion>> getResourceConversions(
+    const v1::Offer::Operation& operation)
+{
+  return internal::getResourceConversions<
+      v1::Resources,
+      v1::Resource,
+      v1::ResourceConversion,
+      v1::Offer::Operation>(operation);
 }
 
 

@@ -1623,277 +1623,35 @@ Option<Resources> Resources::find(const Resources& targets) const
 }
 
 
-Try<Resources> Resources::apply(
-    const Offer::Operation& operation,
-    const Option<Resources>& convertedResources) const
+Try<Resources> Resources::apply(const ResourceConversion& conversion) const
 {
-  Resources result = *this;
+  return conversion.apply(*this);
+}
 
-  switch (operation.type()) {
-    case Offer::Operation::LAUNCH:
-      return Error("Cannot apply LAUNCH Operation");
 
-    case Offer::Operation::LAUNCH_GROUP:
-      return Error("Cannot apply LAUNCH_GROUP Operation");
+Try<Resources> Resources::apply(const Offer::Operation& operation) const
+{
+  Try<vector<ResourceConversion>> conversions =
+    getResourceConversions(operation);
 
-    case Offer::Operation::RESERVE: {
-      if (convertedResources.isSome()) {
-        return Error(
-            "Converted resources not expected for RESERVE Operation");
-      }
-
-      Option<Error> error = validate(operation.reserve().resources());
-      if (error.isSome()) {
-        return Error("Invalid RESERVE Operation: " + error->message);
-      }
-
-      foreach (const Resource& reserved, operation.reserve().resources()) {
-        if (!Resources::isReserved(reserved)) {
-          return Error("Invalid RESERVE Operation: Resource must be reserved");
-        } else if (!Resources::isDynamicallyReserved(reserved)) {
-          return Error(
-              "Invalid RESERVE Operation: Resource must be"
-              " dynamically reserved");
-        }
-
-        // Note that we only allow "pushing" a single reservation at time.
-        Resources resources = Resources(reserved).popReservation();
-
-        if (!result.contains(resources)) {
-          return Error("Invalid RESERVE Operation: " + stringify(result) +
-                       " does not contain " + stringify(resources));
-        }
-
-        result -= resources;
-        result.add(reserved);
-      }
-      break;
-    }
-
-    case Offer::Operation::UNRESERVE: {
-      if (convertedResources.isSome()) {
-        return Error(
-            "Converted resources not expected for UNRESERVE Operation");
-      }
-
-      Option<Error> error = validate(operation.unreserve().resources());
-      if (error.isSome()) {
-        return Error("Invalid UNRESERVE Operation: " + error->message);
-      }
-
-      foreach (const Resource& reserved, operation.unreserve().resources()) {
-        if (!Resources::isReserved(reserved)) {
-          return Error("Invalid UNRESERVE Operation: Resource is not reserved");
-        } else if (!Resources::isDynamicallyReserved(reserved)) {
-          return Error(
-              "Invalid UNRESERVE Operation: Resource is not"
-              " dynamically reserved");
-        }
-
-        if (!result.contains(reserved)) {
-          return Error("Invalid UNRESERVE Operation: " + stringify(result) +
-                       " does not contain " + stringify(reserved));
-        }
-
-        // Note that we only allow "popping" a single reservation at time.
-        Resources resources = Resources(reserved).popReservation();
-
-        result.subtract(reserved);
-        result += resources;
-      }
-      break;
-    }
-
-    case Offer::Operation::CREATE: {
-      if (convertedResources.isSome()) {
-        return Error(
-            "Converted resources not expected for CREATE Operation");
-      }
-
-      Option<Error> error = validate(operation.create().volumes());
-      if (error.isSome()) {
-        return Error("Invalid CREATE Operation: " + error->message);
-      }
-
-      foreach (const Resource& volume, operation.create().volumes()) {
-        if (!volume.has_disk()) {
-          return Error("Invalid CREATE Operation: Missing 'disk'");
-        } else if (!volume.disk().has_persistence()) {
-          return Error("Invalid CREATE Operation: Missing 'persistence'");
-        }
-
-        // Strip persistence and volume from the disk info so that we
-        // can subtract it from the original resources.
-        // TODO(jieyu): Non-persistent volumes are not supported for
-        // now. Persistent volumes can only be be created from regular
-        // disk resources. Revisit this once we start to support
-        // non-persistent volumes.
-        Resource stripped = volume;
-
-        if (stripped.disk().has_source()) {
-          stripped.mutable_disk()->clear_persistence();
-          stripped.mutable_disk()->clear_volume();
-        } else {
-          stripped.clear_disk();
-        }
-
-        // Since we only allow persistent volumes to be shared, the
-        // original resource must be non-shared.
-        stripped.clear_shared();
-
-        if (!result.contains(stripped)) {
-          return Error("Invalid CREATE Operation: Insufficient disk resources"
-                       " for persistent volume " + stringify(volume));
-        }
-
-        result.subtract(stripped);
-        result.add(volume);
-      }
-      break;
-    }
-
-    case Offer::Operation::DESTROY: {
-      if (convertedResources.isSome()) {
-        return Error(
-            "Converted resources not expected for DESTROY Operation");
-      }
-
-      Option<Error> error = validate(operation.destroy().volumes());
-      if (error.isSome()) {
-        return Error("Invalid DESTROY Operation: " + error->message);
-      }
-
-      foreach (const Resource& volume, operation.destroy().volumes()) {
-        if (!volume.has_disk()) {
-          return Error("Invalid DESTROY Operation: Missing 'disk'");
-        } else if (!volume.disk().has_persistence()) {
-          return Error("Invalid DESTROY Operation: Missing 'persistence'");
-        }
-
-        if (!result.contains(volume)) {
-          return Error(
-              "Invalid DESTROY Operation: Persistent volume does not exist");
-        }
-
-        result.subtract(volume);
-
-        if (result.contains(volume)) {
-          return Error(
-              "Invalid DESTROY Operation: Persistent volume " +
-              stringify(volume) + " cannot be removed due to additional " +
-              "shared copies");
-        }
-
-        // Strip persistence and volume from the disk info so that we
-        // can subtract it from the original resources.
-        Resource stripped = volume;
-
-        if (stripped.disk().has_source()) {
-          stripped.mutable_disk()->clear_persistence();
-          stripped.mutable_disk()->clear_volume();
-        } else {
-          stripped.clear_disk();
-        }
-
-        // Since we only allow persistent volumes to be shared, we
-        // return the resource to non-shared state after destroy.
-        stripped.clear_shared();
-
-        result.add(stripped);
-      }
-      break;
-    }
-
-    case Offer::Operation::CREATE_VOLUME: {
-      if (convertedResources.isNone()) {
-        return Error(
-            "Converted resources not specified for CREATE_VOLUME Operation");
-      }
-
-      const Resource& consumed = operation.create_volume().source();
-
-      if (!result.contains(consumed)) {
-        return Error(
-            "Invalid CREATE_VOLUME Operation: " + stringify(result) +
-            " does not contain " + stringify(consumed));
-      }
-
-      result.subtract(consumed);
-      result += convertedResources.get();
-      break;
-    }
-
-    case Offer::Operation::DESTROY_VOLUME: {
-      if (convertedResources.isNone()) {
-        return Error(
-            "Converted resources not specified for DESTROY_VOLUME Operation");
-      }
-
-      const Resource& consumed = operation.destroy_volume().volume();
-
-      if (!result.contains(consumed)) {
-        return Error(
-            "Invalid DESTROY_VOLUME Operation: " + stringify(result) +
-            " does not contain " + stringify(consumed));
-      }
-
-      result.subtract(consumed);
-      result += convertedResources.get();
-      break;
-    }
-
-    case Offer::Operation::CREATE_BLOCK: {
-      if (convertedResources.isNone()) {
-        return Error(
-            "Converted resources not specified for CREATE_BLOCK Operation");
-      }
-
-      const Resource& consumed = operation.create_block().source();
-
-      if (!result.contains(consumed)) {
-        return Error(
-            "Invalid CREATE_BLOCK Operation: " + stringify(result) +
-            " does not contain " + stringify(consumed));
-      }
-
-      result.subtract(consumed);
-      result += convertedResources.get();
-      break;
-    }
-
-    case Offer::Operation::DESTROY_BLOCK: {
-      if (convertedResources.isNone()) {
-        return Error(
-            "Converted resources not specified for DESTROY_BLOCK Operation");
-      }
-
-      const Resource& consumed = operation.destroy_block().block();
-
-      if (!result.contains(consumed)) {
-        return Error(
-            "Invalid DESTROY_BLOCK Operation: " + stringify(result) +
-            " does not contain " + stringify(consumed));
-      }
-
-      result.subtract(consumed);
-      result += convertedResources.get();
-      break;
-    }
-
-    case Offer::Operation::UNKNOWN:
-      return Error("Unknown offer operation");
+  if (conversions.isError()) {
+    return Error("Cannot get conversions: " + conversions.error());
   }
 
-  // The following are sanity checks to ensure the amount of each type of
-  // resource does not change.
+  Try<Resources> result = apply(conversions.get());
+  if (result.isError()) {
+    return Error(result.error());
+  }
+
+  // The following are sanity checks to ensure the amount of each type
+  // of resource does not change.
   // TODO(jieyu): Currently, we only check known resource types like
   // cpus, gpus, mem, disk, ports, etc. We should generalize this.
-
-  CHECK(result.cpus() == cpus());
-  CHECK(result.gpus() == gpus());
-  CHECK(result.mem() == mem());
-  CHECK(result.disk() == disk());
-  CHECK(result.ports() == ports());
+  CHECK(result->cpus() == cpus());
+  CHECK(result->gpus() == gpus());
+  CHECK(result->mem() == mem());
+  CHECK(result->disk() == disk());
+  CHECK(result->ports() == ports());
 
   return result;
 }
@@ -2523,6 +2281,30 @@ ostream& operator<<(
     const google::protobuf::RepeatedPtrField<Resource>& resources)
 {
   return stream << JSON::protobuf(resources);
+}
+
+
+Try<Resources> ResourceConversion::apply(const Resources& resources) const
+{
+  Resources result = resources;
+
+  if (!result.contains(consumed)) {
+    return Error(
+        stringify(result) + " does not contain " +
+        stringify(consumed));
+  }
+
+  result -= consumed;
+  result += converted;
+
+  if (postValidation.isSome()) {
+    Try<Nothing> validation = postValidation.get()(result);
+    if (validation.isError()) {
+      return Error(validation.error());
+    }
+  }
+
+  return result;
 }
 
 } // namespace mesos {

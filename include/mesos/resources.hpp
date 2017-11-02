@@ -36,6 +36,7 @@
 #include <stout/hashmap.hpp>
 #include <stout/json.hpp>
 #include <stout/lambda.hpp>
+#include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
@@ -52,6 +53,10 @@
 // but instead just written for correct semantics.
 
 namespace mesos {
+
+// Forward declaration.
+class ResourceConversion;
+
 
 // NOTE: Resource objects stored in the class are always valid, are in
 // the "post-reservation-refinement" format, and kept combined if possible.
@@ -464,26 +469,30 @@ public:
   // example frameworks to leverage.
   Option<Resources> find(const Resources& targets) const;
 
-  // Certain offer operations alter the offered resources. The
-  // following methods provide a convenient way to get the transformed
-  // resources by applying the given offer operation(s). Returns an
-  // Error if the offer operation(s) cannot be applied.
-  Try<Resources> apply(
-      const Offer::Operation& operation,
-      const Option<Resources>& convertedResources = None()) const;
+  // Applies a resource conversion by taking out the `consumed`
+  // resources and adding back the `converted` resources. Returns an
+  // Error if the conversion cannot be applied.
+  Try<Resources> apply(const ResourceConversion& conversion) const;
+
+  // Obtains the conversion from the given operation and applies the
+  // conversion. This method serves a syntax sugar for applying a
+  // resource conversion.
+  // TODO(jieyu): Consider remove this method once we updated all the
+  // call sites.
+  Try<Resources> apply(const Offer::Operation& operation) const;
 
   template <typename Iterable>
-  Try<Resources> apply(const Iterable& operations) const
+  Try<Resources> apply(const Iterable& iterable) const
   {
     Resources result = *this;
 
-    foreach (const Offer::Operation& operation, operations) {
-      Try<Resources> transformed = result.apply(operation);
-      if (transformed.isError()) {
-        return Error(transformed.error());
+    foreach (const auto& t, iterable) {
+      Try<Resources> converted = result.apply(t);
+      if (converted.isError()) {
+        return Error(converted.error());
       }
 
-      result = transformed.get();
+      result = converted.get();
     }
 
     return result;
@@ -662,6 +671,31 @@ hashmap<Key, Resources> operator+(
   result += right;
   return result;
 }
+
+
+/**
+ * Represents a resource conversion, usually as a result of an offer
+ * operation. See more details in `Resources::apply` method.
+ */
+class ResourceConversion
+{
+public:
+  typedef lambda::function<Try<Nothing>(const Resources&)> PostValidation;
+
+  ResourceConversion(
+      const Resources& _consumed,
+      const Resources& _converted,
+      const Option<PostValidation>& _postValidation = None())
+    : consumed(_consumed),
+      converted(_converted),
+      postValidation(_postValidation) {}
+
+  Try<Resources> apply(const Resources& resources) const;
+
+  Resources consumed;
+  Resources converted;
+  Option<PostValidation> postValidation;
+};
 
 } // namespace mesos {
 

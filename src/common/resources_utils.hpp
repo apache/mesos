@@ -24,6 +24,9 @@
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
+#include <mesos/v1/mesos.hpp>
+#include <mesos/v1/resources.hpp>
+
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -53,6 +56,20 @@ Try<Resources> applyCheckpointedResources(
 // one resource provider.
 Result<ResourceProviderID> getResourceProviderId(
     const Offer::Operation& operation);
+
+
+// Returns the resource conversions from the given offer operation.
+// This helper assumes that the given operation has already been
+// validated.
+Try<std::vector<ResourceConversion>> getResourceConversions(
+    const Offer::Operation& operation);
+
+
+// Returns the resource conversions from the given offer operation.
+// This helper assumes that the given operation has already been
+// validated.
+Try<std::vector<v1::ResourceConversion>> getResourceConversions(
+    const v1::Offer::Operation& operation);
 
 
 // Resource format options to be used with the `convertResourceFormat` function.
