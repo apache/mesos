@@ -87,6 +87,16 @@ option(
   "Build libprocess with lock free run queue."
   FALSE)
 
+option(
+  ENABLE_LOCK_FREE_EVENT_QUEUE
+  "Build libprocess with lock free event queue."
+  FALSE)
+
+option(
+  ENABLE_LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE
+  "Build libprocess with LIFO fixed size semaphore."
+  FALSE)
+
 option(ENABLE_JAVA
   "Build Java components. Warning: this is SLOW."
   FALSE)
