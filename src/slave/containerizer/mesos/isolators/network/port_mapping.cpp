@@ -2494,8 +2494,7 @@ Future<Option<ContainerLaunchInfo>> PortMappingIsolatorProcess::prepare(
   }
 
   const ExecutorInfo& executorInfo = containerConfig.executor_info();
-
-  Resources resources(executorInfo.resources());
+  const Resources resources(containerConfig.resources());
 
   IntervalSet<uint16_t> nonEphemeralPorts;
 

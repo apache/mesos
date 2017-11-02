@@ -351,7 +351,7 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::prepare(
     }
   }
 
-  return update(containerId, containerConfig.executor_info().resources())
+  return update(containerId, containerConfig.resources())
     .then(defer(PID<NvidiaGpuIsolatorProcess>(this),
                 &NvidiaGpuIsolatorProcess::_prepare,
                 containerConfig));

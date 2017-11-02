@@ -517,10 +517,7 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::_prepare(
         strings::join(";", errors));
   }
 
-  // TODO(haosdent): Here we assume the command executor's resources
-  // include the task's resources. Revisit here if this semantics
-  // changes.
-  return update(containerId, containerConfig.executor_info().resources())
+  return update(containerId, containerConfig.resources())
     .then([]() { return Option<ContainerLaunchInfo>::none(); });
 }
 

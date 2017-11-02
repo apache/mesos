@@ -291,7 +291,7 @@ Future<Option<ContainerLaunchInfo>> XfsDiskIsolatorProcess::prepare(
   LOG(INFO) << "Assigned project " << stringify(projectId.get()) << " to '"
             << containerConfig.directory() << "'";
 
-  return update(containerId, containerConfig.executor_info().resources())
+  return update(containerId, containerConfig.resources())
     .then([]() -> Future<Option<ContainerLaunchInfo>> {
       return None();
     });
