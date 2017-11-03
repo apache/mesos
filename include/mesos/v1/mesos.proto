@@ -2162,19 +2162,20 @@ message TaskResourceLimitation {
  * some additional information.
  */
 message OfferOperation {
-  required FrameworkID framework_id = 1;
-  required Offer.Operation info = 2;
-  required OfferOperationStatus latest_status = 3;
+  optional FrameworkID framework_id = 1;
+  optional AgentID agent_id = 2;
+  required Offer.Operation info = 3;
+  required OfferOperationStatus latest_status = 4;
 
   // All the statuses known to this offer operation. Some of the
   // statuses in this list might not have been acknowledged yet. The
   // statuses are ordered.
-  repeated OfferOperationStatus statuses = 4;
+  repeated OfferOperationStatus statuses = 5;
 
   // This is the internal UUID for the operation, which is kept
   // independently from the framework-specified operation ID, which is
   // optional.
-  required bytes operation_uuid = 5;
+  required bytes operation_uuid = 6;
 }
 
 

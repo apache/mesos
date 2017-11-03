@@ -694,7 +694,7 @@ message UpdateSlaveMessage {
  * See resource_provider::Call::UPDATE_OFFER_OPERATION_STATUS.
  */
 message OfferOperationStatusUpdate {
-  required FrameworkID framework_id = 1;
+  optional FrameworkID framework_id = 1;
   optional SlaveID slave_id = 2;
   required OfferOperationStatus status = 3;
   optional OfferOperationStatus latest_status = 4;
@@ -715,7 +715,7 @@ message OfferOperationStatusUpdate {
  * See resource_provider::Event::OPERATION.
  */
 message ApplyOfferOperationMessage {
-  required FrameworkID framework_id = 1;
+  optional FrameworkID framework_id = 1;
   required Offer.Operation operation_info = 2;
 
   // This is the internal UUID for the operation, which is kept

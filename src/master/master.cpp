@@ -4560,7 +4560,7 @@ void Master::_accept(
                   << operation.reserve().resources() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        _apply(slave, operation);
+        _apply(slave, framework, operation);
 
         conversions.insert(
             conversions.end(),
@@ -4626,7 +4626,7 @@ void Master::_accept(
                   << operation.unreserve().resources() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        _apply(slave, operation);
+        _apply(slave, framework, operation);
 
         conversions.insert(
             conversions.end(),
@@ -4703,7 +4703,7 @@ void Master::_accept(
                   << operation.create().volumes() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        _apply(slave, operation);
+        _apply(slave, framework, operation);
 
         conversions.insert(
             conversions.end(),
@@ -4796,7 +4796,7 @@ void Master::_accept(
                   << operation.destroy().volumes() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        _apply(slave, operation);
+        _apply(slave, framework, operation);
 
         conversions.insert(
             conversions.end(),
@@ -7342,13 +7342,21 @@ void Master::offerOperationStatusUpdate(
     << "External resource provider is not supported yet";
 
   const SlaveID& slaveId = update.slave_id();
-  const FrameworkID& frameworkId = update.framework_id();
+
+  // The status update for the offer operation might be for an
+  // operator API call, thus the framework ID here is optional.
+  Option<FrameworkID> frameworkId = update.has_framework_id()
+    ? update.framework_id()
+    : Option<FrameworkID>::none();
 
   Try<UUID> uuid = UUID::fromString(update.operation_uuid());
   if (uuid.isError()) {
     LOG(ERROR) << "Failed to parse offer operation UUID for operation "
-               << "'" << update.status().operation_id() << "' "
-               << "from framework " << frameworkId << ": " << uuid.error();
+               << "'" << update.status().operation_id() << "' for "
+               << (frameworkId.isSome()
+                     ? "framework " + stringify(frameworkId.get())
+                     : "an operator API call")
+               << " from agent " << slaveId << ": " << uuid.error();
     return;
   }
 
@@ -7367,10 +7375,12 @@ void Master::offerOperationStatusUpdate(
   // tell the framework that the operation is gone.
   if (slave == nullptr) {
     LOG(WARNING) << "Ignoring status update for offer operation '"
-                 << update.status().operation_id() << "' (uuid: "
-                 << uuid->toString() << ") for framework "
-                 << frameworkId << " because agent "
-                 << slaveId << " is not registered";
+                 << update.status().operation_id()
+                 << "' (uuid: " << uuid->toString() << ") for "
+                 << (frameworkId.isSome()
+                       ? "framework " + stringify(frameworkId.get())
+                       : "an operator API call")
+                 << ": Agent " << slaveId << " is not registered";
     return;
   }
 
@@ -7378,14 +7388,39 @@ void Master::offerOperationStatusUpdate(
   if (operation == nullptr) {
     LOG(ERROR) << "Failed to find the offer operation '"
                << update.status().operation_id() << "' (uuid: "
-               << uuid->toString() << ") from framework "
-               << frameworkId << " on agent " << slaveId;
+               << uuid->toString() << ") for "
+               << (frameworkId.isSome()
+                     ? "framework " + stringify(frameworkId.get())
+                     : "an operator API call")
+               << " on agent " << slaveId;
     return;
+  }
+
+  // Forward the status update to the framework if needed.
+  if (frameworkId.isSome()) {
+    Framework* framework = getFramework(frameworkId.get());
+
+    if (framework == nullptr || !framework->connected()) {
+      LOG(WARNING) << "Received status update for offer operation '"
+                   << update.status().operation_id()
+                   << "' (uuid: " << uuid->toString() << ") "
+                   << "for framework " << frameworkId.get()
+                   << ", but the framework is "
+                   << (framework == nullptr ? "unknown" : "disconnected");
+    } else {
+      // TODO(jieyu): Forward the status update to the framework.
+    }
   }
 
   updateOfferOperation(operation, update);
 
-  // TODO(jieyu): Forward the status update to the framework.
+  // If the operation is terminal and no acknowledgement from the
+  // framework (or the operation API endpoint) is needed, remove the
+  // operation.
+  if (protobuf::isTerminalState(operation->latest_status().state()) &&
+      !operation->info().has_id()) {
+    removeOfferOperation(operation);
+  }
 }
 
 
@@ -9615,12 +9650,14 @@ void Master::addOfferOperation(
     Slave* slave,
     OfferOperation* operation)
 {
-  CHECK_NOTNULL(framework);
-  CHECK_NOTNULL(slave);
   CHECK_NOTNULL(operation);
+  CHECK_NOTNULL(slave);
 
   slave->addOfferOperation(operation);
-  framework->addOfferOperation(operation);
+
+  if (framework != nullptr) {
+    framework->addOfferOperation(operation);
+  }
 }
 
 
@@ -9677,12 +9714,15 @@ void Master::updateOfferOperation(
     return;
   }
 
+  // Update resource accounting in the master and in the allocator.
+  // NOTE: For the "old" operations (RESERVE, UNRESERVE, CREATE,
+  // DESTROY), the master speculatively assumes that the operation
+  // will be successful when it accepts the operations. Therefore, we
+  // don't need to update the resource accounting for those types of
+  // offer operations in the master and in the allocator states upon
+  // receiving a terminal status update.
   Resource consumed;
 
-  // For the following "old" operations, the master speculatively
-  // assumes that the operation will be successful when it accepts
-  // the operations. Therefore, we don't need to update the master and
-  // the allocator states upon receiving a terminal status update.
   switch (operation->info().type()) {
     case Offer::Operation::LAUNCH:
       LOG(FATAL) << "Unexpected LAUNCH operation";
@@ -9712,9 +9752,9 @@ void Master::updateOfferOperation(
       return;
   }
 
-  CHECK(update.has_slave_id());
+  CHECK(operation->has_slave_id())
+    << "External resource provider is not supported yet";
 
-  // Update the master and
   switch (operation->latest_status().state()) {
     // Terminal state, and the conversion is successful.
     case OFFER_OPERATION_FINISHED: {
@@ -9723,13 +9763,13 @@ void Master::updateOfferOperation(
 
       allocator->updateAllocation(
           operation->framework_id(),
-          update.slave_id(),
+          operation->slave_id(),
           consumed,
           {ResourceConversion(consumed, converted)});
 
       allocator->recoverResources(
           operation->framework_id(),
-          update.slave_id(),
+          operation->slave_id(),
           converted,
           None());
 
@@ -9741,7 +9781,7 @@ void Master::updateOfferOperation(
     case OFFER_OPERATION_ERROR: {
       allocator->recoverResources(
           operation->framework_id(),
-          update.slave_id(),
+          operation->slave_id(),
           consumed,
           None());
 
@@ -9757,6 +9797,51 @@ void Master::updateOfferOperation(
       break;
     }
   }
+
+  // The slave owns the OfferOperation object and cannot be nullptr.
+  // TODO(jieyu): Revisit this once we introduce support for external
+  // resource provider.
+  Slave* slave = slaves.registered.get(operation->slave_id());
+  CHECK_NOTNULL(slave);
+
+  slave->recoverResources(operation);
+
+  Framework* framework = operation->has_framework_id()
+    ? getFramework(operation->framework_id())
+    : nullptr;
+
+  if (framework != nullptr) {
+    framework->recoverResources(operation);
+  }
+}
+
+
+void Master::removeOfferOperation(OfferOperation* operation)
+{
+  CHECK_NOTNULL(operation);
+
+  CHECK(protobuf::isTerminalState(operation->latest_status().state()))
+    << operation->latest_status().state();
+
+  // Remove from framework.
+  Framework* framework = operation->has_framework_id()
+    ? getFramework(operation->framework_id())
+    : nullptr;
+
+  if (framework != nullptr) {
+    framework->removeOfferOperation(operation);
+  }
+
+  // Remove from slave.
+  CHECK(operation->has_slave_id())
+    << "External resource provider is not supported yet";
+
+  Slave* slave = slaves.registered.get(operation->slave_id());
+  CHECK_NOTNULL(slave);
+
+  slave->removeOfferOperation(operation);
+
+  delete operation;
 }
 
 
@@ -9765,45 +9850,71 @@ Future<Nothing> Master::apply(Slave* slave, const Offer::Operation& operation)
   CHECK_NOTNULL(slave);
 
   return allocator->updateAvailable(slave->id, {operation})
-    .onReady(defer(self(), &Master::_apply, slave, operation));
+    .onReady(defer(self(), &Master::_apply, slave, nullptr, operation));
 }
 
 
-void Master::_apply(Slave* slave, const Offer::Operation& operation)
+void Master::_apply(
+    Slave* slave,
+    Framework* framework,
+    const Offer::Operation& operation)
 {
   CHECK_NOTNULL(slave);
 
   slave->apply(operation);
 
-  CheckpointResourcesMessage message;
+  if (slave->capabilities.resourceProvider) {
+    OfferOperation* offerOperation = new OfferOperation(
+        protobuf::createOfferOperation(
+            operation,
+            protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
+            framework->id()));
 
-  message.mutable_resources()->CopyFrom(slave->checkpointedResources);
+    addOfferOperation(framework, slave, offerOperation);
 
-  if (!slave->capabilities.reservationRefinement) {
-    // If the agent is not refinement-capable, don't send it
-    // checkpointed resources that contain refined reservations. This
-    // might occur if a reservation refinement is created but never
-    // reaches the agent (e.g., due to network partition), and then
-    // the agent is downgraded before the partition heals.
-    //
-    // TODO(neilc): It would probably be better to prevent the agent
-    // from re-registering in this scenario.
-    Try<Nothing> result = downgradeResources(message.mutable_resources());
-    if (result.isError()) {
-      LOG(WARNING) << "Not sending updated checkpointed resouces "
-                   << slave->checkpointedResources
-                   << " with refined reservations, since agent " << *slave
-                   << " is not RESERVATION_REFINEMENT-capable.";
-
-      return;
+    ApplyOfferOperationMessage message;
+    if (framework != nullptr) {
+      message.mutable_framework_id()->CopyFrom(framework->id());
     }
+    message.mutable_operation_info()->CopyFrom(offerOperation->info());
+    message.set_operation_uuid(offerOperation->operation_uuid());
+
+    LOG(INFO) << "Sending offer operation "
+              << offerOperation->operation_uuid()
+              << " to agent " << *slave;
+
+    send(slave->pid, message);
+  } else {
+    CheckpointResourcesMessage message;
+
+    message.mutable_resources()->CopyFrom(slave->checkpointedResources);
+
+    if (!slave->capabilities.reservationRefinement) {
+      // If the agent is not refinement-capable, don't send it
+      // checkpointed resources that contain refined reservations. This
+      // might occur if a reservation refinement is created but never
+      // reaches the agent (e.g., due to network partition), and then
+      // the agent is downgraded before the partition heals.
+      //
+      // TODO(neilc): It would probably be better to prevent the agent
+      // from re-registering in this scenario.
+      Try<Nothing> result = downgradeResources(message.mutable_resources());
+      if (result.isError()) {
+        LOG(WARNING) << "Not sending updated checkpointed resources "
+                     << slave->checkpointedResources
+                     << " with refined reservations, since agent " << *slave
+                     << " is not RESERVATION_REFINEMENT-capable.";
+
+        return;
+      }
+    }
+
+    LOG(INFO) << "Sending updated checkpointed resources "
+              << slave->checkpointedResources
+              << " to agent " << *slave;
+
+    send(slave->pid, message);
   }
-
-  LOG(INFO) << "Sending updated checkpointed resources "
-            << slave->checkpointedResources
-            << " to agent " << *slave;
-
-  send(slave->pid, message);
 }
 
 
@@ -10651,6 +10762,102 @@ void Slave::addOfferOperation(OfferOperation* operation)
   CHECK_SOME(uuid);
 
   offerOperations.put(uuid.get(), operation);
+
+  Resource consumed;
+  switch (operation->info().type()) {
+    case Offer::Operation::LAUNCH:
+    case Offer::Operation::LAUNCH_GROUP:
+    case Offer::Operation::RESERVE:
+    case Offer::Operation::UNRESERVE:
+    case Offer::Operation::CREATE:
+    case Offer::Operation::DESTROY:
+      // These operations are speculatively applied and not
+      // tracked as used resources.
+      return;
+    case Offer::Operation::CREATE_VOLUME:
+      consumed = operation->info().create_volume().source();
+      break;
+    case Offer::Operation::DESTROY_VOLUME:
+      consumed = operation->info().destroy_volume().volume();
+      break;
+    case Offer::Operation::CREATE_BLOCK:
+      consumed = operation->info().create_block().source();
+      break;
+    case Offer::Operation::DESTROY_BLOCK:
+      consumed = operation->info().destroy_block().block();
+      break;
+    case Offer::Operation::UNKNOWN:
+      LOG(WARNING) << "Ignoring unknown offer operation";
+      return;
+  }
+
+  usedResources[operation->framework_id()] += consumed;
+}
+
+
+void Slave::recoverResources(OfferOperation* operation)
+{
+  // TODO(jieyu): Currently, we do not keep track of used resources
+  // for offer operations that are created by the operator through the
+  // operator API endpoint.
+  if (!operation->has_framework_id()) {
+    return;
+  }
+
+  const FrameworkID& frameworkId = operation->framework_id();
+
+  Resource consumed;
+  switch (operation->info().type()) {
+    case Offer::Operation::LAUNCH:
+    case Offer::Operation::LAUNCH_GROUP:
+    case Offer::Operation::RESERVE:
+    case Offer::Operation::UNRESERVE:
+    case Offer::Operation::CREATE:
+    case Offer::Operation::DESTROY:
+      // These operations are speculatively applied and not
+      // tracked as used resources.
+      return;
+    case Offer::Operation::CREATE_VOLUME:
+      consumed = operation->info().create_volume().source();
+      break;
+    case Offer::Operation::DESTROY_VOLUME:
+      consumed = operation->info().destroy_volume().volume();
+      break;
+    case Offer::Operation::CREATE_BLOCK:
+      consumed = operation->info().create_block().source();
+      break;
+    case Offer::Operation::DESTROY_BLOCK:
+      consumed = operation->info().destroy_block().block();
+      break;
+    case Offer::Operation::UNKNOWN: {
+      LOG(ERROR) << "Unknown offer operation";
+      return;
+    }
+  }
+
+  CHECK(usedResources[frameworkId].contains(consumed))
+    << "Unknown resources " << consumed << " of framework " << frameworkId;
+
+  usedResources[frameworkId] -= consumed;
+  if (usedResources[frameworkId].empty()) {
+    usedResources.erase(frameworkId);
+  }
+}
+
+
+void Slave::removeOfferOperation(OfferOperation* operation)
+{
+  Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+  CHECK_SOME(uuid);
+
+  CHECK(offerOperations.contains(uuid.get()))
+    << "Unknown offer operation (uuid: " << uuid->toString() << ")"
+    << " to agent " << *this;
+
+  CHECK(protobuf::isTerminalState(operation->latest_status().state()))
+    << operation->latest_status().state();
+
+  offerOperations.erase(uuid.get());
 }
 
 
