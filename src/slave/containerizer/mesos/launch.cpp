@@ -962,20 +962,6 @@ int MesosContainerizerLaunch::execute()
       environment["PATH"] = os::host_default_path();
     }
 
-#ifdef __WINDOWS__
-    // TODO(dpravat): (MESOS-6816) We should allow system environment variables
-    // to be overwritten if they are specified by the framework.  This might
-    // cause applications to not work, but upon overriding system defaults, it
-    // becomes the overidder's problem.
-    Option<std::map<std::wstring, std::wstring>> systemEnvironment =
-      ::internal::windows::get_system_env();
-    foreachpair (const std::wstring& key,
-                 const std::wstring& value,
-                 systemEnvironment.get()) {
-      environment[stringify(key)] = stringify(value);
-    }
-#endif // __WINDOWS__
-
     envp = os::raw::Envp(environment);
   }
 

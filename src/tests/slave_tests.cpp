@@ -5222,8 +5222,8 @@ TEST_F(SlaveTest, TaskStatusContainerStatus)
 
 
 // Test that we can set the executors environment variables and it
-// won't inhert the slaves.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorEnvironmentVariables)
+// won't inherit the slaves.
+TEST_F(SlaveTest, ExecutorEnvironmentVariables)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -5231,11 +5231,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorEnvironmentVariables)
   // Need flags for 'executor_environment_variables'.
   slave::Flags flags = CreateSlaveFlags();
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>("{\"PATH\": \"/bin\"}");
+  const std::string path = os::host_default_path();
 
-  ASSERT_SOME(parse);
-
-  flags.executor_environment_variables = parse.get();
+  flags.executor_environment_variables = JSON::Object{{"PATH", path}};
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
@@ -5266,8 +5264,18 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorEnvironmentVariables)
 
   // Command executor will run as user running test.
   CommandInfo command;
+#ifdef __WINDOWS__
+  command.set_shell(false);
+  command.set_value("powershell.exe");
+  command.add_arguments("powershell.exe");
+  command.add_arguments("-NoProfile");
+  command.add_arguments("-Command");
+  command.add_arguments(
+      "if ($env:PATH -eq '" + path + "') { exit 0 } else { exit 1 }");
+#else
   command.set_shell(true);
-  command.set_value("test $PATH = /bin");
+  command.set_value("test $PATH = " + path);
+#endif // __WINDOWS__
 
   task.mutable_command()->MergeFrom(command);
 
