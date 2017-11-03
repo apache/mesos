@@ -116,19 +116,18 @@ inline Option<std::wstring> create_process_env(
 
   std::map<std::wstring, std::wstring> combined_env;
 
-  // Populate the combined environment first with the given environment
-  // converted to UTF-16 for Windows.
-  foreachpair (const std::string& key,
-               const std::string& value,
-               env.get()) {
-    combined_env[wide_stringify(key)] = wide_stringify(value);
-  }
-
-  // Add the system environment variables, overwriting the previous.
+  // Populate the combined environment first with the system environment.
   foreachpair (const std::wstring& key,
                const std::wstring& value,
                system_env.get()) {
     combined_env[key] = value;
+  }
+
+  // Now override with the supplied environment.
+  foreachpair (const std::string& key,
+               const std::string& value,
+               env.get()) {
+    combined_env[wide_stringify(key)] = wide_stringify(value);
   }
 
   std::wstring env_string;
