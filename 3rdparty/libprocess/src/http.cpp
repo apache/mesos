@@ -672,7 +672,7 @@ OK::OK(const JSON::Value& value, const Option<string>& jsonp)
   }
 
   headers["Content-Length"] = stringify(out.str().size());
-  body = out.str().data();
+  body = out.str();
 }
 
 
