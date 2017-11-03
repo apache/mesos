@@ -881,7 +881,7 @@ protected:
   // offer operation becomes terminal.
   void updateOfferOperation(
       OfferOperation* operation,
-      OfferOperationStatusUpdate update);
+      const OfferOperationStatusUpdate& update);
 
   // Attempts to update the allocator by applying the given operation.
   // If successful, updates the slave's resources, sends a

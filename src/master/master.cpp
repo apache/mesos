@@ -9626,8 +9626,137 @@ void Master::addOfferOperation(
 
 void Master::updateOfferOperation(
     OfferOperation* operation,
-    OfferOperationStatusUpdate update)
+    const OfferOperationStatusUpdate& update)
 {
+  CHECK_NOTNULL(operation);
+
+  const OfferOperationStatus& status = update.status();
+
+  Option<OfferOperationStatus> latestStatus;
+  if (update.has_latest_status()) {
+    latestStatus = update.latest_status();
+  }
+
+  // Whether the offer operation has just become terminated.
+  Option<bool> terminated;
+
+  if (latestStatus.isSome()) {
+    terminated =
+      !protobuf::isTerminalState(operation->latest_status().state()) &&
+      protobuf::isTerminalState(latestStatus->state());
+
+    // If the operation has already transitioned to a terminal state,
+    // do not update its state.
+    if (!protobuf::isTerminalState(operation->latest_status().state())) {
+      operation->mutable_latest_status()->CopyFrom(latestStatus.get());
+    }
+  } else {
+    terminated =
+      !protobuf::isTerminalState(operation->latest_status().state()) &&
+      protobuf::isTerminalState(status.state());
+
+    if (!protobuf::isTerminalState(operation->latest_status().state())) {
+      operation->mutable_latest_status()->CopyFrom(status);
+    }
+  }
+
+  operation->add_statuses()->CopyFrom(status);
+
+  Try<UUID> uuid = UUID::fromBytes(update.operation_uuid());
+  CHECK_SOME(uuid);
+
+  LOG(INFO) << "Updating the state of offer operation '"
+            << operation->info().id() << "' (uuid: " << uuid->toString()
+            << ") of framework " << operation->framework_id()
+            << " (latest state: " << operation->latest_status().state()
+            << ", status update state: " << status.state() << ")";
+
+  CHECK_SOME(terminated);
+
+  if (!terminated.get()) {
+    return;
+  }
+
+  Resource consumed;
+
+  // For the following "old" operations, the master speculatively
+  // assumes that the operation will be successful when it accepts
+  // the operations. Therefore, we don't need to update the master and
+  // the allocator states upon receiving a terminal status update.
+  switch (operation->info().type()) {
+    case Offer::Operation::LAUNCH:
+      LOG(FATAL) << "Unexpected LAUNCH operation";
+      break;
+    case Offer::Operation::LAUNCH_GROUP:
+      LOG(FATAL) << "Unexpected LAUNCH_GROUP operation";
+      break;
+    case Offer::Operation::RESERVE:
+    case Offer::Operation::UNRESERVE:
+    case Offer::Operation::CREATE:
+    case Offer::Operation::DESTROY:
+      return;
+    case Offer::Operation::CREATE_VOLUME:
+      consumed = operation->info().create_volume().source();
+      break;
+    case Offer::Operation::DESTROY_VOLUME:
+      consumed = operation->info().destroy_volume().volume();
+      break;
+    case Offer::Operation::CREATE_BLOCK:
+      consumed = operation->info().create_block().source();
+      break;
+    case Offer::Operation::DESTROY_BLOCK:
+      consumed = operation->info().destroy_block().block();
+      break;
+    case Offer::Operation::UNKNOWN:
+      LOG(ERROR) << "Unknown offer operation";
+      return;
+  }
+
+  CHECK(update.has_slave_id());
+
+  // Update the master and
+  switch (operation->latest_status().state()) {
+    // Terminal state, and the conversion is successful.
+    case OFFER_OPERATION_FINISHED: {
+      const Resources converted =
+        operation->latest_status().converted_resources();
+
+      allocator->updateAllocation(
+          operation->framework_id(),
+          update.slave_id(),
+          consumed,
+          {ResourceConversion(consumed, converted)});
+
+      allocator->recoverResources(
+          operation->framework_id(),
+          update.slave_id(),
+          converted,
+          None());
+
+      break;
+    }
+
+    // Terminal state, and the conversion has failed.
+    case OFFER_OPERATION_FAILED:
+    case OFFER_OPERATION_ERROR: {
+      allocator->recoverResources(
+          operation->framework_id(),
+          update.slave_id(),
+          consumed,
+          None());
+
+      break;
+    }
+
+    // Non-terminal. This shouldn't happen.
+    case OFFER_OPERATION_PENDING:
+    case OFFER_OPERATION_UNSUPPORTED: {
+      LOG(FATAL) << "Unexpected offer operation state "
+                 << operation->latest_status().state();
+
+      break;
+    }
+  }
 }
 
 
