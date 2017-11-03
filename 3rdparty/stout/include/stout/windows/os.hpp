@@ -801,13 +801,17 @@ inline std::string host_default_path()
 {
   // NOTE: On Windows, this code must run on the host where we are
   // expecting to `exec` the task, because the value of
-  // `%SYSTEMROOT%` is not identical on all platforms.
-  const Option<std::string> system_root_env = os::getenv("SYSTEMROOT");
+  // `%SystemRoot%` is not identical on all platforms.
+  const Option<std::string> system_root_env = os::getenv("SystemRoot");
   const std::string system_root = system_root_env.isSome()
     ? system_root_env.get()
-    : "C:\\WINDOWS";
+    : path::join("C:", "Windows");
 
-  return strings::join(";", system_root, path::join(system_root, "system32"));
+  return strings::join(";",
+      path::join(system_root, "System32"),
+      system_root,
+      path::join(system_root, "System32", "Wbem"),
+      path::join(system_root, "System32", "WindowsPowerShell", "v1.0"));
 }
 
 } // namespace os {
