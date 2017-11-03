@@ -1410,6 +1410,9 @@ TEST_P(DefaultExecutorTest, SigkillExecutor)
 }
 
 
+// TODO(qianzhang): Kill policy helpers are not yet enabled on Windows. See
+// MESOS-8168.
+#ifndef __WINDOWS__
 // This test verifies that a task will transition from `TASK_KILLING`
 // to `TASK_KILLED` rather than `TASK_FINISHED` when it is killed,
 // even if it returns an "EXIT_STATUS" of 0 on receiving a SIGTERM.
@@ -1588,6 +1591,7 @@ TEST_P(DefaultExecutorTest, ROOT_NoTransitionFromKillingToFinished)
   ASSERT_TRUE(wait.get()->has_status());
   ASSERT_EQ(0, wait.get()->status());
 }
+#endif // __WINDOWS__
 
 
 #ifdef __linux__

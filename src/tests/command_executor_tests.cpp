@@ -230,8 +230,8 @@ TEST_P(CommandExecutorTest, TaskKillingCapability)
 }
 
 
-// TODO(hausdorff): Kill policy helpers are not yet enabled on Windows. See
-// MESOS-6698.
+// TODO(qianzhang): Kill policy helpers are not yet enabled on Windows. See
+// MESOS-8168.
 #ifndef __WINDOWS__
 // This test ensures that a task will transition straight from `TASK_KILLING` to
 // `TASK_KILLED`, even if the health check begins to fail during the kill policy
