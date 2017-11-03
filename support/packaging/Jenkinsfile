@@ -2,12 +2,40 @@ def dockerArgs() {
   def workspace_dir = pwd()
   sh "mkdir -p ${workspace_dir}/.m2"
 
-  def args = "-e MESOS_TAG=${params.MESOS_TAG}"
+  def args = ""
+      args = "${args} -e MESOS_TAG=${params.MESOS_TAG}"
       args = "${args} -e MESOS_RELEASE=${params.MESOS_RELEASE}"
+
+      // Jenkins runs docker containers with the current user and group
+      // ('-u$(id -u):$(id -g)'). Here we map /etc/{passwd,group} inside the
+      // container so that the rpm/deb files will be created with the correct
+      // uid/gid.
       args = "${args} -v=/etc/passwd:/etc/passwd"
       args = "${args} -v=/etc/group:/etc/group"
+
+      // Jenkins maps the current working directory into the container using
+      // '-v=$PWD:$PWD,rw,z'. As a result the $HOME directory is also mapped as
+      // $HOME in the container, but without any write permissions. Thus, when
+      // Maven tries to use $HOME/.m2 for downloading dependencies, it fails.
+      // The following volume mount solves this by explicitly mounting $HOME/.m2
+      // inside the container.
       args = "${args} -v=${workspace_dir}/.m2:$HOME/.m2:rw,z"
   return args
+}
+
+def uploadToBintray(def pattern) {
+  withCredentials([string(credentialsId: 'karya_bintray_credentials', variable: 'BINTRAY_CREDS')]) {
+    // Do not upload debug packages yet as they are larger than the max file
+    // upload size imposed by bintray for the mesos org (250 MB). Once the mesos
+    // repos are moved under the apache org, we'll probably be able to upload
+    // larger files. An alternative would be to split mesos package into smaller
+    // packages such as mesos-sched, mesos-modules, etc., and then have the
+    // mesos meta package declare a dependency on these sub packages. That way
+    // we can have much smaller debug files.
+    sh 'find . -name ' + pattern ' | ' +
+       'grep -v debug | ' +
+       'while read rpm ; do support/packaging/bintray.sh $rpm; done'
+  }
 }
 
 parallel(centos7: {
@@ -23,11 +51,11 @@ parallel(centos7: {
     }
 
     img.inside(dockerArgs()) {
-      sh 'hostname && hostname && cat /etc/*rel* || true'
       sh 'support/packaging/centos/build_rpm.sh'
     }
 
     archiveArtifacts artifacts: '**/*.rpm', fingerprint: true
+    uploadToBintray('*.rpm')
   }
 },
 centos6: {
@@ -43,10 +71,10 @@ centos6: {
     }
 
     img.inside(dockerArgs()) {
-      sh 'hostname && hostname && cat /etc/*rel* || true'
       sh 'support/packaging/centos/build_rpm.sh'
     }
 
     archiveArtifacts artifacts: '**/*.rpm', fingerprint: true
+    uploadToBintray('*.rpm')
   }
 })

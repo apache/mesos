@@ -4,11 +4,14 @@ CENTOS_VERSION=$(rpm --eval '%{centos_ver}')
 MESOS_VERSION=${MESOS_TAG%[-]*}
 MESOS_RELEASE=${MESOS_RELEASE:-1}
 
+PACKAGING_DIR=$(readlink -e "$(dirname "$(dirname "$0")")")
+MESOS_DIR=$(readlink -e $PACKAGING_DIR/../../)
+
+pushd "${MESOS_DIR}"
+
 export HOME="${PWD}/centos${CENTOS_VERSION}"
 mkdir -p $HOME/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
-PACKAGING_DIR=$(readlink -e "$(dirname "$(dirname "$0")")")
-MESOS_DIR=$(readlink -e $PACKAGING_DIR/../../)
 cp ${PACKAGING_DIR}/common/* $HOME/rpmbuild/SOURCES
 cp ${PACKAGING_DIR}/centos/mesos.spec $HOME/rpmbuild/SPECS
 
