@@ -11,6 +11,7 @@ set -xe
 : ${COMPILER:?"Environment variable 'COMPILER' must be set (e.g., COMPILER=gcc)"}
 : ${CONFIGURATION:?"Environment variable 'CONFIGURATION' must be set (e.g., CONFIGURATION='--enable-libevent --enable-ssl')"}
 : ${ENVIRONMENT:?"Environment variable 'ENVIRONMENT' must be set (e.g., ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1')"}
+: ${JOBS:=6}
 
 # Change to the root of Mesos repo for docker build context.
 MESOS_DIRECTORY=$( cd "$( dirname "$0" )/.." && pwd )
@@ -151,12 +152,12 @@ if [ -n "$COVERITY_TOKEN" ]
     append_dockerfile "ENV MESOS_VERSION $(grep "AC_INIT" configure.ac | sed 's/AC_INIT[(]\[mesos\], \[\(.*\)\][)]/\1/')"
     append_dockerfile "RUN wget https://scan.coverity.com/download/linux64  --post-data \"token=$COVERITY_TOKEN&project=Mesos\" -O coverity_tool.tgz"
     append_dockerfile "RUN tar xvf coverity_tool.tgz; mv cov-analysis-linux* cov-analysis"
-    append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION &&  cov-analysis/bin/cov-build -dir cov-int make -j6 && tar czcf mesos.tgz cov-int && tail cov-int/build-log.txt && curl --form \"token=$COVERITY_TOKEN\" --form \"email=dev@mesos.apache.org\"  --form \"file=@mesos.tgz\" --form \"version=$MESOS_VERSION\" --form \"description='Continious Coverity Build'\"   https://scan.coverity.com/builds?project=Mesos"
+    append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION &&  cov-analysis/bin/cov-build -dir cov-int make -j$JOBS && tar czcf mesos.tgz cov-int && tail cov-int/build-log.txt && curl --form \"token=$COVERITY_TOKEN\" --form \"email=dev@mesos.apache.org\"  --form \"file=@mesos.tgz\" --form \"version=$MESOS_VERSION\" --form \"description='Continious Coverity Build'\"   https://scan.coverity.com/builds?project=Mesos"
 else
     # Build and check Mesos.
     case $BUILDTOOL in
       autotools)
-	append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && make -j6 distcheck 2>&1"
+	append_dockerfile "CMD ./bootstrap && ./configure $CONFIGURATION && make -j$JOBS distcheck 2>&1"
 	;;
       cmake)
 	# Transform autotools-like parameters to cmake-like.
@@ -180,7 +181,7 @@ else
 
 	# MESOS-5433: `distcheck` is not supported.
 	# MESOS-5624: In source build is not supported.
-	append_dockerfile "CMD mkdir build && cd build && cmake $CONFIGURATION .. && make -j6 check"
+	append_dockerfile "CMD mkdir build && cd build && cmake $CONFIGURATION .. && make -j$JOBS check"
 	;;
       *)
 	echo "Unknown build tool $BUILDTOOL"
