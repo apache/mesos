@@ -11,6 +11,7 @@ All Resolved Issues:
  * [MESOS-7968] - Handle `/proc/self/ns/pid_for_children` when parsing available namespace.
  * [MESOS-7969] - Handle cgroups v2 hierarchy when parsing /proc/self/cgroups.
  * [MESOS-7980] - Stout fails to compile with libc >= 2.26.
+ * [MESOS-8080] - The default executor does not propagate missing task exit status correctly.
  * [MESOS-8135] - Masters can lose track of tasks' executor IDs.
 
 
