@@ -44,37 +44,45 @@ REVIEWBOARD_URL = 'https://reviews.apache.org'
 
 def get_reviews(revision_range):
     """Return the list of reviews found in the commits in the revision range."""
-    log = check_output(['git',
-                        '--no-pager',
-                        'log',
-                        '--no-color',
-                        '--reverse',
-                        revision_range]).strip()
+    reviews = [] # List of (review id, commit log) tuples
 
-    review_ids = []
-    for line in log.split('\n'):
-        pos = line.find('Review: ')
+    rev_list = check_output(['git',
+                             'rev-list',
+                             '--reverse',
+                             revision_range]).strip().split('\n')
+    for rev in rev_list:
+        commit_log = check_output(['git',
+                                   '--no-pager',
+                                   'show',
+                                   '--no-color',
+                                   '--no-patch',
+                                   rev]).strip()
+
+        pos = commit_log.find('Review: ')
         if pos != -1:
             pattern = re.compile('Review: ({url})$'.format(
                 url=os.path.join(REVIEWBOARD_URL, 'r', '[0-9]+')))
-            match = pattern.search(line.strip().strip('/'))
+            match = pattern.search(commit_log.strip().strip('/'))
             if match is None:
-                print "\nInvalid ReviewBoard URL: '{}'".format(line[pos:])
+                print "\nInvalid ReviewBoard URL: '{}'".format(commit_log[pos:])
                 sys.exit(1)
 
             url = match.group(1)
-            review_ids.append(os.path.basename(url))
+            reviews.append((os.path.basename(url), commit_log))
 
-    return review_ids
+    return reviews
 
 
 def close_reviews(reviews, options):
     """Mark the given reviews as submitted on ReviewBoard."""
-    for review_id in reviews:
+    for review_id, commit_log in reviews:
         print 'Closing review', review_id
         if not options['dry_run']:
-            # TODO(vinod): Include the commit message as '--description'.
-            check_output(['rbt', 'close', review_id])
+            check_output(['rbt',
+                          'close',
+                          '--description',
+                          commit_log,
+                          review_id])
 
 
 def parse_options():
@@ -121,8 +129,6 @@ def main():
         sys.exit(1)
 
     reviews = get_reviews(merge_base + ".." + current_branch_ref)
-
-    print 'Found reviews', reviews
 
     # Push the current branch to remote master.
     remote = check_output(['git',
