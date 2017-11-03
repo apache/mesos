@@ -151,7 +151,35 @@ namespace tests {
 // that seem vaguely more slave than master-related are in this file.
 // The others are in "master_tests.cpp".
 
-class SlaveTest : public MesosTest {};
+class SlaveTest : public MesosTest
+{
+public:
+  const std::string defaultIsolators{
+#ifdef __WINDOWS__
+      "windows/cpu"
+#else
+      "posix/cpu,posix/mem"
+#endif // __WINDOWS__
+      };
+
+  CommandInfo echoAuthorCommand()
+  {
+    CommandInfo command;
+    command.set_shell(false);
+#ifdef __WINDOWS__
+    command.set_value("powershell.exe");
+    command.add_arguments("powershell.exe");
+    command.add_arguments("-NoProfile");
+    command.add_arguments("-Command");
+    command.add_arguments("echo --author");
+#else
+    command.set_value("/bin/echo");
+    command.add_arguments("/bin/echo");
+    command.add_arguments("--author");
+#endif // __WINDOWS__
+    return command;
+  };
+};
 
 
 // This test ensures that when a slave shuts itself down, it
@@ -327,7 +355,7 @@ TEST_F(SlaveTest, DuplicateTerminalUpdateBeforeAck)
 }
 
 
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ShutdownUnregisteredExecutor)
+TEST_F(SlaveTest, ShutdownUnregisteredExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -336,7 +364,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ShutdownUnregisteredExecutor)
   slave::Flags flags = CreateSlaveFlags();
   // Set the isolation flag so we know a MesosContainerizer will
   // be created.
-  flags.isolation = "posix/cpu,posix/mem";
+  flags.isolation = defaultIsolators;
 
   Fetcher fetcher(flags);
 
@@ -616,14 +644,14 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
 // mesos-executor args. For more details of this see MESOS-1873.
 //
 // This assumes the ability to execute '/bin/echo --author'.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithArguments)
+TEST_F(SlaveTest, CommandTaskWithArguments)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Need flags for 'executor_registration_timeout'.
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem";
+  flags.isolation = defaultIsolators;
 
   Fetcher fetcher(flags);
 
@@ -663,13 +691,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, CommandTaskWithArguments)
   task.mutable_resources()->MergeFrom(offers.get()[0].resources());
 
   // Command executor will run as user running test.
-  CommandInfo command;
-  command.set_shell(false);
-  command.set_value("/bin/echo");
-  command.add_arguments("/bin/echo");
-  command.add_arguments("--author");
-
-  task.mutable_command()->MergeFrom(command);
+  task.mutable_command()->MergeFrom(echoAuthorCommand());
 
   Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
@@ -783,7 +805,7 @@ TEST_F(SlaveTest, CommandTaskWithKillPolicy)
 
 // Don't let args from the CommandInfo struct bleed over into
 // mesos-executor forking. For more details of this see MESOS-1873.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfo)
+TEST_F(SlaveTest, GetExecutorInfo)
 {
   TestContainerizer containerizer;
   StandaloneMasterDetector detector;
@@ -813,14 +835,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfo)
   task.mutable_slave_id()->set_value(
       "20141010-221431-251662764-60288-32120-0001");
   task.mutable_resources()->MergeFrom(taskResources);
-
-  CommandInfo command;
-  command.set_shell(false);
-  command.set_value("/bin/echo");
-  command.add_arguments("/bin/echo");
-  command.add_arguments("--author");
-
-  task.mutable_command()->MergeFrom(command);
+  task.mutable_command()->MergeFrom(echoAuthorCommand());
 
   DiscoveryInfo* info = task.mutable_discovery();
   info->set_visibility(DiscoveryInfo::EXTERNAL);
@@ -852,7 +867,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfo)
 // Ensure getExecutorInfo for mesos-executor gets the ContainerInfo,
 // if present. This ensures the MesosContainerizer can get the
 // NetworkInfo even when using the command executor.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfoForTaskWithContainer)
+TEST_F(SlaveTest, GetExecutorInfoForTaskWithContainer)
 {
   TestContainerizer containerizer;
   StandaloneMasterDetector detector;
@@ -881,14 +896,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfoForTaskWithContainer)
   task.mutable_slave_id()->set_value(
       "20141010-221431-251662764-60288-12345-0001");
   task.mutable_resources()->MergeFrom(taskResources);
-
-  CommandInfo command;
-  command.set_shell(false);
-  command.set_value("/bin/echo");
-  command.add_arguments("/bin/echo");
-  command.add_arguments("--author");
-
-  task.mutable_command()->MergeFrom(command);
+  task.mutable_command()->MergeFrom(echoAuthorCommand());
 
   ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
@@ -924,14 +932,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfoForTaskWithContainer)
 // MesosContainerizer would fail the launch.
 //
 // TODO(jieyu): Move this test to the mesos containerizer tests.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
+TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Need flags for 'executor_registration_timeout'.
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem";
+  flags.isolation = defaultIsolators;
 
   Fetcher fetcher(flags);
 
@@ -967,14 +975,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   task.mutable_slave_id()->set_value(
       "20141010-221431-251662764-60288-12345-0001");
   task.mutable_resources()->MergeFrom(taskResources);
-
-  CommandInfo command;
-  command.set_shell(false);
-  command.set_value("/bin/echo");
-  command.add_arguments("/bin/echo");
-  command.add_arguments("--author");
-
-  task.mutable_command()->MergeFrom(command);
+  task.mutable_command()->MergeFrom(echoAuthorCommand());
 
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
@@ -3651,6 +3652,8 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
 // This test verifies that when an unreachable agent reregisters after
 // master failover, the master consults and updates the registrar for
 // re-admitting the agent.
+//
+// TODO(andschwa): Enable when Windows supports replicated log. See MESOS-5932.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
     SlaveTest, UnreachableAgentReregisterAfterFailover)
 {
@@ -3749,6 +3752,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 // This test verifies that when a registered agent restarts and reregisters
 // after master failover, the master does not consult the registrar in
 // deciding to re-admit the agent.
+//
+// TODO(andschwa): Enable when Windows supports replicated log. See MESOS-5932.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
     SlaveTest, RegisteredAgentReregisterAfterFailover)
 {
