@@ -21,10 +21,38 @@ set -o pipefail
 
 MESOS_DIR=$(git rev-parse --show-toplevel)
 
+DEFAULT_CHECKS=
+
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'clang-diagnostic-*'
+
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'clang-analyzer-*'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-clang-analyzer-'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-clang-analyzer-core.CallAndMessage'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-clang-analyzer-core.NonNullParamChecker'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-clang-analyzer-core.NullDereference'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-clang-analyzer-cplusplus.NewDelete'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-clang-analyzer-optin.cplusplus.VirtualCall'
+
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'google-*'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-google-build-using-namespace'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-google-default-arguments'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-google-explicit-constructor'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-google-global-names-in-headers'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-google-readability-namespace-comments'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-google-runtime-int'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-google-runtime-member-string-references'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-google-readability-casting'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-google-runtime-references'
+
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'mesos-*'
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'-mesos-this-capture'
+
+DEFAULT_CHECKS=${DEFAULT_CHECKS},'readability-redundant-string-cstr'
+
 # Configure how checks are run. These variables can be overridden by setting the
 # respective environment variables before invoking this script.
 # TODO(bbannier): Enable more upstream checks by default, e.g., from the Google set.
-CHECKS=${CHECKS:-'-*,mesos-*,readability-redundant-string-cstr'}
+CHECKS=${CHECKS:-${DEFAULT_CHECKS}}
 
 # Check for unstaged or uncommitted changes.
 if ! $(git diff-index --quiet HEAD --); then
