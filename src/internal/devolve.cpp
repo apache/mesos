@@ -116,16 +116,19 @@ Resource devolve(const v1::Resource& resource)
 }
 
 
+ResourceProviderID devolve(const v1::ResourceProviderID& resourceProviderId)
+{
+  // NOTE: We do not use the common 'devolve' call for performance.
+  ResourceProviderID id;
+  id.set_value(resourceProviderId.value());
+  return id;
+}
+
+
 Resources devolve(const v1::Resources& resources)
 {
   return devolve<Resource>(
       static_cast<const RepeatedPtrField<v1::Resource>&>(resources));
-}
-
-
-ResourceProviderID devolve(const v1::ResourceProviderID& resourceProviderId)
-{
-  return devolve<ResourceProviderID>(resourceProviderId);
 }
 
 

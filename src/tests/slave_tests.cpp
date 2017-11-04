@@ -8775,6 +8775,164 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
 }
 
 
+// This test checks that before a workload (executor or task) is
+// launched, all resources from resoruce providers nended to run the
+// current set of workloads are properly published.
+TEST_F(SlaveTest, ResourceProviderPublishAll)
+{
+  // Start an agent and a master.
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability and other required capabilities.
+  constexpr SlaveInfo::Capability::Type capabilities[] = {
+    SlaveInfo::Capability::MULTI_ROLE,
+    SlaveInfo::Capability::HIERARCHICAL_ROLE,
+    SlaveInfo::Capability::RESERVATION_REFINEMENT,
+    SlaveInfo::Capability::RESOURCE_PROVIDER
+  };
+
+  flags.agent_features = SlaveCapabilities();
+  foreach (SlaveInfo::Capability::Type type, capabilities) {
+    flags.agent_features->add_capabilities()->set_type(type);
+  }
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Register a mock local resource provider with the agent.
+  v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.local.mock");
+  resourceProviderInfo.set_name("test");
+
+  vector<v1::Resource> resources = {
+      v1::Resources::parse("disk", "4096", "role1").get(),
+      v1::Resources::parse("disk", "4096", "role2").get()
+  };
+
+  v1::MockResourceProvider resourceProvider(resourceProviderInfo, resources);
+
+  string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+  if (process::network::openssl::flags().enabled) {
+    scheme = "https";
+  }
+#endif
+
+  process::http::URL url(
+      scheme,
+      slave.get()->pid.address.ip,
+      slave.get()->pid.address.port,
+      slave.get()->pid.id + "/api/v1/resource_provider");
+
+  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+
+  resourceProvider.start(
+      endpointDetector,
+      ContentType::PROTOBUF,
+      v1::DEFAULT_CREDENTIAL);
+
+  // We want to register two frameworks to launch two concurrent tasks
+  // that use the provider resources, and verify that when the second
+  // task is launched, all provider resources are published.
+  // NOTE: The mock schedulers and drivers are stored outside the loop
+  // to avoid implicit destruction before the test ends.
+  vector<Owned<MockScheduler>> scheds;
+  vector<Owned<MesosSchedulerDriver>> drivers;
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  for (size_t i = 0; i < resources.size(); i++) {
+    FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+    framework.set_roles(0, resources.at(i).reservations(0).role());
+
+    Owned<MockScheduler> sched(new MockScheduler());
+    Owned<MesosSchedulerDriver> driver(new MesosSchedulerDriver(
+        sched.get(), framework, master.get()->pid, DEFAULT_CREDENTIAL));
+
+    EXPECT_CALL(*sched, registered(driver.get(), _, _));
+
+    Future<vector<Offer>> offers;
+
+    // Decline unmatched offers.
+    // NOTE: This ensures that this framework do not hold the agent's
+    // default resources. Otherwise, the other one will get no offer.
+    EXPECT_CALL(*sched, resourceOffers(driver.get(), _))
+      .WillRepeatedly(DeclineOffers());
+
+    EXPECT_CALL(*sched, resourceOffers(driver.get(), OffersHaveAnyResource(
+        std::bind(&Resources::isReserved, lambda::_1, framework.roles(0)))))
+      .WillOnce(FutureArg<1>(&offers));
+
+    driver->start();
+
+    AWAIT_READY(offers);
+    ASSERT_FALSE(offers->empty());
+
+    Future<mesos::v1::resource_provider::Event::Publish> publish;
+
+    // Two PUBLISH events will be received: one for launching the
+    // executor, and the other for launching the task.
+    EXPECT_CALL(resourceProvider, publish(_))
+      .WillOnce(
+          Invoke(&resourceProvider,
+                 &v1::MockResourceProvider::publishDefault))
+      .WillOnce(DoAll(
+          FutureArg<0>(&publish),
+          Invoke(&resourceProvider,
+                 &v1::MockResourceProvider::publishDefault)));
+
+    Future<TaskStatus> taskStarting;
+    Future<TaskStatus> taskRunning;
+
+    EXPECT_CALL(*sched, statusUpdate(driver.get(), _))
+      .WillOnce(FutureArg<1>(&taskStarting))
+      .WillOnce(FutureArg<1>(&taskRunning));
+
+    // Launch a task using a provider resource.
+    driver->acceptOffers(
+        {offers->at(0).id()},
+        {LAUNCH({createTask(
+            offers->at(0).slave_id(),
+            Resources(offers->at(0).resources()).reserved(framework.roles(0)),
+            createCommandInfo("sleep 1000"))})},
+        filters);
+
+    AWAIT_READY(publish);
+
+    // Test if the resources of all running executors are published.
+    // This is checked through counting how many reservatinos there are
+    // in the published resources: one (role1) when launching the first
+    // task, two (role1, role2) when the second task is launched.
+    EXPECT_EQ(i + 1, v1::Resources(publish->resources()).reservations().size());
+
+    AWAIT_READY(taskStarting);
+    EXPECT_EQ(TASK_STARTING, taskStarting->state());
+
+    AWAIT_READY(taskRunning);
+    EXPECT_EQ(TASK_RUNNING, taskRunning->state());
+
+    // Store the mock scheduler and driver to prevent destruction.
+    scheds.emplace_back(std::move(sched));
+    drivers.emplace_back(std::move(driver));
+  }
+}
+
+
 // This test checks that the agent correctly updates and sends
 // resource version values when it registers or reregisters.
 TEST_F(SlaveTest, ResourceVersions)

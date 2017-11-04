@@ -567,6 +567,14 @@ private:
 
   void apply(const std::vector<ResourceConversion>& conversions);
 
+  // Publish all resources that are needed to run the current set of
+  // tasks and executors on the agent.
+  // NOTE: The `additionalResources` parameter is for publishing
+  // additional task resources when launching executors. Consider
+  // removing this parameter once we revisited MESOS-600.
+  process::Future<Nothing> publishResources(
+      const Option<Resources>& additionalResources = None());
+
   // Gauge methods.
   double _frameworks_active()
   {

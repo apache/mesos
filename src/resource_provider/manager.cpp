@@ -538,6 +538,10 @@ Future<Nothing> ResourceProviderManagerProcess::publish(
     ResourceProvider* resourceProvider =
       resourceProviders.subscribed.at(resourceProviderId).get();
 
+    LOG(INFO)
+      << "Sending PUBLISH event " << uuid << " with resources '" << resources
+      << "' to resource provider " << resourceProviderId;
+
     if (!resourceProvider->http.send(event)) {
       return Failure(
           "Failed to send PUBLISH event to resource provider " +
@@ -676,6 +680,11 @@ void ResourceProviderManagerProcess::updatePublishStatus(
                << uuid->toString() << " is unknown";
     return;
   }
+
+  LOG(INFO)
+    << "Received UPDATE_PUBLISH_STATUS call for PUBLISH event " << uuid.get()
+    << " with " << update.status() << " status from resource provider "
+    << resourceProvider->info.id();
 
   if (update.status() == Call::UpdatePublishStatus::OK) {
     resourceProvider->publishes.at(uuid.get())->set(Nothing());

@@ -164,6 +164,16 @@ v1::Resource evolve(const Resource& resource)
 }
 
 
+v1::ResourceProviderID evolve(
+    const ResourceProviderID& resourceProviderId)
+{
+  // NOTE: We do not use the common 'devolve' call for performance.
+  v1::ResourceProviderID id;
+  id.set_value(resourceProviderId.value());
+  return id;
+}
+
+
 v1::Resources evolve(const Resources& resources)
 {
   return evolve<v1::Resource>(

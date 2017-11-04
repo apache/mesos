@@ -75,6 +75,7 @@ v1::MasterInfo evolve(const MasterInfo& masterInfo);
 v1::Offer evolve(const Offer& offer);
 v1::OfferID evolve(const OfferID& offerId);
 v1::Resource evolve(const Resource& resource);
+v1::ResourceProviderID evolve(const ResourceProviderID& resourceProviderId);
 v1::Resources evolve(const Resources& resources);
 v1::Task evolve(const Task& task);
 v1::TaskID evolve(const TaskID& taskId);

@@ -440,6 +440,7 @@ using mesos::v1::MachineID;
 using mesos::v1::Metric;
 using mesos::v1::Offer;
 using mesos::v1::Resource;
+using mesos::v1::ResourceProviderInfo;
 using mesos::v1::Resources;
 using mesos::v1::TaskID;
 using mesos::v1::TaskInfo;
@@ -1345,7 +1346,7 @@ inline typename TOffer::Operation CREATE_VOLUME(
   typename TOffer::Operation operation;
   operation.set_type(TOffer::Operation::CREATE_VOLUME);
   operation.mutable_create_volume()->mutable_source()->CopyFrom(source);
-  operation.set_target_type(type);
+  operation.mutable_create_volume()->set_target_type(type);
   return operation;
 }
 
@@ -2848,6 +2849,22 @@ public:
               Operation,
               Source>::operationDefault));
     EXPECT_CALL(*this, operation(_)).WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, publish(_))
+      .WillByDefault(Invoke(
+          this,
+          &MockResourceProvider<
+              Event,
+              Call,
+              Driver,
+              ResourceProviderInfo,
+              Resource,
+              Resources,
+              ResourceProviderID,
+              OfferOperationState,
+              Operation,
+              Source>::publishDefault));
+    EXPECT_CALL(*this, publish(_)).WillRepeatedly(DoDefault());
   }
 
   MOCK_METHOD0_T(connected, void());
@@ -3027,7 +3044,7 @@ public:
           ->Mutable(0)
           ->mutable_disk()
           ->mutable_source()
-          ->set_type(Source::BLOCK);
+          ->set_type(Source::RAW);
         break;
       case Operation::CREATE_BLOCK:
         update->mutable_status()->add_converted_resources()->CopyFrom(
@@ -3054,6 +3071,22 @@ public:
     }
 
     update->mutable_latest_status()->CopyFrom(update->status());
+
+    driver->send(call);
+  }
+
+  void publishDefault(const typename Event::Publish& publish)
+  {
+    CHECK(info.has_id());
+
+    Call call;
+    call.set_type(Call::UPDATE_PUBLISH_STATUS);
+    call.mutable_resource_provider_id()->CopyFrom(info.id());
+
+    typename Call::UpdatePublishStatus* update =
+      call.mutable_update_publish_status();
+    update->set_uuid(publish.uuid());
+    update->set_status(Call::UpdatePublishStatus::OK);
 
     driver->send(call);
   }

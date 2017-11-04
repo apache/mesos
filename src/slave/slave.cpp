@@ -2554,9 +2554,12 @@ void Slave::__run(
       LOG(INFO) << "Queued " << taskOrTaskGroup(task, taskGroup)
                 << " for executor " << *executor;
 
-      containerizer->update(
-          executor->containerId,
-          executor->allocatedResources())
+      publishResources()
+        .then(defer(self(), [=] {
+          return containerizer->update(
+              executor->containerId,
+              executor->allocatedResources());
+        }))
         .onAny(defer(self(),
                      &Self::___run,
                      lambda::_1,
@@ -2998,11 +3001,19 @@ void Slave::launchExecutor(
             << "' of framework " << framework->id();
 
   // Launch the container.
-  containerizer->launch(
-      executor->containerId,
-      containerConfig,
-      environment,
-      pidCheckpointPath)
+  // NOTE: Since we modify the ExecutorInfo to include the task's
+  // resources when launching the executor, these resources need to be
+  // published before the containerizer preparing them. This should be
+  // revisited after MESOS-600.
+  publishResources(
+      taskInfo.isSome() ? taskInfo->resources() : Option<Resources>::none())
+    .then(defer(self(), [=] {
+      return containerizer->launch(
+          executor->containerId,
+          containerConfig,
+          environment,
+          pidCheckpointPath);
+    }))
     .onAny(defer(self(),
                  &Self::executorLaunched,
                  frameworkId,
@@ -4154,9 +4165,12 @@ void Slave::subscribe(
         }
       }
 
-      containerizer->update(
-          executor->containerId,
-          executor->allocatedResources())
+      publishResources()
+        .then(defer(self(), [=] {
+          return containerizer->update(
+              executor->containerId,
+              executor->allocatedResources());
+        }))
         .onAny(defer(self(),
                      &Self::___run,
                      lambda::_1,
@@ -4358,9 +4372,12 @@ void Slave::registerExecutor(
         }
       }
 
-      containerizer->update(
-          executor->containerId,
-          executor->allocatedResources())
+      publishResources()
+        .then(defer(self(), [=] {
+          return containerizer->update(
+              executor->containerId,
+              executor->allocatedResources());
+        }))
         .onAny(defer(self(),
                      &Self::___run,
                      lambda::_1,
@@ -7320,6 +7337,33 @@ void Slave::apply(const vector<ResourceConversion>& conversions)
   CHECK_SOME(resources);
 
   totalResources = resources.get();
+}
+
+
+Future<Nothing> Slave::publishResources(
+    const Option<Resources>& additionalResources)
+{
+  Resources resources;
+
+  // NOTE: For resources providers that serve quantity-based resources
+  // without any identifiers (such as memory), it is very hard to keep
+  // track of published resources. So instead of implementing diff-based
+  // resource publishing, we implement an "ensure-all" semantics, and
+  // always calculate the total resources that need to remain published.
+  foreachvalue (const Framework* framework, frameworks) {
+    // NOTE: We do not call `framework->allocatedResource()` here
+    // because we do not want to publsh resources for pending tasks that
+    // have not been authorized yet.
+    foreachvalue (const Executor* executor, framework->executors) {
+      resources += executor->allocatedResources();
+    }
+  }
+
+  if (additionalResources.isSome()) {
+    resources += additionalResources.get();
+  }
+
+  return resourceProviderManager.publish(resources);
 }
 
 
