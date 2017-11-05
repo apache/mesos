@@ -143,11 +143,13 @@ public:
 
     cout << "Task " << taskId << " is in state " << status.state() << endl;
 
-    if (status.state() == TASK_FINISHED)
+    if (status.state() == TASK_FINISHED) {
       tasksFinished++;
+    }
 
-    if (tasksFinished == totalTasks)
+    if (tasksFinished == totalTasks) {
       driver->stop();
+    }
   }
 
   virtual void frameworkMessage(SchedulerDriver* driver,

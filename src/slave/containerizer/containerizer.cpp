@@ -91,14 +91,15 @@ Try<Resources> Containerizer::resources(const Flags& flags)
   bool hasPorts = false;
 
   foreach (const Resource& resource, resourceList) {
-    if (resource.name() == "cpus")
+    if (resource.name() == "cpus") {
       hasCpus = true;
-    else if (resource.name() == "mem")
+    } else if (resource.name() == "mem") {
       hasMem = true;
-    else if (resource.name() == "disk")
+    } else if (resource.name() == "disk") {
       hasDisk = true;
-    else if (resource.name() == "ports")
+    } else if (resource.name() == "ports") {
       hasPorts = true;
+    }
   }
 
   if (!hasCpus) {
