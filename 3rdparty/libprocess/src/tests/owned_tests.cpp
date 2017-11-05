@@ -39,13 +39,11 @@ TEST(OwnedTest, Access)
 
   EXPECT_EQ(42, owned->get());
   EXPECT_EQ(42, (*owned).get());
-  EXPECT_EQ(42, owned.get()->get());
 
   owned->set(10);
 
   EXPECT_EQ(10, owned->get());
   EXPECT_EQ(10, (*owned).get());
-  EXPECT_EQ(10, owned.get()->get());
 }
 
 
@@ -68,7 +66,6 @@ TEST(OwnedTest, Share)
 
   EXPECT_EQ(42, owned->get());
   EXPECT_EQ(42, (*owned).get());
-  EXPECT_EQ(42, owned.get()->get());
 
   Shared<Foo> shared = owned.share();
 
@@ -77,14 +74,12 @@ TEST(OwnedTest, Share)
 
   EXPECT_EQ(42, shared->get());
   EXPECT_EQ(42, (*shared).get());
-  EXPECT_EQ(42, shared.get()->get());
 
   {
     Shared<Foo> shared2(shared);
 
     EXPECT_EQ(42, shared2->get());
     EXPECT_EQ(42, (*shared2).get());
-    EXPECT_EQ(42, shared2.get()->get());
     EXPECT_FALSE(shared.unique());
     EXPECT_FALSE(shared2.unique());
   }
@@ -102,7 +97,6 @@ TEST(OwnedTest, Release)
 
   EXPECT_EQ(42, owned->get());
   EXPECT_EQ(42, (*owned).get());
-  EXPECT_EQ(42, owned.get()->get());
 
   Foo* raw = owned.release();
   EXPECT_EQ(nullptr, owned.get());

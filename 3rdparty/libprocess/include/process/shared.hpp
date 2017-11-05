@@ -115,7 +115,7 @@ const T* Shared<T>::operator->() const
 template <typename T>
 const T* Shared<T>::get() const
 {
-  if (data.get() == nullptr) {
+  if (data == nullptr) {
     return nullptr;
   } else {
     return data->t;
@@ -162,7 +162,7 @@ Future<Owned<T>> Shared<T>::own()
   // of them is a write, the behavior is undefined. This is similar to
   // boost::shared_ptr. For more details, please refer to the boost
   // shared_ptr document (section "Thread Safety").
-  if (data.get() == nullptr) {
+  if (data == nullptr) {
     return Owned<T>(nullptr);
   }
 

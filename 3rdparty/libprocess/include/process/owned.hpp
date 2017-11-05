@@ -114,7 +114,7 @@ T* Owned<T>::operator->() const
 template <typename T>
 T* Owned<T>::get() const
 {
-  if (data.get() == nullptr) {
+  if (data == nullptr) {
     return nullptr;
   } else {
     // Static cast to avoid ambiguity in Visual Studio compiler.
@@ -154,7 +154,7 @@ void Owned<T>::swap(Owned<T>& that)
 template <typename T>
 Shared<T> Owned<T>::share()
 {
-  if (data.get() == nullptr) {
+  if (data == nullptr) {
     // The ownership of this pointer has already been lost.
     return Shared<T>(nullptr);
   }
@@ -174,7 +174,7 @@ Shared<T> Owned<T>::share()
 template <typename T>
 T* Owned<T>::release()
 {
-  if (data.get() == nullptr) {
+  if (data == nullptr) {
     // The ownership of this pointer has already been lost.
     return nullptr;
   }
