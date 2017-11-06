@@ -441,7 +441,7 @@ mesos::internal::slave::Flags::Flags()
       "reconnect: Reconnect with any old live executors.\n"
       "cleanup  : Kill any old live executors and exit.\n"
       "           Use this option when doing an incompatible agent\n"
-      "           or executor upgrade!).",
+      "           or executor upgrade.",
       "reconnect");
 
   add(&Flags::recovery_timeout,
