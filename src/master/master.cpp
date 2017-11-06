@@ -7353,7 +7353,7 @@ void Master::offerOperationStatusUpdate(
     ? update.framework_id()
     : Option<FrameworkID>::none();
 
-  Try<UUID> uuid = UUID::fromString(update.operation_uuid());
+  Try<UUID> uuid = UUID::fromBytes(update.operation_uuid());
   if (uuid.isError()) {
     LOG(ERROR) << "Failed to parse offer operation UUID for operation "
                << "'" << update.status().operation_id() << "' for "
