@@ -5210,7 +5210,8 @@ void Master::_accept(
             protobuf::createOfferOperation(
                 operation,
                 protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
-                frameworkId));
+                frameworkId,
+                slaveId));
 
         addOfferOperation(framework, slave, offerOperation);
 
@@ -5253,7 +5254,8 @@ void Master::_accept(
             protobuf::createOfferOperation(
                 operation,
                 protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
-                frameworkId));
+                frameworkId,
+                slaveId));
 
         addOfferOperation(framework, slave, offerOperation);
 
@@ -5296,7 +5298,8 @@ void Master::_accept(
             protobuf::createOfferOperation(
                 operation,
                 protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
-                frameworkId));
+                frameworkId,
+                slaveId));
 
         addOfferOperation(framework, slave, offerOperation);
 
@@ -5339,7 +5342,8 @@ void Master::_accept(
             protobuf::createOfferOperation(
                 operation,
                 protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
-                frameworkId));
+                frameworkId,
+                slaveId));
 
         addOfferOperation(framework, slave, offerOperation);
 
@@ -9868,7 +9872,8 @@ void Master::_apply(
         protobuf::createOfferOperation(
             operation,
             protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
-            framework->id()));
+            framework->id(),
+            slave->id));
 
     addOfferOperation(framework, slave, offerOperation);
 

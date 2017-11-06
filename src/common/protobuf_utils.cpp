@@ -443,10 +443,12 @@ OfferOperationStatus createOfferOperationStatus(
 OfferOperation createOfferOperation(
     const Offer::Operation& info,
     const OfferOperationStatus& latestStatus,
-    const FrameworkID& frameworkId)
+    const FrameworkID& frameworkId,
+    const SlaveID& slaveId)
 {
   OfferOperation operation;
   operation.mutable_framework_id()->CopyFrom(frameworkId);
+  operation.mutable_slave_id()->CopyFrom(slaveId);
   operation.mutable_info()->CopyFrom(info);
   operation.mutable_latest_status()->CopyFrom(latestStatus);
   operation.set_operation_uuid(UUID::random().toBytes());
