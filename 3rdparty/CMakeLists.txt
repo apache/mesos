@@ -112,6 +112,8 @@ endif ()
 
 foreach (lang C CXX)
   list(APPEND CMAKE_FORWARD_ARGS
+    -DCMAKE_${lang}_COMPILER=${CMAKE_${lang}_COMPILER}
+    -DCMAKE_${lang}_COMPILER_LAUNCHER=${CMAKE_${lang}_COMPILER_LAUNCHER}
     -DCMAKE_${lang}_FLAGS=${CMAKE_${lang}_FLAGS})
 
   foreach (config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
