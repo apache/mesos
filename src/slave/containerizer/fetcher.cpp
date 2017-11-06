@@ -43,6 +43,8 @@
 
 #include "hdfs/hdfs.hpp"
 
+#include "common/status_utils.hpp"
+
 #include "slave/containerizer/fetcher_process.hpp"
 
 using std::list;
@@ -888,19 +890,18 @@ Future<Nothing> FetcherProcess::run(
   // Remember this PID in case we need to kill the subprocess. See
   // FetcherProcess::kill(). This value gets removed after we wait on
   // the subprocess.
-  subprocessPids[containerId] = fetcherSubprocess.get().pid();
+  subprocessPids[containerId] = fetcherSubprocess->pid();
 
-  return fetcherSubprocess.get().status()
+  return fetcherSubprocess->status()
     .then(defer(self(), [=](const Option<int>& status) -> Future<Nothing> {
       if (status.isNone()) {
         return Failure("No status available from mesos-fetcher");
       }
 
-      if (status.get() != 0) {
+      if (!WSUCCEEDED(status.get())) {
         return Failure("Failed to fetch all URIs for container '" +
-                       stringify(containerId) +
-                       "' with exit status: " +
-                       stringify(status.get()));
+                       stringify(containerId) + "': " +
+                       WSTRINGIFY(status.get()));
       }
 
       return Nothing();
