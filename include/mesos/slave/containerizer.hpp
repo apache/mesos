@@ -72,7 +72,7 @@ struct ContainerIO
     {
       switch (type_) {
         case Type::FD:
-          return process::Subprocess::FD(*fd_->get());
+          return process::Subprocess::FD(*fd_);
         case Type::PATH:
           return process::Subprocess::PATH(path_.get());
         default:
@@ -115,11 +115,11 @@ struct ContainerIO
 
     IO(Type _type, const std::string& _path)
       : type_(_type),
-        fd_(None()),
+        fd_(),
         path_(_path) {}
 
     Type type_;
-    Option<process::Shared<FDWrapper>> fd_;
+    process::Shared<FDWrapper> fd_;
     Option<std::string> path_;
   };
 
