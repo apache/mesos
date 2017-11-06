@@ -758,7 +758,7 @@ if (WIN32)
     IMPORTED_LOCATION_RELEASE ${PROTOBUF_ROOT}-build/Release/protoc.exe)
 else ()
   # This is for single-configuration generators such as GNU Make.
-  if (CMAKE_BUILD_TYPE MATCHES DEBUG)
+  if (CMAKE_BUILD_TYPE MATCHES Debug)
     set(PROTOBUF_SUFFIX d)
   endif ()
 
