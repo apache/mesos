@@ -140,9 +140,23 @@ def main():
     top_level_dir = execute(['git', 'rev-parse', '--show-toplevel']).strip()
 
     # Use the tracking_branch specified by the user if exists.
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('--server')
-    parser.add_argument('--tracking-branch')
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument(
+        '--server',
+        help='Specifies the Review Board server to use.')
+    parser.add_argument(
+        '--no-markdown',
+        action='store_true',
+        help='Specifies if the commit text should not be treated as Markdown.')
+    parser.add_argument(
+        '--bugs-closed',
+        help='The comma-separated list of bug IDs closed.')
+    parser.add_argument(
+        '--target-people',
+        help='The usernames of the people who should perform the review.')
+    parser.add_argument(
+        '--tracking-branch',
+        help='The remote tracking branch from which your local branch is derived.')
     args, _ = parser.parse_known_args()
 
     # Try to read the .reviewboardrc in the top-level directory.
@@ -297,6 +311,15 @@ def main():
         # Build the post-review/rbt command up
         # to the point where they are common.
         command = post_review
+
+        if not args.no_markdown:
+            command = command + ['--markdown']
+
+        if args.bugs_closed:
+            command = command + ['--bugs-closed=' + args.bugs_closed]
+
+        if args.target_people:
+            command = command + ['--target-people=' + args.target_people]
 
         if args.tracking_branch is None:
             command = command + ['--tracking-branch=' + tracking_branch]
