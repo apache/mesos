@@ -736,13 +736,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_SOME(termination.get());
 
   Future<list<Docker::Container>> containers =
-    docker.get()->ps(true, slave::DOCKER_NAME_PREFIX);
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
 
   // Cleanup all mesos launched containers.
   foreach (const Docker::Container& container, containers.get()) {
-    AWAIT_READY_FOR(docker.get()->rm(container.id, true), Seconds(30));
+    AWAIT_READY_FOR(docker->rm(container.id, true), Seconds(30));
   }
 }
 
@@ -957,13 +957,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_SOME(termination.get());
 
   Future<list<Docker::Container>> containers =
-    docker.get()->ps(true, slave::DOCKER_NAME_PREFIX);
+    docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
 
   // Cleanup all mesos launched containers.
   foreach (const Docker::Container& container, containers.get()) {
-    AWAIT_READY_FOR(docker.get()->rm(container.id, true), Seconds(30));
+    AWAIT_READY_FOR(docker->rm(container.id, true), Seconds(30));
   }
 }
 

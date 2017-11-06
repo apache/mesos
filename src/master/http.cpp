@@ -320,22 +320,22 @@ struct FullFrameworkWriter {
     writer->field("unreachable_tasks", [this](JSON::ArrayWriter* writer) {
       foreachvalue (const Owned<Task>& task, framework_->unreachableTasks) {
         // Skip unauthorized tasks.
-        if (!authorizeTask_->accept(*task.get(), framework_->info)) {
+        if (!authorizeTask_->accept(*task, framework_->info)) {
           continue;
         }
 
-        writer->element(*task.get());
+        writer->element(*task);
       }
     });
 
     writer->field("completed_tasks", [this](JSON::ArrayWriter* writer) {
       foreach (const Owned<Task>& task, framework_->completedTasks) {
         // Skip unauthorized tasks.
-        if (!authorizeTask_->accept(*task.get(), framework_->info)) {
+        if (!authorizeTask_->accept(*task, framework_->info)) {
           continue;
         }
 
-        writer->element(*task.get());
+        writer->element(*task);
       }
     });
 
@@ -1744,7 +1744,7 @@ mesos::master::Response::GetFrameworks Master::Http::_getFrameworks(
       continue;
     }
 
-    getFrameworks.add_completed_frameworks()->CopyFrom(model(*framework.get()));
+    getFrameworks.add_completed_frameworks()->CopyFrom(model(*framework));
   }
 
   return getFrameworks;
@@ -3222,13 +3222,13 @@ public:
       }
 
       foreachvalue (const Owned<Task>& task, framework->unreachableTasks) {
-        frameworkTaskSummaries[frameworkId].count(*task.get());
-        slaveTaskSummaries[task->slave_id()].count(*task.get());
+        frameworkTaskSummaries[frameworkId].count(*task);
+        slaveTaskSummaries[task->slave_id()].count(*task);
       }
 
       foreach (const Owned<Task>& task, framework->completedTasks) {
-        frameworkTaskSummaries[frameworkId].count(*task.get());
-        slaveTaskSummaries[task->slave_id()].count(*task.get());
+        frameworkTaskSummaries[frameworkId].count(*task);
+        slaveTaskSummaries[task->slave_id()].count(*task);
       }
     }
   }
@@ -4059,8 +4059,8 @@ Future<Response> Master::Http::tasks(
                 const Owned<Task>& task,
                 framework->unreachableTasks) {
               // Skip unauthorized tasks or tasks without matching task ID.
-              if (!selectTaskId.accept(task.get()->task_id()) ||
-                  !authorizeTask->accept(*task.get(), framework->info)) {
+              if (!selectTaskId.accept(task->task_id()) ||
+                  !authorizeTask->accept(*task, framework->info)) {
                 continue;
               }
 
@@ -4069,8 +4069,8 @@ Future<Response> Master::Http::tasks(
 
             foreach (const Owned<Task>& task, framework->completedTasks) {
               // Skip unauthorized tasks or tasks without matching task ID.
-              if (!selectTaskId.accept(task.get()->task_id()) ||
-                  !authorizeTask->accept(*task.get(), framework->info)) {
+              if (!selectTaskId.accept(task->task_id()) ||
+                  !authorizeTask->accept(*task, framework->info)) {
                 continue;
               }
 
@@ -4207,7 +4207,7 @@ mesos::master::Response::GetTasks Master::Http::_getTasks(
     // Unreachable tasks.
     foreachvalue (const Owned<Task>& task, framework->unreachableTasks) {
       // Skip unauthorized tasks.
-      if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
+      if (!approveViewTask(tasksApprover, *task, framework->info)) {
         continue;
       }
 
@@ -4217,7 +4217,7 @@ mesos::master::Response::GetTasks Master::Http::_getTasks(
     // Completed tasks.
     foreach (const Owned<Task>& task, framework->completedTasks) {
       // Skip unauthorized tasks.
-      if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
+      if (!approveViewTask(tasksApprover, *task, framework->info)) {
         continue;
       }
 

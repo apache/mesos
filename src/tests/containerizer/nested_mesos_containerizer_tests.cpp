@@ -1190,7 +1190,7 @@ TEST_F(NestedMesosContainerizerTest,
   state = slaveState.get();
   AWAIT_READY(containerizer->recover(state));
 
-  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
   EXPECT_EQ(2u, containers->size());
 

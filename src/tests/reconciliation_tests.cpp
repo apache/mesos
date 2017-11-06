@@ -652,7 +652,7 @@ TEST_F(ReconciliationTest, RemovalInProgress)
   Future<Owned<master::Operation>> unregister;
   Future<Nothing> unregisterStarted;
   Promise<bool> promise; // Never satisfied.
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&unregister),
                     Return(promise.future())));
 

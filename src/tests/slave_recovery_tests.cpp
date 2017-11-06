@@ -2209,14 +2209,14 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 
   // Destroy all the containers before we destroy the containerizer. We need to
   // do this manually because there are no slaves left in the cluster.
-  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
 
   foreach (const ContainerID& containerId, containers.get()) {
     Future<Option<ContainerTermination>> wait =
-      containerizer.get()->wait(containerId);
+      containerizer->wait(containerId);
 
-    containerizer.get()->destroy(containerId);
+    containerizer->destroy(containerId);
 
     AWAIT_READY(wait);
     EXPECT_SOME(wait.get());
@@ -3415,14 +3415,14 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
 
   // Destroy all the containers before we destroy the containerizer. We need to
   // do this manually because there are no slaves left in the cluster.
-  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
 
   foreach (const ContainerID& containerId, containers.get()) {
     Future<Option<ContainerTermination>> wait =
-      containerizer.get()->wait(containerId);
+      containerizer->wait(containerId);
 
-    containerizer.get()->destroy(containerId);
+    containerizer->destroy(containerId);
 
     AWAIT_READY(wait);
     EXPECT_SOME(wait.get());

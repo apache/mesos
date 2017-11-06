@@ -2361,7 +2361,7 @@ Future<Response> Http::_launchNestedContainer(
   Framework* framework = slave->getFramework(executor->frameworkId);
   CHECK_NOTNULL(framework);
 
-  Try<bool> approved = approver.get()->approved(
+  Try<bool> approved = approver->approved(
       ObjectApprover::Object(
           executor->info,
           framework->info,
@@ -2479,7 +2479,7 @@ Future<Response> Http::waitNestedContainer(
       Framework* framework = slave->getFramework(executor->frameworkId);
       CHECK_NOTNULL(framework);
 
-      Try<bool> approved = waitApprover.get()->approved(
+      Try<bool> approved = waitApprover->approved(
           ObjectApprover::Object(
               executor->info,
               framework->info,
@@ -2576,7 +2576,7 @@ Future<Response> Http::killNestedContainer(
       Framework* framework = slave->getFramework(executor->frameworkId);
       CHECK_NOTNULL(framework);
 
-      Try<bool> approved = killApprover.get()->approved(
+      Try<bool> approved = killApprover->approved(
           ObjectApprover::Object(
               executor->info,
               framework->info,
@@ -2635,7 +2635,7 @@ Future<Response> Http::removeNestedContainer(
       Framework* framework = slave->getFramework(executor->frameworkId);
       CHECK_NOTNULL(framework);
 
-      Try<bool> approved = removeApprover.get()->approved(
+      Try<bool> approved = removeApprover->approved(
           ObjectApprover::Object(
               executor->info,
               framework->info,
@@ -2775,7 +2775,7 @@ Future<Response> Http::attachContainerInput(
       Framework* framework = slave->getFramework(executor->frameworkId);
       CHECK_NOTNULL(framework);
 
-      Try<bool> approved = attachInputApprover.get()->approved(
+      Try<bool> approved = attachInputApprover->approved(
           ObjectApprover::Object(executor->info, framework->info));
 
       if (approved.isError()) {
@@ -3087,7 +3087,7 @@ Future<Response> Http::attachContainerOutput(
       Framework* framework = slave->getFramework(executor->frameworkId);
       CHECK_NOTNULL(framework);
 
-      Try<bool> approved = attachOutputApprover.get()->approved(
+      Try<bool> approved = attachOutputApprover->approved(
           ObjectApprover::Object(
               executor->info,
               framework->info,

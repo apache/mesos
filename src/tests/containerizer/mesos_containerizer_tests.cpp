@@ -1253,10 +1253,10 @@ TEST_F(MesosContainerizerRecoverTest, SkipRecoverNonMesosContainers)
   frameworkId.set_value(UUID::random().toString());
   slaveState.frameworks.put(frameworkId, frameworkState);
 
-  Future<Nothing> recover = containerizer.get()->recover(slaveState);
+  Future<Nothing> recover = containerizer->recover(slaveState);
   AWAIT_READY(recover);
 
-  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
   EXPECT_TRUE(containers->empty());
 }

@@ -99,7 +99,7 @@ Future<Nothing> HadoopFetcherPlugin::fetch(
   // configuration file.
   //
   // TODO(jieyu): Allow user to specify the name of the output file.
-  return hdfs.get()->copyToLocal(
+  return hdfs->copyToLocal(
       (uri.has_host() ? stringify(uri) : uri.path()),
       path::join(directory, Path(uri.path()).basename()));
 }

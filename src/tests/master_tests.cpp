@@ -655,7 +655,7 @@ TEST_F(MasterTest, EndpointsForHalfRemovedSlave)
   // should be the operation that marks the slave as unreachable.
   Future<Owned<master::Operation>> unreachable;
   Promise<bool> promise;
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&unreachable),
                     Return(promise.future())));
 
@@ -3199,7 +3199,7 @@ TEST_F(MasterTest, RecoveredSlaveReregisterThenUnreachableRace)
 
   Future<Owned<master::Operation>> reregister;
   Promise<bool> reregisterContinue;
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&reregister),
                     Return(reregisterContinue.future())));
 
@@ -3219,7 +3219,7 @@ TEST_F(MasterTest, RecoveredSlaveReregisterThenUnreachableRace)
   // expire. Because slave reregistration has already started, we do
   // NOT expect the master to mark the slave unreachable. Hence we
   // don't expect to see any registry operations.
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .Times(0);
 
   Clock::pause();
@@ -7950,7 +7950,7 @@ TEST_F(MasterTest, AgentDomainMismatch)
   // If the agent is allowed to register, the master will update the
   // registry. The agent should not be allowed to register, so we
   // expect that no registrar operations will be observed.
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .Times(0);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -8006,7 +8006,7 @@ TEST_F(MasterTest, AgentDomainMismatchOnReregister)
   // If the agent is allowed to re-register, the master will update
   // the registry. The agent should not be allowed to register, so we
   // expect that no registrar operations will be observed.
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .Times(0);
 
   // Simulate a new master detected event.
@@ -8047,7 +8047,7 @@ TEST_F(MasterTest, IgnoreOldAgentRegistration)
 
   // The master should ignore the agent's registration attempt. Hence,
   // we do not expect the master to try to update the registry.
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .Times(0);
 
   process::post(slave.get()->pid, master.get()->pid, message);
@@ -8098,7 +8098,7 @@ TEST_F(MasterTest, IgnoreOldAgentReregistration)
 
   // The master should ignore the agent's re-registration attempt, so
   // we do not expect the master to try to update the registry.
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .Times(0);
 
   process::post(slave.get()->pid, master.get()->pid, message);

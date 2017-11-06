@@ -6890,7 +6890,7 @@ Future<bool> Slave::authorizeSandboxAccess(
             }
           }
 
-          Try<bool> approved = sandboxApprover.get()->approved(object);
+          Try<bool> approved = sandboxApprover->approved(object);
 
           if (approved.isError()) {
             return Failure(approved.error());

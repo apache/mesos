@@ -3607,7 +3607,7 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
   // master's `markUnreachable` method directly. We expect the master
   // to ignore this message; in particular, the master should not
   // attempt to update the registry to mark the slave unreachable.
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .Times(0);
 
   process::dispatch(master.get()->pid,
@@ -3670,7 +3670,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   // Now set the expectation when the agent is one ping timeout away
   // from being deemed unreachable.
   Future<Owned<master::Operation>> markUnreachable;
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&markUnreachable),
                     Invoke(master.get()->registrar.get(),
                            &MockRegistrar::unmocked_apply)));
@@ -3697,7 +3697,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
 
   Future<Owned<master::Operation>> markReachable;
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&markReachable),
                     Invoke(master.get()->registrar.get(),
                            &MockRegistrar::unmocked_apply)));
@@ -3747,7 +3747,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   // There should be no registrar operation across both agent termination
   // and reregistration.
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .Times(0);
 
   slave.get()->terminate();
@@ -3837,7 +3837,7 @@ TEST_F(SlaveTest, UnreachableThenUnregisterRace)
   // attempting to mark the slave unreachable.
   Future<Owned<master::Operation>> markUnreachable;
   Promise<bool> markUnreachableContinue;
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&markUnreachable),
                     Return(markUnreachableContinue.future())));
 
@@ -3860,7 +3860,7 @@ TEST_F(SlaveTest, UnreachableThenUnregisterRace)
         slave.get()->pid,
         master.get()->pid);
 
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .Times(0);
 
   slave.get()->shutdown();
@@ -3940,7 +3940,7 @@ TEST_F(SlaveTest, UnregisterThenUnreachableRace)
   // attempt to remove the slave from the registry.
   Future<Owned<master::Operation>> removeSlave;
   Promise<bool> removeSlaveContinue;
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&removeSlave),
                     Return(removeSlaveContinue.future())));
 
@@ -3973,7 +3973,7 @@ TEST_F(SlaveTest, UnregisterThenUnreachableRace)
   Future<Nothing> unreachableDispatch =
     FUTURE_DISPATCH(master.get()->pid, &Master::markUnreachable);
 
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .Times(0);
 
   Clock::advance(masterFlags.agent_ping_timeout);

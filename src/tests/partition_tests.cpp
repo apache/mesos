@@ -3223,7 +3223,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   // intercept the registry operation.
   Future<Owned<master::Operation>> markReachable;
   Promise<bool> markReachableContinue;
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&markReachable),
                     Return(markReachableContinue.future())));
 
@@ -3243,7 +3243,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   // force the race condition with the reregistration of `slave2`.
   Future<Owned<master::Operation>> prune;
   Promise<bool> pruneContinue;
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&prune),
                     Return(pruneContinue.future())));
 
@@ -3406,7 +3406,7 @@ TEST_F(PartitionTest, FailHealthChecksTwice)
 
   Future<Owned<master::Operation>> markUnreachable;
   Promise<bool> markUnreachableContinue;
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&markUnreachable),
                     Return(markUnreachableContinue.future())));
 
@@ -3427,7 +3427,7 @@ TEST_F(PartitionTest, FailHealthChecksTwice)
   Future<Nothing> unreachableDispatch2 =
     FUTURE_DISPATCH(master.get()->pid, &Master::markUnreachable);
 
-  EXPECT_CALL(*master.get()->registrar.get(), apply(_))
+  EXPECT_CALL(*master.get()->registrar, apply(_))
     .Times(0);
 
   Clock::advance(masterFlags.agent_ping_timeout);

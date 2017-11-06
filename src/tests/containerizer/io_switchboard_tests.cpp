@@ -1013,7 +1013,7 @@ TEST_F(IOSwitchboardTest, DISABLED_RecoverThenKillSwitchboardContainerDestroyed)
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   // Kill the io switchboard for the task.
-  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_EQ(1u, containers->size());
 
@@ -1126,7 +1126,7 @@ TEST_F(IOSwitchboardTest, ContainerAttachAfterSlaveRestart)
   // Wait until containerizer is recovered.
   AWAIT_READY(_recover);
 
-  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_EQ(1u, containers->size());
 

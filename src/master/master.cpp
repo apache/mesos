@@ -8748,7 +8748,7 @@ void Master::removeFramework(Framework* framework)
     CHECK(!slaves.registered.contains(task->slave_id()));
 
     // Move task from unreachable map to completed map.
-    framework->addCompletedTask(*task.get());
+    framework->addCompletedTask(*task);
     framework->unreachableTasks.erase(taskId);
   }
 
