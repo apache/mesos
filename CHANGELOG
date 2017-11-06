@@ -9,6 +9,9 @@ Additional API Changes:
     seconds (365 days).
   * [MESOS-7941] Built-in executors will now send a TASK_STARTING
     status update when a task is starting.
+  * [MESOS-8165] Master will now send TASK_GONE status for unknown
+    tasks of PARTITION_AWARE frameworks belonging to registered agents
+    during explicit reconciliation.
 
 Unresolved Critical Issues:
 
