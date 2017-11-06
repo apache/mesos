@@ -7624,7 +7624,7 @@ void Master::_reconcileTasks(
   // Explicit reconciliation occurs for the following cases:
   //   (1) Task is known, but pending: TASK_STAGING.
   //   (2) Task is known: send the latest state.
-  //   (3) Task is unknown, slave is registered: TASK_UNKNOWN.
+  //   (3) Task is unknown, slave is registered: TASK_GONE.
   //   (4) Task is unknown, slave is transitioning: no-op.
   //   (5) Task is unknown, slave is unreachable: TASK_UNREACHABLE.
   //   (6) Task is unknown, slave is gone: TASK_GONE_BY_OPERATOR.
@@ -7678,10 +7678,10 @@ void Master::_reconcileTasks(
           None(),
           protobuf::getTaskContainerStatus(*task));
     } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
-      // (3) Task is unknown, slave is registered: TASK_UNKNOWN. If
-      // the framework does not have the PARTITION_AWARE capability,
-      // send TASK_LOST for backward compatibility.
-      TaskState taskState = TASK_UNKNOWN;
+      // (3) Task is unknown, slave is registered: TASK_GONE. If the
+      // framework does not have the PARTITION_AWARE capability, send
+      // TASK_LOST for backward compatibility.
+      TaskState taskState = TASK_GONE;
       if (!framework->capabilities.partitionAware) {
         taskState = TASK_LOST;
       }

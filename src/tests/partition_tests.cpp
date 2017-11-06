@@ -2369,7 +2369,7 @@ TEST_F(PartitionTest, PartitionAwareTaskCompletedOnPartitionedAgent)
   driver.reconcileTasks({status});
 
   AWAIT_READY(reconcileUpdate);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate->state());
+  EXPECT_EQ(TASK_GONE, reconcileUpdate->state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
   EXPECT_FALSE(reconcileUpdate->has_unreachable_time());
 
@@ -3311,7 +3311,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   driver.reconcileTasks({status2});
 
   AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate2->state());
+  EXPECT_EQ(TASK_GONE, reconcileUpdate2->state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
   EXPECT_FALSE(reconcileUpdate2->has_unreachable_time());
 

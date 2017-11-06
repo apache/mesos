@@ -333,8 +333,8 @@ TEST_F(ReconciliationTest, UnknownTask)
 
 
 // This test verifies that reconciliation of an unknown task that
-// belongs to a known slave results in TASK_UNKNOWN if the framework
-// is partition-aware.
+// belongs to a known slave results in TASK_GONE if the framework is
+// partition-aware.
 TEST_F(ReconciliationTest, UnknownTaskPartitionAware)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -383,9 +383,9 @@ TEST_F(ReconciliationTest, UnknownTaskPartitionAware)
 
   driver.reconcileTasks({status});
 
-  // Framework should receive TASK_UNKNOWN for an unknown task.
+  // Framework should receive TASK_GONE for an unknown task.
   AWAIT_READY(update);
-  EXPECT_EQ(TASK_UNKNOWN, update->state());
+  EXPECT_EQ(TASK_GONE, update->state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, update->reason());
   EXPECT_FALSE(update->has_unreachable_time());
 
