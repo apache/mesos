@@ -17,10 +17,14 @@
 #ifndef __RESOURCE_PROVIDER_MESSAGE_HPP__
 #define __RESOURCE_PROVIDER_MESSAGE_HPP__
 
+#include <ostream>
+
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
+#include <stout/check.hpp>
 #include <stout/option.hpp>
+#include <stout/unreachable.hpp>
 
 namespace mesos {
 namespace internal {
@@ -41,6 +45,27 @@ struct ResourceProviderMessage
 
   Option<UpdateTotalResources> updateTotalResources;
 };
+
+
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const ResourceProviderMessage& resourceProviderMessage)
+{
+  switch (resourceProviderMessage.type) {
+    case ResourceProviderMessage::Type::UPDATE_TOTAL_RESOURCES:
+      const Option<ResourceProviderMessage::UpdateTotalResources>&
+        updateTotalResources = resourceProviderMessage.updateTotalResources;
+
+      CHECK_SOME(updateTotalResources);
+
+      return stream
+          << "UPDATE_TOTAL_RESOURCES: "
+          << updateTotalResources->id << " "
+          << updateTotalResources->total;
+  }
+
+  UNREACHABLE();
+}
 
 } // namespace internal {
 } // namespace mesos {
