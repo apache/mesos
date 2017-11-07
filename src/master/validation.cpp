@@ -44,6 +44,7 @@
 
 using process::http::authentication::Principal;
 
+using std::pair;
 using std::set;
 using std::string;
 using std::vector;
@@ -284,7 +285,7 @@ Option<Error> reregisterSlave(
     const vector<FrameworkInfo>& frameworkInfos)
 {
   hashset<FrameworkID> frameworkIDs;
-  hashset<ExecutorID> executorIDs;
+  hashset<pair<FrameworkID, ExecutorID>> executorIDs;
 
   Option<Error> error = validateSlaveInfo(slaveInfo);
   if (error.isSome()) {
@@ -336,12 +337,14 @@ Option<Error> reregisterSlave(
     }
 
     if (executor.has_executor_id()) {
-      if (executorIDs.contains(executor.executor_id())) {
-        return Error("Executor has a duplicate ExecutorID '" +
+      auto id = std::make_pair(executor.framework_id(), executor.executor_id());
+      if (executorIDs.contains(id)) {
+        return Error("Framework '" + stringify(executor.framework_id()) +
+                     "' has a duplicate ExecutorID '" +
                      stringify(executor.executor_id()) + "'");
       }
 
-      executorIDs.insert(executor.executor_id());
+      executorIDs.insert(id);
     }
   }
 
@@ -365,7 +368,8 @@ Option<Error> reregisterSlave(
     // is generated on the agent (see Slave::doReliableRegistration). Only
     // running tasks ought to have executors.
     if (task.has_executor_id() && task.state() == TASK_RUNNING) {
-      if (!executorIDs.contains(task.executor_id())) {
+      auto id = std::make_pair(task.framework_id(), task.executor_id());
+      if (!executorIDs.contains(id)) {
         return Error("Task has an invalid ExecutorID '" +
                      stringify(task.executor_id()) + "'");
       }
