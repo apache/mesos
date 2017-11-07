@@ -176,6 +176,7 @@ public:
   std::string xfs_project_range;
 #endif
   bool http_command_executor;
+  Option<SlaveCapabilities> agent_features;
   Option<DomainInfo> domain;
 
   // The following flags are executable specific (e.g., since we only

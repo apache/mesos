@@ -85,6 +85,28 @@ Example:
 }</code></pre>
   </td>
 </tr>
+
+<tr>
+  <td>
+    --agent_features=VALUE
+  </td>
+  <td>
+JSON representation of agent features to whitelist. We always require
+'MULTI_ROLE', 'HIERARCHICAL_ROLE', and 'RESERVATION_REFINEMENT'.
+<p/>
+Example:
+<pre><code>
+{
+    "capabilities": [
+        {"type": "MULTI_ROLE"},
+        {"type": "HIERARCHICAL_ROLE"},
+        {"type": "RESERVATION_REFINEMENT"}
+    ]
+}
+</pre></code>
+  </td>
+</tr>
+
 <tr>
   <td>
     --agent_subsystems=VALUE,

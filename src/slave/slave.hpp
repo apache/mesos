@@ -571,6 +571,8 @@ private:
 
   SlaveInfo info;
 
+  protobuf::slave::Capabilities capabilities;
+
   // Resources that are checkpointed by the slave.
   Resources checkpointedResources;
 

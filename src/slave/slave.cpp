@@ -56,17 +56,19 @@
 #include <stout/duration.hpp>
 #include <stout/exit.hpp>
 #include <stout/fs.hpp>
+#include <stout/json.hpp>
 #include <stout/lambda.hpp>
 #include <stout/net.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
-#include <stout/uuid.hpp>
 #include <stout/utils.hpp>
+#include <stout/uuid.hpp>
 
 #include "authentication/cram_md5/authenticatee.hpp"
 
@@ -196,6 +198,11 @@ Slave::Slave(const string& id,
     state(RECOVERING),
     flags(_flags),
     http(this),
+    capabilities(
+        _flags.agent_features.isNone()
+          ? protobuf::slave::Capabilities(AGENT_CAPABILITIES())
+          : protobuf::slave::Capabilities(
+                _flags.agent_features->capabilities())),
     completedFrameworks(MAX_COMPLETED_FRAMEWORKS),
     detector(_detector),
     containerizer(_containerizer),
@@ -1481,9 +1488,9 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     RegisterSlaveMessage message;
     message.set_version(MESOS_VERSION);
     message.mutable_slave()->CopyFrom(slaveInfo);
-    foreach (const SlaveInfo::Capability& capability, AGENT_CAPABILITIES()) {
-      message.add_agent_capabilities()->CopyFrom(capability);
-    }
+
+    message.mutable_agent_capabilities()->CopyFrom(
+        capabilities.toRepeatedPtrField());
 
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources_);
@@ -1493,9 +1500,9 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     // Re-registering, so send tasks running.
     ReregisterSlaveMessage message;
     message.set_version(MESOS_VERSION);
-    foreach (const SlaveInfo::Capability& capability, AGENT_CAPABILITIES()) {
-      message.add_agent_capabilities()->CopyFrom(capability);
-    }
+
+    message.mutable_agent_capabilities()->CopyFrom(
+        capabilities.toRepeatedPtrField());
 
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources_);

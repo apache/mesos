@@ -27,6 +27,7 @@
 
 #include "common/http.hpp"
 #include "common/parse.hpp"
+#include "common/protobuf_utils.hpp"
 
 #include "slave/constants.hpp"
 
@@ -640,6 +641,37 @@ mesos::internal::slave::Flags::Flags()
       "\n"
       "This flag has the same syntax as `--effective_capabilities`."
      );
+
+  add(&Flags::agent_features,
+      "agent_features",
+      "JSON representation of agent features to whitelist. We always require\n"
+      "'MULTI_ROLE', 'HIERARCHICAL_ROLE', and 'RESERVATION_REFINEMENT'.\n"
+      "\n"
+      "Example:\n"
+      "{\n"
+      "    \"capabilities\": [\n"
+      "        {\"type\": \"MULTI_ROLE\"},\n"
+      "        {\"type\": \"HIERARCHICAL_ROLE\"},\n"
+      "        {\"type\": \"RESERVATION_REFINEMENT\"}\n"
+      "    ]\n"
+      "}\n",
+      [](const Option<SlaveCapabilities>& agentFeatures) -> Option<Error> {
+        // Check all required capabilities are enabled.
+        if (agentFeatures.isSome()) {
+          protobuf::slave::Capabilities capabilities(
+              agentFeatures->capabilities());
+
+          if (!capabilities.multiRole ||
+              !capabilities.hierarchicalRole ||
+              !capabilities.reservationRefinement) {
+            return Error(
+                "At least the following agent features need to be enabled: "
+                "MULTI_ROLE, HIERARCHICAL_ROLE, RESERVATION_REFINEMENT");
+          }
+        }
+
+        return None();
+      });
 
   add(&Flags::disallow_sharing_agent_pid_namespace,
       "disallow_sharing_agent_pid_namespace",
