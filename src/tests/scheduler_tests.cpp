@@ -264,37 +264,22 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(SchedulerTest, MasterFailover)
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
   auto detector = std::make_shared<StandaloneMasterDetector>(master.get()->pid);
 
-  Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
-    .WillOnce(FutureSatisfy(&connected))
-    .WillRepeatedly(Return()); // Ignore future invocations.
-
-  ContentType contentType = GetParam();
-
-  v1::scheduler::TestMesos mesos(
-      master.get()->pid,
-      contentType,
-      scheduler,
-      detector);
-
-  AWAIT_READY(connected);
+    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO))
+    .WillRepeatedly(Return());
 
   Future<Event::Subscribed> subscribed;
   EXPECT_CALL(*scheduler, subscribed(_, _))
-    .WillOnce(FutureArg<1>(&subscribed));
+    .WillOnce(FutureArg<1>(&subscribed))
+    .WillRepeatedly(Return());
 
   EXPECT_CALL(*scheduler, heartbeat(_))
     .WillRepeatedly(Return()); // Ignore heartbeats.
 
-  {
-    Call call;
-    call.set_type(Call::SUBSCRIBE);
+  ContentType contentType = GetParam();
 
-    Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
-
-    mesos.send(call);
-  }
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid, contentType, scheduler, detector);
 
   AWAIT_READY(subscribed);
 
@@ -312,32 +297,21 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(SchedulerTest, MasterFailover)
 
   AWAIT_READY(disconnected);
 
-  Future<Nothing> connected2;
+  // Scheduler library can fire new master detection more than once.
   EXPECT_CALL(*scheduler, connected(_))
-    .WillOnce(FutureSatisfy(&connected2));
+    .WillRepeatedly(
+        v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO, frameworkId));
+
+  Future<Event::Subscribed> subscribed2;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed2))
+    .WillRepeatedly(Return());
 
   detector->appoint(master.get()->pid);
 
-  AWAIT_READY(connected2);
+  AWAIT_READY(subscribed2);
 
-  EXPECT_CALL(*scheduler, subscribed(_, _))
-    .WillOnce(FutureArg<1>(&subscribed));
-
-  {
-    Call call;
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-    call.set_type(Call::SUBSCRIBE);
-
-    Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
-    subscribe->mutable_framework_info()->mutable_id()->CopyFrom(frameworkId);
-
-    mesos.send(call);
-  }
-
-  AWAIT_READY(subscribed);
-
-  EXPECT_EQ(frameworkId, subscribed->framework_id());
+  EXPECT_EQ(frameworkId, subscribed2->framework_id());
 }
 
 
