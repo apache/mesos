@@ -35,6 +35,16 @@
 namespace mesos {
 namespace internal {
 
+bool operator==(
+    const ResourceVersionUUID& left,
+    const ResourceVersionUUID& right);
+
+
+bool operator!=(
+    const ResourceVersionUUID& left,
+    const ResourceVersionUUID& right);
+
+
 std::ostream& operator<<(std::ostream& stream, const StatusUpdate& update);
 
 

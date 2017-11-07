@@ -26,6 +26,35 @@ using std::ostream;
 namespace mesos {
 namespace internal {
 
+bool operator==(
+    const ResourceVersionUUID& left,
+    const ResourceVersionUUID& right)
+{
+  if (left.has_resource_provider_id() != right.has_resource_provider_id()) {
+    return false;
+  }
+
+  if (left.has_resource_provider_id() &&
+      left.resource_provider_id() != right.resource_provider_id()) {
+    return false;
+  }
+
+  if (left.uuid() != right.uuid()) {
+    return false;
+  }
+
+  return true;
+}
+
+
+bool operator!=(
+    const ResourceVersionUUID& left,
+    const ResourceVersionUUID& right)
+{
+  return !(left == right);
+}
+
+
 ostream& operator<<(ostream& stream, const StatusUpdate& update)
 {
   stream << update.status().state();
