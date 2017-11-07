@@ -76,6 +76,10 @@ if test ! -e .clang-format; then
   ln -s support/clang-format .clang-format
 fi
 
+if test ! -e .clang-tidy; then
+  ln -s support/clang-tidy .clang-tidy
+fi
+
 if [ -n "$AUTOMAKE" ] || [ -n "$ACLOCAL" ] ; then
     if [ -z "$ACLOCAL" ] || [ -z "$AUTOMAKE" ] ; then
         _present="AUTOMAKE"

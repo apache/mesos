@@ -3,6 +3,7 @@
 
 # Files created by ./bootstrap.
 .clang-format
+.clang-tidy
 .reviewboardrc
 Makefile.in
 aclocal.m4
