@@ -8657,6 +8657,83 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
   expectedResources += devolve(resourceProviderResources);
 
   EXPECT_EQ(expectedResources, updateSlaveMessage->total_resources());
+
+  // The update from the agent should now contain both the agent and
+  // resource provider resource versions.
+  ASSERT_EQ(2u, updateSlaveMessage->resource_version_uuids_size());
+
+  hashset<Option<ResourceProviderID>> resourceProviderIds;
+  foreach (
+      const ResourceVersionUUID& resourceVersionUuid,
+      updateSlaveMessage->resource_version_uuids()) {
+    resourceProviderIds.insert(
+        resourceVersionUuid.has_resource_provider_id()
+          ? resourceVersionUuid.resource_provider_id()
+          : Option<ResourceProviderID>::none());
+  }
+
+  hashset<Option<ResourceProviderID>> expectedResourceProviderIds;
+  expectedResourceProviderIds.insert(None());
+  expectedResourceProviderIds.insert(devolve(resourceProviderId));
+
+  EXPECT_EQ(expectedResourceProviderIds, resourceProviderIds);
+}
+
+
+// This test checks that the agent correctly updates and sends
+// resource version values when it registers or reregisters.
+TEST_F(SlaveTest, ResourceVersions)
+{
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Check that the agent sends its resource version uuid with
+  // `RegisterSlaveMessage`.
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::settle();
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  // Since no resource providers registered, the agent only sends its
+  // own resource version uuid. The agent has no resource provider id.
+  ASSERT_EQ(1u, registerSlaveMessage->resource_version_uuids().size());
+  EXPECT_FALSE(registerSlaveMessage->resource_version_uuids(0)
+                 .has_resource_provider_id());
+
+  // Check that the agent sends its resource version uuid in
+  // `ReregisterSlaveMessage`.
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  // Simulate a new master detected event on the slave,
+  // so that the slave will attempt to re-register.
+  detector.appoint(master.get()->pid);
+
+  Clock::settle();
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(reregisterSlaveMessage);
+
+  // No resource changes occurred on the agent and we expect the
+  // resource version uuids to be unchanged to the ones sent in the
+  // original registration.
+  ASSERT_EQ(
+      registerSlaveMessage->resource_version_uuids_size(),
+      reregisterSlaveMessage->resource_version_uuids_size());
+
+  EXPECT_EQ(
+      registerSlaveMessage->resource_version_uuids(0),
+      reregisterSlaveMessage->resource_version_uuids(0));
 }
 
 } // namespace tests {
