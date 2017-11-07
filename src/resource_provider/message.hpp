@@ -36,8 +36,10 @@ struct ResourceProviderMessage
     UPDATE_TOTAL_RESOURCES
   };
 
-  struct UpdateTotalResources {
+  struct UpdateTotalResources
+  {
     ResourceProviderID id;
+    UUID resourceVersionUuid;
     Resources total;
   };
 

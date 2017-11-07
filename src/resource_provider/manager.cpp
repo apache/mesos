@@ -434,9 +434,17 @@ void ResourceProviderManagerProcess::updateState(
 
   // TODO(chhsiao): Report pending operations.
 
-  ResourceProviderMessage::UpdateTotalResources updateTotalResources;
-  updateTotalResources.id = resourceProvider->info.id();
-  updateTotalResources.total = resourceProvider->resources;
+  Try<UUID> resourceVersionUuid =
+    UUID::fromBytes(update.resource_version_uuid());
+
+  CHECK_SOME(resourceVersionUuid)
+    << "Could not deserialize version of resource provider "
+    << resourceProvider->info.id() << ": " << resourceVersionUuid.error();
+
+  ResourceProviderMessage::UpdateTotalResources updateTotalResources{
+      resourceProvider->info.id(),
+      resourceVersionUuid.get(),
+      resourceProvider->resources};
 
   ResourceProviderMessage message;
   message.type = ResourceProviderMessage::Type::UPDATE_TOTAL_RESOURCES;
