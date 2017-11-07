@@ -110,8 +110,7 @@ protected:
   {
     std::string data;
     message.SerializeToString(&data);
-    process::Process<T>::send(to, message.GetTypeName(),
-                              data.data(), data.size());
+    process::Process<T>::send(to, message.GetTypeName(), std::move(data));
   }
 
   using process::Process<T>::send;
