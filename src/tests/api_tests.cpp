@@ -4177,7 +4177,8 @@ TEST_P(AgentAPITest, GetContainers)
 
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusRunning));
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(Return());
 
   // No tasks launched, we should expect zero containers in Response.
   {
