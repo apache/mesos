@@ -16,6 +16,8 @@
 
 syntax = "proto2";
 
+import "mesos/mesos.proto";
+
 import "slave/containerizer/mesos/isolators/network/cni/spec.proto";
 
 package mesos.internal;
@@ -96,4 +98,10 @@ message ContainerDNSInfo {
 
   repeated MesosInfo mesos = 1;
   repeated DockerInfo docker = 2;
+}
+
+
+// Describes a set of agent capabilities.
+message SlaveCapabilities {
+  repeated SlaveInfo.Capability capabilities = 1;
 }
