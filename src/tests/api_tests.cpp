@@ -3442,7 +3442,9 @@ TEST_P(MasterAPITest, Teardown)
   Future<ShutdownFrameworkMessage> shutdownFrameworkMessage =
     FUTURE_PROTOBUF(ShutdownFrameworkMessage(), _, _);
 
-  EXPECT_CALL(*scheduler, disconnected(_));
+  Future<Nothing> disconnected;
+  EXPECT_CALL(*scheduler, disconnected(_))
+    .WillOnce(FutureSatisfy(&disconnected));
 
   // Send the teardown call with the correct credential, it will teardown the
   // framework.
@@ -3465,6 +3467,7 @@ TEST_P(MasterAPITest, Teardown)
   }
 
   AWAIT_READY(shutdownFrameworkMessage);
+  AWAIT_READY(disconnected);
 
   // There should be one framework in the 'completed_frameworks' field of
   // the response for the 'GET_FRAMEWORKS' call.
