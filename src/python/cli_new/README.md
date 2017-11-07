@@ -83,7 +83,6 @@ plugins = [
 [master]
   address = "10.10.0.30:5050"
   # The `zookeeper` field has an `addresses` array and a `path` field.
-  # It exists but its backend has not been implemented yet (MESOS-8012).
   # [master.zookeeper]
   #   addresses = [
   #     "10.10.0.31:5050",

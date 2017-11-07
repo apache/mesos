@@ -3,6 +3,7 @@ backports.functools-lru-cache==1.2.1
 configparser==3.5.0
 docopt==0.6.2
 isort==4.2.5
+kazoo==2.3.1
 lazy-object-proxy==1.2.2
 mccabe==0.5.2
 parse==1.8.0

@@ -20,6 +20,7 @@ A collection of helper functions used by the CLI and its Plugins.
 
 import imp
 import importlib
+import json
 import os
 import re
 import socket
@@ -28,6 +29,7 @@ import textwrap
 import cli.http as http
 
 from cli.exceptions import CLIException
+from kazoo.client import KazooClient
 
 
 def import_modules(package_paths, module_type):
@@ -219,13 +221,64 @@ def join_plugin_paths(settings, config):
     return builtin_paths + config_paths
 
 
-# TODO(agrillet): Implement this function appropriately (MESOS-8012).
 def zookeeper_resolve_leader(addresses, path):
-    """Resolve the leader using a znode path."""
-    # pylint: disable=unused-argument, unreachable
-    raise CLIException("Using ZooKeeper to resolve the leading master"
-                       " is not yet supported. See MESOS-8012")
-    return ""
+    """
+    Resolve the leader using a znode path. ZooKeeper imposes a total
+    order on the elements of the queue, guaranteeing that the
+    oldest element of the queue is the first one. We can
+    thus return the first address we get from ZooKeeper.
+    """
+    hosts = ",".join(addresses)
+
+    try:
+        zk = KazooClient(hosts=hosts)
+        zk.start()
+    except Exception as exception:
+        raise CLIException("Unable to initialize Zookeeper Client: {error}"
+                           .format(error=exception))
+
+    try:
+        children = zk.get_children(path)
+    except Exception as exception:
+        raise CLIException("Unable to get children of {zk_path}: {error}"
+                           .format(zk_path=path, error=exception))
+
+    masters = sorted(
+        # 'json.info' is the prefix for master nodes.
+        child for child in children if child.startswith("json.info")
+    )
+
+    address = ""
+    for master in masters:
+        try:
+            node_path = "{path}/{node}".format(path=path, node=master)
+            json_data, _ = zk.get(node_path)
+        except Exception as exception:
+            raise CLIException("Unable to get the value of '{node}': {error}"
+                               .format(node=node_path, error=exception))
+
+        try:
+            data = json.loads(json_data)
+        except Exception as exception:
+            raise CLIException("Could not load JSON from '{data}': {error}"
+                               .format(data=data, error=str(exception)))
+
+        if ("address" in data and "ip" in data["address"] and
+                "port" in data["address"]):
+            address = "{ip}:{port}".format(ip=data["address"]["ip"],
+                                           port=data["address"]["port"])
+            break
+
+    try:
+        zk.stop()
+    except Exception as exception:
+        raise CLIException("Unable to stop Zookeeper Client: {error}"
+                           .format(error=exception))
+
+    if not address:
+        raise CLIException("Unable to resolve the leading"
+                           " master using ZooKeeper")
+    return address
 
 
 class Table(object):
