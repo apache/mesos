@@ -119,8 +119,6 @@ protected:
   void reply(const google::protobuf::Message& message)
   {
     CHECK(from) << "Attempting to reply without a sender";
-    std::string data;
-    message.SerializeToString(&data);
     send(from, message);
   }
 
