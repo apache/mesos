@@ -1536,6 +1536,9 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     message.mutable_agent_capabilities()->CopyFrom(
         capabilities.toRepeatedPtrField());
 
+    message.mutable_resource_version_uuids()->CopyFrom(
+        protobuf::createResourceVersions(resourceVersions));
+
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources_);
 
@@ -1547,6 +1550,9 @@ void Slave::doReliableRegistration(Duration maxBackoff)
 
     message.mutable_agent_capabilities()->CopyFrom(
         capabilities.toRepeatedPtrField());
+
+    message.mutable_resource_version_uuids()->CopyFrom(
+        protobuf::createResourceVersions(resourceVersions));
 
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources_);

@@ -470,6 +470,19 @@ message RegisterSlaveMessage {
   // capabilities (e.g., ability to launch tasks of 'multi-role'
   // frameworks).
   repeated SlaveInfo.Capability agent_capabilities = 4;
+
+  // Used to establish the relationship between the operation and the
+  // resources that the operation is operating on. Each resource
+  // provider will keep a resource version UUID, and change it when
+  // it believes that the resources from this resource provider are
+  // out of sync from the master's view.  The master will keep track
+  // of the last known resource version UUID for each resource
+  // provider, and attach the resource version UUID in each operation
+  // it sends out. The resource provider should reject operations that
+  // have a different resource version UUID than that it maintains,
+  // because this means the operation is operating on resources that
+  // might have already been invalidated.
+  repeated ResourceVersionUUID resource_version_uuids = 5;
 }
 
 
@@ -512,6 +525,19 @@ message ReregisterSlaveMessage {
   // capabilities (e.g., ability to launch tasks of 'multi-role'
   // frameworks).
   repeated SlaveInfo.Capability agent_capabilities = 9;
+
+  // Used to establish the relationship between the operation and the
+  // resources that the operation is operating on. Each resource
+  // provider will keep a resource version UUID, and change it when
+  // it believes that the resources from this resource provider are
+  // out of sync from the master's view.  The master will keep track
+  // of the last known resource version UUID for each resource
+  // provider, and attach the resource version UUID in each operation
+  // it sends out. The resource provider should reject operations that
+  // have a different resource version UUID than that it maintains,
+  // because this means the operation is operating on resources that
+  // might have already been invalidated.
+  repeated ResourceVersionUUID resource_version_uuids = 10;
 }
 
 
