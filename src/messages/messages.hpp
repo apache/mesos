@@ -35,9 +35,6 @@
 namespace mesos {
 namespace internal {
 
-bool operator==(const Task& left, const Task& right);
-
-
 std::ostream& operator<<(std::ostream& stream, const StatusUpdate& update);
 
 
