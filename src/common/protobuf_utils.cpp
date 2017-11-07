@@ -755,6 +755,52 @@ void stripAllocationInfo(Offer::Operation* operation)
 }
 
 
+RepeatedPtrField<ResourceVersionUUID> createResourceVersions(
+    const hashmap<Option<ResourceProviderID>, UUID>& resourceVersions)
+{
+  RepeatedPtrField<ResourceVersionUUID> result;
+
+  foreachpair (
+      const Option<ResourceProviderID>& resourceProviderId,
+      const UUID& uuid,
+      resourceVersions) {
+    ResourceVersionUUID* entry = result.Add();
+
+    if (resourceProviderId.isSome()) {
+      entry->mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
+    }
+    entry->set_uuid(uuid.toBytes());
+  }
+
+  return result;
+}
+
+
+hashmap<Option<ResourceProviderID>, UUID> parseResourceVersions(
+    const RepeatedPtrField<ResourceVersionUUID>& resourceVersionUUIDs)
+{
+  hashmap<Option<ResourceProviderID>, UUID> result;
+
+  foreach (
+      const ResourceVersionUUID& resourceVersionUUID,
+      resourceVersionUUIDs) {
+    const Option<ResourceProviderID> resourceProviderId =
+      resourceVersionUUID.has_resource_provider_id()
+        ? resourceVersionUUID.resource_provider_id()
+        : Option<ResourceProviderID>::none();
+
+    CHECK(!result.contains(resourceProviderId));
+
+    const Try<UUID> uuid = UUID::fromBytes(resourceVersionUUID.uuid());
+    CHECK_SOME(uuid);
+
+    result.insert({std::move(resourceProviderId), std::move(uuid.get())});
+  }
+
+  return result;
+}
+
+
 TimeInfo getCurrentTime()
 {
   TimeInfo timeInfo;

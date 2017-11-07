@@ -223,6 +223,7 @@ Slave::Slave(const string& id,
     resourceEstimator(_resourceEstimator),
     qosController(_qosController),
     authorizer(_authorizer),
+    resourceVersions({{Option<ResourceProviderID>::none(), UUID::random()}}),
     secretGenerator(nullptr) {}
 
 
@@ -1277,6 +1278,8 @@ void Slave::registered(
 
   UpdateSlaveMessage message;
   message.mutable_slave_id()->CopyFrom(info.id());
+  message.mutable_resource_version_uuids()->CopyFrom(
+      protobuf::createResourceVersions(resourceVersions));
 
   if (capabilities.resourceProvider) {
     LOG(INFO) << "Forwarding total resources " << totalResources;
@@ -1376,6 +1379,9 @@ void Slave::reregistered(
 
   UpdateSlaveMessage message;
   message.mutable_slave_id()->CopyFrom(info.id());
+
+  message.mutable_resource_version_uuids()->CopyFrom(
+      protobuf::createResourceVersions(resourceVersions));
 
   if (capabilities.resourceProvider) {
     LOG(INFO) << "Forwarding total resources " << totalResources;
@@ -6646,10 +6652,22 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
       LOG(INFO) << "Forwarding total oversubscribed resources "
                 << oversubscribed;
 
+      // We do not update the agent's resource version since
+      // oversubscribed resources cannot be used for any operations
+      // but launches. Since oversubscription is run at regular
+      // intervals updating the version could cause a lot of offer
+      // operation churn.
+      //
+      // TODO(bbannier): Revisit this if  we modify the operations
+      // possible on oversubscribed resources.
+
       UpdateSlaveMessage message;
       message.mutable_slave_id()->CopyFrom(info.id());
       message.mutable_resource_categories()->set_oversubscribed(true);
       message.mutable_oversubscribed_resources()->CopyFrom(oversubscribed);
+
+      message.mutable_resource_version_uuids()->CopyFrom(
+          protobuf::createResourceVersions(resourceVersions));
 
       CHECK_SOME(master);
       send(master.get(), message);
@@ -6706,6 +6724,15 @@ void Slave::handleResourceProviderMessage(
       totalResources -= oldTotal;
       totalResources += newTotal;
 
+      const UUID& resourceVersionUuid =
+        message->updateTotalResources->resourceVersionUuid;
+
+      if (resourceVersions.contains(resourceProviderId)) {
+        resourceVersions.at(resourceProviderId) = resourceVersionUuid;
+      } else {
+        resourceVersions.insert({resourceProviderId, resourceVersionUuid});
+      }
+
       // Send the updated resources to the master if the agent is running. Note
       // that since we have already updated our copy of the latest resource
       // provider resources, it is safe to consume this message and wait for the
@@ -6725,8 +6752,12 @@ void Slave::handleResourceProviderMessage(
           UpdateSlaveMessage updateSlaveMessage;
           updateSlaveMessage.mutable_slave_id()->CopyFrom(info.id());
           updateSlaveMessage.mutable_resource_categories()->set_total(true);
+
           updateSlaveMessage.mutable_total_resources()->CopyFrom(
               totalResources);
+
+          updateSlaveMessage.mutable_resource_version_uuids()->CopyFrom(
+              protobuf::createResourceVersions(resourceVersions));
 
           send(master.get(), updateSlaveMessage);
 

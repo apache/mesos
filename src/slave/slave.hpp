@@ -665,6 +665,7 @@ private:
 
   ResourceProviderManager resourceProviderManager;
   process::Owned<LocalResourceProviderDaemon> localResourceProviderDaemon;
+  hashmap<Option<ResourceProviderID>, UUID> resourceVersions;
 
 protected:
   // Made protected for testing purposes.

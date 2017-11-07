@@ -126,6 +126,8 @@ using process::http::authentication::Principal;
 
 using process::metrics::Counter;
 
+using google::protobuf::RepeatedPtrField;
+
 namespace mesos {
 namespace internal {
 namespace master {
@@ -139,6 +141,7 @@ using mesos::master::contender::MasterContender;
 using mesos::master::detector::MasterDetector;
 
 static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo);
+
 
 class SlaveObserver : public ProtobufProcess<SlaveObserver>
 {
@@ -7088,6 +7091,13 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
   const Resources newSlaveResources =
     newTotal.getOrElse(slave->totalResources.nonRevocable()) +
     newOversubscribed.getOrElse(slave->totalResources.revocable());
+
+  // Agents which can support resource providers always update the
+  // master on their resource versions uuids via `UpdateSlaveMessage`.
+  if (slave->capabilities.resourceProvider) {
+    slave->resourceVersions =
+      protobuf::parseResourceVersions(message.resource_version_uuids());
+  }
 
   if (newSlaveResources == slave->totalResources) {
     LOG(INFO) << "Ignoring update on agent " << *slave

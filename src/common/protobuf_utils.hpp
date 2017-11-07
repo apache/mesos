@@ -192,6 +192,17 @@ void injectAllocationInfo(
 void stripAllocationInfo(Offer::Operation* operation);
 
 
+// Helper function to pack a protobuf list of resource versions.
+google::protobuf::RepeatedPtrField<ResourceVersionUUID> createResourceVersions(
+    const hashmap<Option<ResourceProviderID>, UUID>& resourceVersions);
+
+
+// Helper function to unpack a protobuf list of resource versions.
+hashmap<Option<ResourceProviderID>, UUID> parseResourceVersions(
+    const google::protobuf::RepeatedPtrField<ResourceVersionUUID>&
+      resourceVersionUUIDs);
+
+
 // Helper function that fills in a TimeInfo from the current time.
 TimeInfo getCurrentTime();
 

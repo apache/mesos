@@ -267,6 +267,8 @@ struct Slave
 
   SlaveObserver* observer;
 
+  hashmap<Option<ResourceProviderID>, UUID> resourceVersions;
+
 private:
   Slave(const Slave&);              // No copying.
   Slave& operator=(const Slave&); // No assigning.
