@@ -133,7 +133,8 @@ protected:
   virtual void lost(const UPID&) {}
 
   /**
-   * Sends the message to the specified `UPID`.
+   * Sends the message to the specified `UPID`. Prefer the rvalue
+   * reference overloads if the data can be moved in.
    *
    * @see process::Message
    */
@@ -145,9 +146,12 @@ protected:
 
   void send(
       const UPID& to,
+      std::string&& name);
+
+  void send(
+      const UPID& to,
       std::string&& name,
-      const char* data = nullptr,
-      size_t length = 0);
+      std::string&& data);
 
   /**
    * Describes the behavior of the `link` call when the target `pid`

@@ -755,23 +755,10 @@ void Clock::settle()
 static Message encode(
     const UPID& from,
     const UPID& to,
-    const string& name,
-    const char* data,
-    size_t length)
-{
-  Message message{name, from, to, string(data, length)};
-  return message;
-}
-
-
-static Message encode(
-    const UPID& from,
-    const UPID& to,
     string&& name,
-    const char* data,
-    size_t length)
+    string&& data)
 {
-  Message message{std::move(name), from, to, string(data, length)};
+  Message message{std::move(name), from, to, std::move(data)};
   return message;
 }
 
@@ -809,7 +796,7 @@ static void transport(
     process_manager->deliver(event->message.to, event, sender);
   } else {
     // Remote message.
-    socket_manager->send(encode(from, to, name, data, length));
+    socket_manager->send(encode(from, to, string(name), string(data, length)));
   }
 }
 
@@ -818,8 +805,7 @@ static void transport(
     const UPID& from,
     const UPID& to,
     string&& name,
-    const char* data,
-    size_t length,
+    string&& data,
     ProcessBase* sender = nullptr)
 {
   if (to.address == __address__) {
@@ -828,13 +814,12 @@ static void transport(
         from,
         to,
         std::move(name),
-        data,
-        length);
+        std::move(data));
 
     process_manager->deliver(event->message.to, event, sender);
   } else {
     // Remote message.
-    socket_manager->send(encode(from, to, std::move(name), data, length));
+    socket_manager->send(encode(from, to, std::move(name), std::move(data)));
   }
 }
 
@@ -3887,27 +3872,29 @@ void ProcessBase::send(
     const char* data,
     size_t length)
 {
-  if (!to) {
-    return;
-  }
+  send(to, string(name), string(data, length));
+}
 
-  // Encode and transport outgoing message.
-  transport(pid, to, name, data, length, this);
+
+void ProcessBase::send(
+    const UPID& to,
+    string&& name)
+{
+  send(to, std::move(name), string());
 }
 
 
 void ProcessBase::send(
     const UPID& to,
     string&& name,
-    const char* data,
-    size_t length)
+    string&& data)
 {
   if (!to) {
     return;
   }
 
   // Encode and transport outgoing message.
-  transport(pid, to, std::move(name), data, length, this);
+  transport(pid, to, std::move(name), std::move(data), this);
 }
 
 

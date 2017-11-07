@@ -829,7 +829,7 @@ public:
 
   void ping_linkee()
   {
-    send(pid, "whatever", "", 0);
+    send(pid, "whatever");
   }
 
   MOCK_METHOD1(exited, void(const UPID&));

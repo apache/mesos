@@ -105,9 +105,8 @@ struct MessageEvent : Event
       const UPID& from,
       const UPID& to,
       std::string&& name,
-      const char* data,
-      size_t length)
-    : message{std::move(name), from, to, std::string(data, length)} {}
+      std::string&& data)
+    : message{std::move(name), from, to, std::move(data)} {}
 
   MessageEvent(const MessageEvent& that) = default;
   MessageEvent(MessageEvent&& that) = default;

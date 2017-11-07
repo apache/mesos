@@ -209,6 +209,7 @@ public:
 protected:
   virtual void initialize()
   {
+    // TODO(bmahler): Move in the message when move support is added.
     install("ping", &ServerProcess::ping);
   }
 
@@ -605,8 +606,7 @@ public:
     bool success = message.SerializeToString(&data);
     CHECK(success);
 
-    MessageEvent event(self(), self(), message.GetTypeName(),
-        data.c_str(), data.length());
+    MessageEvent event(self(), self(), message.GetTypeName(), std::move(data));
 
     Stopwatch watch;
     watch.start();
@@ -621,7 +621,7 @@ public:
 
     double messagesPerSecond = count / watch.elapsed().secs();
 
-    cout << "Size: " << std::setw(5) << data.length() << " bytes,"
+    cout << "Size: " << std::setw(5) << message.ByteSizeLong() << " bytes,"
          << " throughput: " << std::setw(9) << std::setprecision(0)
          << std::fixed << messagesPerSecond << " messages/s" << endl;
   }
