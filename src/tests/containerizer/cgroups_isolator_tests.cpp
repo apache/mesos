@@ -497,17 +497,8 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_LimitSwap)
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
-  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-
-  Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
-    .WillOnce(DoAll(v1::scheduler::SendSubscribe(frameworkInfo),
-                    FutureSatisfy(&connected)));
-
-  v1::scheduler::TestMesos mesos(
-      master.get()->pid, ContentType::PROTOBUF, scheduler);
-
-  AWAIT_READY(connected);
+    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
 
   Future<Event::Subscribed> subscribed;
   EXPECT_CALL(*scheduler, subscribed(_, _))
@@ -521,9 +512,12 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_LimitSwap)
   EXPECT_CALL(*scheduler, heartbeat(_))
     .WillRepeatedly(Return()); // Ignore heartbeats.
 
-  AWAIT_READY(subscribed);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid, ContentType::PROTOBUF, scheduler);
 
+  AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
+
   v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
       "test_default_executor",
       None(),
