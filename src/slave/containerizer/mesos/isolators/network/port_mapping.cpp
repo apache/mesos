@@ -643,7 +643,8 @@ static Try<Nothing> updateHTB(
     Try<bool> htbQdisc = htb::create(
         eth0,
         EGRESS_ROOT,
-        CONTAINER_TX_HTB_HANDLE);
+        CONTAINER_TX_HTB_HANDLE,
+        htb::DisciplineConfig(1));
     if (htbQdisc.isError()) {
       return Error("Failed to add htb class: " + htbQdisc.error());
     }
