@@ -198,6 +198,16 @@ constexpr Handle CONTAINER_TX_HTB_HANDLE = Handle(1, 0);
 constexpr Handle CONTAINER_TX_HTB_CLASS_ID =
     Handle(CONTAINER_TX_HTB_HANDLE, 1);
 
+// We also install an HTB qdisc and class to limit the inbound traffic
+// bandwidth as the egress qdisc on the veth of the container [2]. And
+// then we add a fq_codel qdisc to limit head of line blocking on the
+// ingress filter and turn on Explicit Contention Notification (ECN)
+// support. The ingress traffic control chain is thus:
+//
+// root device: handle::EGRESS_ROOT ->
+//     htb egress qdisc: CONTAINER_TX_HTB_HANDLE ->
+//         htb rate limiting class: CONTAINER_TX_HTB_CLASS_ID ->
+//             buffer-bloat reduction and ECN: FQ_CODEL
 
 // Finally we create a second fq_codel qdisc on the public interface
 // of the host [6] to reduce performance interference between
@@ -681,6 +691,48 @@ static Try<Nothing> updateHTB(
     }
   }
 
+  return Nothing();
+}
+
+
+static Try<Nothing> updateIngressHTB(
+    const string& link,
+    const Option<htb::cls::Config>& config)
+{
+  Try<bool> exists = htb::cls::exists(link, CONTAINER_TX_HTB_CLASS_ID);
+  if (exists.isError()) {
+    return Error("Error checking for HTB class: " + exists.error());
+  }
+
+  // If no limit specified and no limit exists, then nothing to do.
+  if (config.isNone() && !exists.get()) {
+    return Nothing();
+  }
+
+  // Remove existing HTB qdisc with all child classes/qdiscs.
+  if (config.isNone() && exists.get()) {
+    Try<bool> remove = htb::remove(link, EGRESS_ROOT);
+    if (remove.isError()) {
+      return Error("Failed to remove HTB qdisc: " + remove.error());
+    }
+  }
+
+  // Change an existing HTB class.
+  if (config.isSome() && exists.get()) {
+    Try<bool> update = htb::cls::update(
+        link,
+        CONTAINER_TX_HTB_CLASS_ID,
+        config.get());
+    if (update.isError()) {
+      return Error("Failed to update HTB class: " + update.error());
+    }
+  }
+
+  // Do not turn on ingress bandwidth limiting for existing
+  // containers. The reason we do this is because we use ECNs to limit
+  // the ingress traffic and we don't want to drop packets. The use of
+  // ECNs has to be negotiated between the endpoints during the TCP
+  // handshake and thus won't be turned on for existing connections.
   return Nothing();
 }
 
@@ -1823,6 +1875,14 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
         " and egress_rate_per_cpu.");
   }
 
+  // Same goes for ingress rate.
+  if (flags.ingress_rate_limit_per_container.isSome() &&
+      flags.ingress_rate_per_cpu.isSome()) {
+    return Error(
+        "Cannot specify both ingress_rate_limit_per_container"
+        " and ingress_rate_per_cpu");
+  }
+
   if (flags.minimum_egress_rate_limit.isSome() &&
       flags.maximum_egress_rate_limit.isSome() &&
       (flags.minimum_egress_rate_limit.get() >
@@ -1832,11 +1892,23 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
         " maximum egress rate.");
   }
 
-  // If an egress rate limit is provided, do a sanity check that it is
-  // not greater than the host physical link speed.
+  if (flags.minimum_ingress_rate_limit.isSome() &&
+      flags.maximum_ingress_rate_limit.isSome() &&
+      (flags.minimum_ingress_rate_limit.get() >
+       flags.maximum_ingress_rate_limit.get())) {
+    return Error(
+        "Minimum ingress rate limit cannot be greater than"
+        " maximum ingress rate.");
+  }
+
+  // If an egress or ingress rate limit is provided, do a sanity check
+  // that it is not greater than the host physical link speed.
   if (flags.egress_rate_limit_per_container.isSome() ||
       flags.minimum_egress_rate_limit.isSome() ||
-      flags.maximum_egress_rate_limit.isSome()) {
+      flags.maximum_egress_rate_limit.isSome() ||
+      flags.ingress_rate_limit_per_container.isSome() ||
+      flags.minimum_ingress_rate_limit.isSome() ||
+      flags.maximum_ingress_rate_limit.isSome()) {
     // Read host physical link speed from /sys/class/net/eth0/speed.
     // This value is in MBits/s. Some distribution does not support
     // reading speed (depending on the driver). If that's the case,
@@ -1892,6 +1964,30 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           if (flags.maximum_egress_rate_limit.isSome() &&
               speed < flags.maximum_egress_rate_limit.get()) {
             LOG(WARNING) << "The given maximum egress rate limit is greater"
+                         << " than the link speed and will not be achieved.";
+          }
+
+          if (flags.ingress_rate_limit_per_container.isSome() &&
+              speed < flags.ingress_rate_limit_per_container.get()) {
+            return Error(
+                "The given ingress traffic limit for containers " +
+                stringify(flags.ingress_rate_limit_per_container->bytes()) +
+                " Bytes/s is greater than the host link speed " +
+                stringify(speed.bytes()) + " Bytes/s");
+          }
+
+          if (flags.minimum_ingress_rate_limit.isSome() &&
+              speed < flags.minimum_ingress_rate_limit.get()) {
+            return Error(
+                "The given minimum ingress traffic limit for containers " +
+                stringify(flags.minimum_ingress_rate_limit->bytes()) +
+                " Bytes/s is greater than the host link speed " +
+                stringify(speed.bytes()) + " Bytes/s");
+          }
+
+          if (flags.maximum_ingress_rate_limit.isSome() &&
+              speed < flags.maximum_ingress_rate_limit.get()) {
+            LOG(WARNING) << "The given maximum ingress rate limit is greater"
                          << " than the link speed and will not be achieved.";
           }
         }
@@ -2760,6 +2856,15 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
   // errors here.
   Result<htb::cls::Config> egressConfig = recoverHTBConfig(pid, eth0, flags);
 
+  // Recover ignress HTB config.
+  Result<htb::cls::Config> ingressConfig = htb::cls::getConfig(
+      veth(pid), CONTAINER_TX_HTB_CLASS_ID);
+  if (ingressConfig.isError()) {
+    return Error(
+        "Failed to determine ingress HTB class config: " +
+        ingressConfig.error());
+  }
+
   Info* info = nullptr;
 
   if (ephemeralPorts.empty()) {
@@ -2777,13 +2882,18 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
         Interval<uint16_t>(),
         (egressConfig.isSome()
          ? Option<htb::cls::Config>(egressConfig.get()) : None()),
+        (ingressConfig.isSome()
+         ? Option<htb::cls::Config>(ingressConfig.get()) : None()),
         pid);
 
     VLOG(1) << "Recovered network isolator for container with pid " << pid
             << " non-ephemeral port ranges " << nonEphemeralPorts
             << " and egress HTB config "
             << (egressConfig.isSome()
-                ? jsonify(egressConfig.get()) : string("None"));
+                ? jsonify(egressConfig.get()) : string("None"))
+            << " and ingress HTB config "
+            << (ingressConfig.isSome()
+                ? jsonify(ingressConfig.get()) : string("None"));
   } else {
     if (ephemeralPorts.intervalCount() != 1) {
       return Error("Each container should have only one ephemeral port range");
@@ -2797,6 +2907,8 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
         *ephemeralPorts.begin(),
         (egressConfig.isSome()
          ? Option<htb::cls::Config>(egressConfig.get()) : None()),
+        ingressConfig.isSome()
+         ? Option<htb::cls::Config>(ingressConfig.get()) : None(),
         pid);
 
     VLOG(1) << "Recovered network isolator for container with pid " << pid
@@ -2804,7 +2916,10 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
             << " and ephemeral port range " << *ephemeralPorts.begin()
             << " and egress HTB config "
             << (egressConfig.isSome()
-                ? jsonify(egressConfig.get()) : string("None"));
+                ? jsonify(egressConfig.get()) : string("None"))
+            << " and ingress HTB config "
+            << (ingressConfig.isSome()
+                ? jsonify(ingressConfig.get()) : string("None"));
   }
 
   if (flowId.isSome()) {
@@ -2869,7 +2984,8 @@ Future<Option<ContainerLaunchInfo>> PortMappingIsolatorProcess::prepare(
   infos[containerId] = new Info(
       nonEphemeralPorts,
       ephemeralPorts.get(),
-      egressHTBConfig(resources);
+      egressHTBConfig(resources),
+      ingressHTBConfig(resources));
 
   LOG(INFO) << "Using non-ephemeral ports " << nonEphemeralPorts
             << " and ephemeral ports " << ephemeralPorts.get()
@@ -3233,6 +3349,40 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     }
   }
 
+  if (info->ingressConfig.isSome()) {
+    LOG(INFO) << "Setting ingress HTB config "
+              << jsonify(info->ingressConfig.get())
+              << " for container " << containerId;
+
+    // Add an HTB qdisc for veth of the container.
+    Try<bool> vethQdisc = htb::create(
+        veth(pid),
+        EGRESS_ROOT,
+        CONTAINER_TX_HTB_HANDLE,
+        htb::DisciplineConfig(1));
+    if (vethQdisc.isError()) {
+      return Failure("Failed to add HTB qdisc: " + vethQdisc.error());
+    }
+
+    // Add an HTB class.
+    Try<bool> vethClass = htb::cls::create(
+        veth(pid),
+        CONTAINER_TX_HTB_HANDLE,
+        CONTAINER_TX_HTB_CLASS_ID,
+        info->ingressConfig.get());
+    if (vethClass.isError()) {
+      return Failure("Failed to add HTB class: " + vethClass.error());
+    }
+
+    Try<bool> vethCoDel = fq_codel::create(
+        veth(pid),
+        CONTAINER_TX_HTB_CLASS_ID,
+        None());
+    if (vethCoDel.isError()) {
+      return Failure("Failed to add fq_codel qdisc: " + vethCoDel.error());
+    }
+  }
+
   // Turn on the veth.
   Try<bool> enable = link::setUp(veth(pid));
   if (enable.isError()) {
@@ -3339,6 +3489,22 @@ Future<Nothing> PortMappingIsolatorProcess::update(
   }
 
   Option<htb::cls::Config> egressConfig = egressHTBConfig(resources);
+  Option<htb::cls::Config> ingressConfig = ingressHTBConfig(resources);
+
+  // Update ingress HTB configuration.
+  if (ingressConfig != info->ingressConfig) {
+    LOG(INFO) << "Setting ingress HTB config to "
+              << (ingressConfig.isSome()
+                  ? jsonify(ingressConfig.get()) : string("None"))
+              << " for container " << containerId;
+
+    Try<Nothing> update = updateIngressHTB(veth(pid), ingressConfig);
+    if (update.isError()) {
+      return Failure("Failed to update ingress HTB: " + update.error());
+    }
+
+    info->ingressConfig = ingressConfig;
+  }
 
   // No need to proceed if no change to the non-ephemeral ports and no
   // change to the egress HTB configuration.
@@ -3585,6 +3751,53 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
       if (info->egressConfig->burst.isSome()) {
         result.set_net_tx_burst_size(info->egressConfig->burst.get());
       }
+    }
+  }
+
+  // Include the ingress shaping limits, if applied.
+  if (info->ingressConfig.isSome()) {
+    result.set_net_rx_rate_limit(info->ingressConfig->rate);
+
+    if (info->ingressConfig->ceil.isSome()) {
+      result.set_net_rx_burst_rate_limit(info->ingressConfig->ceil.get());
+
+      if (info->ingressConfig->burst.isSome()) {
+        result.set_net_rx_burst_size(info->ingressConfig->burst.get());
+      }
+    }
+
+    const string link = veth(info->pid.get());
+
+    // Collect ingress traffic statistics for the container from the
+    // virtual interface on the host.
+    Result<hashmap<string, uint64_t>> statistics = htb::statistics(
+        link, EGRESS_ROOT);
+    if (statistics.isSome()) {
+      addTrafficControlStatistics(
+          NET_ISOLATOR_INGRESS_BW_LIMIT, statistics.get(), &result);
+    } else if (statistics.isNone()) {
+      // Ingress traffic control statistics are only available when
+      // the container is created on a slave when the ingress rate
+      // limit is on (i.e., ingress_rate_limit_per_container flag is
+      // set). We can't just test for that flag here however, since
+      // the slave may have been restarted with different flags since
+      // the container was created. It is also possible that isolator
+      // statistics are unavailable because the container is in the
+      // process of being created or destroyed. Hence we do not report
+      // a lack of network statistics as an error.
+    } else if (statistics.isError()) {
+      return Failure("Failed to get ingress HTB qdisc statistics on " + link);
+    }
+
+    statistics = fq_codel::statistics(link, CONTAINER_TX_HTB_CLASS_ID);
+    if (statistics.isSome()) {
+      addTrafficControlStatistics(
+          NET_ISOLATOR_INGRESS_BLOAT_REDUCTION, statistics.get(), &result);
+    } else if (statistics.isNone()) {
+      // See explanation on network isolator statistics above.
+    } else if (statistics.isError()) {
+      return Failure(
+          "Failed to get ingress fq_codel qdisc statistics on " + link);
     }
   }
 
@@ -4348,6 +4561,45 @@ Option<htb::cls::Config> PortMappingIsolatorProcess::egressHTBConfig(
 
     if (flags.egress_burst.isSome()) {
       burst = flags.egress_burst->bytes();
+    }
+  }
+
+  return htb::cls::Config(rate.bytes(), ceil, burst);
+}
+
+
+Option<htb::cls::Config> PortMappingIsolatorProcess::ingressHTBConfig(
+    const Resources& resources) const
+{
+  Bytes rate(0);
+  if (flags.ingress_rate_limit_per_container.isSome()) {
+    rate = flags.ingress_rate_limit_per_container.get();
+  } else if (flags.ingress_rate_per_cpu.isSome()) {
+    rate = flags.ingress_rate_per_cpu.get() *
+           floor(resources.cpus().getOrElse(0));
+  } else {
+    return None();
+  }
+
+  if (flags.minimum_ingress_rate_limit.isSome()) {
+    rate = std::max(flags.minimum_ingress_rate_limit.get(), rate);
+  } else {
+    rate = std::max(DEFAULT_MINIMUM_EGRESS_RATE_LIMIT(), rate);
+  }
+
+  if (flags.maximum_ingress_rate_limit.isSome()) {
+    rate = std::min(flags.maximum_ingress_rate_limit.get(), rate);
+  }
+
+  Option<uint32_t> ceil;
+  Option<uint32_t> burst;
+
+  if (flags.ingress_ceil_limit.isSome() &&
+      flags.ingress_ceil_limit.get() > rate) {
+    ceil = flags.ingress_ceil_limit->bytes();
+
+    if (flags.ingress_burst.isSome()) {
+      burst = flags.ingress_burst->bytes();
     }
   }
 

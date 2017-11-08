@@ -1270,6 +1270,43 @@ mesos::internal::slave::Flags::Flags()
       "root.",
       "root");
 
+  add(&Flags::ingress_rate_limit_per_container,
+      "ingress_rate_limit_per_container",
+      "The limit of the ingress traffic for each container, in Bytes/s.\n"
+      "If not specified or specified as zero, the network isolator will\n"
+      "impose no limits to containers' ingress traffic throughput.\n"
+      "This flag uses the Bytes type (defined in stout) and is used for\n"
+      "the `network/port_mapping` isolator.");
+
+  add(&Flags::ingress_rate_per_cpu,
+      "ingress_rate_per_cpu",
+      "Scale the limit of ingress traffic for each container by\n"
+      "ingress_rate_per_cpu Bytes/s for each whole unit of CPU resource,\n"
+      "i.e., floor(CPU), subject to the values of the\n"
+      "minimum_ingress_rate_limit and maximum_ingress_rate_limit flags."
+      "This flag is used by the `network/port_mapping` isolator,");
+
+  add(&Flags::minimum_ingress_rate_limit,
+      "minimum_ingress_rate_limit",
+      "Minimum limit of the ingress traffic for each container, in Bytes/s."
+      "This flag is used by the `network/port_mapping_isolator`.");
+
+  add(&Flags::maximum_ingress_rate_limit,
+      "maximum_ingress_rate_limit",
+      "Maximum limit of the ingress traffic for each container, in Bytes/s."
+      "This flag is used by the `network/port_mapping_isolator`.");
+
+  add(&Flags::ingress_ceil_limit,
+      "ingress_ceil_limit",
+      "Additional ceil rate in Bytes/s that containers can burst up to\n"
+      "'ingress_burst' bytes at."
+      "This flag is used by the `network/port_mapping_isolator`.");
+
+  add(&Flags::ingress_burst,
+      "ingress_burst",
+      "Amount of data in Bytes that can be received at the higher ceil rate."
+      "This flag is used by the `network/port_mapping_isolator`.");
+
   add(&Flags::network_enable_socket_statistics_summary,
       "network_enable_socket_statistics_summary",
       "Whether to collect socket statistics summary for each container.\n"
