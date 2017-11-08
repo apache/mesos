@@ -533,7 +533,7 @@ bool Pipe::Writer::write(string s)
   // NOTE: We set the promise outside the critical section to avoid
   // triggering callbacks that try to reacquire the lock.
   if (read.get() != nullptr) {
-    read->set(std::move(s));
+    read->set(std::move(s)); // NOLINT(misc-use-after-move)
   }
 
   return written;

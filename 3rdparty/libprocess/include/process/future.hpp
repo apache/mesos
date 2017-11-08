@@ -1329,7 +1329,7 @@ const Future<T>& Future<T>::onAbandoned(AbandonedCallback&& callback) const
 
   // TODO(*): Invoke callback in another execution context.
   if (run) {
-    callback();
+    callback(); // NOLINT(misc-use-after-move)
   }
 
   return *this;
@@ -1351,7 +1351,7 @@ const Future<T>& Future<T>::onDiscard(DiscardCallback&& callback) const
 
   // TODO(*): Invoke callback in another execution context.
   if (run) {
-    callback();
+    callback(); // NOLINT(misc-use-after-move)
   }
 
   return *this;
@@ -1373,7 +1373,7 @@ const Future<T>& Future<T>::onReady(ReadyCallback&& callback) const
 
   // TODO(*): Invoke callback in another execution context.
   if (run) {
-    callback(data->result.get());
+    callback(data->result.get()); // NOLINT(misc-use-after-move)
   }
 
   return *this;
@@ -1395,7 +1395,7 @@ const Future<T>& Future<T>::onFailed(FailedCallback&& callback) const
 
   // TODO(*): Invoke callback in another execution context.
   if (run) {
-    callback(data->result.error());
+    callback(data->result.error()); // NOLINT(misc-use-after-move)
   }
 
   return *this;
@@ -1439,7 +1439,7 @@ const Future<T>& Future<T>::onAny(AnyCallback&& callback) const
 
   // TODO(*): Invoke callback in another execution context.
   if (run) {
-    callback(*this);
+    callback(*this); // NOLINT(misc-use-after-move)
   }
 
   return *this;
