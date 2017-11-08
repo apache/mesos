@@ -79,6 +79,9 @@ inline std::string PORT_MAPPING_BIND_MOUNT_SYMLINK_ROOT()
 // output for each of the Linux Traffic Control Qdiscs we report.
 constexpr char NET_ISOLATOR_BW_LIMIT[] = "bw_limit";
 constexpr char NET_ISOLATOR_BLOAT_REDUCTION[] = "bloat_reduction";
+constexpr char NET_ISOLATOR_INGRESS_BW_LIMIT[] = "ingress_bw_limit";
+constexpr char NET_ISOLATOR_INGRESS_BLOAT_REDUCTION[] =
+  "ingress_bloat_reduction";
 
 
 // Default minimum egress rate of 1Mbps if egress rate limiting is
@@ -201,10 +204,12 @@ private:
     Info(const IntervalSet<uint16_t>& _nonEphemeralPorts,
          const Interval<uint16_t>& _ephemeralPorts,
          const Option<routing::queueing::htb::cls::Config>& _egressConfig,
+         const Option<routing::queueing::htb::cls::Config>& _ingressConfig,
          const Option<pid_t>& _pid = None())
       : nonEphemeralPorts(_nonEphemeralPorts),
         ephemeralPorts(_ephemeralPorts),
         egressConfig(_egressConfig),
+        ingressConfig(_ingressConfig),
         pid(_pid) {}
 
     // Non-ephemeral ports used by the container. It's possible that a
@@ -220,9 +225,10 @@ private:
     // ports used by the container.
     const Interval<uint16_t> ephemeralPorts;
 
-    // Optional htb configuration for egress traffic. This may change
-    // upon 'update'.
+    // Optional HTB configuration for egress and ingress traffic. This
+    // may change upon 'update'.
     Option<routing::queueing::htb::cls::Config> egressConfig;
+    Option<routing::queueing::htb::cls::Config> ingressConfig;
 
     Option<pid_t> pid;
     Option<uint16_t> flowId;
@@ -331,6 +337,12 @@ private:
   // None if no limit should be applied or some rate determined from
   // a fixed limit or a limit scaled by CPU.
   Option<routing::queueing::htb::cls::Config> egressHTBConfig(
+      const Resources& resources) const;
+
+  // Determine the ingress rate limit to apply to a container, either
+  // None if no limit should be applied or some rate determined from a
+  // fixed limit or a limit scaled by CPU.
+  Option<routing::queueing::htb::cls::Config> ingressHTBConfig(
       const Resources& resources) const;
 
   // Return the scripts that will be executed in the child context.
