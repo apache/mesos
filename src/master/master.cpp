@@ -2667,9 +2667,8 @@ void Master::subscribe(
 
   if (validationError.isNone() && frameworkInfo.has_id() &&
       isCompletedFramework(frameworkInfo.id())) {
-    // This could happen if a framework tries to subscribe after its
-    // failover timeout has elapsed or it unregistered itself by
-    // calling 'stop()' on the scheduler driver.
+    // This could happen if a framework tries to subscribe after its failover
+    // timeout has elapsed, or it has been torn down via the opeartor API.
     //
     // TODO(vinod): Master should persist admitted frameworks to the
     // registry and remove them from it after failover timeout.
