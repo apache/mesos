@@ -604,11 +604,6 @@ inline Try<SharedHandle> open_job(
 }
 
 // `create_job` function creates a named job object using `name`.
-// This returns the safe job handle, which closes the job handle
-// when destructed. Because the job is destroyed when its last
-// handle is closed and all associated processes have exited,
-// a running process must be assigned to the created job
-// before the returned handle is closed.
 inline Try<SharedHandle> create_job(const std::wstring& name)
 {
   SharedHandle job_handle(
@@ -621,27 +616,6 @@ inline Try<SharedHandle> create_job(const std::wstring& name)
   if (job_handle.get_handle() == nullptr) {
     return WindowsError(
         "os::create_job: Call to `CreateJobObject` failed for job: " +
-        stringify(name));
-  }
-
-  JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
-
-  // The job object will be terminated when the job handle closes. This allows
-  // the job tree to be terminated in case of errors by closing the handle.
-  // We set this flag so that the death of the agent process will
-  // always kill any running jobs, as the OS will close the remaining open
-  // handles if all destructors failed to run (catastrophic death).
-  info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-
-  const BOOL result = ::SetInformationJobObject(
-      job_handle.get_handle(),
-      JobObjectExtendedLimitInformation,
-      &info,
-      sizeof(info));
-
-  if (result == FALSE) {
-    return WindowsError(
-        "os::create_job: `SetInformationJobObject` failed for job: " +
         stringify(name));
   }
 
@@ -780,6 +754,38 @@ inline Try<Bytes> get_job_mem(pid_t pid) {
 
       return bytes + process.rss.get();
     });
+}
+
+
+// `set_job_kill_on_close_limit` causes the job object to terminate all
+// processes assigned to it when the last handle to the job object is closed.
+// This can be used to limit the lifetime of the process group represented by
+// the job object. Without this limit set, the processes will continue to run.
+inline Try<Nothing> set_job_kill_on_close_limit(pid_t pid)
+{
+  Try<SharedHandle> job_handle =
+    os::open_job(JOB_OBJECT_SET_ATTRIBUTES, false, pid);
+
+  if (job_handle.isError()) {
+    return Error(job_handle.error());
+  }
+
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
+  info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+  const BOOL result = ::SetInformationJobObject(
+      job_handle->get_handle(),
+      JobObjectExtendedLimitInformation,
+      &info,
+      sizeof(info));
+
+  if (result == FALSE) {
+    return WindowsError(
+        "os::set_job_kill_on_close_limit: call to `SetInformationJobObject` "
+        "failed");
+  }
+
+  return Nothing();
 }
 
 
