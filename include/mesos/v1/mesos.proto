@@ -513,6 +513,8 @@ message HealthCheck {
   // treat return codes between 200 and 399 as success; custom executors
   // may employ a different strategy, e.g. leveraging the `statuses` field.
   message HTTPCheckInfo {
+    optional NetworkInfo.Protocol protocol = 5 [default = IPv4];
+
     // Currently "http" and "https" are supported.
     optional string scheme = 3;
 
@@ -548,6 +550,8 @@ message HealthCheck {
   // Describes a TCP health check, i.e. based on establishing
   // a TCP connection to the specified port.
   message TCPCheckInfo {
+    optional NetworkInfo.Protocol protocol = 2 [default = IPv4];
+
     // Port expected to be open.
     required uint32 port = 1;
   }
