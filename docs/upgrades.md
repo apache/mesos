@@ -109,7 +109,7 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
     <ul style="padding-left:10px;">
-      <li>C <a href="1-4-x-allocator-update-slave">Changed semantics of Allocator::updateSlave</a></li>
+      <li>C <a href="#1-4-x-allocator-update-slave">Changed semantics of Allocator::updateSlave</a></li>
     </ul>
   </td>
 

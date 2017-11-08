@@ -242,13 +242,12 @@ part of the build (such as protobuf or the JNI headers).
 
 ## Checking `CMAKE_BUILD_TYPE`
 
-See the ["Building debug or release configurations"][config] example for more
-information. In short, not all generators respect the variable
+See the ["Building debug or release configurations"](cmake-examples.md#building-debug-or-release-configurations)
+example for more information. In short, not all generators respect the variable
 `CMAKE_BUILD_TYPE` at configuration time, and thus it must not be used in CMake
 logic. A usable alternative (where supported) is a [generator expression][] such
 as `$<$<CONFIG:Debug>:DEBUG_MODE>`.
 
-[config]: cmake-examples.md#building-debug-or-release-configurations
 [generator expression]: https://cmake.org/cmake/help/latest/manual/cmake-generator-expressions.7.html#logical-expressions
 
 # Remaining hacks

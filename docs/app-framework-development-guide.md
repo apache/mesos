@@ -362,7 +362,7 @@ Executor implementation. For example, you may not want a 1:1 relationship
 between tasks and processes.
 
 If you are writing an executor against Mesos 1.0 or newer, it is recommended
-to use the new [HTTP API](executor-http-api) to talk to Mesos.
+to use the new [HTTP API](executor-http-api.md) to talk to Mesos.
 
 If writing against Mesos 0.28.0 or older, your framework executor must inherit
 from the Executor class. It must override the launchTask() method. You can use

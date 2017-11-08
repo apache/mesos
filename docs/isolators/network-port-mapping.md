@@ -182,7 +182,7 @@ allocated by the framework, limiting container transmit bandwidth to
 ## Monitoring container network statistics
 
 Mesos exposes statistics from the Linux network stack for each container network
-on the [/monitor/statistics](endpoints/slave/monitor/statistics.md) agent endpoint.
+on the [/monitor/statistics](../endpoints/slave/monitor/statistics.md) agent endpoint.
 
 From the network interface inside the container, we report the following
 counters (since container creation) under the `statistics` key:

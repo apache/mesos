@@ -28,7 +28,7 @@ The Mesosphere team wants to help you keep up with all of the community activity
 
 * On February 27, [Mesos 0.17.0 was released](http://mesos.apache.org/blog/mesos-0-17-0-released-featuring-autorecovery/) and you can [download it here](http://mesosphere.io/downloads/#apache-mesos-0.17.0). The 0.17.0 release features auto-recovery of the replicated log, which enhances Mesos’s high-availability and fault-tolerance. Read more here: [Mesos 0.17.0 release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=12325669)
 
-* On the path toward fully implementing the [Mesos Registrar Design](https://cwiki.apache.org/confluence/display/MESOS/Registrar+Design+Document), we saw progress toward creating [persistence of state information for slaves](https://issues.apache.org/jira/browse/MESOS-764). Placing a small amount of state information in highly-available storage will make recovery of slaves faster and more graceful (this has been [lacking for a while](http://https//issues.apache.org/jira/browse/MESOS-295)).
+* On the path toward fully implementing the [Mesos Registrar Design](https://cwiki.apache.org/confluence/display/MESOS/Registrar+Design+Document), we saw progress toward creating [persistence of state information for slaves](https://issues.apache.org/jira/browse/MESOS-764). Placing a small amount of state information in highly-available storage will make recovery of slaves faster and more graceful (this has been [lacking for a while](https://issues.apache.org/jira/browse/MESOS-295)).
 
 * Mesosphere has packaged a pre-release version of Mesos 0.18.0 (release candidate 4) that you can now [download](http://mesosphere.io/downloads/#apache-mesos-0.18.0-rc4). The primary features of the [upcoming 0.18.0 release](https://github.com/apache/mesos/blob/0.18.0-rc4/CHANGELOG) are changes that make it easier to insert pluggable container technologies, like Docker. 0.18.0 foreshadows some pretty interesting Docker integrations with Mesos.
 
@@ -40,4 +40,4 @@ The Mesosphere team wants to help you keep up with all of the community activity
 
 We hope to publish these updates at least a few times each month, and we’re interested in your suggestions. Please let us know what you think about the length, content and style, and send us your tips on what to publish each week. Do you have something to share? Write to us at [community@mesosphere.io](mailto:community@mesosphere.io).
 
-_This post was co-authored by Abhishek Parolkar. Follow him on Twitter at [@parolkar](https://twitter.com/parolkar)._ 
+_This post was co-authored by Abhishek Parolkar. Follow him on Twitter at [@parolkar](https://twitter.com/parolkar)._

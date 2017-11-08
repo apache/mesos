@@ -392,7 +392,7 @@ that services running on the container can be exposed outside the host
 on which the container is running.
 
 Unfortunately, there is no CNI plugin available in the
-[containernetworking/cni](https://github.com/containernetwork/cni)
+[containernetworking/cni](https://github.com/containernetworking/cni)
 repository that provides port-mapping functionality.
 Hence, we have developed a port-mapper CNI plugin that resides
 within the Mesos code base called the `mesos-cni-port-mapper`. The
