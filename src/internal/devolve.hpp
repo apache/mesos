@@ -60,6 +60,7 @@ FrameworkInfo devolve(const v1::FrameworkInfo& frameworkInfo);
 HealthCheck devolve(const v1::HealthCheck& check);
 InverseOffer devolve(const v1::InverseOffer& inverseOffer);
 Offer devolve(const v1::Offer& offer);
+OfferOperationStatus devolve(const v1::OfferOperationStatus& status);
 Resource devolve(const v1::Resource& resource);
 Resources devolve(const v1::Resources& resources);
 ResourceProviderID devolve(const v1::ResourceProviderID& resourceProviderId);
