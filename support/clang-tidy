@@ -25,6 +25,8 @@ google-*,\
 mesos-*,\
 -mesos-this-capture,\
 \
+misc-use-after-move,\
+\
 readability-redundant-string-cstr\
 "
 FormatStyle: file
