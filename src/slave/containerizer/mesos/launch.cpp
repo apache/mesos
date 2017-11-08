@@ -38,6 +38,8 @@
 #include <stout/path.hpp>
 #include <stout/unreachable.hpp>
 
+#include <stout/os/int_fd.hpp>
+#include <stout/os/open.hpp>
 #include <stout/os/realpath.hpp>
 #include <stout/os/which.hpp>
 #include <stout/os/write.hpp>
@@ -108,11 +110,9 @@ MesosContainerizerLaunch::Flags::Flags()
       "properly in the subprocess. It's used to synchronize with the \n"
       "parent process. If not specified, no synchronization will happen.");
 
-#ifndef __WINDOWS__
   add(&Flags::runtime_directory,
       "runtime_directory",
       "The runtime directory for the container (used for checkpointing)");
-#endif // __WINDOWS__
 
 #ifdef __linux__
   add(&Flags::namespace_mnt_target,
@@ -130,7 +130,7 @@ MesosContainerizerLaunch::Flags::Flags()
 
 static Option<pid_t> containerPid = None();
 static Option<string> containerStatusPath = None();
-static Option<int> containerStatusFd = None();
+static Option<int_fd> containerStatusFd = None();
 
 static void exitWithSignal(int sig);
 static void exitWithStatus(int status);
@@ -472,7 +472,6 @@ int MesosContainerizerLaunch::execute()
     return EXIT_SUCCESS;
   }
 
-#ifndef __WINDOWS__
   // The existence of the `runtime_directory` flag implies that we
   // want to checkpoint the container's status upon exit.
   if (flags.runtime_directory.isSome()) {
@@ -480,7 +479,7 @@ int MesosContainerizerLaunch::execute()
         flags.runtime_directory.get(),
         containerizer::paths::STATUS_FILE);
 
-    Try<int> open = os::open(
+    Try<int_fd> open = os::open(
         containerStatusPath.get(),
         O_WRONLY | O_CREAT | O_CLOEXEC,
         S_IRUSR | S_IWUSR);
@@ -495,6 +494,7 @@ int MesosContainerizerLaunch::execute()
     containerStatusFd = open.get();
   }
 
+#ifndef __WINDOWS__
   // We need a signal fence here to ensure that `containerStatusFd` is
   // actually written to memory and not just to a temporary register.
   // Without this, it's possible that the signal handler we are about
