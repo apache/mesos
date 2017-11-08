@@ -870,7 +870,9 @@ int MesosContainerizerLaunch::execute()
   }
 
   // If we get here, the execvp call failed.
-  cerr << "Failed to execute command: " << os::strerror(errno) << endl;
+  cerr << "Failed to execute '" << executable << "': "
+       << os::strerror(errno) << endl;
+
   exitWithStatus(EXIT_FAILURE);
   UNREACHABLE();
 }
