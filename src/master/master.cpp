@@ -5218,10 +5218,24 @@ void Master::_accept(
 
         addOfferOperation(framework, slave, offerOperation);
 
+        CHECK(consumed.has_provider_id());
+
+        Option<UUID> resourceVersion =
+          slave->resourceVersions.get(consumed.provider_id());
+
+        CHECK_SOME(resourceVersion);
+
         ApplyOfferOperationMessage message;
         message.mutable_framework_id()->CopyFrom(frameworkId);
         message.mutable_operation_info()->CopyFrom(offerOperation->info());
         message.set_operation_uuid(offerOperation->operation_uuid());
+
+        message.mutable_resource_version_uuid()
+          ->mutable_resource_provider_id()
+          ->CopyFrom(consumed.provider_id());
+
+        message.mutable_resource_version_uuid()
+          ->set_uuid(resourceVersion->toBytes());
 
         send(slave->pid, message);
         break;
@@ -5262,10 +5276,24 @@ void Master::_accept(
 
         addOfferOperation(framework, slave, offerOperation);
 
+        CHECK(consumed.has_provider_id());
+
+        Option<UUID> resourceVersion =
+          slave->resourceVersions.get(consumed.provider_id());
+
+        CHECK_SOME(resourceVersion);
+
         ApplyOfferOperationMessage message;
         message.mutable_framework_id()->CopyFrom(frameworkId);
         message.mutable_operation_info()->CopyFrom(offerOperation->info());
         message.set_operation_uuid(offerOperation->operation_uuid());
+
+        message.mutable_resource_version_uuid()
+          ->mutable_resource_provider_id()
+          ->CopyFrom(consumed.provider_id());
+
+        message.mutable_resource_version_uuid()
+          ->set_uuid(resourceVersion->toBytes());
 
         send(slave->pid, message);
         break;
@@ -5280,7 +5308,7 @@ void Master::_accept(
           continue;
         }
 
-        const Resources& consumed = operation.create_block().source();
+        const Resource& consumed = operation.create_block().source();
 
         if (!_offeredResources.contains(consumed)) {
           drop(framework,
@@ -5306,10 +5334,24 @@ void Master::_accept(
 
         addOfferOperation(framework, slave, offerOperation);
 
+        CHECK(consumed.has_provider_id());
+
+        Option<UUID> resourceVersion =
+          slave->resourceVersions.get(consumed.provider_id());
+
+        CHECK_SOME(resourceVersion);
+
         ApplyOfferOperationMessage message;
         message.mutable_framework_id()->CopyFrom(frameworkId);
         message.mutable_operation_info()->CopyFrom(offerOperation->info());
         message.set_operation_uuid(offerOperation->operation_uuid());
+
+        message.mutable_resource_version_uuid()
+          ->mutable_resource_provider_id()
+          ->CopyFrom(consumed.provider_id());
+
+        message.mutable_resource_version_uuid()
+          ->set_uuid(resourceVersion->toBytes());
 
         send(slave->pid, message);
         break;
@@ -5324,7 +5366,7 @@ void Master::_accept(
           continue;
         }
 
-        const Resources& consumed = operation.destroy_block().block();
+        const Resource& consumed = operation.destroy_block().block();
 
         if (!_offeredResources.contains(consumed)) {
           drop(framework,
@@ -5350,10 +5392,24 @@ void Master::_accept(
 
         addOfferOperation(framework, slave, offerOperation);
 
+        CHECK(consumed.has_provider_id());
+
+        Option<UUID> resourceVersion =
+          slave->resourceVersions.get(consumed.provider_id());
+
+        CHECK_SOME(resourceVersion);
+
         ApplyOfferOperationMessage message;
         message.mutable_framework_id()->CopyFrom(frameworkId);
         message.mutable_operation_info()->CopyFrom(offerOperation->info());
         message.set_operation_uuid(offerOperation->operation_uuid());
+
+        message.mutable_resource_version_uuid()
+          ->mutable_resource_provider_id()
+          ->CopyFrom(consumed.provider_id());
+
+        message.mutable_resource_version_uuid()
+          ->set_uuid(resourceVersion->toBytes());
 
         send(slave->pid, message);
         break;
@@ -9878,6 +9934,23 @@ void Master::_apply(
   slave->apply(operation);
 
   if (slave->capabilities.resourceProvider) {
+    Result<ResourceProviderID> resourceProviderId =
+      getResourceProviderId(operation);
+
+    // This must have been validated by the caller.
+    CHECK(!resourceProviderId.isError());
+
+    Option<UUID> resourceVersion = resourceProviderId.isSome()
+      ? slave->resourceVersions.get(resourceProviderId.get())
+      : slave->resourceVersions.get(None());
+
+    CHECK_SOME(resourceVersion)
+      << "Resource version of "
+      << (resourceProviderId.isSome()
+           ? "resource provider " + stringify(resourceProviderId.get())
+           : "agent " + stringify(*slave))
+      << " is unknown";
+
     OfferOperation* offerOperation = new OfferOperation(
         protobuf::createOfferOperation(
             operation,
@@ -9893,6 +9966,13 @@ void Master::_apply(
     }
     message.mutable_operation_info()->CopyFrom(offerOperation->info());
     message.set_operation_uuid(offerOperation->operation_uuid());
+    if (resourceProviderId.isSome()) {
+      message.mutable_resource_version_uuid()
+        ->mutable_resource_provider_id()
+        ->CopyFrom(resourceProviderId.get());
+    }
+    message.mutable_resource_version_uuid()
+      ->set_uuid(resourceVersion->toBytes());
 
     LOG(INFO) << "Sending offer operation "
               << offerOperation->operation_uuid()
