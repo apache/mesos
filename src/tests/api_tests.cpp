@@ -4216,7 +4216,7 @@ TEST_P(AgentAPITest, GetContainers)
   ipAddr->set_ip_address("192.168.1.20");
 
   EXPECT_CALL(containerizer, status(_))
-    .WillOnce(Return(containerStatus));
+    .WillRepeatedly(Return(containerStatus));
 
   v1::agent::Call v1Call;
   v1Call.set_type(v1::agent::Call::GET_CONTAINERS);
