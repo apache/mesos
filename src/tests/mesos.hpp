@@ -2431,6 +2431,20 @@ ACTION_P(SendSubscribe, frameworkInfo)
   Call call;
   call.set_type(Call::SUBSCRIBE);
   call.mutable_subscribe()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+  arg0->send(call);
+}
+
+
+ACTION_P2(SendSubscribe, frameworkInfo, frameworkId)
+{
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+  call.mutable_framework_id()->CopyFrom(frameworkId);
+  call.mutable_subscribe()->mutable_framework_info()->CopyFrom(frameworkInfo);
+  call.mutable_subscribe()->mutable_framework_info()->mutable_id()->CopyFrom(
+      frameworkId);
+
   arg0->send(call);
 }
 
