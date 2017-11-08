@@ -48,6 +48,8 @@
 #include "tests/mesos.hpp"
 #include "tests/resources_utils.hpp"
 
+#include "master/validation.hpp"
+
 #include "master/detector/standalone.hpp"
 
 using namespace mesos::internal::master::validation;
@@ -4203,6 +4205,50 @@ TEST_F(RegisterSlaveValidationTest, DropInvalidRegistration)
 
   // Settle the clock to retire in-flight messages.
   Clock::settle();
+}
+
+
+// Test that duplicate ExecutorIDs are correctly handled when
+// validating the ReregisterSlaveMessage.
+TEST_F(RegisterSlaveValidationTest, DuplicateExecutorID)
+{
+  SlaveInfo slaveInfo;
+  slaveInfo.mutable_id()->set_value("agent-id");
+  slaveInfo.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:2;mem:10").get());
+
+  vector<Task> tasks;
+  vector<Resource> resources;
+  vector<ExecutorInfo> executors;
+  vector<FrameworkInfo> frameworks;
+
+  frameworks.push_back(DEFAULT_FRAMEWORK_INFO);
+  frameworks.back().set_name("framework1");
+  frameworks.back().mutable_id()->set_value("framework1");
+
+  frameworks.push_back(DEFAULT_FRAMEWORK_INFO);
+  frameworks.back().set_name("framework2");
+  frameworks.back().mutable_id()->set_value("framework2");
+
+  executors.push_back(DEFAULT_EXECUTOR_INFO);
+  executors.back().mutable_framework_id()->set_value("framework1");
+
+  executors.push_back(DEFAULT_EXECUTOR_INFO);
+  executors.back().mutable_framework_id()->set_value("framework2");
+
+  // Executors with the same ID in different frameworks are allowed.
+  EXPECT_EQ(executors[0].executor_id(), executors[1].executor_id());
+  EXPECT_NE(executors[0].framework_id(), executors[1].framework_id());
+  EXPECT_NONE(master::validation::master::message::reregisterSlave(
+      slaveInfo, tasks, resources, executors, frameworks));
+
+  executors[1].mutable_framework_id()->set_value("framework1");
+
+  // Executors with the same ID in in the same framework are not allowed.
+  EXPECT_EQ(executors[0].executor_id(), executors[1].executor_id());
+  EXPECT_EQ(executors[0].framework_id(), executors[1].framework_id());
+  EXPECT_SOME(master::validation::master::message::reregisterSlave(
+      slaveInfo, tasks, resources, executors, frameworks));
 }
 
 } // namespace tests {
