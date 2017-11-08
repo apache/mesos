@@ -65,11 +65,11 @@ TEST(HashMapTest, FromRValueStdMap)
 
   hashmap<int, int> map2(std::move(map1));
 
-  EXPECT_EQ(2u, map1.size());
+  EXPECT_EQ(2u, map2.size());
 
-  EXPECT_EQ(2, map1[1]);
+  EXPECT_EQ(2, map2[1]);
 
-  EXPECT_EQ(3, map1[2]);
+  EXPECT_EQ(3, map2[2]);
 }
 
 
