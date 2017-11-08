@@ -34,6 +34,15 @@ namespace htb {
 
 constexpr char KIND[] = "htb";
 
+struct DisciplineConfig
+{
+  DisciplineConfig(uint32_t _defcls = 0)
+    : defcls(_defcls) {}
+
+  // Default class.
+  uint32_t defcls;
+};
+
 // Returns true if there exists an htb queueing discipline on the
 // egress side of the link.
 Try<bool> exists(
@@ -47,7 +56,8 @@ Try<bool> exists(
 Try<bool> create(
     const std::string& link,
     const Handle& parent,
-    const Option<Handle>& handle);
+    const Option<Handle>& handle,
+    const Option<DisciplineConfig>& config = None());
 
 
 // Removes the htb queueing discipline from the link. Returns

@@ -38,14 +38,6 @@ using std::string;
 namespace routing {
 namespace queueing {
 
-namespace htb {
-
-// NOTE: The htb queueing discipline configuration is not exposed to
-// the user but the queueing class configuration is.
-struct DisciplineConfig {};
-
-} // namespace htb {
-
 /////////////////////////////////////////////////
 // Type specific {en}decoding functions for disciplines and classes.
 /////////////////////////////////////////////////
@@ -60,6 +52,10 @@ Try<Nothing> encode<htb::DisciplineConfig>(
     const Netlink<struct rtnl_qdisc>& qdisc,
     const htb::DisciplineConfig& config)
 {
+  int error = rtnl_htb_set_defcls(qdisc.get(), config.defcls);
+  if (error != 0) {
+    return Error(string(nl_geterror(error)));
+  }
   return Nothing();
 }
 
@@ -164,7 +160,8 @@ Try<bool> exists(const string& link, const Handle& parent)
 Try<bool> create(
     const string& link,
     const Handle& parent,
-    const Option<Handle>& handle)
+    const Option<Handle>& handle,
+    const Option<DisciplineConfig>& config)
 {
   return internal::create(
       link,
@@ -172,7 +169,7 @@ Try<bool> create(
           KIND,
           parent,
           handle,
-          DisciplineConfig()));
+          config.getOrElse(DisciplineConfig())));
 }
 
 
