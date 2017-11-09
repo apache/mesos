@@ -5184,6 +5184,14 @@ void Master::_accept(
       }
 
       case Offer::Operation::CREATE_VOLUME: {
+        if (!slave->capabilities.resourceProvider) {
+          drop(framework,
+               operation,
+               "Not supported on agent " + stringify(*slave) +
+               " because it does not have RESOURCE_PROVIDER capability");
+          continue;
+        }
+
         Option<Error> error = validation::operation::validate(
             operation.create_volume());
 
@@ -5209,39 +5217,20 @@ void Master::_accept(
                   << operation.create_volume().source() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        OfferOperation* offerOperation = new OfferOperation(
-            protobuf::createOfferOperation(
-                operation,
-                protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
-                frameworkId,
-                slaveId));
+        _apply(slave, framework, operation);
 
-        addOfferOperation(framework, slave, offerOperation);
-
-        CHECK(consumed.has_provider_id());
-
-        Option<UUID> resourceVersion =
-          slave->resourceVersions.get(consumed.provider_id());
-
-        CHECK_SOME(resourceVersion);
-
-        ApplyOfferOperationMessage message;
-        message.mutable_framework_id()->CopyFrom(frameworkId);
-        message.mutable_operation_info()->CopyFrom(offerOperation->info());
-        message.set_operation_uuid(offerOperation->operation_uuid());
-
-        message.mutable_resource_version_uuid()
-          ->mutable_resource_provider_id()
-          ->CopyFrom(consumed.provider_id());
-
-        message.mutable_resource_version_uuid()
-          ->set_uuid(resourceVersion->toBytes());
-
-        send(slave->pid, message);
         break;
       }
 
       case Offer::Operation::DESTROY_VOLUME: {
+        if (!slave->capabilities.resourceProvider) {
+          drop(framework,
+               operation,
+               "Not supported on agent " + stringify(*slave) +
+               " because it does not have RESOURCE_PROVIDER capability");
+          continue;
+        }
+
         Option<Error> error = validation::operation::validate(
             operation.destroy_volume());
 
@@ -5267,39 +5256,20 @@ void Master::_accept(
                   << operation.destroy_volume().volume() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        OfferOperation* offerOperation = new OfferOperation(
-            protobuf::createOfferOperation(
-                operation,
-                protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
-                frameworkId,
-                slaveId));
+        _apply(slave, framework, operation);
 
-        addOfferOperation(framework, slave, offerOperation);
-
-        CHECK(consumed.has_provider_id());
-
-        Option<UUID> resourceVersion =
-          slave->resourceVersions.get(consumed.provider_id());
-
-        CHECK_SOME(resourceVersion);
-
-        ApplyOfferOperationMessage message;
-        message.mutable_framework_id()->CopyFrom(frameworkId);
-        message.mutable_operation_info()->CopyFrom(offerOperation->info());
-        message.set_operation_uuid(offerOperation->operation_uuid());
-
-        message.mutable_resource_version_uuid()
-          ->mutable_resource_provider_id()
-          ->CopyFrom(consumed.provider_id());
-
-        message.mutable_resource_version_uuid()
-          ->set_uuid(resourceVersion->toBytes());
-
-        send(slave->pid, message);
         break;
       }
 
       case Offer::Operation::CREATE_BLOCK: {
+        if (!slave->capabilities.resourceProvider) {
+          drop(framework,
+               operation,
+               "Not supported on agent " + stringify(*slave) +
+               " because it does not have RESOURCE_PROVIDER capability");
+          continue;
+        }
+
         Option<Error> error = validation::operation::validate(
             operation.create_block());
 
@@ -5325,39 +5295,20 @@ void Master::_accept(
                   << operation.create_block().source() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        OfferOperation* offerOperation = new OfferOperation(
-            protobuf::createOfferOperation(
-                operation,
-                protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
-                frameworkId,
-                slaveId));
+        _apply(slave, framework, operation);
 
-        addOfferOperation(framework, slave, offerOperation);
-
-        CHECK(consumed.has_provider_id());
-
-        Option<UUID> resourceVersion =
-          slave->resourceVersions.get(consumed.provider_id());
-
-        CHECK_SOME(resourceVersion);
-
-        ApplyOfferOperationMessage message;
-        message.mutable_framework_id()->CopyFrom(frameworkId);
-        message.mutable_operation_info()->CopyFrom(offerOperation->info());
-        message.set_operation_uuid(offerOperation->operation_uuid());
-
-        message.mutable_resource_version_uuid()
-          ->mutable_resource_provider_id()
-          ->CopyFrom(consumed.provider_id());
-
-        message.mutable_resource_version_uuid()
-          ->set_uuid(resourceVersion->toBytes());
-
-        send(slave->pid, message);
         break;
       }
 
       case Offer::Operation::DESTROY_BLOCK: {
+        if (!slave->capabilities.resourceProvider) {
+          drop(framework,
+               operation,
+               "Not supported on agent " + stringify(*slave) +
+               " because it does not have RESOURCE_PROVIDER capability");
+          continue;
+        }
+
         Option<Error> error = validation::operation::validate(
             operation.destroy_block());
 
@@ -5383,35 +5334,8 @@ void Master::_accept(
                   << operation.destroy_block().block() << " from framework "
                   << *framework << " to agent " << *slave;
 
-        OfferOperation* offerOperation = new OfferOperation(
-            protobuf::createOfferOperation(
-                operation,
-                protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
-                frameworkId,
-                slaveId));
+        _apply(slave, framework, operation);
 
-        addOfferOperation(framework, slave, offerOperation);
-
-        CHECK(consumed.has_provider_id());
-
-        Option<UUID> resourceVersion =
-          slave->resourceVersions.get(consumed.provider_id());
-
-        CHECK_SOME(resourceVersion);
-
-        ApplyOfferOperationMessage message;
-        message.mutable_framework_id()->CopyFrom(frameworkId);
-        message.mutable_operation_info()->CopyFrom(offerOperation->info());
-        message.set_operation_uuid(offerOperation->operation_uuid());
-
-        message.mutable_resource_version_uuid()
-          ->mutable_resource_provider_id()
-          ->CopyFrom(consumed.provider_id());
-
-        message.mutable_resource_version_uuid()
-          ->set_uuid(resourceVersion->toBytes());
-
-        send(slave->pid, message);
         break;
       }
 
@@ -9931,8 +9855,6 @@ void Master::_apply(
 {
   CHECK_NOTNULL(slave);
 
-  slave->apply(operation);
-
   if (slave->capabilities.resourceProvider) {
     Result<ResourceProviderID> resourceProviderId =
       getResourceProviderId(operation);
@@ -9980,6 +9902,38 @@ void Master::_apply(
 
     send(slave->pid, message);
   } else {
+    switch (operation.type()) {
+      case Offer::Operation::RESERVE:
+      case Offer::Operation::UNRESERVE:
+      case Offer::Operation::CREATE:
+      case Offer::Operation::DESTROY: {
+        // We need to strip the allocation info from the operation's
+        // resources in order to apply the operation successfully
+        // since the agent's total is stored as unallocated resources.
+        Offer::Operation strippedOperation = operation;
+        protobuf::stripAllocationInfo(&strippedOperation);
+
+        Try<vector<ResourceConversion>> conversions =
+          getResourceConversions(strippedOperation);
+
+        CHECK_SOME(conversions);
+
+        slave->apply(conversions.get());
+        break;
+      }
+      case Offer::Operation::LAUNCH:
+      case Offer::Operation::LAUNCH_GROUP:
+      case Offer::Operation::CREATE_VOLUME:
+      case Offer::Operation::DESTROY_VOLUME:
+      case Offer::Operation::CREATE_BLOCK:
+      case Offer::Operation::DESTROY_BLOCK:
+        LOG(FATAL) << "Unexpected offer operation to apply on agent " << *slave;
+        return;
+      case Offer::Operation::UNKNOWN:
+        LOG(ERROR) << "Unknown offer operation";
+        return;
+    }
+
     CheckpointResourcesMessage message;
 
     message.mutable_resources()->CopyFrom(slave->checkpointedResources);
@@ -10858,17 +10812,35 @@ void Slave::addOfferOperation(OfferOperation* operation)
 
   offerOperations.put(uuid.get(), operation);
 
-  Resource consumed;
+  Option<Resource> consumed;
+
   switch (operation->info().type()) {
     case Offer::Operation::LAUNCH:
     case Offer::Operation::LAUNCH_GROUP:
+      LOG(FATAL) << "Unexpected offer operation to add on agent " << *this;
+      break;
     case Offer::Operation::RESERVE:
     case Offer::Operation::UNRESERVE:
     case Offer::Operation::CREATE:
-    case Offer::Operation::DESTROY:
-      // These operations are speculatively applied and not
-      // tracked as used resources.
-      return;
+    case Offer::Operation::DESTROY: {
+      // These operations are speculatively applied and will be
+      // reflected in the `totalResources` immediately. Resources used
+      // by those operations are not tracked as used resources.
+
+      // We need to strip the allocation info from the operation's
+      // resources in order to apply the operation successfully
+      // since the agent's total is stored as unallocated resources.
+      Offer::Operation strippedOperation = operation->info();
+      protobuf::stripAllocationInfo(&strippedOperation);
+
+      Try<vector<ResourceConversion>> conversions =
+        getResourceConversions(strippedOperation);
+
+      CHECK_SOME(conversions);
+
+      apply(conversions.get());
+      break;
+    }
     case Offer::Operation::CREATE_VOLUME:
       consumed = operation->info().create_volume().source();
       break;
@@ -10886,7 +10858,9 @@ void Slave::addOfferOperation(OfferOperation* operation)
       return;
   }
 
-  usedResources[operation->framework_id()] += consumed;
+  if (consumed.isSome()) {
+    usedResources[operation->framework_id()] += consumed.get();
+  }
 }
 
 
@@ -11046,18 +11020,15 @@ void Slave::removeExecutor(const FrameworkID& frameworkId,
 }
 
 
-void Slave::apply(const Offer::Operation& operation)
+void Slave::apply(const vector<ResourceConversion>& conversions)
 {
-  // We need to strip the allocation info from the operation's
-  // resources in order to apply the operation successfully
-  // since the agent's total is stored as unallocated resources.
-  Offer::Operation strippedOperation = operation;
-  protobuf::stripAllocationInfo(&strippedOperation);
-
-  Try<Resources> resources = totalResources.apply(strippedOperation);
+  Try<Resources> resources = totalResources.apply(conversions);
   CHECK_SOME(resources);
 
   totalResources = resources.get();
+
+  // TODO(jieyu): `checkpointedResources` should only contain
+  // resources without resource provider ID.
   checkpointedResources = totalResources.filter(needCheckpointing);
 }
 

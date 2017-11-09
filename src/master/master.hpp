@@ -174,7 +174,7 @@ struct Slave
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
-  void apply(const Offer::Operation& operation);
+  void apply(const std::vector<ResourceConversion>& conversions);
 
   Master* const master;
   const SlaveID id;
