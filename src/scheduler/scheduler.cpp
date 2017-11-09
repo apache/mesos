@@ -550,7 +550,10 @@ protected:
 
     ::Request request = future.get();
 
-    CHECK_SOME(connections);
+    if (connections.isNone()) {
+      drop(call, "Connection to master interrupted");
+      return;
+    }
 
     Future<Response> response;
     if (call.type() == Call::SUBSCRIBE) {
