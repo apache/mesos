@@ -153,62 +153,6 @@ class LinterBase(object):
 
         return error_count
 
-    def should_build_virtualenv(self, modified_files):
-        """
-        Check if we should build the virtual environment required.
-        This is the case if the requirements of the environment
-        have changed or if the support script is run with no
-        arguments (meaning that the entire codebase should be linted).
-        """
-        work_dir = os.path.abspath(self.source_dirs[0])
-
-        if not os.path.isdir(os.path.join(work_dir, '.virtualenv')):
-            print 'Virtualenv not detected... building'
-            return True
-
-        # NOTE: If the file list is empty, we are linting the entire
-        # codebase. We should always rebuild the virtualenv in this case.
-        if len(modified_files) <= 0:
-            return True
-
-        basenames = []
-        if modified_files:
-            basenames = [os.path.basename(path) for path in modified_files]
-
-            if 'pip-requirements.txt' in basenames:
-                print 'The "pip-requirements.txt" file has changed.'
-                return True
-
-            # This is only useful for the Python linter.
-            if 'mesos.bash_completion' in basenames:
-                print 'The "mesos.bash_completion" file has changed.'
-                return True
-
-        return False
-
-    def build_virtualenv(self):
-        """
-        Rebuild the virtualenv by running a bootstrap script.
-        This will exit the program if there is a failure.
-        """
-        work_dir = os.path.abspath(self.source_dirs[0])
-
-        print 'Rebuilding virtualenv...'
-
-        process = subprocess.Popen(
-            [os.path.join(work_dir, 'bootstrap')],
-            stdout=subprocess.PIPE)
-
-        output = ''
-        for line in process.stdout:
-            output += line
-
-        process.wait()
-
-        if process.returncode != 0:
-            sys.stderr.write(output)
-            sys.exit(1)
-
     def main(self, modified_files):
         """
         This function takes a list of files and lints them for the
@@ -315,6 +259,9 @@ class CppLinter(LinterBase):
             'whitespace/todo']
 
         rules_filter = '--filter=-,+' + ',+'.join(active_rules)
+
+        # We do not use a version of cpplint available through pip as
+        # we use a custom version (see cpplint.path) to lint C++ files.
         process = subprocess.Popen(
             ['python', 'support/cpplint.py', rules_filter] + source_paths,
             stderr=subprocess.PIPE,
@@ -356,9 +303,10 @@ class PyLinter(LinterBase):
 
         self.config = {
             'bootstrap_dir': cli_dir,
-            'virtualenv_dir': os.path.join(cli_dir, '.virtualenv'),
-            'pylint_config': os.path.join(python_dir, 'pylint.config'),
-            'pylint_cmd': os.path.join(cli_dir, '.virtualenv', 'bin', 'pylint')
+            'virtualenv_dir': os.path.join(support_dir, '.virtualenv'),
+            'pylint_config': os.path.join(support_dir, 'pylint.config'),
+            'pylint_cmd': os.path.join(
+                support_dir, '.virtualenv', 'bin', 'pylint')
         }
 
         self.source_dirs = [cli_dir, lib_dir, support_dir]
@@ -394,14 +342,62 @@ class PyLinter(LinterBase):
         return num_errors
 
     def main(self, modified_files):
-        """Override main to rebuild our virtualenv if necessary."""
-        if self.should_build_virtualenv(modified_files):
-            self.build_virtualenv()
-
         return super(PyLinter, self).main(modified_files)
 
 
+def should_build_virtualenv(modified_files):
+    """
+    Check if we should build the virtual environment required.
+    This is the case if the requirements of the environment
+    have changed or if the support script is run with no
+    arguments (meaning that the entire codebase should be linted).
+    """
+    if not os.path.isdir(os.path.join('support', '.virtualenv')):
+        print 'Virtualenv not detected... building'
+        return True
+
+    # NOTE: If the file list is empty, we are linting the entire
+    # codebase. We should always rebuild the virtualenv in this case.
+    if not modified_files:
+        return True
+
+    basenames = [os.path.basename(path) for path in modified_files]
+
+    if 'pip-requirements.txt' in basenames:
+        print 'The "pip-requirements.txt" file has changed.'
+        return True
+
+    if 'build-virtualenv' in basenames:
+        print 'The "build-virtualenv" file has changed.'
+        return True
+
+    return False
+
+
+def build_virtualenv():
+    """
+    Rebuild the virtualenv by running a bootstrap script.
+    This will exit the program if there is a failure.
+    """
+    print 'Rebuilding virtualenv...'
+
+    process = subprocess.Popen(
+        [os.path.join('support', 'build-virtualenv')],
+        stdout=subprocess.PIPE)
+
+    output = ''
+    for line in process.stdout:
+        output += line
+
+    process.wait()
+
+    if process.returncode != 0:
+        sys.stderr.write(output)
+        sys.exit(1)
+
 if __name__ == '__main__':
+    if should_build_virtualenv(sys.argv[1:]):
+        build_virtualenv()
     CPP_LINTER = CppLinter()
     CPP_ERRORS = CPP_LINTER.main(sys.argv[1:])
     PY_LINTER = PyLinter()
