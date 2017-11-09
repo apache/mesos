@@ -96,6 +96,19 @@ class LinterBase(object):
         """
         pass
 
+    def run_command_in_virtualenv(self, command):
+        """
+        Activate the virtual environment, run the
+        given command and return its output.
+        """
+        virtualenv = os.path.join('support', '.virtualenv')
+        command = '. {virtualenv_path}/bin/activate; {cmd}'.format(
+            virtualenv_path=virtualenv, cmd=command)
+
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+
+        return process
+
     def check_license_header(self, source_paths):
         """Checks the license headers of the given files."""
         error_count = 0
@@ -278,6 +291,59 @@ class CppLinter(LinterBase):
         return process.returncode
 
 
+class JsLinter(LinterBase):
+    """The linter for JavaScript files, uses eslint."""
+    linter_type = 'JavaScript'
+
+    source_dirs = [os.path.join('src', 'webui')]
+
+    exclude_files = '(' \
+                    r'angular\-1\.2\.32|' \
+                    r'angular\-route\-1\.2\.32|' \
+                    r'clipboard\-1\.5\.16|' \
+                    r'jquery\-3\.2\.1|' \
+                    r'relative\-date|' \
+                    r'ui\-bootstrap\-tpls\-0\.9\.0|' \
+                    r'angular\-route\-1\.2\.32|' \
+                    r'underscore\-1\.4\.3|' \
+                    r'\.eslintrc|' \
+                    r'\.virtualenv' \
+                    ')'
+
+    source_files = r'\.(js)$'
+
+    comment_prefix = '//'
+
+    def run_lint(self, source_paths):
+        """
+        Runs eslint over given files.
+
+        https://eslint.org/docs/user-guide/configuring
+        """
+
+        num_errors = 0
+
+        source_files = ' '.join(source_paths)
+        config_path = os.path.join('support', '.eslintrc.js')
+
+        process = self.run_command_in_virtualenv(
+            'eslint {files} -c {config} -f compact'.format(
+                files=source_files,
+                config=config_path)
+            )
+
+        for line in process.stdout:
+            if "Error -" in line or "Warning -" in line:
+                sys.stderr.write(line)
+                if "Error -" in line:
+                    num_errors += 1
+
+        return num_errors
+
+    def main(self, modified_files):
+        return super(JsLinter, self).main(modified_files)
+
+
 class PyLinter(LinterBase):
     """The linter for Python files, uses pylint."""
     linter_type = 'Python'
@@ -402,4 +468,6 @@ if __name__ == '__main__':
     CPP_ERRORS = CPP_LINTER.main(sys.argv[1:])
     PY_LINTER = PyLinter()
     PY_ERRORS = PY_LINTER.main(sys.argv[1:])
-    sys.exit(CPP_ERRORS + PY_ERRORS)
+    JS_LINTER = JsLinter()
+    JS_ERRORS = JS_LINTER.main(sys.argv[1:])
+    sys.exit(CPP_ERRORS + PY_ERRORS + JS_ERRORS)

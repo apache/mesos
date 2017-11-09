@@ -1,1 +1,2 @@
+nodeenv==1.1.2
 pylint==1.6.4

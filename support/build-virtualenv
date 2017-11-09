@@ -62,4 +62,14 @@ ${PYTHON} ${VIRTUALENV} --python=${PYTHON} \
 source ${VIRTUALENV_DIRECTORY}/bin/activate
 pip install --upgrade pip
 pip install -r ${CURRDIR}/pip-requirements.txt
+
+# Add Node.js virtual environment to the existing virtual environment.
+nodeenv -p
+
+# Restart the virtual environment to then have npm available.
+deactivate
+source ${VIRTUALENV_DIRECTORY}/bin/activate
+
+# Install the JavaScript linter in the virtual environment.
+npm install -g eslint@4.6.1
 deactivate
