@@ -1476,7 +1476,9 @@ TEST_P(SchedulerTest, Suppress)
 }
 
 
-TEST_P(SchedulerTest, NoOffersWithAllRolesSuppressed)
+// TODO(alexr): Re-enable this test after MESOS-8200 is resolved and the test
+// itself is fixed as well, see MESOS-7996.
+TEST_P(SchedulerTest, DISABLED_NoOffersWithAllRolesSuppressed)
 {
   master::Flags flags = CreateMasterFlags();
 
