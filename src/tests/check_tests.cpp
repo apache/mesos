@@ -77,7 +77,7 @@ namespace tests {
   string("rm ") + path + " || (touch " + path + "; exit 1)"
 #else
 #define FLAPPING_CHECK_COMMAND(path)                                    \
-  string("powershell -command ") +                                      \
+  string("powershell -NoProfile -Command ") +                           \
   "$ri_err = Remove-Item -ErrorAction SilentlyContinue"                 \
     " \"" + path + "\";"                                                \
   "if (-not $?) {"                                                      \
@@ -100,15 +100,15 @@ namespace tests {
 //   - Exit with a zero status.
 #ifndef __WINDOWS__
 #define STALLING_CHECK_COMMAND(path)                                    \
-  string("(ls ") + path + " && " + SLEEP_COMMAND(1000) +                \
+  string("(ls ") + path + " && " + "sleep 1000" +                       \
   ") || (touch " + path + "; exit 1)"
 #else
 #define STALLING_CHECK_COMMAND(path)                                    \
-  string("powershell -command ") +                                      \
+  string("powershell -NoProfile -Command ") +                           \
   "if (Test-Path \"" + path + "\") {" +                                 \
-     SLEEP_COMMAND(1000) +                                              \
+  "  Start-Sleep 1000 " +                                               \
   "} else {"                                                            \
-  "  Set-Content -Path (\"" + path + "\") -Value ($null);"              \
+  "  Set-Content -Path (\"" + path + "\") -Value $null;"                \
   "  exit 1"                                                            \
   "}"
 #endif // !__WINDOWS__
@@ -228,6 +228,22 @@ public:
 
     mesos->send(call);
   }
+
+  // NOTE: On Windows, most tasks are run under PowerShell, which uses ~150 MB
+  // of memory per-instance due to loading .NET. Realistically, PowerShell can
+  // be called more than once in a task, so 512 MB is the safe minimum.
+  // Furthermore, because the Windows `cpuset` isolator is a hard-cap, 0.1 CPUs
+  // will cause the task (or even a check command) to timeout, so 1 CPU is the
+  // safe minimum.
+  //
+  // On platforms where the shell is, e.g. Bash, the minimum is much lower.
+  const std::string defaultTaskResourcesString{
+#ifdef __WINDOWS__
+      "cpus:1;mem:512;disk:32"
+#else
+      "cpus:0.1;mem:32;disk:32"
+#endif // __WINDOWS__
+      };
 };
 
 
@@ -303,7 +319,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   v1::Resources resources =
-      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+      v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::TaskInfo taskInfo =
     v1::createTask(agentId, resources, SLEEP_COMMAND(10000));
@@ -457,7 +473,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckStatusChange)
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   v1::Resources resources =
-      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+      v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::TaskInfo taskInfo =
       v1::createTask(agentId, resources, SLEEP_COMMAND(10000));
@@ -578,7 +594,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   v1::Resources resources =
-      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+      v1::Resources::parse(defaultTaskResourcesString).get();
 
   const string envKey = "MESOS_CHECK_TASK_ENV";
   const int32_t envValue = 42;
@@ -691,7 +707,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   v1::Resources resources =
-      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+      v1::Resources::parse(defaultTaskResourcesString).get();
 
   const string filename = "nested_inherits_work_dir";
 
@@ -824,7 +840,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckTimeout)
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   v1::Resources resources =
-      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+      v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::TaskInfo taskInfo =
       v1::createTask(agentId, resources, SLEEP_COMMAND(10000));
@@ -939,7 +955,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   v1::Resources resources =
-      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+      v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::TaskInfo taskInfo =
       v1::createTask(agentId, resources, SLEEP_COMMAND(10000));
@@ -1101,7 +1117,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
       testPort).get();
 
   v1::Resources resources =
-      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+      v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::TaskInfo taskInfo = v1::createTask(agentId, resources, command);
 
@@ -1239,7 +1255,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, TCPCheckDelivered)
       testPort).get();
 
   v1::Resources resources =
-      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+      v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::TaskInfo taskInfo = v1::createTask(agentId, resources, command);
 
@@ -1390,7 +1406,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
   const v1::Resources resources =
-    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+    v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::ExecutorInfo executorInfo;
   executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
@@ -1594,7 +1610,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
   const v1::Resources resources =
-    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+    v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::ExecutorInfo executorInfo;
   executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
@@ -1763,7 +1779,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
   const v1::Resources resources =
-    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+    v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::ExecutorInfo executorInfo;
   executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
@@ -1918,7 +1934,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
   const v1::Resources resources =
-    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+    v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::ExecutorInfo executorInfo;
   executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
@@ -2096,7 +2112,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, CommandCheckTimeout)
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
   const v1::Resources resources =
-    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+    v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::ExecutorInfo executorInfo;
   executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
@@ -2223,8 +2239,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, CommandCheckTimeout)
 // Verifies that when both command check and health check are specified,
 // health and check updates include both statuses. Also verifies that
 // both statuses are included upon reconciliation.
-//
-// TODO(gkleiman): Check if this test works on Windows.
 TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -2252,7 +2266,7 @@ TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
   const v1::Resources resources =
-    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+    v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::ExecutorInfo executorInfo;
   executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
@@ -2433,7 +2447,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
   const v1::Resources resources =
-    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+    v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::ExecutorInfo executorInfo;
   executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
@@ -2586,7 +2600,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, HTTPCheckDelivered)
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
   const v1::Resources resources =
-    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+    v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::ExecutorInfo executorInfo;
   executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
@@ -2745,7 +2759,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, TCPCheckDelivered)
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
   const v1::Resources resources =
-    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+    v1::Resources::parse(defaultTaskResourcesString).get();
 
   v1::ExecutorInfo executorInfo;
   executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
