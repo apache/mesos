@@ -189,7 +189,7 @@
         scope: true,
         template: '<i class="glyphicon glyphicon-file"></i>',
 
-        link: function(scope, element, attrs) {
+        link: function(scope, element, _attrs) {
           var clip = new Clipboard(element[0]);
 
           element.on('mouseenter', function() {
@@ -241,7 +241,7 @@
         scope: {
           value: '@'
         },
-        link: function($scope, element, attrs) {
+        link: function($scope, _element, _attrs) {
           $scope.longDate = JSON.parse(
             localStorage.getItem('longDate') || false);
 

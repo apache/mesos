@@ -98,7 +98,7 @@
           ];
         }
 
-        var ModalCtrl = function($scope, $modalInstance) {
+        var ModalCtrl = function($scope, _$modalInstance) {
           $scope.title = title;
           $scope.message = message;
           $scope.buttons = buttons;
@@ -229,7 +229,7 @@
   };
 
   Top.prototype.parseResponse = function(response) {
-    var that = this;
+    var this_ = this;
     var monitor = {
       frameworks: {},
       statistics: new Statistics()
@@ -242,10 +242,10 @@
         Statistics.parseJSON(executor.statistics);
 
       // Compute CPU usage if possible.
-      if (that.scope.monitor &&
-          that.scope.monitor.frameworks[framework_id] &&
-          that.scope.monitor.frameworks[framework_id].executors[executor_id]) {
-        var previous = that.scope.monitor.frameworks[framework_id].executors[executor_id].statistics;
+      if (this_.scope.monitor &&
+          this_.scope.monitor.frameworks[framework_id] &&
+          this_.scope.monitor.frameworks[framework_id].executors[executor_id]) {
+        var previous = this_.scope.monitor.frameworks[framework_id].executors[executor_id].statistics;
         current.diffUsage(previous);
       }
 

@@ -52,6 +52,8 @@
 //    });
 
 (function($) {
+  'use strict';
+
   // Helper for escaping html, based on _.escape from underscore.js.
   function escapeHTML(string) {
     if (string == null) {
@@ -85,8 +87,13 @@
     this_.paging = false;
     this_.tailing = true;
 
-    page_size || $.error('Expecting page_size to be defined');
-    truncate_length || $.error('Expecting truncate_length to be defined');
+    if (page_size) {
+        $.error('Expecting page_size to be defined')
+    }
+
+    if (truncate_length) {
+        $.error('Expecting truncate_length to be defined')
+    }
 
     this_.page_size = page_size;
     this_.truncate_length = truncate_length;
@@ -133,7 +140,7 @@
         this_.element.html('');
         setTimeout(function() { this_.tail(); }, 0);
       })
-      .fail(function(response, msg, code) {
+      .fail(function(response, _msg, _code) {
         if ([401, 403].indexOf(response.status) > -1) {
           // Unauthorized user.
           this_.indicate('YOU ARE UNAUTHORIZED TO ACCESS THIS CONTENT');

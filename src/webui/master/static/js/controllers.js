@@ -292,10 +292,11 @@
 
       _.each(framework.tasks, function(task) {
         switch (task.state) {
-            case "TASK_STAGING": framework.staging_tasks++; break;
-            case "TASK_STARTING": framework.starting_tasks++; break;
-            case "TASK_RUNNING": framework.running_tasks++; break;
-            case "TASK_KILLING": framework.killing_tasks++; break;
+            case "TASK_STAGING": framework.staging_tasks += 1; break;
+            case "TASK_STARTING": framework.starting_tasks += 1; break;
+            case "TASK_RUNNING": framework.running_tasks += 1; break;
+            case "TASK_KILLING": framework.killing_tasks += 1; break;
+            default: break;
         }
       })
 
@@ -306,10 +307,11 @@
 
       _.each(framework.completed_tasks, function(task) {
         switch (task.state) {
-            case "TASK_FINISHED": framework.finished_tasks++; break;
-            case "TASK_KILLED": framework.killed_tasks++; break;
-            case "TASK_FAILED": framework.failed_tasks++; break;
-            case "TASK_LOST": framework.lost_tasks++; break;
+            case "TASK_FINISHED": framework.finished_tasks += 1; break;
+            case "TASK_KILLED": framework.killed_tasks += 1; break;
+            case "TASK_FAILED": framework.failed_tasks += 1; break;
+            case "TASK_LOST": framework.lost_tasks += 1; break;
+            default: break;
         }
       })
 
@@ -548,7 +550,7 @@
 
 
   mesosApp.controller('HomeCtrl', function($dialog, $scope) {
-    $scope.log = function($event) {
+    $scope.log = function(_$event) {
       if (!$scope.state.external_log_file && !$scope.state.log_dir) {
         $dialog.messageBox(
           'Logging to a file is not enabled',
@@ -656,7 +658,7 @@
 
       var agent = $scope.agents[$routeParams.agent_id];
 
-      $scope.log = function($event) {
+      $scope.log = function(_$event) {
         if (!$scope.state.external_log_file && !$scope.state.log_dir) {
           $dialog.messageBox(
             'Logging to a file is not enabled',
@@ -929,7 +931,7 @@
                 task.healthy = lastStatus.healthy;
               }
             })
-          };
+          }
 
           // Look for the executor; it's either active or completed.
           $scope.executor =
@@ -1080,7 +1082,7 @@
             .search({path: sandboxDirectory})
             .replace();
         })
-        .error(function(response) {
+        .error(function(_response) {
           $alert.danger({
             bullets: [
              "The agent is not accessible",
