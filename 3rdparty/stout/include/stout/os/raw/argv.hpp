@@ -36,6 +36,9 @@ namespace raw {
 class Argv
 {
 public:
+  Argv(const Argv&) = delete;
+  Argv& operator=(const Argv&) = delete;
+
   template <typename Iterable>
   explicit Argv(const Iterable& iterable)
   {
