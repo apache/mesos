@@ -182,7 +182,7 @@ public:
     delete[] envp;
   }
 
-  operator char**()
+  operator char**() const
   {
     return envp;
   }
