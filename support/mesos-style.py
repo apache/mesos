@@ -68,46 +68,34 @@ class LinterBase(object):
     # A prefix at the beginning of the line to demark comments (e.g. '//')
     comment_prefix = ''
 
-    def find_candidates(self, root_dir):
+    def check_encoding(self, source_paths):
         """
-        Search through the all files rooted at 'root_dir' and compare
-        them against 'self.exclude_files' and 'self.source_files' to
-        come up with a set of candidate files to lint.
+        Checks for encoding errors in the given files. Source
+        code files must contain only printable ascii characters.
+        This excludes the extended ascii characters 128-255.
+        http://www.asciitable.com/
         """
-        exclude_file_regex = re.compile(self.exclude_files)
-        source_criteria_regex = re.compile(self.source_files)
-        for root, _, files in os.walk(root_dir):
-            for name in files:
-                path = os.path.join(root, name)
-                if exclude_file_regex.search(path) is not None:
-                    continue
+        error_count = 0
+        for path in source_paths:
+            with open(path) as source_file:
+                for line_number, line in enumerate(source_file):
+                    # If we find an error, add 1 to both the character and
+                    # the line offset to give them 1-based indexing
+                    # instead of 0 (as is common in most editors).
+                    char_errors = [offset for offset, char in enumerate(line)
+                                   if char not in string.printable]
+                    if char_errors:
+                        sys.stderr.write(
+                            "{path}:{line_number}:  Non-printable characters"
+                            " found at [{offsets}]: \"{line}\"\n".format(
+                                path=path,
+                                line_number=line_number + 1,
+                                offsets=', '.join([str(offset + 1) for offset
+                                                   in char_errors]),
+                                line=line.rstrip()))
+                        error_count += 1
 
-                if source_criteria_regex.search(name) is not None:
-                    yield path
-
-    def run_lint(self, source_paths):
-        """
-        A custom function to provide linting for 'linter_type'.
-        It takes a list of source files to lint and returns the number
-        of errors found during the linting process.
-
-        It should print any errors as it encounters them to provide
-        feedback to the caller.
-        """
-        pass
-
-    def run_command_in_virtualenv(self, command):
-        """
-        Activate the virtual environment, run the
-        given command and return its output.
-        """
-        virtualenv = os.path.join('support', '.virtualenv')
-        command = '. {virtualenv_path}/bin/activate; {cmd}'.format(
-            virtualenv_path=virtualenv, cmd=command)
-
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-
-        return process
+        return error_count
 
     def check_license_header(self, source_paths):
         """Checks the license headers of the given files."""
@@ -137,34 +125,45 @@ class LinterBase(object):
 
         return error_count
 
-    def check_encoding(self, source_paths):
+    def find_candidates(self, root_dir):
         """
-        Checks for encoding errors in the given files. Source
-        code files must contain only printable ascii characters.
-        This excludes the extended ascii characters 128-255.
-        http://www.asciitable.com/
+        Search through the all files rooted at 'root_dir' and compare
+        them against 'self.exclude_files' and 'self.source_files' to
+        come up with a set of candidate files to lint.
         """
-        error_count = 0
-        for path in source_paths:
-            with open(path) as source_file:
-                for line_number, line in enumerate(source_file):
-                    # If we find an error, add 1 to both the character and
-                    # the line offset to give them 1-based indexing
-                    # instead of 0 (as is common in most editors).
-                    char_errors = [offset for offset, char in enumerate(line)
-                                   if char not in string.printable]
-                    if char_errors:
-                        sys.stderr.write(
-                            "{path}:{line_number}:  Non-printable characters"
-                            " found at [{offsets}]: \"{line}\"\n".format(
-                                path=path,
-                                line_number=line_number + 1,
-                                offsets=', '.join([str(offset + 1) for offset
-                                                   in char_errors]),
-                                line=line.rstrip()))
-                        error_count += 1
+        exclude_file_regex = re.compile(self.exclude_files)
+        source_criteria_regex = re.compile(self.source_files)
+        for root, _, files in os.walk(root_dir):
+            for name in files:
+                path = os.path.join(root, name)
+                if exclude_file_regex.search(path) is not None:
+                    continue
 
-        return error_count
+                if source_criteria_regex.search(name) is not None:
+                    yield path
+
+    def run_command_in_virtualenv(self, command):
+        """
+        Activate the virtual environment, run the
+        given command and return its output.
+        """
+        virtualenv = os.path.join('support', '.virtualenv')
+        command = '. {virtualenv_path}/bin/activate; {cmd}'.format(
+            virtualenv_path=virtualenv, cmd=command)
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+
+        return process
+
+    def run_lint(self, source_paths):
+        """
+        A custom function to provide linting for 'linter_type'.
+        It takes a list of source files to lint and returns the number
+        of errors found during the linting process.
+
+        It should print any errors as it encounters them to provide
+        feedback to the caller.
+        """
+        pass
 
     def main(self, modified_files):
         """
@@ -305,9 +304,7 @@ class JsLinter(LinterBase):
                     r'relative\-date|' \
                     r'ui\-bootstrap\-tpls\-0\.9\.0|' \
                     r'angular\-route\-1\.2\.32|' \
-                    r'underscore\-1\.4\.3|' \
-                    r'\.eslintrc|' \
-                    r'\.virtualenv' \
+                    r'underscore\-1\.4\.3' \
                     ')'
 
     source_files = r'\.(js)$'
@@ -329,8 +326,9 @@ class JsLinter(LinterBase):
         process = self.run_command_in_virtualenv(
             'eslint {files} -c {config} -f compact'.format(
                 files=source_files,
-                config=config_path)
+                config=config_path
             )
+        )
 
         for line in process.stdout:
             if "Error -" in line or "Warning -" in line:
@@ -348,6 +346,11 @@ class PyLinter(LinterBase):
     """The linter for Python files, uses pylint."""
     linter_type = 'Python'
 
+    cli_dir = os.path.join('src', 'python', 'cli_new')
+    lib_dir = os.path.join('src', 'python', 'lib')
+    support_dir = 'support'
+    source_dirs = [cli_dir, lib_dir, support_dir]
+
     exclude_files = '(' \
                     r'protobuf\-2\.4\.1|' \
                     r'googletest\-release\-1\.8\.0|' \
@@ -361,22 +364,6 @@ class PyLinter(LinterBase):
 
     comment_prefix = '#'
 
-    def __init__(self):
-        python_dir = os.path.join('src', 'python')
-        cli_dir = os.path.join(python_dir, 'cli_new')
-        lib_dir = os.path.join(python_dir, 'lib')
-        support_dir = 'support'
-
-        self.config = {
-            'bootstrap_dir': cli_dir,
-            'virtualenv_dir': os.path.join(support_dir, '.virtualenv'),
-            'pylint_config': os.path.join(support_dir, 'pylint.config'),
-            'pylint_cmd': os.path.join(
-                support_dir, '.virtualenv', 'bin', 'pylint')
-        }
-
-        self.source_dirs = [cli_dir, lib_dir, support_dir]
-
     def run_lint(self, source_paths):
         """
         Runs pylint over given files.
@@ -384,7 +371,12 @@ class PyLinter(LinterBase):
         https://google.github.io/styleguide/pyguide.html
         """
 
+        num_errors = 0
+
+        pylint_config = os.path.join('support', 'pylint.config')
+
         source_files = ''
+
         for source_dir in self.source_dirs:
             source_dir_files = []
             for source_path in source_paths:
@@ -393,13 +385,13 @@ class PyLinter(LinterBase):
 
             source_files = ' '.join([source_files, ' '.join(source_dir_files)])
 
-        process = subprocess.Popen(
-            [('. {virtualenv_dir}/bin/activate;'
-              '{pylint_cmd} --rcfile={pylint_config} {files}').
-             format(files=source_files, **self.config)],
-            shell=True, stdout=subprocess.PIPE)
+        process = self.run_command_in_virtualenv(
+            'pylint --rcfile={rcfile} {files}'.format(
+                rcfile=pylint_config,
+                files=source_files
+            )
+        )
 
-        num_errors = 0
         for line in process.stdout:
             if not line.startswith('*'):
                 num_errors += 1
@@ -466,8 +458,8 @@ if __name__ == '__main__':
         build_virtualenv()
     CPP_LINTER = CppLinter()
     CPP_ERRORS = CPP_LINTER.main(sys.argv[1:])
-    PY_LINTER = PyLinter()
-    PY_ERRORS = PY_LINTER.main(sys.argv[1:])
     JS_LINTER = JsLinter()
     JS_ERRORS = JS_LINTER.main(sys.argv[1:])
-    sys.exit(CPP_ERRORS + PY_ERRORS + JS_ERRORS)
+    PY_LINTER = PyLinter()
+    PY_ERRORS = PY_LINTER.main(sys.argv[1:])
+    sys.exit(CPP_ERRORS + JS_ERRORS + PY_ERRORS)
