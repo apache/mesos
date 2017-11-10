@@ -45,11 +45,12 @@
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
 
+#include "master/constants.hpp"
+#include "master/master.hpp"
+
 #include "master/allocator/mesos/allocator.hpp"
 
 #include "master/detector/standalone.hpp"
-
-#include "master/master.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
@@ -1450,9 +1451,9 @@ TEST_P(SchedulerTest, Suppress)
 }
 
 
-// TODO(alexr): Re-enable this test after MESOS-8200 is resolved and the test
-// itself is fixed as well, see MESOS-7996.
-TEST_P(SchedulerTest, DISABLED_NoOffersWithAllRolesSuppressed)
+// This test verifies that when a framework registers with all roles
+// suppressing offers, it does not receive offers.
+TEST_P(SchedulerTest, NoOffersWithAllRolesSuppressed)
 {
   master::Flags flags = CreateMasterFlags();
 
@@ -1460,8 +1461,16 @@ TEST_P(SchedulerTest, DISABLED_NoOffersWithAllRolesSuppressed)
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  Clock::pause();
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
@@ -1482,12 +1491,15 @@ TEST_P(SchedulerTest, DISABLED_NoOffersWithAllRolesSuppressed)
   EXPECT_CALL(*scheduler, subscribed(_, _))
     .WillOnce(FutureArg<1>(&subscribed));
 
+  Future<Nothing> heartbeat;
   EXPECT_CALL(*scheduler, heartbeat(_))
-    .WillRepeatedly(Return()); // Ignore heartbeats.
+    .WillOnce(FutureSatisfy(&heartbeat));
 
+  // The framework will subscribe with its role being suppressed so no
+  // offers should be received by the framework.
   Future<Event::Offers> offers;
   EXPECT_CALL(*scheduler, offers(_, _))
-    .Times(0);  // No offers extended since all roles are suppressed.
+    .Times(0);
 
   {
     Call call;
@@ -1502,19 +1514,25 @@ TEST_P(SchedulerTest, DISABLED_NoOffersWithAllRolesSuppressed)
     mesos.send(call);
   }
 
-  // Since the framework is subscribed with its role being suppressed, no
-  // offers should be received by the framework.
-  Clock::pause();
-  Clock::advance(flags.allocation_interval);
-  Clock::resume();
-
   AWAIT_READY(subscribed);
+  AWAIT_READY(heartbeat);
+
+  // We use an additional heartbeat as a synchronization mechanism to make
+  // sure an offer would be received by the scheduler if one was ever extended.
+  // Note that Clock::settle() wouldn't be sufficient here.
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillOnce(FutureSatisfy(&heartbeat))
+    .WillRepeatedly(Return()); // Ignore additional heartbeats.
+
+  Clock::advance(master::DEFAULT_HEARTBEAT_INTERVAL);
+  AWAIT_READY(heartbeat);
+
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
+  // On revival the scheduler should get an offer.
   EXPECT_CALL(*scheduler, offers(_, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  // On revival the scheduler should get an offer.
   {
     Call call;
     call.mutable_framework_id()->CopyFrom(frameworkId);
