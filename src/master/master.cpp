@@ -6947,7 +6947,8 @@ void Master::updateFramework(
     const FrameworkInfo& frameworkInfo,
     const set<string>& suppressedRoles)
 {
-  LOG(INFO) << "Updating info for framework " << framework->id();
+  LOG(INFO) << "Updating framework " << *framework << " with roles "
+            << stringify(suppressedRoles) << " suppressed";
 
   // NOTE: The allocator takes care of activating/deactivating
   // the frameworks from the added/removed roles, respectively.
@@ -8806,6 +8807,9 @@ void Master::addFramework(
 
   CHECK(!frameworks.registered.contains(framework->id()))
     << "Framework " << *framework << " already exists!";
+
+  LOG(INFO) << "Adding framework " << *framework << " with roles "
+            << stringify(suppressedRoles) << " suppressed";
 
   frameworks.registered[framework->id()] = framework;
 

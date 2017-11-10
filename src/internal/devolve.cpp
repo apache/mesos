@@ -193,7 +193,17 @@ mesos::resource_provider::Event devolve(
 
 scheduler::Call devolve(const v1::scheduler::Call& call)
 {
-  return devolve<scheduler::Call>(call);
+  scheduler::Call _call = devolve<scheduler::Call>(call);
+
+  // Certain conversions require special handling.
+  if (_call.type() == scheduler::Call::SUBSCRIBE) {
+    // v1 Subscribe.suppressed_roles cannot be automatically converted
+    // because its tag is used by another field in the internal Subscribe.
+    *(_call.mutable_subscribe()->mutable_suppressed_roles()) =
+      call.subscribe().suppressed_roles();
+  }
+
+  return _call;
 }
 
 

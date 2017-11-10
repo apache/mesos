@@ -244,9 +244,22 @@ v1::resource_provider::Event evolve(
 }
 
 
+// TODO(xujyan): Do we need this conversion when Mesos never sends out
+// `scheduler::Call` thus never needs to evovle internal call to a v1 call?
+// Perhaps we should remove the method so there's no need to maintain it.
 v1::scheduler::Call evolve(const scheduler::Call& call)
 {
-  return evolve<v1::scheduler::Call>(call);
+  v1::scheduler::Call _call = evolve<v1::scheduler::Call>(call);
+
+  // Certain conversions require special handling.
+  if (_call.type() == v1::scheduler::Call::SUBSCRIBE) {
+    // v1 Subscribe.suppressed_roles cannot be automatically converted
+    // because its tag is used by another field in the internal Subscribe.
+    *(_call.mutable_subscribe()->mutable_suppressed_roles()) =
+      call.subscribe().suppressed_roles();
+  }
+
+  return _call;
 }
 
 
