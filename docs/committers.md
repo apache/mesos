@@ -465,7 +465,7 @@ committers to learn about areas of the code that they are unfamiliar with.
       <tr>
         <td></td>
         <td>XFS Isolator</td>
-        <td>Yan Xu, James Peach (cc)</td>
+        <td>Yan Xu, James Peach</td>
       </tr>
       <tr>
         <td>Docker Containerizer</td>
