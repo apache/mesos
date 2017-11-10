@@ -529,8 +529,8 @@ Future<Response> Http::_api(
         " for " + stringify(call.type()) + " call");
   }
 
-  LOG(INFO) << "Processing call " << call.type();
-
+  // Each handler must log separately to add context
+  // it might extract from the nested message.
   switch (call.type()) {
     case mesos::agent::Call::UNKNOWN:
       return NotImplemented();
@@ -900,6 +900,8 @@ Future<Response> Http::getFlags(
 {
   CHECK_EQ(mesos::agent::Call::GET_FLAGS, call.type());
 
+  LOG(INFO) << "Processing GET_FLAGS call";
+
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
@@ -955,6 +957,8 @@ Future<Response> Http::getHealth(
 {
   CHECK_EQ(mesos::agent::Call::GET_HEALTH, call.type());
 
+  LOG(INFO) << "Processing GET_HEALTH call";
+
   mesos::agent::Response response;
   response.set_type(mesos::agent::Response::GET_HEALTH);
   response.mutable_get_health()->set_healthy(true);
@@ -971,6 +975,8 @@ Future<Response> Http::getVersion(
 {
   CHECK_EQ(mesos::agent::Call::GET_VERSION, call.type());
 
+  LOG(INFO) << "Processing GET_VERSION call";
+
   return OK(serialize(acceptType,
                       evolve<v1::agent::Response::GET_VERSION>(version())),
             stringify(acceptType));
@@ -984,6 +990,8 @@ Future<Response> Http::getMetrics(
 {
   CHECK_EQ(mesos::agent::Call::GET_METRICS, call.type());
   CHECK(call.has_get_metrics());
+
+  LOG(INFO) << "Processing GET_METRICS call";
 
   Option<Duration> timeout;
   if (call.get_metrics().has_timeout()) {
@@ -1016,6 +1024,8 @@ Future<Response> Http::getLoggingLevel(
 {
   CHECK_EQ(mesos::agent::Call::GET_LOGGING_LEVEL, call.type());
 
+  LOG(INFO) << "Processing GET_LOGGING_LEVEL call";
+
   mesos::agent::Response response;
   response.set_type(mesos::agent::Response::GET_LOGGING_LEVEL);
   response.mutable_get_logging_level()->set_level(FLAGS_v);
@@ -1036,6 +1046,8 @@ Future<Response> Http::setLoggingLevel(
   uint32_t level = call.set_logging_level().level();
   Duration duration =
     Nanoseconds(call.set_logging_level().duration().nanoseconds());
+
+  LOG(INFO) << "Processing SET_LOGGING_LEVEL call for level " << level;
 
   Future<Owned<ObjectApprover>> approver;
 
@@ -1076,6 +1088,8 @@ Future<Response> Http::listFiles(
   CHECK_EQ(mesos::agent::Call::LIST_FILES, call.type());
 
   const string& path = call.list_files().path();
+
+  LOG(INFO) << "Processing LIST_FILES call for path '" << path << "'";
 
   return slave->files->browse(path, principal)
     .then([acceptType](const Try<list<FileInfo>, FilesError>& result)
@@ -1468,6 +1482,8 @@ Future<Response> Http::getFrameworks(
 {
   CHECK_EQ(mesos::agent::Call::GET_FRAMEWORKS, call.type());
 
+  LOG(INFO) << "Processing GET_FRAMEWORKS call";
+
   // Retrieve `ObjectApprover`s for authorizing frameworks.
   Future<Owned<ObjectApprover>> frameworksApprover;
 
@@ -1529,6 +1545,8 @@ Future<Response> Http::getExecutors(
     const Option<Principal>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::GET_EXECUTORS, call.type());
+
+  LOG(INFO) << "Processing GET_EXECUTORS call";
 
   // Retrieve `ObjectApprover`s for authorizing frameworks and executors.
   Future<Owned<ObjectApprover>> frameworksApprover;
@@ -1630,6 +1648,8 @@ Future<Response> Http::getTasks(
     const Option<Principal>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::GET_TASKS, call.type());
+
+  LOG(INFO) << "Processing GET_TASKS call";
 
   // Retrieve Approvers for authorizing frameworks and tasks.
   Future<Owned<ObjectApprover>> frameworksApprover;
@@ -1809,6 +1829,8 @@ Future<Response> Http::getAgent(
 {
   CHECK_EQ(mesos::agent::Call::GET_AGENT, call.type());
 
+  LOG(INFO) << "Processing GET_AGENT call";
+
   agent::Response response;
   response.set_type(mesos::agent::Response::GET_AGENT);
 
@@ -1825,6 +1847,8 @@ Future<Response> Http::getState(
     const Option<Principal>& principal) const
 {
   CHECK_EQ(mesos::agent::Call::GET_STATE, call.type());
+
+  LOG(INFO) << "Processing GET_STATE call";
 
   // Retrieve Approvers for authorizing frameworks and tasks.
   Future<Owned<ObjectApprover>> frameworksApprover;
@@ -2081,6 +2105,8 @@ Future<Response> Http::getContainers(
 {
   CHECK_EQ(mesos::agent::Call::GET_CONTAINERS, call.type());
 
+  LOG(INFO) << "Processing GET_CONTAINERS call";
+
   Future<Owned<AuthorizationAcceptor>> authorizeContainer =
     AuthorizationAcceptor::create(
         principal, slave->authorizer, authorization::VIEW_CONTAINER);
@@ -2271,6 +2297,8 @@ Future<Response> Http::readFile(
   const size_t offset = call.read_file().offset();
   const string& path = call.read_file().path();
 
+  LOG(INFO) << "Processing READ_FILE call for path '" << path << "'";
+
   Option<size_t> length;
   if (call.read_file().has_length()) {
     length = call.read_file().length();
@@ -2318,6 +2346,9 @@ Future<Response> Http::launchNestedContainer(
 {
   CHECK_EQ(mesos::agent::Call::LAUNCH_NESTED_CONTAINER, call.type());
   CHECK(call.has_launch_nested_container());
+
+  LOG(INFO) << "Processing LAUNCH_NESTED_CONTAINER call for container '"
+            << call.launch_nested_container().container_id() << "'";
 
   Future<Owned<ObjectApprover>> approver;
 
@@ -2453,6 +2484,9 @@ Future<Response> Http::waitNestedContainer(
   CHECK_EQ(mesos::agent::Call::WAIT_NESTED_CONTAINER, call.type());
   CHECK(call.has_wait_nested_container());
 
+  LOG(INFO) << "Processing WAIT_NESTED_CONTAINER call for container '"
+            << call.wait_nested_container().container_id() << "'";
+
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
@@ -2544,6 +2578,9 @@ Future<Response> Http::killNestedContainer(
   CHECK_EQ(mesos::agent::Call::KILL_NESTED_CONTAINER, call.type());
   CHECK(call.has_kill_nested_container());
 
+  LOG(INFO) << "Processing KILL_NESTED_CONTAINER call for container '"
+            << call.kill_nested_container().container_id() << "'";
+
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
@@ -2609,6 +2646,9 @@ Future<Response> Http::removeNestedContainer(
 {
   CHECK_EQ(mesos::agent::Call::REMOVE_NESTED_CONTAINER, call.type());
   CHECK(call.has_remove_nested_container());
+
+  LOG(INFO) << "Processing REMOVE_NESTED_CONTAINER call for container '"
+            << call.remove_nested_container().container_id() << "'";
 
   Future<Owned<ObjectApprover>> approver;
 
@@ -2749,6 +2789,9 @@ Future<Response> Http::attachContainerInput(
 
   CHECK(call.attach_container_input().has_container_id());
 
+  LOG(INFO) << "Processing ATTACH_CONTAINER_INPUT call for container '"
+            << call.attach_container_input().container_id() << "'";
+
   Future<Owned<ObjectApprover>> approver;
 
   if (slave->authorizer.isSome()) {
@@ -2826,8 +2869,8 @@ Future<Response> Http::launchNestedContainerSession(
   CHECK_EQ(mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION, call.type());
   CHECK(call.has_launch_nested_container_session());
 
-  const ContainerID& containerId =
-    call.launch_nested_container_session().container_id();
+  LOG(INFO) << "Processing LAUNCH_NESTED_CONTAINER_SESSION call for container '"
+            << call.launch_nested_container_session().container_id() << "'";
 
   Future<Owned<ObjectApprover>> approver;
 
@@ -2867,6 +2910,9 @@ Future<Response> Http::launchNestedContainerSession(
   return response
     .then(defer(slave->self(),
                 [=](const Response& response) -> Future<Response> {
+      const ContainerID& containerId =
+        call.launch_nested_container_session().container_id();
+
       if (response.status != OK().status) {
         return response;
       }
@@ -3060,6 +3106,9 @@ Future<Response> Http::attachContainerOutput(
 {
   CHECK_EQ(mesos::agent::Call::ATTACH_CONTAINER_OUTPUT, call.type());
   CHECK(call.has_attach_container_output());
+
+  LOG(INFO) << "Processing ATTACH_CONTAINER_OUTPUT call for container '"
+            << call.attach_container_output().container_id() << "'";
 
   Future<Owned<ObjectApprover>> approver;
 
