@@ -415,7 +415,19 @@ void ResourceProviderManagerProcess::updateOfferOperationStatus(
     ResourceProvider* resourceProvider,
     const Call::UpdateOfferOperationStatus& update)
 {
-  // TODO(nfnt): Implement the 'UPDATE_OFFER_OPERATION_STATUS' call handler.
+  ResourceProviderMessage::UpdateOfferOperationStatus body;
+  body.update.mutable_framework_id()->CopyFrom(update.framework_id());
+  body.update.mutable_status()->CopyFrom(update.status());
+  body.update.set_operation_uuid(update.operation_uuid());
+  if (update.has_latest_status()) {
+    body.update.mutable_latest_status()->CopyFrom(update.latest_status());
+  }
+
+  ResourceProviderMessage message;
+  message.type = ResourceProviderMessage::Type::UPDATE_OFFER_OPERATION_STATUS;
+  message.updateOfferOperationStatus = std::move(body);
+
+  messages.put(std::move(message));
 }
 
 

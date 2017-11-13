@@ -164,7 +164,8 @@ OfferOperation createOfferOperation(
     const Offer::Operation& info,
     const OfferOperationStatus& latestStatus,
     const FrameworkID& frameworkId,
-    const SlaveID& slaveId);
+    const SlaveID& slaveId,
+    const Option<UUID>& operationUUID = None());
 
 
 // Helper function that creates a MasterInfo from UPID.

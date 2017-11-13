@@ -533,6 +533,20 @@ private:
   void handleResourceProviderMessage(
       const process::Future<ResourceProviderMessage>& message);
 
+  void addOfferOperation(OfferOperation* operation);
+
+  // Transitions the offer operation, and recovers resource if the
+  // offer operation becomes terminal.
+  void updateOfferOperation(
+      OfferOperation* operation,
+      const OfferOperationStatusUpdate& update);
+
+  void removeOfferOperation(OfferOperation* operation);
+
+  OfferOperation* getOfferOperation(const UUID& uuid) const;
+
+  void apply(const std::vector<ResourceConversion>& conversions);
+
   // Gauge methods.
   double _frameworks_active()
   {
@@ -666,6 +680,10 @@ private:
   ResourceProviderManager resourceProviderManager;
   process::Owned<LocalResourceProviderDaemon> localResourceProviderDaemon;
   hashmap<Option<ResourceProviderID>, UUID> resourceVersions;
+
+  // Pending operations or terminal operations that have
+  // unacknowledged status updates.
+  hashmap<UUID, OfferOperation*> offerOperations;
 
 protected:
   // Made protected for testing purposes.

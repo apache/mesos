@@ -316,6 +316,123 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
 }
 
 
+TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
+{
+  const ContentType contentType = GetParam();
+
+  ResourceProviderManager manager;
+
+  Option<UUID> streamId;
+  Option<mesos::v1::ResourceProviderID> resourceProviderId;
+
+  // First, subscribe to the manager to get the ID.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+
+    mesos::v1::ResourceProviderInfo* info =
+      subscribe->mutable_resource_provider_info();
+
+    info->set_type("org.apache.mesos.rp.test");
+    info->set_name("test");
+
+    http::Request request;
+    request.method = "POST";
+    request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    request.headers["Accept"] = stringify(contentType);
+    request.headers["Content-Type"] = stringify(contentType);
+    request.body = serialize(contentType, call);
+
+    Future<http::Response> response = manager.api(request, None());
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    ASSERT_EQ(http::Response::PIPE, response->type);
+
+    ASSERT_TRUE(response->headers.contains("Mesos-Stream-Id"));
+    Try<UUID> uuid = UUID::fromString(response->headers.at("Mesos-Stream-Id"));
+
+    CHECK_SOME(uuid);
+    streamId = uuid.get();
+
+    Option<http::Pipe::Reader> reader = response->reader;
+    ASSERT_SOME(reader);
+
+    recordio::Reader<Event> responseDecoder(
+        ::recordio::Decoder<Event>(
+            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
+        reader.get());
+
+    Future<Result<Event>> event = responseDecoder.read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+
+    // Check event type is subscribed and the resource provider id is set.
+    ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
+
+    resourceProviderId = event->get().subscribed().provider_id();
+
+    EXPECT_FALSE(resourceProviderId->value().empty());
+  }
+
+  // Then, send an offer operation update to the manager.
+  {
+    v1::FrameworkID frameworkId;
+    frameworkId.set_value("foo");
+
+    mesos::v1::OfferOperationStatus status;
+    status.set_state(mesos::v1::OfferOperationState::OFFER_OPERATION_FINISHED);
+
+    UUID operationUUID = UUID::random();
+
+    Call call;
+    call.set_type(Call::UPDATE_OFFER_OPERATION_STATUS);
+    call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
+
+    Call::UpdateOfferOperationStatus* updateOfferOperationStatus =
+      call.mutable_update_offer_operation_status();
+    updateOfferOperationStatus->mutable_framework_id()->CopyFrom(frameworkId);
+    updateOfferOperationStatus->mutable_status()->CopyFrom(status);
+    updateOfferOperationStatus->set_operation_uuid(operationUUID.toBytes());
+
+    http::Request request;
+    request.method = "POST";
+    request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    request.headers["Accept"] = stringify(contentType);
+    request.headers["Content-Type"] = stringify(contentType);
+    request.headers["Mesos-Stream-Id"] = stringify(streamId.get());
+    request.body = serialize(contentType, call);
+
+    Future<http::Response> response = manager.api(request, None());
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+
+    // The manager will send out a message informing its subscriber
+    // about the updated offer operation.
+    Future<ResourceProviderMessage> message = manager.messages().get();
+
+    AWAIT_READY(message);
+
+    EXPECT_EQ(
+        ResourceProviderMessage::Type::UPDATE_OFFER_OPERATION_STATUS,
+        message->type);
+    EXPECT_EQ(
+        devolve(resourceProviderId.get()),
+        message->updateOfferOperationStatus->id);
+    EXPECT_EQ(
+        devolve(frameworkId),
+        message->updateOfferOperationStatus->update.framework_id());
+    EXPECT_EQ(
+        devolve(status).state(),
+        message->updateOfferOperationStatus->update.status().state());
+    EXPECT_EQ(
+        operationUUID.toBytes(),
+        message->updateOfferOperationStatus->update.operation_uuid());
+  }
+}
+
+
 // This test starts an agent and connects directly with its resource
 // provider endpoint.
 TEST_P(ResourceProviderManagerHttpApiTest, AgentEndpoint)

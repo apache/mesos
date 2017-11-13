@@ -3703,6 +3703,16 @@ void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
     return;
   }
 
+  OfferOperation* offerOperation = new OfferOperation(
+      protobuf::createOfferOperation(
+          message.operation_info(),
+          protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
+          message.framework_id(),
+          info.id(),
+          uuid.get()));
+
+  addOfferOperation(offerOperation);
+
   if (resourceProviderId.isSome()) {
     resourceProviderManager.applyOfferOperation(message);
     return;
@@ -6772,11 +6782,224 @@ void Slave::handleResourceProviderMessage(
       }
       break;
     }
+    case ResourceProviderMessage::Type::UPDATE_OFFER_OPERATION_STATUS: {
+      CHECK_SOME(message->updateOfferOperationStatus);
+
+      const OfferOperationStatusUpdate& update =
+        message->updateOfferOperationStatus->update;
+
+      Try<UUID> operationUUID = UUID::fromBytes(update.operation_uuid());
+      CHECK_SOME(operationUUID);
+
+      OfferOperation* operation = getOfferOperation(operationUUID.get());
+      if (operation == nullptr) {
+        LOG(WARNING) << "Failed to find the offer operation '"
+                     << update.status().operation_id() << "' (uuid: "
+                     << operationUUID->toString() << ") for framework "
+                     << update.framework_id();
+        return;
+      }
+
+      updateOfferOperation(operation, update);
+
+      switch (state) {
+        case RECOVERING:
+        case DISCONNECTED:
+        case TERMINATING: {
+          LOG(WARNING) << "Dropping status update of offer operation '"
+                       << update.status().operation_id() << "' (uuid: "
+                       << operationUUID->toString() << ") for framework "
+                       << update.framework_id() << " because agent is in "
+                       << state << " state";
+          break;
+        }
+        case RUNNING: {
+          LOG(INFO) << "Forwarding status update of offer operation '"
+                    << update.status().operation_id()
+                    << "' (uuid: " << operationUUID->toString()
+                    << ") for framework " << update.framework_id();
+
+          // The status update from the resource provider didn't
+          // provide the agent ID (because the resource provider doesn't
+          // know it), hence we inject it here.
+          OfferOperationStatusUpdate _update;
+          _update.CopyFrom(update);
+          _update.mutable_slave_id()->CopyFrom(info.id());
+
+          send(master.get(), _update);
+          break;
+        }
+      }
+
+      if (protobuf::isTerminalState(operation->latest_status().state())) {
+        removeOfferOperation(operation);
+      }
+    }
   }
 
   // Wait for the next message.
   resourceProviderManager.messages().get()
     .onAny(defer(self(), &Self::handleResourceProviderMessage, lambda::_1));
+}
+
+
+void Slave::addOfferOperation(OfferOperation* operation)
+{
+  Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+  CHECK_SOME(uuid);
+
+  offerOperations.put(uuid.get(), operation);
+}
+
+
+void Slave::updateOfferOperation(
+    OfferOperation* operation,
+    const OfferOperationStatusUpdate& update)
+{
+  CHECK_NOTNULL(operation);
+
+  const OfferOperationStatus& status = update.status();
+
+  Option<OfferOperationStatus> latestStatus;
+  if (update.has_latest_status()) {
+    latestStatus = update.latest_status();
+  }
+
+  // Whether the offer operation has just become terminated.
+  Option<bool> terminated;
+
+  if (latestStatus.isSome()) {
+    terminated =
+      !protobuf::isTerminalState(operation->latest_status().state()) &&
+      protobuf::isTerminalState(latestStatus->state());
+
+    // If the operation has already transitioned to a terminal state,
+    // do not update its state.
+    if (!protobuf::isTerminalState(operation->latest_status().state())) {
+      operation->mutable_latest_status()->CopyFrom(latestStatus.get());
+    }
+  } else {
+    terminated =
+      !protobuf::isTerminalState(operation->latest_status().state()) &&
+      protobuf::isTerminalState(status.state());
+
+    if (!protobuf::isTerminalState(operation->latest_status().state())) {
+      operation->mutable_latest_status()->CopyFrom(status);
+    }
+  }
+
+  operation->add_statuses()->CopyFrom(status);
+
+  LOG(INFO) << "Updating the state of offer operation '"
+            << operation->info().id()
+            << "' (uuid: " << operation->operation_uuid()
+            << ") of framework " << operation->framework_id()
+            << " (latest state: " << operation->latest_status().state()
+            << ", status update state: " << status.state() << ")";
+
+  CHECK_SOME(terminated);
+
+  if (!terminated.get()) {
+    return;
+  }
+
+  Resource consumed;
+  switch (operation->info().type()) {
+    case Offer::Operation::LAUNCH:
+      LOG(FATAL) << "Unexpected LAUNCH operation";
+      break;
+    case Offer::Operation::LAUNCH_GROUP:
+      LOG(FATAL) << "Unexpected LAUNCH_GROUP operation";
+      break;
+    case Offer::Operation::RESERVE:
+    case Offer::Operation::UNRESERVE:
+    case Offer::Operation::CREATE:
+    case Offer::Operation::DESTROY:
+      return;
+    case Offer::Operation::CREATE_VOLUME:
+      consumed = operation->info().create_volume().source();
+      break;
+    case Offer::Operation::DESTROY_VOLUME:
+      consumed = operation->info().destroy_volume().volume();
+      break;
+    case Offer::Operation::CREATE_BLOCK:
+      consumed = operation->info().create_block().source();
+      break;
+    case Offer::Operation::DESTROY_BLOCK:
+      consumed = operation->info().destroy_block().block();
+      break;
+    case Offer::Operation::UNKNOWN:
+      LOG(WARNING) << "Unknown offer operation";
+      return;
+  }
+
+  switch (update.latest_status().state()) {
+    // Terminal state, and the conversion is successful.
+    case OFFER_OPERATION_FINISHED: {
+      // 'totalResources' don't have allocations set, we need
+      // to remove them from the consumed and converted resources.
+      if (consumed.has_allocation_info()) {
+        consumed.clear_allocation_info();
+      }
+
+      Resources converted =
+        update.latest_status().converted_resources();
+      converted.unallocate();
+
+      ResourceConversion conversion(consumed, converted);
+
+      apply({conversion});
+
+      break;
+    }
+
+    // Terminal state, and the conversion has failed.
+    case OFFER_OPERATION_FAILED:
+    case OFFER_OPERATION_ERROR: {
+      break;
+    }
+
+    // Non-terminal. This shouldn't happen.
+    case OFFER_OPERATION_PENDING:
+    case OFFER_OPERATION_UNSUPPORTED: {
+      LOG(FATAL) << "Unexpected offer operation state "
+                 << operation->latest_status().state();
+    }
+  }
+}
+
+
+void Slave::removeOfferOperation(OfferOperation* operation)
+{
+  Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+  CHECK_SOME(uuid);
+
+  CHECK(offerOperations.contains(uuid.get()))
+    << "Unknown offer operation (uuid: " << uuid->toString() << ")";
+
+  CHECK(protobuf::isTerminalState(operation->latest_status().state()))
+    << operation->latest_status().state();
+
+  offerOperations.erase(uuid.get());
+  delete operation;
+}
+
+
+OfferOperation* Slave::getOfferOperation(const UUID& uuid) const
+{
+  if (offerOperations.contains(uuid)) {
+    return offerOperations.at(uuid);
+  }
+  return nullptr;
+}
+
+
+void Slave::apply(const vector<ResourceConversion>& conversions)
+{
+  Try<Resources> resources = totalResources.apply(conversions);
+  CHECK_SOME(resources);
+
+  totalResources = resources.get();
 }
 
 
