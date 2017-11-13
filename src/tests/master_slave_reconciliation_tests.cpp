@@ -763,7 +763,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTaskExecutorIds)
   const Offer& offer = offers->front();
   const SlaveID& slaveId = offer.slave_id();
 
-  Resources resources = Resources::parse("cpus:0.1;mem:32;disk:32").get();
+  Resources resources = Resources::parse(defaultTaskResourcesString).get();
 
   TaskInfo commandExecutorTask =
     createTask(slaveId, resources, SLEEP_COMMAND(1000));

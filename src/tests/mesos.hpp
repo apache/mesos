@@ -266,8 +266,32 @@ protected:
 
   Option<zookeeper::URL> zookeeperUrl;
 
+  // NOTE: On Windows, most tasks are run under PowerShell, which uses ~150 MB
+  // of memory per-instance due to loading .NET. Realistically, PowerShell can
+  // be called more than once in a task, so 512 MB is the safe minimum.
+  // Furthermore, because the Windows `cpu` isolator is a hard-cap, 0.1 CPUs
+  // will cause the task (or even a check command) to timeout, so 1 CPU is the
+  // safe minimum.
+  //
+  // Because multiple tasks can be run, the default agent resources needs to be
+  // at least a multiple of the default task resources: four times seems safe.
+  //
+  // On platforms where the shell is, e.g. Bash, the minimum is much lower.
   const std::string defaultAgentResourcesString{
-    "cpus:2;gpus:0;mem:1024;disk:1024;ports:[31000-32000]"};
+#ifdef __WINDOWS__
+      "cpus:4;gpus:0;mem:2048;disk:1024;ports:[31000-32000]"
+#else
+      "cpus:2;gpus:0;mem:1024;disk:1024;ports:[31000-32000]"
+#endif // __WINDOWS__
+      };
+
+  const std::string defaultTaskResourcesString{
+#ifdef __WINDOWS__
+      "cpus:1;mem:512;disk:32"
+#else
+      "cpus:0.1;mem:32;disk:32"
+#endif // __WINDOWS__
+      };
 };
 
 
