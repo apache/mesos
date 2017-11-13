@@ -262,6 +262,14 @@ HealthChecker::HealthChecker(
     scheme = healthCheck.http().scheme();
   }
 
+  bool ipv6 = false;
+  if ((healthCheck.type() == HealthCheck::HTTP &&
+       healthCheck.http().protocol() == NetworkInfo::IPv6) ||
+      (healthCheck.type() == HealthCheck::TCP &&
+       healthCheck.tcp().protocol() == NetworkInfo::IPv6)) {
+    ipv6 = true;
+  }
+
   process.reset(
       new CheckerProcess(
           toCheckInfo(_healthCheck),
@@ -275,7 +283,8 @@ HealthChecker::HealthChecker(
           authorizationHeader,
           scheme,
           name,
-          commandCheckViaAgent));
+          commandCheckViaAgent,
+          ipv6));
 
   spawn(process.get());
 }

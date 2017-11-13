@@ -195,7 +195,8 @@ CheckerProcess::CheckerProcess(
     const Option<string>& _authorizationHeader,
     const Option<string>& _scheme,
     const std::string& _name,
-    bool _commandCheckViaAgent)
+    bool _commandCheckViaAgent,
+    bool _ipv6)
   : ProcessBase(process::ID::generate("checker")),
     check(_check),
     launcherDir(_launcherDir),
@@ -207,8 +208,9 @@ CheckerProcess::CheckerProcess(
     agentURL(_agentURL),
     authorizationHeader(_authorizationHeader),
     scheme(_scheme),
-    commandCheckViaAgent(_commandCheckViaAgent),
     name(_name),
+    commandCheckViaAgent(_commandCheckViaAgent),
+    ipv6(_ipv6),
     paused(false)
 {
   Try<Duration> create = Duration::create(check.delay_seconds());

@@ -55,7 +55,8 @@ public:
       const Option<std::string>& _authorizationHeader,
       const Option<std::string>& _scheme,
       const std::string& _name,
-      bool _commandCheckViaAgent);
+      bool _commandCheckViaAgent,
+      bool _ipv6 = false);
 
   void pause();
   void resume();
@@ -136,8 +137,16 @@ private:
   const Option<process::http::URL> agentURL;
   const Option<std::string> authorizationHeader;
   const Option<std::string> scheme;
-  const bool commandCheckViaAgent;
   const std::string name;
+  const bool commandCheckViaAgent;
+
+  // If set to true, the TCP/HTTP(S) check will be performed over IPv6,
+  // otherwise, it will be performed over IPv4.
+  //
+  // TODO(qianzhang): Once we figure out how the IPv4/IPv6 should be supported
+  // in the health check API (i.e., the `CheckInfo` protobuf message), we may
+  // consider to remove this field which is a temporary solution for now.
+  const bool ipv6;
 
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
 
