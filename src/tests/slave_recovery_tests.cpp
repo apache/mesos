@@ -1164,12 +1164,8 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoverUnregisteredHTTPExecutor)
 
   // Ensure the slave considers itself recovered.
   Clock::advance(flags.executor_reregistration_timeout);
-
-  // Now advance time until the reaper reaps the executor.
-  while (status.isPending()) {
-    Clock::advance(process::MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
+  Clock::settle();
+  Clock::resume();
 
   // Scheduler should receive the TASK_LOST update.
   AWAIT_READY(status);
@@ -1179,11 +1175,15 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoverUnregisteredHTTPExecutor)
   EXPECT_EQ(TaskStatus::REASON_EXECUTOR_REREGISTRATION_TIMEOUT,
             status->reason());
 
+  Clock::pause();
+
   // Master should subsequently reoffer the same resources.
   while (offers2.isPending()) {
     Clock::advance(Seconds(1));
     Clock::settle();
   }
+
+  Clock::resume();
 
   AWAIT_READY(offers2);
   EXPECT_EQ(Resources(offers1.get()[0].resources()),
@@ -1276,12 +1276,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
 
   // Ensure the slave considers itself recovered.
   Clock::advance(flags.executor_reregistration_timeout);
-
-  // Now advance time until the reaper reaps the executor.
-  while (status.isPending()) {
-    Clock::advance(process::MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
+  Clock::settle();
+  Clock::resume();
 
   // Scheduler should receive the TASK_LOST update.
   AWAIT_READY(status);
@@ -1291,11 +1287,15 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   EXPECT_EQ(TaskStatus::REASON_EXECUTOR_REREGISTRATION_TIMEOUT,
             status->reason());
 
+  Clock::pause();
+
   // Master should subsequently reoffer the same resources.
   while (offers2.isPending()) {
     Clock::advance(Seconds(1));
     Clock::settle();
   }
+
+  Clock::resume();
 
   AWAIT_READY(offers2);
   EXPECT_EQ(Resources(offers1.get()[0].resources()),
@@ -1387,23 +1387,16 @@ TYPED_TEST(SlaveRecoveryTest, KillQueuedTaskDuringExecutorRegistration)
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
   AWAIT_READY(_recover);
 
-  Clock::settle(); // Wait for the agent to schedule reregister timeout.
+  Clock::pause();
 
   // Ensure the agent considers itself recovered.
   Clock::advance(flags.executor_reregistration_timeout);
-
-  while(executorTerminated.isPending()) {
-    Clock::advance(process::MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
+  Clock::settle();
+  Clock::resume();
 
   AWAIT_READY(executorTerminated);
-
-  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -1465,13 +1458,16 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
   EXPECT_CALL(sched, statusUpdate(_, _))
     .WillRepeatedly(Return()); // Allow any number of subsequent status updates.
 
-  Future<Nothing> ack =
+  Future<Nothing> ackRunning =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+  Future<Nothing> ackStarting =
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offers1.get()[0].id(), {task});
 
   // Wait for the ACK to be checkpointed.
-  AWAIT_READY(ack);
+  AWAIT_READY(ackStarting);
+  AWAIT_READY(ackRunning);
 
   slave.get()->terminate();
 
@@ -1534,21 +1530,21 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedHTTPExecutor)
 
   // Ensure the slave considers itself recovered.
   Clock::advance(flags.executor_reregistration_timeout);
-
-  // Now advance time until the reaper reaps the executor.
-  while (status.isPending()) {
-    Clock::advance(process::MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
+  Clock::settle();
+  Clock::resume();
 
   // Scheduler should receive the TASK_FAILED update.
   AWAIT_READY(status);
   EXPECT_EQ(TASK_FAILED, status->state());
 
+  Clock::pause();
+
   while (offers2.isPending()) {
     Clock::advance(Seconds(1));
     Clock::settle();
   }
+
+  Clock::resume();
 
   // Master should subsequently reoffer the same resources.
   AWAIT_READY(offers2);
@@ -1672,12 +1668,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   // Ensure the slave considers itself recovered.
   Clock::advance(flags.executor_reregistration_timeout);
-
-  // Now advance time until the reaper reaps the executor.
-  while (statusLost.isPending()) {
-    Clock::advance(process::MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
+  Clock::settle();
+  Clock::resume();
 
   // Scheduler should receive the TASK_LOST update.
   AWAIT_READY(statusLost);
@@ -1687,10 +1679,14 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   EXPECT_EQ(TaskStatus::REASON_EXECUTOR_REREGISTRATION_TIMEOUT,
             statusLost->reason());
 
+  Clock::pause();
+
   while (offers2.isPending()) {
     Clock::advance(Seconds(1));
     Clock::settle();
   }
+
+  Clock::resume();
 
   // Master should subsequently reoffer the same resources.
   AWAIT_READY(offers2);
@@ -1895,7 +1891,9 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 // It kills the executor, and terminates. Master should then send TASK_LOST.
 TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
 {
-  Try<Owned<cluster::Master>> master = this->StartMaster();
+  master::Flags masterFlags = this->CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
@@ -1948,6 +1946,12 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
   // Stop the slave before the status updates are received.
   AWAIT_READY(updateCall);
 
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+
+  ASSERT_EQ(1u, containerIds->size());
+  auto containerId = *(containerIds->begin());
+
   slave.get()->terminate();
 
   // Slave in cleanup mode shouldn't re-register with the master and
@@ -1973,16 +1977,23 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
   slave = this->StartSlave(detector.get(), containerizer.get(), id, flags);
   ASSERT_SOME(slave);
 
+  // Wait for recovery to complete.
+  AWAIT_READY(__recover);
+
+  // Wait for destruction of the container before advancing the clock, otherwise
+  // a containerizer timeout might be triggered causing failure of container
+  // destruction, which leads to orphan containers.
+  AWAIT_READY(containerizer->wait(containerId));
+
   Clock::pause();
 
-  // Now advance time until the reaper reaps the executor.
+  // Now advance time until the master marks agent unreachable.
   while (status.isPending()) {
-    Clock::advance(process::MAX_REAP_INTERVAL());
+    Clock::advance(masterFlags.agent_ping_timeout);
     Clock::settle();
   }
 
-  // Wait for recovery to complete.
-  AWAIT_READY(__recover);
+  Clock::resume();
 
   // Scheduler should receive the TASK_LOST update.
   AWAIT_READY(status);
@@ -2001,7 +2012,9 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
 // executor, and terminates. Master should then send TASK_LOST.
 TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 {
-  Try<Owned<cluster::Master>> master = this->StartMaster();
+  master::Flags masterFlags = this->CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
@@ -2057,6 +2070,12 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   AWAIT_READY(ackStarting);
   AWAIT_READY(ackRunning);
 
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+
+  ASSERT_EQ(1u, containerIds->size());
+  auto containerId = *(containerIds->begin());
+
   slave.get()->terminate();
 
   // Slave in cleanup mode shouldn't re-register with the master and
@@ -2082,16 +2101,23 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
+  // Wait for recovery to complete.
+  AWAIT_READY(__recover);
+
+  // Wait for destruction of the container before advancing the clock, otherwise
+  // a containerizer timeout might be triggered causing failure of container
+  // destruction, which leads to orphan containers.
+  AWAIT_READY(containerizer->wait(containerId));
+
   Clock::pause();
 
-  // Now advance time until the reaper reaps the executor.
+  // Now advance time until the master marks agent unreachable.
   while (status.isPending()) {
-    Clock::advance(process::MAX_REAP_INTERVAL());
+    Clock::advance(masterFlags.agent_ping_timeout);
     Clock::settle();
   }
 
-  // Wait for recovery to complete.
-  AWAIT_READY(__recover);
+  Clock::resume();
 
   // Scheduler should receive the TASK_LOST update.
   AWAIT_READY(status);
@@ -3144,18 +3170,8 @@ TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
   // does not spend too much time waiting for the executor to exit.
   process::post(slave.get()->pid, executorPid, ShutdownExecutorMessage());
 
-  Clock::pause();
-
-  // Now advance time until the reaper reaps the executor.
-  while (executorTerminated.isPending()) {
-    Clock::advance(process::MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
-
   AWAIT_READY(executorTerminated);
   AWAIT_READY(offers2);
-
-  Clock::resume();
 
   EXPECT_CALL(sched, slaveLost(_, _))
     .Times(AtMost(1));

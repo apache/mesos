@@ -402,20 +402,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ShutdownUnregisteredExecutor)
   AWAIT_READY(destroyExecutor);
 
   Clock::settle(); // Wait for Containerizer::destroy to complete.
-
-  // Now advance time until the reaper reaps the executor.
-  while (status.isPending()) {
-    Clock::advance(process::MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
+  Clock::resume();
 
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status->state());
   EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
   EXPECT_EQ(TaskStatus::REASON_EXECUTOR_REGISTRATION_TIMEOUT,
             status->reason());
-
-  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -530,12 +523,7 @@ TEST_F(SlaveTest, ExecutorTimeoutCausedBySlowFetch)
   AWAIT_READY(destroyExecutor);
 
   Clock::settle(); // Wait for Containerizer::destroy to complete.
-
-  // Now advance time until the reaper reaps the executor.
-  while (status.isPending()) {
-    Clock::advance(process::MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
+  Clock::resume();
 
   AWAIT_READY(executorLost);
 
@@ -543,8 +531,6 @@ TEST_F(SlaveTest, ExecutorTimeoutCausedBySlowFetch)
   ASSERT_EQ(TASK_FAILED, status->state());
   EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
   EXPECT_EQ(TaskStatus::REASON_CONTAINER_LAUNCH_FAILED, status->reason());
-
-  Clock::resume();
 
   driver.stop();
   driver.join();
