@@ -2358,22 +2358,20 @@ public:
   TestMesos(
       const std::string& master,
       ContentType contentType,
-      const std::shared_ptr<MockHTTPScheduler<Mesos, Event>>& _scheduler,
+      const std::shared_ptr<MockHTTPScheduler<Mesos, Event>>& scheduler,
       const Option<std::shared_ptr<mesos::master::detector::MasterDetector>>&
           detector = None())
     : Mesos(
           master,
           contentType,
-          // We don't pass the `_scheduler` shared pointer as the library
-          // interface expects a `std::function` object.
           lambda::bind(&MockHTTPScheduler<Mesos, Event>::connected,
-                       _scheduler.get(),
+                       scheduler,
                        this),
           lambda::bind(&MockHTTPScheduler<Mesos, Event>::disconnected,
-                       _scheduler.get(),
+                       scheduler,
                        this),
           lambda::bind(&MockHTTPScheduler<Mesos, Event>::events,
-                       _scheduler,
+                       scheduler,
                        this,
                        lambda::_1),
           v1::DEFAULT_CREDENTIAL,
