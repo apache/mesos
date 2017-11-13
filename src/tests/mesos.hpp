@@ -1279,6 +1279,49 @@ inline typename TOffer::Operation LAUNCH_GROUP(
 }
 
 
+template <typename TResource, typename TTargetType, typename TOffer>
+inline typename TOffer::Operation CREATE_VOLUME(
+    const TResource& source,
+    const TTargetType& type)
+{
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::CREATE_VOLUME);
+  operation.mutable_create_volume()->mutable_source()->CopyFrom(source);
+  operation.set_target_type(type);
+  return operation;
+}
+
+
+template <typename TResource, typename TOffer>
+inline typename TOffer::Operation DESTROY_VOLUME(const TResource& volume)
+{
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::DESTROY_VOLUME);
+  operation.mutable_destroy_volume()->mutable_volume()->CopyFrom(volume);
+  return operation;
+}
+
+
+template <typename TResource, typename TOffer>
+inline typename TOffer::Operation CREATE_BLOCK(const TResource& source)
+{
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::CREATE_BLOCK);
+  operation.mutable_create_block()->mutable_source()->CopyFrom(source);
+  return operation;
+}
+
+
+template <typename TResource, typename TOffer>
+inline typename TOffer::Operation DESTROY_BLOCK(const TResource& block)
+{
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::DESTROY_BLOCK);
+  operation.mutable_destroy_block()->mutable_block()->CopyFrom(block);
+  return operation;
+}
+
+
 template <typename TParameters, typename TParameter>
 inline TParameters parameterize(const ACLs& acls)
 {
@@ -1595,6 +1638,36 @@ inline Offer::Operation LAUNCH_GROUP(Args&&... args)
 
 
 template <typename... Args>
+inline Offer::Operation CREATE_VOLUME(Args&&... args)
+{
+  return common::CREATE_VOLUME<Resource,
+                               Resource::DiskInfo::Source::Type,
+                               Offer>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Offer::Operation DESTROY_VOLUME(Args&&... args)
+{
+  return common::DESTROY_VOLUME<Resource, Offer>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Offer::Operation CREATE_BLOCK(Args&&... args)
+{
+  return common::CREATE_BLOCK<Resource, Offer>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Offer::Operation DESTROY_BLOCK(Args&&... args)
+{
+  return common::DESTROY_BLOCK<Resource, Offer>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
 inline Parameters parameterize(Args&&... args)
 {
   return common::parameterize<Parameters, Parameter>(
@@ -1861,6 +1934,40 @@ inline mesos::v1::Offer::Operation LAUNCH_GROUP(Args&&... args)
       mesos::v1::ExecutorInfo,
       mesos::v1::TaskGroupInfo,
       mesos::v1::Offer>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Offer::Operation CREATE_VOLUME(Args&&... args)
+{
+  return common::CREATE_VOLUME<mesos::v1::Resource,
+                               mesos::v1::Resource::DiskInfo::Source::Type,
+                               mesos::v1::Offer>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Offer::Operation DESTROY_VOLUME(Args&&... args)
+{
+  return common::DESTROY_VOLUME<mesos::v1::Resource, mesos::v1::Offer>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Offer::Operation CREATE_BLOCK(Args&&... args)
+{
+  return common::CREATE_BLOCK<mesos::v1::Resource, mesos::v1::Offer>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Offer::Operation DESTROY_BLOCK(Args&&... args)
+{
+  return common::DESTROY_BLOCK<mesos::v1::Resource, mesos::v1::Offer>(
+      std::forward<Args>(args)...);
 }
 
 
