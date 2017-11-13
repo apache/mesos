@@ -802,7 +802,7 @@ Future<Nothing> DockerContainerizer::recover(
 }
 
 
-Future<bool> DockerContainerizer::launch(
+Future<Containerizer::LaunchResult> DockerContainerizer::launch(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig,
     const map<string, string>& environment,
@@ -1096,7 +1096,7 @@ Future<Nothing> DockerContainerizerProcess::__recover(
 }
 
 
-Future<bool> DockerContainerizerProcess::launch(
+Future<Containerizer::LaunchResult> DockerContainerizerProcess::launch(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig,
     const map<string, string>& environment,
@@ -1112,12 +1112,12 @@ Future<bool> DockerContainerizerProcess::launch(
 
   if (!containerConfig.has_container_info()) {
     LOG(INFO) << "No container info found, skipping launch";
-    return false;
+    return Containerizer::LaunchResult::NOT_SUPPORTED;
   }
 
   if (containerConfig.container_info().type() != ContainerInfo::DOCKER) {
     LOG(INFO) << "Skipping non-docker container";
-    return false;
+    return Containerizer::LaunchResult::NOT_SUPPORTED;
   }
 
   Try<Container*> container = Container::create(
@@ -1223,7 +1223,7 @@ Future<bool> DockerContainerizerProcess::launch(
 }
 
 
-Future<bool> DockerContainerizerProcess::_launch(
+Future<Containerizer::LaunchResult> DockerContainerizerProcess::_launch(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
@@ -1257,7 +1257,10 @@ Future<bool> DockerContainerizerProcess::_launch(
       }))
       .then(defer(self(), [=](pid_t pid) {
         return reapExecutor(containerId, pid);
-      }));
+      }))
+      .then([]() {
+        return Containerizer::LaunchResult::SUCCESS;
+      });
   }
 
   string containerName = container->containerName;
@@ -1305,7 +1308,10 @@ Future<bool> DockerContainerizerProcess::_launch(
     }))
     .then(defer(self(), [=](pid_t pid) {
       return reapExecutor(containerId, pid);
-    }));
+    }))
+    .then([]() {
+      return Containerizer::LaunchResult::SUCCESS;
+    });
 }
 
 
@@ -1583,7 +1589,7 @@ Future<pid_t> DockerContainerizerProcess::checkpointExecutor(
 }
 
 
-Future<bool> DockerContainerizerProcess::reapExecutor(
+Future<Nothing> DockerContainerizerProcess::reapExecutor(
     const ContainerID& containerId,
     pid_t pid)
 {
@@ -1599,7 +1605,7 @@ Future<bool> DockerContainerizerProcess::reapExecutor(
   container->status.future().get()
     .onAny(defer(self(), &Self::reaped, containerId));
 
-  return true;
+  return Nothing();
 }
 
 
