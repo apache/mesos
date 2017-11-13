@@ -449,7 +449,14 @@ mesos::internal::slave::Flags::Flags()
       "recovery_timeout",
       "Amount of time allotted for the agent to recover. If the agent takes\n"
       "longer than recovery_timeout to recover, any executors that are\n"
-      "waiting to reconnect to the agent will self-terminate.\n",
+      "waiting to reconnect to the agent will self-terminate.\n"
+      "The best value of this flag depends on the frameworks being run.\n"
+      "For non-partition-aware frameworks, it makes sense to set this\n"
+      "close to the `agent_reregister_timeout` on the master.\n"
+      "For partition-aware frameworks, it makes sense to set this higher\n"
+      "than the timeout that the framework uses to give up on the task,\n"
+      "otherwise the executor might terminate even if the task could still\n"
+      "sucessfully reconnect to the framework.",
       RECOVERY_TIMEOUT);
 
   add(&Flags::strict,
