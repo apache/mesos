@@ -2300,45 +2300,50 @@ public:
   MOCK_METHOD2_T(failure, void(Mesos*, const typename Event::Failure&));
   MOCK_METHOD2_T(error, void(Mesos*, const typename Event::Error&));
 
-  void event(Mesos* mesos, const Event& event)
+  void events(Mesos* mesos, std::queue<Event> events)
   {
-    switch (event.type()) {
-      case Event::SUBSCRIBED:
-        subscribed(mesos, event.subscribed());
-        break;
-      case Event::OFFERS:
-        offers(mesos, event.offers());
-        break;
-      case Event::INVERSE_OFFERS:
-        inverseOffers(mesos, event.inverse_offers());
-        break;
-      case Event::RESCIND:
-        rescind(mesos, event.rescind());
-        break;
-      case Event::RESCIND_INVERSE_OFFER:
-        rescindInverseOffers(mesos, event.rescind_inverse_offer());
-        break;
-      case Event::UPDATE:
-        update(mesos, event.update());
+    while (!events.empty()) {
+      Event event = std::move(events.front());
+      events.pop();
+
+      switch (event.type()) {
+        case Event::SUBSCRIBED:
+          subscribed(mesos, event.subscribed());
+          break;
+        case Event::OFFERS:
+          offers(mesos, event.offers());
+          break;
+        case Event::INVERSE_OFFERS:
+          inverseOffers(mesos, event.inverse_offers());
+          break;
+        case Event::RESCIND:
+          rescind(mesos, event.rescind());
+          break;
+        case Event::RESCIND_INVERSE_OFFER:
+          rescindInverseOffers(mesos, event.rescind_inverse_offer());
+          break;
+        case Event::UPDATE:
+          update(mesos, event.update());
         break;
       case Event::OFFER_OPERATION_UPDATE:
         offerOperationUpdate(mesos, event.offer_operation_update());
-        break;
-      case Event::MESSAGE:
-        message(mesos, event.message());
-        break;
-      case Event::FAILURE:
-        failure(mesos, event.failure());
-        break;
-      case Event::ERROR:
-        error(mesos, event.error());
-        break;
-      case Event::HEARTBEAT:
-        heartbeat(mesos);
-        break;
-      case Event::UNKNOWN:
-        LOG(FATAL) << "Received unexpected UNKNOWN event";
-        break;
+          break;
+        case Event::MESSAGE:
+          message(mesos, event.message());
+          break;
+        case Event::FAILURE:
+          failure(mesos, event.failure());
+          break;
+        case Event::ERROR:
+          error(mesos, event.error());
+          break;
+        case Event::HEARTBEAT:
+          heartbeat(mesos);
+          break;
+        case Event::UNKNOWN:
+          LOG(FATAL) << "Received unexpected UNKNOWN event";
+          break;
+      }
     }
   }
 };
@@ -2367,12 +2372,12 @@ public:
           lambda::bind(&MockHTTPScheduler<Mesos, Event>::disconnected,
                        _scheduler.get(),
                        this),
-          lambda::bind(&TestMesos<Mesos, Event>::events,
+          lambda::bind(&MockHTTPScheduler<Mesos, Event>::events,
+                       _scheduler,
                        this,
                        lambda::_1),
           v1::DEFAULT_CREDENTIAL,
-          detector),
-      scheduler(_scheduler) {}
+          detector) {}
 
   virtual ~TestMesos()
   {
@@ -2395,19 +2400,6 @@ public:
       process::Clock::resume();
     }
   }
-
-protected:
-  void events(std::queue<Event> events)
-  {
-    while (!events.empty()) {
-      Event event = std::move(events.front());
-      events.pop();
-      scheduler->event(this, event);
-    }
-  }
-
-private:
-  std::shared_ptr<MockHTTPScheduler<Mesos, Event>> scheduler;
 };
 
 } // namespace scheduler {
