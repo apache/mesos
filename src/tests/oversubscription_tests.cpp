@@ -547,7 +547,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithIncreasedRevocable)
 
   // The total offered resources after the latest estimate.
   Resources resources3;
-  for (size_t i = 0; i < offers.size(); i++) {
+  while (offers.size() != 0) {
     resources3 += offers.get()->resources();
   }
 
