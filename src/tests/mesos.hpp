@@ -2483,36 +2483,41 @@ public:
   MOCK_METHOD2_T(acknowledged,
                  void(Mesos*, const typename Event::Acknowledged&));
 
-  void event(Mesos* mesos, const Event& event)
+  void events(Mesos* mesos, std::queue<Event> events)
   {
-    switch (event.type()) {
-      case Event::SUBSCRIBED:
-        subscribed(mesos, event.subscribed());
-        break;
-      case Event::LAUNCH:
-        launch(mesos, event.launch());
-        break;
-      case Event::LAUNCH_GROUP:
-        launchGroup(mesos, event.launch_group());
-        break;
-      case Event::KILL:
-        kill(mesos, event.kill());
-        break;
-      case Event::ACKNOWLEDGED:
-        acknowledged(mesos, event.acknowledged());
-        break;
-      case Event::MESSAGE:
-        message(mesos, event.message());
-        break;
-      case Event::SHUTDOWN:
-        shutdown(mesos);
-        break;
-      case Event::ERROR:
-        error(mesos, event.error());
-        break;
-      case Event::UNKNOWN:
-        LOG(FATAL) << "Received unexpected UNKNOWN event";
-        break;
+    while (!events.empty()) {
+      Event event = std::move(events.front());
+      events.pop();
+
+      switch (event.type()) {
+        case Event::SUBSCRIBED:
+          subscribed(mesos, event.subscribed());
+          break;
+        case Event::LAUNCH:
+          launch(mesos, event.launch());
+          break;
+        case Event::LAUNCH_GROUP:
+          launchGroup(mesos, event.launch_group());
+          break;
+        case Event::KILL:
+          kill(mesos, event.kill());
+          break;
+        case Event::ACKNOWLEDGED:
+          acknowledged(mesos, event.acknowledged());
+          break;
+        case Event::MESSAGE:
+          message(mesos, event.message());
+          break;
+        case Event::SHUTDOWN:
+          shutdown(mesos);
+          break;
+        case Event::ERROR:
+          error(mesos, event.error());
+          break;
+        case Event::UNKNOWN:
+          LOG(FATAL) << "Received unexpected UNKNOWN event";
+          break;
+      }
     }
   }
 };
@@ -2526,39 +2531,19 @@ class TestMesos : public Mesos
 public:
   TestMesos(
       ContentType contentType,
-      const std::shared_ptr<MockHTTPExecutor<Mesos, Event>>& _executor)
+      const std::shared_ptr<MockHTTPExecutor<Mesos, Event>>& executor)
     : Mesos(
           contentType,
           lambda::bind(&MockHTTPExecutor<Mesos, Event>::connected,
-                       _executor,
+                       executor,
                        this),
           lambda::bind(&MockHTTPExecutor<Mesos, Event>::disconnected,
-                       _executor,
+                       executor,
                        this),
-          lambda::bind(&TestMesos<Mesos, Event>::events,
+          lambda::bind(&MockHTTPExecutor<Mesos, Event>::events,
+                       executor,
                        this,
-                       lambda::_1)),
-      executor(_executor) {}
-
-protected:
-  void events(std::queue<Event> events)
-  {
-    while (!events.empty()) {
-      Event event = std::move(events.front());
-      events.pop();
-      executor->event(this, event);
-    }
-  }
-
-private:
-  // TODO(bmahler): This is a shared pointer because the `Mesos`
-  // library copies the pointer into callbacks that can execute
-  // after `Mesos` is destructed. We can avoid this by ensuring
-  // that `~Mesos()` blocks until deferred callbacks are cleared
-  // (merely grabbing the `process::Mutex` lock is sufficient).
-  // The `Mesos` library can also provide a `Future<Nothing> stop()`
-  // to allow callers to wait for all events to be flushed.
-  std::shared_ptr<MockHTTPExecutor<Mesos, Event>> executor;
+                       lambda::_1)) {}
 };
 
 } // namespace executor {
