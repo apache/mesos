@@ -993,13 +993,16 @@ TEST_F(IOSwitchboardTest, DISABLED_RecoverThenKillSwitchboardContainerDestroyed)
 
   containerizer.reset(create.get());
 
-  // Expect three task updates.
-  // (1) TASK_RUNNING before recovery.
-  // (2) TASK_RUNNING after recovery.
-  // (3) TASK_FAILED after the io switchboard is killed.
+  // Expect four task updates.
+  // (1) TASK_STARTING when the task starts.
+  // (2) TASK_RUNNING before recovery.
+  // (3) TASK_RUNNING after recovery.
+  // (4) TASK_FAILED after the io switchboard is killed.
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   Future<TaskStatus> statusFailed;
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFailed))
@@ -1007,6 +1010,9 @@ TEST_F(IOSwitchboardTest, DISABLED_RecoverThenKillSwitchboardContainerDestroyed)
 
   slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   // Make sure the task comes back as running.
   AWAIT_READY(statusRunning);
@@ -1087,11 +1093,16 @@ TEST_F(IOSwitchboardTest, ContainerAttachAfterSlaveRestart)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
-  Future<Nothing> _ack =
+  Future<Nothing> _ackRunning =
+    FUTURE_DISPATCH(_, &slave::Slave::_statusUpdateAcknowledgement);
+
+  Future<Nothing> _ackStarting =
     FUTURE_DISPATCH(_, &slave::Slave::_statusUpdateAcknowledgement);
 
   // Launch a task with tty to start the switchboard server.
@@ -1101,10 +1112,11 @@ TEST_F(IOSwitchboardTest, ContainerAttachAfterSlaveRestart)
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
+  // Ultimately wait for the `TASK_RUNNING` ack to be checkpointed.
+  AWAIT_READY(statusStarting);
+  AWAIT_READY(_ackStarting);
   AWAIT_READY(statusRunning);
-
-  // Wait for the ACK to be checkpointed.
-  AWAIT_READY(_ack);
+  AWAIT_READY(_ackRunning);
 
   // Restart the slave with a new containerizer.
   slave.get()->terminate();
