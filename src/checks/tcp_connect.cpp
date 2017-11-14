@@ -30,6 +30,9 @@
 #include <iostream>
 #include <string>
 
+#include <process/address.hpp>
+#include <process/network.hpp>
+
 #include <stout/flags.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
@@ -49,8 +52,6 @@ using std::string;
 //
 // TODO(alexr): Add support for Windows, see MESOS-6117.
 //
-// TODO(alexr): Support IPv6, see MESOS-6120.
-//
 // NOTE: Consider using stout network abstractions instead of raw system
 // sockets. Once stout supports IPv6 migrating to it will buy us implicit
 // Windows and IPv6 compatibilities.
@@ -63,7 +64,7 @@ public:
   {
     add(&Flags::ip,
         "ip",
-        "IP of the target host. Only IPv4 is supported.");
+        "IP of the target host.");
 
     add(&Flags::port,
         "port",
@@ -79,18 +80,14 @@ public:
 // If the TCP handshake is successful, returns `EXIT_SUCCESS`.
 int testTCPConnect(const string& ip, int port)
 {
-  // Set up destination address.
-  struct sockaddr_in to;
-  memset(&to, 0, sizeof(to));
-  to.sin_family = AF_INET;
-  to.sin_port = htons(port);
-  if (inet_pton(AF_INET, ip.c_str(), &to.sin_addr) != 1) {
+  Try<net::IP> parse = net::IP::parse(ip);
+  if (parse.isError()){
     cerr << "Cannot convert '" << ip << "' into a network address" << endl;
     return EXIT_FAILURE;
   }
 
   // Create a TCP socket.
-  int socket = ::socket(AF_INET, SOCK_STREAM, 0);
+  int socket = ::socket(parse->family(), SOCK_STREAM, 0);
   if (socket < 0) {
     cerr << "Failed to create socket: " << strerror(errno) << endl;
     return EXIT_FAILURE;
@@ -99,8 +96,12 @@ int testTCPConnect(const string& ip, int port)
   // Try to connect to socket. If the connection succeeds,
   // zero is returned, indicating the remote port is open.
   cout << "Connecting to " << ip << ":" << port << endl;
-  if (connect(socket, reinterpret_cast<sockaddr*>(&to), sizeof(to)) < 0) {
-    cerr << "Connection failed: " << strerror(errno) << endl;
+  Try<Nothing, SocketError> connect = process::network::connect(
+      socket,
+      process::network::inet::Address(parse.get(), port));
+
+  if (connect.isError()) {
+    cerr << connect.error().message << endl;
     close(socket);
     return EXIT_FAILURE;
   }
