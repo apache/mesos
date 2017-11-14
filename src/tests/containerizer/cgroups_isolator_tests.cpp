@@ -1620,6 +1620,169 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
   driver.join();
 }
 
+
+// This test verifies the cgroups blkio statistics
+// of the container can be successfully retrieved.
+TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_BlkioUsage)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "cgroups/blkio";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  // Create a task to generate a 10k file with 10 disk writes.
+  //
+  // TODO(qianzhang): In some old platforms (CentOS 6 and Ubuntu 14),
+  // the first disk write of a blkio cgroup will always be missed in
+  // the blkio throttling statistics, so here we run two `dd` commands,
+  // the first one which does the first disk write will be missed on
+  // those platforms, and the second one will be recorded in the blkio
+  // throttling statistics. When we drop the CentOS 6 and Ubuntu 14
+  // support, we should remove the first `dd` command.
+  TaskInfo task = createTask(
+      offers.get()[0],
+      "dd if=/dev/zero of=file bs=1024 count=1 oflag=dsync && "
+      "dd if=/dev/zero of=file bs=1024 count=10 oflag=dsync && "
+      "sleep 1000");
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(Return());
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // NOTE: The command executor's id is the same as the task id.
+  ExecutorID executorId;
+  executorId.set_value(task.task_id().value());
+
+  const string directory = slave::paths::getExecutorLatestRunPath(
+      flags.work_dir,
+      offers.get()[0].slave_id(),
+      offers.get()[0].framework_id(),
+      executorId);
+
+  ASSERT_TRUE(os::exists(directory));
+
+  // Make sure the file is completely generated.
+  const string filePath = path::join(directory, "file");
+  Option<Bytes> fileSize;
+  Duration waited = Duration::zero();
+
+  do {
+    if (os::exists(filePath)) {
+      Try<Bytes> size = os::stat::size(filePath);
+      ASSERT_SOME(size);
+
+      if (size->bytes() == 10240) {
+        fileSize = size.get();
+        break;
+      }
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < Seconds(15));
+
+  ASSERT_SOME(fileSize);
+  ASSERT_EQ(10240u, fileSize->bytes());
+
+  Future<hashset<ContainerID>> containers = containerizer->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers->size());
+
+  ContainerID containerId = *(containers->begin());
+
+  Future<ResourceStatistics> usage = containerizer->usage(containerId);
+  AWAIT_READY(usage);
+
+  // We only check throttling statistics but not cfq statistics, because
+  // in the environment where the disk IO scheduler is not cfq, all the
+  // cfq statistics may be 0. And there must be at least two entries in
+  // the throttling statistics, one is the total statistics, the others
+  // are device specific statistics.
+  EXPECT_TRUE(usage->has_blkio_statistics());
+  EXPECT_LE(2, usage->blkio_statistics().throttling_size());
+
+  // We only check the total throttling statistics.
+  Option<CgroupInfo::Blkio::Throttling::Statistics> totalThrottling;
+  foreach (const CgroupInfo::Blkio::Throttling::Statistics& statistics,
+           usage->blkio_statistics().throttling()) {
+    if (!statistics.has_device()) {
+      totalThrottling = statistics;
+    }
+  }
+
+  EXPECT_SOME(totalThrottling);
+  EXPECT_EQ(1, totalThrottling->io_serviced_size());
+  EXPECT_EQ(1, totalThrottling->io_service_bytes_size());
+
+  const CgroupInfo::Blkio::Value& totalIOServiced =
+      totalThrottling->io_serviced(0);
+
+  EXPECT_TRUE(totalIOServiced.has_op());
+  EXPECT_EQ(CgroupInfo::Blkio::TOTAL, totalIOServiced.op());
+  EXPECT_TRUE(totalIOServiced.has_value());
+  EXPECT_LE(10u, totalIOServiced.value());
+
+  const CgroupInfo::Blkio::Value& totalIOServiceBytes =
+      totalThrottling->io_service_bytes(0);
+
+  EXPECT_TRUE(totalIOServiceBytes.has_op());
+  EXPECT_EQ(CgroupInfo::Blkio::TOTAL, totalIOServiceBytes.op());
+  EXPECT_TRUE(totalIOServiceBytes.has_value());
+  EXPECT_LE(10240u, totalIOServiceBytes.value());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
