@@ -18,7 +18,7 @@ This directory contains bundled packages within the Mesos repository.
   - nvml
   - picojson
   - pip
-  - protobuf
+  - [protobuf](protobuf.md)
   - setuptools
   - wheel
   - zookeeper
