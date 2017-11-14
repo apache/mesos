@@ -16,6 +16,7 @@ All Issues:
   * [MESOS-7909] - Ordering dependency between 'linux/capabilities' and 'docker/runtime' isolator.
   * [MESOS-7926] - Abnormal termination of default executor can cause MesosContainerizer::destroy to fail.
   * [MESOS-7934] - OOM due to LibeventSSLSocket send incorrectly returning 0 after shutdown.
+  * [MESOS-7975] - The command/default/docker executor can incorrectly send a TASK_FINISHED update even when the task is killed.
   * [MESOS-8051] - Killing TASK_GROUP fail to kill some tasks.
   * [MESOS-8080] - The default executor does not propagate missing task exit status correctly.
   * [MESOS-8135] - Masters can lose track of tasks' executor IDs.
