@@ -9748,6 +9748,12 @@ void Master::updateOfferOperation(
   CHECK(operation->has_slave_id())
     << "External resource provider is not supported yet";
 
+  // The slave owns the OfferOperation object and cannot be nullptr.
+  // TODO(jieyu): Revisit this once we introduce support for external
+  // resource provider.
+  Slave* slave = slaves.registered.get(operation->slave_id());
+  CHECK_NOTNULL(slave);
+
   switch (operation->latest_status().state()) {
     // Terminal state, and the conversion is successful.
     case OFFER_OPERATION_FINISHED: {
@@ -9765,6 +9771,15 @@ void Master::updateOfferOperation(
           operation->slave_id(),
           converted,
           None());
+
+      Resources consumedUnallocated = consumed;
+      consumedUnallocated.unallocate();
+
+      Resources convertedUnallocated = converted;
+      convertedUnallocated.unallocate();
+
+      slave->apply(
+          {ResourceConversion(consumedUnallocated, convertedUnallocated)});
 
       break;
     }
@@ -9790,12 +9805,6 @@ void Master::updateOfferOperation(
       break;
     }
   }
-
-  // The slave owns the OfferOperation object and cannot be nullptr.
-  // TODO(jieyu): Revisit this once we introduce support for external
-  // resource provider.
-  Slave* slave = slaves.registered.get(operation->slave_id());
-  CHECK_NOTNULL(slave);
 
   slave->recoverResources(operation);
 
