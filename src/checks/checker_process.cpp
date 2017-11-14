@@ -94,9 +94,10 @@ constexpr char TCP_CHECK_COMMAND[] = "mesos-tcp-connect.exe";
 
 static const string DEFAULT_HTTP_SCHEME = "http";
 
-// Use '127.0.0.1' instead of 'localhost', because the host
-// file in some container images may not contain 'localhost'.
-constexpr char DEFAULT_DOMAIN[] = "127.0.0.1";
+// Use '127.0.0.1' and '::1' instead of 'localhost', because the
+// host file in some container images may not contain 'localhost'.
+constexpr char DEFAULT_IPV4_DOMAIN[] = "127.0.0.1";
+constexpr char DEFAULT_IPV6_DOMAIN[] = "::1";
 
 
 #ifdef __linux__
@@ -827,7 +828,15 @@ Future<int> CheckerProcess::httpCheck()
 
   const string _scheme = scheme.isSome() ? scheme.get() : DEFAULT_HTTP_SCHEME;
   const string path = http.has_path() ? http.path() : "";
-  const string url = _scheme + "://" + DEFAULT_DOMAIN + ":" +
+
+  // As per "curl --manual", the square brackets are required to tell curl that
+  // it's an IPv6 address, and we need to set "-g" option below to stop curl
+  // from interpreting the square brackets as special globbing characters.
+  const string domain = ipv6 ?
+                        "[" + string(DEFAULT_IPV6_DOMAIN) + "]" :
+                        DEFAULT_IPV4_DOMAIN;
+
+  const string url = _scheme + "://" + domain + ":" +
                      stringify(http.port()) + path;
 
   VLOG(1) << "Launching " << name << " '" << url << "'"
@@ -841,6 +850,7 @@ Future<int> CheckerProcess::httpCheck()
     "-k",                 // Ignores SSL validation when scheme is https.
     "-w", "%{http_code}", // Displays HTTP response code on stdout.
     "-o", os::DEV_NULL,   // Ignores output.
+    "-g",                 // Switches off the "URL globbing parser".
     url
   };
 
@@ -994,10 +1004,11 @@ Future<bool> CheckerProcess::tcpCheck()
           << " at port " << tcp.port();
 
   const string command = path::join(launcherDir, TCP_CHECK_COMMAND);
+  const string domain = ipv6 ? DEFAULT_IPV6_DOMAIN : DEFAULT_IPV4_DOMAIN;
 
   const vector<string> argv = {
     command,
-    "--ip=" + stringify(DEFAULT_DOMAIN),
+    "--ip=" + domain,
     "--port=" + stringify(tcp.port())
   };
 
