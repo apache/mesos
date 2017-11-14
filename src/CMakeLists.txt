@@ -114,7 +114,7 @@ if (HAS_JAVA)
   #       run Maven at build time. Coupled with (1) and (2) this makes it
   #       impossible to use.
   set(MESOS_JAR ${CMAKE_CURRENT_BINARY_DIR}/java/target/mesos-${MESOS_PACKAGE_VERSION}.jar)
-  set(PROTOBUF_JAR ${CMAKE_CURRENT_BINARY_DIR}/java/target/dependency/protobuf-java-3.3.0.jar)
+  set(PROTOBUF_JAR ${CMAKE_CURRENT_BINARY_DIR}/java/target/dependency/protobuf-java-3.5.0.jar)
 
   # This file is generated into the build tree.
   set(MESOS_JAVA_LIBRARY java/generated/org/apache/mesos/MesosNativeLibrary.java)

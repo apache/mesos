@@ -55,7 +55,7 @@ cmake --build 3rdparty --target libevent-2.1.5-beta -- -j $(nproc) || true
 cmake --build 3rdparty --target leveldb-1.19 -- -j $(nproc)
 cmake --build 3rdparty --target nvml-352.79 -- -j $(nproc)
 cmake --build 3rdparty --target picojson-1.3.0 -- -j $(nproc)
-cmake --build 3rdparty --target protobuf-3.3.0 -- -j $(nproc)
+cmake --build 3rdparty --target protobuf-3.5.0 -- -j $(nproc)
 cmake --build 3rdparty --target zookeeper-3.4.8 -- -j $(nproc)
 
 # Generate the protobuf definitions.
