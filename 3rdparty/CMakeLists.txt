@@ -688,6 +688,8 @@ set_target_properties(
   gtest PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES ${GOOGLETEST_ROOT}/googletest/include)
 
+set(GOOGLETEST_CMAKE_FORWARD_ARGS ${CMAKE_FORWARD_ARGS})
+
 if (WIN32)
   set_target_properties(
     gmock PROPERTIES
@@ -698,6 +700,12 @@ if (WIN32)
     gtest PROPERTIES
     IMPORTED_LOCATION_DEBUG ${GOOGLETEST_ROOT}-build/googlemock/gtest/Debug/gtest${CMAKE_STATIC_LIBRARY_SUFFIX}
     IMPORTED_LOCATION_RELEASE ${GOOGLETEST_ROOT}-build/googlemock/gtest/Release/gtest${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+  # Silence new deprecation warning in Visual Studio 15.5.
+  # NOTE: This has been patched upstream, but we don't patch Google Test.
+  # https://github.com/google/googletest/issues/1111
+  list(APPEND GOOGLETEST_CMAKE_FORWARD_ARGS
+    -DCMAKE_CXX_FLAGS=/D_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
 else ()
   set_target_properties(
     gmock PROPERTIES
@@ -712,8 +720,6 @@ MAKE_INCLUDE_DIR(gmock)
 MAKE_INCLUDE_DIR(gtest)
 GET_BYPRODUCTS(gmock)
 GET_BYPRODUCTS(gtest)
-
-set(GOOGLETEST_CMAKE_FORWARD_ARGS ${CMAKE_FORWARD_ARGS})
 
 # Unconditionally build static libraries.
 list(APPEND GOOGLETEST_CMAKE_FORWARD_ARGS -DBUILD_SHARED_LIBS=OFF)
