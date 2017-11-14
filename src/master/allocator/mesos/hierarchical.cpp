@@ -35,6 +35,7 @@
 
 #include <stout/check.hpp>
 #include <stout/hashset.hpp>
+#include <stout/set.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
@@ -421,27 +422,30 @@ void HierarchicalAllocatorProcess::updateFramework(
   set<string> newRoles = protobuf::framework::getRoles(frameworkInfo);
   set<string> oldSuppressedRoles = framework.suppressedRoles;
 
-  // The roles which are candidates for deactivation are the roles that are
-  // removed, as well as the roles which have moved from non-suppressed
-  // to suppressed mode.
-  const set<string> rolesToDeactivate = [&]() {
+  // TODO(xujyan): Add a stout set difference method that wraps around
+  // `std::set_difference` for this.
+  const set<string> removedRoles = [&]() {
     set<string> result = oldRoles;
     foreach (const string& role, newRoles) {
       result.erase(role);
     }
+    return result;
+  }();
 
-    foreach (const string& role, oldRoles) {
-      if (!oldSuppressedRoles.count(role) && suppressedRoles.count(role)) {
-        result.insert(role);
-      }
+  const set<string> newSuppressedRoles = [&]() {
+    set<string> result = suppressedRoles;
+    foreach (const string& role, oldSuppressedRoles) {
+      result.erase(role);
     }
     return result;
   }();
 
-  foreach (const string& role, rolesToDeactivate) {
+  foreach (const string& role, removedRoles | newSuppressedRoles) {
     CHECK(frameworkSorters.contains(role));
     frameworkSorters.at(role)->deactivate(frameworkId.value());
+  }
 
+  foreach (const string& role, removedRoles) {
     // Stop tracking the framework under this role if there are
     // no longer any resources allocated to it.
     if (frameworkSorters.at(role)->allocation(frameworkId.value()).empty()) {
@@ -453,36 +457,34 @@ void HierarchicalAllocatorProcess::updateFramework(
     }
   }
 
-  // The roles which are candidates for activation are the roles that are
-  // added, as well as the roles which have moved from suppressed to
-  // non-suppressed mode.
-  //
-  // TODO(anindya_sinha): We should activate the roles only if the
-  // framework is active (instead of always).
-  const set<string> rolesToActivate = [&]() {
+  const set<string> addedRoles = [&]() {
     set<string> result = newRoles;
     foreach (const string& role, oldRoles) {
       result.erase(role);
     }
+    return result;
+  }();
 
-    foreach (const string& role, newRoles) {
-      if (!suppressedRoles.count(role) && oldSuppressedRoles.count(role)) {
-        result.insert(role);
-      } else if (suppressedRoles.count(role)) {
-        result.erase(role);
-      }
+  const set<string> newRevivedRoles = [&]() {
+    set<string> result = oldSuppressedRoles;
+    foreach (const string& role, suppressedRoles) {
+      result.erase(role);
     }
     return result;
   }();
 
-  foreach (const string& role, rolesToActivate) {
+  foreach (const string& role, addedRoles) {
     // NOTE: It's possible that we're already tracking this framework
     // under the role because a framework can unsubscribe from a role
     // while it still has resources allocated to the role.
     if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
       trackFrameworkUnderRole(frameworkId, role);
     }
+  }
 
+  // TODO(anindya_sinha): We should activate the roles only if the
+  // framework is active (instead of always).
+  foreach (const string& role, addedRoles | newRevivedRoles) {
     CHECK(frameworkSorters.contains(role));
     frameworkSorters.at(role)->activate(frameworkId.value());
   }
