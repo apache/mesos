@@ -18,6 +18,7 @@
 #error "stout/os/linux.hpp is only available on Linux systems."
 #endif // __linux__
 
+#include <sys/mman.h>
 #include <sys/types.h> // For pid_t.
 
 #include <list>
@@ -33,7 +34,6 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
-#include <stout/os/pagesize.hpp>
 #include <stout/os/process.hpp>
 
 namespace os {
@@ -57,56 +57,59 @@ public:
   // 8 MiB is the default for "ulimit -s" on OSX and Linux.
   static constexpr size_t DEFAULT_SIZE = 8 * 1024 * 1024;
 
-  // Allocate a stack.
+  // Allocate a stack. Note that this is NOT async signal safe, nor
+  // safe to call between fork and exec.
   static Try<Stack> create(size_t size)
   {
     Stack stack(size);
 
     if (!stack.allocate()) {
-      return ErrnoError("Failed to allocate and align stack");
+      return ErrnoError();
     }
 
     return stack;
   }
 
+  explicit Stack(size_t size_) : size(size_) {}
+
+  // Allocate the stack using mmap. We avoid malloc because we want
+  // this to be safe to use between fork and exec where malloc might
+  // deadlock. Returns false and sets `errno` on failure.
   bool allocate()
   {
-    // Allocate and align the memory to 16 bytes.
-    // x86, x64, and AArch64/ARM64 all expect a 16 byte aligned stack.
-    // ARM64/aarch64 enforces the alignment where x86/x64 does not.
-    // Without this alignment Mesos will crash with a SIGBUS on ARM64/aarch64.
-    int err = ::posix_memalign(
-                reinterpret_cast<void**>(&address),
-                os::pagesize(),
-                size);
+    int flags = MAP_PRIVATE | MAP_ANONYMOUS;
 
-    if (err != 0) {
-        errno = err;
+#if defined(MAP_STACK)
+    flags |= MAP_STACK;
+#endif
+
+    address = ::mmap(nullptr, size, PROT_READ | PROT_WRITE, flags, -1, 0);
+    if (address == MAP_FAILED) {
+      return false;
     }
 
-    return err == 0;
+    return true;
   }
 
   // Explicitly free the stack.
   // The destructor won't free the allocated stack.
   void deallocate()
   {
-    ::free(address);
-    address = nullptr;
-    size = 0;
+    PCHECK(::munmap(address, size) == 0);
+    address = MAP_FAILED;
   }
 
   // Stack grows down, return the first usable address.
   char* start() const
   {
-    return address + size;
+    return address == MAP_FAILED
+      ? nullptr
+      : (static_cast<char*>(address) + size);
   }
-
-  explicit Stack(size_t size_) : size(size_) {}
 
 private:
   size_t size;
-  char* address;
+  void* address = MAP_FAILED;
 };
 
 
