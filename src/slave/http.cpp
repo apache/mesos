@@ -2392,6 +2392,9 @@ Future<Response> Http::launchContainer(
   CHECK_EQ(mesos::agent::Call::LAUNCH_CONTAINER, call.type());
   CHECK(call.has_launch_container());
 
+  LOG(INFO) << "Processing LAUNCH_CONTAINER call for container '"
+            << call.launch_container().container_id() << "'";
+
   Future<Owned<AuthorizationAcceptor>> authorizer =
     AuthorizationAcceptor::create(
         principal,
@@ -2611,6 +2614,9 @@ Future<Response> Http::waitContainer(
   CHECK_EQ(mesos::agent::Call::WAIT_CONTAINER, call.type());
   CHECK(call.has_wait_container());
 
+  LOG(INFO) << "Processing WAIT_CONTAINER call for container '"
+            << call.wait_container().container_id() << "'";
+
   Future<Owned<AuthorizationAcceptor>> authorizer =
     AuthorizationAcceptor::create(
         principal,
@@ -2772,6 +2778,9 @@ Future<Response> Http::killContainer(
   CHECK_EQ(mesos::agent::Call::KILL_CONTAINER, call.type());
   CHECK(call.has_kill_container());
 
+  LOG(INFO) << "Processing KILL_CONTAINER call for container '"
+            << call.kill_container().container_id() << "'";
+
   Future<Owned<AuthorizationAcceptor>> authorizer =
     AuthorizationAcceptor::create(
         principal,
@@ -2873,6 +2882,9 @@ Future<Response> Http::removeContainer(
 {
   CHECK_EQ(mesos::agent::Call::REMOVE_CONTAINER, call.type());
   CHECK(call.has_remove_container());
+
+  LOG(INFO) << "Processing REMOVE_CONTAINER call for container '"
+            << call.remove_container().container_id() << "'";
 
   Future<Owned<AuthorizationAcceptor>> authorizer =
     AuthorizationAcceptor::create(
