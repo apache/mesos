@@ -134,6 +134,18 @@ protected:
     delete m;
   }
 
+  template <typename M>
+  void install(void (T::*method)(const process::UPID&, M&&))
+  {
+    google::protobuf::Message* m = new M();
+    T* t = static_cast<T*>(this);
+    protobufHandlers[m->GetTypeName()] =
+      lambda::bind(&handlerMutM<M>,
+                   t, method,
+                   lambda::_1, lambda::_2);
+    delete m;
+  }
+
   template <typename M, typename P>
   using MessageProperty = P(M::*)() const;
 
@@ -177,6 +189,18 @@ protected:
     T* t = static_cast<T*>(this);
     protobufHandlers[m->GetTypeName()] =
       lambda::bind(&_handlerM<M>,
+                   t, method,
+                   lambda::_1, lambda::_2);
+    delete m;
+  }
+
+  template <typename M>
+  void install(void (T::*method)(M&&))
+  {
+    google::protobuf::Message* m = new M();
+    T* t = static_cast<T*>(this);
+    protobufHandlers[m->GetTypeName()] =
+      lambda::bind(&_handlerMutM<M>,
                    t, method,
                    lambda::_1, lambda::_2);
     delete m;
@@ -237,6 +261,24 @@ private:
     }
   }
 
+  template <typename M>
+  static void handlerMutM(
+      T* t,
+      void (T::*method)(const process::UPID&, M&&),
+      const process::UPID& sender,
+      const std::string& data)
+  {
+    M m;
+    m.ParseFromString(data);
+
+    if (m.IsInitialized()) {
+      (t->*method)(sender, std::move(m));
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << m.InitializationErrorString();
+    }
+  }
+
   static void handler0(
       T* t,
       void (T::*method)(const process::UPID&),
@@ -284,6 +326,24 @@ private:
     } else {
       LOG(WARNING) << "Initialization errors: "
                    << m->InitializationErrorString();
+    }
+  }
+
+  template <typename M>
+  static void _handlerMutM(
+      T* t,
+      void (T::*method)(M&&),
+      const process::UPID&,
+      const std::string& data)
+  {
+    M m;
+    m.ParseFromString(data);
+
+    if (m.IsInitialized()) {
+      (t->*method)(std::move(m));
+    } else {
+      LOG(WARNING) << "Initialization errors: "
+                   << m.InitializationErrorString();
     }
   }
 
