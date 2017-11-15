@@ -1090,8 +1090,6 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
 
   v1::TaskInfo task2 = v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
 
-  const hashset<v1::TaskID> taskIds{task1.task_id(), task2.task_id()};
-
   // We expect two TASK_STARTING, two TASK_RUNNING, and one TASK_FINISHED
   // updates.
   vector<Future<v1::scheduler::Event::Update>> updates(5);
