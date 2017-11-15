@@ -31,6 +31,31 @@ Download and install the MSI from [CMake.org][cmake-download].
 
 **NOTE:** Windows needs CMake 3.8+, rather than 3.7+.
 
+# Quick Start
+
+The most basic way to build with CMake, with no configuration, is fairly
+straightforward:
+
+```
+mkdir build
+cd build
+cmake ..
+cmake --build .
+```
+
+The last step, `cmake --build .` can also take a `--target` command to build any
+particular target (e.g. `mesos-tests`, or `tests` to build `mesos-tests`,
+`libprocess-tests`, and `stout-tests`): `cmake --build . --target tests`. To
+send arbitrary flags to the native build system underneath (e.g. `make`), append
+the command with `-- <flags to be passed>`: `cmake --build . -- -j4`.
+
+Also, `cmake --build` can be substituted by your build system of choice. For
+instance, the default CMake generator on Linux produces GNU Makefiles, so after
+configuring with `cmake ..`, you can just run `make tests` in the `build` folder
+like usual. Similarly, if you configure with `-G Ninja` to use the Ninja
+generator, you can then run `ninja tests` to build the `tests` target with
+Ninja.
+
 # Supported options
 
 See [configuration options](configuration/cmake.md).
