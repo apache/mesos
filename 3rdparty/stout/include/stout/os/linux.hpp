@@ -62,19 +62,29 @@ public:
   {
     Stack stack(size);
 
+    if (!stack.allocate()) {
+      return ErrnoError("Failed to allocate and align stack");
+    }
+
+    return stack;
+  }
+
+  bool allocate()
+  {
     // Allocate and align the memory to 16 bytes.
     // x86, x64, and AArch64/ARM64 all expect a 16 byte aligned stack.
     // ARM64/aarch64 enforces the alignment where x86/x64 does not.
     // Without this alignment Mesos will crash with a SIGBUS on ARM64/aarch64.
     int err = ::posix_memalign(
-                reinterpret_cast<void**>(&stack.address),
+                reinterpret_cast<void**>(&address),
                 os::pagesize(),
-                stack.size);
-    if (err) {
-      return ErrnoError("Failed to allocate and align stack");
+                size);
+
+    if (err != 0) {
+        errno = err;
     }
 
-    return stack;
+    return err == 0;
   }
 
   // Explicitly free the stack.
@@ -87,23 +97,36 @@ public:
   }
 
   // Stack grows down, return the first usable address.
-  char* start()
+  char* start() const
   {
     return address + size;
   }
 
-private:
   explicit Stack(size_t size_) : size(size_) {}
 
+private:
   size_t size;
   char* address;
 };
 
 
+namespace signal_safe {
+
+
+inline pid_t clone(
+    const Stack& stack,
+    int flags,
+    const lambda::function<int()>& func)
+{
+  return ::clone(childMain, stack.start(), flags, (void*) &func);
+}
+
+} // namespace signal_safe {
+
+
 inline pid_t clone(
     const lambda::function<int()>& func,
-    int flags,
-    Option<Stack> stack = None())
+    int flags)
 {
   // Stack for the child.
   //
@@ -111,18 +134,16 @@ inline pid_t clone(
   // glibc's 'clone' will modify the stack passed to it, therefore the
   // stack must NOT be shared as multiple 'clone's can be invoked
   // simultaneously.
+  Stack stack(Stack::DEFAULT_SIZE);
 
-  bool cleanup = false;
-  if (stack.isNone()) {
-    Try<Stack> _stack = Stack::create(Stack::DEFAULT_SIZE);
-    if (_stack.isError()) {
-        return -1;
-    }
-    stack = _stack.get();
-    cleanup = true;
+  if (!stack.allocate()) {
+    // TODO(jpeach): In MESOS-8155, we will return an
+    // ErrnoError() here, but for now keep the interface
+    // compatible.
+    return -1;
   }
 
-  pid_t pid = ::clone(childMain, stack->start(), flags, (void*) &func);
+  pid_t pid = signal_safe::clone(stack, flags, func);
 
   // Given we allocated the stack ourselves, there are two
   // circumstances where we need to delete the allocated stack to
@@ -135,8 +156,10 @@ inline pid_t clone(
   //     calling process. If CLONE_VM is set ::clone will create a
   //     thread which runs in the same memory space with the calling
   //     process, in which case we don't want to call delete!
-  if (cleanup && (pid < 0 || !(flags & CLONE_VM))) {
-    stack->deallocate();
+  //
+  // TODO(jpeach): In case (2) we will leak the stack memory.
+  if (pid < 0 || !(flags & CLONE_VM)) {
+    stack.deallocate();
   }
 
   return pid;
