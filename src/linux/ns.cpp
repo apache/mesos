@@ -223,6 +223,12 @@ Try<pid_t> clone(
     {CLONE_NEWNS, "mnt"}
   };
 
+  // Since we assume below that the parent can deallocate the stack
+  // after cloning the children, the caller must not pass CLONE_VM.
+  // That would cause the both processes to share their address space
+  // so deallocating the stack in the parent would affect the child.
+  CHECK_EQ(0, flags & CLONE_VM);
+
   // Support for user namespaces in all filesystems is incomplete
   // until version 3.12 (see 'Availability' in man page of
   // 'user_namespaces'), so for now we don't support entering them.
@@ -443,27 +449,31 @@ Try<pid_t> clone(
       //
       // Now clone with the specified flags, close the unused socket,
       // and execute the specified function.
-      pid_t pid = os::clone([=]() {
-        // Now send back the pid and have it be translated appropriately
-        // by the kernel to the enclosing pid namespace.
-        //
-        // NOTE: sending back the pid is best effort because we're going
-        // to exit no matter what.
-        ((struct ucred*) CMSG_DATA(CMSG_FIRSTHDR(&message)))->pid = ::getpid();
-        ((struct ucred*) CMSG_DATA(CMSG_FIRSTHDR(&message)))->uid = ::getuid();
-        ((struct ucred*) CMSG_DATA(CMSG_FIRSTHDR(&message)))->gid = ::getgid();
+      pid_t pid = os::signal_safe::clone(
+          stack.get(),
+          flags,
+          [=]() {
+            struct ucred* cred = reinterpret_cast<struct ucred*>(
+                CMSG_DATA(CMSG_FIRSTHDR(&message)));
 
-        if (sendmsg(sockets[1], &message, 0) == -1) {
-          // Failed to send the pid back to the parent!
-          _exit(EXIT_FAILURE);
-        }
+            // Now send back the pid and have it be translated appropriately
+            // by the kernel to the enclosing pid namespace.
+            //
+            // NOTE: sending back the pid is best effort because we're going
+            // to exit no matter what.
+            cred->pid = ::getpid();
+            cred->uid = ::getuid();
+            cred->gid = ::getgid();
 
-        ::close(sockets[1]);
+            if (sendmsg(sockets[1], &message, 0) == -1) {
+              // Failed to send the pid back to the parent!
+              _exit(EXIT_FAILURE);
+            }
 
-        return f();
-      },
-      flags,
-      stack.get());
+            ::close(sockets[1]);
+
+            return f();
+          });
 
       ::close(sockets[1]);
 
@@ -472,6 +482,13 @@ Try<pid_t> clone(
       _exit(pid < 0 ? EXIT_FAILURE : EXIT_SUCCESS);
       UNREACHABLE();
     };
+
+    os::Stack grandchildStack(os::Stack::DEFAULT_SIZE);
+
+    if (!grandchildStack.allocate()) {
+      ::close(sockets[1]);
+      _exit(EXIT_FAILURE);
+    }
 
     // Fork again to make sure we're actually in those namespaces
     // (required for the pid namespace at least).
@@ -489,7 +506,10 @@ Try<pid_t> clone(
     //
     // TODO(benh): Don't do a fork if we're not actually entering the
     // PID namespace since the extra fork is unnecessary.
-    pid_t grandchild = os::clone(grandchildMain, SIGCHLD);
+    pid_t grandchild =
+      os::signal_safe::clone(grandchildStack, SIGCHLD, grandchildMain);
+
+    grandchildStack.deallocate();
 
     if (grandchild < 0) {
       // TODO(benh): Exit with `errno` in order to capture `fork` error?
