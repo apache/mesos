@@ -19,6 +19,20 @@ VERSION=${1}
 CANDIDATE=${2}
 TAG="${VERSION}-rc${CANDIDATE}"
 
+if ! git rev-parse "$TAG" > /dev/null 2>&1; then
+  echo "Tag $TAG doesn't exist. Please create one using:"
+  echo "  git tag -a $TAG -m \"Tagging Mesos $TAG.\""
+  exit 1
+fi
+
+if [ "$(git cat-file -t $TAG)" != "tag" ]; then
+  echo "Tag $TAG is not annotated. First delete the existing tag using:"
+  echo "  git tag -d $TAG"
+  echo "Then create an annotated tag using:"
+  echo "  git tag -a $TAG -m \"Tagging Mesos $TAG.\""
+  exit 1;
+fi
+
 echo "${GREEN}Tagging and Voting for mesos-${VERSION} candidate ${CANDIDATE}${NORMAL}"
 
 read -p "Hit enter to continue ... "

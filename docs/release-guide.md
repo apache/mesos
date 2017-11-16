@@ -154,7 +154,7 @@ This guide describes the process of doing an official release of Mesos.
 
 3. First tag the required SHA locally.
 
-        $ git tag <X.Y.Z-rcR>
+        $ git tag -a <X.Y.Z-rcR> -m "Tagging Mesos <X.Y.X-rcR>."
 
    **NOTE:** `X.Y.Z` is based on [semantic versioning](http://semver.org/)
    scheme. `R` is release candidate version that starts with 1.
@@ -233,8 +233,7 @@ This guide describes the process of doing an official release of Mesos.
    in `site/data/releases.yml`. It is used to generate the release information
    on the website.
 
-2. Update the [Getting Started](getting-started.md) guide to use the latest
-   release link.
+2. Update the [Building](building.md) guide to use the latest release link.
 
 3. Check out the website from svn.
 
