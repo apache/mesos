@@ -58,7 +58,7 @@ popd # ${WORK_DIR}
 
 echo "${GREEN}Tagging ${TAG} as ${VERSION} ${NORMAL}"
 
-git tag ${VERSION} ${TAG}
+git tag -a ${VERSION} ${TAG} -m "Tagging Mesos ${VERSION}"
 
 echo "${GREEN}Pushing the git tag to the repository...${NORMAL}"
 
