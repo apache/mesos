@@ -46,10 +46,12 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/io.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/queue.hpp>
+#include <process/subprocess.hpp>
 
 #include <process/ssl/gtest.hpp>
 
@@ -106,6 +108,8 @@ constexpr char DEFAULT_EXECUTOR_SECRET_KEY[] =
   "72kUKUFtghAjNbIOvLzfF2RxNBfeM64Bri8g9WhpyaunwqRB/yozHAqSnyHbddAV"
   "PcWRQlrJAt871oWgSH+n52vMZ3aVI+AFMzXSo8+sUfMk83IGp0WJefhzeQsjDlGH"
   "GYQgCAuGim0BE2X5U+lEue8s697uQpAO8L/FFRuDH2s";
+
+constexpr char DOCKER_IPv6_NETWORK[] = "mesos-docker-ip6-test";
 
 
 // Forward declarations.
@@ -2085,6 +2089,69 @@ inline mesos::Environment createEnvironment(
     variable->set_value(value);
   }
   return environment;
+}
+
+
+inline void createDockerIPv6UserNetwork()
+{
+  // Create a Docker user network with IPv6 enabled.
+  Try<std::string> dockerCommand = strings::format(
+      "docker network create --driver=bridge --ipv6 "
+      "--subnet=fd01::/64 %s",
+      DOCKER_IPv6_NETWORK);
+
+  Try<process::Subprocess> s = subprocess(
+      dockerCommand.get(),
+      process::Subprocess::PATH("/dev/null"),
+      process::Subprocess::PATH("/dev/null"),
+      process::Subprocess::PIPE());
+
+  ASSERT_SOME(s) << "Unable to create the Docker IPv6 network: "
+                 << DOCKER_IPv6_NETWORK;
+
+  process::Future<std::string> err = process::io::read(s->err().get());
+
+  // Wait for the network to be created.
+  AWAIT_READY(s->status());
+  AWAIT_READY(err);
+
+  ASSERT_SOME(s->status().get());
+  ASSERT_EQ(s->status().get().get(), 0)
+    << "Unable to create the Docker IPv6 network "
+    << DOCKER_IPv6_NETWORK
+    << " : " << err.get();
+}
+
+
+inline void removeDockerIPv6UserNetwork()
+{
+  // Delete the Docker user network.
+  Try<std::string> dockerCommand = strings::format(
+      "docker network rm %s",
+      DOCKER_IPv6_NETWORK);
+
+  Try<process::Subprocess> s = subprocess(
+      dockerCommand.get(),
+      process::Subprocess::PATH("/dev/null"),
+      process::Subprocess::PATH("/dev/null"),
+      process::Subprocess::PIPE());
+
+  // This is best effort cleanup. In case of an error just a log an
+  // error.
+  ASSERT_SOME(s) << "Unable to delete the Docker IPv6 network: "
+                 << DOCKER_IPv6_NETWORK;
+
+  process::Future<std::string> err = process::io::read(s->err().get());
+
+  // Wait for the network to be deleted.
+  AWAIT_READY(s->status());
+  AWAIT_READY(err);
+
+  ASSERT_SOME(s->status().get());
+  ASSERT_EQ(s->status().get().get(), 0)
+    << "Unable to delete the Docker IPv6 network "
+    << DOCKER_IPv6_NETWORK
+    << " : " << err.get();
 }
 
 

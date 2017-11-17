@@ -78,8 +78,6 @@ using testing::Eq;
 using testing::Invoke;
 using testing::Return;
 
-constexpr char DOCKER_IPv6_NETWORK[] = "mesos-docker-ip6-test";
-
 namespace process {
 
 // We need to reinitialize libprocess in order to test against
@@ -4929,65 +4927,14 @@ class DockerContainerizerIPv6UserNetworkTest : public DockerContainerizerTest
 protected:
   virtual void SetUp()
   {
+    createDockerIPv6UserNetwork();
     DockerContainerizerTest::SetUp();
-
-    Try<string> dockerCommand = strings::format(
-        "docker network create --driver=bridge --ipv6 "
-        "--subnet=fd01::/64 %s",
-        DOCKER_IPv6_NETWORK);
-
-    Try<Subprocess> s = subprocess(
-        dockerCommand.get(),
-        Subprocess::PATH("/dev/null"),
-        Subprocess::PATH("/dev/null"),
-        Subprocess::PIPE());
-
-    ASSERT_SOME(s) << "Unable to create the docker IPv6 network: "
-                   << DOCKER_IPv6_NETWORK;
-
-    Future<string> err = io::read(s->err().get());
-
-    // Wait for the network to be created.
-    AWAIT_READY(s->status());
-    AWAIT_READY(err);
-
-    ASSERT_SOME(s->status().get());
-    ASSERT_EQ(s->status().get().get(), 0)
-      << "Unable to create the docker IPv6 network "
-      << DOCKER_IPv6_NETWORK
-      << " : " << err.get();
   }
 
   virtual void TearDown()
   {
     DockerContainerizerTest::TearDown();
-
-    Try<string> dockerCommand = strings::format(
-        "docker network rm %s",
-        DOCKER_IPv6_NETWORK);
-
-    Try<Subprocess> s = subprocess(
-        dockerCommand.get(),
-        Subprocess::PATH("/dev/null"),
-        Subprocess::PATH("/dev/null"),
-        Subprocess::PIPE());
-
-    // This is best effort cleanup. In case of an error just a log an
-    // error.
-    ASSERT_SOME(s) << "Unable to delete the docker IPv6 network: "
-                   << DOCKER_IPv6_NETWORK;
-
-    Future<string> err = io::read(s->err().get());
-
-    // Wait for the network to be deleted.
-    AWAIT_READY(s->status());
-    AWAIT_READY(err);
-    ASSERT_SOME(s->status().get());
-
-    ASSERT_EQ(s->status().get().get(), 0)
-      << "Unable to delete the docker IPv6 network "
-      << DOCKER_IPv6_NETWORK
-      << " : " << err.get();
+    removeDockerIPv6UserNetwork();
   }
 };
 
