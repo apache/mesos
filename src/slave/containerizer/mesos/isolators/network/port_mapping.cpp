@@ -1883,7 +1883,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
               (speed < flags.minimum_egress_rate_limit.get())) {
             return Error(
                 "The given minimum egress traffic limit for containers " +
-                stringify(flags.maximum_egress_rate_limit.get().bytes()) +
+                stringify(flags.minimum_egress_rate_limit.get().bytes()) +
                 " Bytes/s is greater than the host link speed " +
                 stringify(speed.bytes()) + " Bytes/s");
           }
