@@ -2472,12 +2472,16 @@ Encoder* SocketManager::next(int_fd s)
           sockets.erase(iterator);
 
           Try<Nothing> shutdown = socket.shutdown();
+
+          // Failure here could be due to reasons including that the underlying
+          // socket is already closed so it by itself doesn't necessarily
+          // suggest anything wrong.
           if (shutdown.isError()) {
-            LOG(ERROR) << "Failed to shutdown socket with fd " << socket.get()
-                       << ", address " << (socket.address().isSome()
-                                             ? stringify(socket.address().get())
-                                             : "N/A")
-                       << ": " << shutdown.error();
+            LOG(INFO) << "Failed to shutdown socket with fd " << socket.get()
+                      << ", address " << (socket.address().isSome()
+                                            ? stringify(socket.address().get())
+                                            : "N/A")
+                      << ": " << shutdown.error();
           }
         }
       }
@@ -2556,13 +2560,16 @@ void SocketManager::close(int_fd s)
       Socket socket = iterator->second;
       sockets.erase(iterator);
 
+      // Failure here could be due to reasons including that the underlying
+      // socket is already closed so it by itself doesn't necessarily
+      // suggest anything wrong.
       Try<Nothing> shutdown = socket.shutdown();
       if (shutdown.isError()) {
-        LOG(ERROR) << "Failed to shutdown socket with fd " << socket.get()
-                   << ", address " << (socket.address().isSome()
-                                         ? stringify(socket.address().get())
-                                         : "N/A")
-                   << ": " << shutdown.error();
+        LOG(INFO) << "Failed to shutdown socket with fd " << socket.get()
+                  << ", address " << (socket.address().isSome()
+                                        ? stringify(socket.address().get())
+                                        : "N/A")
+                  << ": " << shutdown.error();
       }
     }
   }
