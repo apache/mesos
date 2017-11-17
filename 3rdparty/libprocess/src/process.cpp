@@ -1864,13 +1864,15 @@ void SocketManager::send_connect(
       }
 
       CHECK_SOME(poll_socket);
-      poll_socket.get().connect(message.to.address)
-        .onAny(lambda::bind(
-            // TODO(benh): with C++14 we can use lambda instead of
-            // `std::bind` and capture `message` with a `std::move`.
-            [this, poll_socket](Message& message, const Future<Nothing>& f) {
-              send_connect(f, poll_socket.get(), std::move(message));
-            }, std::move(message), lambda::_1));
+      Future<Nothing> connect = poll_socket.get().connect(message.to.address);
+      connect.onAny(lambda::bind(
+          // TODO(benh): with C++14 we can use lambda instead of
+          // `std::bind` and capture `message` with a `std::move`.
+          [this, poll_socket](Message& message, const Future<Nothing>& f) {
+            send_connect(f, poll_socket.get(), std::move(message));
+          },
+          std::move(message),
+          lambda::_1));
 
       // We don't need to 'shutdown()' the socket as it was never
       // connected.
