@@ -757,9 +757,10 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhileFetching)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  TaskInfo taskInfo;
-  CommandInfo commandInfo;
-  taskInfo.mutable_command()->MergeFrom(commandInfo);
+  SlaveID slaveId = SlaveID();
+  slaveId.set_value("slave_id");
+
+  TaskInfo taskInfo = createTask(slaveId, Resources(), CommandInfo());
 
   containerizer->launch(
       containerId,
@@ -825,9 +826,10 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  TaskInfo taskInfo;
-  CommandInfo commandInfo;
-  taskInfo.mutable_command()->MergeFrom(commandInfo);
+  SlaveID slaveId = SlaveID();
+  slaveId.set_value("slave_id");
+
+  TaskInfo taskInfo = createTask(slaveId, Resources(), CommandInfo());
 
   containerizer->launch(
       containerId,
@@ -850,7 +852,7 @@ TEST_F(MesosContainerizerDestroyTest, DestroyWhilePreparing)
 
   // Need to help the compiler to disambiguate between overloads.
   ContainerLaunchInfo launchInfo;
-  launchInfo.add_pre_exec_commands()->CopyFrom(commandInfo);
+  launchInfo.add_pre_exec_commands()->CopyFrom(taskInfo.command());
   Option<ContainerLaunchInfo> option = launchInfo;
   promise.set(option);
 
@@ -958,9 +960,11 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
   containerInfo.set_type(ContainerInfo::MESOS);
   containerInfo.mutable_mesos()->CopyFrom(mesosInfo);
 
-  TaskInfo taskInfo;
-  CommandInfo commandInfo;
-  taskInfo.mutable_command()->MergeFrom(commandInfo);
+  SlaveID slaveId = SlaveID();
+  slaveId.set_value("slave_id");
+
+  TaskInfo taskInfo = createTask(slaveId, Resources(), CommandInfo());
+
   taskInfo.mutable_container()->CopyFrom(containerInfo);
 
   ExecutorInfo executorInfo = createExecutorInfo("executor", "exit 0");
@@ -1042,9 +1046,10 @@ TEST_F(MesosContainerizerProvisionerTest, DestroyWhileProvisioning)
   containerInfo.set_type(ContainerInfo::MESOS);
   containerInfo.mutable_mesos()->CopyFrom(mesosInfo);
 
-  TaskInfo taskInfo;
-  CommandInfo commandInfo;
-  taskInfo.mutable_command()->MergeFrom(commandInfo);
+  SlaveID slaveId = SlaveID();
+  slaveId.set_value("slave_id");
+
+  TaskInfo taskInfo = createTask(slaveId, Resources(), CommandInfo());
   taskInfo.mutable_container()->CopyFrom(containerInfo);
 
   ExecutorInfo executorInfo = createExecutorInfo("executor", "exit 0");
@@ -1133,9 +1138,9 @@ TEST_F(MesosContainerizerProvisionerTest, IsolatorCleanupBeforePrepare)
   containerInfo.set_type(ContainerInfo::MESOS);
   containerInfo.mutable_mesos()->CopyFrom(mesosInfo);
 
-  TaskInfo taskInfo;
-  CommandInfo commandInfo;
-  taskInfo.mutable_command()->MergeFrom(commandInfo);
+  SlaveID slaveId = SlaveID();
+  slaveId.set_value("slave_id");
+  TaskInfo taskInfo = createTask(slaveId, Resources(), CommandInfo());
   taskInfo.mutable_container()->CopyFrom(containerInfo);
 
   ExecutorInfo executorInfo = createExecutorInfo("executor", "exit 0");
@@ -1209,9 +1214,9 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
   ContainerID containerId;
   containerId.set_value(UUID::random().toString());
 
-  TaskInfo taskInfo;
-  CommandInfo commandInfo;
-  taskInfo.mutable_command()->MergeFrom(commandInfo);
+  SlaveID slaveId = SlaveID();
+  slaveId.set_value("slave_id");
+  TaskInfo taskInfo = createTask(slaveId, Resources(), CommandInfo());
 
   // Destroy the container using the SubprocessLauncher but return a failed
   // future to the containerizer.
