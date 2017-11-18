@@ -167,6 +167,10 @@ private:
     // Mappings: backend -> {rootfsId, ...}
     hashmap<std::string, hashset<std::string>> rootfses;
 
+    // TODO(zhitao): Remove Option after the deprecation cycle
+    // started in 1.5.
+    Option<std::vector<std::string>> layers;
+
     process::Promise<bool> termination;
 
     // The container status in provisioner.

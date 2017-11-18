@@ -86,6 +86,16 @@ string getContainerDir(
 }
 
 
+string getLayersFilePath(
+    const string& provisionerDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getContainerDir(provisionerDir, containerId),
+      LAYERS_FILE);
+}
+
+
 string getContainerRootfsDir(
     const string& provisionerDir,
     const ContainerID& containerId,

@@ -41,6 +41,7 @@
 #endif
 
 #include "slave/paths.hpp"
+#include "slave/state.hpp"
 
 #include "slave/containerizer/mesos/provisioner/constants.hpp"
 #include "slave/containerizer/mesos/provisioner/backend.hpp"
@@ -61,6 +62,7 @@ using mesos::internal::slave::BIND_BACKEND;
 using mesos::internal::slave::COPY_BACKEND;
 using mesos::internal::slave::OVERLAY_BACKEND;
 
+using mesos::slave::ContainerLayers;
 using mesos::slave::ContainerState;
 
 namespace mesos {
@@ -366,6 +368,31 @@ Future<Nothing> ProvisionerProcess::recover(
       info->rootfses.put(backend, rootfses.get()[backend]);
     }
 
+    Result<ContainerLayers> layers = None();
+    const string path = provisioner::paths::getLayersFilePath(
+      rootDir, containerId);
+
+    if (!os::exists(path)) {
+      // This is possible if we recovered a container provisioned before we
+      // started to checkpoint `ContainerLayers`.
+      VLOG(1) << "Layers path '" << path << "' is missing for container' "
+              << containerId << "'";
+    } else {
+      layers = ::protobuf::read<ContainerLayers>(path);
+    }
+
+    if (layers.isError()) {
+      return Failure(
+          "Failed to recover layers for container '" + stringify(containerId) +
+          "': " + layers.error());
+    } else if (layers.isSome()) {
+      info->layers = vector<string>();
+      std::copy(
+        layers->paths().begin(),
+        layers->paths().end(),
+        std::back_inserter(info->layers.get()));
+    }
+
     infos.put(containerId, info);
 
     if (knownContainerIds.contains(containerId)) {
@@ -478,6 +505,22 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
       rootfs,
       backendDir)
     .then([=]() -> Future<ProvisionInfo> {
+      const string path =
+        provisioner::paths::getLayersFilePath(rootDir, containerId);
+
+      ContainerLayers containerLayers;
+
+      foreach(const string& layer, imageInfo.layers) {
+        containerLayers.add_paths(layer);
+      }
+
+      Try<Nothing> checkpoint = slave::state::checkpoint(path, containerLayers);
+      if (checkpoint.isError()) {
+        return Failure(
+            "Failed to checkpoint layers to '" + path + "': " +
+            checkpoint.error());
+      }
+
       return ProvisionInfo{
           rootfs, imageInfo.dockerManifest, imageInfo.appcManifest};
     });

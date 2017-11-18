@@ -255,3 +255,13 @@ message ContainerTermination {
   // multiple roles (e.g. `"mem(*):1;mem(role):2"`).
   repeated Resource limited_resources = 6;
 }
+
+
+/**
+ * Information about all layers used to provision a container. This is used
+ * to checkpoint and recover in provisioner.
+ */
+message ContainerLayers {
+  // Paths of all layers used to provision the container.
+  repeated string paths = 1;
+}
