@@ -51,9 +51,11 @@ using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 
+using mesos::internal::slave::containerizer::paths::getContainerConfig;
 using mesos::internal::slave::containerizer::paths::getRuntimePath;
 using mesos::internal::slave::containerizer::paths::getSandboxPath;
 using mesos::internal::slave::containerizer::paths::buildPath;
+using mesos::internal::slave::containerizer::paths::CONTAINER_CONFIG_FILE;
 using mesos::internal::slave::containerizer::paths::JOIN;
 using mesos::internal::slave::containerizer::paths::PREFIX;
 using mesos::internal::slave::containerizer::paths::SUFFIX;
@@ -1634,10 +1636,169 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNested)
   AWAIT_READY(status);
   ASSERT_TRUE(status->has_executor_pid());
 
+  const Result<mesos::slave::ContainerConfig> containerConfig =
+    getContainerConfig(flags.runtime_dir, containerId);
+
+  EXPECT_SOME(containerConfig);
+
+  const Result<mesos::slave::ContainerConfig> nestedConfig =
+    getContainerConfig(flags.runtime_dir, nestedContainerId);
+
+  EXPECT_SOME(nestedConfig);
+
   pid_t nestedPid = status->executor_pid();
 
   // Force a delete on the containerizer before we create the new one.
   containerizer.reset();
+
+  create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  containerizer.reset(create.get());
+
+  Try<SlaveState> slaveState = createSlaveState(
+      containerId,
+      pid,
+      executor,
+      state.id,
+      flags.work_dir);
+
+  ASSERT_SOME(slaveState);
+
+  state = slaveState.get();
+  AWAIT_READY(containerizer->recover(state));
+
+  status = containerizer->status(containerId);
+  AWAIT_READY(status);
+  ASSERT_TRUE(status->has_executor_pid());
+  EXPECT_EQ(pid, status->executor_pid());
+
+  status = containerizer->status(nestedContainerId);
+  AWAIT_READY(status);
+  ASSERT_TRUE(status->has_executor_pid());
+  EXPECT_EQ(nestedPid, status->executor_pid());
+
+  Future<Option<ContainerTermination>> nestedWait = containerizer->wait(
+      nestedContainerId);
+
+  containerizer->destroy(nestedContainerId);
+
+  AWAIT_READY(nestedWait);
+  ASSERT_SOME(nestedWait.get());
+
+  // We expect a wait status of SIGKILL on the nested container.
+  // Since the kernel will destroy these via a SIGKILL, we expect
+  // a SIGKILL here.
+  ASSERT_TRUE(nestedWait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, nestedWait.get()->status());
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  containerizer->destroy(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+}
+
+
+TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNestedWithoutConfig)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  ExecutorInfo executor = createExecutorInfo(
+      "executor",
+      "sleep 1000",
+      "cpus:1");
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(None(), executor, directory.get()),
+      map<string, string>(),
+      slave::paths::getForkedPidPath(
+          slave::paths::getMetaRootDir(flags.work_dir),
+          state.id,
+          executor.framework_id(),
+          executor.executor_id(),
+          containerId));
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  Future<ContainerStatus> status = containerizer->status(containerId);
+  AWAIT_READY(status);
+  ASSERT_TRUE(status->has_executor_pid());
+
+  pid_t pid = status->executor_pid();
+
+  // Now launch nested container.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(UUID::random().toString());
+
+  launch = containerizer->launch(
+      nestedContainerId,
+      createContainerConfig(createCommandInfo("sleep 1000")),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  status = containerizer->status(nestedContainerId);
+  AWAIT_READY(status);
+  ASSERT_TRUE(status->has_executor_pid());
+
+  const Result<mesos::slave::ContainerConfig> containerConfig =
+    getContainerConfig(flags.runtime_dir, containerId);
+
+  EXPECT_SOME(containerConfig);
+
+  const Result<mesos::slave::ContainerConfig> nestedConfig =
+    getContainerConfig(flags.runtime_dir, nestedContainerId);
+
+  EXPECT_SOME(nestedConfig);
+
+  pid_t nestedPid = status->executor_pid();
+
+  // Force a delete on the containerizer before we create the new one.
+  containerizer.reset();
+
+  // Remove the checkpointed nested container config to simulate the case
+  // when we upgrade.
+  string nestedConfigPath = path::join(
+      getRuntimePath(flags.runtime_dir, containerId),
+      CONTAINER_CONFIG_FILE);
+
+  CHECK(os::exists(nestedConfigPath));
+  CHECK_SOME(os::rm(nestedConfigPath));
 
   create = MesosContainerizer::create(
       flags,
@@ -2477,7 +2638,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_Remove)
   ASSERT_TRUE(wait.get()->has_status());
   EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
 
-  // The runtime and sandbox directories must exist.
+  // The runtime, config and sandbox directories must exist.
   const string runtimePath =
     getRuntimePath(flags.runtime_dir, nestedContainerId);
   ASSERT_TRUE(os::exists(runtimePath));
@@ -2485,11 +2646,16 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_Remove)
   const string sandboxPath = getSandboxPath(directory.get(), nestedContainerId);
   ASSERT_TRUE(os::exists(sandboxPath));
 
+  const Result<mesos::slave::ContainerConfig> containerConfig =
+    getContainerConfig(flags.runtime_dir, nestedContainerId);
+
+  ASSERT_SOME(containerConfig);
+
   // Now remove the nested container.
   Future<Nothing> remove = containerizer->remove(nestedContainerId);
   AWAIT_READY(remove);
 
-  // We now expect the runtime and sandbox directories NOT to exist.
+  // We now expect the runtime, config and sandbox directories NOT to exist.
   EXPECT_FALSE(os::exists(runtimePath));
   EXPECT_FALSE(os::exists(sandboxPath));
 
