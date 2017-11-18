@@ -18,8 +18,12 @@
 
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 
+#include <process/clock.hpp>
+
+#include <stout/os.hpp>
 #include <stout/path.hpp>
 
+using std::list;
 using std::string;
 
 namespace mesos {
@@ -43,6 +47,13 @@ string getStagingTempDir(const string& storeDir)
 string getImageLayerPath(const string& storeDir, const string& layerId)
 {
   return path::join(storeDir, "layers", layerId);
+}
+
+
+Try<list<string>> listLayers(const string& storeDir)
+{
+  const string layersDir = path::join(storeDir, "layers");
+  return os::ls(layersDir);
 }
 
 
@@ -98,6 +109,20 @@ string getImageArchiveTarPath(const string& discoveryDir, const string& name)
 string getStoredImagesPath(const string& storeDir)
 {
   return path::join(storeDir, "storedImages");
+}
+
+
+string getGcDir(const string& storeDir)
+{
+  return path::join(storeDir, "gc");
+}
+
+
+string getGcLayerPath(const string& storeDir, const string& layerId)
+{
+  return path::join(
+      getGcDir(storeDir),
+      layerId + "." + stringify(process::Clock::now().duration().ns()));
 }
 
 } // namespace paths {

@@ -24,13 +24,16 @@
 #include <mesos/secret/resolver.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/json.hpp>
 #include <stout/os.hpp>
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/executor.hpp>
 #include <process/id.hpp>
+#include <process/metrics/counter.hpp>
 
 #include "slave/containerizer/mesos/provisioner/constants.hpp"
 #include "slave/containerizer/mesos/provisioner/utils.hpp"
@@ -75,7 +78,9 @@ public:
     : ProcessBase(process::ID::generate("docker-provisioner-store")),
       flags(_flags),
       metadataManager(_metadataManager),
-      puller(_puller) {}
+      puller(_puller)
+  {
+  }
 
   ~StoreProcess() {}
 
@@ -84,6 +89,10 @@ public:
   Future<ImageInfo> get(
       const mesos::Image& image,
       const string& backend);
+
+  Future<Nothing> prune(
+      const std::vector<mesos::Image>& excludeImages,
+      const hashset<string>& activeLayerPaths);
 
 private:
   Future<Image> _get(
@@ -106,11 +115,18 @@ private:
       const string& layerId,
       const string& backend);
 
+  Future<Nothing> _prune(
+      const hashset<string>& activeLayerPaths,
+      const hashset<string>& retainedImageLayers);
+
   const Flags flags;
 
   Owned<MetadataManager> metadataManager;
   Owned<Puller> puller;
   hashmap<string, Owned<Promise<Image>>> pulling;
+
+  // For executing path removals in a separated actor.
+  process::Executor executor;
 };
 
 
@@ -164,6 +180,12 @@ Try<Owned<slave::Store>> Store::create(
                  mkdir.error());
   }
 
+  mkdir = os::mkdir(paths::getGcDir(flags.docker_store_dir));
+  if (mkdir.isError()) {
+    return Error("Failed to create Docker store gc directory: " +
+                 mkdir.error());
+  }
+
   Try<Owned<MetadataManager>> metadataManager = MetadataManager::create(flags);
   if (metadataManager.isError()) {
     return Error(metadataManager.error());
@@ -200,6 +222,15 @@ Future<ImageInfo> Store::get(
     const string& backend)
 {
   return dispatch(process.get(), &StoreProcess::get, image, backend);
+}
+
+
+Future<Nothing> Store::prune(
+    const vector<mesos::Image>& excludedImages,
+    const hashset<string>& activeLayerPaths)
+{
+  return dispatch(
+      process.get(), &StoreProcess::prune, excludedImages, activeLayerPaths);
 }
 
 
@@ -443,6 +474,124 @@ Future<Nothing> StoreProcess::moveLayer(
           "' to '" + targetRootfs + "': " + rename.error());
     }
   }
+
+  return Nothing();
+}
+
+
+Future<Nothing> StoreProcess::prune(
+    const vector<mesos::Image>& excludedImages,
+    const hashset<string>& activeLayerPaths)
+{
+  // All existing pulling should have finished.
+  if (!pulling.empty()) {
+    return Failure("Cannot prune and pull at the same time");
+  }
+
+  vector<spec::ImageReference> imageReferences;
+  imageReferences.reserve(excludedImages.size());
+
+  foreach (const mesos::Image& image, excludedImages) {
+    Try<spec::ImageReference> reference =
+      spec::parseImageReference(image.docker().name());
+
+    if (reference.isError()) {
+      return Failure(
+          "Failed to parse docker image '" + image.docker().name() +
+          "': " + reference.error());
+    }
+
+    imageReferences.push_back(reference.get());
+  }
+
+  return metadataManager->prune(imageReferences)
+      .then(defer(self(), &Self::_prune, activeLayerPaths, lambda::_1));
+}
+
+
+Future<Nothing> StoreProcess::_prune(
+    const hashset<string>& activeLayerRootfses,
+    const hashset<string>& retainedLayerIds)
+{
+  Try<list<string>> allLayers = paths::listLayers(flags.docker_store_dir);
+  if (allLayers.isError()) {
+    return Failure("Failed to find all layer paths: " + allLayers.error());
+  }
+
+  // Paths in provisioner are layer rootfs. Normalize them to layer
+  // path.
+  hashset<string> activeLayerPaths;
+
+  foreach (const string& rootfsPath, activeLayerRootfses) {
+    activeLayerPaths.insert(Path(rootfsPath).dirname());
+  }
+
+  foreach (const string& layerId, allLayers.get()) {
+    if (retainedLayerIds.contains(layerId)) {
+      VLOG(1) << "Layer '" << layerId << "' is retained by image store cache";
+      continue;
+    }
+
+    const string layerPath =
+      paths::getImageLayerPath(flags.docker_store_dir, layerId);
+
+    if (activeLayerPaths.contains(layerPath)) {
+      VLOG(1) << "Layer '" << layerId << "' is retained by active container";
+      continue;
+    }
+
+    const string target =
+      paths::getGcLayerPath(flags.docker_store_dir, layerId);
+
+    if (os::exists(target)) {
+      return Failure("Marking phase target '" + target + "' already exists");
+    }
+
+    VLOG(1) << "Marking layer '" << layerId << "' to gc by renaming '"
+            << layerPath << "' to '" << target << "'";
+
+    Try<Nothing> rename = os::rename(layerPath, target);
+    if (rename.isError()) {
+      return Failure(
+          "Failed to move layer from '" + layerPath +
+          "' to '" + target + "': " + rename.error());
+    }
+  }
+
+  const string gcDir = paths::getGcDir(flags.docker_store_dir);
+  auto rmdirs = [gcDir]() {
+    Try<list<string>> targets = os::ls(gcDir);
+    if (targets.isError()) {
+      LOG(WARNING) << "Error when listing gcDir '" << gcDir
+                   << "': " << targets.error();
+      return Nothing();
+    }
+
+    foreach (const string& target, targets.get()) {
+      const string path = path::join(gcDir, target);
+      // Run the removal operation with 'continueOnError = false'.
+      // A possible situation is that we incorrectly marked a layer
+      // which is still used by certain layer based backends (aufs, overlay).
+      // In such a case, we proceed with a warning and try to free up as much
+      // disk spaces as possible.
+      LOG(INFO) << "Deleting path '" << path << "'";
+      Try<Nothing> rmdir = os::rmdir(path, true, true, false);
+
+      if (rmdir.isError()) {
+        LOG(WARNING) << "Failed to delete '" << path << "': "
+                     << rmdir.error();
+      } else {
+        LOG(INFO) << "Deleted '" << path << "'";
+      }
+    }
+
+    return Nothing();
+  };
+
+  // NOTE: All `rmdirs` calls are dispatched to one executor so that:
+  //   1. They do not block other dispatches;
+  //   2. They do not occupy all worker threads.
+  executor.execute(rmdirs);
 
   return Nothing();
 }

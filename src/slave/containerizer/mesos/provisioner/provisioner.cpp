@@ -32,6 +32,7 @@
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/lambda.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
@@ -56,6 +57,7 @@ using std::vector;
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::ReadWriteLock;
 
 using mesos::internal::slave::AUFS_BACKEND;
 using mesos::internal::slave::BIND_BACKEND;
@@ -312,6 +314,16 @@ Future<bool> Provisioner::destroy(const ContainerID& containerId) const
 }
 
 
+Future<Nothing> Provisioner::pruneImages(
+    const vector<Image>& excludedImages) const
+{
+  return dispatch(
+      CHECK_NOTNULL(process.get()),
+      &ProvisionerProcess::pruneImages,
+      excludedImages);
+}
+
+
 ProvisionerProcess::ProvisionerProcess(
     const string& _rootDir,
     const string& _defaultBackend,
@@ -450,20 +462,28 @@ Future<ProvisionInfo> ProvisionerProcess::provision(
     const ContainerID& containerId,
     const Image& image)
 {
-  if (!stores.contains(image.type())) {
-    return Failure(
-        "Unsupported container image type: " +
-        stringify(image.type()));
-  }
+  // `destroy` and `provision` can happen concurrently, but `pruneImages`
+  // is exclusive.
+  return rwLock.read_lock()
+    .then(defer(self(), [this, containerId, image]() -> Future<ProvisionInfo> {
+      if (!stores.contains(image.type())) {
+        return Failure(
+            "Unsupported container image type: " + stringify(image.type()));
+      }
 
-  // Get and then provision image layers from the store.
-  return stores.get(image.type()).get()->get(image, defaultBackend)
-    .then(defer(self(),
-                &Self::_provision,
-                containerId,
-                image,
-                defaultBackend,
-                lambda::_1));
+      // Get and then provision image layers from the store.
+      return stores.get(image.type()).get()->get(image, defaultBackend)
+        .then(defer(
+            self(),
+            &Self::_provision,
+            containerId,
+            image,
+            defaultBackend,
+            lambda::_1));
+    }))
+    .onAny(defer(self(), [this](const Future<ProvisionInfo>&) {
+      rwLock.read_unlock();
+    }));
 }
 
 
@@ -510,7 +530,7 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
 
       ContainerLayers containerLayers;
 
-      foreach(const string& layer, imageInfo.layers) {
+      foreach (const string& layer, imageInfo.layers) {
         containerLayers.add_paths(layer);
       }
 
@@ -529,46 +549,55 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
 
 Future<bool> ProvisionerProcess::destroy(const ContainerID& containerId)
 {
-  if (!infos.contains(containerId)) {
-    VLOG(1) << "Ignoring destroy request for unknown container " << containerId;
+  // `destroy` and `provision` can happen concurrently, but `pruneImages`
+  // is exclusive.
+  return rwLock.read_lock()
+    .then(defer(self(), [this, containerId]() -> Future<bool> {
+      if (!infos.contains(containerId)) {
+        VLOG(1) << "Ignoring destroy request for unknown container "
+                << containerId;
 
-    return false;
-  }
+        return false;
+      }
 
-  if (infos[containerId]->destroying) {
-    return infos[containerId]->termination.future();
-  }
+      if (infos[containerId]->destroying) {
+        return infos[containerId]->termination.future();
+      }
 
-  infos[containerId]->destroying = true;
+      infos[containerId]->destroying = true;
 
-  // Provisioner destroy can be invoked from:
-  // 1. Provisioner `recover` to destroy all unknown orphans.
-  // 2. Containerizer `recover` to destroy known orphans.
-  // 3. Containerizer `destroy` on one specific container.
-  //
-  // NOTE: For (2) and (3), we expect the container being destroyed
-  // has no any child contain remain running. However, for case (1),
-  // if the container runtime directory does not survive after the
-  // machine reboots and the provisioner directory under the agent
-  // work dir still exists, all containers will be regarded as
-  // unknown containers and will be destroyed. In this case, a parent
-  // container may be destroyed before its child containers are
-  // cleaned up. So we have to make `destroy()` recursively for
-  // this particular case.
-  //
-  // TODO(gilbert): Move provisioner directory to the container
-  // runtime directory after a deprecation cycle to avoid
-  // making `provisioner::destroy()` being recursive.
-  list<Future<bool>> destroys;
+      // Provisioner destroy can be invoked from:
+      // 1. Provisioner `recover` to destroy all unknown orphans.
+      // 2. Containerizer `recover` to destroy known orphans.
+      // 3. Containerizer `destroy` on one specific container.
+      //
+      // NOTE: For (2) and (3), we expect the container being destroyed
+      // has no any child contain remain running. However, for case (1),
+      // if the container runtime directory does not survive after the
+      // machine reboots and the provisioner directory under the agent
+      // work dir still exists, all containers will be regarded as
+      // unknown containers and will be destroyed. In this case, a parent
+      // container may be destroyed before its child containers are
+      // cleaned up. So we have to make `destroy()` recursively for
+      // this particular case.
+      //
+      // TODO(gilbert): Move provisioner directory to the container
+      // runtime directory after a deprecation cycle to avoid
+      // making `provisioner::destroy()` being recursive.
+      list<Future<bool>> destroys;
 
-  foreachkey (const ContainerID& entry, infos) {
-    if (entry.has_parent() && entry.parent() == containerId) {
-      destroys.push_back(destroy(entry));
-    }
-  }
+      foreachkey (const ContainerID& entry, infos) {
+        if (entry.has_parent() && entry.parent() == containerId) {
+          destroys.push_back(destroy(entry));
+        }
+      }
 
-  return await(destroys)
-    .then(defer(self(), &Self::_destroy, containerId, lambda::_1));
+      return await(destroys)
+        .then(defer(self(), &Self::_destroy, containerId, lambda::_1));
+    }))
+    .onAny(defer(self(), [this](const Future<bool>&) {
+      rwLock.read_unlock();
+    }));
 }
 
 
@@ -658,6 +687,59 @@ Future<bool> ProvisionerProcess::__destroy(const ContainerID& containerId)
   infos.erase(containerId);
 
   return true;
+}
+
+
+Future<Nothing> ProvisionerProcess::pruneImages(
+    const vector<Image>& excludedImages)
+{
+  // `destroy` and `provision` can happen concurrently, but `pruneImages`
+  // is exclusive.
+  return rwLock.write_lock()
+    .then(defer(self(), [this, excludedImages]() -> Future<Nothing> {
+      hashset<string> activeLayerPaths;
+
+      foreachpair (
+          const ContainerID& containerId, const Owned<Info>& info, infos) {
+        if (info->layers.isNone()) {
+          // There are several possibilities if layer information missing:
+          // - legacy containers provisioned before layer checkpointing:
+          //   they should already be excluded by the containerizer;
+          // - the agent crashed after `backend::provision()` finished but
+          //   before checkpointing the `layers`. In such a case, the rootfs
+          //   should not be used by any running containers yet so it is safe
+          //   to skip those layers;
+          // - checkpointed layer files were manually deleted: we do not expect
+          //   this to be allowd, but log it for information purpose.
+          VLOG(1) << "Container " << containerId
+                  << " has no checkpointed layers";
+
+          continue;
+        }
+
+        activeLayerPaths.insert(info->layers->begin(), info->layers->end());
+      }
+
+      list<Future<Nothing>> futures;
+
+      foreachpair (
+          const Image::Type& type, const Owned<Store>& store, stores) {
+        vector<Image> images;
+        foreach (const Image& image, excludedImages) {
+          if (image.type() == type) {
+            images.push_back(image);
+          }
+        }
+
+        futures.push_back(store.get()->prune(images, activeLayerPaths));
+      }
+
+      return collect(futures)
+        .then([]() { return Nothing(); });
+    }))
+    .onAny(defer(self(), [this](const Future<Nothing>&) {
+      rwLock.write_unlock();
+    }));
 }
 
 

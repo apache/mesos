@@ -21,6 +21,7 @@
 
 #include <process/owned.hpp>
 
+#include <stout/hashset.hpp>
 #include <stout/try.hpp>
 
 #include "slave/flags.hpp"
@@ -57,6 +58,10 @@ public:
   virtual process::Future<ImageInfo> get(
       const mesos::Image& image,
       const std::string& backend);
+
+  virtual process::Future<Nothing> prune(
+      const std::vector<mesos::Image>& excludeImages,
+      const hashset<std::string>& activeLayerPaths);
 
 private:
   explicit Store(process::Owned<StoreProcess> process);

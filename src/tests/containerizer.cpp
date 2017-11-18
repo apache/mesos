@@ -31,6 +31,7 @@ using process::http::Connection;
 using std::map;
 using std::shared_ptr;
 using std::string;
+using std::vector;
 
 using testing::_;
 using testing::Invoke;
@@ -313,6 +314,11 @@ public:
     return containers_.keys();
   }
 
+  Future<Nothing> pruneImages()
+  {
+    return Nothing();
+  }
+
 private:
   struct ContainerData
   {
@@ -437,6 +443,9 @@ void TestContainerizer::setup()
 
   EXPECT_CALL(*this, kill(_, _))
     .WillRepeatedly(Invoke(this, &TestContainerizer::_kill));
+
+  EXPECT_CALL(*this, pruneImages())
+    .WillRepeatedly(Invoke(this, &TestContainerizer::_pruneImages));
 }
 
 
@@ -566,6 +575,14 @@ Future<hashset<ContainerID>> TestContainerizer::containers()
   return process::dispatch(
       process.get(),
       &TestContainerizerProcess::containers);
+}
+
+
+Future<Nothing> TestContainerizer::_pruneImages()
+{
+  return process::dispatch(
+      process.get(),
+      &TestContainerizerProcess::pruneImages);
 }
 
 } // namespace tests {

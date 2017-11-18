@@ -34,6 +34,7 @@
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
+#include <process/rwlock.hpp>
 
 #include <process/metrics/counter.hpp>
 #include <process/metrics/metrics.hpp>
@@ -102,6 +103,12 @@ public:
   // provisioned root filesystem for the given container.
   virtual process::Future<bool> destroy(const ContainerID& containerId) const;
 
+  // Prune images in different stores. Image references in excludedImages
+  // will be passed to stores and retained in a best effort fashion.
+  // All layer paths used by active containers will not be pruned.
+  virtual process::Future<Nothing> pruneImages(
+      const std::vector<Image>& excludedImages) const;
+
 protected:
   Provisioner() {} // For creating mock object.
 
@@ -131,6 +138,9 @@ public:
       const Image& image);
 
   process::Future<bool> destroy(const ContainerID& containerId);
+
+  process::Future<Nothing> pruneImages(
+      const std::vector<Image>& excludedImages);
 
 private:
   process::Future<ProvisionInfo> _provision(
@@ -186,6 +196,20 @@ private:
 
     process::metrics::Counter remove_container_errors;
   } metrics;
+
+  // This `ReadWriteLock` instance is used to protect the critical
+  // section, which includes store directory and provision directory.
+  // Because `provision` and `destroy` are scoped by `containerId`,
+  // they are not expected to touch the same critical section
+  // simultaneously, so any `provision` and `destroy` can happen concurrently.
+  // This is guaranteed by Mesos containerizer, e.g., a `destroy` will always
+  // wait for a container's `provision` to finish, then do the cleanup.
+  //
+  // On the other hand, `pruneImages` needs to know all active layers from all
+  // containers, therefore it must be exclusive to other `provision`, `destroy`
+  // and `pruneImages` so that we do not prune image layers which is used by an
+  // active `provision` or `destroy`.
+  process::ReadWriteLock rwLock;
 };
 
 } // namespace slave {

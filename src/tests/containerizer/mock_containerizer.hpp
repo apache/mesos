@@ -81,6 +81,8 @@ public:
   MOCK_METHOD0(
       containers,
       process::Future<hashset<ContainerID>>());
+
+  MOCK_METHOD0(pruneImages, process::Future<Nothing>());
 };
 
 } // namespace tests {

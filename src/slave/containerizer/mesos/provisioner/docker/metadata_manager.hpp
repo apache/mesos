@@ -21,6 +21,7 @@
 #include <string>
 
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/json.hpp>
 #include <stout/option.hpp>
 #include <stout/protobuf.hpp>
@@ -91,6 +92,19 @@ public:
   process::Future<Option<Image>> get(
       const ::docker::spec::ImageReference& reference,
       bool cached);
+
+  /**
+   * Prune images from the metadata manager by comparing
+   * existing images with active images in use. This function will
+   * remove all images not used anymore, and return the list of
+   * layers which are still referenced. The caller should
+   * ensure such layers are kept in best effort.
+   *
+   * @param excludedImages all images to exclude from pruning.
+   * @return a list of all layers still refered.
+   */
+  process::Future<hashset<std::string>> prune(
+      const std::vector<::docker::spec::ImageReference>& excludedImages);
 
 private:
   explicit MetadataManager(process::Owned<MetadataManagerProcess> process);

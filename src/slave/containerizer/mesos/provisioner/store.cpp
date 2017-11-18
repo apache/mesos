@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <string>
+#include <vector>
 
 #include <mesos/type_utils.hpp>
 
@@ -31,6 +32,7 @@
 #include "slave/containerizer/mesos/provisioner/docker/store.hpp"
 
 using std::string;
+using std::vector;
 
 using process::Owned;
 
@@ -84,6 +86,14 @@ Try<hashmap<Image::Type, Owned<Store>>> Store::create(
   }
 
   return stores;
+}
+
+
+process::Future<Nothing> Store::prune(
+    const vector<Image>& excludeImages,
+    const hashset<string>& activeLayerPaths)
+{
+  return Nothing();
 }
 
 } // namespace slave {

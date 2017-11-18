@@ -656,6 +656,12 @@ Future<Nothing> MesosContainerizer::remove(const ContainerID& containerId)
 }
 
 
+Future<Nothing> MesosContainerizer::pruneImages()
+{
+  return dispatch(process.get(), &MesosContainerizerProcess::pruneImages);
+}
+
+
 Future<Nothing> MesosContainerizerProcess::recover(
     const Option<state::SlaveState>& state)
 {
@@ -2815,6 +2821,39 @@ void MesosContainerizerProcess::limited(
 Future<hashset<ContainerID>> MesosContainerizerProcess::containers()
 {
   return containers_.keys();
+}
+
+
+Future<Nothing> MesosContainerizerProcess::pruneImages()
+{
+  vector<Image> excludedImages;
+  excludedImages.reserve(containers_.size());
+
+  foreachpair (
+      const ContainerID& containerId,
+      const Owned<Container>& container,
+      containers_) {
+    // Checkpointing ContainerConfig is introduced recently. Legacy containers
+    // do not have the information of which image is used. Image pruning is
+    // disabled.
+    if (container->config.isNone()) {
+      return Failure(
+          "Container " + stringify(containerId) +
+          " does not have ContainerConfig "
+          "checkpointed. Image pruning is disabled");
+    }
+
+    const ContainerConfig& containerConfig = container->config.get();
+    if (containerConfig.has_container_info() &&
+        containerConfig.container_info().mesos().has_image()) {
+      excludedImages.push_back(
+          containerConfig.container_info().mesos().image());
+    }
+  }
+
+  // TODO(zhitao): use std::unique to deduplicate `excludedImages`.
+
+  return provisioner->pruneImages(excludedImages);
 }
 
 

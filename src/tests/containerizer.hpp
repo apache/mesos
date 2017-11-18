@@ -122,6 +122,10 @@ public:
       kill,
       process::Future<bool>(const ContainerID&, int));
 
+  MOCK_METHOD0(
+      pruneImages,
+      process::Future<Nothing>());
+
   // Additional destroy method for testing because we won't know the
   // ContainerID created for each container.
   process::Future<bool> destroy(
@@ -163,9 +167,12 @@ private:
   process::Future<bool> _destroy(
       const ContainerID& containerId);
 
+
   process::Future<bool> _kill(
       const ContainerID& containerId,
       int status);
+
+  process::Future<Nothing> _pruneImages();
 
   process::Owned<TestContainerizerProcess> process;
 };

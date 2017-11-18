@@ -876,6 +876,13 @@ Future<hashset<ContainerID>> DockerContainerizer::containers()
 }
 
 
+Future<Nothing> DockerContainerizer::pruneImages()
+{
+  VLOG(1) << "DockerContainerizer does not support pruneImages";
+  return Nothing();
+}
+
+
 Future<Nothing> DockerContainerizerProcess::recover(
     const Option<SlaveState>& state)
 {

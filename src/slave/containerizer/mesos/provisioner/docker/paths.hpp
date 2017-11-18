@@ -17,7 +17,10 @@
 #ifndef __PROVISIONER_DOCKER_PATHS_HPP__
 #define __PROVISIONER_DOCKER_PATHS_HPP__
 
+#include <list>
 #include <string>
+
+#include <stout/try.hpp>
 
 namespace mesos {
 namespace internal {
@@ -40,6 +43,7 @@ namespace paths {
  *           |-- json(manifest)
  *           |-- VERSION
  *    |--storedImages (file holding on cached images)
+ *    |--gc (dir holding marked layers to be sweeped)
  */
 
 // TODO(gilbert): Clean up any unused method after refactoring.
@@ -89,6 +93,17 @@ std::string getImageArchiveTarPath(
 
 
 std::string getStoredImagesPath(const std::string& storeDir);
+
+
+std::string getGcDir(const std::string& storeDir);
+
+
+std::string getGcLayerPath(
+    const std::string& storeDir,
+    const std::string& layerId);
+
+
+Try<std::list<std::string>> listLayers(const std::string& storeDir);
 
 } // namespace paths {
 } // namespace docker {

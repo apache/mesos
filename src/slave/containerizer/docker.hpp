@@ -109,6 +109,8 @@ public:
 
   virtual process::Future<hashset<ContainerID>> containers();
 
+  virtual process::Future<Nothing> pruneImages();
+
 private:
   process::Owned<DockerContainerizerProcess> process;
 };
