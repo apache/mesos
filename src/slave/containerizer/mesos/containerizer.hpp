@@ -342,9 +342,12 @@ private:
     // the ResourceStatistics limits in usage().
     Resources resources;
 
-    // The configuration for the container to be launched. This field
-    // is only used during the launch of a container.
-    mesos::slave::ContainerConfig config;
+    // The configuration for the container to be launched.
+    // This can only be None if the underlying container is launched
+    // before we checkpiont `ContainerConfig` in MESOS-6894.
+    // TODO(zhitao): Drop the `Option` part at the end of deprecation
+    // cycle.
+    Option<mesos::slave::ContainerConfig> config;
 
     // Container's information at the moment it was launched. For example,
     // used to bootstrap the launch information of future child DEBUG

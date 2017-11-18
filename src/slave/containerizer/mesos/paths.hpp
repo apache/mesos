@@ -48,6 +48,7 @@ namespace paths {
 //   root ('--runtime_dir' flag)
 //   |-- containers
 //       |-- <container_id>
+//           |-- config
 //           |-- containers
 //           |   |-- <container_id>
 //           |   |   |-- <more nesting of containers>
@@ -65,6 +66,7 @@ namespace paths {
 
 
 constexpr char PID_FILE[] = "pid";
+constexpr char CONTAINER_CONFIG_FILE[] = "config";
 constexpr char STATUS_FILE[] = "status";
 constexpr char TERMINATION_FILE[] = "termination";
 constexpr char SOCKET_FILE[] = "socket";
@@ -178,6 +180,12 @@ std::string getStandaloneContainerMarkerPath(
 // container or not. This is determined by the existence (or not) of
 // a marker file in the container's runtime metadata directory.
 bool isStandaloneContainer(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
+// The helper method to read the launch config of the contaienr.
+Result<mesos::slave::ContainerConfig> getContainerConfig(
     const std::string& runtimeDir,
     const ContainerID& containerId);
 
