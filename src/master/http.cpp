@@ -366,9 +366,16 @@ Future<Response> Master::Http::api(
     case mesos::master::Call::GET_QUOTA:
       return quotaHandler.status(call, principal, acceptType);
 
+    case mesos::master::Call::UPDATE_QUOTA:
+      return NotImplemented();
+
+    // TODO(bmahler): Add this to a deprecated call section
+    // at the bottom once deprecated by `UPDATE_QUOTA`.
     case mesos::master::Call::SET_QUOTA:
       return quotaHandler.set(call, principal);
 
+    // TODO(bmahler): Add this to a deprecated call section
+    // at the bottom once deprecated by `UPDATE_QUOTA`.
     case mesos::master::Call::REMOVE_QUOTA:
       return quotaHandler.remove(call, principal);
 

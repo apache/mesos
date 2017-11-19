@@ -89,6 +89,16 @@ message Call {
     STOP_MAINTENANCE = 27;            // See 'StopMaintenance' below.
 
     GET_QUOTA = 28;
+
+    // EXPERIMENTAL DO NOT USE.
+    //
+    // This feature is not implementation complete.
+    //
+    // TODO(bmahler): Remove this when complete and deprecate the
+    // `REMOVE_QUOTA` and `SET_QUOTA` calls in favor of this. Be
+    // sure to document what's different for users.
+    UPDATE_QUOTA = 36;       // See 'UpdateQuota' below.
+
     SET_QUOTA = 29;          // See 'SetQuota' below.
     REMOVE_QUOTA = 30;       // See 'RemoveQuota' below.
 
@@ -213,11 +223,24 @@ message Call {
     repeated MachineID machines = 1;
   }
 
+  // EXPERIMENTAL DO NOT USE.
+  //
+  // This feature is not implementation complete.
+  //
+  // Updates quota given the provided requests, the requests are
+  // applied in an all-or-nothing manner.
+  message UpdateQuota {
+    repeated quota.QuotaRequest quota_requests = 1;
+  }
+
   // Sets the quota for resources to be used by a particular role.
+  //
+  // TODO(bmahler): Deprecate this in favor of `UpdateQuota`.
   message SetQuota {
     required quota.QuotaRequest quota_request = 1;
   }
 
+  // TODO(bmahler): Deprecate this in favor of `UpdateQuota`.
   message RemoveQuota {
     required string role = 1;
   }
@@ -259,10 +282,15 @@ message Call {
   optional UpdateMaintenanceSchedule update_maintenance_schedule = 11;
   optional StartMaintenance start_maintenance = 12;
   optional StopMaintenance stop_maintenance = 13;
-  optional SetQuota set_quota = 14;
-  optional RemoveQuota remove_quota = 15;
+  optional UpdateQuota update_quota = 20;
   optional Teardown teardown = 16;
   optional MarkAgentGone mark_agent_gone = 17;
+
+  // TODO(bmahler): Deprecate in favor of `UPDATE_QUOTA`.
+  optional SetQuota set_quota = 14;
+
+  // TODO(bmahler): Deprecate in favor of `UPDATE_QUOTA`.
+  optional RemoveQuota remove_quota = 15;
 }
 
 

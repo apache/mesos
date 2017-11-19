@@ -25,52 +25,98 @@ option java_outer_classname = "Protos";
 
 
 /**
- * `QuotaInfo` describes the guaranteed resource allocation that a role
- * may rely on (i.e. minimum share a role is entitled to receive).
- *
- * As for now, `QuotaInfo` is an internal message used by the master and
- * therefore does not require versioning. However, in the future we may
- * want to expose it in the Framework API, which will render it being
- * external facing.
+ * Describes the resource guarantees and limits for a role.
+ * Persisted in the registry.
  */
-// TODO(joerg84): Add limits, i.e. upper bounds of resources that a
-// role is allowed to use.
 message QuotaInfo {
-  // Quota is granted per role and not per framework, similar to
-  // dynamic reservations.
   optional string role = 1;
 
   // Principal which set the quota. Currently only operators can set quotas.
   optional string principal = 2;
 
-  // The guarantee that these resources are allocatable for the above role.
-  // NOTE: `guarantee.role` should not specify any role except '*',
-  // because quota does not reserve specific resources.
   repeated Resource guarantee = 3;
+  repeated Resource limit = 4;
 }
 
 
 /**
- * `QuotaRequest` provides a schema for set quota JSON requests.
+ * Describes an update to a role's quota. This is a copy of
+ * `QuotaInfo` which omits the principal since it is determined
+ * during authentication. Also allows the user to force the update
+ * in the case of a guarantee overcommit or a limit exceeding the
+ * parent's limit (or overall cluster size if a top level role).
  */
 message QuotaRequest {
-  // Disables the capacity heuristic check if set to `true`.
-  optional bool force = 1 [default = false];
+  // See `guarantee` and `limit` for the behavior of `force`
+  // on these two fields.
+  optional bool force = 1;
 
-  // The role for which to set quota.
   optional string role = 2;
 
-  // The requested guarantee that these resources will be allocatable for
-  // the above role.
+  // Mesos will try its best to ensure that the role can be
+  // allocated at least as many resources as the guarantee.
+  // Despite this, it's possible for the guarantee to not be
+  // satisfiable, if:
+  //   (1) The operator has overcommitted guarantees.
+  //   (2) There is a loss of agents that such that the
+  //       guarantees overcommit the cluster.
+  //   (3) The scheduler is pickier than mesos knows about,
+  //       e.g. the scheduler needs resources from agents
+  //       with specific attributes.
+  //
+  // The provided guarantee will be validated to ensure it
+  // is not overcommitting the cluster. The operator can
+  // disable this via `QuotaRequest.force`.
+  //
+  // If the guarantee is omitted, there is no guarantee.
+  //
+  // Operators may want to set up alerting to let them know
+  // when a guarantee cannot be satisfied.
+  //
+  // NOTE: The resources must be scalars without additional
+  // metadata like reservations, disk information, etc.
   repeated Resource guarantee = 3;
+
+  // EXPERIMENTAL DO NOT USE.
+  //
+  // This feature is not implementation complete.
+  //
+  // Imposes a limit on the amount of resources allocated to the
+  // role. Mesos will try its best to ensure that the role does
+  // not exceed this limit. Despite this, the limit can be exceeded
+  // when:
+  //   (1) The limit is lowered below the allocation.
+  //   (2) Some agents are partitioned and re-connect with
+  //       resources allocated to the role.
+  //
+  // The provided limit will be validated to ensure it does not
+  // exceed the total cluster size. The operator can disable
+  // this check via `QuotaRequest.force`.
+  //
+  // If the limit is omitted, there is no limit.
+  //
+  // Operators may want to set up alerting to let them know
+  // when the limit is exceeded.
+  //
+  // NOTE: The resources must be scalars without additional
+  // metadata like reservations, disk information, etc.
+  //
+  // NOTE: The limit was introduced alongside the v1 `UPDATE_QUOTA`
+  // `master::Call`. Note that the old v0 `POST /quota` endpoint and
+  // the v1 `SetQuota` `master::Call` continue to implicitly set
+  // limit to the guarantee for backwards compatibility. Users
+  // should switch to the v1 `UPDATE_QUOTA` `master::Call` which
+  // does not implicitly set the limit.
+  repeated Resource limit = 4;
 }
 
 
 /**
- * `QuotaStatus` describes the internal representation for the /quota/status
- * response.
+ * `QuotaStatus` describes the internal representation for the
+ * /quota/status response and `GET_QUOTA` `master::Response`.
  */
 message QuotaStatus {
-  // Quotas which are currently set, i.e. known to the master.
+  // Returns all non-default quotas. Those ommitted from this
+  // list have the default of: no guarantee and no limit.
   repeated QuotaInfo infos = 1;
 }
