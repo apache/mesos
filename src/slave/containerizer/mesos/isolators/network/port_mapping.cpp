@@ -2758,7 +2758,7 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
 
   // Block until we determine the container's HTB config. Ignore
   // errors here.
-  Result<htb::cls::Config> htb = recoverHTBConfig(pid, eth0, flags);
+  Result<htb::cls::Config> egressConfig = recoverHTBConfig(pid, eth0, flags);
 
   Info* info = nullptr;
 
@@ -2775,13 +2775,15 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
     info = new Info(
         nonEphemeralPorts,
         Interval<uint16_t>(),
-        (htb.isSome() ? Option<htb::cls::Config>(htb.get()) : None()),
+        (egressConfig.isSome()
+         ? Option<htb::cls::Config>(egressConfig.get()) : None()),
         pid);
 
     VLOG(1) << "Recovered network isolator for container with pid " << pid
             << " non-ephemeral port ranges " << nonEphemeralPorts
             << " and egress HTB config "
-            << (htb.isSome() ? jsonify(htb.get()) : string("None"));
+            << (egressConfig.isSome()
+                ? jsonify(egressConfig.get()) : string("None"));
   } else {
     if (ephemeralPorts.intervalCount() != 1) {
       return Error("Each container should have only one ephemeral port range");
@@ -2793,14 +2795,16 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
     info = new Info(
         nonEphemeralPorts,
         *ephemeralPorts.begin(),
-        htb.isSome() ? Option<htb::cls::Config>(htb.get()) : None(),
+        (egressConfig.isSome()
+         ? Option<htb::cls::Config>(egressConfig.get()) : None()),
         pid);
 
     VLOG(1) << "Recovered network isolator for container with pid " << pid
             << " non-ephemeral port ranges " << nonEphemeralPorts
             << " and ephemeral port range " << *ephemeralPorts.begin()
             << " and egress HTB config "
-            << (htb.isSome() ? jsonify(htb.get()) : string("None"));
+            << (egressConfig.isSome()
+                ? jsonify(egressConfig.get()) : string("None"));
   }
 
   if (flowId.isSome()) {
@@ -2865,7 +2869,7 @@ Future<Option<ContainerLaunchInfo>> PortMappingIsolatorProcess::prepare(
   infos[containerId] = new Info(
       nonEphemeralPorts,
       ephemeralPorts.get(),
-      htbConfig(resources));
+      egressHTBConfig(resources);
 
   LOG(INFO) << "Using non-ephemeral ports " << nonEphemeralPorts
             << " and ephemeral ports " << ephemeralPorts.get()
@@ -3334,12 +3338,12 @@ Future<Nothing> PortMappingIsolatorProcess::update(
     }
   }
 
-  Option<htb::cls::Config> htb = htbConfig(resources);
+  Option<htb::cls::Config> egressConfig = egressHTBConfig(resources);
 
   // No need to proceed if no change to the non-ephemeral ports and no
-  // change to the HTB configuration.
+  // change to the egress HTB configuration.
   if ((nonEphemeralPorts == info->nonEphemeralPorts) &&
-      (htb == info->htb)) {
+      (egressConfig == info->egressConfig)) {
     return Nothing();
   }
 
@@ -3443,15 +3447,17 @@ Future<Nothing> PortMappingIsolatorProcess::update(
   // Set the flags for updating the egress rate, if it has changed. We
   // explicitly send an empty JSON::Object if there's no config so an
   // existing class will be removed.
-  if (htb != info->htb) {
-    update.flags.htb_config = htb.isSome() ? json(htb.get()) : JSON::Object();
+  if (egressConfig != info->egressConfig) {
+    update.flags.htb_config =
+      egressConfig.isSome() ? json(egressConfig.get()) : JSON::Object();
 
-    LOG(INFO) << "Setting htb config to "
-              << (htb.isSome() ? jsonify(htb.get()) : string("None"))
+    LOG(INFO) << "Setting egress HTB config to "
+              << (egressConfig.isSome()
+                  ? jsonify(egressConfig.get()) : string("None"))
               << " for container " << containerId;
 
     // Update the egress rate limit for this container.
-    info->htb = htb;
+    info->egressConfig = egressConfig;
   }
 
   // Use the mesos-network-helper to make changes inside the
@@ -3570,14 +3576,14 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
   }
 
   // Include the egress shaping limits, if applied.
-  if (info->htb.isSome()) {
-    result.set_net_tx_rate_limit(info->htb->rate);
+  if (info->egressConfig.isSome()) {
+    result.set_net_tx_rate_limit(info->egressConfig->rate);
 
-    if (info->htb->ceil.isSome()) {
-      result.set_net_tx_burst_rate_limit(info->htb->ceil.get());
+    if (info->egressConfig->ceil.isSome()) {
+      result.set_net_tx_burst_rate_limit(info->egressConfig->ceil.get());
 
-      if (info->htb->burst.isSome()) {
-        result.set_net_tx_burst_size(info->htb->burst.get());
+      if (info->egressConfig->burst.isSome()) {
+        result.set_net_tx_burst_size(info->egressConfig->burst.get());
       }
     }
   }
@@ -4310,7 +4316,7 @@ Try<Nothing> PortMappingIsolatorProcess::removeHostIPFilters(
 }
 
 
-Option<htb::cls::Config> PortMappingIsolatorProcess::htbConfig(
+Option<htb::cls::Config> PortMappingIsolatorProcess::egressHTBConfig(
     const Resources& resources) const
 {
   Bytes rate(0);
@@ -4489,20 +4495,19 @@ string PortMappingIsolatorProcess::scripts(Info* info)
   // Additionally, HTB has a simpler interface for just capping the
   // throughput. TBF requires other parameters such as 'burst' that
   // HTB already has default values for.
-  if (info->htb.isSome()) {
+  if (info->egressConfig.isSome()) {
     script << "tc qdisc add dev " << eth0 << " root handle "
            << CONTAINER_TX_HTB_HANDLE << " htb default 1\n";
     script << "tc class add dev " << eth0 << " parent "
            << CONTAINER_TX_HTB_HANDLE << " classid "
            << CONTAINER_TX_HTB_CLASS_ID << " htb rate "
-           << info->htb->rate * 8 << "bit";
-    if (info->htb->ceil.isSome()) {
+           << info->egressConfig->rate * 8 << "bit";
+    if (info->egressConfig->ceil.isSome()) {
       script << " ceil "
-             << info->htb->ceil.get() * 8 << "bit";
-      if (info->htb->burst.isSome()) {
+             << info->egressConfig->ceil.get() * 8 << "bit";
+      if (info->egressConfig->burst.isSome()) {
         // Use bytes here because tc command borks at bits.
-        script << " burst "
-               << info->htb->burst.get() << "b";
+        script << " burst " << info->egressConfig->burst.get() << "b";
       }
     }
     script << "\n";
