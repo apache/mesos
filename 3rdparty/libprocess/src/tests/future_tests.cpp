@@ -541,6 +541,31 @@ TEST(FutureTest, FromTry)
 }
 
 
+TEST(FutureTest, FromTryFuture)
+{
+  Try<Future<int>> t = 1;
+  Future<int> future = t;
+
+  ASSERT_TRUE(future.isReady());
+  EXPECT_EQ(1, future.get());
+
+  Promise<int> p;
+  t = p.future();
+  future = t;
+
+  ASSERT_TRUE(future.isPending());
+  p.set(1);
+  ASSERT_TRUE(future.isReady());
+  EXPECT_EQ(1, future.get());
+
+  t = Error("error");
+  future = t;
+
+  ASSERT_TRUE(future.isFailed());
+  EXPECT_EQ(t.error(), future.failure());
+}
+
+
 TEST(FutureTest, ArrowOperator)
 {
   Future<string> s = string("hello");

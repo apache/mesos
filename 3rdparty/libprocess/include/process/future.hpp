@@ -108,6 +108,8 @@ public:
 
   /*implicit*/ Future(const Try<T>& t);
 
+  /*implicit*/ Future(const Try<Future<T>>& t);
+
   ~Future() = default;
 
   // Futures are assignable (and copyable). This results in the
@@ -991,6 +993,16 @@ Future<T>::Future(const Try<T>& t)
   if (t.isSome()){
     set(t.get());
   } else {
+    fail(t.error());
+  }
+}
+
+
+template <typename T>
+Future<T>::Future(const Try<Future<T>>& t)
+  : data(t.isSome() ? t->data : std::shared_ptr<Data>(new Data()))
+{
+  if (!t.isSome()) {
     fail(t.error());
   }
 }
