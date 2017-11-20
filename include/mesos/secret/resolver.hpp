@@ -37,7 +37,7 @@ public:
   // Factory method used to create a SecretResolver instance. If the
   // `name` parameter is provided, the module is instantiated
   // using the `ModuleManager`. Otherwise, a "default" secret resolver
-  // instance (defined in `src/secret/resolver.hpp`) is returned.
+  // instance (defined in `src/secret/resolver.cpp`) is returned.
   static Try<SecretResolver*> create(const Option<std::string>& name = None());
 
   virtual ~SecretResolver() {}
