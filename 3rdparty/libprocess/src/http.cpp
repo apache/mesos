@@ -2145,7 +2145,7 @@ private:
     Future<Nothing> serving;
   };
 
-  hashmap<int, Client> clients;
+  hashmap<int_fd, Client> clients;
 };
 
 

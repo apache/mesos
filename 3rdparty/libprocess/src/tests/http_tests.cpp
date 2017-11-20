@@ -2359,8 +2359,14 @@ TEST(HttpServerTest, Pipeline)
 
   ASSERT_SOME(address);
 
-  Future<http::Connection> connect =
-    http::connect(address.get(), http::Scheme::HTTP);
+  // Connect to the IP from the libprocess library, but use the port from
+  // the server above. The libprocess IP will always report a locally
+  // bindable IP, meaning it will also work for the server above.
+  //
+  // See the comment in `HttpServeTest.Pipelining` for more details.
+  Future<http::Connection> connect = http::connect(
+      inet::Address(process::address().ip, address->port),
+      http::Scheme::HTTP);
 
   AWAIT_ASSERT_READY(connect);
 
@@ -2481,14 +2487,21 @@ TEST(HttpServerTest, Discard)
 
   ASSERT_SOME(address);
 
+  // Connect to the IP from the libprocess library, but use the port from
+  // the server above. The libprocess IP will always report a locally
+  // bindable IP, meaning it will also work for the server above.
+  //
+  // See the comment in `HttpServeTest.Pipelining` for more details.
+  //
   // NOTE: we can't guarantee that after the call to `server->run()`
   // the server is actually running because the actor might not yet
   // have received the asynchronous dispatch. Thus, we need some
   // happens before guarantee that the server is running which we get
   // by making a connection. We then use that connection to properly
   // test that we shutdown each client below.
-  Future<http::Connection> connect =
-    http::connect(address.get(), http::Scheme::HTTP);
+  Future<http::Connection> connect = http::connect(
+      inet::Address(process::address().ip, address->port),
+      http::Scheme::HTTP);
 
   AWAIT_ASSERT_READY(connect);
 
@@ -2540,14 +2553,21 @@ TEST(HttpServerTest, Finalize)
 
     ASSERT_SOME(address);
 
+    // Connect to the IP from the libprocess library, but use the port from
+    // the server above. The libprocess IP will always report a locally
+    // bindable IP, meaning it will also work for the server above.
+    //
+    // See the comment in `HttpServeTest.Pipelining` for more details.
+    //
     // NOTE: we can't guarantee that after the call to `server->run()`
     // the server is actually running because the actor might not yet
     // have received the asynchronous dispatch. Thus, we need some
     // happens before guarantee that the server is running which we
     // get by making a connection. We then use that connection to
     // properly test that we shutdown each client below.
-    Future<http::Connection> connect =
-      http::connect(address.get(), http::Scheme::HTTP);
+    Future<http::Connection> connect = http::connect(
+        inet::Address(process::address().ip, address->port),
+        http::Scheme::HTTP);
 
     AWAIT_ASSERT_READY(connect);
 
