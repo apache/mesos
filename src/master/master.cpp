@@ -843,7 +843,8 @@ void Master::initialize()
       &RegisterSlaveMessage::slave,
       &RegisterSlaveMessage::checkpointed_resources,
       &RegisterSlaveMessage::version,
-      &RegisterSlaveMessage::agent_capabilities);
+      &RegisterSlaveMessage::agent_capabilities,
+      &RegisterSlaveMessage::resource_version_uuids);
 
   install<ReregisterSlaveMessage>(
       &Master::reregisterSlave,
@@ -854,7 +855,8 @@ void Master::initialize()
       &ReregisterSlaveMessage::frameworks,
       &ReregisterSlaveMessage::completed_frameworks,
       &ReregisterSlaveMessage::version,
-      &ReregisterSlaveMessage::agent_capabilities);
+      &ReregisterSlaveMessage::agent_capabilities,
+      &ReregisterSlaveMessage::resource_version_uuids);
 
   install<UnregisterSlaveMessage>(
       &Master::unregisterSlave,
@@ -5981,7 +5983,8 @@ void Master::registerSlave(
     const SlaveInfo& slaveInfo,
     const vector<Resource>& checkpointedResources,
     const string& version,
-    const vector<SlaveInfo::Capability>& agentCapabilities)
+    const vector<SlaveInfo::Capability>& agentCapabilities,
+    const vector<ResourceVersionUUID>& resourceVersions)
 {
   ++metrics->messages_register_slave;
 
@@ -5996,7 +5999,8 @@ void Master::registerSlave(
                      slaveInfo,
                      checkpointedResources,
                      version,
-                     agentCapabilities));
+                     agentCapabilities,
+                     resourceVersions));
     return;
   }
 
@@ -6048,6 +6052,7 @@ void Master::registerSlave(
                  checkpointedResources,
                  version,
                  agentCapabilities,
+                 resourceVersions,
                  lambda::_1));
 }
 
@@ -6059,6 +6064,7 @@ void Master::_registerSlave(
     const vector<Resource>& checkpointedResources,
     const string& version,
     const vector<SlaveInfo::Capability>& agentCapabilities,
+    const vector<ResourceVersionUUID>& resourceVersions,
     const Future<bool>& authorized)
 {
   CHECK(!authorized.isDiscarded());
@@ -6193,6 +6199,7 @@ void Master::_registerSlave(
                  checkpointedResources,
                  version,
                  agentCapabilities,
+                 resourceVersions,
                  lambda::_1));
 }
 
@@ -6203,6 +6210,7 @@ void Master::__registerSlave(
     const vector<Resource>& checkpointedResources,
     const string& version,
     const vector<SlaveInfo::Capability>& agentCapabilities,
+    const vector<ResourceVersionUUID>& resourceVersions,
     const Future<bool>& admit)
 {
   CHECK(slaves.registering.contains(pid));
@@ -6244,7 +6252,9 @@ void Master::__registerSlave(
       version,
       agentCapabilities,
       Clock::now(),
-      checkpointedResources);
+      checkpointedResources,
+      protobuf::parseResourceVersions(
+          {resourceVersions.begin(), resourceVersions.end()}));
 
   ++metrics->slave_registrations;
 
@@ -6276,7 +6286,8 @@ void Master::reregisterSlave(
     const vector<FrameworkInfo>& frameworks,
     const vector<Archive::Framework>& completedFrameworks,
     const string& version,
-    const vector<SlaveInfo::Capability>& agentCapabilities)
+    const vector<SlaveInfo::Capability>& agentCapabilities,
+    const vector<ResourceVersionUUID>& resourceVersions)
 {
   ++metrics->messages_reregister_slave;
 
@@ -6295,7 +6306,8 @@ void Master::reregisterSlave(
                      frameworks,
                      completedFrameworks,
                      version,
-                     agentCapabilities));
+                     agentCapabilities,
+                     resourceVersions));
     return;
   }
 
@@ -6371,6 +6383,7 @@ void Master::reregisterSlave(
                  completedFrameworks,
                  version,
                  agentCapabilities,
+                 resourceVersions,
                  lambda::_1));
 }
 
@@ -6386,6 +6399,7 @@ void Master::_reregisterSlave(
     const vector<Archive::Framework>& completedFrameworks,
     const string& version,
     const vector<SlaveInfo::Capability>& agentCapabilities,
+    const vector<ResourceVersionUUID>& resourceVersions,
     const Future<bool>& authorized)
 {
   CHECK(!authorized.isDiscarded());
@@ -6519,6 +6533,8 @@ void Master::_reregisterSlave(
     slave->version = version;
     slave->reregisteredTime = Clock::now();
     slave->capabilities = agentCapabilities;
+    slave->resourceVersions = protobuf::parseResourceVersions(
+        {resourceVersions.begin(), resourceVersions.end()});
 
     allocator->updateSlave(slave->id, None(), agentCapabilities);
 
@@ -6616,6 +6632,7 @@ void Master::_reregisterSlave(
         completedFrameworks,
         version,
         agentCapabilities,
+        resourceVersions,
         true);
   } else {
     // Consult the registry to determine whether to readmit the
@@ -6636,6 +6653,7 @@ void Master::_reregisterSlave(
                    completedFrameworks,
                    version,
                    agentCapabilities,
+                   resourceVersions,
                    lambda::_1));
   }
 }
@@ -6651,6 +6669,7 @@ void Master::__reregisterSlave(
     const vector<Archive::Framework>& completedFrameworks_,
     const string& version,
     const vector<SlaveInfo::Capability>& agentCapabilities,
+    const vector<ResourceVersionUUID>& resourceVersions,
     const Future<bool>& readmit)
 {
   CHECK(slaves.reregistering.contains(slaveInfo.id()));
@@ -6821,6 +6840,8 @@ void Master::__reregisterSlave(
       agentCapabilities,
       Clock::now(),
       checkpointedResources,
+      protobuf::parseResourceVersions(
+          {resourceVersions.begin(), resourceVersions.end()}),
       executorInfos,
       recoveredTasks);
 
@@ -10682,6 +10703,7 @@ Slave::Slave(
     const vector<SlaveInfo::Capability>& _capabilites,
     const Time& _registeredTime,
     vector<Resource> _checkpointedResources,
+    const hashmap<Option<ResourceProviderID>, UUID>& _resourceVersions,
     const vector<ExecutorInfo>& executorInfos,
     const vector<Task>& tasks)
   : master(_master),
@@ -10703,7 +10725,8 @@ Slave::Slave(
           &_checkpointedResources, POST_RESERVATION_REFINEMENT);
       return _checkpointedResources;
     }()),
-    observer(nullptr)
+    observer(nullptr),
+    resourceVersions(_resourceVersions)
 {
   CHECK(_info.has_id());
 

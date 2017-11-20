@@ -123,6 +123,7 @@ struct Slave
         const std::vector<SlaveInfo::Capability>& _capabilites,
         const process::Time& _registeredTime,
         std::vector<Resource> _checkpointedResources,
+        const hashmap<Option<ResourceProviderID>, UUID>& _resourceVersions,
         const std::vector<ExecutorInfo>& executorInfos =
           std::vector<ExecutorInfo>(),
         const std::vector<Task>& tasks =
@@ -462,7 +463,8 @@ public:
       const SlaveInfo& slaveInfo,
       const std::vector<Resource>& checkpointedResources,
       const std::string& version,
-      const std::vector<SlaveInfo::Capability>& agentCapabilities);
+      const std::vector<SlaveInfo::Capability>& agentCapabilities,
+      const std::vector<ResourceVersionUUID>& resourceVersions);
 
   void reregisterSlave(
       const process::UPID& from,
@@ -473,7 +475,8 @@ public:
       const std::vector<FrameworkInfo>& frameworks,
       const std::vector<Archive::Framework>& completedFrameworks,
       const std::string& version,
-      const std::vector<SlaveInfo::Capability>& agentCapabilities);
+      const std::vector<SlaveInfo::Capability>& agentCapabilities,
+      const std::vector<ResourceVersionUUID>& resourceVersions);
 
   void unregisterSlave(
       const process::UPID& from,
@@ -593,6 +596,7 @@ protected:
       const std::vector<Resource>& checkpointedResources,
       const std::string& version,
       const std::vector<SlaveInfo::Capability>& agentCapabilities,
+      const std::vector<ResourceVersionUUID>& resourceVersions,
       const process::Future<bool>& authorized);
 
   void __registerSlave(
@@ -601,6 +605,7 @@ protected:
       const std::vector<Resource>& checkpointedResources,
       const std::string& version,
       const std::vector<SlaveInfo::Capability>& agentCapabilities,
+      const std::vector<ResourceVersionUUID>& resourceVersions,
       const process::Future<bool>& admit);
 
   void _reregisterSlave(
@@ -614,6 +619,7 @@ protected:
       const std::vector<Archive::Framework>& completedFrameworks,
       const std::string& version,
       const std::vector<SlaveInfo::Capability>& agentCapabilities,
+      const std::vector<ResourceVersionUUID>& resourceVersions,
       const process::Future<bool>& authorized);
 
   void __reregisterSlave(
@@ -626,6 +632,7 @@ protected:
       const std::vector<Archive::Framework>& completedFrameworks,
       const std::string& version,
       const std::vector<SlaveInfo::Capability>& agentCapabilities,
+      const std::vector<ResourceVersionUUID>& resourceVersions,
       const process::Future<bool>& readmit);
 
   void ___reregisterSlave(
