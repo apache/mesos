@@ -18,7 +18,7 @@
 #define __CSI_SPEC_HPP__
 
 // ONLY USEFUL AFTER RUNNING PROTOC WITH GRPC CPP PLUGIN.
-#include "csi/csi.grpc.pb.h"
+#include <csi/csi.grpc.pb.h>
 
 namespace mesos {
 namespace csi {

@@ -244,6 +244,12 @@ endif
 PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir)
 if ENABLE_GRPC
 PROTOCFLAGS += -I../$(CSI)
+
+# TODO(josephw): This is a temporary include directory which points to the
+# generated CSI protocol buffer code. Derivative protocol buffers need
+# this include in order to build. When the 3rdparty CSI repo builds its own
+# generated code, this can be changed to include that directory instead.
+MESOS_CPPFLAGS += -I../include/csi
 endif
 
 # README: we build the Mesos library out of a collection of
@@ -377,10 +383,10 @@ CXX_PROTOS +=								\
 
 if ENABLE_GRPC
 CXX_CSI_PROTOS =							\
-  csi/csi.grpc.pb.cc							\
-  csi/csi.grpc.pb.h							\
-  csi/csi.pb.cc								\
-  csi/csi.pb.h								\
+  ../include/csi/csi.grpc.pb.cc						\
+  ../include/csi/csi.grpc.pb.h						\
+  ../include/csi/csi.pb.cc						\
+  ../include/csi/csi.pb.h						\
   csi/state.pb.cc							\
   csi/state.pb.h
 endif
@@ -448,14 +454,14 @@ CLEANFILES +=								\
 ../include/mesos/%.pb.cc ../include/mesos/%.pb.h: $(top_srcdir)/include/mesos/%.proto
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 
-csi/%.pb.cc csi/%.pb.h: ../$(CSI)/%.proto
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=csi $^
+../include/csi/%.pb.cc ../include/csi/%.pb.h: ../$(CSI)/%.proto
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include/csi $^
 
 %.pb.cc %.pb.h: %.proto
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
-csi/%.grpc.pb.cc csi/%.grpc.pb.h: ../$(CSI)/%.proto
-	$(PROTOC) $(PROTOCFLAGS) --grpc_out=csi $^		\
+../include/csi/%.grpc.pb.cc ../include/csi/%.grpc.pb.h: ../$(CSI)/%.proto
+	$(PROTOC) $(PROTOCFLAGS) --grpc_out=../include/csi $^		\
 	          --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN)
 
 # Targets for generating Java protocol buffer code.
@@ -1509,9 +1515,9 @@ libcsi_la_SOURCES =							\
   csi/paths.cpp								\
   csi/utils.cpp
 libcsi_la_SOURCES +=							\
+  ../include/csi/spec.hpp						\
   csi/client.hpp							\
   csi/paths.hpp								\
-  csi/spec.hpp								\
   csi/utils.hpp
 nodist_libcsi_la_SOURCES = $(CXX_CSI_PROTOS)
 libcsi_la_CPPFLAGS = $(MESOS_CPPFLAGS)

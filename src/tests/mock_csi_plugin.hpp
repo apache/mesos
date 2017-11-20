@@ -27,7 +27,7 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
-#include "csi/spec.hpp"
+#include <csi/spec.hpp>
 
 namespace mesos {
 namespace internal {
