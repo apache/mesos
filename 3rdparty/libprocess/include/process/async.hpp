@@ -60,7 +60,7 @@ Future<Nothing> async(
       ENUM_BINARY_PARAMS(N, A, a),                                      \
       typename std::enable_if<std::is_void<typename result_of<F(ENUM_PARAMS(N, A))>::type>::value>::type* = nullptr); // NOLINT(whitespace/line_length)
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 
@@ -128,7 +128,7 @@ private:
     return Nothing();                                                   \
   }
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 };
 
@@ -161,7 +161,7 @@ private:
       ENUM_BINARY_PARAMS(N, A, a),                                      \
       typename std::enable_if<std::is_void<typename result_of<F(ENUM_PARAMS(N, A))>::type>::value>::type*); // NOLINT(whitespace/line_length)
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
   AsyncExecutor()
@@ -226,7 +226,7 @@ private:
     return dispatch(process, method, f, ENUM_PARAMS(N, a));             \
   }
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
   PID<AsyncExecutorProcess> process;
@@ -271,7 +271,7 @@ Future<Nothing> async(
     return AsyncExecutor().execute(f, ENUM_PARAMS(N, a));               \
   }
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 } // namespace process {

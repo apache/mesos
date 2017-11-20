@@ -182,7 +182,7 @@ struct _Deferred
         });                                                              \
   }
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 #define TEMPLATE(Z, N, DATA)                                            \
@@ -224,7 +224,7 @@ struct _Deferred
         });                                                             \
   }
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 private:
@@ -249,7 +249,7 @@ private:
                std::function<void(ENUM_PARAMS(N, P))>(),                 \
                ENUM(N, FORWARD, _)))>;
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 #define TEMPLATE(Z, N, DATA)                                             \
@@ -266,7 +266,7 @@ private:
                std::function<Future<R>(ENUM_PARAMS(N, P))>(),            \
                ENUM(N, FORWARD, _)))>;
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 #define TEMPLATE(Z, N, DATA)                                             \
@@ -283,7 +283,7 @@ private:
            std::function<Future<R>(ENUM_PARAMS(N, P))>(),                \
            ENUM(N, FORWARD, _)))>;
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 #undef FORWARD
 

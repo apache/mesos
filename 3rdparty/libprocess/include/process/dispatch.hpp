@@ -235,7 +235,7 @@ void dispatch(const Process<T>* process, void (T::*method)())
     dispatch(process->self(), method, ENUM(N, FORWARD, _));             \
   }
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 
@@ -326,7 +326,7 @@ Future<R> dispatch(const Process<T>* process, Future<R> (T::*method)())
     return dispatch(process->self(), method, ENUM(N, FORWARD, _));      \
   }
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 
@@ -416,7 +416,7 @@ Future<R> dispatch(const Process<T>* process, R (T::*method)())
     return dispatch(process->self(), method, ENUM(N, FORWARD, _));      \
   }
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 #undef DECL

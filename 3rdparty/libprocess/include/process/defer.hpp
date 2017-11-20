@@ -107,7 +107,7 @@ Deferred<void()> defer(const Process<T>* process, void (T::*method)())
     return defer(process->self(), method, ENUM(N, FORWARD, _));         \
   }
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 
@@ -179,7 +179,7 @@ Deferred<Future<R>()> defer(const Process<T>* process, Future<R> (T::*method)())
     return defer(process->self(), method, ENUM(N, FORWARD, _));         \
   }
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 
@@ -253,7 +253,7 @@ Deferred<Future<R>()> defer(const Process<T>* process, R (T::*method)())
     return defer(process->self(), method, ENUM(N, FORWARD, _));         \
   }
 
-  REPEAT_FROM_TO(1, 12, TEMPLATE, _) // Args A0 -> A10.
+  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
 #undef TEMPLATE
 
 #undef FORWARD
