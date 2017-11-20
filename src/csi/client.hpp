@@ -66,6 +66,9 @@ public:
   process::Future<GetCapacityResponse>
     GetCapacity(const GetCapacityRequest& request);
 
+  process::Future<ControllerProbeResponse>
+    ControllerProbe(const ControllerProbeRequest& request);
+
   process::Future<ControllerGetCapabilitiesResponse>
     ControllerGetCapabilities(const ControllerGetCapabilitiesRequest& request);
 
@@ -79,8 +82,8 @@ public:
   process::Future<GetNodeIDResponse>
     GetNodeID(const GetNodeIDRequest& request);
 
-  process::Future<ProbeNodeResponse>
-    ProbeNode(const ProbeNodeRequest& request);
+  process::Future<NodeProbeResponse>
+    NodeProbe(const NodeProbeRequest& request);
 
   process::Future<NodeGetCapabilitiesResponse>
     NodeGetCapabilities(const NodeGetCapabilitiesRequest& request);

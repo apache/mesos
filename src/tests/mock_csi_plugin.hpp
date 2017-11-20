@@ -43,11 +43,12 @@ namespace tests {
   macro(ValidateVolumeCapabilities)      \
   macro(ListVolumes)                     \
   macro(GetCapacity)                     \
+  macro(ControllerProbe)                 \
   macro(ControllerGetCapabilities)       \
   macro(NodePublishVolume)               \
   macro(NodeUnpublishVolume)             \
   macro(GetNodeID)                       \
-  macro(ProbeNode)                       \
+  macro(NodeProbe)                       \
   macro(NodeGetCapabilities)
 
 #define DECLARE_MOCK_CSI_METHOD(name)    \

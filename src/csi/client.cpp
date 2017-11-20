@@ -111,6 +111,16 @@ Future<GetCapacityResponse> Client::GetCapacity(
 }
 
 
+Future<ControllerProbeResponse> Client::ControllerProbe(
+    const ControllerProbeRequest& request)
+{
+  return runtime.call(
+      channel,
+      GRPC_RPC(Controller, ControllerProbe),
+      request);
+}
+
+
 Future<ControllerGetCapabilitiesResponse> Client::ControllerGetCapabilities(
     const ControllerGetCapabilitiesRequest& request)
 {
@@ -151,12 +161,12 @@ Future<GetNodeIDResponse> Client::GetNodeID(
 }
 
 
-Future<ProbeNodeResponse> Client::ProbeNode(
-    const ProbeNodeRequest& request)
+Future<NodeProbeResponse> Client::NodeProbe(
+    const NodeProbeRequest& request)
 {
   return runtime.call(
       channel,
-      GRPC_RPC(Node, ProbeNode),
+      GRPC_RPC(Node, NodeProbe),
       request);
 }
 
