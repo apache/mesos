@@ -200,11 +200,11 @@ private:
   {
     Info(const IntervalSet<uint16_t>& _nonEphemeralPorts,
          const Interval<uint16_t>& _ephemeralPorts,
-         const Option<routing::queueing::htb::cls::Config>& _htb,
+         const Option<routing::queueing::htb::cls::Config>& _egressConfig,
          const Option<pid_t>& _pid = None())
       : nonEphemeralPorts(_nonEphemeralPorts),
         ephemeralPorts(_ephemeralPorts),
-        htb(_htb),
+        egressConfig(_egressConfig),
         pid(_pid) {}
 
     // Non-ephemeral ports used by the container. It's possible that a
@@ -222,7 +222,7 @@ private:
 
     // Optional htb configuration for egress traffic. This may change
     // upon 'update'.
-    Option<routing::queueing::htb::cls::Config> htb;
+    Option<routing::queueing::htb::cls::Config> egressConfig;
 
     Option<pid_t> pid;
     Option<uint16_t> flowId;
@@ -330,7 +330,7 @@ private:
   // Determine the egress rate limit to apply to a container, either
   // None if no limit should be applied or some rate determined from
   // a fixed limit or a limit scaled by CPU.
-  Option<routing::queueing::htb::cls::Config> htbConfig(
+  Option<routing::queueing::htb::cls::Config> egressHTBConfig(
       const Resources& resources) const;
 
   // Return the scripts that will be executed in the child context.
