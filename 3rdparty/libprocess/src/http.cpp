@@ -2185,6 +2185,7 @@ Try<Server> Server::create(
       case Scheme::HTTPS: return SocketImpl::Kind::SSL;
 #endif
     }
+    UNREACHABLE();
   }();
 
   Try<network::Socket> socket = network::Socket::create(
