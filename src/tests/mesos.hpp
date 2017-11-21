@@ -3064,6 +3064,20 @@ void ExpectNoFutureUnionHttpProtobufs(
 MATCHER_P(TaskStatusEq, task, "") { return arg.task_id() == task.task_id(); }
 
 
+// This matcher is used to match the task id of `Event.update.status` message.
+MATCHER_P(TaskStatusUpdateTaskIdEq, taskInfo, "")
+{
+  return arg.status().task_id() == taskInfo.task_id();
+}
+
+
+// This matcher is used to match the state of `Event.update.status` message.
+MATCHER_P(TaskStatusUpdateStateEq, taskState, "")
+{
+  return arg.status().state() == taskState;
+}
+
+
 struct ParamExecutorType
 {
 public:
