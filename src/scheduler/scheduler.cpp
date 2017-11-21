@@ -120,7 +120,6 @@ using process::wait; // Necessary on some OS's to disambiguate.
 using process::http::Connection;
 using process::http::Pipe;
 using process::http::post;
-using process::http::Request;
 using process::http::URL;
 
 using ::recordio::Decoder;
@@ -251,7 +250,7 @@ public:
     // to the slave, instead of relaying it through the master, as
     // the scheduler driver does.
 
-    ::Request request;
+    process::http::Request request;
     request.method = "POST";
     request.url = master.get();
     request.body = serialize(contentType, call);
@@ -538,7 +537,7 @@ protected:
     LOG(WARNING) << "Dropping " << call.type() << ": " << message;
   }
 
-  void _send(const Call& call, const Future<::Request>& future)
+  void _send(const Call& call, const Future<process::http::Request>& future)
   {
     if (!future.isReady()) {
       LOG(ERROR) << "HTTP authenticatee "
@@ -547,7 +546,7 @@ protected:
       return;
     }
 
-    ::Request request = future.get();
+    process::http::Request request = future.get();
 
     if (connections.isNone()) {
       drop(call, "Connection to master interrupted");
