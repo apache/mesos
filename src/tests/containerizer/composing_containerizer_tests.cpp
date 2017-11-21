@@ -88,6 +88,12 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
   EXPECT_CALL(*mockContainerizer1, launch(_, _, _, _))
     .WillOnce(Return(launchPromise.future()));
 
+  Future<Nothing> wait;
+  Promise<Option<ContainerTermination>> waitPromise;
+  EXPECT_CALL(*mockContainerizer1, wait(_))
+    .WillOnce(DoAll(FutureSatisfy(&wait),
+                    Return(waitPromise.future())));
+
   Future<Nothing> destroy;
   Promise<bool> destroyPromise;
   EXPECT_CALL(*mockContainerizer1, destroy(_))
@@ -109,6 +115,9 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
   EXPECT_CALL(*mockContainerizer2, launch(_, _, _, _))
     .Times(0);
 
+  // We make sure the wait is being called on the first containerizer.
+  AWAIT_READY(wait);
+
   // We make sure the destroy is being called on the first containerizer.
   // The second containerizer shouldn't be called as well since the
   // container is already destroyed.
@@ -116,6 +125,7 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
 
   launchPromise.set(Containerizer::LaunchResult::NOT_SUPPORTED);
   destroyPromise.set(false);
+  waitPromise.set(Option<ContainerTermination>::none());
 
   // `launched` should be a failure and `destroyed` should be true
   // because the launch was stopped from being tried on the 2nd
@@ -130,7 +140,7 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
 // underlying containerizer's destroy (because it's not sure
 // if the containerizer can handle the type of container being
 // launched). If the launch is successful the destroy future
-// value depends on the containerizer's destroy.
+// value depends on the containerizer's termination future.
 TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
 {
   vector<Containerizer*> containerizers;
@@ -154,6 +164,12 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
   EXPECT_CALL(*mockContainerizer1, launch(_, _, _, _))
     .WillOnce(Return(launchPromise.future()));
 
+  Future<Nothing> wait;
+  Promise<Option<ContainerTermination>> waitPromise;
+  EXPECT_CALL(*mockContainerizer1, wait(_))
+    .WillOnce(DoAll(FutureSatisfy(&wait),
+                    Return(waitPromise.future())));
+
   Future<Nothing> destroy;
   Promise<bool> destroyPromise;
   EXPECT_CALL(*mockContainerizer1, destroy(_))
@@ -175,6 +191,9 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
   EXPECT_CALL(*mockContainerizer2, launch(_, _, _, _))
     .Times(0);
 
+  // We make sure the wait is being called on the first containerizer.
+  AWAIT_READY(wait);
+
   // We make sure the destroy is being called on the first containerizer.
   // The second containerizer shouldn't be called as well since the
   // container is already destroyed.
@@ -182,9 +201,10 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
 
   launchPromise.set(Containerizer::LaunchResult::SUCCESS);
   destroyPromise.set(false);
+  waitPromise.set(Option<ContainerTermination>::none());
 
   // `launched` should return true and `destroyed` should return false
-  // because the launch succeeded and `destroyPromise` was set to false.
+  // because the launch succeeded and `waitPromise` was set to `None`.
   AWAIT_EXPECT_EQ(Containerizer::LaunchResult::SUCCESS, launched);
   AWAIT_EXPECT_EQ(false, destroyed);
 }
@@ -216,6 +236,12 @@ TEST_F(ComposingContainerizerTest, DestroyAfterLaunchLoop)
   EXPECT_CALL(*mockContainerizer1, launch(_, _, _, _))
     .WillOnce(Return(launchPromise.future()));
 
+  Future<Nothing> wait;
+  Promise<Option<ContainerTermination>> waitPromise;
+  EXPECT_CALL(*mockContainerizer1, wait(_))
+    .WillOnce(DoAll(FutureSatisfy(&wait),
+                    Return(waitPromise.future())));
+
   Future<Nothing> destroy;
   Promise<bool> destroyPromise;
   EXPECT_CALL(*mockContainerizer1, destroy(_))
@@ -234,11 +260,15 @@ TEST_F(ComposingContainerizerTest, DestroyAfterLaunchLoop)
 
   Future<bool> destroyed = containerizer.destroy(containerId);
 
+  // We make sure the wait is being called on the containerizer.
+  AWAIT_READY(wait);
+
   // We make sure the destroy is being called on the containerizer.
   AWAIT_READY(destroy);
 
   launchPromise.set(Containerizer::LaunchResult::NOT_SUPPORTED);
   destroyPromise.set(false);
+  waitPromise.set(Option<ContainerTermination>::none());
 
   // `launch` should return false and `destroyed` should return false
   // because none of the containerizers support the launch.
