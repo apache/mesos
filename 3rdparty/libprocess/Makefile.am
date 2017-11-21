@@ -396,7 +396,9 @@ libprocess_tests_LDADD +=		\
 endif
 
 BUILT_SOURCES =				\
-  $(BUNDLED_DEPS)
+  $(BUNDLED_DEPS)			\
+  $(BENCHMARKS_PROTOS)			\
+  $(GRPC_TESTS_PROTOS)
 
 nodist_benchmarks_SOURCES =		\
   $(BENCHMARKS_PROTOS)
@@ -410,11 +412,11 @@ CLEANFILES =				\
 
 
 # Targets for generating C++ protocol buffer and gRPC code for tests.
-%.pb.cc %.pb.h: src/tests/%.proto
-	$(PROTOC) -I$(^D) --cpp_out=. $^
+%.pb.cc %.pb.h: src/tests/%.proto $(BUNDLED_DEPS)
+	$(PROTOC) -I$(<D) --cpp_out=. $<
 
-%.grpc.pb.cc %.grpc.pb.h: src/tests/%.proto
-	$(PROTOC) -I$(^D) --grpc_out=. $^			\
+%.grpc.pb.cc %.grpc.pb.h: src/tests/%.proto $(BUNDLED_DEPS)
+	$(PROTOC) -I$(<D) --grpc_out=. $<			\
 	          --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN)
 
 
