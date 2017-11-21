@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __STATUS_UPDATE_MANAGER_HPP__
-#define __STATUS_UPDATE_MANAGER_HPP__
+#ifndef __TASK_STATUS_UPDATE_MANAGER_HPP__
+#define __TASK_STATUS_UPDATE_MANAGER_HPP__
 
 #include <queue>
 #include <string>
@@ -207,4 +207,4 @@ private:
 } // namespace mesos {
 
 
-#endif // __STATUS_UPDATE_MANAGER_HPP__
+#endif // __TASK_STATUS_UPDATE_MANAGER_HPP__

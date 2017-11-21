@@ -1022,7 +1022,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/resource_estimator.cpp						\
   slave/slave.cpp							\
   slave/state.cpp							\
-  slave/status_update_manager.cpp					\
+  slave/task_status_update_manager.cpp					\
   slave/validation.cpp							\
   slave/container_loggers/sandbox.cpp					\
   slave/containerizer/composing.cpp					\
@@ -1167,7 +1167,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/posix_signalhandler.hpp						\
   slave/slave.hpp							\
   slave/state.hpp							\
-  slave/status_update_manager.hpp					\
+  slave/task_status_update_manager.hpp					\
   slave/validation.hpp							\
   slave/windows_ctrlhandler.hpp						\
   slave/container_loggers/sandbox.hpp					\
@@ -2469,7 +2469,7 @@ mesos_tests_SOURCES =						\
   tests/slave_tests.cpp						\
   tests/sorter_tests.cpp					\
   tests/state_tests.cpp						\
-  tests/status_update_manager_tests.cpp				\
+  tests/task_status_update_manager_tests.cpp			\
   tests/teardown_tests.cpp					\
   tests/upgrade_tests.cpp					\
   tests/uri_tests.cpp						\

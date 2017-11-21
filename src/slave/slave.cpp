@@ -98,7 +98,7 @@
 #include "slave/flags.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
-#include "slave/status_update_manager.hpp"
+#include "slave/task_status_update_manager.hpp"
 
 #ifdef __WINDOWS__
 // Used to install a Windows console ctrl handler.

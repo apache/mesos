@@ -29,7 +29,7 @@
 #include <stout/option.hpp>
 
 #include "slave/slave.hpp"
-#include "slave/status_update_manager.hpp"
+#include "slave/task_status_update_manager.hpp"
 
 #include "tests/mock_slave.hpp"
 

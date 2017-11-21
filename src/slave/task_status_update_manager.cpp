@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "slave/task_status_update_manager.hpp"
+
 #include <process/delay.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
@@ -40,7 +42,6 @@
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
 #include "slave/state.hpp"
-#include "slave/status_update_manager.hpp"
 
 using lambda::function;
 

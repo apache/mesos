@@ -257,7 +257,7 @@ set(AGENT_SRC
   slave/resource_estimator.cpp
   slave/slave.cpp
   slave/state.cpp
-  slave/status_update_manager.cpp
+  slave/task_status_update_manager.cpp
   slave/validation.cpp
   slave/container_loggers/sandbox.cpp
   slave/containerizer/composing.cpp

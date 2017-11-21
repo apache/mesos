@@ -117,7 +117,7 @@ set(MESOS_TESTS_SRC
   slave_tests.cpp
   slave_validation_tests.cpp
   sorter_tests.cpp
-  status_update_manager_tests.cpp
+  task_status_update_manager_tests.cpp
   uri_tests.cpp
   uri_fetcher_tests.cpp
   values_tests.cpp
