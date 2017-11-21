@@ -1360,6 +1360,7 @@ Resources::Resources(const Resource& resource)
 
 Resources::Resources(const vector<Resource>& _resources)
 {
+  resources.reserve(_resources.size());
   foreach (const Resource& resource, _resources) {
     // NOTE: Invalid and zero Resource objects will be ignored.
     *this += resource;
@@ -1369,6 +1370,7 @@ Resources::Resources(const vector<Resource>& _resources)
 
 Resources::Resources(const RepeatedPtrField<Resource>& _resources)
 {
+  resources.reserve(_resources.size());
   foreach (const Resource& resource, _resources) {
     // NOTE: Invalid and zero Resource objects will be ignored.
     *this += resource;
