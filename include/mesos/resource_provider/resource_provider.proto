@@ -34,6 +34,7 @@ message Event {
 
     SUBSCRIBED = 1;   // See 'Subscribed' below.
     OPERATION = 2;    // See 'Operation' below.
+    PUBLISH = 3;      // See 'Publish' below.
   }
 
   // First event received by the resource provider when it subscribes
@@ -68,9 +69,17 @@ message Event {
     required bytes resource_version_uuid = 4;
   }
 
+  // Received when the master wants to launch a task using resources
+  // of this resource provider.
+  message Publish {
+    required bytes uuid = 1;
+    repeated Resource resources = 2;
+  }
+
   optional Type type = 1;
   optional Subscribed subscribed = 2;
   optional Operation operation = 3;
+  optional Publish publish = 4;
 }
 
 
@@ -85,6 +94,7 @@ message Call {
     SUBSCRIBE = 1;                     // See 'Subscribe'.
     UPDATE_OFFER_OPERATION_STATUS = 2; // See 'UpdateOfferOperationStatus'.
     UPDATE_STATE = 3;                  // See 'UpdateState'.
+    ACKNOWLEDGE_PUBLISH = 4;           // See 'AcknowledgePublish'.
   }
 
   // Request to subscribe with the master.
@@ -128,6 +138,18 @@ message Call {
     required bytes resource_version_uuid = 3;
   }
 
+  message AcknowledgePublish {
+    enum Status {
+      UNKNOWN = 0;
+      OK = 1;
+      FAILED = 2;
+    }
+
+    required bytes uuid = 1;
+
+    required Status status = 2;
+  }
+
   // Identifies who generated this call.
   // The 'ResourceProviderManager' assigns a resource provider ID when
   // a new resource provider subscribes for the first time. Once
@@ -142,4 +164,5 @@ message Call {
   optional Subscribe subscribe = 3;
   optional UpdateOfferOperationStatus update_offer_operation_status = 4;
   optional UpdateState update_state = 5;
+  optional AcknowledgePublish acknowledge_publish = 6;
 }

@@ -73,6 +73,18 @@ Option<Error> validate(const Call& call)
 
       return None();
     }
+
+    case Call::ACKNOWLEDGE_PUBLISH: {
+      if (!call.has_resource_provider_id()) {
+        return Error("Expecting 'resource_provider_id' to be present");
+      }
+
+      if (!call.has_acknowledge_publish()) {
+        return Error("Expecting 'acknowledge_publish' to be present.");
+      }
+
+      return None();
+    }
   }
 
   UNREACHABLE();
