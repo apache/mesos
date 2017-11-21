@@ -64,17 +64,17 @@ using state::RunState;
 using state::TaskState;
 
 
-class StatusUpdateManagerProcess
-  : public ProtobufProcess<StatusUpdateManagerProcess>
+class TaskStatusUpdateManagerProcess
+  : public ProtobufProcess<TaskStatusUpdateManagerProcess>
 {
 public:
-  StatusUpdateManagerProcess(const Flags& flags);
-  virtual ~StatusUpdateManagerProcess();
+  TaskStatusUpdateManagerProcess(const Flags& flags);
+  virtual ~TaskStatusUpdateManagerProcess();
 
   // Explicitly use 'initialize' since we're overloading below.
   using process::ProcessBase::initialize;
 
-  // StatusUpdateManager implementation.
+  // TaskStatusUpdateManager implementation.
   void initialize(const function<void(StatusUpdate)>& forward);
 
   Future<Nothing> update(
@@ -123,7 +123,7 @@ private:
 
   // Creates a new status update stream (opening the updates file, if path is
   // present) and adds it to streams.
-  StatusUpdateStream* createStatusUpdateStream(
+  TaskStatusUpdateStream* createStatusUpdateStream(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
@@ -131,7 +131,7 @@ private:
       const Option<ExecutorID>& executorId,
       const Option<ContainerID>& containerId);
 
-  StatusUpdateStream* getStatusUpdateStream(
+  TaskStatusUpdateStream* getStatusUpdateStream(
       const TaskID& taskId,
       const FrameworkID& frameworkId);
 
@@ -144,20 +144,23 @@ private:
 
   function<void(StatusUpdate)> forward_;
 
-  hashmap<FrameworkID, hashmap<TaskID, StatusUpdateStream*>> streams;
+  hashmap<FrameworkID, hashmap<TaskID, TaskStatusUpdateStream*>> streams;
 };
 
 
-StatusUpdateManagerProcess::StatusUpdateManagerProcess(const Flags& _flags)
-  : ProcessBase(process::ID::generate("status-update-manager")),
+TaskStatusUpdateManagerProcess::TaskStatusUpdateManagerProcess(
+    const Flags& _flags)
+  : ProcessBase(process::ID::generate("task-status-update-manager")),
     flags(_flags),
-    paused(false) {}
+    paused(false)
+{
+}
 
 
-StatusUpdateManagerProcess::~StatusUpdateManagerProcess()
+TaskStatusUpdateManagerProcess::~TaskStatusUpdateManagerProcess()
 {
   foreachkey (const FrameworkID& frameworkId, streams) {
-    foreachvalue (StatusUpdateStream* stream, streams[frameworkId]) {
+    foreachvalue (TaskStatusUpdateStream* stream, streams[frameworkId]) {
       delete stream;
     }
   }
@@ -165,30 +168,30 @@ StatusUpdateManagerProcess::~StatusUpdateManagerProcess()
 }
 
 
-void StatusUpdateManagerProcess::initialize(
+void TaskStatusUpdateManagerProcess::initialize(
     const function<void(StatusUpdate)>& forward)
 {
   forward_ = forward;
 }
 
 
-void StatusUpdateManagerProcess::pause()
+void TaskStatusUpdateManagerProcess::pause()
 {
-  LOG(INFO) << "Pausing sending status updates";
+  LOG(INFO) << "Pausing sending task status updates";
   paused = true;
 }
 
 
-void StatusUpdateManagerProcess::resume()
+void TaskStatusUpdateManagerProcess::resume()
 {
-  LOG(INFO) << "Resuming sending status updates";
+  LOG(INFO) << "Resuming sending task status updates";
   paused = false;
 
   foreachkey (const FrameworkID& frameworkId, streams) {
-    foreachvalue (StatusUpdateStream* stream, streams[frameworkId]) {
+    foreachvalue (TaskStatusUpdateStream* stream, streams[frameworkId]) {
       if (!stream->pending.empty()) {
         const StatusUpdate& update = stream->pending.front();
-        LOG(WARNING) << "Resending status update " << update;
+        LOG(WARNING) << "Resending task status update " << update;
         stream->timeout = forward(update, STATUS_UPDATE_RETRY_INTERVAL_MIN);
       }
     }
@@ -196,11 +199,11 @@ void StatusUpdateManagerProcess::resume()
 }
 
 
-Future<Nothing> StatusUpdateManagerProcess::recover(
+Future<Nothing> TaskStatusUpdateManagerProcess::recover(
     const string& rootDir,
     const Option<SlaveState>& state)
 {
-  LOG(INFO) << "Recovering status update manager";
+  LOG(INFO) << "Recovering task status update manager";
 
   if (state.isNone()) {
     return Nothing();
@@ -212,7 +215,7 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
                 << "' of framework " << framework.id;
 
       if (executor.info.isNone()) {
-        LOG(WARNING) << "Skipping recovering updates of"
+        LOG(WARNING) << "Skipping recovering task status updates of"
                      << " executor '" << executor.id
                      << "' of framework " << framework.id
                      << " because its info cannot be recovered";
@@ -220,7 +223,7 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
       }
 
       if (executor.latest.isNone()) {
-        LOG(WARNING) << "Skipping recovering updates of"
+        LOG(WARNING) << "Skipping recovering task status updates of"
                      << " executor '" << executor.id
                      << "' of framework " << framework.id
                      << " because its latest run cannot be recovered";
@@ -233,7 +236,7 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
       CHECK_SOME(run);
 
       if (run->completed) {
-        VLOG(1) << "Skipping recovering updates of"
+        VLOG(1) << "Skipping recovering task status updates of"
                 << " executor '" << executor.id
                 << "' of framework " << framework.id
                 << " because its latest run " << latest.value()
@@ -247,13 +250,13 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
         // 1) the executor never received this task or
         // 2) executor launched it but the slave died before it got any updates.
         if (task.updates.empty()) {
-          LOG(WARNING) << "No updates found for task " << task.id
+          LOG(WARNING) << "No status updates found for task " << task.id
                        << " of framework " << framework.id;
           continue;
         }
 
         // Create a new status update stream.
-        StatusUpdateStream* stream = createStatusUpdateStream(
+        TaskStatusUpdateStream* stream = createStatusUpdateStream(
             task.id, framework.id, state->id, true, executor.id, latest);
 
         // Replay the stream.
@@ -280,9 +283,10 @@ Future<Nothing> StatusUpdateManagerProcess::recover(
 }
 
 
-void StatusUpdateManagerProcess::cleanup(const FrameworkID& frameworkId)
+void TaskStatusUpdateManagerProcess::cleanup(const FrameworkID& frameworkId)
 {
-  LOG(INFO) << "Closing status update streams for framework " << frameworkId;
+  LOG(INFO) << "Closing task status update streams for framework "
+            << frameworkId;
 
   if (streams.contains(frameworkId)) {
     foreachkey (const TaskID& taskId, utils::copy(streams[frameworkId])) {
@@ -292,7 +296,7 @@ void StatusUpdateManagerProcess::cleanup(const FrameworkID& frameworkId)
 }
 
 
-Future<Nothing> StatusUpdateManagerProcess::update(
+Future<Nothing> TaskStatusUpdateManagerProcess::update(
     const StatusUpdate& update,
     const SlaveID& slaveId,
     const ExecutorID& executorId,
@@ -302,7 +306,7 @@ Future<Nothing> StatusUpdateManagerProcess::update(
 }
 
 
-Future<Nothing> StatusUpdateManagerProcess::update(
+Future<Nothing> TaskStatusUpdateManagerProcess::update(
     const StatusUpdate& update,
     const SlaveID& slaveId)
 {
@@ -310,7 +314,7 @@ Future<Nothing> StatusUpdateManagerProcess::update(
 }
 
 
-Future<Nothing> StatusUpdateManagerProcess::_update(
+Future<Nothing> TaskStatusUpdateManagerProcess::_update(
     const StatusUpdate& update,
     const SlaveID& slaveId,
     bool checkpoint,
@@ -320,11 +324,11 @@ Future<Nothing> StatusUpdateManagerProcess::_update(
   const TaskID& taskId = update.status().task_id();
   const FrameworkID& frameworkId = update.framework_id();
 
-  LOG(INFO) << "Received status update " << update;
+  LOG(INFO) << "Received task status update " << update;
 
   // Write the status update to disk and enqueue it to send it to the master.
   // Create/Get the status update stream for this task.
-  StatusUpdateStream* stream = getStatusUpdateStream(taskId, frameworkId);
+  TaskStatusUpdateStream* stream = getStatusUpdateStream(taskId, frameworkId);
   if (stream == nullptr) {
     stream = createStatusUpdateStream(
         taskId, frameworkId, slaveId, checkpoint, executorId, containerId);
@@ -334,9 +338,10 @@ Future<Nothing> StatusUpdateManagerProcess::_update(
   // stream that is checkpointable, and vice-versa.
   if (stream->checkpoint != checkpoint) {
     return Failure(
-        "Mismatched checkpoint value for status update " + stringify(update) +
-        " (expected checkpoint=" + stringify(stream->checkpoint) +
-        " actual checkpoint=" + stringify(checkpoint) + ")");
+        "Mismatched checkpoint value for task status update " +
+        stringify(update) + " (expected checkpoint=" +
+        stringify(stream->checkpoint) + " actual checkpoint=" +
+        stringify(checkpoint) + ")");
   }
 
   // Handle the status update.
@@ -368,13 +373,13 @@ Future<Nothing> StatusUpdateManagerProcess::_update(
 }
 
 
-Timeout StatusUpdateManagerProcess::forward(
+Timeout TaskStatusUpdateManagerProcess::forward(
     const StatusUpdate& update,
     const Duration& duration)
 {
   CHECK(!paused);
 
-  VLOG(1) << "Forwarding update " << update << " to the agent";
+  VLOG(1) << "Forwarding task status update " << update << " to the agent";
 
   // Forward the update.
   forward_(update);
@@ -382,28 +387,28 @@ Timeout StatusUpdateManagerProcess::forward(
   // Send a message to self to resend after some delay if no ACK is received.
   return delay(duration,
                self(),
-               &StatusUpdateManagerProcess::timeout,
+               &TaskStatusUpdateManagerProcess::timeout,
                duration).timeout();
 }
 
 
-Future<bool> StatusUpdateManagerProcess::acknowledgement(
+Future<bool> TaskStatusUpdateManagerProcess::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
     const UUID& uuid)
 {
-  LOG(INFO) << "Received status update acknowledgement (UUID: " << uuid
+  LOG(INFO) << "Received task status update acknowledgement (UUID: " << uuid
             << ") for task " << taskId
             << " of framework " << frameworkId;
 
-  StatusUpdateStream* stream = getStatusUpdateStream(taskId, frameworkId);
+  TaskStatusUpdateStream* stream = getStatusUpdateStream(taskId, frameworkId);
 
   // This might happen if we haven't completed recovery yet or if the
   // acknowledgement is for a stream that has been cleaned up.
   if (stream == nullptr) {
     return Failure(
-        "Cannot find the status update stream for task " + stringify(taskId) +
-        " of framework " + stringify(frameworkId));
+        "Cannot find the task status update stream for task " +
+        stringify(taskId) + " of framework " + stringify(frameworkId));
   }
 
   // Get the corresponding update for this ACK.
@@ -416,9 +421,9 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
   // acknowledgments for both the original and the retried update.
   if (update.isNone()) {
     return Failure(
-        "Unexpected status update acknowledgment (UUID: " + uuid.toString() +
-        ") for task " + stringify(taskId) +
-        " of framework " + stringify(frameworkId));
+        "Unexpected task status update acknowledgment (UUID: " +
+        uuid.toString() + ") for task " + stringify(taskId) + " of framework " +
+        stringify(frameworkId));
   }
 
   // Handle the acknowledgement.
@@ -430,7 +435,7 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
   }
 
   if (!result.get()) {
-    return Failure("Duplicate acknowledgement");
+    return Failure("Duplicate task status acknowledgement");
   }
 
   // Reset the timeout.
@@ -447,7 +452,7 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
   if (terminated) {
     if (next.isSome()) {
       LOG(WARNING) << "Acknowledged a terminal"
-                   << " status update " << update.get()
+                   << " task status update " << update.get()
                    << " but updates are still pending";
     }
     cleanupStatusUpdateStream(taskId, frameworkId);
@@ -461,7 +466,7 @@ Future<bool> StatusUpdateManagerProcess::acknowledgement(
 
 
 // TODO(vinod): There should be a limit on the retries.
-void StatusUpdateManagerProcess::timeout(const Duration& duration)
+void TaskStatusUpdateManagerProcess::timeout(const Duration& duration)
 {
   if (paused) {
     return;
@@ -469,13 +474,13 @@ void StatusUpdateManagerProcess::timeout(const Duration& duration)
 
   // Check and see if we should resend any status updates.
   foreachkey (const FrameworkID& frameworkId, streams) {
-    foreachvalue (StatusUpdateStream* stream, streams[frameworkId]) {
+    foreachvalue (TaskStatusUpdateStream* stream, streams[frameworkId]) {
       CHECK_NOTNULL(stream);
       if (!stream->pending.empty()) {
         CHECK_SOME(stream->timeout);
         if (stream->timeout->expired()) {
           const StatusUpdate& update = stream->pending.front();
-          LOG(WARNING) << "Resending status update " << update;
+          LOG(WARNING) << "Resending task status update " << update;
 
           // Bounded exponential backoff.
           Duration duration_ =
@@ -489,7 +494,8 @@ void StatusUpdateManagerProcess::timeout(const Duration& duration)
 }
 
 
-StatusUpdateStream* StatusUpdateManagerProcess::createStatusUpdateStream(
+TaskStatusUpdateStream*
+TaskStatusUpdateManagerProcess::createStatusUpdateStream(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
@@ -500,7 +506,7 @@ StatusUpdateStream* StatusUpdateManagerProcess::createStatusUpdateStream(
   VLOG(1) << "Creating StatusUpdate stream for task " << taskId
           << " of framework " << frameworkId;
 
-  StatusUpdateStream* stream = new StatusUpdateStream(
+  TaskStatusUpdateStream* stream = new TaskStatusUpdateStream(
       taskId, frameworkId, slaveId, flags, checkpoint, executorId, containerId);
 
   streams[frameworkId][taskId] = stream;
@@ -508,7 +514,7 @@ StatusUpdateStream* StatusUpdateManagerProcess::createStatusUpdateStream(
 }
 
 
-StatusUpdateStream* StatusUpdateManagerProcess::getStatusUpdateStream(
+TaskStatusUpdateStream* TaskStatusUpdateManagerProcess::getStatusUpdateStream(
     const TaskID& taskId,
     const FrameworkID& frameworkId)
 {
@@ -524,7 +530,7 @@ StatusUpdateStream* StatusUpdateManagerProcess::getStatusUpdateStream(
 }
 
 
-void StatusUpdateManagerProcess::cleanupStatusUpdateStream(
+void TaskStatusUpdateManagerProcess::cleanupStatusUpdateStream(
     const TaskID& taskId,
     const FrameworkID& frameworkId)
 {
@@ -533,12 +539,13 @@ void StatusUpdateManagerProcess::cleanupStatusUpdateStream(
           << " of framework " << frameworkId;
 
   CHECK(streams.contains(frameworkId))
-    << "Cannot find the status update streams for framework " << frameworkId;
+    << "Cannot find the task status update streams for framework "
+    << frameworkId;
 
   CHECK(streams[frameworkId].contains(taskId))
     << "Cannot find the status update streams for task " << taskId;
 
-  StatusUpdateStream* stream = streams[frameworkId][taskId];
+  TaskStatusUpdateStream* stream = streams[frameworkId][taskId];
 
   streams[frameworkId].erase(taskId);
   if (streams[frameworkId].empty()) {
@@ -549,14 +556,14 @@ void StatusUpdateManagerProcess::cleanupStatusUpdateStream(
 }
 
 
-StatusUpdateManager::StatusUpdateManager(const Flags& flags)
+TaskStatusUpdateManager::TaskStatusUpdateManager(const Flags& flags)
 {
-  process = new StatusUpdateManagerProcess(flags);
+  process = new TaskStatusUpdateManagerProcess(flags);
   spawn(process);
 }
 
 
-StatusUpdateManager::~StatusUpdateManager()
+TaskStatusUpdateManager::~TaskStatusUpdateManager()
 {
   terminate(process);
   wait(process);
@@ -564,14 +571,14 @@ StatusUpdateManager::~StatusUpdateManager()
 }
 
 
-void StatusUpdateManager::initialize(
+void TaskStatusUpdateManager::initialize(
     const function<void(StatusUpdate)>& forward)
 {
-  dispatch(process, &StatusUpdateManagerProcess::initialize, forward);
+  dispatch(process, &TaskStatusUpdateManagerProcess::initialize, forward);
 }
 
 
-Future<Nothing> StatusUpdateManager::update(
+Future<Nothing> TaskStatusUpdateManager::update(
     const StatusUpdate& update,
     const SlaveID& slaveId,
     const ExecutorID& executorId,
@@ -579,7 +586,7 @@ Future<Nothing> StatusUpdateManager::update(
 {
   return dispatch(
       process,
-      &StatusUpdateManagerProcess::update,
+      &TaskStatusUpdateManagerProcess::update,
       update,
       slaveId,
       executorId,
@@ -587,60 +594,60 @@ Future<Nothing> StatusUpdateManager::update(
 }
 
 
-Future<Nothing> StatusUpdateManager::update(
+Future<Nothing> TaskStatusUpdateManager::update(
     const StatusUpdate& update,
     const SlaveID& slaveId)
 {
   return dispatch(
       process,
-      &StatusUpdateManagerProcess::update,
+      &TaskStatusUpdateManagerProcess::update,
       update,
       slaveId);
 }
 
 
-Future<bool> StatusUpdateManager::acknowledgement(
+Future<bool> TaskStatusUpdateManager::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
     const UUID& uuid)
 {
   return dispatch(
       process,
-      &StatusUpdateManagerProcess::acknowledgement,
+      &TaskStatusUpdateManagerProcess::acknowledgement,
       taskId,
       frameworkId,
       uuid);
 }
 
 
-Future<Nothing> StatusUpdateManager::recover(
+Future<Nothing> TaskStatusUpdateManager::recover(
     const string& rootDir,
     const Option<SlaveState>& state)
 {
   return dispatch(
-      process, &StatusUpdateManagerProcess::recover, rootDir, state);
+      process, &TaskStatusUpdateManagerProcess::recover, rootDir, state);
 }
 
 
-void StatusUpdateManager::pause()
+void TaskStatusUpdateManager::pause()
 {
-  dispatch(process, &StatusUpdateManagerProcess::pause);
+  dispatch(process, &TaskStatusUpdateManagerProcess::pause);
 }
 
 
-void StatusUpdateManager::resume()
+void TaskStatusUpdateManager::resume()
 {
-  dispatch(process, &StatusUpdateManagerProcess::resume);
+  dispatch(process, &TaskStatusUpdateManagerProcess::resume);
 }
 
 
-void StatusUpdateManager::cleanup(const FrameworkID& frameworkId)
+void TaskStatusUpdateManager::cleanup(const FrameworkID& frameworkId)
 {
-  dispatch(process, &StatusUpdateManagerProcess::cleanup, frameworkId);
+  dispatch(process, &TaskStatusUpdateManagerProcess::cleanup, frameworkId);
 }
 
 
-StatusUpdateStream::StatusUpdateStream(
+TaskStatusUpdateStream::TaskStatusUpdateStream(
     const TaskID& _taskId,
     const FrameworkID& _frameworkId,
     const SlaveID& _slaveId,
@@ -699,7 +706,7 @@ StatusUpdateStream::StatusUpdateStream(
 }
 
 
-StatusUpdateStream::~StatusUpdateStream()
+TaskStatusUpdateStream::~TaskStatusUpdateStream()
 {
   if (fd.isSome()) {
     Try<Nothing> close = os::close(fd.get());
@@ -712,21 +719,21 @@ StatusUpdateStream::~StatusUpdateStream()
 }
 
 
-Try<bool> StatusUpdateStream::update(const StatusUpdate& update)
+Try<bool> TaskStatusUpdateStream::update(const StatusUpdate& update)
 {
   if (error.isSome()) {
     return Error(error.get());
   }
 
   if (!update.has_uuid()) {
-    return Error("Status update is missing 'uuid'");
+    return Error("Task status update is missing 'uuid'");
   }
 
   // Check that this status update has not already been acknowledged.
   // This could happen in the rare case when the slave received the ACK
   // from the framework, died, but slave's ACK to the executor never made it!
   if (acknowledged.contains(UUID::fromBytes(update.uuid()).get())) {
-    LOG(WARNING) << "Ignoring status update " << update
+    LOG(WARNING) << "Ignoring task status update " << update
                  << " that has already been acknowledged by the framework!";
     return false;
   }
@@ -735,7 +742,7 @@ Try<bool> StatusUpdateStream::update(const StatusUpdate& update)
   // This could happen if the slave receives a status update from an executor,
   // then crashes after it writes it to disk but before it sends an ack.
   if (received.contains(UUID::fromBytes(update.uuid()).get())) {
-    LOG(WARNING) << "Ignoring duplicate status update " << update;
+    LOG(WARNING) << "Ignoring duplicate task status update " << update;
     return false;
   }
 
@@ -749,7 +756,7 @@ Try<bool> StatusUpdateStream::update(const StatusUpdate& update)
 }
 
 
-Try<bool> StatusUpdateStream::acknowledgement(
+Try<bool> TaskStatusUpdateStream::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
     const UUID& uuid,
@@ -760,7 +767,7 @@ Try<bool> StatusUpdateStream::acknowledgement(
   }
 
   if (acknowledged.contains(uuid)) {
-    LOG(WARNING) << "Duplicate status update acknowledgment (UUID: "
+    LOG(WARNING) << "Duplicate task status update acknowledgment (UUID: "
                   << uuid << ") for update " << update;
     return false;
   }
@@ -768,7 +775,7 @@ Try<bool> StatusUpdateStream::acknowledgement(
   // This might happen if we retried a status update and got back
   // acknowledgments for both the original and the retried update.
   if (uuid != UUID::fromBytes(update.uuid()).get()) {
-    LOG(WARNING) << "Unexpected status update acknowledgement (received "
+    LOG(WARNING) << "Unexpected task status update acknowledgement (received "
                  << uuid << ", expecting "
                  << UUID::fromBytes(update.uuid()).get()
                  << ") for update " << update;
@@ -785,7 +792,7 @@ Try<bool> StatusUpdateStream::acknowledgement(
 }
 
 
-Result<StatusUpdate> StatusUpdateStream::next()
+Result<StatusUpdate> TaskStatusUpdateStream::next()
 {
   if (error.isSome()) {
     return Error(error.get());
@@ -799,7 +806,7 @@ Result<StatusUpdate> StatusUpdateStream::next()
 }
 
 
-Try<Nothing> StatusUpdateStream::replay(
+Try<Nothing> TaskStatusUpdateStream::replay(
     const std::vector<StatusUpdate>& updates,
     const hashset<UUID>& acks)
 {
@@ -807,7 +814,7 @@ Try<Nothing> StatusUpdateStream::replay(
     return Error(error.get());
   }
 
-  VLOG(1) << "Replaying status update stream for task " << taskId;
+  VLOG(1) << "Replaying task status update stream for task " << taskId;
 
   foreach (const StatusUpdate& update, updates) {
     // Handle the update.
@@ -823,7 +830,7 @@ Try<Nothing> StatusUpdateStream::replay(
 }
 
 
-Try<Nothing> StatusUpdateStream::handle(
+Try<Nothing> TaskStatusUpdateStream::handle(
     const StatusUpdate& update,
     const StatusUpdateRecord::Type& type)
 {
@@ -831,7 +838,8 @@ Try<Nothing> StatusUpdateStream::handle(
 
   // Checkpoint the update if necessary.
   if (checkpoint) {
-    LOG(INFO) << "Checkpointing " << type << " for status update " << update;
+    LOG(INFO) << "Checkpointing " << type << " for task status update "
+              << update;
 
     CHECK_SOME(fd);
 
@@ -846,7 +854,7 @@ Try<Nothing> StatusUpdateStream::handle(
 
     Try<Nothing> write = ::protobuf::write(fd.get(), record);
     if (write.isError()) {
-      error = "Failed to write status update " + stringify(update) +
+      error = "Failed to write task status update " + stringify(update) +
               " to '" + path.get() + "': " + write.error();
       return Error(error.get());
     }
@@ -859,7 +867,7 @@ Try<Nothing> StatusUpdateStream::handle(
 }
 
 
-void StatusUpdateStream::_handle(
+void TaskStatusUpdateStream::_handle(
     const StatusUpdate& update,
     const StatusUpdateRecord::Type& type)
 {

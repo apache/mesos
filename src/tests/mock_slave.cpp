@@ -117,7 +117,7 @@ MockSlave::MockSlave(
         containerizer,
         &files,
         &gc,
-        statusUpdateManager = new slave::StatusUpdateManager(flags),
+        taskStatusUpdateManager = new slave::TaskStatusUpdateManager(flags),
         &resourceEstimator,
         _qosController.isSome() ? _qosController.get() : &qosController,
         authorizer),
@@ -150,7 +150,7 @@ MockSlave::MockSlave(
 
 MockSlave::~MockSlave()
 {
-  delete statusUpdateManager;
+  delete taskStatusUpdateManager;
 }
 
 

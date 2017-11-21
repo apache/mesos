@@ -160,7 +160,8 @@ public:
       const Option<std::string>& id = None(),
       const Option<slave::Containerizer*>& containerizer = None(),
       const Option<slave::GarbageCollector*>& gc = None(),
-      const Option<slave::StatusUpdateManager*>& statusUpdateManager = None(),
+      const Option<slave::TaskStatusUpdateManager*>& taskStatusUpdateManager =
+        None(),
       const Option<mesos::slave::ResourceEstimator*>& resourceEstimator =
         None(),
       const Option<mesos::slave::QoSController*>& qosController = None(),
@@ -220,7 +221,7 @@ private:
   process::Owned<slave::GarbageCollector> gc;
   process::Owned<mesos::slave::QoSController> qosController;
   process::Owned<mesos::slave::ResourceEstimator> resourceEstimator;
-  process::Owned<slave::StatusUpdateManager> statusUpdateManager;
+  process::Owned<slave::TaskStatusUpdateManager> taskStatusUpdateManager;
 
   // Indicates whether or not authorization callbacks were set when this agent
   // was constructed.

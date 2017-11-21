@@ -104,7 +104,7 @@ using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::GarbageCollector;
 using mesos::internal::slave::Slave;
-using mesos::internal::slave::StatusUpdateManager;
+using mesos::internal::slave::TaskStatusUpdateManager;
 
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
@@ -143,7 +143,7 @@ static MasterContender* contender = nullptr;
 static Option<Authorizer*> authorizer_ = None();
 static Files* files = nullptr;
 static vector<GarbageCollector*>* garbageCollectors = nullptr;
-static vector<StatusUpdateManager*>* statusUpdateManagers = nullptr;
+static vector<TaskStatusUpdateManager*>* taskStatusUpdateManagers = nullptr;
 static vector<Fetcher*>* fetchers = nullptr;
 static vector<ResourceEstimator*>* resourceEstimators = nullptr;
 static vector<QoSController*>* qosControllers = nullptr;
@@ -351,7 +351,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   PID<Master> pid = process::spawn(master);
 
   garbageCollectors = new vector<GarbageCollector*>();
-  statusUpdateManagers = new vector<StatusUpdateManager*>();
+  taskStatusUpdateManagers = new vector<TaskStatusUpdateManager*>();
   fetchers = new vector<Fetcher*>();
   resourceEstimators = new vector<ResourceEstimator*>();
   qosControllers = new vector<QoSController*>();
@@ -408,7 +408,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
     }
 
     garbageCollectors->push_back(new GarbageCollector());
-    statusUpdateManagers->push_back(new StatusUpdateManager(slaveFlags));
+    taskStatusUpdateManagers->push_back(
+        new TaskStatusUpdateManager(slaveFlags));
     fetchers->push_back(new Fetcher(slaveFlags));
 
     Try<ResourceEstimator*> resourceEstimator =
@@ -472,7 +473,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         containerizer.get(),
         files,
         garbageCollectors->back(),
-        statusUpdateManagers->back(),
+        taskStatusUpdateManagers->back(),
         resourceEstimators->back(),
         qosControllers->back(),
         authorizer_); // Same authorizer as master.
@@ -531,12 +532,14 @@ void shutdown()
     delete garbageCollectors;
     garbageCollectors = nullptr;
 
-    foreach (StatusUpdateManager* statusUpdateManager, *statusUpdateManagers) {
-      delete statusUpdateManager;
+    foreach (
+        TaskStatusUpdateManager* taskStatusUpdateManager,
+        *taskStatusUpdateManagers) {
+      delete taskStatusUpdateManager;
     }
 
-    delete statusUpdateManagers;
-    statusUpdateManagers = nullptr;
+    delete taskStatusUpdateManagers;
+    taskStatusUpdateManagers = nullptr;
 
     foreach (Fetcher* fetcher, *fetchers) {
       delete fetcher;

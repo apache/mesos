@@ -2167,7 +2167,7 @@ TEST_P(MasterAPITest, Subscribe)
   EXPECT_CALL(*scheduler, update(_, _))
     .WillOnce(FutureSatisfy(&update2));
 
-  // After we advance the clock, the status update manager would retry the
+  // After we advance the clock, the task status update manager would retry the
   // `TASK_RUNNING` update. Since, the state of the task is not changed, this
   // should not result in another `TASK_UPDATED` event.
   Clock::pause();

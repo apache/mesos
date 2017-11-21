@@ -396,7 +396,7 @@ Try<process::Owned<Slave>> Slave::start(
     const Option<string>& id,
     const Option<slave::Containerizer*>& containerizer,
     const Option<slave::GarbageCollector*>& gc,
-    const Option<slave::StatusUpdateManager*>& statusUpdateManager,
+    const Option<slave::TaskStatusUpdateManager*>& taskStatusUpdateManager,
     const Option<mesos::slave::ResourceEstimator*>& resourceEstimator,
     const Option<mesos::slave::QoSController*>& qosController,
     const Option<Authorizer*>& providedAuthorizer)
@@ -503,9 +503,10 @@ Try<process::Owned<Slave>> Slave::start(
     slave->qosController.reset(_qosController.get());
   }
 
-  // If the status update manager is not provided, create a default one.
-  if (statusUpdateManager.isNone()) {
-    slave->statusUpdateManager.reset(new slave::StatusUpdateManager(flags));
+  // If the task status update manager is not provided, create a default one.
+  if (taskStatusUpdateManager.isNone()) {
+    slave->taskStatusUpdateManager.reset(
+        new slave::TaskStatusUpdateManager(flags));
   }
 
   // Inject all the dependencies.
@@ -516,7 +517,7 @@ Try<process::Owned<Slave>> Slave::start(
       slave->containerizer,
       &slave->files,
       gc.getOrElse(slave->gc.get()),
-      statusUpdateManager.getOrElse(slave->statusUpdateManager.get()),
+      taskStatusUpdateManager.getOrElse(slave->taskStatusUpdateManager.get()),
       resourceEstimator.getOrElse(slave->resourceEstimator.get()),
       qosController.getOrElse(slave->qosController.get()),
       authorizer));

@@ -46,20 +46,20 @@ namespace state {
 struct SlaveState;
 }
 
-class StatusUpdateManagerProcess;
-struct StatusUpdateStream;
+class TaskStatusUpdateManagerProcess;
+struct TaskStatusUpdateStream;
 
 
-// StatusUpdateManager is responsible for
+// TaskStatusUpdateManager is responsible for
 // 1) Reliably sending status updates to the master.
 // 2) Checkpointing the update to disk (optional).
 // 3) Sending ACKs to the executor (optional).
 // 4) Receiving ACKs from the scheduler.
-class StatusUpdateManager
+class TaskStatusUpdateManager
 {
 public:
-  StatusUpdateManager(const Flags& flags);
-  virtual ~StatusUpdateManager();
+  TaskStatusUpdateManager(const Flags& flags);
+  virtual ~TaskStatusUpdateManager();
 
   // Expects a callback 'forward' which gets called whenever there is
   // a new status update that needs to be forwarded to the master.
@@ -119,19 +119,19 @@ public:
   void cleanup(const FrameworkID& frameworkId);
 
 private:
-  StatusUpdateManagerProcess* process;
+  TaskStatusUpdateManagerProcess* process;
 };
 
 
-// StatusUpdateStream handles the status updates and acknowledgements
+// TaskStatusUpdateStream handles the status updates and acknowledgements
 // of a task, checkpointing them if necessary. It also holds the information
 // about received, acknowledged and pending status updates.
 // NOTE: A task is expected to have a globally unique ID across the lifetime
 // of a framework. In other words the tuple (taskId, frameworkId) should be
 // always unique.
-struct StatusUpdateStream
+struct TaskStatusUpdateStream
 {
-  StatusUpdateStream(const TaskID& _taskId,
+  TaskStatusUpdateStream(const TaskID& _taskId,
                      const FrameworkID& _frameworkId,
                      const SlaveID& _slaveId,
                      const Flags& _flags,
@@ -139,7 +139,7 @@ struct StatusUpdateStream
                      const Option<ExecutorID>& executorId,
                      const Option<ContainerID>& containerId);
 
-  ~StatusUpdateStream();
+  ~TaskStatusUpdateStream();
 
   // This function handles the update, checkpointing if necessary.
   // @return   True if the update is successfully handled.

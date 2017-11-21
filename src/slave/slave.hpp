@@ -103,7 +103,7 @@ namespace internal {
 namespace slave {
 
 // Some forward declarations.
-class StatusUpdateManager;
+class TaskStatusUpdateManager;
 class Executor;
 class Framework;
 
@@ -119,7 +119,7 @@ public:
         Containerizer* containerizer,
         Files* files,
         GarbageCollector* gc,
-        StatusUpdateManager* statusUpdateManager,
+        TaskStatusUpdateManager* taskStatusUpdateManager,
         mesos::slave::ResourceEstimator* resourceEstimator,
         mesos::slave::QoSController* qosController,
         const Option<Authorizer*>& authorizer);
@@ -235,7 +235,7 @@ public:
 
   void ping(const process::UPID& from, bool connected);
 
-  // Handles the status update.
+  // Handles the task status update.
   // NOTE: If 'pid' is a valid UPID an ACK is sent to this pid
   // after the update is successfully handled. If pid == UPID()
   // no ACK is sent. The latter is used by the slave to send
@@ -264,7 +264,7 @@ public:
       const ContainerID& containerId,
       bool checkpoint);
 
-  // This is called when the status update manager finishes
+  // This is called when the task status update manager finishes
   // handling the update. If the handling is successful, an
   // acknowledgment is sent to the executor.
   void ___statusUpdate(
@@ -272,7 +272,7 @@ public:
       const StatusUpdate& update,
       const Option<process::UPID>& pid);
 
-  // This is called by status update manager to forward a status
+  // This is called by task status update manager to forward a status
   // update to the master. Note that the latest state of the task is
   // added to the update before forwarding.
   void forward(StatusUpdate update);
@@ -424,7 +424,7 @@ public:
   // Checks the current disk usage and schedules for gc as necessary.
   void checkDiskUsage();
 
-  // Recovers the slave, status update manager and isolator.
+  // Recovers the slave, task status update manager and isolator.
   process::Future<Nothing> recover(const Try<state::State>& state);
 
   // This is called after 'recover()'. If 'flags.reconnect' is
@@ -623,7 +623,7 @@ private:
 
   GarbageCollector* gc;
 
-  StatusUpdateManager* statusUpdateManager;
+  TaskStatusUpdateManager* taskStatusUpdateManager;
 
   // Master detection future.
   process::Future<Option<MasterInfo>> detection;

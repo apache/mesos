@@ -59,9 +59,10 @@ message StatusUpdate {
 
   // This corresponds to the latest state of the task according to the
   // agent. Note that this state might be different than the state in
-  // 'status' because status update manager queues updates. In other
-  // words, 'status' corresponds to the update at top of the queue and
-  // 'latest_state' corresponds to the update at bottom of the queue.
+  // 'status' because task status update manager queues updates. In
+  // other words, 'status' corresponds to the update at top of the
+  // queue and 'latest_state' corresponds to the update at bottom of
+  // the queue.
   optional TaskState latest_state = 7;
 }
 
@@ -69,7 +70,7 @@ message StatusUpdate {
 /**
  * Encapsulates how we checkpoint a `StatusUpdate` to disk.
  *
- * See the StatusUpdateManager and slave/state.cpp.
+ * See the `TaskStatusUpdateManager` and slave/state.cpp.
  */
 message StatusUpdateRecord {
   enum Type {

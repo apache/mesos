@@ -216,7 +216,7 @@ private:
   MockGarbageCollector gc;
   MockResourceEstimator resourceEstimator;
   MockQoSController qosController;
-  slave::StatusUpdateManager* statusUpdateManager;
+  slave::TaskStatusUpdateManager* taskStatusUpdateManager;
 
   // Set to the base class `secretGenerator` in `initialize()`. After
   // `initialize()` has executed, this will be `None()`.

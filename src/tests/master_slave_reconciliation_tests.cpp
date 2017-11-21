@@ -152,8 +152,8 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
     .WillOnce(FutureArg<1>(&status2));
 
   // We drop the 'UpdateFrameworkMessage' from the master to slave to
-  // stop the status update manager from retrying the update that was
-  // already sent due to the new master detection.
+  // stop the task status update manager from retrying the update that
+  // was already sent due to the new master detection.
   DROP_PROTOBUFS(UpdateFrameworkMessage(), _, _);
 
   detector.appoint(master.get()->pid);
@@ -623,8 +623,8 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
   // re-registers. We check this by calling Clock::settle() so that
   // the only update the scheduler receives is the retried
   // TASK_FINISHED update.
-  // NOTE: The status update manager resends the status update when
-  // it detects a new master.
+  // NOTE: The task status update manager resends the status update
+  // when it detects a new master.
   Clock::pause();
   Clock::settle();
 

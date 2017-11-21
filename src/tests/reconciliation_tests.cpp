@@ -1067,7 +1067,7 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
   // Wait until TASK_RUNNING is sent to the master.
   AWAIT_READY(statusUpdateMessage);
 
-  // Ensure status update manager handles TASK_RUNNING update.
+  // Ensure task status update manager handles TASK_RUNNING update.
   AWAIT_READY(___statusUpdate);
 
   Future<Nothing> ___statusUpdate2 =
@@ -1079,7 +1079,7 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
   finishedStatus.set_state(TASK_FINISHED);
   execDriver->sendStatusUpdate(finishedStatus);
 
-  // Ensure status update manager handles TASK_FINISHED update.
+  // Ensure task status update manager handles TASK_FINISHED update.
   AWAIT_READY(___statusUpdate2);
 
   EXPECT_CALL(sched, disconnected(&driver))

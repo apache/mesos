@@ -239,7 +239,7 @@ int main(int argc, char** argv)
   // * Master detector.
   // * Authorizer.
   // * Garbage collector.
-  // * Status update manager.
+  // * Task status update manager.
   // * Resource estimator.
   // * QoS controller.
   // * `Agent` process.
@@ -533,7 +533,8 @@ int main(int argc, char** argv)
 
   Files* files = new Files(READONLY_HTTP_AUTHENTICATION_REALM, authorizer_);
   GarbageCollector* gc = new GarbageCollector();
-  StatusUpdateManager* statusUpdateManager = new StatusUpdateManager(flags);
+  TaskStatusUpdateManager* taskStatusUpdateManager =
+    new TaskStatusUpdateManager(flags);
 
   Try<ResourceEstimator*> resourceEstimator =
     ResourceEstimator::create(flags.resource_estimator);
@@ -558,7 +559,7 @@ int main(int argc, char** argv)
       containerizer.get(),
       files,
       gc,
-      statusUpdateManager,
+      taskStatusUpdateManager,
       resourceEstimator.get(),
       qosController.get(),
       authorizer_);
@@ -572,7 +573,7 @@ int main(int argc, char** argv)
 
   delete resourceEstimator.get();
 
-  delete statusUpdateManager;
+  delete taskStatusUpdateManager;
 
   delete gc;
 

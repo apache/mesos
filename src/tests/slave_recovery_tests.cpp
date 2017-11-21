@@ -353,7 +353,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 
 // The slave is killed before the update reaches the scheduler.
 // When the slave comes back up it resends the unacknowledged update.
-TYPED_TEST(SlaveRecoveryTest, RecoverStatusUpdateManager)
+TYPED_TEST(SlaveRecoveryTest, RecoverTaskStatusUpdateManager)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
@@ -4601,8 +4601,9 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   slave.get()->terminate();
 
   Future<TaskStatus> status;
+
   // There is a race here where the Slave may reregister before we
-  // shut down. If it does, it causes the StatusUpdateManager to
+  // shut down. If it does, it causes the TaskStatusUpdateManager to
   // flush which will cause a duplicate status update to be sent. As
   // such, we ignore any subsequent updates.
   EXPECT_CALL(sched, statusUpdate(_, _))

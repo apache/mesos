@@ -86,10 +86,11 @@ vector<TaskInfo> createTasks(const Offer& offer)
 }
 
 
-class StatusUpdateManagerTest: public MesosTest {};
+class TaskStatusUpdateManagerTest: public MesosTest {};
 
 
-TEST_F_TEMP_DISABLED_ON_WINDOWS(StatusUpdateManagerTest, CheckpointStatusUpdate)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    TaskStatusUpdateManagerTest, CheckpointStatusUpdate)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -183,7 +184,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(StatusUpdateManagerTest, CheckpointStatusUpdate)
 }
 
 
-TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
+TEST_F(TaskStatusUpdateManagerTest, RetryStatusUpdate)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -255,7 +256,7 @@ TEST_F(StatusUpdateManagerTest, RetryStatusUpdate)
 // duplicate ACK for an earlier update when it is waiting
 // for an ACK for a later update. This could happen when the
 // duplicate ACK is for a retried update.
-TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
+TEST_F(TaskStatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -367,7 +368,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreDuplicateStatusUpdateAck)
 // unexpected ACK for an earlier update when it is waiting
 // for an ACK for another update. We do this by dropping ACKs
 // for the original update and sending a random ACK to the slave.
-TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
+TEST_F(TaskStatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -458,7 +459,7 @@ TEST_F(StatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
 // second update is received after the ACK for the first update.
 // The proper behavior here is for the status update manager to
 // forward the duplicate update to the scheduler.
-TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateAfterAck)
+TEST_F(TaskStatusUpdateManagerTest, DuplicateTerminalUpdateAfterAck)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -556,7 +557,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateTerminalUpdateAfterAck)
 // update with the same UUID is received before the ACK for the
 // first update. The proper behavior here is for the status update
 // manager to drop the duplicate update.
-TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
+TEST_F(TaskStatusUpdateManagerTest, DuplicateUpdateBeforeAck)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -656,7 +657,7 @@ TEST_F(StatusUpdateManagerTest, DuplicateUpdateBeforeAck)
 
 // This test verifies that the status update manager correctly includes
 // the latest state of the task in status update.
-TEST_F(StatusUpdateManagerTest, LatestTaskState)
+TEST_F(TaskStatusUpdateManagerTest, LatestTaskState)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -741,7 +742,7 @@ TEST_F(StatusUpdateManagerTest, LatestTaskState)
 // This test verifies that if master receives a status update
 // for an already terminated task it forwards it without
 // changing the state of the task.
-TEST_F(StatusUpdateManagerTest, DuplicatedTerminalStatusUpdate)
+TEST_F(TaskStatusUpdateManagerTest, DuplicatedTerminalStatusUpdate)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

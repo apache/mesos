@@ -287,7 +287,7 @@ TEST_F(SlaveTest, DuplicateTerminalUpdateBeforeAck)
 
   AWAIT_READY(statusUpdateAckMessage);
 
-  // At this point the status update manager has enqueued
+  // At this point the task status update manager has enqueued
   // TASK_FINISHED update.
   AWAIT_READY(___statusUpdate);
 
@@ -4525,7 +4525,7 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
   // Wait until TASK_RUNNING is sent to the master.
   AWAIT_READY(statusUpdateMessage);
 
-  // Ensure status update manager handles TASK_RUNNING update.
+  // Ensure task status update manager handles TASK_RUNNING update.
   AWAIT_READY(___statusUpdate);
 
   Future<Nothing> ___statusUpdate2 =
@@ -4537,7 +4537,7 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
   finishedStatus.set_state(TASK_FINISHED);
   execDriver->sendStatusUpdate(finishedStatus);
 
-  // Ensure status update manager handles TASK_FINISHED update.
+  // Ensure task status update manager handles TASK_FINISHED update.
   AWAIT_READY(___statusUpdate2);
 
   Future<ReregisterSlaveMessage> reregisterSlaveMessage =

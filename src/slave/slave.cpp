@@ -190,7 +190,7 @@ Slave::Slave(const string& id,
              Containerizer* _containerizer,
              Files* _files,
              GarbageCollector* _gc,
-             StatusUpdateManager* _statusUpdateManager,
+             TaskStatusUpdateManager* _taskStatusUpdateManager,
              ResourceEstimator* _resourceEstimator,
              QoSController* _qosController,
              const Option<Authorizer*>& _authorizer)
@@ -209,7 +209,7 @@ Slave::Slave(const string& id,
     files(_files),
     metrics(*this),
     gc(_gc),
-    statusUpdateManager(_statusUpdateManager),
+    taskStatusUpdateManager(_taskStatusUpdateManager),
     masterPingTimeout(DEFAULT_MASTER_PING_TIMEOUT()),
     metaDir(paths::getMetaRootDir(flags.work_dir)),
     recoveryErrors(0),
@@ -609,13 +609,13 @@ void Slave::initialize()
 
   LOG(INFO) << "Agent hostname: " << info.hostname();
 
-  statusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1)
+  taskStatusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1)
     .operator std::function<void(StatusUpdate)>());
 
-  // We pause the status update manager so that it doesn't forward any updates
-  // while the slave is still recovering. It is unpaused/resumed when the slave
-  // (re-)registers with the master.
-  statusUpdateManager->pause();
+  // We pause the task status update manager so that it doesn't forward any
+  // updates while the slave is still recovering. It is unpaused/resumed when
+  // the slave (re-)registers with the master.
+  taskStatusUpdateManager->pause();
 
   // Start disk monitoring.
   // NOTE: We send a delayed message here instead of directly calling
@@ -984,7 +984,7 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
   }
 
   // Pause the status updates.
-  statusUpdateManager->pause();
+  taskStatusUpdateManager->pause();
 
   if (_master.isFailed()) {
     EXIT(EXIT_FAILURE) << "Failed to detect a master: " << _master.failure();
@@ -1214,7 +1214,7 @@ void Slave::registered(
       // is safe even if no timer is active or pending.
       Clock::cancel(agentRegistrationTimer);
 
-      statusUpdateManager->resume(); // Resume status updates.
+      taskStatusUpdateManager->resume(); // Resume status updates.
 
       info.mutable_id()->CopyFrom(slaveId); // Store the slave id.
 
@@ -1339,7 +1339,7 @@ void Slave::reregistered(
     case DISCONNECTED:
       LOG(INFO) << "Re-registered with master " << master.get();
       state = RUNNING;
-      statusUpdateManager->resume(); // Resume status updates.
+      taskStatusUpdateManager->resume(); // Resume status updates.
 
       // Setup a timer so that the agent attempts to re-register if it
       // doesn't receive a ping from the master for an extended period
@@ -1461,7 +1461,7 @@ void Slave::reregistered(
 
         // NOTE: We can't use statusUpdate() here because it drops
         // updates for unknown frameworks.
-        statusUpdateManager->update(update, info.id())
+        taskStatusUpdateManager->update(update, info.id())
           .onAny(defer(self(),
                        &Slave::___statusUpdate,
                        lambda::_1,
@@ -2049,10 +2049,10 @@ void Slave::_run(
           " directories scheduled for gc",
           TaskStatus::REASON_GC_ERROR);
 
-      // TODO(vinod): Ensure that the status update manager reliably
-      // delivers this update. Currently, we don't guarantee this
-      // because removal of the framework causes the status update
-      // manager to stop retrying for its un-acked updates.
+      // TODO(vinod): Ensure that the task status update manager
+      // reliably delivers this update. Currently, we don't guarantee
+      // this because removal of the framework causes the status
+      // update manager to stop retrying for its un-acked updates.
       statusUpdate(update, UPID());
     }
 
@@ -3456,9 +3456,9 @@ void Slave::updateFramework(
         framework->checkpointFramework();
       }
 
-      // Inform status update manager to immediately resend any pending
+      // Inform task status update manager to immediately resend any pending
       // updates.
-      statusUpdateManager->resume();
+      taskStatusUpdateManager->resume();
 
       break;
     }
@@ -3766,7 +3766,7 @@ void Slave::statusUpdateAcknowledgement(
     }
   }
 
-  statusUpdateManager->acknowledgement(
+  taskStatusUpdateManager->acknowledgement(
       taskId, frameworkId, UUID::fromBytes(uuid).get())
     .onAny(defer(self(),
                  &Slave::_statusUpdateAcknowledgement,
@@ -3798,7 +3798,7 @@ void Slave::_statusUpdateAcknowledgement(
     return;
   }
 
-  VLOG(1) << "Status update manager successfully handled status update"
+  VLOG(1) << "Task status update manager successfully handled status update"
           << " acknowledgement (UUID: " << uuid
           << ") for task " << taskId
           << " of framework " << frameworkId;
@@ -3964,10 +3964,10 @@ void Slave::subscribe(
       executor->send(event);
 
       // Handle all the pending updates.
-      // The status update manager might have already checkpointed some
-      // of these pending updates (for example, if the slave died right
-      // after it checkpointed the update but before it could send the
-      // ACK to the executor). This is ok because the status update
+      // The task status update manager might have already checkpointed
+      // some of these pending updates (for example, if the slave died
+      // right after it checkpointed the update but before it could send
+      // the ACK to the executor). This is ok because the status update
       // manager correctly handles duplicate updates.
       foreach (const Call::Update& update, subscribe.unacknowledged_updates()) {
         // NOTE: This also updates the executor's resources!
@@ -4320,10 +4320,10 @@ void Slave::reregisterExecutor(
       send(executor->pid.get(), message);
 
       // Handle all the pending updates.
-      // The status update manager might have already checkpointed some
-      // of these pending updates (for example, if the slave died right
-      // after it checkpointed the update but before it could send the
-      // ACK to the executor). This is ok because the status update
+      // The task status update manager might have already checkpointed
+      // some of these pending updates (for example, if the slave died
+      // right after it checkpointed the update but before it could send
+      // the ACK to the executor). This is ok because the status update
       // manager correctly handles duplicate updates.
       foreach (const StatusUpdate& update, updates) {
         // NOTE: This also updates the executor's resources!
@@ -4623,7 +4623,7 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
 
     metrics.valid_status_updates++;
 
-    statusUpdateManager->update(update, info.id())
+    taskStatusUpdateManager->update(update, info.id())
       .onAny(defer(self(), &Slave::___statusUpdate, lambda::_1, update, pid));
   }
 
@@ -4651,7 +4651,7 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
     // because the container is unknown. We cannot use the slave IP
     // address here (for the `NetworkInfo`) since we do not know the
     // type of network isolation used for this container.
-    statusUpdateManager->update(update, info.id())
+    taskStatusUpdateManager->update(update, info.id())
       .onAny(defer(self(), &Slave::___statusUpdate, lambda::_1, update, pid));
 
     return;
@@ -4778,14 +4778,14 @@ void Slave::_statusUpdate(
 
   // We set the latest state of the task here so that the slave can
   // inform the master about the latest state (via status update or
-  // ReregisterSlaveMessage message) as soon as possible. Master can
-  // use this information, for example, to release resources as soon
-  // as the latest state of the task reaches a terminal state. This
-  // is important because status update manager queues updates and
+  // ReregisterSlaveMessage message) as soon as possible. Master can use
+  // this information, for example, to release resources as soon as the
+  // latest state of the task reaches a terminal state. This is
+  // important because task status update manager queues updates and
   // only sends one update per task at a time; the next update for a
-  // task is sent only after the acknowledgement for the previous one
-  // is received, which could take a long time if the framework is
-  // backed up or is down.
+  // task is sent only after the acknowledgement for the previous one is
+  // received, which could take a long time if the framework is backed
+  // up or is down.
   Try<Nothing> updated = executor->updateTaskState(status);
 
   // If we fail to update the task state, drop the update. Note that
@@ -4794,9 +4794,9 @@ void Slave::_statusUpdate(
     LOG(ERROR) << "Failed to update state of task '" << status.task_id() << "'"
                << " to " << status.state() << ": " << updated.error();
 
-    // NOTE: This may lead to out-of-order acknowledgements since
-    // other update acknowledgements may be waiting for the
-    // containerizer or status update manager.
+    // NOTE: This may lead to out-of-order acknowledgements since other
+    // update acknowledgements may be waiting for the containerizer or
+    // task status update manager.
     ___statusUpdate(Nothing(), update, pid);
     return;
   }
@@ -4871,12 +4871,13 @@ void Slave::__statusUpdate(
   }
 
   if (checkpoint) {
-    // Ask the status update manager to checkpoint and reliably send the update.
-    statusUpdateManager->update(update, info.id(), executorId, containerId)
+    // Ask the task status update manager to checkpoint and reliably send the
+    // update.
+    taskStatusUpdateManager->update(update, info.id(), executorId, containerId)
       .onAny(defer(self(), &Slave::___statusUpdate, lambda::_1, update, pid));
   } else {
-    // Ask the status update manager to just retry the update.
-    statusUpdateManager->update(update, info.id())
+    // Ask the task status update manager to just retry the update.
+    taskStatusUpdateManager->update(update, info.id())
       .onAny(defer(self(), &Slave::___statusUpdate, lambda::_1, update, pid));
   }
 }
@@ -4889,7 +4890,7 @@ void Slave::___statusUpdate(
 {
   CHECK_READY(future) << "Failed to handle status update " << update;
 
-  VLOG(1) << "Status update manager successfully handled status update "
+  VLOG(1) << "Task status update manager successfully handled status update "
           << update;
 
   if (pid == UPID()) {
@@ -4902,7 +4903,7 @@ void Slave::___statusUpdate(
   message.mutable_task_id()->MergeFrom(update.status().task_id());
   message.set_uuid(update.uuid());
 
-  // Status update manager successfully handled the status update.
+  // Task status update manager successfully handled the status update.
   // Acknowledge the executor, if we have a valid pid.
   if (pid.isSome()) {
     LOG(INFO) << "Sending acknowledgement for status update " << update
@@ -4933,7 +4934,7 @@ void Slave::___statusUpdate(
 
 
 // NOTE: An acknowledgement for this update might have already been
-// processed by the slave but not the status update manager.
+// processed by the slave but not the task status update manager.
 void Slave::forward(StatusUpdate update)
 {
   CHECK(state == RECOVERING || state == DISCONNECTED ||
@@ -4942,15 +4943,16 @@ void Slave::forward(StatusUpdate update)
 
   if (state != RUNNING) {
     LOG(WARNING) << "Dropping status update " << update
-                 << " sent by status update manager because the agent"
+                 << " sent by task status update manager because the agent"
                  << " is in " << state << " state";
     return;
   }
 
-  // Ensure that task status uuid is set even if this update was sent by the
-  // status update manager after recovering a pre 0.23.x slave/executor driver's
-  // updates. This allows us to simplify the master code (in >= 0.27.0) to
-  // assume the uuid is always set for retryable updates.
+  // Ensure that task status uuid is set even if this update was sent by
+  // the task status update manager after recovering a pre 0.23.x
+  // slave/executor driver's updates. This allows us to simplify the
+  // master code (in >= 0.27.0) to assume the uuid is always set for
+  // retryable updates.
   CHECK(update.has_uuid())
     << "Expecting updates without 'uuid' to have been rejected";
 
@@ -4979,8 +4981,8 @@ void Slave::forward(StatusUpdate update)
         // steady state master updates the status update state of the
         // task when it receives this update. If the master fails over,
         // slave re-registers with this task in this status update
-        // state. Note that an acknowledgement for this update might
-        // be enqueued on status update manager when we are here. But
+        // state. Note that an acknowledgement for this update might be
+        // enqueued on task status update manager when we are here. But
         // that is ok because the status update state will be updated
         // when the next update is forwarded to the slave.
         task->set_status_update_state(update.status().state());
@@ -4997,12 +4999,12 @@ void Slave::forward(StatusUpdate update)
   CHECK_SOME(master);
   LOG(INFO) << "Forwarding the update " << update << " to " << master.get();
 
-  // NOTE: We forward the update even if framework/executor/task
-  // doesn't exist because the status update manager will be expecting
-  // an acknowledgement for the update. This could happen for example
-  // if this is a retried terminal update and before we are here the
-  // slave has already processed the acknowledgement of the original
-  // update and removed the framework/executor/task. Also, slave
+  // NOTE: We forward the update even if framework/executor/task doesn't
+  // exist because the task status update manager will be expecting an
+  // acknowledgement for the update. This could happen for example if
+  // this is a retried terminal update and before we are here the slave
+  // has already processed the acknowledgement of the original update
+  // and removed the framework/executor/task. Also, slave
   // re-registration can generate updates when framework/executor/task
   // are unknown.
 
@@ -5573,11 +5575,11 @@ void Slave::executorTerminated(
       // If the containerizer killed the executor (e.g., due to OOM event)
       // or if this is a command executor, we send TASK_FAILED status updates
       // instead of TASK_GONE.
-      // NOTE: We don't send updates if the framework is terminating
-      // because we don't want the status update manager to keep retrying
-      // these updates since it won't receive ACKs from the scheduler.  Also,
-      // the status update manager should have already cleaned up all the
-      // status update streams for a framework that is terminating.
+      // NOTE: We don't send updates if the framework is terminating because we
+      // don't want the task status update manager to keep retrying these
+      // updates since it won't receive ACKs from the scheduler.  Also, the task
+      // status update manager should have already cleaned up all the status
+      // update streams for a framework that is terminating.
       if (framework->state != Framework::TERMINATING) {
         // Transition all live launched tasks. Note that the map is
         // removed from within the loop due terminal status updates.
@@ -5755,8 +5757,8 @@ void Slave::removeFramework(Framework* framework)
   // We only remove frameworks once they become idle.
   CHECK(framework->idle());
 
-  // Close all status update streams for this framework.
-  statusUpdateManager->cleanup(framework->id());
+  // Close all task status update streams for this framework.
+  taskStatusUpdateManager->cleanup(framework->id());
 
   // Schedule the framework work and meta directories for garbage
   // collection.
@@ -6286,7 +6288,7 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
     }
   }
 
-  return statusUpdateManager->recover(metaDir, slaveState)
+  return taskStatusUpdateManager->recover(metaDir, slaveState)
     .then(defer(self(), &Slave::_recoverContainerizer, slaveState));
 }
 

@@ -4388,7 +4388,7 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
   // Wait until TASK_RUNNING is sent to the master.
   AWAIT_READY(statusUpdateMessage);
 
-  // Ensure status update manager handles TASK_RUNNING update.
+  // Ensure task status update manager handles TASK_RUNNING update.
   AWAIT_READY(___statusUpdate);
 
   Future<Nothing> ___statusUpdate2 =
@@ -4400,13 +4400,13 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
   finishedStatus.set_state(TASK_FINISHED);
   execDriver->sendStatusUpdate(finishedStatus);
 
-  // Ensure status update manager handles TASK_FINISHED update.
+  // Ensure task status update manager handles TASK_FINISHED update.
   AWAIT_READY(___statusUpdate2);
 
   Future<Nothing> recoverResources = FUTURE_DISPATCH(
       _, &MesosAllocatorProcess::recoverResources);
 
-  // Advance the clock so that the status update manager resends
+  // Advance the clock so that the task status update manager resends
   // TASK_RUNNING update with 'latest_state' as TASK_FINISHED.
   Clock::pause();
   Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
@@ -6758,7 +6758,7 @@ TEST_F(MasterTest, DISABLED_RecoverResourcesOrphanedTask)
   Future<Nothing> recoverResources =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
 
-  // Advance the clock for the status update manager to retry with the
+  // Advance the clock for the task status update manager to retry with the
   // latest state of the task.
   Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
   Clock::settle();
