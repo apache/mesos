@@ -19,6 +19,8 @@
 
 #include <string>
 
+#include <mesos/mesos.hpp>
+
 #include <process/http.hpp>
 #include <process/owned.hpp>
 
@@ -51,6 +53,8 @@ public:
 
   LocalResourceProviderDaemon& operator=(
       const LocalResourceProviderDaemon& other) = delete;
+
+  void start(const SlaveID& slaveId);
 
 private:
   LocalResourceProviderDaemon(

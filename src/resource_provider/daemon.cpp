@@ -17,14 +17,15 @@
 #include "resource_provider/daemon.hpp"
 
 #include <utility>
-#include <vector>
 
 #include <glog/logging.h>
 
+#include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/json.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
@@ -35,14 +36,18 @@
 
 #include "resource_provider/local.hpp"
 
+namespace http = process::http;
+
 using std::list;
 using std::string;
-using std::vector;
 
+using process::Failure;
+using process::Future;
 using process::Owned;
 using process::Process;
 using process::ProcessBase;
 
+using process::dispatch;
 using process::spawn;
 using process::terminate;
 using process::wait;
@@ -55,7 +60,7 @@ class LocalResourceProviderDaemonProcess
 {
 public:
   LocalResourceProviderDaemonProcess(
-      const process::http::URL& _url,
+      const http::URL& _url,
       const string& _workDir,
       const Option<string>& _configDir)
     : ProcessBase(process::ID::generate("local-resource-provider-daemon")),
@@ -63,29 +68,59 @@ public:
       workDir(_workDir),
       configDir(_configDir) {}
 
+  LocalResourceProviderDaemonProcess(
+      const LocalResourceProviderDaemonProcess& other) = delete;
+
+  LocalResourceProviderDaemonProcess& operator=(
+      const LocalResourceProviderDaemonProcess& other) = delete;
+
+  void start(const SlaveID& _slaveId);
+
 protected:
   void initialize() override;
 
 private:
-  struct Provider
+  struct ProviderData
   {
-    Provider(const ResourceProviderInfo& _info,
-             Owned<LocalResourceProvider> _provider)
-      : info(_info),
-        provider(std::move(_provider)) {}
+    ProviderData(const ResourceProviderInfo& _info)
+      : info(_info) {}
 
     const ResourceProviderInfo info;
-    const Owned<LocalResourceProvider> provider;
+    Owned<LocalResourceProvider> provider;
   };
 
   Try<Nothing> load(const string& path);
 
-  const process::http::URL url;
+  Future<Nothing> launch(const string& type, const string& name);
+
+  const http::URL url;
   const string workDir;
   const Option<string> configDir;
 
-  vector<Provider> providers;
+  Option<SlaveID> slaveId;
+  hashmap<string, hashmap<string, ProviderData>> providers;
 };
+
+
+void LocalResourceProviderDaemonProcess::start(const SlaveID& _slaveId)
+{
+  CHECK_NONE(slaveId) << "Local resource provider daemon is already started";
+
+  slaveId = _slaveId;
+
+  foreachkey (const string& type, providers) {
+    foreachkey (const string& name, providers[type]) {
+      auto error = [=](const string& message) {
+        LOG(ERROR) << "Failed to launch resource provider with type '" << type
+                   << "' and name '" << name << "': " << message;
+      };
+
+      launch(type, name)
+        .onFailed(error)
+        .onDiscarded(std::bind(error, "future discarded"));
+    }
+  }
+}
 
 
 void LocalResourceProviderDaemonProcess::initialize()
@@ -96,8 +131,9 @@ void LocalResourceProviderDaemonProcess::initialize()
 
   Try<list<string>> entries = os::ls(configDir.get());
   if (entries.isError()) {
-    LOG(ERROR) << "Unable to list the resource provider directory '"
+    LOG(FATAL) << "Unable to list the resource provider config directory '"
                << configDir.get() << "': " << entries.error();
+    return;
   }
 
   foreach (const string& entry, entries.get()) {
@@ -111,7 +147,6 @@ void LocalResourceProviderDaemonProcess::initialize()
     if (loading.isError()) {
       LOG(ERROR) << "Failed to load resource provider config '"
                  << path << "': " << loading.error();
-      continue;
     }
   }
 }
@@ -137,32 +172,44 @@ Try<Nothing> LocalResourceProviderDaemonProcess::load(const string& path)
   }
 
   // Ensure that ('type', 'name') pair is unique.
-  foreach (const Provider& provider, providers) {
-    if (info->type() == provider.info.type() &&
-        info->name() == provider.info.name()) {
-      return Error(
-          "Multiple resource providers with type '" + info->type() +
-          "' and name '" + info->name() + "'");
-    }
-  }
-
-  Try<Owned<LocalResourceProvider>> provider =
-    LocalResourceProvider::create(url, info.get());
-
-  if (provider.isError()) {
+  if (providers[info->type()].contains(info->name())) {
     return Error(
-        "Failed to create resource provider with type '" + info->type() +
+        "Multiple resource providers with type '" + info->type() +
         "' and name '" + info->name() + "'");
   }
 
-  providers.emplace_back(info.get(), provider.get());
+  providers[info->type()].put(info->name(), info.get());
+
+  return Nothing();
+}
+
+
+Future<Nothing> LocalResourceProviderDaemonProcess::launch(
+    const string& type,
+    const string& name)
+{
+  CHECK_SOME(slaveId);
+  CHECK(providers[type].contains(name));
+
+  ProviderData& data = providers[type].at(name);
+
+  Try<Owned<LocalResourceProvider>> provider =
+    LocalResourceProvider::create(url, data.info);
+
+  if (provider.isError()) {
+    return Failure(
+        "Failed to create resource provider with type '" + type +
+        "' and name '" + name + "': " + provider.error());
+  }
+
+  data.provider = provider.get();
 
   return Nothing();
 }
 
 
 Try<Owned<LocalResourceProviderDaemon>> LocalResourceProviderDaemon::create(
-    const process::http::URL& url,
+    const http::URL& url,
     const slave::Flags& flags)
 {
   // We require that the config directory exists to create a daemon.
@@ -171,15 +218,12 @@ Try<Owned<LocalResourceProviderDaemon>> LocalResourceProviderDaemon::create(
     return Error("Config directory '" + configDir.get() + "' does not exist");
   }
 
-  return new LocalResourceProviderDaemon(
-      url,
-      flags.work_dir,
-      configDir);
+  return new LocalResourceProviderDaemon(url, flags.work_dir, configDir);
 }
 
 
 LocalResourceProviderDaemon::LocalResourceProviderDaemon(
-    const process::http::URL& url,
+    const http::URL& url,
     const string& workDir,
     const Option<string>& configDir)
   : process(new LocalResourceProviderDaemonProcess(url, workDir, configDir))
@@ -192,6 +236,12 @@ LocalResourceProviderDaemon::~LocalResourceProviderDaemon()
 {
   terminate(process.get());
   wait(process.get());
+}
+
+
+void LocalResourceProviderDaemon::start(const SlaveID& slaveId)
+{
+  dispatch(process.get(), &LocalResourceProviderDaemonProcess::start, slaveId);
 }
 
 } // namespace internal {

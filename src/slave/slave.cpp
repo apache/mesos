@@ -1238,6 +1238,9 @@ void Slave::registered(
         CHECK_SOME(state::checkpoint(path, info_));
       }
 
+      // Start the local resource providers daemon once we have the slave id.
+      localResourceProviderDaemon->start(info.id());
+
       // Setup a timer so that the agent attempts to re-register if it
       // doesn't receive a ping from the master for an extended period
       // of time. This needs to be done once registered, in case we
@@ -6279,6 +6282,9 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
       }
     } else {
       info = slaveState->info.get(); // Recover the slave info.
+
+      // Start the local resource providers daemon once we have the slave id.
+      localResourceProviderDaemon->start(info.id());
 
       // Recover the frameworks.
       foreachvalue (const FrameworkState& frameworkState,
