@@ -200,6 +200,7 @@ message Event {
   optional Rescind rescind = 4;
   optional RescindInverseOffer rescind_inverse_offer = 10;
   optional Update update = 5;
+  optional OfferOperationUpdate offer_operation_update = 11;
   optional Message message = 6;
   optional Failure failure = 7;
   optional Error error = 8;
