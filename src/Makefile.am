@@ -742,6 +742,11 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/secret_generator.hpp		\
   $(top_srcdir)/include/mesos/module/secret_resolver.hpp
 
+if ENABLE_GRPC
+module_HEADERS +=							\
+  $(top_srcdir)/include/mesos/module/volume_profile.hpp
+endif
+
 nodist_module_HEADERS =							\
   ../include/mesos/module/hook.pb.h					\
   ../include/mesos/module/module.pb.h
@@ -767,6 +772,7 @@ nodist_quota_HEADERS =							\
 resourceproviderdir = $(pkgincludedir)/resource_provider
 
 resourceprovider_HEADERS =						\
+  $(top_srcdir)/include/mesos/resource_provider/volume_profile.hpp	\
   $(top_srcdir)/include/mesos/resource_provider/resource_provider.hpp	\
   $(top_srcdir)/include/mesos/resource_provider/resource_provider.proto
 
@@ -1097,6 +1103,11 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   zookeeper/detector.cpp						\
   zookeeper/zookeeper.cpp						\
   zookeeper/group.cpp
+
+if ENABLE_GRPC
+libmesos_no_3rdparty_la_SOURCES +=					\
+  resource_provider/volume_profile.cpp
+endif
 
 libmesos_no_3rdparty_la_SOURCES +=					\
   authentication/cram_md5/authenticatee.hpp				\
