@@ -5783,7 +5783,7 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Future<TaskStatus> status1;
-  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusEq(task1)))
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusTaskIdEq(task1)))
     .WillOnce(FutureArg<1>(&status1))
     .WillRepeatedly(Return());
 
@@ -5815,7 +5815,7 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   task2.mutable_task_id()->set_value("2");
 
   Future<TaskStatus> status2;
-  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusEq(task2)))
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusTaskIdEq(task2)))
     .WillOnce(FutureArg<1>(&status2))
     .WillRepeatedly(Return());
 
