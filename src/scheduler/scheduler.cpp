@@ -121,7 +121,6 @@ using process::http::Connection;
 using process::http::Pipe;
 using process::http::post;
 using process::http::Request;
-using process::http::Response;
 using process::http::URL;
 
 using ::recordio::Decoder;
@@ -555,7 +554,7 @@ protected:
       return;
     }
 
-    Future<Response> response;
+    Future<process::http::Response> response;
     if (call.type() == Call::SUBSCRIBE) {
       state = SUBSCRIBING;
 
@@ -581,7 +580,7 @@ protected:
   void __send(
       const UUID& _connectionId,
       const Call& call,
-      const Future<Response>& response)
+      const Future<process::http::Response>& response)
   {
     // It is possible that we detected a new master before a response could
     // be received.
