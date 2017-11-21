@@ -31,6 +31,8 @@
 
 #include <mesos/v1/resources.hpp>
 
+#include "common/resources_utils.hpp"
+
 #include "internal/evolve.hpp"
 
 #include "master/master.hpp"
@@ -3011,6 +3013,176 @@ TEST(ResourceFormatTest, Endpoint)
   refinedReservation2->set_principal("principal1");
 
   EXPECT_SOME(Resources::validate(resource));
+}
+
+
+TEST(ResourceFormatTest, DowngradeWithoutResources)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  EXPECT_SOME(downgradeResources(&frameworkInfo));
+  EXPECT_EQ(DEFAULT_FRAMEWORK_INFO, frameworkInfo);
+}
+
+
+TEST(ResourceFormatTest, DowngradeWithResourcesWithoutRefinedReservations)
+{
+  SlaveID slaveId;
+  slaveId.set_value("agent");
+
+  TaskInfo actual;
+  {
+    actual.set_name("task");
+    actual.mutable_task_id()->set_value("task_id");
+    actual.mutable_slave_id()->CopyFrom(slaveId);
+
+    Resource resource;
+    resource.set_name("cpus");
+    resource.set_type(Value::SCALAR);
+    resource.mutable_scalar()->set_value(555.5);
+
+    // Add "post-reservation-refinement" resources.
+
+    // Unreserved resource.
+    actual.add_resources()->CopyFrom(resource);
+
+    Resource::ReservationInfo* reservation = resource.add_reservations();
+
+    // Statically reserved resource.
+    reservation->set_type(Resource::ReservationInfo::STATIC);
+    reservation->set_role("foo");
+    actual.add_resources()->CopyFrom(resource);
+
+    // Dynamically reserved resource.
+    reservation->set_type(Resource::ReservationInfo::DYNAMIC);
+    reservation->set_role("bar");
+    reservation->set_principal("principal1");
+    actual.add_resources()->CopyFrom(resource);
+  }
+
+  TaskInfo expected;
+  {
+    expected.set_name("task");
+    expected.mutable_task_id()->set_value("task_id");
+    expected.mutable_slave_id()->CopyFrom(slaveId);
+
+    Resource resource;
+    resource.set_name("cpus");
+    resource.set_type(Value::SCALAR);
+    resource.mutable_scalar()->set_value(555.5);
+
+    // Add "pre-reservation-refinement" resources.
+
+    // Unreserved resource.
+    resource.set_role("*");
+    expected.add_resources()->CopyFrom(resource);
+
+    // Statically reserved resource.
+    resource.set_role("foo");
+    expected.add_resources()->CopyFrom(resource);
+
+    // Dynamically reserved resource.
+    resource.set_role("bar");
+    Resource::ReservationInfo* reservation = resource.mutable_reservation();
+    reservation->set_principal("principal1");
+    expected.add_resources()->CopyFrom(resource);
+  }
+
+  EXPECT_SOME(downgradeResources(&actual));
+  EXPECT_EQ(expected, actual);
+}
+
+
+TEST(ResourceFormatTest, DowngradeWithResourcesWithRefinedReservations)
+{
+  SlaveID slaveId;
+  slaveId.set_value("agent");
+
+  TaskInfo actual;
+  {
+    actual.set_name("task");
+    actual.mutable_task_id()->set_value("task_id");
+    actual.mutable_slave_id()->CopyFrom(slaveId);
+
+    Resource resource;
+    resource.set_name("cpus");
+    resource.set_type(Value::SCALAR);
+    resource.mutable_scalar()->set_value(555.5);
+
+    // Add "post-reservation-refinement" resources.
+
+    // Unreserved resource.
+    actual.add_resources()->CopyFrom(resource);
+
+    Resource::ReservationInfo* reservation = resource.add_reservations();
+
+    // Statically reserved resource.
+    reservation->set_type(Resource::ReservationInfo::STATIC);
+    reservation->set_role("foo");
+    actual.add_resources()->CopyFrom(resource);
+
+    // Dynamically reserved resource.
+    reservation->set_type(Resource::ReservationInfo::DYNAMIC);
+    reservation->set_role("bar");
+    reservation->set_principal("principal1");
+    actual.add_resources()->CopyFrom(resource);
+
+    // Dynamically refined reservation on top of dynamic reservation.
+    Resource::ReservationInfo* refinedReservation = resource.add_reservations();
+    refinedReservation->set_type(Resource::ReservationInfo::DYNAMIC);
+    refinedReservation->set_role("bar/baz");
+    refinedReservation->set_principal("principal2");
+    actual.add_resources()->CopyFrom(resource);
+  }
+
+  TaskInfo expected;
+  {
+    expected.set_name("task");
+    expected.mutable_task_id()->set_value("task_id");
+    expected.mutable_slave_id()->CopyFrom(slaveId);
+
+    Resource resource;
+    resource.set_name("cpus");
+    resource.set_type(Value::SCALAR);
+    resource.mutable_scalar()->set_value(555.5);
+
+    // Add "pre-reservation-refinement" resources.
+
+    // Unreserved resource.
+    resource.set_role("*");
+    expected.add_resources()->CopyFrom(resource);
+
+    // Statically reserved resource.
+    resource.set_role("foo");
+    expected.add_resources()->CopyFrom(resource);
+
+    // Dynamically reserved resource.
+    resource.set_role("bar");
+    Resource::ReservationInfo* reservation = resource.mutable_reservation();
+    reservation->set_principal("principal1");
+    expected.add_resources()->CopyFrom(resource);
+
+    // Add non-downgradable resources. Note that the non-downgradable
+    // resources remain in "post-reservation-refinement" format.
+
+    // Dynamically refined reservation on top of dynamic reservation.
+    resource.clear_role();
+    resource.clear_reservation();
+
+    Resource::ReservationInfo* dynamicReservation = resource.add_reservations();
+    dynamicReservation->set_type(Resource::ReservationInfo::DYNAMIC);
+    dynamicReservation->set_role("bar");
+    dynamicReservation->set_principal("principal1");
+
+    Resource::ReservationInfo* refinedReservation = resource.add_reservations();
+    refinedReservation->set_type(Resource::ReservationInfo::DYNAMIC);
+    refinedReservation->set_role("bar/baz");
+    refinedReservation->set_principal("principal2");
+
+    expected.add_resources()->CopyFrom(resource);
+  }
+
+  EXPECT_ERROR(downgradeResources(&actual));
+  EXPECT_EQ(expected, actual);
 }
 
 

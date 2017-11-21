@@ -169,12 +169,28 @@ void convertResourceFormat(
 Option<Error> validateAndUpgradeResources(Offer::Operation* operation);
 
 
-// Convert the given resources to the "pre-reservation-refinement" format
-// if none of the resources have refined reservations. Returns an `Error`
-// if there are any refined reservations present; in this case, the resources
-// are left in the "post-reservation-refinement" format.
+// Convert any resources contained in the given message(s)
+// to the "pre-reservation-refinement" format, if possible.
+//
+// These functions do not provide "all-or-nothing" semantics.
+// The resources are downgraded to "pre-" format until either
+//   (1) there are no more resources, or
+//   (2) a non-downgradable resource is encountered.
+//
+// For (1), `Nothing` is returned.
+// For (2), `Error` is returned, and the rest of the resources are untouched.
+//
+// This implies that components that have refined resources created cannot
+// be downgraded to a version that does not support reservation refinement.
+Try<Nothing> downgradeResource(Resource* resource);
+
+
 Try<Nothing> downgradeResources(
     google::protobuf::RepeatedPtrField<Resource>* resources);
+
+
+Try<Nothing> downgradeResources(google::protobuf::Message* message);
+
 
 } // namespace mesos {
 
