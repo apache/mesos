@@ -731,7 +731,7 @@ Future<Nothing> ProvisionerProcess::pruneImages(
           }
         }
 
-        futures.push_back(store.get()->prune(images, activeLayerPaths));
+        futures.push_back(store->prune(images, activeLayerPaths));
       }
 
       return collect(futures)
