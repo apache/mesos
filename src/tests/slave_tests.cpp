@@ -3645,6 +3645,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   Clock::pause();
 
+  // Settle here to make sure the `SlaveObserver` has already started counting
+  // the `slavePingTimeout` before we advance the clock for the first time.
+  Clock::settle();
+
   // Induce agent ping timeouts.
   size_t pings = 0;
   while (true) {
