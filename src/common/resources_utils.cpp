@@ -21,6 +21,8 @@
 
 using std::vector;
 
+using google::protobuf::Descriptor;
+using google::protobuf::Message;
 using google::protobuf::RepeatedPtrField;
 
 namespace mesos {
@@ -738,24 +740,136 @@ Option<Error> validateAndUpgradeResources(Offer::Operation* operation)
 }
 
 
-Try<Nothing> downgradeResources(RepeatedPtrField<Resource>* resources)
+Try<Nothing> downgradeResource(Resource* resource)
 {
-  foreach (const Resource& resource, *resources) {
-    CHECK(!resource.has_role());
-    CHECK(!resource.has_reservation());
+  CHECK(!resource->has_role());
+  CHECK(!resource->has_reservation());
+
+  if (Resources::hasRefinedReservations(*resource)) {
+    return Error("Cannot downgrade resources containing refined reservations");
   }
 
-  foreach (const Resource& resource, *resources) {
-    if (Resources::hasRefinedReservations(resource)) {
-      return Error(
-          "Invalid resources downgrade: resource " + stringify(resource) +
-          " with refined reservations cannot be downgraded");
+  convertResourceFormat(resource, PRE_RESERVATION_REFINEMENT);
+  return Nothing();
+}
+
+
+Try<Nothing> downgradeResources(RepeatedPtrField<Resource>* resources)
+{
+  CHECK_NOTNULL(resources);
+
+  foreach (Resource& resource, *resources) {
+    Try<Nothing> result = downgradeResource(&resource);
+    if (result.isError()) {
+      return result;
     }
   }
 
-  convertResourceFormat(resources, PRE_RESERVATION_REFINEMENT);
+  return Nothing();
+}
+
+namespace internal {
+
+// Given a protobuf descriptor `descriptor`, returns `true` if `descriptor`
+// is a `mesos::Resource`, or contains a `mesos::Resource` somewhere within.
+//
+// The provided `result` is recursively populated, where the keys are the
+// message descriptors within `descriptor`'s schema (including itself), and
+//  the corresponding value is `true` if the key contains a `mesos::Resource`.
+static void precomputeResourcesContainment(
+    const Descriptor* descriptor,
+    hashmap<const Descriptor*, bool>* result)
+{
+  CHECK_NOTNULL(descriptor);
+  CHECK_NOTNULL(result);
+
+  if (result->contains(descriptor)) {
+    return;
+  }
+
+  if (descriptor == mesos::Resource::descriptor()) {
+    result->insert({descriptor, true});
+  }
+
+  result->insert({descriptor, false});
+  for (int i = 0; i < descriptor->field_count(); ++i) {
+    // `message_type()` returns `nullptr` if the field is not a message type.
+    const Descriptor* messageDescriptor = descriptor->field(i)->message_type();
+    if (messageDescriptor == nullptr) {
+      continue;
+    }
+    precomputeResourcesContainment(messageDescriptor, result);
+    result->at(descriptor) |= result->at(messageDescriptor);
+  }
+}
+
+
+static Try<Nothing> downgradeResourcesImpl(
+    Message* message,
+    const hashmap<const Descriptor*, bool>& resourcesContainment)
+{
+  CHECK_NOTNULL(message);
+
+  const Descriptor* descriptor = message->GetDescriptor();
+
+  if (descriptor == mesos::Resource::descriptor()) {
+    return downgradeResource(static_cast<mesos::Resource*>(message));
+  }
+
+  const google::protobuf::Reflection* reflection = message->GetReflection();
+
+  for (int i = 0; i < descriptor->field_count(); ++i) {
+    const google::protobuf::FieldDescriptor* field = descriptor->field(i);
+    const Descriptor* messageDescriptor = field->message_type();
+
+    if (messageDescriptor == nullptr ||
+        !resourcesContainment.at(messageDescriptor)) {
+      continue;
+    }
+
+    if (!field->is_repeated()) {
+      if (reflection->HasField(*message, field)) {
+        Try<Nothing> result = downgradeResourcesImpl(
+            reflection->MutableMessage(message, field), resourcesContainment);
+
+        if (result.isError()) {
+          return result;
+        }
+      }
+    } else {
+      const int size = reflection->FieldSize(*message, field);
+
+      for (int j = 0; j < size; ++j) {
+        Try<Nothing> result = downgradeResourcesImpl(
+            reflection->MutableRepeatedMessage(message, field, j),
+            resourcesContainment);
+
+        if (result.isError()) {
+          return result;
+        }
+      }
+    }
+  }
 
   return Nothing();
+}
+
+}  // namespace internal {
+
+Try<Nothing> downgradeResources(Message* message)
+{
+  CHECK_NOTNULL(message);
+
+  const Descriptor* descriptor = message->GetDescriptor();
+
+  hashmap<const Descriptor*, bool> resourcesContainment;
+  internal::precomputeResourcesContainment(descriptor, &resourcesContainment);
+
+  if (!resourcesContainment.at(descriptor)) {
+    return Nothing();
+  }
+
+  return internal::downgradeResourcesImpl(message, resourcesContainment);
 }
 
 } // namespace mesos {
