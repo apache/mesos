@@ -1417,7 +1417,7 @@ const Future<T>& Future<T>::onDiscarded(DiscardedCallback&& callback) const
 
   // TODO(*): Invoke callback in another execution context.
   if (run) {
-    callback();
+    callback(); // NOLINT(misc-use-after-move)
   }
 
   return *this;
