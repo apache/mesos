@@ -598,6 +598,16 @@ TEST_P(HTTPTest, Encode)
 }
 
 
+TEST_P(HTTPTest, EncodeAdditionalChars)
+{
+  string unencoded = "foo.bar";
+  string encoded = http::encode(unencoded, ".");
+
+  EXPECT_EQ("foo%2Ebar", encoded);
+  EXPECT_SOME_EQ(unencoded, http::decode(encoded));
+}
+
+
 TEST_P(HTTPTest, PathParse)
 {
   const string pattern = "/books/{isbn}/chapters/{chapter}";

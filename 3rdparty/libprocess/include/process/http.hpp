@@ -885,9 +885,18 @@ Try<hashmap<std::string, std::string>> parse(
 } // namespace path {
 
 
-// Returns a percent-encoded string according to RFC 3986.
-// The input string must not already be percent encoded.
-std::string encode(const std::string& s);
+/**
+ * Returns a percent-encoded string according to RFC 3986.
+ * @see <a href="https://tools.ietf.org/html/rfc3986#section-2.3">RFC3986</a>
+ *
+ * @param s The input string, must not arleady be percent-encoded.
+ * @param additional_chars When specified, all characters in it are also
+ *     percent-encoded.
+ * @return The percent-encoded string of `s`.
+ */
+std::string encode(
+    const std::string& s,
+    const std::string& additional_chars = "");
 
 
 // Decodes a percent-encoded string according to RFC 3986.
