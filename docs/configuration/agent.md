@@ -875,6 +875,33 @@ Strategy for provisioning container rootfs from images, e.g., <code>aufs</code>,
 </tr>
 <tr>
   <td>
+    --image_gc_config=VALUE
+  </td>
+  <td>
+JSON-formatted configuration for automatic container image garbage
+collection. This is an optional flag. If it is not set, it means
+the automatic container image gc is not enabled. Users have to
+trigger image gc manually via the operator API. If it is set, the
+auto image gc is enabled. This image gc config can be provided either
+as a path pointing to a local file, or as a JSON-formatted string.
+Please note that the image garbage collection only work with Mesos
+Containerizer for now.
+<p/>
+See the ImageGcConfig message in `flags.proto` for the expected
+format.
+<p/>
+Example:
+<pre><code>{
+  "image_disk_headroom": 0.1,
+  "image_disk_watch_interval": {
+    "nanoseconds": 3600
+  },
+  "excluded_images": []
+}</code></pre>
+  </td>
+</tr>
+<tr>
+  <td>
     --isolation=VALUE
   </td>
   <td>

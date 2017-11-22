@@ -34,6 +34,19 @@
 namespace flags {
 
 template <>
+inline Try<mesos::internal::ImageGcConfig> parse(const std::string& value)
+{
+  // Convert from string or file to JSON.
+  Try<JSON::Object> json = parse<JSON::Object>(value);
+  if (json.isError()) {
+    return Error(json.error());
+  }
+
+  return protobuf::parse<mesos::internal::ImageGcConfig>(json.get());
+}
+
+
+template <>
 inline Try<mesos::internal::Firewall> parse(const std::string& value)
 {
   // Convert from string or file to JSON.
@@ -75,6 +88,14 @@ inline Try<mesos::internal::SlaveCapabilities> parse(const std::string& value)
 
 namespace mesos {
 namespace internal {
+
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const ImageGcConfig& imageGcConfig)
+{
+  return stream << imageGcConfig.DebugString();
+}
+
 
 inline std::ostream& operator<<(
     std::ostream& stream,

@@ -154,6 +154,28 @@ mesos::internal::slave::Flags::Flags()
       "Strategy for provisioning container rootfs from images,\n"
       "e.g., `aufs`, `bind`, `copy`, `overlay`.");
 
+  add(&Flags::image_gc_config,
+      "image_gc_config",
+      "JSON-formatted configuration for automatic container image garbage\n"
+      "collection. This is an optional flag. If it is not set, it means\n"
+      "the automatic container image gc is not enabled. Users have to\n"
+      "trigger image gc manually via the operator API. If it is set, the\n"
+      "auto image gc is enabled. This image gc config can be provided either\n"
+      "as a path pointing to a local file, or as a JSON-formatted string.\n"
+      "Please note that the image garbage collection only work with Mesos\n"
+      "Containerizer for now."
+      "\n"
+      "See the ImageGcConfig message in `flags.proto` for the expected\n"
+      "format.\n"
+      "Example:\n"
+      "{\n"
+      "  \"image_disk_headroom\": 0.1,\n"
+      "  \"image_disk_watch_interval\": {\n"
+      "    \"nanoseconds\": 3600\n"
+      "  },\n"
+      "  \"excluded_images\": []\n"
+      "}");
+
   add(&Flags::appc_simple_discovery_uri_prefix,
       "appc_simple_discovery_uri_prefix",
       "URI prefix to be used for simple discovery of appc images,\n"

@@ -51,6 +51,7 @@ public:
 
   Option<std::string> image_providers;
   Option<std::string> image_provisioner_backend;
+  Option<ImageGcConfig> image_gc_config;
 
   std::string appc_simple_discovery_uri_prefix;
   std::string appc_store_dir;
