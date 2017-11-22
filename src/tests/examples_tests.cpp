@@ -45,5 +45,6 @@ TEST_SCRIPT(ExamplesTest, V1JavaFramework, "java_v1_framework_test.sh")
 #endif
 
 #ifdef MESOS_HAS_PYTHON
+// This test requires python 2.7+ due to protobuf 3.5.0.
 TEST_SCRIPT(ExamplesTest, PythonFramework, "python_framework_test.sh")
 #endif
