@@ -6270,8 +6270,11 @@ void Master::__registerSlave(
   message.mutable_connection()->CopyFrom(connection);
   send(slave->pid, message);
 
+  // Note that we convert to `Resources` for output as it's faster than
+  // logging raw protobuf data. Conversion is safe, as resources have
+  // already passed validation.
   LOG(INFO) << "Registered agent " << *slave
-            << " with " << slave->info.resources();
+            << " with " << Resources(slave->info.resources());
 
   slaves.registering.erase(pid);
 }
@@ -6864,8 +6867,11 @@ void Master::__reregisterSlave(
   message.mutable_connection()->CopyFrom(connection);
   send(slave->pid, message);
 
+  // Note that we convert to `Resources` for output as it's faster than
+  // logging raw protobuf data. Conversion is safe, as resources have
+  // already passed validation.
   LOG(INFO) << "Re-registered agent " << *slave
-            << " with " << slave->info.resources();
+            << " with " << Resources(slave->info.resources());
 
   // Determine which frameworks on the slave to shutdown, if any. This
   // happens in two cases:
@@ -9600,8 +9606,11 @@ void Master::removeTask(Task* task)
   CHECK_NOTNULL(slave);
 
   if (!isRemovable(task->state())) {
+    // Note that we convert to `Resources` for output as it's faster than
+    // logging raw protobuf data. Conversion is safe, as resources have
+    // already passed validation.
     LOG(WARNING) << "Removing task " << task->task_id()
-                 << " with resources " << task->resources()
+                 << " with resources " << Resources(task->resources())
                  << " of framework " << task->framework_id()
                  << " on agent " << *slave
                  << " in non-removable state " << task->state();
@@ -9614,8 +9623,11 @@ void Master::removeTask(Task* task)
         task->resources(),
         None());
   } else {
+    // Note that we convert to `Resources` for output as it's faster than
+    // logging raw protobuf data. Conversion is safe, as resources have
+    // already passed validation.
     LOG(INFO) << "Removing task " << task->task_id()
-              << " with resources " << task->resources()
+              << " with resources " << Resources(task->resources())
               << " of framework " << task->framework_id()
               << " on agent " << *slave;
   }
@@ -10790,8 +10802,11 @@ void Slave::addTask(Task* task)
     master->subscribers.send(protobuf::master::event::createTaskAdded(*task));
   }
 
+  // Note that we convert to `Resources` for output as it's faster than
+  // logging raw protobuf data. Conversion is safe, as resources have
+  // already passed validation.
   LOG(INFO) << "Adding task " << taskId
-            << " with resources " << task->resources()
+            << " with resources " << Resources(task->resources())
             << " on agent " << *this;
 }
 
