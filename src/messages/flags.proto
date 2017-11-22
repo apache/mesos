@@ -105,3 +105,20 @@ message ContainerDNSInfo {
 message SlaveCapabilities {
   repeated SlaveInfo.Capability capabilities = 1;
 }
+
+
+// Describe the configuration for container image garbage collection.
+message ImageGcConfig {
+  // The image disk headroom used to calculate the threshold of container
+  // image store size. Image garbage collection will be triggered automatically
+  // if the image disk usage reaches that threshold. Please note that the
+  // headroom value has to be between 0.0 and 1.0.
+  required double image_disk_headroom = 1;
+
+  // The periodic time interval to check the image store disk usage. Please
+  // note that the unit of this time interval is 'nanosecond'.
+  required DurationInfo image_disk_watch_interval = 2;
+
+  // The excluded image list that should not be garbage collected.
+  repeated Image excluded_images = 3;
+}
