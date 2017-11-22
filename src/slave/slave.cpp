@@ -3686,11 +3686,19 @@ Try<Nothing> Slave::syncCheckpointedResources(
 
 void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
 {
+  // The offer operation might be from an operator API call,
+  // thus the framework ID here is optional.
+  Option<FrameworkID> frameworkId = message.has_framework_id()
+    ? message.framework_id()
+    : Option<FrameworkID>::none();
+
   Try<UUID> uuid = UUID::fromBytes(message.operation_uuid());
   if (uuid.isError()) {
     LOG(ERROR) << "Failed to parse offer operation UUID for operation "
-               << "'" << message.operation_info().id() << "' "
-               << "from framework " << message.framework_id()
+               << "'" << message.operation_info().id() << "' from "
+               << (frameworkId.isSome()
+                     ? "framework " + stringify(frameworkId.get())
+                     : "an operator API call")
                << ": " << uuid.error();
     return;
   }
@@ -3701,8 +3709,11 @@ void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
   if (resourceProviderId.isError()) {
     LOG(ERROR) << "Failed to get the resource provider ID of operation "
                << "'" << message.operation_info().id() << "' "
-               << "(uuid: " << uuid->toString() << ") from framework "
-               << message.framework_id() << ": " << resourceProviderId.error();
+               << "(uuid: " << uuid->toString() << ") from "
+               << (frameworkId.isSome()
+                     ? "framework " + stringify(frameworkId.get())
+                     : "an operator API call")
+               << ": " << resourceProviderId.error();
     return;
   }
 
@@ -3710,7 +3721,7 @@ void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
       protobuf::createOfferOperation(
           message.operation_info(),
           protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
-          message.framework_id(),
+          frameworkId,
           info.id(),
           uuid.get()));
 
@@ -3721,14 +3732,43 @@ void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
     return;
   }
 
-  // TODO(jieyu): Handle operations for agent default resources. To
-  // support rollback, the agent need to checkpoint the total
-  // resources using the old format (i.e., using `resources.info`).
-  // It's OK that the offer operations are not checkpointed atomically
-  // with the total resources for agent default resources. This is
-  // because the master does not rely on operation feedback to update
-  // the allocation for old operations, and agent default resources
-  // only support old operations.
+  CHECK(protobuf::isSpeculativeOperation(message.operation_info()));
+
+  // TODO(jieyu): We should drop the operation if the resource version
+  // uuid in the operation does not match that of the agent. This is
+  // currently not possible because if any speculative operation for
+  // agent default resources fails, the agent will crash. We might
+  // want to change that behavior in the future. Revisit this once we
+  // change that behavior.
+  Offer::Operation strippedOperation = message.operation_info();
+  protobuf::stripAllocationInfo(&strippedOperation);
+
+  Try<Resources> resources = totalResources.apply(strippedOperation);
+  CHECK_SOME(resources);
+
+  totalResources = resources.get();
+  Resources _checkpointedResources = resources->filter(needCheckpointing);
+
+  // TODO(nfnt): Have this function return a `Result`.
+  checkpointResources({
+      _checkpointedResources.begin(),
+      _checkpointedResources.end()});
+
+  OfferOperationStatusUpdate update =
+    protobuf::createOfferOperationStatusUpdate(
+        uuid.get(),
+        protobuf::createOfferOperationStatus(OFFER_OPERATION_FINISHED),
+        None(),
+        frameworkId,
+        info.id());
+
+  updateOfferOperation(offerOperation, update);
+
+  removeOfferOperation(offerOperation);
+
+  // TODO(nfnt): Use the status update manager to reliably send
+  // this message to the master.
+  send(master.get(), update);
 }
 
 

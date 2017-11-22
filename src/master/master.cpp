@@ -9918,7 +9918,9 @@ void Master::_apply(
         protobuf::createOfferOperation(
             operation,
             protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
-            framework->id(),
+            framework != nullptr
+              ? framework->id()
+              : Option<FrameworkID>::none(),
             slave->id));
 
     addOfferOperation(framework, slave, offerOperation);
@@ -9937,9 +9939,13 @@ void Master::_apply(
     message.mutable_resource_version_uuid()
       ->set_uuid(resourceVersion->toBytes());
 
-    LOG(INFO) << "Sending offer operation "
-              << offerOperation->operation_uuid()
-              << " to agent " << *slave;
+    Try<UUID> operationUUID = UUID::fromBytes(offerOperation->operation_uuid());
+    CHECK_SOME(operationUUID);
+
+    LOG(INFO) << "Sending offer operation '"
+              << offerOperation->info().id()
+              << "' (uuid: " << operationUUID->toString()
+              << ") to agent " << *slave;
 
     send(slave->pid, message);
   } else {

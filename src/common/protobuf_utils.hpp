@@ -163,9 +163,17 @@ OfferOperationStatus createOfferOperationStatus(
 OfferOperation createOfferOperation(
     const Offer::Operation& info,
     const OfferOperationStatus& latestStatus,
-    const FrameworkID& frameworkId,
-    const SlaveID& slaveId,
+    const Option<FrameworkID>& frameworkId,
+    const Option<SlaveID>& slaveId,
     const Option<UUID>& operationUUID = None());
+
+
+OfferOperationStatusUpdate createOfferOperationStatusUpdate(
+    const UUID& operationUUID,
+    const OfferOperationStatus& status,
+    const Option<OfferOperationStatus>& latestStatus = None(),
+    const Option<FrameworkID>& frameworkId = None(),
+    const Option<SlaveID>& slaveId = None());
 
 
 // Helper function that creates a MasterInfo from UPID.
@@ -191,6 +199,9 @@ void injectAllocationInfo(
 // This strips the Resource::AllocationInfo from all
 // Resource objects contained within the operation.
 void stripAllocationInfo(Offer::Operation* operation);
+
+
+bool isSpeculativeOperation(const Offer::Operation& operation);
 
 
 // Helper function to pack a protobuf list of resource versions.

@@ -443,13 +443,17 @@ OfferOperationStatus createOfferOperationStatus(
 OfferOperation createOfferOperation(
     const Offer::Operation& info,
     const OfferOperationStatus& latestStatus,
-    const FrameworkID& frameworkId,
-    const SlaveID& slaveId,
+    const Option<FrameworkID>& frameworkId,
+    const Option<SlaveID>& slaveId,
     const Option<UUID>& operationUUID)
 {
   OfferOperation operation;
-  operation.mutable_framework_id()->CopyFrom(frameworkId);
-  operation.mutable_slave_id()->CopyFrom(slaveId);
+  if (frameworkId.isSome()) {
+    operation.mutable_framework_id()->CopyFrom(frameworkId.get());
+  }
+  if (slaveId.isSome()) {
+    operation.mutable_slave_id()->CopyFrom(slaveId.get());
+  }
   operation.mutable_info()->CopyFrom(info);
   operation.mutable_latest_status()->CopyFrom(latestStatus);
   if (operationUUID.isSome()) {
@@ -459,6 +463,30 @@ OfferOperation createOfferOperation(
   }
 
   return operation;
+}
+
+
+OfferOperationStatusUpdate createOfferOperationStatusUpdate(
+    const UUID& operationUUID,
+    const OfferOperationStatus& status,
+    const Option<OfferOperationStatus>& latestStatus,
+    const Option<FrameworkID>& frameworkId,
+    const Option<SlaveID>& slaveId)
+{
+  OfferOperationStatusUpdate update;
+  if (frameworkId.isSome()) {
+    update.mutable_framework_id()->CopyFrom(frameworkId.get());
+  }
+  if (slaveId.isSome()) {
+    update.mutable_slave_id()->CopyFrom(slaveId.get());
+  }
+  update.mutable_status()->CopyFrom(status);
+  if (latestStatus.isSome()) {
+    update.mutable_latest_status()->CopyFrom(latestStatus.get());
+  }
+  update.set_operation_uuid(operationUUID.toBytes());
+
+  return update;
 }
 
 
@@ -757,6 +785,29 @@ void stripAllocationInfo(Offer::Operation* operation)
     case Offer::Operation::UNKNOWN:
       break; // No-op.
   }
+}
+
+
+bool isSpeculativeOperation(const Offer::Operation& operation)
+{
+  switch (operation.type()) {
+    case Offer::Operation::LAUNCH:
+    case Offer::Operation::LAUNCH_GROUP:
+    case Offer::Operation::CREATE_VOLUME:
+    case Offer::Operation::DESTROY_VOLUME:
+    case Offer::Operation::CREATE_BLOCK:
+    case Offer::Operation::DESTROY_BLOCK:
+      return false;
+    case Offer::Operation::RESERVE:
+    case Offer::Operation::UNRESERVE:
+    case Offer::Operation::CREATE:
+    case Offer::Operation::DESTROY:
+      return true;
+    case Offer::Operation::UNKNOWN:
+      UNREACHABLE();
+  }
+
+  UNREACHABLE();
 }
 
 
