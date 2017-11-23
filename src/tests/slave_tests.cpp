@@ -5313,7 +5313,7 @@ TEST_F(SlaveTest, CheckpointedResourcesIncludedInUsage)
     {dynamicReservation, persistentVolume};
 
   // Add checkpointed resources.
-  slave.checkpointResources(checkpointedResources);
+  slave.checkpointResources(checkpointedResources, true);
 
   // We expect that the slave will return ResourceUsage with
   // total and checkpointed slave resources reported.

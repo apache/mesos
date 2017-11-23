@@ -11079,8 +11079,6 @@ void Slave::apply(const vector<ResourceConversion>& conversions)
 
   totalResources = resources.get();
 
-  // TODO(jieyu): `checkpointedResources` should only contain
-  // resources without resource provider ID.
   checkpointedResources = totalResources.filter(needCheckpointing);
 }
 

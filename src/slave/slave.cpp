@@ -673,7 +673,7 @@ void Slave::initialize()
       &Slave::updateFramework);
 
   install<CheckpointResourcesMessage>(
-      &Slave::checkpointResources,
+      &Slave::checkpointResourcesMessage,
       &CheckpointResourcesMessage::resources);
 
   install<ApplyOfferOperationMessage>(
@@ -3473,7 +3473,9 @@ void Slave::updateFramework(
 }
 
 
-void Slave::checkpointResources(vector<Resource> _checkpointedResources)
+void Slave::checkpointResources(
+    vector<Resource> _checkpointedResources,
+    bool changeTotal)
 {
   // TODO(jieyu): Here we assume that CheckpointResourcesMessages are
   // ordered (i.e., slave receives them in the same order master sends
@@ -3532,7 +3534,9 @@ void Slave::checkpointResources(vector<Resource> _checkpointedResources)
     << newCheckpointedResources << " to agent's resources "
     << info.resources();
 
-  totalResources = _totalResources.get();
+  if (changeTotal) {
+    totalResources = _totalResources.get();
+  }
 
   // Store the target checkpoint resources. We commit the checkpoint
   // only after all operations are successful. If any of the operations
@@ -3592,6 +3596,13 @@ void Slave::checkpointResources(vector<Resource> _checkpointedResources)
             << newCheckpointedResources;
 
   checkpointedResources = newCheckpointedResources;
+}
+
+
+void Slave::checkpointResourcesMessage(
+    const vector<Resource>& checkpointedResources)
+{
+  checkpointResources(checkpointedResources, true);
 }
 
 
@@ -3740,19 +3751,12 @@ void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
   // agent default resources fails, the agent will crash. We might
   // want to change that behavior in the future. Revisit this once we
   // change that behavior.
-  Offer::Operation strippedOperation = message.operation_info();
-  protobuf::stripAllocationInfo(&strippedOperation);
-
-  Try<Resources> resources = totalResources.apply(strippedOperation);
-  CHECK_SOME(resources);
-
-  totalResources = resources.get();
-  Resources _checkpointedResources = resources->filter(needCheckpointing);
+  Resources _checkpointedResources = totalResources.filter(needCheckpointing);
 
   // TODO(nfnt): Have this function return a `Result`.
-  checkpointResources({
-      _checkpointedResources.begin(),
-      _checkpointedResources.end()});
+  checkpointResources(
+      {_checkpointedResources.begin(), _checkpointedResources.end()},
+      false);
 
   OfferOperationStatusUpdate update =
     protobuf::createOfferOperationStatusUpdate(
@@ -6906,6 +6910,38 @@ void Slave::addOfferOperation(OfferOperation* operation)
   CHECK_SOME(uuid);
 
   offerOperations.put(uuid.get(), operation);
+
+  switch (operation->info().type()) {
+    case Offer::Operation::LAUNCH:
+      LOG(FATAL) << "Unexpected LAUNCH operation";
+      break;
+    case Offer::Operation::LAUNCH_GROUP:
+      LOG(FATAL) << "Unexpected LAUNCH_GROUP operation";
+      break;
+    case Offer::Operation::RESERVE:
+    case Offer::Operation::UNRESERVE:
+    case Offer::Operation::CREATE:
+    case Offer::Operation::DESTROY: {
+      Offer::Operation strippedOperation = operation->info();
+      protobuf::stripAllocationInfo(&strippedOperation);
+
+      Try<vector<ResourceConversion>> conversions =
+        getResourceConversions(strippedOperation);
+
+      CHECK_SOME(conversions);
+
+      apply(conversions.get());
+      break;
+    }
+    case Offer::Operation::CREATE_VOLUME:
+    case Offer::Operation::DESTROY_VOLUME:
+    case Offer::Operation::CREATE_BLOCK:
+    case Offer::Operation::DESTROY_BLOCK:
+      break;
+    case Offer::Operation::UNKNOWN:
+      LOG(WARNING) << "Unknown offer operation";
+      break;
+  }
 }
 
 

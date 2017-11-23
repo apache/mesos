@@ -195,7 +195,12 @@ public:
   void updateFramework(
       const UpdateFrameworkMessage& message);
 
-  void checkpointResources(std::vector<Resource> checkpointedResources);
+  void checkpointResources(
+      std::vector<Resource> checkpointedResources,
+      bool changeTotal);
+
+  void checkpointResourcesMessage(
+      const std::vector<Resource>& checkpointedResources);
 
   void applyOfferOperation(const ApplyOfferOperationMessage& message);
 

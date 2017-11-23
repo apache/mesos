@@ -101,66 +101,7 @@ namespace tests {
 
 class ResourceProviderManagerHttpApiTest
   : public MesosTest,
-    public WithParamInterface<ContentType>
-{
-public:
-  Future<Nothing> subscribe(
-      v1::MockResourceProvider* resourceProvider,
-      const mesos::v1::ResourceProviderInfo& info)
-  {
-    Call call;
-    call.set_type(Call::SUBSCRIBE);
-    Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_resource_provider_info()->CopyFrom(info);
-
-    return resourceProvider->send(call);
-  }
-
-  Future<Nothing> updateState(
-      v1::MockResourceProvider* resourceProvider,
-      const mesos::v1::ResourceProviderID& resourceProviderId,
-      const v1::Resources& resources)
-  {
-    Call call;
-    call.set_type(Call::UPDATE_STATE);
-    call.mutable_resource_provider_id()->CopyFrom(resourceProviderId);
-
-    Call::UpdateState* updateState = call.mutable_update_state();
-    updateState->mutable_resources()->CopyFrom(resources);
-
-    updateState->set_resource_version_uuid(UUID::random().toBytes());
-
-    return resourceProvider->send(call);
-  }
-
-  Future<Nothing> updateOfferOperationStatus(
-      v1::MockResourceProvider* resourceProvider,
-      const mesos::v1::ResourceProviderID& resourceProviderId,
-      const mesos::v1::FrameworkID& frameworkId,
-      const UUID& operationUUID,
-      const v1::Resources& convertedResources)
-  {
-    Call call;
-    call.set_type(Call::UPDATE_OFFER_OPERATION_STATUS);
-    call.mutable_resource_provider_id()->CopyFrom(resourceProviderId);
-
-    Call::UpdateOfferOperationStatus* updateOfferOperationStatus =
-      call.mutable_update_offer_operation_status();
-
-    updateOfferOperationStatus->mutable_framework_id()->CopyFrom(frameworkId);
-
-    mesos::v1::OfferOperationStatus* status =
-      updateOfferOperationStatus->mutable_status();
-    status->mutable_converted_resources()->CopyFrom(convertedResources);
-    status->set_state(mesos::v1::OfferOperationState::OFFER_OPERATION_FINISHED);
-
-    updateOfferOperationStatus->mutable_latest_status()->CopyFrom(*status);
-
-    updateOfferOperationStatus->set_operation_uuid(operationUUID.toBytes());
-
-    return resourceProvider->send(call);
-  }
-};
+    public WithParamInterface<ContentType> {};
 
 
 // The tests are parameterized by the content type of the request.
@@ -656,13 +597,13 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  Future<UpdateSlaveMessage> updateSlaveMessage =
-    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
-
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.authenticate_http_readwrite = false;
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   // Set the resource provider capability and other required capabilities.
   constexpr SlaveInfo::Capability::Type capabilities[] = {
@@ -683,69 +624,33 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
 
   AWAIT_READY(updateSlaveMessage);
 
-  v1::MockResourceProvider resourceProvider;
-
-  // Start and register a resource provider.
-  {
-    Future<Nothing> connected;
-    EXPECT_CALL(resourceProvider, connected())
-      .WillOnce(FutureSatisfy(&connected));
-
-    string scheme = "http";
-
-#ifdef USE_SSL_SOCKET
-    if (process::network::openssl::flags().enabled) {
-      scheme = "https";
-    }
-#endif
-
-    http::URL url(
-        scheme,
-        agent.get()->pid.address.ip,
-        agent.get()->pid.address.port,
-        agent.get()->pid.id + "/api/v1/resource_provider");
-
-    Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
-
-    const ContentType contentType = GetParam();
-
-    resourceProvider.start(
-        endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
-
-    AWAIT_READY(connected);
-  }
-
-  Option<mesos::v1::ResourceProviderID> resourceProviderId;
-
-  {
-    Future<Event::Subscribed> subscribed;
-    EXPECT_CALL(resourceProvider, subscribed(_))
-      .WillOnce(FutureArg<0>(&subscribed));
-
-    mesos::v1::ResourceProviderInfo resourceProviderInfo;
-    resourceProviderInfo.set_type("org.apache.mesos.rp.test");
-    resourceProviderInfo.set_name("test");
-
-    AWAIT_READY(subscribe(&resourceProvider, resourceProviderInfo));
-
-    AWAIT_READY(subscribed);
-
-    resourceProviderId = subscribed->provider_id();
-
-    ASSERT_FALSE(resourceProviderId->value().empty());
-  }
-
   v1::Resource disk = v1::createDiskResource(
-      "200",
-      "*",
-      None(),
-      None(),
-      v1::createDiskSourceRaw());
-  disk.mutable_provider_id()->CopyFrom(resourceProviderId.get());
+      "200", "*", None(), None(), v1::createDiskSourceRaw());
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  AWAIT_READY(updateState(&resourceProvider, resourceProviderId.get(), disk));
+  v1::MockResourceProvider resourceProvider(Some(v1::Resources(disk)));
+
+  // Start and register a resource provider.
+  string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+  if (process::network::openssl::flags().enabled) {
+    scheme = "https";
+  }
+#endif
+
+  http::URL url(
+      scheme,
+      agent.get()->pid.address.ip,
+      agent.get()->pid.address.port,
+      agent.get()->pid.id + "/api/v1/resource_provider");
+
+  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+
+  const ContentType contentType = GetParam();
+
+  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources.
@@ -765,7 +670,10 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
   AWAIT_READY(connected);
 
   Option<v1::FrameworkID> frameworkId;
-  Option<mesos::v1::Offer> offer;
+  Option<mesos::v1::Offer> offer1;
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role");
 
   {
     Future<v1::scheduler::Event::Subscribed> subscribed;
@@ -783,7 +691,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
     mesos::v1::scheduler::Call call;
     call.set_type(mesos::v1::scheduler::Call::SUBSCRIBE);
     mesos::v1::scheduler::Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
 
     mesos.send(call);
 
@@ -794,70 +702,50 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
     // Resource provider resources will be offered to the framework.
     AWAIT_READY(offers);
     EXPECT_FALSE(offers->offers().empty());
-    offer = offers->offers(0);
+    offer1 = offers->offers(0);
   }
 
-  Future<Event::Operation> operation;
+  v1::Resources resources =
+    v1::Resources(offer1->resources()).filter([](const v1::Resource& resource) {
+      return resource.has_provider_id();
+    });
 
-  // Accept the offer with a 'CREATE_BLOCK' operation.
-  EXPECT_CALL(resourceProvider, operation(_))
-    .WillOnce(FutureArg<0>(&operation));
+  ASSERT_FALSE(resources.empty());
 
-  mesos.send(v1::createCallAccept(
-      frameworkId.get(),
-      offer.get(),
-      {v1::CREATE_BLOCK(disk)}));
+  v1::Resource reserved = *(resources.begin());
+  reserved.add_reservations()->CopyFrom(
+      v1::createDynamicReservationInfo(
+          frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
 
-  AWAIT_READY(operation);
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  // Have the resource provider handle the operation, converting its resource.
-  {
-    ASSERT_TRUE(operation->info().has_create_block());
+  mesos.send(
+      v1::createCallAccept(
+          frameworkId.get(),
+          offer1.get(),
+          {v1::RESERVE(reserved),
+           v1::CREATE_BLOCK(reserved)}));
 
-    mesos::v1::Resource convertedResource;
-    convertedResource.CopyFrom(operation->info().create_block().source());
-    convertedResource.mutable_disk()->mutable_source()->set_type(
-        mesos::v1::Resource::DiskInfo::Source::BLOCK);
+  // The converted resource should be offered to the framework.
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers->offers().empty());
 
-    Try<UUID> operationUUID = UUID::fromBytes(operation->operation_uuid());
-    CHECK_SOME(operationUUID);
+  const v1::Offer& offer2 = offers->offers(0);
 
-    Clock::pause();
-
-    Future<v1::scheduler::Event::Offers> offers;
-    EXPECT_CALL(*scheduler, offers(_, _))
-      .WillOnce(FutureArg<1>(&offers))
-      .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-    AWAIT_READY(updateOfferOperationStatus(
-        &resourceProvider,
-        resourceProviderId.get(),
-        operation->framework_id(),
-        operationUUID.get(),
-        convertedResource));
-
-    Clock::advance(masterFlags.allocation_interval);
-    Clock::settle();
-    Clock::resume();
-
-    // The converted resource should be offered to the framework.
-    AWAIT_READY(offers);
-    EXPECT_FALSE(offers->offers().empty());
-
-    const v1::Offer& offer = offers->offers(0);
-
-    Option<v1::Resource> block;
-    foreach (const v1::Resource& resource, offer.resources()) {
-      if (resource.has_provider_id()) {
-        block = resource;
-      }
+  Option<v1::Resource> block;
+  foreach (const v1::Resource& resource, offer2.resources()) {
+    if (resource.has_provider_id()) {
+      block = resource;
     }
-
-    ASSERT_SOME(block);
-    EXPECT_EQ(
-        v1::Resource::DiskInfo::Source::BLOCK,
-        block->disk().source().type());
   }
+
+  ASSERT_SOME(block);
+  EXPECT_EQ(
+      v1::Resource::DiskInfo::Source::BLOCK, block->disk().source().type());
+  EXPECT_FALSE(block->reservations().empty());
 }
 
 } // namespace tests {

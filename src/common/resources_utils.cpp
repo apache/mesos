@@ -27,8 +27,9 @@ namespace mesos {
 
 bool needCheckpointing(const Resource& resource)
 {
-  return Resources::isDynamicallyReserved(resource) ||
-         Resources::isPersistentVolume(resource);
+  return !Resources::hasResourceProvider(resource) &&
+         (Resources::isDynamicallyReserved(resource) ||
+          Resources::isPersistentVolume(resource));
 }
 
 
