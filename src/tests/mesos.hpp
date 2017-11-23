@@ -2656,10 +2656,68 @@ using MockHTTPExecutor = tests::executor::MockHTTPExecutor<
 
 namespace resource_provider {
 
-template <typename Event, typename Driver>
+template <
+    typename Event,
+    typename Call,
+    typename Driver,
+    typename Resource,
+    typename Resources,
+    typename ResourceProviderID,
+    typename OfferOperationState,
+    typename Operation,
+    typename Source>
 class MockResourceProvider
 {
 public:
+  MockResourceProvider(const Option<Resources>& _resources = None())
+    : resources(_resources)
+  {
+    ON_CALL(*this, connected())
+      .WillByDefault(Invoke(
+          this,
+          &MockResourceProvider<
+              Event,
+              Call,
+              Driver,
+              Resource,
+              Resources,
+              ResourceProviderID,
+              OfferOperationState,
+              Operation,
+              Source>::connectedDefault));
+    EXPECT_CALL(*this, connected()).WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, subscribed(_))
+      .WillByDefault(Invoke(
+          this,
+          &MockResourceProvider<
+              Event,
+              Call,
+              Driver,
+              Resource,
+              Resources,
+              ResourceProviderID,
+              OfferOperationState,
+              Operation,
+              Source>::subscribedDefault));
+    EXPECT_CALL(*this, subscribed(_)).WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, operation(_))
+      .WillByDefault(Invoke(
+          this,
+          &MockResourceProvider<
+              Event,
+              Call,
+              Driver,
+              Resource,
+              Resources,
+              ResourceProviderID,
+              OfferOperationState,
+              Operation,
+              Source>::operationDefault));
+    EXPECT_CALL(*this, operation(_)).WillRepeatedly(DoDefault());
+  }
+
   MOCK_METHOD0_T(connected, void());
   MOCK_METHOD0_T(disconnected, void());
   MOCK_METHOD1_T(subscribed, void(const typename Event::Subscribed&));
@@ -2689,7 +2747,6 @@ public:
     }
   }
 
-  template <typename Call>
   process::Future<Nothing> send(const Call& call)
   {
     return driver->send(call);
@@ -2702,17 +2759,163 @@ public:
       const Credential& credential)
   {
     driver.reset(new Driver(
-            std::move(detector),
-            contentType,
-            lambda::bind(&MockResourceProvider<Event, Driver>::connected, this),
-            lambda::bind(
-                &MockResourceProvider<Event, Driver>::disconnected, this),
-            lambda::bind(
-                &MockResourceProvider<Event, Driver>::events, this, lambda::_1),
-            credential));
+        std::move(detector),
+        contentType,
+        lambda::bind(
+            &MockResourceProvider<
+                Event,
+                Call,
+                Driver,
+                Resource,
+                Resources,
+                ResourceProviderID,
+                OfferOperationState,
+                Operation,
+                Source>::connected,
+            this),
+        lambda::bind(
+            &MockResourceProvider<
+                Event,
+                Call,
+                Driver,
+                Resource,
+                Resources,
+                ResourceProviderID,
+                OfferOperationState,
+                Operation,
+                Source>::disconnected,
+            this),
+        lambda::bind(
+            &MockResourceProvider<
+                Event,
+                Call,
+                Driver,
+                Resource,
+                Resources,
+                ResourceProviderID,
+                OfferOperationState,
+                Operation,
+                Source>::events,
+            this,
+            lambda::_1),
+        credential));
   }
 
+  void connectedDefault()
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+    call.mutable_subscribe()->mutable_resource_provider_info()->set_type(
+        "org.apache.mesos.rp.test");
+    call.mutable_subscribe()->mutable_resource_provider_info()->set_name(
+        "test");
+
+    AWAIT_READY(driver->send(call));
+  }
+
+  void subscribedDefault(const typename Event::Subscribed& subscribed)
+  {
+    resourceProviderId = subscribed.provider_id();
+
+    if (resources.isSome()) {
+      Resources injected;
+
+      foreach (Resource resource, resources.get()) {
+        resource.mutable_provider_id()->CopyFrom(resourceProviderId.get());
+        injected += resource;
+      }
+
+      Call call;
+      call.set_type(Call::UPDATE_STATE);
+      call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
+
+      typename Call::UpdateState* update = call.mutable_update_state();
+      update->mutable_resources()->CopyFrom(injected);
+      update->set_resource_version_uuid(UUID::random().toBytes());
+
+      AWAIT_READY(driver->send(call));
+    }
+  }
+
+  void operationDefault(const typename Event::Operation& operation)
+  {
+    Call call;
+    call.set_type(Call::UPDATE_OFFER_OPERATION_STATUS);
+    call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
+
+    typename Call::UpdateOfferOperationStatus* update =
+      call.mutable_update_offer_operation_status();
+    update->mutable_framework_id()->CopyFrom(operation.framework_id());
+    update->set_operation_uuid(operation.operation_uuid());
+
+    update->mutable_status()->set_state(
+        OfferOperationState::OFFER_OPERATION_FINISHED);
+
+    switch (operation.info().type()) {
+      case Operation::LAUNCH:
+      case Operation::LAUNCH_GROUP:
+        break;
+      case Operation::RESERVE:
+        break;
+      case Operation::UNRESERVE:
+        break;
+      case Operation::CREATE:
+        break;
+      case Operation::DESTROY:
+        break;
+      case Operation::CREATE_VOLUME:
+        update->mutable_status()->add_converted_resources()->CopyFrom(
+            operation.info().create_volume().source());
+        update->mutable_status()
+          ->mutable_converted_resources()
+          ->Mutable(0)
+          ->mutable_disk()
+          ->mutable_source()
+          ->set_type(operation.info().create_volume().target_type());
+        break;
+      case Operation::DESTROY_VOLUME:
+        update->mutable_status()->add_converted_resources()->CopyFrom(
+            operation.info().destroy_volume().volume());
+        update->mutable_status()
+          ->mutable_converted_resources()
+          ->Mutable(0)
+          ->mutable_disk()
+          ->mutable_source()
+          ->set_type(Source::BLOCK);
+        break;
+      case Operation::CREATE_BLOCK:
+        update->mutable_status()->add_converted_resources()->CopyFrom(
+            operation.info().create_block().source());
+        update->mutable_status()
+          ->mutable_converted_resources()
+          ->Mutable(0)
+          ->mutable_disk()
+          ->mutable_source()
+          ->set_type(Source::BLOCK);
+        break;
+      case Operation::DESTROY_BLOCK:
+        update->mutable_status()->add_converted_resources()->CopyFrom(
+            operation.info().destroy_block().block());
+        update->mutable_status()
+          ->mutable_converted_resources()
+          ->Mutable(0)
+          ->mutable_disk()
+          ->mutable_source()
+          ->set_type(Source::RAW);
+        break;
+      case Operation::UNKNOWN:
+        break;
+    }
+
+    update->mutable_latest_status()->CopyFrom(update->status());
+
+    AWAIT_READY(driver->send(call));
+  }
+
+  Option<ResourceProviderID> resourceProviderId;
+
 private:
+  Option<Resources> resources;
   std::unique_ptr<Driver> driver;
 };
 
@@ -2731,7 +2934,14 @@ using Event = mesos::v1::resource_provider::Event;
 
 using MockResourceProvider = tests::resource_provider::MockResourceProvider<
     mesos::v1::resource_provider::Event,
-    mesos::v1::resource_provider::Driver>;
+    mesos::v1::resource_provider::Call,
+    mesos::v1::resource_provider::Driver,
+    mesos::v1::Resource,
+    mesos::v1::Resources,
+    mesos::v1::ResourceProviderID,
+    mesos::v1::OfferOperationState,
+    mesos::v1::Offer::Operation,
+    mesos::v1::Resource::DiskInfo::Source>;
 
 } // namespace v1 {
 
