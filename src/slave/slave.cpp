@@ -6983,9 +6983,12 @@ void Slave::updateOfferOperation(
 
   operation->add_statuses()->CopyFrom(status);
 
+  Try<UUID> operationUUID = UUID::fromBytes(operation->operation_uuid());
+  CHECK_SOME(operationUUID);
+
   LOG(INFO) << "Updating the state of offer operation '"
             << operation->info().id()
-            << "' (uuid: " << operation->operation_uuid()
+            << "' (uuid: " << operationUUID.get()
             << ") of framework " << operation->framework_id()
             << " (latest state: " << operation->latest_status().state()
             << ", status update state: " << status.state() << ")";

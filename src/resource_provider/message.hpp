@@ -27,6 +27,7 @@
 #include <stout/option.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/unreachable.hpp>
+#include <stout/uuid.hpp>
 
 #include "messages/messages.hpp"
 
@@ -84,9 +85,18 @@ inline std::ostream& operator<<(
 
       CHECK_SOME(updateOfferOperationStatus);
 
+      Try<UUID> operationUUID =
+        UUID::fromBytes(updateOfferOperationStatus->update.operation_uuid());
+      CHECK_SOME(operationUUID);
+
       return stream
-          << "UPDATE_OFFER_OPERATION_STATUS: "
-          << jsonify(JSON::Protobuf(updateOfferOperationStatus->update));
+          << "UPDATE_OFFER_OPERATION_STATUS: (uuid: " << operationUUID.get()
+          << ") for framework "
+          << updateOfferOperationStatus->update.framework_id()
+          << " (latest state: "
+          << updateOfferOperationStatus->update.latest_status().state()
+          << ", status update state: "
+          << updateOfferOperationStatus->update.status().state() << ")";
     }
   }
 
