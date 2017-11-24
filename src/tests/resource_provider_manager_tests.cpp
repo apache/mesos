@@ -619,15 +619,27 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
     capability->set_type(type);
   }
 
+  // Pause the clock and control it manually in order to
+  // control the timing of the registration. A registration timeout
+  // would trigger multiple registration attempts. As a result, multiple
+  // 'UpdateSlaveMessage' would be sent, which we need to avoid to
+  // ensure that the second 'UpdateSlaveMessage' is a result of the
+  // resource provider registration.
+  Clock::pause();
+
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
 
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
   AWAIT_READY(updateSlaveMessage);
 
   v1::Resource disk = v1::createDiskResource(
       "200", "*", None(), None(), v1::createDiskSourceRaw());
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Clock::resume();
 
   v1::MockResourceProvider resourceProvider(Some(v1::Resources(disk)));
 
