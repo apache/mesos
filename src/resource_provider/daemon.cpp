@@ -20,6 +20,8 @@
 
 #include <glog/logging.h>
 
+#include <mesos/type_utils.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
@@ -104,7 +106,17 @@ private:
 
 void LocalResourceProviderDaemonProcess::start(const SlaveID& _slaveId)
 {
-  CHECK_NONE(slaveId) << "Local resource provider daemon is already started";
+  // NOTE: It's possible that the slave receives multiple
+  // `SlaveRegisteredMessage`s and detects a disconnection in between.
+  // In that case, `start` will be called multiple times from
+  // `Slave::registered`.
+  if (slaveId.isSome()) {
+    CHECK_EQ(slaveId.get(), _slaveId)
+      << "Cannot start local resource provider daemon with id " << _slaveId
+      << " (expected: " << slaveId.get() << ")";
+
+    return;
+  }
 
   slaveId = _slaveId;
 
