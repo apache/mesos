@@ -36,8 +36,8 @@ Looking for a specific topic?
 
 * [Basics](#futures-and-promises-basics)
 * [States](#futures-and-promises-states)
-* [Disarding a Future (aka Cancellation)](#futures-and-discarding-a-future)
-* [Abandoned Futures](#futures-and-abandoned-futures)
+* [Disarding a Future (aka Cancellation)](#futures-and-promises-discarding-a-future)
+* [Abandoned Futures](#futures-and-promises-abandoned-futures)
 * [Composition: `Future::then()`, `Future::repair()`, and `Future::recover()`](#futures-and-promises-composition)
 * [Discarding and Composition](#futures-and-promises-discarding-and-composition)
 * [Callback Semantics](#futures-and-promises-callback-semantics)
