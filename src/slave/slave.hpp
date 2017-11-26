@@ -322,6 +322,10 @@ public:
   // and os calls.
   void _checkDiskUsage(const process::Future<double>& usage);
 
+  // Garbage collect image layers based on the disk usage of image
+  // store.
+  void _checkImageDiskUsage(const process::Future<double>& usage);
+
   // Invoked whenever the detector detects a change in masters.
   // Made public for testing purposes.
   void detected(const process::Future<Option<MasterInfo>>& _master);
@@ -429,6 +433,10 @@ public:
 
   // Checks the current disk usage and schedules for gc as necessary.
   void checkDiskUsage();
+
+  // Checks the current container image disk usage and trigger image
+  // gc if necessary.
+  void checkImageDiskUsage();
 
   // Recovers the slave, task status update manager and isolator.
   process::Future<Nothing> recover(const Try<state::State>& state);

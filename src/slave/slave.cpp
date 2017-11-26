@@ -620,6 +620,21 @@ void Slave::initialize()
   // a very large disk_watch_interval).
   delay(flags.disk_watch_interval, self(), &Slave::checkDiskUsage);
 
+  // Start image store disk monitoring. Please note that image layers
+  // garbage collection is only enabled if the agent flag `--image_gc_config`
+  // is set.
+  // TODO(gilbert): Consider move the image auto GC logic to containerizers
+  // respectively. For now, it is only enabled for the Mesos Containerizer.
+  if (flags.image_gc_config.isSome() &&
+      flags.image_providers.isSome() &&
+      strings::contains(flags.containerizers, "mesos")) {
+    delay(
+        Nanoseconds(
+            flags.image_gc_config->image_disk_watch_interval().nanoseconds()),
+        self(),
+        &Slave::checkImageDiskUsage);
+  }
+
   startTime = Clock::now();
 
   // Install protobuf handlers.
@@ -6191,6 +6206,52 @@ Try<Nothing> Slave::compatible(
 
   // Should have been validated during startup.
   UNREACHABLE();
+}
+
+
+// TODO(gilbert): Consider to read the Image GC config dynamically.
+// For now, the Image GC config can only be updated after the agent
+// restarts.
+void Slave::checkImageDiskUsage()
+{
+  // TODO(gilbert): Container image gc is supported for docker image
+  // in Mesos Containerizer for now. Add more image store gc supports
+  // if necessary.
+  Future<double>(::fs::usage(flags.docker_store_dir))
+    .onAny(defer(self(), &Slave::_checkImageDiskUsage, lambda::_1));
+}
+
+
+void Slave::_checkImageDiskUsage(const Future<double>& usage)
+{
+  CHECK(flags.image_gc_config.isSome());
+
+  if (!usage.isReady()) {
+    LOG(ERROR) << "Failed to get image store disk usage: "
+               << (usage.isFailed() ? usage.failure() : "future discarded");
+  } else {
+    LOG(INFO) << "Current docker image store disk usage: "
+              << std::setiosflags(std::ios::fixed) << std::setprecision(2)
+              << 100 * usage.get() << "%.";
+
+    if ((flags.image_gc_config->image_disk_headroom() + usage.get()) > 1.0) {
+      LOG(INFO) << "Image store disk usage exceeds the threshold '"
+                << 100 * (1.0 - flags.image_gc_config->image_disk_headroom())
+                << "%'. Container Image GC is triggered.";
+
+      vector<Image> excludedImages(
+          flags.image_gc_config->excluded_images().begin(),
+          flags.image_gc_config->excluded_images().end());
+
+      containerizer->pruneImages(excludedImages);
+    }
+  }
+
+  delay(
+      Nanoseconds(
+          flags.image_gc_config->image_disk_watch_interval().nanoseconds()),
+      self(),
+      &Slave::checkImageDiskUsage);
 }
 
 
