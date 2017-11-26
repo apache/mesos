@@ -95,7 +95,7 @@ public:
 
   Future<Nothing> remove(const ContainerID& containerId);
 
-  Future<Nothing> pruneImages();
+  Future<Nothing> pruneImages(const vector<Image>& excludedImages);
 
 private:
   // Continuations.
@@ -265,9 +265,11 @@ Future<Nothing> ComposingContainerizer::remove(const ContainerID& containerId)
 }
 
 
-Future<Nothing> ComposingContainerizer::pruneImages()
+Future<Nothing> ComposingContainerizer::pruneImages(
+    const vector<Image>& excludedImages)
 {
-  return dispatch(process, &ComposingContainerizerProcess::pruneImages);
+  return dispatch(
+      process, &ComposingContainerizerProcess::pruneImages, excludedImages);
 }
 
 
@@ -697,12 +699,13 @@ Future<Nothing> ComposingContainerizerProcess::remove(
 }
 
 
-Future<Nothing> ComposingContainerizerProcess::pruneImages()
+Future<Nothing> ComposingContainerizerProcess::pruneImages(
+    const vector<Image>& excludedImages)
 {
   list<Future<Nothing>> futures;
 
   foreach (Containerizer* containerizer, containerizers_) {
-    futures.push_back(containerizer->pruneImages());
+    futures.push_back(containerizer->pruneImages(excludedImages));
   }
 
   return collect(futures)

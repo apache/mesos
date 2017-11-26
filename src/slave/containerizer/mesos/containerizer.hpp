@@ -111,7 +111,8 @@ public:
 
   virtual process::Future<Nothing> remove(const ContainerID& containerId);
 
-  virtual process::Future<Nothing> pruneImages();
+  virtual process::Future<Nothing> pruneImages(
+      const std::vector<Image>& excludedImages);
 
 private:
   explicit MesosContainerizer(
@@ -183,7 +184,8 @@ public:
 
   virtual process::Future<hashset<ContainerID>> containers();
 
-  virtual process::Future<Nothing> pruneImages();
+  virtual process::Future<Nothing> pruneImages(
+      const std::vector<Image>& excludedImages);
 
 private:
   enum State

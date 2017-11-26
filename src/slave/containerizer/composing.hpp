@@ -86,7 +86,8 @@ public:
 
   virtual process::Future<Nothing> remove(const ContainerID& containerId);
 
-  virtual process::Future<Nothing> pruneImages();
+  virtual process::Future<Nothing> pruneImages(
+      const std::vector<Image>& excludedImages);
 
 private:
   ComposingContainerizerProcess* process;

@@ -109,7 +109,8 @@ public:
 
   virtual process::Future<hashset<ContainerID>> containers();
 
-  virtual process::Future<Nothing> pruneImages();
+  virtual process::Future<Nothing> pruneImages(
+      const std::vector<Image>& excludedImages);
 
 private:
   process::Owned<DockerContainerizerProcess> process;

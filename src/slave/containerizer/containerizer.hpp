@@ -167,7 +167,8 @@ public:
   }
 
   // Prune unused images from supported image stores.
-  virtual process::Future<Nothing> pruneImages() = 0;
+  virtual process::Future<Nothing> pruneImages(
+      const std::vector<Image>& excludedImages) = 0;
 };
 
 } // namespace slave {

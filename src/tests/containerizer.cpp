@@ -314,7 +314,7 @@ public:
     return containers_.keys();
   }
 
-  Future<Nothing> pruneImages()
+  Future<Nothing> pruneImages(const vector<Image>& excludedImages)
   {
     return Nothing();
   }
@@ -444,7 +444,7 @@ void TestContainerizer::setup()
   EXPECT_CALL(*this, kill(_, _))
     .WillRepeatedly(Invoke(this, &TestContainerizer::_kill));
 
-  EXPECT_CALL(*this, pruneImages())
+  EXPECT_CALL(*this, pruneImages(_))
     .WillRepeatedly(Invoke(this, &TestContainerizer::_pruneImages));
 }
 
@@ -578,11 +578,13 @@ Future<hashset<ContainerID>> TestContainerizer::containers()
 }
 
 
-Future<Nothing> TestContainerizer::_pruneImages()
+Future<Nothing> TestContainerizer::_pruneImages(
+    const vector<Image>& excludedImages)
 {
   return process::dispatch(
       process.get(),
-      &TestContainerizerProcess::pruneImages);
+      &TestContainerizerProcess::pruneImages,
+      excludedImages);
 }
 
 } // namespace tests {

@@ -876,7 +876,8 @@ Future<hashset<ContainerID>> DockerContainerizer::containers()
 }
 
 
-Future<Nothing> DockerContainerizer::pruneImages()
+Future<Nothing> DockerContainerizer::pruneImages(
+    const vector<Image>& excludedImages)
 {
   VLOG(1) << "DockerContainerizer does not support pruneImages";
   return Nothing();

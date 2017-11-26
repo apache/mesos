@@ -660,9 +660,11 @@ Future<Nothing> MesosContainerizer::remove(const ContainerID& containerId)
 }
 
 
-Future<Nothing> MesosContainerizer::pruneImages()
+Future<Nothing> MesosContainerizer::pruneImages(
+    const vector<Image>& excludedImages)
 {
-  return dispatch(process.get(), &MesosContainerizerProcess::pruneImages);
+  return dispatch(
+      process.get(), &MesosContainerizerProcess::pruneImages, excludedImages);
 }
 
 
@@ -2828,10 +2830,11 @@ Future<hashset<ContainerID>> MesosContainerizerProcess::containers()
 }
 
 
-Future<Nothing> MesosContainerizerProcess::pruneImages()
+Future<Nothing> MesosContainerizerProcess::pruneImages(
+    const vector<Image>& excludedImages)
 {
-  vector<Image> excludedImages;
-  excludedImages.reserve(containers_.size());
+  vector<Image> _excludedImages;
+  _excludedImages.reserve(containers_.size() + excludedImages.size());
 
   foreachpair (
       const ContainerID& containerId,
@@ -2850,14 +2853,18 @@ Future<Nothing> MesosContainerizerProcess::pruneImages()
     const ContainerConfig& containerConfig = container->config.get();
     if (containerConfig.has_container_info() &&
         containerConfig.container_info().mesos().has_image()) {
-      excludedImages.push_back(
+      _excludedImages.push_back(
           containerConfig.container_info().mesos().image());
     }
   }
 
-  // TODO(zhitao): use std::unique to deduplicate `excludedImages`.
+  foreach (const Image& image, excludedImages) {
+    _excludedImages.push_back(image);
+  }
 
-  return provisioner->pruneImages(excludedImages);
+  // TODO(zhitao): use std::unique to deduplicate `_excludedImages`.
+
+  return provisioner->pruneImages(_excludedImages);
 }
 
 
