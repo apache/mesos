@@ -245,6 +245,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
     </tr>
     <tr>
       <td>-8</td>
+      <td>Andrew Schwartzmeyer</td>
+      <td>Microsoft</td>
+      <td>andschwa</td>
+      <td>andschwa@apache.org</td>
+    </tr>
+    <tr>
+      <td>-8</td>
       <td>Gilbert Song</td>
       <td>Mesosphere</td>
       <td></td>
