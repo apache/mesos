@@ -38,11 +38,11 @@ struct ResourceProviderMessage
 {
   enum class Type
   {
-    UPDATE_TOTAL_RESOURCES,
+    UPDATE_STATE,
     UPDATE_OFFER_OPERATION_STATUS
   };
 
-  struct UpdateTotalResources
+  struct UpdateState
   {
     ResourceProviderID id;
     UUID resourceVersionUuid;
@@ -56,7 +56,7 @@ struct ResourceProviderMessage
 
   Type type;
 
-  Option<UpdateTotalResources> updateTotalResources;
+  Option<UpdateState> updateState;
   Option<UpdateOfferOperationStatus> updateOfferOperationStatus;
 };
 
@@ -66,16 +66,16 @@ inline std::ostream& operator<<(
     const ResourceProviderMessage& resourceProviderMessage)
 {
   switch (resourceProviderMessage.type) {
-    case ResourceProviderMessage::Type::UPDATE_TOTAL_RESOURCES: {
-      const Option<ResourceProviderMessage::UpdateTotalResources>&
-        updateTotalResources = resourceProviderMessage.updateTotalResources;
+    case ResourceProviderMessage::Type::UPDATE_STATE: {
+      const Option<ResourceProviderMessage::UpdateState>&
+        updateState = resourceProviderMessage.updateState;
 
-      CHECK_SOME(updateTotalResources);
+      CHECK_SOME(updateState);
 
       return stream
-          << "UPDATE_TOTAL_RESOURCES: "
-          << updateTotalResources->id << " "
-          << updateTotalResources->total;
+          << "UPDATE_STATE: "
+          << updateState->id << " "
+          << updateState->total;
     }
 
     case ResourceProviderMessage::Type::UPDATE_OFFER_OPERATION_STATUS: {

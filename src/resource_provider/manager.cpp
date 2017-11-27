@@ -458,14 +458,14 @@ void ResourceProviderManagerProcess::updateState(
     << "Could not deserialize version of resource provider "
     << resourceProvider->info.id() << ": " << resourceVersionUuid.error();
 
-  ResourceProviderMessage::UpdateTotalResources updateTotalResources{
+  ResourceProviderMessage::UpdateState updateState{
       resourceProvider->info.id(),
       resourceVersionUuid.get(),
       resourceProvider->resources};
 
   ResourceProviderMessage message;
-  message.type = ResourceProviderMessage::Type::UPDATE_TOTAL_RESOURCES;
-  message.updateTotalResources = std::move(updateTotalResources);
+  message.type = ResourceProviderMessage::Type::UPDATE_STATE;
+  message.updateState = std::move(updateState);
 
   messages.put(std::move(message));
 }

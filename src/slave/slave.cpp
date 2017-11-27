@@ -6780,13 +6780,12 @@ void Slave::handleResourceProviderMessage(
   LOG(INFO) << "Handling resource provider message '" << message.get() << "'";
 
   switch(message->type) {
-    case ResourceProviderMessage::Type::UPDATE_TOTAL_RESOURCES: {
-      CHECK_SOME(message->updateTotalResources);
+    case ResourceProviderMessage::Type::UPDATE_STATE: {
+      CHECK_SOME(message->updateState);
 
-      const Resources& newTotal = message->updateTotalResources->total;
+      const Resources& newTotal = message->updateState->total;
 
-      const ResourceProviderID& resourceProviderId =
-        message->updateTotalResources->id;
+      const ResourceProviderID& resourceProviderId = message->updateState->id;
 
       const Resources oldTotal =
         totalResources.filter([&resourceProviderId](const Resource& resource) {
@@ -6802,7 +6801,7 @@ void Slave::handleResourceProviderMessage(
       totalResources += newTotal;
 
       const UUID& resourceVersionUuid =
-        message->updateTotalResources->resourceVersionUuid;
+        message->updateState->resourceVersionUuid;
 
       if (resourceVersions.contains(resourceProviderId)) {
         resourceVersions.at(resourceProviderId) = resourceVersionUuid;
