@@ -662,7 +662,7 @@ void HierarchicalAllocatorProcess::updateSlave(
   }
 
   if (total.isSome()) {
-    updated = updateSlaveTotal(slaveId, total.get());
+    updated = updated || updateSlaveTotal(slaveId, total.get());
 
     LOG(INFO) << "Agent " << slaveId << " (" << slave.hostname << ")"
               << " updated with total resources " << total.get();
