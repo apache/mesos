@@ -167,7 +167,6 @@ private:
   process::Future<bool> _destroy(
       const ContainerID& containerId);
 
-
   process::Future<bool> _kill(
       const ContainerID& containerId,
       int status);
