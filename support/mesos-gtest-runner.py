@@ -33,6 +33,7 @@ from __future__ import print_function
 import multiprocessing
 import optparse
 import os
+import shlex
 import signal
 import subprocess
 import sys
@@ -122,7 +123,24 @@ def parse_arguments():
         ' 1 also shows full logs of failed shards, and anything'
         ' >1 shows all output. DEFAULT: 1')
 
-    (options, executable) = parser.parse_args()
+    parser.epilog = (
+        'The environment variable MESOS_GTEST_RUNNER_FLAGS '
+        'can be used to set a default set of flags. Flags passed on the '
+        'command line always have precedence over these defaults.')
+
+    # If the environment variable `MESOS_GTEST_RUNNER_FLAGS` is set we
+    # use it to set a default set of flags to pass. Flags passed on
+    # the command line always have precedence over these defaults.
+    #
+    # We manually construct `args` here and make use of the fact that
+    # in `optparser`'s implementation flags passed later on the
+    # command line overrule identical flags passed earlier.
+    args = []
+    if 'MESOS_GTEST_RUNNER_FLAGS' in os.environ:
+        args.extend(shlex.split(os.environ['MESOS_GTEST_RUNNER_FLAGS']))
+    args.extend(sys.argv[1:])
+
+    (options, executable) = parser.parse_args(args)
 
     if not executable:
         parser.print_usage()
