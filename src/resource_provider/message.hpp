@@ -18,6 +18,7 @@
 #define __RESOURCE_PROVIDER_MESSAGE_HPP__
 
 #include <ostream>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
@@ -47,6 +48,7 @@ struct ResourceProviderMessage
     ResourceProviderID id;
     UUID resourceVersionUuid;
     Resources total;
+    std::vector<OfferOperation> operations;
   };
 
   struct UpdateOfferOperationStatus
