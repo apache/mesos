@@ -205,9 +205,10 @@ Future<Person> mother(const std::string& name)
       promise->fail(person.failure());
     } else if (person.isDiscarded()) {
       promise->discard();
+    } else {
+      CHECK_READY(person);
+      promise->set(find(person->mother));
     }
-    CHECK_READY(person);
-    promise->set(find(person->mother));
     delete promise;
   });
 
