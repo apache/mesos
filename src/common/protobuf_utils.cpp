@@ -947,6 +947,8 @@ Try<Resources> getConsumedResources(const Offer::Operation& operation)
     case Offer::Operation::UNKNOWN:
       return Error("Unsupported operation");
   }
+
+  UNREACHABLE();
 }
 
 namespace slave {
