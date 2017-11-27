@@ -38,6 +38,7 @@
 #include <stout/ip.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
+#include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
 #include "messages/messages.hpp"
@@ -224,6 +225,9 @@ FileInfo createFileInfo(const std::string& path, const struct stat& s);
 
 
 ContainerID getRootContainerId(const ContainerID& containerId);
+
+
+Try<Resources> getConsumedResources(const Offer::Operation& operation);
 
 namespace slave {
 

@@ -23,6 +23,7 @@
 #endif // __WINDOWS__
 
 #include <ostream>
+#include <vector>
 
 #include <mesos/slave/isolator.hpp>
 
@@ -56,6 +57,7 @@
 using std::ostream;
 using std::set;
 using std::string;
+using std::vector;
 
 using google::protobuf::RepeatedPtrField;
 
@@ -906,6 +908,45 @@ ContainerID getRootContainerId(const ContainerID& containerId)
   }
 
   return rootContainerId;
+}
+
+
+Try<Resources> getConsumedResources(const Offer::Operation& operation)
+{
+  switch (operation.type()) {
+    case Offer::Operation::CREATE_VOLUME:
+      return operation.create_volume().source();
+    case Offer::Operation::DESTROY_VOLUME:
+      return operation.destroy_volume().volume();
+    case Offer::Operation::CREATE_BLOCK:
+      return operation.create_block().source();
+    case Offer::Operation::DESTROY_BLOCK:
+      return operation.destroy_block().block();
+    case Offer::Operation::RESERVE:
+    case Offer::Operation::UNRESERVE:
+    case Offer::Operation::CREATE:
+    case Offer::Operation::DESTROY: {
+      Try<vector<ResourceConversion>> conversions =
+        getResourceConversions(operation);
+
+      if (conversions.isError()) {
+        return Error(conversions.error());
+      }
+
+      Resources consumed;
+      foreach (const ResourceConversion& conversion, conversions.get()) {
+        consumed += conversion.consumed;
+      }
+
+      return consumed;
+    }
+    case Offer::Operation::LAUNCH:
+    case Offer::Operation::LAUNCH_GROUP:
+      // TODO(bbannier): Consider adding support for 'LAUNCH' and
+      // 'LAUNCH_GROUP' operations.
+    case Offer::Operation::UNKNOWN:
+      return Error("Unsupported operation");
+  }
 }
 
 namespace slave {
