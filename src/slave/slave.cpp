@@ -3738,6 +3738,18 @@ void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
 
   addOfferOperation(offerOperation);
 
+  if (protobuf::isSpeculativeOperation(message.operation_info())) {
+    Offer::Operation strippedOperation = message.operation_info();
+    protobuf::stripAllocationInfo(&strippedOperation);
+
+    Try<vector<ResourceConversion>> conversions =
+      getResourceConversions(strippedOperation);
+
+    CHECK_SOME(conversions);
+
+    apply(conversions.get());
+  }
+
   if (resourceProviderId.isSome()) {
     resourceProviderManager.applyOfferOperation(message);
     return;
@@ -6909,38 +6921,6 @@ void Slave::addOfferOperation(OfferOperation* operation)
   CHECK_SOME(uuid);
 
   offerOperations.put(uuid.get(), operation);
-
-  switch (operation->info().type()) {
-    case Offer::Operation::LAUNCH:
-      LOG(FATAL) << "Unexpected LAUNCH operation";
-      break;
-    case Offer::Operation::LAUNCH_GROUP:
-      LOG(FATAL) << "Unexpected LAUNCH_GROUP operation";
-      break;
-    case Offer::Operation::RESERVE:
-    case Offer::Operation::UNRESERVE:
-    case Offer::Operation::CREATE:
-    case Offer::Operation::DESTROY: {
-      Offer::Operation strippedOperation = operation->info();
-      protobuf::stripAllocationInfo(&strippedOperation);
-
-      Try<vector<ResourceConversion>> conversions =
-        getResourceConversions(strippedOperation);
-
-      CHECK_SOME(conversions);
-
-      apply(conversions.get());
-      break;
-    }
-    case Offer::Operation::CREATE_VOLUME:
-    case Offer::Operation::DESTROY_VOLUME:
-    case Offer::Operation::CREATE_BLOCK:
-    case Offer::Operation::DESTROY_BLOCK:
-      break;
-    case Offer::Operation::UNKNOWN:
-      LOG(WARNING) << "Unknown offer operation";
-      break;
-  }
 }
 
 

@@ -9925,6 +9925,18 @@ void Master::_apply(
 
     addOfferOperation(framework, slave, offerOperation);
 
+    if (protobuf::isSpeculativeOperation(offerOperation->info())) {
+      Offer::Operation strippedOperation = offerOperation->info();
+      protobuf::stripAllocationInfo(&strippedOperation);
+
+      Try<vector<ResourceConversion>> conversions =
+        getResourceConversions(strippedOperation);
+
+      CHECK_SOME(conversions);
+
+      slave->apply(conversions.get());
+    }
+
     ApplyOfferOperationMessage message;
     if (framework != nullptr) {
       message.mutable_framework_id()->CopyFrom(framework->id());
@@ -10864,53 +10876,15 @@ void Slave::addOfferOperation(OfferOperation* operation)
 
   offerOperations.put(uuid.get(), operation);
 
-  Option<Resource> consumed;
+  if (!protobuf::isSpeculativeOperation(operation->info())) {
+    Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
 
-  switch (operation->info().type()) {
-    case Offer::Operation::LAUNCH:
-    case Offer::Operation::LAUNCH_GROUP:
-      LOG(FATAL) << "Unexpected offer operation to add on agent " << *this;
-      break;
-    case Offer::Operation::RESERVE:
-    case Offer::Operation::UNRESERVE:
-    case Offer::Operation::CREATE:
-    case Offer::Operation::DESTROY: {
-      // These operations are speculatively applied and will be
-      // reflected in the `totalResources` immediately. Resources used
-      // by those operations are not tracked as used resources.
+    CHECK_SOME(consumed);
 
-      // We need to strip the allocation info from the operation's
-      // resources in order to apply the operation successfully
-      // since the agent's total is stored as unallocated resources.
-      Offer::Operation strippedOperation = operation->info();
-      protobuf::stripAllocationInfo(&strippedOperation);
+    // There isn't support for non-speculative operations using the
+    // operator API. We can assume the framework ID has been set.
+    CHECK(operation->has_framework_id());
 
-      Try<vector<ResourceConversion>> conversions =
-        getResourceConversions(strippedOperation);
-
-      CHECK_SOME(conversions);
-
-      apply(conversions.get());
-      break;
-    }
-    case Offer::Operation::CREATE_VOLUME:
-      consumed = operation->info().create_volume().source();
-      break;
-    case Offer::Operation::DESTROY_VOLUME:
-      consumed = operation->info().destroy_volume().volume();
-      break;
-    case Offer::Operation::CREATE_BLOCK:
-      consumed = operation->info().create_block().source();
-      break;
-    case Offer::Operation::DESTROY_BLOCK:
-      consumed = operation->info().destroy_block().block();
-      break;
-    case Offer::Operation::UNKNOWN:
-      LOG(WARNING) << "Ignoring unknown offer operation";
-      return;
-  }
-
-  if (consumed.isSome()) {
     usedResources[operation->framework_id()] += consumed.get();
   }
 }
