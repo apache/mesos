@@ -464,6 +464,7 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
       None(),
       None(),
       None(),
+      None(),
       authorizer);
 }
 
@@ -483,6 +484,28 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
       None(),
       None(),
       None(),
+      None(),
+      authorizer);
+}
+
+
+Try<Owned<cluster::Slave>> MesosTest::StartSlave(
+    mesos::master::detector::MasterDetector* detector,
+    slave::Containerizer* containerizer,
+    mesos::SecretGenerator* secretGenerator,
+    const Option<mesos::Authorizer*>& authorizer,
+    const Option<slave::Flags>& flags)
+{
+  return cluster::Slave::start(
+      detector,
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+      None(),
+      containerizer,
+      None(),
+      None(),
+      None(),
+      None(),
+      secretGenerator,
       authorizer);
 }
 

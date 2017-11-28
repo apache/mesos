@@ -122,6 +122,7 @@ public:
         TaskStatusUpdateManager* taskStatusUpdateManager,
         mesos::slave::ResourceEstimator* resourceEstimator,
         mesos::slave::QoSController* qosController,
+        mesos::SecretGenerator* secretGenerator,
         const Option<Authorizer*>& authorizer);
 
   virtual ~Slave();
@@ -676,6 +677,8 @@ private:
 
   mesos::slave::QoSController* qosController;
 
+  mesos::SecretGenerator* secretGenerator;
+
   const Option<Authorizer*> authorizer;
 
   // The most recent estimate of the total amount of oversubscribed
@@ -689,10 +692,6 @@ private:
   // Pending operations or terminal operations that have
   // unacknowledged status updates.
   hashmap<UUID, OfferOperation*> offerOperations;
-
-protected:
-  // Made protected for testing purposes.
-  mesos::SecretGenerator* secretGenerator;
 };
 
 

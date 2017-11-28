@@ -72,10 +72,6 @@
 
 #include "authentication/cram_md5/authenticatee.hpp"
 
-#ifdef USE_SSL_SOCKET
-#include "authentication/executor/jwt_secret_generator.hpp"
-#endif // USE_SSL_SOCKET
-
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/resources_utils.hpp"
@@ -115,10 +111,6 @@ namespace http = process::http;
 using google::protobuf::RepeatedPtrField;
 
 using mesos::SecretGenerator;
-
-#ifdef USE_SSL_SOCKET
-using mesos::authentication::executor::JWTSecretGenerator;
-#endif // USE_SSL_SOCKET
 
 using mesos::authorization::createSubject;
 
@@ -193,6 +185,7 @@ Slave::Slave(const string& id,
              TaskStatusUpdateManager* _taskStatusUpdateManager,
              ResourceEstimator* _resourceEstimator,
              QoSController* _qosController,
+             SecretGenerator* _secretGenerator,
              const Option<Authorizer*>& _authorizer)
   : ProcessBase(id),
     state(RECOVERING),
@@ -222,9 +215,9 @@ Slave::Slave(const string& id,
     executorDirectoryMaxAllowedAge(age(0)),
     resourceEstimator(_resourceEstimator),
     qosController(_qosController),
+    secretGenerator(_secretGenerator),
     authorizer(_authorizer),
-    resourceVersions({{Option<ResourceProviderID>::none(), UUID::random()}}),
-    secretGenerator(nullptr) {}
+    resourceVersions({{Option<ResourceProviderID>::none(), UUID::random()}}) {}
 
 
 Slave::~Slave()
@@ -239,8 +232,6 @@ Slave::~Slave()
   }
 
   delete authenticatee;
-
-  delete secretGenerator;
 }
 
 
@@ -329,7 +320,6 @@ void Slave::initialize()
 #ifdef USE_SSL_SOCKET
   if (flags.jwt_secret_key.isSome()) {
     Try<string> jwtSecretKey_ = os::read(flags.jwt_secret_key.get());
-
     if (jwtSecretKey_.isError()) {
       EXIT(EXIT_FAILURE) << "Failed to read the file specified by "
                          << "--jwt_secret_key";
@@ -351,7 +341,6 @@ void Slave::initialize()
     }
 
     jwtSecretKey = jwtSecretKey_.get();
-    secretGenerator = new JWTSecretGenerator(jwtSecretKey.get());
   }
 
   if (flags.authenticate_http_executors) {

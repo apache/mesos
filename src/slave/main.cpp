@@ -50,6 +50,10 @@
 #include <stout/try.hpp>
 #include <stout/version.hpp>
 
+#ifdef USE_SSL_SOCKET
+#include "authentication/executor/jwt_secret_generator.hpp"
+#endif // USE_SSL_SOCKET
+
 #include "common/build.hpp"
 #include "common/http.hpp"
 
@@ -75,6 +79,12 @@
 
 using namespace mesos::internal;
 using namespace mesos::internal::slave;
+
+using mesos::SecretGenerator;
+
+#ifdef USE_SSL_SOCKET
+using mesos::authentication::executor::JWTSecretGenerator;
+#endif // USE_SSL_SOCKET
 
 using mesos::master::detector::MasterDetector;
 
@@ -552,6 +562,34 @@ int main(int argc, char** argv)
                        << qosController.error();
   }
 
+  SecretGenerator* secretGenerator = nullptr;
+#ifdef USE_SSL_SOCKET
+  if (flags.jwt_secret_key.isSome()) {
+    Try<string> jwtSecretKey = os::read(flags.jwt_secret_key.get());
+    if (jwtSecretKey.isError()) {
+      EXIT(EXIT_FAILURE) << "Failed to read the file specified by "
+                         << "--jwt_secret_key";
+    }
+
+    // TODO(greggomann): Factor the following code out into a common helper,
+    // since we also do this when loading credentials.
+    Try<os::Permissions> permissions =
+      os::permissions(flags.jwt_secret_key.get());
+    if (permissions.isError()) {
+      LOG(WARNING) << "Failed to stat jwt secret key file '"
+                   << flags.jwt_secret_key.get()
+                   << "': " << permissions.error();
+    } else if (permissions.get().others.rwx) {
+      LOG(WARNING) << "Permissions on executor secret key file '"
+                   << flags.jwt_secret_key.get()
+                   << "' are too open; it is recommended that your"
+                   << " key file is NOT accessible by others";
+    }
+
+    secretGenerator = new JWTSecretGenerator(jwtSecretKey.get());
+  }
+#endif // USE_SSL_SOCKET
+
   Slave* slave = new Slave(
       id,
       flags,
@@ -562,12 +600,15 @@ int main(int argc, char** argv)
       taskStatusUpdateManager,
       resourceEstimator.get(),
       qosController.get(),
+      secretGenerator,
       authorizer_);
 
   process::spawn(slave);
   process::wait(slave->self());
 
   delete slave;
+
+  delete secretGenerator;
 
   delete qosController.get();
 

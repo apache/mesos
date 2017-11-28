@@ -2047,17 +2047,16 @@ TEST_F(SlaveTest, HTTPExecutorBadAuthentication)
   Owned<TestContainerizer> containerizer(
       new TestContainerizer(devolve(executorInfo.executor_id()), executor));
 
-  // This pointer is passed to the agent, which will perform the cleanup.
-  MockSecretGenerator* mockSecretGenerator = new MockSecretGenerator();
+  Owned<MockSecretGenerator> mockSecretGenerator(new MockSecretGenerator());
 
-  MockSlave slave(
-      CreateSlaveFlags(),
+  Try<Owned<cluster::Slave>> slave = StartSlave(
       detector.get(),
       containerizer.get(),
-      None(),
-      None(),
-      mockSecretGenerator);
-  process::PID<Slave> slavePid = spawn(slave);
+      mockSecretGenerator.get());
+
+  ASSERT_SOME(slave);
+
+  process::PID<Slave> slavePid = slave.get()->pid;
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
@@ -2210,9 +2209,6 @@ TEST_F(SlaveTest, HTTPExecutorBadAuthentication)
         response->headers.at("WWW-Authenticate"),
         "Invalid JWT: Token signature does not match"));
   }
-
-  terminate(slave);
-  wait(slave);
 }
 #endif // USE_SSL_SOCKET
 
@@ -5953,15 +5949,15 @@ TEST_F(SlaveTest, RunTaskGroupFailedSecretGeneration)
   StandaloneMasterDetector detector(master.get()->pid);
 
   // This pointer is passed to the agent, which will perform the cleanup.
-  MockSecretGenerator* secretGenerator = new MockSecretGenerator();
+  Owned<MockSecretGenerator> secretGenerator(new MockSecretGenerator());
 
   MockSlave slave(
       CreateSlaveFlags(),
       &detector,
       &containerizer,
       None(),
-      None(),
-      secretGenerator);
+      secretGenerator.get());
+
   spawn(slave);
 
   Future<Nothing> connected;
@@ -6153,16 +6149,15 @@ TEST_F(SlaveTest, RunTaskGroupInvalidExecutorSecret)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
-  // This pointer is passed to the agent, which will perform the cleanup.
-  MockSecretGenerator* secretGenerator = new MockSecretGenerator();
+  Owned<MockSecretGenerator> secretGenerator(new MockSecretGenerator());
 
   MockSlave slave(
       CreateSlaveFlags(),
       &detector,
       &containerizer,
       None(),
-      None(),
-      secretGenerator);
+      secretGenerator.get());
+
   spawn(slave);
 
   Future<Nothing> connected;
@@ -6363,16 +6358,15 @@ TEST_F(SlaveTest, RunTaskGroupReferenceTypeSecret)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
-  // This pointer is passed to the agent, which will perform the cleanup.
-  MockSecretGenerator* secretGenerator = new MockSecretGenerator();
+  Owned<MockSecretGenerator> secretGenerator(new MockSecretGenerator());
 
   MockSlave slave(
       CreateSlaveFlags(),
       &detector,
       &containerizer,
       None(),
-      None(),
-      secretGenerator);
+      secretGenerator.get());
+
   spawn(slave);
 
   Future<Nothing> connected;
@@ -6573,16 +6567,15 @@ TEST_F(SlaveTest, RunTaskGroupGenerateSecretAfterShutdown)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
-  // This pointer is passed to the agent, which will perform the cleanup.
-  MockSecretGenerator* secretGenerator = new MockSecretGenerator();
+  Owned<MockSecretGenerator> secretGenerator(new MockSecretGenerator());
 
   MockSlave slave(
       CreateSlaveFlags(),
       &detector,
       &containerizer,
       None(),
-      None(),
-      secretGenerator);
+      secretGenerator.get());
+
   spawn(slave);
 
   Future<Nothing> connected;

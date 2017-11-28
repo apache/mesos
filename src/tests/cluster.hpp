@@ -22,6 +22,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/authentication/secret_generator.hpp>
+
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/log/log.hpp>
@@ -165,6 +167,7 @@ public:
       const Option<mesos::slave::ResourceEstimator*>& resourceEstimator =
         None(),
       const Option<mesos::slave::QoSController*>& qosController = None(),
+      const Option<mesos::SecretGenerator*>& secretGenerator = None(),
       const Option<Authorizer*>& authorizer = None());
 
   ~Slave();
@@ -221,6 +224,7 @@ private:
   process::Owned<slave::GarbageCollector> gc;
   process::Owned<mesos::slave::QoSController> qosController;
   process::Owned<mesos::slave::ResourceEstimator> resourceEstimator;
+  process::Owned<mesos::SecretGenerator> secretGenerator;
   process::Owned<slave::TaskStatusUpdateManager> taskStatusUpdateManager;
 
   // Indicates whether or not authorization callbacks were set when this agent

@@ -786,16 +786,16 @@ TEST_F(ExecutorAuthorizationTest, FailedSubscribe)
       new TestContainerizer(devolve(executorInfo.executor_id()), executor));
 
   // This pointer is passed to the agent, which will perform the cleanup.
-  MockSecretGenerator* mockSecretGenerator = new MockSecretGenerator();
+  Owned<MockSecretGenerator> mockSecretGenerator(new MockSecretGenerator());
 
-  MockSlave slave(
-      flags,
+  Try<Owned<cluster::Slave>> slave = StartSlave(
       detector.get(),
       containerizer.get(),
-      None(),
+      mockSecretGenerator.get(),
       authorizer.get(),
-      mockSecretGenerator);
-  spawn(slave);
+      flags);
+
+  ASSERT_SOME(slave);
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
@@ -915,9 +915,6 @@ TEST_F(ExecutorAuthorizationTest, FailedSubscribe)
   EXPECT_EQ(
       error->message(),
       "Received unexpected '403 Forbidden' () for SUBSCRIBE");
-
-  terminate(slave);
-  wait(slave);
 }
 
 

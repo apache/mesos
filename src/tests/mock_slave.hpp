@@ -110,12 +110,10 @@ public:
       mesos::master::detector::MasterDetector* detector,
       slave::Containerizer* containerizer,
       const Option<mesos::slave::QoSController*>& qosController = None(),
-      const Option<mesos::Authorizer*>& authorizer = None(),
-      const Option<mesos::SecretGenerator*>& mockSecretGenerator = None());
+      const Option<mesos::SecretGenerator*>& secretGenerator = None(),
+      const Option<mesos::Authorizer*>& authorizer = None());
 
   virtual ~MockSlave();
-
-  void initialize();
 
   MOCK_METHOD5(runTask, void(
       const process::UPID& from,
@@ -217,10 +215,6 @@ private:
   MockResourceEstimator resourceEstimator;
   MockQoSController qosController;
   slave::TaskStatusUpdateManager* taskStatusUpdateManager;
-
-  // Set to the base class `secretGenerator` in `initialize()`. After
-  // `initialize()` has executed, this will be `None()`.
-  Option<mesos::SecretGenerator*> mockSecretGenerator;
 };
 
 } // namespace tests {

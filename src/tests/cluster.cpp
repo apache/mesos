@@ -62,6 +62,10 @@
 #include "linux/cgroups.hpp"
 #endif
 
+#ifdef USE_SSL_SOCKET
+#include "authentication/executor/jwt_secret_generator.hpp"
+#endif // USE_SSL_SOCKET
+
 #include "authorizer/local/authorizer.hpp"
 
 #include "common/http.hpp"
@@ -94,6 +98,10 @@
 
 using std::string;
 using std::vector;
+
+#ifdef USE_SSL_SOCKET
+using mesos::authentication::executor::JWTSecretGenerator;
+#endif // USE_SSL_SOCKET
 
 using mesos::master::contender::StandaloneMasterContender;
 using mesos::master::contender::ZooKeeperMasterContender;
@@ -399,6 +407,7 @@ Try<process::Owned<Slave>> Slave::start(
     const Option<slave::TaskStatusUpdateManager*>& taskStatusUpdateManager,
     const Option<mesos::slave::ResourceEstimator*>& resourceEstimator,
     const Option<mesos::slave::QoSController*>& qosController,
+    const Option<mesos::SecretGenerator*>& secretGenerator,
     const Option<Authorizer*>& providedAuthorizer)
 {
   process::Owned<Slave> slave(new Slave());
@@ -503,6 +512,39 @@ Try<process::Owned<Slave>> Slave::start(
     slave->qosController.reset(_qosController.get());
   }
 
+  // If the QoS controller is not provided, create a default one.
+  if (secretGenerator.isNone()) {
+    SecretGenerator* _secretGenerator = nullptr;
+
+#ifdef USE_SSL_SOCKET
+    if (flags.jwt_secret_key.isSome()) {
+      Try<string> jwtSecretKey = os::read(flags.jwt_secret_key.get());
+      if (jwtSecretKey.isError()) {
+        return Error("Failed to read the file specified by --jwt_secret_key");
+      }
+
+      // TODO(greggomann): Factor the following code out into a common helper,
+      // since we also do this when loading credentials.
+      Try<os::Permissions> permissions =
+        os::permissions(flags.jwt_secret_key.get());
+      if (permissions.isError()) {
+        LOG(WARNING) << "Failed to stat jwt secret key file '"
+                     << flags.jwt_secret_key.get()
+                     << "': " << permissions.error();
+      } else if (permissions.get().others.rwx) {
+        LOG(WARNING) << "Permissions on executor secret key file '"
+                     << flags.jwt_secret_key.get()
+                     << "' are too open; it is recommended that your"
+                     << " key file is NOT accessible by others";
+      }
+
+      _secretGenerator = new JWTSecretGenerator(jwtSecretKey.get());
+    }
+#endif // USE_SSL_SOCKET
+
+    slave->secretGenerator.reset(_secretGenerator);
+  }
+
   // If the task status update manager is not provided, create a default one.
   if (taskStatusUpdateManager.isNone()) {
     slave->taskStatusUpdateManager.reset(
@@ -520,6 +562,7 @@ Try<process::Owned<Slave>> Slave::start(
       taskStatusUpdateManager.getOrElse(slave->taskStatusUpdateManager.get()),
       resourceEstimator.getOrElse(slave->resourceEstimator.get()),
       qosController.getOrElse(slave->qosController.get()),
+      secretGenerator.getOrElse(slave->secretGenerator.get()),
       authorizer));
 
   slave->pid = process::spawn(slave->slave.get());

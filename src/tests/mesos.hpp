@@ -245,6 +245,15 @@ protected:
       mesos::Authorizer* authorizer,
       const Option<slave::Flags>& flags = None());
 
+  // Starts a slave with the specified detector, containerizer,
+  // secretGenerator, authorizer and flags.
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
+      mesos::master::detector::MasterDetector* detector,
+      slave::Containerizer* containerizer,
+      mesos::SecretGenerator* secretGenerator,
+      const Option<mesos::Authorizer*>& authorizer = None(),
+      const Option<slave::Flags>& flags = None());
+
   Option<zookeeper::URL> zookeeperUrl;
 
   const std::string defaultAgentResourcesString{

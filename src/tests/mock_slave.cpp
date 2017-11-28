@@ -108,8 +108,8 @@ MockSlave::MockSlave(
     MasterDetector* detector,
     slave::Containerizer* containerizer,
     const Option<mesos::slave::QoSController*>& _qosController,
-    const Option<mesos::Authorizer*>& authorizer,
-    const Option<mesos::SecretGenerator*>& _mockSecretGenerator)
+    const Option<mesos::SecretGenerator*>& secretGenerator,
+    const Option<mesos::Authorizer*>& authorizer)
   : slave::Slave(
         process::ID::generate("slave"),
         flags,
@@ -120,9 +120,9 @@ MockSlave::MockSlave(
         taskStatusUpdateManager = new slave::TaskStatusUpdateManager(flags),
         &resourceEstimator,
         _qosController.isSome() ? _qosController.get() : &qosController,
+        secretGenerator.isSome() ? secretGenerator.get() : nullptr,
         authorizer),
-    files(slave::READONLY_HTTP_AUTHENTICATION_REALM),
-    mockSecretGenerator(_mockSecretGenerator)
+    files(slave::READONLY_HTTP_AUTHENTICATION_REALM)
 {
   // Set up default behaviors, calling the original methods.
   EXPECT_CALL(*this, runTask(_, _, _, _, _))
@@ -151,18 +151,6 @@ MockSlave::MockSlave(
 MockSlave::~MockSlave()
 {
   delete taskStatusUpdateManager;
-}
-
-
-void MockSlave::initialize()
-{
-  Slave::initialize();
-
-  if (mockSecretGenerator.isSome()) {
-    delete secretGenerator;
-    secretGenerator = mockSecretGenerator.get();
-    mockSecretGenerator = None();
-  }
 }
 
 

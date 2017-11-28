@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/authentication/secret_generator.hpp>
+
 #include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/allocator/allocator.hpp>
@@ -54,6 +56,10 @@
 #include <stout/try.hpp>
 #include <stout/strings.hpp>
 
+#ifdef USE_SSL_SOCKET
+#include "authentication/executor/jwt_secret_generator.hpp"
+#endif // USE_SSL_SOCKET
+
 #include "common/protobuf_utils.hpp"
 
 #include "local.hpp"
@@ -83,11 +89,19 @@
 using namespace mesos::internal;
 #ifndef __WINDOWS__
 using namespace mesos::internal::log;
+#endif // __WINDOWS__
 
+using mesos::SecretGenerator;
+
+#ifndef __WINDOWS__
 using mesos::log::Log;
 #endif // __WINDOWS__
 
 using mesos::allocator::Allocator;
+
+#ifdef USE_SSL_SOCKET
+using mesos::authentication::executor::JWTSecretGenerator;
+#endif // USE_SSL_SOCKET
 
 using mesos::master::contender::MasterContender;
 using mesos::master::contender::StandaloneMasterContender;
@@ -147,6 +161,7 @@ static vector<TaskStatusUpdateManager*>* taskStatusUpdateManagers = nullptr;
 static vector<Fetcher*>* fetchers = nullptr;
 static vector<ResourceEstimator*>* resourceEstimators = nullptr;
 static vector<QoSController*>* qosControllers = nullptr;
+static vector<SecretGenerator*>* secretGenerators = nullptr;
 
 
 PID<Master> launch(const Flags& flags, Allocator* _allocator)
@@ -355,6 +370,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   fetchers = new vector<Fetcher*>();
   resourceEstimators = new vector<ResourceEstimator*>();
   qosControllers = new vector<QoSController*>();
+  secretGenerators = new vector<SecretGenerator*>();
 
   vector<UPID> pids;
 
@@ -432,6 +448,37 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
 
     qosControllers->push_back(qosController.get());
 
+    SecretGenerator* secretGenerator = nullptr;
+
+#ifdef USE_SSL_SOCKET
+    if (slaveFlags.jwt_secret_key.isSome()) {
+      Try<string> jwtSecretKey = os::read(slaveFlags.jwt_secret_key.get());
+      if (jwtSecretKey.isError()) {
+        EXIT(EXIT_FAILURE) << "Failed to read the file specified by "
+                           << "--jwt_secret_key";
+      }
+
+      // TODO(greggomann): Factor the following code out into a common helper,
+      // since we also do this when loading credentials.
+      Try<os::Permissions> permissions =
+        os::permissions(slaveFlags.jwt_secret_key.get());
+      if (permissions.isError()) {
+        LOG(WARNING) << "Failed to stat jwt secret key file '"
+                     << slaveFlags.jwt_secret_key.get()
+                     << "': " << permissions.error();
+      } else if (permissions.get().others.rwx) {
+        LOG(WARNING) << "Permissions on executor secret key file '"
+                     << slaveFlags.jwt_secret_key.get()
+                     << "' are too open; it is recommended that your"
+                     << " key file is NOT accessible by others";
+      }
+
+      secretGenerator = new JWTSecretGenerator(jwtSecretKey.get());
+    }
+#endif // USE_SSL_SOCKET
+
+    secretGenerators->push_back(secretGenerator);
+
     // Override the default launcher that gets created per agent to
     // 'posix' if we're creating multiple agents because the
     // LinuxLauncher does not support multiple agents on the same host
@@ -476,6 +523,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         taskStatusUpdateManagers->back(),
         resourceEstimators->back(),
         qosControllers->back(),
+        secretGenerators->back(),
         authorizer_); // Same authorizer as master.
 
     slaves[containerizer.get()] = slave;
@@ -547,6 +595,13 @@ void shutdown()
 
     delete fetchers;
     fetchers = nullptr;
+
+    foreach (SecretGenerator* secretGenerator, *secretGenerators) {
+      delete secretGenerator;
+    }
+
+    delete secretGenerators;
+    secretGenerators = nullptr;
 
     foreach (ResourceEstimator* estimator, *resourceEstimators) {
       delete estimator;
