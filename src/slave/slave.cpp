@@ -325,12 +325,12 @@ void Slave::initialize()
     httpAuthenticators = DEFAULT_BASIC_HTTP_AUTHENTICATOR;
   }
 
-  Option<string> secretKey;
+  Option<string> jwtSecretKey;
 #ifdef USE_SSL_SOCKET
   if (flags.jwt_secret_key.isSome()) {
-    Try<string> secretKey_ = os::read(flags.jwt_secret_key.get());
+    Try<string> jwtSecretKey_ = os::read(flags.jwt_secret_key.get());
 
-    if (secretKey_.isError()) {
+    if (jwtSecretKey_.isError()) {
       EXIT(EXIT_FAILURE) << "Failed to read the file specified by "
                          << "--jwt_secret_key";
     }
@@ -350,8 +350,8 @@ void Slave::initialize()
                    << " key file is NOT accessible by others";
     }
 
-    secretKey = secretKey_.get();
-    secretGenerator = new JWTSecretGenerator(secretKey.get());
+    jwtSecretKey = jwtSecretKey_.get();
+    secretGenerator = new JWTSecretGenerator(jwtSecretKey.get());
   }
 
   if (flags.authenticate_http_executors) {
@@ -364,7 +364,7 @@ void Slave::initialize()
         EXECUTOR_HTTP_AUTHENTICATION_REALM,
         strings::split(httpAuthenticators, ","),
         httpCredentials,
-        secretKey);
+        jwtSecretKey);
 
     if (result.isError()) {
       EXIT(EXIT_FAILURE) << result.error();
@@ -377,7 +377,7 @@ void Slave::initialize()
         READONLY_HTTP_AUTHENTICATION_REALM,
         strings::split(httpAuthenticators, ","),
         httpCredentials,
-        secretKey);
+        jwtSecretKey);
 
     if (result.isError()) {
       EXIT(EXIT_FAILURE) << result.error();
@@ -389,7 +389,7 @@ void Slave::initialize()
         READWRITE_HTTP_AUTHENTICATION_REALM,
         strings::split(httpAuthenticators, ","),
         httpCredentials,
-        secretKey);
+        jwtSecretKey);
 
     if (result.isError()) {
       EXIT(EXIT_FAILURE) << result.error();

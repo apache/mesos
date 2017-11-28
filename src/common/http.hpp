@@ -289,7 +289,7 @@ bool authorizeResource(
  * @param realm name of the realm.
  * @param authenticatorNames a vector of authenticator names.
  * @param credentials optional credentials for BasicAuthenticator only.
- * @param secretKey optional secret key for the JWTAuthenticator only.
+ * @param jwtSecretKey optional secret key for the JWTAuthenticator only.
  * @return nothing if authenticators are initialized and registered to
  *         libprocess successfully, or error if authenticators cannot
  *         be initialized.
@@ -298,7 +298,7 @@ Try<Nothing> initializeHttpAuthenticators(
     const std::string& realm,
     const std::vector<std::string>& httpAuthenticatorNames,
     const Option<Credentials>& credentials = None(),
-    const Option<std::string>& secretKey = None());
+    const Option<std::string>& jwtSecretKey = None());
 
 
 // Logs the request. Route handlers can compose this with the

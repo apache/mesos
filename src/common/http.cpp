@@ -1054,9 +1054,9 @@ Result<process::http::authentication::Authenticator*> createBasicAuthenticator(
 Result<process::http::authentication::Authenticator*> createJWTAuthenticator(
     const string& realm,
     const string& authenticatorName,
-    const Option<string>& secretKey)
+    const Option<string>& jwtSecretKey)
 {
-  if (secretKey.isNone()) {
+  if (jwtSecretKey.isNone()) {
     return Error(
         "No secret key provided for the default '" +
         string(internal::DEFAULT_JWT_HTTP_AUTHENTICATOR) +
@@ -1067,7 +1067,7 @@ Result<process::http::authentication::Authenticator*> createJWTAuthenticator(
             << internal::DEFAULT_JWT_HTTP_AUTHENTICATOR
             << "' HTTP authenticator for realm '" << realm << "'";
 
-  return new JWTAuthenticator(realm, secretKey.get());
+  return new JWTAuthenticator(realm, jwtSecretKey.get());
 }
 #endif // USE_SSL_SOCKET
 
@@ -1099,7 +1099,7 @@ Try<Nothing> initializeHttpAuthenticators(
     const string& realm,
     const vector<string>& authenticatorNames,
     const Option<Credentials>& credentials,
-    const Option<string>& secretKey)
+    const Option<string>& jwtSecretKey)
 {
   if (authenticatorNames.empty()) {
     return Error(
@@ -1119,7 +1119,7 @@ Try<Nothing> initializeHttpAuthenticators(
     } else if (
         authenticatorNames[0] == internal::DEFAULT_JWT_HTTP_AUTHENTICATOR) {
       authenticator_ =
-        createJWTAuthenticator(realm, authenticatorNames[0], secretKey);
+        createJWTAuthenticator(realm, authenticatorNames[0], jwtSecretKey);
 #endif // USE_SSL_SOCKET
     } else {
       authenticator_ = createCustomAuthenticator(realm, authenticatorNames[0]);
@@ -1145,7 +1145,7 @@ Try<Nothing> initializeHttpAuthenticators(
         authenticator_ = createBasicAuthenticator(realm, name, credentials);
 #ifdef USE_SSL_SOCKET
       } else if (name == internal::DEFAULT_JWT_HTTP_AUTHENTICATOR) {
-        authenticator_ = createJWTAuthenticator(realm, name, secretKey);
+        authenticator_ = createJWTAuthenticator(realm, name, jwtSecretKey);
 #endif // USE_SSL_SOCKET
       } else {
         authenticator_ = createCustomAuthenticator(realm, name);
