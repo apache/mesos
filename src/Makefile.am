@@ -2332,6 +2332,18 @@ libload_qos_controller_la_SOURCES += slave/qos_controllers/load.cpp
 libload_qos_controller_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libload_qos_controller_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
+# Library containing the URI volume profile module.
+if ENABLE_GRPC
+pkgmodule_LTLIBRARIES += liburi_volume_profile.la
+liburi_volume_profile_la_SOURCES =				\
+  csi/uri_volume_profile.pb.cc					\
+  csi/uri_volume_profile.pb.h					\
+  resource_provider/uri_volume_profile.cpp			\
+  resource_provider/uri_volume_profile.hpp
+liburi_volume_profile_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+liburi_volume_profile_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+endif
+
 MESOS_TEST_MODULE_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 # Even if we are not installing the test suite, we still need to build
@@ -2435,6 +2447,8 @@ noinst_LTLIBRARIES += $(MESOS_TEST_MODULES)
 endif
 
 mesos_tests_SOURCES =						\
+  csi/uri_volume_profile.pb.cc					\
+  resource_provider/uri_volume_profile.cpp			\
   slave/qos_controllers/load.cpp				\
   tests/active_user_test_helper.cpp				\
   tests/agent_container_api_tests.cpp				\

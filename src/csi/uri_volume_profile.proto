@@ -1,0 +1,43 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+import "csi.proto";
+
+package mesos.csi;
+
+
+message UriVolumeProfileMapping {
+  message CSIManifest {
+    // Capabilities used for creating, publishing, and validating volumes.
+    // This field is REQUIRED.
+    //
+    // NOTE: The name of this field is plural because some CSI requests
+    // support multiple capabilities. However, Mesos currently does not
+    // support this.
+    .csi.VolumeCapability volume_capabilities = 1;
+
+    // Parameters passed to the CSI CreateVolume RPC.
+    // This field is OPTIONAL.
+    map<string, string> create_parameters = 2;
+  }
+
+  // Each map entry associates a profile name (type string) with the CSI
+  // capabilities and parameters used to make specific CSI requests.
+  // This field is OPTIONAL.
+  map<string, CSIManifest> profile_matrix = 1;
+}
