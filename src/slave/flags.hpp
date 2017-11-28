@@ -82,7 +82,7 @@ public:
   Option<Duration> executor_reregistration_retry_interval;
   Duration executor_shutdown_grace_period;
 #ifdef USE_SSL_SOCKET
-  Option<Path> executor_secret_key;
+  Option<Path> jwt_secret_key;
 #endif // USE_SSL_SOCKET
   Duration gc_delay;
   double gc_disk_headroom;

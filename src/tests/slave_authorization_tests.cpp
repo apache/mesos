@@ -844,7 +844,7 @@ TEST_F(ExecutorAuthorizationTest, FailedSubscribe)
     .WillOnce(FutureArg<0>(&executorLib));
 
   Owned<JWTSecretGenerator> jwtSecretGenerator(
-      new JWTSecretGenerator(DEFAULT_EXECUTOR_SECRET_KEY));
+      new JWTSecretGenerator(DEFAULT_JWT_SECRET_KEY));
 
   // Create a principal which contains an incorrect ContainerID.
   hashmap<string, string> claims;
@@ -1069,7 +1069,7 @@ TEST_F(ExecutorAuthorizationTest, FailedApiCalls)
   // Generate an authentication token which is signed using the correct key,
   // but contains an invalid set of claims.
   Owned<JWTSecretGenerator> jwtSecretGenerator(
-      new JWTSecretGenerator(DEFAULT_EXECUTOR_SECRET_KEY));
+      new JWTSecretGenerator(DEFAULT_JWT_SECRET_KEY));
 
   Future<Secret> authenticationToken =
     jwtSecretGenerator->generate(incorrectPrincipal);

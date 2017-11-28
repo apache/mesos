@@ -57,6 +57,7 @@ We categorize the changes as follows:
     <ul style="padding-left:10px;">
       <li>A <a href="#1-5-x-network-ports-isolator">container_ports_watch_interval</a></li>
       <li>A <a href="#1-5-x-network-ports-isolator">check_agent_port_range_only</a></li>
+      <li>D <a href="#1-5-x-executor-secret-key">executor_secret_key</a></li>
     </ul>
   </td>
 
@@ -376,6 +377,10 @@ We categorize the changes as follows:
 * A new [`network/ports`](isolators/network-ports.md) isolator has been added. The isolator supports the following new agent flags:
   * `--container_ports_watch_interval` specifies the interval at which the isolator reconciles port assignments.
   * `--check_agent_port_range_only` excludes ports outside the agent's range from port reconcilation.
+
+<a name="1-5-x-executor-secret-key"></a>
+
+* Agent flag `--executor_secret_key` has been deprecated. Operators should use `--jwt_secret_key` instead.
 
 ## Upgrading from 1.3.x to 1.4.x ##
 

@@ -396,11 +396,11 @@ mesos::internal::slave::Flags::Flags()
       DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD);
 
 #ifdef USE_SSL_SOCKET
-  add(&Flags::executor_secret_key,
-      "executor_secret_key",
-      "Path to a file containing the key used when generating executor\n"
-      "secrets. This flag is only available when Mesos is built with SSL\n"
-      "support.");
+  add(&Flags::jwt_secret_key,
+      "jwt_secret_key",
+      flags::DeprecatedName("executor_secret_key"),
+      "Path to a file containing the key used when generating JWT secrets.\n"
+      "This flag is only available when Mesos is built with SSL support.");
 #endif // USE_SSL_SOCKET
 
   add(&Flags::gc_delay,

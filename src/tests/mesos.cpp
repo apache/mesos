@@ -212,7 +212,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   {
     // Create a secret key for executor authentication.
-    const string path = path::join(directory.get(), "executor_secret_key");
+    const string path = path::join(directory.get(), "jwt_secret_key");
 
     Try<int_fd> fd = os::open(
         path,
@@ -221,12 +221,12 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
     CHECK_SOME(fd);
 
-    CHECK_SOME(os::write(fd.get(), DEFAULT_EXECUTOR_SECRET_KEY))
+    CHECK_SOME(os::write(fd.get(), DEFAULT_JWT_SECRET_KEY))
       << "Failed to write executor secret key to '" << path << "'";
 
     CHECK_SOME(os::close(fd.get()));
 
-    flags.executor_secret_key = path;
+    flags.jwt_secret_key = path;
   }
 #endif // USE_SSL_SOCKET
 

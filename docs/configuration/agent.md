@@ -718,12 +718,11 @@ in memory. (default: 150)
 </tr>
 <tr>
   <td>
-    --executor_secret_key=VALUE
+    --jwt_secret_key=VALUE
   </td>
   <td>
-Path to a file containing the key used when generating executor
-secrets. This flag is only available when Mesos is built with SSL
-support.
+Path to a file containing the key used when generating JWT secrets.
+This flag is only available when Mesos is built with SSL support.
   </td>
 </tr>
 <tr>
