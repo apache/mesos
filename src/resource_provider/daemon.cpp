@@ -22,6 +22,7 @@
 
 #include <mesos/type_utils.hpp>
 
+#include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
@@ -36,6 +37,8 @@
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
 
+#include "common/validation.hpp"
+
 #include "resource_provider/local.hpp"
 
 namespace http = process::http;
@@ -49,10 +52,13 @@ using process::Owned;
 using process::Process;
 using process::ProcessBase;
 
+using process::defer;
 using process::dispatch;
 using process::spawn;
 using process::terminate;
 using process::wait;
+
+using process::http::authentication::Principal;
 
 namespace mesos {
 namespace internal {
@@ -64,11 +70,13 @@ public:
   LocalResourceProviderDaemonProcess(
       const http::URL& _url,
       const string& _workDir,
-      const Option<string>& _configDir)
+      const Option<string>& _configDir,
+      SecretGenerator* _secretGenerator)
     : ProcessBase(process::ID::generate("local-resource-provider-daemon")),
       url(_url),
       workDir(_workDir),
-      configDir(_configDir) {}
+      configDir(_configDir),
+      secretGenerator(_secretGenerator) {}
 
   LocalResourceProviderDaemonProcess(
       const LocalResourceProviderDaemonProcess& other) = delete;
@@ -95,9 +103,12 @@ private:
 
   Future<Nothing> launch(const string& type, const string& name);
 
+  Future<Option<string>> generateAuthToken(const ResourceProviderInfo& info);
+
   const http::URL url;
   const string workDir;
   const Option<string> configDir;
+  SecretGenerator* const secretGenerator;
 
   Option<SlaveID> slaveId;
   hashmap<string, hashmap<string, ProviderData>> providers;
@@ -203,26 +214,69 @@ Future<Nothing> LocalResourceProviderDaemonProcess::launch(
   CHECK_SOME(slaveId);
   CHECK(providers[type].contains(name));
 
-  ProviderData& data = providers[type].at(name);
+  return generateAuthToken(providers[type].at(name).info)
+    .then(defer(self(), [=](
+        const Option<string>& authToken) -> Future<Nothing> {
+      ProviderData& data = providers[type].at(name);
 
-  Try<Owned<LocalResourceProvider>> provider =
-    LocalResourceProvider::create(url, data.info);
+      Try<Owned<LocalResourceProvider>> provider =
+        LocalResourceProvider::create(url, data.info, authToken);
 
-  if (provider.isError()) {
-    return Failure(
-        "Failed to create resource provider with type '" + type +
-        "' and name '" + name + "': " + provider.error());
+      if (provider.isError()) {
+        return Failure(
+            "Failed to create resource provider with type '" + type +
+            "' and name '" + name + "': " + provider.error());
+      }
+
+      data.provider = provider.get();
+
+      return Nothing();
+    }));
+}
+
+
+// Generates a secret for local resource provider authentication if needed.
+Future<Option<string>> LocalResourceProviderDaemonProcess::generateAuthToken(
+    const ResourceProviderInfo& info)
+{
+  if (secretGenerator == nullptr) {
+    return None();
   }
 
-  data.provider = provider.get();
+  Try<Principal> principal = LocalResourceProvider::principal(info);
 
-  return Nothing();
+  if (principal.isError()) {
+    return Failure(
+        "Failed to generate resource provider principal with type '" +
+        info.type() + "' and name '" + info.name() + "': " +
+        principal.error());
+  }
+
+  return secretGenerator->generate(principal.get())
+    .then(defer(self(), [](const Secret& secret) -> Future<Option<string>> {
+      Option<Error> error = common::validation::validateSecret(secret);
+
+      if (error.isSome()) {
+        return Failure(
+            "Failed to validate generated secret: " + error->message);
+      } else if (secret.type() != Secret::VALUE) {
+        return Failure(
+            "Expecting generated secret to be of VALUE type instead of " +
+            stringify(secret.type()) + " type; " +
+            "only VALUE type secrets are supported at this time");
+      }
+
+      CHECK(secret.has_value());
+
+      return secret.value().data();
+    }));
 }
 
 
 Try<Owned<LocalResourceProviderDaemon>> LocalResourceProviderDaemon::create(
     const http::URL& url,
-    const slave::Flags& flags)
+    const slave::Flags& flags,
+    SecretGenerator* secretGenerator)
 {
   // We require that the config directory exists to create a daemon.
   Option<string> configDir = flags.resource_provider_config_dir;
@@ -230,15 +284,24 @@ Try<Owned<LocalResourceProviderDaemon>> LocalResourceProviderDaemon::create(
     return Error("Config directory '" + configDir.get() + "' does not exist");
   }
 
-  return new LocalResourceProviderDaemon(url, flags.work_dir, configDir);
+  return new LocalResourceProviderDaemon(
+      url,
+      flags.work_dir,
+      configDir,
+      secretGenerator);
 }
 
 
 LocalResourceProviderDaemon::LocalResourceProviderDaemon(
     const http::URL& url,
     const string& workDir,
-    const Option<string>& configDir)
-  : process(new LocalResourceProviderDaemonProcess(url, workDir, configDir))
+    const Option<string>& configDir,
+    SecretGenerator* secretGenerator)
+  : process(new LocalResourceProviderDaemonProcess(
+        url,
+        workDir,
+        configDir,
+        secretGenerator))
 {
   spawn(CHECK_NOTNULL(process.get()));
 }

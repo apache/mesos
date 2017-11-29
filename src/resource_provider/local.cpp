@@ -34,7 +34,8 @@ namespace internal {
 
 Try<Owned<LocalResourceProvider>> LocalResourceProvider::create(
     const http::URL& url,
-    const ResourceProviderInfo& info)
+    const ResourceProviderInfo& info,
+    const Option<string>& authToken)
 {
   // TODO(jieyu): Document the built-in local resource providers.
   const hashmap<string, lambda::function<decltype(create)>> creators = {
@@ -44,7 +45,7 @@ Try<Owned<LocalResourceProvider>> LocalResourceProvider::create(
   };
 
   if (creators.contains(info.type())) {
-    return creators.at(info.type())(url, info);
+    return creators.at(info.type())(url, info, authToken);
   }
 
   return Error("Unknown local resource provider type '" + info.type() + "'");

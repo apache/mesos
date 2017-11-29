@@ -94,12 +94,14 @@ class StorageLocalResourceProviderProcess
 {
 public:
   explicit StorageLocalResourceProviderProcess(
-      const process::http::URL& _url,
-      const ResourceProviderInfo& _info)
+      const http::URL& _url,
+      const ResourceProviderInfo& _info,
+      const Option<string>& _authToken)
     : ProcessBase(process::ID::generate("storage-local-resource-provider")),
       url(_url),
       contentType(ContentType::PROTOBUF),
-      info(_info) {}
+      info(_info),
+      authToken(_authToken) {}
 
   StorageLocalResourceProviderProcess(
       const StorageLocalResourceProviderProcess& other) = delete;
@@ -118,6 +120,7 @@ private:
   const ContentType contentType;
   ResourceProviderInfo info;
   Owned<v1::resource_provider::Driver> driver;
+  Option<string> authToken;
 };
 
 
@@ -165,7 +168,7 @@ void StorageLocalResourceProviderProcess::initialize()
       defer(self(), &Self::disconnected),
       defer(self(), [this](queue<v1::resource_provider::Event> events) {
         while(!events.empty()) {
-        const v1::resource_provider::Event& event = events.front();
+          const v1::resource_provider::Event& event = events.front();
           received(devolve(event));
           events.pop();
         }
@@ -176,7 +179,8 @@ void StorageLocalResourceProviderProcess::initialize()
 
 Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
     const process::http::URL& url,
-    const ResourceProviderInfo& info)
+    const ResourceProviderInfo& info,
+    const Option<string>& authToken)
 {
   // Verify that the name follows Java package naming convention.
   // TODO(chhsiao): We should move this check to a validation function
@@ -188,7 +192,7 @@ Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
   }
 
   return Owned<LocalResourceProvider>(
-      new StorageLocalResourceProvider(url, info));
+      new StorageLocalResourceProvider(url, info, authToken));
 }
 
 
@@ -203,8 +207,9 @@ Try<Principal> StorageLocalResourceProvider::principal(
 
 StorageLocalResourceProvider::StorageLocalResourceProvider(
     const process::http::URL& url,
-    const ResourceProviderInfo& info)
-  : process(new StorageLocalResourceProviderProcess(url, info))
+    const ResourceProviderInfo& info,
+    const Option<string>& authToken)
+  : process(new StorageLocalResourceProviderProcess(url, info, authToken))
 {
   spawn(CHECK_NOTNULL(process.get()));
 }

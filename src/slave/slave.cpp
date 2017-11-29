@@ -429,7 +429,10 @@ void Slave::initialize()
       self().id + "/api/v1/resource_provider");
 
   Try<Owned<LocalResourceProviderDaemon>> _localResourceProviderDaemon =
-    LocalResourceProviderDaemon::create(localResourceProviderURL, flags);
+    LocalResourceProviderDaemon::create(
+        localResourceProviderURL,
+        flags,
+        secretGenerator);
 
   if (_localResourceProviderDaemon.isError()) {
     EXIT(EXIT_FAILURE)
@@ -1227,7 +1230,8 @@ void Slave::registered(
         CHECK_SOME(state::checkpoint(path, info_));
       }
 
-      // Start the local resource providers daemon once we have the slave id.
+      // We start the local resource providers daemon once the agent is
+      // running, so the resource providers can use the agent API.
       localResourceProviderDaemon->start(info.id());
 
       // Setup a timer so that the agent attempts to re-register if it
@@ -1332,6 +1336,10 @@ void Slave::reregistered(
       LOG(INFO) << "Re-registered with master " << master.get();
       state = RUNNING;
       taskStatusUpdateManager->resume(); // Resume status updates.
+
+      // We start the local resource providers daemon once the agent is
+      // running, so the resource providers can use the agent API.
+      localResourceProviderDaemon->start(info.id());
 
       // Setup a timer so that the agent attempts to re-register if it
       // doesn't receive a ping from the master for an extended period
@@ -6327,9 +6335,6 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
       }
     } else {
       info = slaveState->info.get(); // Recover the slave info.
-
-      // Start the local resource providers daemon once we have the slave id.
-      localResourceProviderDaemon->start(info.id());
 
       // Recover the frameworks.
       foreachvalue (const FrameworkState& frameworkState,
