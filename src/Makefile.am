@@ -2412,6 +2412,7 @@ mesos_tests_SOURCES =						\
   tests/common_validation_tests.cpp				\
   tests/container_logger_tests.cpp				\
   tests/containerizer.cpp					\
+  tests/container_daemon_tests.cpp				\
   tests/cram_md5_authentication_tests.cpp			\
   tests/credentials_tests.cpp					\
   tests/default_executor_tests.cpp				\

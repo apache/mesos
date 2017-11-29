@@ -84,6 +84,7 @@ set(MESOS_TESTS_SRC
   check_tests.cpp
   command_executor_tests.cpp
   common_validation_tests.cpp
+  container_daemon_tests.cpp
   cram_md5_authentication_tests.cpp
   credentials_tests.cpp
   default_executor_tests.cpp

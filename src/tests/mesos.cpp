@@ -596,6 +596,30 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
 }
 
 
+Try<Owned<cluster::Slave>> MesosTest::StartSlave(
+    mesos::master::detector::MasterDetector* detector,
+    mesos::SecretGenerator* secretGenerator,
+    const Option<slave::Flags>& flags)
+{
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
+      detector,
+      flags.isNone() ? CreateSlaveFlags() : flags.get(),
+      None(),
+      None(),
+      None(),
+      None(),
+      None(),
+      None(),
+      secretGenerator);
+
+  if (slave.isSome()) {
+    slave.get()->start();
+  }
+
+  return slave;
+}
+
+
 // Although the constructors and destructors for mock classes are
 // often trivial, defining them out-of-line (in a separate compilation
 // unit) improves compilation time: see MESOS-3827.

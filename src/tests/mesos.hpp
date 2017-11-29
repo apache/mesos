@@ -257,6 +257,13 @@ protected:
       const Option<slave::Flags>& flags = None(),
       bool mock = false);
 
+  // Starts a slave with the specified detector, secretGenerator,
+  // and flags.
+  virtual Try<process::Owned<cluster::Slave>> StartSlave(
+      mesos::master::detector::MasterDetector* detector,
+      mesos::SecretGenerator* secretGenerator,
+      const Option<slave::Flags>& flags = None());
+
   Option<zookeeper::URL> zookeeperUrl;
 
   const std::string defaultAgentResourcesString{
