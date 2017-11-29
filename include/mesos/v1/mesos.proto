@@ -334,14 +334,16 @@ message FrameworkInfo {
       // Frameworks that enable this capability can define how they
       // would like to handle partitioned tasks. Frameworks will
       // receive TASK_UNREACHABLE for tasks on agents that are
-      // partitioned from the master. If/when a partitioned agent
-      // reregisters, tasks on the agent that were started by
-      // PARTITION_AWARE frameworks will not killed.
+      // partitioned from the master.
       //
       // Without this capability, frameworks will receive TASK_LOST
-      // for tasks on partitioned agents; such tasks will be killed by
-      // Mesos when the agent reregisters (unless the master has
-      // failed over).
+      // for tasks on partitioned agents.
+      // NOTE: Prior to Mesos 1.5, such tasks will be killed by Mesos
+      // when the agent reregisters (unless the master has failed over).
+      // However due to the lack of benefit in maintaining different
+      // behaviors depending on whether the master has failed over
+      // (see MESOS-7215), as of 1.5, Mesos will not kill these
+      // tasks in either case.
       PARTITION_AWARE = 5;
 
       // This expresses the ability for the framework to be

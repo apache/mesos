@@ -328,6 +328,12 @@ struct FullFrameworkWriter {
 
     writer->field("unreachable_tasks", [this](JSON::ArrayWriter* writer) {
       foreachvalue (const Owned<Task>& task, framework_->unreachableTasks) {
+        // There could be TASK_LOST tasks in this map. See comment for
+        // `unreachableTasks`.
+        if (task.get()->state() != TASK_UNREACHABLE) {
+          continue;
+        }
+
         // Skip unauthorized tasks.
         if (!authorizeTask_->accept(*task, framework_->info)) {
           continue;
@@ -339,6 +345,22 @@ struct FullFrameworkWriter {
 
     writer->field("completed_tasks", [this](JSON::ArrayWriter* writer) {
       foreach (const Owned<Task>& task, framework_->completedTasks) {
+        // Skip unauthorized tasks.
+        if (!authorizeTask_->accept(*task, framework_->info)) {
+          continue;
+        }
+
+        writer->element(*task);
+      }
+
+      // Unreachable tasks belonging to a non-partition-aware framework
+      // have been stored as TASK_LOST for backward compatibility so we
+      // should export them as completed tasks.
+      foreachvalue (const Owned<Task>& task, framework_->unreachableTasks) {
+        if (task.get()->state() != TASK_LOST) {
+          continue;
+        }
+
         // Skip unauthorized tasks.
         if (!authorizeTask_->accept(*task, framework_->info)) {
           continue;
@@ -4221,7 +4243,14 @@ mesos::master::Response::GetTasks Master::Http::_getTasks(
         continue;
       }
 
-      getTasks.add_unreachable_tasks()->CopyFrom(*task);
+      if (task.get()->state() == TASK_UNREACHABLE) {
+        getTasks.add_unreachable_tasks()->CopyFrom(*task);
+      } else {
+        // Unreachable tasks belonging to a non-partition-aware framework
+        // have been stored as TASK_LOST for backward compatibility so we
+        // should export them as completed tasks.
+        getTasks.add_completed_tasks()->CopyFrom(*task);
+      }
     }
 
     // Completed tasks.

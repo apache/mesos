@@ -877,8 +877,11 @@ protected:
   // terminal.
   void updateTask(Task* task, const StatusUpdate& update);
 
-  // Removes the task.
-  void removeTask(Task* task);
+  // Removes the task. `unreachable` indicates whether the task is removed due
+  // to being unreachable. Note that we cannot rely on the task state because
+  // it may not reflect unreachability due to being set to TASK_LOST for
+  // backwards compatibility.
+  void removeTask(Task* task, bool unreachable = false);
 
   // Remove an executor and recover its resources.
   void removeExecutor(
@@ -2326,14 +2329,15 @@ struct Framework
 
   void addUnreachableTask(const Task& task)
   {
-    CHECK(protobuf::frameworkHasCapability(
-              info, FrameworkInfo::Capability::PARTITION_AWARE));
-
     // TODO(adam-mesos): Check if unreachable task already exists.
     unreachableTasks.set(task.task_id(), process::Owned<Task>(new Task(task)));
   }
 
-  void removeTask(Task* task)
+  // Removes the task. `unreachable` indicates whether the task is removed due
+  // to being unreachable. Note that we cannot rely on the task state because
+  // it may not reflect unreachability due to being set to TASK_LOST for
+  // backwards compatibility.
+  void removeTask(Task* task, bool unreachable)
   {
     CHECK(tasks.contains(task->task_id()))
       << "Unknown task " << task->task_id()
@@ -2343,7 +2347,9 @@ struct Framework
       recoverResources(task);
     }
 
-    if (task->state() == TASK_UNREACHABLE) {
+    if (unreachable) {
+      CHECK(task->state() == TASK_UNREACHABLE || task->state() == TASK_LOST)
+        << task->state();
       addUnreachableTask(*task);
     } else {
       addCompletedTask(*task);
@@ -2853,15 +2859,12 @@ struct Framework
   // fixed-size cache to avoid consuming too much memory. We use
   // boost::circular_buffer rather than BoundedHashMap because there
   // can be multiple completed tasks with the same task ID.
-  //
-  // NOTE: When an agent is marked unreachable, non-partition-aware
-  // tasks are marked TASK_LOST and stored here; partition-aware tasks
-  // are marked TASK_UNREACHABLE and stored in `unreachableTasks`.
   boost::circular_buffer<process::Owned<Task>> completedTasks;
 
-  // Partition-aware tasks running on agents that have been marked
-  // unreachable. We only keep a fixed-size cache to avoid consuming
-  // too much memory.
+  // When an agent is marked unreachable, tasks running on it are stored
+  // here. We only keep a fixed-size cache to avoid consuming too much memory.
+  // NOTE: Non-partition-aware unreachable tasks in this map are marked
+  // TASK_LOST instead of TASK_UNREACHABLE for backward compatibility.
   BoundedHashMap<TaskID, process::Owned<Task>> unreachableTasks;
 
   hashset<Offer*> offers; // Active offers for framework.

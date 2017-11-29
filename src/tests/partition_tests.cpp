@@ -535,8 +535,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlavePartitionAware)
 
 
 // This test checks that a slave can reregister with the master after
-// a partition, and that non-PARTITION_AWARE tasks running on the
-// slave are shutdown.
+// a partition, and that non-PARTITION_AWARE tasks are still running on the
+// slave.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
 {
   Clock::pause();
@@ -718,8 +718,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregistered);
 
-  // Perform explicit reconciliation. The task should not be running
-  // (TASK_LOST) because the framework is not PARTITION_AWARE.
+  // Perform explicit reconciliation. The task should be running
+  // for the non-PARTITION_AWARE framework.
   TaskStatus status;
   status.mutable_task_id()->CopyFrom(task.task_id());
   status.mutable_slave_id()->CopyFrom(slaveId);
@@ -732,16 +732,15 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
   driver.reconcileTasks({status});
 
   AWAIT_READY(reconcileUpdate);
-  EXPECT_EQ(TASK_LOST, reconcileUpdate->state());
+  EXPECT_EQ(TASK_RUNNING, reconcileUpdate->state());
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
   EXPECT_FALSE(reconcileUpdate->has_unreachable_time());
 
   Clock::resume();
 
   // Check the master's "/state" endpoint. The "tasks" and
-  // "unreachable_tasks" fields should be empty; there should be a
-  // single completed task (we report LOST tasks as "completed" for
-  // backward compatibility).
+  // "unreachable_tasks" fields should be empty and there should be
+  // no completed tasks.
   {
     Future<Response> response = process::http::get(
         master.get()->pid,
@@ -765,7 +764,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
 
     JSON::Array runningTasks = framework.values["tasks"].as<JSON::Array>();
 
-    EXPECT_TRUE(runningTasks.values.empty());
+    EXPECT_EQ(1u, runningTasks.values.size());
 
     JSON::Array unreachableTasks =
       framework.values["unreachable_tasks"].as<JSON::Array>();
@@ -775,14 +774,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
     JSON::Array completedTasks =
       framework.values["completed_tasks"].as<JSON::Array>();
 
-    JSON::Object completedTask =
-      completedTasks.values.front().as<JSON::Object>();
-
-    EXPECT_EQ(
-        task.task_id(), completedTask.values["id"].as<JSON::String>().value);
-    EXPECT_EQ(
-        "TASK_LOST",
-        completedTask.values["state"].as<JSON::String>().value);
+    EXPECT_TRUE(completedTasks.values.empty());
   }
 
   // Check the master's "/state-summary" endpoint.
@@ -805,9 +797,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
 
     JSON::Object framework = frameworks.values.front().as<JSON::Object>();
 
-    EXPECT_EQ(0, framework.values["TASK_RUNNING"].as<JSON::Number>());
+    EXPECT_EQ(1, framework.values["TASK_RUNNING"].as<JSON::Number>());
     EXPECT_EQ(0, framework.values["TASK_UNREACHABLE"].as<JSON::Number>());
-    EXPECT_EQ(1, framework.values["TASK_LOST"].as<JSON::Number>());
+    EXPECT_EQ(0, framework.values["TASK_LOST"].as<JSON::Number>());
   }
 
   {
@@ -2097,19 +2089,15 @@ TEST_F(PartitionTest, TaskCompletedOnPartitionedAgent)
   Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
       SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
 
-  Future<Nothing> execShutdown;
-  EXPECT_CALL(exec, shutdown(_))
-    .WillOnce(FutureSatisfy(&execShutdown));
-
   Future<TaskStatus> finishedStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&finishedStatus));
+    .WillOnce(FutureArg<1>(&finishedStatus))
+    .WillRepeatedly(Return()); // The agent may resend status updates.
 
   detector.appoint(master.get()->pid);
 
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregistered);
-  AWAIT_READY(execShutdown);
 
   AWAIT_READY(finishedStatus);
   EXPECT_EQ(TASK_FINISHED, finishedStatus->state());
@@ -2175,13 +2163,10 @@ TEST_F(PartitionTest, TaskCompletedOnPartitionedAgent)
     JSON::Object completedTask =
       completedTasks.values.front().as<JSON::Object>();
 
-    // TODO(neilc): It might be better to report TASK_FINISHED here. We
-    // report TASK_LOST currently because the master doesn't update
-    // the state of tasks it has already marked as completed.
     EXPECT_EQ(
         task.task_id(), completedTask.values["id"].as<JSON::String>().value);
     EXPECT_EQ(
-        "TASK_LOST",
+        "TASK_FINISHED",
         completedTask.values["state"].as<JSON::String>().value);
   }
 

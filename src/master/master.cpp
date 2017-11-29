@@ -6788,32 +6788,9 @@ void Master::__reregisterSlave(
     }
   }
 
-  // Check if this master was the one that removed the reregistering
-  // agent from the cluster originally. This is false if the master
-  // has failed over since the agent was removed, for example.
-  //
-  // TODO(neilc): Since `removed` is a cache, we might mistakenly
-  // think the master has failed over and neglect to shutdown
-  // non-partition-aware frameworks on reregistering agents.
-  bool slaveWasRemoved = slaves.removed.get(slaveInfo.id()).isSome();
-
-  // Decide how to handle the tasks running on the agent:
-  //
-  // (a) If the master has not failed over since the agent was marked
-  // unreachable, only partition-aware tasks are re-added to the
+  // All tasks except the ones from completed frameworks are re-added to the
   // master (those tasks were previously marked "unreachable", so they
-  // should be removed from that collection). Any non-partition-aware
-  // frameworks running on the agent are shutdown. We already marked
-  // such tasks "completed" when the agent was marked unreachable, so
-  // no further cleanup for non-partition-aware tasks is required.
-  //
-  // In addition, we also filter any tasks whose frameworks have
-  // completed. As in case (a), such frameworks will be shutdown and
-  // their tasks have already been marked "completed".
-  //
-  // (b) If the master has failed over, all tasks are re-added to the
-  // master. The master shouldn't have any record of the tasks running
-  // on the agent, so no further cleanup is required.
+  // should be removed from that collection).
   vector<Task> recoveredTasks;
   foreach (const Task& task, tasks) {
     const FrameworkID& frameworkId = task.framework_id();
@@ -6824,18 +6801,11 @@ void Master::__reregisterSlave(
       continue;
     }
 
-    // Always re-add partition-aware tasks.
-    if (partitionAwareFrameworks.contains(frameworkId)) {
-      recoveredTasks.push_back(task);
+    recoveredTasks.push_back(task);
 
-      Framework* framework = getFramework(frameworkId);
-      if (framework != nullptr) {
-        framework->unreachableTasks.erase(task.task_id());
-      }
-    } else if (!slaveWasRemoved) {
-      // Only re-add non-partition-aware tasks if the master has
-      // failed over since the agent was marked unreachable.
-      recoveredTasks.push_back(task);
+    Framework* framework = getFramework(frameworkId);
+    if (framework != nullptr) {
+      framework->unreachableTasks.erase(task.task_id());
     }
   }
 
@@ -6878,35 +6848,15 @@ void Master::__reregisterSlave(
   LOG(INFO) << "Re-registered agent " << *slave
             << " with " << Resources(slave->info.resources());
 
-  // Determine which frameworks on the slave to shutdown, if any. This
-  // happens in two cases:
-  //
-  // (1) If this master marked the slave unreachable (i.e., master has
-  // not failed over), we shutdown any non-partition-aware frameworks
-  // running on the slave. This matches the Mesos <= 1.0 "non-strict"
-  // registry semantics.
-  //
-  // (2) Any framework that is completed at the master but still
-  // running at the slave is shutdown. This can occur if the framework
-  // was removed when the slave was partitioned. NOTE: This is just a
+  // Any framework that is completed at the master but still running
+  // at the slave is shutdown. This can occur if the framework was
+  // removed when the slave was partitioned. NOTE: This is just a
   // short-term hack because information about completed frameworks is
   // lost when the master fails over. Also, we only store a limited
   // number of completed frameworks. A proper fix likely involves
   // storing framework information in the registry (MESOS-1719).
   foreach (const FrameworkInfo& framework, frameworks) {
-    if (slaveWasRemoved && !partitionAwareFrameworks.contains(framework.id())) {
-      LOG(INFO) << "Shutting down framework " << framework.id()
-                << " at re-registered agent " << *slave
-                << " because the framework is not partition-aware";
-
-      ShutdownFrameworkMessage message;
-      message.mutable_framework_id()->MergeFrom(framework.id());
-      send(slave->pid, message);
-
-      // The framework's tasks should not be stored in the master's
-      // in-memory state, because they were not re-added above.
-      CHECK(!slave->tasks.contains(framework.id()));
-    } else if (isCompletedFramework(framework.id())) {
+    if (isCompletedFramework(framework.id())) {
       LOG(INFO) << "Shutting down framework " << framework.id()
                 << " at re-registered agent " << *slave
                 << " because the framework has been shutdown at the master";
@@ -9369,15 +9319,16 @@ void Master::__removeSlave(
     TaskState newTaskState = TASK_UNREACHABLE;
     TaskStatus::Reason newTaskReason = TaskStatus::REASON_SLAVE_REMOVED;
 
+    // Needed to convey task unreachability because we lose this
+    // information from the task state if `TASK_LOST` is used.
+    bool unreachable = true;
+
     if (!framework->capabilities.partitionAware) {
       newTaskState = TASK_LOST;
-    } else {
-      if (unreachableTime.isSome()) {
-        newTaskState = TASK_UNREACHABLE;
-      } else {
-        newTaskState = TASK_GONE_BY_OPERATOR;
-        newTaskReason = TaskStatus::REASON_SLAVE_REMOVED_BY_OPERATOR;
-      }
+    } else if (unreachableTime.isNone()) {
+      unreachable = false;
+      newTaskState = TASK_GONE_BY_OPERATOR;
+      newTaskReason = TaskStatus::REASON_SLAVE_REMOVED_BY_OPERATOR;
     }
 
     foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
@@ -9399,7 +9350,7 @@ void Master::__removeSlave(
           unreachableTime.isSome() ? unreachableTime : None());
 
       updateTask(task, update);
-      removeTask(task);
+      removeTask(task, unreachable);
 
       if (!framework->connected()) {
         LOG(WARNING) << "Dropping update " << update
@@ -9602,7 +9553,7 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
 }
 
 
-void Master::removeTask(Task* task)
+void Master::removeTask(Task* task, bool unreachable)
 {
   CHECK_NOTNULL(task);
 
@@ -9611,6 +9562,8 @@ void Master::removeTask(Task* task)
   CHECK_NOTNULL(slave);
 
   if (!isRemovable(task->state())) {
+    CHECK(!unreachable) << task->task_id();
+
     // Note that we convert to `Resources` for output as it's faster than
     // logging raw protobuf data. Conversion is safe, as resources have
     // already passed validation.
@@ -9640,7 +9593,7 @@ void Master::removeTask(Task* task)
   // Remove from framework.
   Framework* framework = getFramework(task->framework_id());
   if (framework != nullptr) { // A framework might not be re-registered yet.
-    framework->removeTask(task);
+    framework->removeTask(task, unreachable);
   }
 
   // Remove from slave.
@@ -10371,7 +10324,11 @@ double Master::_tasks_unreachable()
   double count = 0.0;
 
   foreachvalue (Framework* framework, frameworks.registered) {
-    count += framework->unreachableTasks.size();
+    foreachvalue (const Owned<Task>& task, framework->unreachableTasks) {
+      if (task.get()->state() == TASK_UNREACHABLE) {
+        count++;
+      }
+    }
   }
 
   return count;
