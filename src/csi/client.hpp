@@ -26,8 +26,6 @@
 namespace mesos {
 namespace csi {
 
-using namespace ::csi;
-
 class Client
 {
 public:

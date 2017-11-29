@@ -14,18 +14,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __CSI_SPEC_HPP__
-#define __CSI_SPEC_HPP__
+#include "csi/utils.hpp"
 
-// ONLY USEFUL AFTER RUNNING PROTOC WITH GRPC CPP PLUGIN.
-#include "csi/csi.grpc.pb.h"
+#include <stout/strings.hpp>
 
-namespace mesos {
+using std::ostream;
+
 namespace csi {
 
-using namespace ::csi;
+bool operator==(const Version& left, const Version& right)
+{
+  return left.major() == right.major() &&
+    left.minor() == right.minor() &&
+    left.patch() == right.patch();
+}
+
+
+ostream& operator<<(ostream& stream, const Version& version)
+{
+  return stream << strings::join(
+      ".",
+      version.major(),
+      version.minor(),
+      version.patch());
+}
 
 } // namespace csi {
-} // namespace mesos {
-
-#endif // __CSI_SPEC_HPP__
