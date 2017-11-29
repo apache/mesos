@@ -68,6 +68,7 @@ const char RESOURCE_PROVIDER_STATE_FILE[] = "resource_provider.state";
 
 
 const char CONTAINERS_DIR[] = "containers";
+const char CSI_DIR[] = "csi";
 const char SLAVES_DIR[] = "slaves";
 const char FRAMEWORKS_DIR[] = "frameworks";
 const char EXECUTORS_DIR[] = "executors";
@@ -137,6 +138,12 @@ string getSandboxRootDir(const string& rootDir)
 string getProvisionerDir(const string& rootDir)
 {
   return path::join(rootDir, "provisioner");
+}
+
+
+string getCsiRootDir(const string& workDir)
+{
+  return path::join(workDir, CSI_DIR);
 }
 
 

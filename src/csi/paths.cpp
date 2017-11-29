@@ -1,0 +1,255 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "csi/paths.hpp"
+
+#include <mesos/type_utils.hpp>
+
+#include <process/address.hpp>
+#include <process/http.hpp>
+
+#include <stout/check.hpp>
+#include <stout/fs.hpp>
+#include <stout/os.hpp>
+#include <stout/path.hpp>
+#include <stout/stringify.hpp>
+#include <stout/strings.hpp>
+
+namespace http = process::http;
+namespace unix = process::network::unix;
+
+using std::list;
+using std::string;
+using std::vector;
+
+namespace mesos {
+namespace csi {
+namespace paths {
+
+// File names.
+const char CONTAINER_INFO_FILE[] = "container.info";
+const char ENDPOINT_SOCKET_FILE[] = "endpoint.sock";
+const char VOLUME_STATE_FILE[] = "volume.state";
+
+
+const char CONTAINERS_DIR[] = "containers";
+const char VOLUMES_DIR[] = "volumes";
+const char MOUNTS_DIR[] = "mounts";
+
+
+const char ENDPOINT_DIR_SYMLINK[] = "endpoint";
+const char ENDPOINT_DIR[] = "mesos-csi-XXXXXX";
+
+
+Try<list<string>> getContainerPaths(
+    const string& rootDir,
+    const string& type,
+    const string& name)
+{
+  return fs::list(path::join(rootDir, type, name, CONTAINERS_DIR, "*"));
+}
+
+
+string getContainerPath(
+    const string& rootDir,
+    const string& type,
+    const string& name,
+    const ContainerID& containerId)
+{
+  return path::join(
+      rootDir,
+      type,
+      name,
+      CONTAINERS_DIR,
+      stringify(containerId));
+}
+
+
+string getContainerInfoPath(
+    const string& rootDir,
+    const string& type,
+    const string& name,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getContainerPath(rootDir, type, name, containerId),
+      CONTAINER_INFO_FILE);
+}
+
+
+string getEndpointDirSymlinkPath(
+    const string& rootDir,
+    const string& type,
+    const string& name,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getContainerPath(rootDir, type, name, containerId),
+      ENDPOINT_DIR_SYMLINK);
+}
+
+
+Try<string> getEndpointSocketPath(
+    const string& rootDir,
+    const string& type,
+    const string& name,
+    const ContainerID& containerId)
+{
+  const string symlinkPath =
+    getEndpointDirSymlinkPath(rootDir, type, name, containerId);
+
+  Try<Nothing> mkdir = os::mkdir(Path(symlinkPath).dirname());
+  if(mkdir.isError()) {
+    return Error(
+        "Failed to create directory '" + Path(symlinkPath).dirname()  + "': " +
+        mkdir.error());
+  }
+
+  Result<string> endpointDir = os::realpath(symlinkPath);
+  if (endpointDir.isSome()) {
+    return path::join(endpointDir.get(), ENDPOINT_SOCKET_FILE);
+  }
+
+  if (os::exists(symlinkPath)) {
+    Try<Nothing> rm = os::rm(symlinkPath);
+    if (rm.isError()) {
+      return Error(
+          "Failed to remove endpoint symlink '" + symlinkPath + "': " +
+          rm.error());
+    }
+  }
+
+  Try<string> mkdtemp = os::mkdtemp(path::join(os::temp(), ENDPOINT_DIR));
+  if (mkdtemp.isError()) {
+    return Error(
+        "Failed to create endpoint directory in '" + os::temp() + "': " +
+        mkdtemp.error());
+  }
+
+  Try<Nothing> symlink = fs::symlink(mkdtemp.get(), symlinkPath);
+  if (symlink.isError()) {
+    return Error(
+        "Failed to symlink directory '" + mkdtemp.get() + "' to '" +
+        symlinkPath + "': " + symlink.error());
+  }
+
+  const string socketPath = path::join(mkdtemp.get(), ENDPOINT_SOCKET_FILE);
+
+  // Check if the socket path is too long.
+  Try<unix::Address> address = unix::Address::create(socketPath);
+  if (address.isError()) {
+    return Error(
+        "Failed to create address from '" + socketPath + "': " +
+        address.error());
+  }
+
+  return socketPath;
+}
+
+
+Try<list<string>> getVolumePaths(
+    const string& rootDir,
+    const string& type,
+    const string& name)
+{
+  return fs::list(path::join(rootDir, type, name, VOLUMES_DIR, "*"));
+}
+
+
+string getVolumePath(
+    const string& rootDir,
+    const string& type,
+    const string& name,
+    const string& volumeId)
+{
+  // Volume ID is percent-encoded to avoid invalid characters in the path.
+  return path::join(rootDir, type, name, VOLUMES_DIR, http::encode(volumeId));
+}
+
+
+Try<VolumePath> parseVolumePath(const string& rootDir, const string& dir)
+{
+  // TODO(chhsiao): Consider using `<regex>`, which requires GCC 4.9+.
+
+  // Make sure there's a separator at the end of the `rootdir` so that
+  // we don't accidentally slice off part of a directory.
+  const string prefix = path::join(rootDir, "");
+
+  if (!strings::startsWith(dir, prefix)) {
+    return Error(
+        "Directory '" + dir + "' does not fall under the root directory '" +
+        rootDir + "'");
+  }
+
+  vector<string> tokens = strings::tokenize(
+      dir.substr(prefix.size()),
+      stringify(os::PATH_SEPARATOR));
+
+  // A complete volume path consists of 4 tokens:
+  //   <type>/<name>/volumes/<volume_id>
+  if (tokens.size() != 4 || tokens[2] != VOLUMES_DIR) {
+    return Error(
+        "Path '" + path::join(tokens) + "' does not match the structure of a "
+        "volume path");
+  }
+
+  // Volume ID is percent-encoded to avoid invalid characters in the path.
+  Try<string> volumeId = http::decode(tokens[3]);
+  if (volumeId.isError()) {
+    return Error(
+        "Could not decode volume ID from string '" + tokens[3] + "': " +
+        volumeId.error());
+  }
+
+  return VolumePath{tokens[0], tokens[1], volumeId.get()};
+}
+
+
+string getVolumeStatePath(
+    const string& rootDir,
+    const string& type,
+    const string& name,
+    const string& volumeId)
+{
+  return path::join(
+      getVolumePath(rootDir, type, name, volumeId),
+      VOLUME_STATE_FILE);
+}
+
+
+string getMountRootDir(
+    const string& rootDir,
+    const string& type,
+    const string& name)
+{
+  return path::join(rootDir, type, name, MOUNTS_DIR);
+}
+
+
+string getMountPath(
+    const string& rootDir,
+    const string& type,
+    const string& name,
+    const string& volumeId)
+{
+  return path::join(
+      getMountRootDir(rootDir, type, name),
+      http::encode(volumeId));
+}
+
+} // namespace paths {
+} // namespace csi {
+} // namespace mesos {

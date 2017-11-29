@@ -47,6 +47,8 @@ namespace paths {
 //
 //   (5) For provisioning root filesystems for containers.
 //
+//   (6) For CSI plugins to preserve data that persist across slaves.
+//
 // The file system layout is as follows:
 //
 //   root ('--work_dir' flag)
@@ -100,6 +102,7 @@ namespace paths {
 //   |       |-- <role>
 //   |           |-- <persistence_id> (persistent volume)
 //   |-- provisioner
+//   |-- csi
 
 
 struct ExecutorRunPath
@@ -136,6 +139,9 @@ std::string getSandboxRootDir(const std::string& rootDir);
 
 
 std::string getProvisionerDir(const std::string& rootDir);
+
+
+std::string getCsiRootDir(const std::string& workDir);
 
 
 std::string getLatestSlavePath(const std::string& rootDir);

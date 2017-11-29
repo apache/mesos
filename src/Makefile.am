@@ -1492,9 +1492,11 @@ if ENABLE_GRPC
 # Convenience library for build the CSI client.
 noinst_LTLIBRARIES += libcsi.la
 libcsi_la_SOURCES =							\
-  csi/client.cpp
+  csi/client.cpp							\
+  csi/paths.cpp
 libcsi_la_SOURCES +=							\
   csi/client.hpp							\
+  csi/paths.hpp								\
   csi/spec.hpp
 nodist_libcsi_la_SOURCES = $(CXX_CSI_PROTOS)
 libcsi_la_CPPFLAGS = $(MESOS_CPPFLAGS)
