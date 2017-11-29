@@ -1008,7 +1008,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   resource_provider/manager.cpp						\
   resource_provider/registrar.cpp					\
   resource_provider/validation.cpp					\
-  resource_provider/storage/provider.cpp				\
   sched/sched.cpp							\
   scheduler/scheduler.cpp						\
   secret/resolver.cpp							\
@@ -1155,7 +1154,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   resource_provider/registry.hpp					\
   resource_provider/registry.proto					\
   resource_provider/validation.hpp					\
-  resource_provider/storage/provider.hpp				\
   sched/constants.hpp							\
   sched/flags.hpp							\
   scheduler/constants.hpp						\
@@ -1437,6 +1435,14 @@ if ENABLE_SSL
 libmesos_no_3rdparty_la_SOURCES +=					\
   authentication/executor/jwt_secret_generator.cpp			\
   authentication/executor/jwt_secret_generator.hpp
+endif
+
+if ENABLE_GRPC
+if OS_LINUX
+libmesos_no_3rdparty_la_SOURCES +=					\
+  resource_provider/storage/provider.cpp				\
+  resource_provider/storage/provider.hpp
+endif
 endif
 
 libmesos_no_3rdparty_la_CPPFLAGS = $(MESOS_CPPFLAGS)

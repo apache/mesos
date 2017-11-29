@@ -2017,6 +2017,8 @@ libssl is required for gRPC to build.
 
     with_bundled_grpc=yes
   fi
+
+  AC_DEFINE([ENABLE_GRPC])
 fi
 
 AM_CONDITIONAL([ENABLE_GRPC], [test "x$enable_grpc" = "xyes"])
