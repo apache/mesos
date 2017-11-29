@@ -14,6 +14,7 @@
 #define __STOUT_HASHMAP_HPP__
 
 #include <functional>
+#include <iosfwd>
 #include <list>
 #include <map>
 #include <unordered_map>
@@ -138,5 +139,12 @@ public:
     return result;
   }
 };
+
+
+template <typename K, typename V>
+std::ostream& operator<<(std::ostream& stream, const hashmap<K, V>& map)
+{
+  return stream << stringify(map);
+}
 
 #endif // __STOUT_HASHMAP_HPP__
