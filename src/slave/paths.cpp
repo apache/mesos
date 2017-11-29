@@ -64,6 +64,7 @@ const char TASK_INFO_FILE[] = "task.info";
 const char TASK_UPDATES_FILE[] = "task.updates";
 const char RESOURCES_INFO_FILE[] = "resources.info";
 const char RESOURCES_TARGET_FILE[] = "resources.target";
+const char RESOURCE_PROVIDER_STATE_FILE[] = "resource_provider.state";
 
 
 const char CONTAINERS_DIR[] = "containers";
@@ -72,6 +73,7 @@ const char FRAMEWORKS_DIR[] = "frameworks";
 const char EXECUTORS_DIR[] = "executors";
 const char EXECUTOR_RUNS_DIR[] = "runs";
 const char RESOURCE_PROVIDER_REGISTRY[] = "resource_provider_registry";
+const char RESOURCE_PROVIDERS_DIR[] = "resource_providers";
 
 
 Try<ExecutorRunPath> parseExecutorRunPath(
@@ -474,6 +476,68 @@ string getResourceProviderRegistryPath(
 }
 
 
+Try<list<string>> getResourceProviderPaths(
+    const string& metaDir,
+    const SlaveID& slaveId)
+{
+  return fs::list(path::join(
+      getSlavePath(metaDir, slaveId),
+      RESOURCE_PROVIDERS_DIR,
+      "*", // Resource provider type.
+      "*", // Resource provider name.
+      "*"));
+}
+
+
+string getResourceProviderPath(
+    const string& metaDir,
+    const SlaveID& slaveId,
+    const string& resourceProviderType,
+    const string& resourceProviderName,
+    const ResourceProviderID& resourceProviderId)
+{
+  return path::join(
+      getSlavePath(metaDir, slaveId),
+      RESOURCE_PROVIDERS_DIR,
+      resourceProviderType,
+      resourceProviderName,
+      stringify(resourceProviderId));
+}
+
+
+string getResourceProviderStatePath(
+    const string& metaDir,
+    const SlaveID& slaveId,
+    const string& resourceProviderType,
+    const string& resourceProviderName,
+    const ResourceProviderID& resourceProviderId)
+{
+  return path::join(
+      getResourceProviderPath(
+          metaDir,
+          slaveId,
+          resourceProviderType,
+          resourceProviderName,
+          resourceProviderId),
+      RESOURCE_PROVIDER_STATE_FILE);
+}
+
+
+string getLatestResourceProviderPath(
+    const string& metaDir,
+    const SlaveID& slaveId,
+    const string& resourceProviderType,
+    const string& resourceProviderName)
+{
+  return path::join(
+      getSlavePath(metaDir, slaveId),
+      RESOURCE_PROVIDERS_DIR,
+      resourceProviderType,
+      resourceProviderName,
+      LATEST_SYMLINK);
+}
+
+
 string getResourcesInfoPath(
     const string& rootDir)
 {
@@ -663,6 +727,48 @@ string createSlaveDirectory(
   }
 
   // Symlink the new slave directory to "latest".
+  Try<Nothing> symlink = ::fs::symlink(directory, latest);
+
+  CHECK_SOME(symlink)
+    << "Failed to symlink directory '" << directory
+    << "' to '" << latest << "'";
+
+  return directory;
+}
+
+
+string createResourceProviderDirectory(
+    const string& rootDir,
+    const SlaveID& slaveId,
+    const string& resourceProviderType,
+    const string& resourceProviderName,
+    const ResourceProviderID& resourceProviderId)
+{
+  const string directory = getResourceProviderPath(
+      rootDir,
+      slaveId,
+      resourceProviderType,
+      resourceProviderName,
+      resourceProviderId);
+
+  Try<Nothing> mkdir = os::mkdir(directory);
+
+  CHECK_SOME(mkdir)
+    << "Failed to create resource provider directory '" << directory << "'";
+
+  // Remove the previous "latest" symlink.
+  const string latest = getLatestResourceProviderPath(
+      rootDir,
+      slaveId,
+      resourceProviderType,
+      resourceProviderName);
+
+  if (os::exists(latest)) {
+    CHECK_SOME(os::rm(latest))
+      << "Failed to remove latest symlink '" << latest << "'";
+  }
+
+  // Symlink the new resource provider directory to "latest".
   Try<Nothing> symlink = ::fs::symlink(directory, latest);
 
   CHECK_SOME(symlink)

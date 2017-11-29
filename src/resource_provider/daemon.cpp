@@ -220,7 +220,8 @@ Future<Nothing> LocalResourceProviderDaemonProcess::launch(
       ProviderData& data = providers[type].at(name);
 
       Try<Owned<LocalResourceProvider>> provider =
-        LocalResourceProvider::create(url, data.info, authToken);
+        LocalResourceProvider::create(
+            url, workDir, data.info, slaveId.get(), authToken);
 
       if (provider.isError()) {
         return Failure(
