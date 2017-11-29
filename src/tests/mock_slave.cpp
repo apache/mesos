@@ -35,9 +35,16 @@
 
 using mesos::master::detector::MasterDetector;
 
+using mesos::internal::slave::Containerizer;
+using mesos::internal::slave::GarbageCollector;
+using mesos::internal::slave::TaskStatusUpdateManager;
+
 using mesos::slave::ContainerTermination;
+using mesos::slave::ResourceEstimator;
+using mesos::slave::QoSController;
 
 using std::list;
+using std::string;
 
 using process::Future;
 using process::UPID;
@@ -48,25 +55,6 @@ using testing::Invoke;
 namespace mesos {
 namespace internal {
 namespace tests {
-
-MockGarbageCollector::MockGarbageCollector()
-{
-  // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
-  // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
-  // for more details.
-  EXPECT_CALL(*this, schedule(_, _))
-    .WillRepeatedly(Return(Nothing()));
-
-  EXPECT_CALL(*this, unschedule(_))
-    .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, prune(_))
-    .WillRepeatedly(Return());
-}
-
-
-MockGarbageCollector::~MockGarbageCollector() {}
-
 
 MockResourceEstimator::MockResourceEstimator()
 {
@@ -104,25 +92,29 @@ MockQoSController::~MockQoSController() {}
 
 
 MockSlave::MockSlave(
+    const string& id,
     const slave::Flags& flags,
     MasterDetector* detector,
-    slave::Containerizer* containerizer,
-    const Option<mesos::slave::QoSController*>& _qosController,
-    const Option<mesos::SecretGenerator*>& secretGenerator,
-    const Option<mesos::Authorizer*>& authorizer)
+    Containerizer* containerizer,
+    Files* files,
+    GarbageCollector* gc,
+    TaskStatusUpdateManager* taskStatusUpdateManager,
+    ResourceEstimator* resourceEstimator,
+    QoSController* qosController,
+    SecretGenerator* secretGenerator,
+    const Option<Authorizer*>& authorizer)
   : slave::Slave(
         process::ID::generate("slave"),
         flags,
         detector,
         containerizer,
-        &files,
-        &gc,
-        taskStatusUpdateManager = new slave::TaskStatusUpdateManager(flags),
-        &resourceEstimator,
-        _qosController.isSome() ? _qosController.get() : &qosController,
-        secretGenerator.isSome() ? secretGenerator.get() : nullptr,
-        authorizer),
-    files(slave::READONLY_HTTP_AUTHENTICATION_REALM)
+        files,
+        gc,
+        taskStatusUpdateManager,
+        resourceEstimator,
+        qosController,
+        secretGenerator,
+        authorizer)
 {
   // Set up default behaviors, calling the original methods.
   EXPECT_CALL(*this, runTask(_, _, _, _, _))
@@ -145,12 +137,6 @@ MockSlave::MockSlave(
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_executorTerminated));
   EXPECT_CALL(*this, shutdownExecutor(_, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_shutdownExecutor));
-}
-
-
-MockSlave::~MockSlave()
-{
-  delete taskStatusUpdateManager;
 }
 
 

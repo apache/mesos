@@ -563,6 +563,7 @@ int main(int argc, char** argv)
   }
 
   SecretGenerator* secretGenerator = nullptr;
+
 #ifdef USE_SSL_SOCKET
   if (flags.jwt_secret_key.isSome()) {
     Try<string> jwtSecretKey = os::read(flags.jwt_secret_key.get());

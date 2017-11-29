@@ -1376,8 +1376,10 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverNestedBadTask)
   flags.isolation = "network/ports";
   flags.check_agent_port_range_only = true;
 
-  slave = cluster::Slave::start(detector.get(), flags, slaveId);
+  slave = cluster::Slave::create(detector.get(), flags, slaveId);
   ASSERT_SOME(slave);
+
+  slave.get()->start();
 
   // Wait for the slave to re-register.
   AWAIT_READY(slaveReregisteredMessage);
@@ -1559,8 +1561,10 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverNestedGoodTask)
   flags.isolation = "network/ports";
   flags.check_agent_port_range_only = true;
 
-  slave = cluster::Slave::start(detector.get(), flags, slaveId);
+  slave = cluster::Slave::create(detector.get(), flags, slaveId);
   ASSERT_SOME(slave);
+
+  slave.get()->start();
 
   // Wait for the slave to re-register.
   AWAIT_READY(slaveReregisteredMessage);

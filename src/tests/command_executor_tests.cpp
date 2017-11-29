@@ -375,8 +375,16 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HTTPCommandExecutorTest, TerminateWithACK)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
-  MockSlave slave(flags, &detector, containerizer.get());
-  spawn(slave);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      containerizer.get(),
+      flags,
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -410,7 +418,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HTTPCommandExecutorTest, TerminateWithACK)
     .WillOnce(FutureArg<1>(&statusFinished));
 
   Future<Future<Option<ContainerTermination>>> termination;
-  EXPECT_CALL(slave, executorTerminated(_, _, _))
+  EXPECT_CALL(*slave.get()->mock(), executorTerminated(_, _, _))
     .WillOnce(FutureArg<2>(&termination));
 
   driver.launchTasks(offers->front().id(), {task});
@@ -434,9 +442,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HTTPCommandExecutorTest, TerminateWithACK)
 
   driver.stop();
   driver.join();
-
-  terminate(slave);
-  wait(slave);
 }
 
 

@@ -779,8 +779,16 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
   TestContainerizer containerizer(&exec);
   StandaloneMasterDetector detector(master.get()->pid);
 
-  MockSlave slave1(slaveFlags, &detector, &containerizer);
-  spawn(slave1);
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(
+      &detector,
+      &containerizer,
+      slaveFlags,
+      true);
+
+  ASSERT_SOME(slave1);
+  ASSERT_NE(nullptr, slave1.get()->mock());
+
+  slave1.get()->start();
 
   AWAIT_READY(slaveReady);
 
@@ -820,8 +828,7 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
 
   AWAIT_READY(message);
 
-  terminate(slave1);
-  wait(slave1);
+  slave1.get()->terminate();
 
   // Simulate a reboot of the slave machine by modifying the boot ID.
   ASSERT_SOME(os::write(slave::paths::getBootIdPath(
@@ -832,19 +839,25 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
   // checkpointed resources.
   slaveFlags.resources = "disk:1024";
 
-  MockSlave slave2(slaveFlags, &detector, &containerizer);
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(
+      &detector,
+      &containerizer,
+      slaveFlags,
+      true);
+
+  ASSERT_SOME(slave2);
+  ASSERT_NE(nullptr, slave2.get()->mock());
 
   Future<Future<Nothing>> recover;
-  EXPECT_CALL(slave2, __recover(_))
+  EXPECT_CALL(*slave2.get()->mock(), __recover(_))
     .WillOnce(DoAll(FutureArg<0>(&recover), Return()));
 
-  spawn(slave2);
+  slave2.get()->start();
 
   AWAIT_READY(recover);
   AWAIT_FAILED(recover.get());
 
-  terminate(slave2);
-  wait(slave2);
+  slave2.get()->terminate();
 
   driver.stop();
   driver.join();

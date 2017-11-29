@@ -323,22 +323,42 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     MasterDetector* detector,
     const Option<slave::Flags>& flags)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get());
+
+  if (slave.isSome()) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 
 Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     MasterDetector* detector,
     slave::Containerizer* containerizer,
-    const Option<slave::Flags>& flags)
+    const Option<slave::Flags>& flags,
+    bool mock)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
-      containerizer);
+      containerizer,
+      None(),
+      None(),
+      None(),
+      None(),
+      None(),
+      None(),
+      mock);
+
+  if (slave.isSome() && !mock) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 
@@ -347,10 +367,16 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     const string& id,
     const Option<slave::Flags>& flags)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       id);
+
+  if (slave.isSome()) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 
@@ -360,11 +386,17 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     const string& id,
     const Option<slave::Flags>& flags)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       id,
       containerizer);
+
+  if (slave.isSome()) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 
@@ -373,12 +405,18 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     slave::GarbageCollector* gc,
     const Option<slave::Flags>& flags)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
       None(),
       gc);
+
+  if (slave.isSome()) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 
@@ -387,7 +425,7 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     mesos::slave::ResourceEstimator* resourceEstimator,
     const Option<slave::Flags>& flags)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
@@ -395,6 +433,12 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
       None(),
       None(),
       resourceEstimator);
+
+  if (slave.isSome()) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 
@@ -404,7 +448,7 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     mesos::slave::ResourceEstimator* resourceEstimator,
     const Option<slave::Flags>& flags)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
@@ -412,6 +456,12 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
       None(),
       None(),
       resourceEstimator);
+
+  if (slave.isSome()) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 
@@ -420,7 +470,7 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     mesos::slave::QoSController* qoSController,
     const Option<slave::Flags>& flags)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
@@ -429,6 +479,12 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
       None(),
       None(),
       qoSController);
+
+  if (slave.isSome()) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 
@@ -436,9 +492,10 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     MasterDetector* detector,
     slave::Containerizer* containerizer,
     mesos::slave::QoSController* qoSController,
-    const Option<slave::Flags>& flags)
+    const Option<slave::Flags>& flags,
+    bool mock)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
@@ -446,7 +503,16 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
       None(),
       None(),
       None(),
-      qoSController);
+      qoSController,
+      None(),
+      None(),
+      mock);
+
+  if (slave.isSome() && !mock) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 
@@ -455,7 +521,7 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     mesos::Authorizer* authorizer,
     const Option<slave::Flags>& flags)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
@@ -466,6 +532,12 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
       None(),
       None(),
       authorizer);
+
+  if (slave.isSome()) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 
@@ -475,7 +547,7 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     mesos::Authorizer* authorizer,
     const Option<slave::Flags>& flags)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
@@ -486,6 +558,12 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
       None(),
       None(),
       authorizer);
+
+  if (slave.isSome()) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 
@@ -494,9 +572,10 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     slave::Containerizer* containerizer,
     mesos::SecretGenerator* secretGenerator,
     const Option<mesos::Authorizer*>& authorizer,
-    const Option<slave::Flags>& flags)
+    const Option<slave::Flags>& flags,
+    bool mock)
 {
-  return cluster::Slave::start(
+  Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
       None(),
@@ -506,7 +585,14 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
       None(),
       None(),
       secretGenerator,
-      authorizer);
+      authorizer,
+      mock);
+
+  if (slave.isSome() && !mock) {
+    slave.get()->start();
+  }
+
+  return slave;
 }
 
 

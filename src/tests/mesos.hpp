@@ -182,7 +182,8 @@ protected:
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
       mesos::master::detector::MasterDetector* detector,
       slave::Containerizer* containerizer,
-      const Option<slave::Flags>& flags = None());
+      const Option<slave::Flags>& flags = None(),
+      bool mock = false);
 
   // Starts a slave with the specified detector, id, and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
@@ -229,7 +230,8 @@ protected:
       mesos::master::detector::MasterDetector* detector,
       slave::Containerizer* containerizer,
       mesos::slave::QoSController* qosController,
-      const Option<slave::Flags>& flags = None());
+      const Option<slave::Flags>& flags = None(),
+      bool mock = false);
 
   // Starts a slave with the specified detector, authorizer, and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
@@ -252,7 +254,8 @@ protected:
       slave::Containerizer* containerizer,
       mesos::SecretGenerator* secretGenerator,
       const Option<mesos::Authorizer*>& authorizer = None(),
-      const Option<slave::Flags>& flags = None());
+      const Option<slave::Flags>& flags = None(),
+      bool mock = false);
 
   Option<zookeeper::URL> zookeeperUrl;
 

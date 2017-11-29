@@ -49,24 +49,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class MockGarbageCollector : public slave::GarbageCollector
-{
-public:
-  MockGarbageCollector();
-  virtual ~MockGarbageCollector();
-
-  MOCK_METHOD2(
-      schedule,
-      process::Future<Nothing>(const Duration& d, const std::string& path));
-  MOCK_METHOD1(
-      unschedule,
-      process::Future<bool>(const std::string& path));
-  MOCK_METHOD1(
-      prune,
-      void(const Duration& d));
-};
-
-
 class MockResourceEstimator : public mesos::slave::ResourceEstimator
 {
 public:
@@ -106,14 +88,17 @@ class MockSlave : public slave::Slave
 {
 public:
   MockSlave(
+      const std::string& id,
       const slave::Flags& flags,
       mesos::master::detector::MasterDetector* detector,
       slave::Containerizer* containerizer,
-      const Option<mesos::slave::QoSController*>& qosController = None(),
-      const Option<mesos::SecretGenerator*>& secretGenerator = None(),
-      const Option<mesos::Authorizer*>& authorizer = None());
-
-  virtual ~MockSlave();
+      Files* files,
+      slave::GarbageCollector* gc,
+      slave::TaskStatusUpdateManager* taskStatusUpdateManager,
+      mesos::slave::ResourceEstimator* resourceEstimator,
+      mesos::slave::QoSController* qosController,
+      SecretGenerator* secretGenerator,
+      const Option<Authorizer*>& authorizer);
 
   MOCK_METHOD5(runTask, void(
       const process::UPID& from,
@@ -208,13 +193,6 @@ public:
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
-
-private:
-  Files files;
-  MockGarbageCollector gc;
-  MockResourceEstimator resourceEstimator;
-  MockQoSController qosController;
-  slave::TaskStatusUpdateManager* taskStatusUpdateManager;
 };
 
 } // namespace tests {

@@ -994,8 +994,16 @@ TEST_P(ReservationTest, CompatibleCheckpointedResources)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
-  MockSlave slave1(slaveFlags, &detector, &containerizer);
-  spawn(slave1);
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(
+      &detector,
+      &containerizer,
+      slaveFlags,
+      true);
+
+  ASSERT_SOME(slave1);
+  ASSERT_NE(nullptr, slave1.get()->mock());
+
+  slave1.get()->start();
 
   AWAIT_READY(slaveReady);
 
@@ -1041,8 +1049,7 @@ TEST_P(ReservationTest, CompatibleCheckpointedResources)
   // Wait until the operation message arrives.
   AWAIT_READY(message);
 
-  terminate(slave1);
-  wait(slave1);
+  slave1.get()->terminate();
 
   // Simulate a reboot of the slave machine by modifying the boot ID.
   ASSERT_SOME(os::write(slave::paths::getBootIdPath(
@@ -1053,13 +1060,20 @@ TEST_P(ReservationTest, CompatibleCheckpointedResources)
   // checkpointed resources.
   slaveFlags.resources = "cpus:12;mem:2048";
 
-  MockSlave slave2(slaveFlags, &detector, &containerizer);
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(
+      &detector,
+      &containerizer,
+      slaveFlags,
+      true);
+
+  ASSERT_SOME(slave2);
+  ASSERT_NE(nullptr, slave2.get()->mock());
 
   Future<Future<Nothing>> recover;
-  EXPECT_CALL(slave2, __recover(_))
+  EXPECT_CALL(*slave2.get()->mock(), __recover(_))
     .WillOnce(DoAll(FutureArg<0>(&recover), Return()));
 
-  spawn(slave2);
+  slave2.get()->start();
 
   // Wait for 'recover' to finish.
   AWAIT_READY(recover);
@@ -1067,8 +1081,7 @@ TEST_P(ReservationTest, CompatibleCheckpointedResources)
   // Expect 'recover' to have completed successfully.
   AWAIT_READY(recover.get());
 
-  terminate(slave2);
-  wait(slave2);
+  slave2.get()->terminate();
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1104,8 +1117,16 @@ TEST_P(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
-  MockSlave slave1(slaveFlags, &detector, &containerizer);
-  spawn(slave1);
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(
+      &detector,
+      &containerizer,
+      slaveFlags,
+      true);
+
+  ASSERT_SOME(slave1);
+  ASSERT_NE(nullptr, slave1.get()->mock());
+
+  slave1.get()->start();
 
   AWAIT_READY(slaveReady);
 
@@ -1189,8 +1210,7 @@ TEST_P(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillOnce(FutureArg<1>(&rescindedOfferId));
 
-  terminate(slave1);
-  wait(slave1);
+  slave1.get()->terminate();
 
   AWAIT_READY(rescindedOfferId);
   EXPECT_EQ(rescindedOfferId.get(), offer.id());
@@ -1204,13 +1224,20 @@ TEST_P(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
   // checkpointed resources.
   slaveFlags.resources = "cpus:12;mem:2048;disk:1024";
 
-  MockSlave slave2(slaveFlags, &detector, &containerizer);
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(
+      &detector,
+      &containerizer,
+      slaveFlags,
+      true);
+
+  ASSERT_SOME(slave2);
+  ASSERT_NE(nullptr, slave2.get()->mock());
 
   Future<Future<Nothing>> recover;
-  EXPECT_CALL(slave2, __recover(_))
+  EXPECT_CALL(*slave2.get()->mock(), __recover(_))
     .WillOnce(DoAll(FutureArg<0>(&recover), Return()));
 
-  spawn(slave2);
+  slave2.get()->start();
 
   // Wait for 'recover' to finish.
   AWAIT_READY(recover);
@@ -1218,8 +1245,7 @@ TEST_P(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
   // Expect that 'recover' will complete successfully.
   AWAIT_READY(recover.get());
 
-  terminate(slave2);
-  wait(slave2);
+  slave2.get()->terminate();
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -1254,8 +1280,16 @@ TEST_P(ReservationTest, IncompatibleCheckpointedResources)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
-  MockSlave slave1(slaveFlags, &detector, &containerizer);
-  spawn(slave1);
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(
+      &detector,
+      &containerizer,
+      slaveFlags,
+      true);
+
+  ASSERT_SOME(slave1);
+  ASSERT_NE(nullptr, slave1.get()->mock());
+
+  slave1.get()->start();
 
   AWAIT_READY(slaveReady);
 
@@ -1300,8 +1334,7 @@ TEST_P(ReservationTest, IncompatibleCheckpointedResources)
   // Wait for the operation message to be delivered.
   AWAIT_READY(message);
 
-  terminate(slave1);
-  wait(slave1);
+  slave1.get()->terminate();
 
   // Simulate a reboot of the slave machine by modifying the boot ID.
   ASSERT_SOME(os::write(slave::paths::getBootIdPath(
@@ -1312,13 +1345,20 @@ TEST_P(ReservationTest, IncompatibleCheckpointedResources)
   // checkpointed resources.
   slaveFlags.resources = "cpus:4;mem:2048";
 
-  MockSlave slave2(slaveFlags, &detector, &containerizer);
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(
+      &detector,
+      &containerizer,
+      slaveFlags,
+      true);
+
+  ASSERT_SOME(slave2);
+  ASSERT_NE(nullptr, slave2.get()->mock());
 
   Future<Future<Nothing>> recover;
-  EXPECT_CALL(slave2, __recover(_))
+  EXPECT_CALL(*slave2.get()->mock(), __recover(_))
     .WillOnce(DoAll(FutureArg<0>(&recover), Return()));
 
-  spawn(slave2);
+  slave2.get()->start();
 
   // Wait for 'recover' to finish.
   AWAIT_READY(recover);
@@ -1326,8 +1366,7 @@ TEST_P(ReservationTest, IncompatibleCheckpointedResources)
   // Expect for 'recover' to have failed.
   AWAIT_FAILED(recover.get());
 
-  terminate(slave2);
-  wait(slave2);
+  slave2.get()->terminate();
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));

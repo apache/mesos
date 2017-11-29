@@ -398,7 +398,7 @@ void Master::setAuthorizationCallbacks(Authorizer* authorizer)
 }
 
 
-Try<process::Owned<Slave>> Slave::start(
+Try<process::Owned<Slave>> Slave::create(
     MasterDetector* detector,
     const slave::Flags& flags,
     const Option<string>& id,
@@ -408,7 +408,8 @@ Try<process::Owned<Slave>> Slave::start(
     const Option<mesos::slave::ResourceEstimator*>& resourceEstimator,
     const Option<mesos::slave::QoSController*>& qosController,
     const Option<mesos::SecretGenerator*>& secretGenerator,
-    const Option<Authorizer*>& providedAuthorizer)
+    const Option<Authorizer*>& providedAuthorizer,
+    bool mock)
 {
   process::Owned<Slave> slave(new Slave());
 
@@ -552,20 +553,33 @@ Try<process::Owned<Slave>> Slave::start(
   }
 
   // Inject all the dependencies.
-  slave->slave.reset(new slave::Slave(
-      id.isSome() ? id.get() : process::ID::generate("slave"),
-      flags,
-      detector,
-      slave->containerizer,
-      &slave->files,
-      gc.getOrElse(slave->gc.get()),
-      taskStatusUpdateManager.getOrElse(slave->taskStatusUpdateManager.get()),
-      resourceEstimator.getOrElse(slave->resourceEstimator.get()),
-      qosController.getOrElse(slave->qosController.get()),
-      secretGenerator.getOrElse(slave->secretGenerator.get()),
-      authorizer));
-
-  slave->pid = process::spawn(slave->slave.get());
+  if (mock) {
+    slave->slave.reset(new MockSlave(
+        id.isSome() ? id.get() : process::ID::generate("slave"),
+        flags,
+        detector,
+        slave->containerizer,
+        &slave->files,
+        gc.getOrElse(slave->gc.get()),
+        taskStatusUpdateManager.getOrElse(slave->taskStatusUpdateManager.get()),
+        resourceEstimator.getOrElse(slave->resourceEstimator.get()),
+        qosController.getOrElse(slave->qosController.get()),
+        secretGenerator.getOrElse(slave->secretGenerator.get()),
+        authorizer));
+  } else {
+    slave->slave.reset(new slave::Slave(
+        id.isSome() ? id.get() : process::ID::generate("slave"),
+        flags,
+        detector,
+        slave->containerizer,
+        &slave->files,
+        gc.getOrElse(slave->gc.get()),
+        taskStatusUpdateManager.getOrElse(slave->taskStatusUpdateManager.get()),
+        resourceEstimator.getOrElse(slave->resourceEstimator.get()),
+        qosController.getOrElse(slave->qosController.get()),
+        secretGenerator.getOrElse(slave->secretGenerator.get()),
+        authorizer));
+  }
 
   return slave;
 }
@@ -653,6 +667,18 @@ void Slave::terminate()
 
   process::terminate(pid);
   wait();
+}
+
+
+MockSlave* Slave::mock()
+{
+  return dynamic_cast<MockSlave*>(slave.get());
+}
+
+
+void Slave::start()
+{
+  pid = process::spawn(slave.get());
 }
 
 

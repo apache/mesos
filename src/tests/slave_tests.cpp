@@ -787,7 +787,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfo)
   TestContainerizer containerizer;
   StandaloneMasterDetector detector;
 
-  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      &containerizer,
+      None(),
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
 
   FrameworkID frameworkId;
   frameworkId.set_value("20141010-221431-251662764-60288-32120-0000");
@@ -825,7 +832,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfo)
   labels->add_labels()->CopyFrom(createLabel("label1", "key1"));
   labels->add_labels()->CopyFrom(createLabel("label2", "key2"));
 
-  const ExecutorInfo& executor = slave.getExecutorInfo(frameworkInfo, task);
+  const ExecutorInfo& executor =
+    slave.get()->mock()->getExecutorInfo(frameworkInfo, task);
 
   // Now assert that it actually is running mesos-executor without any
   // bleedover from the command we intend on running.
@@ -848,7 +856,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfoForTaskWithContainer)
   TestContainerizer containerizer;
   StandaloneMasterDetector detector;
 
-  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      &containerizer,
+      None(),
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
 
   FrameworkInfo frameworkInfo;
   frameworkInfo.mutable_id()->set_value(
@@ -881,7 +896,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfoForTaskWithContainer)
   network->add_ip_addresses()->set_ip_address("4.3.2.1");
   network->add_groups("public");
 
-  const ExecutorInfo& executor = slave.getExecutorInfo(frameworkInfo, task);
+  const ExecutorInfo& executor =
+    slave.get()->mock()->getExecutorInfo(frameworkInfo, task);
 
   // Now assert that the executor has both the command and ContainerInfo
   EXPECT_FALSE(executor.command().shell());
@@ -925,7 +941,15 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   Owned<MesosContainerizer> containerizer(_containerizer.get());
 
   StandaloneMasterDetector detector;
-  MockSlave slave(flags, &detector, containerizer.get());
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      containerizer.get(),
+      flags,
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
 
   FrameworkInfo frameworkInfo;
   frameworkInfo.mutable_id()->set_value(
@@ -961,7 +985,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   network->add_ip_addresses()->set_ip_address("4.3.2.1");
   network->add_groups("public");
 
-  const ExecutorInfo& executor = slave.getExecutorInfo(frameworkInfo, task);
+  const ExecutorInfo& executor =
+    slave.get()->mock()->getExecutorInfo(frameworkInfo, task);
 
   Try<string> sandbox = environment->mkdtemp();
   ASSERT_SOME(sandbox);
@@ -1735,8 +1760,19 @@ TEST_F(SlaveTest, GetStateTaskGroupPending)
   TestContainerizer containerizer(executorId, executor);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  MockSlave slave(CreateSlaveFlags(), detector.get(), &containerizer);
-  process::PID<Slave> slavePid = spawn(slave);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      &containerizer,
+      None(),
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
+
+  process::PID<Slave> slavePid = slave.get()->pid;
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -1787,7 +1823,7 @@ TEST_F(SlaveTest, GetStateTaskGroupPending)
   // unmocked `_run()` method. Instead, we want to do nothing so that tasks
   // remain in the framework's 'pending' list.
   Future<Nothing> _run;
-  EXPECT_CALL(slave, _run(_, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _))
     .WillOnce(FutureSatisfy(&_run));
 
   // The executor should not be launched.
@@ -1834,9 +1870,6 @@ TEST_F(SlaveTest, GetStateTaskGroupPending)
   // To confirm the fix for MESOS-7871, we simply verify that the
   // agent doesn't crash when this request is made.
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -2248,8 +2281,12 @@ TEST_F(SlaveTest, StatisticsEndpointMissingStatistics)
   TestContainerizer containerizer(&exec);
   StandaloneMasterDetector detector(master.get()->pid);
 
-  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
-  spawn(slave);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      &containerizer,
+      None());
+
+  ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -2294,7 +2331,7 @@ TEST_F(SlaveTest, StatisticsEndpointMissingStatistics)
     .WillOnce(Return(Failure("Injected failure")));
 
   Future<Response> response = process::http::get(
-      slave.self(),
+      slave.get()->pid,
       "monitor/statistics",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -2309,9 +2346,6 @@ TEST_F(SlaveTest, StatisticsEndpointMissingStatistics)
 
   driver.stop();
   driver.join();
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -2326,24 +2360,28 @@ TEST_F(SlaveTest, StatisticsEndpointGetResourceUsageFailed)
   TestContainerizer containerizer(&exec);
   StandaloneMasterDetector detector(master.get()->pid);
 
-  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      &containerizer,
+      None(),
+      true);
 
-  EXPECT_CALL(slave, usage())
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  EXPECT_CALL(*slave.get()->mock(), usage())
     .WillOnce(Return(Failure("Resource Collection Failure")));
 
-  spawn(slave);
+  slave.get()->start();
 
   Future<Response> response = process::http::get(
-      slave.self(),
+      slave.get()->pid,
       "monitor/statistics",
       None(),
       createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
   AWAIT_READY(response);
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(InternalServerError().status, response);
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -4010,8 +4048,16 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
-  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
-  spawn(slave);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      &containerizer,
+      None(),
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -4049,8 +4095,8 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillRepeatedly(FutureArg<1>(&status));
 
-  EXPECT_CALL(slave, runTask(_, _, _, _, _))
-    .WillOnce(Invoke(&slave, &MockSlave::unmocked_runTask));
+  EXPECT_CALL(*slave.get()->mock(), runTask(_, _, _, _, _))
+    .WillOnce(Invoke(slave.get()->mock(), &MockSlave::unmocked_runTask));
 
   // Saved arguments from Slave::_run().
   Future<list<bool>> unschedules;
@@ -4062,7 +4108,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   // later, tie reaching the critical moment when to kill the task to
   // a future.
   Future<Nothing> _run;
-  EXPECT_CALL(slave, _run(_, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run),
                     SaveArg<0>(&unschedules),
                     SaveArg<1>(&frameworkInfo),
@@ -4075,13 +4121,15 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   AWAIT_READY(_run);
 
   Future<Nothing> killTask;
-  EXPECT_CALL(slave, killTask(_, _))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_killTask),
+  EXPECT_CALL(*slave.get()->mock(), killTask(_, _))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_killTask),
                     FutureSatisfy(&killTask)));
 
   Future<Nothing> removeFramework;
-  EXPECT_CALL(slave, removeFramework(_))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
+  EXPECT_CALL(*slave.get()->mock(), removeFramework(_))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_removeFramework),
                     FutureSatisfy(&removeFramework)));
 
   driver.killTask(task.task_id());
@@ -4092,7 +4140,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   // since there remain no more tasks.
   AWAIT_READY(removeFramework);
 
-  slave.unmocked__run(
+  slave.get()->mock()->unmocked__run(
       unschedules, frameworkInfo, executorInfo, task_, taskGroup);
 
   AWAIT_READY(status);
@@ -4100,9 +4148,6 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
 
   driver.stop();
   driver.join();
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -4119,8 +4164,16 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
-  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
-  spawn(slave);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      &containerizer,
+      None(),
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -4160,9 +4213,9 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2));
 
-  EXPECT_CALL(slave, runTask(_, _, _, _, _))
-    .WillOnce(Invoke(&slave, &MockSlave::unmocked_runTask))
-    .WillOnce(Invoke(&slave, &MockSlave::unmocked_runTask));
+  EXPECT_CALL(*slave.get()->mock(), runTask(_, _, _, _, _))
+    .WillOnce(Invoke(slave.get()->mock(), &MockSlave::unmocked_runTask))
+    .WillOnce(Invoke(slave.get()->mock(), &MockSlave::unmocked_runTask));
 
   // Skip what Slave::_run() normally does, save its arguments for
   // later, tie reaching the critical moment when to kill the task to
@@ -4174,7 +4227,7 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
   Option<TaskInfo> task_1, task_2;
 
   Future<Nothing> _run1, _run2;
-  EXPECT_CALL(slave, _run(_, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run1),
                     SaveArg<0>(&unschedules1),
                     SaveArg<1>(&frameworkInfo1),
@@ -4193,15 +4246,18 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
   AWAIT_READY(process::await(_run1, _run2));
 
   Future<Nothing> killTask1, killTask2;
-  EXPECT_CALL(slave, killTask(_, _))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_killTask),
+  EXPECT_CALL(*slave.get()->mock(), killTask(_, _))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_killTask),
                     FutureSatisfy(&killTask1)))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_killTask),
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_killTask),
                     FutureSatisfy(&killTask2)));
 
   Future<Nothing> removeFramework;
-  EXPECT_CALL(slave, removeFramework(_))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
+  EXPECT_CALL(*slave.get()->mock(), removeFramework(_))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_removeFramework),
                     FutureSatisfy(&removeFramework)));
 
   driver.killTask(task1.task_id());
@@ -4219,19 +4275,16 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
   AWAIT_READY(removeFramework);
 
   // The `__run` continuations should have no effect.
-  slave.unmocked__run(
+  slave.get()->mock()->unmocked__run(
       unschedules1, frameworkInfo1, executorInfo1, task_1, taskGroup1);
 
-  slave.unmocked__run(
+  slave.get()->mock()->unmocked__run(
       unschedules2, frameworkInfo2, executorInfo2, task_2, taskGroup2);
 
   Clock::settle();
 
   driver.stop();
   driver.join();
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -4591,8 +4644,16 @@ TEST_F(SlaveTest, ContainerizerUsageFailure)
   TestContainerizer containerizer(&exec);
   StandaloneMasterDetector detector(master.get()->pid);
 
-  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
-  spawn(slave);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      &containerizer,
+      None(),
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -4638,7 +4699,7 @@ TEST_F(SlaveTest, ContainerizerUsageFailure)
 
   // We expect that the slave will still returns ResourceUsage but no
   // statistics will be found.
-  Future<ResourceUsage> usage = slave.usage();
+  Future<ResourceUsage> usage = slave.get()->mock()->usage();
 
   AWAIT_READY(usage);
   ASSERT_EQ(1, usage->executors_size());
@@ -4649,9 +4710,6 @@ TEST_F(SlaveTest, ContainerizerUsageFailure)
 
   driver.stop();
   driver.join();
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -5251,8 +5309,16 @@ TEST_F(SlaveTest, TotalSlaveResourcesIncludedInUsage)
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = "cpus:2;gpus:0;mem:1024;disk:1024;ports:[31000-32000]";
 
-  MockSlave slave(flags, &detector, &containerizer);
-  spawn(slave);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      &containerizer,
+      flags,
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
 
   Clock::pause();
 
@@ -5261,16 +5327,13 @@ TEST_F(SlaveTest, TotalSlaveResourcesIncludedInUsage)
 
   // We expect that the slave will return ResourceUsage with
   // total resources reported.
-  Future<ResourceUsage> usage = slave.usage();
+  Future<ResourceUsage> usage = slave.get()->mock()->usage();
 
   AWAIT_READY(usage);
 
   // Total resources should match the resources from flag.resources.
   EXPECT_EQ(Resources(usage->total()),
             Resources::parse(flags.resources.get()).get());
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -5288,8 +5351,16 @@ TEST_F(SlaveTest, CheckpointedResourcesIncludedInUsage)
   flags.resources = "cpus:2;cpus(role1):3;mem:1024;disk:1024;disk(role1):64;"
                     "ports:[31000-32000]";
 
-  MockSlave slave(flags, &detector, &containerizer);
-  spawn(slave);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      &containerizer,
+      flags,
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
 
   Clock::pause();
 
@@ -5309,11 +5380,11 @@ TEST_F(SlaveTest, CheckpointedResourcesIncludedInUsage)
     {dynamicReservation, persistentVolume};
 
   // Add checkpointed resources.
-  slave.checkpointResources(checkpointedResources, true);
+  slave.get()->mock()->checkpointResources(checkpointedResources, true);
 
   // We expect that the slave will return ResourceUsage with
   // total and checkpointed slave resources reported.
-  Future<ResourceUsage> usage = slave.usage();
+  Future<ResourceUsage> usage = slave.get()->mock()->usage();
 
   AWAIT_READY(usage);
 
@@ -5323,9 +5394,6 @@ TEST_F(SlaveTest, CheckpointedResourcesIncludedInUsage)
   // reservations.
   EXPECT_EQ(usageTotalResources.persistentVolumes(), persistentVolume);
   EXPECT_TRUE(usageTotalResources.contains(dynamicReservation));
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -5951,14 +6019,18 @@ TEST_F(SlaveTest, RunTaskGroupFailedSecretGeneration)
   // This pointer is passed to the agent, which will perform the cleanup.
   Owned<MockSecretGenerator> secretGenerator(new MockSecretGenerator());
 
-  MockSlave slave(
-      CreateSlaveFlags(),
+  Try<Owned<cluster::Slave>> slave = StartSlave(
       &detector,
       &containerizer,
+      secretGenerator.get(),
       None(),
-      secretGenerator.get());
+      None(),
+      true);
 
-  spawn(slave);
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -6035,8 +6107,9 @@ TEST_F(SlaveTest, RunTaskGroupFailedSecretGeneration)
   EXPECT_CALL(*executor, launch(_, _))
     .Times(0);
 
-  EXPECT_CALL(slave, executorTerminated(_, _, _))
-    .WillOnce(Invoke(&slave, &MockSlave::unmocked_executorTerminated));
+  EXPECT_CALL(*slave.get()->mock(), executorTerminated(_, _, _))
+    .WillOnce(Invoke(slave.get()->mock(),
+                     &MockSlave::unmocked_executorTerminated));
 
   Future<v1::scheduler::Event::Update> update1;
   Future<v1::scheduler::Event::Update> update2;
@@ -6087,8 +6160,9 @@ TEST_F(SlaveTest, RunTaskGroupFailedSecretGeneration)
   // Since this is the only task group for this framework, the
   // framework should be removed after secret generation fails.
   Future<Nothing> removeFramework;
-  EXPECT_CALL(slave, removeFramework(_))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
+  EXPECT_CALL(*slave.get()->mock(), removeFramework(_))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_removeFramework),
                     FutureSatisfy(&removeFramework)));
 
   // Acknowledge the status updates so that the agent will remove the framework.
@@ -6120,9 +6194,6 @@ TEST_F(SlaveTest, RunTaskGroupFailedSecretGeneration)
   }
 
   AWAIT_READY(removeFramework);
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -6151,14 +6222,18 @@ TEST_F(SlaveTest, RunTaskGroupInvalidExecutorSecret)
 
   Owned<MockSecretGenerator> secretGenerator(new MockSecretGenerator());
 
-  MockSlave slave(
-      CreateSlaveFlags(),
+  Try<Owned<cluster::Slave>> slave = StartSlave(
       &detector,
       &containerizer,
+      secretGenerator.get(),
       None(),
-      secretGenerator.get());
+      None(),
+      true);
 
-  spawn(slave);
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -6240,8 +6315,9 @@ TEST_F(SlaveTest, RunTaskGroupInvalidExecutorSecret)
   EXPECT_CALL(*executor, launch(_, _))
     .Times(0);
 
-  EXPECT_CALL(slave, executorTerminated(_, _, _))
-    .WillOnce(Invoke(&slave, &MockSlave::unmocked_executorTerminated));
+  EXPECT_CALL(*slave.get()->mock(), executorTerminated(_, _, _))
+    .WillOnce(Invoke(slave.get()->mock(),
+                     &MockSlave::unmocked_executorTerminated));
 
   Future<v1::scheduler::Event::Update> update1;
   Future<v1::scheduler::Event::Update> update2;
@@ -6295,8 +6371,9 @@ TEST_F(SlaveTest, RunTaskGroupInvalidExecutorSecret)
   // Since this is the only task group for this framework, the
   // framework should be removed after secret generation fails.
   Future<Nothing> removeFramework;
-  EXPECT_CALL(slave, removeFramework(_))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
+  EXPECT_CALL(*slave.get()->mock(), removeFramework(_))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_removeFramework),
                     FutureSatisfy(&removeFramework)));
 
   // Acknowledge the status updates so that the agent will remove the framework.
@@ -6328,9 +6405,6 @@ TEST_F(SlaveTest, RunTaskGroupInvalidExecutorSecret)
   }
 
   AWAIT_READY(removeFramework);
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -6360,14 +6434,18 @@ TEST_F(SlaveTest, RunTaskGroupReferenceTypeSecret)
 
   Owned<MockSecretGenerator> secretGenerator(new MockSecretGenerator());
 
-  MockSlave slave(
-      CreateSlaveFlags(),
+  Try<Owned<cluster::Slave>> slave = StartSlave(
       &detector,
       &containerizer,
+      secretGenerator.get(),
       None(),
-      secretGenerator.get());
+      None(),
+      true);
 
-  spawn(slave);
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -6449,8 +6527,9 @@ TEST_F(SlaveTest, RunTaskGroupReferenceTypeSecret)
   EXPECT_CALL(*executor, launch(_, _))
     .Times(0);
 
-  EXPECT_CALL(slave, executorTerminated(_, _, _))
-    .WillOnce(Invoke(&slave, &MockSlave::unmocked_executorTerminated));
+  EXPECT_CALL(*slave.get()->mock(), executorTerminated(_, _, _))
+    .WillOnce(Invoke(slave.get()->mock(),
+                     &MockSlave::unmocked_executorTerminated));
 
   Future<v1::scheduler::Event::Update> update1;
   Future<v1::scheduler::Event::Update> update2;
@@ -6504,8 +6583,9 @@ TEST_F(SlaveTest, RunTaskGroupReferenceTypeSecret)
   // Since this is the only task group for this framework, the
   // framework should be removed after secret generation fails.
   Future<Nothing> removeFramework;
-  EXPECT_CALL(slave, removeFramework(_))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
+  EXPECT_CALL(*slave.get()->mock(), removeFramework(_))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_removeFramework),
                     FutureSatisfy(&removeFramework)));
 
   // Acknowledge the status updates so that the agent will remove the framework.
@@ -6537,9 +6617,6 @@ TEST_F(SlaveTest, RunTaskGroupReferenceTypeSecret)
   }
 
   AWAIT_READY(removeFramework);
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -6569,14 +6646,18 @@ TEST_F(SlaveTest, RunTaskGroupGenerateSecretAfterShutdown)
 
   Owned<MockSecretGenerator> secretGenerator(new MockSecretGenerator());
 
-  MockSlave slave(
-      CreateSlaveFlags(),
+  Try<Owned<cluster::Slave>> slave = StartSlave(
       &detector,
       &containerizer,
+      secretGenerator.get(),
       None(),
-      secretGenerator.get());
+      None(),
+      true);
 
-  spawn(slave);
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -6679,8 +6760,9 @@ TEST_F(SlaveTest, RunTaskGroupGenerateSecretAfterShutdown)
   AWAIT_READY(generate);
 
   Future<Nothing> shutdownExecutor;
-  EXPECT_CALL(slave, shutdownExecutor(_, _, _))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_shutdownExecutor),
+  EXPECT_CALL(*slave.get()->mock(), shutdownExecutor(_, _, _))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_shutdownExecutor),
                     FutureSatisfy(&shutdownExecutor)));
 
   {
@@ -6707,8 +6789,9 @@ TEST_F(SlaveTest, RunTaskGroupGenerateSecretAfterShutdown)
   EXPECT_CALL(*scheduler, failure(_, _))
     .WillOnce(FutureSatisfy(&failure));
 
-  EXPECT_CALL(slave, executorTerminated(_, _, _))
-    .WillOnce(Invoke(&slave, &MockSlave::unmocked_executorTerminated));
+  EXPECT_CALL(*slave.get()->mock(), executorTerminated(_, _, _))
+    .WillOnce(Invoke(slave.get()->mock(),
+                     &MockSlave::unmocked_executorTerminated));
 
   // The tasks will fail to launch because the executor has been shutdown.
   Secret authenticationToken;
@@ -6737,8 +6820,9 @@ TEST_F(SlaveTest, RunTaskGroupGenerateSecretAfterShutdown)
   // Since this is the only task group for this framework, the
   // framework should be removed after secret generation fails.
   Future<Nothing> removeFramework;
-  EXPECT_CALL(slave, removeFramework(_))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
+  EXPECT_CALL(*slave.get()->mock(), removeFramework(_))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_removeFramework),
                     FutureSatisfy(&removeFramework)));
 
   // Acknowledge the status updates so that the agent will remove the framework.
@@ -6770,9 +6854,6 @@ TEST_F(SlaveTest, RunTaskGroupGenerateSecretAfterShutdown)
   }
 
   AWAIT_READY(removeFramework);
-
-  terminate(slave);
-  wait(slave);
 }
 
 
@@ -6987,8 +7068,16 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
-  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
-  spawn(slave);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      &containerizer,
+      None(),
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -7055,8 +7144,9 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
     .WillOnce(FutureArg<1>(&update2))
     .WillRepeatedly(Return());
 
-  EXPECT_CALL(slave, runTaskGroup(_, _, _, _))
-    .WillOnce(Invoke(&slave, &MockSlave::unmocked_runTaskGroup));
+  EXPECT_CALL(*slave.get()->mock(), runTaskGroup(_, _, _, _))
+    .WillOnce(Invoke(slave.get()->mock(),
+                     &MockSlave::unmocked_runTaskGroup));
 
   // Saved arguments from `Slave::_run()`.
   Future<list<bool>> unschedules;
@@ -7069,7 +7159,7 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   // later, till reaching the critical moment when to kill the task
   // in the future.
   Future<Nothing> _run;
-  EXPECT_CALL(slave, _run(_, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run),
                     SaveArg<0>(&unschedules),
                     SaveArg<1>(&frameworkInfo),
@@ -7115,15 +7205,17 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   AWAIT_READY(_run);
 
   Future<Nothing> killTask;
-  EXPECT_CALL(slave, killTask(_, _))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_killTask),
+  EXPECT_CALL(*slave.get()->mock(), killTask(_, _))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_killTask),
                     FutureSatisfy(&killTask)));
 
   // Since this is the only task group for this framework, the
   // framework should get removed when the task is killed.
   Future<Nothing> removeFramework;
-  EXPECT_CALL(slave, removeFramework(_))
-    .WillOnce(DoAll(Invoke(&slave, &MockSlave::unmocked_removeFramework),
+  EXPECT_CALL(*slave.get()->mock(), removeFramework(_))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_removeFramework),
                     FutureSatisfy(&removeFramework)));
 
   mesos.send(
@@ -7133,7 +7225,7 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
 
   AWAIT_READY(removeFramework);
 
-  slave.unmocked__run(
+  slave.get()->mock()->unmocked__run(
       unschedules, frameworkInfo, executorInfo_, task_, taskGroup_);
 
   AWAIT_READY(update1);
@@ -7145,9 +7237,6 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   EXPECT_EQ(TASK_KILLED, update1->status().state());
   EXPECT_EQ(TASK_KILLED, update2->status().state());
   EXPECT_EQ(tasks, killedTasks);
-
-  terminate(slave);
-  wait(slave);
 }
 
 

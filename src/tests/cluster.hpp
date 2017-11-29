@@ -66,6 +66,7 @@
 #include "slave/containerizer/fetcher.hpp"
 
 #include "tests/mock_registrar.hpp"
+#include "tests/mock_slave.hpp"
 
 namespace mesos {
 namespace internal {
@@ -148,7 +149,7 @@ private:
 class Slave
 {
 public:
-  // Factory method that starts a new slave with the provided flags and
+  // Factory method that creates a new slave with the provided flags and
   // injections. The destructor of this object will cleanup some, but not
   // all of its state by calling the injections. Cleanup includes:
   //   * All destructors of each slave dependency created in this factory.
@@ -156,7 +157,7 @@ public:
   //     will be destroyed before termination.
   //   * Terminating the slave process.
   //   * On Linux, we will simulate an OS process exiting.
-  static Try<process::Owned<Slave>> start(
+  static Try<process::Owned<Slave>> create(
       mesos::master::detector::MasterDetector* detector,
       const slave::Flags& flags = slave::Flags(),
       const Option<std::string>& id = None(),
@@ -168,7 +169,8 @@ public:
         None(),
       const Option<mesos::slave::QoSController*>& qosController = None(),
       const Option<mesos::SecretGenerator*>& secretGenerator = None(),
-      const Option<Authorizer*>& authorizer = None());
+      const Option<Authorizer*>& authorizer = None(),
+      bool mock = false);
 
   ~Slave();
 
@@ -182,6 +184,14 @@ public:
   // not want to destroy all containers when restarting the agent.
   void shutdown();
   void terminate();
+
+  // Returns the pointer to the mock slave object. Returns nullptr if
+  // this is not a mock slave.
+  MockSlave* mock();
+
+  // Start the mock slave as it is not auto started. This is a no-op
+  // if it is a real slave.
+  void start();
 
   // The underlying slave process.
   process::PID<slave::Slave> pid;

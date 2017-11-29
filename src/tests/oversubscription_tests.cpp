@@ -944,13 +944,21 @@ TEST_F(OversubscriptionTest, ReceiveQoSCorrection)
         &corrections,
         &Queue<list<QoSCorrection>>::get));
 
-  MockSlave slave(CreateSlaveFlags(), &detector, &containerizer, &controller);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      &detector,
+      &containerizer,
+      &controller,
+      None(),
+      true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
 
   Future<list<QoSCorrection>> qosCorrections;
-  EXPECT_CALL(slave, _qosCorrections(_))
+  EXPECT_CALL(*slave.get()->mock(), _qosCorrections(_))
     .WillOnce(FutureArg<0>(&qosCorrections));
 
-  spawn(slave);
+  slave.get()->start();
 
   list<QoSCorrection> expected = { QoSCorrection() };
   corrections.put(expected);
@@ -960,9 +968,6 @@ TEST_F(OversubscriptionTest, ReceiveQoSCorrection)
   ASSERT_EQ(qosCorrections->size(), 1u);
 
   // TODO(nnielsen): Test for equality of QoSCorrections.
-
-  terminate(slave);
-  wait(slave);
 }
 
 
