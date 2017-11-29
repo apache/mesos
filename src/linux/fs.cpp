@@ -583,7 +583,12 @@ namespace chroot {
 
 namespace internal {
 
-Try<Nothing> copyDeviceNode(const string& source, const string& target)
+// Make the source device node appear at the target path. We prefer to
+// `mknod` the device node since that avoids an otherwise unnecessary
+// mount table entry. The `mknod` can fail if we are in a user namespace
+// or if the devices cgroup is restricting that device. In that case, we
+// bind mount the device to the target path.
+Try<Nothing> importDeviceNode(const string& source, const string& target)
 {
   // We are likely to be operating in a multi-threaded environment so
   // it's not safe to change the umask. Instead, we'll explicitly set
@@ -599,13 +604,23 @@ Try<Nothing> copyDeviceNode(const string& source, const string& target)
   }
 
   Try<Nothing> mknod = os::mknod(target, mode.get(), dev.get());
-  if (mknod.isError()) {
-    return Error("Failed to create device: " + mknod.error());
+  if (mknod.isSome()) {
+    Try<Nothing> chmod = os::chmod(target, mode.get());
+    if (chmod.isError()) {
+      return Error("Failed to chmod device: " + chmod.error());
+    }
+
+    return Nothing();
   }
 
-  Try<Nothing> chmod = os::chmod(target, mode.get());
-  if (chmod.isError()) {
-    return Error("Failed to chmod device: " + chmod.error());
+  Try<Nothing> touch = os::touch(target);
+  if (touch.isError()) {
+    return Error("Failed to create device mount point: " + touch.error());
+  }
+
+  Try<Nothing> mnt = fs::mount(source, target, None(), MS_BIND, None());
+  if (mnt.isError()) {
+    return Error("Failed to bind device: " + touch.error());
   }
 
   return Nothing();
@@ -634,12 +649,12 @@ Try<Nothing> mountSpecialFilesystems(const string& root)
   // List of special filesystems useful for a chroot environment.
   // NOTE: This list is ordered, e.g., mount /proc before bind
   // mounting /proc/sys and then making it read-only.
-  vector<Mount> mounts = {
+  const vector<Mount> mounts = {
     {"proc",      "/proc",     "proc",   None(),      MS_NOSUID | MS_NOEXEC | MS_NODEV},             // NOLINT(whitespace/line_length)
     {"/proc/sys", "/proc/sys", None(),   None(),      MS_BIND},
     {None(),      "/proc/sys", None(),   None(),      MS_BIND | MS_RDONLY | MS_REMOUNT},             // NOLINT(whitespace/line_length)
     {"sysfs",     "/sys",      "sysfs",  None(),      MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV}, // NOLINT(whitespace/line_length)
-    {"tmpfs",     "/dev",      "tmpfs",  "mode=755",  MS_NOSUID | MS_STRICTATIME},                   // NOLINT(whitespace/line_length)
+    {"tmpfs",     "/dev",      "tmpfs",  "mode=755",  MS_NOSUID | MS_STRICTATIME | MS_NOEXEC},       // NOLINT(whitespace/line_length)
     {"devpts",    "/dev/pts",  "devpts", "newinstance,ptmxmode=0666", MS_NOSUID | MS_NOEXEC},        // NOLINT(whitespace/line_length)
     {"tmpfs",     "/dev/shm",  "tmpfs",  "mode=1777", MS_NOSUID | MS_NODEV | MS_STRICTATIME},        // NOLINT(whitespace/line_length)
   };
@@ -713,24 +728,25 @@ Try<Nothing> createStandardDevices(const string& root)
     }
   }
 
-  // Inject each device into the chroot environment. Copy both the
+  // Import each device into the chroot environment. Copy both the
   // mode and the device itself from the corresponding host device.
   foreach (const string& device, devices) {
-    Try<Nothing> copy = copyDeviceNode(
+    Try<Nothing> import = importDeviceNode(
         path::join("/",  "dev", device),
         path::join(root, "dev", device));
 
-    if (copy.isError()) {
-      return Error("Failed to copy device '" + device + "': " + copy.error());
+    if (import.isError()) {
+      return Error(
+          "Failed to import device '" + device + "': " + import.error());
     }
   }
 
-  vector<SymLink> symlinks = {
+  const vector<SymLink> symlinks = {
     {"/proc/self/fd",   path::join(root, "dev", "fd")},
     {"/proc/self/fd/0", path::join(root, "dev", "stdin")},
     {"/proc/self/fd/1", path::join(root, "dev", "stdout")},
     {"/proc/self/fd/2", path::join(root, "dev", "stderr")},
-    {"pts/ptmx",       path::join(root, "dev", "ptmx")}
+    {"pts/ptmx",        path::join(root, "dev", "ptmx")}
   };
 
   foreach (const SymLink& symlink, symlinks) {
