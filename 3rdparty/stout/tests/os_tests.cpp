@@ -995,10 +995,7 @@ TEST_F(OsTest, Mknod)
 #endif // __WINDOWS__
 
 
-// TODO(hausdorff): Look into enabling this test on Windows. Currently it is
-// not possible to create a symlink on Windows unless the target exists. See
-// MESOS-5881.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, SYMLINK_Realpath)
+TEST_F(OsTest, SYMLINK_Realpath)
 {
   // Create a file.
   const Try<string> _testFile = os::mktemp();

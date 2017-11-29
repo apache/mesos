@@ -20,7 +20,6 @@
 #include <stout/windows.hpp>
 
 #include <stout/os/mkdir.hpp>
-#include <stout/os/realpath.hpp>
 
 #include <stout/internal/windows/attributes.hpp>
 #include <stout/internal/windows/longpath.hpp>
@@ -263,52 +262,20 @@ inline Try<Nothing> create_symbolic_link(
     const std::string& target,
     const std::string& reparse_point)
 {
-  // Normalize input paths.
-  const Result<std::string> real_reparse_point_path =
-    os::realpath(reparse_point);
-
-  const Result<std::string> real_target_path = os::realpath(target);
-
-  if (!real_reparse_point_path.isSome()) {
-    return Error(
-        "Failed to get realpath for '" +
-        reparse_point + "': " + (real_reparse_point_path.isError() ?
-        real_reparse_point_path.error() : "No such directory"));
-  }
-
-  if (!real_target_path.isSome()) {
-    return Error(
-        "Failed to get realpath for '" +
-        target + "': " + (real_target_path.isError() ?
-        real_target_path.error() : "No such directory"));
-  }
-
-  const std::string& absolute_target_path = real_target_path.get();
-
   // Determine if target is a folder or a file. This makes a difference
   // in the way we call `create_symbolic_link`.
-  const Try<DWORD> attributes = get_file_attributes(
-      longpath(absolute_target_path));
+  const Try<DWORD> attributes = get_file_attributes(longpath(target));
 
-  if (attributes.isError()) {
-    return Error(attributes.error());
+  bool target_is_folder = false;
+  if (attributes.isSome()) {
+    target_is_folder = attributes.get() & FILE_ATTRIBUTE_DIRECTORY;
   }
-
-  const bool target_is_folder = attributes.get() & FILE_ATTRIBUTE_DIRECTORY;
 
   // Bail out if target is already a reparse point.
-  Try<bool> attribute_set = reparse_point_attribute_set(
-      longpath(absolute_target_path));
-
-  if (!attribute_set.isSome()) {
+  Try<bool> attribute_set = reparse_point_attribute_set(longpath(target));
+  if (attribute_set.isSome() && attribute_set.get()) {
     return Error(
-        "Could not get reparse point attribute for '" + absolute_target_path +
-        "'" + (attribute_set.isError() ? ": " + attribute_set.error() : ""));
-  }
-
-  if (attribute_set.get()) {
-    return Error(
-        "Path '" + absolute_target_path + "' is already a reparse point");
+        "Path '" + target + "' is already a reparse point");
   }
 
   // Avoid requiring administrative privileges to create symbolic links.
@@ -322,13 +289,11 @@ inline Try<Nothing> create_symbolic_link(
   // above flag.
   if (!::CreateSymbolicLinkW(
           // Path to link.
-          longpath(real_reparse_point_path.get()).data(),
+          longpath(reparse_point).data(),
           // Path to target.
-          longpath(real_target_path.get()).data(),
+          longpath(target).data(),
           flags)) {
-    return WindowsError(
-        "'internal::windows::create_symbolic_link': 'CreateSymbolicLink' "
-        "call failed");
+    return WindowsError();
   }
 
   return Nothing();

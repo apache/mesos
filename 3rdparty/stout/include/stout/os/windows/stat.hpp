@@ -97,6 +97,8 @@ inline bool islink(const std::string& path)
 // applied to a symbolic link with `follow` set to
 // `DO_NOT_FOLLOW_SYMLINK`, this will return the length of the entry
 // name (strlen).
+//
+// TODO(andschwa): Replace `::_stat`. See MESOS-8275.
 inline Try<Bytes> size(
     const std::string& path,
     const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
@@ -129,6 +131,7 @@ inline Try<Bytes> size(
 }
 
 
+// TODO(andschwa): Replace `::_stat`. See MESOS-8275.
 inline Try<long> mtime(
     const std::string& path,
     const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
@@ -161,6 +164,7 @@ inline Try<long> mtime(
 }
 
 
+// TODO(andschwa): Replace `::_stat`. See MESOS-8275.
 inline Try<mode_t> mode(
     const std::string& path,
     const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
@@ -179,6 +183,7 @@ inline Try<mode_t> mode(
 }
 
 
+// TODO(andschwa): Replace `::_stat`. See MESOS-8275.
 inline Try<dev_t> dev(
     const std::string& path,
     const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
@@ -197,6 +202,7 @@ inline Try<dev_t> dev(
 }
 
 
+// TODO(andschwa): Replace `::_stat`. See MESOS-8275.
 inline Try<ino_t> inode(
     const std::string& path,
     const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)

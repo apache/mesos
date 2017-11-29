@@ -280,12 +280,9 @@ TEST_F(RmdirTest, RemoveDirectoryWithDeviceFile)
 #endif // __WINDOWS__
 
 
-// TODO(hausdorff): Look into enabling this test on Windows. Currently it is
-// not possible to create a symlink on Windows unless the target exists. See
-// MESOS-5881.
 // This test verifies that `rmdir` can remove a directory with a
 // symlink that has no target.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(RmdirTest, SYMLINK_RmDirNoTargetSymbolicLink)
+TEST_F(RmdirTest, SYMLINK_RmDirNoTargetSymbolicLink)
 {
   const string newDirectory = path::join(os::getcwd(), "newDirectory");
   ASSERT_SOME(os::mkdir(newDirectory));
