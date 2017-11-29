@@ -21,6 +21,7 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
+#include <mesos/type_utils.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -29,6 +30,12 @@
 using std::set;
 using std::string;
 using std::vector;
+
+using google::protobuf::Map;
+
+using mesos::internal::protobuf::convertLabelsToStringMap;
+using mesos::internal::protobuf::convertStringMapToLabels;
+using mesos::internal::protobuf::createLabel;
 
 namespace mesos {
 namespace internal {
@@ -191,6 +198,34 @@ TEST(ProtobufUtilTest, InjectAndStripAllocationInfoInOfferOperation)
 
     EXPECT_EQ(unallocatedResources, destroy.destroy().volumes());
   }
+}
+
+
+// This tests that helper function `convertLabelsToStringMap` can
+// correctly convert a `Labels` to a protobuf string map and helper
+// function `convertStringMapToLabels` can convert it back.
+TEST(ProtobufUtilTest, ConvertBetweenLabelsAndStringMap)
+{
+  Labels labels1;
+  labels1.add_labels()->CopyFrom(createLabel("foo", "bar"));
+
+  Try<Map<string, string>> map1 = convertLabelsToStringMap(labels1);
+  ASSERT_SOME(map1);
+  ASSERT_NE(map1->end(), map1->find("foo"));
+  EXPECT_EQ("bar", map1->at("foo"));
+
+  EXPECT_EQ(labels1, convertStringMapToLabels(map1.get()));
+
+  Labels labels2;
+  labels2.add_labels()->CopyFrom(createLabel("foo", "bar"));
+  labels2.add_labels()->CopyFrom(createLabel("foo", "baz"));
+
+  EXPECT_ERROR(convertLabelsToStringMap(labels2));
+
+  Labels labels3;
+  labels3.add_labels()->CopyFrom(createLabel("foo", None()));
+
+  EXPECT_ERROR(convertLabelsToStringMap(labels3));
 }
 
 

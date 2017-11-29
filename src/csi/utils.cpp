@@ -16,9 +16,14 @@
 
 #include "csi/utils.hpp"
 
+#include <google/protobuf/util/json_util.h>
+
 #include <stout/strings.hpp>
 
 using std::ostream;
+using std::string;
+
+using google::protobuf::util::MessageToJsonString;
 
 namespace csi {
 

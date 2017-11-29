@@ -18,8 +18,16 @@
 #define __CSI_UTILS_HPP__
 
 #include <ostream>
+#include <type_traits>
+
+#include <google/protobuf/map.h>
+
+#include <google/protobuf/util/json_util.h>
+
+#include <mesos/mesos.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
 #include "csi/spec.hpp"
@@ -30,6 +38,22 @@ bool operator==(const Version& left, const Version& right);
 
 
 std::ostream& operator<<(std::ostream& stream, const Version& version);
+
+
+// Default imprementation for output protobuf messages in namespace
+// `csi`. Note that any non-template overloading of the output operator
+// would take precedence over this function template.
+template <
+    typename Message,
+    typename std::enable_if<std::is_convertible<
+        Message*, google::protobuf::Message*>::value, int>::type = 0>
+std::ostream& operator<<(std::ostream& stream, const Message& message)
+{
+  // NOTE: We use Google's JSON utility functions for proto3.
+  std::string output;
+  google::protobuf::util::MessageToJsonString(message, &output);
+  return stream << output;
+}
 
 } // namespace csi {
 

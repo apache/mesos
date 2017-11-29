@@ -60,6 +60,7 @@ using std::set;
 using std::string;
 using std::vector;
 
+using google::protobuf::Map;
 using google::protobuf::RepeatedPtrField;
 
 using mesos::slave::ContainerLimitation;
@@ -555,6 +556,40 @@ Label createLabel(const string& key, const Option<string>& value)
 }
 
 
+Labels convertStringMapToLabels(const Map<string, string>& map)
+{
+  Labels labels;
+
+  foreach (const auto& entry, map) {
+    Label* label = labels.mutable_labels()->Add();
+    label->set_key(entry.first);
+    label->set_value(entry.second);
+  }
+
+  return labels;
+}
+
+
+Try<Map<string, string>> convertLabelsToStringMap(const Labels& labels)
+{
+  Map<string, string> map;
+
+  foreach (const Label& label, labels.labels()) {
+    if (map.count(label.key())) {
+      return Error("Repeated key '" + label.key() + "' in labels");
+    }
+
+    if (!label.has_value()) {
+      return Error("Missing value for key '" + label.key() + "' in labels");
+    }
+
+    map[label.key()] = label.value();
+  }
+
+  return map;
+}
+
+
 void injectAllocationInfo(
     Offer::Operation* operation,
     const Resource::AllocationInfo& allocationInfo)
@@ -956,6 +991,7 @@ Try<Resources> getConsumedResources(const Offer::Operation& operation)
 
   UNREACHABLE();
 }
+
 
 namespace slave {
 

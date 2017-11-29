@@ -186,6 +186,16 @@ Label createLabel(
     const Option<std::string>& value = None());
 
 
+// Helper function to convert a protobuf string map to `Labels`.
+Labels convertStringMapToLabels(
+    const google::protobuf::Map<std::string, std::string>& map);
+
+
+// Helper function to convert a `Labels` to a protobuf string map.
+Try<google::protobuf::Map<std::string, std::string>> convertLabelsToStringMap(
+    const Labels& labels);
+
+
 // Previously, `Resource` did not contain `AllocationInfo`.
 // So for backwards compatibility with old schedulers and
 // tooling, we must allow operations to contain `Resource`s
