@@ -398,6 +398,17 @@ bool operator==(
     const ResourceProviderInfo& left,
     const ResourceProviderInfo& right)
 {
+  // Order of reservations is important.
+  if (left.default_reservations_size() != right.default_reservations_size()) {
+    return false;
+  }
+
+  for (int i = 0; i < left.default_reservations_size(); i++) {
+    if (left.default_reservations(i) != right.default_reservations(i)) {
+      return false;
+    }
+  }
+
   return left.has_id() == right.has_id() &&
     (!left.has_id() || left.id() == right.id()) &&
     Attributes(left.attributes()) == Attributes(right.attributes()) &&

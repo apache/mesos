@@ -58,6 +58,17 @@ namespace mesos {
 class ResourceConversion;
 
 
+// Helper functions.
+bool operator==(
+    const Resource::ReservationInfo& left,
+    const Resource::ReservationInfo& right);
+
+
+bool operator!=(
+    const Resource::ReservationInfo& left,
+    const Resource::ReservationInfo& right);
+
+
 // NOTE: Resource objects stored in the class are always valid, are in
 // the "post-reservation-refinement" format, and kept combined if possible.
 // It is the caller's responsibility to validate any Resource object or
