@@ -596,7 +596,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
 
   Clock::pause();
 
-  // Kiling the executor will cause the slave to schedule its
+  // Killing the executor will cause the slave to schedule its
   // directory to get garbage collected.
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -708,7 +708,7 @@ TEST_F(GarbageCollectorIntegrationTest, DiskUsage)
 
   Clock::pause();
 
-  // Kiling the executor will cause the slave to schedule its
+  // Killing the executor will cause the slave to schedule its
   // directory to get garbage collected.
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
