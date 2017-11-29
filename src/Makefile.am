@@ -981,6 +981,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/quota.cpp							\
   master/quota_handler.cpp						\
   master/registrar.cpp							\
+  master/registry_operations.cpp					\
   master/validation.cpp							\
   master/weights.cpp							\
   master/weights_handler.cpp						\
@@ -1126,6 +1127,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/quota.hpp							\
   master/registrar.hpp							\
   master/registry.hpp							\
+  master/registry_operations.hpp					\
   master/validation.hpp							\
   master/weights.hpp							\
   master/allocator/mesos/allocator.hpp					\

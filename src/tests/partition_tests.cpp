@@ -31,6 +31,7 @@
 #include "common/protobuf_utils.hpp"
 
 #include "master/master.hpp"
+#include "master/registry_operations.hpp"
 
 #include "master/allocator/mesos/allocator.hpp"
 

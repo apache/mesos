@@ -1,0 +1,129 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef __MASTER_REGISTRY_OPERATIONS_HPP__
+#define __MASTER_REGISTRY_OPERATIONS_HPP__
+
+#include <mesos/mesos.hpp>
+#include <mesos/type_utils.hpp>
+
+#include "master/registrar.hpp"
+
+
+namespace mesos {
+namespace internal {
+namespace master {
+
+// Add a new slave to the list of admitted slaves.
+class AdmitSlave : public Operation
+{
+public:
+  explicit AdmitSlave(const SlaveInfo& _info);
+
+protected:
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+
+private:
+  const SlaveInfo info;
+};
+
+
+// Move a slave from the list of admitted slaves to the list of
+// unreachable slaves.
+class MarkSlaveUnreachable : public Operation
+{
+public:
+  MarkSlaveUnreachable(
+      const SlaveInfo& _info,
+      const TimeInfo& _unreachableTime);
+
+protected:
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+
+private:
+  const SlaveInfo info;
+  const TimeInfo unreachableTime;
+};
+
+
+// Add a slave back to the list of admitted slaves. The slave will
+// typically be in the "unreachable" list; if so, it is removed from
+// that list. The slave might also be in the "admitted" list already.
+// Finally, the slave might be in neither the "unreachable" or
+// "admitted" lists, if its metadata has been garbage collected from
+// the registry.
+class MarkSlaveReachable : public Operation
+{
+public:
+  explicit MarkSlaveReachable(const SlaveInfo& _info);
+
+protected:
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+
+private:
+  const SlaveInfo info;
+};
+
+
+class Prune : public Operation
+{
+public:
+  explicit Prune(
+      const hashset<SlaveID>& _toRemoveUnreachable,
+      const hashset<SlaveID>& _toRemoveGone);
+
+protected:
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* /*slaveIDs*/);
+
+private:
+  const hashset<SlaveID> toRemoveUnreachable;
+  const hashset<SlaveID> toRemoveGone;
+};
+
+
+class RemoveSlave : public Operation
+{
+public:
+  explicit RemoveSlave(const SlaveInfo& _info);
+
+protected:
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+
+private:
+  const SlaveInfo info;
+};
+
+
+// Move a slave from the list of admitted/unreachable slaves
+// to the list of gone slaves.
+class MarkSlaveGone : public Operation
+{
+public:
+  MarkSlaveGone(const SlaveID& _id, const TimeInfo& _goneTime);
+
+protected:
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+
+private:
+  const SlaveID id;
+  const TimeInfo goneTime;
+};
+
+} // namespace master {
+} // namespace internal {
+} // namespace mesos {
+
+#endif // __MASTER_REGISTRY_OPERATIONS_HPP__

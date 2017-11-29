@@ -78,6 +78,7 @@
 #include "master/machine.hpp"
 #include "master/maintenance.hpp"
 #include "master/master.hpp"
+#include "master/registry_operations.hpp"
 #include "master/validation.hpp"
 
 #include "mesos/mesos.hpp"

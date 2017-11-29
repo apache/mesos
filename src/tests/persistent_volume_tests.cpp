@@ -43,6 +43,7 @@
 #include "master/constants.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
+#include "master/registry_operations.hpp"
 
 #include "master/detector/standalone.hpp"
 

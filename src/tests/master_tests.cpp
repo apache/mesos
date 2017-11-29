@@ -51,6 +51,7 @@
 
 #include "master/flags.hpp"
 #include "master/master.hpp"
+#include "master/registry_operations.hpp"
 
 #include "master/allocator/mesos/allocator.hpp"
 

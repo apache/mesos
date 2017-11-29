@@ -1,0 +1,299 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "master/registry_operations.hpp"
+
+namespace mesos {
+namespace internal {
+namespace master {
+
+AdmitSlave::AdmitSlave(const SlaveInfo& _info) : info(_info)
+{
+  CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
+}
+
+
+Try<bool> AdmitSlave::perform(Registry* registry, hashset<SlaveID>* slaveIDs)
+{
+  // Check if this slave is currently admitted. This should only
+  // happen if there is a slaveID collision, but that is extremely
+  // unlikely in practice: slaveIDs are prefixed with the master ID,
+  // which is a randomly generated UUID.
+  if (slaveIDs->contains(info.id())) {
+    return Error("Agent already admitted");
+  }
+
+  Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
+  slave->mutable_info()->CopyFrom(info);
+  slaveIDs->insert(info.id());
+  return true; // Mutation.
+}
+
+
+// Move a slave from the list of admitted slaves to the list of
+// unreachable slaves.
+MarkSlaveUnreachable::MarkSlaveUnreachable(
+    const SlaveInfo& _info,
+    const TimeInfo& _unreachableTime)
+  : info(_info)
+  , unreachableTime(_unreachableTime)
+{
+  CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
+}
+
+
+Try<bool> MarkSlaveUnreachable::perform(
+    Registry* registry,
+    hashset<SlaveID>* slaveIDs)
+{
+  // As currently implemented, this should not be possible: the
+  // master will only mark slaves unreachable that are currently
+  // admitted.
+  if (!slaveIDs->contains(info.id())) {
+    return Error("Agent not yet admitted");
+  }
+
+  for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+    const Registry::Slave& slave = registry->slaves().slaves(i);
+
+    if (slave.info().id() == info.id()) {
+      registry->mutable_slaves()->mutable_slaves()->DeleteSubrange(i, 1);
+      slaveIDs->erase(info.id());
+
+      Registry::UnreachableSlave* unreachable =
+        registry->mutable_unreachable()->add_slaves();
+
+      unreachable->mutable_id()->CopyFrom(info.id());
+      unreachable->mutable_timestamp()->CopyFrom(unreachableTime);
+
+      return true; // Mutation.
+    }
+  }
+
+  // Should not happen.
+  return Error("Failed to find agent " + stringify(info.id()));
+}
+
+
+// Add a slave back to the list of admitted slaves. The slave will
+// typically be in the "unreachable" list; if so, it is removed from
+// that list. The slave might also be in the "admitted" list already.
+// Finally, the slave might be in neither the "unreachable" or
+// "admitted" lists, if its metadata has been garbage collected from
+// the registry.
+MarkSlaveReachable::MarkSlaveReachable(const SlaveInfo& _info)
+  : info(_info)
+{
+  CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
+}
+
+
+Try<bool> MarkSlaveReachable::perform(
+    Registry* registry,
+    hashset<SlaveID>* slaveIDs)
+{
+  // A slave might try to reregister that appears in the list of
+  // admitted slaves. This can occur when the master fails over:
+  // agents will usually attempt to reregister with the new master
+  // before they are marked unreachable. In this situation, the
+  // registry is already in the correct state, so no changes are
+  // needed.
+  if (slaveIDs->contains(info.id())) {
+    return false; // No mutation.
+  }
+
+  // Check whether the slave is in the unreachable list.
+  // TODO(neilc): Optimize this to avoid linear scan.
+  bool found = false;
+  for (int i = 0; i < registry->unreachable().slaves().size(); i++) {
+    const Registry::UnreachableSlave& slave =
+      registry->unreachable().slaves(i);
+
+    if (slave.id() == info.id()) {
+      registry->mutable_unreachable()->mutable_slaves()->DeleteSubrange(i, 1);
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    LOG(WARNING) << "Allowing UNKNOWN agent to reregister: " << info;
+  }
+
+  // Add the slave to the admitted list, even if we didn't find it
+  // in the unreachable list. This accounts for when the slave was
+  // unreachable for a long time, was GC'd from the unreachable
+  // list, but then eventually reregistered.
+  Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
+  slave->mutable_info()->CopyFrom(info);
+  slaveIDs->insert(info.id());
+
+  return true; // Mutation.
+}
+
+
+Prune::Prune(
+    const hashset<SlaveID>& _toRemoveUnreachable,
+    const hashset<SlaveID>& _toRemoveGone)
+  : toRemoveUnreachable(_toRemoveUnreachable)
+  , toRemoveGone(_toRemoveGone)
+{}
+
+
+Try<bool> Prune::perform(Registry* registry, hashset<SlaveID>* /*slaveIDs*/)
+{
+  // Attempt to remove the SlaveIDs in the `toRemoveXXX` from the
+  // unreachable/gone list. Some SlaveIDs in `toRemoveXXX` might not appear
+  // in the registry; this is possible if there was a concurrent
+  // registry operation.
+  //
+  // TODO(neilc): This has quadratic worst-case behavior, because
+  // `DeleteSubrange` for a `repeated` object takes linear time.
+  bool mutate = false;
+
+  {
+    int i = 0;
+    while (i < registry->unreachable().slaves().size()) {
+      const Registry::UnreachableSlave& slave =
+        registry->unreachable().slaves(i);
+
+      if (toRemoveUnreachable.contains(slave.id())) {
+        Registry::UnreachableSlaves* unreachable =
+          registry->mutable_unreachable();
+
+        unreachable->mutable_slaves()->DeleteSubrange(i, i+1);
+        mutate = true;
+        continue;
+      }
+
+      i++;
+    }
+  }
+
+  {
+    int i = 0;
+    while (i < registry->gone().slaves().size()) {
+      const Registry::GoneSlave& slave = registry->gone().slaves(i);
+
+      if (toRemoveGone.contains(slave.id())) {
+        Registry::GoneSlaves* gone = registry->mutable_gone();
+
+        gone->mutable_slaves()->DeleteSubrange(i, i+1);
+        mutate = true;
+        continue;
+      }
+
+      i++;
+    }
+  }
+
+  return mutate;
+}
+
+
+RemoveSlave::RemoveSlave(const SlaveInfo& _info)
+  : info(_info)
+{
+  CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
+}
+
+
+Try<bool> RemoveSlave::perform(
+    Registry* registry,
+    hashset<SlaveID>* slaveIDs)
+{
+  for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+    const Registry::Slave& slave = registry->slaves().slaves(i);
+    if (slave.info().id() == info.id()) {
+      registry->mutable_slaves()->mutable_slaves()->DeleteSubrange(i, 1);
+      slaveIDs->erase(info.id());
+      return true; // Mutation.
+    }
+  }
+
+  // Should not happen: the master will only try to remove agents
+  // that are currently admitted.
+  return Error("Agent not yet admitted");
+}
+
+
+MarkSlaveGone::MarkSlaveGone(
+    const SlaveID& _id,
+    const TimeInfo& _goneTime)
+  : id(_id)
+  , goneTime(_goneTime)
+{}
+
+
+Try<bool> MarkSlaveGone::perform(Registry* registry, hashset<SlaveID>* slaveIDs)
+{
+  // Check whether the slave is already in the gone list. As currently
+  // implemented, this should not be possible: the master will not
+  // try to transition an already gone slave.
+  for (int i = 0; i < registry->gone().slaves().size(); i++) {
+    const Registry::GoneSlave& slave = registry->gone().slaves(i);
+
+    if (slave.id() == id) {
+      return Error("Agent " + stringify(id) + " already marked as gone");
+    }
+  }
+
+  // Check whether the slave is in the admitted/unreachable list.
+  bool found = false;
+  if (slaveIDs->contains(id)) {
+    found = true;
+    for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+      const Registry::Slave& slave = registry->slaves().slaves(i);
+
+      if (slave.info().id() == id) {
+        registry->mutable_slaves()->mutable_slaves()->DeleteSubrange(i, 1);
+        slaveIDs->erase(id);
+        break;
+      }
+    }
+  }
+
+  if (!found) {
+    for (int i = 0; i < registry->unreachable().slaves().size(); i++) {
+      const Registry::UnreachableSlave& slave =
+        registry->unreachable().slaves(i);
+
+      if (slave.id() == id) {
+        registry->mutable_unreachable()->mutable_slaves()->DeleteSubrange(
+            i, 1);
+
+        found = true;
+        break;
+      }
+    }
+  }
+
+  if (found) {
+    Registry::GoneSlave* gone = registry->mutable_gone()->add_slaves();
+
+    gone->mutable_id()->CopyFrom(id);
+    gone->mutable_timestamp()->CopyFrom(goneTime);
+
+    return true; // Mutation;
+  }
+
+  // Should not happen.
+  return Error("Failed to find agent " + stringify(id));
+}
+
+} // namespace master {
+} // namespace internal {
+} // namespace mesos {

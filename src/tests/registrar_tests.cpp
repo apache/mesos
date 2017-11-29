@@ -55,6 +55,7 @@
 #include "master/master.hpp"
 #include "master/quota.hpp"
 #include "master/registrar.hpp"
+#include "master/registry_operations.hpp"
 #include "master/weights.hpp"
 
 #include "tests/mesos.hpp"
