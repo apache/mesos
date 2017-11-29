@@ -179,6 +179,90 @@ TEST_F(ContainerDaemonTest, RestartOnTermination)
   EXPECT_TRUE(wait.isPending());
 }
 
+
+#ifdef USE_SSL_SOCKET
+// This test verifies that the container daemon will terminate itself
+// if the agent operator API does not authorize the container launch.
+TEST_F(ContainerDaemonTest, FailedAuthorization)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  ASSERT_SOME(slaveFlags.jwt_secret_key);
+
+  Try<string> jwtSecretKey = os::read(slaveFlags.jwt_secret_key.get());
+  ASSERT_SOME(jwtSecretKey);
+
+  Owned<SecretGenerator> secretGenerator(
+      new JWTSecretGenerator(jwtSecretKey.get()));
+
+  Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      secretGenerator.get(),
+      slaveFlags);
+
+  ASSERT_SOME(slave);
+
+  PID<Slave> slavePid = slave.get()->pid;
+
+  // Ensure slave has finished recovery.
+  AWAIT_READY(recover);
+
+  string scheme = "http";
+  if (openssl::flags().enabled) {
+    scheme = "https";
+  }
+
+  http::URL url(
+      scheme,
+      slavePid.address.ip,
+      slavePid.address.port,
+      strings::join("/", slavePid.id, "api/v1"));
+
+  // NOTE: The current implicit authorization for creating standalone
+  // containers is to check if the container ID prefix in the claims
+  // of the principal is indeed a prefix of the container ID that is
+  // specified in the API call.
+  //
+  // Using two random UUIDs here guarantees that one is not a prefix
+  // of another. Therefore, the authorization will fail.
+  ContainerID containerId;
+  containerId.set_value(UUID::random().toString());
+
+  Principal principal(
+      None(),
+      {{"cid_prefix", UUID::random().toString()}});
+
+  Future<Secret> secret = secretGenerator->generate(principal);
+  AWAIT_READY(secret);
+
+  ASSERT_NONE(validateSecret(secret.get()));
+  ASSERT_EQ(Secret::VALUE, secret->type());
+
+  string authToken = secret->value().data();
+
+  Try<Owned<ContainerDaemon>> daemon = ContainerDaemon::create(
+      url,
+      authToken,
+      containerId,
+      createCommandInfo("sleep 1000"),
+      None(),
+      None(),
+      []() -> Future<Nothing> { return Nothing(); },
+      []() -> Future<Nothing> { return Nothing(); });
+
+  ASSERT_SOME(daemon);
+
+  AWAIT_FAILED(daemon.get()->wait());
+}
+#endif // USE_SSL_SOCKET
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
