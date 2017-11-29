@@ -246,6 +246,7 @@ configure_file(
 #####################################
 set(AGENT_SRC
   slave/constants.cpp
+  slave/container_daemon.cpp
   slave/container_logger.cpp
   slave/flags.cpp
   slave/gc.cpp
