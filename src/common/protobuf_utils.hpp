@@ -344,7 +344,32 @@ mesos::maintenance::Schedule createSchedule(
 
 } // namespace maintenance {
 
+
 namespace master {
+
+// TODO(bmahler): Store the repeated field within this so that we
+// don't drop unknown capabilities.
+struct Capabilities
+{
+  Capabilities() = default;
+
+  template <typename Iterable>
+  Capabilities(const Iterable& capabilities)
+  {
+    foreach (const MasterInfo::Capability& capability, capabilities) {
+      switch (capability.type()) {
+        case MasterInfo::Capability::UNKNOWN:
+          break;
+        case MasterInfo::Capability::AGENT_UPDATE:
+          agentUpdate = true;
+          break;
+      }
+    }
+  }
+
+  bool agentUpdate = false;
+};
+
 namespace event {
 
 // Helper for creating a `TASK_UPDATED` event from a `Task`, its

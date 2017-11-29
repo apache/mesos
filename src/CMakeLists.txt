@@ -427,6 +427,7 @@ set(LOGGING_SRC
   logging/logging.cpp)
 
 set(MASTER_SRC
+  master/constants.cpp
   master/flags.cpp
   master/http.cpp
   master/maintenance.cpp

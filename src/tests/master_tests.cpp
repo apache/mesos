@@ -4516,6 +4516,9 @@ TEST_F(MasterTest, StateEndpoint)
       state.values["unregistered_frameworks"].is<JSON::Array>());
   EXPECT_TRUE(
       state.values["unregistered_frameworks"].as<JSON::Array>().values.empty());
+
+  ASSERT_TRUE(state.values["capabilities"].is<JSON::Array>());
+  EXPECT_TRUE(state.values["capabilities"].as<JSON::Array>().values.empty());
 }
 
 

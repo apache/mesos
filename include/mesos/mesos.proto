@@ -884,6 +884,19 @@ message MasterInfo {
   // The domain that this master belongs to. All masters in a Mesos
   // cluster should belong to the same region.
   optional DomainInfo domain = 8;
+
+  message Capability {
+    enum Type {
+      UNKNOWN = 0;
+
+      // The master can handle slaves whose state
+      // changes after re-registering.
+      AGENT_UPDATE = 1;
+    }
+    optional Type type = 1;
+  }
+
+  repeated Capability capabilities = 9;
 }
 
 

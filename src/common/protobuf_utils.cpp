@@ -51,6 +51,7 @@
 #include "common/resources_utils.hpp"
 
 #include "master/master.hpp"
+#include "master/constants.hpp"
 
 #include "messages/messages.hpp"
 
@@ -532,6 +533,11 @@ MasterInfo createMasterInfo(const UPID& pid)
     // TODO(marco): Remove once we deprecate it.
     info.set_hostname(hostname.get());
     info.mutable_address()->set_hostname(hostname.get());
+  }
+
+  foreach (const MasterInfo::Capability& capability,
+           mesos::internal::master::MASTER_CAPABILITIES()) {
+    info.add_capabilities()->CopyFrom(capability);
   }
 
   return info;

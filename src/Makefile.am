@@ -973,6 +973,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   local/local.cpp							\
   logging/flags.cpp							\
   logging/logging.cpp							\
+  master/constants.cpp              \
   master/flags.cpp							\
   master/http.cpp							\
   master/maintenance.cpp						\

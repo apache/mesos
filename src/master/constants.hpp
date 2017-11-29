@@ -19,6 +19,8 @@
 
 #include <stdint.h>
 
+#include <mesos/mesos.hpp>
+
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/version.hpp>
@@ -148,6 +150,8 @@ constexpr char DEFAULT_HTTP_FRAMEWORK_AUTHENTICATION_REALM[] =
 
 // Agents older than this version are not allowed to register.
 const Version MINIMUM_AGENT_VERSION = Version(1, 0, 0);
+
+std::vector<MasterInfo::Capability> MASTER_CAPABILITIES();
 
 } // namespace master {
 } // namespace internal {

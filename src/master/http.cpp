@@ -146,6 +146,14 @@ static void json(
 }
 
 
+static void json(
+    JSON::StringWriter* writer,
+    const MasterInfo::Capability& capability)
+{
+  writer->append(MasterInfo::Capability::Type_Name(capability.type()));
+}
+
+
 static void json(JSON::ObjectWriter* writer, const Offer& offer)
 {
   writer->field("id", offer.id().value());
@@ -2908,6 +2916,7 @@ Future<Response> Master::Http::state(
         writer->field("id", master->info().id());
         writer->field("pid", string(master->self()));
         writer->field("hostname", master->info().hostname());
+        writer->field("capabilities", master->info().capabilities());
         writer->field("activated_slaves", master->_slaves_active());
         writer->field("deactivated_slaves", master->_slaves_inactive());
         writer->field("unreachable_slaves", master->_slaves_unreachable());

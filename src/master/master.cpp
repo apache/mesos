@@ -338,6 +338,10 @@ Master::Master(
   info_.set_pid(self());
   info_.set_version(MESOS_VERSION);
 
+  for (const MasterInfo::Capability& capability : MASTER_CAPABILITIES()) {
+    info_.add_capabilities()->CopyFrom(capability);
+  }
+
   // Determine our hostname or use the hostname provided.
   string hostname;
 
