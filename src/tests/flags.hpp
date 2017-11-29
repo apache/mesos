@@ -25,6 +25,8 @@
 #include <stout/flags.hpp>
 #include <stout/os.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "common/parse.hpp"
 
 #include "logging/logging.hpp"
