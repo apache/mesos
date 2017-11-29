@@ -99,6 +99,56 @@ bool operator==(const Credential& left, const Credential& right)
 }
 
 
+bool operator==(const CSIPluginInfo& left, const CSIPluginInfo& right)
+{
+  // Order of containers is important.
+  if (left.containers_size() != right.containers_size()) {
+    return false;
+  }
+
+  for (int i = 0; i < left.containers_size(); i++) {
+    if (left.containers(i) != right.containers(i)) {
+      return false;
+    }
+  }
+
+  return left.type() == right.type() &&
+    left.name() == right.name();
+}
+
+
+bool operator==(
+    const CSIPluginContainerInfo& left,
+    const CSIPluginContainerInfo& right)
+{
+  // Order of services is not important.
+  if (left.services_size() != right.services_size()) {
+    return false;
+  }
+
+  vector<bool> used(right.services_size(), false);
+
+  for (int i = 0; i < left.services_size(); i++) {
+    bool found = false;
+    for (int j = 0; j < right.services_size(); j++) {
+      if (left.services(i) == right.services(j) && !used[j]) {
+        found = used[j] = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+
+  return left.has_command() == right.has_command() &&
+    (!left.has_command() || left.command() == right.command()) &&
+    Resources(left.resources()) == Resources(right.resources()) &&
+    left.has_container() == right.has_container() &&
+    (!left.has_container() || left.container() == right.container());
+}
+
+
 bool operator==(
     const Environment::Variable& left,
     const Environment::Variable& right)
@@ -354,31 +404,13 @@ bool operator==(
     const ResourceProviderInfo& left,
     const ResourceProviderInfo& right)
 {
-  if (left.id() != right.id()) {
-    return false;
-  }
-
-  if (Attributes(left.attributes()) != Attributes(right.attributes())) {
-    return false;
-  }
-
-  if (left.type() != right.type()) {
-    return false;
-  }
-
-  if (left.name() != right.name()) {
-    return false;
-  }
-
-  return true;
-}
-
-
-bool operator!=(
-    const ResourceProviderInfo& left,
-    const ResourceProviderInfo& right)
-{
-  return !(left == right);
+  return left.has_id() == right.has_id() &&
+    (!left.has_id() || left.id() == right.id()) &&
+    Attributes(left.attributes()) == Attributes(right.attributes()) &&
+    left.type() == right.type() &&
+    left.name() == right.name() &&
+    left.has_storage() == right.has_storage() &&
+    (!left.has_storage() || left.storage() == right.storage());
 }
 
 

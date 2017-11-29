@@ -994,13 +994,47 @@ message AgentInfo {
 
 
 /**
+ * Describes the container configuration to run a CSI plugin component.
+ */
+message CSIPluginContainerInfo {
+  enum Service {
+    UNKNOWN = 0;
+    CONTROLLER_SERVICE = 1;
+    NODE_SERVICE = 2;
+  }
+
+  repeated Service services = 1;
+  optional CommandInfo command = 2;
+  repeated Resource resources = 3;
+  optional ContainerInfo container = 4;
+}
+
+
+/**
  * Describes a CSI plugin.
  */
 message CSIPluginInfo {
-  required string name = 1;
-  required CommandInfo command = 2;
-  repeated Resource resources = 3;
-  optional ContainerInfo container = 4;
+  // The type of the CSI service. This uniquely identifies a CSI
+  // implementation. For instance:
+  //     org.apache.mesos.csi.test
+  //
+  // Please follow to Java package naming convention
+  // (https://en.wikipedia.org/wiki/Java_package#Package_naming_conventions)
+  // to avoid conflicts on type names.
+  required string type = 1;
+
+  // The name of the CSI service. There could be mutliple instances of a
+  // type of CSI service. The name field is used to distinguish these
+  // instances. It should be a legal Java identifier
+  // (https://docs.oracle.com/javase/tutorial/java/nutsandbolts/variables.html)
+  // to avoid conflicts on concatenation of type and name.
+  required string name = 2;
+
+  // A list of container configurations to run CSI plugin components.
+  // The controller service will be served by the first configuration
+  // that containers `CONTROLLER_SERVICE`, and the node service will be
+  // served by the first configuration that contains `NODE_SERVICE`.
+  repeated CSIPluginContainerInfo containers = 3;
 }
 
 
@@ -1010,12 +1044,6 @@ message CSIPluginInfo {
  * available here to facilitate re-registration.
  */
 message ResourceProviderInfo {
-  message StorageInfo {
-    repeated CSIPluginInfo csi_plugins = 1;
-    required string controller_plugin = 2;
-    required string node_plugin = 3;
-  }
-
   optional ResourceProviderID id = 1;
   repeated Attribute attributes = 2;
 
@@ -1030,10 +1058,12 @@ message ResourceProviderInfo {
 
   // The name of the resource provider. There could be multiple
   // instances of a type of resource provider. The name field is used
-  // to distinguish these instances.
+  // to distinguish these instances. It should be a legal Java identifier
+  // (https://docs.oracle.com/javase/tutorial/java/nutsandbolts/variables.html)
+  // to avoid conflicts on concatenation of type and name.
   required string name = 4;
 
-  optional StorageInfo storage = 5;
+  optional CSIPluginInfo storage = 5; // EXPERIMENTAL.
 }
 
 

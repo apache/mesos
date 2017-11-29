@@ -48,7 +48,14 @@ bool operator==(const CheckStatusInfo& left, const CheckStatusInfo& right);
 bool operator==(const CommandInfo& left, const CommandInfo& right);
 bool operator==(const CommandInfo::URI& left, const CommandInfo::URI& right);
 bool operator==(const ContainerID& left, const ContainerID& right);
+bool operator==(const ContainerInfo& left, const ContainerInfo& right);
 bool operator==(const Credential& left, const Credential& right);
+bool operator==(const CSIPluginInfo& left, const CSIPluginInfo& right);
+
+bool operator==(
+    const CSIPluginContainerInfo& left,
+    const CSIPluginContainerInfo& right);
+
 bool operator==(const DiscoveryInfo& left, const DiscoveryInfo& right);
 bool operator==(const Environment& left, const Environment& right);
 bool operator==(const ExecutorInfo& left, const ExecutorInfo& right);
@@ -76,11 +83,6 @@ bool operator!=(const CheckStatusInfo& left, const CheckStatusInfo& right);
 bool operator!=(const ExecutorInfo& left, const ExecutorInfo& right);
 bool operator!=(const Labels& left, const Labels& right);
 bool operator!=(const TaskStatus& left, const TaskStatus& right);
-
-
-bool operator!=(
-    const ResourceProviderInfo& left,
-    const ResourceProviderInfo& right);
 
 inline bool operator==(const ExecutorID& left, const ExecutorID& right)
 {
@@ -228,6 +230,14 @@ inline bool operator==(const MachineID& left, const MachineID& right)
 
 
 inline bool operator!=(const ContainerID& left, const ContainerID& right)
+{
+  return !(left == right);
+}
+
+
+inline bool operator!=(
+    const CSIPluginContainerInfo& left,
+    const CSIPluginContainerInfo& right)
 {
   return !(left == right);
 }
