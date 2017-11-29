@@ -84,8 +84,10 @@ static QuotaInfo makeQuotaInfo(
 class ROOT_XFS_TestBase : public MesosTest
 {
 public:
-  explicit ROOT_XFS_TestBase(const string& _xfsOptions)
-    : xfsOptions(_xfsOptions) {}
+  ROOT_XFS_TestBase(
+      const Option<std::string>& _mountOptions = None(),
+      const Option<std::string>& _mkfsOptions = None())
+    : mountOptions(_mountOptions), mkfsOptions(_mkfsOptions) {}
 
   virtual void SetUp()
   {
@@ -119,7 +121,10 @@ public:
     // Make an XFS filesystem (using the force flag). The defaults
     // should be good enough for tests.
     Try<Subprocess> mkfs = subprocess(
-        "mkfs.xfs -f " + loopDevice.get(),
+        "mkfs.xfs -f " +
+        mkfsOptions.getOrElse("") +
+        " " +
+        loopDevice.get(),
         Subprocess::PATH(os::DEV_NULL));
 
     ASSERT_SOME(mkfs);
@@ -131,7 +136,7 @@ public:
         mntPath,
         "xfs",
         0, // Flags.
-        xfsOptions));
+        mountOptions.getOrElse("")));
     mountPoint = mntPath;
 
     ASSERT_SOME(os::chdir(mountPoint.get()))
@@ -212,7 +217,8 @@ public:
     return string("/dev/loop") + stringify(devno);
   }
 
-  string xfsOptions;
+  Option<string> mountOptions;
+  Option<string> mkfsOptions;
   Option<string> loopDevice; // The loop device we attached.
   Option<string> mountPoint; // XFS filesystem mountpoint.
 };
@@ -223,7 +229,8 @@ public:
 class ROOT_XFS_QuotaTest : public ROOT_XFS_TestBase
 {
 public:
-  ROOT_XFS_QuotaTest() : ROOT_XFS_TestBase("prjquota") {}
+  ROOT_XFS_QuotaTest()
+    : ROOT_XFS_TestBase("prjquota") {}
 };
 
 
@@ -232,7 +239,8 @@ public:
 class ROOT_XFS_NoQuota : public ROOT_XFS_TestBase
 {
 public:
-  ROOT_XFS_NoQuota() : ROOT_XFS_TestBase("noquota") {}
+  ROOT_XFS_NoQuota()
+    : ROOT_XFS_TestBase("noquota") {}
 };
 
 
@@ -241,7 +249,8 @@ public:
 class ROOT_XFS_NoProjectQuota : public ROOT_XFS_TestBase
 {
 public:
-  ROOT_XFS_NoProjectQuota() : ROOT_XFS_TestBase("usrquota,grpquota") {}
+  ROOT_XFS_NoProjectQuota()
+    : ROOT_XFS_TestBase("usrquota,grpquota") {}
 };
 
 
@@ -1155,6 +1164,76 @@ TEST(XFS_QuotaTest, BasicBlocks)
 
   EXPECT_EQ(BasicBlocks(1), BasicBlocks(1));
   EXPECT_EQ(BasicBlocks(1), BasicBlocks(Bytes(512)));
+}
+
+
+// TODO(mzhu): Ftype related tests should not be placed in XFS
+// quota tests. Move them to a more suitable place. They are
+// placed here at the moment due to the XFS dependency (checked by
+// `--enable-xfs-disk-isolator`) and we are not ready to introduce
+// another configuration flag.
+
+// ROOT_XFS_FtypeOffTest is our standard fixture that sets up
+// a XFS filesystem on loopback with ftype option turned on
+// (the default setting).
+class ROOT_XFS_FtypeOnTest : public ROOT_XFS_TestBase
+{
+public:
+  ROOT_XFS_FtypeOnTest()
+    : ROOT_XFS_TestBase(None(), "-n ftype=1 -m crc=1") {}
+};
+
+// ROOT_XFS_FtypeOffTest is our standard fixture that sets up a
+// XFS filesystem on loopback with ftype option turned off.
+class ROOT_XFS_FtypeOffTest : public ROOT_XFS_TestBase
+{
+public:
+  ROOT_XFS_FtypeOffTest()
+    : ROOT_XFS_TestBase(None(), "-n ftype=0 -m crc=0") {}
+};
+
+
+// This test verifies that overlayfs backend can be supported
+// on the default XFS with ftype option turned on.
+TEST_F(ROOT_XFS_FtypeOnTest, OverlayBackendEnabled)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.work_dir = mountPoint.get();
+  flags.image_providers = "docker";
+  flags.containerizers = "mesos";
+  flags.image_provisioner_backend = "overlay";
+  flags.docker_registry = path::join(os::getcwd(), "archives");
+  flags.docker_store_dir = path::join(os::getcwd(), "store");
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+}
+
+
+// This test verifies that the overlayfs backend should fail on
+// XFS with ftype turned off.
+TEST_F(ROOT_XFS_FtypeOffTest, OverlayBackendDisabled)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.work_dir = mountPoint.get();
+  flags.image_providers = "docker";
+  flags.containerizers = "mesos";
+  flags.image_provisioner_backend = "overlay";
+  flags.docker_registry = path::join(os::getcwd(), "archives");
+  flags.docker_store_dir = path::join(os::getcwd(), "store");
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_ERROR(slave);
 }
 
 } // namespace tests {
