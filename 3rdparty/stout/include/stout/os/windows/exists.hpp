@@ -37,11 +37,14 @@ inline bool exists(const std::string& path)
       ::internal::windows::longpath(path).data());
 
   if (attributes == INVALID_FILE_ATTRIBUTES) {
-    DWORD error = GetLastError();
+    const DWORD error = ::GetLastError();
     if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) {
       return false;
     }
   }
+
+  // Note that `ERROR_ACCESS_DENIED` etc. indicates the path does exist, but
+  // `INVALID_FILE_ATTRIBUTES` would still be returned.
 
   return true;
 }
@@ -52,16 +55,11 @@ inline bool exists(const std::string& path)
 // os::process(pid) to get details of a process.
 inline bool exists(pid_t pid)
 {
-  HANDLE handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+  SharedHandle handle(
+    ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid),
+    ::CloseHandle);
 
-  bool has_handle = false;
-
-  if (handle != nullptr) {
-    has_handle = true;
-    CloseHandle(handle);
-  }
-
-  return has_handle;
+  return handle.get_handle() != nullptr;
 }
 
 
