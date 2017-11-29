@@ -2439,7 +2439,7 @@ Future<Response> Http::_launchContainer(
   // launching a standalone container (possibly nested).
   Executor* executor = slave->getExecutor(containerId);
   if (executor == nullptr) {
-    if (!authorizer->accept()) {
+    if (!authorizer->accept(containerId)) {
       return Forbidden();
     }
   } else {
@@ -2650,7 +2650,7 @@ Future<Response> Http::_waitContainer(
   // waiting on a standalone container (possibly nested).
   Executor* executor = slave->getExecutor(containerId);
   if (executor == nullptr) {
-    if (!authorizer->accept()) {
+    if (!authorizer->accept(containerId)) {
       return Forbidden();
     }
   } else {
@@ -2820,7 +2820,7 @@ Future<Response> Http::_killContainer(
   // killing a standalone container (possibly nested).
   Executor* executor = slave->getExecutor(containerId);
   if (executor == nullptr) {
-    if (!authorizer->accept()) {
+    if (!authorizer->accept(containerId)) {
       return Forbidden();
     }
   } else {
@@ -2917,7 +2917,7 @@ Future<Response> Http::_removeContainer(
   // removing a standalone container (possibly nested).
   Executor* executor = slave->getExecutor(containerId);
   if (executor == nullptr) {
-    if (!authorizer->accept()) {
+    if (!authorizer->accept(containerId)) {
       return Forbidden();
     }
   } else {

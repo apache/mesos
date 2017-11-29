@@ -34,6 +34,7 @@
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
@@ -41,13 +42,14 @@
 #include "common/parse.hpp"
 #include "common/protobuf_utils.hpp"
 
-using process::dispatch;
+using std::string;
+using std::vector;
+
 using process::Failure;
 using process::Future;
 using process::Owned;
 
-using std::string;
-using std::vector;
+using process::dispatch;
 
 namespace mesos {
 namespace internal {
@@ -524,6 +526,28 @@ public:
 
 private:
   const ContainerID subject_;
+};
+
+
+class LocalImplicitResourceProviderObjectApprover : public ObjectApprover
+{
+public:
+  LocalImplicitResourceProviderObjectApprover(const string& subject)
+    : subject_(subject) {}
+
+  // Resource providers are permitted to perform an action when the
+  // ContainerID in the object is prefixed by the namespace extracted
+  // from the subject's claims.
+  virtual Try<bool> approved(
+      const Option<ObjectApprover::Object>& object) const noexcept override
+  {
+    return object.isSome() &&
+           object->container_id != nullptr &&
+           strings::startsWith(object->container_id->value(), subject_);
+  }
+
+private:
+  const string subject_;
 };
 
 
@@ -1005,24 +1029,66 @@ public:
         subjectContainerId.get()));
   }
 
+  Future<Owned<ObjectApprover>> getImplicitResourceProviderObjectApprover(
+      const Option<authorization::Subject>& subject,
+      const authorization::Action& action)
+  {
+    CHECK(subject.isSome() &&
+          subject->has_claims() &&
+          !subject->has_value() &&
+          (action == authorization::LAUNCH_STANDALONE_CONTAINER ||
+           action == authorization::WAIT_STANDALONE_CONTAINER ||
+           action == authorization::KILL_STANDALONE_CONTAINER ||
+           action == authorization::REMOVE_STANDALONE_CONTAINER));
+
+    Option<string> subjectPrefix;
+    foreach (const Label& claim, subject->claims().labels()) {
+      if (claim.key() == "cid_prefix" && claim.has_value()) {
+        subjectPrefix = claim.value();
+      }
+    }
+
+    if (subjectPrefix.isNone()) {
+      // If the subject's claims do not include a namespace string,
+      // we deny all objects.
+      return Owned<ObjectApprover>(new RejectingObjectApprover());
+    }
+
+    return Owned<ObjectApprover>(
+        new LocalImplicitResourceProviderObjectApprover(
+            subjectPrefix.get()));
+  }
+
   Future<Owned<ObjectApprover>> getObjectApprover(
       const Option<authorization::Subject>& subject,
       const authorization::Action& action)
   {
-    // We return the `LocalImplicitExecutorObjectApprover` only for subjects and
-    // actions which it knows how to handle. This means the subject should have
-    // claims but no value, and the action should be one of the actions used by
-    // the default executor.
+    // We return implicit object approvers only for subjects and actions
+    // which comes from either the default executor or a local resource
+    // provider. This means the subject should have claims but no value,
+    // and the action should be one of the actions used by them.
     if (subject.isSome() &&
         subject->has_claims() &&
-        !subject->has_value() &&
-        (action == authorization::LAUNCH_NESTED_CONTAINER ||
-         action == authorization::WAIT_NESTED_CONTAINER ||
-         action == authorization::KILL_NESTED_CONTAINER ||
-         action == authorization::LAUNCH_NESTED_CONTAINER_SESSION ||
-         action == authorization::REMOVE_NESTED_CONTAINER ||
-         action == authorization::ATTACH_CONTAINER_OUTPUT)) {
-      return getImplicitExecutorObjectApprover(subject, action);
+        !subject->has_value()) {
+      // The `LocalImplicitExecutorObjectApprover` is used to authorize
+      // requests from the default executor.
+      if (action == authorization::LAUNCH_NESTED_CONTAINER ||
+          action == authorization::WAIT_NESTED_CONTAINER ||
+          action == authorization::KILL_NESTED_CONTAINER ||
+          action == authorization::LAUNCH_NESTED_CONTAINER_SESSION ||
+          action == authorization::REMOVE_NESTED_CONTAINER ||
+          action == authorization::ATTACH_CONTAINER_OUTPUT) {
+        return getImplicitExecutorObjectApprover(subject, action);
+      }
+
+      // The `LocalImplicitResourceProviderObjectApprover` is used to
+      // authorize requests from a local resource provider.
+      if (action == authorization::LAUNCH_STANDALONE_CONTAINER ||
+          action == authorization::WAIT_STANDALONE_CONTAINER ||
+          action == authorization::KILL_STANDALONE_CONTAINER ||
+          action == authorization::REMOVE_STANDALONE_CONTAINER) {
+        return getImplicitResourceProviderObjectApprover(subject, action);
+      }
     }
 
     // Currently, implicit executor authorization is the only case which handles

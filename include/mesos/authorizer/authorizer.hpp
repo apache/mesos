@@ -71,6 +71,19 @@ public:
         container_id(nullptr),
         machine_id(nullptr) {}
 
+    Object(const ContainerID& _container_id)
+      : value(nullptr),
+        framework_info(nullptr),
+        task(nullptr),
+        task_info(nullptr),
+        executor_info(nullptr),
+        quota_info(nullptr),
+        weight_info(nullptr),
+        resource(nullptr),
+        command_info(nullptr),
+        container_id(&_container_id),
+        machine_id(nullptr) {}
+
     Object(const MachineID& _machine_id)
       : value(nullptr),
         framework_info(nullptr),
