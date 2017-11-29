@@ -22,9 +22,45 @@
 #include <stout/windows.hpp>
 
 #include <stout/os/stat.hpp>
+#include <stout/windows/os.hpp>
 
 #include <stout/internal/windows/longpath.hpp>
 
+
+namespace internal {
+namespace windows {
+
+// NOTE: File and directory deletion on Windows is an asynchronous operation,
+// and there is no built-in way to "wait" on the deletion. So we wait by
+// checking for the path's existence until there is a "file not found" error.
+// Until the file is actually deleted, this will loop on an access denied error
+// (the file exists but has been marked for deletion).
+inline Try<Nothing> wait_on_delete(const std::string& path)
+{
+  // Try for 1 second in 10 intervals of 100 ms.
+  for (int i = 0; i < 10; ++i) {
+    // This should always fail if the file has been marked for deletion.
+    const DWORD attributes =
+      ::GetFileAttributesW(::internal::windows::longpath(path).data());
+    CHECK_EQ(attributes, INVALID_FILE_ATTRIBUTES);
+    const DWORD error = ::GetLastError();
+
+    if (error == ERROR_ACCESS_DENIED) {
+      LOG(WARNING) << "Waiting for file " << path << " to be deleted";
+      os::sleep(Milliseconds(100));
+    } else if (error == ERROR_FILE_NOT_FOUND) {
+      // The file is truly gone, stop waiting.
+      return Nothing();
+    } else {
+      return WindowsError(error);
+    }
+  }
+
+  return Error("Timed out when waiting for file " + path + " to be deleted");
+}
+
+} // namespace windows {
+} // namespace internal {
 
 namespace os {
 
@@ -51,7 +87,17 @@ inline Try<Nothing> rm(const std::string& path)
       : ::DeleteFileW(longpath.data());
 
   if (!result) {
-    return WindowsError("`os::rm` could not remove '" + path + "'");
+    return WindowsError();
+  }
+
+  // This wait is necessary because the `RemoveDirectory` API does not know to
+  // wait for pending deletions of files in the directory, and can otherwise
+  // immediately fail with "directory not empty" if there still exists a marked
+  // for deletion but not yet deleted file. By making waiting synchronously, we
+  // gain the behavior of the POSIX API.
+  Try<Nothing> deleted = ::internal::windows::wait_on_delete(path);
+  if (deleted.isError()) {
+    return Error("wait_on_delete failed " + deleted.error());
   }
 
   return Nothing();

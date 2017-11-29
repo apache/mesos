@@ -47,6 +47,12 @@ inline std::wstring longpath(const std::string& path)
   }
 }
 
+
+inline std::wstring longpath(const std::wstring& path)
+{
+  return longpath(stringify(path));
+}
+
 } // namespace windows {
 } // namespace internal {
 
