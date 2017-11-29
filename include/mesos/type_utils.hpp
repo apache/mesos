@@ -27,7 +27,6 @@
 
 #include <mesos/mesos.hpp>
 
-#include <stout/hashmap.hpp>
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
@@ -461,11 +460,6 @@ inline std::ostream& operator<<(
   stream << " ]";
   return stream;
 }
-
-
-std::ostream& operator<<(
-    std::ostream& stream,
-    const hashmap<std::string, std::string>& map);
 
 } // namespace mesos {
 
