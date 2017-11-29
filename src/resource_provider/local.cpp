@@ -14,34 +14,61 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stout/hashmap.hpp>
+#include <stout/lambda.hpp>
+
 #include "resource_provider/local.hpp"
 
 #include "resource_provider/storage/provider.hpp"
 
+namespace http = process::http;
+
+using std::string;
+
 using process::Owned;
+
+using process::http::authentication::Principal;
 
 namespace mesos {
 namespace internal {
 
 Try<Owned<LocalResourceProvider>> LocalResourceProvider::create(
-    const process::http::URL& url,
+    const http::URL& url,
     const ResourceProviderInfo& info)
 {
   // TODO(jieyu): Document the built-in local resource providers.
-  if (info.type() == "org.apache.mesos.rp.local.storage") {
-    Try<Owned<LocalResourceProvider>> provider =
-      StorageLocalResourceProvider::create(url, info);
+  const hashmap<string, lambda::function<decltype(create)>> creators = {
+#if defined(ENABLE_GRPC) && defined(__linux__)
+    {"org.apache.mesos.rp.local.storage", &StorageLocalResourceProvider::create}
+#endif
+  };
 
-    if (provider.isError()) {
-      return Error(
-          "Failed to create storage local resource provider: " +
-          provider.error());
-    }
-
-    return provider.get();
+  if (creators.contains(info.type())) {
+    return creators.at(info.type())(url, info);
   }
 
-  return Error("Unknown resource provider type '" + info.type() + "'");
+  return Error("Unknown local resource provider type '" + info.type() + "'");
+}
+
+
+Try<Principal> LocalResourceProvider::principal(
+    const ResourceProviderInfo& info)
+{
+  // TODO(chhsiao): Document the principals for built-in local resource
+  // providers.
+  const hashmap<string, lambda::function<decltype(principal)>>
+    principalGenerators = {
+#if defined(ENABLE_GRPC) && defined(__linux__)
+      {"org.apache.mesos.rp.local.storage",
+        &StorageLocalResourceProvider::principal}
+#endif
+    };
+
+  if (principalGenerators.contains(info.type())) {
+    return principalGenerators.at(info.type())(info);
+  }
+
+  return Error("Unknown local resource provider type '" + info.type() + "'");
 }
 
 } // namespace internal {

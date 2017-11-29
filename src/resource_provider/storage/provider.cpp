@@ -16,6 +16,8 @@
 
 #include "resource_provider/storage/provider.hpp"
 
+#include <cctype>
+
 #include <glog/logging.h>
 
 #include <process/defer.hpp>
@@ -30,7 +32,10 @@
 
 #include "resource_provider/detector.hpp"
 
+namespace http = process::http;
+
 using std::queue;
+using std::string;
 
 using process::Owned;
 using process::Process;
@@ -40,6 +45,8 @@ using process::spawn;
 using process::terminate;
 using process::wait;
 
+using process::http::authentication::Principal;
+
 using mesos::ResourceProviderInfo;
 
 using mesos::resource_provider::Event;
@@ -48,6 +55,39 @@ using mesos::v1::resource_provider::Driver;
 
 namespace mesos {
 namespace internal {
+
+// Returns true if the string is a valid Java identifier.
+static bool isValidName(const string& s)
+{
+  if (s.empty()) {
+    return false;
+  }
+
+  foreach (const char c, s) {
+    if (!isalnum(c) && c != '_') {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+// Returns a prefix for naming standalone containers to run CSI plugins
+// for the resource provider. The prefix is of the following format:
+//     <rp_type>-<rp_name>--
+// where <rp_type> and <rp_name> are the type and name of the resource
+// provider, with dots replaced by dashes. We use a double-dash at the
+// end to explicitly mark the end of the prefix.
+static inline string getContainerIdPrefix(const ResourceProviderInfo& info)
+{
+  return strings::join(
+      "-",
+      strings::replace(info.type(), ".", "-"),
+      info.name(),
+      "-");
+}
+
 
 class StorageLocalResourceProviderProcess
   : public Process<StorageLocalResourceProviderProcess>
@@ -138,8 +178,26 @@ Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
     const process::http::URL& url,
     const ResourceProviderInfo& info)
 {
+  // Verify that the name follows Java package naming convention.
+  // TODO(chhsiao): We should move this check to a validation function
+  // for `ResourceProviderInfo`.
+  if (!isValidName(info.name())) {
+    return Error(
+        "Resource provider name '" + info.name() +
+        "' does not follow Java package naming convention");
+  }
+
   return Owned<LocalResourceProvider>(
       new StorageLocalResourceProvider(url, info));
+}
+
+
+Try<Principal> StorageLocalResourceProvider::principal(
+    const ResourceProviderInfo& info)
+{
+  return Principal(
+      Option<string>::none(),
+      {{"cid_prefix", getContainerIdPrefix(info)}});
 }
 
 

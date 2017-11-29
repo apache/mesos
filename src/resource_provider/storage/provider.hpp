@@ -40,6 +40,9 @@ public:
       const process::http::URL& url,
       const mesos::ResourceProviderInfo& info);
 
+  static Try<process::http::authentication::Principal> principal(
+      const mesos::ResourceProviderInfo& info);
+
   ~StorageLocalResourceProvider() override;
 
   StorageLocalResourceProvider(
