@@ -99,6 +99,38 @@ Try<bool> supported(const string& fsname)
 }
 
 
+Try<bool> dtypeSupported(const string& directory)
+{
+  DIR* dir = ::opendir(directory.c_str());
+
+  if (dir == nullptr) {
+    return ErrnoError("Failed to open '" + directory + "'");
+  }
+
+  bool result = true;
+  struct dirent* entry;
+
+  errno = 0;
+  while ((entry = ::readdir(dir)) != nullptr) {
+    if (entry->d_type == DT_UNKNOWN) {
+      result = false;
+    }
+  }
+
+  if (errno != 0) {
+    Error error = ErrnoError("Failed to read '" + directory + "'");
+    ::closedir(dir);
+    return error;
+  }
+
+  if (::closedir(dir) == -1) {
+    return ErrnoError("Failed to close '" + directory + "'");
+  }
+
+  return result;
+}
+
+
 Try<uint32_t> type(const string& path)
 {
   struct statfs buf;

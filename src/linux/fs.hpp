@@ -178,6 +178,13 @@ namespace fs {
 Try<bool> supported(const std::string& fsname);
 
 
+// Detect whether the given file system supports `d_type`
+// in `struct dirent`.
+// @directory must not be empty for correct `d_type` detection.
+// It is the caller's responsibility to ensure this holds.
+Try<bool> dtypeSupported(const std::string& directory);
+
+
 // Returns a filesystem type id, given a directory.
 // http://man7.org/linux/man-pages/man2/fstatfs64.2.html
 Try<uint32_t> type(const std::string& path);
@@ -185,7 +192,6 @@ Try<uint32_t> type(const std::string& path);
 
 // Returns the filesystem type name, given a filesystem type id.
 Try<std::string> typeName(uint32_t fsType);
-
 
 // TODO(idownes): These different variations of mount information
 // should be consolidated and moved to stout, along with mount and

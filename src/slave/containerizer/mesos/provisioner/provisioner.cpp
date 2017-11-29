@@ -126,6 +126,41 @@ static Try<Nothing> validateBackend(
           "on the underlying filesystem '" + fsTypeName + "'");
     }
 
+    // Check whether `d_type` is supported. We need to create a
+    // directory entry to probe this since `.` and `..` may be
+    // marked `DT_DIR` even if the filesystem does not otherwise
+    // have `d_type` support.
+    string probeDir = path::join(directory, ".probe");
+
+    Try<Nothing> mkdir = os::mkdir(probeDir);
+    if (mkdir.isError()) {
+      return Error(
+          "Failed to create temporary directory '" +
+          probeDir + "': " + mkdir.error());
+    }
+
+    Try<bool> supportDType = fs::dtypeSupported(directory);
+
+    // clean up first
+    Try<Nothing> rmdir = os::rmdir(probeDir);
+    if (rmdir.isError()) {
+      LOG(WARNING) << "Failed to remove temporary directory"
+                   << "' " << probeDir << "': " << rmdir.error();
+     }
+
+    if (supportDType.isError()) {
+      return Error(
+          "Cannot verify filesystem attributes: " +
+          supportDType.error());
+    }
+
+    if (!supportDType.get()) {
+      return Error(
+          "Backend '" + stringify(OVERLAY_BACKEND) +
+          "' is not supported due to missing d_type support " +
+          "on the underlying filesystem");
+    }
+
     return Nothing();
   }
 
@@ -242,6 +277,9 @@ Try<Owned<Provisioner>> Provisioner::create(
 
       Try<Nothing> supported = validateBackend(backendName, rootDir.get());
       if (supported.isError()) {
+        LOG(INFO) << "Provisioner backend '"
+                  << backendName << "' is not supported on '"
+                  << rootDir.get() << "': " << supported.error();
         continue;
       }
 
