@@ -2247,7 +2247,7 @@ struct Framework
       // Note that we explicitly convert from protobuf to `Resources` once
       // and then use the result for calculations to avoid performance penalty
       // for multiple conversions and validations implied by `+=` with protobuf
-      // agrument.
+      // arguments.
       // Conversion is safe, as resources have already passed validation.
       const Resources resources = task->resources();
       totalUsedResources += resources;
