@@ -102,6 +102,11 @@ public:
       const Option<Resources>& total = None(),
       const Option<std::vector<SlaveInfo::Capability>>& capabilities = None());
 
+  void addResourceProvider(
+      const SlaveID& slave,
+      const Resources& total,
+      const hashmap<FrameworkID, Resources>& used);
+
   void activateSlave(
       const SlaveID& slaveId);
 
@@ -242,6 +247,11 @@ public:
       const Option<Resources>& total = None(),
       const Option<std::vector<SlaveInfo::Capability>>&
           capabilities = None()) = 0;
+
+  virtual void addResourceProvider(
+      const SlaveID& slave,
+      const Resources& total,
+      const hashmap<FrameworkID, Resources>& used) = 0;
 
   virtual void activateSlave(
       const SlaveID& slaveId) = 0;
@@ -486,6 +496,21 @@ inline void MesosAllocator<AllocatorProcess>::updateSlave(
       slaveId,
       total,
       capabilities);
+}
+
+
+template <typename AllocatorProcess>
+void MesosAllocator<AllocatorProcess>::addResourceProvider(
+    const SlaveID& slave,
+    const Resources& total,
+    const hashmap<FrameworkID, Resources>& used)
+{
+  process::dispatch(
+      process,
+      &MesosAllocatorProcess::addResourceProvider,
+      slave,
+      total,
+      used);
 }
 
 

@@ -215,6 +215,19 @@ public:
           capabilities = None()) = 0;
 
   /**
+   * Add resources from a local resource provider to an agent.
+   *
+   * @param slave Id of the agent to modify.
+   * @param total The resources to add to the agent's total resources.
+   * @param used The resources to add to the resources tracked as used
+   *     for this agent.
+   */
+  virtual void addResourceProvider(
+      const SlaveID& slave,
+      const Resources& total,
+      const hashmap<FrameworkID, Resources>& used) = 0;
+
+  /**
    * Activates an agent. This is invoked when an agent reregisters. Offers
    * are only sent for activated agents.
    */

@@ -627,6 +627,27 @@ void HierarchicalAllocatorProcess::updateSlave(
 }
 
 
+void HierarchicalAllocatorProcess::addResourceProvider(
+    const SlaveID& slaveId,
+    const Resources& total,
+    const hashmap<FrameworkID, Resources>& used)
+{
+  CHECK(initialized);
+  CHECK(slaves.contains(slaveId));
+
+  trackAllocatedResources(slaveId, used);
+
+  Slave& slave = slaves.at(slaveId);
+  updateSlaveTotal(slaveId, slave.total + total);
+  slave.allocated += Resources::sum(used);
+
+  VLOG(1)
+    << "Grew agent " << slaveId << " by "
+    << total << " (total), "
+    << used << " (used)";
+}
+
+
 void HierarchicalAllocatorProcess::activateSlave(
     const SlaveID& slaveId)
 {

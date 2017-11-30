@@ -1402,6 +1402,141 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
 }
 
 
+// Checks that resource provider resources can be added to an agent
+// and that the added used resources are correctly taken into account
+// when computing fair share.
+TEST_F(HierarchicalAllocatorTest, AddResourceProvider)
+{
+  Clock::pause();
+
+  initialize();
+
+  // Register two deactivated frameworks.
+  FrameworkInfo framework1 = createFrameworkInfo({"role1"});
+  allocator->addFramework(framework1.id(), framework1, {}, false, {});
+
+  FrameworkInfo framework2 = createFrameworkInfo({"role2"});
+  allocator->addFramework(framework2.id(), framework2, {}, false, {});
+
+  // Add a single agent with `resources` resources.
+  const Resources resources = Resources::parse("cpus:1;mem:100;disk:10").get();
+
+  SlaveInfo slave1 = createSlaveInfo(resources);
+  allocator->addSlave(
+      slave1.id(),
+      slave1,
+      AGENT_CAPABILITIES(),
+      None(),
+      slave1.resources(),
+      {});
+
+  {
+    // Add a resource provider with `resources*2` to the agent, all in
+    // use by `framework1`.
+    Resources allocation = resources + resources;
+    allocation.allocate("role1");
+    allocator->addResourceProvider(
+        slave1.id(),
+        resources + resources,
+        {{framework1.id(), allocation}});
+  }
+
+  // Activate `framework2`. The next allocation will be to
+  // `framework2` which is the only active framework. After that
+  // `framework1`'s dominant share is 2/3 and `framework2`'s is 1/3.
+  allocator->activateFramework(framework2.id());
+
+  {
+    Resources allocation = slave1.resources();
+    allocation.allocate("role2");
+    Allocation expected = Allocation(
+        framework2.id(),
+        {{"role2", {{slave1.id(), allocation}}}});
+
+    AWAIT_EXPECT_EQ(expected, allocations.get());
+  }
+
+  // Activate `framework1` so it can receive offers. Currently all
+  // available resources are allocated.
+  allocator->activateFramework(framework1.id());
+
+  // Add another agent with `resources` resources. With that
+  // `framework1` no has a dominant share of 2/4 and `framework2` of
+  // 1/4.
+  SlaveInfo slave2 = createSlaveInfo(resources);
+  allocator->addSlave(
+      slave2.id(),
+      slave2,
+      AGENT_CAPABILITIES(),
+      None(),
+      slave2.resources(),
+      {});
+
+  {
+    // The next allocation will be to `framework2` since it is
+    // furthest below fair share.
+    Resources allocation = slave2.resources();
+    allocation.allocate("role2");
+    Allocation expected = Allocation(
+        framework2.id(),
+        {{"role2", {{slave2.id(), allocation}}}});
+
+    AWAIT_EXPECT_EQ(expected, allocations.get());
+  }
+}
+
+
+// Check that even if as an overallocated resource provider is added to an
+// agent, new allocations are only made for unused agent resources.
+TEST_F(HierarchicalAllocatorTest, AddResourceProviderOverallocated)
+{
+  Clock::pause();
+
+  initialize();
+
+  const Resources resources = Resources::parse("cpus:1;mem:100;disk:10").get();
+
+  // Register an agent.
+  SlaveInfo slave = createSlaveInfo(resources + resources);
+  allocator->addSlave(
+      slave.id(),
+      slave,
+      AGENT_CAPABILITIES(),
+      None(),
+      slave.resources(),
+      {});
+
+  // Register a framework in deactivated state
+  // so it initially does not receive offers.
+  FrameworkInfo framework = createFrameworkInfo({"role"});
+  allocator->addFramework(framework.id(), framework, {}, false, {});
+
+  // Track an allocation to the framework of half the agent's resources. We add
+  // no new resources to the total, but just increment the used resources.
+  Resources allocation = resources;
+  allocation.allocate("role");
+  allocator->addResourceProvider(
+      slave.id(),
+      Resources(),
+      {{framework.id(), allocation}});
+
+  // Activate framework so it receives offers.
+  allocator->activateFramework(framework.id());
+
+  // Trigger a batch allocation. In the subsequent offer we expect the
+  // framework to receive the other half of the agent's resources so
+  // that it now has all its resources allocated to it.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  Allocation expected = Allocation(
+      framework.id(),
+      {{"role", {{slave.id(), allocation}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+}
+
+
 TEST_F(HierarchicalAllocatorTest, Allocatable)
 {
   // Pausing the clock is not necessary, but ensures that the test

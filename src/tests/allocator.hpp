@@ -103,6 +103,12 @@ ACTION_P(InvokeUpdateSlave, allocator)
 }
 
 
+ACTION_P(InvokeAddResourceProvider, allocator)
+{
+  allocator->real->addResourceProvider(arg0, arg1, arg2);
+}
+
+
 ACTION_P(InvokeActivateSlave, allocator)
 {
   allocator->real->activateSlave(arg0);
@@ -279,6 +285,11 @@ public:
     EXPECT_CALL(*this, updateSlave(_, _, _))
       .WillRepeatedly(DoDefault());
 
+    ON_CALL(*this, addResourceProvider(_, _, _))
+      .WillByDefault(InvokeAddResourceProvider(this));
+    EXPECT_CALL(*this, addResourceProvider(_, _, _))
+      .WillRepeatedly(DoDefault());
+
     ON_CALL(*this, activateSlave(_))
       .WillByDefault(InvokeActivateSlave(this));
     EXPECT_CALL(*this, activateSlave(_))
@@ -409,6 +420,11 @@ public:
       const SlaveID&,
       const Option<Resources>&,
       const Option<std::vector<SlaveInfo::Capability>>&));
+
+  MOCK_METHOD3(addResourceProvider, void(
+      const SlaveID&,
+      const Resources&,
+      const hashmap<FrameworkID, Resources>&));
 
   MOCK_METHOD1(activateSlave, void(
       const SlaveID&));

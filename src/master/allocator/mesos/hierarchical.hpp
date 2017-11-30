@@ -147,6 +147,11 @@ public:
       const Option<Resources>& total = None(),
       const Option<std::vector<SlaveInfo::Capability>>& capabilities = None());
 
+  void addResourceProvider(
+      const SlaveID& slave,
+      const Resources& total,
+      const hashmap<FrameworkID, Resources>& used);
+
   void deactivateSlave(
       const SlaveID& slaveId);
 
