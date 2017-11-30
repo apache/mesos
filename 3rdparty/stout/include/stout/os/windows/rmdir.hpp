@@ -139,17 +139,20 @@ inline Try<Nothing> recursive_remove_directory(
 // recursive mode, `removeRoot` can be set to false to enable removing
 // all the files and directories beneath the given root directory, but
 // not the root directory itself.
+//
 // Note that this function expects an absolute path.
-// By default rmdir aborts when an error occurs during the deletion of any file
-// but if continueOnError is set to true, rmdir logs the error and continues
-// with the next file.
+//
+// By default rmdir aborts when an error occurs during the deletion
+// of any file but if continueOnError is set to true, rmdir logs the
+// error and continues with the next file.
 inline Try<Nothing> rmdir(
     const std::string& directory,
     bool recursive = true,
     bool removeRoot = true,
     bool continueOnError = false)
 {
-  // The API of this function also deletes files symlinks according to the tests.
+  // The API of this function also deletes files symlinks according
+  // to the tests.
   if (!os::exists(directory)) {
     return WindowsError(ERROR_FILE_NOT_FOUND);
   }
