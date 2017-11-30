@@ -1851,7 +1851,7 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
       taskInfo2.task_id().value(),
       "ns");
 
-  // Wait up to 5 seconds for each of the two tasks to
+  // Wait up to 10 seconds for each of the two tasks to
   // write its pid namespace inode into its sandbox.
   Duration waited = Duration::zero();
   do {
@@ -1861,7 +1861,7 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
 
     os::sleep(Seconds(1));
     waited += Seconds(1);
-  } while (waited < Seconds(5));
+  } while (waited < Seconds(10));
 
   EXPECT_TRUE(os::exists(pidNamespacePath1));
   EXPECT_TRUE(os::exists(pidNamespacePath2));
