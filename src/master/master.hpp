@@ -2624,9 +2624,6 @@ struct Framework
       << "' (uuid: " << uuid->toString() << ") "
       << "of framework " << operation->framework_id();
 
-    CHECK(protobuf::isTerminalState(operation->latest_status().state()))
-      << operation->latest_status().state();
-
     offerOperations.erase(uuid.get());
   }
 

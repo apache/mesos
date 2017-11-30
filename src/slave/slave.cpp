@@ -7046,9 +7046,6 @@ void Slave::removeOfferOperation(OfferOperation* operation)
   CHECK(offerOperations.contains(uuid.get()))
     << "Unknown offer operation (uuid: " << uuid->toString() << ")";
 
-  CHECK(protobuf::isTerminalState(operation->latest_status().state()))
-    << operation->latest_status().state();
-
   offerOperations.erase(uuid.get());
   delete operation;
 }

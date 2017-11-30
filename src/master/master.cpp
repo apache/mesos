@@ -9817,9 +9817,6 @@ void Master::removeOfferOperation(OfferOperation* operation)
 {
   CHECK_NOTNULL(operation);
 
-  CHECK(protobuf::isTerminalState(operation->latest_status().state()))
-    << operation->latest_status().state();
-
   // Remove from framework.
   Framework* framework = operation->has_framework_id()
     ? getFramework(operation->framework_id())
@@ -9837,6 +9834,20 @@ void Master::removeOfferOperation(OfferOperation* operation)
   CHECK_NOTNULL(slave);
 
   slave->removeOfferOperation(operation);
+
+  // If the operation was not speculated and is not terminal we
+  // need to also recover its used resources in the allocator.
+  if (!protobuf::isSpeculativeOperation(operation->info()) &&
+      !protobuf::isTerminalState(operation->latest_status().state())) {
+    Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
+    CHECK_SOME(consumed);
+
+    allocator->recoverResources(
+        operation->framework_id(),
+        operation->slave_id(),
+        consumed.get(),
+        None());
+  }
 
   delete operation;
 }
@@ -10921,8 +10932,10 @@ void Slave::removeOfferOperation(OfferOperation* operation)
     << "Unknown offer operation (uuid: " << uuid->toString() << ")"
     << " to agent " << *this;
 
-  CHECK(protobuf::isTerminalState(operation->latest_status().state()))
-    << operation->latest_status().state();
+  if (!protobuf::isSpeculativeOperation(operation->info()) &&
+      !protobuf::isTerminalState(operation->latest_status().state())) {
+    recoverResources(operation);
+  }
 
   offerOperations.erase(uuid.get());
 }
