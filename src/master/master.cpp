@@ -9561,14 +9561,19 @@ void Master::removeTask(Task* task, bool unreachable)
   Slave* slave = slaves.registered.get(task->slave_id());
   CHECK_NOTNULL(slave);
 
+  // Note that we explicitly convert from protobuf to `Resources` here
+  // and then use the result below to avoid performance penalty for multiple
+  // conversions and validations implied by conversion.
+  // Conversion is safe, as resources have already passed validation.
+  const Resources resources = task->resources();
+
   if (!isRemovable(task->state())) {
     CHECK(!unreachable) << task->task_id();
 
-    // Note that we convert to `Resources` for output as it's faster than
-    // logging raw protobuf data. Conversion is safe, as resources have
-    // already passed validation.
+    // Note that we use `Resources` for output as it's faster than
+    // logging raw protobuf data.
     LOG(WARNING) << "Removing task " << task->task_id()
-                 << " with resources " << Resources(task->resources())
+                 << " with resources " << resources
                  << " of framework " << task->framework_id()
                  << " on agent " << *slave
                  << " in non-removable state " << task->state();
@@ -9578,14 +9583,13 @@ void Master::removeTask(Task* task, bool unreachable)
     allocator->recoverResources(
         task->framework_id(),
         task->slave_id(),
-        task->resources(),
+        resources,
         None());
   } else {
-    // Note that we convert to `Resources` for output as it's faster than
-    // logging raw protobuf data. Conversion is safe, as resources have
-    // already passed validation.
+    // Note that we use `Resources` for output as it's faster than
+    // logging raw protobuf data.
     LOG(INFO) << "Removing task " << task->task_id()
-              << " with resources " << Resources(task->resources())
+              << " with resources " << resources
               << " of framework " << task->framework_id()
               << " on agent " << *slave;
   }
@@ -10774,19 +10778,24 @@ void Slave::addTask(Task* task)
 
   tasks[frameworkId][taskId] = task;
 
+  // Note that we explicitly convert from protobuf to `Resources` here
+  // and then use the result below to avoid performance penalty for multiple
+  // conversions and validations implied by conversion.
+  // Conversion is safe, as resources have already passed validation.
+  const Resources resources = task->resources();
+
   if (!Master::isRemovable(task->state())) {
-    usedResources[frameworkId] += task->resources();
+    usedResources[frameworkId] += resources;
   }
 
   if (!master->subscribers.subscribed.empty()) {
     master->subscribers.send(protobuf::master::event::createTaskAdded(*task));
   }
 
-  // Note that we convert to `Resources` for output as it's faster than
-  // logging raw protobuf data. Conversion is safe, as resources have
-  // already passed validation.
+  // Note that we use `Resources` for output as it's faster than
+  // logging raw protobuf data.
   LOG(INFO) << "Adding task " << taskId
-            << " with resources " << Resources(task->resources())
+            << " with resources " << resources
             << " on agent " << *this;
 }
 

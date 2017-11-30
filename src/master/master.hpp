@@ -2244,8 +2244,14 @@ struct Framework
     tasks[task->task_id()] = task;
 
     if (!Master::isRemovable(task->state())) {
-      totalUsedResources += task->resources();
-      usedResources[task->slave_id()] += task->resources();
+      // Note that we explicitly convert from protobuf to `Resources` once
+      // and then use the result for calculations to avoid performance penalty
+      // for multiple conversions and validations implied by `+=` with protobuf
+      // agrument.
+      // Conversion is safe, as resources have already passed validation.
+      const Resources resources = task->resources();
+      totalUsedResources += resources;
+      usedResources[task->slave_id()] += resources;
 
       // It's possible that we're not tracking the task's role for
       // this framework if the role is absent from the framework's
