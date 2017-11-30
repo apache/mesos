@@ -87,7 +87,7 @@ int testTCPConnect(const string& ip, int port)
   }
 
   // Create a TCP socket.
-  int socket = ::socket(parse->family(), SOCK_STREAM, 0);
+  int_fd socket = ::socket(parse->family(), SOCK_STREAM, 0);
   if (socket < 0) {
     cerr << "Failed to create socket: " << strerror(errno) << endl;
     return EXIT_FAILURE;
