@@ -7294,6 +7294,23 @@ void Master::offer(
         }
       }
 
+      // Per MESOS-8237, it is problematic to show the
+      // `Resource.allocation_info` for pre-MULTI_ROLE schedulers.
+      // Pre-MULTI_ROLE schedulers are not `AllocationInfo` aware,
+      // and since they may be performing operations that
+      // implicitly uses all of Resource's state (e.g. equality
+      // comparison), we strip the `AllocationInfo` from `Resource`,
+      // as well as Offer. The idea here is that since the
+      // information doesn't provide any value to a pre-MULTI_ROLE
+      // scheduler, we preserve the old `Offer` format for them.
+      if (!framework->capabilities.multiRole) {
+        offer_.clear_allocation_info();
+
+        foreach (Resource& resource, *offer_.mutable_resources()) {
+          resource.clear_allocation_info();
+        }
+      }
+
       // Add the offer *AND* the corresponding slave's PID.
       message.add_offers()->MergeFrom(offer_);
       message.add_pids(slave->pid);
