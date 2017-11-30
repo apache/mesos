@@ -1075,7 +1075,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
 
   MockScheduler sched;
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
+  frameworkInfo.set_roles(0, "role1");
 
   MesosSchedulerDriver driver(
       &sched,
@@ -1211,7 +1211,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
 
   MockScheduler sched;
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
+  frameworkInfo.set_roles(0, "role1");
   frameworkInfo.set_checkpoint(true);
 
   MesosSchedulerDriver driver(
@@ -1431,7 +1431,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
 
   MockScheduler sched;
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
+  frameworkInfo.set_roles(0, "role1");
 
   MesosSchedulerDriver driver(
       &sched,
@@ -1523,7 +1523,7 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
 
   MockScheduler sched;
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
+  frameworkInfo.set_roles(0, "role1");
   frameworkInfo.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
 

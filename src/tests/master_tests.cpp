@@ -833,7 +833,7 @@ TEST_F(MasterTest, RecoverResources)
 
   Resources executorResources = allocatedResources(
       Resources::parse("cpus:0.3;mem:200;ports:[5-8, 23-25]").get(),
-      DEFAULT_FRAMEWORK_INFO.role());
+      DEFAULT_FRAMEWORK_INFO.roles(0));
   executorInfo.mutable_resources()->MergeFrom(executorResources);
 
   TaskID taskId;
@@ -915,7 +915,7 @@ TEST_F(MasterTest, RecoverResources)
   EXPECT_NE(0u, offers->size());
 
   Resources slaveResources = Resources::parse(flags.resources.get()).get();
-  EXPECT_EQ(allocatedResources(slaveResources, DEFAULT_FRAMEWORK_INFO.role()),
+  EXPECT_EQ(allocatedResources(slaveResources, DEFAULT_FRAMEWORK_INFO.roles(0)),
             offers.get()[0].resources());
 
   driver.stop();
@@ -1925,11 +1925,8 @@ TEST_F(MasterTest, LaunchDifferentRoleLost)
   ASSERT_SOME(slave);
 
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
-  framework.clear_role();
-  framework.add_roles("role1");
+  framework.set_roles(0, "role1");
   framework.add_roles("role2");
-  framework.add_capabilities()->set_type(
-      FrameworkInfo::Capability::MULTI_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -3538,7 +3535,7 @@ TEST_F(MasterTest, IgnoreEphemeralPortsResource)
       Resources(offers.get()[0].resources()),
       allocatedResources(
           Resources::parse(resourcesWithoutEphemeralPorts).get(),
-          DEFAULT_FRAMEWORK_INFO.role()));
+          DEFAULT_FRAMEWORK_INFO.roles(0)));
 
   driver.stop();
   driver.join();
@@ -4050,13 +4047,16 @@ TEST_F(MasterTest, StateEndpointFrameworkInfo)
   AWAIT_READY(slaveRegisteredMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.clear_capabilities();
+
   frameworkInfo.set_webui_url("http://localhost:8080/");
 
   vector<FrameworkInfo::Capability::Type> capabilities = {
     FrameworkInfo::Capability::REVOCABLE_RESOURCES,
     FrameworkInfo::Capability::TASK_KILLING_STATE,
     FrameworkInfo::Capability::GPU_RESOURCES,
-    FrameworkInfo::Capability::PARTITION_AWARE
+    FrameworkInfo::Capability::PARTITION_AWARE,
+    FrameworkInfo::Capability::MULTI_ROLE,
   };
 
   foreach (FrameworkInfo::Capability::Type capability, capabilities) {
@@ -4132,7 +4132,7 @@ TEST_F(MasterTest, StateEndpointFrameworkInfo)
     .as<JSON::Array>().values[0].as<JSON::Object>();
 
   JSON::Object allocationInfo;
-  allocationInfo.values["role"] = frameworkInfo.role();
+  allocationInfo.values["role"] = frameworkInfo.roles(0);
 
   EXPECT_EQ(1u, offer.values.count("allocation_info"));
   EXPECT_EQ(allocationInfo, offer.values.at("allocation_info"));
@@ -4304,7 +4304,7 @@ TEST_F(MasterTest, StateEndpointAllocationRole)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("foo");
+  frameworkInfo.set_roles(0, "foo");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -4374,10 +4374,10 @@ TEST_F(MasterTest, StateEndpointAllocationRole)
       JSON::Array {
         JSON::Object {
           { "executors", JSON::Array {
-            JSON::Object { { "role", frameworkInfo.role() } } }
+            JSON::Object { { "role", frameworkInfo.roles(0) } } }
           },
           { "tasks", JSON::Array {
-            JSON::Object { { "role", frameworkInfo.role() } } }
+            JSON::Object { { "role", frameworkInfo.roles(0) } } }
           }
         }
       }
@@ -5451,7 +5451,7 @@ TEST_F(MasterTest, RejectFrameworkWithInvalidRole)
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
 
   // Add invalid role to the FrameworkInfo.
-  framework.set_role("/test/test1");
+  framework.set_roles(0, "/test/test1");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -6677,10 +6677,8 @@ TEST_F(MasterTest, MultiRoleFrameworkReceivesOffers)
   ASSERT_SOME(slave1);
 
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
-  framework.add_roles("role1");
+  framework.set_roles(0, "role1");
   framework.add_roles("role2");
-  framework.add_capabilities()->set_type(
-      FrameworkInfo::Capability::MULTI_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -6822,12 +6820,9 @@ TEST_F(MasterTest, MultiRoleSchedulerUnsubscribeFromRole)
   // capability, so we expect its tasks to continue running when the
   // partitioned agent reregisters.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.clear_role();
-  frameworkInfo.add_roles("foo");
+  frameworkInfo.set_roles(0, "foo");
   frameworkInfo.add_capabilities()->set_type(
       FrameworkInfo::Capability::PARTITION_AWARE);
-  frameworkInfo.add_capabilities()->set_type(
-      FrameworkInfo::Capability::MULTI_ROLE);
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(

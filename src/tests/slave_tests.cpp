@@ -785,12 +785,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfo)
   FrameworkID frameworkId;
   frameworkId.set_value("20141010-221431-251662764-60288-32120-0000");
 
-  FrameworkInfo frameworkInfo;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.mutable_id()->CopyFrom(frameworkId);
 
   // Launch a task with the command executor.
   Resources taskResources = Resources::parse("cpus:0.1;mem:32").get();
-  taskResources.allocate(frameworkInfo.role());
+  taskResources.allocate(frameworkInfo.roles(0));
 
   TaskInfo task;
   task.set_name("task");
@@ -843,14 +843,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, GetExecutorInfoForTaskWithContainer)
 
   MockSlave slave(CreateSlaveFlags(), &detector, &containerizer);
 
-  FrameworkInfo frameworkInfo;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.mutable_id()->set_value(
       "20141010-221431-251662764-60288-12345-0000");
 
   // Launch a task with the command executor and ContainerInfo with
   // NetworkInfo.
   Resources taskResources = Resources::parse("cpus:0.1;mem:32").get();
-  taskResources.allocate(frameworkInfo.role());
+  taskResources.allocate(frameworkInfo.roles(0));
 
   TaskInfo task;
   task.set_name("task");
@@ -920,12 +920,12 @@ TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   StandaloneMasterDetector detector;
   MockSlave slave(flags, &detector, containerizer.get());
 
-  FrameworkInfo frameworkInfo;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.mutable_id()->set_value(
       "20141010-221431-251662764-60288-12345-0000");
 
   Resources taskResources = Resources::parse("cpus:0.1;mem:32").get();
-  taskResources.allocate(frameworkInfo.role());
+  taskResources.allocate(frameworkInfo.roles(0));
 
   // Launch a task with the command executor and ContainerInfo with
   // NetworkInfo.
@@ -1642,9 +1642,14 @@ TEST_F(SlaveTest, StateEndpoint)
   EXPECT_EQ(1u, frameworks.values.size());
 
   ASSERT_TRUE(frameworks.values[0].is<JSON::Object>());
-  JSON::Object framework = frameworks.values[0].as<JSON::Object>();
 
-  EXPECT_EQ("*", framework.values["role"]);
+  JSON::Object roles = {
+    { "roles", JSON::Array { DEFAULT_FRAMEWORK_INFO.roles(0) } }
+  };
+
+  EXPECT_TRUE(frameworks.values[0].contains(roles));
+
+  JSON::Object framework = frameworks.values[0].as<JSON::Object>();
   EXPECT_EQ("default", framework.values["name"]);
   EXPECT_EQ(model(resources.get()), state.values["resources"]);
 

@@ -249,7 +249,9 @@ int main(int argc, char** argv)
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Test Framework (C++)");
-  framework.set_role(flags.role);
+  framework.add_roles(flags.role);
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
 
   value = os::getenv("MESOS_CHECKPOINT");
   if (value.isSome()) {

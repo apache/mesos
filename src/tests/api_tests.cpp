@@ -241,7 +241,7 @@ TEST_P(MasterAPITest, GetFrameworks)
 
   ASSERT_EQ(1, frameworks.frameworks_size());
   ASSERT_EQ("default", frameworks.frameworks(0).framework_info().name());
-  ASSERT_EQ("*", frameworks.frameworks(0).framework_info().role());
+  ASSERT_EQ("*", frameworks.frameworks(0).framework_info().roles(0));
   ASSERT_FALSE(frameworks.frameworks(0).framework_info().checkpoint());
   ASSERT_TRUE(frameworks.frameworks(0).active());
   ASSERT_TRUE(frameworks.frameworks(0).connected());
@@ -864,7 +864,7 @@ TEST_P(MasterAPITest, GetRoles)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
+  frameworkInfo.set_roles(0, "role1");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -952,11 +952,11 @@ TEST_P(MasterAPITest, ReserveResources)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   MockScheduler sched;
@@ -978,7 +978,7 @@ TEST_P(MasterAPITest, ReserveResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -1012,7 +1012,7 @@ TEST_P(MasterAPITest, ReserveResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -1044,11 +1044,11 @@ TEST_P(MasterAPITest, UnreserveResources)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   v1::master::Call v1Call;
@@ -1090,7 +1090,7 @@ TEST_P(MasterAPITest, UnreserveResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -1124,7 +1124,7 @@ TEST_P(MasterAPITest, UnreserveResources)
 
   // Verifies if the resources are unreserved.
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -2010,7 +2010,7 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
   AWAIT_READY(v1CreateVolumesResponse);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
+  frameworkInfo.set_roles(0, "role1");
 
   // Start a framework and launch a task on the persistent volume.
   MockScheduler sched;
@@ -2031,11 +2031,11 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   Resources taskResources = Resources::parse(
       "disk:256",
-      frameworkInfo.role()).get();
+      frameworkInfo.roles(0)).get();
 
   TaskInfo taskInfo = createTask(
       offer.slave_id(),

@@ -72,6 +72,7 @@ public:
                 const ExecutorInfo& _executor,
                 const string& _master)
     : framework(_framework),
+      role(_framework.roles(0)),
       executor(_executor),
       master(_master),
       state(INITIALIZING),
@@ -84,6 +85,7 @@ public:
                 const string& _master,
                 const Credential& credential)
     : framework(_framework),
+      role(_framework.roles(0)),
       executor(_executor),
       master(_master),
       state(INITIALIZING),
@@ -225,7 +227,7 @@ private:
       Resources taskResources = Resources::parse(
           "cpus:" + stringify(CPUS_PER_TASK) +
           ";mem:" + stringify(MEM_PER_TASK)).get();
-      taskResources.allocate(framework.role());
+      taskResources.allocate(role);
 
       Resources remaining = offer.resources();
 
@@ -245,10 +247,10 @@ private:
         task.mutable_agent_id()->MergeFrom(offer.agent_id());
         task.mutable_executor()->MergeFrom(executor);
 
-        Try<Resources> flattened = taskResources.flatten(framework.role());
+        Try<Resources> flattened = taskResources.flatten(role);
         CHECK_SOME(flattened);
-        Option<Resources> resources = remaining.find(flattened.get());
 
+        Option<Resources> resources = remaining.find(flattened.get());
         CHECK_SOME(resources);
 
         task.mutable_resources()->CopyFrom(resources.get());
@@ -352,6 +354,7 @@ private:
   }
 
   FrameworkInfo framework;
+  const string role;
   const ExecutorInfo executor;
   const string master;
   process::Owned<scheduler::Mesos> mesos;
@@ -429,7 +432,9 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_name("Event Call Scheduler using libprocess (C++)");
-  framework.set_role(flags.role);
+  framework.add_roles(flags.role);
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
 
   const Result<string> user = os::user();
 

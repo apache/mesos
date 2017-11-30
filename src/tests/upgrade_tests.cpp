@@ -119,6 +119,8 @@ TEST_F(UpgradeTest, ReregisterOldAgentWithMultiRoleMaster)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.clear_capabilities();
+  frameworkInfo.clear_roles();
   frameworkInfo.set_role("foo");
 
   MockScheduler sched;
@@ -335,10 +337,7 @@ TEST_F(UpgradeTest, UpgradeSlaveIntoMultiRole)
   AWAIT_READY(slaveRegisteredMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.clear_role();
-  frameworkInfo.add_roles("foo");
-  frameworkInfo.add_capabilities()->set_type(
-      FrameworkInfo::Capability::MULTI_ROLE);
+  frameworkInfo.set_roles(0, "foo");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -408,6 +407,8 @@ TEST_F(UpgradeTest, MultiRoleSchedulerUpgrade)
   ASSERT_SOME(agent);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.clear_capabilities();
+  frameworkInfo.clear_roles();
   frameworkInfo.set_role("foo");
 
   MockScheduler sched1;

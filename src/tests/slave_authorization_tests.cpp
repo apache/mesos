@@ -166,7 +166,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
 
   // Register framework with user "bar".
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
   frameworkInfo.set_user("bar");
 
   // Create an executor with user "bar".

@@ -245,7 +245,7 @@ TEST_F(DiskQuotaTest, DiskUsageExceedsQuota)
 TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1");
+  frameworkInfo.set_roles(0, "role1");
 
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -472,7 +472,7 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
 

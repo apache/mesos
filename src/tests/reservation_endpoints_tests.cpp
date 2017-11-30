@@ -80,7 +80,7 @@ public:
   {
     master::Flags flags = MesosTest::CreateMasterFlags();
     flags.allocation_interval = Milliseconds(50);
-    flags.roles = createFrameworkInfo().role();
+    flags.roles = createFrameworkInfo().roles(0);
     return flags;
   }
 
@@ -88,7 +88,7 @@ public:
   FrameworkInfo createFrameworkInfo()
   {
     FrameworkInfo info = DEFAULT_FRAMEWORK_INFO;
-    info.set_role("role");
+    info.set_roles(0, "role");
     return info;
   }
 
@@ -126,7 +126,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Future<Response> response = process::http::post(
@@ -156,7 +156,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   Future<Nothing> recoverResources;
   EXPECT_CALL(allocator, recoverResources(_, _, _, _))
@@ -189,7 +189,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
   // resources that this framework is currently holding onto.
@@ -225,7 +225,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   MockScheduler sched;
@@ -247,7 +247,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -269,7 +269,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -299,8 +299,9 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
   FrameworkInfo frameworkInfo = createFrameworkInfo();
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Future<Response> response = process::http::post(
@@ -330,7 +331,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -352,7 +353,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -390,7 +391,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
 
   Resources total = available + offered;
   Resources dynamicallyReserved = total.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   MockScheduler sched;
@@ -420,7 +421,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(available + offered, frameworkInfo.role())));
+      allocatedResources(available + offered, frameworkInfo.roles(0))));
 
   // Launch a task on the 'available' resources portion of the offer, which
   // recovers 'offered' resources portion.
@@ -455,7 +456,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(offered, frameworkInfo.role())));
+      allocatedResources(offered, frameworkInfo.roles(0))));
 
   // Kill the task running on 'available' resources to make it available.
   EXPECT_CALL(sched, statusUpdate(_, _));
@@ -471,7 +472,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
 
   AWAIT_READY(availableResources);
   EXPECT_TRUE(availableResources->contains(
-      allocatedResources(available, frameworkInfo.role())));
+      allocatedResources(available, frameworkInfo.roles(0))));
 
   // At this point, we have 'available' resources in the allocator, and
   // 'offered' resources offered to the framework.
@@ -501,7 +502,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
   // resources that this framework is currently holding onto.
@@ -541,12 +542,12 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
 
   Resources available = Resources::parse("cpus:1;mem:128").get();
   available = available.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Resources offered = Resources::parse("mem:384").get();
   offered = offered.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Resources total = available + offered;
@@ -587,7 +588,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(available + offered, frameworkInfo.role())));
+      allocatedResources(available + offered, frameworkInfo.roles(0))));
 
   // Launch a task on the 'available' resources portion of the offer, which
   // recovers 'offered' resources portion.
@@ -622,7 +623,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(offered, frameworkInfo.role())));
+      allocatedResources(offered, frameworkInfo.roles(0))));
 
   // Kill the task running on 'available' resources to make it available.
   EXPECT_CALL(sched, statusUpdate(_, _));
@@ -638,7 +639,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
 
   AWAIT_READY(availableResources);
   EXPECT_TRUE(availableResources->contains(
-      allocatedResources(available, frameworkInfo.role())));
+      allocatedResources(available, frameworkInfo.roles(0))));
 
   // At this point, we have 'available' resources in the allocator, and
   // 'offered' resources offered to the framework.
@@ -668,7 +669,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
   // resources that this framework is currently holding onto.
@@ -715,10 +716,10 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources labeledResources1 = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal(), labels1)).get();
   Resources labeledResources2 = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal(), labels2)).get();
 
   // Make two resource reservations with different labels.
@@ -758,9 +759,9 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   Resources offeredResources = Resources(offer.resources());
   EXPECT_TRUE(offeredResources.contains(
-      allocatedResources(labeledResources1, frameworkInfo.role())));
+      allocatedResources(labeledResources1, frameworkInfo.roles(0))));
   EXPECT_TRUE(offeredResources.contains(
-      allocatedResources(labeledResources2, frameworkInfo.role())));
+      allocatedResources(labeledResources2, frameworkInfo.roles(0))));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -784,13 +785,13 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   offeredResources = Resources(offer.resources());
   EXPECT_FALSE(offeredResources.contains(
-      allocatedResources(totalSlaveResources, frameworkInfo.role())));
+      allocatedResources(totalSlaveResources, frameworkInfo.roles(0))));
   EXPECT_TRUE(offeredResources.contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
   EXPECT_FALSE(offeredResources.contains(
-      allocatedResources(labeledResources1, frameworkInfo.role())));
+      allocatedResources(labeledResources1, frameworkInfo.roles(0))));
   EXPECT_TRUE(offeredResources.contains(
-      allocatedResources(labeledResources2, frameworkInfo.role())));
+      allocatedResources(labeledResources2, frameworkInfo.roles(0))));
 
   // Now that the first labeled reservation has been unreserved,
   // attempting to unreserve it again should fail.
@@ -825,11 +826,11 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
   offeredResources = Resources(offer.resources());
 
   EXPECT_TRUE(offeredResources.contains(
-      allocatedResources(totalSlaveResources, frameworkInfo.role())));
+      allocatedResources(totalSlaveResources, frameworkInfo.roles(0))));
   EXPECT_FALSE(offeredResources.contains(
-      allocatedResources(labeledResources1, frameworkInfo.role())));
+      allocatedResources(labeledResources1, frameworkInfo.roles(0))));
   EXPECT_FALSE(offeredResources.contains(
-      allocatedResources(labeledResources2, frameworkInfo.role())));
+      allocatedResources(labeledResources2, frameworkInfo.roles(0))));
 
   // Ignore subsequent `recoverResources` calls triggered from recovering the
   // resources that this framework is currently holding onto.
@@ -924,7 +925,7 @@ TEST_F(ReservationEndpointsTest, InsufficientResources)
 
   Resources unreserved = Resources::parse("cpus:4;mem:4096").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
@@ -965,7 +966,7 @@ TEST_F(ReservationEndpointsTest, NoHeader)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Future<Response> response = process::http::post(
@@ -1057,13 +1058,13 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
       DEFAULT_CREDENTIAL.principal());
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
   masterFlags.allocation_interval = Milliseconds(50);
-  masterFlags.roles = frameworkInfo.role();
+  masterFlags.roles = frameworkInfo.roles(0);
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
@@ -1087,7 +1088,7 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   // Reserve the resources.
@@ -1180,13 +1181,13 @@ TEST_F(ReservationEndpointsTest, BadReserveACL)
   reserve->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
   masterFlags.allocation_interval = Milliseconds(50);
-  masterFlags.roles = frameworkInfo.role();
+  masterFlags.roles = frameworkInfo.roles(0);
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
@@ -1210,7 +1211,7 @@ TEST_F(ReservationEndpointsTest, BadReserveACL)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   // Attempt to reserve the resources.
@@ -1239,13 +1240,13 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
   unreserve->mutable_reserver_principals()->set_type(mesos::ACL::Entity::NONE);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
   masterFlags.allocation_interval = Milliseconds(50);
-  masterFlags.roles = frameworkInfo.role();
+  masterFlags.roles = frameworkInfo.roles(0);
 
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
@@ -1269,7 +1270,7 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   // Reserve the resources.
@@ -1470,7 +1471,7 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
   TestAllocator<> allocator;
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
@@ -1503,7 +1504,7 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
 
   Resources dynamicallyReservedWithNoPrincipal = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo()).get();
 
   // Try a reservation with no principal in `ReservationInfo` and no
@@ -1527,7 +1528,7 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
   Resources dynamicallyReservedWithPrincipal = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   // Try a reservation with a principal in `ReservationInfo` and no
@@ -1579,12 +1580,13 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
   FrameworkInfo frameworkInfo = createFrameworkInfo();
 
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+
   Resources dynamicallyReserved1 = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL.principal())).get();
 
   Resources dynamicallyReserved2 = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       createReservationInfo(DEFAULT_CREDENTIAL_2.principal())).get();
 
   Future<Response> response = process::http::post(
@@ -1623,9 +1625,9 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
   Resources resources = Resources(offer.resources());
 
   EXPECT_TRUE(resources.contains(
-      allocatedResources(dynamicallyReserved1, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved1, frameworkInfo.roles(0))));
   EXPECT_TRUE(resources.contains(
-      allocatedResources(dynamicallyReserved2, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved2, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();

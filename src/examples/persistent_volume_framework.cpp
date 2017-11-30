@@ -140,24 +140,27 @@ public:
       size_t numShards,
       size_t numSharedShards,
       size_t tasksPerShard)
-    : frameworkInfo(_frameworkInfo)
+    : frameworkInfo(_frameworkInfo),
+      role(_frameworkInfo.roles(0))
   {
     // Initialize the shards using regular persistent volume.
     for (size_t i = 0; i < numShards; i++) {
-      shards.push_back(Shard(
-          "shard-" + stringify(i),
-          frameworkInfo.role(),
-          tasksPerShard,
-          false));
+      shards.push_back(
+          Shard(
+              "shard-" + stringify(i),
+              role,
+              tasksPerShard,
+              false));
     }
 
     // Initialize the shards using shared persistent volume.
     for (size_t i = 0; i < numSharedShards; i++) {
-      shards.push_back(Shard(
-          "shared-shard-" + stringify(i),
-          frameworkInfo.role(),
-          tasksPerShard,
-          true));
+      shards.push_back(
+          Shard(
+              "shared-shard-" + stringify(i),
+              role,
+              tasksPerShard,
+              true));
     }
   }
 
@@ -206,7 +209,7 @@ public:
 
             if (offered.contains(shard.resources)) {
               Resource volume = SHARD_PERSISTENT_VOLUME(
-                  frameworkInfo.role(),
+                  role,
                   UUID::random().toString(),
                   "volume",
                   frameworkInfo.principal(),
@@ -491,6 +494,7 @@ private:
   };
 
   FrameworkInfo frameworkInfo;
+  const string role;
   vector<Shard> shards;
 };
 
@@ -574,7 +578,9 @@ int main(int argc, char** argv)
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name("Persistent Volume Framework (C++)");
-  framework.set_role(flags.role);
+  framework.add_roles(flags.role);
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
   framework.set_checkpoint(true);
   framework.set_principal(flags.principal);
   framework.add_capabilities()->set_type(

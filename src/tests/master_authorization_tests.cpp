@@ -993,7 +993,7 @@ TEST_F(MasterAuthorizationTest, AuthorizedRole)
   ASSERT_SOME(master);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("foo");
+  frameworkInfo.set_roles(0, "foo");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1031,7 +1031,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedRole)
   ASSERT_SOME(master);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("foo");
+  frameworkInfo.set_roles(0, "foo");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1369,7 +1369,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateSummaryEndpoint)
 
   // Start framwork with user "bar".
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
   frameworkInfo.set_user(user);
 
   MockScheduler sched;
@@ -1501,7 +1501,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterStateEndpoint)
 
   // Start framwork with user "bar".
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
   frameworkInfo.set_user(user);
 
   // Create an executor with user "bar".
@@ -1690,7 +1690,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterFrameworksEndpoint)
 
   // Start framwork with user "bar".
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
   frameworkInfo.set_user("bar");
 
   // Create an executor with user "bar".
@@ -1881,7 +1881,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterTasksEndpoint)
 
   // Start framwork with user "bar".
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
   frameworkInfo.set_user(user);
 
   // Create an executor with user "bar".

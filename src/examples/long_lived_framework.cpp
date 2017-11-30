@@ -105,12 +105,13 @@ public:
     : state(DISCONNECTED),
       master(_master),
       framework(_framework),
+      role(_framework.roles(0)),
       executor(_executor),
-      taskResources([&_framework]() {
+      taskResources([this]() {
         Resources resources = Resources::parse(
             "cpus:" + stringify(CPUS_PER_TASK) +
             ";mem:" + stringify(MEM_PER_TASK)).get();
-        resources.allocate(_framework.role());
+        resources.allocate(this->role);
         return resources;
       }()),
       tasksLaunched(0),
@@ -243,7 +244,7 @@ protected:
 
     const Resources executorResources = [this]() {
       Resources resources(executor.resources());
-      resources.allocate(framework.role());
+      resources.allocate(role);
       return resources;
     }();
 
@@ -402,6 +403,7 @@ private:
 
   const string master;
   FrameworkInfo framework;
+  const string role;
   const ExecutorInfo executor;
   const Resources taskResources;
   string uri;
@@ -583,6 +585,9 @@ int main(int argc, char** argv)
   framework.set_user(os::user().get());
   framework.set_name("Long Lived Framework (C++)");
   framework.set_checkpoint(flags.checkpoint);
+  framework.add_roles("*");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
 
   Option<Credential> credential = None();
 

@@ -379,7 +379,9 @@ int main(int argc, char** argv)
   FrameworkInfo framework;
   framework.set_user(""); // Mesos'll fill in the current user.
   framework.set_name("Dynamic Reservation Framework (C++)");
-  framework.set_role(flags.role.get());
+  framework.add_roles(flags.role.get());
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
   framework.set_principal(flags.principal);
 
   DynamicReservationScheduler scheduler(

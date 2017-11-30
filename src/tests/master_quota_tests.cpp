@@ -112,11 +112,11 @@ protected:
   // Creates a FrameworkInfo with the specified role.
   FrameworkInfo createFrameworkInfo(const string& role)
   {
-    FrameworkInfo info;
+    FrameworkInfo info = DEFAULT_FRAMEWORK_INFO;
     info.set_user("user");
     info.set_name("framework" + process::ID::generate());
     info.mutable_id()->set_value(info.name());
-    info.set_role(role);
+    info.set_roles(0, role);
 
     return info;
   }

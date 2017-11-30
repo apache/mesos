@@ -1293,7 +1293,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   AWAIT_READY(connected);
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   Future<v1::scheduler::Event::Subscribed> subscribed;
   EXPECT_CALL(*scheduler, subscribed(_, _))
@@ -1323,7 +1323,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
 
   // Launch the executor using reserved resources.
   v1::Resources reserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       v1::createReservationInfo(frameworkInfo.principal())).get();
 
   v1::ExecutorInfo executorInfo;
@@ -1443,7 +1443,7 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_PersistentResources)
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -1476,12 +1476,12 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_PersistentResources)
     v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
 
   v1::Resources reserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       v1::createReservationInfo(frameworkInfo.principal())).get();
 
   v1::Resource volume = v1::createPersistentVolume(
       Megabytes(1),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "executor_volume_path",
       frameworkInfo.principal(),
@@ -1585,7 +1585,7 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_TaskSandboxPersistentVolume)
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -1633,7 +1633,7 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_TaskSandboxPersistentVolume)
 
   v1::Resource volume = v1::createPersistentVolume(
       Megabytes(1),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "task_volume_path",
       frameworkInfo.principal(),
@@ -1641,7 +1641,7 @@ TEST_P(PersistentVolumeDefaultExecutor, ROOT_TaskSandboxPersistentVolume)
       frameworkInfo.principal());
 
   v1::Resources reserved = unreserved.flatten(
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       v1::createReservationInfo(frameworkInfo.principal())).get();
 
   // Launch a task that expects the persistent volume to be
