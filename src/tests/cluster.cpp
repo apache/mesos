@@ -611,6 +611,8 @@ Slave::~Slave()
     return;
   }
 
+  terminate();
+
   // This extra closure is necessary in order to use `AWAIT` and `ASSERT_*`,
   // as these macros require a void return type.
   [this]() {
@@ -638,8 +640,6 @@ Slave::~Slave()
     ASSERT_TRUE(containers->empty())
       << "Failed to destroy containers: " << stringify(containers.get());
   }();
-
-  terminate();
 }
 
 
