@@ -4109,7 +4109,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillRepeatedly(FutureArg<1>(&status));
 
-  EXPECT_CALL(*slave.get()->mock(), runTask(_, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), runTask(_, _, _, _, _, _))
     .WillOnce(Invoke(slave.get()->mock(), &MockSlave::unmocked_runTask));
 
   // Saved arguments from Slave::_run().
@@ -4227,7 +4227,7 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
     .WillOnce(FutureArg<1>(&status1))
     .WillOnce(FutureArg<1>(&status2));
 
-  EXPECT_CALL(*slave.get()->mock(), runTask(_, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), runTask(_, _, _, _, _, _))
     .WillOnce(Invoke(slave.get()->mock(), &MockSlave::unmocked_runTask))
     .WillOnce(Invoke(slave.get()->mock(), &MockSlave::unmocked_runTask));
 
@@ -7166,7 +7166,7 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
     .WillOnce(FutureArg<1>(&update2))
     .WillRepeatedly(Return());
 
-  EXPECT_CALL(*slave.get()->mock(), runTaskGroup(_, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), runTaskGroup(_, _, _, _, _))
     .WillOnce(Invoke(slave.get()->mock(),
                      &MockSlave::unmocked_runTaskGroup));
 

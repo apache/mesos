@@ -45,6 +45,7 @@ using mesos::slave::QoSController;
 
 using std::list;
 using std::string;
+using std::vector;
 
 using process::Future;
 using process::UPID;
@@ -117,11 +118,11 @@ MockSlave::MockSlave(
         authorizer)
 {
   // Set up default behaviors, calling the original methods.
-  EXPECT_CALL(*this, runTask(_, _, _, _, _))
+  EXPECT_CALL(*this, runTask(_, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
   EXPECT_CALL(*this, _run(_, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked__run));
-  EXPECT_CALL(*this, runTaskGroup(_, _, _, _))
+  EXPECT_CALL(*this, runTaskGroup(_, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTaskGroup));
   EXPECT_CALL(*this, killTask(_, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_killTask));
@@ -145,9 +146,16 @@ void MockSlave::unmocked_runTask(
     const FrameworkInfo& frameworkInfo,
     const FrameworkID& frameworkId,
     const UPID& pid,
-    const TaskInfo& task)
+    const TaskInfo& task,
+    const vector<ResourceVersionUUID>& resourceVersionUuids)
 {
-  slave::Slave::runTask(from, frameworkInfo, frameworkInfo.id(), pid, task);
+  slave::Slave::runTask(
+      from,
+      frameworkInfo,
+      frameworkInfo.id(),
+      pid,
+      task,
+      resourceVersionUuids);
 }
 
 
@@ -167,9 +175,15 @@ void MockSlave::unmocked_runTaskGroup(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
-    const TaskGroupInfo& taskGroup)
+    const TaskGroupInfo& taskGroup,
+    const vector<ResourceVersionUUID>& resourceVersionUuids)
 {
-  slave::Slave::runTaskGroup(from, frameworkInfo, executorInfo, taskGroup);
+  slave::Slave::runTaskGroup(
+      from,
+      frameworkInfo,
+      executorInfo,
+      taskGroup,
+      resourceVersionUuids);
 }
 
 

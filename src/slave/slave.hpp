@@ -148,13 +148,15 @@ public:
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const process::UPID& pid,
-      const TaskInfo& task);
+      const TaskInfo& task,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
 
   void run(
       const FrameworkInfo& frameworkInfo,
       ExecutorInfo executorInfo,
       Option<TaskInfo> task,
       Option<TaskGroupInfo> taskGroup,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
       const process::UPID& pid);
 
   // Made 'virtual' for Slave mocking.
@@ -170,7 +172,8 @@ public:
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
-      const TaskGroupInfo& taskGroupInfo);
+      const TaskGroupInfo& taskGroupInfo,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
 
   // Made 'virtual' for Slave mocking.
   virtual void killTask(

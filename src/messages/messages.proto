@@ -306,6 +306,19 @@ message RunTaskMessage {
   required FrameworkInfo framework = 2;
   required TaskInfo task = 4;
 
+  // Used to establish the relationship between the operation and the
+  // resources that the operation is operating on. Each resource
+  // provider will keep a resource version UUID, and change it when
+  // it believes that the resources from this resource provider are
+  // out of sync from the master's view.  The master will keep track
+  // of the last known resource version UUID for each resource
+  // provider, and attach the resource version UUID in each operation
+  // it sends out. The resource provider should reject operations that
+  // have a different resource version UUID than that it maintains,
+  // because this means the operation is operating on resources that
+  // might have already been invalidated.
+  repeated ResourceVersionUUID resource_version_uuids = 5;
+
   // The pid of the framework. This was moved to 'optional' in
   // 0.24.0 to support schedulers using the HTTP API. For now, we
   // continue to always set pid since it was required in 0.23.x.
@@ -328,6 +341,19 @@ message RunTaskGroupMessage {
   required FrameworkInfo framework = 1;
   required ExecutorInfo executor = 2;
   required TaskGroupInfo task_group = 3;
+
+  // Used to establish the relationship between the operation and the
+  // resources that the operation is operating on. Each resource
+  // provider will keep a resource version UUID, and change it when
+  // it believes that the resources from this resource provider are
+  // out of sync from the master's view.  The master will keep track
+  // of the last known resource version UUID for each resource
+  // provider, and attach the resource version UUID in each operation
+  // it sends out. The resource provider should reject operations that
+  // have a different resource version UUID than that it maintains,
+  // because this means the operation is operating on resources that
+  // might have already been invalidated.
+  repeated ResourceVersionUUID resource_version_uuids = 4;
 }
 
 

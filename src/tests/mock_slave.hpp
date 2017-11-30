@@ -19,6 +19,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include <gmock/gmock.h>
 
@@ -100,19 +101,21 @@ public:
       SecretGenerator* secretGenerator,
       const Option<Authorizer*>& authorizer);
 
-  MOCK_METHOD5(runTask, void(
+  MOCK_METHOD6(runTask, void(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const process::UPID& pid,
-      const TaskInfo& task));
+      const TaskInfo& task,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids));
 
   void unmocked_runTask(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const process::UPID& pid,
-      const TaskInfo& task);
+      const TaskInfo& task,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
 
   MOCK_METHOD5(_run, void(
       const process::Future<std::list<bool>>& unschedules,
@@ -128,17 +131,19 @@ public:
       const Option<TaskInfo>& task,
       const Option<TaskGroupInfo>& taskGroup);
 
-  MOCK_METHOD4(runTaskGroup, void(
+  MOCK_METHOD5(runTaskGroup, void(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
-      const TaskGroupInfo& taskGroup));
+      const TaskGroupInfo& taskGroup,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids));
 
   void unmocked_runTaskGroup(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
-      const TaskGroupInfo& taskGroup);
+      const TaskGroupInfo& taskGroup,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
 
   MOCK_METHOD2(killTask, void(
       const process::UPID& from,

@@ -654,13 +654,15 @@ void Slave::initialize()
       &RunTaskMessage::framework,
       &RunTaskMessage::framework_id,
       &RunTaskMessage::pid,
-      &RunTaskMessage::task);
+      &RunTaskMessage::task,
+      &RunTaskMessage::resource_version_uuids);
 
   install<RunTaskGroupMessage>(
       &Slave::runTaskGroup,
       &RunTaskGroupMessage::framework,
       &RunTaskGroupMessage::executor,
-      &RunTaskGroupMessage::task_group);
+      &RunTaskGroupMessage::task_group,
+      &RunTaskGroupMessage::resource_version_uuids);
 
   install<KillTaskMessage>(
       &Slave::killTask);
@@ -1763,7 +1765,8 @@ void Slave::runTask(
     const FrameworkInfo& frameworkInfo,
     const FrameworkID& frameworkId,
     const UPID& pid,
-    const TaskInfo& task)
+    const TaskInfo& task,
+    const vector<ResourceVersionUUID>& resourceVersionUuids)
 {
   CHECK_NE(task.has_executor(), task.has_command())
     << "Task " << task.task_id()
@@ -1784,7 +1787,7 @@ void Slave::runTask(
 
   const ExecutorInfo executorInfo = getExecutorInfo(frameworkInfo, task);
 
-  run(frameworkInfo, executorInfo, task, None(), pid);
+  run(frameworkInfo, executorInfo, task, None(), resourceVersionUuids, pid);
 }
 
 
@@ -1793,6 +1796,7 @@ void Slave::run(
     ExecutorInfo executorInfo,
     Option<TaskInfo> task,
     Option<TaskGroupInfo> taskGroup,
+    const vector<ResourceVersionUUID>& resourceVersionUuids,
     const UPID& pid)
 {
   CHECK_NE(task.isSome(), taskGroup.isSome())
@@ -3037,7 +3041,8 @@ void Slave::runTaskGroup(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
-    const TaskGroupInfo& taskGroupInfo)
+    const TaskGroupInfo& taskGroupInfo,
+    const vector<ResourceVersionUUID>& resourceVersionUuids)
 {
   if (master != from) {
     LOG(WARNING) << "Ignoring run task group message from " << from
@@ -3059,7 +3064,13 @@ void Slave::runTaskGroup(
     return;
   }
 
-  run(frameworkInfo, executorInfo, None(), taskGroupInfo, UPID());
+  run(
+      frameworkInfo,
+      executorInfo,
+      None(),
+      taskGroupInfo,
+      resourceVersionUuids,
+      UPID());
 }
 
 
