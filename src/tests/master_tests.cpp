@@ -974,7 +974,7 @@ TEST_F(MasterTest, RecoverResources)
 
   Resources executorResources = allocatedResources(
       Resources::parse("cpus:0.3;mem:200;ports:[5-8, 23-25]").get(),
-      DEFAULT_FRAMEWORK_INFO.role());
+      DEFAULT_FRAMEWORK_INFO.roles(0));
   executorInfo.mutable_resources()->MergeFrom(executorResources);
 
   TaskID taskId;
@@ -1056,7 +1056,7 @@ TEST_F(MasterTest, RecoverResources)
   ASSERT_NE(0u, offers->size());
 
   Resources slaveResources = Resources::parse(flags.resources.get()).get();
-  EXPECT_EQ(allocatedResources(slaveResources, DEFAULT_FRAMEWORK_INFO.role()),
+  EXPECT_EQ(allocatedResources(slaveResources, DEFAULT_FRAMEWORK_INFO.roles(0)),
             offers.get()[0].resources());
 
   driver.stop();
@@ -2070,11 +2070,8 @@ TEST_F(MasterTest, LaunchDifferentRoleLost)
   ASSERT_SOME(slave);
 
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
-  framework.clear_role();
-  framework.add_roles("role1");
+  framework.set_roles(0, "role1");
   framework.add_roles("role2");
-  framework.add_capabilities()->set_type(
-      FrameworkInfo::Capability::MULTI_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -4018,7 +4015,7 @@ TEST_F(MasterTest, IgnoreEphemeralPortsResource)
       Resources(offers.get()[0].resources()),
       allocatedResources(
           Resources::parse(resourcesWithoutEphemeralPorts).get(),
-          DEFAULT_FRAMEWORK_INFO.role()));
+          DEFAULT_FRAMEWORK_INFO.roles(0)));
 
   driver.stop();
   driver.join();
@@ -4530,9 +4527,6 @@ TEST_F(MasterTest, StateEndpointFrameworkInfo)
   AWAIT_READY(slaveRegisteredMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-
-  // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
-  // is removed from `DEFAULT_FRAMEWORK_INFO`.
   frameworkInfo.clear_capabilities();
 
   frameworkInfo.set_webui_url("http://localhost:8080/");
@@ -4541,7 +4535,9 @@ TEST_F(MasterTest, StateEndpointFrameworkInfo)
     FrameworkInfo::Capability::REVOCABLE_RESOURCES,
     FrameworkInfo::Capability::TASK_KILLING_STATE,
     FrameworkInfo::Capability::GPU_RESOURCES,
-    FrameworkInfo::Capability::PARTITION_AWARE
+    FrameworkInfo::Capability::PARTITION_AWARE,
+    FrameworkInfo::Capability::MULTI_ROLE,
+    FrameworkInfo::Capability::RESERVATION_REFINEMENT,
   };
 
   foreach (FrameworkInfo::Capability::Type capability, capabilities) {
@@ -4617,7 +4613,7 @@ TEST_F(MasterTest, StateEndpointFrameworkInfo)
     .as<JSON::Array>().values[0].as<JSON::Object>();
 
   JSON::Object allocationInfo;
-  allocationInfo.values["role"] = frameworkInfo.role();
+  allocationInfo.values["role"] = frameworkInfo.roles(0);
 
   ASSERT_EQ(1u, offer.values.count("allocation_info"));
   EXPECT_EQ(allocationInfo, offer.values.at("allocation_info"));
@@ -4792,7 +4788,7 @@ TEST_F(MasterTest, StateEndpointAllocationRole)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("foo");
+  frameworkInfo.set_roles(0, "foo");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -4862,10 +4858,10 @@ TEST_F(MasterTest, StateEndpointAllocationRole)
       JSON::Array {
         JSON::Object {
           { "executors", JSON::Array {
-            JSON::Object { { "role", frameworkInfo.role() } } }
+            JSON::Object { { "role", frameworkInfo.roles(0) } } }
           },
           { "tasks", JSON::Array {
-            JSON::Object { { "role", frameworkInfo.role() } } }
+            JSON::Object { { "role", frameworkInfo.roles(0) } } }
           }
         }
       }
@@ -5939,7 +5935,7 @@ TEST_F(MasterTest, RejectFrameworkWithInvalidRole)
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
 
   // Add invalid role to the FrameworkInfo.
-  framework.set_role("/test/test1");
+  framework.set_roles(0, "/test/test1");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -7329,10 +7325,8 @@ TEST_F(MasterTest, MultiRoleFrameworkReceivesOffers)
   ASSERT_SOME(slave1);
 
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
-  framework.add_roles("role1");
+  framework.set_roles(0, "role1");
   framework.add_roles("role2");
-  framework.add_capabilities()->set_type(
-      FrameworkInfo::Capability::MULTI_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -7474,12 +7468,9 @@ TEST_F(MasterTest, MultiRoleSchedulerUnsubscribeFromRole)
   // capability, so we expect its tasks to continue running when the
   // partitioned agent reregisters.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.clear_role();
-  frameworkInfo.add_roles("foo");
+  frameworkInfo.set_roles(0, "foo");
   frameworkInfo.add_capabilities()->set_type(
       FrameworkInfo::Capability::PARTITION_AWARE);
-  frameworkInfo.add_capabilities()->set_type(
-      FrameworkInfo::Capability::MULTI_ROLE);
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
@@ -8099,11 +8090,13 @@ INSTANTIATE_TEST_CASE_P(
 TEST_P(MasterTestPrePostReservationRefinement, LaunchTask)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
   // is removed from `DEFAULT_FRAMEWORK_INFO`.
   frameworkInfo.clear_capabilities();
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
 
   if (GetParam()) {
     frameworkInfo.add_capabilities()->set_type(
@@ -8179,11 +8172,13 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchTask)
 TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
 {
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
   // is removed from `DEFAULT_FRAMEWORK_INFO`.
   frameworkInfo.clear_capabilities();
+  frameworkInfo.add_capabilities()->set_type(
+      v1::FrameworkInfo::Capability::MULTI_ROLE);
 
   if (GetParam()) {
     frameworkInfo.add_capabilities()->set_type(
@@ -8336,11 +8331,13 @@ TEST_P(MasterTestPrePostReservationRefinement,
        ReserveCreateLaunchDestroyUnreserve)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
   // is removed from `DEFAULT_FRAMEWORK_INFO`.
   frameworkInfo.clear_capabilities();
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
 
   if (GetParam()) {
     frameworkInfo.add_capabilities()->set_type(
@@ -8349,7 +8346,7 @@ TEST_P(MasterTestPrePostReservationRefinement,
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(5);
-  masterFlags.roles = frameworkInfo.role();
+  masterFlags.roles = frameworkInfo.roles(0);
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -8375,11 +8372,11 @@ TEST_P(MasterTestPrePostReservationRefinement,
 
   Resources reservedCpus =
     unreservedCpus.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), frameworkInfo.principal()));
+        frameworkInfo.roles(0), frameworkInfo.principal()));
 
   Resources reservedDisk =
     unreservedDisk.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), frameworkInfo.principal()));
+        frameworkInfo.roles(0), frameworkInfo.principal()));
 
   Resources volume = createPersistentVolume(
       createDiskResource("512", DEFAULT_TEST_ROLE, None(), None()),
@@ -8407,7 +8404,7 @@ TEST_P(MasterTestPrePostReservationRefinement,
 
   EXPECT_TRUE(inboundResources(offer.resources())
                 .contains(allocatedResources(
-                    unreservedCpus + unreservedDisk, frameworkInfo.role())));
+                    unreservedCpus + unreservedDisk, frameworkInfo.roles(0))));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -8432,7 +8429,7 @@ TEST_P(MasterTestPrePostReservationRefinement,
 
   EXPECT_TRUE(inboundResources(offer.resources())
                 .contains(allocatedResources(
-                    reservedCpus + reservedDisk, frameworkInfo.role())));
+                    reservedCpus + reservedDisk, frameworkInfo.roles(0))));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -8457,7 +8454,7 @@ TEST_P(MasterTestPrePostReservationRefinement,
 
   EXPECT_TRUE(inboundResources(offer.resources())
                 .contains(allocatedResources(
-                    reservedCpus + volume, frameworkInfo.role())));
+                    reservedCpus + volume, frameworkInfo.roles(0))));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -8482,7 +8479,7 @@ TEST_P(MasterTestPrePostReservationRefinement,
 
   EXPECT_TRUE(inboundResources(offer.resources())
                 .contains(allocatedResources(
-                    reservedCpus + reservedDisk, frameworkInfo.role())));
+                    reservedCpus + reservedDisk, frameworkInfo.roles(0))));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -8507,7 +8504,7 @@ TEST_P(MasterTestPrePostReservationRefinement,
 
   EXPECT_TRUE(inboundResources(offer.resources())
                 .contains(allocatedResources(
-                    unreservedCpus + unreservedDisk, frameworkInfo.role())));
+                    unreservedCpus + unreservedDisk, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -8519,11 +8516,13 @@ TEST_P(MasterTestPrePostReservationRefinement,
 TEST_P(MasterTestPrePostReservationRefinement, StateEndpointPendingTasks)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   // TODO(mpark): Remove this once `RESERVATION_REFINEMENT`
   // is removed from `DEFAULT_FRAMEWORK_INFO`.
   frameworkInfo.clear_capabilities();
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
 
   if (GetParam()) {
     frameworkInfo.add_capabilities()->set_type(
@@ -8598,7 +8597,7 @@ TEST_P(MasterTestPrePostReservationRefinement, StateEndpointPendingTasks)
             JSON::Array {
               JSON::Object {
                 { "id", "1" },
-                { "role", frameworkInfo.role() },
+                { "role", frameworkInfo.roles(0) },
                 { "state", "TASK_STAGING" }
               }
             }

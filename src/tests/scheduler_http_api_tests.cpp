@@ -324,7 +324,7 @@ TEST_P(SchedulerHttpApiTest, RejectFrameworkWithInvalidRole)
   Call::Subscribe* subscribe = call.mutable_subscribe();
   v1::FrameworkInfo framework = v1::DEFAULT_FRAMEWORK_INFO;
   // Set invalid role.
-  framework.set_role("/test/test1");
+  framework.set_roles(0, "/test/test1");
   subscribe->mutable_framework_info()->CopyFrom(framework);
 
   // Retrieve the parameter passed as content type to this test.

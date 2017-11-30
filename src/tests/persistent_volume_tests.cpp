@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <list>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -68,6 +69,7 @@ using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
 using std::list;
+using std::set;
 using std::string;
 using std::vector;
 
@@ -138,14 +140,16 @@ protected:
     master::Flags flags = CreateMasterFlags();
 
     ACLs acls;
-    hashset<string> roles;
+    set<string> roles;
 
     foreach (const FrameworkInfo& framework, frameworks) {
       mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
       acl->mutable_principals()->add_values(framework.principal());
-      acl->mutable_roles()->add_values(framework.role());
 
-      roles.insert(framework.role());
+      foreach (const string& role, protobuf::framework::getRoles(framework)) {
+        acl->mutable_roles()->add_values(role);
+        roles.insert(role);
+      }
     }
 
     flags.acls = acls;
@@ -255,11 +259,11 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
   Clock::pause();
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.roles = frameworkInfo.role();
+  masterFlags.roles = frameworkInfo.roles(0);
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -375,9 +379,9 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
 
   // Expect that the offer contains the persistent volumes we created.
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume1, frameworkInfo.role())));
+      allocatedResources(volume1, frameworkInfo.roles(0))));
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume2, frameworkInfo.role())));
+      allocatedResources(volume2, frameworkInfo.roles(0))));
 
   // Destroy `volume1`.
   driver.acceptOffers(
@@ -432,7 +436,7 @@ TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -504,7 +508,7 @@ TEST_P(PersistentVolumeTest, PreparePersistentVolume)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -573,7 +577,7 @@ TEST_P(PersistentVolumeTest, MasterFailover)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
@@ -649,7 +653,7 @@ TEST_P(PersistentVolumeTest, MasterFailover)
   Offer offer2 = offers2.get()[0];
 
   EXPECT_TRUE(Resources(offer2.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -675,7 +679,7 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
   spawn(slave1);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -762,7 +766,7 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
   frameworkInfo.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
 
@@ -875,7 +879,7 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   Future<CheckpointResourcesMessage> checkpointMessage =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
@@ -929,7 +933,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
   frameworkInfo.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
 
@@ -1043,7 +1047,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
 
   // 1. Create framework1 so that all resources are offered to this framework.
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo1.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo1.set_roles(0, DEFAULT_TEST_ROLE);
   frameworkInfo1.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
 
@@ -1121,7 +1125,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
   // 3. Create framework2 of the same role. It would be offered resources
   //    recovered from the framework1 call.
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo2.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo2.set_roles(0, DEFAULT_TEST_ROLE);
   frameworkInfo2.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
 
@@ -1143,9 +1147,9 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
   Offer offer2 = offers2.get()[0];
 
   EXPECT_TRUE(Resources(offer2.resources()).contains(
-      allocatedResources(volume1, frameworkInfo2.role())));
+      allocatedResources(volume1, frameworkInfo2.roles(0))));
   EXPECT_TRUE(Resources(offer2.resources()).contains(
-      allocatedResources(volume2, frameworkInfo2.role())));
+      allocatedResources(volume2, frameworkInfo2.roles(0))));
 
   // 4. framework1 kills the task which results in an offer to framework1
   //    with the shared volumes. At this point, both frameworks will have
@@ -1168,9 +1172,9 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
   offer1 = offers1.get()[0];
 
   EXPECT_TRUE(Resources(offer1.resources()).contains(
-      allocatedResources(volume1, frameworkInfo1.role())));
+      allocatedResources(volume1, frameworkInfo1.roles(0))));
   EXPECT_TRUE(Resources(offer1.resources()).contains(
-      allocatedResources(volume2, frameworkInfo1.role())));
+      allocatedResources(volume2, frameworkInfo1.roles(0))));
 
   // 5. DESTROY both the shared volumes via framework2 which would result
   //    in framework1 being rescinded the offer.
@@ -1215,7 +1219,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
 
   // 1. Create framework1 so that all resources are offered to this framework.
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo1.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo1.set_roles(0, DEFAULT_TEST_ROLE);
   frameworkInfo1.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
 
@@ -1296,7 +1300,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
   // 3. Create framework2 of the same role. It would be offered resources
   //    recovered from the framework1 call.
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo2.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo2.set_roles(0, DEFAULT_TEST_ROLE);
   frameworkInfo2.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
 
@@ -1319,7 +1323,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
   Offer offer2 = offers2.get()[0];
 
   EXPECT_TRUE(Resources(offer2.resources()).contains(
-      allocatedResources(volume, frameworkInfo2.role())));
+      allocatedResources(volume, frameworkInfo2.roles(0))));
 
   // 4. framework2 LAUNCHes a task with a subset of resources from the offer.
 
@@ -1391,7 +1395,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
 
   // Create the framework with SHARED_RESOURCES capability.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
   frameworkInfo.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
 
@@ -1493,9 +1497,9 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
   EXPECT_TRUE(Resources(offer2.resources()).contains(
       allocatedResources(
           Resources::parse("cpus:1;mem:1024").get(),
-          frameworkInfo.role())));
+          frameworkInfo.roles(0))));
   EXPECT_TRUE(Resources(offer2.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -1517,7 +1521,7 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
   filters.set_refuse_seconds(0);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
   frameworkInfo.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
 
@@ -1742,7 +1746,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleIterations)
 
   // 1. Create framework so that all resources are offered to this framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
   frameworkInfo.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
 
@@ -1880,7 +1884,7 @@ TEST_P(PersistentVolumeTest, SlaveRecovery)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
   frameworkInfo.set_checkpoint(true);
 
   MockScheduler sched;
@@ -2014,12 +2018,12 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
   filters.set_refuse_seconds(0);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
-  masterFlags.roles = frameworkInfo.role();
+  masterFlags.roles = frameworkInfo.roles(0);
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -2092,7 +2096,7 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
 
   // Check that the persistent volume was created successfully.
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
   EXPECT_TRUE(os::exists(slave::paths::getPersistentVolumePath(
       slaveFlags.work_dir,
       volume)));
@@ -2124,7 +2128,7 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
 
   // Check that the persistent volume is not in the offer.
   EXPECT_FALSE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -2159,18 +2163,15 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   filters.set_refuse_seconds(0);
 
   // Create a `FrameworkInfo` with no principal.
-  FrameworkInfo frameworkInfo;
-  frameworkInfo.set_name("no-principal");
-  frameworkInfo.set_user(os::user().get());
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
-  frameworkInfo.add_capabilities()->set_type(
-      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.clear_principal();
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   // Create a master. Since the framework has no
   // principal, we don't authenticate frameworks.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
-  masterFlags.roles = frameworkInfo.role();
+  masterFlags.roles = frameworkInfo.roles(0);
   masterFlags.authenticate_frameworks = false;
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -2244,7 +2245,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
 
   // Check that the persistent volume was successfully created.
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
   EXPECT_TRUE(os::exists(slave::paths::getPersistentVolumePath(
       slaveFlags.work_dir,
       volume)));
@@ -2274,7 +2275,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
 
   // Check that the persistent volume was not created
   EXPECT_FALSE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
   EXPECT_FALSE(
       Resources(checkpointResources2->resources()).contains(volume));
 
@@ -2317,22 +2318,19 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   filters.set_refuse_seconds(0);
 
   // Create a `FrameworkInfo` with no principal.
-  FrameworkInfo frameworkInfo1;
-  frameworkInfo1.set_name("no-principal");
-  frameworkInfo1.set_user(os::user().get());
-  frameworkInfo1.set_role(DEFAULT_TEST_ROLE);
-  frameworkInfo1.add_capabilities()->set_type(
-      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo1.clear_principal();
+  frameworkInfo1.set_roles(0, DEFAULT_TEST_ROLE);
 
   // Create a `FrameworkInfo` with a principal.
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo2.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo2.set_roles(0, DEFAULT_TEST_ROLE);
 
   // Create a master. Since one framework has no
   // principal, we don't authenticate frameworks.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
-  masterFlags.roles = frameworkInfo1.role();
+  masterFlags.roles = frameworkInfo1.roles(0);
   masterFlags.authenticate_frameworks = false;
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -2396,7 +2394,7 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
 
     // Check that the persistent volume is not contained in this offer.
     EXPECT_FALSE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo1.role())));
+      allocatedResources(volume, frameworkInfo1.roles(0))));
   }
 
   // Decline the offer and suppress so the second
@@ -2452,7 +2450,7 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
 
   // Check that the persistent volume is contained in this offer.
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo2.role())));
+      allocatedResources(volume, frameworkInfo2.roles(0))));
 
   // Decline and suppress offers to `driver2` so that
   // `driver1` can receive an offer.
@@ -2498,7 +2496,7 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   // the offer, we should also confirm that the Destroy operation failed for the
   // correct reason. See MESOS-5470.
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo1.role())));
+      allocatedResources(volume, frameworkInfo1.roles(0))));
 
   driver1.stop();
   driver1.join();
@@ -2542,21 +2540,19 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
 
   // Create a `FrameworkInfo` that cannot create or destroy volumes.
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo1.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo1.set_roles(0, DEFAULT_TEST_ROLE);
 
   // Create a `FrameworkInfo` that can create volumes.
-  FrameworkInfo frameworkInfo2;
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_name("creator-framework");
   frameworkInfo2.set_user(os::user().get());
-  frameworkInfo2.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo2.set_roles(0, DEFAULT_TEST_ROLE);
   frameworkInfo2.set_principal("creator-principal");
-  frameworkInfo2.add_capabilities()->set_type(
-      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.acls = acls;
-  masterFlags.roles = frameworkInfo1.role();
+  masterFlags.roles = frameworkInfo1.roles(0);
   masterFlags.authenticate_frameworks = false;
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -2620,7 +2616,7 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
 
     // Check that the persistent volume is not contained in this offer.
     EXPECT_FALSE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo1.role())));
+      allocatedResources(volume, frameworkInfo1.roles(0))));
   }
 
   // Decline the offer and suppress so the second
@@ -2676,7 +2672,7 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
 
   // Check that the persistent volume is contained in this offer.
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo2.role())));
+      allocatedResources(volume, frameworkInfo2.roles(0))));
 
   // Decline and suppress offers to `driver2` so that
   // `driver1` can receive an offer.
@@ -2722,7 +2718,7 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   // the offer, we should also confirm that the Destroy operation failed for the
   // correct reason. See MESOS-5470.
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo1.role())));
+      allocatedResources(volume, frameworkInfo1.roles(0))));
 
   driver1.stop();
   driver1.join();

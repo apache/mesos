@@ -1482,7 +1482,7 @@ TEST_P(SchedulerTest, NoOffersWithAllRolesSuppressed)
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
-    subscribe->add_suppressed_roles(frameworkInfo.role());
+    subscribe->add_suppressed_roles(frameworkInfo.roles(0));
 
     mesos.send(call);
   }
@@ -1508,7 +1508,7 @@ TEST_P(SchedulerTest, NoOffersWithAllRolesSuppressed)
     v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
 
     Call::Revive* revive = call.mutable_revive();
-    revive->add_roles(frameworkInfo.role());
+    revive->add_roles(frameworkInfo.roles(0));
 
     mesos.send(call);
   }

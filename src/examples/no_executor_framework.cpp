@@ -319,6 +319,9 @@ int main(int argc, char** argv)
   framework.set_user(""); // Have Mesos fill in the current user.
   framework.set_name(FRAMEWORK_NAME);
   framework.set_checkpoint(flags.checkpoint);
+  framework.add_roles("*");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
@@ -355,7 +358,7 @@ int main(int argc, char** argv)
     }
   }
 
-  taskResources.allocate(framework.role());
+  taskResources.allocate(framework.roles(0));
 
   logging::initialize(argv[0], flags, true); // Catch signals.
 

@@ -79,7 +79,7 @@ public:
   {
     master::Flags flags = MesosTest::CreateMasterFlags();
     flags.allocation_interval = Milliseconds(50);
-    flags.roles = createFrameworkInfo().role();
+    flags.roles = createFrameworkInfo().roles(0);
     return flags;
   }
 
@@ -87,7 +87,7 @@ public:
   FrameworkInfo createFrameworkInfo()
   {
     FrameworkInfo info = DEFAULT_FRAMEWORK_INFO;
-    info.set_role("role1");
+    info.set_roles(0, "role1");
     return info;
   }
 
@@ -163,7 +163,7 @@ TEST_F(PersistentVolumeEndpointsTest, StaticReservation)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   Future<OfferID> rescindedOfferId;
 
@@ -191,7 +191,7 @@ TEST_F(PersistentVolumeEndpointsTest, StaticReservation)
   offer = offers.get()[0];
 
   EXPECT_FALSE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -223,7 +223,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
   Resources unreserved = Resources::parse("disk:1024").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -256,7 +256,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
 
   EXPECT_TRUE(Resources(offer.resources())
                 .contains(allocatedResources(
-                    dynamicallyReserved, frameworkInfo.role())));
+                    dynamicallyReserved, frameworkInfo.roles(0))));
 
   Future<OfferID> rescindedOfferId;
 
@@ -268,7 +268,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
 
   Resources volume = createPersistentVolume(
       Megabytes(64),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "path1",
       DEFAULT_CREDENTIAL.principal(),
@@ -293,7 +293,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservation)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillOnce(FutureArg<1>(&rescindedOfferId));
@@ -343,7 +343,7 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservationRoleMismatch)
   Resources unreserved = Resources::parse("disk:1024").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -372,9 +372,9 @@ TEST_F(PersistentVolumeEndpointsTest, DynamicReservationRoleMismatch)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
-  ASSERT_NE(frameworkInfo.role(), "role2");
+  ASSERT_NE(frameworkInfo.roles(0), "role2");
   Resources volume = createPersistentVolume(
       Megabytes(64),
       "role2",
@@ -422,7 +422,7 @@ TEST_F(PersistentVolumeEndpointsTest, UnreserveVolumeResources)
   Resources unreserved = Resources::parse("disk:1024").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -434,7 +434,7 @@ TEST_F(PersistentVolumeEndpointsTest, UnreserveVolumeResources)
 
   Resources volume = createPersistentVolume(
       Megabytes(64),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "path1",
       DEFAULT_CREDENTIAL.principal(),
@@ -702,7 +702,7 @@ TEST_F(PersistentVolumeEndpointsTest, NoHeader)
 
   Resources volume = createPersistentVolume(
       Megabytes(64),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "path1",
       None(),
@@ -873,7 +873,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   Future<OfferID> rescindedOfferId;
 
@@ -904,7 +904,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACL)
   offer = offers.get()[0];
 
   EXPECT_FALSE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -1100,7 +1100,7 @@ TEST_F(PersistentVolumeEndpointsTest, BadCreateAndDestroyACL)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   // The failed destruction attempt.
   Future<Response> destroyResponse = process::http::post(
@@ -1305,7 +1305,7 @@ TEST_F(PersistentVolumeEndpointsTest, GoodCreateAndDestroyACLBadCredential)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   // The failed destruction attempt.
   Future<Response> destroyResponse = process::http::post(
@@ -1527,7 +1527,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   Resources unreserved = Resources::parse("disk:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1563,12 +1563,12 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   // Create a 1MB persistent volume.
   Resources volume = createPersistentVolume(
       Megabytes(1),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "volume_path",
       frameworkInfo.principal(),
@@ -1588,7 +1588,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   Future<OfferID> rescindedOfferId;
 
@@ -1617,7 +1617,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillOnce(FutureArg<1>(&rescindedOfferId));
@@ -1644,7 +1644,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -1678,7 +1678,7 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   Resources unreserved = Resources::parse("disk:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -1691,7 +1691,7 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   // Create a 1MB persistent volume.
   Resources volume = createPersistentVolume(
       Megabytes(1),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "volume_path",
       frameworkInfo.principal(),
@@ -1726,7 +1726,7 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   // We use the filter explicitly here so that the resources will not
   // be filtered for 5 seconds (the default).
@@ -1749,9 +1749,9 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
 
   EXPECT_TRUE(Resources(offer.resources())
                 .contains(allocatedResources(
-                    dynamicallyReserved, frameworkInfo.role())))
+                    dynamicallyReserved, frameworkInfo.roles(0))))
     << Resources(offer.resources()) << " vs "
-    << allocatedResources(dynamicallyReserved, frameworkInfo.role());
+    << allocatedResources(dynamicallyReserved, frameworkInfo.roles(0));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -1766,7 +1766,7 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -1819,7 +1819,7 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
   Resources slave1Unreserved = Resources::parse("cpus:4").get();
   Resources slave1Reserved =
     slave1Unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -1856,7 +1856,7 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
   Resources slave2Unreserved = Resources::parse("cpus:3").get();
   Resources slave2Reserved =
     slave2Unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   for (size_t i = 0; i < offers->size(); i++) {
     const Offer& offer = offers.get()[i];
@@ -1924,7 +1924,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   Resources unreserved = Resources::parse("cpus:1;mem:512;disk:1024").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -1936,7 +1936,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
 
   Resources volume = createPersistentVolume(
       Megabytes(64),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "path1",
       DEFAULT_CREDENTIAL.principal(),
@@ -1972,12 +1972,12 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
 
   Resources taskUnreserved = Resources::parse("cpus:1;mem:256").get();
   Resources taskResources =
     taskUnreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   TaskInfo taskInfo = createTask(offer.slave_id(), taskResources, "sleep 1000");
 

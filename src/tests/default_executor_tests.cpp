@@ -1289,7 +1289,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   AWAIT_READY(connected);
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
 
   Future<v1::scheduler::Event::Subscribed> subscribed;
   EXPECT_CALL(*scheduler, subscribed(_, _))
@@ -1320,7 +1320,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   // Launch the executor using reserved resources.
   v1::Resources reserved =
     unreserved.pushReservation(v1::createDynamicReservationInfo(
-        frameworkInfo.role(), frameworkInfo.principal()));
+        frameworkInfo.roles(0), frameworkInfo.principal()));
 
   v1::ExecutorInfo executorInfo;
   executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
@@ -1612,7 +1612,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -1646,11 +1646,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   v1::Resources reserved =
     unreserved.pushReservation(v1::createDynamicReservationInfo(
-        frameworkInfo.role(), frameworkInfo.principal()));
+        frameworkInfo.roles(0), frameworkInfo.principal()));
 
   v1::Resource volume = v1::createPersistentVolume(
       Megabytes(1),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "executor_volume_path",
       frameworkInfo.principal(),
@@ -1755,7 +1755,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -1803,7 +1803,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   v1::Resource volume = v1::createPersistentVolume(
       Megabytes(1),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "task_volume_path",
       frameworkInfo.principal(),
@@ -1812,7 +1812,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   v1::Resources reserved =
     unreserved.pushReservation(v1::createDynamicReservationInfo(
-        frameworkInfo.role(), frameworkInfo.principal()));
+        frameworkInfo.roles(0), frameworkInfo.principal()));
 
   // Launch a task that expects the persistent volume to be
   // mounted in its sandbox.
