@@ -2904,7 +2904,7 @@ public:
     call.mutable_subscribe()->mutable_resource_provider_info()->set_name(
         "test");
 
-    AWAIT_READY(driver->send(call));
+    driver->send(call);
   }
 
   void subscribedDefault(const typename Event::Subscribed& subscribed)
@@ -2927,7 +2927,7 @@ public:
       update->mutable_resources()->CopyFrom(injected);
       update->set_resource_version_uuid(UUID::random().toBytes());
 
-      AWAIT_READY(driver->send(call));
+      driver->send(call);
     }
   }
 
@@ -3003,7 +3003,7 @@ public:
 
     update->mutable_latest_status()->CopyFrom(update->status());
 
-    AWAIT_READY(driver->send(call));
+    driver->send(call);
   }
 
   Option<ResourceProviderID> resourceProviderId;
