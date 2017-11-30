@@ -10847,7 +10847,8 @@ void Slave::addOfferOperation(OfferOperation* operation)
 
   offerOperations.put(uuid.get(), operation);
 
-  if (!protobuf::isSpeculativeOperation(operation->info())) {
+  if (!protobuf::isSpeculativeOperation(operation->info()) &&
+      !protobuf::isTerminalState(operation->latest_status().state())) {
     Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
 
     CHECK_SOME(consumed);
