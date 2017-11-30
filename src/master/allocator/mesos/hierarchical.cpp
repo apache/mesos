@@ -284,20 +284,7 @@ void HierarchicalAllocatorProcess::addFramework(
       continue;
     }
 
-    hashmap<string, Resources> allocations = resources.allocations();
-
-    foreachpair (const string& role, const Resources& allocation, allocations) {
-      roleSorter->allocated(role, slaveId, allocation);
-      frameworkSorters.at(role)->add(slaveId, allocation);
-      frameworkSorters.at(role)->allocated(
-          frameworkId.value(), slaveId, allocation);
-
-      if (quotas.contains(role)) {
-        // See comment at `quotaRoleSorter` declaration
-        // regarding non-revocable.
-        quotaRoleSorter->allocated(role, slaveId, allocation.nonRevocable());
-      }
-    }
+    trackAllocatedResources(slaveId, {{frameworkId, resources}});
   }
 
   LOG(INFO) << "Added framework " << frameworkId;
@@ -516,41 +503,7 @@ void HierarchicalAllocatorProcess::addSlave(
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
   quotaRoleSorter->add(slaveId, total.nonRevocable());
 
-  // Update the allocation for each framework.
-  foreachpair (const FrameworkID& frameworkId,
-               const Resources& used_,
-               used) {
-    if (!frameworks.contains(frameworkId)) {
-      continue;
-    }
-
-    foreachpair (const string& role,
-                 const Resources& allocated,
-                 used_.allocations()) {
-      // The framework has resources allocated to this role but it may
-      // or may not be subscribed to the role. Either way, we need to
-      // track the framework under the role.
-      if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
-        trackFrameworkUnderRole(frameworkId, role);
-      }
-
-      // TODO(bmahler): Validate that the reserved resources have the
-      // framework's role.
-      CHECK(roleSorter->contains(role));
-      CHECK(frameworkSorters.contains(role));
-      CHECK(frameworkSorters.at(role)->contains(frameworkId.value()));
-
-      roleSorter->allocated(role, slaveId, allocated);
-      frameworkSorters.at(role)->add(slaveId, allocated);
-      frameworkSorters.at(role)->allocated(
-          frameworkId.value(), slaveId, allocated);
-
-      if (quotas.contains(role)) {
-        // See comment at `quotaRoleSorter` declaration regarding non-revocable.
-        quotaRoleSorter->allocated(role, slaveId, allocated.nonRevocable());
-      }
-    }
-  }
+  trackAllocatedResources(slaveId, used);
 
   slaves[slaveId] = Slave();
 
@@ -2415,6 +2368,48 @@ bool HierarchicalAllocatorProcess::isRemoteSlave(const Slave& slave) const
     slave.domain->fault_domain().region();
 
   return masterRegion != slaveRegion;
+}
+
+
+void HierarchicalAllocatorProcess::trackAllocatedResources(
+    const SlaveID& slaveId,
+    const hashmap<FrameworkID, Resources>& used)
+{
+  // Update the allocation for each framework.
+  foreachpair (const FrameworkID& frameworkId,
+               const Resources& used_,
+               used) {
+    if (!frameworks.contains(frameworkId)) {
+      continue;
+    }
+
+    foreachpair (const string& role,
+                 const Resources& allocated,
+                 used_.allocations()) {
+      // The framework has resources allocated to this role but it may
+      // or may not be subscribed to the role. Either way, we need to
+      // track the framework under the role.
+      if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
+        trackFrameworkUnderRole(frameworkId, role);
+      }
+
+      // TODO(bmahler): Validate that the reserved resources have the
+      // framework's role.
+      CHECK(roleSorter->contains(role));
+      CHECK(frameworkSorters.contains(role));
+      CHECK(frameworkSorters.at(role)->contains(frameworkId.value()));
+
+      roleSorter->allocated(role, slaveId, allocated);
+      frameworkSorters.at(role)->add(slaveId, allocated);
+      frameworkSorters.at(role)->allocated(
+          frameworkId.value(), slaveId, allocated);
+
+      if (quotas.contains(role)) {
+        // See comment at `quotaRoleSorter` declaration regarding non-revocable.
+        quotaRoleSorter->allocated(role, slaveId, allocated.nonRevocable());
+      }
+    }
+  }
 }
 
 } // namespace internal {
