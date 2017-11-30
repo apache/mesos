@@ -1322,7 +1322,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
@@ -1359,7 +1359,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   // Launch the executor using reserved resources.
   v1::Resources reserved =
     unreserved.pushReservation(v1::createDynamicReservationInfo(
-        frameworkInfo.role(), frameworkInfo.principal()));
+        frameworkInfo.roles(0), frameworkInfo.principal()));
 
   v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
       v1::DEFAULT_EXECUTOR_ID,
@@ -2300,7 +2300,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
@@ -2330,11 +2330,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   v1::Resources reserved =
     unreserved.pushReservation(v1::createDynamicReservationInfo(
-        frameworkInfo.role(), frameworkInfo.principal()));
+        frameworkInfo.roles(0), frameworkInfo.principal()));
 
   v1::Resource volume = v1::createPersistentVolume(
       Megabytes(1),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "executor_volume_path",
       frameworkInfo.principal(),
@@ -2446,7 +2446,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
@@ -2488,7 +2488,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   v1::Resource volume = v1::createPersistentVolume(
       Megabytes(1),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "task_volume_path",
       frameworkInfo.principal(),
@@ -2497,7 +2497,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   v1::Resources reserved =
     unreserved.pushReservation(v1::createDynamicReservationInfo(
-        frameworkInfo.role(), frameworkInfo.principal()));
+        frameworkInfo.roles(0), frameworkInfo.principal()));
 
   // Launch a task that expects the persistent volume to be
   // mounted in its sandbox.
@@ -2573,7 +2573,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
@@ -2602,17 +2602,17 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
     v1::Resources::parse("cpus:0.1;mem:32;disk:32").get()
       .pushReservation(
           v1::createDynamicReservationInfo(
-              frameworkInfo.role(), frameworkInfo.principal()));
+              frameworkInfo.roles(0), frameworkInfo.principal()));
 
   v1::Resources totalResources =
     v1::Resources::parse("cpus:0.3;mem:96;disk:96").get()
       .pushReservation(
           v1::createDynamicReservationInfo(
-              frameworkInfo.role(), frameworkInfo.principal()));
+              frameworkInfo.roles(0), frameworkInfo.principal()));
 
   v1::Resource executorVolume = v1::createPersistentVolume(
       Megabytes(1),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "executor",
       "executor_volume_path",
       frameworkInfo.principal(),
@@ -2790,7 +2790,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
@@ -2819,17 +2819,17 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
     v1::Resources::parse("cpus:0.1;mem:32;disk:32").get()
       .pushReservation(
           v1::createDynamicReservationInfo(
-              frameworkInfo.role(), frameworkInfo.principal()));
+              frameworkInfo.roles(0), frameworkInfo.principal()));
 
   v1::Resources totalResources =
     v1::Resources::parse("cpus:0.3;mem:96;disk:96").get()
       .pushReservation(
           v1::createDynamicReservationInfo(
-              frameworkInfo.role(), frameworkInfo.principal()));
+              frameworkInfo.roles(0), frameworkInfo.principal()));
 
   v1::Resource executorVolume = v1::createPersistentVolume(
       Megabytes(1),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "executor",
       "executor_volume_path",
       frameworkInfo.principal(),
@@ -3022,7 +3022,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role(DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
@@ -3064,7 +3064,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   v1::Resource volume = v1::createPersistentVolume(
       Megabytes(1),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "task_volume_path",
       frameworkInfo.principal(),
@@ -3073,7 +3073,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   v1::Resources reserved =
     unreserved.pushReservation(v1::createDynamicReservationInfo(
-        frameworkInfo.role(), frameworkInfo.principal()));
+        frameworkInfo.roles(0), frameworkInfo.principal()));
 
   // Launch a task that expects the persistent volume to be
   // mounted in its sandbox.

@@ -405,10 +405,10 @@ TEST_F(OversubscriptionTest, RevocableOffer)
   estimations.put(createRevocableResources("cpus", "2"));
 
   Resources taskResources = createRevocableResources("cpus", "1");
-  taskResources.allocate(framework.role());
+  taskResources.allocate(framework.roles(0));
 
   Resources executorResources = createRevocableResources("cpus", "1");
-  executorResources.allocate(framework.role());
+  executorResources.allocate(framework.roles(0));
 
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
@@ -514,7 +514,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithIncreasedRevocable)
   EXPECT_EQ(1u, offers.size());
   Future<Offer> offer = offers.get();
   AWAIT_READY(offer);
-  EXPECT_EQ(allocatedResources(resources1, framework.role()),
+  EXPECT_EQ(allocatedResources(resources1, framework.roles(0)),
             Resources(offer->resources()));
 
   Future<OfferID> offerId;
@@ -552,7 +552,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithIncreasedRevocable)
   }
 
   // The offered resources should match the resource estimate.
-  EXPECT_EQ(allocatedResources(resources2, framework.role()), resources3);
+  EXPECT_EQ(allocatedResources(resources2, framework.roles(0)), resources3);
 
   driver.stop();
   driver.join();
@@ -628,7 +628,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithDecreasedRevocable)
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
   ASSERT_FALSE(offers2->empty());
-  EXPECT_EQ(allocatedResources(resources1, framework.role()),
+  EXPECT_EQ(allocatedResources(resources1, framework.roles(0)),
             Resources(offers2.get()[0].resources()));
 
   Future<OfferID> offerId;
@@ -659,7 +659,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithDecreasedRevocable)
   // The new offer should include the latest oversubscribed resources.
   AWAIT_READY(offers3);
   ASSERT_FALSE(offers3->empty());
-  EXPECT_EQ(allocatedResources(resources2, framework.role()),
+  EXPECT_EQ(allocatedResources(resources2, framework.roles(0)),
             Resources(offers3.get()[0].resources()));
 
   driver.stop();
@@ -1314,7 +1314,7 @@ TEST_F(OversubscriptionTest, UpdateAllocatorOnSchedulerFailover)
 
   AWAIT_READY(offers2);
   ASSERT_FALSE(offers2->empty());
-  EXPECT_EQ(allocatedResources(revocable, framework2.role()),
+  EXPECT_EQ(allocatedResources(revocable, framework2.roles(0)),
             Resources(offers2.get()[0].resources()));
 
   EXPECT_EQ(DRIVER_STOPPED, driver2.stop());
@@ -1388,7 +1388,7 @@ TEST_F(OversubscriptionTest, RemoveCapabilitiesOnSchedulerFailover)
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
   ASSERT_FALSE(offers2->empty());
-  EXPECT_EQ(allocatedResources(revocable, framework1.role()),
+  EXPECT_EQ(allocatedResources(revocable, framework1.roles(0)),
             Resources(offers2.get()[0].resources()));
 
   // Reregister the framework with removal of revocable resources capability.

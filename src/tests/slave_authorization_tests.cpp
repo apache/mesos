@@ -196,7 +196,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   // Register framework with user "bar" and role "superhero".
   FrameworkInfo frameworkSuperhero = DEFAULT_FRAMEWORK_INFO;
   frameworkSuperhero.set_name("framework-" + roleSuperhero);
-  frameworkSuperhero.set_role(roleSuperhero);
+  frameworkSuperhero.set_roles(0, roleSuperhero);
   frameworkSuperhero.set_user("bar");
 
   // Create an executor with user "bar".
@@ -209,7 +209,7 @@ TYPED_TEST(SlaveAuthorizerTest, FilterStateEndpoint)
   FrameworkInfo frameworkMuggle = DEFAULT_FRAMEWORK_INFO;
   frameworkMuggle.set_name("framework-" + roleMuggle);
   frameworkMuggle.set_principal(DEFAULT_CREDENTIAL_2.principal());
-  frameworkMuggle.set_role(roleMuggle);
+  frameworkMuggle.set_roles(0, roleMuggle);
   frameworkMuggle.set_user("foo");
 
   // Create an executor with user "foo".

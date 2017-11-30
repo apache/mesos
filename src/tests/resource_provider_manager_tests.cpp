@@ -696,7 +696,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
   Option<mesos::v1::Offer> offer1;
 
   v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
 
   {
     Future<v1::scheduler::Event::Subscribed> subscribed;
@@ -738,7 +738,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
   v1::Resource reserved = *(resources.begin());
   reserved.add_reservations()->CopyFrom(
       v1::createDynamicReservationInfo(
-          frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+          frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Future<v1::scheduler::Event::Offers> offers;
   EXPECT_CALL(*scheduler, offers(_, _))

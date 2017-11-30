@@ -489,6 +489,9 @@ struct DefaultFrameworkInfo
     framework.set_user(os::user().get());
     framework.set_principal(
         DefaultCredential<TCredential>::create().principal());
+    framework.add_roles("*");
+    framework.add_capabilities()->set_type(
+        TFrameworkInfo::Capability::MULTI_ROLE);
     framework.add_capabilities()->set_type(
         TFrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
@@ -2265,7 +2268,11 @@ ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
 
     Resources taskResources = Resources::parse(
         "cpus:" + stringify(cpus) + ";mem:" + stringify(mem)).get();
-    taskResources.allocate(role);
+
+    if (offer.resources_size() > 0 &&
+        offer.resources(0).has_allocation_info()) {
+      taskResources.allocate(role);
+    }
 
     int nextTaskId = 0;
     std::vector<TaskInfo> tasks;

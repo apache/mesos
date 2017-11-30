@@ -78,6 +78,7 @@ public:
                 const ExecutorInfo& _executor,
                 const string& _master)
     : framework(_framework),
+      role(_framework.roles(0)),
       executor(_executor),
       master(_master),
       state(INITIALIZING),
@@ -90,6 +91,7 @@ public:
                 const string& _master,
                 const Credential& credential)
     : framework(_framework),
+      role(_framework.roles(0)),
       executor(_executor),
       master(_master),
       state(INITIALIZING),
@@ -235,7 +237,7 @@ private:
       Resources taskResources = Resources::parse(
           "cpus:" + stringify(CPUS_PER_TASK) +
           ";mem:" + stringify(MEM_PER_TASK)).get();
-      taskResources.allocate(framework.role());
+      taskResources.allocate(role);
 
       Resources remaining = offer.resources();
 
@@ -255,12 +257,12 @@ private:
         task.mutable_executor()->MergeFrom(executor);
 
         Option<Resources> resources = [&]() {
-          if (framework.role() == "*") {
+          if (role == "*") {
             return remaining.find(taskResources);
           } else {
             Resource::ReservationInfo reservation;
             reservation.set_type(Resource::ReservationInfo::STATIC);
-            reservation.set_role(framework.role());
+            reservation.set_role(role);
 
             return remaining.find(taskResources.pushReservation(reservation));
           }
@@ -367,6 +369,7 @@ private:
   }
 
   FrameworkInfo framework;
+  const string role;
   const ExecutorInfo executor;
   const string master;
   process::Owned<scheduler::Mesos> mesos;
@@ -447,7 +450,9 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_name(FRAMEWORK_NAME);
-  framework.set_role(flags.role);
+  framework.add_roles(flags.role);
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 

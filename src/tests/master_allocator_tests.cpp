@@ -839,7 +839,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   EXPECT_EQ(Resources(resourceOffers.get()[0].resources()),
             allocatedResources(
                 Resources::parse(flags2.resources.get()).get(),
-                DEFAULT_FRAMEWORK_INFO.role()));
+                DEFAULT_FRAMEWORK_INFO.roles(0)));
 
   // Shut everything down.
   EXPECT_CALL(allocator, recoverResources(_, _, _, _))
@@ -1287,7 +1287,7 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_name("framework1");
   frameworkInfo1.set_user("user1");
-  frameworkInfo1.set_role("role1");
+  frameworkInfo1.set_roles(0, "role1");
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
@@ -1306,7 +1306,7 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo2.set_name("framework2");
   frameworkInfo2.set_user("user2");
-  frameworkInfo2.set_role("role2");
+  frameworkInfo2.set_roles(0, "role2");
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
@@ -1656,7 +1656,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   // and all resources will be offered to this framework since it is the only
   // framework running so far.
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo1.set_role("role1");
+  frameworkInfo1.set_roles(0, "role1");
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
       &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
@@ -1686,7 +1686,7 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
   // It will not get any offers due to all resources having outstanding offers
   // to framework1 when it registered.
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo2.set_role("role2");
+  frameworkInfo2.set_roles(0, "role2");
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
       &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
@@ -1834,7 +1834,7 @@ TYPED_TEST(MasterAllocatorTest, NestedRoles)
   // Register a framework in the "a/b" role and launch a single task,
   // consuming all the resources on `slave1`.
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo1.set_role("a/b");
+  frameworkInfo1.set_roles(0, "a/b");
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
@@ -1864,7 +1864,7 @@ TYPED_TEST(MasterAllocatorTest, NestedRoles)
   // Register a framework in the "a/c" role. It should not get any
   // offers, because there are no unused resources.
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo2.set_role("a/c");
+  frameworkInfo2.set_roles(0, "a/c");
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
@@ -1883,7 +1883,7 @@ TYPED_TEST(MasterAllocatorTest, NestedRoles)
   // Register a framework in the "b/x" role. It should not get any
   // offers, because there are no unused resources.
   FrameworkInfo frameworkInfo3 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo3.set_role("b/x");
+  frameworkInfo3.set_roles(0, "b/x");
 
   MockScheduler sched3;
   MesosSchedulerDriver driver3(

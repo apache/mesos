@@ -1132,7 +1132,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   EXPECT_EQ(TEST_HOOK_CPUS, resources.cpus().get());
 
-  const string allocationRole = DEFAULT_FRAMEWORK_INFO.role();
+  const string allocationRole = DEFAULT_FRAMEWORK_INFO.roles(0);
   EXPECT_TRUE(resources.contains(
       allocatedResources(TEST_HOOK_ADDITIONAL_RESOURCES, allocationRole)));
 

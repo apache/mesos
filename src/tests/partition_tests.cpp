@@ -873,7 +873,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   Offer offer = offers.get()[0];
 
   Resources taskResources = Resources::parse("cpus:1;mem:512").get();
-  taskResources.allocate(DEFAULT_FRAMEWORK_INFO.role());
+  taskResources.allocate(DEFAULT_FRAMEWORK_INFO.roles(0));
 
   EXPECT_TRUE(Resources(offer.resources()).contains(taskResources));
 

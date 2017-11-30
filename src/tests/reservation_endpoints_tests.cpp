@@ -80,7 +80,7 @@ public:
     // `HierarchicalAllocator::updateAvailable()` and periodic allocations.
     master::Flags flags = MesosTest::CreateMasterFlags();
     flags.allocation_interval = Seconds(1000);
-    flags.roles = createFrameworkInfo().role();
+    flags.roles = createFrameworkInfo().roles(0);
     return flags;
   }
 
@@ -88,7 +88,7 @@ public:
   FrameworkInfo createFrameworkInfo()
   {
     FrameworkInfo info = DEFAULT_FRAMEWORK_INFO;
-    info.set_role("role");
+    info.set_roles(0, "role");
     return info;
   }
 
@@ -124,7 +124,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -153,7 +153,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   // The filter to decline the offer "forever".
   Filters filtersForever;
@@ -182,7 +182,7 @@ TEST_F(ReservationEndpointsTest, AvailableResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -211,7 +211,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -232,7 +232,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   // Expect an offer to be rescinded!
   EXPECT_CALL(sched, offerRescinded(_, _));
@@ -257,7 +257,7 @@ TEST_F(ReservationEndpointsTest, ReserveOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -286,7 +286,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -315,7 +315,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   // Expect an offer to be rescinded.
   EXPECT_CALL(sched, offerRescinded(_, _));
@@ -340,7 +340,7 @@ TEST_F(ReservationEndpointsTest, UnreserveOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -372,7 +372,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   Resources total = available + offered;
   Resources dynamicallyReserved =
     total.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -402,7 +402,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(available + offered, frameworkInfo.role())));
+      allocatedResources(available + offered, frameworkInfo.roles(0))));
 
   // Launch a task on the 'available' resources portion of the offer, which
   // recovers 'offered' resources portion.
@@ -437,7 +437,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(offered, frameworkInfo.role())));
+      allocatedResources(offered, frameworkInfo.roles(0))));
 
   // Kill the task running on 'available' resources to make it available.
   Future<TaskStatus> statusUpdate;
@@ -477,7 +477,7 @@ TEST_F(ReservationEndpointsTest, ReserveAvailableAndOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -505,11 +505,11 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
 
   Resources available = Resources::parse("cpus:1;mem:128").get();
   available = available.pushReservation(createDynamicReservationInfo(
-      frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+      frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Resources offered = Resources::parse("mem:384").get();
   offered = offered.pushReservation(createDynamicReservationInfo(
-      frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+      frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Resources total = available + offered;
   Resources unreserved = total.toUnreserved();
@@ -550,7 +550,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(available + offered, frameworkInfo.role())));
+      allocatedResources(available + offered, frameworkInfo.roles(0))));
 
   // Launch a task on the 'available' resources portion of the offer, which
   // recovers 'offered' resources portion.
@@ -584,7 +584,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(offered, frameworkInfo.role())));
+      allocatedResources(offered, frameworkInfo.roles(0))));
 
   // Kill the task running on 'available' resources to make it available.
   Future<TaskStatus> statusUpdate;
@@ -624,7 +624,7 @@ TEST_F(ReservationEndpointsTest, UnreserveAvailableAndOfferedResources)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -664,10 +664,10 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources labeledResources1 =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal(), labels1));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal(), labels1));
   Resources labeledResources2 =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal(), labels2));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal(), labels2));
 
   // Make two resource reservations with different labels.
   Future<Response> response = process::http::post(
@@ -706,9 +706,9 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   Resources offeredResources = Resources(offer.resources());
   EXPECT_TRUE(offeredResources.contains(
-      allocatedResources(labeledResources1, frameworkInfo.role())));
+      allocatedResources(labeledResources1, frameworkInfo.roles(0))));
   EXPECT_TRUE(offeredResources.contains(
-      allocatedResources(labeledResources2, frameworkInfo.role())));
+      allocatedResources(labeledResources2, frameworkInfo.roles(0))));
 
   // Expect an offer to be rescinded.
   EXPECT_CALL(sched, offerRescinded(_, _));
@@ -735,13 +735,13 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
 
   offeredResources = Resources(offer.resources());
   EXPECT_FALSE(offeredResources.contains(
-      allocatedResources(totalSlaveResources, frameworkInfo.role())));
+      allocatedResources(totalSlaveResources, frameworkInfo.roles(0))));
   EXPECT_TRUE(offeredResources.contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
   EXPECT_FALSE(offeredResources.contains(
-      allocatedResources(labeledResources1, frameworkInfo.role())));
+      allocatedResources(labeledResources1, frameworkInfo.roles(0))));
   EXPECT_TRUE(offeredResources.contains(
-      allocatedResources(labeledResources2, frameworkInfo.role())));
+      allocatedResources(labeledResources2, frameworkInfo.roles(0))));
 
   // Now that the first labeled reservation has been unreserved,
   // attempting to unreserve it again should fail.
@@ -779,11 +779,11 @@ TEST_F(ReservationEndpointsTest, LabeledResources)
   offeredResources = Resources(offer.resources());
 
   EXPECT_TRUE(offeredResources.contains(
-      allocatedResources(totalSlaveResources, frameworkInfo.role())));
+      allocatedResources(totalSlaveResources, frameworkInfo.roles(0))));
   EXPECT_FALSE(offeredResources.contains(
-      allocatedResources(labeledResources1, frameworkInfo.role())));
+      allocatedResources(labeledResources1, frameworkInfo.roles(0))));
   EXPECT_FALSE(offeredResources.contains(
-      allocatedResources(labeledResources2, frameworkInfo.role())));
+      allocatedResources(labeledResources2, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -870,7 +870,7 @@ TEST_F(ReservationEndpointsTest, InsufficientResources)
   Resources unreserved = Resources::parse("cpus:4;mem:4096").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   string body = createRequestBody(slaveId, dynamicallyReserved);
@@ -908,7 +908,7 @@ TEST_F(ReservationEndpointsTest, NoHeader)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -1012,7 +1012,7 @@ TEST_F(ReservationEndpointsTest, GoodReserveAndUnreserveACL)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        createFrameworkInfo().role(), DEFAULT_CREDENTIAL.principal()));
+        createFrameworkInfo().roles(0), DEFAULT_CREDENTIAL.principal()));
 
   // Reserve the resources.
   Future<Response> response = process::http::post(
@@ -1126,7 +1126,7 @@ TEST_F(ReservationEndpointsTest, BadReserveACL)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        createFrameworkInfo().role(), DEFAULT_CREDENTIAL.principal()));
+        createFrameworkInfo().roles(0), DEFAULT_CREDENTIAL.principal()));
 
   // Attempt to reserve the resources.
   Future<Response> response = process::http::post(
@@ -1178,7 +1178,7 @@ TEST_F(ReservationEndpointsTest, BadUnreserveACL)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        createFrameworkInfo().role(), DEFAULT_CREDENTIAL.principal()));
+        createFrameworkInfo().roles(0), DEFAULT_CREDENTIAL.principal()));
 
   // Reserve the resources.
   Future<Response> response = process::http::post(
@@ -1393,7 +1393,7 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
 
   Resources dynamicallyReservedWithNoPrincipal = unreserved.pushReservation(
-      createDynamicReservationInfo(frameworkInfo.role()));
+      createDynamicReservationInfo(frameworkInfo.roles(0)));
 
   // Try a reservation with no principal in `ReservationInfo` and no
   // authentication headers.
@@ -1417,7 +1417,7 @@ TEST_F(ReservationEndpointsTest, ReserveAndUnreserveNoAuthentication)
 
   Resources dynamicallyReservedWithPrincipal =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   // Try a reservation with a principal in `ReservationInfo` and no
   // authentication headers.
@@ -1467,11 +1467,11 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
   Resources unreserved = Resources::parse("cpus:1;mem:512").get();
   Resources dynamicallyReserved1 =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
   Resources dynamicallyReserved2 =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), DEFAULT_CREDENTIAL_2.principal()));
+        frameworkInfo.roles(0), DEFAULT_CREDENTIAL_2.principal()));
 
   Future<Response> response = process::http::post(
       master.get()->pid,
@@ -1509,9 +1509,9 @@ TEST_F(ReservationEndpointsTest, DifferentPrincipalsSameRole)
   Resources resources = Resources(offer.resources());
 
   EXPECT_TRUE(resources.contains(
-      allocatedResources(dynamicallyReserved1, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved1, frameworkInfo.roles(0))));
   EXPECT_TRUE(resources.contains(
-      allocatedResources(dynamicallyReserved2, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved2, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();

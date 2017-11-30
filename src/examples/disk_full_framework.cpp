@@ -123,6 +123,7 @@ public:
       const FrameworkInfo& _frameworkInfo)
     : flags(_flags),
       frameworkInfo(_frameworkInfo),
+      role(_frameworkInfo.roles(0)),
       tasksLaunched(0),
       taskActive(false),
       isRegistered(false),
@@ -149,7 +150,7 @@ public:
         "cpus:" + stringify(CPUS_PER_TASK) +
         ";mem:" + stringify(MEMORY_PER_TASK) +
         ";disk:" + stringify(DISK_PER_TASK.megabytes())).get();
-    taskResources.allocate(frameworkInfo.role());
+    taskResources.allocate(role);
 
     foreach (const Offer& offer, offers) {
       LOG(INFO) << "Received offer " << offer.id() << " from agent "
@@ -272,6 +273,7 @@ public:
 private:
   const Flags flags;
   const FrameworkInfo frameworkInfo;
+  const string role;
 
   int tasksLaunched;
   bool taskActive;
@@ -465,6 +467,9 @@ int main(int argc, char** argv)
   framework.set_user(""); // Have Mesos fill the current user.
   framework.set_name(flags.name);
   framework.set_checkpoint(true);
+  framework.add_roles("*");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 

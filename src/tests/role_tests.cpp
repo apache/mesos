@@ -70,7 +70,7 @@ class RoleTest : public MesosTest {};
 TEST_F(RoleTest, BadRegister)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("invalid");
+  frameworkInfo.set_roles(0, "invalid");
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.roles = "foo,bar";
@@ -115,7 +115,7 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("new-role-name");
+  frameworkInfo.set_roles(0, "new-role-name");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -129,7 +129,7 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   Resources unreserved = Resources::parse("disk:1024").get();
   Resources dynamicallyReserved =
     unreserved.pushReservation(createDynamicReservationInfo(
-        frameworkInfo.role(), frameworkInfo.principal()));
+        frameworkInfo.roles(0), frameworkInfo.principal()));
 
   // We use this to capture offers from `resourceOffers`.
   Future<vector<Offer>> offers;
@@ -149,9 +149,9 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
   EXPECT_FALSE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -167,13 +167,13 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
   EXPECT_FALSE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   Resources volume = createPersistentVolume(
       Megabytes(64),
-      frameworkInfo.role(),
+      frameworkInfo.roles(0),
       "id1",
       "path1",
       frameworkInfo.principal(),
@@ -193,11 +193,11 @@ TEST_F(RoleTest, ImplicitRoleRegister)
   offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(volume, frameworkInfo.role())));
+      allocatedResources(volume, frameworkInfo.roles(0))));
   EXPECT_FALSE(Resources(offer.resources()).contains(
-      allocatedResources(dynamicallyReserved, frameworkInfo.role())));
+      allocatedResources(dynamicallyReserved, frameworkInfo.roles(0))));
   EXPECT_FALSE(Resources(offer.resources()).contains(
-      allocatedResources(unreserved, frameworkInfo.role())));
+      allocatedResources(unreserved, frameworkInfo.roles(0))));
 
   driver.stop();
   driver.join();
@@ -227,7 +227,7 @@ TEST_F(RoleTest, ImplicitRoleStaticReservation)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role");
+  frameworkInfo.set_roles(0, "role");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -258,7 +258,7 @@ TEST_F(RoleTest, ImplicitRoleStaticReservation)
   Offer offer = offers.get()[0];
 
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(staticallyReserved, frameworkInfo.role())));
+      allocatedResources(staticallyReserved, frameworkInfo.roles(0))));
 
   // Create a task to launch with the resources of `staticallyReserved`.
   TaskInfo taskInfo =
@@ -463,7 +463,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesWeights)
   ASSERT_SOME(master);
 
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo1.set_role("roleX");
+  frameworkInfo1.set_roles(0, "roleX");
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
@@ -476,7 +476,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesWeights)
   driver1.start();
 
   FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo2.set_role("roleZ");
+  frameworkInfo2.set_roles(0, "roleZ");
 
   MockScheduler sched2;
   MesosSchedulerDriver driver2(
@@ -668,10 +668,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_SOME(master);
 
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
-  framework.add_roles("role1");
+  framework.set_roles(0, "role1");
   framework.add_roles("role2");
-  framework.add_capabilities()->set_type(
-      FrameworkInfo::Capability::MULTI_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -927,7 +925,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, VolumesInOverlappingHierarchies)
   auto runTask = [&master, &PATH](
       const string& role, const string& id) {
     FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-    frameworkInfo.set_role(role);
+    frameworkInfo.set_roles(0, role);
 
     MockScheduler sched;
     MesosSchedulerDriver driver(

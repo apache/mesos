@@ -120,7 +120,14 @@ TEST_F(UpgradeTest, ReregisterOldAgentWithMultiRoleMaster)
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.clear_capabilities();
+  frameworkInfo.clear_roles();
   frameworkInfo.set_role("foo");
+
+  // TODO(bmahler): Introduce an easier way to strip just one
+  // of the capabilities without having to add back the others.
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
@@ -335,10 +342,7 @@ TEST_F(UpgradeTest, UpgradeSlaveIntoMultiRole)
   AWAIT_READY(slaveRegisteredMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.clear_role();
-  frameworkInfo.add_roles("foo");
-  frameworkInfo.add_capabilities()->set_type(
-      FrameworkInfo::Capability::MULTI_ROLE);
+  frameworkInfo.set_roles(0, "foo");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -408,6 +412,8 @@ TEST_F(UpgradeTest, MultiRoleSchedulerUpgrade)
   ASSERT_SOME(agent);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.clear_capabilities();
+  frameworkInfo.clear_roles();
   frameworkInfo.set_role("foo");
 
   MockScheduler sched1;
@@ -602,7 +608,7 @@ TEST_F(UpgradeTest, UpgradeAgentIntoHierarchicalRoleForNonHierarchicalRole)
   AWAIT_READY(slaveRegisteredMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("foo");
+  frameworkInfo.set_roles(0, "foo");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -729,7 +735,7 @@ TEST_F(UpgradeTest, UpgradeAgentIntoHierarchicalRoleForHierarchicalRole)
   AWAIT_READY(slaveRegisteredMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("foo/bar");
+  frameworkInfo.set_roles(0, "foo/bar");
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -832,7 +838,7 @@ TEST_F(UpgradeTest, RefineResourceOnOldAgent)
   AWAIT_READY(slaveRegisteredMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_role("role1/xyz");
+  frameworkInfo.set_roles(0, "role1/xyz");
 
   // Check that `DEFAULT_FRAMEWORK_INFO` includes the
   // RESERVATION_REFINEMENT framework capability.
@@ -859,13 +865,13 @@ TEST_F(UpgradeTest, RefineResourceOnOldAgent)
   Resources baseReservation = Resources::parse("disk(role1):1024").get();
   Resources refinedReservation = baseReservation.pushReservation(
       createDynamicReservationInfo(
-          frameworkInfo.role(), frameworkInfo.principal()));
+          frameworkInfo.roles(0), frameworkInfo.principal()));
 
   Offer offer = offers->front();
 
   // Expect a resource offer containing a static reservation for `role1`.
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(baseReservation, frameworkInfo.role())));
+      allocatedResources(baseReservation, frameworkInfo.roles(0))));
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -895,7 +901,7 @@ TEST_F(UpgradeTest, RefineResourceOnOldAgent)
 
   // Expect another resource offer with the same static reservation.
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(baseReservation, frameworkInfo.role())));
+      allocatedResources(baseReservation, frameworkInfo.roles(0))));
 
   TaskInfo taskInfo =
     createTask(offer.slave_id(), refinedReservation, "sleep 100");
@@ -927,7 +933,7 @@ TEST_F(UpgradeTest, RefineResourceOnOldAgent)
 
   // Expect another resource offer with the same static reservation.
   EXPECT_TRUE(Resources(offer.resources()).contains(
-      allocatedResources(baseReservation, frameworkInfo.role())));
+      allocatedResources(baseReservation, frameworkInfo.roles(0))));
 
   // Make sure that any in-flight messages are delivered.
   Clock::settle();

@@ -318,7 +318,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
   // Now the framework will get revocable resources.
   AWAIT_READY(offers2);
   ASSERT_FALSE(offers2->empty());
-  EXPECT_EQ(allocatedResources(cpus, frameworkInfo.role()),
+  EXPECT_EQ(allocatedResources(cpus, frameworkInfo.roles(0)),
             Resources(offers2.get()[0].resources()));
 
   TaskInfo task = createTask(

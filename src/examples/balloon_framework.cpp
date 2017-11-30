@@ -184,6 +184,7 @@ public:
       const ExecutorInfo& _executor,
       const Flags& _flags)
     : frameworkInfo(_frameworkInfo),
+      role(_frameworkInfo.roles(0)),
       executor(_executor),
       flags(_flags),
       taskActive(false),
@@ -211,10 +212,10 @@ public:
     Resources taskResources = Resources::parse(
         "cpus:" + stringify(CPUS_PER_TASK) +
         ";mem:" + stringify(flags.task_memory.megabytes())).get();
-    taskResources.allocate(frameworkInfo.role());
+    taskResources.allocate(role);
 
     Resources executorResources = Resources(executor.resources());
-    executorResources.allocate(frameworkInfo.role());
+    executorResources.allocate(role);
 
     foreach (const Offer& offer, offers) {
       Resources resources(offer.resources());
@@ -312,6 +313,7 @@ public:
 
 private:
   const FrameworkInfo frameworkInfo;
+  const string role;
   const ExecutorInfo executor;
   const Flags flags;
   bool taskActive;
@@ -568,7 +570,9 @@ int main(int argc, char** argv)
   framework.set_user(os::user().get());
   framework.set_name(flags.name);
   framework.set_checkpoint(flags.checkpoint);
-  framework.set_role("*");
+  framework.add_roles("*");
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::MULTI_ROLE);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 

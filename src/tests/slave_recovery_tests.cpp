@@ -2178,13 +2178,13 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
 
   Offer offer1 = offer;
   Resources resources1 = allocatedResources(
-      Resources::parse("cpus:1;mem:512").get(), frameworkInfo.role());
+      Resources::parse("cpus:1;mem:512").get(), frameworkInfo.roles(0));
   offer1.mutable_resources()->CopyFrom(resources1);
   tasks.push_back(createTask(offer1, "sleep 1000")); // Long-running task.
 
   Offer offer2 = offer;
   Resources resources2 = allocatedResources(
-      Resources::parse("cpus:1;mem:512").get(), frameworkInfo.role());
+      Resources::parse("cpus:1;mem:512").get(), frameworkInfo.roles(0));
   offer2.mutable_resources()->CopyFrom(resources2);
   tasks.push_back(createTask(offer2, "sleep 1000")); // Long-running task,
 
