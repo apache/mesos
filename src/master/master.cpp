@@ -7519,6 +7519,8 @@ void Master::updateUnavailability(
 // TODO(vinod): Add a benchmark test for status update handling.
 void Master::statusUpdate(StatusUpdate update, const UPID& pid)
 {
+  CHECK_NE(pid, UPID());
+
   ++metrics->messages_status_update;
 
   if (slaves.removed.get(update.slave_id()).isSome()) {
@@ -7589,12 +7591,6 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
   }
 
   updateTask(task, update);
-
-  // If the task is terminal and no acknowledgement is needed,
-  // then remove the task now.
-  if (protobuf::isTerminalState(task->state()) && pid == UPID()) {
-    removeTask(task);
-  }
 
   validStatusUpdate
     ? metrics->valid_status_updates++ : metrics->invalid_status_updates++;
