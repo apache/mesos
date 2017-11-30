@@ -165,7 +165,8 @@ public:
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
-      const Option<TaskGroupInfo>& taskGroup);
+      const Option<TaskGroupInfo>& taskGroup,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
 
   // Made 'virtual' for Slave mocking.
   virtual void runTaskGroup(
@@ -373,7 +374,8 @@ public:
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
-      const Option<TaskGroupInfo>& taskGroup);
+      const Option<TaskGroupInfo>& taskGroup,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
 
   // This is called when the resource limits of the container have
   // been updated for the given tasks and task groups. If the update is

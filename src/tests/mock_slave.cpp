@@ -120,7 +120,7 @@ MockSlave::MockSlave(
   // Set up default behaviors, calling the original methods.
   EXPECT_CALL(*this, runTask(_, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
-  EXPECT_CALL(*this, _run(_, _, _, _, _))
+  EXPECT_CALL(*this, _run(_, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked__run));
   EXPECT_CALL(*this, runTaskGroup(_, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTaskGroup));
@@ -164,10 +164,16 @@ void MockSlave::unmocked__run(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const Option<TaskInfo>& taskInfo,
-    const Option<TaskGroupInfo>& taskGroup)
+    const Option<TaskGroupInfo>& taskGroup,
+    const std::vector<ResourceVersionUUID>& resourceVersionUuids)
 {
   slave::Slave::_run(
-      unschedules, frameworkInfo, executorInfo, taskInfo, taskGroup);
+      unschedules,
+      frameworkInfo,
+      executorInfo,
+      taskInfo,
+      taskGroup,
+      resourceVersionUuids);
 }
 
 

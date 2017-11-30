@@ -2011,7 +2011,8 @@ void Slave::run(
                  frameworkInfo,
                  executorInfo,
                  task,
-                 taskGroup));
+                 taskGroup,
+                 resourceVersionUuids));
 }
 
 
@@ -2020,7 +2021,8 @@ void Slave::_run(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const Option<TaskInfo>& task,
-    const Option<TaskGroupInfo>& taskGroup)
+    const Option<TaskGroupInfo>& taskGroup,
+    const std::vector<ResourceVersionUUID>& resourceVersionUuids)
 {
   // TODO(anindya_sinha): Consider refactoring the initial steps common
   // to `_run()` and `__run()`.
@@ -2152,7 +2154,8 @@ void Slave::_run(
                  frameworkInfo,
                  executorInfo,
                  task,
-                 taskGroup));
+                 taskGroup,
+                 resourceVersionUuids));
 }
 
 
@@ -2161,7 +2164,8 @@ void Slave::__run(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const Option<TaskInfo>& task,
-    const Option<TaskGroupInfo>& taskGroup)
+    const Option<TaskGroupInfo>& taskGroup,
+    const vector<ResourceVersionUUID>& resourceVersionUuids)
 {
   CHECK_NE(task.isSome(), taskGroup.isSome())
     << "Either task or task group should be set but not both";
@@ -2306,14 +2310,92 @@ void Slave::__run(
     return;
   }
 
-  LOG(INFO) << "Launching " << taskOrTaskGroup(task, taskGroup)
-            << " for framework " << frameworkId;
+  // Check task invariants.
+  //
+  // TODO(bbannier): Instead of copy-pasting identical code to deal
+  // with cases where tasks need to be terminated, consolidate code
+  // below to decouple checking from terminating.
+
+  // If the master sent resource versions, perform a best-effort check
+  // that they are consistent with the resources the task uses.
+  //
+  // TODO(bbannier): Also check executor resources.
+  bool kill = false;
+  if (!resourceVersionUuids.empty()) {
+    hashset<Option<ResourceProviderID>> usedResourceProviders;
+    foreach (const TaskInfo& _task, tasks) {
+      foreach (const Resource& resource, _task.resources()) {
+        if (resource.has_provider_id()) {
+          usedResourceProviders.insert(resource.provider_id());
+        } else {
+          usedResourceProviders.insert(None());
+        }
+      }
+    }
+
+    const hashmap<Option<ResourceProviderID>, UUID> receivedResourceVersions =
+      protobuf::parseResourceVersions(
+          {resourceVersionUuids.begin(), resourceVersionUuids.end()});
+
+    foreach (auto&& resourceProvider, usedResourceProviders) {
+      Option<Error> error = None();
+
+      if (!resourceVersions.contains(resourceProvider)) {
+        // We do not expect the agent to forget about itself.
+        CHECK_SOME(resourceProvider);
+        kill = true;
+      }
+
+      CHECK(receivedResourceVersions.contains(resourceProvider));
+
+      if (resourceVersions.at(resourceProvider) !=
+          receivedResourceVersions.at(resourceProvider)) {
+        kill = true;
+      }
+    }
+  }
+
+  if (kill) {
+    // We report TASK_DROPPED to the framework because the task was
+    // never launched. For non-partition-aware frameworks, we report
+    // TASK_LOST for backward compatibility.
+    mesos::TaskState taskState = TASK_DROPPED;
+    if (!protobuf::frameworkHasCapability(
+            frameworkInfo, FrameworkInfo::Capability::PARTITION_AWARE)) {
+      taskState = TASK_LOST;
+    }
+
+    foreach (const TaskInfo& _task, tasks) {
+      const StatusUpdate update = protobuf::createStatusUpdate(
+          frameworkId,
+          info.id(),
+          _task.task_id(),
+          taskState,
+          TaskStatus::SOURCE_SLAVE,
+          UUID::random(),
+          "Tasks assumes outdated resource state",
+          TaskStatus::REASON_INVALID_OFFERS,
+          executorId);
+
+      statusUpdate(update, UPID());
+    }
+
+    // Refer to the comment after 'framework->removePendingTask' above
+    // for why we need this.
+    if (framework->idle()) {
+      removeFramework(framework);
+    }
+
+    return;
+  }
 
   auto unallocated = [](const Resources& resources) {
     Resources result = resources;
     result.unallocate();
     return result;
   };
+
+  CHECK_EQ(kill, false);
 
   // NOTE: If the task/task group or executor uses resources that are
   // checkpointed on the slave (e.g. persistent volumes), we should
@@ -2322,7 +2404,6 @@ void Slave::__run(
   // send TASK_DROPPED status updates here since restarting the task
   // may succeed in the event that CheckpointResourcesMessage arrives
   // out of order.
-  bool kill = false;
   foreach (const TaskInfo& _task, tasks) {
     // We must unallocate the resources to check whether they are
     // contained in the unallocated total checkpointed resources.
@@ -2450,6 +2531,9 @@ void Slave::__run(
   }
 
   CHECK(framework->state == Framework::RUNNING) << framework->state;
+
+  LOG(INFO) << "Launching " << taskOrTaskGroup(task, taskGroup)
+            << " for framework " << frameworkId;
 
   // Either send the task/task group to an executor or start a new executor
   // and queue it until the executor has started.

@@ -4990,6 +4990,9 @@ void Master::_accept(
             RunTaskMessage message;
             message.mutable_framework()->MergeFrom(framework->info);
 
+            message.mutable_resource_version_uuids()->CopyFrom(
+                protobuf::createResourceVersions(slave->resourceVersions));
+
             // TODO(anand): We set 'pid' to UPID() for http frameworks
             // as 'pid' was made optional in 0.24.0. In 0.25.0, we
             // no longer have to set pid here for http frameworks.
@@ -5178,6 +5181,9 @@ void Master::_accept(
         message.mutable_framework()->CopyFrom(framework->info);
         message.mutable_executor()->CopyFrom(executor);
         message.mutable_task_group()->CopyFrom(taskGroup);
+
+        message.mutable_resource_version_uuids()->CopyFrom(
+            protobuf::createResourceVersions(slave->resourceVersions));
 
         set<TaskID> taskIds;
         Resources totalResources;

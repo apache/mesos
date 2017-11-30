@@ -1833,7 +1833,7 @@ TEST_F(SlaveTest, GetStateTaskGroupPending)
   // unmocked `_run()` method. Instead, we want to do nothing so that tasks
   // remain in the framework's 'pending' list.
   Future<Nothing> _run;
-  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
     .WillOnce(FutureSatisfy(&_run));
 
   // The executor should not be launched.
@@ -4118,17 +4118,19 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   ExecutorInfo executorInfo;
   Option<TaskGroupInfo> taskGroup;
   Option<TaskInfo> task_;
+  vector<ResourceVersionUUID> resourceVersionUuids;
   // Skip what Slave::_run() normally does, save its arguments for
   // later, tie reaching the critical moment when to kill the task to
   // a future.
   Future<Nothing> _run;
-  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run),
                     SaveArg<0>(&unschedules),
                     SaveArg<1>(&frameworkInfo),
                     SaveArg<2>(&executorInfo),
                     SaveArg<3>(&task_),
-                    SaveArg<4>(&taskGroup)));
+                    SaveArg<4>(&taskGroup),
+                    SaveArg<5>(&resourceVersionUuids)));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
@@ -4155,7 +4157,12 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   AWAIT_READY(removeFramework);
 
   slave.get()->mock()->unmocked__run(
-      unschedules, frameworkInfo, executorInfo, task_, taskGroup);
+      unschedules,
+      frameworkInfo,
+      executorInfo,
+      task_,
+      taskGroup,
+      resourceVersionUuids);
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status->state());
@@ -4239,21 +4246,24 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
   ExecutorInfo executorInfo1, executorInfo2;
   Option<TaskGroupInfo> taskGroup1, taskGroup2;
   Option<TaskInfo> task_1, task_2;
+  vector<ResourceVersionUUID> resourceVersionUuids1, resourceVersionUuids2;
 
   Future<Nothing> _run1, _run2;
-  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run1),
                     SaveArg<0>(&unschedules1),
                     SaveArg<1>(&frameworkInfo1),
                     SaveArg<2>(&executorInfo1),
                     SaveArg<3>(&task_1),
-                    SaveArg<4>(&taskGroup1)))
+                    SaveArg<4>(&taskGroup1),
+                    SaveArg<5>(&resourceVersionUuids1)))
     .WillOnce(DoAll(FutureSatisfy(&_run2),
                     SaveArg<0>(&unschedules2),
                     SaveArg<1>(&frameworkInfo2),
                     SaveArg<2>(&executorInfo2),
                     SaveArg<3>(&task_2),
-                    SaveArg<4>(&taskGroup2)));
+                    SaveArg<4>(&taskGroup2),
+                    SaveArg<5>(&resourceVersionUuids2)));
 
   driver.launchTasks(offers.get()[0].id(), {task1, task2});
 
@@ -4290,10 +4300,20 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
 
   // The `__run` continuations should have no effect.
   slave.get()->mock()->unmocked__run(
-      unschedules1, frameworkInfo1, executorInfo1, task_1, taskGroup1);
+      unschedules1,
+      frameworkInfo1,
+      executorInfo1,
+      task_1,
+      taskGroup1,
+      resourceVersionUuids1);
 
   slave.get()->mock()->unmocked__run(
-      unschedules2, frameworkInfo2, executorInfo2, task_2, taskGroup2);
+      unschedules2,
+      frameworkInfo2,
+      executorInfo2,
+      task_2,
+      taskGroup2,
+      resourceVersionUuids2);
 
   Clock::settle();
 
@@ -7176,18 +7196,20 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   ExecutorInfo executorInfo_;
   Option<TaskGroupInfo> taskGroup_;
   Option<TaskInfo> task_;
+  vector<ResourceVersionUUID> resourceVersionUuids;
 
   // Skip what `Slave::_run()` normally does, save its arguments for
   // later, till reaching the critical moment when to kill the task
   // in the future.
   Future<Nothing> _run;
-  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run),
                     SaveArg<0>(&unschedules),
                     SaveArg<1>(&frameworkInfo),
                     SaveArg<2>(&executorInfo_),
                     SaveArg<3>(&task_),
-                    SaveArg<4>(&taskGroup_)));
+                    SaveArg<4>(&taskGroup_),
+                    SaveArg<5>(&resourceVersionUuids)));
 
   const v1::Offer& offer = offers->offers(0);
   const SlaveID slaveId = devolve(offer.agent_id());
@@ -7248,7 +7270,12 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   AWAIT_READY(removeFramework);
 
   slave.get()->mock()->unmocked__run(
-      unschedules, frameworkInfo, executorInfo_, task_, taskGroup_);
+      unschedules,
+      frameworkInfo,
+      executorInfo_,
+      task_,
+      taskGroup_,
+      resourceVersionUuids);
 
   AWAIT_READY(update1);
   AWAIT_READY(update2);
@@ -9318,6 +9345,159 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
 
   EXPECT_EQ(
       v1::Resources(offer1.resources()), v1::Resources(offer2.resources()));
+}
+
+
+// This test verifies that the agent checks resource versions received when
+// launching tasks against its own state of the used resource providers and
+// rejects tasks assuming incompatible state.
+TEST_F(SlaveTest, RunTaskResourceVersions)
+{
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability and other required capabilities.
+  constexpr SlaveInfo::Capability::Type capabilities[] = {
+    SlaveInfo::Capability::MULTI_ROLE,
+    SlaveInfo::Capability::HIERARCHICAL_ROLE,
+    SlaveInfo::Capability::RESERVATION_REFINEMENT,
+    SlaveInfo::Capability::RESOURCE_PROVIDER};
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  foreach (SlaveInfo::Capability::Type type, capabilities) {
+    SlaveInfo::Capability* capability =
+      slaveFlags.agent_features->add_capabilities();
+    capability->set_type(type);
+  }
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::settle();
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  // Register a resource provider with the agent.
+  mesos::v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.resource_provider.test");
+  resourceProviderInfo.set_name("test");
+
+  v1::Resources resourceProviderResources = v1::createDiskResource(
+      "200",
+      "*",
+      None(),
+      None(),
+      v1::createDiskSourceRaw());
+
+  v1::MockResourceProvider resourceProvider(
+      resourceProviderInfo,
+      resourceProviderResources);
+
+  string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+  if (process::network::openssl::flags().enabled) {
+    scheme = "https";
+  }
+#endif
+
+  process::http::URL url(
+      scheme,
+      slave.get()->pid.address.ip,
+      slave.get()->pid.address.port,
+      slave.get()->pid.id + "/api/v1/resource_provider");
+
+  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  resourceProvider.start(
+      endpointDetector, ContentType::PROTOBUF, v1::DEFAULT_CREDENTIAL);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  // Start a framework to launch a task.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      false,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  // Below we update the agent's resource version of the registered
+  // resource provider. We prevent this update from propagating to the
+  // master to simulate a race between the agent updating its state
+  // and the master launching a task.
+  updateSlaveMessage = DROP_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // Update resource version of the resource provider.
+  {
+    CHECK(resourceProvider.info.has_id());
+
+    v1::Resources resourceProviderResources_;
+    foreach (v1::Resource resource, resourceProviderResources) {
+      resource.mutable_provider_id()->CopyFrom(resourceProvider.info.id());
+
+      resourceProviderResources_ += resource;
+    }
+
+    v1::resource_provider::Call call;
+    call.set_type(v1::resource_provider::Call::UPDATE_STATE);
+    call.mutable_resource_provider_id()->CopyFrom(resourceProvider.info.id());
+
+    v1::resource_provider::Call::UpdateState* updateState =
+      call.mutable_update_state();
+
+    updateState->set_resource_version_uuid(UUID::random().toBytes());
+    updateState->mutable_resources()->CopyFrom(resourceProviderResources_);
+
+    AWAIT_READY(resourceProvider.send(call));
+  }
+
+  AWAIT_READY(updateSlaveMessage);
+
+  // Launch a task on the offered resources. Since the agent will only check
+  // resource versions from resource providers used in the task launch, we
+  // explicitly confirm that the offer included resource provider resources.
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+  const Resources& offeredResources = offers->front().resources();
+  ASSERT_TRUE(std::any_of(
+      offeredResources.begin(), offeredResources.end(), [](const Resource& r) {
+        return r.has_provider_id();
+      }));
+
+  TaskInfo task = createTask(offers->front(), "sleep 1000");
+
+  Future<TaskStatus> statusUpdate;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusUpdate));
+
+  driver.launchTasks(offers->front().id(), {task});
+
+  AWAIT_READY(statusUpdate);
+  EXPECT_EQ(TASK_LOST, statusUpdate->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, statusUpdate->source());
+  EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, statusUpdate->reason());
 }
 
 } // namespace tests {

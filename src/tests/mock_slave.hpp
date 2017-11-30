@@ -117,19 +117,21 @@ public:
       const TaskInfo& task,
       const std::vector<ResourceVersionUUID>& resourceVersionUuids);
 
-  MOCK_METHOD5(_run, void(
+  MOCK_METHOD6(_run, void(
       const process::Future<std::list<bool>>& unschedules,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
-      const Option<TaskGroupInfo>& taskGroup));
+      const Option<TaskGroupInfo>& taskGroup,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids));
 
   void unmocked__run(
       const process::Future<std::list<bool>>& unschedules,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
-      const Option<TaskGroupInfo>& taskGroup);
+      const Option<TaskGroupInfo>& taskGroup,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
 
   MOCK_METHOD5(runTaskGroup, void(
       const process::UPID& from,
