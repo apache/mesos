@@ -63,6 +63,12 @@ DockerVolumeIsolatorProcess::DockerVolumeIsolatorProcess(
 DockerVolumeIsolatorProcess::~DockerVolumeIsolatorProcess() {}
 
 
+bool DockerVolumeIsolatorProcess::supportsNesting()
+{
+  return true;
+}
+
+
 Try<Isolator*> DockerVolumeIsolatorProcess::create(const Flags& flags)
 {
   // Check for root permission.
@@ -153,6 +159,20 @@ Future<Nothing> DockerVolumeIsolatorProcess::recover(
     }
   }
 
+  // Recover any orphan containers that we might have check pointed.
+  // These orphan containers will be destroyed by the containerizer
+  // through the regular cleanup path. See MESOS-2367 for details.
+  foreach (const ContainerID& containerId, orphans) {
+    Try<Nothing> recover = _recover(containerId);
+    if (recover.isError()) {
+      return Failure(
+          "Failed to recover docker volumes for orphan container " +
+          stringify(containerId) + ": " + recover.error());
+    }
+  }
+
+  // Walk through all the checkpointed containers to determine if
+  // there are any 'unknown orphan' containers.
   Try<list<string>> entries = os::ls(rootDir);
   if (entries.isError()) {
     return Failure(
@@ -164,22 +184,34 @@ Future<Nothing> DockerVolumeIsolatorProcess::recover(
     ContainerID containerId;
     containerId.set_value(Path(entry).basename());
 
-    if (infos.contains(containerId)) {
+    bool recovered = false;
+    // Check if this container has already been recovered.
+    //
+    // NOTE: We cannot use `infos.contains()` to check the recovery
+    // status of this container, since the recovered `ContainerID` has
+    // only the `value` set. We don't checkpoint the `parent`
+    // associated with the container. Therefore, since we don't know
+    // if the container is a nested container or not, we have to
+    // traverse each entry of the `infos` hashmap and compare the
+    // value fields to identify if the container has already been
+    // recovered.
+    foreachkey (const ContainerID& _containerId, infos) {
+      if (_containerId.value() == containerId.value()) {
+        recovered = true;
+        break;
+      }
+    }
+
+    if (recovered) {
       continue;
     }
 
-    // Recover docker volume information for orphan container.
+    // An unknown orphan container. Recover it and then clean it up.
     Try<Nothing> recover = _recover(containerId);
     if (recover.isError()) {
       return Failure(
           "Failed to recover docker volumes for orphan container " +
           stringify(containerId) + ": " + recover.error());
-    }
-
-    // Known orphan containers will be cleaned up by containerizer
-    // using the normal cleanup path. See MESOS-2367 for details.
-    if (orphans.contains(containerId)) {
-      continue;
     }
 
     LOG(INFO) << "Cleanup volumes for unknown orphaned "
@@ -266,13 +298,11 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
-  const ExecutorInfo& executorInfo = containerConfig.executor_info();
-
-  if (!executorInfo.has_container()) {
+  if (!containerConfig.has_container_info()) {
     return None();
   }
 
-  if (executorInfo.container().type() != ContainerInfo::MESOS) {
+  if (containerConfig.container_info().type() != ContainerInfo::MESOS) {
     return Failure(
         "Can only prepare docker volume driver for a MESOS container");
   }
@@ -293,7 +323,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
   // The mount points in the container.
   vector<string> targets;
 
-  foreach (const Volume& _volume, executorInfo.container().volumes()) {
+  foreach (const Volume& _volume, containerConfig.container_info().volumes()) {
     if (!_volume.has_source()) {
       continue;
     }
@@ -513,6 +543,18 @@ Future<Nothing> DockerVolumeIsolatorProcess::cleanup(
     VLOG(1) << "Ignoring cleanup request for unknown container " << containerId;
 
     return Nothing();
+  }
+
+  // Make sure the container we are cleaning up doesn't have any
+  // children (they should have already been cleaned up by a previous
+  // call if it had any).
+  foreachkey (const ContainerID& containerId_, infos) {
+    if (containerId_.has_parent() && containerId_.parent() == containerId) {
+      return Failure(
+          "Failed to clean up container " + stringify(containerId) +
+          ": it has child container " + stringify(containerId_) +
+          " which is not cleaned up yet");
+    }
   }
 
   hashmap<DockerVolume, int> references;
