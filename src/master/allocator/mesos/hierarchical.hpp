@@ -541,6 +541,11 @@ private:
   // different region than the master. This can only be the case if
   // the agent and the master are both configured with a fault domain.
   bool isRemoteSlave(const Slave& slave) const;
+
+  // Helper to track used resources on an agent.
+  void trackAllocatedResources(
+      const SlaveID& slaveId,
+      const hashmap<FrameworkID, Resources>& used);
 };
 
 
