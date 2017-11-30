@@ -7089,50 +7089,25 @@ void Slave::updateOfferOperation(
     return;
   }
 
-  Resource consumed;
-  switch (operation->info().type()) {
-    case Offer::Operation::LAUNCH:
-      LOG(FATAL) << "Unexpected LAUNCH operation";
-      break;
-    case Offer::Operation::LAUNCH_GROUP:
-      LOG(FATAL) << "Unexpected LAUNCH_GROUP operation";
-      break;
-    case Offer::Operation::RESERVE:
-    case Offer::Operation::UNRESERVE:
-    case Offer::Operation::CREATE:
-    case Offer::Operation::DESTROY:
-      return;
-    case Offer::Operation::CREATE_VOLUME:
-      consumed = operation->info().create_volume().source();
-      break;
-    case Offer::Operation::DESTROY_VOLUME:
-      consumed = operation->info().destroy_volume().volume();
-      break;
-    case Offer::Operation::CREATE_BLOCK:
-      consumed = operation->info().create_block().source();
-      break;
-    case Offer::Operation::DESTROY_BLOCK:
-      consumed = operation->info().destroy_block().block();
-      break;
-    case Offer::Operation::UNKNOWN:
-      LOG(WARNING) << "Unknown offer operation";
-      return;
+  if (protobuf::isSpeculativeOperation(operation->info())) {
+    return;
   }
+
+  Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
+  CHECK_SOME(consumed);
 
   switch (update.latest_status().state()) {
     // Terminal state, and the conversion is successful.
     case OFFER_OPERATION_FINISHED: {
       // 'totalResources' don't have allocations set, we need
       // to remove them from the consumed and converted resources.
-      if (consumed.has_allocation_info()) {
-        consumed.clear_allocation_info();
-      }
+      consumed->unallocate();
 
       Resources converted =
         update.latest_status().converted_resources();
       converted.unallocate();
 
-      ResourceConversion conversion(consumed, converted);
+      ResourceConversion conversion(consumed.get(), converted);
 
       apply({conversion});
 

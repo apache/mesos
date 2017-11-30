@@ -2499,51 +2499,34 @@ struct Framework
       offerOperationUUIDs.put(operation->info().id(), uuid.get());
     }
 
-    if (!protobuf::isTerminalState(operation->latest_status().state())) {
-      Resource consumed;
-      switch (operation->info().type()) {
-        case Offer::Operation::LAUNCH:
-        case Offer::Operation::LAUNCH_GROUP:
-        case Offer::Operation::RESERVE:
-        case Offer::Operation::UNRESERVE:
-        case Offer::Operation::CREATE:
-        case Offer::Operation::DESTROY:
-          // These operations are speculatively applied and not
-          // tracked as used resources.
-          return;
-        case Offer::Operation::CREATE_VOLUME:
-          consumed = operation->info().create_volume().source();
-          break;
-        case Offer::Operation::DESTROY_VOLUME:
-          consumed = operation->info().destroy_volume().volume();
-          break;
-        case Offer::Operation::CREATE_BLOCK:
-          consumed = operation->info().create_block().source();
-          break;
-        case Offer::Operation::DESTROY_BLOCK:
-          consumed = operation->info().destroy_block().block();
-          break;
-        case Offer::Operation::UNKNOWN:
-          LOG(ERROR) << "Unknown offer operation";
-          return;
-      }
+    if (!protobuf::isSpeculativeOperation(operation->info()) &&
+        !protobuf::isTerminalState(operation->latest_status().state())) {
+      Try<Resources> consumed =
+        protobuf::getConsumedResources(operation->info());
+      CHECK_SOME(consumed);
 
       CHECK(operation->has_slave_id())
         << "External resource provider is not supported yet";
 
       const SlaveID& slaveId = operation->slave_id();
 
-      totalUsedResources += consumed;
-      usedResources[slaveId] += consumed;
+      totalUsedResources += consumed.get();
+      usedResources[slaveId] += consumed.get();
 
       // It's possible that we're not tracking the role from the
       // resources in the offer operation for this framework if the
       // role is absent from the framework's set of roles. In this
       // case, we track the role's allocation for this framework.
-      const std::string& role = consumed.allocation_info().role();
+      foreachkey (const std::string& role, consumed->allocations()) {
+        auto allocatedToRole = [&role](const Resource& resource) {
+          return resource.allocation_info().role() == role;
+        };
 
-      if (!isTrackedUnderRole(role)) {
-        trackUnderRole(role);
+        if (roles.count(role) == 0 &&
+            totalUsedResources.filter(allocatedToRole).empty()) {
+          CHECK(totalOfferedResources.filter(allocatedToRole).empty());
+          untrackUnderRole(role);
+        }
       }
     }
   }
@@ -2555,44 +2538,23 @@ struct Framework
 
     const SlaveID& slaveId = operation->slave_id();
 
-    Resource consumed;
-    switch (operation->info().type()) {
-      case Offer::Operation::LAUNCH:
-      case Offer::Operation::LAUNCH_GROUP:
-      case Offer::Operation::RESERVE:
-      case Offer::Operation::UNRESERVE:
-      case Offer::Operation::CREATE:
-      case Offer::Operation::DESTROY:
-        // These operations are speculatively applied and not
-        // tracked as used resources.
-        return;
-      case Offer::Operation::CREATE_VOLUME:
-        consumed = operation->info().create_volume().source();
-        break;
-      case Offer::Operation::DESTROY_VOLUME:
-        consumed = operation->info().destroy_volume().volume();
-        break;
-      case Offer::Operation::CREATE_BLOCK:
-        consumed = operation->info().create_block().source();
-        break;
-      case Offer::Operation::DESTROY_BLOCK:
-        consumed = operation->info().destroy_block().block();
-        break;
-      case Offer::Operation::UNKNOWN:
-        LOG(WARNING) << "Ignoring unknown offer operation";
-        return;
+    if (protobuf::isSpeculativeOperation(operation->info())) {
+      return;
     }
 
-    CHECK(totalUsedResources.contains(consumed))
-      << "Tried to recover resources " << consumed
+    Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
+    CHECK_SOME(consumed);
+
+    CHECK(totalUsedResources.contains(consumed.get()))
+      << "Tried to recover resources " << consumed.get()
       << " which do not seem used";
 
-    CHECK(usedResources[slaveId].contains(consumed))
-      << "Tried to recover resources " << consumed << " of agent "
+    CHECK(usedResources[slaveId].contains(consumed.get()))
+      << "Tried to recover resources " << consumed.get() << " of agent "
       << slaveId << " which do not seem used";
 
-    totalUsedResources -= consumed;
-    usedResources[slaveId] -= consumed;
+    totalUsedResources -= consumed.get();
+    usedResources[slaveId] -= consumed.get();
     if (usedResources[slaveId].empty()) {
       usedResources.erase(slaveId);
     }
@@ -2601,16 +2563,16 @@ struct Framework
     // resources are being returned to, and we have no more resources
     // allocated to us for that role, stop tracking the framework
     // under the role.
-    const std::string& role = consumed.allocation_info().role();
+    foreachkey (const std::string& role, consumed->allocations()) {
+      auto allocatedToRole = [&role](const Resource& resource) {
+        return resource.allocation_info().role() == role;
+      };
 
-    auto allocatedToRole = [&role](const Resource& resource) {
-      return resource.allocation_info().role() == role;
-    };
-
-    if (roles.count(role) == 0 &&
-        totalUsedResources.filter(allocatedToRole).empty()) {
-      CHECK(totalOfferedResources.filter(allocatedToRole).empty());
-      untrackUnderRole(role);
+      if (roles.count(role) == 0 &&
+          totalUsedResources.filter(allocatedToRole).empty()) {
+        CHECK(totalOfferedResources.filter(allocatedToRole).empty());
+        untrackUnderRole(role);
+      }
     }
   }
 

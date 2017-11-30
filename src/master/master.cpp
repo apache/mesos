@@ -10031,36 +10031,12 @@ void Master::updateOfferOperation(
   // don't need to update the resource accounting for those types of
   // offer operations in the master and in the allocator states upon
   // receiving a terminal status update.
-  Resource consumed;
-
-  switch (operation->info().type()) {
-    case Offer::Operation::LAUNCH:
-      LOG(FATAL) << "Unexpected LAUNCH operation";
-      break;
-    case Offer::Operation::LAUNCH_GROUP:
-      LOG(FATAL) << "Unexpected LAUNCH_GROUP operation";
-      break;
-    case Offer::Operation::RESERVE:
-    case Offer::Operation::UNRESERVE:
-    case Offer::Operation::CREATE:
-    case Offer::Operation::DESTROY:
-      return;
-    case Offer::Operation::CREATE_VOLUME:
-      consumed = operation->info().create_volume().source();
-      break;
-    case Offer::Operation::DESTROY_VOLUME:
-      consumed = operation->info().destroy_volume().volume();
-      break;
-    case Offer::Operation::CREATE_BLOCK:
-      consumed = operation->info().create_block().source();
-      break;
-    case Offer::Operation::DESTROY_BLOCK:
-      consumed = operation->info().destroy_block().block();
-      break;
-    case Offer::Operation::UNKNOWN:
-      LOG(ERROR) << "Unknown offer operation";
-      return;
+  if (protobuf::isSpeculativeOperation(operation->info())) {
+    return;
   }
+
+  Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
+  CHECK_SOME(consumed);
 
   CHECK(operation->has_slave_id())
     << "External resource provider is not supported yet";
@@ -10080,8 +10056,8 @@ void Master::updateOfferOperation(
       allocator->updateAllocation(
           operation->framework_id(),
           operation->slave_id(),
-          consumed,
-          {ResourceConversion(consumed, converted)});
+          consumed.get(),
+          {ResourceConversion(consumed.get(), converted)});
 
       allocator->recoverResources(
           operation->framework_id(),
@@ -10089,7 +10065,7 @@ void Master::updateOfferOperation(
           converted,
           None());
 
-      Resources consumedUnallocated = consumed;
+      Resources consumedUnallocated = consumed.get();
       consumedUnallocated.unallocate();
 
       Resources convertedUnallocated = converted;
@@ -10107,7 +10083,7 @@ void Master::updateOfferOperation(
       allocator->recoverResources(
           operation->framework_id(),
           operation->slave_id(),
-          consumed,
+          consumed.get(),
           None());
 
       break;
@@ -10256,37 +10232,22 @@ void Master::_apply(
 
     send(slave->pid, message);
   } else {
-    switch (operation.type()) {
-      case Offer::Operation::RESERVE:
-      case Offer::Operation::UNRESERVE:
-      case Offer::Operation::CREATE:
-      case Offer::Operation::DESTROY: {
-        // We need to strip the allocation info from the operation's
-        // resources in order to apply the operation successfully
-        // since the agent's total is stored as unallocated resources.
-        Offer::Operation strippedOperation = operation;
-        protobuf::stripAllocationInfo(&strippedOperation);
-
-        Try<vector<ResourceConversion>> conversions =
-          getResourceConversions(strippedOperation);
-
-        CHECK_SOME(conversions);
-
-        slave->apply(conversions.get());
-        break;
-      }
-      case Offer::Operation::LAUNCH:
-      case Offer::Operation::LAUNCH_GROUP:
-      case Offer::Operation::CREATE_VOLUME:
-      case Offer::Operation::DESTROY_VOLUME:
-      case Offer::Operation::CREATE_BLOCK:
-      case Offer::Operation::DESTROY_BLOCK:
-        LOG(FATAL) << "Unexpected offer operation to apply on agent " << *slave;
-        return;
-      case Offer::Operation::UNKNOWN:
-        LOG(ERROR) << "Unknown offer operation";
-        return;
+    if (!protobuf::isSpeculativeOperation(operation)) {
+      LOG(FATAL) << "Unexpected offer operation to apply on agent " << *slave;
     }
+
+    // We need to strip the allocation info from the operation's
+    // resources in order to apply the operation successfully
+    // since the agent's total is stored as unallocated resources.
+    Offer::Operation strippedOperation = operation;
+    protobuf::stripAllocationInfo(&strippedOperation);
+
+    Try<vector<ResourceConversion>> conversions =
+      getResourceConversions(strippedOperation);
+
+    CHECK_SOME(conversions);
+
+    slave->apply(conversions.get());
 
     CheckpointResourcesMessage message;
 
@@ -11206,39 +11167,18 @@ void Slave::recoverResources(OfferOperation* operation)
 
   const FrameworkID& frameworkId = operation->framework_id();
 
-  Resource consumed;
-  switch (operation->info().type()) {
-    case Offer::Operation::LAUNCH:
-    case Offer::Operation::LAUNCH_GROUP:
-    case Offer::Operation::RESERVE:
-    case Offer::Operation::UNRESERVE:
-    case Offer::Operation::CREATE:
-    case Offer::Operation::DESTROY:
-      // These operations are speculatively applied and not
-      // tracked as used resources.
-      return;
-    case Offer::Operation::CREATE_VOLUME:
-      consumed = operation->info().create_volume().source();
-      break;
-    case Offer::Operation::DESTROY_VOLUME:
-      consumed = operation->info().destroy_volume().volume();
-      break;
-    case Offer::Operation::CREATE_BLOCK:
-      consumed = operation->info().create_block().source();
-      break;
-    case Offer::Operation::DESTROY_BLOCK:
-      consumed = operation->info().destroy_block().block();
-      break;
-    case Offer::Operation::UNKNOWN: {
-      LOG(ERROR) << "Unknown offer operation";
-      return;
-    }
+  if (protobuf::isSpeculativeOperation(operation->info())) {
+    return;
   }
 
-  CHECK(usedResources[frameworkId].contains(consumed))
-    << "Unknown resources " << consumed << " of framework " << frameworkId;
+  Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
+  CHECK_SOME(consumed);
 
-  usedResources[frameworkId] -= consumed;
+  CHECK(usedResources[frameworkId].contains(consumed.get()))
+    << "Unknown resources " << consumed.get()
+    << " of framework " << frameworkId;
+
+  usedResources[frameworkId] -= consumed.get();
   if (usedResources[frameworkId].empty()) {
     usedResources.erase(frameworkId);
   }
