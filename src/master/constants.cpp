@@ -22,16 +22,7 @@ namespace master {
 
 std::vector<MasterInfo::Capability> MASTER_CAPABILITIES()
 {
-  MasterInfo::Capability::Type types[] = {}; // Empty for now.
-
-  std::vector<MasterInfo::Capability> result;
-  foreach (MasterInfo::Capability::Type type, types) {
-    MasterInfo::Capability capability;
-    capability.set_type(type);
-    result.push_back(capability);
-  }
-
-  return result;
+  return {}; // Empty for now.
 }
 
 } // namespace master {
