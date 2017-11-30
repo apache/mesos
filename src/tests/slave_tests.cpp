@@ -31,6 +31,8 @@
 
 #include <mesos/authentication/http/basic_authenticator_factory.hpp>
 
+#include <mesos/v1/mesos.hpp>
+
 #include <mesos/v1/resource_provider/resource_provider.hpp>
 
 #include <process/clock.hpp>
@@ -8819,6 +8821,236 @@ TEST_F(SlaveTest, ResourceVersions)
   EXPECT_EQ(
       registerSlaveMessage->resource_version_uuids(0),
       reregisterSlaveMessage->resource_version_uuids(0));
+}
+
+
+// This test checks that a resource provider triggers an
+// `UpdateSlaveMessage` to be sent to the master if an non-speculated
+// offer operation fails in the resource provider.
+TEST_F(SlaveTest, ResourceProviderReconciliation)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability and other required capabilities.
+  constexpr SlaveInfo::Capability::Type capabilities[] = {
+    SlaveInfo::Capability::MULTI_ROLE,
+    SlaveInfo::Capability::HIERARCHICAL_ROLE,
+    SlaveInfo::Capability::RESERVATION_REFINEMENT,
+    SlaveInfo::Capability::RESOURCE_PROVIDER};
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  foreach (SlaveInfo::Capability::Type type, capabilities) {
+    SlaveInfo::Capability* capability =
+      slaveFlags.agent_features->add_capabilities();
+    capability->set_type(type);
+  }
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::settle();
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  // Register a resource provider with the agent.
+  v1::Resources resourceProviderResources = v1::createDiskResource(
+      "200",
+      "*",
+      None(),
+      None(),
+      v1::createDiskSourceRaw());
+
+  v1::MockResourceProvider resourceProvider(resourceProviderResources);
+
+  string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+  if (process::network::openssl::flags().enabled) {
+    scheme = "https";
+  }
+#endif
+
+  process::http::URL url(
+      scheme,
+      slave.get()->pid.address.ip,
+      slave.get()->pid.address.port,
+      slave.get()->pid.id + "/api/v1/resource_provider");
+
+  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  resourceProvider.start(
+      endpointDetector, ContentType::PROTOBUF, v1::DEFAULT_CREDENTIAL);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  // Register a framework to excercise offer operations.
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  Future<v1::scheduler::Event::Offers> offers1;
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return()); // Ignore subsequent offers;
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("foo");
+
+  // Subscribe the framework.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+    EXPECT_CALL(*scheduler, subscribed(_, _))
+      .WillOnce(FutureArg<1>(&subscribed));
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId = subscribed->framework_id();
+
+  AWAIT_READY(offers1);
+  ASSERT_FALSE(offers1->offers().empty());
+
+  // We now perform a `RESERVE` operation on the offered resources,
+  // but let the operation fail in the resource provider.
+  Future<v1::resource_provider::Event::Operation> operation;
+  EXPECT_CALL(resourceProvider, operation(_))
+    .WillOnce(FutureArg<0>(&operation));
+
+  {
+    const v1::Offer& offer = offers1->offers(0);
+
+    v1::Resources reserved = offer.resources();
+    reserved = reserved.filter(
+        [](const v1::Resource& r) { return r.has_provider_id(); });
+    reserved = reserved.pushReservation(v1::createDynamicReservationInfo(
+        frameworkInfo.role(), frameworkInfo.principal()));
+
+    Call call =
+      v1::createCallAccept(frameworkId, offer, {v1::RESERVE(reserved)});
+    call.mutable_accept()->mutable_filters()->set_refuse_seconds(0);
+
+    mesos.send(call);
+  }
+
+  AWAIT_READY(operation);
+
+  // We expect the agent to send an `UpdateSlaveMessage` since below
+  // the resource provider responds with an `UPDATE_STATE` call.
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Future<v1::scheduler::Event::Offers> offers2;
+
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers;
+
+  // Fail the operation in the resource provider. This should trigger
+  // an `UpdateSlaveMessage` to the master.
+  {
+    CHECK_SOME(resourceProvider.resourceProviderId);
+
+    v1::Resources resourceProviderResources_;
+    foreach (v1::Resource resource, resourceProviderResources) {
+      resource.mutable_provider_id()->CopyFrom(
+          resourceProvider.resourceProviderId.get());
+
+      resourceProviderResources_ += resource;
+    }
+
+    // Update the resource version of the resource provider.
+    UUID resourceVersionUuid = UUID::random();
+
+    v1::resource_provider::Call call;
+
+    call.set_type(v1::resource_provider::Call::UPDATE_STATE);
+    call.mutable_resource_provider_id()->CopyFrom(
+        resourceProvider.resourceProviderId.get());
+
+    v1::resource_provider::Call::UpdateState* updateState =
+      call.mutable_update_state();
+
+    updateState->set_resource_version_uuid(resourceVersionUuid.toBytes());
+    updateState->mutable_resources()->CopyFrom(resourceProviderResources_);
+
+    mesos::v1::OfferOperation* _operation = updateState->add_operations();
+    _operation->mutable_framework_id()->CopyFrom(operation->framework_id());
+    _operation->mutable_info()->CopyFrom(operation->info());
+    _operation->set_operation_uuid(operation->operation_uuid());
+
+    mesos::v1::OfferOperationStatus* lastStatus =
+      _operation->mutable_latest_status();
+    lastStatus->set_state(::mesos::v1::OFFER_OPERATION_FAILED);
+
+    _operation->add_statuses()->CopyFrom(*lastStatus);
+
+    AWAIT_READY(resourceProvider.send(call));
+  }
+
+  AWAIT_READY(updateSlaveMessage);
+
+  // We expect to see the new resource provider resource version in
+  // the `UpdateSlaveMessage`.
+  hashmap<Option<ResourceProviderID>, UUID> resourceVersions =
+    protobuf::parseResourceVersions(
+        updateSlaveMessage->resource_version_uuids());
+  // The reserve operation will still be reported as pending since no offer
+  // operation status update has been received from the resource provider.
+  ASSERT_TRUE(updateSlaveMessage->has_offer_operations());
+  ASSERT_EQ(1, updateSlaveMessage->offer_operations().operations_size());
+
+  const OfferOperation& reserve =
+    updateSlaveMessage->offer_operations().operations(0);
+
+  EXPECT_EQ(Offer::Operation::RESERVE, reserve.info().type());
+  ASSERT_TRUE(reserve.has_latest_status());
+  EXPECT_EQ(OFFER_OPERATION_PENDING, reserve.latest_status().state());
+
+  // The resources are returned to the available pool and the framework will get
+  // offered the same resources as in the previous offer cycle.
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers2);
+  ASSERT_EQ(1, offers2->offers_size());
+
+  const v1::Offer& offer1 = offers1->offers(0);
+  const v1::Offer& offer2 = offers2->offers(0);
+
+  EXPECT_EQ(
+      v1::Resources(offer1.resources()), v1::Resources(offer2.resources()));
 }
 
 } // namespace tests {
