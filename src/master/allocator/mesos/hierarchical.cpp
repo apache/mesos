@@ -279,9 +279,6 @@ void HierarchicalAllocatorProcess::addFramework(
     }
   }
 
-  // TODO(bmahler): Validate that the reserved resources have the
-  // framework's role.
-
   // Update the allocation for this framework.
   foreachpair (const SlaveID& slaveId, const Resources& resources, used) {
     if (!slaves.contains(slaveId)) {
@@ -2418,8 +2415,6 @@ void HierarchicalAllocatorProcess::trackAllocatedResources(
         trackFrameworkUnderRole(frameworkId, role);
       }
 
-      // TODO(bmahler): Validate that the reserved resources have the
-      // framework's role.
       CHECK(roleSorter->contains(role));
       CHECK(frameworkSorters.contains(role));
       CHECK(frameworkSorters.at(role)->contains(frameworkId.value()));
