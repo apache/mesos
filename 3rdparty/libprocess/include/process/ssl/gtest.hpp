@@ -36,6 +36,8 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 #include <stout/result.hpp>
+
+#include <stout/os/realpath.hpp>
 #endif // USE_SSL_SOCKET
 
 #include <stout/tests/utils.hpp>
