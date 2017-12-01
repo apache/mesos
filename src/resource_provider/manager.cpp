@@ -385,34 +385,43 @@ void ResourceProviderManagerProcess::subscribe(
 
   LOG(INFO) << "Subscribing resource provider " << resourceProviderInfo;
 
+  ResourceProvider resourceProvider(resourceProviderInfo, http);
+
   if (!resourceProviderInfo.has_id()) {
     // The resource provider is subscribing for the first time.
-    resourceProviderInfo.mutable_id()->CopyFrom(newResourceProviderId());
-
-    ResourceProvider resourceProvider(resourceProviderInfo, http);
-
-    Event event;
-    event.set_type(Event::SUBSCRIBED);
-    event.mutable_subscribed()->mutable_provider_id()->CopyFrom(
-        resourceProvider.info.id());
-
-    if (!resourceProvider.http.send(event)) {
-      LOG(WARNING) << "Failed to send SUBSCRIBED event to resource provider "
-                   << resourceProvider.info.id() << ": connection closed";
-    }
+    resourceProvider.info.mutable_id()->CopyFrom(newResourceProviderId());
 
     // TODO(jieyu): Start heartbeat for the resource provider.
 
     resourceProviders.subscribed.put(
-        resourceProviderInfo.id(),
+        resourceProvider.info.id(),
         resourceProvider);
+  } else {
+    if (resourceProviders.subscribed.contains(resourceProviderInfo.id())) {
+      // Resource provider is resubscribing after failing over.
+      // TODO(nfnt): Test if old and new 'ResourceProviderInfo' match.
+      ResourceProvider& _resourceProvider =
+        resourceProviders.subscribed.at(resourceProviderInfo.id());
 
-    return;
+      _resourceProvider.http.close();
+      _resourceProvider.http = http;
+    } else {
+      // Resource provider is resubscribing after an agent failover.
+      resourceProviders.subscribed.put(
+          resourceProviderInfo.id(), resourceProvider);
+    }
   }
 
-  // TODO(chhsiao): Reject the subscription if it contains an unknown
-  // ID or there is already a subscribed instance with the same ID,
-  // and add tests for re-subscriptions.
+  Event event;
+  event.set_type(Event::SUBSCRIBED);
+  event.mutable_subscribed()->mutable_provider_id()->CopyFrom(
+      resourceProvider.info.id());
+
+  if (!resourceProviders.subscribed.at(resourceProvider.info.id()).http.send(
+          event)) {
+    LOG(WARNING) << "Failed to send SUBSCRIBED event to resource provider "
+                 << resourceProvider.info.id() << ": connection closed";
+  }
 }
 
 

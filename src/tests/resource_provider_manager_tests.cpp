@@ -101,7 +101,31 @@ namespace tests {
 
 class ResourceProviderManagerHttpApiTest
   : public MesosTest,
-    public WithParamInterface<ContentType> {};
+    public WithParamInterface<ContentType>
+{
+public:
+  slave::Flags CreateSlaveFlags() override
+  {
+    slave::Flags slaveFlags = MesosTest::CreateSlaveFlags();
+
+    slaveFlags.authenticate_http_readwrite = false;
+
+    constexpr SlaveInfo::Capability::Type capabilities[] = {
+      SlaveInfo::Capability::MULTI_ROLE,
+      SlaveInfo::Capability::HIERARCHICAL_ROLE,
+      SlaveInfo::Capability::RESERVATION_REFINEMENT,
+      SlaveInfo::Capability::RESOURCE_PROVIDER};
+
+    slaveFlags.agent_features = SlaveCapabilities();
+    foreach (SlaveInfo::Capability::Type type, capabilities) {
+      SlaveInfo::Capability* capability =
+        slaveFlags.agent_features->add_capabilities();
+      capability->set_type(type);
+    }
+
+    return slaveFlags;
+  }
+};
 
 
 // The tests are parameterized by the content type of the request.
@@ -596,25 +620,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.authenticate_http_readwrite = false;
-
   Future<UpdateSlaveMessage> updateSlaveMessage =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
-
-  // Set the resource provider capability and other required capabilities.
-  constexpr SlaveInfo::Capability::Type capabilities[] = {
-    SlaveInfo::Capability::MULTI_ROLE,
-    SlaveInfo::Capability::HIERARCHICAL_ROLE,
-    SlaveInfo::Capability::RESERVATION_REFINEMENT,
-    SlaveInfo::Capability::RESOURCE_PROVIDER};
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  foreach (SlaveInfo::Capability::Type type, capabilities) {
-    SlaveInfo::Capability* capability =
-      slaveFlags.agent_features->add_capabilities();
-    capability->set_type(type);
-  }
 
   // Pause the clock and control it manually in order to
   // control the timing of the registration. A registration timeout
@@ -623,6 +630,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
   // ensure that the second 'UpdateSlaveMessage' is a result of the
   // resource provider registration.
   Clock::pause();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
 
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
@@ -638,7 +647,12 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
 
   Clock::resume();
 
-  v1::MockResourceProvider resourceProvider(Some(v1::Resources(disk)));
+  mesos::v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
+  resourceProviderInfo.set_name("test");
+
+  v1::MockResourceProvider resourceProvider(
+      resourceProviderInfo, Some(v1::Resources(disk)));
 
   // Start and register a resource provider.
   string scheme = "http";
@@ -755,6 +769,112 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
   EXPECT_EQ(
       v1::Resource::DiskInfo::Source::BLOCK, block->disk().source().type());
   EXPECT_FALSE(block->reservations().empty());
+}
+
+
+// Test that resource provider can resubscribe with an agent after
+// a resource provider failover as well as an agent failover.
+TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeResourceProvider)
+{
+  Clock::pause();
+
+  // Start master and agent.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(agent);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+  AWAIT_READY(updateSlaveMessage);
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  mesos::v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
+  resourceProviderInfo.set_name("test");
+
+  v1::Resource disk = v1::createDiskResource(
+      "200", "*", None(), None(), v1::createDiskSourceRaw());
+
+  v1::MockResourceProvider resourceProvider(
+      resourceProviderInfo, Some(v1::Resources(disk)));
+
+  // Start and register a resource provider.
+  string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+  if (process::network::openssl::flags().enabled) {
+    scheme = "https";
+  }
+#endif
+
+  http::URL url(
+      scheme,
+      agent.get()->pid.address.ip,
+      agent.get()->pid.address.port,
+      agent.get()->pid.id + "/api/v1/resource_provider");
+
+  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+
+  const ContentType contentType = GetParam();
+
+  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+
+  // Wait until the agent's resources have been updated to include the
+  // resource provider resources. At this point the resource provider
+  // will have an ID assigned by the agent.
+  AWAIT_READY(updateSlaveMessage);
+
+  mesos::v1::ResourceProviderID resourceProviderId = resourceProvider.info.id();
+
+  Future<Event::Subscribed> subscribed1;
+  EXPECT_CALL(resourceProvider, subscribed(_))
+    .WillOnce(FutureArg<0>(&subscribed1));
+
+  // Resource provider failover by opening a new connection.
+  // The assigned resource provider ID will be used to resubscribe.
+  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+
+  AWAIT_READY(subscribed1);
+  EXPECT_EQ(resourceProviderId, subscribed1->provider_id());
+
+  Future<Event::Subscribed> subscribed2;
+  EXPECT_CALL(resourceProvider, subscribed(_))
+    .WillOnce(FutureArg<0>(&subscribed2));
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  // The agent failover.
+  agent->reset();
+  agent = StartSlave(detector.get(), slaveFlags);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+
+  AWAIT_READY(__recover);
+
+  url = http::URL(
+      scheme,
+      agent.get()->pid.address.ip,
+      agent.get()->pid.address.port,
+      agent.get()->pid.id + "/api/v1/resource_provider");
+
+  endpointDetector.reset(new ConstantEndpointDetector(url));
+
+  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+
+  AWAIT_READY(subscribed2);
+  EXPECT_EQ(resourceProviderId, subscribed2->provider_id());
 }
 
 } // namespace tests {

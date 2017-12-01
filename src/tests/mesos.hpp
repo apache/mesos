@@ -2778,6 +2778,7 @@ template <
     typename Event,
     typename Call,
     typename Driver,
+    typename ResourceProviderInfo,
     typename Resource,
     typename Resources,
     typename ResourceProviderID,
@@ -2787,8 +2788,11 @@ template <
 class MockResourceProvider
 {
 public:
-  MockResourceProvider(const Option<Resources>& _resources = None())
-    : resources(_resources)
+  MockResourceProvider(
+      const ResourceProviderInfo& _info,
+      const Option<Resources>& _resources = None())
+    : info(_info),
+      resources(_resources)
   {
     ON_CALL(*this, connected())
       .WillByDefault(Invoke(
@@ -2797,6 +2801,7 @@ public:
               Event,
               Call,
               Driver,
+              ResourceProviderInfo,
               Resource,
               Resources,
               ResourceProviderID,
@@ -2812,6 +2817,7 @@ public:
               Event,
               Call,
               Driver,
+              ResourceProviderInfo,
               Resource,
               Resources,
               ResourceProviderID,
@@ -2827,6 +2833,7 @@ public:
               Event,
               Call,
               Driver,
+              ResourceProviderInfo,
               Resource,
               Resources,
               ResourceProviderID,
@@ -2884,6 +2891,7 @@ public:
                 Event,
                 Call,
                 Driver,
+                ResourceProviderInfo,
                 Resource,
                 Resources,
                 ResourceProviderID,
@@ -2896,6 +2904,7 @@ public:
                 Event,
                 Call,
                 Driver,
+                ResourceProviderInfo,
                 Resource,
                 Resources,
                 ResourceProviderID,
@@ -2908,6 +2917,7 @@ public:
                 Event,
                 Call,
                 Driver,
+                ResourceProviderInfo,
                 Resource,
                 Resources,
                 ResourceProviderID,
@@ -2923,29 +2933,26 @@ public:
   {
     Call call;
     call.set_type(Call::SUBSCRIBE);
-    call.mutable_subscribe()->mutable_resource_provider_info()->set_type(
-        "org.apache.mesos.rp.test");
-    call.mutable_subscribe()->mutable_resource_provider_info()->set_name(
-        "test");
+    call.mutable_subscribe()->mutable_resource_provider_info()->CopyFrom(info);
 
     driver->send(call);
   }
 
   void subscribedDefault(const typename Event::Subscribed& subscribed)
   {
-    resourceProviderId = subscribed.provider_id();
+    info.mutable_id()->CopyFrom(subscribed.provider_id());
 
     if (resources.isSome()) {
       Resources injected;
 
       foreach (Resource resource, resources.get()) {
-        resource.mutable_provider_id()->CopyFrom(resourceProviderId.get());
+        resource.mutable_provider_id()->CopyFrom(info.id());
         injected += resource;
       }
 
       Call call;
       call.set_type(Call::UPDATE_STATE);
-      call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
+      call.mutable_resource_provider_id()->CopyFrom(info.id());
 
       typename Call::UpdateState* update = call.mutable_update_state();
       update->mutable_resources()->CopyFrom(injected);
@@ -2957,9 +2964,11 @@ public:
 
   void operationDefault(const typename Event::Operation& operation)
   {
+    CHECK(info.has_id());
+
     Call call;
     call.set_type(Call::UPDATE_OFFER_OPERATION_STATUS);
-    call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
+    call.mutable_resource_provider_id()->CopyFrom(info.id());
 
     typename Call::UpdateOfferOperationStatus* update =
       call.mutable_update_offer_operation_status();
@@ -3030,7 +3039,7 @@ public:
     driver->send(call);
   }
 
-  Option<ResourceProviderID> resourceProviderId;
+  ResourceProviderInfo info;
 
 private:
   Option<Resources> resources;
@@ -3054,6 +3063,7 @@ using MockResourceProvider = tests::resource_provider::MockResourceProvider<
     mesos::v1::resource_provider::Event,
     mesos::v1::resource_provider::Call,
     mesos::v1::resource_provider::Driver,
+    mesos::v1::ResourceProviderInfo,
     mesos::v1::Resource,
     mesos::v1::Resources,
     mesos::v1::ResourceProviderID,

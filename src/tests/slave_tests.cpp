@@ -8655,8 +8655,12 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
   Clock::advance(slaveFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage);
 
+  mesos::v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.resource_provider.test");
+  resourceProviderInfo.set_name("test");
+
   // Register a local resource provider with the agent.
-  v1::MockResourceProvider resourceProvider;
+  v1::MockResourceProvider resourceProvider(resourceProviderInfo);
 
   Future<Nothing> connected;
   EXPECT_CALL(resourceProvider, connected())
@@ -8696,11 +8700,8 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
     mesos::v1::resource_provider::Call call;
     call.set_type(mesos::v1::resource_provider::Call::SUBSCRIBE);
 
-    mesos::v1::ResourceProviderInfo* info =
-      call.mutable_subscribe()->mutable_resource_provider_info();
-
-    info->set_type("org.apache.mesos.resource_provider.test");
-    info->set_name("test");
+    call.mutable_subscribe()->mutable_resource_provider_info()->CopyFrom(
+        resourceProviderInfo);
 
     resourceProvider.send(call);
   }
@@ -8864,6 +8865,10 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
 
   AWAIT_READY(updateSlaveMessage);
 
+  mesos::v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.resource_provider.test");
+  resourceProviderInfo.set_name("test");
+
   // Register a resource provider with the agent.
   v1::Resources resourceProviderResources = v1::createDiskResource(
       "200",
@@ -8872,7 +8877,9 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
       None(),
       v1::createDiskSourceRaw());
 
-  v1::MockResourceProvider resourceProvider(resourceProviderResources);
+  v1::MockResourceProvider resourceProvider(
+      resourceProviderInfo,
+      resourceProviderResources);
 
   string scheme = "http";
 
@@ -8980,12 +8987,11 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
   // Fail the operation in the resource provider. This should trigger
   // an `UpdateSlaveMessage` to the master.
   {
-    CHECK_SOME(resourceProvider.resourceProviderId);
+    ASSERT_TRUE(resourceProvider.info.has_id());
 
     v1::Resources resourceProviderResources_;
     foreach (v1::Resource resource, resourceProviderResources) {
-      resource.mutable_provider_id()->CopyFrom(
-          resourceProvider.resourceProviderId.get());
+      resource.mutable_provider_id()->CopyFrom(resourceProvider.info.id());
 
       resourceProviderResources_ += resource;
     }
@@ -8996,8 +9002,7 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
     v1::resource_provider::Call call;
 
     call.set_type(v1::resource_provider::Call::UPDATE_STATE);
-    call.mutable_resource_provider_id()->CopyFrom(
-        resourceProvider.resourceProviderId.get());
+    call.mutable_resource_provider_id()->CopyFrom(resourceProvider.info.id());
 
     v1::resource_provider::Call::UpdateState* updateState =
       call.mutable_update_state();
