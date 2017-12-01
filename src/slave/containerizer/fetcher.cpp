@@ -38,6 +38,7 @@
 #include <stout/os/exists.hpp>
 #include <stout/os/find.hpp>
 #include <stout/os/killtree.hpp>
+#include <stout/os/realpath.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/rmdir.hpp>
 

@@ -37,6 +37,7 @@
 
 #include <stout/os/shell.hpp>
 #include <stout/os/strerror.hpp>
+#include <stout/os/realpath.hpp>
 
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"

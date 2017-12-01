@@ -37,6 +37,8 @@
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #ifdef __linux__
 #include "linux/fs.hpp"
 #endif

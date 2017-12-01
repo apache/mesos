@@ -27,6 +27,8 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include <stout/os/constants.hpp>
 
 #include "common/status_utils.hpp"

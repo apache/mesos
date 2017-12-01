@@ -23,6 +23,8 @@
 #include <stout/fs.hpp>
 #include <stout/os.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "linux/fs.hpp"
 
 #include "slave/containerizer/mesos/provisioner/backends/overlay.hpp"

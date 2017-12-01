@@ -23,6 +23,8 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "slave/paths.hpp"
 
 #include "slave/containerizer/mesos/isolators/filesystem/posix.hpp"

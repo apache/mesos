@@ -41,6 +41,8 @@
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "common/parse.hpp"
 
 #include "logging/logging.hpp"

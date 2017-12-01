@@ -53,6 +53,7 @@
 #include <stout/unreachable.hpp>
 
 #include <stout/os/constants.hpp>
+#include <stout/os/realpath.hpp>
 
 #include "common/http.hpp"
 

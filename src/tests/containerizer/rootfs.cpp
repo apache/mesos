@@ -23,6 +23,7 @@
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/realpath.hpp>
 #include <stout/os/stat.hpp>
 
 #include "linux/ldd.hpp"

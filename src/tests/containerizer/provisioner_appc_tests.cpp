@@ -29,6 +29,8 @@
 #include <stout/stringify.hpp>
 #include <stout/uuid.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include <stout/tests/utils.hpp>
 
 #include <mesos/appc/spec.hpp>

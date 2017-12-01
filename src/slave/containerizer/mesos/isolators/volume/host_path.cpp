@@ -28,6 +28,7 @@
 
 #include <stout/os/exists.hpp>
 #include <stout/os/mkdir.hpp>
+#include <stout/os/realpath.hpp>
 #include <stout/os/stat.hpp>
 #include <stout/os/touch.hpp>
 

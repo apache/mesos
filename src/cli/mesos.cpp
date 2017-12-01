@@ -26,6 +26,8 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/realpath.hpp>
+
 using std::cerr;
 using std::cout;
 using std::endl;

@@ -64,6 +64,8 @@ extern "C" {
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "linux/cgroups.hpp"
 #include "linux/fs.hpp"
 

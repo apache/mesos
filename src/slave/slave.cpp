@@ -70,6 +70,8 @@
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "authentication/cram_md5/authenticatee.hpp"
 
 #include "common/build.hpp"

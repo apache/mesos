@@ -32,6 +32,8 @@
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 

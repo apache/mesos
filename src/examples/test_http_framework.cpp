@@ -42,6 +42,8 @@
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "common/status_utils.hpp"
 
 #include "logging/flags.hpp"

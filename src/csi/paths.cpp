@@ -28,6 +28,8 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/realpath.hpp>
+
 namespace http = process::http;
 namespace unix = process::network::unix;
 

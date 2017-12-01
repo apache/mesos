@@ -40,6 +40,8 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #ifdef __linux__
 #include "linux/fs.hpp"
 #endif

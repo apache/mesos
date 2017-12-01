@@ -42,6 +42,8 @@
 #include <stout/os/realpath.hpp>
 #include <stout/os/stat.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "common/resources_utils.hpp"
 
 #include "messages/messages.hpp"

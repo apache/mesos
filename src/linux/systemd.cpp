@@ -25,6 +25,8 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "linux/cgroups.hpp"
 
 using process::Once;

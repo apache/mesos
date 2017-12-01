@@ -32,6 +32,8 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "slave/containerizer/mesos/provisioner/appc/cache.hpp"
 #include "slave/containerizer/mesos/provisioner/appc/fetcher.hpp"
 #include "slave/containerizer/mesos/provisioner/appc/paths.hpp"
