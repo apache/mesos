@@ -514,7 +514,10 @@ message ReregisterSlaveMessage {
 
   repeated ExecutorInfo executor_infos = 4;
   repeated Task tasks = 3;
+
+  // The `FrameworkInfo`s are provided by agents that are >= 1.0.0.
   repeated FrameworkInfo frameworks = 8;
+
   repeated Archive.Framework completed_frameworks = 5;
 
   // NOTE: This is a hack for the master to detect the agent's
