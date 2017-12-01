@@ -36,8 +36,8 @@ struct integer_sequence
 
 namespace internal {
 
-template <typename T, std::size_t N, std::size_t... S>
-struct IntegerSequenceGen : IntegerSequenceGen<T, N - 1, N - 1, S...> {};
+template <typename T, std::size_t N, std::size_t... Is>
+struct IntegerSequenceGen : IntegerSequenceGen<T, N - 1, N - 1, Is...> {};
 
 
 template <typename T, std::size_t... Is>
