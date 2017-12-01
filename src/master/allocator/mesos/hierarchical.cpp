@@ -280,11 +280,16 @@ void HierarchicalAllocatorProcess::addFramework(
 
   // Update the allocation for this framework.
   foreachpair (const SlaveID& slaveId, const Resources& resources, used) {
+    // TODO(bmahler): The master won't tell us about resources
+    // allocated to agents that have not yet been added, consider
+    // CHECKing this case.
     if (!slaves.contains(slaveId)) {
       continue;
     }
 
-    trackAllocatedResources(slaveId, {{frameworkId, resources}});
+    // The slave struct will already be aware of the allocated
+    // resources, so we only need to track them in the sorters.
+    trackAllocatedResources(slaveId, frameworkId, resources);
   }
 
   LOG(INFO) << "Added framework " << frameworkId;
@@ -498,13 +503,6 @@ void HierarchicalAllocatorProcess::addSlave(
   CHECK(!slaves.contains(slaveId));
   CHECK(!paused || expectedAgentCount.isSome());
 
-  roleSorter->add(slaveId, total);
-
-  // See comment at `quotaRoleSorter` declaration regarding non-revocable.
-  quotaRoleSorter->add(slaveId, total.nonRevocable());
-
-  trackAllocatedResources(slaveId, used);
-
   slaves[slaveId] = Slave();
 
   Slave& slave = slaves.at(slaveId);
@@ -523,6 +521,35 @@ void HierarchicalAllocatorProcess::addSlave(
   // leverage state and features such as the FrameworkSorter and OfferFilter.
   if (unavailability.isSome()) {
     slave.maintenance = Slave::Maintenance(unavailability.get());
+  }
+
+  roleSorter->add(slaveId, total);
+
+  // See comment at `quotaRoleSorter` declaration regarding non-revocable.
+  quotaRoleSorter->add(slaveId, total.nonRevocable());
+
+  foreachpair (const FrameworkID& frameworkId,
+               const Resources& allocation,
+               used) {
+    // There are two cases here:
+    //
+    //   (1) The framework has already been added to the allocator.
+    //       In this case, we track the allocation in the sorters.
+    //
+    //   (2) The framework has not yet been added to the allocator.
+    //       The master will imminently add the framework using
+    //       the `FrameworkInfo` recovered from the agent, and in
+    //       the interim we do not track the resources allocated to
+    //       this framework. This leaves a small window where the
+    //       role sorting will under-account for the roles belonging
+    //       to this framework.
+    //
+    // TODO(bmahler): Fix the issue outlined in (2).
+    if (!frameworks.contains(frameworkId)) {
+      continue;
+    }
+
+    trackAllocatedResources(slaveId, frameworkId, allocation);
   }
 
   // If we have just a number of recovered agents, we cannot distinguish
@@ -1643,14 +1670,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
         slave.allocated += resources;
 
-        // Resources allocated as part of the quota count towards the
-        // role's and the framework's fair share.
-        //
-        // NOTE: Revocable resources have already been excluded.
-        frameworkSorter->add(slaveId, resources);
-        frameworkSorter->allocated(frameworkId_, slaveId, resources);
-        roleSorter->allocated(role, slaveId, resources);
-        quotaRoleSorter->allocated(role, slaveId, resources);
+        trackAllocatedResources(slaveId, frameworkId, resources);
       }
     }
   }
@@ -1861,15 +1881,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
         slave.allocated += resources;
 
-        frameworkSorter->add(slaveId, resources);
-        frameworkSorter->allocated(frameworkId_, slaveId, resources);
-        roleSorter->allocated(role, slaveId, resources);
-
-        if (quotas.contains(role)) {
-          // See comment at `quotaRoleSorter` declaration regarding
-          // non-revocable.
-          quotaRoleSorter->allocated(role, slaveId, resources.nonRevocable());
-        }
+        trackAllocatedResources(slaveId, frameworkId, resources);
       }
     }
   }
@@ -2373,41 +2385,36 @@ bool HierarchicalAllocatorProcess::isRemoteSlave(const Slave& slave) const
 
 void HierarchicalAllocatorProcess::trackAllocatedResources(
     const SlaveID& slaveId,
-    const hashmap<FrameworkID, Resources>& used)
+    const FrameworkID& frameworkId,
+    const Resources& allocated)
 {
-  // Update the allocation for each framework.
-  foreachpair (const FrameworkID& frameworkId,
-               const Resources& used_,
-               used) {
-    if (!frameworks.contains(frameworkId)) {
-      continue;
+  CHECK(slaves.contains(slaveId));
+  CHECK(frameworks.contains(frameworkId));
+
+  // TODO(bmahler): Calling allocations() is expensive since it has
+  // to construct a map. Avoid this.
+  foreachpair (const string& role,
+               const Resources& allocation,
+               allocated.allocations()) {
+    // The framework has resources allocated to this role but it may
+    // or may not be subscribed to the role. Either way, we need to
+    // track the framework under the role.
+    if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
+      trackFrameworkUnderRole(frameworkId, role);
     }
 
-    foreachpair (const string& role,
-                 const Resources& allocated,
-                 used_.allocations()) {
-      // The framework has resources allocated to this role but it may
-      // or may not be subscribed to the role. Either way, we need to
-      // track the framework under the role.
-      if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
-        trackFrameworkUnderRole(frameworkId, role);
-      }
+    CHECK(roleSorter->contains(role));
+    CHECK(frameworkSorters.contains(role));
+    CHECK(frameworkSorters.at(role)->contains(frameworkId.value()));
 
-      // TODO(bmahler): Validate that the reserved resources have the
-      // framework's role.
-      CHECK(roleSorter->contains(role));
-      CHECK(frameworkSorters.contains(role));
-      CHECK(frameworkSorters.at(role)->contains(frameworkId.value()));
+    roleSorter->allocated(role, slaveId, allocation);
+    frameworkSorters.at(role)->add(slaveId, allocation);
+    frameworkSorters.at(role)->allocated(
+        frameworkId.value(), slaveId, allocation);
 
-      roleSorter->allocated(role, slaveId, allocated);
-      frameworkSorters.at(role)->add(slaveId, allocated);
-      frameworkSorters.at(role)->allocated(
-          frameworkId.value(), slaveId, allocated);
-
-      if (quotas.contains(role)) {
-        // See comment at `quotaRoleSorter` declaration regarding non-revocable.
-        quotaRoleSorter->allocated(role, slaveId, allocated.nonRevocable());
-      }
+    if (quotas.contains(role)) {
+      // See comment at `quotaRoleSorter` declaration regarding non-revocable.
+      quotaRoleSorter->allocated(role, slaveId, allocation.nonRevocable());
     }
   }
 }

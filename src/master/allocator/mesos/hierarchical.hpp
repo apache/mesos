@@ -542,7 +542,8 @@ private:
   // Helper to track used resources on an agent.
   void trackAllocatedResources(
       const SlaveID& slaveId,
-      const hashmap<FrameworkID, Resources>& used);
+      const FrameworkID& frameworkId,
+      const Resources& allocated);
 };
 
 
