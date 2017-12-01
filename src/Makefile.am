@@ -366,6 +366,8 @@ CXX_PROTOS +=								\
   messages/messages.pb.h						\
   resource_provider/registry.pb.cc					\
   resource_provider/registry.pb.h					\
+  resource_provider/state.pb.cc						\
+  resource_provider/state.pb.h						\
   slave/containerizer/mesos/provisioner/docker/message.pb.cc		\
   slave/containerizer/mesos/provisioner/docker/message.pb.h		\
   slave/containerizer/mesos/isolators/docker/volume/state.pb.cc		\
@@ -930,6 +932,8 @@ libmesos_no_3rdparty_la_SOURCES =					\
   master/registry.proto							\
   messages/flags.proto							\
   messages/messages.proto						\
+  resource_provider/registry.proto					\
+  resource_provider/state.proto						\
   slave/containerizer/mesos/provisioner/docker/message.proto		\
   slave/containerizer/mesos/isolators/docker/volume/state.proto		\
   slave/containerizer/mesos/isolators/network/cni/spec.proto
@@ -1153,7 +1157,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   resource_provider/message.hpp						\
   resource_provider/registrar.hpp					\
   resource_provider/registry.hpp					\
-  resource_provider/registry.proto					\
+  resource_provider/state.hpp						\
   resource_provider/validation.hpp					\
   sched/constants.hpp							\
   sched/flags.hpp							\

@@ -30,6 +30,7 @@
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
+#include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <mesos/resource_provider/resource_provider.hpp>
@@ -56,6 +57,7 @@
 #include "internal/evolve.hpp"
 
 #include "resource_provider/detector.hpp"
+#include "resource_provider/state.hpp"
 
 #include "slave/container_daemon.hpp"
 #include "slave/paths.hpp"
@@ -90,6 +92,8 @@ using mesos::internal::slave::ContainerDaemon;
 
 using mesos::resource_provider::Call;
 using mesos::resource_provider::Event;
+
+using mesos::resource_provider::state::ResourceProviderState;
 
 using mesos::v1::resource_provider::Driver;
 
@@ -272,6 +276,8 @@ private:
   Future<Nothing> prepareControllerService();
   Future<Nothing> prepareNodeService();
 
+  void checkpointResourceProviderState();
+
   enum State
   {
     RECOVERING,
@@ -302,6 +308,10 @@ private:
   Option<csi::GetPluginInfoResponse> nodeInfo;
   Option<csi::ControllerCapabilities> controllerCapabilities;
   Option<string> nodeId;
+
+  list<Event::Operation> pendingOperations;
+  Resources totalResources;
+  string resourceVersion;
 };
 
 
@@ -428,8 +438,34 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
             ": " + realpath.error());
       }
 
-      if (realpath.isSome()) {
+      if (realpath.isNone()) {
+        resourceVersion = UUID::random().toBytes();
+      } else {
         info.mutable_id()->set_value(Path(realpath.get()).basename());
+
+        const string statePath = slave::paths::getResourceProviderStatePath(
+            metaDir, slaveId, info.type(), info.name(), info.id());
+
+        Result<ResourceProviderState> resourceProviderState =
+          ::protobuf::read<ResourceProviderState>(statePath);
+
+        if (resourceProviderState.isError()) {
+          return Failure(
+              "Failed to read resource provider state from '" + statePath +
+              "': " + resourceProviderState.error());
+        }
+
+        if (resourceProviderState.isNone()) {
+          resourceVersion = UUID::random().toBytes();
+        } else {
+          foreach (const Event::Operation& operation,
+                   resourceProviderState->operations()) {
+            pendingOperations.push_back(operation);
+          }
+
+          totalResources = resourceProviderState->resources();
+          resourceVersion = resourceProviderState->resource_version_uuid();
+        }
       }
 
       state = DISCONNECTED;
@@ -589,6 +625,9 @@ void StorageLocalResourceProviderProcess::operation(
   }
 
   CHECK_EQ(READY, state);
+
+  pendingOperations.push_back(operation);
+  checkpointResourceProviderState();
 }
 
 
@@ -967,6 +1006,25 @@ Future<Nothing> StorageLocalResourceProviderProcess::prepareNodeService()
           return Nothing();
         }));
     }));
+}
+
+
+void StorageLocalResourceProviderProcess::checkpointResourceProviderState()
+{
+  ResourceProviderState state;
+
+  foreach (const Event::Operation& operation, pendingOperations) {
+    state.add_operations()->CopyFrom(operation);
+  }
+
+  state.mutable_resources()->CopyFrom(totalResources);
+  state.set_resource_version_uuid(resourceVersion);
+
+  const string statePath = slave::paths::getResourceProviderStatePath(
+      metaDir, slaveId, info.type(), info.name(), info.id());
+
+  CHECK_SOME(slave::state::checkpoint(statePath, state))
+    << "Failed to checkpoint resource provider state to '" << statePath << "'";
 }
 
 

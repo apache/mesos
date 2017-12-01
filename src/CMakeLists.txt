@@ -71,6 +71,7 @@ PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/docker/volum
 PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/provisioner/docker/message)
 PROTOC_GENERATE(INTERNAL TARGET master/registry)
 PROTOC_GENERATE(INTERNAL TARGET resource_provider/registry)
+PROTOC_GENERATE(INTERNAL TARGET resource_provider/state)
 
 
 # BUILD PROTOBUFS.

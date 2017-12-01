@@ -15,10 +15,10 @@
 // limitations under the License.
 
 
-#ifndef __RESOURCE_PROVIDER_REGISTRY_HPP__
-#define __RESOURCE_PROVIDER_REGISTRY_HPP__
+#ifndef __RESOURCE_PROVIDER_STATE_HPP__
+#define __RESOURCE_PROVIDER_STATE_HPP__
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
-#include "resource_provider/registry.pb.h"
+#include "resource_provider/state.pb.h"
 
-#endif // __RESOURCE_PROVIDER_REGISTRY_HPP__
+#endif // __RESOURCE_PROVIDER_STATE_HPP__
