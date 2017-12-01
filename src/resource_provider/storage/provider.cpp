@@ -22,6 +22,7 @@
 #include <glog/logging.h>
 
 #include <process/after.hpp>
+#include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
@@ -43,6 +44,7 @@
 #include <stout/os/mkdir.hpp>
 #include <stout/os/realpath.hpp>
 #include <stout/os/rm.hpp>
+#include <stout/os/rmdir.hpp>
 
 #include "common/http.hpp"
 
@@ -57,10 +59,12 @@
 
 #include "slave/container_daemon.hpp"
 #include "slave/paths.hpp"
+#include "slave/state.hpp"
 
 namespace http = process::http;
 
 using std::find;
+using std::list;
 using std::queue;
 using std::string;
 
@@ -75,6 +79,7 @@ using process::Promise;
 using process::Timeout;
 
 using process::after;
+using process::collect;
 using process::defer;
 using process::loop;
 using process::spawn;
@@ -203,6 +208,20 @@ static inline http::URL extractParentEndpoint(const http::URL& url)
 }
 
 
+// Returns the 'Bearer' credential as a header for calling the V1 agent
+// API if the `authToken` is presented, or empty otherwise.
+static inline http::Headers getAuthHeader(const Option<string>& authToken)
+{
+  http::Headers headers;
+
+  if (authToken.isSome()) {
+    headers["Authorization"] = "Bearer " + authToken.get();
+  }
+
+  return headers;
+}
+
+
 class StorageLocalResourceProviderProcess
   : public Process<StorageLocalResourceProviderProcess>
 {
@@ -238,6 +257,7 @@ private:
   void fatal(const string& messsage, const string& failure);
 
   Future<Nothing> recover();
+  Future<Nothing> recoverServices();
   void doReliableRegistration();
 
   // Functions for received events.
@@ -247,6 +267,10 @@ private:
 
   Future<csi::Client> connect(const string& endpoint);
   Future<csi::Client> getService(const ContainerID& containerId);
+  Future<Nothing> killService(const ContainerID& containerId);
+
+  Future<Nothing> prepareControllerService();
+  Future<Nothing> prepareNodeService();
 
   enum State
   {
@@ -273,6 +297,11 @@ private:
   ContainerID nodeContainerId;
   hashmap<ContainerID, Owned<ContainerDaemon>> daemons;
   hashmap<ContainerID, Owned<Promise<csi::Client>>> services;
+
+  Option<csi::GetPluginInfoResponse> controllerInfo;
+  Option<csi::GetPluginInfoResponse> nodeInfo;
+  Option<csi::ControllerCapabilities> controllerCapabilities;
+  Option<string> nodeId;
 };
 
 
@@ -382,41 +411,125 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
 {
   CHECK_EQ(RECOVERING, state);
 
-  // Recover the resource provider ID from the latest symlink. If the
-  // symlink does not exist or it points to a non-exist directory,
-  // treat this as a new resource provider.
-  // TODO(chhsiao): State recovery.
-  Result<string> realpath = os::realpath(
-      slave::paths::getLatestResourceProviderPath(
-          metaDir, slaveId, info.type(), info.name()));
+  return recoverServices()
+    .then(defer(self(), [=]() -> Future<Nothing> {
+      // Recover the resource provider ID from the latest symlink. If
+      // the symlink does not exist or it points to a non-exist
+      // directory, treat this as a new resource provider.
+      // TODO(chhsiao): State recovery.
+      Result<string> realpath = os::realpath(
+          slave::paths::getLatestResourceProviderPath(
+              metaDir, slaveId, info.type(), info.name()));
 
-  if (realpath.isError()) {
+      if (realpath.isError()) {
+        return Failure(
+            "Failed to read the latest symlink for resource provider with "
+            "type '" + info.type() + "' and name '" + info.name() + "'"
+            ": " + realpath.error());
+      }
+
+      if (realpath.isSome()) {
+        info.mutable_id()->set_value(Path(realpath.get()).basename());
+      }
+
+      state = DISCONNECTED;
+
+      driver.reset(new Driver(
+          Owned<EndpointDetector>(new ConstantEndpointDetector(url)),
+          contentType,
+          defer(self(), &Self::connected),
+          defer(self(), &Self::disconnected),
+          defer(self(), [this](queue<v1::resource_provider::Event> events) {
+            while(!events.empty()) {
+              const v1::resource_provider::Event& event = events.front();
+              received(devolve(event));
+              events.pop();
+            }
+          }),
+          None())); // TODO(nfnt): Add authentication as part of MESOS-7854.
+
+      return Nothing();
+    }));
+}
+
+
+Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
+{
+  Try<list<string>> containerPaths = csi::paths::getContainerPaths(
+      slave::paths::getCsiRootDir(workDir),
+      info.storage().type(),
+      info.storage().name());
+
+  if (containerPaths.isError()) {
     return Failure(
-        "Failed to read the latest symlink for resource provider with type '" +
-        info.type() + "' and name '" + info.name() + "': " + realpath.error());
+        "Failed to find plugin containers for CSI plugin type '" +
+        info.storage().type() + "' and name '" + info.storage().name() + ": " +
+        containerPaths.error());
   }
 
-  if (realpath.isSome()) {
-    info.mutable_id()->set_value(Path(realpath.get()).basename());
-  }
+  list<Future<Nothing>> futures;
 
-  state = DISCONNECTED;
+  foreach (const string& path, containerPaths.get()) {
+    ContainerID containerId;
+    containerId.set_value(Path(path).basename());
 
-  driver.reset(new Driver(
-      Owned<EndpointDetector>(new ConstantEndpointDetector(url)),
-      contentType,
-      defer(self(), &Self::connected),
-      defer(self(), &Self::disconnected),
-      defer(self(), [this](queue<v1::resource_provider::Event> events) {
-        while(!events.empty()) {
-          const v1::resource_provider::Event& event = events.front();
-          received(devolve(event));
-          events.pop();
+    // Do not kill the up-to-date controller or node container.
+    // Otherwise, kill them and perform cleanups.
+    if (containerId == controllerContainerId ||
+        containerId == nodeContainerId) {
+      const string configPath = csi::paths::getContainerInfoPath(
+          slave::paths::getCsiRootDir(workDir),
+          info.storage().type(),
+          info.storage().name(),
+          containerId);
+
+      Result<CSIPluginContainerInfo> config =
+        ::protobuf::read<CSIPluginContainerInfo>(configPath);
+
+      if (config.isError()) {
+        return Failure(
+            "Failed to read plugin container config from '" +
+            configPath + "': " + config.error());
+      }
+
+      if (config.isSome() &&
+          getCSIPluginContainerInfo(info, containerId) == config.get()) {
+        continue;
+      }
+    }
+
+    futures.push_back(killService(containerId)
+      .then(defer(self(), [=]() -> Future<Nothing> {
+        Result<string> endpointDir =
+          os::realpath(csi::paths::getEndpointDirSymlinkPath(
+              slave::paths::getCsiRootDir(workDir),
+              info.storage().type(),
+              info.storage().name(),
+              containerId));
+
+        if (endpointDir.isSome()) {
+          Try<Nothing> rmdir = os::rmdir(endpointDir.get());
+          if (rmdir.isError()) {
+            return Failure(
+                "Failed to remove endpoint directory '" + endpointDir.get() +
+                "': " + rmdir.error());
+          }
         }
-      }),
-      None())); // TODO(nfnt): Add authentication as part of MESOS-7854.
 
-  return Nothing();
+        Try<Nothing> rmdir = os::rmdir(path);
+        if (rmdir.isError()) {
+          return Failure(
+              "Failed to remove plugin container directory '" + path + "': " +
+              rmdir.error());
+        }
+
+        return Nothing();
+      })));
+  }
+
+  return collect(futures)
+    .then(defer(self(), &Self::prepareNodeService))
+    .then(defer(self(), &Self::prepareControllerService));
 }
 
 
@@ -668,6 +781,20 @@ Future<csi::Client> StorageLocalResourceProviderProcess::getService(
         stringify(containerId) + "': " + daemon.error());
   }
 
+  // Checkpoint the plugin container config.
+  const string configPath = csi::paths::getContainerInfoPath(
+      slave::paths::getCsiRootDir(workDir),
+      info.storage().type(),
+      info.storage().name(),
+      containerId);
+
+  Try<Nothing> checkpoint = slave::state::checkpoint(configPath, config.get());
+  if (checkpoint.isError()) {
+    return Failure(
+        "Failed to checkpoint plugin container config to '" + configPath +
+        "': " + checkpoint.error());
+  }
+
   const string message =
     "Container daemon for '" + stringify(containerId) + "' failed";
 
@@ -677,6 +804,169 @@ Future<csi::Client> StorageLocalResourceProviderProcess::getService(
     .onDiscarded(defer(self(), &Self::fatal, message, "future discarded"));
 
   return services.at(containerId)->future();
+}
+
+
+// Kills the specified plugin container and returns a future that waits
+// for it to terminate.
+Future<Nothing> StorageLocalResourceProviderProcess::killService(
+    const ContainerID& containerId)
+{
+  CHECK(!daemons.contains(containerId));
+  CHECK(!services.contains(containerId));
+
+  agent::Call call;
+  call.set_type(agent::Call::KILL_CONTAINER);
+  call.mutable_kill_container()->mutable_container_id()->CopyFrom(containerId);
+
+  return http::post(
+      extractParentEndpoint(url),
+      getAuthHeader(authToken),
+      serialize(contentType, evolve(call)),
+      stringify(contentType))
+    .then(defer(self(), [=](const http::Response& response) -> Future<Nothing> {
+      if (response.status == http::NotFound().status) {
+        return Nothing();
+      }
+
+      if (response.status != http::OK().status) {
+        return Failure(
+            "Failed to kill container '" + stringify(containerId) +
+            "': Unexpected response '" + response.status + "' (" + response.body
+            + ")");
+      }
+
+      agent::Call call;
+      call.set_type(agent::Call::WAIT_CONTAINER);
+      call.mutable_wait_container()
+        ->mutable_container_id()->CopyFrom(containerId);
+
+      return http::post(
+          extractParentEndpoint(url),
+          getAuthHeader(authToken),
+          serialize(contentType, evolve(call)),
+          stringify(contentType))
+        .then(defer(self(), [=](
+            const http::Response& response) -> Future<Nothing> {
+          if (response.status != http::OK().status &&
+              response.status != http::NotFound().status) {
+            return Failure(
+                "Failed to wait for container '" + stringify(containerId) +
+                "': Unexpected response '" + response.status + "' (" +
+                response.body + ")");
+          }
+
+          return Nothing();
+        }));
+    }));
+}
+
+
+Future<Nothing> StorageLocalResourceProviderProcess::prepareControllerService()
+{
+  return getService(controllerContainerId)
+    .then(defer(self(), [=](csi::Client client) {
+      // Get the plugin info and check for consistency.
+      csi::GetPluginInfoRequest request;
+      request.mutable_version()->CopyFrom(csiVersion);
+
+      return client.GetPluginInfo(request)
+        .then(defer(self(), [=](const csi::GetPluginInfoResponse& response) {
+          controllerInfo = response;
+
+          LOG(INFO)
+            << "Controller plugin loaded: " << stringify(controllerInfo.get());
+
+          if (nodeInfo.isSome() &&
+              (controllerInfo->name() != nodeInfo->name() ||
+               controllerInfo->vendor_version() !=
+                 nodeInfo->vendor_version())) {
+            LOG(WARNING)
+              << "Inconsistent controller and node plugin components. Please "
+                 "check with the plugin vendor to ensure compatibility.";
+          }
+
+          // NOTE: We always get the latest service future before
+          // proceeding to the next step.
+          return getService(controllerContainerId);
+        }));
+    }))
+    .then(defer(self(), [=](csi::Client client) {
+      // Probe the plugin to validate the runtime environment.
+      csi::ControllerProbeRequest request;
+      request.mutable_version()->CopyFrom(csiVersion);
+
+      return client.ControllerProbe(request)
+        .then(defer(self(), [=](const csi::ControllerProbeResponse& response) {
+          return getService(controllerContainerId);
+        }));
+    }))
+    .then(defer(self(), [=](csi::Client client) {
+      // Get the controller capabilities.
+      csi::ControllerGetCapabilitiesRequest request;
+      request.mutable_version()->CopyFrom(csiVersion);
+
+      return client.ControllerGetCapabilities(request)
+        .then(defer(self(), [=](
+            const csi::ControllerGetCapabilitiesResponse& response) {
+          controllerCapabilities = response.capabilities();
+
+          return Nothing();
+        }));
+    }));
+}
+
+
+Future<Nothing> StorageLocalResourceProviderProcess::prepareNodeService()
+{
+  return getService(nodeContainerId)
+    .then(defer(self(), [=](csi::Client client) {
+      // Get the plugin info and check for consistency.
+      csi::GetPluginInfoRequest request;
+      request.mutable_version()->CopyFrom(csiVersion);
+
+      return client.GetPluginInfo(request)
+        .then(defer(self(), [=](const csi::GetPluginInfoResponse& response) {
+          nodeInfo = response;
+
+          LOG(INFO) << "Node plugin loaded: " << stringify(nodeInfo.get());
+
+          if (controllerInfo.isSome() &&
+              (controllerInfo->name() != nodeInfo->name() ||
+               controllerInfo->vendor_version() !=
+                 nodeInfo->vendor_version())) {
+            LOG(WARNING)
+              << "Inconsistent controller and node plugin components. Please "
+                 "check with the plugin vendor to ensure compatibility.";
+          }
+
+          // NOTE: We always get the latest service future before
+          // proceeding to the next step.
+          return getService(nodeContainerId);
+        }));
+    }))
+    .then(defer(self(), [=](csi::Client client) {
+      // Probe the plugin to validate the runtime environment.
+      csi::NodeProbeRequest request;
+      request.mutable_version()->CopyFrom(csiVersion);
+
+      return client.NodeProbe(request)
+        .then(defer(self(), [=](const csi::NodeProbeResponse& response) {
+          return getService(nodeContainerId);
+        }));
+    }))
+    .then(defer(self(), [=](csi::Client client) {
+      // Get the node ID.
+      csi::GetNodeIDRequest request;
+      request.mutable_version()->CopyFrom(csiVersion);
+
+      return client.GetNodeID(request)
+        .then(defer(self(), [=](const csi::GetNodeIDResponse& response) {
+          nodeId = response.node_id();
+
+          return Nothing();
+        }));
+    }));
 }
 
 
