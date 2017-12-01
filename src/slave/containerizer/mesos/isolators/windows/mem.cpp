@@ -34,8 +34,18 @@
 
 #include "slave/containerizer/mesos/isolators/windows/mem.hpp"
 
+using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerState;
+using mesos::slave::Isolator;
+
+using process::Clock;
 using process::Failure;
 using process::Future;
+using process::Owned;
+
+using std::list;
+using std::max;
 
 namespace mesos {
 namespace internal {
@@ -51,38 +61,36 @@ bool WindowsMemIsolatorProcess::supportsNesting() { return true; }
 // When recovering, this ensures that our ContainerID -> PID mapping is
 // recreated.
 Future<Nothing> WindowsMemIsolatorProcess::recover(
-    const std::list<mesos::slave::ContainerState>& state,
-    const hashset<ContainerID>& orphans)
+    const list<ContainerState>& state, const hashset<ContainerID>& orphans)
 {
-  foreach (const mesos::slave::ContainerState& run, state) {
+  foreach (const ContainerState& run, state) {
     // This should (almost) never occur: see comment in
     // SubprocessLauncher::recover().
-    if (pids.contains(run.container_id())) {
+    if (infos.contains(run.container_id())) {
       return Failure("Container already recovered");
     }
 
-    pids.put(run.container_id(), run.pid());
+    infos[run.container_id()] = {run.pid(), None()};
   }
 
   return Nothing();
 }
 
 
-process::Future<Option<mesos::slave::ContainerLaunchInfo>>
-WindowsMemIsolatorProcess::prepare(
-    const ContainerID& containerId,
-    const mesos::slave::ContainerConfig& containerConfig)
+Future<Option<ContainerLaunchInfo>> WindowsMemIsolatorProcess::prepare(
+    const ContainerID& containerId, const ContainerConfig& containerConfig)
 {
-  if (memLimits.contains(containerId)) {
+  if (infos.contains(containerId)) {
     return Failure("Container already prepared: " + stringify(containerId));
   }
 
-  Resources resources{containerConfig.resources()};
+  infos[containerId] = {};
 
+  const Resources resources = containerConfig.resources();
   if (resources.mem().isSome()) {
     // Save the limit information so that `isolate` can set the limit
     // immediately.
-    memLimits[containerId] = std::max(resources.mem().get(), MIN_MEM);
+    infos[containerId].limit = max(resources.mem().get(), MIN_MEM);
   }
 
   return None();
@@ -94,15 +102,20 @@ WindowsMemIsolatorProcess::prepare(
 Future<Nothing> WindowsMemIsolatorProcess::isolate(
     const ContainerID& containerId, pid_t pid)
 {
-  if (pids.contains(containerId)) {
+  if (!infos.contains(containerId)) {
+    return Failure(
+        "Container not prepared before isolation: " + stringify(containerId));
+  }
+
+  if (infos[containerId].pid.isSome()) {
     return Failure("Container already isolated: " + stringify(containerId));
   }
 
-  pids.put(containerId, pid);
+  infos[containerId].pid = pid;
 
-  if (memLimits.contains(containerId)) {
-    Try<Nothing> set =
-      os::set_job_mem_limit(pids[containerId], memLimits[containerId]);
+  if (infos[containerId].limit.isSome()) {
+    const Try<Nothing> set = os::set_job_mem_limit(
+        infos[containerId].pid.get(), infos[containerId].limit.get());
     if (set.isError()) {
       return Failure(
           "Failed to isolate container '" + stringify(containerId) +
@@ -117,23 +130,21 @@ Future<Nothing> WindowsMemIsolatorProcess::isolate(
 Future<Nothing> WindowsMemIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
-  if (!pids.contains(containerId)) {
+  if (!infos.contains(containerId)) {
     VLOG(1) << "Ignoring cleanup request for unknown container " << containerId;
 
     return Nothing();
   }
 
-  pids.erase(containerId);
-  memLimits.erase(containerId);
+  infos.erase(containerId);
 
   return Nothing();
 }
 
 
-Try<mesos::slave::Isolator*> WindowsMemIsolatorProcess::create(
-    const Flags& flags)
+Try<Isolator*> WindowsMemIsolatorProcess::create(const Flags& flags)
 {
-  process::Owned<MesosIsolatorProcess> process(new WindowsMemIsolatorProcess());
+  Owned<MesosIsolatorProcess> process(new WindowsMemIsolatorProcess());
 
   return new MesosIsolator(process);
 }
@@ -146,8 +157,13 @@ Future<Nothing> WindowsMemIsolatorProcess::update(
     return Failure("Not supported for nested containers");
   }
 
-  if (!pids.contains(containerId)) {
+  if (!infos.contains(containerId)) {
     return Failure("Unknown container: " + stringify(containerId));
+  }
+
+  if (!infos[containerId].pid.isSome()) {
+    return Failure(
+        "Container not isolated before update: " + stringify(containerId));
   }
 
   if (resources.mem().isNone()) {
@@ -156,9 +172,9 @@ Future<Nothing> WindowsMemIsolatorProcess::update(
         "': No mem resource given");
   }
 
-  memLimits[containerId] = std::max(resources.mem().get(), MIN_MEM);
-  Try<Nothing> set =
-    os::set_job_mem_limit(pids[containerId], memLimits[containerId]);
+  infos[containerId].limit = max(resources.mem().get(), MIN_MEM);
+  const Try<Nothing> set = os::set_job_mem_limit(
+      infos[containerId].pid.get(), infos[containerId].limit.get());
   if (set.isError()) {
     return Failure(
         "Failed to update container '" + stringify(containerId) +
@@ -172,18 +188,25 @@ Future<Nothing> WindowsMemIsolatorProcess::update(
 Future<ResourceStatistics> WindowsMemIsolatorProcess::usage(
     const ContainerID& containerId)
 {
-  if (!pids.contains(containerId)) {
+  ResourceStatistics result;
+  result.set_timestamp(Clock::now().secs());
+
+  if (!infos.contains(containerId)) {
     LOG(WARNING) << "No resource usage for unknown container '" << containerId
                  << "'";
 
-    return ResourceStatistics();
+    return result;
   }
 
-  ResourceStatistics result;
+  if (!infos[containerId].pid.isSome()) {
+    LOG(WARNING) << "No resource usage for container with unknown PID '"
+                 << containerId << "'";
 
-  result.set_timestamp(process::Clock::now().secs());
+    return result;
+  }
 
-  const Try<Bytes> mem_total_bytes = os::get_job_mem(pids[containerId]);
+  const Try<Bytes> mem_total_bytes =
+    os::get_job_mem(infos[containerId].pid.get());
   if (mem_total_bytes.isSome()) {
     result.set_mem_total_bytes(mem_total_bytes.get().bytes());
   }

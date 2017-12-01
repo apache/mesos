@@ -33,8 +33,18 @@
 
 #include "slave/containerizer/mesos/isolators/windows/cpu.hpp"
 
+using mesos::slave::ContainerConfig;
+using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerState;
+using mesos::slave::Isolator;
+
+using process::Clock;
 using process::Failure;
 using process::Future;
+using process::Owned;
+
+using std::list;
+using std::max;
 
 namespace mesos {
 namespace internal {
@@ -50,37 +60,36 @@ bool WindowsCpuIsolatorProcess::supportsNesting() { return true; }
 // When recovering, this ensures that our ContainerID -> PID mapping is
 // recreated.
 Future<Nothing> WindowsCpuIsolatorProcess::recover(
-    const std::list<mesos::slave::ContainerState>& state,
-    const hashset<ContainerID>& orphans)
+    const list<ContainerState>& state, const hashset<ContainerID>& orphans)
 {
-  foreach (const mesos::slave::ContainerState& run, state) {
+  foreach (const ContainerState& run, state) {
     // This should (almost) never occur: see comment in
     // SubprocessLauncher::recover().
-    if (pids.contains(run.container_id())) {
+    if (infos.contains(run.container_id())) {
       return Failure("Container already recovered");
     }
 
-    pids.put(run.container_id(), run.pid());
+    infos[run.container_id()] = {run.pid(), None()};
   }
 
   return Nothing();
 }
 
 
-process::Future<Option<mesos::slave::ContainerLaunchInfo>>
-WindowsCpuIsolatorProcess::prepare(
-    const ContainerID& containerId,
-    const mesos::slave::ContainerConfig& containerConfig)
+Future<Option<ContainerLaunchInfo>> WindowsCpuIsolatorProcess::prepare(
+    const ContainerID& containerId, const ContainerConfig& containerConfig)
 {
-  if (cpuLimits.contains(containerId)) {
+  if (infos.contains(containerId)) {
     return Failure("Container already prepared: " + stringify(containerId));
   }
 
-  Resources resources{containerConfig.resources()};
+  infos[containerId] = {};
+
+  const Resources resources = containerConfig.resources();
   if (resources.cpus().isSome()) {
     // Save the limit information so that `isolate` can set the limit
     // immediately.
-    cpuLimits[containerId] = std::max(resources.cpus().get(), MIN_CPU);
+    infos[containerId].limit = max(resources.cpus().get(), MIN_CPU);
   }
 
   return None();
@@ -92,15 +101,20 @@ WindowsCpuIsolatorProcess::prepare(
 Future<Nothing> WindowsCpuIsolatorProcess::isolate(
     const ContainerID& containerId, pid_t pid)
 {
-  if (pids.contains(containerId)) {
+  if (!infos.contains(containerId)) {
+    return Failure(
+        "Container not prepared before isolation: " + stringify(containerId));
+  }
+
+  if (infos[containerId].pid.isSome()) {
     return Failure("Container already isolated: " + stringify(containerId));
   }
 
-  pids.put(containerId, pid);
+  infos[containerId].pid = pid;
 
-  if (cpuLimits.contains(containerId)) {
-    Try<Nothing> set =
-      os::set_job_cpu_limit(pids[containerId], cpuLimits[containerId]);
+  if (infos[containerId].limit.isSome()) {
+    const Try<Nothing> set = os::set_job_cpu_limit(
+        infos[containerId].pid.get(), infos[containerId].limit.get());
     if (set.isError()) {
       return Failure(
           "Failed to update container '" + stringify(containerId) +
@@ -115,23 +129,21 @@ Future<Nothing> WindowsCpuIsolatorProcess::isolate(
 Future<Nothing> WindowsCpuIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
-  if (!pids.contains(containerId)) {
+  if (!infos.contains(containerId)) {
     VLOG(1) << "Ignoring cleanup request for unknown container " << containerId;
 
     return Nothing();
   }
 
-  pids.erase(containerId);
-  cpuLimits.erase(containerId);
+  infos.erase(containerId);
 
   return Nothing();
 }
 
 
-Try<mesos::slave::Isolator*> WindowsCpuIsolatorProcess::create(
-    const Flags& flags)
+Try<Isolator*> WindowsCpuIsolatorProcess::create(const Flags& flags)
 {
-  process::Owned<MesosIsolatorProcess> process(new WindowsCpuIsolatorProcess());
+  Owned<MesosIsolatorProcess> process(new WindowsCpuIsolatorProcess());
 
   return new MesosIsolator(process);
 }
@@ -144,8 +156,13 @@ Future<Nothing> WindowsCpuIsolatorProcess::update(
     return Failure("Not supported for nested containers");
   }
 
-  if (!pids.contains(containerId)) {
+  if (!infos.contains(containerId)) {
     return Failure("Unknown container: " + stringify(containerId));
+  }
+
+  if (!infos[containerId].pid.isSome()) {
+    return Failure(
+        "Container not isolated before update: " + stringify(containerId));
   }
 
   if (resources.cpus().isNone()) {
@@ -154,9 +171,9 @@ Future<Nothing> WindowsCpuIsolatorProcess::update(
         "': No cpus resource given");
   }
 
-  cpuLimits[containerId] = std::max(resources.cpus().get(), MIN_CPU);
-  Try<Nothing> set =
-    os::set_job_cpu_limit(pids[containerId], cpuLimits[containerId]);
+  infos[containerId].limit = max(resources.cpus().get(), MIN_CPU);
+  const Try<Nothing> set = os::set_job_cpu_limit(
+      infos[containerId].pid.get(), infos[containerId].limit.get());
   if (set.isError()) {
     return Failure(
         "Failed to update container '" + stringify(containerId) +
@@ -170,19 +187,25 @@ Future<Nothing> WindowsCpuIsolatorProcess::update(
 Future<ResourceStatistics> WindowsCpuIsolatorProcess::usage(
     const ContainerID& containerId)
 {
-  if (!pids.contains(containerId)) {
+  ResourceStatistics result;
+  result.set_timestamp(Clock::now().secs());
+
+  if (!infos.contains(containerId)) {
     LOG(WARNING) << "No resource usage for unknown container '" << containerId
                  << "'";
 
-    return ResourceStatistics();
+    return result;
   }
 
-  ResourceStatistics result;
+  if (!infos[containerId].pid.isSome()) {
+    LOG(WARNING) << "No resource usage for container with unknown PID '"
+                 << containerId << "'";
 
-  result.set_timestamp(process::Clock::now().secs());
+    return result;
+  }
 
   const Try<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION> info =
-    os::get_job_info(pids[containerId]);
+    os::get_job_info(infos[containerId].pid.get());
   if (info.isError()) {
     return result;
   }

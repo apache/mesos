@@ -64,8 +64,13 @@ public:
   process::Future<Nothing> cleanup(const ContainerID& containerId) override;
 
 private:
-  hashmap<ContainerID, pid_t> pids;
-  hashmap<ContainerID, Bytes> memLimits;
+  struct Info
+  {
+    Option<pid_t> pid;
+    Option<Bytes> limit;
+  };
+
+  hashmap<ContainerID, Info> infos;
 
   WindowsMemIsolatorProcess()
     : ProcessBase(process::ID::generate("windows-mem-isolator"))

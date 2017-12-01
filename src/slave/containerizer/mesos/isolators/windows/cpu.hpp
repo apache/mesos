@@ -63,8 +63,13 @@ public:
   process::Future<Nothing> cleanup(const ContainerID& containerId) override;
 
 private:
-  hashmap<ContainerID, pid_t> pids;
-  hashmap<ContainerID, double> cpuLimits;
+  struct Info
+  {
+    Option<pid_t> pid;
+    Option<double> limit;
+  };
+
+  hashmap<ContainerID, Info> infos;
 
   WindowsCpuIsolatorProcess()
     : ProcessBase(process::ID::generate("windows-cpu-isolator"))
