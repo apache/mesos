@@ -41,6 +41,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/linkedhashmap.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
@@ -48,6 +49,7 @@
 
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
+#include "common/resources_utils.hpp"
 
 #include "csi/client.hpp"
 #include "csi/paths.hpp"
@@ -70,7 +72,9 @@ using std::accumulate;
 using std::find;
 using std::list;
 using std::queue;
+using std::shared_ptr;
 using std::string;
+using std::vector;
 
 using process::Break;
 using process::Continue;
@@ -88,6 +92,7 @@ using process::collect;
 using process::defer;
 using process::loop;
 using process::spawn;
+using process::undiscardable;
 
 using process::http::authentication::Principal;
 
@@ -343,6 +348,29 @@ private:
   Future<Nothing> nodePublish(const string& volumeId);
   Future<Nothing> nodeUnpublish(const string& volumeId);
 
+  // Returns a CSI volume ID.
+  Future<string> createVolume(
+      const string& name,
+      const Bytes& capacity,
+      const ProfileData& profile);
+  Future<Nothing> deleteVolume(const string& volumeId);
+
+  // Applies the offer operation. Conventional operations will be
+  // synchoronusly applied.
+  Future<Nothing> applyOfferOperation(const UUID& operationUuid);
+
+  Future<vector<ResourceConversion>> applyCreateVolumeOrBlock(
+      const Resource& resource,
+      const UUID& operationUuid,
+      const Resource::DiskInfo::Source::Type& type);
+  Future<vector<ResourceConversion>> applyDestroyVolumeOrBlock(
+      const Resource& resource);
+
+  // Synchronously update `totalResources` and the offer operation status.
+  Try<Nothing> applyResourceConversions(
+      const UUID& operationUuid,
+      const Try<vector<ResourceConversion>>& conversions);
+
   void checkpointResourceProviderState();
   void sendResourceProviderStateUpdate();
   void checkpointVolumeState(const string& volumeId);
@@ -380,7 +408,10 @@ private:
   Option<csi::ControllerCapabilities> controllerCapabilities;
   Option<string> nodeId;
 
-  list<Event::Operation> pendingOperations;
+  // NOTE: We store the list of pending operations in a `LinkedHashMap`
+  // to preserve the order we receive the operations. This is useful
+  // when we replay depending operations during recovery.
+  LinkedHashMap<UUID, Event::Operation> pendingOperations;
   Resources totalResources;
   Option<UUID> resourceVersion;
   hashmap<string, VolumeData> volumes;
@@ -558,7 +589,10 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
         if (resourceProviderState.isSome()) {
           foreach (const Event::Operation& operation,
                    resourceProviderState->operations()) {
-            pendingOperations.push_back(operation);
+            Try<UUID> uuid = UUID::fromBytes(operation.operation_uuid());
+            CHECK_SOME(uuid);
+
+            pendingOperations[uuid.get()] = operation;
           }
 
           totalResources = resourceProviderState->resources();
@@ -569,6 +603,23 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
 
           resourceVersion = uuid.get();
         }
+      }
+
+      // We replay all pending operations here, so that if a volume is
+      // actually created before the last failover, it will be reflected
+      // in the updated total resources before we do the reconciliation.
+      // NOTE: `applyOfferOperation` will remove the applied operation
+      // from the list of pending operations, so we make a copy of keys
+      // here.
+      foreach (const UUID& uuid, pendingOperations.keys()) {
+        applyOfferOperation(uuid)
+          .onAny(defer(self(), [=](const Future<Nothing>& future) {
+            if (!future.isReady()) {
+              LOG(ERROR)
+                << "Failed to apply operation " << uuid << ": "
+                << (future.isFailed() ? future.failure() : "future discarded");
+            }
+          }));
       }
 
       state = DISCONNECTED;
@@ -917,6 +968,8 @@ void StorageLocalResourceProviderProcess::subscribed(
 void StorageLocalResourceProviderProcess::operation(
     const Event::Operation& operation)
 {
+  Future<Resources> converted;
+
   if (state == SUBSCRIBED) {
     // TODO(chhsiao): Reject this operation.
     return;
@@ -924,8 +977,23 @@ void StorageLocalResourceProviderProcess::operation(
 
   CHECK_EQ(READY, state);
 
-  pendingOperations.push_back(operation);
+  LOG(INFO) << "Received " << operation.info().type() << " operation";
+
+  Try<UUID> uuid = UUID::fromBytes(operation.operation_uuid());
+  CHECK_SOME(uuid);
+
+  CHECK(!pendingOperations.contains(uuid.get()));
+  pendingOperations[uuid.get()] = operation;
   checkpointResourceProviderState();
+
+  applyOfferOperation(uuid.get())
+    .onAny(defer(self(), [=](const Future<Nothing>& future) {
+      if (!future.isReady()) {
+        LOG(ERROR)
+          << "Failed to apply " << operation.info().type() << " operation: "
+          << (future.isFailed() ? future.failure() : "future discarded");
+      }
+    }));
 }
 
 
@@ -1065,14 +1133,14 @@ void StorageLocalResourceProviderProcess::publish(const Event::Publish& publish)
 void StorageLocalResourceProviderProcess::acknowledgeOfferOperation(
     const Event::AcknowledgeOfferOperation& acknowledge)
 {
-  CHECK_EQ(SUBSCRIBED, state);
+  CHECK_EQ(READY, state);
 }
 
 
 void StorageLocalResourceProviderProcess::reconcileOfferOperations(
     const Event::ReconcileOfferOperations& reconcile)
 {
-  CHECK_EQ(SUBSCRIBED, state);
+  CHECK_EQ(READY, state);
 }
 
 
@@ -1822,11 +1890,502 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodeUnpublish(
 }
 
 
+Future<string> StorageLocalResourceProviderProcess::createVolume(
+    const string& name,
+    const Bytes& capacity,
+    const ProfileData& profile)
+{
+  // NOTE: This can only be called after `prepareControllerService`.
+  CHECK_SOME(controllerCapabilities);
+
+  if (!controllerCapabilities->createDeleteVolume) {
+    return Failure("Capability 'CREATE_DELETE_VOLUME' is not supported");
+  }
+
+  return getService(controllerContainerId)
+    .then(defer(self(), [=](csi::Client client) {
+      csi::CreateVolumeRequest request;
+      request.mutable_version()->CopyFrom(csiVersion);
+      request.set_name(name);
+      request.mutable_capacity_range()
+        ->set_required_bytes(capacity.bytes());
+      request.mutable_capacity_range()
+        ->set_limit_bytes(capacity.bytes());
+      request.add_volume_capabilities()->CopyFrom(profile.capability);
+      *request.mutable_parameters() = profile.parameters;
+
+      return client.CreateVolume(request)
+        .then(defer(self(), [=](const csi::CreateVolumeResponse& response) {
+          const csi::VolumeInfo& volumeInfo = response.volume_info();
+
+          if (volumes.contains(volumeInfo.id())) {
+            // The resource provider failed over after the last
+            // `CreateVolume` call, but before the operation status
+            // was checkpointed.
+            CHECK_EQ(csi::state::VolumeState::CREATED,
+                     volumes.at(volumeInfo.id()).state.state());
+          } else {
+            csi::state::VolumeState volumeState;
+            volumeState.set_state(csi::state::VolumeState::CREATED);
+            volumeState.mutable_volume_capability()
+              ->CopyFrom(profile.capability);
+            *volumeState.mutable_volume_attributes() =
+              volumeInfo.attributes();
+
+            volumes.put(volumeInfo.id(), std::move(volumeState));
+            checkpointVolumeState(volumeInfo.id());
+          }
+
+          return volumeInfo.id();
+        }));
+    }));
+}
+
+
+Future<Nothing> StorageLocalResourceProviderProcess::deleteVolume(
+    const string& volumeId)
+{
+  // NOTE: This can only be called after `prepareControllerService` and
+  // `prepareNodeService` (since it may require `NodeUnpublishVolume`).
+  CHECK_SOME(controllerCapabilities);
+  CHECK_SOME(nodeId);
+
+  if (!controllerCapabilities->createDeleteVolume) {
+    return Failure("Capability 'CREATE_DELETE_VOLUME' is not supported");
+  }
+
+  const string volumePath = csi::paths::getVolumePath(
+      slave::paths::getCsiRootDir(workDir),
+      info.storage().plugin().type(),
+      info.storage().plugin().name(),
+      volumeId);
+
+  Future<Nothing> deleted = Nothing();
+
+  if (volumes.contains(volumeId)) {
+    // NOTE: We don't break for `PUBLISHED` and `NODE_READY` as deleting
+    // the volume in these states needs all operations beneath it.
+    switch (volumes.at(volumeId).state.state()) {
+      case csi::state::VolumeState::PUBLISHED: {
+        deleted = deleted
+          .then(defer(self(), &Self::nodeUnpublish, volumeId));
+      }
+      case csi::state::VolumeState::NODE_READY: {
+        deleted = deleted
+          .then(defer(self(), &Self::controllerUnpublish, volumeId));
+      }
+      case csi::state::VolumeState::CREATED: {
+        deleted = deleted
+          .then(defer(self(), &Self::getService, controllerContainerId))
+          .then(defer(self(), [=](csi::Client client) {
+            csi::DeleteVolumeRequest request;
+            request.mutable_version()->CopyFrom(csiVersion);
+            request.set_volume_id(volumeId);
+
+            return client.DeleteVolume(request)
+              .then(defer(self(), [=] {
+                // NOTE: This will destruct the volume's sequence!
+                volumes.erase(volumeId);
+                CHECK_SOME(os::rmdir(volumePath));
+
+                return Nothing();
+              }));
+          }));
+        break;
+      }
+      case csi::state::VolumeState::UNKNOWN:
+      case csi::state::VolumeState::CONTROLLER_PUBLISH:
+      case csi::state::VolumeState::CONTROLLER_UNPUBLISH:
+      case csi::state::VolumeState::NODE_PUBLISH:
+      case csi::state::VolumeState::NODE_UNPUBLISH:
+      case google::protobuf::kint32min:
+      case google::protobuf::kint32max: {
+        UNREACHABLE();
+      }
+    }
+  } else {
+    // The resource provider failed over after the last `DeleteVolume`
+    // call, but before the operation status was checkpointed.
+    CHECK(!os::exists(volumePath));
+  }
+
+  // NOTE: We make the returned future undiscardable because the
+  // deletion may cause the volume's sequence to be destructed, which
+  // will in turn discard all futures in the sequence.
+  return undiscardable(deleted);
+}
+
+
+Future<Nothing> StorageLocalResourceProviderProcess::applyOfferOperation(
+    const UUID& operationUuid)
+{
+  Future<vector<ResourceConversion>> conversions;
+  Option<Error> error;
+
+  CHECK(pendingOperations.contains(operationUuid));
+  const Event::Operation& operation = pendingOperations.at(operationUuid);
+
+  Try<UUID> operationVersion =
+    UUID::fromBytes(operation.resource_version_uuid());
+  CHECK_SOME(operationVersion);
+
+  if (resourceVersion.get() != operationVersion.get()) {
+    error = Error(
+        "Mismatched resource version " + stringify(operationVersion.get()) +
+        " (expected: " + stringify(resourceVersion.get()) + ")");
+  }
+
+  switch (operation.info().type()) {
+    case Offer::Operation::RESERVE:
+    case Offer::Operation::UNRESERVE:
+    case Offer::Operation::CREATE:
+    case Offer::Operation::DESTROY: {
+      // Synchronously apply the conventional operations.
+      return applyResourceConversions(
+          operationUuid,
+          error.isNone()
+            ? getResourceConversions(operation.info())
+            : Try<vector<ResourceConversion>>::error(error.get()));
+    }
+    case Offer::Operation::CREATE_VOLUME: {
+      CHECK(operation.info().has_create_volume());
+
+      if (error.isNone()) {
+        conversions = applyCreateVolumeOrBlock(
+            operation.info().create_volume().source(),
+            operationUuid,
+            operation.info().create_volume().target_type());
+      } else {
+        conversions = Failure(error.get());
+      }
+      break;
+    }
+    case Offer::Operation::DESTROY_VOLUME: {
+      CHECK(operation.info().has_destroy_volume());
+
+      if (error.isNone()) {
+        conversions = applyDestroyVolumeOrBlock(
+            operation.info().destroy_volume().volume());
+      } else {
+        conversions = Failure(error.get());
+      }
+      break;
+    }
+    case Offer::Operation::CREATE_BLOCK: {
+      CHECK(operation.info().has_create_block());
+
+      if (error.isNone()) {
+        conversions = applyCreateVolumeOrBlock(
+            operation.info().create_block().source(),
+            operationUuid,
+            Resource::DiskInfo::Source::BLOCK);
+      } else {
+        conversions = Failure(error.get());
+      }
+      break;
+    }
+    case Offer::Operation::DESTROY_BLOCK: {
+      CHECK(operation.info().has_destroy_block());
+
+      if (error.isNone()) {
+        conversions = applyDestroyVolumeOrBlock(
+            operation.info().destroy_block().block());
+      } else {
+        conversions = Failure(error.get());
+      }
+      break;
+    }
+    case Offer::Operation::UNKNOWN:
+    case Offer::Operation::LAUNCH:
+    case Offer::Operation::LAUNCH_GROUP: {
+      UNREACHABLE();
+    }
+  }
+
+  // NOTE: The code below is executed only when applying a storage operation.
+  shared_ptr<Promise<Nothing>> promise(new Promise<Nothing>());
+
+  conversions
+    .onAny(defer(self(), [=](const Future<vector<ResourceConversion>>& future) {
+      Option<Error> error;
+      if (!future.isReady()) {
+        error =
+          Error(future.isFailed() ? future.failure() : "future discarded");
+      }
+
+      if (future.isReady()) {
+        LOG(INFO)
+          << "Applying conversion from '" << future->at(0).consumed << "' to '"
+          << future->at(0).converted << "'";
+      } else {
+        LOG(ERROR)
+          << "Failed to apply " << operation.info().type() << " operation: "
+          << error->message;
+      }
+
+      promise->associate(applyResourceConversions(
+          operationUuid,
+          error.isNone()
+            ? future.get()
+            : Try<vector<ResourceConversion>>::error(error.get())));
+    }));
+
+  return promise->future();
+}
+
+
+Future<vector<ResourceConversion>>
+StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
+    const Resource& resource,
+    const UUID& operationUuid,
+    const Resource::DiskInfo::Source::Type& type)
+{
+  if (resource.disk().source().type() != Resource::DiskInfo::Source::RAW) {
+    return Failure(
+        "Cannot create volume from source of " +
+        stringify(resource.disk().source().type()) + " type");
+  }
+
+  switch (type) {
+    case Resource::DiskInfo::Source::PATH:
+    case Resource::DiskInfo::Source::MOUNT: {
+      if (!profiles.at(resource.disk().source().profile())
+             .capability.has_mount()) {
+        return Failure(
+            "Profile '" + resource.disk().source().profile() +
+            "' cannot be used for CREATE_VOLUME operation");
+      }
+      break;
+    }
+    case Resource::DiskInfo::Source::BLOCK: {
+      if (!profiles.at(resource.disk().source().profile())
+             .capability.has_block()) {
+        return Failure(
+            "Profile '" + resource.disk().source().profile() +
+            "' cannot be used for CREATE_BLOCK operation");
+      }
+      break;
+    }
+    case Resource::DiskInfo::Source::UNKNOWN:
+    case Resource::DiskInfo::Source::RAW: {
+      UNREACHABLE();
+    }
+  }
+
+  Future<string> created;
+
+  if (resource.disk().source().has_id()) {
+    // Preprovisioned volumes with RAW type.
+    // TODO(chhsiao): Call `ValidateVolumeCapabilities` sequentially
+    // once we use the profile module and make profile optional.
+    CHECK(volumes.contains(resource.disk().source().id()));
+    created = resource.disk().source().id();
+  } else {
+    // We use the operation UUID as the name of the volume, so the same
+    // operation will create the same volume after recovery.
+    // TODO(chhsiao): Call `CreateVolume` sequentially with other create
+    // or delete operations.
+    // TODO(chhsiao): Send `UPDATE_STATE` for RAW resources.
+    created = createVolume(
+        operationUuid.toString(),
+        resource.scalar().value(),
+        profiles.at(resource.disk().source().profile()));
+  }
+
+  return created
+    .then(defer(self(), [=](const string& volumeId) {
+      CHECK(volumes.contains(volumeId));
+      const csi::state::VolumeState& volumeState = volumes.at(volumeId).state;
+
+      Resource converted = resource;
+      converted.mutable_disk()->mutable_source()->set_id(volumeId);
+      converted.mutable_disk()->mutable_source()->set_type(type);
+
+      if (!volumeState.volume_attributes().empty()) {
+        converted.mutable_disk()->mutable_source()->mutable_metadata()
+          ->CopyFrom(convertStringMapToLabels(volumeState.volume_attributes()));
+      }
+
+      const string mountPath = csi::paths::getMountPath(
+          slave::paths::getCsiRootDir("."),
+          info.storage().plugin().type(),
+          info.storage().plugin().name(),
+          volumeId);
+
+      switch (type) {
+        case Resource::DiskInfo::Source::PATH: {
+          // Set the root path relative to agent work dir.
+          converted.mutable_disk()->mutable_source()->mutable_path()
+            ->set_root(mountPath);
+          break;
+        }
+        case Resource::DiskInfo::Source::MOUNT: {
+          // Set the root path relative to agent work dir.
+          converted.mutable_disk()->mutable_source()->mutable_mount()
+            ->set_root(mountPath);
+          break;
+        }
+        case Resource::DiskInfo::Source::BLOCK: {
+          break;
+        }
+        case Resource::DiskInfo::Source::UNKNOWN:
+        case Resource::DiskInfo::Source::RAW: {
+          UNREACHABLE();
+        }
+      }
+
+      vector<ResourceConversion> conversions;
+      conversions.emplace_back(resource, std::move(converted));
+
+      return conversions;
+    }));
+}
+
+
+Future<vector<ResourceConversion>>
+StorageLocalResourceProviderProcess::applyDestroyVolumeOrBlock(
+    const Resource& resource)
+{
+  switch (resource.disk().source().type()) {
+    case Resource::DiskInfo::Source::PATH:
+    case Resource::DiskInfo::Source::MOUNT:
+    case Resource::DiskInfo::Source::BLOCK: {
+      break;
+    }
+    case Resource::DiskInfo::Source::UNKNOWN:
+    case Resource::DiskInfo::Source::RAW: {
+      return Failure(
+          "Cannot delete volume of " +
+          stringify(resource.disk().source().type()) + " type");
+      break;
+    }
+  }
+
+  CHECK(resource.disk().source().has_id());
+  CHECK(volumes.contains(resource.disk().source().id()));
+
+  // Sequentialize the deletion with other operation on the same volume.
+  return volumes.at(resource.disk().source().id()).sequence->add(
+      std::function<Future<Nothing>()>(
+          defer(self(), &Self::deleteVolume, resource.disk().source().id())))
+    .then(defer(self(), [=]() {
+      Resource converted = resource;
+      converted.mutable_disk()->mutable_source()->clear_id();
+      converted.mutable_disk()->mutable_source()->clear_metadata();
+      converted.mutable_disk()->mutable_source()->set_type(
+          Resource::DiskInfo::Source::RAW);
+      converted.mutable_disk()->mutable_source()->clear_path();
+      converted.mutable_disk()->mutable_source()->clear_mount();
+
+      vector<ResourceConversion> conversions;
+      conversions.emplace_back(resource, std::move(converted));
+
+      return conversions;
+    }));
+}
+
+
+Try<Nothing> StorageLocalResourceProviderProcess::applyResourceConversions(
+    const UUID& operationUuid,
+    const Try<vector<ResourceConversion>>& conversions)
+{
+  Option<Error> error;
+
+  CHECK(pendingOperations.contains(operationUuid));
+  const Event::Operation& operation = pendingOperations.at(operationUuid);
+
+  if (conversions.isSome()) {
+    // Strip away the allocation info when applying the convertion to
+    // the total resources.
+    vector<ResourceConversion> _conversions;
+    foreach (ResourceConversion conversion, conversions.get()) {
+      conversion.consumed.unallocate();
+      conversion.converted.unallocate();
+      _conversions.push_back(std::move(conversion));
+    }
+
+    Try<Resources> result = totalResources.apply(_conversions);
+    if (result.isSome()) {
+      totalResources = result.get();
+    } else {
+      error = result.error();
+    }
+  } else {
+    error = conversions.error();
+  }
+
+  // We first ask the status update manager to checkpoint the operation
+  // status, then checkpoint the resource provider state.
+  // TODO(chhsiao): Use the status update manager.
+  Call call;
+  call.set_type(Call::UPDATE_OFFER_OPERATION_STATUS);
+  call.mutable_resource_provider_id()->CopyFrom(info.id());
+
+  Call::UpdateOfferOperationStatus* update =
+    call.mutable_update_offer_operation_status();
+  update->mutable_framework_id()->CopyFrom(operation.framework_id());
+  update->set_operation_uuid(operation.operation_uuid());
+
+  OfferOperationStatus* status = update->mutable_status();
+  status->set_status_uuid(UUID::random().toBytes());
+
+  if (operation.info().has_id()) {
+    status->mutable_operation_id()->CopyFrom(operation.info().id());
+  }
+
+  if (error.isSome()) {
+    // We only update the resource version for failed conventional
+    // operations, which are speculatively executed on the master.
+    if (operation.info().type() == Offer::Operation::RESERVE ||
+        operation.info().type() == Offer::Operation::UNRESERVE ||
+        operation.info().type() == Offer::Operation::CREATE ||
+        operation.info().type() == Offer::Operation::DESTROY) {
+      resourceVersion = UUID::random();
+
+      // Send an `UPDATE_STATE` after we finish the current operation.
+      dispatch(self(), &Self::sendResourceProviderStateUpdate);
+    }
+
+    status->set_state(OFFER_OPERATION_FAILED);
+    status->set_message(error->message);
+  } else {
+    status->set_state(OFFER_OPERATION_FINISHED);
+
+    foreach (const ResourceConversion& conversion, conversions.get()) {
+      foreach (const Resource& resource, conversion.converted) {
+        status->add_converted_resources()->CopyFrom(resource);
+      }
+    }
+  }
+
+  update->mutable_latest_status()->CopyFrom(*status);
+
+  auto err = [](const UUID& operationUuid, const string& message) {
+    LOG(ERROR)
+      << "Failed to send status update for offer operation " << operationUuid
+      << ": " << message;
+  };
+
+  driver->send(evolve(call))
+    .onFailed(std::bind(err, operationUuid, lambda::_1))
+    .onDiscarded(std::bind(err, operationUuid, "future discarded"));
+
+  pendingOperations.erase(operationUuid);
+  checkpointResourceProviderState();
+
+  if (error.isSome()) {
+    return error.get();
+  }
+
+  return Nothing();
+}
+
+
 void StorageLocalResourceProviderProcess::checkpointResourceProviderState()
 {
   ResourceProviderState state;
 
-  foreach (const Event::Operation& operation, pendingOperations) {
+  foreachvalue (const Event::Operation& operation, pendingOperations) {
     state.add_operations()->CopyFrom(operation);
   }
 
@@ -1851,10 +2410,9 @@ void StorageLocalResourceProviderProcess::sendResourceProviderStateUpdate()
 
   Call::UpdateState* update = call.mutable_update_state();
 
-  foreach (const Event::Operation& operation, pendingOperations) {
-    Try<UUID> operationUuid = UUID::fromBytes(operation.operation_uuid());
-    CHECK_SOME(operationUuid);
-
+  foreachpair (const UUID& uuid,
+               const Event::Operation& operation,
+               pendingOperations) {
     // TODO(chhsiao): Maintain a list of terminated but unacknowledged
     // offer operations in memory and reconstruc that during recovery
     // by querying status update manager.
@@ -1868,7 +2426,7 @@ void StorageLocalResourceProviderProcess::sendResourceProviderStateUpdate()
                   : None()),
             operation.framework_id(),
             slaveId,
-            operationUuid.get()));
+            uuid));
   }
 
   update->mutable_resources()->CopyFrom(totalResources);
