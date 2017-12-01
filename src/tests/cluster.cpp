@@ -58,6 +58,8 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/permissions.hpp>
+
 #ifdef __linux__
 #include "linux/cgroups.hpp"
 #endif

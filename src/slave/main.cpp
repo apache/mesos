@@ -42,6 +42,8 @@
 #include <stout/nothing.hpp>
 #include <stout/os.hpp>
 
+#include <stout/os/permissions.hpp>
+
 #ifdef __linux__
 #include <stout/proc.hpp>
 #endif // __linux__
