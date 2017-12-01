@@ -743,6 +743,14 @@ ostream& operator<<(ostream& stream, const CheckInfo::Type& type)
 
 ostream& operator<<(
     ostream& stream,
+    const CSIPluginContainerInfo::Service& service)
+{
+  return stream << CSIPluginContainerInfo::Service_Name(service);
+}
+
+
+ostream& operator<<(
+    ostream& stream,
     const FrameworkInfo::Capability& capability)
 {
   return stream << FrameworkInfo::Capability::Type_Name(capability.type());

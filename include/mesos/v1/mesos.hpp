@@ -423,6 +423,11 @@ std::ostream& operator<<(std::ostream& stream, const CheckInfo::Type& type);
 
 std::ostream& operator<<(
     std::ostream& stream,
+    const CSIPluginContainerInfo::Service& service);
+
+
+std::ostream& operator<<(
+    std::ostream& stream,
     const FrameworkInfo::Capability& capability);
 
 
