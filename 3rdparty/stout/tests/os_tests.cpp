@@ -48,7 +48,7 @@
 #include <stout/os/int_fd.hpp>
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
-#include <stout/os/stat.hpp>
+#include <stout/os/realpath.hpp>
 #include <stout/os/stat.hpp>
 #include <stout/os/write.hpp>
 

@@ -29,6 +29,7 @@
 #include <stout/os/ls.hpp>
 #include <stout/os/mkdir.hpp>
 #include <stout/os/read.hpp>
+#include <stout/os/realpath.hpp>
 #include <stout/os/rename.hpp>
 #include <stout/os/rm.hpp>
 #include <stout/os/touch.hpp>
