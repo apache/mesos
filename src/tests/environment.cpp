@@ -317,6 +317,79 @@ private:
 };
 
 
+// Note: This is a temporary filter to disable tests that use
+// overlay as backend on filesystems where `d_type` support is
+// missing. In particular, many XFS nodes are known to have this
+// issue due to mkfs option with `f_type = 0`. Please see
+// MESOS-8121 for more info.
+//
+// This filter assumes that the affected tests will use
+// `/tmp` as root directory of the agent's work dir.
+class DtypeFilter : public TestFilter
+{
+public:
+  DtypeFilter()
+  {
+#ifdef __linux__
+    auto checkDirDtype = [this](const string& directory) {
+      string probeDir = path::join(directory, ".probe");
+
+      Try<Nothing> mkdir = os::mkdir(probeDir);
+      if (mkdir.isError()) {
+        dtypeError = Error(
+            "Cannot verify filesystem d_type attribute: "
+            "Failed to create temporary directory '" +
+            probeDir + "': " + mkdir.error());
+      }
+
+      Try<bool> supportDType = fs::dtypeSupported(directory);
+
+      // Clean up the temporary directory that is used
+      // for d_type detection.
+      Try<Nothing> rmdir = os::rmdir(probeDir);
+      if (rmdir.isError()) {
+        LOG(WARNING) << "Failed to remove temporary directory"
+                     << "' " << probeDir << "': " << rmdir.error();
+      }
+
+      if (supportDType.isError()) {
+        dtypeError = Error(
+          "Cannot verify filesystem d_type attribute: " +
+          supportDType.error());
+      }
+
+      if (!supportDType.get()) {
+        dtypeError = Error(
+            "The underlying filesystem of " + directory +
+            " misses d_type support.");
+      }
+    };
+
+    // TODO(mzhu): Avoid hard coding a specific directory for
+    // filtering. This is a temporary solution.
+    checkDirDtype(os::temp());
+
+    if (dtypeError.isSome()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any overlay backend tests because:\n"
+        << dtypeError.get().message << "\n"
+        << "-------------------------------------------------------------\n";
+      return;
+    }
+#endif
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return dtypeError.isSome() && matches(test, "DTYPE_");
+  }
+
+private:
+  Option<Error> dtypeError;
+};
+
+
 class InternetFilter : public TestFilter
 {
 public:
@@ -692,6 +765,7 @@ Environment::Environment(const Flags& _flags)
             std::make_shared<CgroupsFilter>(),
             std::make_shared<CurlFilter>(),
             std::make_shared<DockerFilter>(),
+            std::make_shared<DtypeFilter>(),
             std::make_shared<InternetFilter>(),
             std::make_shared<LogrotateFilter>(),
             std::make_shared<NetcatFilter>(),

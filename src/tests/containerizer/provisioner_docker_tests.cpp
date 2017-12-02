@@ -672,7 +672,7 @@ INSTANTIATE_TEST_CASE_P(
 
 // This test verifies that a docker image containing whiteout files
 // will be processed correctly by copy, aufs and overlay backends.
-TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_Whiteout)
+TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_DTYPE_Whiteout)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -760,7 +760,7 @@ TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_Whiteout)
 // This test verifies that the provisioner correctly overwrites a
 // directory in underlying layers with a with a regular file or symbolic
 // link of the same name in an upper layer, and vice versa.
-TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_Overwrite)
+TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_DTYPE_Overwrite)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
