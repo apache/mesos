@@ -335,6 +335,7 @@ All Issues:
   * [MESOS-7926] - Abnormal termination of default executor can cause MesosContainerizer::destroy to fail.
   * [MESOS-7934] - OOM due to LibeventSSLSocket send incorrectly returning 0 after shutdown.
   * [MESOS-8135] - Masters can lose track of tasks' executor IDs.
+  * [MESOS-8237] - Strip (Offer|Resource).allocation_info for non-MULTI_ROLE schedulers.
 
 
 
