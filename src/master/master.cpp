@@ -10644,7 +10644,7 @@ double Master::_tasks_unreachable()
 
   foreachvalue (Framework* framework, frameworks.registered) {
     foreachvalue (const Owned<Task>& task, framework->unreachableTasks) {
-      if (task.get()->state() == TASK_UNREACHABLE) {
+      if (task->state() == TASK_UNREACHABLE) {
         count++;
       }
     }

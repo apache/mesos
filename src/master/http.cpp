@@ -330,7 +330,7 @@ struct FullFrameworkWriter {
       foreachvalue (const Owned<Task>& task, framework_->unreachableTasks) {
         // There could be TASK_LOST tasks in this map. See comment for
         // `unreachableTasks`.
-        if (task.get()->state() != TASK_UNREACHABLE) {
+        if (task->state() != TASK_UNREACHABLE) {
           continue;
         }
 
@@ -357,7 +357,7 @@ struct FullFrameworkWriter {
       // have been stored as TASK_LOST for backward compatibility so we
       // should export them as completed tasks.
       foreachvalue (const Owned<Task>& task, framework_->unreachableTasks) {
-        if (task.get()->state() != TASK_LOST) {
+        if (task->state() != TASK_LOST) {
           continue;
         }
 
@@ -4243,7 +4243,7 @@ mesos::master::Response::GetTasks Master::Http::_getTasks(
         continue;
       }
 
-      if (task.get()->state() == TASK_UNREACHABLE) {
+      if (task->state() == TASK_UNREACHABLE) {
         getTasks.add_unreachable_tasks()->CopyFrom(*task);
       } else {
         // Unreachable tasks belonging to a non-partition-aware framework
