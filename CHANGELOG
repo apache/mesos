@@ -20,6 +20,7 @@ All Issues:
   * [MESOS-8051] - Killing TASK_GROUP fail to kill some tasks.
   * [MESOS-8080] - The default executor does not propagate missing task exit status correctly.
   * [MESOS-8135] - Masters can lose track of tasks' executor IDs.
+  * [MESOS-8237] - Strip (Offer|Resource).allocation_info for non-MULTI_ROLE schedulers.
 
 
 
