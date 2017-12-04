@@ -437,7 +437,8 @@ update was sent.
                    and <code> message </code> fields are erased and the
                    original <code> reason </code> field is overwritten
                    by <code> REASON_RECONCILIATION </code>.
-</td>
+</td></tr>
+
 
 <tr><td><code>     REASON_TASK_CHECK_STATUS_UPDATED
 </code></td><td>   A task check notified the agent that its state changed.
