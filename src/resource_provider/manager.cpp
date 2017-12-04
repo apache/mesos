@@ -16,10 +16,10 @@
 
 #include "resource_provider/manager.hpp"
 
-#include <glog/logging.h>
-
 #include <string>
 #include <utility>
+
+#include <glog/logging.h>
 
 #include <mesos/http.hpp>
 
@@ -45,6 +45,8 @@
 #include "resource_provider/validation.hpp"
 
 namespace http = process::http;
+
+using std::string;
 
 using mesos::internal::resource_provider::validation::call::validate;
 
@@ -72,8 +74,6 @@ using process::http::Pipe;
 using process::http::UnsupportedMediaType;
 
 using process::http::authentication::Principal;
-
-using std::string;
 
 
 namespace mesos {
@@ -303,8 +303,8 @@ Future<http::Response> ResourceProviderManagerProcess::api(
       return Accepted();
     }
 
-    case Call::ACKNOWLEDGE_PUBLISH: {
-      // TODO(nfnt): Add a 'ACKNOWLEDGE_PUBLISH' handler.
+    case Call::UPDATE_PUBLISH_STATUS: {
+      // TODO(nfnt): Add a 'UPDATE_PUBLISH_STATUS' handler.
       return NotImplemented();
     }
   }

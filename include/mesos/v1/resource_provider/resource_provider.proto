@@ -94,7 +94,7 @@ message Call {
     SUBSCRIBE = 1;                     // See 'Subscribe'.
     UPDATE_OFFER_OPERATION_STATUS = 2; // See 'UpdateOfferOperationStatus'.
     UPDATE_STATE = 3;                  // See 'UpdateState'.
-    ACKNOWLEDGE_PUBLISH = 4;           // See 'AcknowledgePublish'.
+    UPDATE_PUBLISH_STATUS = 4;         // See 'UpdatePublishStatus'.
   }
 
   // Request to subscribe with the master.
@@ -138,8 +138,15 @@ message Call {
     required bytes resource_version_uuid = 3;
   }
 
-  message AcknowledgePublish {
+  message UpdatePublishStatus {
+    enum Status {
+      UNKNOWN = 0;
+      OK = 1;
+      FAILED = 2;
+    }
+
     required bytes uuid = 1;
+    required Status status = 2;
   }
 
   // Identifies who generated this call.
@@ -156,5 +163,5 @@ message Call {
   optional Subscribe subscribe = 3;
   optional UpdateOfferOperationStatus update_offer_operation_status = 4;
   optional UpdateState update_state = 5;
-  optional AcknowledgePublish acknowledge_publish = 6;
+  optional UpdatePublishStatus update_publish_status = 6;
 }
