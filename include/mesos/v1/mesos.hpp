@@ -437,6 +437,16 @@ std::ostream& operator<<(std::ostream& stream, const Image::Type& imageType);
 std::ostream& operator<<(std::ostream& stream, const Secret::Type& secretType);
 
 
+std::ostream& operator<<(
+    std::ostream& stream,
+    const Offer::Operation::Type& operationType);
+
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const Resource::DiskInfo::Source::Type& sourceType);
+
+
 template <typename T>
 inline std::ostream& operator<<(
     std::ostream& stream,

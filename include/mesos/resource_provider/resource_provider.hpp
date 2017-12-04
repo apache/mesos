@@ -17,7 +17,30 @@
 #ifndef __MESOS_RESOURCE_PROVIDER_PROTO_HPP__
 #define __MESOS_RESOURCE_PROVIDER_PROTO_HPP__
 
+#include <ostream>
+
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/resource_provider/resource_provider.pb.h>
+
+namespace mesos {
+namespace resource_provider {
+
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const Call::UpdatePublishStatus::Status& status)
+{
+  return stream << Call::UpdatePublishStatus::Status_Name(status);
+}
+
+
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const Event::Type& eventType)
+{
+  return stream << Event::Type_Name(eventType);
+}
+
+} // namespace resource_provider {
+} // namespace mesos {
 
 #endif // __MESOS_RESOURCE_PROVIDER_PROTO_HPP__
