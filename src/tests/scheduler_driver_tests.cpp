@@ -68,12 +68,59 @@ using testing::_;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Return;
+using ::testing::InSequence;
 
 namespace mesos {
 namespace internal {
 namespace tests {
 
 class MesosSchedulerDriverTest : public MesosTest {};
+
+
+// Ensures that the scheduler driver can backoff correctly when
+// framework failover time is set to zero.
+TEST_F(MesosSchedulerDriverTest, RegistrationWithZeroFailoverTime)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_failover_timeout(0);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Clock::pause();
+
+  {
+    InSequence inSequence;
+
+    // Drop the first SUBSCRIBE call so that the driver retries.
+    DROP_CALL(
+        mesos::scheduler::Call(),
+        mesos::scheduler::Call::SUBSCRIBE,
+        _,
+        master.get()->pid);
+
+    // Settling the clock ensures that if a retried SUBSCRIBE
+    // call is enqueued it will be processed. Since the backoff
+    // is non-zero no new SUBSCRIBE call should be sent when
+    // the clock is paused.
+    EXPECT_NO_FUTURE_CALLS(
+        mesos::scheduler::Call(),
+        mesos::scheduler::Call::SUBSCRIBE,
+        _,
+        master.get()->pid);
+  }
+
+  driver.start();
+
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+}
 
 
 TEST_F(MesosSchedulerDriverTest, MetricsEndpoint)

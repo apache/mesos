@@ -844,7 +844,7 @@ protected:
     // by 1/10th of the failover timeout.
     if (framework.has_failover_timeout()) {
       Try<Duration> duration = Duration::create(framework.failover_timeout());
-      if (duration.isSome()) {
+      if (duration.isSome() && duration.get() > Duration::zero()) {
         maxBackoff = std::min(maxBackoff, duration.get() / 10);
       }
     }
