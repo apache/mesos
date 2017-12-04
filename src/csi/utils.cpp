@@ -27,11 +27,42 @@ using google::protobuf::util::MessageToJsonString;
 
 namespace csi {
 
+bool operator==(
+    const ControllerServiceCapability::RPC& left,
+    const ControllerServiceCapability::RPC& right)
+{
+  return left.type() == right.type();
+}
+
+
+bool operator==(
+    const ControllerServiceCapability& left,
+    const ControllerServiceCapability& right)
+{
+  return left.has_rpc() == right.has_rpc() &&
+    (!left.has_rpc() || left.rpc() == right.rpc());
+}
+
+
 bool operator==(const Version& left, const Version& right)
 {
   return left.major() == right.major() &&
     left.minor() == right.minor() &&
     left.patch() == right.patch();
+}
+
+
+bool operator!=(const Version& left, const Version& right)
+{
+  return !(left == right);
+}
+
+
+ostream& operator<<(
+    ostream& stream,
+    const ControllerServiceCapability::RPC::Type& type)
+{
+  return stream << ControllerServiceCapability::RPC::Type_Name(type);
 }
 
 

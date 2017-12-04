@@ -34,7 +34,20 @@
 
 namespace csi {
 
+bool operator==(
+    const ControllerServiceCapability& left,
+    const ControllerServiceCapability& right);
+
+
 bool operator==(const Version& left, const Version& right);
+
+
+bool operator!=(const Version& left, const Version& right);
+
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const ControllerServiceCapability::RPC::Type& type);
 
 
 std::ostream& operator<<(std::ostream& stream, const Version& version);

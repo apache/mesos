@@ -2255,6 +2255,15 @@ disk_full_framework_SOURCES = examples/disk_full_framework.cpp
 disk_full_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 disk_full_framework_LDADD = libmesos.la $(LDADD)
 
+if ENABLE_GRPC
+if OS_LINUX
+check_PROGRAMS += test-csi-plugin
+test_csi_plugin_SOURCES = examples/test_csi_plugin.cpp
+test_csi_plugin_CPPFLAGS = $(MESOS_CPPFLAGS)
+test_csi_plugin_LDADD = libmesos.la $(LIB_PROTOBUF) $(LIB_GRPC) $(LDADD)
+endif
+endif
+
 check_PROGRAMS += test-helper
 test_helper_SOURCES =						\
   tests/active_user_test_helper.cpp				\
