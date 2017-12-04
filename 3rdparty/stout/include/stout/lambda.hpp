@@ -15,9 +15,12 @@
 
 #include <algorithm>
 #include <functional>
+#include <memory>
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <glog/logging.h>
 
 #include <stout/cpp14.hpp>
 #include <stout/cpp17.hpp>
@@ -295,6 +298,102 @@ partial(F&& f, Args&&... args)
 
 
 #undef RETURN
+
+
+namespace internal {
+
+// Helper for invoking functional objects.
+// It needs specialization for `void` return type to ignore potentialy
+// non-`void` return value from `cpp17::invoke(f, args...)`.
+template <typename R>
+struct Invoke
+{
+  template <typename F, typename... Args>
+  R operator()(F&& f, Args&&... args)
+  {
+    return cpp17::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+  }
+};
+
+
+template <>
+struct Invoke<void>
+{
+  template <typename F, typename... Args>
+  void operator()(F&& f, Args&&... args)
+  {
+    cpp17::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+  }
+};
+
+} // namespace internal {
+
+
+// This is similar to `std::function`, but it can only be called once.
+// The "called once" semantics is enforced by having rvalue-ref qualifier
+// on `operator()`, so instances of `CallableOnce` must be `std::move`'d
+// in order to be invoked. Similar to `std::function`, this has heap
+// allocation overhead due to type erasure.
+//
+// Note: Heap allocation can be avoided in some cases by implementing
+// small buffer optimization. This is currently not implemented.
+template <typename F>
+class CallableOnce;
+
+
+template <typename R, typename... Args>
+class CallableOnce<R(Args...)>
+{
+public:
+  template <
+      typename F,
+      typename std::enable_if<
+          !std::is_same<F, CallableOnce>::value &&
+            (std::is_same<R, void>::value ||
+             std::is_convertible<
+                 decltype(
+                     cpp17::invoke(std::declval<F>(), std::declval<Args>()...)),
+                 R>::value),
+          int>::type = 0>
+  CallableOnce(F&& f)
+    : f(new CallableFn<typename std::decay<F>::type>(std::forward<F>(f))) {}
+
+  CallableOnce(CallableOnce&&) = default;
+  CallableOnce(const CallableOnce&) = delete;
+
+  CallableOnce& operator=(CallableOnce&&) = default;
+  CallableOnce& operator=(const CallableOnce&) = delete;
+
+  template <typename... Args_>
+  R operator()(Args_&&... args) &&
+  {
+    CHECK(f != nullptr);
+    return std::move(*f)(std::forward<Args_>(args)...);
+  }
+
+private:
+  struct Callable
+  {
+    virtual ~Callable() = default;
+    virtual R operator()(Args...) && = 0;
+  };
+
+  template <typename F>
+  struct CallableFn : Callable
+  {
+    F f;
+
+    CallableFn(const F& f) : f(f) {}
+    CallableFn(F&& f) : f(std::move(f)) {}
+
+    virtual R operator()(Args... args) &&
+    {
+      return internal::Invoke<R>{}(std::move(f), std::forward<Args>(args)...);
+    }
+  };
+
+  std::unique_ptr<Callable> f;
+};
 
 } // namespace lambda {
 
