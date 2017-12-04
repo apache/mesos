@@ -459,6 +459,297 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
 }
 
 
+// This test verifies that the pending future returned by
+// `ResourceProviderManager::publish()` becomes ready when the manager
+// receives an publish status update with an `OK` status.
+TEST_P(ResourceProviderManagerHttpApiTest, PublishSuccess)
+{
+  const ContentType contentType = GetParam();
+
+  ResourceProviderManager manager;
+
+  Option<UUID> streamId;
+  Option<mesos::v1::ResourceProviderID> resourceProviderId;
+  Owned<recordio::Reader<Event>> responseDecoder;
+
+  // First, subscribe to the manager to get the ID.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+
+    mesos::v1::ResourceProviderInfo* info =
+      subscribe->mutable_resource_provider_info();
+
+    info->set_type("org.apache.mesos.rp.test");
+    info->set_name("test");
+
+    http::Request request;
+    request.method = "POST";
+    request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    request.headers["Accept"] = stringify(contentType);
+    request.headers["Content-Type"] = stringify(contentType);
+    request.body = serialize(contentType, call);
+
+    Future<http::Response> response = manager.api(request, None());
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    ASSERT_EQ(http::Response::PIPE, response->type);
+
+    ASSERT_TRUE(response->headers.contains("Mesos-Stream-Id"));
+    Try<UUID> uuid = UUID::fromString(response->headers.at("Mesos-Stream-Id"));
+
+    CHECK_SOME(uuid);
+    streamId = uuid.get();
+
+    Option<http::Pipe::Reader> reader = response->reader;
+    ASSERT_SOME(reader);
+
+    responseDecoder.reset(new recordio::Reader<Event>(
+        ::recordio::Decoder<Event>(
+            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
+        reader.get()));
+
+    Future<Result<Event>> event = responseDecoder->read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+
+    // Check event type is subscribed and the resource provider id is set.
+    ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
+
+    resourceProviderId = event->get().subscribed().provider_id();
+
+    EXPECT_FALSE(resourceProviderId->value().empty());
+  }
+
+  // Then, update the publish status with `OK`.
+  {
+    vector<v1::Resource> resources =
+      v1::Resources::fromString("disk:4").get();
+    foreach (v1::Resource& resource, resources) {
+      resource.mutable_provider_id()->CopyFrom(resourceProviderId.get());
+    }
+
+    Future<Nothing> published = manager.publish(devolve(resources));
+
+    Future<Result<Event>> event = responseDecoder->read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+    ASSERT_EQ(Event::PUBLISH, event->get().type());
+
+    Call call;
+    call.set_type(Call::UPDATE_PUBLISH_STATUS);
+    call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
+
+    Call::UpdatePublishStatus* update = call.mutable_update_publish_status();
+    update->set_uuid(event->get().publish().uuid());
+    update->set_status(Call::UpdatePublishStatus::OK);
+
+    http::Request request;
+    request.method = "POST";
+    request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    request.headers["Accept"] = stringify(contentType);
+    request.headers["Content-Type"] = stringify(contentType);
+    request.headers["Mesos-Stream-Id"] = stringify(streamId.get());
+    request.body = serialize(contentType, call);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        Accepted().status,
+        manager.api(request, None()));
+
+    // The manager should satisfy the future.
+    AWAIT_READY(published);
+  }
+}
+
+
+// This test verifies that the pending future returned by
+// `ResourceProviderManager::publish()` becomes failed when the manager
+// receives an publish status update with a `FAILED` status.
+TEST_P(ResourceProviderManagerHttpApiTest, PublishFailure)
+{
+  const ContentType contentType = GetParam();
+
+  ResourceProviderManager manager;
+
+  Option<UUID> streamId;
+  Option<mesos::v1::ResourceProviderID> resourceProviderId;
+  Owned<recordio::Reader<Event>> responseDecoder;
+
+  // First, subscribe to the manager to get the ID.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+
+    mesos::v1::ResourceProviderInfo* info =
+      subscribe->mutable_resource_provider_info();
+
+    info->set_type("org.apache.mesos.rp.test");
+    info->set_name("test");
+
+    http::Request request;
+    request.method = "POST";
+    request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    request.headers["Accept"] = stringify(contentType);
+    request.headers["Content-Type"] = stringify(contentType);
+    request.body = serialize(contentType, call);
+
+    Future<http::Response> response = manager.api(request, None());
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    ASSERT_EQ(http::Response::PIPE, response->type);
+
+    ASSERT_TRUE(response->headers.contains("Mesos-Stream-Id"));
+    Try<UUID> uuid = UUID::fromString(response->headers.at("Mesos-Stream-Id"));
+
+    CHECK_SOME(uuid);
+    streamId = uuid.get();
+
+    Option<http::Pipe::Reader> reader = response->reader;
+    ASSERT_SOME(reader);
+
+    responseDecoder.reset(new recordio::Reader<Event>(
+        ::recordio::Decoder<Event>(
+            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
+        reader.get()));
+
+    Future<Result<Event>> event = responseDecoder->read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+
+    // Check event type is subscribed and the resource provider id is set.
+    ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
+
+    resourceProviderId = event->get().subscribed().provider_id();
+
+    EXPECT_FALSE(resourceProviderId->value().empty());
+  }
+
+  // Then, update the publish status with `FAILED`.
+  {
+    vector<v1::Resource> resources =
+      v1::Resources::fromString("disk:4").get();
+    foreach (v1::Resource& resource, resources) {
+      resource.mutable_provider_id()->CopyFrom(resourceProviderId.get());
+    }
+
+    Future<Nothing> published = manager.publish(devolve(resources));
+
+    Future<Result<Event>> event = responseDecoder->read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+    ASSERT_EQ(Event::PUBLISH, event->get().type());
+
+    Call call;
+    call.set_type(Call::UPDATE_PUBLISH_STATUS);
+    call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
+
+    Call::UpdatePublishStatus* update = call.mutable_update_publish_status();
+    update->set_uuid(event->get().publish().uuid());
+    update->set_status(Call::UpdatePublishStatus::FAILED);
+
+    http::Request request;
+    request.method = "POST";
+    request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    request.headers["Accept"] = stringify(contentType);
+    request.headers["Content-Type"] = stringify(contentType);
+    request.headers["Mesos-Stream-Id"] = stringify(streamId.get());
+    request.body = serialize(contentType, call);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        Accepted().status,
+        manager.api(request, None()));
+
+    // The manager should fail the future.
+    AWAIT_FAILED(published);
+  }
+}
+
+
+// This test verifies that the pending future returned by
+// `ResourceProviderManager::publish()` becomes failed when the resource
+// provider is disconnected.
+TEST_P(ResourceProviderManagerHttpApiTest, PublishDisconnected)
+{
+  const ContentType contentType = GetParam();
+
+  ResourceProviderManager manager;
+
+  Option<mesos::v1::ResourceProviderID> resourceProviderId;
+  Option<http::Pipe::Reader> reader;
+  Owned<recordio::Reader<Event>> responseDecoder;
+
+  // First, subscribe to the manager to get the ID.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+
+    mesos::v1::ResourceProviderInfo* info =
+      subscribe->mutable_resource_provider_info();
+
+    info->set_type("org.apache.mesos.rp.test");
+    info->set_name("test");
+
+    http::Request request;
+    request.method = "POST";
+    request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    request.headers["Accept"] = stringify(contentType);
+    request.headers["Content-Type"] = stringify(contentType);
+    request.body = serialize(contentType, call);
+
+    Future<http::Response> response = manager.api(request, None());
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    ASSERT_EQ(http::Response::PIPE, response->type);
+
+    reader = response->reader;
+    ASSERT_SOME(reader);
+
+    responseDecoder.reset(new recordio::Reader<Event>(
+        ::recordio::Decoder<Event>(
+            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
+        reader.get()));
+
+    Future<Result<Event>> event = responseDecoder->read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+
+    // Check event type is subscribed and the resource provider id is set.
+    ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
+
+    resourceProviderId = event->get().subscribed().provider_id();
+
+    EXPECT_FALSE(resourceProviderId->value().empty());
+  }
+
+  // Then, close the connection after receiving a publish event.
+  {
+    vector<v1::Resource> resources =
+      v1::Resources::fromString("disk:4").get();
+    foreach (v1::Resource& resource, resources) {
+      resource.mutable_provider_id()->CopyFrom(resourceProviderId.get());
+    }
+
+    Future<Nothing> published = manager.publish(devolve(resources));
+
+    Future<Result<Event>> event = responseDecoder->read();
+    AWAIT_READY(event);
+    ASSERT_SOME(event.get());
+    ASSERT_EQ(Event::PUBLISH, event->get().type());
+
+    reader->close();
+
+    // The manager should fail the future.
+    AWAIT_FAILED(published);
+  }
+}
+
+
 // This test starts an agent and connects directly with its resource
 // provider endpoint.
 TEST_P(ResourceProviderManagerHttpApiTest, AgentEndpoint)

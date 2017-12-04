@@ -27,6 +27,7 @@
 
 #include <mesos/v1/resource_provider/resource_provider.hpp>
 
+#include <process/collect.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
@@ -46,6 +47,7 @@
 
 namespace http = process::http;
 
+using std::list;
 using std::string;
 
 using mesos::internal::resource_provider::validation::call::validate;
@@ -55,10 +57,13 @@ using mesos::resource_provider::Event;
 
 using process::Failure;
 using process::Future;
+using process::Owned;
 using process::Process;
 using process::ProcessBase;
+using process::Promise;
 using process::Queue;
 
+using process::collect;
 using process::dispatch;
 using process::spawn;
 using process::terminate;
@@ -124,9 +129,20 @@ struct ResourceProvider
     : info(_info),
       http(_http) {}
 
+  ~ResourceProvider()
+  {
+    http.close();
+
+    foreachvalue (const Owned<Promise<Nothing>>& publish, publishes) {
+      publish->fail(
+          "Failed to publish resources from resource provider " +
+          stringify(info.id()) + ": Connection closed");
+    }
+  }
+
   ResourceProviderInfo info;
   HttpConnection http;
-  Resources resources;
+  hashmap<UUID, Owned<Promise<Nothing>>> publishes;
 };
 
 
@@ -141,6 +157,8 @@ public:
       const Option<Principal>& principal);
 
   void applyOfferOperation(const ApplyOfferOperationMessage& message);
+
+  Future<Nothing> publish(const Resources& resources);
 
   Queue<ResourceProviderMessage> messages;
 
@@ -157,11 +175,15 @@ private:
       ResourceProvider* resourceProvider,
       const Call::UpdateState& update);
 
+  void updatePublishStatus(
+      ResourceProvider* resourceProvider,
+      const Call::UpdatePublishStatus& update);
+
   ResourceProviderID newResourceProviderId();
 
   struct ResourceProviders
   {
-    hashmap<ResourceProviderID, ResourceProvider> subscribed;
+    hashmap<ResourceProviderID, Owned<ResourceProvider>> subscribed;
   } resourceProviders;
 };
 
@@ -263,8 +285,8 @@ Future<http::Response> ResourceProviderManagerProcess::api(
     return BadRequest("Resource provider is not subscribed");
   }
 
-  ResourceProvider& resourceProvider =
-    resourceProviders.subscribed.at(call.resource_provider_id());
+  ResourceProvider* resourceProvider =
+    resourceProviders.subscribed.at(call.resource_provider_id()).get();
 
   // This isn't a `SUBSCRIBE` call, so the request should include a stream ID.
   if (!request.headers.contains("Mesos-Stream-Id")) {
@@ -273,11 +295,11 @@ Future<http::Response> ResourceProviderManagerProcess::api(
   }
 
   const string& streamId = request.headers.at("Mesos-Stream-Id");
-  if (streamId != resourceProvider.http.streamId.toString()) {
+  if (streamId != resourceProvider->http.streamId.toString()) {
     return BadRequest(
         "The stream ID '" + streamId + "' included in this request "
         "didn't match the stream ID currently associated with "
-        " resource provider ID " + resourceProvider.info.id().value());
+        " resource provider ID " + resourceProvider->info.id().value());
   }
 
   switch(call.type()) {
@@ -292,20 +314,20 @@ Future<http::Response> ResourceProviderManagerProcess::api(
 
     case Call::UPDATE_OFFER_OPERATION_STATUS: {
       updateOfferOperationStatus(
-          &resourceProvider,
+          resourceProvider,
           call.update_offer_operation_status());
 
       return Accepted();
     }
 
     case Call::UPDATE_STATE: {
-      updateState(&resourceProvider, call.update_state());
+      updateState(resourceProvider, call.update_state());
       return Accepted();
     }
 
     case Call::UPDATE_PUBLISH_STATUS: {
-      // TODO(nfnt): Add a 'UPDATE_PUBLISH_STATUS' handler.
-      return NotImplemented();
+      updatePublishStatus(resourceProvider, call.update_publish_status());
+      return Accepted();
     }
   }
 
@@ -347,8 +369,8 @@ void ResourceProviderManagerProcess::applyOfferOperation(
     return;
   }
 
-  ResourceProvider& resourceProvider =
-    resourceProviders.subscribed.at(resourceProviderId.get());
+  ResourceProvider* resourceProvider =
+    resourceProviders.subscribed.at(resourceProviderId.get()).get();
 
   CHECK(message.resource_version_uuid().has_resource_provider_id());
 
@@ -367,12 +389,69 @@ void ResourceProviderManagerProcess::applyOfferOperation(
   event.mutable_operation()->set_resource_version_uuid(
       message.resource_version_uuid().uuid());
 
-  if (!resourceProvider.http.send(event)) {
+  if (!resourceProvider->http.send(event)) {
     LOG(WARNING) << "Failed to send operation '" << operation.id() << "' "
                  << "(uuid: " << uuid.get() << ") from framework "
                  << frameworkId << " to resource provider "
                  << resourceProviderId.get() << ": connection closed";
   }
+}
+
+
+Future<Nothing> ResourceProviderManagerProcess::publish(
+    const Resources& resources)
+{
+  hashmap<ResourceProviderID, Resources> providedResources;
+
+  foreach (const Resource& resource, resources) {
+    // NOTE: We ignore agent default resources here because those
+    // resources do not need publish, and shouldn't be handled by the
+    // resource provider manager.
+    if (!resource.has_provider_id()) {
+      continue;
+    }
+
+    const ResourceProviderID& resourceProviderId = resource.provider_id();
+
+    if (!resourceProviders.subscribed.contains(resourceProviderId)) {
+      // TODO(chhsiao): If the manager is running on an agent and the
+      // resource comes from an external resource provider, we may want
+      // to load the provider's agent component.
+      return Failure(
+          "Resource provider " + stringify(resourceProviderId) +
+          " is not subscribed");
+    }
+
+    providedResources[resourceProviderId] += resource;
+  }
+
+  list<Future<Nothing>> futures;
+
+  foreachpair (const ResourceProviderID& resourceProviderId,
+               const Resources& resources,
+               providedResources) {
+    UUID uuid = UUID::random();
+
+    Event event;
+    event.set_type(Event::PUBLISH);
+    event.mutable_publish()->set_uuid(uuid.toBytes());
+    event.mutable_publish()->mutable_resources()->CopyFrom(resources);
+
+    ResourceProvider* resourceProvider =
+      resourceProviders.subscribed.at(resourceProviderId).get();
+
+    if (!resourceProvider->http.send(event)) {
+      return Failure(
+          "Failed to send PUBLISH event to resource provider " +
+          stringify(resourceProviderId) + ": connection closed");
+    }
+
+    Owned<Promise<Nothing>> promise(new Promise<Nothing>());
+    futures.push_back(promise->future());
+    resourceProvider->publishes.put(uuid, std::move(promise));
+  }
+
+  return collect(futures).then([] { return Nothing(); });
 }
 
 
@@ -385,43 +464,49 @@ void ResourceProviderManagerProcess::subscribe(
 
   LOG(INFO) << "Subscribing resource provider " << resourceProviderInfo;
 
-  ResourceProvider resourceProvider(resourceProviderInfo, http);
+  // We always create a new `ResourceProvider` struct when a
+  // resource provider subscribes or resubscribes, and replace the
+  // existing `ResourceProvider` if needed.
+  Owned<ResourceProvider> resourceProvider(
+      new ResourceProvider(resourceProviderInfo, http));
 
   if (!resourceProviderInfo.has_id()) {
     // The resource provider is subscribing for the first time.
-    resourceProvider.info.mutable_id()->CopyFrom(newResourceProviderId());
-
-    // TODO(jieyu): Start heartbeat for the resource provider.
-
-    resourceProviders.subscribed.put(
-        resourceProvider.info.id(),
-        resourceProvider);
+    resourceProvider->info.mutable_id()->CopyFrom(newResourceProviderId());
   } else {
-    if (resourceProviders.subscribed.contains(resourceProviderInfo.id())) {
-      // Resource provider is resubscribing after failing over.
-      // TODO(nfnt): Test if old and new 'ResourceProviderInfo' match.
-      ResourceProvider& _resourceProvider =
-        resourceProviders.subscribed.at(resourceProviderInfo.id());
-
-      _resourceProvider.http.close();
-      _resourceProvider.http = http;
-    } else {
-      // Resource provider is resubscribing after an agent failover.
-      resourceProviders.subscribed.put(
-          resourceProviderInfo.id(), resourceProvider);
-    }
+    // TODO(chhsiao): The resource provider is resubscribing after being
+    // restarted or an agent failover. The 'ResourceProviderInfo' might
+    // have been updated, but its type and name should remain the same.
+    // We should checkpoint its 'type', 'name' and ID, then check if the
+    // resubscribption is consistent with the checkpointed record.
   }
+
+  const ResourceProviderID& resourceProviderId = resourceProvider->info.id();
 
   Event event;
   event.set_type(Event::SUBSCRIBED);
-  event.mutable_subscribed()->mutable_provider_id()->CopyFrom(
-      resourceProvider.info.id());
+  event.mutable_subscribed()->mutable_provider_id()
+    ->CopyFrom(resourceProviderId);
 
-  if (!resourceProviders.subscribed.at(resourceProvider.info.id()).http.send(
-          event)) {
+  if (!resourceProvider->http.send(event)) {
     LOG(WARNING) << "Failed to send SUBSCRIBED event to resource provider "
-                 << resourceProvider.info.id() << ": connection closed";
+                 << resourceProviderId << ": connection closed";
+    return;
   }
+
+  http.closed()
+    .onAny(defer(self(), [=](const Future<Nothing>&) {
+      CHECK(resourceProviders.subscribed.contains(resourceProviderId));
+
+      // NOTE: All pending futures of publish requests for the resource
+      // provider will become failed.
+      resourceProviders.subscribed.erase(resourceProviderId);
+    }));
+
+  // TODO(jieyu): Start heartbeat for the resource provider.
+  resourceProviders.subscribed.put(
+      resourceProviderId,
+      std::move(resourceProvider));
 }
 
 
@@ -449,14 +534,9 @@ void ResourceProviderManagerProcess::updateState(
     ResourceProvider* resourceProvider,
     const Call::UpdateState& update)
 {
-  Resources resources;
-
   foreach (const Resource& resource, update.resources()) {
     CHECK_EQ(resource.provider_id(), resourceProvider->info.id());
-    resources += resource;
   }
-
-  resourceProvider->resources = std::move(resources);
 
   // TODO(chhsiao): Report pending operations.
 
@@ -470,7 +550,7 @@ void ResourceProviderManagerProcess::updateState(
   ResourceProviderMessage::UpdateState updateState{
       resourceProvider->info.id(),
       resourceVersionUuid.get(),
-      resourceProvider->resources,
+      update.resources(),
       {update.operations().begin(), update.operations().end()}};
 
   ResourceProviderMessage message;
@@ -478,6 +558,39 @@ void ResourceProviderManagerProcess::updateState(
   message.updateState = std::move(updateState);
 
   messages.put(std::move(message));
+}
+
+
+void ResourceProviderManagerProcess::updatePublishStatus(
+    ResourceProvider* resourceProvider,
+    const Call::UpdatePublishStatus& update)
+{
+  Try<UUID> uuid = UUID::fromBytes(update.uuid());
+  if (uuid.isError()) {
+    LOG(ERROR) << "Invalid UUID in UpdatePublishStatus from resource provider "
+               << resourceProvider->info.id() << ": " << uuid.error();
+    return;
+  }
+
+  if (!resourceProvider->publishes.contains(uuid.get())) {
+    LOG(ERROR) << "Ignoring UpdatePublishStatus from resource provider "
+               << resourceProvider->info.id() << " because UUID "
+               << uuid->toString() << " is unknown";
+    return;
+  }
+
+  if (update.status() == Call::UpdatePublishStatus::OK) {
+    resourceProvider->publishes.at(uuid.get())->set(Nothing());
+  } else {
+    // TODO(jieyu): Consider to include an error message in
+    // 'UpdatePublishStatus' and surface that to the caller.
+    resourceProvider->publishes.at(uuid.get())->fail(
+        "Failed to publish resources for resource provider " +
+        stringify(resourceProvider->info.id()) + ": Received " +
+        stringify(update.status()) + " status");
+  }
+
+  resourceProvider->publishes.erase(uuid.get());
 }
 
 
@@ -522,6 +635,15 @@ void ResourceProviderManager::applyOfferOperation(
       process.get(),
       &ResourceProviderManagerProcess::applyOfferOperation,
       message);
+}
+
+
+Future<Nothing> ResourceProviderManager::publish(const Resources& resources)
+{
+  return dispatch(
+      process.get(),
+      &ResourceProviderManagerProcess::publish,
+      resources);
 }
 
 
