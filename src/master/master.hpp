@@ -2518,14 +2518,8 @@ struct Framework
       // role is absent from the framework's set of roles. In this
       // case, we track the role's allocation for this framework.
       foreachkey (const std::string& role, consumed->allocations()) {
-        auto allocatedToRole = [&role](const Resource& resource) {
-          return resource.allocation_info().role() == role;
-        };
-
-        if (roles.count(role) == 0 &&
-            totalUsedResources.filter(allocatedToRole).empty()) {
-          CHECK(totalOfferedResources.filter(allocatedToRole).empty());
-          untrackUnderRole(role);
+        if (!isTrackedUnderRole(role)) {
+          trackUnderRole(role);
         }
       }
     }
