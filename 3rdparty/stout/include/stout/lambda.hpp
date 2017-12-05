@@ -364,18 +364,17 @@ public:
   CallableOnce& operator=(CallableOnce&&) = default;
   CallableOnce& operator=(const CallableOnce&) = delete;
 
-  template <typename... Args_>
-  R operator()(Args_&&... args) &&
+  R operator()(Args... args) &&
   {
     CHECK(f != nullptr);
-    return std::move(*f)(std::forward<Args_>(args)...);
+    return std::move(*f)(std::forward<Args>(args)...);
   }
 
 private:
   struct Callable
   {
     virtual ~Callable() = default;
-    virtual R operator()(Args...) && = 0;
+    virtual R operator()(Args&&...) && = 0;
   };
 
   template <typename F>
@@ -386,7 +385,7 @@ private:
     CallableFn(const F& f) : f(f) {}
     CallableFn(F&& f) : f(std::move(f)) {}
 
-    virtual R operator()(Args... args) &&
+    virtual R operator()(Args&&... args) &&
     {
       return internal::Invoke<R>{}(std::move(f), std::forward<Args>(args)...);
     }
