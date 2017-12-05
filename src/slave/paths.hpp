@@ -358,13 +358,13 @@ std::string getResourcesTargetPath(
 
 
 std::string getPersistentVolumePath(
-    const std::string& rootDir,
+    const std::string& workDir,
     const std::string& role,
     const std::string& persistenceId);
 
 
 std::string getPersistentVolumePath(
-    const std::string& rootDir,
+    const std::string& workDir,
     const Resource& resource);
 
 

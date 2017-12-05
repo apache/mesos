@@ -1424,7 +1424,8 @@ message Resource {
       // A folder that can be located on a separate disk device. This
       // can be shared and carved up as necessary between frameworks.
       message Path {
-        // Path to the folder (e.g., /mnt/raid/disk0).
+        // Path to the folder (e.g., /mnt/raid/disk0). If the path is a
+        // relative path, it is relative to the agent work directory.
         optional string root = 1;
       }
 
@@ -1432,7 +1433,8 @@ message Resource {
       // can only be used exclusively: a framework cannot accept a
       // partial amount of this disk.
       message Mount {
-        // Path to mount point (e.g., /mnt/raid/disk0).
+        // Path to mount point (e.g., /mnt/raid/disk0). If the path is a
+        // relative path, it is relative to the agent work directory.
         optional string root = 1;
       }
 

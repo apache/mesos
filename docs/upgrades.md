@@ -50,6 +50,7 @@ We categorize the changes as follows:
     <ul style="padding-left:10px;">
       <li>C <a href="#1-5-x-task-starting">Built-in executors send a TASK_STARTING update</a></li>
       <li>A <a href="#1-5-x-network-ports-isolator">Network ports isolator</a></li>
+      <li>C <a href="#1-5-x-relative-disk-source-root-path">Relative source root paths for disk resources</a></li>
     </ul>
   </td>
 
@@ -381,6 +382,10 @@ We categorize the changes as follows:
 <a name="1-5-x-executor-secret-key"></a>
 
 * Agent flag `--executor_secret_key` has been deprecated. Operators should use `--jwt_secret_key` instead.
+
+<a name="1-5-x-relative-disk-source-root-path"></a>
+
+* The fields `Resource.disk.source.path.root` and `Resource.disk.source.mount.root` can now be set to relative paths to an agent's work directory. The containerizers will interpret the paths based on the `--work_dir` flag on an agent.
 
 ## Upgrading from 1.3.x to 1.4.x ##
 
