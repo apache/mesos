@@ -90,6 +90,7 @@ public:
 
   Option<std::string> container_logger;
 
+  std::string reconfiguration_policy;
   std::string recover;
   Duration recovery_timeout;
   bool strict;

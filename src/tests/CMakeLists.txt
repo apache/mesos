@@ -115,6 +115,7 @@ set(MESOS_TESTS_SRC
   scheduler_http_api_tests.cpp
   scheduler_tests.cpp
   slave_authorization_tests.cpp
+  slave_compatibility_tests.cpp
   slave_tests.cpp
   slave_validation_tests.cpp
   sorter_tests.cpp

@@ -4559,6 +4559,7 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
 
   Try<Owned<cluster::Slave>> slave =
     this->StartSlave(detector.get(), &containerizer1, flags);
+
   ASSERT_SOME(slave);
 
   // Enable checkpointing for the framework.
@@ -4631,6 +4632,140 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   EXPECT_EQ(TaskStatus::SOURCE_SLAVE, status->source());
   EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED,
             status->reason());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test starts a task, restarts the slave with increased
+// resources while the task is still running, and then stops
+// the task, verifying that all resources are seen in subsequent
+// offers.
+TYPED_TEST(SlaveRecoveryTest, AgentReconfigurationWithRunningTask)
+{
+  // Start a master.
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  // Start a framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Start a slave.
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.resources = "cpus:5;mem:0;disk:0;ports:0";
+
+  Fetcher fetcher(flags);
+
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
+
+  ASSERT_SOME(slave);
+
+  // Start a long-running task on the slave.
+  AWAIT_READY(offers1);
+  ASSERT_FALSE(offers1->empty());
+
+  EXPECT_EQ(
+      offers1.get()[0].resources(),
+      allocatedResources(Resources::parse("cpus:5").get(), "*"));
+
+  SlaveID slaveId = offers1.get()[0].slave_id();
+  TaskInfo task = createTask(
+      slaveId, Resources::parse("cpus:3").get(), "sleep 1000");
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusKilled;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  driver.launchTasks(offers1.get()[0].id(), {task});
+
+  AWAIT_READY(statusStarting);
+  AWAIT_READY(statusRunning);
+
+  // Grab one of the offers while the task is running.
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  AWAIT_READY(offers2);
+  ASSERT_FALSE(offers2->empty());
+
+  EXPECT_EQ(
+      offers2.get()[0].resources(),
+      allocatedResources(Resources::parse("cpus:2").get(), "*"));
+
+  driver.declineOffer(offers2.get()[0].id());
+
+  // Restart the slave with increased resources.
+  slave.get()->terminate();
+  flags.reconfiguration_policy = "additive";
+  flags.resources = "cpus:10;mem:512;disk:0;ports:0";
+
+  // Restart the slave with a new containerizer.
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
+
+  Future<SlaveReregisteredMessage> slaveReregistered =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Grab one of the offers after the slave was restarted.
+  Future<vector<Offer>> offers3;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers3))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+  AWAIT_READY(slaveReregistered);
+
+  AWAIT_READY(offers3);
+  EXPECT_EQ(
+      offers3.get()[0].resources(),
+      allocatedResources(Resources::parse("cpus:7;mem:512").get(), "*"));
+
+  // Decline so we get the resources offered again with the next offer.
+  driver.declineOffer(offers3.get()[0].id());
+
+  // Kill the task
+  driver.killTask(task.task_id());
+  AWAIT_READY(statusKilled);
+  ASSERT_EQ(TASK_KILLED, statusKilled->state());
+
+  // Grab one of the offers after the task was killed.
+  Future<vector<Offer>> offers4;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers4))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_EQ(
+      offers4.get()[0].resources(),
+      allocatedResources(Resources::parse("cpus:10;mem:512").get(), "*"));
 
   driver.stop();
   driver.join();

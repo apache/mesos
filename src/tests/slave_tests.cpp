@@ -90,6 +90,7 @@
 #include "tests/limiter.hpp"
 #include "tests/mesos.hpp"
 #include "tests/mock_slave.hpp"
+#include "tests/resources_utils.hpp"
 #include "tests/utils.hpp"
 
 using namespace mesos::internal::slave;
@@ -8827,6 +8828,103 @@ TEST_F(SlaveTest, ResourceVersions)
   EXPECT_EQ(
       registerSlaveMessage->resource_version_uuids(0),
       reregisterSlaveMessage->resource_version_uuids(0));
+}
+
+
+// Test that it is possible to add additional resources, attributes,
+// and a domain when the reconfiguration policy is set to
+// `additive`.
+TEST_F(SlaveTest, ReconfigurationPolicy)
+{
+  DomainInfo domain = flags::parse<DomainInfo>(
+      "{"
+      "    \"fault_domain\": {"
+      "        \"region\": {\"name\": \"europe\"},"
+      "        \"zone\": {\"name\": \"europe-b2\"}"
+      "    }"
+      "}").get();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  // Need to set a master domain, otherwise it will reject a slave with
+  // a configured domain.
+  masterFlags.domain = domain;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.attributes = "distro:debian";
+  slaveFlags.resources = "cpus:4;mem:32;disk:512";
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  // Start a slave.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, slaveFlags);
+
+  ASSERT_SOME(slave);
+
+  // Wait until the slave registers to ensure that it has successfully
+  // checkpointed its state.
+  AWAIT_READY(slaveRegisteredMessage);
+
+  slave.get()->terminate();
+  slave->reset();
+
+  // Do a valid reconfiguration.
+  slaveFlags.reconfiguration_policy = "additive";
+  slaveFlags.resources = "cpus:8;mem:128;disk:512";
+  slaveFlags.attributes = "distro:debian;version:8";
+  slaveFlags.domain = domain;
+
+  // Restart slave.
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
+
+  slave = StartSlave(detector.get(), &containerizer, slaveFlags);
+
+  ASSERT_SOME(slave);
+
+  // If we get here without the slave exiting, things are working as expected.
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Start scheduler and check that it gets offered the updated resources
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers->size());
+
+  // Verify that the offer contains the new domain, attributes and resources.
+  EXPECT_TRUE(offers.get()[0].has_domain());
+  EXPECT_EQ(
+      Attributes(offers.get()[0].attributes()),
+      Attributes::parse(slaveFlags.attributes.get()));
+
+  // The resources are slightly transformed by both master and slave
+  // before they end up in an offer (in particular, ports are implicitly
+  // added and they're assigned to role '*'), so we cannot simply compare
+  // for equality.
+  Resources offeredResources = Resources(offers.get()[0].resources());
+  Resources reconfiguredResources = allocatedResources(
+      Resources::parse(slaveFlags.resources.get()).get(), "*");
+
+  EXPECT_TRUE(offeredResources.contains(reconfiguredResources));
 }
 
 

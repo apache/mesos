@@ -588,6 +588,15 @@ private:
   double _resources_revocable_used(const std::string& name);
   double _resources_revocable_percent(const std::string& name);
 
+  // Checks whether the two `SlaveInfo` objects are considered
+  // compatible based on the value of the `--configuration_policy`
+  // flag.
+  Try<Nothing> compatible(
+      const SlaveInfo& previous,
+      const SlaveInfo& current) const;
+
+  protobuf::master::Capabilities requiredMasterCapabilities;
+
   const Flags flags;
 
   const Http http;

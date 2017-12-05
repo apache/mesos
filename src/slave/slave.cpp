@@ -90,8 +90,11 @@
 
 #include "logging/logging.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "module/manager.hpp"
 
+#include "slave/compatibility.hpp"
 #include "slave/constants.hpp"
 #include "slave/flags.hpp"
 #include "slave/paths.hpp"
@@ -842,6 +845,15 @@ void Slave::initialize()
     }
   }
 
+  // Check that the reconfiguration_policy flag is valid.
+  if (flags.reconfiguration_policy != "equal" &&
+      flags.reconfiguration_policy != "additive") {
+    EXIT(EXIT_FAILURE)
+      << "Unknown option for 'reconfiguration_policy' flag "
+      << flags.reconfiguration_policy << "."
+      << " Please run the agent with '--help' to see the valid options.";
+  }
+
   // Check that the recover flag is valid.
   if (flags.recover != "reconnect" && flags.recover != "cleanup") {
     EXIT(EXIT_FAILURE)
@@ -1008,6 +1020,26 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
     if (state == TERMINATING) {
       LOG(INFO) << "Skipping registration because agent is terminating";
       return;
+    }
+
+    if (requiredMasterCapabilities.agentUpdate) {
+      protobuf::master::Capabilities masterCapabilities(
+          latest->capabilities());
+
+      if (!masterCapabilities.agentUpdate) {
+        EXIT(EXIT_FAILURE) <<
+          "Agent state changed on restart, but the detected master lacks the "
+          "AGENT_UPDATE capability. Refusing to connect.";
+        return;
+      }
+
+      if (dynamic_cast<mesos::master::detector::StandaloneMasterDetector*>(
+          detector)) {
+        LOG(WARNING) <<
+          "The AGENT_UPDATE master capability is required, "
+          "but the StandaloneMasterDetector does not have the ability to read "
+          "master capabilities.";
+      }
     }
 
     // Wait for a random amount of time before authentication or
@@ -6143,6 +6175,25 @@ void Slave::_checkDiskUsage(const Future<double>& usage)
 }
 
 
+Try<Nothing> Slave::compatible(
+  const SlaveInfo& previous,
+  const SlaveInfo& current) const
+{
+  // TODO(vinod): Also check for version compatibility.
+
+  if (flags.reconfiguration_policy == "equal") {
+    return compatibility::equal(previous, current);
+  }
+
+  if (flags.reconfiguration_policy == "additive") {
+    return compatibility::additive(previous, current);
+  }
+
+  // Should have been validated during startup.
+  UNREACHABLE();
+}
+
+
 Future<Nothing> Slave::recover(const Try<state::State>& state)
 {
   if (state.isError()) {
@@ -6303,43 +6354,53 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
       metrics.recovery_errors += slaveState->errors;
     }
 
+    // Save the previous id into the current `SlaveInfo`, so we can compare
+    // both of them for equality. This is safe because if it turned out that
+    // we can not reuse the id, we will either crash or erase it again.
+    info.mutable_id()->CopyFrom(slaveState->info->id());
+
     // Check for SlaveInfo compatibility.
-    // TODO(vinod): Also check for version compatibility.
+    Try<Nothing> _compatible =
+      compatible(slaveState->info.get(), info);
 
-    SlaveInfo _info(info);
-    _info.mutable_id()->CopyFrom(slaveState->id);
-    if (flags.recover == "reconnect" &&
-        !(_info == slaveState->info.get())) {
-      string message = strings::join(
-          "\n",
-          "Incompatible agent info detected.",
-          "------------------------------------------------------------",
-          "Old agent info:\n" + stringify(slaveState->info.get()),
-          "------------------------------------------------------------",
-          "New agent info:\n" + stringify(info),
-          "------------------------------------------------------------");
+    if (_compatible.isSome()) {
+      // Permitted change, so we reuse the recovered agent id and reconnect
+      // to running executors.
 
-      // Fail the recovery unless the agent is recovering for the first
-      // time after host reboot.
-      //
+      // Prior to Mesos 1.5, the master expected that an agent would never
+      // change its `SlaveInfo` and keep the same slave id, and therefore would
+      // not update it's internal data structures on agent re-registration.
+      if (!(slaveState->info.get() == info)) {
+        requiredMasterCapabilities.agentUpdate = true;
+      }
+
+      // Start the local resource providers daemon once we have the slave id.
+      localResourceProviderDaemon->start(info.id());
+
+      // Recover the frameworks.
+      foreachvalue (const FrameworkState& frameworkState,
+                    slaveState->frameworks) {
+        recoverFramework(frameworkState, injectedExecutors, injectedTasks);
+      }
+    } else if (state->rebooted) {
       // Prior to Mesos 1.4 we directly bypass the state recovery and
       // start as a new agent upon reboot (introduced in MESOS-844).
       // This unncessarily discards the existing agent ID (MESOS-6223).
       // Starting in Mesos 1.4 we'll attempt to recover the slave state
-      // even after reboot but in case of slave info mismatch we'll fall
-      // back to recovering as a new agent (existing behavior). This
-      // prevents the agent from flapping if the slave info (resources,
+      // even after reboot but in case of an incompatible slave info change
+      // we'll fall back to recovering as a new agent (existing behavior).
+      // Prior to Mesos 1.5, an incompatible change would be any slave info
+      // mismatch.
+      // This prevents the agent from flapping if the slave info (resources,
       // attributes, etc.) change is due to host maintenance associated
       // with the reboot.
-      if (!state->rebooted) {
-        return Failure(message);
-      }
 
       LOG(WARNING) << "Falling back to recover as a new agent due to error: "
-                   << message;
+                   << _compatible.error();
 
       // Cleaning up the slave state to avoid any state recovery for the
       // old agent.
+      info.clear_id();
       slaveState = None();
 
       // Remove the "latest" symlink if it exists to "checkpoint" the
@@ -6350,13 +6411,7 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
           << "Failed to remove latest symlink '" << latest << "'";
       }
     } else {
-      info = slaveState->info.get(); // Recover the slave info.
-
-      // Recover the frameworks.
-      foreachvalue (const FrameworkState& frameworkState,
-                    slaveState->frameworks) {
-        recoverFramework(frameworkState, injectedExecutors, injectedTasks);
-      }
+      return Failure(_compatible.error());
     }
   }
 

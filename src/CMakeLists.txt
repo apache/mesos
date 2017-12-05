@@ -246,6 +246,7 @@ configure_file(
 # SOURCE FILES FOR THE MESOS LIBRARY.
 #####################################
 set(AGENT_SRC
+  slave/compatibility.cpp
   slave/constants.cpp
   slave/container_daemon.cpp
   slave/container_logger.cpp

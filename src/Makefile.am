@@ -1015,6 +1015,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   sched/sched.cpp							\
   scheduler/scheduler.cpp						\
   secret/resolver.cpp							\
+  slave/compatibility.cpp						\
   slave/constants.cpp							\
   slave/container_daemon.cpp						\
   slave/container_logger.cpp						\
@@ -2494,6 +2495,7 @@ mesos_tests_SOURCES =						\
   tests/scheduler_tests.cpp					\
   tests/script.cpp						\
   tests/slave_authorization_tests.cpp				\
+  tests/slave_compatibility_tests.cpp				\
   tests/slave_recovery_tests.cpp				\
   tests/slave_validation_tests.cpp				\
   tests/slave_tests.cpp						\
