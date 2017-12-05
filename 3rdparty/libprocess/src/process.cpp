@@ -3918,7 +3918,7 @@ namespace internal {
 
 void dispatch(
     const UPID& pid,
-    const std::shared_ptr<lambda::function<void(ProcessBase*)>>& f,
+    const std::shared_ptr<lambda::CallableOnce<void(ProcessBase*)>>& f,
     const Option<const std::type_info*>& functionType)
 {
   process::initialize();

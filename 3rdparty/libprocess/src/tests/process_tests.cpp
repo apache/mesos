@@ -146,6 +146,18 @@ TEST(ProcessTest, THREADSAFE_Spawn)
 }
 
 
+struct MoveOnly
+{
+  MoveOnly() {}
+
+  MoveOnly(const MoveOnly&) = delete;
+  MoveOnly(MoveOnly&&) = default;
+
+  MoveOnly& operator=(const MoveOnly&) = delete;
+  MoveOnly& operator=(MoveOnly&&) = default;
+};
+
+
 class DispatchProcess : public Process<DispatchProcess>
 {
 public:
@@ -154,6 +166,9 @@ public:
   MOCK_METHOD1(func2, Future<bool>(bool));
   MOCK_METHOD1(func3, int(int));
   MOCK_METHOD2(func4, Future<bool>(bool, int));
+
+  void func5(MoveOnly&& mo) { func5_(mo); }
+  MOCK_METHOD1(func5_, void(const MoveOnly&));
 };
 
 
@@ -169,11 +184,14 @@ TEST(ProcessTest, THREADSAFE_Dispatch)
   EXPECT_CALL(process, func2(_))
     .WillOnce(ReturnArg<0>());
 
+  EXPECT_CALL(process, func5_(_));
+
   PID<DispatchProcess> pid = spawn(&process);
 
   ASSERT_FALSE(!pid);
 
   dispatch(pid, &DispatchProcess::func0);
+  dispatch(pid, &DispatchProcess::func5, MoveOnly());
 
   Future<bool> future;
 
