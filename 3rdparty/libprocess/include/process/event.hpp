@@ -121,8 +121,7 @@ struct MessageEvent : Event
     : message{std::move(name), from, to, std::move(data)} {}
 
   MessageEvent(MessageEvent&& that) = default;
-  // TODO(dzhuk) Make it movable only, when move is properly supported in defer.
-  MessageEvent(const MessageEvent& that) = default;
+  MessageEvent(const MessageEvent& that) = delete;
   MessageEvent& operator=(MessageEvent&&) = default;
   MessageEvent& operator=(const MessageEvent&) = delete;
 
@@ -218,8 +217,7 @@ struct ExitedEvent : Event
     : pid(_pid) {}
 
   ExitedEvent(ExitedEvent&&) = default;
-  // TODO(dzhuk) Make it movable only, when move is properly supported in defer.
-  ExitedEvent(const ExitedEvent&) = default;
+  ExitedEvent(const ExitedEvent&) = delete;
   ExitedEvent& operator=(ExitedEvent&&) = default;
   ExitedEvent& operator=(const ExitedEvent&) = delete;
 
