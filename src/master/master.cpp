@@ -6044,6 +6044,20 @@ void Master::registerSlave(
 
   slaves.registering.insert(from);
 
+  // Update all resources passed by the agent to `POST_RESERVATION_REFINEMENT`
+  // format. We do this as early as possible so that we only use a single
+  // format inside master, and downgrade again if necessary when they leave the
+  // master (e.g. when writing to the registry).
+  // TODO(bevers): Also convert the resources in `ExecutorInfos` and `Tasks`
+  // here for consistency.
+  SlaveInfo _slaveInfo(slaveInfo);
+  convertResourceFormat(
+      _slaveInfo.mutable_resources(), POST_RESERVATION_REFINEMENT);
+
+  std::vector<Resource> _checkpointedResources(checkpointedResources);
+  convertResourceFormat(
+      &_checkpointedResources, POST_RESERVATION_REFINEMENT);
+
   // Note that the principal may be empty if authentication is not
   // required. Also it is passed along because it may be removed from
   // `authenticated` while the authorization is pending.
@@ -6052,10 +6066,10 @@ void Master::registerSlave(
   authorizeSlave(principal)
     .onAny(defer(self(),
                  &Self::_registerSlave,
-                 slaveInfo,
+                 _slaveInfo,
                  from,
                  principal,
-                 checkpointedResources,
+                 _checkpointedResources,
                  version,
                  agentCapabilities,
                  resourceVersions,
@@ -6361,6 +6375,20 @@ void Master::reregisterSlave(
   Option<Error> error = validation::master::message::reregisterSlave(
       slaveInfo, tasks, checkpointedResources, executorInfos, frameworks);
 
+  // Update all resources passed by the agent to `POST_RESERVATION_REFINEMENT`
+  // format. We do this as early as possible so that we only use a single
+  // format inside master, and downgrade again if necessary when they leave the
+  // master (e.g. when writing to the registry).
+  // TODO(bevers): Also convert the resources in `ExecutorInfos` and `Tasks`
+  // here for consistency.
+  SlaveInfo _slaveInfo(slaveInfo);
+  convertResourceFormat(
+      _slaveInfo.mutable_resources(), POST_RESERVATION_REFINEMENT);
+
+  std::vector<Resource> _checkpointedResources(checkpointedResources);
+  convertResourceFormat(
+      &_checkpointedResources, POST_RESERVATION_REFINEMENT);
+
   if (error.isSome()) {
     LOG(WARNING) << "Dropping re-registration of agent at " << from
                  << " because it sent an invalid re-registration: "
@@ -6382,10 +6410,10 @@ void Master::reregisterSlave(
   authorizeSlave(principal)
     .onAny(defer(self(),
                  &Self::_reregisterSlave,
-                 slaveInfo,
+                 _slaveInfo,
                  from,
                  principal,
-                 checkpointedResources,
+                 _checkpointedResources,
                  executorInfos,
                  tasks,
                  frameworks,
@@ -11024,11 +11052,7 @@ Slave::Slave(
     const vector<Task>& tasks)
   : master(_master),
     id(_info.id()),
-    info([&_info]() {
-      convertResourceFormat(
-          _info.mutable_resources(), POST_RESERVATION_REFINEMENT);
-      return _info;
-    }()),
+    info(_info),
     machineId(_machineId),
     pid(_pid),
     version(_version),
@@ -11036,11 +11060,7 @@ Slave::Slave(
     registeredTime(_registeredTime),
     connected(true),
     active(true),
-    checkpointedResources([&_checkpointedResources]() {
-      convertResourceFormat(
-          &_checkpointedResources, POST_RESERVATION_REFINEMENT);
-      return _checkpointedResources;
-    }()),
+    checkpointedResources(_checkpointedResources),
     observer(nullptr),
     resourceVersions(_resourceVersions)
 {
