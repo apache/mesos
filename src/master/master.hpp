@@ -2580,6 +2580,11 @@ struct Framework
       << "' (uuid: " << uuid->toString() << ") "
       << "of framework " << operation->framework_id();
 
+    if (!protobuf::isSpeculativeOperation(operation->info()) &&
+        !protobuf::isTerminalState(operation->latest_status().state())) {
+      recoverResources(operation);
+    }
+
     offerOperations.erase(uuid.get());
   }
 

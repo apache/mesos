@@ -9241,6 +9241,11 @@ void Master::removeFramework(Framework* framework)
     }
   }
 
+  foreachvalue (OfferOperation* operation,
+                utils::copy(framework->offerOperations)) {
+    framework->removeOfferOperation(operation);
+  }
+
   // TODO(benh): Similar code between removeFramework and
   // failoverFramework needs to be shared!
 
