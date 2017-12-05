@@ -6582,9 +6582,11 @@ void Master::_reregisterSlave(
 
     // TODO(bevers): Verify that the checkpointed resources sent by the
     // slave match the ones stored in `slave`.
-    registrar->apply(Owned<Operation>(new UpdateSlave(slaveInfo)))
-      .onAny(defer(self(),
-          &Self::___reregisterSlave,
+
+    // Skip updating the registry if `slaveInfo` did not change from its
+    // previously known state.
+    if (slaveInfo == slave->info) {
+      ___reregisterSlave(
           slaveInfo,
           pid,
           executorInfos,
@@ -6593,17 +6595,35 @@ void Master::_reregisterSlave(
           version,
           agentCapabilities,
           resourceVersions,
-          lambda::_1));
-
+          true);
+    } else {
+      registrar->apply(Owned<Operation>(new UpdateSlave(slaveInfo)))
+        .onAny(defer(self(),
+            &Self::___reregisterSlave,
+            slaveInfo,
+            pid,
+            executorInfos,
+            tasks,
+            frameworks,
+            version,
+            agentCapabilities,
+            resourceVersions,
+            lambda::_1));
+    }
   } else if (slaves.recovered.contains(slaveInfo.id())) {
     // The agent likely is re-registering after a master failover as it
     // is in the list recovered from the registry.
     VLOG(1) << "Re-admitting recovered agent " << slaveInfo.id()
             << " at " << pid << "(" << slaveInfo.hostname() << ")";
 
-    registrar->apply(Owned<Operation>(new UpdateSlave(slaveInfo)))
-      .onAny(defer(self(),
-          &Self::__reregisterSlave,
+    SlaveInfo recoveredInfo = slaves.recovered.at(slaveInfo.id());
+    convertResourceFormat(
+        recoveredInfo.mutable_resources(), POST_RESERVATION_REFINEMENT);
+
+    // Skip updating the registry if `slaveInfo` did not change from its
+    // previously known state (see also MESOS-7711).
+    if (slaveInfo == recoveredInfo) {
+      __reregisterSlave(
           slaveInfo,
           pid,
           checkpointedResources,
@@ -6614,7 +6634,23 @@ void Master::_reregisterSlave(
           version,
           agentCapabilities,
           resourceVersions,
-          lambda::_1));
+          true);
+    } else {
+      registrar->apply(Owned<Operation>(new UpdateSlave(slaveInfo)))
+        .onAny(defer(self(),
+            &Self::__reregisterSlave,
+            slaveInfo,
+            pid,
+            checkpointedResources,
+            executorInfos,
+            tasks,
+            frameworks,
+            completedFrameworks,
+            version,
+            agentCapabilities,
+            resourceVersions,
+            lambda::_1));
+    }
   } else {
     // In the common case, the slave has been marked unreachable
     // by the master, so we move the slave to the reachable list and
