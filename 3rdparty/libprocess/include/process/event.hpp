@@ -179,10 +179,10 @@ struct DispatchEvent : Event
 {
   DispatchEvent(
       const UPID& _pid,
-      const std::shared_ptr<lambda::CallableOnce<void(ProcessBase*)>>& _f,
+      std::unique_ptr<lambda::CallableOnce<void(ProcessBase*)>> _f,
       const Option<const std::type_info*>& _functionType)
     : pid(_pid),
-      f(_f),
+      f(std::move(_f)),
       functionType(_functionType)
   {}
 
@@ -205,7 +205,7 @@ struct DispatchEvent : Event
   UPID pid;
 
   // Function to get invoked as a result of this dispatch event.
-  std::shared_ptr<lambda::CallableOnce<void(ProcessBase*)>> f;
+  std::unique_ptr<lambda::CallableOnce<void(ProcessBase*)>> f;
 
   Option<const std::type_info*> functionType;
 };

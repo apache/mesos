@@ -2977,7 +2977,7 @@ void ProcessManager::cleanup(ProcessBase* process)
   // Remove help strings for all installed routes for this process.
   dispatch(help, &Help::remove, process->pid.id);
 
-  // Possible gate non-libprocess threads are waiting at.
+    // Possible gate non-libprocess threads are waiting at.
   std::shared_ptr<Gate> gate = process->gate;
 
   // Remove process.
@@ -3918,12 +3918,12 @@ namespace internal {
 
 void dispatch(
     const UPID& pid,
-    const std::shared_ptr<lambda::CallableOnce<void(ProcessBase*)>>& f,
+    std::unique_ptr<lambda::CallableOnce<void(ProcessBase*)>> f,
     const Option<const std::type_info*>& functionType)
 {
   process::initialize();
 
-  DispatchEvent* event = new DispatchEvent(pid, f, functionType);
+  DispatchEvent* event = new DispatchEvent(pid, std::move(f), functionType);
   process_manager->deliver(pid, event, __process__);
 }
 
