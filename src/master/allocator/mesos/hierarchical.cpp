@@ -1528,7 +1528,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
     // NOTE: `allocationScalarQuantities` omits dynamic reservation,
     // persistent volume info, and allocation info. We additionally
-    // remove the resource's `role` here via `toUnreserved()`.
+    // remove the static reservations here via `toUnreserved()`.
     return quotaRoleSorter->allocationScalarQuantities(role).toUnreserved();
   };
 
