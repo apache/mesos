@@ -213,6 +213,8 @@ private:
     }
   }
 
+  using process::Process<ReaderProcess<T>>::consume;
+
   void consume()
   {
     reader.read()

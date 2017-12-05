@@ -960,7 +960,7 @@ public:
       return "http://" + stringify(self().address) + "/" + self().id + "/";
     }
 
-    // Stalls the execution of future HTTP requests inside visit().
+    // Stalls the execution of future HTTP requests inside consume().
     void pause()
     {
       // If there is no latch or if the existing latch has already been
@@ -977,7 +977,7 @@ public:
       }
     }
 
-    virtual void visit(const HttpEvent& event)
+    virtual void consume(HttpEvent&& event)
     {
       if (latch.get() != nullptr) {
         latch->await();
@@ -993,7 +993,7 @@ public:
         countArchiveRequests++;
       }
 
-      ProcessBase::visit(event);
+      ProcessBase::consume(std::move(event));
     }
 
     void resetCounts()

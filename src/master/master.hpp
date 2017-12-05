@@ -551,13 +551,13 @@ public:
   }
 
 protected:
-  virtual void initialize();
-  virtual void finalize();
+  void initialize() override;
+  void finalize() override;
 
-  virtual void visit(const process::MessageEvent& event);
-  virtual void visit(const process::ExitedEvent& event);
+  void consume(process::MessageEvent&& event) override;
+  void consume(process::ExitedEvent&& event) override;
 
-  virtual void exited(const process::UPID& pid);
+  void exited(const process::UPID& pid) override;
   void exited(const FrameworkID& frameworkId, const HttpConnection& http);
   void _exited(Framework* framework);
 
@@ -575,9 +575,9 @@ protected:
       const process::MessageEvent& event,
       const Option<std::string>& principal);
 
-  // Continuations of visit().
-  void _visit(const process::MessageEvent& event);
-  void _visit(const process::ExitedEvent& event);
+  // Continuations of consume().
+  void _consume(const process::MessageEvent& event);
+  void _consume(const process::ExitedEvent& event);
 
   // Helper method invoked when the capacity for a framework
   // principal is exceeded.

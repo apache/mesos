@@ -1473,7 +1473,7 @@ Future<bool> Master::authorizeLogAccess(const Option<Principal>& principal)
 }
 
 
-void Master::visit(const MessageEvent& event)
+void Master::consume(MessageEvent&& event)
 {
   // There are three cases about the message's UPID with respect to
   // 'frameworks.principals':
@@ -1547,7 +1547,7 @@ void Master::visit(const MessageEvent& event)
         limiter->messages < limiter->capacity.get()) {
       limiter->messages++;
       limiter->limiter->acquire()
-        .onReady(defer(self(), &Self::throttled, event, principal));
+        .onReady(defer(self(), &Self::throttled, std::move(event), principal));
     } else {
       exceededCapacity(
           event,
@@ -1563,7 +1563,7 @@ void Master::visit(const MessageEvent& event)
           frameworks.defaultLimiter.get()->capacity.get()) {
       frameworks.defaultLimiter.get()->messages++;
       frameworks.defaultLimiter.get()->limiter->acquire()
-        .onReady(defer(self(), &Self::throttled, event, None()));
+        .onReady(defer(self(), &Self::throttled, std::move(event), None()));
     } else {
       exceededCapacity(
           event,
@@ -1571,14 +1571,14 @@ void Master::visit(const MessageEvent& event)
           frameworks.defaultLimiter.get()->capacity.get());
     }
   } else {
-    _visit(event);
+    _consume(std::move(event));
   }
 }
 
 
-void Master::visit(const ExitedEvent& event)
+void Master::consume(ExitedEvent&& event)
 {
-  // See comments in 'visit(const MessageEvent& event)' for which
+  // See comments in 'consume(MessageEvent&& event)' for which
   // RateLimiter is used to throttle this UPID and when it is not
   // throttled.
   // Note that throttling ExitedEvent is necessary so the order
@@ -1596,15 +1596,15 @@ void Master::visit(const ExitedEvent& event)
       frameworks.limiters.contains(principal.get()) &&
       frameworks.limiters[principal.get()].isSome()) {
     frameworks.limiters[principal.get()].get()->limiter->acquire()
-      .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
+      .onReady(defer(self(), static_cast<F>(&Self::_consume), event));
   } else if ((principal.isNone() ||
               !frameworks.limiters.contains(principal.get())) &&
              isRegisteredFramework &&
              frameworks.defaultLimiter.isSome()) {
     frameworks.defaultLimiter.get()->limiter->acquire()
-      .onReady(defer(self(), static_cast<F>(&Self::_visit), event));
+      .onReady(defer(self(), static_cast<F>(&Self::_consume), event));
   } else {
-    _visit(event);
+    _consume(std::move(event));
   }
 }
 
@@ -1625,11 +1625,13 @@ void Master::throttled(
     frameworks.defaultLimiter.get()->messages--;
   }
 
-  _visit(event);
+  // TODO(dzhuk): Use std::move(event), when defer supports
+  // rvalue references as handler parameters.
+  _consume(event);
 }
 
 
-void Master::_visit(const MessageEvent& event)
+void Master::_consume(const MessageEvent& event)
 {
   // Obtain the principal before processing the Message because the
   // mapping may be deleted in handling 'UnregisterFrameworkMessage'
@@ -1639,7 +1641,9 @@ void Master::_visit(const MessageEvent& event)
       ? frameworks.principals[event.message.from]
       : Option<string>::none();
 
-  ProtobufProcess<Master>::visit(event);
+  // TODO(dzhuk): Use std::move(event), when defer supports
+  // rvalue references as handler parameters.
+  ProtobufProcess<Master>::consume(MessageEvent(event));
 
   // Increment 'messages_processed' counter if it still exists.
   // Note that it could be removed in handling
@@ -1679,9 +1683,11 @@ void Master::exceededCapacity(
 }
 
 
-void Master::_visit(const ExitedEvent& event)
+void Master::_consume(const ExitedEvent& event)
 {
-  Process<Master>::visit(event);
+  // TODO(dzhuk): Use std::move(event), when defer supports
+  // rvalue references as handler parameters.
+  Process<Master>::consume(ExitedEvent(event));
 }
 
 
