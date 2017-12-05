@@ -51,6 +51,50 @@ Try<bool> AdmitSlave::perform(Registry* registry, hashset<SlaveID>* slaveIDs)
 }
 
 
+UpdateSlave::UpdateSlave(const SlaveInfo& _info) : info(_info)
+{
+  CHECK(info.has_id()) << "SlaveInfo is missing the 'id' field";
+}
+
+
+Try<bool> UpdateSlave::perform(Registry* registry, hashset<SlaveID>* slaveIDs)
+{
+  if (!slaveIDs->contains(info.id())) {
+    return Error("Agent not yet admitted.");
+  }
+
+  for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+    Registry::Slave* slave = registry->mutable_slaves()->mutable_slaves(i);
+
+    if (slave->info().id() == info.id()) {
+      // The SlaveInfo in the registry is stored in the
+      // `PRE_RESERVATION_REFINEMENT` format, but the equality operator
+      // asserts that resources are in `POST_RESERVATION_REFINEMENT` format,
+      // so we have to upgrade before we can do the comparison.
+      SlaveInfo _previousInfo(slave->info());
+      convertResourceFormat(_previousInfo.mutable_resources(),
+          POST_RESERVATION_REFINEMENT);
+
+      if (info == _previousInfo) {
+        return false; // No mutation.
+      }
+
+      // Convert the resource format back to `PRE_RESERVATION_REFINEMENT` so
+      // the data stored in the registry can be read by older master versions.
+      SlaveInfo _info(info);
+      convertResourceFormat(_info.mutable_resources(),
+          PRE_RESERVATION_REFINEMENT);
+
+      slave->mutable_info()->CopyFrom(_info);
+      return true; // Mutation.
+    }
+  }
+
+  // Shouldn't happen
+  return Error("Failed to find agent " + stringify(info.id()));
+}
+
+
 // Move a slave from the list of admitted slaves to the list of
 // unreachable slaves.
 MarkSlaveUnreachable::MarkSlaveUnreachable(

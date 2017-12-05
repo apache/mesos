@@ -265,6 +265,57 @@ TEST_F(RegistrarTest, Admit)
 }
 
 
+TEST_F(RegistrarTest, UpdateSlave)
+{
+  // Add a new slave to the registry.
+  {
+    Registrar registrar(flags, state);
+    AWAIT_READY(registrar.recover(master));
+
+    slave.set_hostname("original");
+    AWAIT_TRUE(
+        registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+  }
+
+
+  // Verify that the slave is present, and update its hostname.
+  {
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    ASSERT_EQ(1, registry->slaves().slaves().size());
+    EXPECT_EQ("original", registry->slaves().slaves(0).info().hostname());
+
+    slave.set_hostname("changed");
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateSlave(slave))));
+  }
+
+  // Verify that the hostname indeed changed, and do one additional update
+  // to check that the operation is idempotent.
+  {
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    ASSERT_EQ(1, registry->slaves().slaves().size());
+    EXPECT_EQ("changed", registry->slaves().slaves(0).info().hostname());
+
+    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateSlave(slave))));
+  }
+
+  // Verify that nothing changed from the second update.
+  {
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    ASSERT_EQ(1, registry->slaves().slaves().size());
+    EXPECT_EQ("changed", registry->slaves().slaves(0).info().hostname());
+  }
+}
+
+
 TEST_F(RegistrarTest, MarkReachable)
 {
   Registrar registrar(flags, state);

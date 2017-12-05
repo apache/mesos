@@ -41,6 +41,20 @@ private:
 };
 
 
+// Update the SlaveInfo of an existing admitted slave.
+class UpdateSlave : public Operation
+{
+public:
+  explicit UpdateSlave(const SlaveInfo& _info);
+
+protected:
+  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+
+private:
+  const SlaveInfo info;
+};
+
+
 // Move a slave from the list of admitted slaves to the list of
 // unreachable slaves.
 class MarkSlaveUnreachable : public Operation
