@@ -210,6 +210,55 @@ TEST(FutureTest, Then)
 }
 
 
+TEST(FutureTest, CallableOnce)
+{
+  Promise<Nothing> promise;
+  promise.set(Nothing());
+
+  Future<int> future = promise.future()
+    .then(lambda::partial(
+        [](std::unique_ptr<int>&& o) {
+          return *o;
+        },
+        std::unique_ptr<int>(new int(42))));
+
+  ASSERT_TRUE(future.isReady());
+  EXPECT_EQ(42, future.get());
+
+  int n = 0;
+  future = promise.future()
+    .onReady(lambda::partial(
+        [&n](std::unique_ptr<int> o) {
+          n += *o;
+        },
+        std::unique_ptr<int>(new int(1))))
+    .onAny(lambda::partial(
+        [&n](std::unique_ptr<int>&& o) {
+          n += *o;
+        },
+        std::unique_ptr<int>(new int(10))))
+    .onFailed(lambda::partial(
+        [&n](const std::unique_ptr<int>& o) {
+          n += *o;
+        },
+        std::unique_ptr<int>(new int(100))))
+    .onDiscard(lambda::partial(
+        [&n](std::unique_ptr<int>&& o) {
+          n += *o;
+        },
+        std::unique_ptr<int>(new int(1000))))
+    .onDiscarded(lambda::partial(
+        [&n](std::unique_ptr<int>&& o) {
+          n += *o;
+        },
+        std::unique_ptr<int>(new int(10000))))
+    .then([&n]() { return n; });
+
+  ASSERT_TRUE(future.isReady());
+  EXPECT_EQ(11, future.get());
+}
+
+
 Future<int> repair(const Future<int>& future)
 {
   EXPECT_TRUE(future.isFailed());
