@@ -1590,19 +1590,19 @@ void Master::consume(ExitedEvent&& event)
     : Option<string>::none();
 
   // Necessary to disambiguate below.
-  typedef void(Self::*F)(const ExitedEvent&);
+  typedef void(Self::*F)(ExitedEvent&&);
 
   if (principal.isSome() &&
       frameworks.limiters.contains(principal.get()) &&
       frameworks.limiters[principal.get()].isSome()) {
-    frameworks.limiters[principal.get()].get()->limiter->acquire()
-      .onReady(defer(self(), static_cast<F>(&Self::_consume), event));
+    frameworks.limiters[principal.get()].get()->limiter->acquire().onReady(
+        defer(self(), static_cast<F>(&Self::_consume), std::move(event)));
   } else if ((principal.isNone() ||
               !frameworks.limiters.contains(principal.get())) &&
              isRegisteredFramework &&
              frameworks.defaultLimiter.isSome()) {
-    frameworks.defaultLimiter.get()->limiter->acquire()
-      .onReady(defer(self(), static_cast<F>(&Self::_consume), event));
+    frameworks.defaultLimiter.get()->limiter->acquire().onReady(
+        defer(self(), static_cast<F>(&Self::_consume), std::move(event)));
   } else {
     _consume(std::move(event));
   }
@@ -1612,7 +1612,7 @@ void Master::consume(ExitedEvent&& event)
 // TODO(greggomann): Change this to accept an `Option<Principal>`
 // when MESOS-7202 is resolved.
 void Master::throttled(
-    const MessageEvent& event,
+    MessageEvent&& event,
     const Option<string>& principal)
 {
   // We already know a RateLimiter is used to throttle this event so
@@ -1625,13 +1625,11 @@ void Master::throttled(
     frameworks.defaultLimiter.get()->messages--;
   }
 
-  // TODO(dzhuk): Use std::move(event), when defer supports
-  // rvalue references as handler parameters.
-  _consume(event);
+  _consume(std::move(event));
 }
 
 
-void Master::_consume(const MessageEvent& event)
+void Master::_consume(MessageEvent&& event)
 {
   // Obtain the principal before processing the Message because the
   // mapping may be deleted in handling 'UnregisterFrameworkMessage'
@@ -1641,9 +1639,7 @@ void Master::_consume(const MessageEvent& event)
       ? frameworks.principals[event.message.from]
       : Option<string>::none();
 
-  // TODO(dzhuk): Use std::move(event), when defer supports
-  // rvalue references as handler parameters.
-  ProtobufProcess<Master>::consume(MessageEvent(event));
+  ProtobufProcess<Master>::consume(std::move(event));
 
   // Increment 'messages_processed' counter if it still exists.
   // Note that it could be removed in handling
@@ -1683,11 +1679,9 @@ void Master::exceededCapacity(
 }
 
 
-void Master::_consume(const ExitedEvent& event)
+void Master::_consume(ExitedEvent&& event)
 {
-  // TODO(dzhuk): Use std::move(event), when defer supports
-  // rvalue references as handler parameters.
-  Process<Master>::consume(ExitedEvent(event));
+  Process<Master>::consume(std::move(event));
 }
 
 

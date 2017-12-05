@@ -572,12 +572,12 @@ protected:
   // 'principal' being None indicates it is throttled by
   // 'defaultLimiter'.
   void throttled(
-      const process::MessageEvent& event,
+      process::MessageEvent&& event,
       const Option<std::string>& principal);
 
   // Continuations of consume().
-  void _consume(const process::MessageEvent& event);
-  void _consume(const process::ExitedEvent& event);
+  void _consume(process::MessageEvent&& event);
+  void _consume(process::ExitedEvent&& event);
 
   // Helper method invoked when the capacity for a framework
   // principal is exceeded.
