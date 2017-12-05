@@ -20,6 +20,7 @@ nobase_include_HEADERS =			\
   stout/boundedhashmap.hpp			\
   stout/bits.hpp				\
   stout/bytes.hpp				\
+  stout/cpp17.hpp				\
   stout/cache.hpp				\
   stout/check.hpp				\
   stout/duration.hpp				\

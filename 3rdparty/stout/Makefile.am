@@ -132,6 +132,7 @@ stout_tests_SOURCES =			\
   tests/boundedhashmap_tests.cpp	\
   tests/bytes_tests.cpp			\
   tests/cache_tests.cpp			\
+  tests/cpp17_tests.cpp			\
   tests/duration_tests.cpp		\
   tests/dynamiclibrary_tests.cpp	\
   tests/error_tests.cpp			\
