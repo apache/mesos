@@ -4735,8 +4735,7 @@ TEST_F(HierarchicalAllocatorTest, DisproportionateQuotaVsAllocation)
 
 
 // This test ensures that resources reserved to ancestor roles can be offered
-// to their descendants. Since both quota and fair-share stages perform
-// reservation allocations, we use a quota'd role to test both cases.
+// to their descendants.
 TEST_F(HierarchicalAllocatorTest, OfferAncestorReservationsToDescendantChild)
 {
   // Pausing the clock is not necessary, but ensures that the test
@@ -4747,9 +4746,6 @@ TEST_F(HierarchicalAllocatorTest, OfferAncestorReservationsToDescendantChild)
   const string ROLE{"a/b/c"};
 
   initialize();
-
-  const Quota quota = createQuota(ROLE, "cpus:1;mem:512");
-  allocator->setQuota(ROLE, quota);
 
   FrameworkInfo framework = createFrameworkInfo({ROLE});
   allocator->addFramework(framework.id(), framework, {}, true, {});
@@ -4764,8 +4760,7 @@ TEST_F(HierarchicalAllocatorTest, OfferAncestorReservationsToDescendantChild)
       {});
 
   {
-    // All the resources of agent1 are offered, and this
-    // should satisfy the quota of ROLE.
+    // All the resources of agent1 are offered.
     Allocation expected = Allocation(
         framework.id(),
         {{ROLE, {{agent1.id(), agent1.resources()}}}});
@@ -4786,11 +4781,11 @@ TEST_F(HierarchicalAllocatorTest, OfferAncestorReservationsToDescendantChild)
       {});
 
   {
-    // Since quota of ROLE is already satisfied by agent1,
-    // we expect only reserved resource of agent2 is offered.
+    // We expect all resources of agent2 including the reserved resources
+    // for the parent of ROLE will be offered.
     Allocation expected = Allocation(
         framework.id(),
-        {{ROLE, {{agent2.id(), Resources(agent2.resources()).reserved()}}}});
+        {{ROLE, {{agent2.id(), agent2.resources()}}}});
 
     AWAIT_EXPECT_EQ(expected, allocations.get());
   }
