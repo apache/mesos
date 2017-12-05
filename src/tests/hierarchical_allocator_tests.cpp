@@ -2019,7 +2019,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveOversubscribedResources)
 
   // Update the slave with 10 oversubscribed cpus.
   Resources oversubscribed = createRevocableResources("cpus", "10");
-  allocator->updateSlave(slave.id(), slave.resources() + oversubscribed);
+  allocator->updateSlave(slave.id(), slave, slave.resources() + oversubscribed);
 
   // The next allocation should be for 10 oversubscribed resources.
   expected = Allocation(
@@ -2030,7 +2030,8 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveOversubscribedResources)
 
   // Update the slave again with 12 oversubscribed cpus.
   Resources oversubscribed2 = createRevocableResources("cpus", "12");
-  allocator->updateSlave(slave.id(), slave.resources() + oversubscribed2);
+  allocator->updateSlave(
+      slave.id(), slave, slave.resources() + oversubscribed2);
 
   // The next allocation should be for 2 oversubscribed cpus.
   expected = Allocation(
@@ -2041,7 +2042,8 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveOversubscribedResources)
 
   // Update the slave again with 5 oversubscribed cpus.
   Resources oversubscribed3 = createRevocableResources("cpus", "5");
-  allocator->updateSlave(slave.id(), slave.resources() + oversubscribed3);
+  allocator->updateSlave(
+      slave.id(), slave, slave.resources() + oversubscribed3);
 
   // Since there are no more available oversubscribed resources there
   // shouldn't be an allocation.
@@ -2090,6 +2092,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveTotalResources)
 
   allocator->updateSlave(
       agent.id(),
+      agent,
       agent.resources() + addedResources);
 
   const Allocation expected2 = Allocation(
@@ -2104,7 +2107,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveTotalResources)
   const Resources agentResources2 =
     Resources::parse("cpus:50;mem:50;disk:50").get();
 
-  allocator->updateSlave(agent.id(), agentResources2);
+  allocator->updateSlave(agent.id(), agent, agentResources2);
 
   // Recover all agent resources allocated to the framework in the last two
   // allocations. We will subsequently be offered the complete agent which has
@@ -2129,7 +2132,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveTotalResources)
   // Set the agent's total resources to its original value. This will trigger
   // allocation of the newly added `agentResources2` resources now available on
   // the agent.
-  allocator->updateSlave(agent.id(), agent.resources());
+  allocator->updateSlave(agent.id(), agent, agent.resources());
 
   const Allocation expected4 = Allocation(
       framework.id(),
@@ -2174,7 +2177,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveCapabilities)
 
   // Update the agent to be MULTI_ROLE capable.
 
-  allocator->updateSlave(agent.id(), None(), AGENT_CAPABILITIES());
+  allocator->updateSlave(agent.id(), agent, None(), AGENT_CAPABILITIES());
 
   Clock::settle();
 
@@ -2218,7 +2221,7 @@ TEST_F(HierarchicalAllocatorTest, OversubscribedNotAllocated)
 
   // Update the slave with 10 oversubscribed cpus.
   Resources oversubscribed = createRevocableResources("cpus", "10");
-  allocator->updateSlave(slave.id(), slave.resources() + oversubscribed);
+  allocator->updateSlave(slave.id(), slave, slave.resources() + oversubscribed);
 
   // No allocation should be made for oversubscribed resources because
   // the framework has not opted in for them.
@@ -2262,7 +2265,7 @@ TEST_F(HierarchicalAllocatorTest, RecoverOversubscribedResources)
 
   // Update the slave with 10 oversubscribed cpus.
   Resources oversubscribed = createRevocableResources("cpus", "10");
-  allocator->updateSlave(slave.id(), slave.resources() + oversubscribed);
+  allocator->updateSlave(slave.id(), slave, slave.resources() + oversubscribed);
 
   // The next allocation should be for 10 oversubscribed cpus.
   expected = Allocation(
@@ -5527,7 +5530,8 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AddAndUpdateSlave)
   watch.start(); // Reset.
 
   foreach (const SlaveInfo& slave, slaves) {
-    allocator->updateSlave(slave.id(), slave.resources() + oversubscribed);
+    allocator->updateSlave(
+        slave.id(), slave, slave.resources() + oversubscribed);
   }
 
   // Wait for all the `updateSlave` operations to be processed.

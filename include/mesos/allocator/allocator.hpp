@@ -205,11 +205,15 @@ public:
   /**
    * Updates an agent.
    *
+   * TODO(bevers): Make `total` and `capabilities` non-optional.
+   *
+   * @param slaveInfo The current slave info of the agent.
    * @param total The new total resources on the agent.
    * @param capabilities The new capabilities of the agent.
    */
   virtual void updateSlave(
       const SlaveID& slave,
+      const SlaveInfo& slaveInfo,
       const Option<Resources>& total = None(),
       const Option<std::vector<SlaveInfo::Capability>>&
           capabilities = None()) = 0;

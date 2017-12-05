@@ -507,6 +507,7 @@ void HierarchicalAllocatorProcess::addSlave(
 {
   CHECK(initialized);
   CHECK(!slaves.contains(slaveId));
+  CHECK_EQ(slaveId, slaveInfo.id());
   CHECK(!paused || expectedAgentCount.isSome());
 
   slaves[slaveId] = Slave();
@@ -516,12 +517,8 @@ void HierarchicalAllocatorProcess::addSlave(
   slave.total = total;
   slave.allocated = Resources::sum(used);
   slave.activated = true;
-  slave.hostname = slaveInfo.hostname();
+  slave.info = slaveInfo;
   slave.capabilities = protobuf::slave::Capabilities(capabilities);
-
-  if (slaveInfo.has_domain()) {
-    slave.domain = slaveInfo.domain();
-  }
 
   // NOTE: We currently implement maintenance in the allocator to be able to
   // leverage state and features such as the FrameworkSorter and OfferFilter.
@@ -576,7 +573,7 @@ void HierarchicalAllocatorProcess::addSlave(
     resume();
   }
 
-  LOG(INFO) << "Added agent " << slaveId << " (" << slave.hostname << ")"
+  LOG(INFO) << "Added agent " << slaveId << " (" << slave.info.hostname() << ")"
             << " with " << slave.total
             << " (allocated: " << slave.allocated << ")";
 
@@ -615,13 +612,21 @@ void HierarchicalAllocatorProcess::removeSlave(
 
 void HierarchicalAllocatorProcess::updateSlave(
     const SlaveID& slaveId,
+    const SlaveInfo& info,
     const Option<Resources>& total,
     const Option<vector<SlaveInfo::Capability>>& capabilities)
 {
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
+  CHECK_EQ(slaveId, info.id());
 
   Slave& slave = slaves.at(slaveId);
+
+  // We unconditionally overwrite the old domain and hostname: Even though
+  // the master places some restrictions on this (i.e. agents are not allowed
+  // to re-register with a different hostname) inside the allocator it
+  // doesn't matter, as the algorithm will work correctly either way.
+  slave.info = info;
 
   bool updated = false;
 
@@ -635,7 +640,7 @@ void HierarchicalAllocatorProcess::updateSlave(
     if (newCapabilities != oldCapabilities) {
       updated = true;
 
-      LOG(INFO) << "Agent " << slaveId << " (" << slave.hostname << ")"
+      LOG(INFO) << "Agent " << slaveId << " (" << slave.info.hostname() << ")"
                 << " updated with capabilities " << slave.capabilities;
     }
   }
@@ -643,7 +648,7 @@ void HierarchicalAllocatorProcess::updateSlave(
   if (total.isSome()) {
     updated = updateSlaveTotal(slaveId, total.get()) || updated;
 
-    LOG(INFO) << "Agent " << slaveId << " (" << slave.hostname << ")"
+    LOG(INFO) << "Agent " << slaveId << " (" << slave.info.hostname() << ")"
               << " updated with total resources " << total.get();
   }
 
@@ -2119,7 +2124,7 @@ bool HierarchicalAllocatorProcess::isWhitelisted(
 
   const Slave& slave = slaves.at(slaveId);
 
-  return whitelist.isNone() || whitelist->contains(slave.hostname);
+  return whitelist.isNone() || whitelist->contains(slave.info.hostname());
 }
 
 
@@ -2393,7 +2398,7 @@ bool HierarchicalAllocatorProcess::updateSlaveTotal(
 bool HierarchicalAllocatorProcess::isRemoteSlave(const Slave& slave) const
 {
   // If the slave does not have a configured domain, assume it is not remote.
-  if (slave.domain.isNone()) {
+  if (!slave.info.has_domain()) {
     return false;
   }
 
@@ -2402,7 +2407,7 @@ bool HierarchicalAllocatorProcess::isRemoteSlave(const Slave& slave) const
   // might change in the future, if more types of domains are added.
   // For forward compatibility, we treat agents with a configured
   // domain but no fault domain as having no configured domain.
-  if (!slave.domain->has_fault_domain()) {
+  if (!slave.info.domain().has_fault_domain()) {
     return false;
   }
 
@@ -2418,7 +2423,7 @@ bool HierarchicalAllocatorProcess::isRemoteSlave(const Slave& slave) const
   const DomainInfo::FaultDomain::RegionInfo& masterRegion =
     domain->fault_domain().region();
   const DomainInfo::FaultDomain::RegionInfo& slaveRegion =
-    slave.domain->fault_domain().region();
+    slave.info.domain().fault_domain().region();
 
   return masterRegion != slaveRegion;
 }

@@ -144,6 +144,7 @@ public:
 
   void updateSlave(
       const SlaveID& slave,
+      const SlaveInfo& slaveInfo,
       const Option<Resources>& total = None(),
       const Option<std::vector<SlaveInfo::Capability>>& capabilities = None());
 
@@ -381,11 +382,13 @@ protected:
 
     bool activated;  // Whether to offer resources.
 
-    std::string hostname;
+    // The `SlaveInfo` that was passed to the allocator when the slave was added
+    // or updated. Currently only two fields are used: `hostname` for host
+    // whitelisting and in log messages, and `domain` for region-aware
+    // scheduling.
+    SlaveInfo info;
 
     protobuf::slave::Capabilities capabilities;
-
-    Option<DomainInfo> domain;
 
     // Represents a scheduled unavailability due to maintenance for a specific
     // slave, and the responses from frameworks as to whether they will be able

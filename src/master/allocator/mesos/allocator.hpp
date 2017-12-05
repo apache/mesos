@@ -99,6 +99,7 @@ public:
 
   void updateSlave(
       const SlaveID& slave,
+      const SlaveInfo& slaveInfo,
       const Option<Resources>& total = None(),
       const Option<std::vector<SlaveInfo::Capability>>& capabilities = None());
 
@@ -244,6 +245,7 @@ public:
 
   virtual void updateSlave(
       const SlaveID& slave,
+      const SlaveInfo& slaveInfo,
       const Option<Resources>& total = None(),
       const Option<std::vector<SlaveInfo::Capability>>&
           capabilities = None()) = 0;
@@ -487,6 +489,7 @@ inline void MesosAllocator<AllocatorProcess>::removeSlave(
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::updateSlave(
     const SlaveID& slaveId,
+    const SlaveInfo& slaveInfo,
     const Option<Resources>& total,
     const Option<std::vector<SlaveInfo::Capability>>& capabilities)
 {
@@ -494,10 +497,10 @@ inline void MesosAllocator<AllocatorProcess>::updateSlave(
       process,
       &MesosAllocatorProcess::updateSlave,
       slaveId,
+      slaveInfo,
       total,
       capabilities);
 }
-
 
 template <typename AllocatorProcess>
 void MesosAllocator<AllocatorProcess>::addResourceProvider(

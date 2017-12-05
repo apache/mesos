@@ -6573,7 +6573,7 @@ void Master::_reregisterSlave(
     slave->resourceVersions = protobuf::parseResourceVersions(
         {resourceVersions.begin(), resourceVersions.end()});
 
-    allocator->updateSlave(slave->id, None(), agentCapabilities);
+    allocator->updateSlave(slave->id, slave->info, None(), agentCapabilities);
 
     // Reconcile tasks between master and slave, and send the
     // `SlaveReregisteredMessage`.
@@ -7424,7 +7424,7 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
   }
 
   // Now update the agent's total resources in the allocator.
-  allocator->updateSlave(slaveId, slave->totalResources);
+  allocator->updateSlave(slaveId, slave->info, slave->totalResources);
 
   // Then rescind outstanding offers affected by the update.
   // NOTE: Need a copy of offers because the offers are removed inside the loop.
