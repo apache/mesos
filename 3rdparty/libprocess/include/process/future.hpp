@@ -1482,7 +1482,7 @@ namespace internal {
 // Future since the compiler can't properly infer otherwise.
 template <typename T, typename X>
 void thenf(lambda::CallableOnce<Future<X>(const T&)>&& f,
-           const std::shared_ptr<Promise<X>>& promise,
+           std::unique_ptr<Promise<X>> promise,
            const Future<T>& future)
 {
   if (future.isReady()) {
@@ -1501,7 +1501,7 @@ void thenf(lambda::CallableOnce<Future<X>(const T&)>&& f,
 
 template <typename T, typename X>
 void then(lambda::CallableOnce<X(const T&)>&& f,
-          const std::shared_ptr<Promise<X>>& promise,
+          std::unique_ptr<Promise<X>> promise,
           const Future<T>& future)
 {
   if (future.isReady()) {
@@ -1521,7 +1521,7 @@ void then(lambda::CallableOnce<X(const T&)>&& f,
 template <typename T>
 void repair(
     lambda::CallableOnce<Future<T>(const Future<T>&)>&& f,
-    const std::shared_ptr<Promise<T>>& promise,
+    std::unique_ptr<Promise<T>> promise,
     const Future<T>& future)
 {
   CHECK(!future.isPending());
@@ -1591,23 +1591,23 @@ template <typename T>
 template <typename X>
 Future<X> Future<T>::then(lambda::CallableOnce<Future<X>(const T&)> f) const
 {
-  std::shared_ptr<Promise<X>> promise(new Promise<X>());
+  std::unique_ptr<Promise<X>> promise(new Promise<X>());
+  Future<X> future = promise->future();
 
-  lambda::CallableOnce<void(const Future<T>&)> thenf =
-    lambda::partial(&internal::thenf<T, X>, std::move(f), promise, lambda::_1);
+  lambda::CallableOnce<void(const Future<T>&)> thenf = lambda::partial(
+      &internal::thenf<T, X>, std::move(f), std::move(promise), lambda::_1);
 
   onAny(std::move(thenf));
 
-  onAbandoned([=]() {
-    promise->future().abandon();
+  onAbandoned([=]() mutable {
+    future.abandon();
   });
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
-  promise->future().onDiscard(
-      lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
+  future.onDiscard(lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
 
-  return promise->future();
+  return future;
 }
 
 
@@ -1615,23 +1615,23 @@ template <typename T>
 template <typename X>
 Future<X> Future<T>::then(lambda::CallableOnce<X(const T&)> f) const
 {
-  std::shared_ptr<Promise<X>> promise(new Promise<X>());
+  std::unique_ptr<Promise<X>> promise(new Promise<X>());
+  Future<X> future = promise->future();
 
-  lambda::CallableOnce<void(const Future<T>&)> then =
-    lambda::partial(&internal::then<T, X>, std::move(f), promise, lambda::_1);
+  lambda::CallableOnce<void(const Future<T>&)> then = lambda::partial(
+      &internal::then<T, X>, std::move(f), std::move(promise), lambda::_1);
 
   onAny(std::move(then));
 
-  onAbandoned([=]() {
-    promise->future().abandon();
+  onAbandoned([=]() mutable {
+    future.abandon();
   });
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
-  promise->future().onDiscard(
-      lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
+  future.onDiscard(lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
 
-  return promise->future();
+  return future;
 }
 
 
@@ -1686,21 +1686,21 @@ template <typename T>
 Future<T> Future<T>::repair(
     lambda::CallableOnce<Future<T>(const Future<T>&)> f) const
 {
-  std::shared_ptr<Promise<T>> promise(new Promise<T>());
+  std::unique_ptr<Promise<T>> promise(new Promise<T>());
+  Future<T> future = promise->future();
 
-  onAny(
-      lambda::partial(&internal::repair<T>, std::move(f), promise, lambda::_1));
+  onAny(lambda::partial(
+      &internal::repair<T>, std::move(f), std::move(promise), lambda::_1));
 
-  onAbandoned([=]() {
-    promise->future().abandon();
+  onAbandoned([=]() mutable {
+    future.abandon();
   });
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
-  promise->future().onDiscard(
-      lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
+  future.onDiscard(lambda::bind(&internal::discard<T>, WeakFuture<T>(*this)));
 
-  return promise->future();
+  return future;
 }
 
 
@@ -1940,11 +1940,15 @@ void discardPromises(std::set<Promise<T>*>* promises, const Future<T>& future)
 template <typename T>
 Future<T> undiscardable(const Future<T>& future)
 {
-  std::shared_ptr<Promise<T>> promise(new Promise<T>());
-  future.onAny([promise](const Future<T>& future) {
-    promise->associate(future);
-  });
-  return promise->future();
+  std::unique_ptr<Promise<T>> promise(new Promise<T>());
+  Future<T> future_ = promise->future();
+  future.onAny(lambda::partial(
+      [](std::unique_ptr<Promise<T>> promise, const Future<T>& future) {
+        promise->associate(future);
+      },
+      std::move(promise),
+      lambda::_1));
+  return future_;
 }
 
 
