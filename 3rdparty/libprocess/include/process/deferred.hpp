@@ -105,6 +105,22 @@ struct _Deferred
         });
   }
 
+  operator lambda::CallableOnce<void()>() &&
+  {
+    if (pid.isNone()) {
+      return lambda::CallableOnce<void()>(std::forward<F>(f));
+    }
+
+    Option<UPID> pid_ = pid;
+
+    return lambda::CallableOnce<void()>(
+        lambda::partial(
+            [pid_](typename std::decay<F>::type&& f_) {
+              dispatch(pid_.get(), std::move(f_));
+            },
+            std::forward<F>(f)));
+  }
+
   template <typename R>
   operator Deferred<R()>() &&
   {
@@ -136,6 +152,29 @@ struct _Deferred
           return dispatch(pid_.get(), f_);
         });
   }
+
+  template <typename R>
+  operator lambda::CallableOnce<R()>() &&
+  {
+    if (pid.isNone()) {
+      return lambda::CallableOnce<R()>(std::forward<F>(f));
+    }
+
+    Option<UPID> pid_ = pid;
+
+    return lambda::CallableOnce<R()>(
+        lambda::partial(
+          [pid_](typename std::decay<F>::type&& f_) {
+            return dispatch(pid_.get(), std::move(f_));
+          },
+          std::forward<F>(f)));
+  }
+
+// Expands to lambda::_$(N+1). N is zero-based, and placeholders are one-based.
+#define PLACEHOLDER(Z, N, DATA) CAT(lambda::_, INC(N))
+
+// This assumes type and variable base names are `P` and `p` respectively.
+#define FORWARD(Z, N, DATA) std::forward<P ## N>(p ## N)
 
   // Due to a bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=41933)
   // with variadic templates and lambdas, we still need to do
@@ -180,6 +219,28 @@ struct _Deferred
           });                                                            \
           dispatch(pid_.get(), f__);                                     \
         });                                                              \
+  }                                                                      \
+                                                                         \
+  template <ENUM_PARAMS(N, typename P)>                                  \
+  operator lambda::CallableOnce<void(ENUM_PARAMS(N, P))>() &&            \
+  {                                                                      \
+    if (pid.isNone()) {                                                  \
+      return lambda::CallableOnce<void(ENUM_PARAMS(N, P))>(              \
+          std::forward<F>(f));                                           \
+    }                                                                    \
+                                                                         \
+    Option<UPID> pid_ = pid;                                             \
+                                                                         \
+    return lambda::CallableOnce<void(ENUM_PARAMS(N, P))>(                \
+        lambda::partial(                                                 \
+            [pid_](typename std::decay<F>::type&& f_,                    \
+                   ENUM_BINARY_PARAMS(N, P, &&p)) {                      \
+              lambda::CallableOnce<void()> f__(                          \
+                  lambda::partial(std::move(f_), ENUM(N, FORWARD, _)));  \
+              dispatch(pid_.get(), std::move(f__));                      \
+            },                                                           \
+            std::forward<F>(f),                                          \
+            ENUM(N, PLACEHOLDER, _)));                                   \
   }
 
   REPEAT_FROM_TO(1, 3, TEMPLATE, _) // Args A0 -> A1.
@@ -222,10 +283,35 @@ struct _Deferred
           });                                                           \
           return dispatch(pid_.get(), f__);                             \
         });                                                             \
+  }                                                                     \
+                                                                        \
+  template <typename R, ENUM_PARAMS(N, typename P)>                     \
+  operator lambda::CallableOnce<R(ENUM_PARAMS(N, P))>() &&              \
+  {                                                                     \
+    if (pid.isNone()) {                                                 \
+      return lambda::CallableOnce<R(ENUM_PARAMS(N, P))>(                \
+          std::forward<F>(f));                                          \
+    }                                                                   \
+                                                                        \
+    Option<UPID> pid_ = pid;                                            \
+                                                                        \
+    return lambda::CallableOnce<R(ENUM_PARAMS(N, P))>(                  \
+        lambda::partial(                                                \
+            [pid_](typename std::decay<F>::type&& f_,                   \
+                   ENUM_BINARY_PARAMS(N, P, &&p)) {                     \
+              lambda::CallableOnce<R()> f__(                            \
+                  lambda::partial(std::move(f_), ENUM(N, FORWARD, _))); \
+              return dispatch(pid_.get(), std::move(f__));              \
+        },                                                              \
+        std::forward<F>(f),                                             \
+        ENUM(N, PLACEHOLDER, _)));                                      \
   }
 
   REPEAT_FROM_TO(1, 3, TEMPLATE, _) // Args A0 -> A1.
 #undef TEMPLATE
+
+#undef FORWARD
+#undef PLACEHOLDER
 
 private:
   friend class Executor;

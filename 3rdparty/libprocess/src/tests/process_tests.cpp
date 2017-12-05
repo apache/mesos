@@ -169,6 +169,9 @@ public:
 
   void func5(MoveOnly&& mo) { func5_(mo); }
   MOCK_METHOD1(func5_, void(const MoveOnly&));
+
+  bool func6(MoveOnly&& m1, MoveOnly&& m2, bool b) { return func6_(m1, m2, b); }
+  MOCK_METHOD3(func6_, bool(const MoveOnly&, const MoveOnly&, bool));
 };
 
 
@@ -223,6 +226,11 @@ TEST(ProcessTest, THREADSAFE_Defer1)
   EXPECT_CALL(process, func4(_, _))
     .WillRepeatedly(ReturnArg<0>());
 
+  EXPECT_CALL(process, func5_(_));
+
+  EXPECT_CALL(process, func6_(_, _, _))
+    .WillRepeatedly(ReturnArg<2>());
+
   PID<DispatchProcess> pid = spawn(&process);
 
   ASSERT_FALSE(!pid);
@@ -268,6 +276,26 @@ TEST(ProcessTest, THREADSAFE_Defer1)
       defer(pid, &DispatchProcess::func4, true, lambda::_1);
     future = func4(42);
     EXPECT_TRUE(future.get());
+  }
+
+  {
+    lambda::CallableOnce<void()> func5 =
+      defer(pid, &DispatchProcess::func5, MoveOnly());
+    std::move(func5)();
+  }
+
+  {
+    lambda::CallableOnce<Future<bool>(MoveOnly&&)> func6 =
+      defer(pid, &DispatchProcess::func6, MoveOnly(), lambda::_1, true);
+    future = std::move(func6)(MoveOnly());
+    EXPECT_TRUE(future.get());
+  }
+
+  {
+    lambda::CallableOnce<Future<bool>(MoveOnly&&)> func6 =
+      defer(pid, &DispatchProcess::func6, MoveOnly(), lambda::_1, false);
+    future = std::move(func6)(MoveOnly());
+    EXPECT_FALSE(future.get());
   }
 
   // Only take const &!
