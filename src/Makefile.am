@@ -2545,6 +2545,7 @@ mesos_tests_SOURCES =						\
   tests/uri_fetcher_tests.cpp					\
   tests/utils.cpp						\
   tests/values_tests.cpp					\
+  tests/volume_profile_tests.cpp				\
   tests/zookeeper_url_tests.cpp					\
   tests/common/command_utils_tests.cpp				\
   tests/common/http_tests.cpp					\
