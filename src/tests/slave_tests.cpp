@@ -7892,6 +7892,7 @@ TEST_F(SlaveTest, IgnoreV0ExecutorIfItReregistersWithoutReconnect)
 
   Future<Nothing> executorShutdown;
   EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1))
     .WillOnce(FutureSatisfy(&executorShutdown));
 
   UPID executorPid = registerExecutorMessage->from;
