@@ -4515,7 +4515,15 @@ TEST_F(MasterTest, StateEndpoint)
       state.values["unregistered_frameworks"].as<JSON::Array>().values.empty());
 
   ASSERT_TRUE(state.values["capabilities"].is<JSON::Array>());
-  EXPECT_TRUE(state.values["capabilities"].as<JSON::Array>().values.empty());
+  EXPECT_FALSE(state.values["capabilities"].as<JSON::Array>().values.empty());
+
+  JSON::Value masterCapabilities = state.values.at("capabilities");
+
+  // Master should always have the AGENT_UPDATE capability
+  Try<JSON::Value> expectedCapabilities = JSON::parse("[\"AGENT_UPDATE\"]");
+
+  ASSERT_SOME(expectedCapabilities);
+  EXPECT_TRUE(masterCapabilities.contains(expectedCapabilities.get()));
 }
 
 
