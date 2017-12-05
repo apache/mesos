@@ -716,6 +716,13 @@ message ResourceVersionUUID {
 message UpdateSlaveMessage {
   required SlaveID slave_id = 1;
 
+  // Top-level fields in this message should only contain information
+  // on the agent itself; information on local resource providers is
+  // passed explicitly in the `resource_providers` message.
+  //
+  // TODO(bbannier): Consider passing agent information inside a
+  // `ResourceProvider` value as well where applicable.
+
   // This message can contain `oversubscribed_resources` or
   // `total_resources`. Callers are expected to set the respective
   // categories in `resource_categories` to denote which fields should
@@ -754,6 +761,21 @@ message UpdateSlaveMessage {
   // because this means the operation is operating on resources that
   // might have already been invalidated.
   repeated ResourceVersionUUID resource_version_uuids = 7;
+
+  // Describes an agent-local resource provider.
+  message ResourceProvider {
+    optional ResourceProviderInfo info = 1;
+    repeated Resource total_resources = 2;
+    required OfferOperations operations = 3;
+    required bytes resource_version_uuid = 4;
+  }
+
+  message ResourceProviders {
+    repeated ResourceProvider providers = 1;
+  }
+
+  // The list of all resource providers on this agent.
+  optional ResourceProviders resource_providers = 8;
 }
 
 
