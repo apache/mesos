@@ -31,7 +31,6 @@ TEST(Invoke, Lambda)
 
 
 TEST(Invoke, Member) {
-  // Invoke a member function.
   struct S
   {
     int f(int i) const { return n + i; }
@@ -39,10 +38,18 @@ TEST(Invoke, Member) {
   };
 
   S s{101};
+
+  // Invoke a member function via a reference to `S`.
   EXPECT_EQ(303, cpp17::invoke(&S::f, s, 202));
 
-  // Invoke (access) a data member.
+  // Invoke a member function via a pointer to `S`.
+  EXPECT_EQ(303, cpp17::invoke(&S::f, &s, 202));
+
+  // Invoke (access) a data member via a reference to `S`.
   EXPECT_EQ(101, cpp17::invoke(&S::n, s));
+
+  // Invoke (access) a data member via a pointer to `S`.
+  EXPECT_EQ(101, cpp17::invoke(&S::n, &s));
 }
 
 
