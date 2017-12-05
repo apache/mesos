@@ -182,7 +182,7 @@ struct _Deferred
         });                                                              \
   }
 
-  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
+  REPEAT_FROM_TO(1, 3, TEMPLATE, _) // Args A0 -> A1.
 #undef TEMPLATE
 
 #define TEMPLATE(Z, N, DATA)                                            \
@@ -224,7 +224,7 @@ struct _Deferred
         });                                                             \
   }
 
-  REPEAT_FROM_TO(1, 13, TEMPLATE, _) // Args A0 -> A11.
+  REPEAT_FROM_TO(1, 3, TEMPLATE, _) // Args A0 -> A1.
 #undef TEMPLATE
 
 private:
