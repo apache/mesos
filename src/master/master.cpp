@@ -6472,6 +6472,24 @@ void Master::_reregisterSlave(
     return;
   }
 
+  if (slaves.markingGone.contains(slaveInfo.id())) {
+    LOG(INFO)
+      << "Ignoring re-register agent message from agent "
+      << slaveInfo.id() << " at " << pid << " ("
+      << slaveInfo.hostname() << ") as a gone operation is already in progress";
+    return;
+  }
+
+  if (slaves.gone.contains(slaveInfo.id())) {
+    LOG(WARNING) << "Refusing re-registration of agent at " << pid
+                 << " because it is already marked gone";
+
+    ShutdownMessage message;
+    message.set_message("Agent has been marked gone");
+    send(pid, message);
+    return;
+  }
+
   VLOG(1) << "Authorized re-registration of agent " << slaveInfo.id()
           << " at " << pid << " (" << slaveInfo.hostname() << ")";
 
@@ -6650,6 +6668,24 @@ void Master::__reregisterSlave(
   // Neither the `UpdateSlave` nor `MarkSlaveReachable` registry operations
   // should ever fail.
   CHECK(future.get());
+
+  if (slaves.markingGone.contains(slaveInfo.id())) {
+    LOG(INFO)
+      << "Ignoring re-register agent message from agent "
+      << slaveInfo.id() << " at " << pid << " ("
+      << slaveInfo.hostname() << ") as a gone operation is already in progress";
+    return;
+  }
+
+  if (slaves.gone.contains(slaveInfo.id())) {
+    LOG(WARNING) << "Refusing re-registration of agent at " << pid
+                 << " because it is already marked gone";
+
+    ShutdownMessage message;
+    message.set_message("Agent has been marked gone");
+    send(pid, message);
+    return;
+  }
 
   VLOG(1) << "Re-admitted agent " << slaveInfo.id() << " at " << pid
           << " (" << slaveInfo.hostname() << ")";
@@ -6850,6 +6886,24 @@ void Master::___reregisterSlave(
 
   VLOG(1) << "Registry updated for slave " << slaveInfo.id() << " at " << pid
           << "(" << slaveInfo.hostname() << ")";
+
+  if (slaves.markingGone.contains(slaveInfo.id())) {
+    LOG(INFO)
+      << "Ignoring re-register agent message from agent "
+      << slaveInfo.id() << " at " << pid << " ("
+      << slaveInfo.hostname() << ") as a gone operation is already in progress";
+    return;
+  }
+
+  if (slaves.gone.contains(slaveInfo.id())) {
+    LOG(WARNING) << "Refusing re-registration of agent at " << pid
+                 << " because it is already marked gone";
+
+    ShutdownMessage message;
+    message.set_message("Agent has been marked gone");
+    send(pid, message);
+    return;
+  }
 
   if (!slaves.registered.contains(slaveInfo.id())) {
     LOG(WARNING)
