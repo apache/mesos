@@ -18,14 +18,29 @@
 
 struct OnlyMoveable
 {
+  OnlyMoveable() : i(-1) {}
   OnlyMoveable(int i) : i(i) {}
-  OnlyMoveable(OnlyMoveable&&) = default;
+
+  OnlyMoveable(OnlyMoveable&& that)
+  {
+    *this = std::move(that);
+  }
+
   OnlyMoveable(const OnlyMoveable&) = delete;
-  OnlyMoveable& operator=(OnlyMoveable&&) = default;
+
+  OnlyMoveable& operator=(OnlyMoveable&& that)
+  {
+    i = that.i;
+    j = that.j;
+    that.valid = false;
+    return *this;
+  }
+
   OnlyMoveable& operator=(const OnlyMoveable&) = delete;
 
   int i;
   int j = 0;
+  bool valid = true;
 };
 
 
@@ -87,4 +102,123 @@ TEST(LambdaTest, Map)
   for (const OnlyMoveable& o : result) {
     EXPECT_EQ(o.i, o.j);
   }
+}
+
+
+namespace {
+
+template <typename F, typename ...Args>
+auto callable(F&& f, Args&&... args)
+  -> decltype(std::forward<F>(f)(std::forward<Args>(args)...),
+              void(),
+              std::true_type());
+
+
+template <typename F>
+std::false_type callable(F&& f, ...);
+
+
+// Compile-time check that f cannot be called with specified arguments.
+// This is implemented by defining two callable function overloads and
+// differentiating on return type. The first overload is selected only
+// when call expression is valid, and it has return type of std::true_type,
+// while second overload is selected for everything else.
+template <typename F, typename ...Args>
+void EXPECT_CALL_INVALID(F&& f, Args&&... args)
+{
+  static_assert(
+      !decltype(
+          callable(std::forward<F>(f), std::forward<Args>(args)...))::value,
+          "call expression is expected to be invalid");
+}
+
+} // namespace {
+
+
+
+namespace {
+
+int returnIntNoParams()
+{
+  return 8;
+}
+
+
+void returnVoidStringParam(std::string s) {}
+
+
+void returnVoidStringCRefParam(const std::string& s) {}
+
+
+int returnIntOnlyMovableParam(OnlyMoveable o)
+{
+  EXPECT_TRUE(o.valid);
+  return 1;
+}
+
+} // namespace {
+
+
+// This is mostly a compile time test of lambda::partial,
+// verifying that it works for different types of expressions.
+TEST(PartialTest, Test)
+{
+  // standalone functions
+  auto p1 = lambda::partial(returnIntNoParams);
+  int p1r1 = p1();
+  int p1r2 = std::move(p1)();
+  EXPECT_EQ(p1r1, p1r2);
+
+  auto p2 = lambda::partial(returnVoidStringParam, "");
+  p2();
+  std::move(p2)();
+
+  auto p3 = lambda::partial(returnVoidStringParam, lambda::_1);
+  p3("");
+  std::move(p3)("");
+
+  auto p4 = lambda::partial(&returnVoidStringCRefParam, lambda::_1);
+  p4("");
+  std::move(p4)("");
+
+  auto p5 = lambda::partial(&returnIntOnlyMovableParam, lambda::_1);
+  p5(OnlyMoveable());
+  p5(10);
+  std::move(p5)(OnlyMoveable());
+
+  auto p6 = lambda::partial(&returnIntOnlyMovableParam, OnlyMoveable());
+  EXPECT_CALL_INVALID(p6);
+  std::move(p6)();
+
+  // lambdas
+  auto l1 = [](const OnlyMoveable& m) { EXPECT_TRUE(m.valid); };
+  auto pl1 = lambda::partial(l1, OnlyMoveable());
+  pl1();
+  pl1();
+  std::move(pl1)();
+
+  auto pl2 = lambda::partial([](OnlyMoveable&& m) { EXPECT_TRUE(m.valid); },
+      lambda::_1);
+  pl2(OnlyMoveable());
+  pl2(OnlyMoveable());
+  std::move(pl2)(OnlyMoveable());
+
+  auto pl3 = lambda::partial([](OnlyMoveable&& m) { EXPECT_TRUE(m.valid); },
+      OnlyMoveable());
+  EXPECT_CALL_INVALID(pl3);
+  std::move(pl3)();
+
+  // member functions
+  struct Object
+  {
+    int method() { return 0; };
+  };
+
+  auto mp1 = lambda::partial(&Object::method, lambda::_1);
+  mp1(Object());
+  std::move(mp1)(Object());
+
+  auto mp2 = lambda::partial(&Object::method, Object());
+  mp2();
+  std::move(mp2)();
 }
