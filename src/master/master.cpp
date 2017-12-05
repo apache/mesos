@@ -6346,6 +6346,11 @@ void Master::reregisterSlave(
     return;
   }
 
+  // TODO(bevers): Technically this behaviour seems to be incorrect, since we
+  // discard the newer re-registration attempt, which might have additional
+  // capabilities or a higher version (or a changed SlaveInfo, after Mesos 1.5).
+  // However, this should very rarely happen in practice, and nobody seems to
+  // have complained about it so far.
   if (slaves.reregistering.contains(slaveInfo.id())) {
     LOG(INFO)
       << "Ignoring re-register agent message from agent "
@@ -6532,7 +6537,8 @@ void Master::_reregisterSlave(
     // For now, we assume this slave is not nefarious (eventually
     // this will be handled by orthogonal security measures like key
     // based authentication).
-    LOG(INFO) << "Re-registering agent " << *slave;
+    VLOG(1) << "Agent is already marked as registered: " << slaveInfo.id()
+            << " at " << pid << " (" << slaveInfo.hostname() << ")";
 
     // We don't allow re-registering this way with a different IP or
     // hostname. This is because maintenance is scheduled at the
@@ -6556,142 +6562,64 @@ void Master::_reregisterSlave(
       return;
     }
 
-    // Update the slave pid and relink to it.
-    // NOTE: Re-linking the slave here always rather than only when
-    // the slave is disconnected can lead to multiple exited events
-    // in succession for a disconnected slave. As a result, we
-    // ignore duplicate exited events for disconnected slaves.
-    // See: https://issues.apache.org/jira/browse/MESOS-675
-    slave->pid = pid;
-    link(slave->pid);
+    // TODO(bevers): Verify that the checkpointed resources sent by the
+    // slave match the ones stored in `slave`.
+    registrar->apply(Owned<Operation>(new UpdateSlave(slaveInfo)))
+      .onAny(defer(self(),
+          &Self::___reregisterSlave,
+          slaveInfo,
+          pid,
+          executorInfos,
+          tasks,
+          frameworks,
+          version,
+          agentCapabilities,
+          resourceVersions,
+          lambda::_1));
 
-    // Update slave's version, re-registration timestamp and
-    // agent capabilities after re-registering successfully.
-    slave->version = version;
-    slave->reregisteredTime = Clock::now();
-    slave->capabilities = agentCapabilities;
-    slave->resourceVersions = protobuf::parseResourceVersions(
-        {resourceVersions.begin(), resourceVersions.end()});
-
-    allocator->updateSlave(slave->id, slave->info, None(), agentCapabilities);
-
-    // Reconcile tasks between master and slave, and send the
-    // `SlaveReregisteredMessage`.
-    reconcileKnownSlave(slave, executorInfos, tasks);
-
-    // If this is a disconnected slave, add it back to the allocator.
-    // This is done after reconciliation to ensure the allocator's
-    // offers include the recovered resources initially on this
-    // slave.
-    if (!slave->connected) {
-      CHECK(slave->reregistrationTimer.isSome());
-      Clock::cancel(slave->reregistrationTimer.get());
-
-      slave->connected = true;
-      dispatch(slave->observer, &SlaveObserver::reconnect);
-
-      slave->active = true;
-      allocator->activateSlave(slave->id);
-    }
-
-    CHECK(slave->active)
-      << "Unexpected connected but deactivated agent " << *slave;
-
-    // Inform the agent of the new framework pids for its tasks.
-    ___reregisterSlave(slave, frameworks);
-
-    slaves.reregistering.erase(slaveInfo.id());
-
-    // If the agent is not resource provider capable (legacy agent),
-    // send checkpointed resources to the agent. This is important for
-    // the cases where the master didn't fail over. In that case, the
-    // master might have already applied an operation that the agent
-    // didn't see (e.g., due to a breaking connection). This message
-    // will sync the state between the master and the agent about
-    // checkpointed resources.
-    //
-    // New agents that are resource provider capable will always
-    // update the master with total resources during re-registration.
-    // Therefore, no need to send checkpointed resources to the new
-    // agent in this case.
-    if (!slave->capabilities.resourceProvider) {
-      CheckpointResourcesMessage message;
-
-      message.mutable_resources()->CopyFrom(slave->checkpointedResources);
-
-      if (!slave->capabilities.reservationRefinement) {
-        // If the agent is not refinement-capable, don't send it
-        // checkpointed resources that contain refined reservations. This
-        // might occur if a reservation refinement is created but never
-        // reaches the agent (e.g., due to network partition), and then
-        // the agent is downgraded before the partition heals.
-        //
-        // TODO(neilc): It would probably be better to prevent the agent
-        // from re-registering in this scenario.
-        Try<Nothing> result = downgradeResources(message.mutable_resources());
-        if (result.isError()) {
-          LOG(WARNING) << "Not sending updated checkpointed resouces "
-                       << slave->checkpointedResources
-                       << " with refined reservations, since agent " << *slave
-                       << " is not RESERVATION_REFINEMENT-capable.";
-
-          return;
-        }
-      }
-
-      LOG(INFO) << "Sending updated checkpointed resources "
-                << slave->checkpointedResources
-                << " to agent " << *slave;
-
-      send(slave->pid, message);
-    }
-
-    return;
-  }
-
-  LOG(INFO) << "Re-registering agent " << slaveInfo.id() << " at " << pid
-            << " (" << slaveInfo.hostname() << ")";
-
-  if (slaves.recovered.contains(slaveInfo.id())) {
+  } else if (slaves.recovered.contains(slaveInfo.id())) {
     // The agent likely is re-registering after a master failover as it
-    // is in the list recovered from the registry. No need to consult the
-    // registry in this case and we can directly re-admit it.
-    VLOG(1) << "Re-admitting recovered agent " << slaveInfo.id() << " at "
-            << pid << " (" << slaveInfo.hostname() << ")";
+    // is in the list recovered from the registry.
+    VLOG(1) << "Re-admitting recovered agent " << slaveInfo.id()
+            << " at " << pid << "(" << slaveInfo.hostname() << ")";
 
-    __reregisterSlave(
-        slaveInfo,
-        pid,
-        checkpointedResources,
-        executorInfos,
-        tasks,
-        frameworks,
-        completedFrameworks,
-        version,
-        agentCapabilities,
-        resourceVersions,
-        true);
+    registrar->apply(Owned<Operation>(new UpdateSlave(slaveInfo)))
+      .onAny(defer(self(),
+          &Self::__reregisterSlave,
+          slaveInfo,
+          pid,
+          checkpointedResources,
+          executorInfos,
+          tasks,
+          frameworks,
+          completedFrameworks,
+          version,
+          agentCapabilities,
+          resourceVersions,
+          lambda::_1));
   } else {
-    // Consult the registry to determine whether to readmit the
-    // slave. In the common case, the slave has been marked unreachable
+    // In the common case, the slave has been marked unreachable
     // by the master, so we move the slave to the reachable list and
     // readmit it. If the slave isn't in the unreachable list (which
     // might occur if the slave's entry in the unreachable list is
     // GC'd), we admit the slave anyway.
+    VLOG(1) << "Consulting registry about agent " << slaveInfo.id()
+            << " at " << pid << "(" << slaveInfo.hostname() << ")";
+
     registrar->apply(Owned<Operation>(new MarkSlaveReachable(slaveInfo)))
       .onAny(defer(self(),
-                   &Self::__reregisterSlave,
-                   slaveInfo,
-                   pid,
-                   checkpointedResources,
-                   executorInfos,
-                   tasks,
-                   frameworks,
-                   completedFrameworks,
-                   version,
-                   agentCapabilities,
-                   resourceVersions,
-                   lambda::_1));
+          &Self::__reregisterSlave,
+          slaveInfo,
+          pid,
+          checkpointedResources,
+          executorInfos,
+          tasks,
+          frameworks,
+          completedFrameworks,
+          version,
+          agentCapabilities,
+          resourceVersions,
+          lambda::_1));
   }
 }
 
@@ -6707,19 +6635,21 @@ void Master::__reregisterSlave(
     const string& version,
     const vector<SlaveInfo::Capability>& agentCapabilities,
     const vector<ResourceVersionUUID>& resourceVersions,
-    const Future<bool>& readmit)
+    const Future<bool>& future)
 {
   CHECK(slaves.reregistering.contains(slaveInfo.id()));
 
-  if (readmit.isFailed()) {
-    LOG(FATAL) << "Failed to readmit agent " << slaveInfo.id() << " at " << pid
-               << " (" << slaveInfo.hostname() << "): " << readmit.failure();
+  if (future.isFailed()) {
+    LOG(FATAL) << "Failed to update registry for agent " << slaveInfo.id()
+               << " at " << pid << " (" << slaveInfo.hostname() << "): "
+               << future.failure();
   }
 
-  CHECK(!readmit.isDiscarded());
+  CHECK(!future.isDiscarded());
 
-  // `MarkSlaveReachable` registry operation should never fail.
-  CHECK(readmit.get());
+  // Neither the `UpdateSlave` nor `MarkSlaveReachable` registry operations
+  // should ever fail.
+  CHECK(future.get());
 
   VLOG(1) << "Re-admitted agent " << slaveInfo.id() << " at " << pid
           << " (" << slaveInfo.hostname() << ")";
@@ -6896,13 +6826,158 @@ void Master::__reregisterSlave(
     }
   }
 
-  ___reregisterSlave(slave, frameworks);
+  updateSlaveFrameworks(slave, frameworks);
 
   slaves.reregistering.erase(slaveInfo.id());
 }
 
 
 void Master::___reregisterSlave(
+    const SlaveInfo& slaveInfo,
+    const process::UPID& pid,
+    const std::vector<ExecutorInfo>& executorInfos,
+    const std::vector<Task>& tasks,
+    const std::vector<FrameworkInfo>& frameworks,
+    const std::string& version,
+    const std::vector<SlaveInfo::Capability>& agentCapabilities,
+    const vector<ResourceVersionUUID>& resourceVersions,
+    const process::Future<bool>& updated)
+{
+  CHECK(slaves.reregistering.contains(slaveInfo.id()));
+
+  CHECK_READY(updated);
+  CHECK(updated.get());
+
+  VLOG(1) << "Registry updated for slave " << slaveInfo.id() << " at " << pid
+          << "(" << slaveInfo.hostname() << ")";
+
+  if (!slaves.registered.contains(slaveInfo.id())) {
+    LOG(WARNING)
+      << "Dropping ongoing re-registration attempt of slave " << slaveInfo.id()
+      << " at " << pid << "(" << slaveInfo.hostname() << ") "
+      << "because the re-registration timeout was reached.";
+
+    slaves.reregistering.erase(slaveInfo.id());
+    // Don't send a ShutdownMessage here because tasks from partition-aware
+    // frameworks running on this host might still be recovered when the slave
+    // retries the re-registration.
+    return;
+  }
+
+  Slave* slave = slaves.registered.get(slaveInfo.id());
+
+  // Update the slave pid and relink to it.
+  // NOTE: Re-linking the slave here always rather than only when
+  // the slave is disconnected can lead to multiple exited events
+  // in succession for a disconnected slave. As a result, we
+  // ignore duplicate exited events for disconnected slaves.
+  // See: https://issues.apache.org/jira/browse/MESOS-675
+  slave->pid = pid;
+  link(slave->pid);
+
+  Try<Nothing> stateUpdated =
+    slave->update(slaveInfo, version, agentCapabilities, resourceVersions);
+
+  // As of now, the only way `slave->update()` can fail is if the agent sent
+  // different checkpointed resources than it had before. A well-behaving
+  // agent shouldn't do this, so this one is either malicious or buggy. Either
+  // way, we refuse the re-registration attempt.
+  if (stateUpdated.isError()) {
+    LOG(WARNING) << "Refusing re-registration of agent " << slaveInfo.id()
+                 << " at " << pid << " (" << slaveInfo.hostname() << ")"
+                 << " because state update failed: " << stateUpdated.error();
+
+    ShutdownMessage message;
+    message.set_message(stateUpdated.error());
+    send(pid, message);
+
+    slaves.reregistering.erase(slaveInfo.id());
+    return;
+  }
+
+  slave->reregisteredTime = Clock::now();
+
+  allocator->updateSlave(
+    slave->id,
+    slave->info,
+    slave->totalResources,
+    agentCapabilities);
+
+  // Reconcile tasks between master and slave, and send the
+  // `SlaveReregisteredMessage`.
+  reconcileKnownSlave(slave, executorInfos, tasks);
+
+  // If this is a disconnected slave, add it back to the allocator.
+  // This is done after reconciliation to ensure the allocator's
+  // offers include the recovered resources initially on this
+  // slave.
+  if (!slave->connected) {
+    CHECK(slave->reregistrationTimer.isSome());
+    Clock::cancel(slave->reregistrationTimer.get());
+
+    slave->connected = true;
+    dispatch(slave->observer, &SlaveObserver::reconnect);
+
+    slave->active = true;
+    allocator->activateSlave(slave->id);
+  }
+
+  CHECK(slave->active)
+    << "Unexpected connected but deactivated agent " << *slave;
+
+  // Inform the agent of the new framework pids for its tasks, and
+  // recover any unknown frameworks from the slave info.
+  updateSlaveFrameworks(slave, frameworks);
+
+  slaves.reregistering.erase(slaveInfo.id());
+
+  // If the agent is not resource provider capable (legacy agent),
+  // send checkpointed resources to the agent. This is important for
+  // the cases where the master didn't fail over. In that case, the
+  // master might have already applied an operation that the agent
+  // didn't see (e.g., due to a breaking connection). This message
+  // will sync the state between the master and the agent about
+  // checkpointed resources.
+  //
+  // New agents that are resource provider capable will always
+  // update the master with total resources during re-registration.
+  // Therefore, no need to send checkpointed resources to the new
+  // agent in this case.
+  if (!slave->capabilities.resourceProvider) {
+    CheckpointResourcesMessage message;
+
+    message.mutable_resources()->CopyFrom(slave->checkpointedResources);
+
+    if (!slave->capabilities.reservationRefinement) {
+      // If the agent is not refinement-capable, don't send it
+      // checkpointed resources that contain refined reservations. This
+      // might occur if a reservation refinement is created but never
+      // reaches the agent (e.g., due to network partition), and then
+      // the agent is downgraded before the partition heals.
+      //
+      // TODO(neilc): It would probably be better to prevent the agent
+      // from re-registering in this scenario.
+      Try<Nothing> result = downgradeResources(message.mutable_resources());
+      if (result.isError()) {
+        LOG(WARNING) << "Not sending updated checkpointed resouces "
+                     << slave->checkpointedResources
+                     << " with refined reservations, since agent " << *slave
+                     << " is not RESERVATION_REFINEMENT-capable.";
+
+        return;
+      }
+    }
+
+    LOG(INFO) << "Sending updated checkpointed resources "
+              << slave->checkpointedResources
+              << " to agent " << *slave;
+
+    send(slave->pid, message);
+  }
+}
+
+
+void Master::updateSlaveFrameworks(
     Slave* slave,
     const vector<FrameworkInfo>& frameworks)
 {
@@ -7423,7 +7498,7 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
     }
   }
 
-  // Now update the agent's total resources in the allocator.
+  // Now update the agent's state and total resources in the allocator.
   allocator->updateSlave(slaveId, slave->info, slave->totalResources);
 
   // Then rescind outstanding offers affected by the update.
@@ -11347,6 +11422,38 @@ void Slave::apply(const vector<ResourceConversion>& conversions)
   totalResources = resources.get();
 
   checkpointedResources = totalResources.filter(needCheckpointing);
+}
+
+
+Try<Nothing> Slave::update(
+  const SlaveInfo& _info,
+  const string& _version,
+  const vector<SlaveInfo::Capability>& _capabilities,
+  const vector<ResourceVersionUUID>& _resourceVersions)
+{
+  Try<Resources> resources = applyCheckpointedResources(
+      _info.resources(),
+      checkpointedResources);
+
+  // This should be validated during slave recovery.
+  if (resources.isError()) {
+    return Error(resources.error());
+  }
+
+  version = _version;
+  capabilities = _capabilities;
+  info = _info;
+
+  // There is a short window here where `totalResources` can have an old value,
+  // but it should be relatively short because the agent will send
+  // an `UpdateSlaveMessage` with the new total resources immediately after
+  // re-registering in this case.
+  totalResources = resources.get();
+
+  resourceVersions = protobuf::parseResourceVersions(
+      {_resourceVersions.begin(), _resourceVersions.end()});
+
+  return Nothing();
 }
 
 } // namespace master {

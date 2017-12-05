@@ -6269,6 +6269,76 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, Metrics)
 }
 
 
+// Tests that the `updateSlave()` function correctly removes all filters
+// for the specified slave when slave attributes are changed on restart.
+TEST_F(HierarchicalAllocatorTest, RemoveFilters)
+{
+  // We put both frameworks into the same role, but we could also
+  // have had separate roles; this should not influence the test.
+  const string ROLE{"role"};
+
+  // Pause the clock because we want to manually drive the allocations.
+  Clock::pause();
+
+  initialize();
+
+  FrameworkInfo framework = createFrameworkInfo({ROLE});
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  SlaveInfo agent = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(
+      agent.id(),
+      agent,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent.resources(),
+      {});
+
+  // `framework` will be offered all of `agent` resources
+  // because it is the only framework in the cluster.
+  Allocation expected = Allocation(
+      framework.id(),
+      {{ROLE, {{agent.id(), agent.resources()}}}});
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_EXPECT_EQ(expected, allocation);
+
+  // Now `framework` declines the offer and sets a filter.
+  Duration filterTimeout = flags.allocation_interval*2;
+  Filters offerFilter;
+  offerFilter.set_refuse_seconds(filterTimeout.secs());
+
+  allocator->recoverResources(
+      framework.id(),
+      agent.id(),
+      allocation->resources.at(ROLE).at(agent.id()),
+      offerFilter);
+
+  // There should be no allocation due to the offer filter.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+
+  // Update the slave with new attributes.
+  Attributes attributes = Attributes::parse("foo:bar;baz:quux");
+  *agent.mutable_attributes() = attributes;
+  allocator->updateSlave(
+      agent.id(),
+      agent,
+      agent.resources(),
+      AGENT_CAPABILITIES());
+
+  // Previously declined resources should be offered to the quota'ed role.
+  expected = Allocation(
+      framework.id(),
+      {{ROLE, {{agent.id(), agent.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocation);
+}
+
+
 // This test uses `reviveOffers` to add allocation-triggering events
 // to the allocator queue in order to measure the impact of allocation
 // batching (MESOS-6904).

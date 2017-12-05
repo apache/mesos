@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include <mesos/attributes.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
@@ -622,13 +623,31 @@ void HierarchicalAllocatorProcess::updateSlave(
 
   Slave& slave = slaves.at(slaveId);
 
-  // We unconditionally overwrite the old domain and hostname: Even though
-  // the master places some restrictions on this (i.e. agents are not allowed
-  // to re-register with a different hostname) inside the allocator it
-  // doesn't matter, as the algorithm will work correctly either way.
-  slave.info = info;
-
   bool updated = false;
+
+  // Remove all offer filters for this slave if it was restarted with changed
+  // attributes. We do this because schedulers might have decided that they're
+  // not interested in offers from this slave based on the non-presence of some
+  // required attributes, and right now they have no other way of learning
+  // about this change.
+  // TODO(bennoe): Once the agent lifecycle design is implemented, there is a
+  // better way to notify frameworks about such changes and let them make this
+  // decision. We should think about ways to safely remove this check at that
+  // point in time.
+  if (!(Attributes(info.attributes()) == Attributes(slave.info.attributes()))) {
+    updated = true;
+    removeFilters(slaveId);
+  }
+
+  if (!(slave.info == info)) {
+    updated = true;
+
+    // We unconditionally overwrite the old domain and hostname: Even though
+    // the master places some restrictions on this (i.e. agents are not allowed
+    // to re-register with a different hostname) inside the allocator it
+    // doesn't matter, as the algorithm will work correctly either way.
+    slave.info = info;
+  }
 
   // Update agent capabilities.
   if (capabilities.isSome()) {
@@ -695,6 +714,33 @@ void HierarchicalAllocatorProcess::addResourceProvider(
     << "Grew agent " << slaveId << " by "
     << total << " (total), "
     << used << " (used)";
+}
+
+
+void HierarchicalAllocatorProcess::removeFilters(const SlaveID& slaveId)
+{
+  CHECK(initialized);
+
+  foreachpair (const FrameworkID& id,
+               Framework& framework,
+               frameworks) {
+    framework.inverseOfferFilters.erase(slaveId);
+
+    // Need a typedef here, otherwise the preprocessor gets confused
+    // by the comma in the template argument list.
+    typedef hashmap<SlaveID, hashset<OfferFilter*>> Filters;
+    foreachpair(const string& role,
+                Filters& filters,
+                framework.offerFilters) {
+      size_t erased = filters.erase(slaveId);
+      if (erased) {
+        frameworkSorters.at(role)->activate(id.value());
+        framework.suppressedRoles.erase(role);
+      }
+    }
+  }
+
+  LOG(INFO) << "Removed all filters for agent " << slaveId;
 }
 
 

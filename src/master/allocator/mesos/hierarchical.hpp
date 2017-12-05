@@ -555,6 +555,10 @@ private:
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const Resources& allocated);
+
+  // Helper that removes all existing offer filters for the given slave
+  // id.
+  void removeFilters(const SlaveID& slaveId);
 };
 
 

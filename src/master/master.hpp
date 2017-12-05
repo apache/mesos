@@ -178,9 +178,15 @@ struct Slave
 
   void apply(const std::vector<ResourceConversion>& conversions);
 
+  Try<Nothing> update(
+    const SlaveInfo& info,
+    const std::string& _version,
+    const std::vector<SlaveInfo::Capability>& _capabilites,
+    const std::vector<ResourceVersionUUID>& resourceVersions);
+
   Master* const master;
   const SlaveID id;
-  const SlaveInfo info;
+  SlaveInfo info;
 
   const MachineID machineId;
 
@@ -637,6 +643,17 @@ protected:
       const process::Future<bool>& readmit);
 
   void ___reregisterSlave(
+      const SlaveInfo& slaveInfo,
+      const process::UPID& pid,
+      const std::vector<ExecutorInfo>& executorInfos,
+      const std::vector<Task>& tasks,
+      const std::vector<FrameworkInfo>& frameworks,
+      const std::string& version,
+      const std::vector<SlaveInfo::Capability>& agentCapabilities,
+      const std::vector<ResourceVersionUUID>& resourceVersions,
+      const process::Future<bool>& updated);
+
+  void updateSlaveFrameworks(
       Slave* slave,
       const std::vector<FrameworkInfo>& frameworks);
 
