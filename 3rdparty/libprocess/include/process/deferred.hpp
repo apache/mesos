@@ -244,7 +244,7 @@ private:
                     void (T::*method)(ENUM_PARAMS(N, P)),                \
                     ENUM_BINARY_PARAMS(N, A, &&a))                       \
     -> _Deferred<decltype(                                               \
-           std::bind(                                                    \
+           lambda::partial(                                              \
                &std::function<void(ENUM_PARAMS(N, P))>::operator(),      \
                std::function<void(ENUM_PARAMS(N, P))>(),                 \
                ENUM(N, FORWARD, _)))>;
@@ -261,7 +261,7 @@ private:
                     Future<R> (T::*method)(ENUM_PARAMS(N, P)),           \
                     ENUM_BINARY_PARAMS(N, A, &&a))                       \
     -> _Deferred<decltype(                                               \
-           std::bind(                                                    \
+           lambda::partial(                                              \
                &std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(), \
                std::function<Future<R>(ENUM_PARAMS(N, P))>(),            \
                ENUM(N, FORWARD, _)))>;
@@ -278,7 +278,7 @@ private:
                     R (T::*method)(ENUM_PARAMS(N, P)),                   \
                     ENUM_BINARY_PARAMS(N, A, &&a))                       \
     -> _Deferred<decltype(                                               \
-         std::bind(                                                      \
+         lambda::partial(                                                \
            &std::function<Future<R>(ENUM_PARAMS(N, P))>::operator(),     \
            std::function<Future<R>(ENUM_PARAMS(N, P))>(),                \
            ENUM(N, FORWARD, _)))>;
