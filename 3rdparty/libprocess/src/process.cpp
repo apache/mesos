@@ -1258,7 +1258,7 @@ void finalize(bool finalize_wsa)
   // potentially dereference it.
   socket_manager->finalize();
 
-  // This is dereferenced inside `ProcessBase::visit(HttpEvent&)`.
+  // This is dereferenced inside `ProcessBase::consume(HttpEvent&&)`.
   // We can safely delete it since no further incoming HTTP connections
   // can be made because the server socket has been destroyed. This must
   // be deleted before the `ProcessManager` as it will indirectly
@@ -2917,7 +2917,7 @@ void ProcessManager::resume(ProcessBase* process)
 
       // Now service the event.
       try {
-        process->serve(*event);
+        process->serve(std::move(*event));
       } catch (const std::exception& e) {
         LOG(ERROR) << "libprocess: " << process->pid
                    << " terminating due to " << e.what();
@@ -3476,7 +3476,7 @@ void ProcessBase::send(
 }
 
 
-void ProcessBase::visit(const MessageEvent& event)
+void ProcessBase::consume(MessageEvent&& event)
 {
   if (handlers.message.count(event.message.name) > 0) {
     handlers.message[event.message.name](
@@ -3492,13 +3492,13 @@ void ProcessBase::visit(const MessageEvent& event)
 }
 
 
-void ProcessBase::visit(const DispatchEvent& event)
+void ProcessBase::consume(DispatchEvent&& event)
 {
-  (*event.f)(this);
+  std::move(*event.f)(this);
 }
 
 
-void ProcessBase::visit(const HttpEvent& event)
+void ProcessBase::consume(HttpEvent&& event)
 {
   VLOG(1) << "Handling HTTP event for process '" << pid.id << "'"
           << " with path: '" << event.request->url.path << "'";
@@ -3548,10 +3548,10 @@ void ProcessBase::visit(const HttpEvent& event)
       response = convert(std::move(request))
         .then(defer(self(), [this, endpoint, name](
             const Owned<Request>& request) {
-          return _visit(endpoint, name, request);
+          return _consume(endpoint, name, request);
         }));
     } else {
-      response = _visit(endpoint, name, request);
+      response = _consume(endpoint, name, request);
     }
 
     response
@@ -3609,7 +3609,7 @@ void ProcessBase::visit(const HttpEvent& event)
 }
 
 
-Future<Response> ProcessBase::_visit(
+Future<Response> ProcessBase::_consume(
     const HttpEndpoint& endpoint,
     const string& name,
     const Owned<Request>& request)
@@ -3687,13 +3687,13 @@ Future<Response> ProcessBase::_visit(
 }
 
 
-void ProcessBase::visit(const ExitedEvent& event)
+void ProcessBase::consume(ExitedEvent&& event)
 {
   exited(event.pid);
 }
 
 
-void ProcessBase::visit(const TerminateEvent& event)
+void ProcessBase::consume(TerminateEvent&& event)
 {
   finalize();
 }

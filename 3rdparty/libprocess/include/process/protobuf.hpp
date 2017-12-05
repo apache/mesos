@@ -93,7 +93,7 @@ public:
   virtual ~ProtobufProcess() {}
 
 protected:
-  virtual void visit(const process::MessageEvent& event)
+  void consume(process::MessageEvent&& event) override
   {
     if (protobufHandlers.count(event.message.name) > 0) {
       from = event.message.from; // For 'reply'.
@@ -101,7 +101,7 @@ protected:
           event.message.from, event.message.body);
       from = process::UPID();
     } else {
-      process::Process<T>::visit(event);
+      process::Process<T>::consume(std::move(event));
     }
   }
 

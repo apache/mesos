@@ -38,7 +38,7 @@ public:
   virtual ~ThunkProcess() {}
 
 protected:
-  virtual void serve(const Event& event)
+  void serve(Event&& event) override
   {
     promise->set((*thunk)());
   }

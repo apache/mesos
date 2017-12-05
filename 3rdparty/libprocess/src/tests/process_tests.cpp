@@ -714,7 +714,11 @@ TEST(ProcessTest, InjectExited)
 class MessageEventProcess : public Process<MessageEventProcess>
 {
 public:
-  MOCK_METHOD1(visit, void(const MessageEvent&));
+  // This is a workaround for mocking methods taking
+  // rvalue reference parameters.
+  // See https://github.com/google/googletest/issues/395
+  void consume(MessageEvent&& event) { consume_(event.message); }
+  MOCK_METHOD1(consume_, void(const Message&));
 };
 
 
@@ -729,9 +733,9 @@ protected:
     MessageEventProcess coordinator;
     spawn(coordinator);
 
-    Future<MessageEvent> event;
-    EXPECT_CALL(coordinator, visit(_))
-      .WillOnce(FutureArg<0>(&event));
+    Future<Message> message;
+    EXPECT_CALL(coordinator, consume_(_))
+      .WillOnce(FutureArg<0>(&message));
 
     Try<Subprocess> s = process::subprocess(
         path::join(BUILD_DIR, "test-linkee") +
@@ -740,10 +744,10 @@ protected:
     linkee = s.get();
 
     // Wait until the subprocess sends us a message.
-    AWAIT_ASSERT_READY(event);
+    AWAIT_ASSERT_READY(message);
 
     // Save the PID of the linkee.
-    pid = event->message.from;
+    pid = message->from;
 
     terminate(coordinator);
     wait(coordinator);

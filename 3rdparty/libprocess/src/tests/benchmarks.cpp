@@ -385,7 +385,7 @@ TEST(ProcessTest, Process_BENCHMARK_LargeNumberOfLinks)
 class Destination : public Process<Destination>
 {
 protected:
-  virtual void visit(const MessageEvent& event)
+  void consume(MessageEvent&& event) override
   {
     if (event.message.name == "ping") {
       send(event.message.from, "pong");
@@ -401,7 +401,7 @@ public:
     : destination(destination), latch(latch), repeat(repeat) {}
 
 protected:
-  virtual void visit(const MessageEvent& event)
+  void consume(MessageEvent&& event) override
   {
     if (event.message.name == "pong") {
       received += 1;
@@ -606,15 +606,15 @@ public:
     bool success = message.SerializeToString(&data);
     CHECK(success);
 
-    MessageEvent event(self(), self(), message.GetTypeName(), std::move(data));
-
     Stopwatch watch;
     watch.start();
 
     size_t count;
 
     for (count = 0; watch.elapsed() < Seconds(1); count++) {
-      visit(event);
+      MessageEvent event(self(), self(), message.GetTypeName(),
+          data.c_str(), data.length());
+      consume(std::move(event));
     }
 
     watch.stop();

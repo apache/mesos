@@ -69,7 +69,7 @@ void install(std::vector<Owned<FirewallRule>>&& rules);
 
 } // namespace firewall {
 
-class ProcessBase : public EventVisitor
+class ProcessBase : public EventConsumer
 {
 public:
   explicit ProcessBase(const std::string& id = "");
@@ -82,17 +82,17 @@ protected:
   /**
    * Invoked when an event is serviced.
    */
-  virtual void serve(const Event& event)
+  virtual void serve(Event&& event)
   {
-    event.visit(this);
+    std::move(event).consume(this);
   }
 
-  // Callbacks used to visit (i.e., handle) a specific event.
-  virtual void visit(const MessageEvent& event);
-  virtual void visit(const DispatchEvent& event);
-  virtual void visit(const HttpEvent& event);
-  virtual void visit(const ExitedEvent& event);
-  virtual void visit(const TerminateEvent& event);
+  // Callbacks used to consume (i.e., handle) a specific event.
+  void consume(MessageEvent&& event) override;
+  void consume(DispatchEvent&& event) override;
+  void consume(HttpEvent&& event) override;
+  void consume(ExitedEvent&& event) override;
+  void consume(TerminateEvent&& event) override;
 
   /**
    * Invoked when a process gets spawned.
@@ -103,7 +103,7 @@ protected:
    * Invoked when a process is terminated.
    *
    * **NOTE**: this does not get invoked automatically if
-   * `process::ProcessBase::visit(const TerminateEvent&)` is overridden.
+   * `process::ProcessBase::consume(TerminateEvent&&)` is overridden.
    */
   virtual void finalize() {}
 
@@ -200,7 +200,7 @@ protected:
    * Any function which takes a "from" `UPID` and a message body as
    * arguments.
    *
-   * The default visit implementation for message events invokes
+   * The default consume implementation for message events invokes
    * installed message handlers, or delegates the message to another
    * process. A message handler always takes precedence over delegating.
    *
@@ -248,7 +248,7 @@ protected:
    * Any function which takes a `process::http::Request` and returns a
    * `process::http::Response`.
    *
-   * The default visit implementation for HTTP events invokes
+   * The default consume implementation for HTTP events invokes
    * installed HTTP handlers.
    *
    * @see process::ProcessBase::route
@@ -312,7 +312,7 @@ protected:
    * If the principal is not set, then the endpoint's
    * realm does not require authentication.
    *
-   * The default visit implementation for HTTP events invokes
+   * The default consume implementation for HTTP events invokes
    * installed HTTP handlers.
    *
    * @see process::ProcessBase::route
@@ -421,7 +421,7 @@ private:
   //  (1) `realm` and `authenticatedHandler` will be set.
   //      Libprocess will perform HTTP authentication for
   //      all requests to this endpoint (by default during
-  //      HttpEvent visitation). The authentication principal
+  //      HttpEvent consumption). The authentication principal
   //      will be passed to the `authenticatedHandler`.
   //
   //  Otherwise, if the endpoint is not associated with an
@@ -456,8 +456,8 @@ private:
     std::map<std::string, std::string> types;
   };
 
-  // Continuation for `visit(const HttpEvent&)`.
-  Future<http::Response> _visit(
+  // Continuation for `consume(HttpEvent&&)`.
+  Future<http::Response> _consume(
       const HttpEndpoint& endpoint,
       const std::string& name,
       const Owned<http::Request>& request);

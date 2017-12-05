@@ -46,11 +46,23 @@ struct EventVisitor
 };
 
 
+struct EventConsumer
+{
+  virtual ~EventConsumer() {}
+  virtual void consume(MessageEvent&&) {}
+  virtual void consume(DispatchEvent&&) {}
+  virtual void consume(HttpEvent&&) {}
+  virtual void consume(ExitedEvent&&) {}
+  virtual void consume(TerminateEvent&&) {}
+};
+
+
 struct Event
 {
   virtual ~Event() {}
 
   virtual void visit(EventVisitor* visitor) const = 0;
+  virtual void consume(EventConsumer* consumer) && = 0;
 
   template <typename T>
   bool is() const
@@ -108,22 +120,23 @@ struct MessageEvent : Event
       std::string&& data)
     : message{std::move(name), from, to, std::move(data)} {}
 
-  MessageEvent(const MessageEvent& that) = default;
   MessageEvent(MessageEvent&& that) = default;
-
-  // Keep MessageEvent not assignable even though we made it
-  // copyable.
-  // Note that we are violating the "rule of three" here but it helps
-  // keep the fields const.
+  // TODO(dzhuk) Make it movable only, when move is properly supported in defer.
+  MessageEvent(const MessageEvent& that) = default;
+  MessageEvent& operator=(MessageEvent&&) = default;
   MessageEvent& operator=(const MessageEvent&) = delete;
-  MessageEvent& operator=(MessageEvent&&) = delete;
 
-  virtual void visit(EventVisitor* visitor) const
+  void visit(EventVisitor* visitor) const override
   {
     visitor->visit(*this);
   }
 
-  const Message message;
+  void consume(EventConsumer* consumer) && override
+  {
+    consumer->consume(std::move(*this));
+  }
+
+  Message message;
 };
 
 
@@ -135,27 +148,31 @@ struct HttpEvent : Event
     : request(_request),
       response(_response) {}
 
+  HttpEvent(HttpEvent&&) = default;
+  HttpEvent(const HttpEvent&) = delete;
+  HttpEvent& operator=(HttpEvent&&) = default;
+  HttpEvent& operator=(const HttpEvent&) = delete;
+
   virtual ~HttpEvent()
   {
-    delete request;
-
-    // Fail the response in case it wasn't set.
-    response->set(http::InternalServerError());
-    delete response;
+    if (response) {
+      // Fail the response in case it wasn't set.
+      response->set(http::InternalServerError());
+    }
   }
 
-  virtual void visit(EventVisitor* visitor) const
+  void visit(EventVisitor* visitor) const override
   {
     visitor->visit(*this);
   }
 
-  http::Request* const request;
-  Promise<http::Response>* response;
+  void consume(EventConsumer* consumer) && override
+  {
+    consumer->consume(std::move(*this));
+  }
 
-private:
-  // Not copyable, not assignable.
-  HttpEvent(const HttpEvent&);
-  HttpEvent& operator=(const HttpEvent&);
+  std::unique_ptr<http::Request> request;
+  std::unique_ptr<Promise<http::Response>> response;
 };
 
 
@@ -170,23 +187,28 @@ struct DispatchEvent : Event
       functionType(_functionType)
   {}
 
-  virtual void visit(EventVisitor* visitor) const
+  DispatchEvent(DispatchEvent&&) = default;
+  DispatchEvent(const DispatchEvent&) = delete;
+  DispatchEvent& operator=(DispatchEvent&&) = default;
+  DispatchEvent& operator=(const DispatchEvent&) = delete;
+
+  void visit(EventVisitor* visitor) const override
   {
     visitor->visit(*this);
   }
 
+  void consume(EventConsumer* consumer) && override
+  {
+    consumer->consume(std::move(*this));
+  }
+
   // PID receiving the dispatch.
-  const UPID pid;
+  UPID pid;
 
   // Function to get invoked as a result of this dispatch event.
-  const std::shared_ptr<lambda::function<void(ProcessBase*)>> f;
+  std::shared_ptr<lambda::function<void(ProcessBase*)>> f;
 
-  const Option<const std::type_info*> functionType;
-
-private:
-  // Not copyable, not assignable.
-  DispatchEvent(const DispatchEvent&);
-  DispatchEvent& operator=(const DispatchEvent&);
+  Option<const std::type_info*> functionType;
 };
 
 
@@ -195,18 +217,23 @@ struct ExitedEvent : Event
   explicit ExitedEvent(const UPID& _pid)
     : pid(_pid) {}
 
-  virtual void visit(EventVisitor* visitor) const
+  ExitedEvent(ExitedEvent&&) = default;
+  // TODO(dzhuk) Make it movable only, when move is properly supported in defer.
+  ExitedEvent(const ExitedEvent&) = default;
+  ExitedEvent& operator=(ExitedEvent&&) = default;
+  ExitedEvent& operator=(const ExitedEvent&) = delete;
+
+  void visit(EventVisitor* visitor) const override
   {
     visitor->visit(*this);
   }
 
-  const UPID pid;
+  void consume(EventConsumer* consumer) && override
+  {
+    consumer->consume(std::move(*this));
+  }
 
-private:
-  // Keep ExitedEvent not assignable even though we made it copyable.
-  // Note that we are violating the "rule of three" here but it helps
-  // keep the fields const.
-  ExitedEvent& operator=(const ExitedEvent&);
+  UPID pid;
 };
 
 
@@ -215,18 +242,23 @@ struct TerminateEvent : Event
   TerminateEvent(const UPID& _from, bool _inject)
     : from(_from), inject(_inject) {}
 
-  virtual void visit(EventVisitor* visitor) const
+  TerminateEvent(TerminateEvent&&) = default;
+  TerminateEvent(const TerminateEvent&) = delete;
+  TerminateEvent& operator=(TerminateEvent&&) = default;
+  TerminateEvent& operator=(const TerminateEvent&) = delete;
+
+  void visit(EventVisitor* visitor) const override
   {
     visitor->visit(*this);
   }
 
-  const UPID from;
-  const bool inject;
+  void consume(EventConsumer* consumer) && override
+  {
+    consumer->consume(std::move(*this));
+  }
 
-private:
-  // Not copyable, not assignable.
-  TerminateEvent(const TerminateEvent&);
-  TerminateEvent& operator=(const TerminateEvent&);
+  UPID from;
+  bool inject;
 };
 
 
