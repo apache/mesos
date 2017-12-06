@@ -23,7 +23,7 @@ target_link_libraries(
   stout INTERFACE
   apr
   boost
-  curl
+  libcurl
   elfio
   glog
   picojson
