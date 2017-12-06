@@ -564,8 +564,17 @@ endif ()
 ######################################################################
 if (WIN32)
   EXTERNAL(curl ${CURL_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
-  add_library(curl ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
-  add_dependencies(curl ${CURL_TARGET})
+
+  # This is named `libcurl` to not conflict with the executable.
+  add_library(libcurl ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
+  add_dependencies(libcurl ${CURL_TARGET})
+
+  # Contrary to Linux, the CMake build deploys `curl.exe` on Windows.
+  #
+  # NOTE: The dependency on `CURL_TARGET` is introduced by the generator
+  # expression in `add_custom_command` below. Introducing it here via
+  # `add_dependencies` creates a cycle.
+  add_executable(curl IMPORTED GLOBAL)
 
   set(CURL_CMAKE_ARGS
     ${CMAKE_FORWARD_ARGS}
@@ -579,36 +588,48 @@ if (WIN32)
     list(APPEND CURL_CMAKE_ARGS -DCURL_STATICLIB=ON)
 
     set_target_properties(
-      curl PROPERTIES
+      libcurl PROPERTIES
       INTERFACE_COMPILE_DEFINITIONS CURL_STATICLIB)
   endif ()
 
   set_target_properties(
-    curl PROPERTIES
+    libcurl PROPERTIES
     IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl${LIBRARY_SUFFIX}
     IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl${LIBRARY_SUFFIX}
     IMPORTED_IMPLIB_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX}
     IMPORTED_IMPLIB_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES ${CURL_ROOT}/include)
 
-  MAKE_INCLUDE_DIR(curl)
+  set_target_properties(
+    curl PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/src/Debug/curl.exe
+    IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/src/Release/curl.exe)
+
+  MAKE_INCLUDE_DIR(libcurl)
+  GET_BYPRODUCTS(libcurl)
   GET_BYPRODUCTS(curl)
 
   ExternalProject_Add(
     ${CURL_TARGET}
     PREFIX            ${CURL_CMAKE_ROOT}
-    BUILD_BYPRODUCTS  ${CURL_BYPRODUCTS}
+    BUILD_BYPRODUCTS  ${LIBCURL_BYPRODUCTS};${CURL_BYPRODUCTS}
     PATCH_COMMAND     ${CMAKE_NOOP}
     CMAKE_ARGS        ${CURL_CMAKE_ARGS}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${CURL_URL}
     URL_HASH          ${CURL_HASH})
+
+  # This copies the file `curl.exe` from the `3rdparty` build folder to
+  # `build/src`, next to the other produced executables. This is necessary for
+  # code that shells out to cURL on Windows.
+  add_custom_command(TARGET ${CURL_TARGET} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:curl> ${CMAKE_BINARY_DIR}/src)
 else ()
   find_package(CURL REQUIRED)
-  add_library(curl SHARED IMPORTED)
+  add_library(libcurl SHARED IMPORTED)
 
   set_target_properties(
-    curl PROPERTIES
+    libcurl PROPERTIES
     IMPORTED_LOCATION ${CURL_LIBRARIES}
     INTERFACE_INCLUDE_DIRECTORIES ${CURL_INCLUDE_DIRS})
 endif ()
