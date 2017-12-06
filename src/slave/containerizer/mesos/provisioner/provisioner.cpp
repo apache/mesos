@@ -554,6 +554,7 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
   }
 
   infos[containerId]->rootfses[backend].insert(rootfsId);
+  infos[containerId]->layers = imageInfo.layers;
 
   string backendDir = provisioner::paths::getBackendDir(
       rootDir,
