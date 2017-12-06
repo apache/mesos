@@ -6753,7 +6753,7 @@ void Master::__reregisterSlave(
   // master (those tasks were previously marked "unreachable", so they
   // should be removed from that collection).
   vector<Task> recoveredTasks;
-  foreach (const Task& task, tasks) {
+  foreach (Task& task, tasks) {
     const FrameworkID& frameworkId = task.framework_id();
 
     // Don't re-add tasks whose framework has been shutdown at the
@@ -6762,12 +6762,12 @@ void Master::__reregisterSlave(
       continue;
     }
 
-    recoveredTasks.push_back(task);
-
     Framework* framework = getFramework(frameworkId);
     if (framework != nullptr) {
       framework->unreachableTasks.erase(task.task_id());
     }
+
+    recoveredTasks.push_back(std::move(task));
   }
 
   Slave* slave = new Slave(
@@ -11147,27 +11147,27 @@ Slave::Slave(
     const UPID& _pid,
     const MachineID& _machineId,
     const string& _version,
-    const vector<SlaveInfo::Capability>& _capabilites,
+    vector<SlaveInfo::Capability> _capabilites,
     const Time& _registeredTime,
     vector<Resource> _checkpointedResources,
-    const hashmap<Option<ResourceProviderID>, UUID>& _resourceVersions,
-    const vector<ExecutorInfo>& executorInfos,
-    const vector<Task>& tasks)
+    hashmap<Option<ResourceProviderID>, UUID> _resourceVersions,
+    vector<ExecutorInfo> executorInfos,
+    vector<Task> tasks)
   : master(_master),
     id(_info.id()),
-    info(_info),
+    info(std::move(_info)),
     machineId(_machineId),
     pid(_pid),
     version(_version),
-    capabilities(_capabilites),
+    capabilities(std::move(_capabilites)),
     registeredTime(_registeredTime),
     connected(true),
     active(true),
-    checkpointedResources(_checkpointedResources),
+    checkpointedResources(std::move(_checkpointedResources)),
     observer(nullptr),
-    resourceVersions(_resourceVersions)
+    resourceVersions(std::move(_resourceVersions))
 {
-  CHECK(_info.has_id());
+  CHECK(info.has_id());
 
   Try<Resources> resources = applyCheckpointedResources(
       info.resources(),
@@ -11177,13 +11177,13 @@ Slave::Slave(
   CHECK_SOME(resources);
   totalResources = resources.get();
 
-  foreach (const ExecutorInfo& executorInfo, executorInfos) {
+  foreach (ExecutorInfo& executorInfo, executorInfos) {
     CHECK(executorInfo.has_framework_id());
-    addExecutor(executorInfo.framework_id(), executorInfo);
+    addExecutor(executorInfo.framework_id(), std::move(executorInfo));
   }
 
-  foreach (const Task& task, tasks) {
-    addTask(new Task(task));
+  foreach (Task& task, tasks) {
+    addTask(new Task(std::move(task)));
   }
 }
 

@@ -121,14 +121,12 @@ struct Slave
         const process::UPID& _pid,
         const MachineID& _machineId,
         const std::string& _version,
-        const std::vector<SlaveInfo::Capability>& _capabilites,
+        std::vector<SlaveInfo::Capability> _capabilites,
         const process::Time& _registeredTime,
         std::vector<Resource> _checkpointedResources,
-        const hashmap<Option<ResourceProviderID>, UUID>& _resourceVersions,
-        const std::vector<ExecutorInfo>& executorInfos =
-          std::vector<ExecutorInfo>(),
-        const std::vector<Task>& tasks =
-          std::vector<Task>());
+        hashmap<Option<ResourceProviderID>, UUID> _resourceVersions,
+        std::vector<ExecutorInfo> executorInfos = std::vector<ExecutorInfo>(),
+        std::vector<Task> tasks = std::vector<Task>());
 
   ~Slave();
 
