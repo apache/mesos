@@ -34,7 +34,12 @@ add_dependencies(
   mesos-tcp-connect
   mesos-usage)
 
-if (NOT WIN32)
+if (WIN32)
+  # NOTE: The agent depends on `curl` on non-Windows platforms too, but not as
+  # part of the build. This is necessary because we use CMake to deploy
+  # `curl.exe` on Windows for use in the HTTP health checks.
+  add_dependencies(mesos-agent curl)
+else ()
   add_dependencies(
     mesos-agent
     mesos-cni-port-mapper

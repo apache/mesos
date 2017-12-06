@@ -761,7 +761,7 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
 
 // This test creates a task whose health flaps, and verifies that the
 // health status updates are sent to the framework scheduler.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthStatusChange)
+TEST_F(HealthCheckTest, HealthStatusChange)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1392,11 +1392,7 @@ TEST_F(HealthCheckTest, HealthyToUnhealthyTransitionWithinGracePeriod)
 
 
 // Tests a healthy non-contained task via HTTP.
-//
-// TODO(josephw): Enable this. Mesos builds its own `curl.exe`, since it
-// can't rely on a package manager to get it. We need to make this test use
-// that executable.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTP)
+TEST_F(HealthCheckTest, HealthyTaskViaHTTP)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1486,11 +1482,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTP)
 // with the difference being the health check type is not set.
 //
 // TODO(haosdent): Remove this after the deprecation cycle which starts in 2.0.
-//
-// TODO(josephw): Enable this. Mesos builds its own `curl.exe`, since it
-// can't rely on a package manager to get it. We need to make this test use
-// that executable.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
+TEST_F(HealthCheckTest, HealthyTaskViaHTTPWithoutType)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
