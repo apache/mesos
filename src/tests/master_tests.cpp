@@ -2733,7 +2733,7 @@ TEST_F(MasterTest, RegistryUpdateAfterReconfiguration)
   // Verify master has correctly updated the registry.
   {
     Future<Response> response = process::http::get(
-        master.get()->registrar.get()->pid(),
+        master.get()->registrar->pid(),
         "registry",
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
@@ -2866,7 +2866,7 @@ TEST_F(MasterTest, RegistryUpdateAfterMasterFailover)
   // Verify master has correctly updated the registry.
   {
     Future<Response> response = process::http::get(
-        master.get()->registrar.get()->pid(),
+        master.get()->registrar->pid(),
         "registry",
         None(),
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
