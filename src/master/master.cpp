@@ -7211,12 +7211,6 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
      message.resource_categories().oversubscribed()) ||
     !message.has_resource_categories();
 
-  const bool hasTotal =
-    message.has_resource_categories() &&
-    message.resource_categories().has_total() &&
-    message.resource_categories().total();
-
-  Option<Resources> newTotal;
   Option<Resources> newOversubscribed;
 
   // Make a copy of the message so we can transform its resources.
@@ -7225,21 +7219,6 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
   convertResourceFormat(
       message_.mutable_oversubscribed_resources(),
       POST_RESERVATION_REFINEMENT);
-
-  convertResourceFormat(
-      message_.mutable_total_resources(),
-      POST_RESERVATION_REFINEMENT);
-
-  // Agents will send a total if a resource provider subscribed or went away.
-  // Process resources and operations grouped by resource provider.
-  if (hasTotal) {
-    const Resources& totalResources = message_.total_resources();
-
-    LOG(INFO) << "Received update of agent " << *slave << " with total"
-              << " resources " << totalResources;
-
-    newTotal = totalResources;
-  }
 
   if (hasOversubscribed) {
     const Resources& oversubscribedResources =
@@ -7251,15 +7230,30 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
     newOversubscribed = oversubscribedResources;
   }
 
+  Resources newResourceProviderResources;
+  if (message.has_resource_providers()) {
+    foreach (
+        const UpdateSlaveMessage::ResourceProvider& resourceProvider,
+        message.resource_providers().providers()) {
+      newResourceProviderResources += resourceProvider.total_resources();
+    }
+  }
+
   auto agentResources = [](const Resource& resource) {
     return !resource.has_provider_id();
   };
 
   const Resources newSlaveResources =
-    newTotal.getOrElse(slave->totalResources.nonRevocable()) +
-    newOversubscribed.getOrElse(slave->totalResources.revocable());
+    slave->totalResources.nonRevocable().filter(agentResources) +
+    newOversubscribed.getOrElse(
+        slave->totalResources.revocable().filter(agentResources)) +
+    newResourceProviderResources;
 
-  bool updated = slave->totalResources != newSlaveResources;
+  // TODO(bbannier): We only need to update if any changes from
+  // resource providers are reported.
+  bool updated =
+    slave->totalResources != newSlaveResources ||
+    message.has_resource_providers();
 
   // Agents which can support resource providers always update the
   // master on their resource versions uuids via `UpdateSlaveMessage`.
@@ -7657,11 +7651,12 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
       rescind = true;
     }
 
-    // For updates to the agent's total resources all offers are rescinded.
+    // Updates on resource providers can change the agent total
+    // resources, so we rescind all offers.
     //
-    // TODO(bbannier): Only rescind offers possibly containing removed
-    // resources.
-    if (hasTotal) {
+    // TODO(bbannier): Only rescind offers possibly containing
+    // affected resources.
+    if (message.has_resource_providers()) {
       LOG(INFO) << "Removing offer " << offer->id() << " with resources "
                 << offered << " on agent " << *slave;
 

@@ -723,23 +723,19 @@ message UpdateSlaveMessage {
   // TODO(bbannier): Consider passing agent information inside a
   // `ResourceProvider` value as well where applicable.
 
-  // This message can contain `oversubscribed_resources` or
-  // `total_resources`. Callers are expected to set the respective
-  // categories in `resource_categories` to denote which fields should
-  // be examined. For backwards compatibility we interpret an unset
-  // `category` field as if only oversubscribed was set.
-  //
-  // Oversubscribed resources must be revocable, while total resources
-  // must be non-revocable.
+  // This message can contain `oversubscribed_resources` or resource
+  // providers. Callers are expected to set the `oversubscribed`
+  // category in `resource_categories` to denote whether the
+  // `oversubscribed_resources` field should be examined. For
+  // backwards compatibility we interpret an unset `category` field as
+  // if only oversubscribed was set.
   message ResourceCategories {
-    optional bool total = 1;
     optional bool oversubscribed = 2;
   }
 
   optional ResourceCategories resource_categories = 5;
 
   repeated Resource oversubscribed_resources = 2;
-  repeated Resource total_resources = 4;
 
   message OfferOperations {
     repeated OfferOperation operations = 1;
