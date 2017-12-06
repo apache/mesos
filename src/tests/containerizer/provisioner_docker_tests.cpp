@@ -31,7 +31,7 @@
 
 #ifdef __linux__
 #include "linux/fs.hpp"
-#endif
+#endif // __linux__
 
 #include "slave/containerizer/mesos/provisioner/constants.hpp"
 #include "slave/containerizer/mesos/provisioner/paths.hpp"
@@ -1086,7 +1086,7 @@ TEST_F(ProvisionerDockerTest, ROOT_RecoverNestedOnReboot)
   EXPECT_FALSE(os::exists(containerDir));
 }
 
-#endif
+#endif // __linux__
 
 } // namespace tests {
 } // namespace internal {
