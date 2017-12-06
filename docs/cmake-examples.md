@@ -369,7 +369,7 @@ An installation of the Java SDK can be found form [Oracle][].
 
 As of this writing, Java 9 is not yet supported, but Java 8 has been tested.
 
-The Java build defaults to `OFF` because it is slow, to build the Java
+The Java build defaults to `OFF` because it is slow. To build the Java
 components on Windows, turn it `ON`:
 
 ```powershell
@@ -383,11 +383,25 @@ cmake --build . --target mesos-java
 Note that the `mesos-java` library does not have to be manually built; as
 `libmesos` will link it when Java is enabled.
 
-At runtime, if `JAVA_JVM_LIBRARY` is not set correctly, it can also be set as an
-environment variable, and should be of the form:
+Unfortunately, on Windows the `FindJNI` CMake module will populate `JAVA_JVM_LIBRARY` with
+the path to the static `jvm.lib`, but this variable must point to the shared
+library, `jvm.dll`, as it is loaded at runtime. Set it correctly like this:
 
 ```
-C:\Program Files\Java\jdk1.8.0_144\jre\bin\server\jvm.dll
+$env:JAVA_JVM_LIBRARY = "C:\Program Files\Java\jdk1.8.0_144\jre\bin\server\jvm.dll"
+```
+
+The library may still fail to load at runtime with the following error:
+
+> "The specified module could not be found."
+
+If this is the case, and the path to `jvm.dll` is verified to be correct, then
+the error message actually indicates that the dependencies of `jvm.dll` could
+not be found. On Windows, the DLL search path includes the environment variable
+`PATH`, so add the `bin` folder which contains `server\jvm.dll` to `PATH`:
+
+```
+$env:PATH += ";C:\Program Files\Java\jdk1.8.0_144\jre\bin"
 ```
 
 ## Building with OpenSSL
