@@ -853,16 +853,7 @@ void Master::initialize()
       &RegisterSlaveMessage::resource_version_uuids);
 
   install<ReregisterSlaveMessage>(
-      &Master::reregisterSlave,
-      &ReregisterSlaveMessage::slave,
-      &ReregisterSlaveMessage::checkpointed_resources,
-      &ReregisterSlaveMessage::executor_infos,
-      &ReregisterSlaveMessage::tasks,
-      &ReregisterSlaveMessage::frameworks,
-      &ReregisterSlaveMessage::completed_frameworks,
-      &ReregisterSlaveMessage::version,
-      &ReregisterSlaveMessage::agent_capabilities,
-      &ReregisterSlaveMessage::resource_version_uuids);
+      &Master::reregisterSlave);
 
   install<UnregisterSlaveMessage>(
       &Master::unregisterSlave,
@@ -6302,15 +6293,7 @@ void Master::__registerSlave(
 
 void Master::reregisterSlave(
     const UPID& from,
-    const SlaveInfo& slaveInfo,
-    const vector<Resource>& checkpointedResources,
-    const vector<ExecutorInfo>& executorInfos,
-    const vector<Task>& tasks,
-    const vector<FrameworkInfo>& frameworks,
-    const vector<Archive::Framework>& completedFrameworks,
-    const string& version,
-    const vector<SlaveInfo::Capability>& agentCapabilities,
-    const vector<ResourceVersionUUID>& resourceVersions)
+    ReregisterSlaveMessage&& reregisterSlaveMessage)
 {
   ++metrics->messages_reregister_slave;
 
@@ -6322,15 +6305,7 @@ void Master::reregisterSlave(
       .onReady(defer(self(),
                      &Self::reregisterSlave,
                      from,
-                     slaveInfo,
-                     checkpointedResources,
-                     executorInfos,
-                     tasks,
-                     frameworks,
-                     completedFrameworks,
-                     version,
-                     agentCapabilities,
-                     resourceVersions));
+                     std::move(reregisterSlaveMessage)));
     return;
   }
 
@@ -6351,6 +6326,7 @@ void Master::reregisterSlave(
   // capabilities or a higher version (or a changed SlaveInfo, after Mesos 1.5).
   // However, this should very rarely happen in practice, and nobody seems to
   // have complained about it so far.
+  const SlaveInfo& slaveInfo = reregisterSlaveMessage.slave();
   if (slaves.reregistering.contains(slaveInfo.id())) {
     LOG(INFO)
       << "Ignoring re-register agent message from agent "
@@ -6377,22 +6353,8 @@ void Master::reregisterSlave(
     return;
   }
 
-  Option<Error> error = validation::master::message::reregisterSlave(
-      slaveInfo, tasks, checkpointedResources, executorInfos, frameworks);
-
-  // Update all resources passed by the agent to `POST_RESERVATION_REFINEMENT`
-  // format. We do this as early as possible so that we only use a single
-  // format inside master, and downgrade again if necessary when they leave the
-  // master (e.g. when writing to the registry).
-  // TODO(bevers): Also convert the resources in `ExecutorInfos` and `Tasks`
-  // here for consistency.
-  SlaveInfo _slaveInfo(slaveInfo);
-  convertResourceFormat(
-      _slaveInfo.mutable_resources(), POST_RESERVATION_REFINEMENT);
-
-  std::vector<Resource> _checkpointedResources(checkpointedResources);
-  convertResourceFormat(
-      &_checkpointedResources, POST_RESERVATION_REFINEMENT);
+  Option<Error> error =
+    validation::master::message::reregisterSlave(reregisterSlaveMessage);
 
   if (error.isSome()) {
     LOG(WARNING) << "Dropping re-registration of agent at " << from
@@ -6407,6 +6369,20 @@ void Master::reregisterSlave(
 
   slaves.reregistering.insert(slaveInfo.id());
 
+  // Update all resources passed by the agent to `POST_RESERVATION_REFINEMENT`
+  // format. We do this as early as possible so that we only use a single
+  // format inside master, and downgrade again if necessary when they leave the
+  // master (e.g. when writing to the registry).
+  // TODO(bevers): Also convert the resources in `ExecutorInfos` and `Tasks`
+  // here for consistency.
+  convertResourceFormat(
+      reregisterSlaveMessage.mutable_slave()->mutable_resources(),
+      POST_RESERVATION_REFINEMENT);
+
+  convertResourceFormat(
+      reregisterSlaveMessage.mutable_checkpointed_resources(),
+      POST_RESERVATION_REFINEMENT);
+
   // Note that the principal may be empty if authentication is not
   // required. Also it is passed along because it may be removed from
   // `authenticated` while the authorization is pending.
@@ -6415,36 +6391,22 @@ void Master::reregisterSlave(
   authorizeSlave(principal)
     .onAny(defer(self(),
                  &Self::_reregisterSlave,
-                 _slaveInfo,
                  from,
+                 std::move(reregisterSlaveMessage),
                  principal,
-                 _checkpointedResources,
-                 executorInfos,
-                 tasks,
-                 frameworks,
-                 completedFrameworks,
-                 version,
-                 agentCapabilities,
-                 resourceVersions,
                  lambda::_1));
 }
 
 
 void Master::_reregisterSlave(
-    const SlaveInfo& slaveInfo,
     const UPID& pid,
+    ReregisterSlaveMessage&& reregisterSlaveMessage,
     const Option<string>& principal,
-    const vector<Resource>& checkpointedResources,
-    const vector<ExecutorInfo>& executorInfos,
-    const vector<Task>& tasks,
-    const vector<FrameworkInfo>& frameworks,
-    const vector<Archive::Framework>& completedFrameworks,
-    const string& version,
-    const vector<SlaveInfo::Capability>& agentCapabilities,
-    const vector<ResourceVersionUUID>& resourceVersions,
     const Future<bool>& authorized)
 {
   CHECK(!authorized.isDiscarded());
+
+  const SlaveInfo& slaveInfo = reregisterSlaveMessage.slave();
   CHECK(slaves.reregistering.contains(slaveInfo.id()));
 
   Option<string> authorizationError = None();
@@ -6516,6 +6478,7 @@ void Master::_reregisterSlave(
   // Ignore re-registration attempts by agents running old Mesos versions.
   // We expect that the agent's version is in SemVer format; if the
   // version cannot be parsed, the re-registration attempt is ignored.
+  const string& version = reregisterSlaveMessage.version();
   Try<Version> parsedVersion = Version::parse(version);
 
   if (parsedVersion.isError()) {
@@ -6587,27 +6550,15 @@ void Master::_reregisterSlave(
     // previously known state.
     if (slaveInfo == slave->info) {
       ___reregisterSlave(
-          slaveInfo,
           pid,
-          executorInfos,
-          tasks,
-          frameworks,
-          version,
-          agentCapabilities,
-          resourceVersions,
+          std::move(reregisterSlaveMessage),
           true);
     } else {
       registrar->apply(Owned<Operation>(new UpdateSlave(slaveInfo)))
         .onAny(defer(self(),
             &Self::___reregisterSlave,
-            slaveInfo,
             pid,
-            executorInfos,
-            tasks,
-            frameworks,
-            version,
-            agentCapabilities,
-            resourceVersions,
+            std::move(reregisterSlaveMessage),
             lambda::_1));
     }
   } else if (slaves.recovered.contains(slaveInfo.id())) {
@@ -6624,31 +6575,15 @@ void Master::_reregisterSlave(
     // previously known state (see also MESOS-7711).
     if (slaveInfo == recoveredInfo) {
       __reregisterSlave(
-          slaveInfo,
           pid,
-          checkpointedResources,
-          executorInfos,
-          tasks,
-          frameworks,
-          completedFrameworks,
-          version,
-          agentCapabilities,
-          resourceVersions,
+          std::move(reregisterSlaveMessage),
           true);
     } else {
       registrar->apply(Owned<Operation>(new UpdateSlave(slaveInfo)))
         .onAny(defer(self(),
             &Self::__reregisterSlave,
-            slaveInfo,
             pid,
-            checkpointedResources,
-            executorInfos,
-            tasks,
-            frameworks,
-            completedFrameworks,
-            version,
-            agentCapabilities,
-            resourceVersions,
+            std::move(reregisterSlaveMessage),
             lambda::_1));
     }
   } else {
@@ -6663,34 +6598,19 @@ void Master::_reregisterSlave(
     registrar->apply(Owned<Operation>(new MarkSlaveReachable(slaveInfo)))
       .onAny(defer(self(),
           &Self::__reregisterSlave,
-          slaveInfo,
           pid,
-          checkpointedResources,
-          executorInfos,
-          tasks,
-          frameworks,
-          completedFrameworks,
-          version,
-          agentCapabilities,
-          resourceVersions,
+          std::move(reregisterSlaveMessage),
           lambda::_1));
   }
 }
 
 
 void Master::__reregisterSlave(
-    const SlaveInfo& slaveInfo,
     const UPID& pid,
-    const vector<Resource>& checkpointedResources,
-    const vector<ExecutorInfo>& executorInfos_,
-    const vector<Task>& tasks_,
-    const vector<FrameworkInfo>& frameworks,
-    const vector<Archive::Framework>& completedFrameworks_,
-    const string& version,
-    const vector<SlaveInfo::Capability>& agentCapabilities,
-    const vector<ResourceVersionUUID>& resourceVersions,
+    ReregisterSlaveMessage&& reregisterSlaveMessage,
     const Future<bool>& future)
 {
+  const SlaveInfo& slaveInfo = reregisterSlaveMessage.slave();
   CHECK(slaves.reregistering.contains(slaveInfo.id()));
 
   if (future.isFailed()) {
@@ -6752,12 +6672,22 @@ void Master::__reregisterSlave(
     }
   };
 
+  vector<Resource> checkpointedResources =
+    google::protobuf::convert(reregisterSlaveMessage.checkpointed_resources());
+  vector<ExecutorInfo> executorInfos =
+    google::protobuf::convert(reregisterSlaveMessage.executor_infos());
+  vector<Task> tasks =
+    google::protobuf::convert(reregisterSlaveMessage.tasks());
+  const vector<FrameworkInfo> frameworks =
+    google::protobuf::convert(reregisterSlaveMessage.frameworks());
+  vector<Archive::Framework> completedFrameworks =
+    google::protobuf::convert(reregisterSlaveMessage.completed_frameworks());
+  vector<SlaveInfo::Capability> agentCapabilities =
+    google::protobuf::convert(reregisterSlaveMessage.agent_capabilities());
+
   // Adjust the agent's task and executor infos to ensure
   // compatibility with old agents without certain capabilities.
   protobuf::slave::Capabilities slaveCapabilities(agentCapabilities);
-  vector<Task> tasks = tasks_;
-  vector<ExecutorInfo> executorInfos = executorInfos_;
-  vector<Archive::Framework> completedFrameworks = completedFrameworks_;
 
   // If the agent is not multi-role capable, inject allocation info.
   if (!slaveCapabilities.multiRole) {
@@ -6845,14 +6775,14 @@ void Master::__reregisterSlave(
       slaveInfo,
       pid,
       machineId,
-      version,
-      agentCapabilities,
+      reregisterSlaveMessage.version(),
+      std::move(agentCapabilities),
       Clock::now(),
-      checkpointedResources,
+      std::move(checkpointedResources),
       protobuf::parseResourceVersions(
-          {resourceVersions.begin(), resourceVersions.end()}),
-      executorInfos,
-      recoveredTasks);
+          reregisterSlaveMessage.resource_version_uuids()),
+      std::move(executorInfos),
+      std::move(recoveredTasks));
 
   slave->reregisteredTime = Clock::now();
 
@@ -6905,16 +6835,11 @@ void Master::__reregisterSlave(
 
 
 void Master::___reregisterSlave(
-    const SlaveInfo& slaveInfo,
     const process::UPID& pid,
-    const std::vector<ExecutorInfo>& executorInfos,
-    const std::vector<Task>& tasks,
-    const std::vector<FrameworkInfo>& frameworks,
-    const std::string& version,
-    const std::vector<SlaveInfo::Capability>& agentCapabilities,
-    const vector<ResourceVersionUUID>& resourceVersions,
+    ReregisterSlaveMessage&& reregisterSlaveMessage,
     const process::Future<bool>& updated)
 {
+  const SlaveInfo& slaveInfo = reregisterSlaveMessage.slave();
   CHECK(slaves.reregistering.contains(slaveInfo.id()));
 
   CHECK_READY(updated);
@@ -6965,6 +6890,12 @@ void Master::___reregisterSlave(
   slave->pid = pid;
   link(slave->pid);
 
+  const string& version = reregisterSlaveMessage.version();
+  const vector<SlaveInfo::Capability> agentCapabilities =
+    google::protobuf::convert(reregisterSlaveMessage.agent_capabilities());
+  const vector<ResourceVersionUUID> resourceVersions =
+    google::protobuf::convert(reregisterSlaveMessage.resource_version_uuids());
+
   Try<Nothing> stateUpdated =
     slave->update(slaveInfo, version, agentCapabilities, resourceVersions);
 
@@ -6992,6 +6923,13 @@ void Master::___reregisterSlave(
     slave->info,
     slave->totalResources,
     agentCapabilities);
+
+  const vector<ExecutorInfo> executorInfos =
+    google::protobuf::convert(reregisterSlaveMessage.executor_infos());
+  const vector<Task> tasks =
+    google::protobuf::convert(reregisterSlaveMessage.tasks());
+  const vector<FrameworkInfo> frameworks =
+    google::protobuf::convert(reregisterSlaveMessage.frameworks());
 
   // Reconcile tasks between master and slave, and send the
   // `SlaveReregisteredMessage`.

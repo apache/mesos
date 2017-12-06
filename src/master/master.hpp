@@ -475,15 +475,7 @@ public:
 
   void reregisterSlave(
       const process::UPID& from,
-      const SlaveInfo& slaveInfo,
-      const std::vector<Resource>& checkpointedResources,
-      const std::vector<ExecutorInfo>& executorInfos,
-      const std::vector<Task>& tasks,
-      const std::vector<FrameworkInfo>& frameworks,
-      const std::vector<Archive::Framework>& completedFrameworks,
-      const std::string& version,
-      const std::vector<SlaveInfo::Capability>& agentCapabilities,
-      const std::vector<ResourceVersionUUID>& resourceVersions);
+      ReregisterSlaveMessage&& incomingMessage);
 
   void unregisterSlave(
       const process::UPID& from,
@@ -616,41 +608,19 @@ protected:
       const process::Future<bool>& admit);
 
   void _reregisterSlave(
-      const SlaveInfo& slaveInfo,
       const process::UPID& pid,
+      ReregisterSlaveMessage&& incomingMessage,
       const Option<std::string>& principal,
-      const std::vector<Resource>& checkpointedResources,
-      const std::vector<ExecutorInfo>& executorInfos,
-      const std::vector<Task>& tasks,
-      const std::vector<FrameworkInfo>& frameworks,
-      const std::vector<Archive::Framework>& completedFrameworks,
-      const std::string& version,
-      const std::vector<SlaveInfo::Capability>& agentCapabilities,
-      const std::vector<ResourceVersionUUID>& resourceVersions,
       const process::Future<bool>& authorized);
 
   void __reregisterSlave(
-      const SlaveInfo& slaveInfo,
       const process::UPID& pid,
-      const std::vector<Resource>& checkpointedResources,
-      const std::vector<ExecutorInfo>& executorInfos,
-      const std::vector<Task>& tasks,
-      const std::vector<FrameworkInfo>& frameworks,
-      const std::vector<Archive::Framework>& completedFrameworks,
-      const std::string& version,
-      const std::vector<SlaveInfo::Capability>& agentCapabilities,
-      const std::vector<ResourceVersionUUID>& resourceVersions,
+      ReregisterSlaveMessage&& incomingMessage,
       const process::Future<bool>& readmit);
 
   void ___reregisterSlave(
-      const SlaveInfo& slaveInfo,
       const process::UPID& pid,
-      const std::vector<ExecutorInfo>& executorInfos,
-      const std::vector<Task>& tasks,
-      const std::vector<FrameworkInfo>& frameworks,
-      const std::string& version,
-      const std::vector<SlaveInfo::Capability>& agentCapabilities,
-      const std::vector<ResourceVersionUUID>& resourceVersions,
+      ReregisterSlaveMessage&& incomingMessage,
       const process::Future<bool>& updated);
 
   void updateSlaveFrameworks(

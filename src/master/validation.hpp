@@ -71,11 +71,7 @@ Option<Error> registerSlave(
     const std::vector<Resource>& checkpointedResources);
 
 Option<Error> reregisterSlave(
-    const SlaveInfo& slaveInfo,
-    const std::vector<Task>& tasks,
-    const std::vector<Resource>& resources,
-    const std::vector<ExecutorInfo>& executorInfos,
-    const std::vector<FrameworkInfo>& frameworkInfos);
+    const ReregisterSlaveMessage& message);
 
 } // namespace message {
 } // namespace master {

@@ -4215,43 +4215,46 @@ TEST_F(RegisterSlaveValidationTest, DropInvalidRegistration)
 // validating the ReregisterSlaveMessage.
 TEST_F(RegisterSlaveValidationTest, DuplicateExecutorID)
 {
-  SlaveInfo slaveInfo;
-  slaveInfo.mutable_id()->set_value("agent-id");
-  slaveInfo.mutable_resources()->CopyFrom(
+  ReregisterSlaveMessage message;
+
+  SlaveInfo *slaveInfo = message.mutable_slave();
+  slaveInfo->mutable_id()->set_value("agent-id");
+  slaveInfo->mutable_resources()->CopyFrom(
       Resources::parse("cpus:2;mem:10").get());
 
-  vector<Task> tasks;
-  vector<Resource> resources;
-  vector<ExecutorInfo> executors;
-  vector<FrameworkInfo> frameworks;
+  FrameworkInfo *framework = message.add_frameworks();
+  framework->CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  framework->set_name("framework1");
+  framework->mutable_id()->set_value("framework1");
 
-  frameworks.push_back(DEFAULT_FRAMEWORK_INFO);
-  frameworks.back().set_name("framework1");
-  frameworks.back().mutable_id()->set_value("framework1");
+  framework = message.add_frameworks();
+  framework->CopyFrom(DEFAULT_FRAMEWORK_INFO);
+  framework->set_name("framework2");
+  framework->mutable_id()->set_value("framework2");
 
-  frameworks.push_back(DEFAULT_FRAMEWORK_INFO);
-  frameworks.back().set_name("framework2");
-  frameworks.back().mutable_id()->set_value("framework2");
+  ExecutorInfo *executor = message.add_executor_infos();
+  executor->CopyFrom(DEFAULT_EXECUTOR_INFO);
+  executor->mutable_framework_id()->set_value("framework1");
 
-  executors.push_back(DEFAULT_EXECUTOR_INFO);
-  executors.back().mutable_framework_id()->set_value("framework1");
-
-  executors.push_back(DEFAULT_EXECUTOR_INFO);
-  executors.back().mutable_framework_id()->set_value("framework2");
+  executor = message.add_executor_infos();
+  executor->CopyFrom(DEFAULT_EXECUTOR_INFO);
+  executor->mutable_framework_id()->set_value("framework2");
 
   // Executors with the same ID in different frameworks are allowed.
-  EXPECT_EQ(executors[0].executor_id(), executors[1].executor_id());
-  EXPECT_NE(executors[0].framework_id(), executors[1].framework_id());
-  EXPECT_NONE(master::validation::master::message::reregisterSlave(
-      slaveInfo, tasks, resources, executors, frameworks));
+  EXPECT_EQ(message.executor_infos(0).executor_id(),
+            message.executor_infos(1).executor_id());
+  EXPECT_NE(message.executor_infos(0).framework_id(),
+            message.executor_infos(1).framework_id());
+  EXPECT_NONE(master::validation::master::message::reregisterSlave(message));
 
-  executors[1].mutable_framework_id()->set_value("framework1");
+  executor->mutable_framework_id()->set_value("framework1");
 
   // Executors with the same ID in in the same framework are not allowed.
-  EXPECT_EQ(executors[0].executor_id(), executors[1].executor_id());
-  EXPECT_EQ(executors[0].framework_id(), executors[1].framework_id());
-  EXPECT_SOME(master::validation::master::message::reregisterSlave(
-      slaveInfo, tasks, resources, executors, frameworks));
+  EXPECT_EQ(message.executor_infos(0).executor_id(),
+            message.executor_infos(1).executor_id());
+  EXPECT_EQ(message.executor_infos(0).framework_id(),
+            message.executor_infos(1).framework_id());
+  EXPECT_SOME(master::validation::master::message::reregisterSlave(message));
 }
 
 } // namespace tests {

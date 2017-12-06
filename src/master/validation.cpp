@@ -292,28 +292,25 @@ Option<Error> registerSlave(
 
 
 Option<Error> reregisterSlave(
-    const SlaveInfo& slaveInfo,
-    const vector<Task>& tasks,
-    const vector<Resource>& resources,
-    const vector<ExecutorInfo>& executorInfos,
-    const vector<FrameworkInfo>& frameworkInfos)
+    const ReregisterSlaveMessage& message)
 {
   hashset<FrameworkID> frameworkIDs;
   hashset<pair<FrameworkID, ExecutorID>> executorIDs;
 
+  const SlaveInfo& slaveInfo = message.slave();
   Option<Error> error = validateSlaveInfo(slaveInfo);
   if (error.isSome()) {
     return error.get();
   }
 
-  foreach (const Resource& resource, resources) {
+  foreach (const Resource& resource, message.checkpointed_resources()) {
     Option<Error> error = Resources::validate(resource);
     if (error.isSome()) {
       return error.get();
     }
   }
 
-  foreach (const FrameworkInfo& framework, frameworkInfos) {
+  foreach (const FrameworkInfo& framework, message.frameworks()) {
     Option<Error> error = validation::framework::validate(framework);
     if (error.isSome()) {
       return error.get();
@@ -327,7 +324,7 @@ Option<Error> reregisterSlave(
     frameworkIDs.insert(framework.id());
   }
 
-  foreach (const ExecutorInfo& executor, executorInfos) {
+  foreach (const ExecutorInfo& executor, message.executor_infos()) {
     Option<Error> error = validation::executor::validate(executor);
     if (error.isSome()) {
       return error.get();
@@ -362,7 +359,7 @@ Option<Error> reregisterSlave(
     }
   }
 
-  foreach (const Task& task, tasks) {
+  foreach (const Task& task, message.tasks()) {
     Option<Error> error = common::validation::validateTaskID(task.task_id());
     if (error.isSome()) {
       return Error("Task has an invalid TaskID: " + error->message);
