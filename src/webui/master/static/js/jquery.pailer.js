@@ -87,11 +87,11 @@
     this_.paging = false;
     this_.tailing = true;
 
-    if (page_size) {
+    if (!page_size) {
         $.error('Expecting page_size to be defined')
     }
 
-    if (truncate_length) {
+    if (!truncate_length) {
         $.error('Expecting truncate_length to be defined')
     }
 
