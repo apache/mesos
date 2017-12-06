@@ -468,8 +468,7 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(vector<string>({
         "alpine", // Verifies the normalization of the Docker repository name.
         "library/alpine",
-        "quay.io/coreos/alpine-sh",
-        "registry.cn-hangzhou.aliyuncs.com/acs-sample/alpine"})));
+        "quay.io/coreos/alpine-sh"})));
 
 
 // TODO(jieyu): This is a ROOT test because of MESOS-4757. Remove the
