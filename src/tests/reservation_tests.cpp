@@ -846,6 +846,10 @@ TEST_P(ReservationTest, ResourcesCheckpointing)
 // dynamic reservations are later correctly offered to the framework.
 TEST_P(ReservationTest, MasterFailover)
 {
+  // Pause the cock and control it manually in order to
+  // control the timing of the offer cycle.
+  Clock::pause();
+
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, "role");
 
@@ -866,6 +870,8 @@ TEST_P(ReservationTest, MasterFailover)
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
 
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
   AWAIT_READY(slaveReady1);
 
   MockScheduler sched;
@@ -887,6 +893,10 @@ TEST_P(ReservationTest, MasterFailover)
 
   driver.start();
 
+  // Advance the clock to generate an offer.
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
   // In the first offer, expect an offer with unreserved resources.
   AWAIT_READY(offers);
 
@@ -907,9 +917,7 @@ TEST_P(ReservationTest, MasterFailover)
   AWAIT_READY(message);
 
   // This is to make sure operation message is processed.
-  Clock::pause();
   Clock::settle();
-  Clock::resume();
 
   EXPECT_CALL(sched, disconnected(&driver));
 
@@ -919,32 +927,22 @@ TEST_P(ReservationTest, MasterFailover)
   Try<Owned<cluster::Master>> master2 = StartMaster(masterFlags);
   ASSERT_SOME(master2);
 
-  Future<SlaveReregisteredMessage> slaveReregistered =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
-
-  Future<Nothing> slaveReady2 = getSlaveReady();
-
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The expectation for the next offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());  // Ignore subsequent offers.
 
   // Simulate a new master detected event on the slave so that the
   // slave will do a re-registration.
   detector.appoint(master2.get()->pid);
 
   // Ensure agent registration is processed.
-  Clock::pause();
   Clock::advance(slaveFlags.authentication_backoff_factor);
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
   Clock::resume();
-
-  // Wait for slave to confirm re-registration.
-  AWAIT_READY(slaveReregistered);
-
-  AWAIT_READY(slaveReady2);
 
   // In the next offer, expect an offer with the reserved resources.
   AWAIT_READY(offers);
