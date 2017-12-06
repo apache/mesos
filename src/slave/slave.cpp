@@ -7363,7 +7363,7 @@ Future<Nothing> Slave::publishResources(
     resources += additionalResources.get();
   }
 
-  return resourceProviderManager.publish(resources);
+  return resourceProviderManager.publishResources(resources);
 }
 
 

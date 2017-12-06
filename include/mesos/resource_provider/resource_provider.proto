@@ -34,7 +34,7 @@ message Event {
 
     SUBSCRIBED = 1;                  // See 'Subscribed' below.
     OPERATION = 2;                   // See 'Operation' below.
-    PUBLISH = 3;                     // See 'Publish' below.
+    PUBLISH_RESOURCES = 3;           // See 'PublishResources' below.
     ACKNOWLEDGE_OFFER_OPERATION = 4; // See 'AcknowledgeOfferOperation' below.
     RECONCILE_OFFER_OPERATIONS = 5;  // See 'ReconcileOfferOperations' below.
   }
@@ -73,7 +73,7 @@ message Event {
 
   // Received when the master wants to launch a task using resources
   // of this resource provider.
-  message Publish {
+  message PublishResources {
     required bytes uuid = 1;
     repeated Resource resources = 2;
   }
@@ -99,7 +99,7 @@ message Event {
   optional Type type = 1;
   optional Subscribed subscribed = 2;
   optional Operation operation = 3;
-  optional Publish publish = 4;
+  optional PublishResources publish_resources = 4;
   optional AcknowledgeOfferOperation acknowledge_offer_operation = 5;
   optional ReconcileOfferOperations reconcile_offer_operations = 6;
 }

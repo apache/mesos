@@ -330,7 +330,7 @@ private:
   // Functions for received events.
   void subscribed(const Event::Subscribed& subscribed);
   void operation(const Event::Operation& operation);
-  void publish(const Event::Publish& publish);
+  void publishResources(const Event::PublishResources& publish);
   void acknowledgeOfferOperation(
       const Event::AcknowledgeOfferOperation& acknowledge);
   void reconcileOfferOperations(
@@ -453,9 +453,9 @@ void StorageLocalResourceProviderProcess::received(const Event& event)
       operation(event.operation());
       break;
     }
-    case Event::PUBLISH: {
-      CHECK(event.has_publish());
-      publish(event.publish());
+    case Event::PUBLISH_RESOURCES: {
+      CHECK(event.has_publish_resources());
+      publishResources(event.publish_resources());
       break;
     }
     case Event::ACKNOWLEDGE_OFFER_OPERATION: {
@@ -997,7 +997,8 @@ void StorageLocalResourceProviderProcess::operation(
 }
 
 
-void StorageLocalResourceProviderProcess::publish(const Event::Publish& publish)
+void StorageLocalResourceProviderProcess::publishResources(
+    const Event::PublishResources& publish)
 {
   Option<Error> error;
   hashset<string> volumeIds;

@@ -163,7 +163,7 @@ public:
 
   void reconcileOfferOperations(const ReconcileOfferOperationsMessage& message);
 
-  Future<Nothing> publish(const Resources& resources);
+  Future<Nothing> publishResources(const Resources& resources);
 
   Queue<ResourceProviderMessage> messages;
 
@@ -496,7 +496,7 @@ void ResourceProviderManagerProcess::reconcileOfferOperations(
 }
 
 
-Future<Nothing> ResourceProviderManagerProcess::publish(
+Future<Nothing> ResourceProviderManagerProcess::publishResources(
     const Resources& resources)
 {
   hashmap<ResourceProviderID, Resources> providedResources;
@@ -531,9 +531,9 @@ Future<Nothing> ResourceProviderManagerProcess::publish(
     UUID uuid = UUID::random();
 
     Event event;
-    event.set_type(Event::PUBLISH);
-    event.mutable_publish()->set_uuid(uuid.toBytes());
-    event.mutable_publish()->mutable_resources()->CopyFrom(resources);
+    event.set_type(Event::PUBLISH_RESOURCES);
+    event.mutable_publish_resources()->set_uuid(uuid.toBytes());
+    event.mutable_publish_resources()->mutable_resources()->CopyFrom(resources);
 
     ResourceProvider* resourceProvider =
       resourceProviders.subscribed.at(resourceProviderId).get();
@@ -544,7 +544,7 @@ Future<Nothing> ResourceProviderManagerProcess::publish(
 
     if (!resourceProvider->http.send(event)) {
       return Failure(
-          "Failed to send PUBLISH event to resource provider " +
+          "Failed to send PUBLISH_RESOURCES event to resource provider " +
           stringify(resourceProviderId) + ": connection closed");
     }
 
@@ -765,11 +765,12 @@ void ResourceProviderManager::reconcileOfferOperations(
 }
 
 
-Future<Nothing> ResourceProviderManager::publish(const Resources& resources)
+Future<Nothing> ResourceProviderManager::publishResources(
+    const Resources& resources)
 {
   return dispatch(
       process.get(),
-      &ResourceProviderManagerProcess::publish,
+      &ResourceProviderManagerProcess::publishResources,
       resources);
 }
 

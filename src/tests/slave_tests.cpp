@@ -8883,11 +8883,11 @@ TEST_F(SlaveTest, ResourceProviderPublishAll)
     AWAIT_READY(offers);
     ASSERT_FALSE(offers->empty());
 
-    Future<mesos::v1::resource_provider::Event::Publish> publish;
+    Future<mesos::v1::resource_provider::Event::PublishResources> publish;
 
-    // Two PUBLISH events will be received: one for launching the
+    // Two PUBLISH_RESOURCES events will be received: one for launching the
     // executor, and the other for launching the task.
-    EXPECT_CALL(resourceProvider, publish(_))
+    EXPECT_CALL(resourceProvider, publishResources(_))
       .WillOnce(
           Invoke(&resourceProvider,
                  &v1::MockResourceProvider::publishDefault))

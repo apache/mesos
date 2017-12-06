@@ -460,9 +460,9 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
 
 
 // This test verifies that the pending future returned by
-// `ResourceProviderManager::publish()` becomes ready when the manager
+// `ResourceProviderManager::publishResources()` becomes ready when the manager
 // receives an publish status update with an `OK` status.
-TEST_P(ResourceProviderManagerHttpApiTest, PublishSuccess)
+TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesSuccess)
 {
   const ContentType contentType = GetParam();
 
@@ -531,19 +531,19 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishSuccess)
       resource.mutable_provider_id()->CopyFrom(resourceProviderId.get());
     }
 
-    Future<Nothing> published = manager.publish(devolve(resources));
+    Future<Nothing> published = manager.publishResources(devolve(resources));
 
     Future<Result<Event>> event = responseDecoder->read();
     AWAIT_READY(event);
     ASSERT_SOME(event.get());
-    ASSERT_EQ(Event::PUBLISH, event->get().type());
+    ASSERT_EQ(Event::PUBLISH_RESOURCES, event->get().type());
 
     Call call;
     call.set_type(Call::UPDATE_PUBLISH_STATUS);
     call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
 
     Call::UpdatePublishStatus* update = call.mutable_update_publish_status();
-    update->set_uuid(event->get().publish().uuid());
+    update->set_uuid(event->get().publish_resources().uuid());
     update->set_status(Call::UpdatePublishStatus::OK);
 
     http::Request request;
@@ -565,9 +565,9 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishSuccess)
 
 
 // This test verifies that the pending future returned by
-// `ResourceProviderManager::publish()` becomes failed when the manager
+// `ResourceProviderManager::publishResources()` becomes failed when the manager
 // receives an publish status update with a `FAILED` status.
-TEST_P(ResourceProviderManagerHttpApiTest, PublishFailure)
+TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesFailure)
 {
   const ContentType contentType = GetParam();
 
@@ -636,19 +636,19 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishFailure)
       resource.mutable_provider_id()->CopyFrom(resourceProviderId.get());
     }
 
-    Future<Nothing> published = manager.publish(devolve(resources));
+    Future<Nothing> published = manager.publishResources(devolve(resources));
 
     Future<Result<Event>> event = responseDecoder->read();
     AWAIT_READY(event);
     ASSERT_SOME(event.get());
-    ASSERT_EQ(Event::PUBLISH, event->get().type());
+    ASSERT_EQ(Event::PUBLISH_RESOURCES, event->get().type());
 
     Call call;
     call.set_type(Call::UPDATE_PUBLISH_STATUS);
     call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
 
     Call::UpdatePublishStatus* update = call.mutable_update_publish_status();
-    update->set_uuid(event->get().publish().uuid());
+    update->set_uuid(event->get().publish_resources().uuid());
     update->set_status(Call::UpdatePublishStatus::FAILED);
 
     http::Request request;
@@ -670,9 +670,9 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishFailure)
 
 
 // This test verifies that the pending future returned by
-// `ResourceProviderManager::publish()` becomes failed when the resource
-// provider is disconnected.
-TEST_P(ResourceProviderManagerHttpApiTest, PublishDisconnected)
+// `ResourceProviderManager::publishResources()` becomes failed when the
+// resource provider is disconnected.
+TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesDisconnected)
 {
   const ContentType contentType = GetParam();
 
@@ -727,7 +727,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishDisconnected)
     EXPECT_FALSE(resourceProviderId->value().empty());
   }
 
-  // Then, close the connection after receiving a publish event.
+  // Then, close the connection after receiving a publish resources event.
   {
     vector<v1::Resource> resources =
       v1::Resources::fromString("disk:4").get();
@@ -735,12 +735,12 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishDisconnected)
       resource.mutable_provider_id()->CopyFrom(resourceProviderId.get());
     }
 
-    Future<Nothing> published = manager.publish(devolve(resources));
+    Future<Nothing> published = manager.publishResources(devolve(resources));
 
     Future<Result<Event>> event = responseDecoder->read();
     AWAIT_READY(event);
     ASSERT_SOME(event.get());
-    ASSERT_EQ(Event::PUBLISH, event->get().type());
+    ASSERT_EQ(Event::PUBLISH_RESOURCES, event->get().type());
 
     reader->close();
 
