@@ -169,8 +169,8 @@ static inline ContainerID getContainerId(
 
   value += strings::join(
       "-",
-      strings::replace(info.storage().type(), ".", "-"),
-      info.storage().name(),
+      strings::replace(info.storage().plugin().type(), ".", "-"),
+      info.storage().plugin().name(),
       "");
 
   for (int i = 0; i < container.services_size(); i++) {
@@ -189,7 +189,7 @@ static Option<CSIPluginContainerInfo> getCSIPluginContainerInfo(
     const ContainerID& containerId)
 {
   foreach (const CSIPluginContainerInfo& container,
-           info.storage().containers()) {
+           info.storage().plugin().containers()) {
     if (getContainerId(info, container) == containerId) {
       return container;
     }
@@ -371,7 +371,7 @@ void StorageLocalResourceProviderProcess::initialize()
   csiVersion.set_patch(0);
 
   foreach (const CSIPluginContainerInfo& container,
-           info.storage().containers()) {
+           info.storage().plugin().containers()) {
     auto it = find(
         container.services().begin(),
         container.services().end(),
@@ -383,7 +383,7 @@ void StorageLocalResourceProviderProcess::initialize()
   }
 
   foreach (const CSIPluginContainerInfo& container,
-           info.storage().containers()) {
+           info.storage().plugin().containers()) {
     auto it = find(
         container.services().begin(),
         container.services().end(),
@@ -493,13 +493,14 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
 {
   Try<list<string>> containerPaths = csi::paths::getContainerPaths(
       slave::paths::getCsiRootDir(workDir),
-      info.storage().type(),
-      info.storage().name());
+      info.storage().plugin().type(),
+      info.storage().plugin().name());
 
   if (containerPaths.isError()) {
     return Failure(
         "Failed to find plugin containers for CSI plugin type '" +
-        info.storage().type() + "' and name '" + info.storage().name() + ": " +
+        info.storage().plugin().type() + "' and name '" +
+        info.storage().plugin().name() + ": " +
         containerPaths.error());
   }
 
@@ -515,8 +516,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
         containerId == nodeContainerId) {
       const string configPath = csi::paths::getContainerInfoPath(
           slave::paths::getCsiRootDir(workDir),
-          info.storage().type(),
-          info.storage().name(),
+          info.storage().plugin().type(),
+          info.storage().plugin().name(),
           containerId);
 
       Result<CSIPluginContainerInfo> config =
@@ -539,8 +540,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
         Result<string> endpointDir =
           os::realpath(csi::paths::getEndpointDirSymlinkPath(
               slave::paths::getCsiRootDir(workDir),
-              info.storage().type(),
-              info.storage().name(),
+              info.storage().plugin().type(),
+              info.storage().plugin().name(),
               containerId));
 
         if (endpointDir.isSome()) {
@@ -720,8 +721,8 @@ Future<csi::Client> StorageLocalResourceProviderProcess::getService(
   // Set the `CSI_ENDPOINT` environment variable.
   Try<string> endpoint = csi::paths::getEndpointSocketPath(
       slave::paths::getCsiRootDir(workDir),
-      info.storage().type(),
-      info.storage().name(),
+      info.storage().plugin().type(),
+      info.storage().plugin().name(),
       containerId);
 
   if (endpoint.isError()) {
@@ -754,8 +755,8 @@ Future<csi::Client> StorageLocalResourceProviderProcess::getService(
   // Prepare the directory where the mount points will be placed.
   const string mountDir = csi::paths::getMountRootDir(
       slave::paths::getCsiRootDir(workDir),
-      info.storage().type(),
-      info.storage().name());
+      info.storage().plugin().type(),
+      info.storage().plugin().name());
 
   Try<Nothing> mkdir = os::mkdir(mountDir);
   if (mkdir.isError()) {
@@ -823,8 +824,8 @@ Future<csi::Client> StorageLocalResourceProviderProcess::getService(
   // Checkpoint the plugin container config.
   const string configPath = csi::paths::getContainerInfoPath(
       slave::paths::getCsiRootDir(workDir),
-      info.storage().type(),
-      info.storage().name(),
+      info.storage().plugin().type(),
+      info.storage().plugin().name(),
       containerId);
 
   Try<Nothing> checkpoint = slave::state::checkpoint(configPath, config.get());
@@ -1052,11 +1053,11 @@ Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
   // naming convention.
   // TODO(chhsiao): We should move this check to a validation function
   // for `CSIPluginInfo`.
-  if (!isValidType(info.storage().type()) ||
-      !isValidName(info.storage().name())) {
+  if (!isValidType(info.storage().plugin().type()) ||
+      !isValidName(info.storage().plugin().name())) {
     return Error(
-        "CSI plugin type '" + info.storage().type() +
-        "' and name '" + info.storage().name() +
+        "CSI plugin type '" + info.storage().plugin().type() +
+        "' and name '" + info.storage().plugin().name() +
         "' does not follow Java package naming convention");
   }
 
@@ -1064,7 +1065,7 @@ Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
   bool hasNodeService = false;
 
   foreach (const CSIPluginContainerInfo& container,
-           info.storage().containers()) {
+           info.storage().plugin().containers()) {
     for (int i = 0; i < container.services_size(); i++) {
       const CSIPluginContainerInfo::Service service = container.services(i);
       if (service == CSIPluginContainerInfo::CONTROLLER_SERVICE) {

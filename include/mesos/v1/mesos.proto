@@ -1074,7 +1074,12 @@ message ResourceProviderInfo {
   // new reservation's role must be a child of the current one.
   repeated Resource.ReservationInfo default_reservations = 5; // EXPERIMENTAL.
 
-  optional CSIPluginInfo storage = 6; // EXPERIMENTAL.
+  // Storage resource provider related information.
+  message Storage {
+    required CSIPluginInfo plugin = 1;
+  }
+
+  optional Storage storage = 6; // EXPERIMENTAL.
 }
 
 
