@@ -710,8 +710,7 @@ protected:
   // Add a slave.
   void addSlave(
       Slave* slave,
-      const std::vector<Archive::Framework>& completedFrameworks =
-        std::vector<Archive::Framework>());
+      std::vector<Archive::Framework>&& completedFrameworks);
 
   void _markUnreachable(
       Slave* slave,
@@ -2308,14 +2307,14 @@ struct Framework
     }
   }
 
-  void addCompletedTask(const Task& task)
+  void addCompletedTask(Task&& task)
   {
     // TODO(neilc): We currently allow frameworks to reuse the task
     // IDs of completed tasks (although this is discouraged). This
     // means that there might be multiple completed tasks with the
     // same task ID. We should consider rejecting attempts to reuse
     // task IDs (MESOS-6779).
-    completedTasks.push_back(process::Owned<Task>(new Task(task)));
+    completedTasks.push_back(process::Owned<Task>(new Task(std::move(task))));
   }
 
   void addUnreachableTask(const Task& task)
@@ -2343,7 +2342,7 @@ struct Framework
         << task->state();
       addUnreachableTask(*task);
     } else {
-      addCompletedTask(*task);
+      addCompletedTask(Task(*task));
     }
 
     tasks.erase(task->task_id());
