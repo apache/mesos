@@ -19,6 +19,7 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>
 
+#include <iterator>
 #include <set>
 #include <vector>
 
@@ -80,6 +81,15 @@ template <typename T>
 std::vector<T> convert(const google::protobuf::RepeatedPtrField<T>& items)
 {
   return std::vector<T>(items.begin(), items.end());
+}
+
+
+template <typename T>
+std::vector<T> convert(google::protobuf::RepeatedPtrField<T>&& items)
+{
+  return std::vector<T>(
+      std::make_move_iterator(items.begin()),
+      std::make_move_iterator(items.end()));
 }
 
 } // namespace protobuf {
