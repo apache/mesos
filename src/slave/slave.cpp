@@ -1321,45 +1321,14 @@ void Slave::registered(
       break;
   }
 
-  // Send the latest total, including resources from resource providers. We send
-  // this message here as a resource provider might have registered with the
-  // agent between recovery completion and agent registration.
-  bool sendUpdateSlaveMessage = false;
+  // If this agent can support resource providers or has had any oversubscribed
+  // resources set, send an `UpdateSlaveMessage` to the master to inform it of a
+  // possible changes between completion of recovery and agent registration.
+  if (capabilities.resourceProvider || oversubscribedResources.isSome()) {
+    UpdateSlaveMessage message = generateUpdateSlaveMessage();
 
-  UpdateSlaveMessage message;
-  message.mutable_slave_id()->CopyFrom(info.id());
-  message.mutable_resource_version_uuids()->CopyFrom(
-      protobuf::createResourceVersions(resourceVersions));
+    LOG(INFO) << "Forwarding agent update " << JSON::protobuf(message);
 
-  if (capabilities.resourceProvider) {
-    LOG(INFO) << "Forwarding total resources " << totalResources;
-
-    message.mutable_resource_categories()->set_total(true);
-    message.mutable_total_resources()->CopyFrom(totalResources);
-
-    UpdateSlaveMessage::OfferOperations* operations =
-      message.mutable_offer_operations();
-
-    foreachvalue (const OfferOperation* operation, offerOperations) {
-      operations->add_operations()->CopyFrom(*operation);
-    }
-
-    sendUpdateSlaveMessage = true;
-  }
-
-  // Send the latest estimate for oversubscribed resources.
-  if (oversubscribedResources.isSome()) {
-    LOG(INFO) << "Forwarding total oversubscribed resources "
-              << oversubscribedResources.get();
-
-    message.mutable_resource_categories()->set_oversubscribed(true);
-    message.mutable_oversubscribed_resources()->CopyFrom(
-        oversubscribedResources.get());
-
-    sendUpdateSlaveMessage = true;
-  }
-
-  if (sendUpdateSlaveMessage) {
     send(master.get(), message);
   }
 }
@@ -1433,46 +1402,13 @@ void Slave::reregistered(
       return;
   }
 
-  // Send the latest total, including resources from resource providers. We send
-  // this message here as a resource provider might have registered with the
-  // agent between recovery completion and agent registration.
-  bool sendUpdateSlaveMessage = false;
+  // If this agent can support resource providers or has had any oversubscribed
+  // resources set, send an `UpdateSlaveMessage` to the master to inform it of a
+  // possible changes between completion of recovery and agent registration.
+  if (capabilities.resourceProvider || oversubscribedResources.isSome()) {
+    UpdateSlaveMessage message = generateUpdateSlaveMessage();
 
-  UpdateSlaveMessage message;
-  message.mutable_slave_id()->CopyFrom(info.id());
-
-  message.mutable_resource_version_uuids()->CopyFrom(
-      protobuf::createResourceVersions(resourceVersions));
-
-  if (capabilities.resourceProvider) {
-    LOG(INFO) << "Forwarding total resources " << totalResources;
-
-    message.mutable_resource_categories()->set_total(true);
-    message.mutable_total_resources()->CopyFrom(totalResources);
-
-    UpdateSlaveMessage::OfferOperations* operations =
-      message.mutable_offer_operations();
-
-    foreachvalue (const OfferOperation* operation, offerOperations) {
-      operations->add_operations()->CopyFrom(*operation);
-    }
-
-    sendUpdateSlaveMessage = true;
-  }
-
-  // Send the latest estimate for oversubscribed resources.
-  if (oversubscribedResources.isSome()) {
-    LOG(INFO) << "Forwarding total oversubscribed resources "
-              << oversubscribedResources.get();
-
-    message.mutable_resource_categories()->set_oversubscribed(true);
-    message.mutable_oversubscribed_resources()->CopyFrom(
-        oversubscribedResources.get());
-
-    sendUpdateSlaveMessage = true;
-  }
-
-  if (sendUpdateSlaveMessage) {
+    LOG(INFO) << "Forwarding agent update " << JSON::protobuf(message);
     send(master.get(), message);
   }
 
@@ -7020,10 +6956,17 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
     // Add oversubscribable resources to the total.
     oversubscribed += oversubscribable.get();
 
+    // Remember the previous amount of oversubscribed resources.
+    const Option<Resources> previousOversubscribedResources =
+      oversubscribedResources;
+
+    // Update the estimate.
+    oversubscribedResources = oversubscribed;
+
     // Only forward the estimate if it's different from the previous
     // estimate. We also send this whenever we get (re-)registered
     // (i.e. whenever we transition into the RUNNING state).
-    if (state == RUNNING && oversubscribedResources != oversubscribed) {
+    if (state == RUNNING && previousOversubscribedResources != oversubscribed) {
       LOG(INFO) << "Forwarding total oversubscribed resources "
                 << oversubscribed;
 
@@ -7033,28 +6976,125 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
       // intervals updating the version could cause a lot of offer
       // operation churn.
       //
-      // TODO(bbannier): Revisit this if  we modify the operations
+      // TODO(bbannier): Revisit this if we modify the operations
       // possible on oversubscribed resources.
 
-      UpdateSlaveMessage message;
-      message.mutable_slave_id()->CopyFrom(info.id());
-      message.mutable_resource_categories()->set_oversubscribed(true);
-      message.mutable_oversubscribed_resources()->CopyFrom(oversubscribed);
-
-      message.mutable_resource_version_uuids()->CopyFrom(
-          protobuf::createResourceVersions(resourceVersions));
+      UpdateSlaveMessage message = generateOversubscribedUpdate();
 
       CHECK_SOME(master);
       send(master.get(), message);
     }
-
-    // Update the estimate.
-    oversubscribedResources = oversubscribed;
   }
 
   delay(flags.oversubscribed_resources_interval,
         self(),
         &Self::forwardOversubscribed);
+}
+
+
+UpdateSlaveMessage Slave::generateOversubscribedUpdate() const
+{
+  UpdateSlaveMessage message;
+
+  message.mutable_slave_id()->CopyFrom(info.id());
+  message.mutable_resource_categories()->set_oversubscribed(true);
+
+  if (oversubscribedResources.isSome()) {
+    message.mutable_oversubscribed_resources()->CopyFrom(
+        oversubscribedResources.get());
+  }
+
+  return message;
+}
+
+
+UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
+{
+  UpdateSlaveMessage message;
+
+  message.mutable_slave_id()->CopyFrom(info.id());
+
+  // Agent information (total resources, offer operations, resource
+  // versions) is not passed as part of some `ResourceProvider`, but
+  // globally in `UpdateStateMessage`.
+  //
+  // TODO(bbannier): Pass agent information as a resource provider.
+
+  // Process total resources.
+  hashmap<ResourceProviderID, UpdateSlaveMessage::ResourceProvider>
+    resourceProviders;
+
+  foreach (const Resource& resource, totalResources) {
+    if (resource.has_provider_id()) {
+      resourceProviders[resource.provider_id()].add_total_resources()->CopyFrom(
+          resource);
+    }
+  }
+
+  // Process offer operations.
+  UpdateSlaveMessage::OfferOperations* operations =
+    message.mutable_offer_operations();
+
+  foreachvalue (const OfferOperation* operation, offerOperations) {
+    Result<ResourceProviderID> resourceProviderId =
+      getResourceProviderId(operation->info());
+
+    if (resourceProviderId.isSome()) {
+      resourceProviders[resourceProviderId.get()]
+        .mutable_operations()
+        ->add_operations()
+        ->CopyFrom(*operation);
+    } else if (resourceProviderId.isNone()) {
+      operations->add_operations()->CopyFrom(*operation);
+    }
+  }
+
+  // Make sure 'offer_operations' is always set for resource providers.
+  foreachkey (
+      const ResourceProviderID& resourceProviderId,
+      resourceProviderInfos) {
+    resourceProviders[resourceProviderId].mutable_operations();
+  }
+
+  // Process resource versions.
+  CHECK(resourceVersions.contains(None()));
+  message.add_resource_version_uuids()->set_uuid(
+      resourceVersions.at(None()).toBytes());
+
+  foreachpair (
+      const ResourceProviderID& providerId,
+      UpdateSlaveMessage::ResourceProvider& provider,
+      resourceProviders) {
+    CHECK(resourceVersions.contains(providerId));
+    provider.set_resource_version_uuid(
+        resourceVersions.at(providerId).toBytes());
+
+    CHECK(resourceProviderInfos.contains(providerId));
+    provider.mutable_info()->CopyFrom(resourceProviderInfos.at(providerId));
+  }
+
+  // We only actually surface resource-provider related information if
+  // this agent is resource provider-capable.
+  if (capabilities.resourceProvider) {
+    list<UpdateSlaveMessage::ResourceProvider> resourceProviders_ =
+      resourceProviders.values();
+
+    message.mutable_resource_providers()->mutable_providers()->CopyFrom(
+        {resourceProviders_.begin(), resourceProviders_.end()});
+  }
+
+  return message;
+}
+
+
+UpdateSlaveMessage Slave::generateUpdateSlaveMessage() const
+{
+  UpdateSlaveMessage message;
+
+  message.MergeFrom(generateResourceProviderUpdate());
+  message.MergeFrom(generateOversubscribedUpdate());
+
+  return message;
 }
 
 
@@ -7227,26 +7267,8 @@ void Slave::handleResourceProviderMessage(
           if (updated) {
             LOG(INFO) << "Forwarding new total resources " << totalResources;
 
-            // Inform the master that the total capacity of this agent has
-            // changed.
-            UpdateSlaveMessage updateSlaveMessage;
-            updateSlaveMessage.mutable_slave_id()->CopyFrom(info.id());
-            updateSlaveMessage.mutable_resource_categories()->set_total(true);
-
-            updateSlaveMessage.mutable_total_resources()->CopyFrom(
-                totalResources);
-
-            updateSlaveMessage.mutable_resource_version_uuids()->CopyFrom(
-                protobuf::createResourceVersions(resourceVersions));
-
-            UpdateSlaveMessage::OfferOperations* operations =
-              updateSlaveMessage.mutable_offer_operations();
-
-            foreachvalue (const OfferOperation* operation, offerOperations) {
-              operations->add_operations()->CopyFrom(*operation);
-            }
-
-            send(master.get(), updateSlaveMessage);
+            // Inform the master about the update from the resource provider.
+            send(master.get(), generateResourceProviderUpdate());
 
             break;
           }

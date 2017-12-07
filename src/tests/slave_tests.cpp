@@ -28,6 +28,7 @@
 
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <mesos/authentication/http/basic_authenticator_factory.hpp>
 
@@ -8751,54 +8752,39 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
 
   resourceProviderResources.mutable_provider_id()->CopyFrom(resourceProviderId);
 
+  const string resourceVersionUuid = UUID::random().toBytes();
+
   {
     mesos::v1::resource_provider::Call call;
     call.set_type(mesos::v1::resource_provider::Call::UPDATE_STATE);
-
     call.mutable_resource_provider_id()->CopyFrom(resourceProviderId);
 
-    auto updateState = call.mutable_update_state();
+    mesos::v1::resource_provider::Call::UpdateState* updateState =
+      call.mutable_update_state();
+
     updateState->mutable_resources()->CopyFrom(
         v1::Resources(resourceProviderResources));
-    updateState->set_resource_version_uuid(UUID::random().toBytes());
+
+    updateState->set_resource_version_uuid(resourceVersionUuid);
 
     resourceProvider.send(call);
   }
 
   AWAIT_READY(updateSlaveMessage);
 
-  EXPECT_TRUE(updateSlaveMessage->has_resource_categories());
-  EXPECT_TRUE(updateSlaveMessage->resource_categories().has_total());
-  EXPECT_TRUE(updateSlaveMessage->resource_categories().total());
+  ASSERT_TRUE(updateSlaveMessage->has_resource_providers());
+  ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
 
-  // We expect the updated agent total to contain both the resources of the
-  // agent and of the newly subscribed resource provider. The resources from the
-  // resource provider have a matching `ResourceProviderId` set.
-  Resources expectedResources =
-    Resources::parse(slaveFlags.resources.get()).get();
-  expectedResources += devolve(resourceProviderResources);
+  const UpdateSlaveMessage::ResourceProvider& receivedResourceProvider =
+    updateSlaveMessage->resource_providers().providers(0);
 
-  EXPECT_EQ(expectedResources, updateSlaveMessage->total_resources());
+  EXPECT_EQ(
+      Resources(devolve(resourceProviderResources)),
+      Resources(receivedResourceProvider.total_resources()));
 
-  // The update from the agent should now contain both the agent and
-  // resource provider resource versions.
-  ASSERT_EQ(2u, updateSlaveMessage->resource_version_uuids_size());
-
-  hashset<Option<ResourceProviderID>> resourceProviderIds;
-  foreach (
-      const ResourceVersionUUID& resourceVersionUuid,
-      updateSlaveMessage->resource_version_uuids()) {
-    resourceProviderIds.insert(
-        resourceVersionUuid.has_resource_provider_id()
-          ? resourceVersionUuid.resource_provider_id()
-          : Option<ResourceProviderID>::none());
-  }
-
-  hashset<Option<ResourceProviderID>> expectedResourceProviderIds;
-  expectedResourceProviderIds.insert(None());
-  expectedResourceProviderIds.insert(devolve(resourceProviderId));
-
-  EXPECT_EQ(expectedResourceProviderIds, resourceProviderIds);
+  EXPECT_EQ(
+      resourceVersionUuid,
+      receivedResourceProvider.resource_version_uuid());
 }
 
 
@@ -9251,6 +9237,9 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
     v1::Resources reserved = offer.resources();
     reserved = reserved.filter(
         [](const v1::Resource& r) { return r.has_provider_id(); });
+
+    ASSERT_FALSE(reserved.empty());
+
     reserved = reserved.pushReservation(v1::createDynamicReservationInfo(
         frameworkInfo.roles(0), frameworkInfo.principal()));
 
@@ -9320,13 +9309,16 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
   hashmap<Option<ResourceProviderID>, UUID> resourceVersions =
     protobuf::parseResourceVersions(
         updateSlaveMessage->resource_version_uuids());
+
   // The reserve operation will still be reported as pending since no offer
   // operation status update has been received from the resource provider.
-  ASSERT_TRUE(updateSlaveMessage->has_offer_operations());
-  ASSERT_EQ(1, updateSlaveMessage->offer_operations().operations_size());
+  ASSERT_TRUE(updateSlaveMessage->has_resource_providers());
+  ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
+  auto provider = updateSlaveMessage->resource_providers().providers(0);
+  ASSERT_TRUE(provider.has_operations());
+  ASSERT_EQ(1, provider.operations().operations_size());
 
-  const OfferOperation& reserve =
-    updateSlaveMessage->offer_operations().operations(0);
+  const OfferOperation& reserve = provider.operations().operations(0);
 
   EXPECT_EQ(Offer::Operation::RESERVE, reserve.info().type());
   ASSERT_TRUE(reserve.has_latest_status());
