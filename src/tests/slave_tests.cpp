@@ -9304,12 +9304,6 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
 
   AWAIT_READY(updateSlaveMessage);
 
-  // We expect to see the new resource provider resource version in
-  // the `UpdateSlaveMessage`.
-  hashmap<Option<ResourceProviderID>, UUID> resourceVersions =
-    protobuf::parseResourceVersions(
-        updateSlaveMessage->resource_version_uuids());
-
   // The reserve operation will still be reported as pending since no offer
   // operation status update has been received from the resource provider.
   ASSERT_TRUE(updateSlaveMessage->has_resource_providers());

@@ -746,17 +746,16 @@ message UpdateSlaveMessage {
   optional OfferOperations offer_operations = 6;
 
   // Used to establish the relationship between the operation and the
-  // resources that the operation is operating on. Each resource
-  // provider will keep a resource version UUID, and change it when
-  // it believes that the resources from this resource provider are
-  // out of sync from the master's view.  The master will keep track
-  // of the last known resource version UUID for each resource
-  // provider, and attach the resource version UUID in each operation
-  // it sends out. The resource provider should reject operations that
-  // have a different resource version UUID than that it maintains,
-  // because this means the operation is operating on resources that
-  // might have already been invalidated.
-  repeated ResourceVersionUUID resource_version_uuids = 7;
+  // resources that the operation is operating on. Each agent will
+  // keep a resource version UUID, and change it when it believes that
+  // its resources are out of sync from the master's view. The master
+  // will keep track of the last known resource version UUID for each
+  // resource provider or agent, and attach the resource version UUID
+  // in each operation it sends out. The resource provider or agent
+  // should reject operations that have a different resource version
+  // UUID than that it maintains, because this means the operation is
+  // operating on resources that might have already been invalidated.
+  optional bytes resource_version_uuid = 7;
 
   // Describes an agent-local resource provider.
   message ResourceProvider {

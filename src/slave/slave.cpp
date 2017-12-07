@@ -7058,8 +7058,7 @@ UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
 
   // Process resource versions.
   CHECK(resourceVersions.contains(None()));
-  message.add_resource_version_uuids()->set_uuid(
-      resourceVersions.at(None()).toBytes());
+  message.set_resource_version_uuid(resourceVersions.at(None()).toBytes());
 
   foreachpair (
       const ResourceProviderID& providerId,

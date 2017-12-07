@@ -7256,10 +7256,17 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
     message.has_resource_providers();
 
   // Agents which can support resource providers always update the
-  // master on their resource versions uuids via `UpdateSlaveMessage`.
+  // master on their resource versions uuid via `UpdateSlaveMessage`.
   if (slave->capabilities.resourceProvider) {
-    hashmap<Option<ResourceProviderID>, UUID> resourceVersions =
-      protobuf::parseResourceVersions(message.resource_version_uuids());
+    CHECK(message.has_resource_version_uuid());
+
+    hashmap<Option<ResourceProviderID>, UUID> resourceVersions;
+
+    const Try<UUID> slaveResourceVersion =
+      UUID::fromBytes(message.resource_version_uuid());
+
+    CHECK_SOME(slaveResourceVersion);
+    resourceVersions.insert({None(), slaveResourceVersion.get()});
 
     foreach (
         const UpdateSlaveMessage::ResourceProvider& resourceProvider,
