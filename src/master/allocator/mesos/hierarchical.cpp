@@ -315,6 +315,8 @@ void HierarchicalAllocatorProcess::removeFramework(
   foreach (const string& role, framework.roles) {
     // Might not be in 'frameworkSorters[role]' because it
     // was previously deactivated and never re-added.
+    //
+    // TODO(mzhu): This check may no longer be necessary.
     if (!frameworkSorters.contains(role) ||
         !frameworkSorters.at(role)->contains(frameworkId.value())) {
       continue;
@@ -327,14 +329,7 @@ void HierarchicalAllocatorProcess::removeFramework(
     foreachpair (const SlaveID& slaveId,
                  const Resources& allocated,
                  allocation) {
-      roleSorter->unallocated(role, slaveId, allocated);
-      frameworkSorters.at(role)->remove(slaveId, allocated);
-
-      if (quotas.contains(role)) {
-        // See comment at `quotaRoleSorter` declaration
-        // regarding non-revocable.
-        quotaRoleSorter->unallocated(role, slaveId, allocated.nonRevocable());
-      }
+      untrackAllocatedResources(slaveId, frameworkId, allocated);
     }
 
     untrackFrameworkUnderRole(frameworkId, role);
@@ -1168,16 +1163,7 @@ void HierarchicalAllocatorProcess::recoverResources(
     const Owned<Sorter>& frameworkSorter = frameworkSorters.at(role);
 
     if (frameworkSorter->contains(frameworkId.value())) {
-      frameworkSorter->unallocated(frameworkId.value(), slaveId, resources);
-      frameworkSorter->remove(slaveId, resources);
-      roleSorter->unallocated(role, slaveId, resources);
-
-      if (quotas.contains(role)) {
-        // See comment at `quotaRoleSorter` declaration
-        // regarding non-revocable
-        quotaRoleSorter->unallocated(
-            role, slaveId, resources.nonRevocable());
-      }
+      untrackAllocatedResources(slaveId, frameworkId, resources);
 
       // Stop tracking the framework under this role if it's no longer
       // subscribed and no longer has resources allocated to the role.
@@ -2507,6 +2493,42 @@ void HierarchicalAllocatorProcess::trackAllocatedResources(
     if (quotas.contains(role)) {
       // See comment at `quotaRoleSorter` declaration regarding non-revocable.
       quotaRoleSorter->allocated(role, slaveId, allocation.nonRevocable());
+    }
+  }
+}
+
+
+void HierarchicalAllocatorProcess::untrackAllocatedResources(
+    const SlaveID& slaveId,
+    const FrameworkID& frameworkId,
+    const Resources& allocated)
+{
+  // TODO(mzhu): Add a `CHECK(slaves.contains(slaveId));`
+  // here once MESOS-621 is resolved. Ideally, `removeSlave()`
+  // should unallocate resources in the framework sorters.
+  // But currently, a slave is removed first via `removeSlave()`
+  // and later a call to `recoverResources()` occurs to recover
+  // the framework's resources.
+  CHECK(frameworks.contains(frameworkId));
+
+  // TODO(bmahler): Calling allocations() is expensive since it has
+  // to construct a map. Avoid this.
+  foreachpair (const string& role,
+               const Resources& allocation,
+               allocated.allocations()) {
+    CHECK(roleSorter->contains(role));
+    CHECK(frameworkSorters.contains(role));
+    CHECK(frameworkSorters.at(role)->contains(frameworkId.value()));
+
+    frameworkSorters.at(role)->unallocated(
+        frameworkId.value(), slaveId, allocation);
+    frameworkSorters.at(role)->remove(slaveId, allocation);
+
+    roleSorter->unallocated(role, slaveId, allocation);
+
+    if (quotas.contains(role)) {
+      // See comment at `quotaRoleSorter` declaration regarding non-revocable.
+      quotaRoleSorter->unallocated(role, slaveId, allocation.nonRevocable());
     }
   }
 }
