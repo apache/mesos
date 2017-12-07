@@ -58,6 +58,11 @@ public:
   void acknowledgeOfferOperationUpdate(
       const OfferOperationUpdateAcknowledgementMessage& message) const;
 
+  // Forwards offer operation update reconciliation requests from the master to
+  // the relevant resource providers.
+  void reconcileOfferOperations(
+      const ReconcileOfferOperationsMessage& message) const;
+
   // Ensure that the resources are ready for use.
   process::Future<Nothing> publish(const Resources& resources);
 

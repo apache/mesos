@@ -161,6 +161,8 @@ public:
   void acknowledgeOfferOperationUpdate(
       const OfferOperationUpdateAcknowledgementMessage& message);
 
+  void reconcileOfferOperations(const ReconcileOfferOperationsMessage& message);
+
   Future<Nothing> publish(const Resources& resources);
 
   Queue<ResourceProviderMessage> messages;
@@ -435,6 +437,65 @@ void ResourceProviderManagerProcess::acknowledgeOfferOperationUpdate(
 }
 
 
+void ResourceProviderManagerProcess::reconcileOfferOperations(
+    const ReconcileOfferOperationsMessage& message)
+{
+  hashmap<ResourceProviderID, Event> events;
+
+  auto addOperation =
+    [&events](const ReconcileOfferOperationsMessage::Operation& operation) {
+      const ResourceProviderID resourceProviderId =
+        operation.resource_provider_id();
+
+      if (events.contains(resourceProviderId)) {
+        events.at(resourceProviderId).mutable_reconcile_offer_operations()
+          ->add_operation_uuids(operation.operation_uuid());
+      } else {
+        Event event;
+        event.set_type(Event::RECONCILE_OFFER_OPERATIONS);
+        event.mutable_reconcile_offer_operations()
+          ->add_operation_uuids(operation.operation_uuid());
+
+        events[resourceProviderId] = event;
+      }
+  };
+
+  // Construct events for individual resource providers.
+  foreach (
+      const ReconcileOfferOperationsMessage::Operation& operation,
+      message.operations()) {
+    if (operation.has_resource_provider_id()) {
+      if (!resourceProviders.subscribed.contains(
+              operation.resource_provider_id())) {
+        LOG(WARNING) << "Dropping offer operation reconciliation message with"
+                     << " operation_uuid " << operation.operation_uuid()
+                     << " because resource provider "
+                     << operation.resource_provider_id()
+                     << " is not subscribed";
+        continue;
+      }
+
+      addOperation(operation);
+    }
+  }
+
+  foreachpair (
+      const ResourceProviderID& resourceProviderId,
+      const Event& event,
+      events) {
+    CHECK(resourceProviders.subscribed.contains(resourceProviderId));
+    ResourceProvider& resourceProvider =
+      *resourceProviders.subscribed.at(resourceProviderId);
+
+    if (!resourceProvider.http.send(event)) {
+      LOG(WARNING) << "Failed to send offer operation reconciliation event"
+                   << " to resource provider " << resourceProviderId
+                   << ": connection closed";
+    }
+  }
+}
+
+
 Future<Nothing> ResourceProviderManagerProcess::publish(
     const Resources& resources)
 {
@@ -681,6 +742,16 @@ void ResourceProviderManager::acknowledgeOfferOperationUpdate(
   return dispatch(
       process.get(),
       &ResourceProviderManagerProcess::acknowledgeOfferOperationUpdate,
+      message);
+}
+
+
+void ResourceProviderManager::reconcileOfferOperations(
+    const ReconcileOfferOperationsMessage& message) const
+{
+  return dispatch(
+      process.get(),
+      &ResourceProviderManagerProcess::reconcileOfferOperations,
       message);
 }
 

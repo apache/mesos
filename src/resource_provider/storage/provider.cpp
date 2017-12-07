@@ -328,6 +328,8 @@ private:
   void publish(const Event::Publish& publish);
   void acknowledgeOfferOperation(
       const Event::AcknowledgeOfferOperation& acknowledge);
+  void reconcileOfferOperations(
+      const Event::ReconcileOfferOperations& reconcile);
 
   Future<csi::Client> connect(const string& endpoint);
   Future<csi::Client> getService(const ContainerID& containerId);
@@ -428,6 +430,11 @@ void StorageLocalResourceProviderProcess::received(const Event& event)
     case Event::ACKNOWLEDGE_OFFER_OPERATION: {
       CHECK(event.has_acknowledge_offer_operation());
       acknowledgeOfferOperation(event.acknowledge_offer_operation());
+      break;
+    }
+    case Event::RECONCILE_OFFER_OPERATIONS: {
+      CHECK(event.has_reconcile_offer_operations());
+      reconcileOfferOperations(event.reconcile_offer_operations());
       break;
     }
     case Event::UNKNOWN: {
@@ -1057,6 +1064,13 @@ void StorageLocalResourceProviderProcess::publish(const Event::Publish& publish)
 
 void StorageLocalResourceProviderProcess::acknowledgeOfferOperation(
     const Event::AcknowledgeOfferOperation& acknowledge)
+{
+  CHECK_EQ(SUBSCRIBED, state);
+}
+
+
+void StorageLocalResourceProviderProcess::reconcileOfferOperations(
+    const Event::ReconcileOfferOperations& reconcile)
 {
   CHECK_EQ(SUBSCRIBED, state);
 }

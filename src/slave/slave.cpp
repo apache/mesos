@@ -691,6 +691,9 @@ void Slave::initialize()
   install<ApplyOfferOperationMessage>(
       &Slave::applyOfferOperation);
 
+  install<ReconcileOfferOperationsMessage>(
+      &Slave::reconcileOfferOperations);
+
   install<StatusUpdateAcknowledgementMessage>(
       &Slave::statusUpdateAcknowledgement,
       &StatusUpdateAcknowledgementMessage::slave_id,
@@ -3845,6 +3848,28 @@ void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
   // TODO(nfnt): Use the status update manager to reliably send
   // this message to the master.
   send(master.get(), update);
+}
+
+
+void Slave::reconcileOfferOperations(
+    const ReconcileOfferOperationsMessage& message)
+{
+  bool containsResourceProviderOperations = false;
+
+  // TODO(greggomann): Implement reconciliation for offer
+  // operations on the agent's default resources.
+  foreach (
+      const ReconcileOfferOperationsMessage::Operation& operation,
+      message.operations()) {
+    if (operation.has_resource_provider_id()) {
+      containsResourceProviderOperations = true;
+      break;
+    }
+  }
+
+  if (containsResourceProviderOperations) {
+    resourceProviderManager.reconcileOfferOperations(message);
+  }
 }
 
 

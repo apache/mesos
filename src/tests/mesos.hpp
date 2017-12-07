@@ -2858,6 +2858,9 @@ public:
   MOCK_METHOD1_T(
       acknowledgeOfferOperation,
       void(const typename Event::AcknowledgeOfferOperation&));
+  MOCK_METHOD1_T(
+      reconcileOfferOperations,
+      void(const typename Event::ReconcileOfferOperations&));
 
   void events(std::queue<Event> events)
   {
@@ -2877,6 +2880,9 @@ public:
           break;
         case Event::ACKNOWLEDGE_OFFER_OPERATION:
           acknowledgeOfferOperation(event.acknowledge_offer_operation());
+          break;
+        case Event::RECONCILE_OFFER_OPERATIONS:
+          reconcileOfferOperations(event.reconcile_offer_operations());
           break;
         case Event::UNKNOWN:
           LOG(FATAL) << "Received unexpected UNKNOWN event";

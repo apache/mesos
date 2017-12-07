@@ -433,6 +433,22 @@ message ReconcileTasksMessage {
 
 
 /**
+ * The master uses this message to query an agent about the state of
+ * one or more offer operations. This is useful to resolve
+ * discrepancies between the master and agent's view after agent
+ * reregistration.
+ */
+message ReconcileOfferOperationsMessage {
+  message Operation {
+    required bytes operation_uuid = 1;
+    optional ResourceProviderID resource_provider_id = 2;
+  }
+
+  repeated Operation operations = 1;
+}
+
+
+/**
  * Notifies the framework about errors during registration.
  *
  * See scheduler::Event::Error.

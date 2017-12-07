@@ -36,6 +36,7 @@ message Event {
     OPERATION = 2;                   // See 'Operation' below.
     PUBLISH = 3;                     // See 'Publish' below.
     ACKNOWLEDGE_OFFER_OPERATION = 4; // See 'AcknowledgeOfferOperation' below.
+    RECONCILE_OFFER_OPERATIONS = 5;  // See 'ReconcileOfferOperations' below.
   }
 
   // First event received by the resource provider when it subscribes
@@ -87,11 +88,20 @@ message Event {
     required bytes operation_uuid = 2;
   }
 
+  // Received when the resource provider manager wants to reconcile its view of
+  // the resource provider's offer operation state. The resource provider should
+  // generate offer operation status updates for any operation UUIDs in this
+  // message which are unknown to the resource provider.
+  message ReconcileOfferOperations {
+    repeated bytes operation_uuids = 1;
+  }
+
   optional Type type = 1;
   optional Subscribed subscribed = 2;
   optional Operation operation = 3;
   optional Publish publish = 4;
   optional AcknowledgeOfferOperation acknowledge_offer_operation = 5;
+  optional ReconcileOfferOperations reconcile_offer_operations = 6;
 }
 
 

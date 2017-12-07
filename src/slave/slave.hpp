@@ -205,6 +205,12 @@ public:
 
   void applyOfferOperation(const ApplyOfferOperationMessage& message);
 
+  // Reconciles pending offer operations with the master. This is necessary to
+  // handle cases in which operations were dropped in transit, or in which an
+  // agent's `UpdateSlaveMessage` was sent at the same time as an operation was
+  // en route from the master to the agent.
+  void reconcileOfferOperations(const ReconcileOfferOperationsMessage& message);
+
   void subscribe(
       HttpConnection http,
       const executor::Call::Subscribe& subscribe,
