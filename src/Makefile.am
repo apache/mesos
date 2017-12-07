@@ -380,7 +380,9 @@ CXX_CSI_PROTOS =							\
   csi/csi.grpc.pb.cc							\
   csi/csi.grpc.pb.h							\
   csi/csi.pb.cc								\
-  csi/csi.pb.h
+  csi/csi.pb.h								\
+  csi/state.pb.cc							\
+  csi/state.pb.h
 endif
 
 CXX_LOG_PROTOS =							\

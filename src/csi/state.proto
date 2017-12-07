@@ -1,0 +1,61 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+import "csi.proto";
+
+package mesos.csi.state;
+
+
+// Represents the state of a provisioned volume with respect to a node.
+message VolumeState {
+  enum State {
+    UNKNOWN = 0;
+    CREATED = 1;              // The volume is provisioned but not published.
+    NODE_READY = 2;           // The volume is attached to the node.
+    PUBLISHED =  3;           // The volume is mounted on the node.
+    CONTROLLER_PUBLISH = 4;   // `ControllerPublishVolume` is being called.
+    CONTROLLER_UNPUBLISH = 5; // `ControllerUnpublishVolume` is being called.
+    NODE_PUBLISH = 6;         // `NodePublishVolume` is being called.
+    NODE_UNPUBLISH = 7;       // `NodeUnpublishVolume` is being called.
+  }
+
+  // The state of the volume. This is a REQUIRED field.
+  State state = 1;
+
+  // The capability used to publish the volume. This is a
+  // REQUIRED field.
+  .csi.VolumeCapability volume_capability = 2;
+
+  // Attributes of the volume to be used on the node. This field MUST
+  // match the attributes of the `VolumeInfo` returned by
+  // `CreateVolume`. This is an OPTIONAL field.
+  map<string, string> volume_attributes = 3;
+
+  // If the plugin has the `PUBLISH_UNPUBLISH_VOLUME` controller
+  // capability, this field MUST be set to the value returned by
+  // `ControllerPublishVolume`. Otherwise, this field MUST remain unset.
+  // This is an OPTIONAL field.
+  map<string, string> publish_volume_info = 4;
+
+  // This field is used to check if the node has been rebooted since the
+  // last time the volume is mounted. If yes, `NodePublishVolume` needs
+  // to be called to mount the volume again. It MUST be set to the boot
+  // ID of the node if the volume is mounted, and SHOULD remain unset
+  // otherwise. This is an OPTIONAL field.
+  string boot_id = 5;
+}

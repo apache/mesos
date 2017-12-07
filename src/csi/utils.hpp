@@ -31,6 +31,7 @@
 #include <stout/unreachable.hpp>
 
 #include "csi/spec.hpp"
+#include "csi/state.hpp"
 
 namespace csi {
 
@@ -114,6 +115,12 @@ struct ControllerCapabilities
   bool getCapacity = false;
 };
 
+
+namespace state {
+
+std::ostream& operator<<(std::ostream& stream, const VolumeState::State& state);
+
+} // namespace state {
 } // namespace csi {
 } // namespace mesos {
 

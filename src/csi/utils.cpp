@@ -76,3 +76,17 @@ ostream& operator<<(ostream& stream, const Version& version)
 }
 
 } // namespace csi {
+
+
+namespace mesos {
+namespace csi {
+namespace state {
+
+ostream& operator<<(ostream& stream, const VolumeState::State& state)
+{
+  return stream << VolumeState::State_Name(state);
+}
+
+} // namespace state {
+} // namespace csi {
+} // namespace mesos {
