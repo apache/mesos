@@ -158,7 +158,7 @@ public:
       }
     }
 
-    for (; id < completedFrameworksPerAgent; id++) {
+    for (; id < frameworksPerAgent + completedFrameworksPerAgent; id++) {
       Archive::Framework* completedFramework =
         message.add_completed_frameworks();
 
