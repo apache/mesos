@@ -234,15 +234,27 @@ Result<ResourceProviderID> getResourceProviderId(
     case Offer::Operation::LAUNCH_GROUP:
       return Error("Unexpected LAUNCH_GROUP operation");
     case Offer::Operation::RESERVE:
+      if (operation.reserve().resources().empty()) {
+        return Error("Operation contains no resources");
+      }
       resource = operation.reserve().resources(0);
       break;
     case Offer::Operation::UNRESERVE:
+      if (operation.unreserve().resources().empty()) {
+        return Error("Operation contains no resources");
+      }
       resource = operation.unreserve().resources(0);
       break;
     case Offer::Operation::CREATE:
+      if (operation.create().volumes().empty()) {
+        return Error("Operation contains no resources");
+      }
       resource = operation.create().volumes(0);
       break;
     case Offer::Operation::DESTROY:
+      if (operation.destroy().volumes().empty()) {
+        return Error("Operation contains no resources");
+      }
       resource = operation.destroy().volumes(0);
       break;
     case Offer::Operation::CREATE_VOLUME:
