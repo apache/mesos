@@ -28,9 +28,9 @@ namespace resource_provider {
 
 inline std::ostream& operator<<(
     std::ostream& stream,
-    const Call::UpdatePublishStatus::Status& status)
+    const Call::UpdatePublishResourcesStatus::Status& status)
 {
-  return stream << Call::UpdatePublishStatus::Status_Name(status);
+  return stream << Call::UpdatePublishResourcesStatus::Status_Name(status);
 }
 
 

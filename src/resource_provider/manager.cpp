@@ -180,9 +180,9 @@ private:
       ResourceProvider* resourceProvider,
       const Call::UpdateState& update);
 
-  void updatePublishStatus(
+  void updatePublishResourcesStatus(
       ResourceProvider* resourceProvider,
-      const Call::UpdatePublishStatus& update);
+      const Call::UpdatePublishResourcesStatus& update);
 
   ResourceProviderID newResourceProviderId();
 
@@ -330,8 +330,10 @@ Future<http::Response> ResourceProviderManagerProcess::api(
       return Accepted();
     }
 
-    case Call::UPDATE_PUBLISH_STATUS: {
-      updatePublishStatus(resourceProvider, call.update_publish_status());
+    case Call::UPDATE_PUBLISH_RESOURCES_STATUS: {
+      updatePublishResourcesStatus(
+          resourceProvider,
+          call.update_publish_resources_status());
       return Accepted();
     }
   }
@@ -663,34 +665,35 @@ void ResourceProviderManagerProcess::updateState(
 }
 
 
-void ResourceProviderManagerProcess::updatePublishStatus(
+void ResourceProviderManagerProcess::updatePublishResourcesStatus(
     ResourceProvider* resourceProvider,
-    const Call::UpdatePublishStatus& update)
+    const Call::UpdatePublishResourcesStatus& update)
 {
   Try<UUID> uuid = UUID::fromBytes(update.uuid());
   if (uuid.isError()) {
-    LOG(ERROR) << "Invalid UUID in UpdatePublishStatus from resource provider "
-               << resourceProvider->info.id() << ": " << uuid.error();
+    LOG(ERROR) << "Invalid UUID in UpdatePublishResourcesStatus from resource"
+               << " provider " << resourceProvider->info.id()
+               << ": " << uuid.error();
     return;
   }
 
   if (!resourceProvider->publishes.contains(uuid.get())) {
-    LOG(ERROR) << "Ignoring UpdatePublishStatus from resource provider "
-               << resourceProvider->info.id() << " because UUID "
-               << uuid->toString() << " is unknown";
+    LOG(ERROR) << "Ignoring UpdatePublishResourcesStatus from resource"
+               << " provider " << resourceProvider->info.id()
+               << " because UUID " << uuid->toString() << " is unknown";
     return;
   }
 
   LOG(INFO)
-    << "Received UPDATE_PUBLISH_STATUS call for PUBLISH event " << uuid.get()
-    << " with " << update.status() << " status from resource provider "
-    << resourceProvider->info.id();
+    << "Received UPDATE_PUBLISH_RESOURCES_STATUS call for PUBLISH_RESOURCES"
+    << " event " << uuid.get() << " with " << update.status()
+    << " status from resource provider " << resourceProvider->info.id();
 
-  if (update.status() == Call::UpdatePublishStatus::OK) {
+  if (update.status() == Call::UpdatePublishResourcesStatus::OK) {
     resourceProvider->publishes.at(uuid.get())->set(Nothing());
   } else {
     // TODO(jieyu): Consider to include an error message in
-    // 'UpdatePublishStatus' and surface that to the caller.
+    // 'UpdatePublishResourcesStatus' and surface that to the caller.
     resourceProvider->publishes.at(uuid.get())->fail(
         "Failed to publish resources for resource provider " +
         stringify(resourceProvider->info.id()) + ": Received " +

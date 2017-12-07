@@ -1111,12 +1111,14 @@ void StorageLocalResourceProviderProcess::publishResources(
 
       Call call;
       call.mutable_resource_provider_id()->CopyFrom(info.id());
-      call.set_type(Call::UPDATE_PUBLISH_STATUS);
+      call.set_type(Call::UPDATE_PUBLISH_RESOURCES_STATUS);
 
-      Call::UpdatePublishStatus* update = call.mutable_update_publish_status();
+      Call::UpdatePublishResourcesStatus* update =
+        call.mutable_update_publish_resources_status();
       update->set_uuid(publish.uuid());
       update->set_status(future.isReady()
-        ? Call::UpdatePublishStatus::OK : Call::UpdatePublishStatus::FAILED);
+        ? Call::UpdatePublishResourcesStatus::OK
+        : Call::UpdatePublishResourcesStatus::FAILED);
 
       auto err = [](const string& uuid, const string& message) {
         LOG(ERROR)

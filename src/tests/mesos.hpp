@@ -3082,13 +3082,13 @@ public:
     CHECK(info.has_id());
 
     Call call;
-    call.set_type(Call::UPDATE_PUBLISH_STATUS);
+    call.set_type(Call::UPDATE_PUBLISH_RESOURCES_STATUS);
     call.mutable_resource_provider_id()->CopyFrom(info.id());
 
-    typename Call::UpdatePublishStatus* update =
-      call.mutable_update_publish_status();
+    typename Call::UpdatePublishResourcesStatus* update =
+      call.mutable_update_publish_resources_status();
     update->set_uuid(publish.uuid());
-    update->set_status(Call::UpdatePublishStatus::OK);
+    update->set_status(Call::UpdatePublishResourcesStatus::OK);
 
     driver->send(call);
   }

@@ -113,10 +113,10 @@ message Call {
     // in a backwards-compatible way. See: MESOS-4997.
     UNKNOWN = 0;
 
-    SUBSCRIBE = 1;                     // See 'Subscribe'.
-    UPDATE_OFFER_OPERATION_STATUS = 2; // See 'UpdateOfferOperationStatus'.
-    UPDATE_STATE = 3;                  // See 'UpdateState'.
-    UPDATE_PUBLISH_STATUS = 4;         // See 'UpdatePublishStatus'.
+    SUBSCRIBE = 1;                       // See 'Subscribe'.
+    UPDATE_OFFER_OPERATION_STATUS = 2;   // See 'UpdateOfferOperationStatus'.
+    UPDATE_STATE = 3;                    // See 'UpdateState'.
+    UPDATE_PUBLISH_RESOURCES_STATUS = 4; // See 'UpdatePublishResourcesStatus'.
   }
 
   // Request to subscribe with the master.
@@ -160,7 +160,7 @@ message Call {
     required bytes resource_version_uuid = 3;
   }
 
-  message UpdatePublishStatus {
+  message UpdatePublishResourcesStatus {
     enum Status {
       UNKNOWN = 0;
       OK = 1;
@@ -185,5 +185,5 @@ message Call {
   optional Subscribe subscribe = 3;
   optional UpdateOfferOperationStatus update_offer_operation_status = 4;
   optional UpdateState update_state = 5;
-  optional UpdatePublishStatus update_publish_status = 6;
+  optional UpdatePublishResourcesStatus update_publish_resources_status = 6;
 }

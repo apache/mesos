@@ -539,12 +539,13 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesSuccess)
     ASSERT_EQ(Event::PUBLISH_RESOURCES, event->get().type());
 
     Call call;
-    call.set_type(Call::UPDATE_PUBLISH_STATUS);
+    call.set_type(Call::UPDATE_PUBLISH_RESOURCES_STATUS);
     call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
 
-    Call::UpdatePublishStatus* update = call.mutable_update_publish_status();
+    Call::UpdatePublishResourcesStatus* update =
+      call.mutable_update_publish_resources_status();
     update->set_uuid(event->get().publish_resources().uuid());
-    update->set_status(Call::UpdatePublishStatus::OK);
+    update->set_status(Call::UpdatePublishResourcesStatus::OK);
 
     http::Request request;
     request.method = "POST";
@@ -644,12 +645,13 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesFailure)
     ASSERT_EQ(Event::PUBLISH_RESOURCES, event->get().type());
 
     Call call;
-    call.set_type(Call::UPDATE_PUBLISH_STATUS);
+    call.set_type(Call::UPDATE_PUBLISH_RESOURCES_STATUS);
     call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
 
-    Call::UpdatePublishStatus* update = call.mutable_update_publish_status();
+    Call::UpdatePublishResourcesStatus* update =
+      call.mutable_update_publish_resources_status();
     update->set_uuid(event->get().publish_resources().uuid());
-    update->set_status(Call::UpdatePublishStatus::FAILED);
+    update->set_status(Call::UpdatePublishResourcesStatus::FAILED);
 
     http::Request request;
     request.method = "POST";
