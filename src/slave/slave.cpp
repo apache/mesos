@@ -3896,10 +3896,33 @@ void Slave::statusUpdateAcknowledgement(
 }
 
 
-// TODO(greggomann): Implement offer operation update acknowledgement.
 void Slave::offerOperationUpdateAcknowledgement(
     const UPID& from,
-    const OfferOperationUpdateAcknowledgementMessage& acknowledgement) {}
+    const OfferOperationUpdateAcknowledgementMessage& acknowledgement)
+{
+  Try<UUID> operationUuid = UUID::fromBytes(acknowledgement.operation_uuid());
+  CHECK_SOME(operationUuid);
+
+  OfferOperation* operation = getOfferOperation(operationUuid.get());
+  if (operation != nullptr) {
+    resourceProviderManager.acknowledgeOfferOperationUpdate(acknowledgement);
+
+    CHECK(operation->statuses_size() > 0);
+    if (protobuf::isTerminalState(
+            operation->statuses(operation->statuses_size() - 1).state())) {
+      // Note that if this acknowledgement is dropped due to resource provider
+      // disconnection, the resource provider will inform the agent about the
+      // operation via an UPDATE_STATE call after it reregisters, which will
+      // cause the agent to add the operation back.
+      removeOfferOperation(operation);
+    }
+  } else {
+    LOG(WARNING) << "Dropping offer operation update acknowledgement with"
+                 << " status_uuid " << acknowledgement.status_uuid() << " and"
+                 << " operation_uuid " << acknowledgement.operation_uuid()
+                 << " because the operation was not found";
+  }
+}
 
 
 void Slave::_statusUpdateAcknowledgement(
@@ -7130,10 +7153,6 @@ void Slave::handleResourceProviderMessage(
           send(master.get(), _update);
           break;
         }
-      }
-
-      if (protobuf::isTerminalState(operation->latest_status().state())) {
-        removeOfferOperation(operation);
       }
     }
   }
