@@ -685,6 +685,17 @@ mesos::internal::slave::Flags::Flags()
       "This flag has the same syntax as `--effective_capabilities`."
      );
 
+  add(&Flags::disallow_sharing_agent_pid_namespace,
+      "disallow_sharing_agent_pid_namespace",
+      "If set to `true`, each top-level container will have its own pid\n"
+      "namespace, and if the framework requests to share the agent pid\n"
+      "namespace for the top level container, the container launch will be\n"
+      "rejected. If set to `false`, the top-level containers will share the\n"
+      "pid namespace with agent if the framework requests it. This flag will\n"
+      "be ignored if the `namespaces/pid` isolator is not enabled.\n",
+      false);
+#endif
+
   add(&Flags::agent_features,
       "agent_features",
       "JSON representation of agent features to whitelist. We always require\n"
@@ -715,17 +726,6 @@ mesos::internal::slave::Flags::Flags()
 
         return None();
       });
-
-  add(&Flags::disallow_sharing_agent_pid_namespace,
-      "disallow_sharing_agent_pid_namespace",
-      "If set to `true`, each top-level container will have its own pid\n"
-      "namespace, and if the framework requests to share the agent pid\n"
-      "namespace for the top level container, the container launch will be\n"
-      "rejected. If set to `false`, the top-level containers will share the\n"
-      "pid namespace with agent if the framework requests it. This flag will\n"
-      "be ignored if the `namespaces/pid` isolator is not enabled.\n",
-      false);
-#endif
 
   add(&Flags::firewall_rules,
       "firewall_rules",
