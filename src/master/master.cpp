@@ -7874,6 +7874,10 @@ void Master::offerOperationStatusUpdate(
     return;
   }
 
+  // TODO(greggomann): Remove this CHECK once offer operation feedback is
+  // implemented. See MESOS-8054.
+  CHECK(!operation->info().has_id());
+
   // Forward the status update to the framework if needed.
   if (frameworkId.isSome()) {
     Framework* framework = getFramework(frameworkId.get());
@@ -7892,11 +7896,35 @@ void Master::offerOperationStatusUpdate(
 
   updateOfferOperation(operation, update);
 
+  CHECK(operation->statuses_size() > 0);
+
+  // If this update is being sent reliably, send an acknowledgement.
+  if (operation->statuses(operation->statuses_size() - 1).has_status_uuid()) {
+    Result<ResourceProviderID> resourceProviderId =
+      getResourceProviderId(operation->info());
+
+    // TODO(greggomann): Remove this CHECK once the agent is sending reliable
+    // updates for operations on its default resources. See MESOS-8194.
+    CHECK_SOME(resourceProviderId);
+
+    OfferOperationUpdateAcknowledgementMessage acknowledgement;
+    acknowledgement.set_status_uuid(
+        operation->statuses(operation->statuses_size() - 1).status_uuid());
+    acknowledgement.set_operation_uuid(operation->operation_uuid());
+
+    acknowledgement.mutable_resource_provider_id()
+      ->CopyFrom(resourceProviderId.get());
+
+    CHECK(slave->capabilities.resourceProvider);
+
+    send(slave->pid, acknowledgement);
+  }
+
   // If the operation is terminal and no acknowledgement from the
   // framework (or the operation API endpoint) is needed, remove the
   // operation.
-  if (protobuf::isTerminalState(operation->latest_status().state()) &&
-      !operation->info().has_id()) {
+  if (protobuf::isTerminalState(
+          operation->statuses(operation->statuses_size() - 1).state())) {
     removeOfferOperation(operation);
   }
 }
