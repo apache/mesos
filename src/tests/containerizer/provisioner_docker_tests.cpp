@@ -468,6 +468,9 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::ValuesIn(vector<string>({
         "alpine", // Verifies the normalization of the Docker repository name.
         "library/alpine",
+        // TODO(alexr): The registry below is unreliable and hence disabled.
+        // Consider re-enabling shall it become more stable.
+        // "registry.cn-hangzhou.aliyuncs.com/acs-sample/alpine",
         "quay.io/coreos/alpine-sh"})));
 
 
