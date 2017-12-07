@@ -158,6 +158,9 @@ public:
 
   void applyOfferOperation(const ApplyOfferOperationMessage& message);
 
+  void acknowledgeOfferOperationUpdate(
+      const OfferOperationUpdateAcknowledgementMessage& message);
+
   Future<Nothing> publish(const Resources& resources);
 
   Queue<ResourceProviderMessage> messages;
@@ -398,6 +401,40 @@ void ResourceProviderManagerProcess::applyOfferOperation(
 }
 
 
+void ResourceProviderManagerProcess::acknowledgeOfferOperationUpdate(
+    const OfferOperationUpdateAcknowledgementMessage& message)
+{
+  CHECK(message.has_resource_provider_id());
+
+  if (!resourceProviders.subscribed.contains(message.resource_provider_id())) {
+    LOG(WARNING) << "Dropping offer operation update acknowledgement with"
+                 << " status_uuid " << message.status_uuid() << " and"
+                 << " operation_uuid " << message.operation_uuid() << " because"
+                 << " resource provider " << message.resource_provider_id()
+                 << " is not subscribed";
+    return;
+  }
+
+  ResourceProvider& resourceProvider =
+    *resourceProviders.subscribed.at(message.resource_provider_id());
+
+  Event event;
+  event.set_type(Event::ACKNOWLEDGE_OFFER_OPERATION);
+  event.mutable_acknowledge_offer_operation()
+    ->set_status_uuid(message.status_uuid());
+  event.mutable_acknowledge_offer_operation()
+    ->set_operation_uuid(message.operation_uuid());
+
+  if (!resourceProvider.http.send(event)) {
+    LOG(WARNING) << "Failed to send offer operation update acknowledgement with"
+                 << " status_uuid " << message.status_uuid() << " and"
+                 << " operation_uuid " << message.operation_uuid() << " to"
+                 << " resource provider " << message.resource_provider_id()
+                 << ": connection closed";
+  }
+}
+
+
 Future<Nothing> ResourceProviderManagerProcess::publish(
     const Resources& resources)
 {
@@ -634,6 +671,16 @@ void ResourceProviderManager::applyOfferOperation(
   return dispatch(
       process.get(),
       &ResourceProviderManagerProcess::applyOfferOperation,
+      message);
+}
+
+
+void ResourceProviderManager::acknowledgeOfferOperationUpdate(
+    const OfferOperationUpdateAcknowledgementMessage& message) const
+{
+  return dispatch(
+      process.get(),
+      &ResourceProviderManagerProcess::acknowledgeOfferOperationUpdate,
       message);
 }
 

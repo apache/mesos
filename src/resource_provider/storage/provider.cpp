@@ -326,6 +326,8 @@ private:
   void subscribed(const Event::Subscribed& subscribed);
   void operation(const Event::Operation& operation);
   void publish(const Event::Publish& publish);
+  void acknowledgeOfferOperation(
+      const Event::AcknowledgeOfferOperation& acknowledge);
 
   Future<csi::Client> connect(const string& endpoint);
   Future<csi::Client> getService(const ContainerID& containerId);
@@ -425,6 +427,7 @@ void StorageLocalResourceProviderProcess::received(const Event& event)
     }
     case Event::ACKNOWLEDGE_OFFER_OPERATION: {
       CHECK(event.has_acknowledge_offer_operation());
+      acknowledgeOfferOperation(event.acknowledge_offer_operation());
       break;
     }
     case Event::UNKNOWN: {
@@ -1049,6 +1052,13 @@ void StorageLocalResourceProviderProcess::publish(const Event::Publish& publish)
         .onFailed(std::bind(err, publish.uuid(), lambda::_1))
         .onDiscarded(std::bind(err, publish.uuid(), "future discarded"));
     }));
+}
+
+
+void StorageLocalResourceProviderProcess::acknowledgeOfferOperation(
+    const Event::AcknowledgeOfferOperation& acknowledge)
+{
+  CHECK_EQ(SUBSCRIBED, state);
 }
 
 

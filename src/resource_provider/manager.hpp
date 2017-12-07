@@ -53,6 +53,11 @@ public:
 
   void applyOfferOperation(const ApplyOfferOperationMessage& message) const;
 
+  // Forwards an offer operation status update acknowledgement
+  // to the relevant resource provider.
+  void acknowledgeOfferOperationUpdate(
+      const OfferOperationUpdateAcknowledgementMessage& message) const;
+
   // Ensure that the resources are ready for use.
   process::Future<Nothing> publish(const Resources& resources);
 
