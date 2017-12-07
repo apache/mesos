@@ -539,11 +539,21 @@ private:
   // the agent and the master are both configured with a fault domain.
   bool isRemoteSlave(const Slave& slave) const;
 
-  // Helper to track used resources on an agent.
+  // Helper to track allocated resources on an agent.
   void trackAllocatedResources(
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const Resources& allocated);
+
+  // Helper to untrack resources that are no longer allocated on an agent.
+  void untrackAllocatedResources(
+      const SlaveID& slaveId,
+      const FrameworkID& frameworkId,
+      const Resources& allocated);
+
+  // Helper that removes all existing offer filters for the given slave
+  // id.
+  void removeFilters(const SlaveID& slaveId);
 };
 
 
