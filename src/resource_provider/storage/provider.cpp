@@ -423,6 +423,10 @@ void StorageLocalResourceProviderProcess::received(const Event& event)
       publish(event.publish());
       break;
     }
+    case Event::ACKNOWLEDGE_OFFER_OPERATION: {
+      CHECK(event.has_acknowledge_offer_operation());
+      break;
+    }
     case Event::UNKNOWN: {
       LOG(WARNING) << "Received an UNKNOWN event and ignored";
       break;

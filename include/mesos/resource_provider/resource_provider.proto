@@ -32,9 +32,10 @@ message Event {
     // in a backwards-compatible way. See: MESOS-4997.
     UNKNOWN = 0;
 
-    SUBSCRIBED = 1;   // See 'Subscribed' below.
-    OPERATION = 2;    // See 'Operation' below.
-    PUBLISH = 3;      // See 'Publish' below.
+    SUBSCRIBED = 1;                  // See 'Subscribed' below.
+    OPERATION = 2;                   // See 'Operation' below.
+    PUBLISH = 3;                     // See 'Publish' below.
+    ACKNOWLEDGE_OFFER_OPERATION = 4; // See 'AcknowledgeOfferOperation' below.
   }
 
   // First event received by the resource provider when it subscribes
@@ -76,10 +77,21 @@ message Event {
     repeated Resource resources = 2;
   }
 
+  // Received when an offer operation status update is being acknowledged.
+  // Acknowledgements may be generated either by a framework or by the master.
+  message AcknowledgeOfferOperation {
+    // The UUID from the `OfferOperationStatus` being acknowledged.
+    required bytes status_uuid = 1;
+
+    // The UUID from the relevant `OfferOperation`.
+    required bytes operation_uuid = 2;
+  }
+
   optional Type type = 1;
   optional Subscribed subscribed = 2;
   optional Operation operation = 3;
   optional Publish publish = 4;
+  optional AcknowledgeOfferOperation acknowledge_offer_operation = 5;
 }
 
 

@@ -2855,6 +2855,9 @@ public:
   MOCK_METHOD1_T(subscribed, void(const typename Event::Subscribed&));
   MOCK_METHOD1_T(operation, void(const typename Event::Operation&));
   MOCK_METHOD1_T(publish, void(const typename Event::Publish&));
+  MOCK_METHOD1_T(
+      acknowledgeOfferOperation,
+      void(const typename Event::AcknowledgeOfferOperation&));
 
   void events(std::queue<Event> events)
   {
@@ -2871,6 +2874,9 @@ public:
           break;
         case Event::PUBLISH:
           publish(event.publish());
+          break;
+        case Event::ACKNOWLEDGE_OFFER_OPERATION:
+          acknowledgeOfferOperation(event.acknowledge_offer_operation());
           break;
         case Event::UNKNOWN:
           LOG(FATAL) << "Received unexpected UNKNOWN event";
