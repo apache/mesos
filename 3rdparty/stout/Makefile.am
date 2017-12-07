@@ -119,8 +119,8 @@ endif
 PROTOCFLAGS = -I$(srcdir)/tests
 
 # Targets for generating C++ protocol buffer code.
-protobuf_tests.pb.cc protobuf_tests.pb.h: tests/protobuf_tests.proto
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=$(builddir) $^
+%.pb.cc %.pb.h: tests/%.proto $(BUNDLED_DEPS)
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=$(builddir) $<
 
 # Tests for stout.
 check_PROGRAMS = stout-tests
@@ -212,15 +212,18 @@ endif
 
 BUILT_SOURCES = $(BUNDLED_DEPS)
 
-BUILT_SOURCES +=			\
-  protobuf_tests.pb.cc
-
-nodist_stout_tests_SOURCES =		\
-  protobuf_tests.pb.cc
-
-CLEANFILES =				\
+PROTOBUF_TESTS_PROTOS =			\
   protobuf_tests.pb.cc			\
   protobuf_tests.pb.h
+
+BUILT_SOURCES +=			\
+  $(PROTOBUF_TESTS_PROTOS)
+
+nodist_stout_tests_SOURCES =		\
+  $(PROTOBUF_TESTS_PROTOS)
+
+CLEANFILES =				\
+  $(PROTOBUF_TESTS_PROTOS)
 
 # We use a check-local target for now to avoid the parallel test
 # runner that ships with newer versions of autotools.
