@@ -1906,6 +1906,14 @@ int NetworkCniIsolatorSetup::execute()
     return EXIT_FAILURE;
   }
 
+  // If we are in a user namespace, then our copy of the mount tree is
+  // marked unprivileged and the kernel will required us to propagate
+  // any additional flags from the underlying mount to the bind mount
+  // when we do the MS_RDONLY remount. To save the bother of reading
+  // the mount table to find the flags to propagate, we just always
+  // use the most restrictive flags here.
+  const int bindflags = MS_BIND | MS_NOEXEC | MS_NODEV | MS_NOSUID;
+
   foreachpair (const string& file, const string& source, files) {
     // Do the bind mount for network files in the host filesystem if
     // the container joins non-host network since no process in the
@@ -1952,7 +1960,7 @@ int NetworkCniIsolatorSetup::execute()
           source,
           file,
           None(),
-          MS_BIND,
+          bindflags,
           nullptr);
       if (mount.isError()) {
         cerr << "Failed to bind mount from '" << source << "' to '"
@@ -1965,7 +1973,7 @@ int NetworkCniIsolatorSetup::execute()
           source,
           file,
           None(),
-          MS_RDONLY | MS_REMOUNT | MS_BIND,
+          MS_RDONLY | MS_REMOUNT | bindflags,
           nullptr);
         if (mount.isError()) {
           cerr << "Failed to remount bind mount as readonly from '" << source
@@ -2015,7 +2023,7 @@ int NetworkCniIsolatorSetup::execute()
           source,
           target,
           None(),
-          MS_BIND,
+          bindflags,
           nullptr);
 
       if (mount.isError()) {
@@ -2029,7 +2037,7 @@ int NetworkCniIsolatorSetup::execute()
           source,
           target,
           None(),
-          MS_RDONLY | MS_REMOUNT | MS_BIND,
+          MS_RDONLY | MS_REMOUNT | bindflags,
           nullptr);
         if (mount.isError()) {
           cerr << "Failed to remount bind mount as readonly from '" << source
