@@ -2477,9 +2477,9 @@ public:
           break;
         case Event::UPDATE:
           update(mesos, event.update());
-        break;
-      case Event::OFFER_OPERATION_UPDATE:
-        offerOperationUpdate(mesos, event.offer_operation_update());
+          break;
+        case Event::OFFER_OPERATION_UPDATE:
+          offerOperationUpdate(mesos, event.offer_operation_update());
           break;
         case Event::MESSAGE:
           message(mesos, event.message());
