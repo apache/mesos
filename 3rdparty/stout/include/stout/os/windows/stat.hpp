@@ -93,41 +93,27 @@ inline bool islink(const std::string& path)
 }
 
 
-// Returns the size in Bytes of a given file system entry. When
-// applied to a symbolic link with `follow` set to
-// `DO_NOT_FOLLOW_SYMLINK`, this will return the length of the entry
-// name (strlen).
-//
-// TODO(andschwa): Replace `::_stat`. See MESOS-8275.
+// Returns the size in Bytes of a given file system entry. When applied to a
+// symbolic link with `follow` set to `DO_NOT_FOLLOW_SYMLINK`, this will return
+// zero because that's what Windows says.
 inline Try<Bytes> size(
     const std::string& path,
     const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
-  switch (follow) {
-    case FollowSymlink::DO_NOT_FOLLOW_SYMLINK: {
-      Try<::internal::windows::SymbolicLink> symlink =
-        ::internal::windows::query_symbolic_link_data(path);
-
-      if (symlink.isError()) {
-        return Error(symlink.error());
-      } else {
-        return Bytes(symlink.get().substitute_name.length());
-      }
-      break;
-    }
-    case FollowSymlink::FOLLOW_SYMLINK: {
-      struct _stat s;
-
-      if (::_stat(path.c_str(), &s) < 0) {
-        return ErrnoError("Error invoking stat for '" + path + "'");
-      } else {
-        return Bytes(s.st_size);
-      }
-      break;
-    }
+  const Try<SharedHandle> handle = (follow == FollowSymlink::FOLLOW_SYMLINK)
+    ? ::internal::windows::get_handle_follow(path)
+    : ::internal::windows::get_handle_no_follow(path);
+  if (handle.isError()) {
+    return Error("Error obtaining handle to file: " + handle.error());
   }
 
-  UNREACHABLE();
+  LARGE_INTEGER file_size;
+
+  if (::GetFileSizeEx(handle->get_handle(), &file_size) == 0) {
+    return WindowsError();
+  }
+
+  return Bytes(file_size.QuadPart);
 }
 
 
