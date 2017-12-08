@@ -32,6 +32,8 @@
 #include <process/http.hpp>
 #include <process/owned.hpp>
 
+#include <process/ssl/flags.hpp>
+
 #include <stout/gtest.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/nothing.hpp>
