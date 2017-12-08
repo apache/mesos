@@ -635,7 +635,7 @@ string Http::EXECUTOR_HELP() {
         "",
         "Returns 202 Accepted for all other Call messages iff the",
         "request is accepted."),
-    AUTHENTICATION(false));
+    AUTHENTICATION(true));
 }
 
 
