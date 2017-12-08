@@ -226,10 +226,7 @@ TEST(FlagsTest, Flags)
 }
 
 
-// TODO(hausdorff): Enable this test on Windows. Currently setting an
-// environment variable to the blank string will cause the environment variable
-// to be deleted on Windows. See MESOS-5880.
-TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, LoadFromEnvironment)
+TEST(FlagsTest, LoadFromEnvironment)
 {
   TestFlagsBase flags;
 
@@ -524,9 +521,7 @@ TEST(FlagsTest, DeprecationWarning)
 }
 
 
-// TODO(hausdorff): Enable this test on Windows. Currently `flags::parse`
-// assumes filesystems are rooted at '/'. See MESOS-5937.
-TEST_TEMP_DISABLED_ON_WINDOWS(FlagsTest, DuplicatesFromEnvironment)
+TEST(FlagsTest, DuplicatesFromEnvironment)
 {
   TestFlagsBase flags;
 
