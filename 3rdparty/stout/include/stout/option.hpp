@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <type_traits>
 
 #include <boost/functional/hash.hpp>
 
@@ -64,7 +65,9 @@ public:
     }
   }
 
-  Option(Option<T>&& that) : state(std::move(that.state))
+  Option(Option<T>&& that)
+      noexcept(std::is_nothrow_move_constructible<T>::value)
+    : state(std::move(that.state))
   {
     if (that.isSome()) {
       new (&t) T(std::move(that.t));
@@ -94,6 +97,7 @@ public:
   }
 
   Option<T>& operator=(Option<T>&& that)
+      noexcept(std::is_nothrow_move_constructible<T>::value)
   {
     if (this != &that) {
       if (isSome()) {
