@@ -466,9 +466,10 @@ protected:
   Option<DomainInfo> domain;
 
   // There are two stages of allocation. During the first stage resources
-  // are allocated only to frameworks in roles with quota set. During the
-  // second stage remaining resources that would not be required to satisfy
-  // un-allocated quota are then allocated to all frameworks.
+  // are allocated only to frameworks under roles with quota set. During
+  // the second stage remaining resources that would not be required to
+  // satisfy un-allocated quota are then allocated to frameworks under
+  // roles with no quota set.
   //
   // Each stage comprises two levels of sorting, hence "hierarchical".
   // Level 1 sorts across roles:
@@ -498,13 +499,16 @@ protected:
 
   // A sorter for active roles. This sorter determines the order in which
   // roles are allocated resources during Level 1 of the second stage.
+  // The total cluster resources are used as the resource pool.
   process::Owned<Sorter> roleSorter;
 
   // A dedicated sorter for roles for which quota is set. This sorter
   // determines the order in which quota'ed roles are allocated resources
   // during Level 1 of the first stage. Quota'ed roles have resources
-  // allocated up to their alloted quota (the first stage) prior to
-  // non-quota'ed roles (the second stage).
+  // allocated up to their allocated quota (the first stage) prior to
+  // non-quota'ed roles (the second stage). Since only non-revocable
+  // resources are available for quota, the total cluster non-revocable
+  // resoures are used as the resource pool.
   //
   // NOTE: A role appears in `quotaRoleSorter` if it has a quota (even if
   // no frameworks are currently registered in that role). In contrast,
@@ -521,7 +525,9 @@ protected:
   // A collection of sorters, one per active role. Each sorter determines
   // the order in which frameworks that belong to the same role are allocated
   // resources inside the role's share. These sorters are used during Level 2
-  // for both the first and the second stages.
+  // for both the first and the second stages. Since frameworks are sharing
+  // the resources allocated to a role, the role's allocation is used as
+  // the resource pool for each role specific framework sorter.
   hashmap<std::string, process::Owned<Sorter>> frameworkSorters;
 
   // Factory function for framework sorters.
