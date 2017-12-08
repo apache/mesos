@@ -274,7 +274,7 @@ TEST_F(CniIsolatorTest, ROOT_INTERNET_CURL_LaunchCommandTask)
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(task.task_id(), statusStarting->task_id());
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
@@ -761,7 +761,7 @@ TEST_F(CniIsolatorTest, ROOT_INTERNET_CURL_LaunchContainerInHostNetwork)
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(task.task_id(), statusStarting->task_id());
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
@@ -902,7 +902,7 @@ TEST_F(CniIsolatorTest, ROOT_DynamicAddDelofCniConfig)
 
   driver.launchTasks(offer2.id(), {task}, filters);
 
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(task.task_id(), statusStarting->task_id());
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
@@ -1373,7 +1373,7 @@ TEST_F(CniIsolatorTest, ROOT_INTERNET_CURL_ReadOnlyBindMounts)
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(task.task_id(), statusStarting->task_id());
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
@@ -1743,7 +1743,7 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(task.task_id(), statusStarting->task_id());
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
 

@@ -1031,7 +1031,7 @@ TEST_F(AppcProvisionerIntegrationTest, ROOT_SimpleLinuxImageTest)
 
   driver.launchTasks(offer.id(), {task});
 
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(120));
   EXPECT_EQ(task.task_id(), statusStarting->task_id());
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
 

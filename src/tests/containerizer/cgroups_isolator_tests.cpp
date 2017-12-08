@@ -188,7 +188,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY_FOR(statusRunning, Seconds(60));

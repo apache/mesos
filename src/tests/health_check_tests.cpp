@@ -1817,7 +1817,7 @@ TEST_F(HealthCheckTest,
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   // Increase time here to wait for pulling image finish.
@@ -2474,7 +2474,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   AWAIT_READY(containerId);
 
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   // Increase time here to wait for pulling image finish.

@@ -270,7 +270,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
   EXPECT_EQ(task.task_id(), starting->task_id());
   EXPECT_EQ(TASK_STARTING, starting->state());
 
-  AWAIT_READY(startingAck);
+  AWAIT_READY_FOR(startingAck, Seconds(120));
 
   AWAIT_READY(running);
   EXPECT_EQ(task.task_id(), running->task_id());

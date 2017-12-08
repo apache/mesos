@@ -517,7 +517,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -670,7 +670,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(statusRunning);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -802,7 +802,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -933,7 +933,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -1079,7 +1079,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
 
   AWAIT_READY(containerId);
 
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY_FOR(statusRunning, Seconds(60));
@@ -2017,7 +2017,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(containerConfig);
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -2184,7 +2184,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(containerConfig);
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -2322,7 +2322,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(containerConfig);
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -2461,7 +2461,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(containerConfig);
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -2604,7 +2604,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(containerConfig);
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -3084,7 +3084,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
   AWAIT_READY(containerConfig);
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -3222,7 +3222,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -4104,7 +4104,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToRunning)
   driver.launchTasks(offers->front().id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -4237,7 +4237,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToFinished)
 
   AWAIT_READY_FOR(containerId, Seconds(60));
 
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY_FOR(statusRunning, Seconds(60));
@@ -4360,7 +4360,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -4503,7 +4503,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Non_Root_Sandbox)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -4663,7 +4663,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DefaultDNS)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -4837,7 +4837,7 @@ TEST_F(DockerContainerizerIPv6Test, ROOT_DOCKER_LaunchIPv6HostNetwork)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -5035,7 +5035,7 @@ TEST_F(
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY_FOR(containerId, Seconds(60));
-  AWAIT_READY(statusStarting);
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());

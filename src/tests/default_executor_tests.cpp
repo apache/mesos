@@ -1624,7 +1624,7 @@ TEST_P(DefaultExecutorTest, ROOT_NoTransitionFromKillingToFinished)
           {v1::LAUNCH_GROUP(
               executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
 
-  AWAIT_READY(startingUpdate);
+  AWAIT_READY_FOR(startingUpdate, Seconds(60));
   ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
 
   AWAIT_READY_FOR(runningUpdate, Seconds(60));

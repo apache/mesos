@@ -1041,11 +1041,10 @@ TEST_F(NestedMesosContainerizerTest,
 
   driver.launchTasks(offers->at(0).id(), {task});
 
-  AWAIT_READY(statusStarting);
+  // We wait wait up to 120 seconds to download the docker image.
+  AWAIT_READY_FOR(statusStarting, Seconds(120));
   ASSERT_EQ(TASK_STARTING, statusStarting->state());
 
-  // We wait wait up to 120 seconds
-  // to download the docker image.
   AWAIT_READY_FOR(statusRunning, Seconds(120));
   ASSERT_EQ(TASK_RUNNING, statusRunning->state());
 

@@ -293,7 +293,7 @@ TEST_F(NvidiaGpuTest, ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_NvidiaDockerImage)
 
   driver.launchTasks(offers2->at(0).id(), {task2});
 
-  AWAIT_READY(statusStarting2);
+  AWAIT_READY_FOR(statusStarting2, Seconds(120));
   ASSERT_EQ(TASK_STARTING, statusStarting2->state());
 
   AWAIT_READY_FOR(statusRunning2, Seconds(120));
