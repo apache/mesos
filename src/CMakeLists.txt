@@ -364,6 +364,9 @@ set(SECRET_SRC
 set(STATE_SRC
   state/in_memory.cpp)
 
+set(STATUS_UPDATE_MANAGER_SRC
+  status_update_manager/offer_operation.cpp)
+
 if (NOT WIN32)
   list(APPEND STATE_SRC
     state/leveldb.cpp
@@ -431,6 +434,7 @@ set(MESOS_SRC
   ${SCHEDULER_SRC}
   ${SECRET_SRC}
   ${STATE_SRC}
+  ${STATUS_UPDATE_MANAGER_SRC}
   ${URI_SRC}
   ${USAGE_SRC}
   ${V1_SRC}
