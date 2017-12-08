@@ -53,10 +53,21 @@ message Call {
     GET_STATE = 9;
 
     GET_CONTAINERS = 10;
-    GET_FRAMEWORKS = 11;    // Retrieves the information about known frameworks.
-    GET_EXECUTORS = 12;     // Retrieves the information about known executors.
-    GET_TASKS = 13;         // Retrieves the information about known tasks.
-    GET_AGENT = 20;         // Retrieves the agent information.
+
+    // Retrieves the information about known frameworks.
+    GET_FRAMEWORKS = 11;
+
+    // Retrieves the information about known executors.
+    GET_EXECUTORS = 12;
+
+    // Retrieves the information about known tasks.
+    GET_TASKS = 13;
+
+    // Retrieves the agent information.
+    GET_AGENT = 20;
+
+    // Retrieves the information about known resource providers.
+    GET_RESOURCE_PROVIDERS = 26;
 
     // Calls for managing nested containers underneath an executor's container.
     // Some of these calls are deprecated in favor of the calls
@@ -321,6 +332,7 @@ message Response {
     GET_EXECUTORS = 11;            // See 'GetExecutors' below.
     GET_TASKS = 12;                // See 'GetTasks' below.
     GET_AGENT = 14;                // See 'GetAgent' below.
+    GET_RESOURCE_PROVIDERS = 16;   // See 'GetResourceProviders' below.
 
     WAIT_NESTED_CONTAINER = 13 [deprecated = true];
     WAIT_CONTAINER = 15;           // See 'WaitContainer' below.
@@ -437,6 +449,16 @@ message Response {
     optional SlaveInfo slave_info = 1;
   }
 
+  // Lists information about all resource providers known to the agent
+  // at the current time.
+  message GetResourceProviders {
+    message ResourceProvider {
+      required ResourceProviderInfo resource_provider_info = 1;
+    }
+
+    repeated ResourceProvider resource_providers = 1;
+  }
+
   // Returns termination information about the nested container.
   message WaitNestedContainer {
     // Wait status of the lead process in the container. Note that this
@@ -496,6 +518,7 @@ message Response {
   optional GetExecutors get_executors = 12;
   optional GetTasks get_tasks = 13;
   optional GetAgent get_agent = 15;
+  optional GetResourceProviders get_resource_providers = 17;
   optional WaitNestedContainer wait_nested_container = 14;
   optional WaitContainer wait_container = 16;
 }

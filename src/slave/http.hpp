@@ -200,6 +200,11 @@ private:
       ContentType acceptType,
       const Option<process::http::authentication::Principal>& principal) const;
 
+  process::Future<process::http::Response> getResourceProviders(
+      const mesos::agent::Call& call,
+      ContentType acceptType,
+      const Option<process::http::authentication::Principal>& principal) const;
+
   process::Future<process::http::Response> getState(
       const mesos::agent::Call& call,
       ContentType acceptType,

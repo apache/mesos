@@ -577,6 +577,9 @@ Future<Response> Http::_api(
     case mesos::agent::Call::GET_AGENT:
       return getAgent(call, mediaTypes.accept, principal);
 
+    case mesos::agent::Call::GET_RESOURCE_PROVIDERS:
+      return getResourceProviders(call, mediaTypes.accept, principal);
+
     case mesos::agent::Call::LAUNCH_NESTED_CONTAINER:
       return launchNestedContainer(call, mediaTypes.accept, principal);
 
@@ -1850,6 +1853,37 @@ Future<Response> Http::getAgent(
 
   return OK(serialize(acceptType, evolve(response)),
             stringify(acceptType));
+}
+
+
+Future<Response> Http::getResourceProviders(
+    const mesos::agent::Call& call,
+    ContentType acceptType,
+    const Option<Principal>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::GET_RESOURCE_PROVIDERS, call.type());
+
+  LOG(INFO) << "Processing GET_RESOURCE_PROVIDERS call";
+
+  // TODO(nfnt): Authorize this call (MESOS-8314).
+
+  agent::Response response;
+  response.set_type(mesos::agent::Response::GET_RESOURCE_PROVIDERS);
+
+  agent::Response::GetResourceProviders* resourceProviders =
+    response.mutable_get_resource_providers();
+
+  foreachvalue (
+      const ResourceProviderInfo& resourceProviderInfo,
+      slave->resourceProviderInfos) {
+    agent::Response::GetResourceProviders::ResourceProvider* resourceProvider =
+      resourceProviders->add_resource_providers();
+
+    resourceProvider->mutable_resource_provider_info()->CopyFrom(
+        resourceProviderInfo);
+  }
+
+  return OK(serialize(acceptType, evolve(response)), stringify(acceptType));
 }
 
 
