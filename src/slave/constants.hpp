@@ -50,6 +50,8 @@ constexpr Duration DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5);
 
 constexpr Duration RECOVERY_TIMEOUT = Minutes(15);
 
+// TODO(gkleiman): Move this to a different file once `TaskStatusUpdateManager`
+// uses `StatusUpdateManagerProcess`. See MESOS-8296.
 constexpr Duration STATUS_UPDATE_RETRY_INTERVAL_MIN = Seconds(10);
 constexpr Duration STATUS_UPDATE_RETRY_INTERVAL_MAX = Minutes(10);
 
