@@ -263,7 +263,7 @@ TEST_F(NvidiaGpuTest, ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_NvidiaDockerImage)
   // We wait wait up to 120 seconds
   // to download the docker image.
   AWAIT_READY_FOR(statusStarting1, Seconds(120));
-  ASSERT_EQ(TASK_RUNNING, statusRunning1->state());
+  ASSERT_EQ(TASK_STARTING, statusStarting1->state());
 
   AWAIT_READY_FOR(statusRunning1, Seconds(120));
   ASSERT_EQ(TASK_RUNNING, statusRunning1->state());
