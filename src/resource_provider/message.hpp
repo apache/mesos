@@ -45,7 +45,7 @@ struct ResourceProviderMessage
 
   struct UpdateState
   {
-    ResourceProviderID id;
+    ResourceProviderInfo info;
     UUID resourceVersionUuid;
     Resources total;
     std::vector<OfferOperation> operations;
@@ -76,7 +76,7 @@ inline std::ostream& operator<<(
 
       return stream
           << "UPDATE_STATE: "
-          << updateState->id << " "
+          << updateState->info.id() << " "
           << updateState->total;
     }
 

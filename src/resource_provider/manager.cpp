@@ -654,7 +654,7 @@ void ResourceProviderManagerProcess::updateState(
     << resourceProvider->info.id() << ": " << resourceVersionUuid.error();
 
   ResourceProviderMessage::UpdateState updateState{
-      resourceProvider->info.id(),
+      resourceProvider->info,
       resourceVersionUuid.get(),
       update.resources(),
       {update.operations().begin(), update.operations().end()}};

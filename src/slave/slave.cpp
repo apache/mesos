@@ -7083,7 +7083,18 @@ void Slave::handleResourceProviderMessage(
 
       const Resources& newTotal = message->updateState->total;
 
-      const ResourceProviderID& resourceProviderId = message->updateState->id;
+      CHECK(message->updateState->info.has_id());
+
+      const ResourceProviderID& resourceProviderId =
+        message->updateState->info.id();
+
+      if (resourceProviderInfos.contains(resourceProviderId)) {
+        resourceProviderInfos[resourceProviderId] = message->updateState->info;
+      } else {
+        resourceProviderInfos.put(
+            resourceProviderId,
+            message->updateState->info);
+      }
 
       const Resources oldTotal =
         totalResources.filter([&resourceProviderId](const Resource& resource) {

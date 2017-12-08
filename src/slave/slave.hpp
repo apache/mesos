@@ -725,6 +725,8 @@ private:
   process::Owned<LocalResourceProviderDaemon> localResourceProviderDaemon;
   hashmap<Option<ResourceProviderID>, UUID> resourceVersions;
 
+  hashmap<ResourceProviderID, ResourceProviderInfo> resourceProviderInfos;
+
   // Pending operations or terminal operations that have
   // unacknowledged status updates.
   hashmap<UUID, OfferOperation*> offerOperations;
