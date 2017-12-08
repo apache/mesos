@@ -1041,7 +1041,7 @@ TEST_F(NestedMesosContainerizerTest,
 
   driver.launchTasks(offers->at(0).id(), {task});
 
-  AWAIT_READY(statusRunning);
+  AWAIT_READY(statusStarting);
   ASSERT_EQ(TASK_STARTING, statusStarting->state());
 
   // We wait wait up to 120 seconds
