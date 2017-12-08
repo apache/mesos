@@ -160,5 +160,15 @@ ostream& operator<<(ostream& stream, const StatusUpdateRecord::Type& type)
     << StatusUpdateRecord::Type_descriptor()->FindValueByNumber(type)->name();
 }
 
+
+ostream& operator<<(
+    ostream& stream,
+    const OfferOperationStatusUpdateRecord::Type& type)
+{
+  return stream << OfferOperationStatusUpdateRecord::Type_descriptor()
+                     ->FindValueByNumber(type)
+                     ->name();
+}
+
 } // namespace internal {
 } // namespace mesos {

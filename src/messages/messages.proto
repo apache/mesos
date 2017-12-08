@@ -753,6 +753,27 @@ message OfferOperationStatusUpdate {
 
 
 /**
+ * Encapsulates how we checkpoint an `OfferOperationStatusUpdate` to disk.
+ *
+ * See the `OfferOperationStatusUpdateManager`.
+ */
+message OfferOperationStatusUpdateRecord {
+  enum Type {
+    UPDATE = 0;
+    ACK = 1;
+  }
+
+  required Type type = 1;
+
+  // Required if type == UPDATE.
+  optional OfferOperationStatusUpdate update = 2;
+
+  // Required if type == ACK.
+  optional bytes uuid = 3;
+}
+
+
+/**
  * This message is sent from the master to the resource provider
  * manager (either on the agent for local resource providers, or on
  * the master for external resource providers) to apply an offer

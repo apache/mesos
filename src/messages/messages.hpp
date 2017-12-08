@@ -67,6 +67,11 @@ std::ostream& operator<<(
     std::ostream& stream,
     const StatusUpdateRecord::Type& type);
 
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const OfferOperationStatusUpdateRecord::Type& type);
+
 } // namespace internal {
 } // namespace mesos {
 
