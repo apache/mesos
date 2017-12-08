@@ -328,29 +328,37 @@ inline Try<Nothing> create_symbolic_link(
   // Bail out if target is already a reparse point.
   Try<bool> attribute_set = reparse_point_attribute_set(longpath(target));
   if (attribute_set.isSome() && attribute_set.get()) {
-    return Error(
-        "Path '" + target + "' is already a reparse point");
+    return Error("Path '" + target + "' is already a reparse point");
   }
 
-  // Avoid requiring administrative privileges to create symbolic links.
-  DWORD flags = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
-  if (target_is_folder) {
-    flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
-  }
+  DWORD flags = target_is_folder ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
+
+  // Lambda to create symlink with given flags.
+  auto link = [&reparse_point, &target](const DWORD flags) {
+    return ::CreateSymbolicLinkW(
+        // Path to link.
+        longpath(reparse_point).data(),
+        // Path to target.
+        longpath(target).data(),
+        flags);
+  };
 
   // `CreateSymbolicLink` normally adjusts the process token's privileges to
   // allow for symlink creation; however, we explicitly avoid this with the
-  // above flag.
-  if (!::CreateSymbolicLinkW(
-          // Path to link.
-          longpath(reparse_point).data(),
-          // Path to target.
-          longpath(target).data(),
-          flags)) {
-    return WindowsError();
+  // following flag to not require administrative privileges.
+  if (link(flags | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)) {
+    return Nothing();
   }
 
-  return Nothing();
+  // If this failed because the non-symbolic link feature was not supported,
+  // try again without the feature. This is for legacy support.
+  if (::GetLastError() == ERROR_INVALID_PARAMETER) {
+    if (link(flags)) {
+      return Nothing();
+    }
+  }
+
+  return WindowsError();
 }
 
 } // namespace windows {
