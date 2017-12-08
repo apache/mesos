@@ -2834,7 +2834,7 @@ public:
               Source>::subscribedDefault));
     EXPECT_CALL(*this, subscribed(_)).WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, operation(_))
+    ON_CALL(*this, applyOfferOperation(_))
       .WillByDefault(Invoke(
           this,
           &MockResourceProvider<
@@ -2848,7 +2848,7 @@ public:
               OfferOperationState,
               Operation,
               Source>::operationDefault));
-    EXPECT_CALL(*this, operation(_)).WillRepeatedly(DoDefault());
+    EXPECT_CALL(*this, applyOfferOperation(_)).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, publishResources(_))
       .WillByDefault(Invoke(
@@ -2870,7 +2870,9 @@ public:
   MOCK_METHOD0_T(connected, void());
   MOCK_METHOD0_T(disconnected, void());
   MOCK_METHOD1_T(subscribed, void(const typename Event::Subscribed&));
-  MOCK_METHOD1_T(operation, void(const typename Event::Operation&));
+  MOCK_METHOD1_T(
+      applyOfferOperation,
+      void(const typename Event::ApplyOfferOperation&));
   MOCK_METHOD1_T(
       publishResources,
       void(const typename Event::PublishResources&));
@@ -2891,8 +2893,8 @@ public:
         case Event::SUBSCRIBED:
           subscribed(event.subscribed());
           break;
-        case Event::OPERATION:
-          operation(event.operation());
+        case Event::APPLY_OFFER_OPERATION:
+          applyOfferOperation(event.apply_offer_operation());
           break;
         case Event::PUBLISH_RESOURCES:
           publishResources(event.publish_resources());
@@ -3000,7 +3002,7 @@ public:
     }
   }
 
-  void operationDefault(const typename Event::Operation& operation)
+  void operationDefault(const typename Event::ApplyOfferOperation& operation)
   {
     CHECK(info.has_id());
 

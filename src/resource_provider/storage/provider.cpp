@@ -329,7 +329,7 @@ private:
 
   // Functions for received events.
   void subscribed(const Event::Subscribed& subscribed);
-  void operation(const Event::Operation& operation);
+  void applyOfferOperation(const Event::ApplyOfferOperation& operation);
   void publishResources(const Event::PublishResources& publish);
   void acknowledgeOfferOperation(
       const Event::AcknowledgeOfferOperation& acknowledge);
@@ -411,7 +411,7 @@ private:
   // NOTE: We store the list of pending operations in a `LinkedHashMap`
   // to preserve the order we receive the operations. This is useful
   // when we replay depending operations during recovery.
-  LinkedHashMap<UUID, Event::Operation> pendingOperations;
+  LinkedHashMap<UUID, Event::ApplyOfferOperation> pendingOperations;
   Resources totalResources;
   Option<UUID> resourceVersion;
   hashmap<string, VolumeData> volumes;
@@ -448,9 +448,9 @@ void StorageLocalResourceProviderProcess::received(const Event& event)
       subscribed(event.subscribed());
       break;
     }
-    case Event::OPERATION: {
-      CHECK(event.has_operation());
-      operation(event.operation());
+    case Event::APPLY_OFFER_OPERATION: {
+      CHECK(event.has_apply_offer_operation());
+      applyOfferOperation(event.apply_offer_operation());
       break;
     }
     case Event::PUBLISH_RESOURCES: {
@@ -587,7 +587,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
         }
 
         if (resourceProviderState.isSome()) {
-          foreach (const Event::Operation& operation,
+          foreach (const Event::ApplyOfferOperation& operation,
                    resourceProviderState->operations()) {
             Try<UUID> uuid = UUID::fromBytes(operation.operation_uuid());
             CHECK_SOME(uuid);
@@ -965,8 +965,8 @@ void StorageLocalResourceProviderProcess::subscribed(
 }
 
 
-void StorageLocalResourceProviderProcess::operation(
-    const Event::Operation& operation)
+void StorageLocalResourceProviderProcess::applyOfferOperation(
+    const Event::ApplyOfferOperation& operation)
 {
   Future<Resources> converted;
 
@@ -2026,7 +2026,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::applyOfferOperation(
   Option<Error> error;
 
   CHECK(pendingOperations.contains(operationUuid));
-  const Event::Operation& operation = pendingOperations.at(operationUuid);
+  const Event::ApplyOfferOperation& operation =
+    pendingOperations.at(operationUuid);
 
   Try<UUID> operationVersion =
     UUID::fromBytes(operation.resource_version_uuid());
@@ -2295,7 +2296,8 @@ Try<Nothing> StorageLocalResourceProviderProcess::applyResourceConversions(
   Option<Error> error;
 
   CHECK(pendingOperations.contains(operationUuid));
-  const Event::Operation& operation = pendingOperations.at(operationUuid);
+  const Event::ApplyOfferOperation& operation =
+    pendingOperations.at(operationUuid);
 
   if (conversions.isSome()) {
     // Strip away the allocation info when applying the convertion to
@@ -2388,7 +2390,9 @@ void StorageLocalResourceProviderProcess::checkpointResourceProviderState()
 {
   ResourceProviderState state;
 
-  foreachvalue (const Event::Operation& operation, pendingOperations) {
+  foreachvalue (
+      const Event::ApplyOfferOperation& operation,
+      pendingOperations) {
     state.add_operations()->CopyFrom(operation);
   }
 
@@ -2414,7 +2418,7 @@ void StorageLocalResourceProviderProcess::sendResourceProviderStateUpdate()
   Call::UpdateState* update = call.mutable_update_state();
 
   foreachpair (const UUID& uuid,
-               const Event::Operation& operation,
+               const Event::ApplyOfferOperation& operation,
                pendingOperations) {
     // TODO(chhsiao): Maintain a list of terminated but unacknowledged
     // offer operations in memory and reconstruc that during recovery

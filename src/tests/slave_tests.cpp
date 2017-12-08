@@ -9214,8 +9214,8 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
 
   // We now perform a `RESERVE` operation on the offered resources,
   // but let the operation fail in the resource provider.
-  Future<v1::resource_provider::Event::Operation> operation;
-  EXPECT_CALL(resourceProvider, operation(_))
+  Future<v1::resource_provider::Event::ApplyOfferOperation> operation;
+  EXPECT_CALL(resourceProvider, applyOfferOperation(_))
     .WillOnce(FutureArg<0>(&operation));
 
   {

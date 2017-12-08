@@ -779,7 +779,7 @@ message OfferOperationStatusUpdateRecord {
  * the master for external resource providers) to apply an offer
  * operation.
  *
- * See resource_provider::Event::OPERATION.
+ * See resource_provider::Event::APPLY_OFFER_OPERATION.
  */
 message ApplyOfferOperationMessage {
   optional FrameworkID framework_id = 1;

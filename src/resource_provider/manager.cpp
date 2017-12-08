@@ -389,11 +389,13 @@ void ResourceProviderManagerProcess::applyOfferOperation(
     << resourceProviderId.get();
 
   Event event;
-  event.set_type(Event::OPERATION);
-  event.mutable_operation()->mutable_framework_id()->CopyFrom(frameworkId);
-  event.mutable_operation()->mutable_info()->CopyFrom(operation);
-  event.mutable_operation()->set_operation_uuid(message.operation_uuid());
-  event.mutable_operation()->set_resource_version_uuid(
+  event.set_type(Event::APPLY_OFFER_OPERATION);
+  event.mutable_apply_offer_operation()
+    ->mutable_framework_id()->CopyFrom(frameworkId);
+  event.mutable_apply_offer_operation()->mutable_info()->CopyFrom(operation);
+  event.mutable_apply_offer_operation()
+    ->set_operation_uuid(message.operation_uuid());
+  event.mutable_apply_offer_operation()->set_resource_version_uuid(
       message.resource_version_uuid().uuid());
 
   if (!resourceProvider->http.send(event)) {
