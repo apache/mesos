@@ -434,6 +434,55 @@ bool operator==(
 
 
 bool operator==(
+    const OfferOperationStatus& left,
+    const OfferOperationStatus& right)
+{
+  if (left.has_operation_id() != right.has_operation_id()) {
+    return false;
+  }
+
+  if (left.has_operation_id() && left.operation_id() != right.operation_id()) {
+    return false;
+  }
+
+  if (left.state() != right.state()) {
+    return false;
+  }
+
+  if (left.has_message() != right.has_message()) {
+    return false;
+  }
+
+  if (left.has_message() && left.message() != right.message()) {
+    return false;
+  }
+
+  if (Resources(left.converted_resources()) !=
+      Resources(right.converted_resources())) {
+    return false;
+  }
+
+  if (left.has_status_uuid() != right.has_status_uuid()) {
+    return false;
+  }
+
+  if (left.has_status_uuid() && left.status_uuid() != right.status_uuid()) {
+    return false;
+  }
+
+  return true;
+}
+
+
+bool operator!=(
+    const OfferOperationStatus& left,
+    const OfferOperationStatus& right)
+{
+  return !(left == right);
+}
+
+
+bool operator==(
     const ResourceStatistics& left,
     const ResourceStatistics& right)
 {

@@ -64,6 +64,10 @@ bool operator==(const Labels& left, const Labels& right);
 bool operator==(const MasterInfo& left, const MasterInfo& right);
 
 bool operator==(
+    const OfferOperationStatus& left,
+    const OfferOperationStatus& right);
+
+bool operator==(
     const ResourceProviderInfo& left,
     const ResourceProviderInfo& right);
 
@@ -82,6 +86,11 @@ bool operator==(const Volume& left, const Volume& right);
 bool operator!=(const CheckStatusInfo& left, const CheckStatusInfo& right);
 bool operator!=(const ExecutorInfo& left, const ExecutorInfo& right);
 bool operator!=(const Labels& left, const Labels& right);
+
+bool operator!=(
+    const OfferOperationStatus& left,
+    const OfferOperationStatus& right);
+
 bool operator!=(const TaskStatus& left, const TaskStatus& right);
 
 inline bool operator==(const ExecutorID& left, const ExecutorID& right)
