@@ -64,7 +64,7 @@ public:
           "name": "test",
           "default_reservations": [
             {
-              "type": "STATIC",
+              "type": "DYNAMIC",
               "role": "storage"
             }
           ],
@@ -120,6 +120,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateVolumeAndDestroyVolume)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux";
 
   // Disable HTTP authentication to simplify resource provider interactions.
   flags.authenticate_http_readwrite = false;
@@ -297,6 +298,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux";
 
   // Disable HTTP authentication to simplify resource provider interactions.
   flags.authenticate_http_readwrite = false;
