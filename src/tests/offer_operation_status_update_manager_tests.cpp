@@ -31,6 +31,8 @@
 #include <stout/protobuf.hpp>
 #include <stout/uuid.hpp>
 
+#include <stout/os/ftruncate.hpp>
+
 #include "slave/constants.hpp"
 
 #include "tests/mesos.hpp"
