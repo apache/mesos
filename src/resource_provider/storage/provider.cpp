@@ -2347,8 +2347,11 @@ Try<Nothing> StorageLocalResourceProviderProcess::applyResourceConversions(
 
   Call::UpdateOfferOperationStatus* update =
     call.mutable_update_offer_operation_status();
-  update->mutable_framework_id()->CopyFrom(operation.framework_id());
   update->set_operation_uuid(operation.operation_uuid());
+
+  if (operation.has_framework_id()) {
+    update->mutable_framework_id()->CopyFrom(operation.framework_id());
+  }
 
   OfferOperationStatus* status = update->mutable_status();
   status->set_status_uuid(UUID::random().toBytes());
@@ -2448,9 +2451,9 @@ void StorageLocalResourceProviderProcess::sendResourceProviderStateUpdate()
             protobuf::createOfferOperationStatus(
                 OFFER_OPERATION_PENDING,
                 operation.info().has_id()
-                  ? Option<OfferOperationID>(operation.info().id())
-                  : None()),
-            operation.framework_id(),
+                  ? operation.info().id() : Option<OfferOperationID>::none()),
+            operation.has_framework_id()
+              ? operation.framework_id() : Option<FrameworkID>::none(),
             slaveId,
             uuid));
   }

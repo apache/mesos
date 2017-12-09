@@ -48,7 +48,7 @@ message Event {
   // Received when the master wants to send an operation to the
   // resource provider.
   message ApplyOfferOperation {
-    required FrameworkID framework_id = 1;
+    optional FrameworkID framework_id = 1;
     required Offer.Operation info = 2;
 
     // This is the internal UUID for the operation, which is kept
@@ -126,7 +126,7 @@ message Call {
 
   // Notify the master about the status of an operation.
   message UpdateOfferOperationStatus {
-    required FrameworkID framework_id = 1;
+    optional FrameworkID framework_id = 1;
     required OfferOperationStatus status = 2;
     optional OfferOperationStatus latest_status = 3;
 
