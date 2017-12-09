@@ -646,18 +646,26 @@ void ResourceProviderManagerProcess::updateState(
 
   // TODO(chhsiao): Report pending operations.
 
-  Try<UUID> resourceVersionUuid =
+  Try<UUID> resourceVersion =
     UUID::fromBytes(update.resource_version_uuid());
 
-  CHECK_SOME(resourceVersionUuid)
+  CHECK_SOME(resourceVersion)
     << "Could not deserialize version of resource provider "
-    << resourceProvider->info.id() << ": " << resourceVersionUuid.error();
+    << resourceProvider->info.id() << ": " << resourceVersion.error();
+
+  hashmap<UUID, OfferOperation> offerOperations;
+  foreach (const OfferOperation &operation, update.operations()) {
+    Try<UUID> uuid = UUID::fromBytes(operation.operation_uuid());
+    CHECK_SOME(uuid);
+
+    offerOperations.put(uuid.get(), operation);
+  }
 
   ResourceProviderMessage::UpdateState updateState{
       resourceProvider->info,
-      resourceVersionUuid.get(),
+      resourceVersion.get(),
       update.resources(),
-      {update.operations().begin(), update.operations().end()}};
+      std::move(offerOperations)};
 
   ResourceProviderMessage message;
   message.type = ResourceProviderMessage::Type::UPDATE_STATE;

@@ -1929,6 +1929,9 @@ Option<Error> validateInverseOffers(
 
 namespace operation {
 
+// TODO(jieyu): Validate that resources in an operation is not empty.
+
+
 Option<Error> validate(
     const Offer::Operation::Reserve& reserve,
     const Option<Principal>& principal,

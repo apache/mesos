@@ -1883,14 +1883,13 @@ Future<Response> Http::getResourceProviders(
   agent::Response::GetResourceProviders* resourceProviders =
     response.mutable_get_resource_providers();
 
-  foreachvalue (
-      const ResourceProviderInfo& resourceProviderInfo,
-      slave->resourceProviderInfos) {
-    agent::Response::GetResourceProviders::ResourceProvider* resourceProvider =
+  foreachvalue (ResourceProvider* resourceProvider,
+                slave->resourceProviders) {
+    agent::Response::GetResourceProviders::ResourceProvider* provider =
       resourceProviders->add_resource_providers();
 
-    resourceProvider->mutable_resource_provider_info()->CopyFrom(
-        resourceProviderInfo);
+    provider->mutable_resource_provider_info()
+      ->CopyFrom(resourceProvider->info);
   }
 
   return OK(serialize(acceptType, evolve(response)), stringify(acceptType));

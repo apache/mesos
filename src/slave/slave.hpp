@@ -108,6 +108,7 @@ class Executor;
 class Framework;
 
 struct HttpConnection;
+struct ResourceProvider;
 
 
 class Slave : public ProtobufProcess<Slave>
@@ -577,6 +578,9 @@ private:
 
   OfferOperation* getOfferOperation(const UUID& uuid) const;
 
+  void addResourceProvider(ResourceProvider* resourceProvider);
+  ResourceProvider* getResourceProvider(const ResourceProviderID& id) const;
+
   void apply(const std::vector<ResourceConversion>& conversions);
 
   // Publish all resources that are needed to run the current set of
@@ -730,12 +734,28 @@ private:
 
   ResourceProviderManager resourceProviderManager;
   process::Owned<LocalResourceProviderDaemon> localResourceProviderDaemon;
-  hashmap<Option<ResourceProviderID>, UUID> resourceVersions;
 
-  hashmap<ResourceProviderID, ResourceProviderInfo> resourceProviderInfos;
+  // Local resource providers known by the agent.
+  hashmap<ResourceProviderID, ResourceProvider*> resourceProviders;
 
-  // Pending operations or terminal operations that have
-  // unacknowledged status updates.
+  // Used to establish the relationship between the operation and the
+  // resources that the operation is operating on. Each resource
+  // provider will keep a resource version UUID, and change it when it
+  // believes that the resources from this resource provider are out
+  // of sync from the master's view.  The master will keep track of
+  // the last known resource version UUID for each resource provider,
+  // and attach the resource version UUID in each operation it sends
+  // out. The resource provider should reject operations that have a
+  // different resource version UUID than that it maintains, because
+  // this means the operation is operating on resources that might
+  // have already been invalidated.
+  UUID resourceVersion;
+
+  // Keeps track of the following:
+  // (1) Pending operations for resources from the agent.
+  // (2) Pending operations or terminal operations that have
+  //     unacknowledged status updates for resource provider
+  //     provided resources.
   hashmap<UUID, OfferOperation*> offerOperations;
 };
 
@@ -1031,6 +1051,41 @@ public:
 private:
   Framework(const Framework&) = delete;
   Framework& operator=(const Framework&) = delete;
+};
+
+
+struct ResourceProvider
+{
+  ResourceProvider(
+      const ResourceProviderInfo& _info,
+      const Resources& _totalResources,
+      const UUID& _resourceVersion)
+    : info(_info),
+      totalResources(_totalResources),
+      resourceVersion(_resourceVersion) {}
+
+  void addOfferOperation(OfferOperation* operation);
+  void removeOfferOperation(OfferOperation* operation);
+
+  ResourceProviderInfo info;
+  Resources totalResources;
+
+  // Used to establish the relationship between the operation and the
+  // resources that the operation is operating on. Each resource
+  // provider will keep a resource version UUID, and change it when it
+  // believes that the resources from this resource provider are out
+  // of sync from the master's view.  The master will keep track of
+  // the last known resource version UUID for each resource provider,
+  // and attach the resource version UUID in each operation it sends
+  // out. The resource provider should reject operations that have a
+  // different resource version UUID than that it maintains, because
+  // this means the operation is operating on resources that might
+  // have already been invalidated.
+  UUID resourceVersion;
+
+  // Pending operations or terminal operations that have
+  // unacknowledged status updates.
+  hashmap<UUID, OfferOperation*> offerOperations;
 };
 
 

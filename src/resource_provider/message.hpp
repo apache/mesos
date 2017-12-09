@@ -24,6 +24,7 @@
 #include <mesos/resources.hpp>
 
 #include <stout/check.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/option.hpp>
 #include <stout/protobuf.hpp>
@@ -46,9 +47,9 @@ struct ResourceProviderMessage
   struct UpdateState
   {
     ResourceProviderInfo info;
-    UUID resourceVersionUuid;
-    Resources total;
-    std::vector<OfferOperation> operations;
+    UUID resourceVersion;
+    Resources totalResources;
+    hashmap<UUID, OfferOperation> offerOperations;
   };
 
   struct UpdateOfferOperationStatus
@@ -77,7 +78,7 @@ inline std::ostream& operator<<(
       return stream
           << "UPDATE_STATE: "
           << updateState->info.id() << " "
-          << updateState->total;
+          << updateState->totalResources;
     }
 
     case ResourceProviderMessage::Type::UPDATE_OFFER_OPERATION_STATUS: {

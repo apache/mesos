@@ -343,7 +343,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
     EXPECT_EQ(
         devolve(resourceProviderId.get()),
         message->updateState->info.id());
-    EXPECT_EQ(devolve(resources), message->updateState->total);
+    EXPECT_EQ(devolve(resources), message->updateState->totalResources);
   }
 }
 
