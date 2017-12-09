@@ -17,13 +17,15 @@
 
 TEST(UriTest, TestUriFromPath)
 {
-  EXPECT_EQ("file://", uri::from_path(""));
+  EXPECT_EQ(uri::FILE_PREFIX, uri::from_path(""));
+
   EXPECT_EQ(
-      "file:///absolute/path/on/linux",
+      uri::FILE_PREFIX + "/absolute/path/on/linux",
       uri::from_path("/absolute/path/on/linux"));
 
 #ifdef __WINDOWS__
   EXPECT_EQ(
-      "file://C:/somedir/somefile", uri::from_path("C:\\somedir\\somefile"));
+      uri::FILE_PREFIX + "C:/somedir/somefile",
+      uri::from_path("C:\\somedir\\somefile"));
 #endif // __WINDOWS__
 }

@@ -20,6 +20,9 @@
 
 namespace uri {
 
+const std::string FILE_PREFIX = "file://";
+
+
 // Returns a valid URI containing a filename.
 //
 // On Windows, the / character is replaced with \ since that's the path
@@ -28,9 +31,9 @@ namespace uri {
 inline std::string from_path(const std::string& filepath)
 {
 #ifdef __WINDOWS__
-  return "file://" + strings::replace(filepath, "\\", "/");
+  return FILE_PREFIX + strings::replace(filepath, "\\", "/");
 #else
-  return "file://" + filepath;
+  return FILE_PREFIX + filepath;
 #endif // __WINDOWS__
 }
 
