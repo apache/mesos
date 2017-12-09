@@ -31,6 +31,7 @@
 #include <stout/net.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
+#include <stout/uri.hpp>
 #ifdef __WINDOWS__
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
@@ -69,9 +70,6 @@ using process::Subprocess;
 namespace mesos {
 namespace internal {
 namespace slave {
-
-static const string FILE_URI_PREFIX = "file://";
-static const string FILE_URI_LOCALHOST = "file://localhost";
 
 static const string CACHE_FILE_NAME_PREFIX = "c";
 
@@ -191,20 +189,16 @@ Result<string> Fetcher::uriToLocalPath(
     const string& uri,
     const Option<string>& frameworksHome)
 {
-  if (!strings::startsWith(uri, FILE_URI_PREFIX) &&
-      strings::contains(uri, "://")) {
+  const bool fileUri = strings::startsWith(uri, uri::FILE_PREFIX);
+
+  if (!fileUri && strings::contains(uri, "://")) {
     return None();
   }
 
-  string path = uri;
-  bool fileUri = false;
-
-  if (strings::startsWith(path, FILE_URI_LOCALHOST)) {
-    path = path.substr(FILE_URI_LOCALHOST.size());
-    fileUri = true;
-  }
-
-  path = path::from_uri(path);
+  // TODO(andschwa): Fix `path::from_uri` to remove hostname component, which it
+  // currently does not do, so we remove `localhost` manually here.
+  string path =
+    strings::remove(path::from_uri(uri), "localhost", strings::PREFIX);
 
   if (!path::absolute(path)) {
     if (fileUri) {
