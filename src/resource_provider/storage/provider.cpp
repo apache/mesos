@@ -238,17 +238,20 @@ static inline http::Headers getAuthHeader(const Option<string>& authToken)
 
 
 static inline Resource createRawDiskResource(
-    const ResourceProviderID& resourceProviderId,
+    const ResourceProviderInfo& info,
     double capacity,
     const Option<string>& profile,
     const Option<string>& id = None(),
     const Option<Labels>& metadata = None())
 {
+  CHECK(info.has_id());
+
   Resource resource;
   resource.set_name("disk");
   resource.set_type(Value::SCALAR);
   resource.mutable_scalar()->set_value(capacity);
-  resource.mutable_provider_id()->CopyFrom(resourceProviderId),
+  resource.mutable_provider_id()->CopyFrom(info.id()),
+  resource.mutable_reservations()->CopyFrom(info.default_reservations());
   resource.mutable_disk()->mutable_source()
     ->set_type(Resource::DiskInfo::Source::RAW);
 
@@ -870,17 +873,24 @@ void StorageLocalResourceProviderProcess::doReliableRegistration()
 Future<Nothing> StorageLocalResourceProviderProcess::reconcile()
 {
   return importResources()
-    .then(defer(self(), [=](Resources imported) {
-      // NOTE: We do not support decreasing the total resources for now.
-      // Any resource in the checkpointed state will be reported to the
-      // resource provider manager, even if it is missing in the
-      // imported resources from the plugin. Additional resources from
-      // the plugin will be reported with the default reservation.
+    .then(defer(self(), [=](Resources importedResources) {
+      // NODE: If a resource in the checkpointed total resources is
+      // missing in the imported resources, we will still keep it if it
+      // is converted by an offer operation before (i.e., has extra info
+      // other than the default reservations). The reason is that we
+      // want to maintain a consistent view with frameworks, and do not
+      // want to lose any data on persistent volumes due to some
+      // temporarily CSI plugin faults. Other missing resources that are
+      // "unconverted" by any framework will be removed from the total
+      // resources. Then, any new imported resource will be reported
+      // under the default reservations.
 
-      Resources stripped;
+      Resources result;
+      Resources unconvertedTotal;
+
       foreach (const Resource& resource, totalResources) {
-        stripped += createRawDiskResource(
-            resource.provider_id(),
+        Resource unconverted = createRawDiskResource(
+            info,
             resource.scalar().value(),
             resource.disk().source().has_profile()
               ? resource.disk().source().profile() : Option<string>::none(),
@@ -888,10 +898,22 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcile()
               ? resource.disk().source().id() : Option<string>::none(),
             resource.disk().source().has_metadata()
               ? resource.disk().source().metadata() : Option<Labels>::none());
+        if (importedResources.contains(unconverted)) {
+          // The checkponited resource appears in the imported resources.
+          result += resource;
+          unconvertedTotal += unconverted;
+        } else if (!totalResources.contains(unconverted)) {
+          // The checkpointed resource is missing but converted by a
+          // framework or the operator before, so we keep it.
+          result += resource;
+
+          LOG(WARNING)
+            << "Missing converted resource '" << resource
+            << "'. This might cause further offer operations to fail.";
+        }
       }
 
-      Resources result = totalResources;
-      foreach (Resource resource, imported - stripped) {
+      foreach (Resource resource, importedResources - unconvertedTotal) {
         if (resource.disk().source().has_id() &&
             !volumes.contains(resource.disk().source().id())) {
           csi::state::VolumeState volumeState;
@@ -911,7 +933,6 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcile()
           checkpointVolumeState(resource.disk().source().id());
         }
 
-        resource.mutable_reservations()->CopyFrom(info.default_reservations());
         result += resource;
 
         LOG(INFO) << "Adding new resource '" << resource << "'";
@@ -1547,7 +1568,7 @@ Future<Resources> StorageLocalResourceProviderProcess::importResources()
 
             foreach (const auto& entry, response.entries()) {
               resources += createRawDiskResource(
-                  info.id(),
+                  info,
                   entry.volume_info().capacity_bytes(),
                   volumesToProfiles.contains(entry.volume_info().id())
                     ? volumesToProfiles.at(entry.volume_info().id())
@@ -1621,7 +1642,7 @@ Future<Resources> StorageLocalResourceProviderProcess::importResources()
                   }
 
                   return createRawDiskResource(
-                      info.id(),
+                      info,
                       response.available_capacity(),
                       profile.empty() ? Option<string>::none() : profile);
               }));
