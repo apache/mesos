@@ -488,6 +488,43 @@ Option<Error> validate(
 
       return None();
     }
+
+    case mesos::agent::Call::ADD_RESOURCE_PROVIDER_CONFIG: {
+      if (!call.has_add_resource_provider_config()) {
+        return Error(
+            "Expecting 'add_resource_provider_config' to be present");
+      }
+
+      if (call.add_resource_provider_config().info().has_id()) {
+        return Error(
+            "Expecting 'add_resource_provider_config.info.id' to be unset");
+      }
+
+      return None();
+    }
+
+    case mesos::agent::Call::UPDATE_RESOURCE_PROVIDER_CONFIG: {
+      if (!call.has_update_resource_provider_config()) {
+        return Error(
+            "Expecting 'update_resource_provider_config' to be present");
+      }
+
+      if (call.update_resource_provider_config().info().has_id()) {
+        return Error(
+            "Expecting 'update_resource_provider_config.info.id' to be unset");
+      }
+
+      return None();
+    }
+
+    case mesos::agent::Call::REMOVE_RESOURCE_PROVIDER_CONFIG: {
+      if (!call.has_remove_resource_provider_config()) {
+        return Error(
+            "Expecting 'remove_resource_provider_config' to be present");
+      }
+
+      return None();
+    }
   }
 
   UNREACHABLE();
