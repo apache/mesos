@@ -98,4 +98,34 @@ Try<VolumeProfileAdaptor*> VolumeProfileAdaptor::create(
   return result;
 }
 
+
+// NOTE: This is a pointer because we avoid using non-POD types
+// as global variables.
+//
+// NOTE: This is a `weak_ptr` because the ownership of the module should
+// belong to the caller of the `create` method above. This will, for example,
+// allow tests to instantiate an Agent and subsequently destruct the Agent
+// without leaving a module behind in a global variable.
+static std::weak_ptr<VolumeProfileAdaptor>* currentAdaptor = nullptr;
+
+
+void VolumeProfileAdaptor::setAdaptor(
+    const std::shared_ptr<VolumeProfileAdaptor>& adaptor)
+{
+  if (currentAdaptor != nullptr) {
+    delete currentAdaptor;
+  }
+
+  currentAdaptor = new std::weak_ptr<VolumeProfileAdaptor>(adaptor);
+}
+
+
+std::shared_ptr<VolumeProfileAdaptor> VolumeProfileAdaptor::getAdaptor()
+{
+  // This method should never be called before `setAdaptor` has been called.
+  CHECK_NOTNULL(currentAdaptor);
+
+  return currentAdaptor->lock();
+}
+
 } // namespace mesos {

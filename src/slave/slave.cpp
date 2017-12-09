@@ -419,6 +419,22 @@ void Slave::initialize()
       << mkdir.error();
   }
 
+  // Create the VolumeProfileAdaptor module and set it globally so
+  // any component that needs the module can share this instance.
+  Try<VolumeProfileAdaptor*> _volumeProfileAdaptor =
+    VolumeProfileAdaptor::create(flags.volume_profile_adaptor);
+
+  if (_volumeProfileAdaptor.isError()) {
+    EXIT(EXIT_FAILURE)
+      << "Failed to create volume profile adaptor: "
+      << _volumeProfileAdaptor.error();
+  }
+
+  volumeProfileAdaptor =
+    shared_ptr<VolumeProfileAdaptor>(_volumeProfileAdaptor.get());
+
+  VolumeProfileAdaptor::setAdaptor(volumeProfileAdaptor);
+
   string scheme = "http";
 
 #ifdef USE_SSL_SOCKET

@@ -40,6 +40,8 @@
 
 #include <mesos/module/authenticatee.hpp>
 
+#include <mesos/resource_provider/volume_profile.hpp>
+
 #include <mesos/slave/containerizer.hpp>
 #include <mesos/slave/qos_controller.hpp>
 #include <mesos/slave/resource_estimator.hpp>
@@ -723,6 +725,8 @@ private:
   mesos::slave::ResourceEstimator* resourceEstimator;
 
   mesos::slave::QoSController* qosController;
+
+  std::shared_ptr<VolumeProfileAdaptor> volumeProfileAdaptor;
 
   mesos::SecretGenerator* secretGenerator;
 

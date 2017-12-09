@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <memory>
 #include <numeric>
 
 #include <glog/logging.h>
@@ -36,6 +37,7 @@
 #include <mesos/type_utils.hpp>
 
 #include <mesos/resource_provider/resource_provider.hpp>
+#include <mesos/resource_provider/volume_profile.hpp>
 
 #include <mesos/v1/resource_provider.hpp>
 
@@ -295,7 +297,11 @@ public:
       slaveId(_slaveId),
       authToken(_authToken),
       strict(_strict),
-      resourceVersion(id::UUID::random()) {}
+      resourceVersion(id::UUID::random())
+  {
+    volumeProfileAdaptor = VolumeProfileAdaptor::getAdaptor();
+    CHECK_NOTNULL(volumeProfileAdaptor.get());
+  }
 
   StorageLocalResourceProviderProcess(
       const StorageLocalResourceProviderProcess& other) = delete;
@@ -407,6 +413,8 @@ private:
   const SlaveID slaveId;
   const Option<string> authToken;
   const bool strict;
+
+  shared_ptr<VolumeProfileAdaptor> volumeProfileAdaptor;
 
   csi::Version csiVersion;
   csi::VolumeCapability defaultMountCapability;

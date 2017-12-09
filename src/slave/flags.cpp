@@ -111,6 +111,15 @@ mesos::internal::slave::Flags::Flags()
       "  \"name\": \"lvm\"\n"
       "}");
 
+  add(&Flags::volume_profile_adaptor,
+      "volume_profile_adaptor",
+      "The name of the volume profile adaptor module that storage resource\n"
+      "providers should use for translating a 'volume profile' into inputs\n"
+      "consumed by various Container Storage Interface (CSI) plugins.\n"
+      "If this flag is not specified, the default behavior for storage\n"
+      "resource providers is to only expose resources for pre-existing\n"
+      "volumes and not publish RAW volumes.");
+
   add(&Flags::isolation,
       "isolation",
       "Isolation mechanisms to use, e.g., `posix/cpu,posix/mem` (or \n"

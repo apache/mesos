@@ -17,6 +17,7 @@
 #ifndef __MESOS_RESOURCE_PROVIDER_VOLUME_PROFILE_HPP__
 #define __MESOS_RESOURCE_PROVIDER_VOLUME_PROFILE_HPP__
 
+#include <memory>
 #include <string>
 #include <tuple>
 
@@ -81,6 +82,17 @@ public:
    */
   static Try<VolumeProfileAdaptor*> create(
       const Option<std::string>& name = None());
+
+  /**
+   * Global methods for setting and getting a VolumeProfileAdaptor instance.
+   *
+   * The agent (or test) is expected to create and set the adaptor instance
+   * and manage the pointer (this method will only keep a weak pointer).
+   * Each component that needs to use the VolumeProfileAdaptor, such as the
+   * Storage Local Resource Provider, should call `getAdaptor`.
+   */
+  static void setAdaptor(const std::shared_ptr<VolumeProfileAdaptor>& adaptor);
+  static std::shared_ptr<VolumeProfileAdaptor> getAdaptor();
 
   virtual ~VolumeProfileAdaptor() {}
 
