@@ -59,6 +59,12 @@ public:
 
   void start(const SlaveID& slaveId);
 
+  process::Future<bool> add(const ResourceProviderInfo& info);
+  process::Future<bool> update(const ResourceProviderInfo& info);
+  process::Future<bool> remove(
+      const std::string& type,
+      const std::string& name);
+
 private:
   LocalResourceProviderDaemon(
       const process::http::URL& url,

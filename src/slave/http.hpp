@@ -306,6 +306,18 @@ private:
       const mesos::agent::Call& call,
       const RequestMediaTypes& mediaTypes) const;
 
+  process::Future<process::http::Response> addResourceProviderConfig(
+      const mesos::agent::Call& call,
+      const Option<process::http::authentication::Principal>& principal) const;
+
+  process::Future<process::http::Response> updateResourceProviderConfig(
+      const mesos::agent::Call& call,
+      const Option<process::http::authentication::Principal>& principal) const;
+
+  process::Future<process::http::Response> removeResourceProviderConfig(
+      const mesos::agent::Call& call,
+      const Option<process::http::authentication::Principal>& principal) const;
+
   Slave* slave;
 
   // Used to rate limit the statistics endpoint.

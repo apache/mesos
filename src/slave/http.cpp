@@ -101,6 +101,7 @@ using process::TLDR;
 
 using process::http::Accepted;
 using process::http::BadRequest;
+using process::http::Conflict;
 using process::http::Connection;
 using process::http::Forbidden;
 using process::http::NotFound;
@@ -614,6 +615,15 @@ Future<Response> Http::_api(
 
     case mesos::agent::Call::REMOVE_CONTAINER:
       return removeContainer(call, mediaTypes.accept, principal);
+
+    case mesos::agent::Call::ADD_RESOURCE_PROVIDER_CONFIG:
+      return addResourceProviderConfig(call, principal);
+
+    case mesos::agent::Call::UPDATE_RESOURCE_PROVIDER_CONFIG:
+      return updateResourceProviderConfig(call, principal);
+
+    case mesos::agent::Call::REMOVE_RESOURCE_PROVIDER_CONFIG:
+      return removeResourceProviderConfig(call, principal);
   }
 
   UNREACHABLE();
@@ -3110,6 +3120,173 @@ Future<Response> Http::attachContainerInput(
       return _attachContainerInput(
           call, std::move(decoder_), mediaTypes);
   }));
+}
+
+
+Future<Response> Http::addResourceProviderConfig(
+    const mesos::agent::Call& call,
+    const Option<Principal>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::ADD_RESOURCE_PROVIDER_CONFIG, call.type());
+  CHECK(call.has_add_resource_provider_config());
+
+  Future<Owned<ObjectApprover>> approver;
+
+  if (slave->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = slave->authorizer.get()->getObjectApprover(
+        subject,
+        authorization::MODIFY_RESOURCE_PROVIDER_CONFIG);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver
+    .then(defer(slave->self(), [=](
+        const Owned<ObjectApprover>& approver) -> Future<Response> {
+      Try<bool> approved = approver->approved(ObjectApprover::Object());
+      if (approved.isError()) {
+        return InternalServerError("Authorization error: " + approved.error());
+      } else if (!approved.get()) {
+        return Forbidden();
+      }
+
+      const ResourceProviderInfo& info =
+        call.add_resource_provider_config().info();
+
+      LOG(INFO)
+        << "Processing ADD_RESOURCE_PROVIDER_CONFIG call with type '"
+        << info.type() << "' and name '" << info.name() << "'";
+
+      return slave->localResourceProviderDaemon->add(info)
+        .then([](bool added) -> Response {
+          if (!added) {
+            return Conflict();
+          }
+
+          return OK();
+        })
+        .repair([info](const Future<Response>& future) {
+          LOG(ERROR)
+            << "Failed to add resource provider config with type '"
+            << info.type() << "' and name '" << info.name() << "': "
+            << future.failure();
+
+          return InternalServerError(future.failure());
+        });
+    }));
+}
+
+
+Future<Response> Http::updateResourceProviderConfig(
+    const mesos::agent::Call& call,
+    const Option<Principal>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::UPDATE_RESOURCE_PROVIDER_CONFIG, call.type());
+  CHECK(call.has_update_resource_provider_config());
+
+  Future<Owned<ObjectApprover>> approver;
+
+  if (slave->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = slave->authorizer.get()->getObjectApprover(
+        subject,
+        authorization::MODIFY_RESOURCE_PROVIDER_CONFIG);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver
+    .then(defer(slave->self(), [=](
+        const Owned<ObjectApprover>& approver) -> Future<Response> {
+      Try<bool> approved = approver->approved(ObjectApprover::Object());
+      if (approved.isError()) {
+        return InternalServerError("Authorization error: " + approved.error());
+      } else if (!approved.get()) {
+        return Forbidden();
+      }
+
+      const ResourceProviderInfo& info =
+        call.update_resource_provider_config().info();
+
+      LOG(INFO)
+        << "Processing UPDATE_RESOURCE_PROVIDER_CONFIG call with type '"
+        << info.type() << "' and name '" << info.name() << "'";
+
+      return slave->localResourceProviderDaemon->update(info)
+        .then([](bool updated) -> Response {
+          if (!updated) {
+            return NotFound();
+          }
+
+          return OK();
+        })
+        .repair([info](const Future<Response>& future) {
+          LOG(ERROR)
+            << "Failed to update resource provider config with type '"
+            << info.type() << "' and name '" << info.name() << "': "
+            << future.failure();
+
+          return InternalServerError(future.failure());
+        });
+    }));
+}
+
+
+Future<Response> Http::removeResourceProviderConfig(
+    const mesos::agent::Call& call,
+    const Option<Principal>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::REMOVE_RESOURCE_PROVIDER_CONFIG, call.type());
+  CHECK(call.has_remove_resource_provider_config());
+
+  Future<Owned<ObjectApprover>> approver;
+
+  if (slave->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
+
+    approver = slave->authorizer.get()->getObjectApprover(
+        subject,
+        authorization::MODIFY_RESOURCE_PROVIDER_CONFIG);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver
+    .then(defer(slave->self(), [=](
+        const Owned<ObjectApprover>& approver) -> Future<Response> {
+      Try<bool> approved = approver->approved(ObjectApprover::Object());
+      if (approved.isError()) {
+        return InternalServerError("Authorization error: " + approved.error());
+      } else if (!approved.get()) {
+        return Forbidden();
+      }
+
+      const string& type = call.remove_resource_provider_config().type();
+      const string& name = call.remove_resource_provider_config().name();
+
+      LOG(INFO)
+        << "Processing REMOVE_RESOURCE_PROVIDER_CONFIG call with type '" << type
+        << "' and name '" << name << "'";
+
+      return slave->localResourceProviderDaemon->remove(type, name)
+        .then([](bool removed) -> Response {
+          if (!removed) {
+            return NotFound();
+          }
+
+          return OK();
+        })
+        .repair([type, name](const Future<Response>& future) {
+          LOG(ERROR)
+            << "Failed to remove resource provider config with type '" << type
+            << "' and name '" << name << "': " << future.failure();
+
+          return InternalServerError(future.failure());
+        });
+    }));
 }
 
 

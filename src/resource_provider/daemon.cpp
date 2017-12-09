@@ -320,5 +320,26 @@ void LocalResourceProviderDaemon::start(const SlaveID& slaveId)
   dispatch(process.get(), &LocalResourceProviderDaemonProcess::start, slaveId);
 }
 
+
+Future<bool> LocalResourceProviderDaemon::add(const ResourceProviderInfo& info)
+{
+  return Failure("Unimplemented");
+}
+
+
+Future<bool> LocalResourceProviderDaemon::update(
+    const ResourceProviderInfo& info)
+{
+  return Failure("Unimplemented");
+}
+
+
+Future<bool> LocalResourceProviderDaemon::remove(
+    const string& type,
+    const string& name)
+{
+  return Failure("Unimplemented");
+}
+
 } // namespace internal {
 } // namespace mesos {
