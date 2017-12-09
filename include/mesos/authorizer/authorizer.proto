@@ -241,6 +241,11 @@ enum Action {
   //
   // TODO(josephw): This should set the operating system user in the object.
   REMOVE_STANDALONE_CONTAINER = 38;
+
+  // This action will not fill in any object fields. A principal is either
+  // allowed to add, update and remove resource provider config files or is
+  // unauthorized.
+  MODIFY_RESOURCE_PROVIDER_CONFIG = 39;
 }
 
 

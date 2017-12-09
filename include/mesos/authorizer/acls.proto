@@ -467,6 +467,20 @@ message ACL {
     // SOME particular operating system users (e.g., linux users).
     required Entity users = 2;
   }
+
+  // Which principals are authorized to add, update and remove resource
+  // provider config files.
+  message ModifyResourceProviderConfig {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly.
+    // Use Entity type ANY or NONE to allow or deny access.
+    //
+    // TODO(chhsiao): Consider allowing granular permission to act upon
+    // SOME particular operating system users (e.g., linux users).
+    required Entity users = 2;
+  }
 }
 
 
@@ -542,4 +556,5 @@ message ACLs {
   repeated ACL.KillStandaloneContainer kill_standalone_container = 42;
   repeated ACL.WaitStandaloneContainer wait_standalone_container = 43;
   repeated ACL.RemoveStandaloneContainer remove_standalone_container = 44;
+  repeated ACL.ModifyResourceProviderConfig modify_resource_provider_config = 45;
 }

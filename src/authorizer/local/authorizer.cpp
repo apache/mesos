@@ -410,6 +410,7 @@ public:
         case authorization::START_MAINTENANCE:
         case authorization::STOP_MAINTENANCE:
         case authorization::UPDATE_MAINTENANCE_SCHEDULE:
+        case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
           aclObject.set_type(ACL::Entity::ANY);
 
           break;
@@ -715,6 +716,7 @@ public:
         case authorization::VIEW_TASK:
         case authorization::WAIT_NESTED_CONTAINER:
         case authorization::WAIT_STANDALONE_CONTAINER:
+        case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
         case authorization::UNKNOWN:
           UNREACHABLE();
       }
@@ -931,6 +933,7 @@ public:
       case authorization::VIEW_TASK:
       case authorization::WAIT_NESTED_CONTAINER:
       case authorization::WAIT_STANDALONE_CONTAINER:
+      case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
         UNREACHABLE();
     }
 
@@ -1141,6 +1144,7 @@ public:
       case authorization::VIEW_TASK:
       case authorization::WAIT_NESTED_CONTAINER:
       case authorization::WAIT_STANDALONE_CONTAINER:
+      case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
       case authorization::UNKNOWN: {
         Result<vector<GenericACL>> genericACLs =
           createGenericACLs(action, acls);
@@ -1466,6 +1470,17 @@ private:
       case authorization::REMOVE_STANDALONE_CONTAINER:
         foreach (const ACL::RemoveStandaloneContainer& acl,
             acls.remove_standalone_container()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.users();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
+        foreach (const ACL::ModifyResourceProviderConfig& acl,
+            acls.modify_resource_provider_config()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.users();
