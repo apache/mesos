@@ -879,8 +879,6 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcile()
 
       Resources stripped;
       foreach (const Resource& resource, totalResources) {
-        CHECK(resource.disk().source().has_id());
-
         stripped += createRawDiskResource(
             resource.provider_id(),
             resource.scalar().value(),
