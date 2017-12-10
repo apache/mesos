@@ -124,7 +124,7 @@ struct Slave
         std::vector<SlaveInfo::Capability> _capabilites,
         const process::Time& _registeredTime,
         std::vector<Resource> _checkpointedResources,
-        hashmap<Option<ResourceProviderID>, UUID> _resourceVersions,
+        const Option<UUID>& resourceVersion,
         std::vector<ExecutorInfo> executorInfos = std::vector<ExecutorInfo>(),
         std::vector<Task> tasks = std::vector<Task>());
 
@@ -177,10 +177,10 @@ struct Slave
   void apply(const std::vector<ResourceConversion>& conversions);
 
   Try<Nothing> update(
-    const SlaveInfo& info,
-    const std::string& _version,
-    const std::vector<SlaveInfo::Capability>& _capabilites,
-    const std::vector<ResourceVersionUUID>& resourceVersions);
+      const SlaveInfo& info,
+      const std::string& _version,
+      const std::vector<SlaveInfo::Capability>& _capabilites,
+      const Option<UUID>& resourceVersion);
 
   Master* const master;
   const SlaveID id;
@@ -263,12 +263,16 @@ struct Slave
   // persistent volumes, dynamic reservations, etc). These are either
   // in use by a task/executor, or are available for use and will be
   // re-offered to the framework.
+  // TODO(jieyu): `checkpointedResources` is only for agent default
+  // resources. Resources from resource providers are not included in
+  // this field. Consider removing this field.
   Resources checkpointedResources;
 
   // The current total resources of the slave. Note that this is
   // different from 'info.resources()' because this also considers
   // operations (e.g., CREATE, RESERVE) that have been applied and
-  // includes revocable resources as well.
+  // includes revocable resources and resources from resource
+  // providers as well.
   Resources totalResources;
 
   SlaveObserver* observer;

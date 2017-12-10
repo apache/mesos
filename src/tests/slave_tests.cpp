@@ -8961,7 +8961,9 @@ TEST_F(SlaveTest, ResourceVersions)
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
   StandaloneMasterDetector detector(master.get()->pid);
+
   slave::Flags slaveFlags = CreateSlaveFlags();
+
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
 
@@ -8972,9 +8974,7 @@ TEST_F(SlaveTest, ResourceVersions)
 
   // Since no resource providers registered, the agent only sends its
   // own resource version uuid. The agent has no resource provider id.
-  ASSERT_EQ(1u, registerSlaveMessage->resource_version_uuids().size());
-  EXPECT_FALSE(registerSlaveMessage->resource_version_uuids(0)
-                 .has_resource_provider_id());
+  ASSERT_TRUE(registerSlaveMessage->has_resource_version_uuid());
 
   // Check that the agent sends its resource version uuid in
   // `ReregisterSlaveMessage`.
@@ -8991,15 +8991,13 @@ TEST_F(SlaveTest, ResourceVersions)
   AWAIT_READY(reregisterSlaveMessage);
 
   // No resource changes occurred on the agent and we expect the
-  // resource version uuids to be unchanged to the ones sent in the
+  // resource version uuid to be unchanged to the one sent in the
   // original registration.
-  ASSERT_EQ(
-      registerSlaveMessage->resource_version_uuids_size(),
-      reregisterSlaveMessage->resource_version_uuids_size());
+  ASSERT_TRUE(reregisterSlaveMessage->has_resource_version_uuid());
 
   EXPECT_EQ(
-      registerSlaveMessage->resource_version_uuids(0),
-      reregisterSlaveMessage->resource_version_uuids(0));
+      registerSlaveMessage->resource_version_uuid(),
+      reregisterSlaveMessage->resource_version_uuid());
 }
 
 

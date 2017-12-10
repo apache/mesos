@@ -1540,18 +1540,10 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     message.mutable_agent_capabilities()->CopyFrom(
         capabilities.toRepeatedPtrField());
 
-    ResourceVersionUUID* uuid = message.add_resource_version_uuids();
-    uuid->set_uuid(resourceVersion.toBytes());
-
-    foreachvalue (ResourceProvider* provider, resourceProviders) {
-      ResourceVersionUUID* uuid = message.add_resource_version_uuids();
-      CHECK(provider->info.has_id());
-      uuid->mutable_resource_provider_id()->CopyFrom(provider->info.id());
-      uuid->set_uuid(provider->resourceVersion.toBytes());
-    }
-
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources_);
+
+    message.set_resource_version_uuid(resourceVersion.toBytes());
 
     send(master.get(), message);
   } else {
@@ -1562,18 +1554,10 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     message.mutable_agent_capabilities()->CopyFrom(
         capabilities.toRepeatedPtrField());
 
-    ResourceVersionUUID* uuid = message.add_resource_version_uuids();
-    uuid->set_uuid(resourceVersion.toBytes());
-
-    foreachvalue (ResourceProvider* provider, resourceProviders) {
-      ResourceVersionUUID* uuid = message.add_resource_version_uuids();
-      CHECK(provider->info.has_id());
-      uuid->mutable_resource_provider_id()->CopyFrom(provider->info.id());
-      uuid->set_uuid(provider->resourceVersion.toBytes());
-    }
-
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources_);
+
+    message.set_resource_version_uuid(resourceVersion.toBytes());
 
     message.mutable_slave()->CopyFrom(slaveInfo);
 

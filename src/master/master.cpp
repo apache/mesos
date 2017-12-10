@@ -6297,6 +6297,15 @@ void Master::__registerSlave(
   vector<Resource> checkpointedResources = google::protobuf::convert(
       std::move(*registerSlaveMessage.mutable_checkpointed_resources()));
 
+  Option<UUID> resourceVersion;
+  if (registerSlaveMessage.has_resource_version_uuid()) {
+    Try<UUID> uuid = UUID::fromBytes(
+        registerSlaveMessage.resource_version_uuid());
+
+    CHECK_SOME(uuid);
+    resourceVersion = uuid.get();
+  }
+
   Slave* slave = new Slave(
       this,
       slaveInfo,
@@ -6306,8 +6315,7 @@ void Master::__registerSlave(
       std::move(agentCapabilities),
       Clock::now(),
       std::move(checkpointedResources),
-      protobuf::parseResourceVersions(
-          registerSlaveMessage.resource_version_uuids()));
+      resourceVersion);
 
   ++metrics->slave_registrations;
 
@@ -6812,6 +6820,15 @@ void Master::__reregisterSlave(
   vector<ExecutorInfo> executorInfos = google::protobuf::convert(
       std::move(*reregisterSlaveMessage.mutable_executor_infos()));
 
+  Option<UUID> resourceVersion;
+  if (reregisterSlaveMessage.has_resource_version_uuid()) {
+    Try<UUID> uuid = UUID::fromBytes(
+        reregisterSlaveMessage.resource_version_uuid());
+
+    CHECK_SOME(uuid);
+    resourceVersion = uuid.get();
+  }
+
   Slave* slave = new Slave(
       this,
       slaveInfo,
@@ -6821,8 +6838,7 @@ void Master::__reregisterSlave(
       std::move(agentCapabilities),
       Clock::now(),
       std::move(checkpointedResources),
-      protobuf::parseResourceVersions(
-          reregisterSlaveMessage.resource_version_uuids()),
+      resourceVersion,
       std::move(executorInfos),
       std::move(recoveredTasks));
 
@@ -6945,11 +6961,21 @@ void Master::___reregisterSlave(
   const string& version = reregisterSlaveMessage.version();
   const vector<SlaveInfo::Capability> agentCapabilities =
     google::protobuf::convert(reregisterSlaveMessage.agent_capabilities());
-  const vector<ResourceVersionUUID> resourceVersions =
-    google::protobuf::convert(reregisterSlaveMessage.resource_version_uuids());
 
-  Try<Nothing> stateUpdated =
-    slave->update(slaveInfo, version, agentCapabilities, resourceVersions);
+  Option<UUID> resourceVersion;
+  if (reregisterSlaveMessage.has_resource_version_uuid()) {
+    Try<UUID> uuid = UUID::fromBytes(
+        reregisterSlaveMessage.resource_version_uuid());
+
+    CHECK_SOME(uuid);
+    resourceVersion = uuid.get();
+  }
+
+  Try<Nothing> stateUpdated = slave->update(
+      slaveInfo,
+      version,
+      agentCapabilities,
+      resourceVersion);
 
   // As of now, the only way `slave->update()` can fail is if the agent sent
   // different checkpointed resources than it had before. A well-behaving
@@ -11274,7 +11300,7 @@ Slave::Slave(
     vector<SlaveInfo::Capability> _capabilites,
     const Time& _registeredTime,
     vector<Resource> _checkpointedResources,
-    hashmap<Option<ResourceProviderID>, UUID> _resourceVersions,
+    const Option<UUID>& resourceVersion,
     vector<ExecutorInfo> executorInfos,
     vector<Task> tasks)
   : master(_master),
@@ -11288,8 +11314,7 @@ Slave::Slave(
     connected(true),
     active(true),
     checkpointedResources(std::move(_checkpointedResources)),
-    observer(nullptr),
-    resourceVersions(std::move(_resourceVersions))
+    observer(nullptr)
 {
   CHECK(info.has_id());
 
@@ -11300,6 +11325,10 @@ Slave::Slave(
   // NOTE: This should be validated during slave recovery.
   CHECK_SOME(resources);
   totalResources = resources.get();
+
+  if (resourceVersion.isSome()) {
+    resourceVersions.put(None(), resourceVersion.get());
+  }
 
   foreach (ExecutorInfo& executorInfo, executorInfos) {
     CHECK(executorInfo.has_framework_id());
@@ -11578,10 +11607,10 @@ void Slave::apply(const vector<ResourceConversion>& conversions)
 
 
 Try<Nothing> Slave::update(
-  const SlaveInfo& _info,
-  const string& _version,
-  const vector<SlaveInfo::Capability>& _capabilities,
-  const vector<ResourceVersionUUID>& _resourceVersions)
+    const SlaveInfo& _info,
+    const string& _version,
+    const vector<SlaveInfo::Capability>& _capabilities,
+    const Option<UUID>& resourceVersion)
 {
   Try<Resources> resources = applyCheckpointedResources(
       _info.resources(),
@@ -11602,8 +11631,9 @@ Try<Nothing> Slave::update(
   // re-registering in this case.
   totalResources = resources.get();
 
-  resourceVersions = protobuf::parseResourceVersions(
-      {_resourceVersions.begin(), _resourceVersions.end()});
+  if (resourceVersion.isSome()) {
+    resourceVersions.put(None(), resourceVersion.get());
+  }
 
   return Nothing();
 }
