@@ -466,11 +466,7 @@ public:
 
   void registerSlave(
       const process::UPID& from,
-      const SlaveInfo& slaveInfo,
-      const std::vector<Resource>& checkpointedResources,
-      const std::string& version,
-      const std::vector<SlaveInfo::Capability>& agentCapabilities,
-      const std::vector<ResourceVersionUUID>& resourceVersions);
+      RegisterSlaveMessage&& registerSlaveMessage);
 
   void reregisterSlave(
       const process::UPID& from,
@@ -588,22 +584,14 @@ protected:
   void recoveredSlavesTimeout(const Registry& registry);
 
   void _registerSlave(
-      const SlaveInfo& slaveInfo,
       const process::UPID& pid,
+      RegisterSlaveMessage&& registerSlaveMessage,
       const Option<std::string>& principal,
-      const std::vector<Resource>& checkpointedResources,
-      const std::string& version,
-      const std::vector<SlaveInfo::Capability>& agentCapabilities,
-      const std::vector<ResourceVersionUUID>& resourceVersions,
       const process::Future<bool>& authorized);
 
   void __registerSlave(
-      const SlaveInfo& slaveInfo,
       const process::UPID& pid,
-      const std::vector<Resource>& checkpointedResources,
-      const std::string& version,
-      const std::vector<SlaveInfo::Capability>& agentCapabilities,
-      const std::vector<ResourceVersionUUID>& resourceVersions,
+      RegisterSlaveMessage&& registerSlaveMessage,
       const process::Future<bool>& admit);
 
   void _reregisterSlave(

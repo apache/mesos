@@ -264,23 +264,23 @@ static Option<Error> validateSlaveInfo(const SlaveInfo& slaveInfo)
 }
 
 
-Option<Error> registerSlave(
-    const SlaveInfo& slaveInfo,
-    const vector<Resource>& checkpointedResources)
+Option<Error> registerSlave(const RegisterSlaveMessage& message)
 {
+  const SlaveInfo& slaveInfo = message.slave();
+
   Option<Error> error = validateSlaveInfo(slaveInfo);
   if (error.isSome()) {
     return error.get();
   }
 
-  if (!checkpointedResources.empty()) {
+  if (!message.checkpointed_resources().empty()) {
     if (!slaveInfo.has_checkpoint() || !slaveInfo.checkpoint()) {
       return Error(
           "Checkpointed resources provided when checkpointing is not enabled");
     }
   }
 
-  foreach (const Resource& resource, checkpointedResources) {
+  foreach (const Resource& resource, message.checkpointed_resources()) {
     error = Resources::validate(resource);
     if (error.isSome()) {
       return error.get();
@@ -291,8 +291,7 @@ Option<Error> registerSlave(
 }
 
 
-Option<Error> reregisterSlave(
-    const ReregisterSlaveMessage& message)
+Option<Error> reregisterSlave(const ReregisterSlaveMessage& message)
 {
   hashset<FrameworkID> frameworkIDs;
   hashset<pair<FrameworkID, ExecutorID>> executorIDs;

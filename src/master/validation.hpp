@@ -66,12 +66,8 @@ namespace message {
 // guarantees at the libprocess level that would prevent arbitrary UPID
 // impersonation (MESOS-7424).
 
-Option<Error> registerSlave(
-    const SlaveInfo& slaveInfo,
-    const std::vector<Resource>& checkpointedResources);
-
-Option<Error> reregisterSlave(
-    const ReregisterSlaveMessage& message);
+Option<Error> registerSlave(const RegisterSlaveMessage& message);
+Option<Error> reregisterSlave(const ReregisterSlaveMessage& message);
 
 } // namespace message {
 } // namespace master {

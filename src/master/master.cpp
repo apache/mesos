@@ -847,12 +847,7 @@ void Master::initialize()
       &FrameworkToExecutorMessage::data);
 
   install<RegisterSlaveMessage>(
-      &Master::registerSlave,
-      &RegisterSlaveMessage::slave,
-      &RegisterSlaveMessage::checkpointed_resources,
-      &RegisterSlaveMessage::version,
-      &RegisterSlaveMessage::agent_capabilities,
-      &RegisterSlaveMessage::resource_version_uuids);
+      &Master::registerSlave);
 
   install<ReregisterSlaveMessage>(
       &Master::reregisterSlave);
@@ -6034,11 +6029,7 @@ void Master::message(
 
 void Master::registerSlave(
     const UPID& from,
-    const SlaveInfo& slaveInfo,
-    const vector<Resource>& checkpointedResources,
-    const string& version,
-    const vector<SlaveInfo::Capability>& agentCapabilities,
-    const vector<ResourceVersionUUID>& resourceVersions)
+    RegisterSlaveMessage&& registerSlaveMessage)
 {
   ++metrics->messages_register_slave;
 
@@ -6050,11 +6041,7 @@ void Master::registerSlave(
       .onReady(defer(self(),
                      &Self::registerSlave,
                      from,
-                     slaveInfo,
-                     checkpointedResources,
-                     version,
-                     agentCapabilities,
-                     resourceVersions));
+                     std::move(registerSlaveMessage)));
     return;
   }
 
@@ -6070,8 +6057,8 @@ void Master::registerSlave(
     return;
   }
 
-  Option<Error> error = validation::master::message::registerSlave(
-      slaveInfo, checkpointedResources);
+  Option<Error> error =
+    validation::master::message::registerSlave(registerSlaveMessage);
 
   if (error.isSome()) {
     LOG(WARNING) << "Dropping registration of agent at " << from
@@ -6082,13 +6069,13 @@ void Master::registerSlave(
 
   if (slaves.registering.contains(from)) {
     LOG(INFO) << "Ignoring register agent message from " << from
-              << " (" << slaveInfo.hostname() << ") as registration"
-              << " is already in progress";
+              << " (" << registerSlaveMessage.slave().hostname()
+              << ") as registration is already in progress";
     return;
   }
 
-  LOG(INFO) << "Received register agent message from "
-            << from << " (" << slaveInfo.hostname() << ")";
+  LOG(INFO) << "Received register agent message from " << from
+            << " (" << registerSlaveMessage.slave().hostname() << ")";
 
   slaves.registering.insert(from);
 
@@ -6098,13 +6085,13 @@ void Master::registerSlave(
   // master (e.g. when writing to the registry).
   // TODO(bevers): Also convert the resources in `ExecutorInfos` and `Tasks`
   // here for consistency.
-  SlaveInfo _slaveInfo(slaveInfo);
   convertResourceFormat(
-      _slaveInfo.mutable_resources(), POST_RESERVATION_REFINEMENT);
+      registerSlaveMessage.mutable_slave()->mutable_resources(),
+      POST_RESERVATION_REFINEMENT);
 
-  std::vector<Resource> _checkpointedResources(checkpointedResources);
   convertResourceFormat(
-      &_checkpointedResources, POST_RESERVATION_REFINEMENT);
+      registerSlaveMessage.mutable_checkpointed_resources(),
+      POST_RESERVATION_REFINEMENT);
 
   // Note that the principal may be empty if authentication is not
   // required. Also it is passed along because it may be removed from
@@ -6114,29 +6101,23 @@ void Master::registerSlave(
   authorizeSlave(principal)
     .onAny(defer(self(),
                  &Self::_registerSlave,
-                 _slaveInfo,
                  from,
+                 std::move(registerSlaveMessage),
                  principal,
-                 _checkpointedResources,
-                 version,
-                 agentCapabilities,
-                 resourceVersions,
                  lambda::_1));
 }
 
 
 void Master::_registerSlave(
-    const SlaveInfo& slaveInfo,
     const UPID& pid,
+    RegisterSlaveMessage&& registerSlaveMessage,
     const Option<string>& principal,
-    const vector<Resource>& checkpointedResources,
-    const string& version,
-    const vector<SlaveInfo::Capability>& agentCapabilities,
-    const vector<ResourceVersionUUID>& resourceVersions,
     const Future<bool>& authorized)
 {
   CHECK(!authorized.isDiscarded());
   CHECK(slaves.registering.contains(pid));
+
+  const SlaveInfo& slaveInfo = registerSlaveMessage.slave();
 
   Option<string> authorizationError = None();
 
@@ -6189,6 +6170,7 @@ void Master::_registerSlave(
   // Ignore registration attempts by agents running old Mesos versions.
   // We expect that the agent's version is in SemVer format; if the
   // version cannot be parsed, the registration attempt is ignored.
+  const string& version = registerSlaveMessage.version();
   Try<Version> parsedVersion = Version::parse(version);
 
   if (parsedVersion.isError()) {
@@ -6253,37 +6235,35 @@ void Master::_registerSlave(
   }
 
   // Create and add the slave id.
-  SlaveInfo slaveInfo_ = slaveInfo;
-  slaveInfo_.mutable_id()->CopyFrom(newSlaveId());
+  SlaveID slaveId = newSlaveId();
 
   LOG(INFO) << "Registering agent at " << pid << " ("
-            << slaveInfo.hostname() << ") with id " << slaveInfo_.id();
+            << slaveInfo.hostname() << ") with id " << slaveId;
+
+  SlaveInfo slaveInfo_ = slaveInfo;
+  slaveInfo_.mutable_id()->CopyFrom(slaveId);
+
+  registerSlaveMessage.mutable_slave()->mutable_id()->CopyFrom(slaveId);
 
   registrar->apply(Owned<Operation>(new AdmitSlave(slaveInfo_)))
     .onAny(defer(self(),
                  &Self::__registerSlave,
-                 slaveInfo_,
                  pid,
-                 checkpointedResources,
-                 version,
-                 agentCapabilities,
-                 resourceVersions,
+                 std::move(registerSlaveMessage),
                  lambda::_1));
 }
 
 
 void Master::__registerSlave(
-    const SlaveInfo& slaveInfo,
     const UPID& pid,
-    const vector<Resource>& checkpointedResources,
-    const string& version,
-    const vector<SlaveInfo::Capability>& agentCapabilities,
-    const vector<ResourceVersionUUID>& resourceVersions,
+    RegisterSlaveMessage&& registerSlaveMessage,
     const Future<bool>& admit)
 {
   CHECK(slaves.registering.contains(pid));
 
   CHECK(!admit.isDiscarded());
+
+  const SlaveInfo& slaveInfo = registerSlaveMessage.slave();
 
   if (admit.isFailed()) {
     LOG(FATAL) << "Failed to admit agent " << slaveInfo.id() << " at " << pid
@@ -6312,17 +6292,22 @@ void Master::__registerSlave(
   machineId.set_hostname(slaveInfo.hostname());
   machineId.set_ip(stringify(pid.address.ip));
 
+  vector<SlaveInfo::Capability> agentCapabilities = google::protobuf::convert(
+      std::move(*registerSlaveMessage.mutable_agent_capabilities()));
+  vector<Resource> checkpointedResources = google::protobuf::convert(
+      std::move(*registerSlaveMessage.mutable_checkpointed_resources()));
+
   Slave* slave = new Slave(
       this,
       slaveInfo,
       pid,
       machineId,
-      version,
-      agentCapabilities,
+      registerSlaveMessage.version(),
+      std::move(agentCapabilities),
       Clock::now(),
-      checkpointedResources,
+      std::move(checkpointedResources),
       protobuf::parseResourceVersions(
-          {resourceVersions.begin(), resourceVersions.end()}));
+          registerSlaveMessage.resource_version_uuids()));
 
   ++metrics->slave_registrations;
 
