@@ -1973,7 +1973,12 @@ message Offer {
     }
 
     optional Type type = 1;
-    optional OfferOperationID id = 12;
+
+    // NOTE: The `id` field will allow frameworks to indicate that they wish to
+    // receive feedback about an offer operation. Since this feature is not yet
+    // implemented, the `id` field should NOT be set at present. See MESOS-8054.
+    optional OfferOperationID id = 12; // Experimental.
+
     optional Launch launch = 2;
     optional LaunchGroup launch_group = 7;
     optional Reserve reserve = 3;
