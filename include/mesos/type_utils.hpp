@@ -286,6 +286,14 @@ inline bool operator!=(const SlaveID& left, const SlaveID& right)
 }
 
 
+inline bool operator!=(
+    const ResourceProviderInfo& left,
+    const ResourceProviderInfo& right)
+{
+  return !(left == right);
+}
+
+
 inline bool operator!=(const TimeInfo& left, const TimeInfo& right)
 {
   return !(left == right);

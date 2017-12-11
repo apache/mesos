@@ -271,6 +271,14 @@ inline bool operator!=(
 }
 
 
+inline bool operator!=(
+    const ResourceProviderInfo& left,
+    const ResourceProviderInfo& right)
+{
+  return !(left == right);
+}
+
+
 inline bool operator!=(const AgentID& left, const AgentID& right)
 {
   return left.value() != right.value();

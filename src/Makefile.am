@@ -2621,6 +2621,7 @@ mesos_tests_SOURCES +=						\
 
 if OS_LINUX
 mesos_tests_SOURCES +=						\
+  tests/agent_resource_provider_config_api_tests.cpp		\
   tests/storage_local_resource_provider_tests.cpp
 endif
 endif

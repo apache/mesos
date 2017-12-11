@@ -131,6 +131,8 @@ struct ResourceProvider
 
   ~ResourceProvider()
   {
+    LOG(INFO) << "Terminating resource provider " << info.id();
+
     http.close();
 
     foreachvalue (const Owned<Promise<Nothing>>& publish, publishes) {
@@ -660,6 +662,10 @@ void ResourceProviderManagerProcess::updateState(
 
     offerOperations.put(uuid.get(), operation);
   }
+
+  LOG(INFO)
+    << "Received UPDATE_STATE call with resources '" << update.resources()
+    << "' from resource provider " << resourceProvider->info.id();
 
   ResourceProviderMessage::UpdateState updateState{
       resourceProvider->info,
