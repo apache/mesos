@@ -7539,19 +7539,17 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
       resourceProviders) {
     // Below we only add offer operations to our state from resource providers
     // which are unknown, or possibly remove them for known resource providers.
-    // This works since the master should always known more offer operations of
-    // known resource provider than any resource provider itself.
+    // This works since the master should always know more offer operations of
+    // known resource providers than any resource provider itself.
     //
-    // NOTE: We do not mutate offer operations statuses here; this
-    // would be the responsibility of a offer operation status
-    // update handler.
+    // NOTE: We do not mutate offer operation statuses here; that is the
+    // responsibility of the `offerOperationStatusUpdate` handler.
     //
-    // There still exists a edge case where the master might remove a
-    // terminal offer operation from its state when passing an
-    // acknowledgement from a framework on to the agent with the agent
-    // failing over before the acknowledgement can be processed. In
-    // that case the agent would track an operation unknown to the
-    // master.
+    // There still exists an edge case where the master might remove a terminal
+    // offer operation from its state when passing an acknowledgement from a
+    // framework on to the agent, with the agent failing over before the
+    // acknowledgement can be processed. In that case the agent would track an
+    // operation unknown to the master.
     //
     // TODO(bbannier): We might want to consider to also learn about
     // new (terminal) operations when observing messages from status
