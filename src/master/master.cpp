@@ -7459,7 +7459,7 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
         // as many non-terminal offer operations as the agent. While an
         // operation might get lost on the way to the agent or resource
         // provider, or become terminal inside the agent, the master would never
-        // make an offer operation known to the agent terminal with the agent
+        // make an offer operation known to the agent terminal without the agent
         // doing that first.
         //
         // NOTE: We only consider non-terminal operations here as there is an
