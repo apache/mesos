@@ -500,6 +500,76 @@ TEST(AgentCallValidationTest, LaunchNestedContainerSession)
   EXPECT_NONE(error);
 }
 
+
+TEST(AgentCallValidationTest, AddResourceProviderConfig)
+{
+  // Expecting `add_resource_provider_config`.
+  agent::Call call;
+  call.set_type(agent::Call::ADD_RESOURCE_PROVIDER_CONFIG);
+
+  Option<Error> error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  // Expecting `info.id` to be unset.
+  ResourceProviderInfo* info =
+    call.mutable_add_resource_provider_config()->mutable_info();
+  info->set_type("org.apache.mesos.rp.type");
+  info->set_name("name");
+  info->mutable_id()->set_value("id");
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  info->clear_id();
+
+  error = validation::agent::call::validate(call);
+  EXPECT_NONE(error);
+}
+
+
+TEST(AgentCallValidationTest, UpdateResourceProviderConfig)
+{
+  // Expecting `update_resource_provider_config`.
+  agent::Call call;
+  call.set_type(agent::Call::UPDATE_RESOURCE_PROVIDER_CONFIG);
+
+  Option<Error> error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  // Expecting `info.id` to be unset.
+  ResourceProviderInfo* info =
+    call.mutable_update_resource_provider_config()->mutable_info();
+  info->set_type("org.apache.mesos.rp.type");
+  info->set_name("name");
+  info->mutable_id()->set_value("id");
+
+  error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  info->clear_id();
+
+  error = validation::agent::call::validate(call);
+  EXPECT_NONE(error);
+}
+
+
+TEST(AgentCallValidationTest, RemoveResourceProviderConfig)
+{
+  // Expecting `remove_resource_provider_config`.
+  agent::Call call;
+  call.set_type(agent::Call::REMOVE_RESOURCE_PROVIDER_CONFIG);
+
+  Option<Error> error = validation::agent::call::validate(call);
+  EXPECT_SOME(error);
+
+  call.mutable_remove_resource_provider_config()
+    ->set_type("org.apache.mesos.rp.type");
+  call.mutable_remove_resource_provider_config()->set_name("name");
+
+  error = validation::agent::call::validate(call);
+  EXPECT_NONE(error);
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

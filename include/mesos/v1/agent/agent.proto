@@ -363,7 +363,7 @@ message Call {
   optional KillContainer kill_container = 15;
   optional RemoveContainer remove_container = 16;
 
-  optional UpdateResourceProviderConfig add_resource_provider_config = 17;
+  optional AddResourceProviderConfig add_resource_provider_config = 17;
   optional UpdateResourceProviderConfig update_resource_provider_config = 18;
   optional RemoveResourceProviderConfig remove_resource_provider_config = 19;
 }
