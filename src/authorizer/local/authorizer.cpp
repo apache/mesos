@@ -1480,10 +1480,10 @@ private:
         return acls_;
       case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
         foreach (const ACL::ModifyResourceProviderConfig& acl,
-            acls.modify_resource_provider_config()) {
+                 acls.modify_resource_provider_configs()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
-          acl_.objects = acl.users();
+          acl_.objects = acl.resource_providers();
 
           acls_.push_back(acl_);
         }
@@ -1649,6 +1649,15 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
     if (acl.users().type() == ACL::Entity::SOME) {
       return Error(
           "acls.remove_standalone_container type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::ModifyResourceProviderConfig& acl,
+           acls.modify_resource_provider_configs()) {
+    if (acl.resource_providers().type() == ACL::Entity::SOME) {
+      return Error(
+          "acls.modify_resource_provider_config type must be either NONE or "
+          "ANY");
     }
   }
 
