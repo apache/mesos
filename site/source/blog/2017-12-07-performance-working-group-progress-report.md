@@ -75,7 +75,7 @@ There was a reduction in the time-to-completion of ~80% due to a 450-500% improv
 
 The second results add task history: each agent also now contains 100 completed tasks across 5 completed frameworks. The results from 1,000 - 40,000 agents with 10,000 - 400,000 active tasks and 100,000 - 4,000,000 completed tasks are shown below:
 
-![1.3 - 1.5 Master Failover with Task History Graph](/assets/img/documentation/1.3-1.5_master_failover_with_history)
+![2.3 - 1.5 Master Failover with Task History Graph](/assets/img/documentation/1.3-1.5_master_failover_with_history.png)
 
 This represents a reduction in time-to-completion of ~85% due to a 550-700% improvement in throughput across 1.3.0 to 1.5.0.
 
