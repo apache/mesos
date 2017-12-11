@@ -3526,6 +3526,16 @@ Future<bool> Master::authorizeReserveResources(
     const Offer::Operation::Reserve& reserve,
     const Option<Principal>& principal)
 {
+  // Authorizing the reserve operation is equivalent to authorizing
+  // the resources specified in the operation.
+  return authorizeReserveResources(reserve.resources(), principal);
+}
+
+
+Future<bool> Master::authorizeReserveResources(
+    const Resources& resources,
+    const Option<Principal>& principal)
+{
   if (authorizer.isNone()) {
     return true; // Authorization is disabled.
   }
@@ -3543,7 +3553,7 @@ Future<bool> Master::authorizeReserveResources(
   // Add an element to `request.roles` for each unique role in the resources.
   hashset<string> roles;
   list<Future<bool>> authorizations;
-  foreach (const Resource& resource, reserve.resources()) {
+  foreach (const Resource& resource, resources) {
     // NOTE: Since authorization happens __before__ validation and resource
     // format conversion, we must look for roles that may appear in both
     // "pre" and "post" reservation-refinement formats. This may not even be
@@ -3573,7 +3583,7 @@ Future<bool> Master::authorizeReserveResources(
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to reserve resources '" << reserve.resources() << "'";
+            << "' to reserve resources '" << resources << "'";
 
   // NOTE: Empty authorizations are not valid and are checked by a validator.
   // However under certain circumstances, this method can be called before

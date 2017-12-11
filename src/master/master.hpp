@@ -787,6 +787,12 @@ protected:
       const Offer::Operation::Reserve& reserve,
       const Option<process::http::authentication::Principal>& principal);
 
+  // Authorizes whether the provided `principal` is allowed to reserve
+  // the specified `resources`.
+  process::Future<bool> authorizeReserveResources(
+      const Resources& resources,
+      const Option<process::http::authentication::Principal>& principal);
+
   /**
    * Authorizes an `UNRESERVE` operation.
    *
