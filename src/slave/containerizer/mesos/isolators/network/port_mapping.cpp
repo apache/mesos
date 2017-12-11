@@ -2116,6 +2116,8 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   // configurations inside a container. Therefore, we need to set them
   // in the container to match that on the host.
   procs.insert("/proc/sys/net/core/somaxconn");
+  procs.insert("/proc/sys/net/ipv4/tcp_ecn");
+  procs.insert("/proc/sys/net/ipv4/tcp_ecn_fallback");
 
   // As of kernel 3.10, the following configurations are shared
   // between host and containers, and therefore are not required to be
