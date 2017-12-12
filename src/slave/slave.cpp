@@ -6531,9 +6531,6 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
         requiredMasterCapabilities.agentUpdate = true;
       }
 
-      // Start the local resource providers daemon once we have the slave id.
-      localResourceProviderDaemon->start(info.id());
-
       // Recover the frameworks.
       foreachvalue (const FrameworkState& frameworkState,
                     slaveState->frameworks) {
