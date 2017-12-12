@@ -84,20 +84,49 @@ inline Try<Nothing> checkpoint(
 }
 
 
-inline Try<Nothing> checkpoint(
-    const std::string& path,
-    const google::protobuf::Message& message)
+template <
+    typename T,
+    typename std::enable_if<
+        std::is_convertible<T*, google::protobuf::Message*>::value,
+        int>::type = 0>
+inline Try<Nothing> checkpoint(const std::string& path, T message)
 {
+  // If the `Try` from `downgradeResources` returns an `Error`, we currently
+  // continue to checkpoint the resources in a partially downgraded state.
+  // This implies that an agent with refined reservations cannot be downgraded
+  // to versions before reservation refinement support, which was introduced
+  // in 1.4.0.
+  //
+  // TODO(mpark): Do something smarter with the result once
+  // something like an agent recovery capability is introduced.
+  downgradeResources(&message);
   return ::protobuf::write(path, message);
 }
 
 
-template <typename T>
-Try<Nothing> checkpoint(
+inline Try<Nothing> checkpoint(
     const std::string& path,
-    const google::protobuf::RepeatedPtrField<T>& messages)
+    google::protobuf::RepeatedPtrField<Resource> resources)
 {
-  return ::protobuf::write(path, messages);
+  // If the `Try` from `downgradeResources` returns an `Error`, we currently
+  // continue to checkpoint the resources in a partially downgraded state.
+  // This implies that an agent with refined reservations cannot be downgraded
+  // to versions before reservation refinement support, which was introduced
+  // in 1.4.0.
+  //
+  // TODO(mpark): Do something smarter with the result once
+  // something like an agent recovery capability is introduced.
+  downgradeResources(&resources);
+  return ::protobuf::write(path, resources);
+}
+
+
+inline Try<Nothing> checkpoint(
+    const std::string& path,
+    const Resources& resources)
+{
+  const google::protobuf::RepeatedPtrField<Resource>& messages = resources;
+  return checkpoint(path, messages);
 }
 
 }  // namespace internal {

@@ -5004,20 +5004,13 @@ void Master::_accept(
                       slave->info));
             }
 
-            // If the agent does not support reservation refinement,
-            // downgrade the task and executor resources to the
-            // "pre-reservation-refinement" format. This cannot fail
-            // since the master rejects attempts to create refined
-            // reservations on non-capable agents.
+            // If the agent does not support reservation refinement, downgrade
+            // the task / executor resources to the "pre-reservation-refinement"
+            // format. This cannot contain any refined reservations since
+            // the master rejects attempts to create refined reservations
+            // on non-capable agents.
             if (!slave->capabilities.reservationRefinement) {
-              TaskInfo& task = *message.mutable_task();
-
-              CHECK_SOME(downgradeResources(task.mutable_resources()));
-
-              if (task.has_executor()) {
-                CHECK_SOME(downgradeResources(
-                    task.mutable_executor()->mutable_resources()));
-              }
+              CHECK_SOME(downgradeResources(&message));
             }
 
             // TODO(bmahler): Consider updating this log message to
@@ -5208,21 +5201,11 @@ void Master::_accept(
 
         // If the agent does not support reservation refinement, downgrade
         // the task and executor resources to the "pre-reservation-refinement"
-        // format. This cannot fail since the master rejects attempts to
-        // create refined reservations on non-capable agents.
+        // format. This cannot contain any refined reservations since
+        // the master rejects attempts to create refined reservations
+        // on non-capable agents.
         if (!slave->capabilities.reservationRefinement) {
-          CHECK_SOME(downgradeResources(
-              message.mutable_executor()->mutable_resources()));
-
-          foreach (
-              TaskInfo& task, *message.mutable_task_group()->mutable_tasks()) {
-            CHECK_SOME(downgradeResources(task.mutable_resources()));
-
-            if (task.has_executor()) {
-              CHECK_SOME(downgradeResources(
-                  task.mutable_executor()->mutable_resources()));
-            }
-          }
+          CHECK_SOME(downgradeResources(&message));
         }
 
         LOG(INFO) << "Launching task group " << stringify(taskIds)
@@ -7148,9 +7131,9 @@ void Master::___reregisterSlave(
       //
       // TODO(neilc): It would probably be better to prevent the agent
       // from re-registering in this scenario.
-      Try<Nothing> result = downgradeResources(message.mutable_resources());
+      Try<Nothing> result = downgradeResources(&message);
       if (result.isError()) {
-        LOG(WARNING) << "Not sending updated checkpointed resouces "
+        LOG(WARNING) << "Not sending updated checkpointed resources "
                      << slave->checkpointedResources
                      << " with refined reservations, since agent " << *slave
                      << " is not RESERVATION_REFINEMENT-capable.";
@@ -10653,7 +10636,7 @@ void Master::_apply(
       //
       // TODO(neilc): It would probably be better to prevent the agent
       // from re-registering in this scenario.
-      Try<Nothing> result = downgradeResources(message.mutable_resources());
+      Try<Nothing> result = downgradeResources(&message);
       if (result.isError()) {
         LOG(WARNING) << "Not sending updated checkpointed resources "
                      << slave->checkpointedResources
