@@ -3790,28 +3790,53 @@ Future<bool> Master::authorizeDestroyVolume(
 }
 
 
-Future<bool> Master::authorizeSlave(const Option<string>& principal)
+Future<bool> Master::authorizeSlave(
+    const SlaveInfo& slaveInfo,
+    const Option<Principal>& principal)
 {
   if (authorizer.isNone()) {
     return true;
   }
 
-  LOG(INFO) << "Authorizing agent "
+  list<Future<bool>> authorizations;
+
+  // First authorize whether the agent can register.
+  LOG(INFO) << "Authorizing agent providing resources "
+            << "'" << stringify(Resources(slaveInfo.resources())) << "' "
             << (principal.isSome()
-                ? "with principal '" + principal.get() + "'"
+                ? "with principal '" + stringify(principal.get()) + "'"
                 : "without a principal");
 
   authorization::Request request;
   request.set_action(authorization::REGISTER_AGENT);
 
-  if (principal.isSome()) {
-    request.mutable_subject()->set_value(principal.get());
+  Option<authorization::Subject> subject = createSubject(principal);
+  if (subject.isSome()) {
+    request.mutable_subject()->CopyFrom(subject.get());
   }
 
   // No need to set the request's object as it is implicitly set to
   // ANY by the authorizer.
+  authorizations.push_back(authorizer.get()->authorized(request));
 
-  return authorizer.get()->authorized(request);
+  // Next, if static reservations exist, also authorize them.
+  //
+  // NOTE: We don't look at dynamic reservations in checkpointed
+  // resources because they should have gone through authorization
+  // against the framework / operator's principal when they were
+  // created. In constrast, static reservations are initiated by the
+  // agent's principal and authorizing them helps prevent agents from
+  // advertising reserved resources of arbitrary roles.
+  if (!Resources(slaveInfo.resources()).reserved().empty()) {
+    authorizations.push_back(
+        authorizeReserveResources(slaveInfo.resources(), principal));
+  }
+
+  return collect(authorizations)
+    .then([](const list<bool>& results)
+          -> Future<bool> {
+      return std::find(results.begin(), results.end(), false) == results.end();
+    });
 }
 
 
@@ -6004,9 +6029,17 @@ void Master::registerSlave(
   // Note that the principal may be empty if authentication is not
   // required. Also it is passed along because it may be removed from
   // `authenticated` while the authorization is pending.
-  Option<string> principal = authenticated.get(from);
+  Option<Principal> principal = authenticated.contains(from)
+      ? Principal(authenticated.at(from))
+      : Option<Principal>::none();
 
-  authorizeSlave(principal)
+  // Calling the `onAny` continuation below separately so we can move
+  // `registerSlaveMessage` without it being evaluated before it's used
+  // by `authorizeSlave`.
+  Future<bool> authorization =
+    authorizeSlave(registerSlaveMessage.slave(), principal);
+
+  authorization
     .onAny(defer(self(),
                  &Self::_registerSlave,
                  from,
@@ -6019,7 +6052,7 @@ void Master::registerSlave(
 void Master::_registerSlave(
     const UPID& pid,
     RegisterSlaveMessage&& registerSlaveMessage,
-    const Option<string>& principal,
+    const Option<Principal>& principal,
     const Future<bool>& authorized)
 {
   CHECK(!authorized.isDiscarded());
@@ -6033,9 +6066,10 @@ void Master::_registerSlave(
     authorizationError = "Authorization failure: " + authorized.failure();
   } else if (!authorized.get()) {
     authorizationError =
-      "Not authorized to register as agent " +
+      "Not authorized to register agent providing resources "
+      "'" + stringify(Resources(slaveInfo.resources())) + "' " +
       (principal.isSome()
-       ? "with principal '" + principal.get() + "'"
+       ? "with principal '" + stringify(principal.get()) + "'"
        : "without a principal");
   }
 
@@ -6356,9 +6390,17 @@ void Master::reregisterSlave(
   // Note that the principal may be empty if authentication is not
   // required. Also it is passed along because it may be removed from
   // `authenticated` while the authorization is pending.
-  Option<string> principal = authenticated.get(from);
+  Option<Principal> principal = authenticated.contains(from)
+      ? Principal(authenticated.at(from))
+      : Option<Principal>::none();
 
-  authorizeSlave(principal)
+  // Calling the `onAny` continuation below separately so we can move
+  // `reregisterSlaveMessage` without it being evaluated before it's used
+  // by `authorizeSlave`.
+  Future<bool> authorization =
+    authorizeSlave(reregisterSlaveMessage.slave(), principal);
+
+  authorization
     .onAny(defer(self(),
                  &Self::_reregisterSlave,
                  from,
@@ -6371,7 +6413,7 @@ void Master::reregisterSlave(
 void Master::_reregisterSlave(
     const UPID& pid,
     ReregisterSlaveMessage&& reregisterSlaveMessage,
-    const Option<string>& principal,
+    const Option<Principal>& principal,
     const Future<bool>& authorized)
 {
   CHECK(!authorized.isDiscarded());
@@ -6385,9 +6427,10 @@ void Master::_reregisterSlave(
     authorizationError = "Authorization failure: " + authorized.failure();
   } else if (!authorized.get()) {
     authorizationError =
-      "Not authorized to re-register as agent with principal " +
+      "Not authorized to re-register agent providing resources "
+      "'" + stringify(Resources(slaveInfo.resources())) + "' " +
       (principal.isSome()
-       ? "with principal '" + principal.get() + "'"
+       ? "with principal '" + stringify(principal.get()) + "'"
        : "without a principal");
   }
 

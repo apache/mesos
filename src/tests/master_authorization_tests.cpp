@@ -2407,7 +2407,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedToRegisterAgent)
   ASSERT_SOME(master);
 
   Future<Message> shutdownMessage =
-    FUTURE_MESSAGE(Eq(ShutdownMessage ().GetTypeName()), _, _);
+    FUTURE_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
@@ -2507,6 +2507,180 @@ TEST_F(MasterAuthorizationTest, RetryRegisterAgent)
 
   // Now authorize the agent and verify it's registered.
   promise.set(true);
+
+  AWAIT_READY(slaveRegisteredMessage);
+}
+
+
+// This test verifies that the agent is shut down by the master if it is
+// not authorized to statically reserve any resources.
+TEST_F(MasterAuthorizationTest, UnauthorizedToStaticallyReserveResources)
+{
+  // Set up ACLs so that the agent can (re)register.
+  ACLs acls;
+
+  {
+    mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_agents()->set_type(ACL::Entity::ANY);
+  }
+
+  // The agent cannot statically reserve resources of any role.
+  {
+    mesos::ACL::ReserveResources* acl = acls.add_reserve_resources();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_roles()->set_type(ACL::Entity::NONE);
+  }
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<Message> shutdownMessage =
+    FUTURE_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  agentFlags.resources = "cpus(foo):1;mem(foo):1";
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), agentFlags);
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(shutdownMessage);
+}
+
+
+// This test verifies that the agent is shut down by the master if it is
+// not authorized to statically reserve certain roles.
+TEST_F(MasterAuthorizationTest, UnauthorizedToStaticallyReserveRole)
+{
+  // Set up ACLs so that the agent can (re)register.
+  ACLs acls;
+
+  {
+    mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_agents()->set_type(ACL::Entity::ANY);
+  }
+
+  // Only `high-security-principal` (not the principal that the agent in
+  // this test has) can statically reserve resources for `high-security-role`.
+  {
+    mesos::ACL::ReserveResources* acl = acls.add_reserve_resources();
+    acl->mutable_principals()->add_values("high-security-principal");
+    acl->mutable_roles()->add_values("high-security-role");
+  }
+
+  // No other can statically reserve resources of this role.
+  {
+    mesos::ACL::ReserveResources* acl = acls.add_reserve_resources();
+    acl->mutable_principals()->set_type(ACL::Entity::NONE);
+    acl->mutable_roles()->add_values("high-security-role");
+  }
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Future<Message> shutdownMessage =
+    FUTURE_MESSAGE(Eq(ShutdownMessage().GetTypeName()), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  agentFlags.resources = "cpus(high-security-role):1;mem(high-security-role):1";
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), agentFlags);
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(shutdownMessage);
+}
+
+
+// This test verifies that the agent successfully registers while statically
+// reserving resource for a certain role when permitted in the ACLs.
+TEST_F(MasterAuthorizationTest, AuthorizedToStaticallyReserveRole)
+{
+  // Set up ACLs so that the agent can register.
+  ACLs acls;
+
+  {
+    mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_agents()->set_type(ACL::Entity::ANY);
+  }
+
+  // The agent principal is allowed to statically reserve resources of
+  // `high-security-role`.
+  {
+    mesos::ACL::ReserveResources* acl = acls.add_reserve_resources();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_roles()->add_values("high-security-role");
+  }
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Start a slave with no static reservations.
+  slave::Flags agentFlags = CreateSlaveFlags();
+  agentFlags.resources = "cpus(high-security-role):1;mem(high-security-role):1";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<Message> slaveRegisteredMessage =
+    FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), agentFlags);
+  ASSERT_SOME(agent);
+
+  AWAIT_READY(slaveRegisteredMessage);
+}
+
+
+// This test verifies that the agent is authorized if ACLs don't allow
+// any agents to statically reserve resources but the agent only registers
+// with unreserved resources.
+TEST_F(MasterAuthorizationTest, AuthorizedToRegisterNoStaticReservations)
+{
+  // Set up ACLs so that the agent can (re)register.
+  ACLs acls;
+
+  {
+    mesos::ACL::RegisterAgent* acl = acls.add_register_agents();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_agents()->set_type(ACL::Entity::ANY);
+  }
+
+  {
+    // No agent is allowed to statically reserve resources.
+    mesos::ACL::ReserveResources* acl = acls.add_reserve_resources();
+    acl->mutable_principals()->set_type(ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(ACL::Entity::NONE);
+  }
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.acls = acls;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Start a slave with no static reservations.
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<Message> slaveRegisteredMessage =
+    FUTURE_MESSAGE(Eq(SlaveRegisteredMessage().GetTypeName()), _, _);
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), agentFlags);
+  ASSERT_SOME(agent);
 
   AWAIT_READY(slaveRegisteredMessage);
 }

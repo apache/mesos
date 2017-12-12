@@ -604,7 +604,7 @@ protected:
   void _registerSlave(
       const process::UPID& pid,
       RegisterSlaveMessage&& registerSlaveMessage,
-      const Option<std::string>& principal,
+      const Option<process::http::authentication::Principal>& principal,
       const process::Future<bool>& authorized);
 
   void __registerSlave(
@@ -615,7 +615,7 @@ protected:
   void _reregisterSlave(
       const process::UPID& pid,
       ReregisterSlaveMessage&& incomingMessage,
-      const Option<std::string>& principal,
+      const Option<process::http::authentication::Principal>& principal,
       const process::Future<bool>& authorized);
 
   void __reregisterSlave(
@@ -757,8 +757,11 @@ protected:
   process::Future<bool> authorizeFramework(
       const FrameworkInfo& frameworkInfo);
 
-  // Returns whether the principal is authorized to (re-)register an agent.
-  process::Future<bool> authorizeSlave(const Option<std::string>& principal);
+  // Returns whether the principal is authorized to (re-)register an agent
+  // and whether the `SlaveInfo` is authorized.
+  process::Future<bool> authorizeSlave(
+      const SlaveInfo& slaveInfo,
+      const Option<process::http::authentication::Principal>& principal);
 
   // Returns whether the task is authorized.
   // Returns failure for transient authorization failures.

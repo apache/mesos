@@ -75,7 +75,10 @@ message ACL {
 
   // Specifies which roles a principal can reserve resources for.
   message ReserveResources {
-    // Subjects: Framework principal or Operator username.
+    // Subjects:
+    // - Framework principal or Operator username in the case of
+    //   dynamic reservation.
+    // - Agent principal in the case of static reservation.
     required Entity principals = 1;
 
     // Objects: The principal(s) can reserve resources for these roles.
