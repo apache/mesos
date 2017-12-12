@@ -70,13 +70,13 @@ set(STOUT_OS_TESTS_SRC
   os/process_tests.cpp
   os/rmdir_tests.cpp
   os/socket_tests.cpp
-  os/strerror_tests.cpp
-  os/systems_tests.cpp)
+  os/strerror_tests.cpp)
 
 if (NOT WIN32)
   list(APPEND STOUT_OS_TESTS_SRC
     os/sendfile_tests.cpp
-    os/signals_tests.cpp)
+    os/signals_tests.cpp
+    os/systems_tests.cpp)
 endif ()
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")

@@ -35,14 +35,6 @@ TEST_F(SystemsTests, Uname)
 
   // Machine arch must be non-empty.
   EXPECT_FALSE(info.get().machine.empty());
-#elif defined(__WINDOWS__)
-  // On Windows, `sysname` is one of 2 options.
-  hashset<string> server_types{"Windows", "Windows Server"};
-  EXPECT_TRUE(server_types.contains(info.get().sysname));
-
-  // On Windows, we `machine` takes one of 5 values.
-  hashset<string> arch_types{"AMD64", "ARM", "IA64", "x86", "Unknown"};
-  EXPECT_TRUE(arch_types.contains(info.get().machine));
 #endif // __linux__
 
   // The `release`, `version`, and `nodename` properties should all be

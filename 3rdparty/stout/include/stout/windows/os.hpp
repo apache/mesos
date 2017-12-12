@@ -55,19 +55,6 @@
 namespace os {
 namespace internal {
 
-inline Try<OSVERSIONINFOEXW> os_version()
-{
-  OSVERSIONINFOEXW os_version;
-  os_version.dwOSVersionInfoSize = sizeof(os_version);
-  if (!::GetVersionExW(reinterpret_cast<LPOSVERSIONINFO>(&os_version))) {
-    return WindowsError(
-        "os::internal::os_version: Call to `GetVersionEx` failed");
-  }
-
-  return os_version;
-}
-
-
 inline Try<std::string> nodename()
 {
   // MSDN documentation states "The names are established at system startup,
@@ -93,58 +80,6 @@ inline Try<std::string> nodename()
   }
 
   return stringify(std::wstring(buffer.data()));
-}
-
-
-inline std::string machine()
-{
-  SYSTEM_INFO system_info;
-  ::GetNativeSystemInfo(&system_info);
-
-  switch (system_info.wProcessorArchitecture) {
-    case PROCESSOR_ARCHITECTURE_AMD64:
-      return "AMD64";
-    case PROCESSOR_ARCHITECTURE_ARM:
-      return "ARM";
-    case PROCESSOR_ARCHITECTURE_IA64:
-      return "IA64";
-    case PROCESSOR_ARCHITECTURE_INTEL:
-      return "x86";
-    default:
-      return "Unknown";
-  }
-}
-
-
-inline std::string sysname(OSVERSIONINFOEXW os_version)
-{
-  switch (os_version.wProductType) {
-    case VER_NT_DOMAIN_CONTROLLER:
-    case VER_NT_SERVER:
-      return "Windows Server";
-    default:
-      return "Windows";
-  }
-}
-
-
-inline std::string release(OSVERSIONINFOEXW os_version)
-{
-  return stringify(
-      Version(os_version.dwMajorVersion, os_version.dwMinorVersion, 0));
-}
-
-
-inline std::string version(OSVERSIONINFOEXW os_version)
-{
-  std::string version = std::to_string(os_version.dwBuildNumber);
-
-  if (os_version.szCSDVersion[0] != L'\0') {
-    version.append(" ");
-    version.append(stringify(os_version.szCSDVersion));
-  }
-
-  return version;
 }
 
 } // namespace internal {
@@ -444,43 +379,11 @@ inline Try<Memory> memory()
 }
 
 
-inline Try<Version> release()
-{
-  OSVERSIONINFOEXW os_version;
-  os_version.dwOSVersionInfoSize = sizeof(os_version);
-  if (!::GetVersionExW(reinterpret_cast<LPOSVERSIONINFO>(&os_version))) {
-    return WindowsError("os::release: Call to `GetVersionEx` failed");
-  }
-
-  return Version(os_version.dwMajorVersion, os_version.dwMinorVersion, 0);
-}
+inline Try<Version> release() = delete;
 
 
 // Return the system information.
-inline Try<UTSInfo> uname()
-{
-  Try<OSVERSIONINFOEXW> os_version = internal::os_version();
-  if (os_version.isError()) {
-    return Error(os_version.error());
-  }
-
-  // Add nodename to `UTSInfo` object.
-  Try<std::string> nodename = internal::nodename();
-  if (nodename.isError()) {
-    return Error(nodename.error());
-  }
-
-  // Populate `UTSInfo`.
-  UTSInfo info;
-
-  info.sysname = internal::sysname(os_version.get());
-  info.release = internal::release(os_version.get());
-  info.version = internal::version(os_version.get());
-  info.nodename = nodename.get();
-  info.machine = internal::machine();
-
-  return info;
-}
+inline Try<UTSInfo> uname() = delete;
 
 
 inline tm* gmtime_r(const time_t* timep, tm* result)
