@@ -453,6 +453,14 @@ protected:
   // change in the future.
   hashmap<std::string, Quota> quotas;
 
+  // Aggregated resource reservations on all agents tied to a
+  // particular role, if any. These are stripped scalar quantities
+  // that contain no meta-data. Used for accounting resource
+  // reservations for quota limit.
+  //
+  // Only roles with non-empty reservations will be stored in the map.
+  hashmap<std::string, Resources> reservationScalarQuantities;
+
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;
 
@@ -545,6 +553,26 @@ private:
   void untrackFrameworkUnderRole(
       const FrameworkID& frameworkId,
       const std::string& role);
+
+  // `trackReservations` and `untrackReservations` are helpers
+  // to track role resource reservations. We need to keep
+  // track of reservations to enforce role quota limit
+  // in the presence of unallocated reservations. See MESOS-4527.
+  //
+  // TODO(mzhu): Ideally, we want these helpers to instead track the
+  // reservations as *allocated* in the sorters even when the
+  // reservations have not been allocated yet. This will help to:
+  //
+  //   (1) Solve the fairness issue when roles with unallocated
+  //       reservations may game the allocator (See MESOS-8299).
+  //
+  //   (2) Simplify the quota enforcement logic -- the allocator
+  //       would no longer need to track reservations separately.
+  void trackReservations(
+      const hashmap<std::string, Resources>& reservations);
+
+  void untrackReservations(
+      const hashmap<std::string, Resources>& reservations);
 
   // Helper to update the agent's total resources maintained in the allocator
   // and the role and quota sorters (whose total resources match the agent's

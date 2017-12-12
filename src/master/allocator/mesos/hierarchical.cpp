@@ -522,6 +522,8 @@ void HierarchicalAllocatorProcess::addSlave(
     slave.maintenance = Slave::Maintenance(unavailability.get());
   }
 
+  trackReservations(total.reservations());
+
   roleSorter->add(slaveId, total);
 
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
@@ -593,6 +595,8 @@ void HierarchicalAllocatorProcess::removeSlave(
 
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
   quotaRoleSorter->remove(slaveId, slaves.at(slaveId).total.nonRevocable());
+
+  untrackReservations(slaves.at(slaveId).total.reservations());
 
   slaves.erase(slaveId);
   allocationCandidates.erase(slaveId);
@@ -2395,6 +2399,42 @@ void HierarchicalAllocatorProcess::untrackFrameworkUnderRole(
 }
 
 
+void HierarchicalAllocatorProcess::trackReservations(
+    const hashmap<std::string, Resources>& reservations)
+{
+  foreachpair (const string& role,
+               const Resources& resources, reservations) {
+    // We remove the static reservation metadata here via `toUnreserved()`.
+    const Resources scalarQuantitesToTrack =
+        resources.createStrippedScalarQuantity().toUnreserved();
+
+    reservationScalarQuantities[role] += scalarQuantitesToTrack;
+  }
+}
+
+
+void HierarchicalAllocatorProcess::untrackReservations(
+    const hashmap<std::string, Resources>& reservations)
+{
+  foreachpair (const string& role,
+               const Resources& resources, reservations) {
+    CHECK(reservationScalarQuantities.contains(role));
+    Resources& currentReservationQuantity =
+        reservationScalarQuantities.at(role);
+
+    // We remove the static reservation metadata here via `toUnreserved()`.
+    const Resources scalarQuantitesToUntrack =
+        resources.createStrippedScalarQuantity().toUnreserved();
+    CHECK(currentReservationQuantity.contains(scalarQuantitesToUntrack));
+    currentReservationQuantity -= scalarQuantitesToUntrack;
+
+    if (currentReservationQuantity.empty()) {
+      reservationScalarQuantities.erase(role);
+    }
+  }
+}
+
+
 bool HierarchicalAllocatorProcess::updateSlaveTotal(
     const SlaveID& slaveId,
     const Resources& total)
@@ -2410,6 +2450,14 @@ bool HierarchicalAllocatorProcess::updateSlaveTotal(
   }
 
   slave.total = total;
+
+  hashmap<std::string, Resources> oldReservations = oldTotal.reservations();
+  hashmap<std::string, Resources> newReservations = total.reservations();
+
+  if (oldReservations != newReservations) {
+    untrackReservations(oldReservations);
+    trackReservations(newReservations);
+  }
 
   // Currently `roleSorter` and `quotaRoleSorter`, being the root-level
   // sorters, maintain all of `slaves[slaveId].total` (or the `nonRevocable()`
