@@ -1494,6 +1494,48 @@ void HierarchicalAllocatorProcess::__allocate()
     return quotaRoleSorter->allocationScalarQuantities(role).toUnreserved();
   };
 
+  // We need to keep track of allocated reserved resourecs for roles
+  // with quota in order to enforce their quota limit. Note these are
+  // __quantities__ with no meta-data.
+  hashmap<string, Resources> allocatedReservationScalarQuantities;
+
+  // We build the map here to avoid repetitive aggregation
+  // in the allocation loop. Note, this map will still need to be
+  // updated during the allocation loop when new allocations
+  // are made.
+  //
+  // TODO(mzhu): Ideally, we want to buildup and persist this information
+  // across allocation cycles in track/untrackAllocatedResources().
+  // But due to the presence of shared resources, we need to keep track of
+  // the allocated resources (and not just scalar quantities) on a slave
+  // to account for multiple copies of the same shared resources.
+  // While the `allocated` info in the `struct slave` gives us just that,
+  // we can not simply use that in track/untrackAllocatedResources() since
+  // `allocated` is currently updated outside the scope of
+  // track/untrackAllocatedResources(), meaning that it may get updated
+  // either before or after the tracking calls.
+  //
+  // TODO(mzhu): Ideally, we want these helpers to instead track the
+  // reservations as *allocated* in the sorters even when the
+  // reservations have not been allocated yet. This will help to:
+  //
+  //   (1) Solve the fairness issue when roles with unallocated
+  //       reservations may game the allocator (See MESOS-8299).
+  //
+  //   (2) Simplify the quota enforcement logic -- the allocator
+  //       would no longer need to track reservations separately.
+  foreachkey (const string& role, quotas) {
+    const hashmap<SlaveID, Resources> allocations =
+      quotaRoleSorter->allocation(role);
+
+    foreachvalue (const Resources& resources, allocations) {
+      // We need to remove the static reservation metadata here via
+      // `toUnreserved()`.
+      allocatedReservationScalarQuantities[role] +=
+        resources.reserved().createStrippedScalarQuantity().toUnreserved();
+    }
+  }
+
   // Due to the two stages in the allocation algorithm and the nature of
   // shared resources being re-offerable even if already allocated, the
   // same shared resources can appear in two (and not more due to the
@@ -1520,15 +1562,37 @@ void HierarchicalAllocatorProcess::__allocate()
         continue;
       }
 
-      // Get the total quantity of resources allocated to a quota role. The
-      // value omits role, reservation, and persistence info.
-      Resources roleConsumedResources = getQuotaRoleAllocatedResources(role);
+      // This is a __quantity__ with no meta-data.
+      Resources roleReservationScalarQuantities =
+        reservationScalarQuantities.get(role).getOrElse(Resources());
 
-      // If quota for the role is satisfied, we do not need to do
-      // any further allocations for this role, at least at this
-      // stage. More precisely, we stop allocating if at least
-      // one of the resource guarantees is met. This technique
-      // prevents gaming of the quota allocation, see MESOS-6432.
+      // This is a __quantity__ with no meta-data.
+      Resources roleAllocatedReservationScalarQuantities =
+        allocatedReservationScalarQuantities.get(role).getOrElse(Resources());
+
+      // We charge a role against its quota by considering its
+      // allocation as well as any unallocated reservations
+      // since reservations are bound to the role. In other
+      // words, we always consider reservations as consuming
+      // quota, regardless of whether they are allocated.
+      // The equation used here is:
+      //
+      //   Consumed Quota = reservations + unreserved allocation
+      //                  = reservations + (allocation - allocated reservations)
+      //
+      // This is a __quantity__ with no meta-data.
+      Resources resourcesChargedAgainstQuota =
+        roleReservationScalarQuantities +
+          (getQuotaRoleAllocatedResources(role) -
+               roleAllocatedReservationScalarQuantities);
+
+      // If quota for the role is considered satisfied, then we only
+      // further allocate reservations for the role.
+      //
+      // More precisely, we stop allocating unreserved resources if at
+      // least one of the resource guarantees is considered consumed.
+      // This technique prevents gaming of the quota allocation,
+      // see MESOS-6432.
       //
       // Longer term, we could ideally allocate what remains
       // unsatisfied to allow an existing container to scale
@@ -1541,14 +1605,10 @@ void HierarchicalAllocatorProcess::__allocate()
       //   * Removing satisfied roles from the sorter.
       bool someGuaranteesReached = false;
       foreach (const Resource& guarantee, quota.info.guarantee()) {
-        if (roleConsumedResources.contains(guarantee)) {
+        if (resourcesChargedAgainstQuota.contains(guarantee)) {
           someGuaranteesReached = true;
           break;
         }
-      }
-
-      if (someGuaranteesReached) {
-        continue;
       }
 
       // Fetch frameworks according to their fair share.
@@ -1598,19 +1658,18 @@ void HierarchicalAllocatorProcess::__allocate()
           }
         }
 
-        // The resources we offer are the unreserved resources as well as the
-        // reserved resources for this particular role and all its ancestors
-        // in the role hierarchy.
+        // If a role's quota limit has been reached, we only allocate
+        // its reservations. Otherwise, we allocate its reservations
+        // plus unreserved resources.
         //
         // NOTE: Currently, frameworks are allowed to have '*' role.
         // Calling reserved('*') returns an empty Resources object.
         //
-        // Quota is satisfied from the available non-revocable resources on the
-        // agent. It's important that we include reserved resources here since
-        // reserved resources are accounted towards the quota guarantee. If we
-        // were to rely on stage 2 to offer them out, they would not be checked
-        // against the quota guarantee.
-        Resources resources = available.allocatableTo(role).nonRevocable();
+        // TODO(mzhu): Do fine-grained allocations up to the limit.
+        // See MESOS-8293.
+        Resources resources = someGuaranteesReached ?
+          available.reserved(role).nonRevocable() :
+          available.allocatableTo(role).nonRevocable();
 
         // It is safe to break here, because all frameworks under a role would
         // consider the same resources, so in case we don't have allocatable
@@ -1657,6 +1716,21 @@ void HierarchicalAllocatorProcess::__allocate()
         // quota. This is fine since quota currently represents a guarantee.
         offerable[frameworkId][role][slaveId] += resources;
         offeredSharedResources[slaveId] += resources.shared();
+
+        // Update the tracking of allocated reservations.
+        //
+        // Note it is important to do this before updating `slave.allocated`
+        // because we rely on `slave.allocated` to check against accounting
+        // multiple copies of the same shared resources.
+        const Resources newShared = resources.shared()
+          .filter([this, &slaveId](const Resources& resource) {
+            return !slaves.at(slaveId).allocated.contains(resource);
+          });
+
+        // We remove the static reservation metadata here via `toUnreserved()`.
+        allocatedReservationScalarQuantities[role] +=
+          (resources.reserved(role).nonShared() + newShared)
+            .createStrippedScalarQuantity().toUnreserved();
 
         slave.allocated += resources;
 
@@ -1725,11 +1799,20 @@ void HierarchicalAllocatorProcess::__allocate()
   // Proceed with allocating the remaining free pool.
   foreach (const SlaveID& slaveId, slaveIds) {
     // If there are no resources available for the second stage, stop.
+    //
+    // TODO(mzhu): Breaking early here means that we may leave reservations
+    // unallocated. See MESOS-8293.
     if (!allocatable(remainingClusterResources - allocatedStage2)) {
       break;
     }
 
     foreach (const string& role, roleSorter->sort()) {
+      // In the second allocation stage, we only allocate
+      // for non-quota roles.
+      if (quotas.contains(role)) {
+        continue;
+      }
+
       // NOTE: Suppressed frameworks are not included in the sort.
       CHECK(frameworkSorters.contains(role));
       const Owned<Sorter>& frameworkSorter = frameworkSorters.at(role);
@@ -1783,16 +1866,8 @@ void HierarchicalAllocatorProcess::__allocate()
         // NOTE: Currently, frameworks are allowed to have '*' role.
         // Calling reserved('*') returns an empty Resources object.
         //
-        // NOTE: We do not offer roles with quota any more non-revocable
-        // resources once their quota is satisfied. However, note that this is
-        // not strictly true due to the coarse-grained nature (per agent) of the
-        // allocation algorithm in stage 1.
-        //
         // TODO(mpark): Offer unreserved resources as revocable beyond quota.
         Resources resources = available.allocatableTo(role);
-        if (quotas.contains(role)) {
-          resources -= available.unreserved();
-        }
 
         // It is safe to break here, because all frameworks under a role would
         // consider the same resources, so in case we don't have allocatable
