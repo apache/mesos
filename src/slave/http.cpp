@@ -1348,7 +1348,7 @@ Future<Response> Http::state(
         writer->field("id", slave->info.id().value());
         writer->field("pid", string(slave->self()));
         writer->field("hostname", slave->info.hostname());
-        writer->field("capabilities", AGENT_CAPABILITIES());
+        writer->field("capabilities", slave->capabilities.toRepeatedPtrField());
 
         if (slave->info.has_domain()) {
           writer->field("domain", slave->info.domain());
