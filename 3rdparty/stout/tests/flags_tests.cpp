@@ -268,8 +268,9 @@ TEST(FlagsTest, LoadFromCommandLine)
     "--no-name4",
     "--name5"
   };
+  const int argc = static_cast<int>(arraySize(argv));
 
-  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", argc, argv);
   EXPECT_SOME(load);
   EXPECT_TRUE(load->warnings.empty());
 
@@ -300,8 +301,9 @@ TEST(FlagsTest, LoadFromCommandLineWithNonFlags)
     "the",
     "end"
   };
+  const int argc = static_cast<int>(arraySize(argv));
 
-  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", argc, argv);
   EXPECT_SOME(load);
   EXPECT_TRUE(load->warnings.empty());
 
@@ -332,8 +334,9 @@ TEST(FlagsTest, LoadFromCommandLineWithDashDash)
     "--name5",
     "the"
   };
+  const int argc = static_cast<int>(arraySize(argv));
 
-  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", argc, argv);
   EXPECT_SOME(load);
   EXPECT_TRUE(load->warnings.empty());
 
@@ -362,7 +365,7 @@ TEST(FlagsTest, LoadFromCommandLineAndUpdateArgcArgv)
     (char*)"--name5",
     (char*)"the"
   };
-  int argc = arraySize(argv);
+  int argc = static_cast<int>(arraySize(argv));
 
   // Need a temporary since some compilers want to treat the type of
   // 'argv' as 'char *(*)[argc]' since the size of the array is known.
@@ -532,9 +535,10 @@ TEST(FlagsTest, DuplicatesFromEnvironment)
     "/path/to/program",
     "--name1=billy joel"
   };
+  const int argc = static_cast<int>(arraySize(argv));
 
   // `load(prefix, argc, argv)`.
-  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", argc, argv);
   EXPECT_SOME(load);
   EXPECT_TRUE(load->warnings.empty());
 
@@ -586,10 +590,11 @@ TEST(FlagsTest, DuplicatesFromCommandLine)
     "--name1=billy joel",
     "--name1=ben folds"
   };
+  const int argc = static_cast<int>(arraySize(argv));
 
   // TODO(klaus1982): Simply checking for the error. Once typed errors are
   // introduced, capture it within the type system.
-  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", argc, argv);
   EXPECT_ERROR(load);
 }
 
@@ -614,9 +619,10 @@ TEST(FlagsTest, AliasDuplicateFromCommandLine)
     "--name=billy joel",
     "--alias=ben folds"
   };
+  const int argc = static_cast<int>(arraySize(argv));
 
   // Loading the same flag with the name and alias should be an error.
-  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", argc, argv);
   EXPECT_ERROR(load);
 }
 
@@ -774,8 +780,9 @@ TEST(FlagsTest, Validate)
     "/path/to/program",
     "--duration=2hrs"
   };
+  const int argc = static_cast<int>(arraySize(argv));
 
-  Try<Warnings> load = flags.load("FLAGSTEST_", arraySize(argv), argv);
+  Try<Warnings> load = flags.load("FLAGSTEST_", argc, argv);
   EXPECT_ERROR(load);
 
   EXPECT_EQ("Expected --duration to be less than 1 hour", load.error());
