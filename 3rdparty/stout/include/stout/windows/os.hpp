@@ -780,7 +780,7 @@ Result<std::set<Process>> _get_job_processes(const SharedHandle& job_handle) {
   struct {
     DWORD     NumberOfAssignedProcesses;
     DWORD     NumberOfProcessIdsInList;
-    ULONG_PTR ProcessIdList[max_pids];
+    DWORD     ProcessIdList[max_pids];
   } pid_list;
 
   BOOL result = ::QueryInformationJobObject(
