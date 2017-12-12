@@ -138,7 +138,7 @@ TEST_F(SlaveStateTest, CheckpointProtobufMessage)
 TEST_F(SlaveStateTest, CheckpointRepeatedProtobufMessages)
 {
   // Checkpoint resources.
-  const google::protobuf::RepeatedPtrField<Resource> expected =
+  const Resources expected =
     Resources::parse("cpus:2;mem:512;cpus(role):4;mem(role):1024").get();
 
   const string file = "resources-file";
@@ -148,6 +148,11 @@ TEST_F(SlaveStateTest, CheckpointRepeatedProtobufMessages)
     ::protobuf::read<RepeatedPtrField<Resource>>(file);
 
   ASSERT_SOME(actual);
+
+  // We convert the `actual` back to "post-reservation-refinement"
+  // since `state::checkpoint` always downgrades whatever resources
+  // are downgradable.
+  convertResourceFormat(&actual.get(), POST_RESERVATION_REFINEMENT);
 
   EXPECT_SOME_EQ(expected, actual);
 }

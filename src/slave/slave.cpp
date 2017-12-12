@@ -1294,17 +1294,7 @@ void Slave::registered(
 
       VLOG(1) << "Checkpointing SlaveInfo to '" << path << "'";
 
-      {
-        // The `SlaveInfo.resources` does not include dynamic reservations,
-        // which means it cannot contain reservation refinements, so
-        // `downgradeResources` should always succeed.
-        SlaveInfo info_ = info;
-
-        Try<Nothing> result = downgradeResources(info_.mutable_resources());
-        CHECK_SOME(result);
-
-        CHECK_SOME(state::checkpoint(path, info_));
-      }
+      CHECK_SOME(state::checkpoint(path, info));
 
       // We start the local resource providers daemon once the agent is
       // running, so the resource providers can use the agent API.
@@ -1531,42 +1521,30 @@ void Slave::doReliableRegistration(Duration maxBackoff)
   // See MESOS-5330.
   link(master.get());
 
-  SlaveInfo slaveInfo = info;
-
-  // The `SlaveInfo.resources` does not include dynamic reservations,
-  // which means it cannot contain reservation refinements, so
-  // `downgradeResources` should always succeed.
-  Try<Nothing> result = downgradeResources(slaveInfo.mutable_resources());
-  CHECK_SOME(result);
-
-  RepeatedPtrField<Resource> checkpointedResources_ = checkpointedResources;
-
-  // If the checkpointed resources don't have reservation refinements,
-  // send them to the master in "pre-reservation-refinement" format
-  // for backward compatibility with old masters. If downgrading is
-  // not possible without losing information, send the resources in
-  // the "post-reservation-refinement" format. We ignore the return
-  // value of `downgradeResources` because for now, we send the result
-  // either way.
-  //
-  // TODO(mpark): Do something smarter with the result once something
-  // like a master capability is introduced.
-  downgradeResources(&checkpointedResources_);
-
-  if (!slaveInfo.has_id()) {
+  if (!info.has_id()) {
     // Registering for the first time.
     RegisterSlaveMessage message;
     message.set_version(MESOS_VERSION);
-    message.mutable_slave()->CopyFrom(slaveInfo);
+    message.mutable_slave()->CopyFrom(info);
 
     message.mutable_agent_capabilities()->CopyFrom(
         capabilities.toRepeatedPtrField());
 
     // Include checkpointed resources.
-    message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources_);
+    message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources);
 
     message.mutable_resource_version_uuid()->set_value(
         resourceVersion.toBytes());
+
+    // If the `Try` from `downgradeResources` returns an `Error`, we currently
+    // continue to send the resources to the master in a partially downgraded
+    // state. This implies that an agent with refined reservations cannot work
+    // with versions of master before reservation refinement support, which was
+    // introduced in 1.4.0.
+    //
+    // TODO(mpark): Do something smarter with the result once something
+    //              like a master capability is introduced.
+    downgradeResources(&message);
 
     send(master.get(), message);
   } else {
@@ -1578,12 +1556,12 @@ void Slave::doReliableRegistration(Duration maxBackoff)
         capabilities.toRepeatedPtrField());
 
     // Include checkpointed resources.
-    message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources_);
+    message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources);
 
     message.mutable_resource_version_uuid()->set_value(
         resourceVersion.toBytes());
 
-    message.mutable_slave()->CopyFrom(slaveInfo);
+    message.mutable_slave()->CopyFrom(info);
 
     foreachvalue (Framework* framework, frameworks) {
       message.add_frameworks()->CopyFrom(framework->info);
@@ -1671,29 +1649,15 @@ void Slave::doReliableRegistration(Duration maxBackoff)
       }
     }
 
-    // If the resources don't have reservation refinements, send them
-    // to the master in "pre-reservation-refinement" format for backward
-    // compatibility with old masters. If downgrading is not possible
-    // without losing information, send the resources in the
-    // "post-reservation-refinement" format. We ignore the return value of
-    // `downgradeResources` because for now, we send the result either way.
+    // If the `Try` from `downgradeResources` returns an `Error`, we currently
+    // continue to send the resources to the master in a partially downgraded
+    // state. This implies that an agent with refined reservations cannot work
+    // with versions of master before reservation refinement support, which was
+    // introduced in 1.4.0.
     //
     // TODO(mpark): Do something smarter with the result once something
     // like a master capability is introduced.
-    foreach (Task& task, *message.mutable_tasks()) {
-      downgradeResources(task.mutable_resources());
-    }
-
-    foreach (ExecutorInfo& executor, *message.mutable_executor_infos()) {
-      downgradeResources(executor.mutable_resources());
-    }
-
-    foreach (Archive::Framework& completedFramework,
-             *message.mutable_completed_frameworks()) {
-      foreach (Task& task, *completedFramework.mutable_tasks()) {
-        downgradeResources(task.mutable_resources());
-      }
-    }
+    downgradeResources(&message);
 
     CHECK_SOME(master);
     send(master.get(), message);
@@ -3683,27 +3647,10 @@ void Slave::checkpointResources(
   // we avoid a case of inconsistency between the master and the agent if
   // the agent restarts during handling of CheckpointResourcesMessage.
 
-  {
-    // If the checkpointed resources don't have reservation refinements,
-    // checkpoint them on the agent in "pre-reservation-refinement" format
-    // for backward compatibility with old agents. If downgrading is
-    // not possible without losing information, checkpoint the resources in
-    // the "post-reservation-refinement" format. We ignore the return
-    // value of `downgradeResources` because for now, we checkpoint the result
-    // either way.
-    //
-    // TODO(mpark): Do something smarter with the result once something
-    // like agent capability requirements is introduced.
-    RepeatedPtrField<Resource> newCheckpointedResources_ =
-      newCheckpointedResources;
-
-    downgradeResources(&newCheckpointedResources_);
-
-    CHECK_SOME(state::checkpoint(
-        paths::getResourcesTargetPath(metaDir),
-        newCheckpointedResources_))
-      << "Failed to checkpoint resources target " << newCheckpointedResources_;
-  }
+  CHECK_SOME(state::checkpoint(
+      paths::getResourcesTargetPath(metaDir),
+      newCheckpointedResources))
+    << "Failed to checkpoint resources target " << newCheckpointedResources;
 
   Try<Nothing> syncResult = syncCheckpointedResources(
       newCheckpointedResources);
@@ -9006,21 +8953,7 @@ void Executor::checkpointExecutor()
 
   VLOG(1) << "Checkpointing ExecutorInfo to '" << path << "'";
 
-  {
-    // If the checkpointed resources don't have reservation refinements,
-    // checkpoint them on the agent in "pre-reservation-refinement" format
-    // for backward compatibility with old agents. If downgrading is
-    // not possible without losing information, checkpoint the resources in
-    // the "post-reservation-refinement" format. We ignore the return
-    // value of `downgradeResources` because for now, we checkpoint the result
-    // either way.
-    //
-    // TODO(mpark): Do something smarter with the result once something
-    // like agent capability requirements is introduced.
-    ExecutorInfo info_ = info;
-    downgradeResources(info_.mutable_resources());
-    CHECK_SOME(state::checkpoint(path, info_));
-  }
+  CHECK_SOME(state::checkpoint(path, info));
 
   // Create the meta executor directory.
   // NOTE: This creates the 'latest' symlink in the meta directory.
@@ -9049,21 +8982,7 @@ void Executor::checkpointTask(const Task& task)
 
   VLOG(1) << "Checkpointing TaskInfo to '" << path << "'";
 
-  {
-    // If the checkpointed resources don't have reservation refinements,
-    // checkpoint them on the agent in "pre-reservation-refinement" format
-    // for backward compatibility with old agents. If downgrading is
-    // not possible without losing information, checkpoint the resources in
-    // the "post-reservation-refinement" format. We ignore the return
-    // value of `downgradeResources` because for now, we checkpoint the result
-    // either way.
-    //
-    // TODO(mpark): Do something smarter with the result once something
-    // like agent capability requirements is introduced.
-    Task task_ = task;
-    downgradeResources(task_.mutable_resources());
-    CHECK_SOME(state::checkpoint(path, task_));
-  }
+  CHECK_SOME(state::checkpoint(path, task));
 }
 
 
