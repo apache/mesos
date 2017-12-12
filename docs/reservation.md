@@ -33,10 +33,13 @@ __CAVEAT:__ In order to modify a static reservation, the operator must drain and
             restart the slave with the new configuration specified in the
             `--resources` flag.
 
-**NOTE:** This feature is supported for backwards compatibility. The recommended
-approach is to specify the total resources available on the slave as unreserved
-via the `--resources` flag and manage reservations dynamically via the master
-HTTP endpoints.
+It's often more convenient to specify the total resources available on
+the slave as unreserved via the `--resources` flag and manage reservations
+dynamically (see below) via the master HTTP endpoints. However static reservation
+provides a way for the operator to more deterministically control the reservations
+(roles, amount, principals) before the agent is exposed to the master and
+frameworks. One use case is for the operator to dedicate entire agents for
+specific roles.
 
 
 ## Dynamic Reservation
@@ -46,16 +49,6 @@ the reserved resources via the `--resources` flag makes the reservation static.
 That is, statically reserved resources cannot be reserved for another role nor
 be unreserved. Dynamic reservation enables operators and authorized frameworks
 to reserve and unreserve resources after slave-startup.
-
-By default, frameworks and operators are authorized to reserve resources for
-any role and to unreserve dynamically reserved resources.
-[Authorization](authorization.md) allows this behavior to be limited so that
-only particular roles can be reserved for, and only particular resources can
-be unreserved. For these operations to be authorized, the framework or operator
-should provide a `principal` to identify itself. To use authorization with
-reserve/unreserve operations, the Mesos master must be configured with the
-appropriate ACLs. For more information, see the
-[authorization documentation](authorization.md).
 
 * `Offer::Operation::Reserve` and `Offer::Operation::Unreserve` messages are
   available for __frameworks__ to send back via the `acceptOffers` API as a
@@ -79,6 +72,25 @@ Dynamic reservations cannot be unreserved if they are still being used by a
 running task or if a [persistent volume](persistent-volume.md) has been created
 using the reserved resources. In the latter case, the volume should be destroyed
 before unreserving the resources.
+
+## Authorization
+
+By default, frameworks and operators are authorized to reserve resources for
+any role and to unreserve dynamically reserved resources.
+[Authorization](authorization.md) allows this behavior to be limited so that
+resources can only be reserved for particular roles, and only particular
+resources can be unreserved. For these operations to be authorized, the
+framework or operator should provide a `principal` to identify itself. To use
+authorization with reserve/unreserve operations, the Mesos master must be
+configured with the appropriate ACLs. For more information, see the
+[authorization documentation](authorization.md).
+
+Similarly, agents by default can register with the master with resources that
+are statically reserved for arbitrary roles.
+With [authorization](authorization.md),
+the master can be configured to use the `reserve_resources` ACL to check that
+the agent's `principal` is allowed to statically reserve resources for specific
+roles.
 
 ## Reservation Labels
 
