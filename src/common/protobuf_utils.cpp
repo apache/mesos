@@ -404,6 +404,7 @@ bool isTerminalState(const OfferOperationState& state)
     case OFFER_OPERATION_FINISHED:
     case OFFER_OPERATION_FAILED:
     case OFFER_OPERATION_ERROR:
+    case OFFER_OPERATION_DROPPED:
       return true;
     case OFFER_OPERATION_PENDING:
     case OFFER_OPERATION_UNSUPPORTED:

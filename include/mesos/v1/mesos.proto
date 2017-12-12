@@ -2271,6 +2271,9 @@ enum OfferOperationState {
 
   // The operation description contains an error.
   OFFER_OPERATION_ERROR = 4;
+
+  // The operation was dropped due to a transient error.
+  OFFER_OPERATION_DROPPED = 5;
 }
 
 

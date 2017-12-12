@@ -10386,7 +10386,8 @@ void Master::updateOfferOperation(
 
     // Terminal state, and the conversion has failed.
     case OFFER_OPERATION_FAILED:
-    case OFFER_OPERATION_ERROR: {
+    case OFFER_OPERATION_ERROR:
+    case OFFER_OPERATION_DROPPED: {
       allocator->recoverResources(
           operation->framework_id(),
           operation->slave_id(),
