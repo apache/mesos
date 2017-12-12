@@ -468,4 +468,17 @@ update was sent.
                    state <code> TASK_RUNNING </code>.
 </td></tr>
 
-</table>
+
+<tr><td><code>     REASON_SLAVE_REREGISTERED
+</code></td><td>   The agent on which the task was running has re-registered
+                   after being marked unreachable by the master.
+<br/><strong>      Note:
+</strong>          Due to garbage collection of the unreachable and gone agents
+                   in the registry and master state Mesos also sends such status
+                   updates for agents unknown to the master.
+<strong>           Note:
+</strong>          Status updates with this reason are modified copies re-sent
+                   by the master which reflect the states of the tasks reported
+                   by the agent upon its re-registration. See comments for
+                   <code> REASON_RECONCILIATION </code>.
+</td></tr></table>
