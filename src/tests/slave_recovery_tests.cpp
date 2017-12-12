@@ -4046,7 +4046,9 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 TYPED_TEST(SlaveRecoveryTest, MasterFailover)
 {
   // Step 1. Run a task.
-  Try<Owned<cluster::Master>> master = this->StartMaster();
+  master::Flags masterFlags = this->CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   slave::Flags flags = this->CreateSlaveFlags();
@@ -4110,7 +4112,7 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   EXPECT_CALL(sched, disconnected(&driver));
 
   master->reset();
-  master = this->StartMaster();
+  master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Future<Nothing> registered;

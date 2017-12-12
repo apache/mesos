@@ -6696,10 +6696,6 @@ void Master::__reregisterSlave(
   VLOG(1) << "Re-admitted agent " << slaveInfo.id() << " at " << pid
           << " (" << slaveInfo.hostname() << ")";
 
-  // Ensure we don't remove the slave for not re-registering after
-  // we've recovered it from the registry.
-  slaves.recovered.erase(slaveInfo.id());
-
   // For agents without the MULTI_ROLE capability,
   // we need to inject the allocation role inside
   // the task and executor resources;
@@ -6807,9 +6803,43 @@ void Master::__reregisterSlave(
       continue;
     }
 
-    Framework* framework = getFramework(frameworkId);
-    if (framework != nullptr) {
-      framework->unreachableTasks.erase(task.task_id());
+    if (!slaves.recovered.contains(slaveInfo.id())) {
+      Framework* framework = getFramework(frameworkId);
+      if (framework != nullptr) {
+        framework->unreachableTasks.erase(task.task_id());
+      }
+
+      const string message = slaves.unreachable.contains(slaveInfo.id())
+          ? "Unreachable agent re-reregistered"
+          : "Unknown agent re-registered";
+
+      const StatusUpdate& update = protobuf::createStatusUpdate(
+          task.framework_id(),
+          task.slave_id(),
+          task.task_id(),
+          task.state(),
+          TaskStatus::SOURCE_MASTER,
+          None(),
+          message,
+          TaskStatus::REASON_SLAVE_REREGISTERED,
+          (task.has_executor_id()
+              ? Option<ExecutorID>(task.executor_id()) : None()),
+          protobuf::getTaskHealth(task),
+          protobuf::getTaskCheckStatus(task),
+          None(),
+          protobuf::getTaskContainerStatus(task));
+
+      if (framework == nullptr || !framework->connected()) {
+        LOG(WARNING) << "Dropping update " << update
+                     << (update.status().has_message()
+                         ? " '" + update.status().message() + "'"
+                         : "")
+                     << " for "
+                     << (framework == nullptr ? "unknown" : "disconnected")
+                     << " framework " << frameworkId;
+      } else {
+        forward(update, UPID(), framework);
+      }
     }
 
     recoveredTasks.push_back(std::move(task));
@@ -6828,6 +6858,8 @@ void Master::__reregisterSlave(
     CHECK_SOME(uuid);
     resourceVersion = uuid.get();
   }
+
+  slaves.recovered.erase(slaveInfo.id());
 
   Slave* slave = new Slave(
       this,

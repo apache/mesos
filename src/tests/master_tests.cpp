@@ -3125,23 +3125,20 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
+  Future<TaskStatus> runningAgainStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&runningAgainStatus));
+
   slaveDetector.appoint(master.get()->pid);
 
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregisteredMessage);
 
-  // The task should have returned to TASK_RUNNING. This is true even
-  // for non-partition-aware frameworks, since we emulate the old
-  // "non-strict registry" semantics.
-  Future<TaskStatus> reconcileUpdate2;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&reconcileUpdate2));
-
-  driver.reconcileTasks({status});
-
-  AWAIT_READY(reconcileUpdate2);
-  EXPECT_EQ(TASK_RUNNING, reconcileUpdate2->state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate2->reason());
+  AWAIT_READY(runningAgainStatus);
+  EXPECT_EQ(TASK_RUNNING, runningAgainStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REREGISTERED,
+            runningAgainStatus->reason());
+  EXPECT_EQ(task.task_id(), runningAgainStatus->task_id());
 
   Clock::resume();
 
@@ -7446,29 +7443,23 @@ TEST_F(MasterTest, AgentRestartNoReregister)
   Future<SlaveReregisteredMessage> slaveReregistered =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  detector.appoint(master.get()->pid);
+  Future<TaskStatus> runningAgainStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&runningAgainStatus));
 
+  detector.appoint(master.get()->pid);
   Clock::advance(agentFlags.registration_backoff_factor);
 
   AWAIT_READY(reregisterSlave2);
   AWAIT_READY(slaveReregistered);
 
+  AWAIT_READY(runningAgainStatus);
+  EXPECT_EQ(TASK_RUNNING, runningAgainStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REREGISTERED,
+            runningAgainStatus->reason());
+  EXPECT_EQ(task.task_id(), runningAgainStatus->task_id());
+
   Clock::resume();
-
-  TaskStatus status;
-  status.mutable_task_id()->CopyFrom(task.task_id());
-  status.mutable_slave_id()->CopyFrom(slaveId);
-  status.set_state(TASK_STAGING); // Dummy value.
-
-  Future<TaskStatus> reconcileUpdate;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&reconcileUpdate));
-
-  driver.reconcileTasks({status});
-
-  AWAIT_READY(reconcileUpdate);
-  EXPECT_EQ(TASK_RUNNING, reconcileUpdate->state());
-  EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate->reason());
 
   // Check metrics.
   JSON::Object stats = Metrics();
@@ -7920,11 +7911,20 @@ TEST_F(MasterTest, MultiRoleSchedulerUnsubscribeFromRole)
   Future<SlaveReregisteredMessage> agentReregistered = FUTURE_PROTOBUF(
       SlaveReregisteredMessage(), master.get()->pid, agent.get()->pid);
 
-  detector.appoint(master.get()->pid);
+  Future<TaskStatus> runningAgainStatus;
+  EXPECT_CALL(sched2, statusUpdate(&driver2, _))
+    .WillOnce(FutureArg<1>(&runningAgainStatus));
 
+  detector.appoint(master.get()->pid);
   Clock::advance(agentFlags.registration_backoff_factor);
 
   AWAIT_READY(agentReregistered);
+
+  AWAIT_READY(runningAgainStatus);
+  EXPECT_EQ(TASK_RUNNING, runningAgainStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_REREGISTERED,
+            runningAgainStatus->reason());
+  EXPECT_EQ(task.task_id(), runningAgainStatus->task_id());
 
   // Check that the framework is re-tracked under the role by the master.
   {

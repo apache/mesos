@@ -1359,6 +1359,8 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
   TestContainerizer containerizer(&exec);
   TestingMesosSchedulerDriver driver(&sched, &schedulerDetector);
   Try<Owned<cluster::Slave>> slave = nullptr;
+  master::Flags masterFlags = this->CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
 
   // Explicit scope is to ensure all object associated with the
   // leading master (e.g. allocator) are destroyed once the master
@@ -1369,7 +1371,8 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
     EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
 
-    Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
+    Try<Owned<cluster::Master>> master = this->StartMaster(
+        &allocator, masterFlags);
     ASSERT_SOME(master);
 
     slaveDetector.appoint(master.get()->pid);
@@ -1433,7 +1436,8 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
     EXPECT_CALL(sched, registered(&driver, _, _));
 
-    Try<Owned<cluster::Master>> master2 = this->StartMaster(&allocator2);
+    Try<Owned<cluster::Master>> master2 = this->StartMaster(
+        &allocator2, masterFlags);
     ASSERT_SOME(master2);
 
     EXPECT_CALL(sched, disconnected(_));
