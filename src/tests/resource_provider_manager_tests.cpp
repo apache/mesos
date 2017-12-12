@@ -1173,6 +1173,104 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeResourceProvider)
   EXPECT_EQ(resourceProviderId, subscribed2->provider_id());
 }
 
+
+// This test verifies that a disconnected resource provider will
+// result in an `UpdateSlaveMessage` to be sent to the master and the
+// total resources of the disconnected resource provider will be
+// reduced to empty.
+TEST_P(ResourceProviderManagerHttpApiTest, ResourceProviderDisconnect)
+{
+  Clock::pause();
+
+  // Start master and agent.
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(agent);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+
+  AWAIT_READY(updateSlaveMessage);
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  mesos::v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
+  resourceProviderInfo.set_name("test");
+
+  v1::Resource disk = v1::createDiskResource(
+      "200", "*", None(), None(), v1::createDiskSourceRaw());
+
+  Owned<v1::MockResourceProvider> resourceProvider(
+      new v1::MockResourceProvider(
+          resourceProviderInfo,
+          v1::Resources(disk)));
+
+  // Start and register a resource provider.
+  string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+  if (process::network::openssl::flags().enabled) {
+    scheme = "https";
+  }
+#endif
+
+  http::URL url(
+      scheme,
+      agent.get()->pid.address.ip,
+      agent.get()->pid.address.port,
+      agent.get()->pid.id + "/api/v1/resource_provider");
+
+  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+
+  const ContentType contentType = GetParam();
+
+  resourceProvider->start(
+      endpointDetector,
+      contentType,
+      v1::DEFAULT_CREDENTIAL);
+
+  {
+    // Wait until the agent's resources have been updated to include
+    // the resource provider resources. At this point the resource
+    // provider will have an ID assigned by the agent.
+    AWAIT_READY(updateSlaveMessage);
+
+    ASSERT_TRUE(resourceProvider->info.has_id());
+    disk.mutable_provider_id()->CopyFrom(resourceProvider->info.id());
+
+    const Resources& totalResources =
+      updateSlaveMessage->resource_providers().providers(0).total_resources();
+
+    EXPECT_TRUE(totalResources.contains(devolve(disk)));
+  }
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // Simulate a resource provider disconnection.
+  resourceProvider.reset();
+
+  {
+    AWAIT_READY(updateSlaveMessage);
+    ASSERT_TRUE(updateSlaveMessage->has_resource_providers());
+    ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
+
+    const Resources& totalResources =
+      updateSlaveMessage->resource_providers().providers(0).total_resources();
+
+    EXPECT_FALSE(totalResources.contains(devolve(disk)));
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

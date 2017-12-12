@@ -609,6 +609,14 @@ void ResourceProviderManagerProcess::subscribe(
       // NOTE: All pending futures of publish requests for the resource
       // provider will become failed.
       resourceProviders.subscribed.erase(resourceProviderId);
+
+      ResourceProviderMessage::Disconnect disconnect{resourceProviderId};
+
+      ResourceProviderMessage message;
+      message.type = ResourceProviderMessage::Type::DISCONNECT;
+      message.disconnect = std::move(disconnect);
+
+      messages.put(std::move(message));
     }));
 
   // TODO(jieyu): Start heartbeat for the resource provider.

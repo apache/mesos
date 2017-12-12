@@ -41,7 +41,8 @@ struct ResourceProviderMessage
   enum class Type
   {
     UPDATE_STATE,
-    UPDATE_OFFER_OPERATION_STATUS
+    UPDATE_OFFER_OPERATION_STATUS,
+    DISCONNECT
   };
 
   struct UpdateState
@@ -57,10 +58,16 @@ struct ResourceProviderMessage
     OfferOperationStatusUpdate update;
   };
 
+  struct Disconnect
+  {
+    ResourceProviderID resourceProviderId;
+  };
+
   Type type;
 
   Option<UpdateState> updateState;
   Option<UpdateOfferOperationStatus> updateOfferOperationStatus;
+  Option<Disconnect> disconnect;
 };
 
 
@@ -100,6 +107,17 @@ inline std::ostream& operator<<(
           << updateOfferOperationStatus->update.latest_status().state()
           << ", status update state: "
           << updateOfferOperationStatus->update.status().state() << ")";
+    }
+
+    case ResourceProviderMessage::Type::DISCONNECT: {
+      const Option<ResourceProviderMessage::Disconnect>& disconnect =
+        resourceProviderMessage.disconnect;
+
+      CHECK_SOME(disconnect);
+
+      return stream
+          << "DISCONNECT: resource provider "
+          << disconnect->resourceProviderId;
     }
   }
 

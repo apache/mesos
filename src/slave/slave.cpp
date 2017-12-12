@@ -7281,6 +7281,56 @@ void Slave::handleResourceProviderMessage(
           break;
         }
       }
+      break;
+    }
+    case ResourceProviderMessage::Type::DISCONNECT: {
+      CHECK_SOME(message->disconnect);
+
+      const ResourceProviderID& resourceProviderId =
+        message->disconnect->resourceProviderId;
+
+      ResourceProvider* resourceProvider =
+        getResourceProvider(resourceProviderId);
+
+      if (resourceProvider == nullptr) {
+        LOG(ERROR) << "Failed to find the disconnected resource provider "
+                   << resourceProviderId << ", ignoring the message";
+        break;
+      }
+
+      // A disconnected resource provider effectively results in its
+      // total resources to be set to empty. This will cause offers to
+      // be rescinded so that no operation or task can be launched
+      // using resources from the disconnected resource provider. If
+      // later, the resource provider reconnects, it'll result in
+      // an `UpdateSlaveMessage` so that its resources can be offered
+      // again by the master.
+      CHECK(totalResources.contains(resourceProvider->totalResources));
+      totalResources -= resourceProvider->totalResources;
+
+      resourceProvider->totalResources = Resources();
+
+      // Send the updated resources to the master if the agent is running. Note
+      // that since we have already updated our copy of the latest resource
+      // provider resources, it is safe to consume this message and wait for the
+      // next one; even if we do not send the update to the master right now, an
+      // update will be send once the agent reregisters.
+      switch (state) {
+        case RECOVERING:
+        case DISCONNECTED:
+        case TERMINATING: {
+          break;
+        }
+        case RUNNING: {
+          LOG(INFO) << "Forwarding new total resources " << totalResources;
+
+          // Inform the master about the update from the resource provider.
+          send(master.get(), generateResourceProviderUpdate());
+
+          break;
+        }
+      }
+      break;
     }
   }
 
