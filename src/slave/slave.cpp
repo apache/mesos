@@ -3898,14 +3898,37 @@ void Slave::reconcileOfferOperations(
 {
   bool containsResourceProviderOperations = false;
 
-  // TODO(greggomann): Implement reconciliation for offer
-  // operations on the agent's default resources.
   foreach (
       const ReconcileOfferOperationsMessage::Operation& operation,
       message.operations()) {
     if (operation.has_resource_provider_id()) {
       containsResourceProviderOperations = true;
-      break;
+      continue;
+    }
+
+    Try<UUID> operationUuid = UUID::fromBytes(operation.operation_uuid());
+    CHECK_SOME(operationUuid);
+
+    // The master reconciles when it notices that an operation is missing from
+    // an `UpdateSlaveMessage`. If we cannot find an operation in the agent
+    // state, we send an update to inform the master. If we do find the
+    // operation, then the master and agent state are consistent and we do not
+    // need to do anything.
+    OfferOperation* storedOperation = getOfferOperation(operationUuid.get());
+    if (storedOperation == nullptr) {
+      // For agent default resources, we send best-effort offer operation status
+      // updates to the master. This is satisfactory because a dropped message
+      // would imply a subsequent agent reregistration, after which an
+      // `UpdateSlaveMessage` would be sent with pending operations.
+      OfferOperationStatusUpdate update =
+        protobuf::createOfferOperationStatusUpdate(
+            operationUuid.get(),
+            protobuf::createOfferOperationStatus(OFFER_OPERATION_DROPPED),
+            None(),
+            None(),
+            info.id());
+
+      send(master.get(), update);
     }
   }
 
