@@ -192,15 +192,15 @@ TEST_F(MetricsTest, Statistics)
 
   EXPECT_EQ(11u, statistics.get().count);
 
-  EXPECT_FLOAT_EQ(0.0, statistics.get().min);
-  EXPECT_FLOAT_EQ(10.0, statistics.get().max);
+  EXPECT_DOUBLE_EQ(0.0, statistics.get().min);
+  EXPECT_DOUBLE_EQ(10.0, statistics.get().max);
 
-  EXPECT_FLOAT_EQ(5.0, statistics.get().p50);
-  EXPECT_FLOAT_EQ(9.0, statistics.get().p90);
-  EXPECT_FLOAT_EQ(9.5, statistics.get().p95);
-  EXPECT_FLOAT_EQ(9.9, statistics.get().p99);
-  EXPECT_FLOAT_EQ(9.99, statistics.get().p999);
-  EXPECT_FLOAT_EQ(9.999, statistics.get().p9999);
+  EXPECT_DOUBLE_EQ(5.0, statistics.get().p50);
+  EXPECT_DOUBLE_EQ(9.0, statistics.get().p90);
+  EXPECT_DOUBLE_EQ(9.5, statistics.get().p95);
+  EXPECT_DOUBLE_EQ(9.9, statistics.get().p99);
+  EXPECT_DOUBLE_EQ(9.99, statistics.get().p999);
+  EXPECT_DOUBLE_EQ(9.999, statistics.get().p9999);
 
   AWAIT_READY(metrics::remove(counter));
 }
@@ -242,13 +242,13 @@ TEST_F(MetricsTest, THREADSAFE_Snapshot)
   map<string, JSON::Value> values = responseJSON.get().values;
 
   EXPECT_EQ(1u, values.count("test/counter"));
-  EXPECT_FLOAT_EQ(0.0, values["test/counter"].as<JSON::Number>().as<double>());
+  EXPECT_DOUBLE_EQ(0.0, values["test/counter"].as<JSON::Number>().as<double>());
 
   EXPECT_EQ(1u, values.count("test/gauge"));
-  EXPECT_FLOAT_EQ(42.0, values["test/gauge"].as<JSON::Number>().as<double>());
+  EXPECT_DOUBLE_EQ(42.0, values["test/gauge"].as<JSON::Number>().as<double>());
 
   EXPECT_EQ(1u, values.count("test/gauge_const"));
-  EXPECT_FLOAT_EQ(
+  EXPECT_DOUBLE_EQ(
       99.0, values["test/gauge_const"].as<JSON::Number>().as<double>());
 
   EXPECT_EQ(0u, values.count("test/gauge_fail"));
@@ -397,10 +397,10 @@ TEST_F(MetricsTest, THREADSAFE_SnapshotTimeout)
   map<string, JSON::Value> values = responseJSON.get().values;
 
   EXPECT_EQ(1u, values.count("test/counter"));
-  EXPECT_FLOAT_EQ(0.0, values["test/counter"].as<JSON::Number>().as<double>());
+  EXPECT_DOUBLE_EQ(0.0, values["test/counter"].as<JSON::Number>().as<double>());
 
   EXPECT_EQ(1u, values.count("test/gauge"));
-  EXPECT_FLOAT_EQ(42.0, values["test/gauge"].as<JSON::Number>().as<double>());
+  EXPECT_DOUBLE_EQ(42.0, values["test/gauge"].as<JSON::Number>().as<double>());
 
   EXPECT_EQ(0u, values.count("test/gauge_fail"));
   EXPECT_EQ(0u, values.count("test/gauge_timeout"));
@@ -497,7 +497,7 @@ TEST_F(MetricsTest, SnapshotStatistics)
   // Ensure the expected keys are in the response and that the values match
   // expectations.
   foreachkey (const string& key, expected) {
-    EXPECT_FLOAT_EQ(expected[key], responseValues[key]);
+    EXPECT_DOUBLE_EQ(expected[key], responseValues[key]);
   }
 
   AWAIT_READY(metrics::remove(counter));
@@ -522,7 +522,7 @@ TEST_F(MetricsTest, Timer)
 
   Future<double> value = timer.value();
   AWAIT_READY(value);
-  EXPECT_FLOAT_EQ(value.get(), Microseconds(1).ns());
+  EXPECT_DOUBLE_EQ(value.get(), static_cast<double>(Microseconds(1).ns()));
 
   // It is not an error to stop a timer that has already been stopped.
   timer.stop();
@@ -558,7 +558,7 @@ TEST_F(MetricsTest, AsyncTimer)
 
   // The future should have taken zero time.
   AWAIT_READY(t.value());
-  EXPECT_FLOAT_EQ(t.value().get(), 0.0);
+  EXPECT_DOUBLE_EQ(t.value().get(), 0.0);
 
   AWAIT_READY(metrics::remove(t));
 }

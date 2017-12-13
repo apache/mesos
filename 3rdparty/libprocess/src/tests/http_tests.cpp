@@ -997,7 +997,7 @@ TEST(HTTPConnectionTest, GzipRequestBody)
   request.keepAlive = true;
 
   request.headers["Content-Encoding"] = "gzip";
-  request.headers["Content-Length"] = request.body.length();
+  request.headers["Content-Length"] = stringify(request.body.length());
 
   Future<http::Response> response = connection.send(request);
 
