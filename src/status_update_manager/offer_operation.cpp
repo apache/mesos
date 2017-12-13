@@ -38,7 +38,9 @@ OfferOperationStatusUpdateManager::OfferOperationStatusUpdateManager()
         new StatusUpdateManagerProcess<
             UUID,
             OfferOperationStatusUpdateRecord,
-            OfferOperationStatusUpdate>("offer operation status update"))
+            OfferOperationStatusUpdate>(
+                "offer-operation-status-update-manager",
+                "offer operation status update"))
 {
   spawn(process.get());
 }

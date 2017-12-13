@@ -108,8 +108,10 @@ public:
     State() : streams(), errors(0) {}
   };
 
-  StatusUpdateManagerProcess(const std::string& _statusUpdateType)
-    : process::ProcessBase(process::ID::generate("status-update-manager")),
+  StatusUpdateManagerProcess(
+      const std::string& id,
+      const std::string& _statusUpdateType)
+    : process::ProcessBase(process::ID::generate(id)),
       statusUpdateType(_statusUpdateType),
       paused(false) {}
 
