@@ -810,20 +810,20 @@ private:
       }
 
       // Get the corresponding update for this ACK.
-      const Result<UpdateType>& _update = next();
-      if (_update.isError()) {
-        return Error(_update.error());
+      const Result<UpdateType>& update_ = next();
+      if (update_.isError()) {
+        return Error(update_.error());
       }
 
       // This might happen if we retried a status update and got back
       // acknowledgments for both the original and the retried update.
-      if (_update.isNone()) {
+      if (update_.isNone()) {
         return Error(
             "Unexpected acknowledgment (UUID: " + statusUuid.toString() +
             ") for " + statusUpdateType + " stream " + stringify(streamId));
       }
 
-      const UpdateType& update = _update.get();
+      const UpdateType& update = update_.get();
 
       if (acknowledged.contains(statusUuid)) {
         LOG(WARNING) << "Duplicate acknowledgment for " << statusUpdateType
