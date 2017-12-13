@@ -763,7 +763,13 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
-  // Drop the first update from the executor.
+  // Drop the status updates from the executor.
+  // We actually wait until we can drop the TASK_RUNNING update here
+  // because the window between the two is small enough that we could
+  // still successfully receive TASK_RUNNING after we drop TASK_STARTING.
+  Future<StatusUpdateMessage> runningUpdate =
+    DROP_PROTOBUF(StatusUpdateMessage(), _, _);
+
   Future<StatusUpdateMessage> startingUpdate =
     DROP_PROTOBUF(StatusUpdateMessage(), _, _);
 
@@ -771,6 +777,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 
   // Stop the slave before the status update is received.
   AWAIT_READY(startingUpdate);
+  AWAIT_READY(runningUpdate);
 
   slave.get()->terminate();
 
