@@ -261,6 +261,18 @@ TEST_P(HTTPTest, Endpoints)
     AWAIT_EXPECT_EQ(response, socket.recv(response.size()));
   }
 
+  // Now hit '/body/' (by using http::get) and ensure it succeeds as well
+  // and resolved with the '/body' route.
+  {
+    EXPECT_CALL(*http.process, body(_))
+      .WillOnce(Return(http::OK()));
+
+    Future<http::Response> response =
+      http::get(http.process->self(), "body/", None(), None(), GetParam());
+
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  }
+
   // Test that an endpoint handler failure results in a 500.
   {
     EXPECT_CALL(*http.process, body(_))

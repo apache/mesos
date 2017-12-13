@@ -3579,6 +3579,11 @@ void ProcessBase::consume(HttpEvent&& event)
       event.request->url.path, "/" + tokens[0], strings::PREFIX);
   name = strings::trim(name, strings::PREFIX, "/");
 
+  // Normalize the name by trimming the trailing '/'. We enforce that requests
+  // to ".../path/" are resolved with the ".../path" route. The trailing slash
+  // is stripped here in order to accomplish this.
+  name = strings::trim(name, strings::SUFFIX, "/");
+
   // Look for an endpoint handler for this path. We begin with the full path,
   // but if no handler is found and the path is nested, we shorten it and look
   // again. For example: if the request is for '/a/b/c' and no handler is found,
@@ -3789,6 +3794,10 @@ void ProcessBase::route(
   // Routes must start with '/'.
   CHECK(name.find('/') == 0);
 
+  // To avoid ambiguity between "/path" and "/path/" we disallow the latter.
+  CHECK(name.size() == 1 || name.back() != '/')
+    << "Routes must not end with '/'" << ": " << name;
+
   HttpEndpoint endpoint;
   endpoint.handler = handler;
   endpoint.options = options;
@@ -3808,6 +3817,10 @@ void ProcessBase::route(
 {
   // Routes must start with '/'.
   CHECK(name.find('/') == 0);
+
+  // To avoid ambiguity between "/path" and "/path/" we disallow the latter.
+  CHECK(name.size() == 1 || name.back() != '/')
+    << "Routes must not end with '/'" << ": " << name;
 
   HttpEndpoint endpoint;
   endpoint.realm = realm;
