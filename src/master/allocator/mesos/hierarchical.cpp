@@ -1926,13 +1926,12 @@ void HierarchicalAllocatorProcess::__allocate()
         // Calculate the currently available resources on the slave, which
         // is the difference in non-shared resources between total and
         // allocated, plus all shared resources on the agent (if applicable).
-        // Since shared resources are offerable even when they are in use, we
-        // make one copy of the shared resources available regardless of the
-        // past allocations.
         Resources available = slave.available().nonShared();
 
-        // Offer a shared resource only if it has not been offered in
-        // this offer cycle to a framework.
+        // Since shared resources are offerable even when they are in use, we
+        // make one copy of the shared resources available regardless of the
+        // past allocations. Offer a shared resource only if it has not been
+        // offered in this offer cycle to a framework.
         if (framework.capabilities.sharedResources) {
           available += slave.total.shared();
           if (offeredSharedResources.contains(slaveId)) {
