@@ -499,7 +499,7 @@ public:
       const ExecutorID& executorId,
       int32_t status);
 
-  void updateSlave(const UpdateSlaveMessage& message);
+  void updateSlave(UpdateSlaveMessage&& message);
 
   void updateUnavailability(
       const MachineID& machineId,

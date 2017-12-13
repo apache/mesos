@@ -7218,7 +7218,7 @@ void Master::updateFramework(
 }
 
 
-void Master::updateSlave(const UpdateSlaveMessage& message)
+void Master::updateSlave(UpdateSlaveMessage&& message)
 {
   ++metrics->messages_update_slave;
 
@@ -7255,16 +7255,13 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
 
   Option<Resources> newOversubscribed;
 
-  // Make a copy of the message so we can transform its resources.
-  UpdateSlaveMessage message_(message);
-
   convertResourceFormat(
-      message_.mutable_oversubscribed_resources(),
+      message.mutable_oversubscribed_resources(),
       POST_RESERVATION_REFINEMENT);
 
   if (hasOversubscribed) {
     const Resources& oversubscribedResources =
-      message_.oversubscribed_resources();
+      message.oversubscribed_resources();
 
     LOG(INFO) << "Received update of agent " << *slave << " with total"
               << " oversubscribed resources " << oversubscribedResources;
