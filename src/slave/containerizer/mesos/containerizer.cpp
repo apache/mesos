@@ -910,10 +910,15 @@ Future<Nothing> MesosContainerizerProcess::recover(
       !containerizer::paths::getContainerForceDestroyOnRecovery(
           flags.runtime_dir, containerId);
 
+    const bool isRecoverableStandaloneContainer =
+      isStandaloneContainer && pid.isSome();
+
     // Add recoverable nested containers or standalone containers
     // to the list of 'ContainerState'.
-    if (isRecoverableNestedContainer || isStandaloneContainer) {
-      CHECK_SOME(directory);
+    if (isRecoverableNestedContainer || isRecoverableStandaloneContainer) {
+      CHECK_SOME(container->directory);
+      CHECK_SOME(container->pid);
+
       ContainerState state =
         protobuf::slave::createContainerState(
             None(),
