@@ -126,5 +126,27 @@ void OfferOperationStatusUpdateManager::cleanup(const FrameworkID& frameworkId)
       frameworkId);
 }
 
+
+void OfferOperationStatusUpdateManager::pause()
+{
+  dispatch(
+      process.get(),
+      &StatusUpdateManagerProcess<
+          UUID,
+          OfferOperationStatusUpdateRecord,
+          OfferOperationStatusUpdate>::pause);
+}
+
+
+void OfferOperationStatusUpdateManager::resume()
+{
+  dispatch(
+      process.get(),
+      &StatusUpdateManagerProcess<
+          UUID,
+          OfferOperationStatusUpdateRecord,
+          OfferOperationStatusUpdate>::resume);
+}
+
 } // namespace internal {
 } // namespace mesos {

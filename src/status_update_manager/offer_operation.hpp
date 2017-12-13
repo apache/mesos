@@ -44,7 +44,11 @@ typedef StatusUpdateManagerProcess<
 class OfferOperationStatusUpdateManager
 {
 public:
+  // NOTE: Unless first paused, the status update manager will forward updates
+  // as soon as possible; for example, during recovery or as soon as the first
+  // status update is processed.
   OfferOperationStatusUpdateManager();
+
   ~OfferOperationStatusUpdateManager();
 
   OfferOperationStatusUpdateManager(
@@ -106,6 +110,12 @@ public:
   // but does NOT garbage collect any checkpointed state. The caller is
   // responsible for garbage collection after this method has returned.
   void cleanup(const FrameworkID& frameworkId);
+
+  // Stop forwarding status updates until `resume()` is called.
+  void pause();
+
+  // Resume forwarding status updates until `pause()` is called.
+  void resume();
 
 private:
   process::Owned<
