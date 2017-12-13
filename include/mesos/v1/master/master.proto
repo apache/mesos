@@ -337,6 +337,12 @@ message Response {
       repeated Resource offered_resources = 9;
 
       repeated AgentInfo.Capability capabilities = 10;
+
+      message ResourceProvider {
+        required ResourceProviderInfo resource_provider_info = 1;
+      }
+
+      repeated ResourceProvider resource_providers = 11;
     }
 
     // Registered agents.

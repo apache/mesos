@@ -20,6 +20,7 @@
 #include <mesos/http.hpp>
 
 #include <mesos/v1/resources.hpp>
+#include <mesos/v1/resource_provider.hpp>
 
 #include <mesos/v1/master/master.hpp>
 
@@ -160,6 +161,8 @@ INSTANTIATE_TEST_CASE_P(
 
 TEST_P(MasterAPITest, GetAgents)
 {
+  Clock::pause();
+
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.domain = createDomainInfo("region-abc", "zone-123");
 
@@ -169,17 +172,33 @@ TEST_P(MasterAPITest, GetAgents)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   // Start one agent.
-  Future<SlaveRegisteredMessage> agentRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+  Future<UpdateSlaveMessage> updateAgentMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.authenticate_http_readwrite = false;
   slaveFlags.hostname = "host";
   slaveFlags.domain = createDomainInfo("region-xyz", "zone-456");
+
+  constexpr SlaveInfo::Capability::Type capabilities[] = {
+    SlaveInfo::Capability::MULTI_ROLE,
+    SlaveInfo::Capability::HIERARCHICAL_ROLE,
+    SlaveInfo::Capability::RESERVATION_REFINEMENT,
+    SlaveInfo::Capability::RESOURCE_PROVIDER};
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  foreach (SlaveInfo::Capability::Type type, capabilities) {
+    SlaveInfo::Capability* capability =
+      slaveFlags.agent_features->add_capabilities();
+    capability->set_type(type);
+  }
 
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
 
-  AWAIT_READY(agentRegisteredMessage);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+  AWAIT_READY(updateAgentMessage);
 
   v1::master::Call v1Call;
   v1Call.set_type(v1::master::Call::GET_AGENTS);
@@ -197,12 +216,66 @@ TEST_P(MasterAPITest, GetAgents)
   const v1::master::Response::GetAgents::Agent& v1Agent =
       v1Response->get_agents().agents(0);
 
-  ASSERT_EQ("host", v1Agent.agent_info().hostname());
-  ASSERT_EQ(evolve(slaveFlags.domain.get()), v1Agent.agent_info().domain());
-  ASSERT_EQ(agent.get()->pid, v1Agent.pid());
-  ASSERT_TRUE(v1Agent.active());
-  ASSERT_EQ(MESOS_VERSION, v1Agent.version());
-  ASSERT_EQ(4, v1Agent.total_resources_size());
+  EXPECT_EQ("host", v1Agent.agent_info().hostname());
+  EXPECT_EQ(evolve(slaveFlags.domain.get()), v1Agent.agent_info().domain());
+  EXPECT_EQ(agent.get()->pid, v1Agent.pid());
+  EXPECT_TRUE(v1Agent.active());
+  EXPECT_EQ(MESOS_VERSION, v1Agent.version());
+  EXPECT_EQ(4, v1Agent.total_resources_size());
+  EXPECT_TRUE(v1Agent.resource_providers().empty());
+
+  // Start a resource provider.
+  mesos::v1::ResourceProviderInfo info;
+  info.set_type("org.apache.mesos.rp.test");
+  info.set_name("test");
+
+  v1::MockResourceProvider resourceProvider(
+      info,
+      v1::createDiskResource(
+          "200", "*", None(), None(), v1::createDiskSourceRaw()));
+
+  // Start and register a resource provider.
+  string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+  if (process::network::openssl::flags().enabled) {
+    scheme = "https";
+  }
+#endif
+
+  http::URL url(
+      scheme,
+      agent.get()->pid.address.ip,
+      agent.get()->pid.address.port,
+      agent.get()->pid.id + "/api/v1/resource_provider");
+
+  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+
+  updateAgentMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+
+  // Wait until the agent's resources have been updated to include the
+  // resource provider resources.
+  AWAIT_READY(updateAgentMessage);
+
+  v1Response = post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
+  ASSERT_EQ(v1Response->get_agents().agents_size(), 1);
+  ASSERT_FALSE(v1Response->get_agents().agents(0).resource_providers().empty());
+
+  const mesos::v1::ResourceProviderInfo& responseInfo =
+    v1Response->get_agents()
+      .agents(0)
+      .resource_providers(0)
+      .resource_provider_info();
+
+  EXPECT_EQ(info.type(), responseInfo.type());
+  EXPECT_EQ(info.name(), responseInfo.name());
 }
 
 
