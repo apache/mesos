@@ -1266,6 +1266,188 @@ TEST_F(HierarchicalAllocatorTest, SameShareFairness)
 }
 
 
+class HierarchicalAllocatorTestWithReservations
+  : public HierarchicalAllocatorTestBase,
+    public WithParamInterface<Resource::ReservationInfo::Type> {};
+
+
+INSTANTIATE_TEST_CASE_P(
+    ReservationTypeSwitch,
+    HierarchicalAllocatorTestWithReservations,
+    testing::Values(
+        Resource::ReservationInfo::DYNAMIC,
+        Resource::ReservationInfo::STATIC));
+
+
+// This test verifies that the reservations should be
+// accounted towards the quota guarantee/limit even if
+// they are currently unallocated.
+TEST_P(HierarchicalAllocatorTestWithReservations, ReservationUnallocated)
+{
+  Clock::pause();
+
+  const string QUOTA_ROLE{"quota-role"};
+
+  initialize();
+
+  Resource::ReservationInfo reservation;
+  reservation.set_type(GetParam());
+  reservation.set_role(QUOTA_ROLE);
+
+  Resources resources = Resources::parse("cpus:1;mem:1024").get();
+  resources = resources.pushReservation(reservation);
+
+  SlaveInfo agent1 = createSlaveInfo(resources);
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  Resources reserved = Resources(agent1.resources()).reserved(QUOTA_ROLE);
+
+  // Set a quota for 1x agent resources.
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:1;mem:1024");
+  allocator->setQuota(QUOTA_ROLE, quota);
+
+  // Create `framework1` and set quota for its role.
+  FrameworkInfo framework1 = createFrameworkInfo({QUOTA_ROLE});
+  allocator->addFramework(framework1.id(), framework1, {}, true, {});
+
+  // Process all triggered allocation events.
+  Clock::settle();
+
+  // `framework1` will be offered the reserved resources at `agent1`
+  // because those resources are reserved for its role.
+  Allocation expected = Allocation(
+      framework1.id(),
+      {{QUOTA_ROLE, {{agent1.id(), reserved}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Decline the reservations for the rest of the test.
+  Filters filter1day;
+  filter1day.set_refuse_seconds(Days(1).secs());
+  allocator->recoverResources(
+      framework1.id(),
+      agent1.id(),
+      allocatedResources(reserved, QUOTA_ROLE),
+      filter1day);
+
+  // Add another agent with unreserved resources.
+  // This will trigger a batch allocation.
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  Clock::settle();
+
+  // Agent2's resources should not be allocated to `framework1` under
+  // `QUOTA_ROLE` because the reserved resources should be accounted
+  // towards the quota and allocating this agent will exceed the
+  // quota limit.
+  Future<Allocation> allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+}
+
+
+// This test verifies that the reservations should be
+// accounted towards the quota guarantee/limit if they
+// are currently allocated.
+TEST_P(HierarchicalAllocatorTestWithReservations, ReservationAllocated)
+{
+  Clock::pause();
+
+  const string QUOTA_ROLE{"quota-role"};
+
+  initialize();
+
+  Resource::ReservationInfo reservation;
+  reservation.set_type(GetParam());
+  reservation.set_role(QUOTA_ROLE);
+
+  Resources resources = Resources::parse("cpus:1;mem:1024").get();
+  resources = resources.pushReservation(reservation);
+
+  SlaveInfo agent1 = createSlaveInfo(resources);
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  Resources reserved = Resources(agent1.resources()).reserved(QUOTA_ROLE);
+
+  // Set a quota for 2x agent resources.
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:2048");
+  allocator->setQuota(QUOTA_ROLE, quota);
+
+  // Create `framework1` and set quota for its role.
+  FrameworkInfo framework1 = createFrameworkInfo({QUOTA_ROLE});
+  allocator->addFramework(framework1.id(), framework1, {}, true, {});
+
+  // Process all triggered allocation events.
+  Clock::settle();
+
+  // `framework1` will be offered the reserved resources at `agent1`
+  // because those resources are reserved for its role.
+  Allocation expected = Allocation(
+      framework1.id(),
+      {{QUOTA_ROLE, {{agent1.id(), reserved}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Add another agent with unreserved resources.
+  // This will trigger a batch allocation.
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  Clock::settle();
+
+  expected = Allocation(
+      framework1.id(),
+      {{QUOTA_ROLE, {{agent2.id(), agent2.resources()}}}});
+
+  // Agent2's resources should be allocated to framework1
+  // to meet its remaining quota.
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Add a third agent with unreserved resources.
+  // This will trigger a batch allocation.
+  SlaveInfo agent3 = createSlaveInfo("cpus:1;mem:1024");
+  allocator->addSlave(
+      agent3.id(),
+      agent3,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent3.resources(),
+      {});
+
+  Clock::settle();
+
+  // Agent3's resources should not be allocated to `framework1` under
+  // `QUOTA_ROLE` because the role is already allocated its quota.
+  // Some of this quota is satisfied via an allocated reservation.
+  Future<Allocation> allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+}
+
+
 // Checks that resources on a slave that are statically reserved to
 // a role are only offered to frameworks in that role.
 TEST_F(HierarchicalAllocatorTest, Reservations)
