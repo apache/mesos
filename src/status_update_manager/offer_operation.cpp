@@ -34,10 +34,11 @@ namespace mesos {
 namespace internal {
 
 OfferOperationStatusUpdateManager::OfferOperationStatusUpdateManager()
-  : process(new StatusUpdateManagerProcess<
-        UUID,
-        OfferOperationStatusUpdateRecord,
-        OfferOperationStatusUpdate>())
+  : process(
+        new StatusUpdateManagerProcess<
+            UUID,
+            OfferOperationStatusUpdateRecord,
+            OfferOperationStatusUpdate>("offer operation status update"))
 {
   spawn(process.get());
 }
