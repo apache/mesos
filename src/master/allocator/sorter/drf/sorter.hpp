@@ -103,7 +103,7 @@ public:
 
   virtual bool contains(const std::string& clientPath) const;
 
-  virtual int count() const;
+  virtual size_t count() const;
 
 private:
   // A node in the sorter's tree.

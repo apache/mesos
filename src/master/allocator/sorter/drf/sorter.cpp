@@ -584,7 +584,7 @@ bool DRFSorter::contains(const string& clientPath) const
 }
 
 
-int DRFSorter::count() const
+size_t DRFSorter::count() const
 {
   return clients.size();
 }

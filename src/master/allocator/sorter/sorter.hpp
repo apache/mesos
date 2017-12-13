@@ -145,7 +145,7 @@ public:
 
   // Returns the number of clients this Sorter contains,
   // either active or inactive.
-  virtual int count() const = 0;
+  virtual size_t count() const = 0;
 };
 
 } // namespace allocator {
