@@ -320,7 +320,12 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     return ContainerLaunchInfo();
   }
 
-#ifndef __WINDOWS__
+#ifdef __WINDOWS__
+  // NOTE: On Windows, both return values of
+  // `IOSwitchboard::requiresServer(containerConfig)` are checked and will
+  // return before reaching here.
+  UNREACHABLE();
+#else
   // First make sure that we haven't already spawned an io
   // switchboard server for this container.
   if (infos.contains(containerId)) {
