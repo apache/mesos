@@ -7225,7 +7225,7 @@ void Slave::handleResourceProviderMessage(
                      << update.status().operation_id() << "' (uuid: "
                      << operationUUID->toString() << ") for framework "
                      << update.framework_id();
-        return;
+        break;
       }
 
       updateOfferOperation(operation, update);
