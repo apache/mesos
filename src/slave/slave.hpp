@@ -556,10 +556,10 @@ private:
   void _forwardOversubscribed(
       const process::Future<Resources>& oversubscribable);
 
-  // Helper functions to generate `UpdateSlaveMessage` for either just
-  // updates to oversubscribed resources, resource provider-related
-  // information, or both.
-  UpdateSlaveMessage generateOversubscribedUpdate() const;
+  // Helper functions to generate `UpdateSlaveMessage` for either
+  // just updates to resource provider-related information, or both
+  // resource provider-related information and oversubscribed
+  // resources.
   UpdateSlaveMessage generateResourceProviderUpdate() const;
   UpdateSlaveMessage generateUpdateSlaveMessage() const;
 

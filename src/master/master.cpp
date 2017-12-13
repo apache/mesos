@@ -7246,13 +7246,12 @@ void Master::updateSlave(const UpdateSlaveMessage& message)
   // updating the agent in the allocator. This would lead us to
   // re-send out the stale oversubscribed resources!
 
-  // If the caller did not specify a resource category we assume we should set
-  // `oversubscribedResources` to be backwards-compatibility with older clients.
+  // If agent does not specify the `update_oversubscribed_resources`
+  // field, we assume we should set `oversubscribedResources` to be
+  // backwards-compatibility with older agents (version < 1.5).
   const bool hasOversubscribed =
-    (message.has_resource_categories() &&
-     message.resource_categories().has_oversubscribed() &&
-     message.resource_categories().oversubscribed()) ||
-    !message.has_resource_categories();
+    !message.has_update_oversubscribed_resources() ||
+     message.update_oversubscribed_resources();
 
   Option<Resources> newOversubscribed;
 

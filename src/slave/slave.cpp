@@ -6976,17 +6976,10 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
     // Add oversubscribable resources to the total.
     oversubscribed += oversubscribable.get();
 
-    // Remember the previous amount of oversubscribed resources.
-    const Option<Resources> previousOversubscribedResources =
-      oversubscribedResources;
-
-    // Update the estimate.
-    oversubscribedResources = oversubscribed;
-
     // Only forward the estimate if it's different from the previous
     // estimate. We also send this whenever we get (re-)registered
     // (i.e. whenever we transition into the RUNNING state).
-    if (state == RUNNING && previousOversubscribedResources != oversubscribed) {
+    if (state == RUNNING && oversubscribedResources != oversubscribed) {
       LOG(INFO) << "Forwarding total oversubscribed resources "
                 << oversubscribed;
 
@@ -6999,32 +6992,22 @@ void Slave::_forwardOversubscribed(const Future<Resources>& oversubscribable)
       // TODO(bbannier): Revisit this if we modify the operations
       // possible on oversubscribed resources.
 
-      UpdateSlaveMessage message = generateOversubscribedUpdate();
+      UpdateSlaveMessage message;
+      message.mutable_slave_id()->CopyFrom(info.id());
+      message.set_update_oversubscribed_resources(true);
+      message.mutable_oversubscribed_resources()->CopyFrom(oversubscribed);
 
       CHECK_SOME(master);
       send(master.get(), message);
     }
+
+    // Update the estimate.
+    oversubscribedResources = oversubscribed;
   }
 
   delay(flags.oversubscribed_resources_interval,
         self(),
         &Self::forwardOversubscribed);
-}
-
-
-UpdateSlaveMessage Slave::generateOversubscribedUpdate() const
-{
-  UpdateSlaveMessage message;
-
-  message.mutable_slave_id()->CopyFrom(info.id());
-  message.mutable_resource_categories()->set_oversubscribed(true);
-
-  if (oversubscribedResources.isSome()) {
-    message.mutable_oversubscribed_resources()->CopyFrom(
-        oversubscribedResources.get());
-  }
-
-  return message;
 }
 
 
@@ -7037,6 +7020,7 @@ UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
   // TODO(bbannier): Pass agent information as a resource provider.
   UpdateSlaveMessage message;
   message.mutable_slave_id()->CopyFrom(info.id());
+  message.set_update_oversubscribed_resources(false);
   message.set_resource_version_uuid(resourceVersion.toBytes());
   message.mutable_offer_operations();
 
@@ -7076,10 +7060,13 @@ UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
 
 UpdateSlaveMessage Slave::generateUpdateSlaveMessage() const
 {
-  UpdateSlaveMessage message;
+  UpdateSlaveMessage message = generateResourceProviderUpdate();
 
-  message.MergeFrom(generateResourceProviderUpdate());
-  message.MergeFrom(generateOversubscribedUpdate());
+  if (oversubscribedResources.isSome()) {
+    message.set_update_oversubscribed_resources(true);
+    message.mutable_oversubscribed_resources()->CopyFrom(
+        oversubscribedResources.get());
+  }
 
   return message;
 }
