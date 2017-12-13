@@ -56,6 +56,7 @@ constexpr Bytes MIN_MEM = Megabytes(32);
 
 
 bool WindowsMemIsolatorProcess::supportsNesting() { return true; }
+bool WindowsMemIsolatorProcess::supportsStandalone() { return true; }
 
 
 // When recovering, this ensures that our ContainerID -> PID mapping is

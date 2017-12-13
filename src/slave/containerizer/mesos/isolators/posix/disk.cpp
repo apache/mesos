@@ -113,6 +113,12 @@ bool PosixDiskIsolatorProcess::supportsNesting()
 }
 
 
+bool PosixDiskIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Future<Nothing> PosixDiskIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)

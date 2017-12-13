@@ -150,6 +150,12 @@ bool IOSwitchboard::supportsNesting()
 }
 
 
+bool IOSwitchboard::supportsStandalone()
+{
+  return true;
+}
+
+
 Future<Nothing> IOSwitchboard::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)

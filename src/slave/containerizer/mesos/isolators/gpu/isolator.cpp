@@ -230,6 +230,12 @@ bool NvidiaGpuIsolatorProcess::supportsNesting()
 }
 
 
+bool NvidiaGpuIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Future<Nothing> NvidiaGpuIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)

@@ -80,6 +80,12 @@ bool NamespacesPidIsolatorProcess::supportsNesting()
 }
 
 
+bool NamespacesPidIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)

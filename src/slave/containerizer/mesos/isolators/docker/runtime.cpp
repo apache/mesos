@@ -65,6 +65,12 @@ bool DockerRuntimeIsolatorProcess::supportsNesting()
 }
 
 
+bool DockerRuntimeIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Try<Isolator*> DockerRuntimeIsolatorProcess::create(const Flags& flags)
 {
   process::Owned<MesosIsolatorProcess> process(

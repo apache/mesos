@@ -99,6 +99,12 @@ bool VolumeSecretIsolatorProcess::supportsNesting()
 }
 
 
+bool VolumeSecretIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)

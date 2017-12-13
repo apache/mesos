@@ -89,6 +89,12 @@ bool VolumeHostPathIsolatorProcess::supportsNesting()
 }
 
 
+bool VolumeHostPathIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)

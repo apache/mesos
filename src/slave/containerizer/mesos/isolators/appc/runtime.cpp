@@ -62,6 +62,12 @@ bool AppcRuntimeIsolatorProcess::supportsNesting()
 }
 
 
+bool AppcRuntimeIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Try<Isolator*> AppcRuntimeIsolatorProcess::create(const Flags& flags)
 {
   process::Owned<MesosIsolatorProcess> process(

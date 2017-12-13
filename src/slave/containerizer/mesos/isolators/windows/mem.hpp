@@ -43,6 +43,7 @@ public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
   bool supportsNesting() override;
+  bool supportsStandalone() override;
 
   process::Future<Nothing> recover(
       const std::list<mesos::slave::ContainerState>& state,

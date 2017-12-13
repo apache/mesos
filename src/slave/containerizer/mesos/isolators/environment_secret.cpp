@@ -74,6 +74,12 @@ bool EnvironmentSecretIsolatorProcess::supportsNesting()
 }
 
 
+bool EnvironmentSecretIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Future<Option<ContainerLaunchInfo>> EnvironmentSecretIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)

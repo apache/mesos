@@ -65,6 +65,12 @@ bool NamespacesIPCIsolatorProcess::supportsNesting()
 }
 
 
+bool NamespacesIPCIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 // IPC isolation on Linux just requires that a process be placed in an IPC
 // namespace. Neither /proc, nor any of the special SVIPC filesystem need
 // to be remounted for this to work. IPC namespaces are disjoint. That is,

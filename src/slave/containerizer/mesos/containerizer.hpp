@@ -382,6 +382,12 @@ private:
   // Helper to transition container state.
   void transition(const ContainerID& containerId, const State& state);
 
+  // Helper to determine if a container is supported by an isolator.
+  bool isSupportedByIsolator(
+      const ContainerID& containerId,
+      bool isolatorSupportsNesting,
+      bool isolatorSupportsStandalone);
+
   struct Metrics
   {
     Metrics();

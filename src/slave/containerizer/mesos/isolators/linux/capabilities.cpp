@@ -80,6 +80,12 @@ bool LinuxCapabilitiesIsolatorProcess::supportsNesting()
 }
 
 
+bool LinuxCapabilitiesIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Future<Option<ContainerLaunchInfo>> LinuxCapabilitiesIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)

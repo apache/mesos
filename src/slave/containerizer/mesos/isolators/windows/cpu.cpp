@@ -55,6 +55,7 @@ constexpr double MIN_CPU = 0.001;
 
 
 bool WindowsCpuIsolatorProcess::supportsNesting() { return true; }
+bool WindowsCpuIsolatorProcess::supportsStandalone() { return true; }
 
 
 // When recovering, this ensures that our ContainerID -> PID mapping is

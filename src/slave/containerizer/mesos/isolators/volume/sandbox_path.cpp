@@ -94,6 +94,12 @@ bool VolumeSandboxPathIsolatorProcess::supportsNesting()
 }
 
 
+bool VolumeSandboxPathIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Future<Nothing> VolumeSandboxPathIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)

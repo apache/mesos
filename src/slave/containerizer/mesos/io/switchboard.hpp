@@ -60,6 +60,7 @@ public:
   virtual ~IOSwitchboard();
 
   virtual bool supportsNesting();
+  virtual bool supportsStandalone();
 
   virtual process::Future<Nothing> recover(
     const std::list<mesos::slave::ContainerState>& states,

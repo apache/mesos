@@ -34,6 +34,12 @@ bool PosixRLimitsIsolatorProcess::supportsNesting()
 }
 
 
+bool PosixRLimitsIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 process::Future<Option<ContainerLaunchInfo>>
 PosixRLimitsIsolatorProcess::prepare(
     const ContainerID& containerId,

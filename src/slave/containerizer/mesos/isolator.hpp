@@ -42,6 +42,7 @@ public:
   virtual ~MesosIsolator();
 
   virtual bool supportsNesting();
+  virtual bool supportsStandalone();
 
   virtual process::Future<Nothing> recover(
       const std::list<mesos::slave::ContainerState>& states,
@@ -82,6 +83,11 @@ public:
   virtual ~MesosIsolatorProcess() {}
 
   virtual bool supportsNesting()
+  {
+    return false;
+  }
+
+  virtual bool supportsStandalone()
   {
     return false;
   }

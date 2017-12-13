@@ -49,6 +49,11 @@ public:
     return false;
   }
 
+  virtual bool supportsStandalone()
+  {
+    return false;
+  }
+
   // Recover containers from the run states and the orphan containers
   // (known to the launcher but not known to the slave) detected by
   // the launcher.

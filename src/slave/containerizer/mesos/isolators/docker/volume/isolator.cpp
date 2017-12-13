@@ -71,6 +71,12 @@ bool DockerVolumeIsolatorProcess::supportsNesting()
 }
 
 
+bool DockerVolumeIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Try<Isolator*> DockerVolumeIsolatorProcess::create(const Flags& flags)
 {
   // Check for root permission.

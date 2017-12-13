@@ -151,6 +151,12 @@ bool CgroupsIsolatorProcess::supportsNesting()
 }
 
 
+bool CgroupsIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 void CgroupsIsolatorProcess::initialize()
 {
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {

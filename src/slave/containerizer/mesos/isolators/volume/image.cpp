@@ -75,6 +75,12 @@ bool VolumeImageIsolatorProcess::supportsNesting()
 }
 
 
+bool VolumeImageIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Try<Isolator*> VolumeImageIsolatorProcess::create(
     const Flags& flags,
     const Shared<Provisioner>& provisioner)

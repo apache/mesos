@@ -219,6 +219,12 @@ bool LinuxFilesystemIsolatorProcess::supportsNesting()
 }
 
 
+bool LinuxFilesystemIsolatorProcess::supportsStandalone()
+{
+  return true;
+}
+
+
 Future<Nothing> LinuxFilesystemIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
@@ -333,6 +339,18 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
     return launchInfo;
   }
 
+  // Currently, we do not support persistent volumes for standalone
+  // containers. Therefore, we perform the check here to reject the
+  // standalone container launch if persistent volumes are specified.
+  const bool isStandaloneContainer =
+    containerizer::paths::isStandaloneContainer(flags.runtime_dir, containerId);
+
+  if (isStandaloneContainer &&
+      !Resources(containerConfig.resources()).persistentVolumes().empty()) {
+    return Failure(
+        "Persistent volumes are not supported for standalone containers");
+  }
+
   if (infos.contains(containerId)) {
     return Failure("Container has already been prepared");
   }
@@ -378,7 +396,7 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
     return launchInfo;
   }
 
-  return update(containerId, containerConfig.executor_info().resources())
+  return update(containerId, containerConfig.resources())
     .then([launchInfo]() -> Future<Option<ContainerLaunchInfo>> {
       return launchInfo;
     });
