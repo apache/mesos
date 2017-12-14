@@ -338,6 +338,7 @@ private:
   Future<Nothing> recover();
   Future<Nothing> recoverServices();
   Future<Nothing> recoverVolumes();
+  Future<Nothing> recoverResources();
   Future<Nothing> recoverStatusUpdates();
   void doReliableRegistration();
   Future<Nothing> reconcileResourceProviderState();
@@ -593,52 +594,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
 
   return recoverServices()
     .then(defer(self(), &Self::recoverVolumes))
+    .then(defer(self(), &Self::recoverResources))
     .then(defer(self(), [=]() -> Future<Nothing> {
-      // Recover the resource provider ID and state from the latest
-      // symlink. If the symlink does not exist, this is a new resource
-      // provider, and the total resources will be empty, which is fine
-      // since new resources will be added during reconciliation.
-      Result<string> realpath = os::realpath(
-          slave::paths::getLatestResourceProviderPath(
-              metaDir, slaveId, info.type(), info.name()));
-
-      if (realpath.isError()) {
-        return Failure(
-            "Failed to read the latest symlink for resource provider with "
-            "type '" + info.type() + "' and name '" + info.name() + "'"
-            ": " + realpath.error());
-      }
-
-      if (realpath.isSome()) {
-        info.mutable_id()->set_value(Path(realpath.get()).basename());
-
-        const string statePath = slave::paths::getResourceProviderStatePath(
-            metaDir, slaveId, info.type(), info.name(), info.id());
-
-        Result<ResourceProviderState> resourceProviderState =
-          ::protobuf::read<ResourceProviderState>(statePath);
-
-        if (resourceProviderState.isError()) {
-          return Failure(
-              "Failed to read resource provider state from '" + statePath +
-              "': " + resourceProviderState.error());
-        }
-
-        if (resourceProviderState.isSome()) {
-          foreach (const OfferOperation& operation,
-                   resourceProviderState->operations()) {
-            Try<id::UUID> uuid =
-              id::UUID::fromBytes(operation.operation_uuid().value());
-
-            CHECK_SOME(uuid);
-
-            offerOperations[uuid.get()] = operation;
-          }
-
-          totalResources = resourceProviderState->resources();
-        }
-      }
-
       state = DISCONNECTED;
 
       driver.reset(new Driver(
@@ -856,6 +813,56 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
   return collect(futures).then([] { return Nothing(); });
 }
 
+
+Future<Nothing> StorageLocalResourceProviderProcess::recoverResources()
+{
+  // Recover the resource provider ID and state from the latest
+  // symlink. If the symlink does not exist, this is a new resource
+  // provider, and the total resources will be empty, which is fine
+  // since new resources will be added during reconciliation.
+  Result<string> realpath = os::realpath(
+      slave::paths::getLatestResourceProviderPath(
+          metaDir, slaveId, info.type(), info.name()));
+
+  if (realpath.isError()) {
+    return Failure(
+        "Failed to read the latest symlink for resource provider with "
+        "type '" + info.type() + "' and name '" + info.name() + "'"
+        ": " + realpath.error());
+  }
+
+  if (realpath.isSome()) {
+    info.mutable_id()->set_value(Path(realpath.get()).basename());
+
+    const string statePath = slave::paths::getResourceProviderStatePath(
+        metaDir, slaveId, info.type(), info.name(), info.id());
+
+    Result<ResourceProviderState> resourceProviderState =
+      ::protobuf::read<ResourceProviderState>(statePath);
+
+    if (resourceProviderState.isError()) {
+      return Failure(
+          "Failed to read resource provider state from '" + statePath +
+          "': " + resourceProviderState.error());
+    }
+
+    if (resourceProviderState.isSome()) {
+      foreach (const OfferOperation& operation,
+               resourceProviderState->operations()) {
+        Try<id::UUID> uuid =
+          id::UUID::fromBytes(operation.operation_uuid().value());
+
+        CHECK_SOME(uuid);
+
+        offerOperations[uuid.get()] = operation;
+      }
+
+      totalResources = resourceProviderState->resources();
+    }
+  }
+
+  return Nothing();
+}
 
 Future<Nothing> StorageLocalResourceProviderProcess::recoverStatusUpdates()
 {
