@@ -214,8 +214,6 @@ inline Try<Nothing> mknod(
 }
 
 
-
-
 // Suspends execution for the given duration.
 inline Try<Nothing> sleep(const Duration& duration)
 {
