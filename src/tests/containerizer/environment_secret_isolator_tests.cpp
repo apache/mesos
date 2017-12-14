@@ -139,14 +139,6 @@ TEST_F(EnvironmentSecretIsolatorTest, ResolveSecretDefaultExecutor)
 
   mesos::internal::slave::Flags flags = CreateSlaveFlags();
 
-#ifndef USE_SSL_SOCKET
-  // Disable operator API authentication for the default executor. Executor
-  // authentication currently has SSL as a dependency, so we cannot require
-  // executors to authenticate with the agent operator API if Mesos was not
-  // built with SSL support.
-  flags.authenticate_http_readwrite = false;
-#endif // USE_SSL_SOCKET
-
   Fetcher fetcher(flags);
   Try<SecretResolver*> secretResolver = SecretResolver::create();
   EXPECT_SOME(secretResolver);

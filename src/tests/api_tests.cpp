@@ -5218,6 +5218,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = true;
+
   Fetcher fetcher(flags);
 
   Try<MesosContainerizer*> mesosContainerizer =
@@ -5740,6 +5742,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = true;
+
   {
     mesos::ACL::AttachContainerInput* acl =
       flags.acls->add_attach_containers_input();

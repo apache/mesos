@@ -8652,13 +8652,6 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
-#ifndef USE_SSL_SOCKET
-  // Disable operator API authentication for the default executor. Executor
-  // authentication currently has SSL as a dependency, so we cannot require
-  // executors to authenticate with the agent operator API if Mesos was not
-  // built with SSL support.
-  flags.authenticate_http_readwrite = false;
-#endif // USE_SSL_SOCKET
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);

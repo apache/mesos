@@ -93,24 +93,7 @@ namespace tests {
 
 class DefaultExecutorTest
   : public MesosTest,
-    public WithParamInterface<string>
-{
-protected:
-  slave::Flags CreateSlaveFlags()
-  {
-    slave::Flags flags = MesosTest::CreateSlaveFlags();
-
-#ifndef USE_SSL_SOCKET
-    // Disable operator API authentication for the default executor. Executor
-    // authentication currently has SSL as a dependency, so we cannot require
-    // executors to authenticate with the agent operator API if Mesos was not
-    // built with SSL support.
-    flags.authenticate_http_readwrite = false;
-#endif // USE_SSL_SOCKET
-
-    return flags;
-  }
-};
+    public WithParamInterface<string> {};
 
 
 // These tests are parameterized by the containerizers enabled on the agent.
@@ -2268,21 +2251,6 @@ public:
   PersistentVolumeDefaultExecutor() : param(GetParam()) {}
 
 protected:
-  slave::Flags CreateSlaveFlags()
-  {
-    slave::Flags flags = MesosTest::CreateSlaveFlags();
-
-#ifndef USE_SSL_SOCKET
-    // Disable operator API authentication for the default executor. Executor
-    // authentication currently has SSL as a dependency, so we cannot require
-    // executors to authenticate with the agent operator API if Mesos was not
-    // built with SSL support.
-    flags.authenticate_http_readwrite = false;
-#endif // USE_SSL_SOCKET
-
-    return flags;
-  }
-
   LauncherAndIsolationParam param;
 };
 

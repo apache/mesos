@@ -1101,14 +1101,6 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_TaskGroup)
   flags.launcher = "linux";
   flags.check_agent_port_range_only = true;
 
-#ifndef USE_SSL_SOCKET
-  // Disable operator API authentication for the default executor.
-  // Executor authentication currently has SSL as a dependency, so we
-  // cannot require executors to authenticate with the agent operator
-  // API if Mesos was not built with SSL support.
-  flags.authenticate_http_readwrite = false;
-#endif // USE_SSL_SOCKET
-
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
@@ -1257,14 +1249,6 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverNestedBadTask)
 
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "linux";
-
-#ifndef USE_SSL_SOCKET
-  // Disable operator API authentication for the default executor.
-  // Executor authentication currently has SSL as a dependency, so we
-  // cannot require executors to authenticate with the agent operator
-  // API if Mesos was not built with SSL support.
-  flags.authenticate_http_readwrite = false;
-#endif // USE_SSL_SOCKET
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave =
@@ -1444,14 +1428,6 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverNestedGoodTask)
 
   slave::Flags flags = CreateSlaveFlags();
   flags.launcher = "linux";
-
-#ifndef USE_SSL_SOCKET
-  // Disable operator API authentication for the default executor.
-  // Executor authentication currently has SSL as a dependency, so we
-  // cannot require executors to authenticate with the agent operator
-  // API if Mesos was not built with SSL support.
-  flags.authenticate_http_readwrite = false;
-#endif // USE_SSL_SOCKET
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave =

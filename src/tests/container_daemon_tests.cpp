@@ -89,8 +89,6 @@ TEST_F(ContainerDaemonTest, RestartOnTermination)
   ASSERT_SOME(jwtSecretKey);
 
   secretGenerator.reset(new JWTSecretGenerator(jwtSecretKey.get()));
-#else
-  slaveFlags.authenticate_http_readwrite = false;
 #endif // USE_SSL_SOCKET
 
   Future<Nothing> recover = FUTURE_DISPATCH(_, &Slave::__recover);
