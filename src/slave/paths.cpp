@@ -65,6 +65,7 @@ const char TASK_UPDATES_FILE[] = "task.updates";
 const char RESOURCES_INFO_FILE[] = "resources.info";
 const char RESOURCES_TARGET_FILE[] = "resources.target";
 const char RESOURCE_PROVIDER_STATE_FILE[] = "resource_provider.state";
+const char OFFER_OPERATION_UPDATES_FILE[] = "operation.updates";
 
 
 const char CONTAINERS_DIR[] = "containers";
@@ -75,6 +76,7 @@ const char EXECUTORS_DIR[] = "executors";
 const char EXECUTOR_RUNS_DIR[] = "runs";
 const char RESOURCE_PROVIDER_REGISTRY[] = "resource_provider_registry";
 const char RESOURCE_PROVIDERS_DIR[] = "resource_providers";
+const char OFFER_OPERATIONS_DIR[] = "operations";
 
 
 Try<ExecutorRunPath> parseExecutorRunPath(
@@ -542,6 +544,58 @@ string getLatestResourceProviderPath(
       resourceProviderType,
       resourceProviderName,
       LATEST_SYMLINK);
+}
+
+
+Try<list<string>> getOfferOperationPaths(
+    const string& rootDir)
+{
+  return fs::list(path::join(rootDir, OFFER_OPERATIONS_DIR, "*"));
+}
+
+
+string getOfferOperationPath(
+    const string& rootDir,
+    const UUID& operationUuid)
+{
+  return path::join(rootDir, OFFER_OPERATIONS_DIR, operationUuid.toString());
+}
+
+
+Try<UUID> parseOfferOperationPath(
+    const string& rootDir,
+    const string& dir)
+{
+  // TODO(chhsiao): Consider using `<regex>`, which requires GCC 4.9+.
+
+  // Make sure there's a separator at the end of the prefix so that we
+  // don't accidently slice off part of a directory.
+  const string prefix = path::join(rootDir, OFFER_OPERATIONS_DIR, "");
+
+  if (!strings::startsWith(dir, prefix)) {
+    return Error(
+        "Directory '" + dir + "' does not fall under operations directory '" +
+        prefix + "'");
+  }
+
+  Try<UUID> operationUuid = UUID::fromString(Path(dir).basename());
+  if (operationUuid.isError()) {
+    return Error(
+        "Could not decode offer operation UUID from string '" +
+        Path(dir).basename() + "': " + operationUuid.error());
+  }
+
+  return operationUuid.get();
+}
+
+
+string getOfferOperationUpdatesPath(
+    const string& rootDir,
+    const UUID& operationUuid)
+{
+  return path::join(
+      getOfferOperationPath(rootDir, operationUuid),
+      OFFER_OPERATION_UPDATES_FILE);
 }
 
 
