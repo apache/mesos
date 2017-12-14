@@ -601,7 +601,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PreExistingVolume)
     }
   }
 
-  ASSERT_EQ(2, sources.size());
+  ASSERT_EQ(2u, sources.size());
 
   // Create a volume and a block.
   driver.acceptOffers(
@@ -654,7 +654,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PreExistingVolume)
     }
   }
 
-  ASSERT_EQ(2, destroyed.size());
+  ASSERT_EQ(2u, destroyed.size());
 
   foreach (const Resource& resource, destroyed) {
     ASSERT_FALSE(resource.disk().source().has_mount());
