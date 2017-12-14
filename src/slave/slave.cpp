@@ -7230,15 +7230,35 @@ void Slave::handleResourceProviderMessage(
       CHECK_SOME(operationUUID);
 
       OfferOperation* operation = getOfferOperation(operationUUID.get());
-      if (operation == nullptr) {
-        LOG(WARNING) << "Failed to find the offer operation '"
-                     << update.status().operation_id() << "' (uuid: "
-                     << operationUUID->toString() << ") for framework "
-                     << update.framework_id();
-        break;
-      }
 
-      updateOfferOperation(operation, update);
+      if (operation != nullptr) {
+        // The agent might not know about the operation in the
+        // following cases:
+        //
+        // Case 1:
+        // (1) The agent sends to a resource provder an ACK for a
+        //     terminal offer operation status update and removes the
+        //     offer operation.
+        // (2) The resource provider doesn't get the ACK.
+        // (3) The resource provider's status update manager resends
+        //     the offer operation status update.
+        //
+        // Case 2:
+        // (1) The master knows an operation that the agent doesn't
+        //     know, because an ApplyOfferOperationMessage was
+        //     dropped.
+        // (2) The master sends a ReconcileOfferOperationsMessage
+        //     message to the agent, who forwards it to a resource
+        //     provider.
+        // (3) The resource provider doesn't know the operation, so it
+        //     sends an offer operation status update with the state
+        //     OFFER_OPERATION_DROPPED.
+        //
+        // In both cases the agent should not update it's internal
+        // state, but it should still forward the offer operation
+        // status update.
+        updateOfferOperation(operation, update);
+      }
 
       switch (state) {
         case RECOVERING:
@@ -7252,14 +7272,15 @@ void Slave::handleResourceProviderMessage(
           break;
         }
         case RUNNING: {
-          LOG(INFO) << "Forwarding status update of offer operation '"
-                    << update.status().operation_id()
+          LOG(INFO) << "Forwarding status update of "
+                    << (operation == nullptr ? "unknown " : "")
+                    << "offer operation '" << update.status().operation_id()
                     << "' (uuid: " << operationUUID->toString()
                     << ") for framework " << update.framework_id();
 
           // The status update from the resource provider didn't
-          // provide the agent ID (because the resource provider doesn't
-          // know it), hence we inject it here.
+          // provide the agent ID (because the resource provider
+          // doesn't know it), hence we inject it here.
           OfferOperationStatusUpdate _update;
           _update.CopyFrom(update);
           _update.mutable_slave_id()->CopyFrom(info.id());
