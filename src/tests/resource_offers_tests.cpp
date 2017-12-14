@@ -239,7 +239,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
   Resource* mem = task.add_resources();
   mem->set_name("mem");
   mem->set_type(Value::SCALAR);
-  mem->mutable_scalar()->set_value(Gigabytes(1).bytes());
+  mem->mutable_scalar()->set_value(static_cast<double>(Gigabytes(1).bytes()));
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);

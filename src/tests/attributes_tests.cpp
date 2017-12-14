@@ -32,7 +32,7 @@ TEST(AttributesTest, Parsing)
                                    "rack:rack1,rack2");
   ASSERT_EQ(Value::SCALAR, a.get(0).type());
   ASSERT_EQ("cpus", a.get(0).name());
-  ASSERT_FLOAT_EQ(45.55, a.get(0).scalar().value());
+  ASSERT_DOUBLE_EQ(45.55, a.get(0).scalar().value());
 
   ASSERT_EQ(Value::RANGES, a.get(1).type());
   ASSERT_EQ("ports", a.get(1).name());

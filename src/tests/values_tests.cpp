@@ -48,7 +48,7 @@ TEST(ValuesTest, ValidInput)
   Try<Value> result1 = parse("45.55");
   ASSERT_SOME(result1);
   ASSERT_EQ(Value::SCALAR, result1->type());
-  EXPECT_FLOAT_EQ(45.55, result1->scalar().value());
+  EXPECT_DOUBLE_EQ(45.55, result1->scalar().value());
 
   // Test parsing ranges type.
   Try<Value> result2 = parse("[10000-20000, 30000-50000]");

@@ -90,7 +90,7 @@ Try<::mesos::Value::Ranges> fragment(
   // We fragment from the front of the bounds until we have the
   // desired number of ranges.
   ::mesos::Value::Ranges ranges;
-  ranges.mutable_range()->Reserve(numRanges);
+  ranges.mutable_range()->Reserve(static_cast<int>(numRanges));
 
   for (size_t i = 0; i < numRanges; ++i) {
     Value::Range* range = ranges.add_range();

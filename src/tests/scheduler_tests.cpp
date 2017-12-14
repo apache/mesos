@@ -1996,7 +1996,7 @@ TEST_P(SchedulerReconcileTasks_BENCHMARK_Test, SchedulerLibrary)
   const size_t tasks = GetParam();
 
   EXPECT_CALL(*scheduler, update(_, _))
-    .Times(tasks);
+    .Times(static_cast<int>(tasks));
 
   Call call;
   call.mutable_framework_id()->CopyFrom(frameworkId);
@@ -2044,7 +2044,7 @@ TEST_P(SchedulerReconcileTasks_BENCHMARK_Test, SchedulerDriver)
   const size_t tasks = GetParam();
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .Times(tasks);
+    .Times(static_cast<int>(tasks));
 
   vector<TaskStatus> statuses;
 

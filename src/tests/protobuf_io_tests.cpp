@@ -140,8 +140,10 @@ TEST_F(ProtobufIOTest, RepeatedPtrField)
 
   RepeatedPtrField<FrameworkID> expected;
 
-  const size_t size = 10;
-  for (size_t i = 0; i < size; i++) {
+  // NOTE: This uses `int` instead of `size_t` because eventually the iterator
+  // is used in `Get(int)`, and converting from `size_t` generates a warning.
+  const int size = 10;
+  for (int i = 0; i < size; i++) {
     FrameworkID frameworkId;
     frameworkId.set_value(stringify(i));
     expected.Add()->CopyFrom(frameworkId);
@@ -156,7 +158,7 @@ TEST_F(ProtobufIOTest, RepeatedPtrField)
   ASSERT_SOME(actual);
 
   ASSERT_EQ(expected.size(), actual->size());
-  for (size_t i = 0; i < size; i++) {
+  for (int i = 0; i < size; i++) {
     EXPECT_EQ(expected.Get(i), actual->Get(i));
   }
 }
