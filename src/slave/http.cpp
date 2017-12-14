@@ -2286,7 +2286,7 @@ Future<JSON::Array> Http::__containers(
         while (statusIter != status.end() &&
                statsIter != stats.end() &&
                metadataIter != metadata->end()) {
-          JSON::Object& entry= *metadataIter;
+          JSON::Object& entry = *metadataIter;
 
           if (statusIter->isReady()) {
             entry.values["status"] = JSON::protobuf(statusIter->get());

@@ -184,8 +184,8 @@ TEST_F(OCISpecTest, ParseManifest)
         }
       })~";
 
-  Try<image::v1::Manifest> manifest=
-      image::v1::parse<image::v1::Manifest>(json);
+  Try<image::v1::Manifest> manifest =
+    image::v1::parse<image::v1::Manifest>(json);
 
   ASSERT_SOME(manifest);
 

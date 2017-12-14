@@ -50,7 +50,7 @@ namespace internal {
 namespace tests {
 
 
-static const string NAME_PREFIX="mesos-docker";
+static const string NAME_PREFIX = "mesos-docker";
 
 
 class DockerTest : public MesosTest
