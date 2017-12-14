@@ -83,7 +83,8 @@ public:
                     "value": "%s",
                     "arguments": [
                       "%s",
-                      "--available_capacity=4GB",
+                      "--available_capacity=2GB",
+                      "--volumes=volume1:1GB;volume2:1GB",
                       "--work_dir=%s"
                     ]
                   }
@@ -109,10 +110,10 @@ protected:
 };
 
 
-// This test verifies that a framework can create then destroy a volume
-// from the resources provided by a storage local resource provider that
-// uses the test CSI plugin.
-TEST_F(StorageLocalResourceProviderTest, ROOT_CreateVolumeAndDestroyVolume)
+// This test verifies that a framework can create then destroy a new
+// volume from the storage pool of a storage local resource provider
+// that uses the test CSI plugin.
+TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -173,10 +174,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateVolumeAndDestroyVolume)
 
   Sequence offers;
 
-  auto isSourceType = [](
-      const Resource& r, const Resource::DiskInfo::Source::Type& type) {
+  // We are only interested in storage pools and volume created from
+  // them, which have a "default" profile.
+  auto hasSourceType = [](
+      const Resource& r,
+      const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
+      r.disk().source().has_profile() &&
+      r.disk().source().profile() == "default" &&
       r.disk().source().type() == type;
   };
 
@@ -185,17 +191,17 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateVolumeAndDestroyVolume)
     .WillRepeatedly(DeclineOffers());
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
+      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&rawDiskOffers));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
+      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeCreatedOffers));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
+      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeDestroyedOffers));
 
@@ -207,9 +213,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateVolumeAndDestroyVolume)
   Option<Resource> source;
 
   foreach (const Resource& resource, rawDiskOffers->at(0).resources()) {
-    if (resource.has_disk() &&
-        resource.disk().has_source() &&
-        resource.disk().source().type() == Resource::DiskInfo::Source::RAW) {
+    if (hasSourceType(resource, Resource::DiskInfo::Source::RAW)) {
       source = resource;
       break;
     }
@@ -229,9 +233,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateVolumeAndDestroyVolume)
   Option<Resource> volume;
 
   foreach (const Resource& resource, volumeCreatedOffers->at(0).resources()) {
-    if (resource.has_disk() &&
-        resource.disk().has_source() &&
-        resource.disk().source().type() == Resource::DiskInfo::Source::MOUNT) {
+    if (hasSourceType(resource, Resource::DiskInfo::Source::MOUNT)) {
       volume = resource;
       break;
     }
@@ -269,9 +271,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateVolumeAndDestroyVolume)
   Option<Resource> destroyed;
 
   foreach (const Resource& resource, volumeDestroyedOffers->at(0).resources()) {
-    if (resource.has_disk() &&
-        resource.disk().has_source() &&
-        resource.disk().source().type() == Resource::DiskInfo::Source::RAW) {
+    if (hasSourceType(resource, Resource::DiskInfo::Source::RAW)) {
       destroyed = resource;
       break;
     }
@@ -288,9 +288,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateVolumeAndDestroyVolume)
 
 
 // This test verifies that a framework can launch a task using a created
-// volume provided by a storage local resource provider that uses the
-// test CSI plugin, then destroy the volume while it is published.
-TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
+// volume from a storage local resource provider that uses the test CSI
+// plugin, then destroy the volume while it is published.
+TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -356,10 +356,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
 
   Sequence offers;
 
-  auto isSourceType = [](
-      const Resource& r, const Resource::DiskInfo::Source::Type& type) {
+  // We are only interested in storage pools and volume created from
+  // them, which have a "default" profile.
+  auto hasSourceType = [](
+      const Resource& r,
+      const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
+      r.disk().source().has_profile() &&
+      r.disk().source().profile() == "default" &&
       r.disk().source().type() == type;
   };
 
@@ -368,7 +373,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
     .WillRepeatedly(DeclineOffers());
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
+      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&rawDiskOffers));
 
@@ -380,9 +385,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
   Option<Resource> source;
 
   foreach (const Resource& resource, rawDiskOffers->at(0).resources()) {
-    if (resource.has_disk() &&
-        resource.disk().has_source() &&
-        resource.disk().source().type() == Resource::DiskInfo::Source::RAW) {
+    if (hasSourceType(resource, Resource::DiskInfo::Source::RAW)) {
       source = resource;
       break;
     }
@@ -392,7 +395,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
 
   // Create a volume.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
+      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeCreatedOffers));
 
@@ -407,9 +410,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
   Option<Resource> volume;
 
   foreach (const Resource& resource, volumeCreatedOffers->at(0).resources()) {
-    if (resource.has_disk() &&
-        resource.disk().has_source() &&
-        resource.disk().source().type() == Resource::DiskInfo::Source::MOUNT) {
+    if (hasSourceType(resource, Resource::DiskInfo::Source::MOUNT)) {
       volume = resource;
       break;
     }
@@ -500,6 +501,180 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
   // Check if the volume is actually deleted by the test CSI plugin.
   EXPECT_FALSE(os::exists(volumePath.get()));
 }
+
+
+// This test verifies that a framework can convert pre-existing volumes
+// from a storage local resource provider that uses the test CSI plugin
+// into mount or block volumes.
+TEST_F(StorageLocalResourceProviderTest, ROOT_PreExistingVolume)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux";
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  flags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability and other required capabilities.
+  constexpr SlaveInfo::Capability::Type capabilities[] = {
+    SlaveInfo::Capability::MULTI_ROLE,
+    SlaveInfo::Capability::HIERARCHICAL_ROLE,
+    SlaveInfo::Capability::RESERVATION_REFINEMENT,
+    SlaveInfo::Capability::RESOURCE_PROVIDER
+  };
+
+  flags.agent_features = SlaveCapabilities();
+  foreach (SlaveInfo::Capability::Type type, capabilities) {
+    flags.agent_features->add_capabilities()->set_type(type);
+  }
+
+  flags.resource_provider_config_dir = resourceProviderConfigDir;
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Register a framework to exercise offer operations.
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.set_roles(0, "storage");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // The framework is expected to see the following offers in sequence:
+  //   1. One containing two RAW disk resources for pre-existing volumes
+  //      before `CREATE_VOLUME` and `CREATE_BLOCK`.
+  //   2. One containing a MOUNT and a BLOCK disk resources after
+  //      `CREATE_VOLUME` and `CREATE_BLOCK`.
+  //   3. One containing two RAW disk resources for pre-existing volumes
+  //      resource after `DSTROY_VOLUME` and `DESTROY_BLOCK`.
+  Future<vector<Offer>> rawDisksOffers;
+  Future<vector<Offer>> disksConvertedOffers;
+  Future<vector<Offer>> disksRevertedOffers;
+
+  // We are only interested in pre-existing volumes, which have IDs but
+  // no profile.
+  auto isPreExistingVolume = [](const Resource& r) {
+    return r.has_disk() &&
+      r.disk().has_source() &&
+      r.disk().source().has_id() &&
+      !r.disk().source().has_profile();
+  };
+
+  // Decline offers that contain only the agent's default resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers());
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      isPreExistingVolume)))
+    .WillOnce(FutureArg<1>(&rawDisksOffers))
+    .WillOnce(FutureArg<1>(&disksConvertedOffers))
+    .WillOnce(FutureArg<1>(&disksRevertedOffers));
+
+  driver.start();
+
+  AWAIT_READY(rawDisksOffers);
+  ASSERT_FALSE(rawDisksOffers->empty());
+
+  vector<Resource> sources;
+
+  foreach (const Resource& resource, rawDisksOffers->at(0).resources()) {
+    if (isPreExistingVolume(resource) &&
+        resource.disk().source().type() == Resource::DiskInfo::Source::RAW) {
+      sources.push_back(resource);
+    }
+  }
+
+  ASSERT_EQ(2, sources.size());
+
+  // Create a volume and a block.
+  driver.acceptOffers(
+      {rawDisksOffers->at(0).id()},
+      {CREATE_VOLUME(sources.at(0), Resource::DiskInfo::Source::MOUNT),
+       CREATE_BLOCK(sources.at(1))},
+      filters);
+
+  AWAIT_READY(disksConvertedOffers);
+  ASSERT_FALSE(disksConvertedOffers->empty());
+
+  Option<Resource> volume;
+  Option<Resource> block;
+
+  foreach (const Resource& resource, disksConvertedOffers->at(0).resources()) {
+    if (isPreExistingVolume(resource)) {
+      if (resource.disk().source().type() ==
+            Resource::DiskInfo::Source::MOUNT) {
+        volume = resource;
+      } else if (resource.disk().source().type() ==
+                   Resource::DiskInfo::Source::BLOCK) {
+        block = resource;
+      }
+    }
+  }
+
+  ASSERT_SOME(volume);
+  ASSERT_TRUE(volume->disk().source().has_mount());
+  ASSERT_TRUE(volume->disk().source().mount().has_root());
+  EXPECT_FALSE(path::absolute(volume->disk().source().mount().root()));
+
+  ASSERT_SOME(block);
+
+  // Destroy the created volume.
+  driver.acceptOffers(
+      {disksConvertedOffers->at(0).id()},
+      {DESTROY_VOLUME(volume.get()),
+       DESTROY_BLOCK(block.get())},
+      filters);
+
+  AWAIT_READY(disksRevertedOffers);
+  ASSERT_FALSE(disksRevertedOffers->empty());
+
+  vector<Resource> destroyed;
+
+  foreach (const Resource& resource, disksRevertedOffers->at(0).resources()) {
+    if (isPreExistingVolume(resource) &&
+        resource.disk().source().type() == Resource::DiskInfo::Source::RAW) {
+      destroyed.push_back(resource);
+    }
+  }
+
+  ASSERT_EQ(2, destroyed.size());
+
+  foreach (const Resource& resource, destroyed) {
+    ASSERT_FALSE(resource.disk().source().has_mount());
+    ASSERT_TRUE(resource.disk().source().has_metadata());
+
+    // Check if the volume is not deleted by the test CSI plugin.
+    Option<string> volumePath;
+
+    foreach (const Label& label, resource.disk().source().metadata().labels()) {
+      if (label.key() == "path") {
+        volumePath = label.value();
+        break;
+      }
+    }
+
+    ASSERT_SOME(volumePath);
+    EXPECT_TRUE(os::exists(volumePath.get()));
+  }
+}
+
 
 } // namespace tests {
 } // namespace internal {
