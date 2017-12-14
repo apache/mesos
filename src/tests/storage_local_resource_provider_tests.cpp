@@ -344,17 +344,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
   // The framework is expected to see the following offers in sequence:
   //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
   //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
-  //   3. One containing a persistent volume after `CREATE`.
-  //   4. One containing the same persistent volume after `LAUNCH`.
-  //   5. One containing the same MOUNT disk resource after `DESTROY`.
-  //   6. One containing the same RAW disk resource after `DESTROY_VOLUME`.
+  //   3. One containing the same MOUNT disk resource after `CREADE`,
+  //      `LAUNCH` and `DESTROY`.
+  //   4. One containing the same RAW disk resource after `DESTROY_VOLUME`.
   //
   // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
   Future<vector<Offer>> volumeCreatedOffers;
-  Future<vector<Offer>> persistenceCreatedOffers;
   Future<vector<Offer>> taskFinishedOffers;
-  Future<vector<Offer>> persistenceDestroyedOffers;
   Future<vector<Offer>> volumeDestroyedOffers;
 
   Sequence offers;
@@ -441,7 +438,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
   // Put a file into the volume.
   ASSERT_SOME(os::touch(path::join(volumePath.get(), "file")));
 
-  // Create a persistent volume on the CSI volume.
+  // Create a persistent volume on the CSI volume, then launch a task to
+  // use the persistent volume.
   Resource persistentVolume = volume.get();
   persistentVolume.mutable_disk()->mutable_persistence()
     ->set_id(UUID::random().toString());
@@ -451,20 +449,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
     ->set_container_path("volume");
   persistentVolume.mutable_disk()->mutable_volume()->set_mode(Volume::RW);
 
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(
-      persistentVolume)))
-    .InSequence(offers)
-    .WillOnce(FutureArg<1>(&persistenceCreatedOffers));
-
-  driver.acceptOffers(
-      {volumeCreatedOffers->at(0).id()},
-      {CREATE(persistentVolume)},
-      filters);
-
-  AWAIT_READY(persistenceCreatedOffers);
-  ASSERT_FALSE(persistenceCreatedOffers->empty());
-
-  // Launch a task to use the persistent volume.
   Future<TaskStatus> taskStarting;
   Future<TaskStatus> taskRunning;
   Future<TaskStatus> taskFinished;
@@ -480,9 +464,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
     .WillOnce(FutureArg<1>(&taskFinishedOffers));
 
   driver.acceptOffers(
-      {persistenceCreatedOffers->at(0).id()},
-      {LAUNCH({createTask(
-           persistenceCreatedOffers->at(0).slave_id(),
+      {volumeCreatedOffers->at(0).id()},
+      {CREATE(persistentVolume),
+       LAUNCH({createTask(
+           volumeCreatedOffers->at(0).slave_id(),
            persistentVolume,
            createCommandInfo("test -f " + path::join("volume", "file")))})},
       filters);
@@ -498,26 +483,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchAndDestroyVolume)
 
   AWAIT_READY(taskFinishedOffers);
 
-  // Destroy the persistent volume on the CSI volume.
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(volume.get())))
-    .InSequence(offers)
-    .WillOnce(FutureArg<1>(&persistenceDestroyedOffers));
-
-  driver.acceptOffers(
-      {taskFinishedOffers->at(0).id()},
-      {DESTROY(persistentVolume)},
-      filters);
-
-  AWAIT_READY(persistenceDestroyedOffers);
-
-  // Destroy the created volume.
+  // Destroy the persistent volume and the CSI volume.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(source.get())))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeDestroyedOffers));
 
   driver.acceptOffers(
-      {persistenceDestroyedOffers->at(0).id()},
-      {DESTROY_VOLUME(volume.get())},
+      {taskFinishedOffers->at(0).id()},
+      {DESTROY(persistentVolume),
+       DESTROY_VOLUME(volume.get())},
       filters);
 
   AWAIT_READY(volumeDestroyedOffers);
