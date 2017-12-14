@@ -97,8 +97,13 @@ inline Try<Nothing> chown(
     bool recursive = true)
 {
   passwd* passwd;
+
+  errno = 0;
+
   if ((passwd = ::getpwnam(user.c_str())) == nullptr) {
-    return ErrnoError("Failed to get user information for '" + user + "'");
+    return errno
+      ? ErrnoError("Failed to get user information for '" + user + "'")
+      : Error("No such user '" + user + "'");
   }
 
   return chown(passwd->pw_uid, passwd->pw_gid, path, recursive);
