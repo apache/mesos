@@ -21,9 +21,18 @@ index ac6804a7a8..27c40f0985 100644
    gpr
  )
 diff --git a/Makefile b/Makefile
-index 3d2466fce9..8ac4dec61c 100644
+index 3d2466fce9..55fe16919b 100644
 --- a/Makefile
 +++ b/Makefile
+@@ -506,7 +506,7 @@ OPENSSL_ALPN_CHECK_CMD = $(PKG_CONFIG) --atleast-version=1.0.2 openssl
+ OPENSSL_NPN_CHECK_CMD = $(PKG_CONFIG) --atleast-version=1.0.1 openssl
+ ZLIB_CHECK_CMD = $(PKG_CONFIG) --exists zlib
+ PROTOBUF_CHECK_CMD = $(PKG_CONFIG) --atleast-version=3.0.0 protobuf
+-CARES_CHECK_CMD = $(PKG_CONFIG) --exists libcares
++CARES_CHECK_CMD = $(PKG_CONFIG) --atleast-version=1.11.0 libcares
+ else # HAS_PKG_CONFIG
+ 
+ ifeq ($(SYSTEM),MINGW32)
 @@ -2650,7 +2650,7 @@ install-shared_cxx: shared_cxx strip-shared_cxx install-shared_c install-pkg-con
  ifeq ($(SYSTEM),MINGW32)
  	$(Q) $(INSTALL) $(LIBDIR)/$(CONFIG)/libgrpc++$(SHARED_VERSION_CPP)-dll.a $(prefix)/lib/libgrpc++.a
@@ -164,9 +173,18 @@ index 2252a7ea80..82ea9477c3 100644
        deps.append("${_gRPC_CARES_LIBRARIES}")
      deps.append("${_gRPC_ALLTARGETS_LIBRARIES}")
 diff --git a/templates/Makefile.template b/templates/Makefile.template
-index a9dd171b84..2c638da3c8 100644
+index a9dd171b84..cb65b455f5 100644
 --- a/templates/Makefile.template
 +++ b/templates/Makefile.template
+@@ -427,7 +427,7 @@
+   OPENSSL_NPN_CHECK_CMD = $(PKG_CONFIG) --atleast-version=1.0.1 openssl
+   ZLIB_CHECK_CMD = $(PKG_CONFIG) --exists zlib
+   PROTOBUF_CHECK_CMD = $(PKG_CONFIG) --atleast-version=3.0.0 protobuf
+-  CARES_CHECK_CMD = $(PKG_CONFIG) --exists libcares
++  CARES_CHECK_CMD = $(PKG_CONFIG) --atleast-version=1.11.0 libcares
+   else # HAS_PKG_CONFIG
+ 
+   ifeq ($(SYSTEM),MINGW32)
 @@ -1349,7 +1349,7 @@
    ifeq ($(SYSTEM),MINGW32)
    	$(Q) $(INSTALL) $(LIBDIR)/$(CONFIG)/lib${lib.name}$(SHARED_VERSION_${lang_to_var[lib.language]})-dll.a $(prefix)/lib/lib${lib.name}.a
@@ -176,3 +194,18 @@ index a9dd171b84..2c638da3c8 100644
    	$(Q) ln -sf $(SHARED_PREFIX)${lib.name}$(SHARED_VERSION_${lang_to_var[lib.language]}).$(SHARED_EXT_${lang_to_var[lib.language]}) $(prefix)/lib/lib${lib.name}.so
    endif
    % endif
+diff --git a/test/build/c-ares.c b/test/build/c-ares.c
+index c954e9397f..d86bbf5af6 100644
+--- a/test/build/c-ares.c
++++ b/test/build/c-ares.c
+@@ -33,6 +33,10 @@
+ 
+ #include <ares.h>
+ 
++#if (ARES_VERSION < 0x010b00)
++  ARES_VERSION should not be smaller than 1.11.0
++#endif
++
+ int main(void) {
+   ares_channel channelptr;
+ 

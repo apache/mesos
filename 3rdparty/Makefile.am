@@ -94,7 +94,7 @@ EXTRA_DIST =			\
 EXTRA_DIST +=		\
   $(GLOG).patch
 
-# We patch grpc for CMake compilation issues.
+# We patch grpc for compilation issues. See `grpc-1.4.2.readme`.
 EXTRA_DIST +=		\
   $(GRPC).patch
 
