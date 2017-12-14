@@ -295,7 +295,7 @@ public:
       slaveId(_slaveId),
       authToken(_authToken),
       strict(_strict),
-      resourceVersion(UUID::random()) {}
+      resourceVersion(id::UUID::random()) {}
 
   StorageLocalResourceProviderProcess(
       const StorageLocalResourceProviderProcess& other) = delete;
@@ -367,17 +367,17 @@ private:
       const csi::VolumeCapability& capability);
   Future<Resources> getCapacities(const hashmap<string, ProfileData>& profiles);
 
-  Future<Nothing> _applyOfferOperation(const UUID& operationUuid);
+  Future<Nothing> _applyOfferOperation(const id::UUID& operationUuid);
 
   Future<vector<ResourceConversion>> applyCreateVolumeOrBlock(
       const Resource& resource,
-      const UUID& operationUuid,
+      const id::UUID& operationUuid,
       const Resource::DiskInfo::Source::Type& type);
   Future<vector<ResourceConversion>> applyDestroyVolumeOrBlock(
       const Resource& resource);
 
   Try<Nothing> updateOfferOperationStatus(
-      const UUID& operationUuid,
+      const id::UUID& operationUuid,
       const Try<vector<ResourceConversion>>& conversions);
 
   void checkpointResourceProviderState();
@@ -433,9 +433,9 @@ private:
   // the total resources.
   // NOTE: We store the list of offer operations in a `LinkedHashMap` to
   // preserve the order we receive the operations in case we need it.
-  LinkedHashMap<UUID, OfferOperation> offerOperations;
+  LinkedHashMap<id::UUID, OfferOperation> offerOperations;
   Resources totalResources;
-  UUID resourceVersion;
+  id::UUID resourceVersion;
 
   // We maintain the state of a CSI volume if and only if its
   // corresponding resource is not RAW.
@@ -619,7 +619,9 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
         if (resourceProviderState.isSome()) {
           foreach (const OfferOperation& operation,
                    resourceProviderState->operations()) {
-            Try<UUID> uuid = UUID::fromBytes(operation.operation_uuid());
+            Try<id::UUID> uuid =
+              id::UUID::fromBytes(operation.operation_uuid().value());
+
             CHECK_SOME(uuid);
 
             offerOperations[uuid.get()] = operation;
@@ -871,9 +873,9 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverStatusUpdates()
         stringify(info.id()) + ": " + operationPaths.error());
   }
 
-  list<UUID> operationUuids;
+  list<id::UUID> operationUuids;
   foreach (const string& path, operationPaths.get()) {
-    Try<UUID> uuid =
+    Try<id::UUID> uuid =
       slave::paths::parseOfferOperationPath(resourceProviderDir, path);
 
     if (uuid.isError()) {
@@ -894,7 +896,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverStatusUpdates()
         typename OfferOperationStatusManagerState::StreamState;
 
       // Clean up the operations that are terminated.
-      foreachpair (const UUID& uuid,
+      foreachpair (const id::UUID& uuid,
                    const Option<StreamState>& stream,
                    statusUpdateManagerState.streams) {
         if (stream.isSome() && stream->terminated) {
@@ -915,7 +917,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverStatusUpdates()
       }
 
       // Send updates for all missing statuses.
-      foreachpair (const UUID& uuid,
+      foreachpair (const id::UUID& uuid,
                    const OfferOperation& operation,
                    offerOperations) {
         if (operation.latest_status().state() == OFFER_OPERATION_PENDING) {
@@ -953,14 +955,14 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverStatusUpdates()
       // We replay all pending operations here, so that if a volume is
       // created or deleted before the last failover, the result will be
       // reflected in the total resources before reconciliation.
-      foreachpair (const UUID& uuid,
+      foreachpair (const id::UUID& uuid,
                    const OfferOperation& operation,
                    offerOperations) {
         if (protobuf::isTerminalState(operation.latest_status().state())) {
           continue;
         }
 
-        auto err = [](const UUID& uuid, const string& message) {
+        auto err = [](const id::UUID& uuid, const string& message) {
           LOG(ERROR)
             << "Falied to apply offer operation with UUID " << uuid << ": "
             << message;
@@ -1118,7 +1120,7 @@ void StorageLocalResourceProviderProcess::applyOfferOperation(
   // version is not reported yet.
   CHECK(state == SUBSCRIBED || state == READY);
 
-  Try<UUID> uuid = UUID::fromBytes(operation.operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation.operation_uuid().value());
   CHECK_SOME(uuid);
 
   LOG(INFO)
@@ -1141,8 +1143,9 @@ void StorageLocalResourceProviderProcess::applyOfferOperation(
 
   Future<Nothing> result;
 
-  Try<UUID> operationVersion =
-    UUID::fromBytes(operation.resource_version_uuid());
+  Try<id::UUID> operationVersion =
+    id::UUID::fromBytes(operation.resource_version_uuid().value());
+
   CHECK_SOME(operationVersion);
 
   if (operationVersion.get() != resourceVersion) {
@@ -1153,7 +1156,7 @@ void StorageLocalResourceProviderProcess::applyOfferOperation(
     result = _applyOfferOperation(uuid.get());
   }
 
-  auto err = [](const UUID& uuid, const string& message) {
+  auto err = [](const id::UUID& uuid, const string& message) {
     LOG(ERROR)
       << "Failed to apply offer operation with UUID " << uuid << ": "
       << message;
@@ -1283,15 +1286,15 @@ void StorageLocalResourceProviderProcess::publishResources(
 
       Call::UpdatePublishResourcesStatus* update =
         call.mutable_update_publish_resources_status();
-      update->set_uuid(publish.uuid());
+      update->mutable_uuid()->CopyFrom(publish.uuid());
       update->set_status(future.isReady()
         ? Call::UpdatePublishResourcesStatus::OK
         : Call::UpdatePublishResourcesStatus::FAILED);
 
-      auto err = [](const string& uuid, const string& message) {
+      auto err = [](const mesos::UUID& uuid, const string& message) {
         LOG(ERROR)
           << "Failed to send status update for publish "
-          << UUID::fromBytes(uuid).get() << ": " << message;
+          << id::UUID::fromBytes(uuid.value()).get() << ": " << message;
       };
 
       driver->send(evolve(call))
@@ -1306,13 +1309,17 @@ void StorageLocalResourceProviderProcess::acknowledgeOfferOperation(
 {
   CHECK_EQ(READY, state);
 
-  Try<UUID> operationUuid = UUID::fromBytes(acknowledge.operation_uuid());
+  Try<id::UUID> operationUuid =
+    id::UUID::fromBytes(acknowledge.operation_uuid().value());
+
   CHECK_SOME(operationUuid);
 
-  Try<UUID> statusUuid = UUID::fromBytes(acknowledge.status_uuid());
+  Try<id::UUID> statusUuid =
+    id::UUID::fromBytes(acknowledge.status_uuid().value());
+
   CHECK_SOME(statusUuid);
 
-  auto err = [](const UUID& uuid, const string& message) {
+  auto err = [](const id::UUID& uuid, const string& message) {
     LOG(ERROR)
       << "Failed to acknowledge status update for offer operation with UUID "
       << uuid << ": " << message;
@@ -1352,8 +1359,8 @@ void StorageLocalResourceProviderProcess::reconcileOfferOperations(
 {
   CHECK_EQ(READY, state);
 
-  foreach (const string& operationUuid, reconcile.operation_uuids()) {
-    Try<UUID> uuid = UUID::fromBytes(operationUuid);
+  foreach (const mesos::UUID& operationUuid, reconcile.operation_uuids()) {
+    Try<id::UUID> uuid = id::UUID::fromBytes(operationUuid.value());
     CHECK_SOME(uuid);
 
     if (offerOperations.contains(uuid.get())) {
@@ -1368,7 +1375,11 @@ void StorageLocalResourceProviderProcess::reconcileOfferOperations(
       protobuf::createOfferOperationStatusUpdate(
           uuid.get(),
           protobuf::createOfferOperationStatus(
-              OFFER_OPERATION_DROPPED, None(), None(), None(), UUID::random()),
+              OFFER_OPERATION_DROPPED,
+              None(),
+              None(),
+              None(),
+              id::UUID::random()),
           None(),
           None(),
           slaveId);
@@ -2311,7 +2322,7 @@ Future<Resources> StorageLocalResourceProviderProcess::getCapacities(
 // synchronously applied. Do nothing if the operation is already in a
 // terminal state.
 Future<Nothing> StorageLocalResourceProviderProcess::_applyOfferOperation(
-    const UUID& operationUuid)
+    const id::UUID& operationUuid)
 {
   CHECK(offerOperations.contains(operationUuid));
   const OfferOperation& operation = offerOperations.at(operationUuid);
@@ -2406,7 +2417,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::_applyOfferOperation(
 Future<vector<ResourceConversion>>
 StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
     const Resource& resource,
-    const UUID& operationUuid,
+    const id::UUID& operationUuid,
     const Resource::DiskInfo::Source::Type& type)
 {
   if (resource.disk().source().type() != Resource::DiskInfo::Source::RAW) {
@@ -2597,7 +2608,7 @@ StorageLocalResourceProviderProcess::applyDestroyVolumeOrBlock(
 // Synchronously updates `totalResources` and the offer operation status
 // and then asks the status update manager to send status updates.
 Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
-    const UUID& operationUuid,
+    const id::UUID& operationUuid,
     const Try<vector<ResourceConversion>>& conversions)
 {
   Option<Error> error;
@@ -2634,7 +2645,7 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
             ? operation.info().id() : Option<OfferOperationID>::none(),
           error.isNone() ? Option<string>::none() : error->message,
           error.isNone() ? convertedResources : Option<Resources>::none(),
-          UUID::random()));
+          id::UUID::random()));
 
   operation.add_statuses()->CopyFrom(operation.latest_status());
 
@@ -2645,7 +2656,7 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
         operation.info().type() == Offer::Operation::UNRESERVE ||
         operation.info().type() == Offer::Operation::CREATE ||
         operation.info().type() == Offer::Operation::DESTROY) {
-      resourceVersion = UUID::random();
+      resourceVersion = id::UUID::random();
 
       // Send an `UPDATE_STATE` after we finish the current operation.
       dispatch(self(), &Self::sendResourceProviderStateUpdate);
@@ -2725,7 +2736,7 @@ void StorageLocalResourceProviderProcess::sendResourceProviderStateUpdate()
 
   Call::UpdateState* update = call.mutable_update_state();
   update->mutable_resources()->CopyFrom(totalResources);
-  update->set_resource_version_uuid(resourceVersion.toBytes());
+  update->mutable_resource_version_uuid()->set_value(resourceVersion.toBytes());
 
   foreachvalue (const OfferOperation& operation, offerOperations) {
     update->add_operations()->CopyFrom(operation);
@@ -2752,7 +2763,7 @@ void StorageLocalResourceProviderProcess::sendOfferOperationStatusUpdate(
 
   Call::UpdateOfferOperationStatus* update =
     call.mutable_update_offer_operation_status();
-  update->set_operation_uuid(statusUpdate.operation_uuid());
+  update->mutable_operation_uuid()->CopyFrom(statusUpdate.operation_uuid());
   update->mutable_status()->CopyFrom(statusUpdate.status());
 
   if (statusUpdate.has_framework_id()) {
@@ -2763,13 +2774,15 @@ void StorageLocalResourceProviderProcess::sendOfferOperationStatusUpdate(
   CHECK(statusUpdate.has_latest_status());
   update->mutable_latest_status()->CopyFrom(statusUpdate.latest_status());
 
-  auto err = [](const UUID& uuid, const string& message) {
+  auto err = [](const id::UUID& uuid, const string& message) {
     LOG(ERROR)
       << "Failed to send status update for offer operation with UUID " << uuid
       << ": " << message;
   };
 
-  Try<UUID> uuid = UUID::fromBytes(statusUpdate.operation_uuid());
+  Try<id::UUID> uuid =
+    id::UUID::fromBytes(statusUpdate.operation_uuid().value());
+
   CHECK_SOME(uuid);
 
   driver->send(evolve(call))

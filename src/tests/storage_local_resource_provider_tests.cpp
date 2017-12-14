@@ -443,7 +443,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
   // use the persistent volume.
   Resource persistentVolume = volume.get();
   persistentVolume.mutable_disk()->mutable_persistence()
-    ->set_id(UUID::random().toString());
+    ->set_id(id::UUID::random().toString());
   persistentVolume.mutable_disk()->mutable_persistence()
     ->set_principal(framework.principal());
   persistentVolume.mutable_disk()->mutable_volume()
