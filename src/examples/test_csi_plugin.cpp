@@ -49,6 +49,7 @@ using std::max;
 using std::min;
 using std::string;
 using std::unique_ptr;
+using std::vector;
 
 using grpc::InsecureServerCredentials;
 using grpc::Server;
@@ -75,14 +76,23 @@ public:
         "work_dir",
         "Path to the work directory of the plugin.");
 
-    add(&Flags::total_capacity,
-        "total_capacity",
-        "The total disk capacity managed by the plugin.");
+    add(&Flags::available_capacity,
+        "available_capacity",
+        "The available disk capacity managed by the plugin, in addition\n"
+        "to the pre-existing volumes.");
+
+    add(&Flags::volumes,
+        "volumes",
+        "Creates pre-existing volumes upon start-up. The volumes are\n"
+        "specified as a semicolon-delimited list of name:capacity pairs.\n"
+        "If a volume with the same name already exists, the pair will be\n"
+        "ignored. (Example: 'volume1:1GB;volume2:2GB')");
   }
 
   string endpoint;
   string work_dir;
-  Bytes total_capacity;
+  Bytes available_capacity;
+  Option<string> volumes;
 };
 
 
@@ -96,13 +106,13 @@ public:
       const string& _workDir,
       const string& _endpoint,
       const csi::Version& _version,
-      const Bytes& totalCapacity)
+      const Bytes& _availableCapacity,
+      const hashmap<string, Bytes>& _volumes)
     : workDir(_workDir),
       endpoint(_endpoint),
-      version(_version)
+      version(_version),
+      availableCapacity(_availableCapacity)
   {
-    availableCapacity = totalCapacity;
-
     // TODO(jieyu): Consider not using CHECKs here.
     Try<list<string>> paths = os::ls(workDir);
     CHECK_SOME(paths);
@@ -112,10 +122,24 @@ public:
       CHECK_SOME(volume);
 
       CHECK(!volumes.contains(volume->id));
-      CHECK_GE(availableCapacity, volume->size);
-
-      availableCapacity -= volume->size;
       volumes.put(volume->id, volume.get());
+    }
+
+    foreachpair (const string& name, const Bytes& capacity, _volumes) {
+      if (volumes.contains(name)) {
+        continue;
+      }
+
+      Volume volume;
+      volume.id = name;
+      volume.size = capacity;
+
+      const string path = getVolumePath(volume);
+
+      Try<Nothing> mkdir = os::mkdir(path);
+      CHECK_SOME(mkdir);
+
+      volumes.put(volume.id, volume);
     }
 
     ServerBuilder builder;
@@ -123,7 +147,7 @@ public:
     builder.RegisterService(static_cast<csi::Identity::Service*>(this));
     builder.RegisterService(static_cast<csi::Controller::Service*>(this));
     builder.RegisterService(static_cast<csi::Node::Service*>(this));
-    server = std::move(builder.BuildAndStart());
+    server = builder.BuildAndStart();
   }
 
   void wait()
@@ -488,9 +512,11 @@ Status TestCSIPlugin::ValidateVolumeCapabilities(
 
   foreach (const csi::VolumeCapability& capability,
            request->volume_capabilities()) {
-    if (!capability.has_mount()) {
+    if (capability.has_mount() &&
+        (!capability.mount().fs_type().empty() ||
+         !capability.mount().mount_flags().empty())) {
       response->set_supported(false);
-      response->set_message("Only MountVolume is supported");
+      response->set_message("Only default capability is supported");
 
       return Status::OK;
     }
@@ -536,6 +562,7 @@ Status TestCSIPlugin::ListVolumes(
     csi::VolumeInfo* info = response->add_entries()->mutable_volume_info();
     info->set_id(volume.id);
     info->set_capacity_bytes(volume.size.bytes());
+    (*info->mutable_attributes())["path"] = getVolumePath(volume);
   }
 
   return Status::OK;
@@ -873,11 +900,47 @@ int main(int argc, char** argv)
   version.set_minor(1);
   version.set_patch(0);
 
+  hashmap<string, Bytes> volumes;
+
+  if (flags.volumes.isSome()) {
+    foreach (const string& token, strings::tokenize(flags.volumes.get(), ";")) {
+      vector<string> pair = strings::tokenize(token, ":");
+
+      Option<Error> error;
+
+      if (pair.size() != 2) {
+        error = "Not a name:capacity pair";
+      } else if (pair[0].empty()) {
+        error = "Volume name cannot be empty";
+      } else if (pair[0].find_first_of(os::PATH_SEPARATOR) != string::npos) {
+        error = "Volume name cannot contain '/'";
+      } else if (volumes.contains(pair[0])) {
+        error = "Volume name must be unique";
+      } else {
+        Try<Bytes> capacity = Bytes::parse(pair[1]);
+        if (capacity.isError()) {
+          error = capacity.error();
+        } else if (capacity.get() == 0) {
+          error = "Volume capacity cannot be zero";
+        } else {
+          volumes.put(pair[0], capacity.get());
+        }
+      }
+
+      if (error.isSome()) {
+        cerr << "Failed to parse item '" << token << "' in 'volumes' flag: "
+             << error->message;
+        return EXIT_FAILURE;
+      }
+    }
+  }
+
   unique_ptr<TestCSIPlugin> plugin(new TestCSIPlugin(
       flags.work_dir,
       flags.endpoint,
       version,
-      flags.total_capacity));
+      flags.available_capacity,
+      volumes));
 
   plugin->wait();
 

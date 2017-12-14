@@ -103,7 +103,7 @@ public:
                     "value": "%s",
                     "arguments": [
                       "%s",
-                      "--total_capacity=%s",
+                      "--available_capacity=%s",
                       "--work_dir=%s"
                     ]
                   }

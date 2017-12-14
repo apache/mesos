@@ -83,7 +83,7 @@ public:
                     "value": "%s",
                     "arguments": [
                       "%s",
-                      "--total_capacity=4GB",
+                      "--available_capacity=4GB",
                       "--work_dir=%s"
                     ]
                   }
