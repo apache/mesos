@@ -146,13 +146,11 @@ set(AGENT_SRC
   slave/containerizer/mesos/launcher.cpp
   slave/containerizer/mesos/mount.cpp
   slave/containerizer/mesos/paths.cpp
-  slave/containerizer/mesos/utils.cpp
   slave/containerizer/mesos/io/switchboard.cpp
   slave/containerizer/mesos/provisioner/backend.cpp
   slave/containerizer/mesos/provisioner/paths.cpp
   slave/containerizer/mesos/provisioner/provisioner.cpp
   slave/containerizer/mesos/provisioner/store.cpp
-  slave/containerizer/mesos/provisioner/utils.cpp
   slave/containerizer/mesos/provisioner/appc/cache.cpp
   slave/containerizer/mesos/provisioner/appc/fetcher.cpp
   slave/containerizer/mesos/provisioner/appc/paths.cpp
@@ -172,6 +170,7 @@ if (WIN32)
     slave/containerizer/mesos/isolators/windows/mem.cpp)
 else ()
   list(APPEND AGENT_SRC
+    slave/containerizer/mesos/utils.cpp
     slave/containerizer/mesos/isolators/environment_secret.cpp
     slave/containerizer/mesos/isolators/docker/volume/driver.cpp
     slave/containerizer/mesos/isolators/docker/volume/paths.cpp
@@ -180,7 +179,8 @@ else ()
     slave/containerizer/mesos/isolators/network/cni/spec.cpp
     slave/containerizer/mesos/isolators/posix/disk.cpp
     slave/containerizer/mesos/isolators/posix/rlimits.cpp
-    slave/containerizer/mesos/isolators/volume/sandbox_path.cpp)
+    slave/containerizer/mesos/isolators/volume/sandbox_path.cpp
+    slave/containerizer/mesos/provisioner/utils.cpp)
 endif ()
 
 set(APPC_SRC

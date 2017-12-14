@@ -15,11 +15,9 @@
 // limitations under the License.
 
 
-#ifndef __WINDOWS__
 #include <fts.h>
 
 #include <sys/stat.h>
-#endif // __WINDOWS__
 
 #include <string>
 #include <string.h>
