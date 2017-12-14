@@ -111,7 +111,7 @@ TEST_F(FetcherTest, FileURI)
   flags.launcher_dir = getLauncherDir();
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -149,7 +149,7 @@ TEST_F(FetcherTest, ROOT_RootProtectedFileURI)
   flags.launcher_dir = getLauncherDir();
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   commandInfo.set_user(user);
@@ -181,7 +181,7 @@ TEST_F(FetcherTest, CustomOutputFileSubdirectory)
   flags.launcher_dir = getLauncherDir();
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -218,7 +218,7 @@ TEST_F(FetcherTest, AbsoluteCustomSubdirectoryFails)
   flags.launcher_dir = getLauncherDir();
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -258,10 +258,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, InvalidUser)
   flags.frameworks_home = "/tmp/frameworks";
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
-  commandInfo.set_user(UUID::random().toString());
+  commandInfo.set_user(id::UUID::random().toString());
 
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(uri::from_path(testFile));
@@ -295,7 +295,7 @@ TEST_F(FetcherTest, NonExistingFile)
   flags.frameworks_home = "/tmp/frameworks";
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -322,7 +322,7 @@ TEST_F(FetcherTest, MalformedURI)
   flags.frameworks_home = "/tmp/frameworks";
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -355,7 +355,7 @@ TEST_F(FetcherTest, AbsoluteFilePath)
   flags.launcher_dir = getLauncherDir();
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -387,7 +387,7 @@ TEST_F(FetcherTest, RelativeFilePath)
   flags.launcher_dir = getLauncherDir();
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -480,7 +480,7 @@ TEST_F(FetcherTest, OSNetUriTest)
   flags.frameworks_home = "/tmp/frameworks";
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -526,7 +526,7 @@ TEST_F(FetcherTest, OSNetUriSpaceTest)
   flags.frameworks_home = "/tmp/frameworks";
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -565,7 +565,7 @@ TEST_F(FetcherTest, FileLocalhostURI)
   flags.launcher_dir = getLauncherDir();
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -595,7 +595,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, NoExtractNotExecutable)
   ASSERT_SOME(path);
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -637,7 +637,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, NoExtractExecutable)
   ASSERT_SOME(path);
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -692,7 +692,7 @@ TEST_F(FetcherTest, ExtractNotExecutable)
       "tar cf '" + path.get() + ".tar.gz' '" + path.get() + "' 2>&1"));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -753,7 +753,7 @@ TEST_F(FetcherTest, ExtractTar)
       "tar cf '" + path.get() + ".tar' '" + path.get() + "' 2>&1"));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -799,7 +799,7 @@ TEST_F(FetcherTest, ExtractGzipFile)
   ASSERT_SOME(os::shell("gzip " + path.get()));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -849,7 +849,7 @@ TEST_F(FetcherTest, Unzip_ExtractFile)
   ASSERT_SOME(os::rename(path.get(), path.get() + ".zip"));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -902,7 +902,7 @@ TEST_F(FetcherTest, Unzip_ExtractInvalidFile)
   ASSERT_SOME(os::rename(path.get(), path.get() + ".zip"));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -976,7 +976,7 @@ TEST_F(FetcherTest, Unzip_ExtractFileWithDuplicatedEntries)
   ASSERT_SOME(os::rename(path.get(), path.get() + ".zip"));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -1017,7 +1017,7 @@ TEST_F(FetcherTest, UseCustomOutputFile)
   ASSERT_SOME(os::write(path.get(), "hello renamed file"));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   const string customOutputFile = "custom.txt";
   CommandInfo commandInfo;
@@ -1060,7 +1060,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FetcherTest, CustomGzipOutputFile)
   ASSERT_SOME(os::shell("gzip " + path.get()));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   const string customOutputFile = "custom";
   CommandInfo commandInfo;
@@ -1159,7 +1159,7 @@ TEST_F(FetcherTest, HdfsURI)
   flags.hadoop_home = hadoopPath;
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();
@@ -1213,7 +1213,7 @@ TEST_F(FetcherTest, SSLEnvironmentSpillover)
   ASSERT_SOME(os::shell("gzip " + path.get()));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
   CommandInfo::URI* uri = commandInfo.add_uris();

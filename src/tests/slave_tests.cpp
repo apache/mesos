@@ -982,7 +982,7 @@ TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   task.mutable_command()->MergeFrom(echoAuthorCommand());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ContainerInfo* container = task.mutable_container();
   container->set_type(ContainerInfo::MESOS);
@@ -998,7 +998,7 @@ TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
   ASSERT_SOME(sandbox);
 
   SlaveID slaveID;
-  slaveID.set_value(UUID::random().toString());
+  slaveID.set_value(id::UUID::random().toString());
   Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
       createContainerConfig(task, executor, sandbox.get(), "nobody"),
@@ -2226,7 +2226,7 @@ TEST_F(SlaveTest, HTTPExecutorBadAuthentication)
     parentContainerId.set_value(principal->claims.at("cid"));
 
     v1::ContainerID containerId;
-    containerId.set_value(UUID::random().toString());
+    containerId.set_value(id::UUID::random().toString());
     containerId.mutable_parent()->CopyFrom(parentContainerId);
 
     v1::agent::Call call;
@@ -8752,7 +8752,7 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
 
   resourceProviderResources.mutable_provider_id()->CopyFrom(resourceProviderId);
 
-  const string resourceVersionUuid = UUID::random().toBytes();
+  const string resourceVersionUuid = id::UUID::random().toBytes();
 
   {
     mesos::v1::resource_provider::Call call;
@@ -9273,7 +9273,7 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
     }
 
     // Update the resource version of the resource provider.
-    UUID resourceVersionUuid = UUID::random();
+    id::UUID resourceVersionUuid = id::UUID::random();
 
     v1::resource_provider::Call call;
 
@@ -9451,7 +9451,7 @@ TEST_F(SlaveTest, RunTaskResourceVersions)
     v1::resource_provider::Call::UpdateState* updateState =
       call.mutable_update_state();
 
-    updateState->set_resource_version_uuid(UUID::random().toBytes());
+    updateState->set_resource_version_uuid(id::UUID::random().toBytes());
     updateState->mutable_resources()->CopyFrom(resourceProviderResources_);
 
     AWAIT_READY(resourceProvider.send(call));

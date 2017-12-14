@@ -6997,7 +6997,7 @@ TEST_F(MasterTest, DISABLED_RecoverResourcesOrphanedTask)
     status.mutable_executor_id()->CopyFrom(evolve(executorId));
     status.set_state(v1::TASK_FINISHED);
     status.set_source(v1::TaskStatus::SOURCE_EXECUTOR);
-    status.set_uuid(UUID::random().toBytes());
+    status.set_uuid(id::UUID::random().toBytes());
 
     v1::executor::Call call;
     call.mutable_framework_id()->CopyFrom(frameworkId);
@@ -8474,12 +8474,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(MasterTest, RegistryGcByCount)
   AWAIT_READY(registered);
 
   TaskStatus status1;
-  status1.mutable_task_id()->set_value(UUID::random().toString());
+  status1.mutable_task_id()->set_value(id::UUID::random().toString());
   status1.mutable_slave_id()->CopyFrom(slaveId);
   status1.set_state(TASK_STAGING); // Dummy value.
 
   TaskStatus status2;
-  status2.mutable_task_id()->set_value(UUID::random().toString());
+  status2.mutable_task_id()->set_value(id::UUID::random().toString());
   status2.mutable_slave_id()->CopyFrom(slaveId2);
   status2.set_state(TASK_STAGING); // Dummy value.
 

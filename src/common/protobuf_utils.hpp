@@ -81,7 +81,7 @@ StatusUpdate createStatusUpdate(
     const TaskID& taskId,
     const TaskState& state,
     const TaskStatus::Source& source,
-    const Option<UUID>& uuid,
+    const Option<id::UUID>& uuid,
     const std::string& message = "",
     const Option<TaskStatus::Reason>& reason = None(),
     const Option<ExecutorID>& executorId = None(),
@@ -104,7 +104,7 @@ StatusUpdate createStatusUpdate(
 TaskStatus createTaskStatus(
     const TaskID& taskId,
     const TaskState& state,
-    const UUID& uuid,
+    const id::UUID& uuid,
     double timestamp);
 
 
@@ -121,7 +121,7 @@ TaskStatus createTaskStatus(
 // delivered previously.
 TaskStatus createTaskStatus(
     TaskStatus status,
-    const UUID& uuid,
+    const id::UUID& uuid,
     double timestamp,
     const Option<TaskState>& state = None(),
     const Option<std::string>& message = None(),
@@ -158,7 +158,7 @@ OfferOperationStatus createOfferOperationStatus(
     const Option<OfferOperationID>& operationId = None(),
     const Option<std::string>& message = None(),
     const Option<Resources>& convertedResources = None(),
-    const Option<UUID>& statusUUID = None());
+    const Option<id::UUID>& statusUUID = None());
 
 
 OfferOperation createOfferOperation(
@@ -166,11 +166,11 @@ OfferOperation createOfferOperation(
     const OfferOperationStatus& latestStatus,
     const Option<FrameworkID>& frameworkId,
     const Option<SlaveID>& slaveId,
-    const Option<UUID>& operationUUID = None());
+    const Option<id::UUID>& operationUUID = None());
 
 
 OfferOperationStatusUpdate createOfferOperationStatusUpdate(
-    const UUID& operationUUID,
+    const id::UUID& operationUUID,
     const OfferOperationStatus& status,
     const Option<OfferOperationStatus>& latestStatus = None(),
     const Option<FrameworkID>& frameworkId = None(),
@@ -217,11 +217,11 @@ bool isSpeculativeOperation(const Offer::Operation& operation);
 
 // Helper function to pack a protobuf list of resource versions.
 google::protobuf::RepeatedPtrField<ResourceVersionUUID> createResourceVersions(
-    const hashmap<Option<ResourceProviderID>, UUID>& resourceVersions);
+    const hashmap<Option<ResourceProviderID>, id::UUID>& resourceVersions);
 
 
 // Helper function to unpack a protobuf list of resource versions.
-hashmap<Option<ResourceProviderID>, UUID> parseResourceVersions(
+hashmap<Option<ResourceProviderID>, id::UUID> parseResourceVersions(
     const google::protobuf::RepeatedPtrField<ResourceVersionUUID>&
       resourceVersionUUIDs);
 

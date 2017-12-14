@@ -309,7 +309,7 @@ public:
       const process::Future<bool>& future,
       const TaskID& taskId,
       const FrameworkID& frameworkId,
-      const UUID& uuid);
+      const id::UUID& uuid);
 
   void executorLaunched(
       const FrameworkID& frameworkId,
@@ -576,7 +576,7 @@ private:
 
   void removeOfferOperation(OfferOperation* operation);
 
-  OfferOperation* getOfferOperation(const UUID& uuid) const;
+  OfferOperation* getOfferOperation(const id::UUID& uuid) const;
 
   void addResourceProvider(ResourceProvider* resourceProvider);
   ResourceProvider* getResourceProvider(const ResourceProviderID& id) const;
@@ -749,14 +749,14 @@ private:
   // different resource version UUID than that it maintains, because
   // this means the operation is operating on resources that might
   // have already been invalidated.
-  UUID resourceVersion;
+  id::UUID resourceVersion;
 
   // Keeps track of the following:
   // (1) Pending operations for resources from the agent.
   // (2) Pending operations or terminal operations that have
   //     unacknowledged status updates for resource provider
   //     provided resources.
-  hashmap<UUID, OfferOperation*> offerOperations;
+  hashmap<id::UUID, OfferOperation*> offerOperations;
 };
 
 
@@ -1059,7 +1059,7 @@ struct ResourceProvider
   ResourceProvider(
       const ResourceProviderInfo& _info,
       const Resources& _totalResources,
-      const UUID& _resourceVersion)
+      const id::UUID& _resourceVersion)
     : info(_info),
       totalResources(_totalResources),
       resourceVersion(_resourceVersion) {}
@@ -1081,11 +1081,11 @@ struct ResourceProvider
   // different resource version UUID than that it maintains, because
   // this means the operation is operating on resources that might
   // have already been invalidated.
-  UUID resourceVersion;
+  id::UUID resourceVersion;
 
   // Pending operations or terminal operations that have
   // unacknowledged status updates.
-  hashmap<UUID, OfferOperation*> offerOperations;
+  hashmap<id::UUID, OfferOperation*> offerOperations;
 };
 
 

@@ -317,7 +317,7 @@ TEST_F(IOSwitchboardServerTest, AttachOutput)
   Future<Nothing> runServer = server.get()->run();
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   Try<unix::Address> address = unix::Address::create(socketPath);
   ASSERT_SOME(address);
@@ -395,7 +395,7 @@ TEST_F(IOSwitchboardServerTest, SendHeartbeat)
   call.set_type(Call::ATTACH_CONTAINER_OUTPUT);
 
   Call::AttachContainerOutput* attach = call.mutable_attach_container_output();
-  attach->mutable_container_id()->set_value(UUID::random().toString());
+  attach->mutable_container_id()->set_value(id::UUID::random().toString());
 
   http::Request request;
   request.method = "POST";
@@ -550,7 +550,7 @@ TEST_F(IOSwitchboardServerTest, AttachInput)
 
   Call::AttachContainerInput* attach = call.mutable_attach_container_input();
   attach->set_type(Call::AttachContainerInput::CONTAINER_ID);
-  attach->mutable_container_id()->set_value(UUID::random().toString());
+  attach->mutable_container_id()->set_value(id::UUID::random().toString());
 
   writer.write(encoder.encode(call));
 
@@ -660,7 +660,7 @@ TEST_F(IOSwitchboardServerTest, ReceiveHeartbeat)
 
   Call::AttachContainerInput* attach = call.mutable_attach_container_input();
   attach->set_type(Call::AttachContainerInput::CONTAINER_ID);
-  attach->mutable_container_id()->set_value(UUID::random().toString());
+  attach->mutable_container_id()->set_value(id::UUID::random().toString());
 
   writer.write(encoder.encode(call));
 
@@ -729,7 +729,7 @@ TEST_F(IOSwitchboardTest, ContainerAttach)
   AWAIT_READY(containerizer->recover(state));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
@@ -791,7 +791,7 @@ TEST_F(IOSwitchboardTest, OutputRedirectionWithTTY)
   AWAIT_READY(containerizer->recover(state));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
@@ -852,7 +852,7 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
   AWAIT_READY(containerizer->recover(state));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
@@ -872,7 +872,7 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
 
   ContainerID childContainerId;
   childContainerId.mutable_parent()->CopyFrom(containerId);
-  childContainerId.set_value(UUID::random().toString());
+  childContainerId.set_value(id::UUID::random().toString());
 
   launch = containerizer->launch(
       childContainerId,

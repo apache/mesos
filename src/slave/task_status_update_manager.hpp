@@ -96,7 +96,7 @@ public:
   process::Future<bool> acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
-      const UUID& uuid);
+      const id::UUID& uuid);
 
   // Recover status updates.
   process::Future<Nothing> recover(
@@ -154,7 +154,7 @@ struct TaskStatusUpdateStream
   Try<bool> acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
-      const UUID& uuid,
+      const id::UUID& uuid,
       const StatusUpdate& update);
 
   // Returns the next update (or none, if empty) in the queue.
@@ -164,7 +164,7 @@ struct TaskStatusUpdateStream
   // corresponding ACK, if present.
   Try<Nothing> replay(
       const std::vector<StatusUpdate>& updates,
-      const hashset<UUID>& acks);
+      const hashset<id::UUID>& acks);
 
   // TODO(vinod): Explore semantics to make these private.
   const bool checkpoint;
@@ -193,8 +193,8 @@ private:
 
   const Flags flags;
 
-  hashset<UUID> received;
-  hashset<UUID> acknowledged;
+  hashset<id::UUID> received;
+  hashset<id::UUID> acknowledged;
 
   Option<std::string> path; // File path of the update stream.
   Option<int_fd> fd; // File descriptor to the update stream.

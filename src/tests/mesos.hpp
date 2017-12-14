@@ -803,7 +803,7 @@ inline TTaskInfo createTask(
     const TCommandInfo& command,
     const Option<TExecutorID>& executorId = None(),
     const std::string& name = "test-task",
-    const std::string& id = UUID::random().toString())
+    const std::string& id = id::UUID::random().toString())
 {
   TTaskInfo task;
   task.set_name(name);
@@ -837,7 +837,7 @@ inline TTaskInfo createTask(
     const std::string& command,
     const Option<TExecutorID>& executorId = None(),
     const std::string& name = "test-task",
-    const std::string& id = UUID::random().toString())
+    const std::string& id = id::UUID::random().toString())
 {
   return createTask<
       TTaskInfo,
@@ -869,7 +869,7 @@ inline TTaskInfo createTask(
     const std::string& command,
     const Option<TExecutorID>& executorId = None(),
     const std::string& name = "test-task",
-    const std::string& id = UUID::random().toString())
+    const std::string& id = id::UUID::random().toString())
 {
   return createTask<
       TTaskInfo,
@@ -2737,7 +2737,7 @@ ACTION_P3(SendUpdateFromTask, frameworkId, executorId, state)
   status.mutable_executor_id()->CopyFrom(executorId);
   status.set_state(state);
   status.set_source(mesos::v1::TaskStatus::SOURCE_EXECUTOR);
-  status.set_uuid(UUID::random().toBytes());
+  status.set_uuid(id::UUID::random().toBytes());
 
   mesos::v1::executor::Call call;
   call.mutable_framework_id()->CopyFrom(frameworkId);
@@ -2758,7 +2758,7 @@ ACTION_P3(SendUpdateFromTaskID, frameworkId, executorId, state)
   status.mutable_executor_id()->CopyFrom(executorId);
   status.set_state(state);
   status.set_source(mesos::v1::TaskStatus::SOURCE_EXECUTOR);
-  status.set_uuid(UUID::random().toBytes());
+  status.set_uuid(id::UUID::random().toBytes());
 
   mesos::v1::executor::Call call;
   call.mutable_framework_id()->CopyFrom(frameworkId);
@@ -2996,7 +2996,7 @@ public:
 
       typename Call::UpdateState* update = call.mutable_update_state();
       update->mutable_resources()->CopyFrom(injected);
-      update->set_resource_version_uuid(UUID::random().toBytes());
+      update->set_resource_version_uuid(id::UUID::random().toBytes());
 
       driver->send(call);
     }

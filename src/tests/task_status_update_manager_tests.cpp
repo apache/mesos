@@ -442,7 +442,7 @@ TEST_F(TaskStatusUpdateManagerTest, IgnoreUnexpectedStatusUpdateAck)
       update.slave_id(),
       frameworkId,
       update.status().task_id(),
-      UUID::random().toBytes());
+      id::UUID::random().toBytes());
 
   AWAIT_READY(unexpectedAck);
 

@@ -1411,7 +1411,7 @@ TEST_F(TaskValidationTest, ExecutorUsesInvalidFrameworkID)
   // Create an executor with a random framework id.
   ExecutorInfo executor;
   executor = DEFAULT_EXECUTOR_INFO;
-  executor.mutable_framework_id()->set_value(UUID::random().toString());
+  executor.mutable_framework_id()->set_value(id::UUID::random().toString());
 
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(LaunchTasks(executor, 1, 1, 16, "*"))
@@ -2560,7 +2560,7 @@ TEST_F(ExecutorValidationTest, ExecutorType)
 {
   ExecutorInfo executorInfo;
   executorInfo = DEFAULT_EXECUTOR_INFO;
-  executorInfo.mutable_framework_id()->set_value(UUID::random().toString());
+  executorInfo.mutable_framework_id()->set_value(id::UUID::random().toString());
 
   {
     // 'CUSTOM' executor with `CommandInfo` set is valid.
@@ -4147,11 +4147,11 @@ TEST_F(RegisterSlaveValidationTest, DropInvalidReregistration)
   ReregisterSlaveMessage message = reregisterSlaveMessage.get();
 
   Task* task = message.add_tasks();
-  task->set_name(UUID::random().toString());
-  task->mutable_slave_id()->set_value(UUID::random().toString());
-  task->mutable_task_id()->set_value(UUID::random().toString());
-  task->mutable_framework_id()->set_value(UUID::random().toString());
-  task->mutable_executor_id()->set_value(UUID::random().toString());
+  task->set_name(id::UUID::random().toString());
+  task->mutable_slave_id()->set_value(id::UUID::random().toString());
+  task->mutable_task_id()->set_value(id::UUID::random().toString());
+  task->mutable_framework_id()->set_value(id::UUID::random().toString());
+  task->mutable_executor_id()->set_value(id::UUID::random().toString());
   task->set_state(TASK_RUNNING);
 
   // We expect the master to drop the ReregisterSlaveMessage, so it
@@ -4199,9 +4199,9 @@ TEST_F(RegisterSlaveValidationTest, DropInvalidRegistration)
   slaveInfo->mutable_id()->set_value(
       strings::join(
           "/../",
-          UUID::random().toString(),
-          UUID::random().toString(),
-          UUID::random().toString()));
+          id::UUID::random().toString(),
+          id::UUID::random().toString(),
+          id::UUID::random().toString()));
 
   // Send the modified message to the master.
   process::post(slave.get()->pid, master->get()->pid, message);

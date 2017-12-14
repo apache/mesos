@@ -878,7 +878,7 @@ Future<Response> Master::Http::subscribe(
           ok.type = Response::PIPE;
           ok.reader = pipe.reader();
 
-          HttpConnection http{pipe.writer(), contentType, UUID::random()};
+          HttpConnection http{pipe.writer(), contentType, id::UUID::random()};
           master->subscribe(http, principal);
 
           mesos::master::Event event;
@@ -1058,7 +1058,7 @@ Future<Response> Master::Http::scheduler(
     ok.reader = pipe.reader();
 
     // Generate a stream ID and return it in the response.
-    UUID streamId = UUID::random();
+    id::UUID streamId = id::UUID::random();
     ok.headers["Mesos-Stream-Id"] = streamId.toString();
 
     HttpConnection http {pipe.writer(), acceptType, streamId};

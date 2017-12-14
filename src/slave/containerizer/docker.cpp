@@ -147,7 +147,7 @@ Option<ContainerID> parse(const Docker::Container& container)
 
     // Check if id is a valid UUID.
     if (containerId.isSome()) {
-      Try<UUID> uuid = UUID::fromString(containerId.get().value());
+      Try<id::UUID> uuid = id::UUID::fromString(containerId.get().value());
       if (uuid.isError()) {
         return None();
       }

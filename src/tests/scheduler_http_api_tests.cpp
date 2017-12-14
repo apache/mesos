@@ -379,7 +379,7 @@ TEST_P(SchedulerHttpApiTest, SubscribeWithStreamId)
 
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
   headers["Accept"] = contentType;
-  headers["Mesos-Stream-Id"] = UUID::random().toString();
+  headers["Mesos-Stream-Id"] = id::UUID::random().toString();
 
   Future<Response> response = process::http::streaming::post(
       master.get()->pid,

@@ -292,7 +292,7 @@ TEST_F(ComposingContainerizerTest, DestroyUnknownContainer)
   ComposingContainerizer containerizer(containerizers);
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   AWAIT_EXPECT_FALSE(containerizer.destroy(containerId));
 }
@@ -313,7 +313,7 @@ TEST_F(ComposingContainerizerTest, WaitUnknownContainer)
   ComposingContainerizer containerizer(containerizers);
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   Future<Option<ContainerTermination>> wait = containerizer.wait(containerId);
 

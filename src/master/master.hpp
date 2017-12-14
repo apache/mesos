@@ -116,15 +116,15 @@ struct Role;
 
 struct Slave
 {
-  Slave(Master* const _master,
-        SlaveInfo _info,
+Slave(Master* const _master,
+      SlaveInfo _info,
         const process::UPID& _pid,
         const MachineID& _machineId,
         const std::string& _version,
         std::vector<SlaveInfo::Capability> _capabilites,
         const process::Time& _registeredTime,
         std::vector<Resource> _checkpointedResources,
-        const Option<UUID>& resourceVersion,
+        const Option<id::UUID>& resourceVersion,
         std::vector<ExecutorInfo> executorInfos = std::vector<ExecutorInfo>(),
         std::vector<Task> tasks = std::vector<Task>());
 
@@ -152,7 +152,7 @@ struct Slave
 
   void removeOfferOperation(OfferOperation* operation);
 
-  OfferOperation* getOfferOperation(const UUID& uuid) const;
+  OfferOperation* getOfferOperation(const id::UUID& uuid) const;
 
   void addOffer(Offer* offer);
 
@@ -180,7 +180,7 @@ struct Slave
       const SlaveInfo& info,
       const std::string& _version,
       const std::vector<SlaveInfo::Capability>& _capabilites,
-      const Option<UUID>& resourceVersion);
+      const Option<id::UUID>& resourceVersion);
 
   Master* const master;
   const SlaveID id;
@@ -244,7 +244,7 @@ struct Slave
 
   // Pending operations or terminal operations that have
   // unacknowledged status updates on this agent.
-  hashmap<UUID, OfferOperation*> offerOperations;
+  hashmap<id::UUID, OfferOperation*> offerOperations;
 
   // Active offers on this slave.
   hashset<Offer*> offers;
@@ -277,7 +277,7 @@ struct Slave
 
   SlaveObserver* observer;
 
-  hashmap<Option<ResourceProviderID>, UUID> resourceVersions;
+  hashmap<Option<ResourceProviderID>, id::UUID> resourceVersions;
   hashmap<ResourceProviderID, ResourceProviderInfo> resourceProviders;
 
 private:
@@ -299,7 +299,7 @@ struct HttpConnection
 {
   HttpConnection(const process::http::Pipe::Writer& _writer,
                  ContentType _contentType,
-                 UUID _streamId)
+                 id::UUID _streamId)
     : writer(_writer),
       contentType(_contentType),
       streamId(_streamId) {}
@@ -327,7 +327,7 @@ struct HttpConnection
 
   process::http::Pipe::Writer writer;
   ContentType contentType;
-  UUID streamId;
+  id::UUID streamId;
 };
 
 
@@ -559,7 +559,7 @@ protected:
   void _exited(Framework* framework);
 
   // Invoked upon noticing a subscriber disconnection.
-  void exited(const UUID& id);
+  void exited(const id::UUID& id);
 
   void agentReregisterTimeout(const SlaveID& slaveId);
   Nothing _agentReregisterTimeout(const SlaveID& slaveId);
@@ -2015,7 +2015,7 @@ private:
 
     // Active subscribers to the 'api/vX' endpoint keyed by the stream
     // identifier.
-    hashmap<UUID, process::Owned<Subscriber>> subscribed;
+    hashmap<id::UUID, process::Owned<Subscriber>> subscribed;
   } subscribers;
 
   hashmap<OfferID, Offer*> offers;
@@ -2462,7 +2462,7 @@ struct Framework
 
     const FrameworkID& frameworkId = operation->framework_id();
 
-    Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+    Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
     CHECK_SOME(uuid);
 
     CHECK(!offerOperations.contains(uuid.get()))
@@ -2549,7 +2549,7 @@ struct Framework
 
   void removeOfferOperation(OfferOperation* operation)
   {
-    Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+    Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
     CHECK_SOME(uuid);
 
     CHECK(offerOperations.contains(uuid.get()))
@@ -2819,11 +2819,11 @@ struct Framework
 
   // Pending operations or terminal operations that have
   // unacknowledged status updates.
-  hashmap<UUID, OfferOperation*> offerOperations;
+  hashmap<id::UUID, OfferOperation*> offerOperations;
 
   // The map from the framework-specified operation ID to the
   // corresponding internal operation UUID.
-  hashmap<OfferOperationID, UUID> offerOperationUUIDs;
+  hashmap<OfferOperationID, id::UUID> offerOperationUUIDs;
 
   // NOTE: For the used and offered resources below, we keep the
   // total as well as partitioned by SlaveID.

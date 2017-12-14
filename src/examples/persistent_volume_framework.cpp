@@ -211,7 +211,7 @@ public:
             if (offered.contains(shard.resources)) {
               Resource volume = SHARD_PERSISTENT_VOLUME(
                   role,
-                  UUID::random().toString(),
+                  id::UUID::random().toString(),
                   "volume",
                   frameworkInfo.principal(),
                   shard.volume.isShared);
@@ -221,7 +221,7 @@ public:
 
               TaskInfo task;
               task.set_name(shard.name);
-              task.mutable_task_id()->set_value(UUID::random().toString());
+              task.mutable_task_id()->set_value(id::UUID::random().toString());
               task.mutable_slave_id()->CopyFrom(offer.slave_id());
               task.mutable_resources()->CopyFrom(resources.get());
 
@@ -269,7 +269,7 @@ public:
 
               TaskInfo task;
               task.set_name(shard.name);
-              task.mutable_task_id()->set_value(UUID::random().toString());
+              task.mutable_task_id()->set_value(id::UUID::random().toString());
               task.mutable_slave_id()->CopyFrom(offer.slave_id());
               task.mutable_resources()->CopyFrom(taskResources);
 

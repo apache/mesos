@@ -143,7 +143,7 @@ inline process::Future<Variable> State::_fetch(
   // UUID and no value to start).
   internal::state::Entry entry;
   entry.set_name(name);
-  entry.set_uuid(UUID::random().toBytes());
+  entry.set_uuid(id::UUID::random().toBytes());
 
   return Variable(entry);
 }
@@ -152,13 +152,13 @@ inline process::Future<Variable> State::_fetch(
 inline process::Future<Option<Variable>> State::store(const Variable& variable)
 {
   // Note that we try and swap an entry even if the value didn't change!
-  UUID uuid = UUID::fromBytes(variable.entry.uuid()).get();
+  id::UUID uuid = id::UUID::fromBytes(variable.entry.uuid()).get();
 
   // Create a new entry to replace the existing entry provided the
   // UUID matches.
   internal::state::Entry entry;
   entry.set_name(variable.entry.name());
-  entry.set_uuid(UUID::random().toBytes());
+  entry.set_uuid(id::UUID::random().toBytes());
   entry.set_value(variable.entry.value());
 
   return storage->set(entry, uuid)

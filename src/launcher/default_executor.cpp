@@ -153,7 +153,7 @@ public:
   void connected()
   {
     state = CONNECTED;
-    connectionId = UUID::random();
+    connectionId = id::UUID::random();
 
     doReliableRegistration();
   }
@@ -245,7 +245,8 @@ public:
       }
 
       case Event::ACKNOWLEDGED: {
-        const UUID uuid = UUID::fromBytes(event.acknowledged().uuid()).get();
+        const id::UUID uuid =
+          id::UUID::fromBytes(event.acknowledged().uuid()).get();
 
         if (!unacknowledgedUpdates.contains(uuid)) {
           LOG(WARNING) << "Received acknowledgement " << uuid
@@ -406,7 +407,7 @@ protected:
 
     foreach (const TaskInfo& task, taskGroup.tasks()) {
       ContainerID containerId;
-      containerId.set_value(UUID::random().toString());
+      containerId.set_value(id::UUID::random().toString());
       containerId.mutable_parent()->CopyFrom(executorContainerId.get());
 
       containerIds.push_back(containerId);
@@ -664,7 +665,7 @@ protected:
   void _wait(
       const Future<list<Connection>>& _connections,
       const list<TaskID>& taskIds,
-      const UUID& _connectionId)
+      const id::UUID& _connectionId)
   {
     // It is possible that the agent process failed in the interim.
     // We would resume waiting on the child containers once we
@@ -695,7 +696,7 @@ protected:
   }
 
   void __wait(
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const Connection& connection,
       const TaskID& taskId)
   {
@@ -734,7 +735,7 @@ protected:
   }
 
   void waited(
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const TaskID& taskId,
       const Future<Response>& response)
   {
@@ -1122,7 +1123,7 @@ protected:
   }
 
   void escalated(
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const ContainerID& containerId,
       const TaskID& taskId,
       const Duration& timeout)
@@ -1219,7 +1220,7 @@ protected:
     CHECK_SOME(containers.at(taskId)->lastTaskStatus);
     const TaskStatus status = protobuf::createTaskStatus(
         containers.at(taskId)->lastTaskStatus.get(),
-        UUID::random(),
+        id::UUID::random(),
         Clock::now().secs(),
         None(),
         None(),
@@ -1270,7 +1271,7 @@ protected:
     CHECK_SOME(containers.at(healthStatus.task_id())->lastTaskStatus);
     const TaskStatus status = protobuf::createTaskStatus(
         containers.at(healthStatus.task_id())->lastTaskStatus.get(),
-        UUID::random(),
+        id::UUID::random(),
         Clock::now().secs(),
         None(),
         None(),
@@ -1300,7 +1301,7 @@ private:
     TaskStatus status = protobuf::createTaskStatus(
         taskId,
         state,
-        UUID::random(),
+        id::UUID::random(),
         Clock::now().secs());
 
     status.mutable_executor_id()->CopyFrom(executorId);
@@ -1370,7 +1371,8 @@ private:
     call.mutable_update()->mutable_status()->CopyFrom(status);
 
     // Capture the status update.
-    unacknowledgedUpdates[UUID::fromBytes(status.uuid()).get()] = call.update();
+    unacknowledgedUpdates[id::UUID::fromBytes(status.uuid()).get()] =
+      call.update();
 
     // Overwrite the last task status.
     CHECK(containers.contains(status.task_id()));
@@ -1403,7 +1405,7 @@ private:
                                : process::http::request(request);
   }
 
-  void retry(const UUID& _connectionId, const TaskID& taskId)
+  void retry(const id::UUID& _connectionId, const TaskID& taskId)
   {
     if (connectionId != _connectionId) {
       VLOG(1) << "Ignoring retry attempt from a stale connection";
@@ -1422,7 +1424,7 @@ private:
 
   void _retry(
       const Future<Connection>& connection,
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const TaskID& taskId)
   {
     const Duration duration = Seconds(1);
@@ -1491,7 +1493,7 @@ private:
   const string launcherDirectory;
   const Option<string> authorizationHeader;
 
-  LinkedHashMap<UUID, Call::Update> unacknowledgedUpdates;
+  LinkedHashMap<id::UUID, Call::Update> unacknowledgedUpdates;
 
   // Child containers.
   LinkedHashMap<TaskID, Owned<Container>> containers;
@@ -1501,7 +1503,7 @@ private:
   // uniquely identifying the current connection and ignoring
   // the stale instance. We initialize this to a new value upon receiving
   // a `connected()` callback.
-  Option<UUID> connectionId;
+  Option<id::UUID> connectionId;
 };
 
 } // namespace internal {

@@ -66,7 +66,7 @@ public:
     MesosTest::SetUp();
 
     directory = os::getcwd(); // We're inside a temporary sandbox.
-    containerId.set_value(UUID::random().toString());
+    containerId.set_value(id::UUID::random().toString());
   }
 
   Try<Owned<MesosContainerizer>> createContainerizer(

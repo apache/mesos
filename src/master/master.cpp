@@ -328,7 +328,7 @@ Master::Master(
   // because 'StandaloneMasterDetector' needs access to the info.
 
   // Master ID is generated randomly based on UUID.
-  info_.set_id(UUID::random().toString());
+  info_.set_id(id::UUID::random().toString());
 
   // NOTE: Currently, we store ip in MasterInfo in network order,
   // which should be fixed. See MESOS-1201 for details.
@@ -2490,7 +2490,7 @@ void Master::receive(
       break;
 
     case scheduler::Call::ACKNOWLEDGE: {
-      Try<UUID> uuid = UUID::fromBytes(call.acknowledge().uuid());
+      Try<id::UUID> uuid = id::UUID::fromBytes(call.acknowledge().uuid());
       if (uuid.isError()) {
         drop(from, call, uuid.error());
         return;
@@ -2501,7 +2501,7 @@ void Master::receive(
     }
 
     case scheduler::Call::ACKNOWLEDGE_OFFER_OPERATION_UPDATE: {
-      Try<UUID> uuid = UUID::fromBytes(
+      Try<id::UUID> uuid = id::UUID::fromBytes(
           call.acknowledge_offer_operation_update().status_uuid());
       if (uuid.isError()) {
         drop(from, call, uuid.error());
@@ -5766,7 +5766,7 @@ void Master::statusUpdateAcknowledgement(
   // important as validation logic is moved out of the scheduler
   // driver and into the master.
 
-  Try<UUID> uuid_ = UUID::fromBytes(uuid);
+  Try<id::UUID> uuid_ = id::UUID::fromBytes(uuid);
   if (uuid_.isError()) {
     LOG(WARNING)
       << "Ignoring status update acknowledgement "
@@ -5817,7 +5817,7 @@ void Master::acknowledge(
 
   const SlaveID& slaveId = acknowledge.slave_id();
   const TaskID& taskId = acknowledge.task_id();
-  const UUID uuid = UUID::fromBytes(acknowledge.uuid()).get();
+  const id::UUID uuid = id::UUID::fromBytes(acknowledge.uuid()).get();
 
   Slave* slave = slaves.registered.get(slaveId);
 
@@ -5869,7 +5869,7 @@ void Master::acknowledge(
 
     // Remove the task once the terminal update is acknowledged.
     if (protobuf::isTerminalState(task->status_update_state()) &&
-        UUID::fromBytes(task->status_update_uuid()).get() == uuid) {
+        id::UUID::fromBytes(task->status_update_uuid()).get() == uuid) {
       removeTask(task);
     }
   }
@@ -6297,9 +6297,9 @@ void Master::__registerSlave(
   vector<Resource> checkpointedResources = google::protobuf::convert(
       std::move(*registerSlaveMessage.mutable_checkpointed_resources()));
 
-  Option<UUID> resourceVersion;
+  Option<id::UUID> resourceVersion;
   if (registerSlaveMessage.has_resource_version_uuid()) {
-    Try<UUID> uuid = UUID::fromBytes(
+    Try<id::UUID> uuid = id::UUID::fromBytes(
         registerSlaveMessage.resource_version_uuid());
 
     CHECK_SOME(uuid);
@@ -6850,9 +6850,9 @@ void Master::__reregisterSlave(
   vector<ExecutorInfo> executorInfos = google::protobuf::convert(
       std::move(*reregisterSlaveMessage.mutable_executor_infos()));
 
-  Option<UUID> resourceVersion;
+  Option<id::UUID> resourceVersion;
   if (reregisterSlaveMessage.has_resource_version_uuid()) {
-    Try<UUID> uuid = UUID::fromBytes(
+    Try<id::UUID> uuid = id::UUID::fromBytes(
         reregisterSlaveMessage.resource_version_uuid());
 
     CHECK_SOME(uuid);
@@ -6994,9 +6994,9 @@ void Master::___reregisterSlave(
   const vector<SlaveInfo::Capability> agentCapabilities =
     google::protobuf::convert(reregisterSlaveMessage.agent_capabilities());
 
-  Option<UUID> resourceVersion;
+  Option<id::UUID> resourceVersion;
   if (reregisterSlaveMessage.has_resource_version_uuid()) {
-    Try<UUID> uuid = UUID::fromBytes(
+    Try<id::UUID> uuid = id::UUID::fromBytes(
         reregisterSlaveMessage.resource_version_uuid());
 
     CHECK_SOME(uuid);
@@ -7299,10 +7299,10 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
   if (slave->capabilities.resourceProvider) {
     CHECK(message.has_resource_version_uuid());
 
-    hashmap<Option<ResourceProviderID>, UUID> resourceVersions;
+    hashmap<Option<ResourceProviderID>, id::UUID> resourceVersions;
 
-    const Try<UUID> slaveResourceVersion =
-      UUID::fromBytes(message.resource_version_uuid());
+    const Try<id::UUID> slaveResourceVersion =
+      id::UUID::fromBytes(message.resource_version_uuid());
 
     CHECK_SOME(slaveResourceVersion);
     resourceVersions.insert({None(), slaveResourceVersion.get()});
@@ -7314,8 +7314,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
         continue;
       }
 
-      Try<UUID> resourceVersion =
-        UUID::fromBytes(resourceProvider.resource_version_uuid());
+      Try<id::UUID> resourceVersion =
+        id::UUID::fromBytes(resourceProvider.resource_version_uuid());
 
       CHECK_SOME(resourceVersion);
 
@@ -7333,13 +7333,14 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
   }
 
   // Check if the known offer operations for this agent changed.
-  const hashset<UUID> knownOfferOperations = slave->offerOperations.keys();
-  hashset<UUID> receivedOfferOperations;
+  const hashset<id::UUID> knownOfferOperations = slave->offerOperations.keys();
+  hashset<id::UUID> receivedOfferOperations;
 
   foreach (
       const OfferOperation& operation,
       message.offer_operations().operations()) {
-    Try<UUID> operationUuid = UUID::fromBytes(operation.operation_uuid());
+    Try<id::UUID> operationUuid =
+      id::UUID::fromBytes(operation.operation_uuid());
     CHECK_SOME(operationUuid);
     receivedOfferOperations.insert(operationUuid.get());
   }
@@ -7351,7 +7352,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
       foreach (
           const OfferOperation& operation,
           resourceProvider.operations().operations()) {
-        Try<UUID> operationUuid = UUID::fromBytes(operation.operation_uuid());
+        Try<id::UUID> operationUuid =
+          id::UUID::fromBytes(operation.operation_uuid());
         CHECK_SOME(operationUuid);
         receivedOfferOperations.insert(operationUuid.get());
       }
@@ -7370,8 +7372,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
   {
     Option<Resources> oldTotal;
     Option<Resources> newTotal;
-    Option<hashmap<UUID, OfferOperation>> oldOfferOperations;
-    Option<hashmap<UUID, OfferOperation>> newOfferOperations;
+    Option<hashmap<id::UUID, OfferOperation>> oldOfferOperations;
+    Option<hashmap<id::UUID, OfferOperation>> newOfferOperations;
     Option<ResourceProviderInfo> info;
   };
 
@@ -7409,7 +7411,7 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
     // Process known offer operations.
     foreachpair (
-        const UUID& uuid,
+        const id::UUID& uuid,
         OfferOperation* operation,
         slave->offerOperations) {
       Result<ResourceProviderID> providerId_ =
@@ -7428,7 +7430,7 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
       // create a record for this resource provider if needed.
       if (resourceProviders[providerId].oldOfferOperations.isNone()) {
         resourceProviders.at(providerId).oldOfferOperations =
-          hashmap<UUID, OfferOperation>();
+          hashmap<id::UUID, OfferOperation>();
       }
 
       resourceProviders.at(providerId)
@@ -7441,12 +7443,12 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
     // Process received agent offer operations.
     resourceProviders[None()].newOfferOperations =
-      hashmap<UUID, OfferOperation>();
+      hashmap<id::UUID, OfferOperation>();
 
     foreach (
         const OfferOperation& operation,
         message.offer_operations().operations()) {
-      Try<UUID> uuid = UUID::fromBytes(operation.operation_uuid());
+      Try<id::UUID> uuid = id::UUID::fromBytes(operation.operation_uuid());
       CHECK_SOME(uuid) << "Could not deserialize operation id when reconciling "
                           "offer operations";
 
@@ -7469,13 +7471,13 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
         provider.newTotal = resourceProvider.total_resources();
         if (provider.newOfferOperations.isNone()) {
-          provider.newOfferOperations = hashmap<UUID, OfferOperation>();
+          provider.newOfferOperations = hashmap<id::UUID, OfferOperation>();
         }
 
         foreach (
             const OfferOperation& operation,
             resourceProvider.operations().operations()) {
-          Try<UUID> uuid = UUID::fromBytes(operation.operation_uuid());
+          Try<id::UUID> uuid = id::UUID::fromBytes(operation.operation_uuid());
           CHECK_SOME(uuid)
             << "Could not deserialize operation id when reconciling "
             "offer operations";
@@ -7508,10 +7510,10 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
         // acknowledgement, or the agent initiates an unrelated
         // `UpdateSlaveMessage`.
         auto extractPendingOperations =
-          [](const hashmap<UUID, OfferOperation>& source,
-             hashset<UUID>* target) {
+          [](const hashmap<id::UUID, OfferOperation>& source,
+             hashset<id::UUID>* target) {
             foreachpair (
-                const UUID& uuid, const OfferOperation& operation, source) {
+                const id::UUID& uuid, const OfferOperation& operation, source) {
               if (!protobuf::isTerminalState(
                       operation.latest_status().state())) {
                 target->insert(uuid);
@@ -7519,8 +7521,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
             }
           };
 
-        hashset<UUID> oldPendingOperations;
-        hashset<UUID> newPendingOperations;
+        hashset<id::UUID> oldPendingOperations;
+        hashset<id::UUID> newPendingOperations;
 
         if (provider.oldOfferOperations.isSome()) {
           extractPendingOperations(
@@ -7532,7 +7534,7 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
               provider.newOfferOperations.get(), &newPendingOperations);
         }
 
-        foreach (const UUID& uuid, newPendingOperations) {
+        foreach (const id::UUID& uuid, newPendingOperations) {
           CHECK(oldPendingOperations.contains(uuid))
             << "Agent tried to reconcile unknown non-terminal offer "
                "operation "
@@ -7612,7 +7614,7 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
       if (provider.newOfferOperations.isSome()) {
         foreachpair (
-            const UUID& uuid,
+            const id::UUID& uuid,
             const OfferOperation& operation,
             provider.newOfferOperations.get()) {
           // Update to bookkeeping of operations.
@@ -7648,7 +7650,7 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
       // generated and the master will remove the operation from its state upon
       // receipt of that update.
       if (provider.oldOfferOperations.isSome()) {
-        foreachkey (const UUID& uuid, provider.oldOfferOperations.get()) {
+        foreachkey (const id::UUID& uuid, provider.oldOfferOperations.get()) {
           if (provider.newOfferOperations.isNone() ||
               !provider.newOfferOperations->contains(uuid)) {
             LOG(WARNING) << "Performing explicit reconciliation with agent for"
@@ -7839,7 +7841,7 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
     return;
   }
 
-  Try<UUID> uuid = UUID::fromBytes(update.uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(update.uuid());
   if (uuid.isError()) {
     LOG(WARNING) << "Ignoring status update "
                  << " from agent " << *slave
@@ -7940,7 +7942,7 @@ void Master::offerOperationStatusUpdate(
     ? update.framework_id()
     : Option<FrameworkID>::none();
 
-  Try<UUID> uuid = UUID::fromBytes(update.operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(update.operation_uuid());
   if (uuid.isError()) {
     LOG(ERROR) << "Failed to parse offer operation UUID for operation "
                << "'" << update.status().operation_id() << "' for "
@@ -10356,7 +10358,7 @@ void Master::updateOfferOperation(
 
   operation->add_statuses()->CopyFrom(status);
 
-  Try<UUID> uuid = UUID::fromBytes(update.operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(update.operation_uuid());
   CHECK_SOME(uuid);
 
   LOG(INFO) << "Updating the state of offer operation '"
@@ -10522,7 +10524,7 @@ void Master::_apply(
     // This must have been validated by the caller.
     CHECK(!resourceProviderId.isError());
 
-    Option<UUID> resourceVersion = resourceProviderId.isSome()
+    Option<id::UUID> resourceVersion = resourceProviderId.isSome()
       ? slave->resourceVersions.get(resourceProviderId.get())
       : slave->resourceVersions.get(None());
 
@@ -10570,7 +10572,8 @@ void Master::_apply(
     message.mutable_resource_version_uuid()
       ->set_uuid(resourceVersion->toBytes());
 
-    Try<UUID> operationUUID = UUID::fromBytes(offerOperation->operation_uuid());
+    Try<id::UUID> operationUUID =
+      id::UUID::fromBytes(offerOperation->operation_uuid());
     CHECK_SOME(operationUUID);
 
     LOG(INFO) << "Sending offer operation '"
@@ -11298,7 +11301,7 @@ void Master::Subscribers::Subscriber::send(
 }
 
 
-void Master::exited(const UUID& id)
+void Master::exited(const id::UUID& id)
 {
   if (!subscribers.subscribed.contains(id)) {
     LOG(WARNING) << "Unknown subscriber " << id << " disconnected";
@@ -11341,7 +11344,7 @@ Slave::Slave(
     vector<SlaveInfo::Capability> _capabilites,
     const Time& _registeredTime,
     vector<Resource> _checkpointedResources,
-    const Option<UUID>& resourceVersion,
+    const Option<id::UUID>& resourceVersion,
     vector<ExecutorInfo> executorInfos,
     vector<Task> tasks)
   : master(_master),
@@ -11479,7 +11482,7 @@ void Slave::removeTask(Task* task)
 
 void Slave::addOfferOperation(OfferOperation* operation)
 {
-  Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
   CHECK_SOME(uuid);
 
   offerOperations.put(uuid.get(), operation);
@@ -11530,7 +11533,7 @@ void Slave::recoverResources(OfferOperation* operation)
 
 void Slave::removeOfferOperation(OfferOperation* operation)
 {
-  Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
   CHECK_SOME(uuid);
 
   CHECK(offerOperations.contains(uuid.get()))
@@ -11546,7 +11549,7 @@ void Slave::removeOfferOperation(OfferOperation* operation)
 }
 
 
-OfferOperation* Slave::getOfferOperation(const UUID& uuid) const
+OfferOperation* Slave::getOfferOperation(const id::UUID& uuid) const
 {
   if (offerOperations.contains(uuid)) {
     return offerOperations.at(uuid);
@@ -11651,7 +11654,7 @@ Try<Nothing> Slave::update(
     const SlaveInfo& _info,
     const string& _version,
     const vector<SlaveInfo::Capability>& _capabilities,
-    const Option<UUID>& resourceVersion)
+    const Option<id::UUID>& resourceVersion)
 {
   Try<Resources> resources = applyCheckpointedResources(
       _info.resources(),

@@ -539,7 +539,8 @@ TEST_F(SchedulerDriverEventTest, Update)
   AWAIT_READY(statusUpdate);
 
   // Generate an update that requires acknowledgement.
-  event.mutable_update()->mutable_status()->set_uuid(UUID::random().toBytes());
+  event.mutable_update()->mutable_status()->set_uuid(
+      id::UUID::random().toBytes());
 
   Future<mesos::scheduler::Call> acknowledgement = DROP_CALL(
       mesos::scheduler::Call(), mesos::scheduler::Call::ACKNOWLEDGE, _, _);

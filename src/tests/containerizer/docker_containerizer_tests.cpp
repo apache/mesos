@@ -1184,9 +1184,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
   SlaveID slaveId;
   slaveId.set_value("s1");
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
   ContainerID reapedContainerId;
-  reapedContainerId.set_value(UUID::random().toString());
+  reapedContainerId.set_value(id::UUID::random().toString());
 
   string container1 = containerName(containerId);
   string container2 = containerName(reapedContainerId);
@@ -1317,10 +1317,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
   slaveId.set_value("s1");
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ContainerID orphanContainerId;
-  orphanContainerId.set_value(UUID::random().toString());
+  orphanContainerId.set_value(id::UUID::random().toString());
 
   string container1 = containerName(containerId);
 
@@ -1451,10 +1451,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
       docker);
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorID executorId;
-  executorId.set_value(UUID::random().toString());
+  executorId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executorInfo;
   executorInfo.mutable_container()->set_type(ContainerInfo::MESOS);
@@ -1472,7 +1472,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverNonDocker)
 
   SlaveState slaveState;
   FrameworkID frameworkId;
-  frameworkId.set_value(UUID::random().toString());
+  frameworkId.set_value(id::UUID::random().toString());
   slaveState.frameworks.put(frameworkId, frameworkState);
 
   Future<Nothing> recover = dockerContainerizer.recover(slaveState);
@@ -2139,7 +2139,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   task.mutable_slave_id()->CopyFrom(offer.slave_id());
   task.mutable_resources()->CopyFrom(offer.resources());
 
-  string uuid = UUID::random().toString();
+  string uuid = id::UUID::random().toString();
 
   // NOTE: We prefix `echo` with `unbuffer` so that we can immediately
   // flush the output of `echo`.  This mitigates a race in Docker where
@@ -2420,7 +2420,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   task.mutable_slave_id()->CopyFrom(offer.slave_id());
   task.mutable_resources()->CopyFrom(offer.resources());
 
-  string uuid = UUID::random().toString();
+  string uuid = id::UUID::random().toString();
 
   CommandInfo command;
   command.set_shell(false);
@@ -2562,7 +2562,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   task.mutable_slave_id()->CopyFrom(offer.slave_id());
   task.mutable_resources()->CopyFrom(offer.resources());
 
-  string uuid = UUID::random().toString();
+  string uuid = id::UUID::random().toString();
 
   CommandInfo command;
   command.set_shell(false);
@@ -3094,7 +3094,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
            containerId.get(),
            ContainerState::RUNNING));
 
-  string uuid = UUID::random().toString();
+  string uuid = id::UUID::random().toString();
 
   // Write uuid to docker mapped host port.
   Try<process::Subprocess> s = process::subprocess(
@@ -3494,7 +3494,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyUnknownContainer)
   DockerContainerizer* containerizer = create.get();
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   AWAIT_EXPECT_FALSE(containerizer->destroy(containerId));
 }
@@ -3978,7 +3978,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_WaitUnknownContainer)
   DockerContainerizer* containerizer = create.get();
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 

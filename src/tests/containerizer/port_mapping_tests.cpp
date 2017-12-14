@@ -466,7 +466,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
       Resources::parse(container1Ports).get());
 
   ContainerID containerId1;
-  containerId1.set_value(UUID::random().toString());
+  containerId1.set_value(id::UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
@@ -532,7 +532,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerTCP)
   ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   ContainerID containerId2;
-  containerId2.set_value(UUID::random().toString());
+  containerId2.set_value(id::UUID::random().toString());
 
   executorInfo.mutable_resources()->CopyFrom(
       Resources::parse(container2Ports).get());
@@ -629,7 +629,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
       Resources::parse(container1Ports).get());
 
   ContainerID containerId1;
-  containerId1.set_value(UUID::random().toString());
+  containerId1.set_value(id::UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
@@ -695,7 +695,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_ContainerToContainerUDP)
   ASSERT_TRUE(waitForFileCreation(container1Ready));
 
   ContainerID containerId2;
-  containerId2.set_value(UUID::random().toString());
+  containerId2.set_value(id::UUID::random().toString());
 
   executorInfo.mutable_resources()->CopyFrom(
       Resources::parse(container2Ports).get());
@@ -794,7 +794,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerUDP)
       Resources::parse(container1Ports).get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
@@ -912,7 +912,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_HostToContainerTCP)
       Resources::parse(container1Ports).get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
@@ -1038,7 +1038,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPExternal)
       Resources::parse(container1Ports).get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
@@ -1125,7 +1125,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerICMPInternal)
       Resources::parse(container1Ports).get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
@@ -1215,7 +1215,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_ContainerARPExternal)
       Resources::parse(container1Ports).get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
@@ -1311,7 +1311,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_DNS)
       Resources::parse(container1Ports).get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
@@ -1403,7 +1403,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
       Resources::parse(container1Ports).get());
 
   ContainerID containerId1;
-  containerId1.set_value(UUID::random().toString());
+  containerId1.set_value(id::UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
@@ -1453,7 +1453,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_TooManyContainers)
   ::close(pipes[1]);
 
   ContainerID containerId2;
-  containerId2.set_value(UUID::random().toString());
+  containerId2.set_value(id::UUID::random().toString());
 
   executorInfo.mutable_resources()->CopyFrom(
       Resources::parse(container2Ports).get());
@@ -1522,7 +1522,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_SmallEgressLimit)
       Resources::parse(container1Ports).get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.
@@ -1686,7 +1686,7 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
       Resources::parse(container1Ports).get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   // Use a relative temporary directory so it gets cleaned up
   // automatically with the test.

@@ -118,7 +118,7 @@ protected:
 
         case Event::ACKNOWLEDGED: {
           // Remove the corresponding update.
-          updates.erase(UUID::fromBytes(event.acknowledged().uuid()).get());
+          updates.erase(id::UUID::fromBytes(event.acknowledged().uuid()).get());
 
           // Remove the corresponding task.
           tasks.erase(event.acknowledged().task_id());
@@ -175,7 +175,7 @@ protected:
 
   void update(const TaskInfo& task, const TaskState& state)
   {
-    UUID uuid = UUID::random();
+    id::UUID uuid = id::UUID::random();
 
     TaskStatus status;
     status.mutable_task_id()->CopyFrom(task.task_id());
@@ -227,7 +227,7 @@ private:
     SUBSCRIBED
   } state;
 
-  LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
+  LinkedHashMap<id::UUID, Call::Update> updates; // Unacknowledged updates.
   LinkedHashMap<TaskID, TaskInfo> tasks; // Unacknowledged tasks.
 };
 

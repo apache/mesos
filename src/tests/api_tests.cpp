@@ -5059,7 +5059,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_EQ(1u, containerIds->size());
 
   v1::ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
   containerId.mutable_parent()->set_value(containerIds->begin()->value());
 
   v1::agent::Call call;
@@ -5156,7 +5156,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, LaunchNestedContainerSession)
   ASSERT_EQ(1u, containerIds->size());
 
   v1::ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
   containerId.mutable_parent()->set_value(containerIds->begin()->value());
 
   string output = "output";
@@ -5277,7 +5277,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_EQ(1u, containerIds->size());
 
   v1::ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
   containerId.mutable_parent()->set_value(containerIds->begin()->value());
 
   string command = "sleep 1000";
@@ -5375,7 +5375,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_EQ(1u, containerIds->size());
 
   v1::ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
   containerId.mutable_parent()->set_value(containerIds->begin()->value());
 
   string output = "output";
@@ -5492,7 +5492,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_EQ(1u, containerIds->size());
 
   v1::ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
   containerId.mutable_parent()->set_value(containerIds->begin()->value());
 
   v1::agent::Call call;
@@ -5797,7 +5797,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_EQ(1u, containerIds->size());
 
   v1::ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
   containerId.mutable_parent()->set_value(containerIds->begin()->value());
 
   {
@@ -5998,7 +5998,7 @@ TEST_F(AgentAPITest, HeaderValidation)
     call.set_type(v1::agent::Call::ATTACH_CONTAINER_OUTPUT);
 
     v1::ContainerID containerId;
-    containerId.set_value(UUID::random().toString());
+    containerId.set_value(id::UUID::random().toString());
 
     call.mutable_attach_container_output()->mutable_container_id()
       ->CopyFrom(containerId);
@@ -6022,7 +6022,7 @@ TEST_F(AgentAPITest, HeaderValidation)
   // Setting 'Message-Content-Type' header for a non-streaming request.
   {
     v1::ContainerID containerId;
-    containerId.set_value(UUID::random().toString());
+    containerId.set_value(id::UUID::random().toString());
 
     v1::agent::Call call;
     call.set_type(v1::agent::Call::ATTACH_CONTAINER_OUTPUT);
@@ -6261,7 +6261,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPIStreamingTest,
   ASSERT_EQ(1u, containerIds->size());
 
   v1::ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
   containerId.mutable_parent()->set_value(containerIds->begin()->value());
 
   // Launch the child container with TTY and then attach to it's output.
@@ -6511,7 +6511,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_EQ(1u, containerIds->size());
 
   v1::ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
   containerId.mutable_parent()->set_value(containerIds->begin()->value());
 
   ContentType messageContentType = GetParam();

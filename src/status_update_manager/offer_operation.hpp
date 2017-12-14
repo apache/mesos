@@ -37,7 +37,7 @@ namespace mesos {
 namespace internal {
 
 typedef StatusUpdateManagerProcess<
-    UUID,
+    id::UUID,
     OfferOperationStatusUpdateRecord,
     OfferOperationStatusUpdate>::State OfferOperationStatusManagerState;
 
@@ -63,7 +63,7 @@ public:
   //              file, given the operation's `operation_uuid`.
   void initialize(
       const lambda::function<void(const OfferOperationStatusUpdate&)>& forward,
-      const lambda::function<const std::string(const UUID&)>& getPath);
+      const lambda::function<const std::string(const id::UUID&)>& getPath);
 
   // Checkpoints the update if necessary and reliably sends the update.
   //
@@ -81,8 +81,8 @@ public:
   //   - `false`: same as above except the status update stream is terminated.
   //   - A `Failure`: if there are any errors (e.g., duplicate, checkpointing).
   process::Future<bool> acknowledgement(
-      const UUID& operationUuid,
-      const UUID& statusUuid);
+      const id::UUID& operationUuid,
+      const id::UUID& statusUuid);
 
   // Recover status updates. The provided list of operation_uuids is used as the
   // source of truth for which checkpointed files should be recovered from.
@@ -101,7 +101,7 @@ public:
   // This struct also contains a count of the recoverable errors found during
   // non-strict recovery.
   process::Future<OfferOperationStatusManagerState> recover(
-      const std::list<UUID>& operationUuids,
+      const std::list<id::UUID>& operationUuids,
       bool strict);
 
   // Closes all the status update streams corresponding to this framework.
@@ -120,7 +120,7 @@ public:
 private:
   process::Owned<
       StatusUpdateManagerProcess<
-          UUID,
+          id::UUID,
           OfferOperationStatusUpdateRecord,
           OfferOperationStatusUpdate>> process;
 };

@@ -500,7 +500,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   switchboardFlags.socket_path = path::join(
       stringify(os::PATH_SEPARATOR),
       "tmp",
-      "mesos-io-switchboard-" + UUID::random().toString());
+      "mesos-io-switchboard-" + id::UUID::random().toString());
 
   // Just before launching our io switchboard server, we need to
   // create a directory to hold checkpointed files related to the

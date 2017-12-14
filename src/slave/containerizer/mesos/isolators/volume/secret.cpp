@@ -124,7 +124,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
 
   const string sandboxSecretRootDir =
     path::join(containerConfig.directory(),
-               SECRET_DIR + string("-") + stringify(UUID::random()));
+               SECRET_DIR + string("-") + stringify(id::UUID::random()));
 
   // TODO(Kapil): Add some UUID suffix to the secret-root dir to avoid conflicts
   // with user container_path.
@@ -236,7 +236,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
     }
 
     const string hostSecretPath =
-      path::join(flags.runtime_dir, SECRET_DIR, stringify(UUID::random()));
+      path::join(flags.runtime_dir, SECRET_DIR, stringify(id::UUID::random()));
 
     const string sandboxSecretPath =
       path::join(sandboxSecretRootDir,

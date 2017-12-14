@@ -1214,7 +1214,7 @@ class MockStorage : public Storage
 {
 public:
   MOCK_METHOD1(get, Future<Option<Entry>>(const string&));
-  MOCK_METHOD2(set, Future<bool>(const Entry&, const UUID&));
+  MOCK_METHOD2(set, Future<bool>(const Entry&, const id::UUID&));
   MOCK_METHOD1(expunge, Future<bool>(const Entry&));
   MOCK_METHOD0(names, Future<std::set<string>>());
 };

@@ -249,7 +249,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
 
   ResourceProviderManager manager;
 
-  Option<UUID> streamId;
+  Option<id::UUID> streamId;
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
 
   // First, subscribe to the manager to get the ID.
@@ -278,7 +278,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
     ASSERT_EQ(http::Response::PIPE, response->type);
 
     ASSERT_TRUE(response->headers.contains("Mesos-Stream-Id"));
-    Try<UUID> uuid = UUID::fromString(response->headers.at("Mesos-Stream-Id"));
+    Try<id::UUID> uuid =
+      id::UUID::fromString(response->headers.at("Mesos-Stream-Id"));
 
     CHECK_SOME(uuid);
     streamId = uuid.get();
@@ -318,7 +319,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
     Call::UpdateState* updateState = call.mutable_update_state();
 
     updateState->mutable_resources()->CopyFrom(v1::Resources(resources));
-    updateState->set_resource_version_uuid(UUID::random().toBytes());
+    updateState->set_resource_version_uuid(id::UUID::random().toBytes());
 
     http::Request request;
     request.method = "POST";
@@ -354,7 +355,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
 
   ResourceProviderManager manager;
 
-  Option<UUID> streamId;
+  Option<id::UUID> streamId;
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
 
   // First, subscribe to the manager to get the ID.
@@ -383,7 +384,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
     ASSERT_EQ(http::Response::PIPE, response->type);
 
     ASSERT_TRUE(response->headers.contains("Mesos-Stream-Id"));
-    Try<UUID> uuid = UUID::fromString(response->headers.at("Mesos-Stream-Id"));
+    Try<id::UUID> uuid =
+      id::UUID::fromString(response->headers.at("Mesos-Stream-Id"));
 
     CHECK_SOME(uuid);
     streamId = uuid.get();
@@ -416,7 +418,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
     mesos::v1::OfferOperationStatus status;
     status.set_state(mesos::v1::OfferOperationState::OFFER_OPERATION_FINISHED);
 
-    UUID operationUUID = UUID::random();
+    id::UUID operationUUID = id::UUID::random();
 
     Call call;
     call.set_type(Call::UPDATE_OFFER_OPERATION_STATUS);
@@ -471,7 +473,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesSuccess)
 
   ResourceProviderManager manager;
 
-  Option<UUID> streamId;
+  Option<id::UUID> streamId;
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
   Owned<recordio::Reader<Event>> responseDecoder;
 
@@ -501,7 +503,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesSuccess)
     ASSERT_EQ(http::Response::PIPE, response->type);
 
     ASSERT_TRUE(response->headers.contains("Mesos-Stream-Id"));
-    Try<UUID> uuid = UUID::fromString(response->headers.at("Mesos-Stream-Id"));
+    Try<id::UUID> uuid =
+      id::UUID::fromString(response->headers.at("Mesos-Stream-Id"));
 
     CHECK_SOME(uuid);
     streamId = uuid.get();
@@ -577,7 +580,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesFailure)
 
   ResourceProviderManager manager;
 
-  Option<UUID> streamId;
+  Option<id::UUID> streamId;
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
   Owned<recordio::Reader<Event>> responseDecoder;
 
@@ -607,7 +610,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesFailure)
     ASSERT_EQ(http::Response::PIPE, response->type);
 
     ASSERT_TRUE(response->headers.contains("Mesos-Stream-Id"));
-    Try<UUID> uuid = UUID::fromString(response->headers.at("Mesos-Stream-Id"));
+    Try<id::UUID> uuid =
+      id::UUID::fromString(response->headers.at("Mesos-Stream-Id"));
 
     CHECK_SOME(uuid);
     streamId = uuid.get();

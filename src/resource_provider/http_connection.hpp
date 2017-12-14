@@ -220,7 +220,7 @@ protected:
 
       LOG(INFO) << "New endpoint detected at " << endpoint.get();
 
-      connectionId = UUID::random();
+      connectionId = id::UUID::random();
 
       dispatch(self(), &Self::connect, connectionId.get());
     }
@@ -229,7 +229,7 @@ protected:
       .onAny(defer(self(), &Self::detected, lambda::_1));
   }
 
-  void connect(const UUID& _connectionId)
+  void connect(const id::UUID& _connectionId)
   {
     // It is possible that a new endpoint was detected while we were
     // waiting to establish a connection with the old master.
@@ -253,7 +253,7 @@ protected:
   }
 
   void connected(
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const process::Future<std::tuple<
         process::http::Connection, process::http::Connection>>& _connections)
   {
@@ -324,7 +324,7 @@ protected:
     connectionId = None();
   }
 
-  void disconnected(const UUID& _connectionId, const std::string& failure)
+  void disconnected(const id::UUID& _connectionId, const std::string& failure)
   {
     // Ignore if the disconnection happened from an old stale connection.
     if (connectionId != _connectionId) {
@@ -339,7 +339,7 @@ protected:
   }
 
   process::Future<Nothing> _send(
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const Call& call,
       const process::http::Response& response)
   {
@@ -372,8 +372,8 @@ protected:
       subscribed = SubscribedResponse(reader, std::move(decoder));
 
       if (response.headers.contains("Mesos-Stream-Id")) {
-        Try<UUID> uuid =
-          UUID::fromString(response.headers.at("Mesos-Stream-Id"));
+        Try<id::UUID> uuid =
+          id::UUID::fromString(response.headers.at("Mesos-Stream-Id"));
 
         CHECK_SOME(uuid);
 
@@ -553,8 +553,8 @@ private:
   // while an attempt was in progress). This helps us in uniquely
   // identifying the current connection instance and ignoring the
   // stale instance.
-  Option<UUID> connectionId;
-  Option<UUID> streamId;
+  Option<id::UUID> connectionId;
+  Option<id::UUID> streamId;
 
   process::Future<Option<process::http::URL>> detection;
 };

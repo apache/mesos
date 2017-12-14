@@ -44,7 +44,7 @@ public:
       const std::string& name) = 0;
   virtual process::Future<bool> set(
       const internal::state::Entry& entry,
-      const UUID& uuid) = 0;
+      const id::UUID& uuid) = 0;
 
   // Returns true if successfully expunged the variable from the state.
   virtual process::Future<bool> expunge(

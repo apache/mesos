@@ -78,7 +78,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, ROOT_SelfType)
   Owned<MesosContainerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -137,7 +137,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedParentTypeVolume)
   AWAIT_READY(containerizer->recover(state));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo("executor", "sleep 99", "cpus:1");
 
@@ -154,7 +154,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedParentTypeVolume)
 
   ContainerID nestedContainerId1;
   nestedContainerId1.mutable_parent()->CopyFrom(containerId);
-  nestedContainerId1.set_value(UUID::random().toString());
+  nestedContainerId1.set_value(id::UUID::random().toString());
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
@@ -182,7 +182,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedParentTypeVolume)
 
   ContainerID nestedContainerId2;
   nestedContainerId2.mutable_parent()->CopyFrom(containerId);
-  nestedContainerId2.set_value(UUID::random().toString());
+  nestedContainerId2.set_value(id::UUID::random().toString());
 
   launch = containerizer->launch(
       nestedContainerId2,
@@ -240,7 +240,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, ROOT_SelfTypeOwnership)
   Owned<MesosContainerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -303,7 +303,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, ROOT_ParentTypeOwnership)
   AWAIT_READY(containerizer->recover(state));
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo("executor", "sleep 99", "cpus:1");
 
@@ -324,7 +324,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, ROOT_ParentTypeOwnership)
 
   ContainerID nestedContainerId;
   nestedContainerId.mutable_parent()->CopyFrom(containerId);
-  nestedContainerId.set_value(UUID::random().toString());
+  nestedContainerId.set_value(id::UUID::random().toString());
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);

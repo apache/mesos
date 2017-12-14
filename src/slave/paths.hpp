@@ -359,17 +359,17 @@ Try<std::list<std::string>> getOfferOperationPaths(
 
 std::string getOfferOperationPath(
     const std::string& rootDir,
-    const UUID& operationUuid);
+    const id::UUID& operationUuid);
 
 
-Try<UUID> parseOfferOperationPath(
+Try<id::UUID> parseOfferOperationPath(
     const std::string& rootDir,
     const std::string& dir);
 
 
 std::string getOfferOperationUpdatesPath(
     const std::string& rootDir,
-    const UUID& operationUuid);
+    const id::UUID& operationUuid);
 
 
 std::string getResourcesInfoPath(

@@ -62,7 +62,7 @@ public:
 
   // Storage implementation.
   Future<Option<Entry>> get(const string& name);
-  Future<bool> set(const Entry& entry, const UUID& uuid);
+  Future<bool> set(const Entry& entry, const id::UUID& uuid);
   Future<bool> expunge(const Entry& entry);
   Future<std::set<string>> names();
 
@@ -146,7 +146,9 @@ Future<Option<Entry>> LevelDBStorageProcess::get(const string& name)
 }
 
 
-Future<bool> LevelDBStorageProcess::set(const Entry& entry, const UUID& uuid)
+Future<bool> LevelDBStorageProcess::set(
+    const Entry& entry,
+    const id::UUID& uuid)
 {
   if (error.isSome()) {
     return Failure(error.get());
@@ -162,7 +164,7 @@ Future<bool> LevelDBStorageProcess::set(const Entry& entry, const UUID& uuid)
   }
 
   if (option.get().isSome()) {
-    if (UUID::fromBytes(option.get().get().uuid()).get() != uuid) {
+    if (id::UUID::fromBytes(option.get().get().uuid()).get() != uuid) {
       return false;
     }
   }
@@ -200,8 +202,8 @@ Future<bool> LevelDBStorageProcess::expunge(const Entry& entry)
     return false;
   }
 
-  if (UUID::fromBytes(option.get().get().uuid()).get() !=
-      UUID::fromBytes(entry.uuid()).get()) {
+  if (id::UUID::fromBytes(option.get().get().uuid()).get() !=
+      id::UUID::fromBytes(entry.uuid()).get()) {
     return false;
   }
 
@@ -294,7 +296,7 @@ Future<Option<Entry>> LevelDBStorage::get(const string& name)
 }
 
 
-Future<bool> LevelDBStorage::set(const Entry& entry, const UUID& uuid)
+Future<bool> LevelDBStorage::set(const Entry& entry, const id::UUID& uuid)
 {
   return dispatch(process, &LevelDBStorageProcess::set, entry, uuid);
 }

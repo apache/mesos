@@ -662,7 +662,7 @@ Try<TaskState> TaskState::recover(
     if (record->type() == StatusUpdateRecord::UPDATE) {
       state.updates.push_back(record->update());
     } else {
-      state.acks.insert(UUID::fromBytes(record->uuid()).get());
+      state.acks.insert(id::UUID::fromBytes(record->uuid()).get());
     }
   }
 

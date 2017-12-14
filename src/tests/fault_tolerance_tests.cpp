@@ -1325,7 +1325,7 @@ TEST_F(FaultToleranceTest, ForwardStatusUpdateUnknownExecutor)
       taskId,
       TASK_RUNNING,
       TaskStatus::SOURCE_SLAVE,
-      UUID::random(),
+      id::UUID::random(),
       "Dummy update");
 
   process::dispatch(
@@ -1988,7 +1988,7 @@ TEST_F(FaultToleranceTest, SplitBrainMasters)
       runningStatus->task_id(),
       TASK_LOST,
       TaskStatus::SOURCE_SLAVE,
-      UUID::random()));
+      id::UUID::random()));
 
   // Spoof a message from a random master; this should be dropped by
   // the scheduler driver. Since this is delivered locally, it is

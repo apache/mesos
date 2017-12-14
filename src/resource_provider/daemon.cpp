@@ -105,14 +105,14 @@ private:
   struct ProviderData
   {
     ProviderData(const string& _path, const ResourceProviderInfo& _info)
-      : path(_path), info(_info), version(UUID::random()) {}
+      : path(_path), info(_info), version(id::UUID::random()) {}
 
     const string path;
     ResourceProviderInfo info;
 
     // The `version` is used to check if `provider` holds a resource
     // provider instance that is in sync with the current config.
-    UUID version;
+    id::UUID version;
     Owned<LocalResourceProvider> provider;
   };
 
@@ -128,7 +128,7 @@ private:
   Future<Nothing> _launch(
       const string& type,
       const string& name,
-      const UUID& version,
+      const id::UUID& version,
       const Option<string>& authToken);
 
   Future<Option<string>> generateAuthToken(const ResourceProviderInfo& info);
@@ -192,7 +192,7 @@ Future<bool> LocalResourceProviderDaemonProcess::add(
   // with existing ad-hoc config files.
   const string path = path::join(
       configDir.get(),
-      strings::join(".", info.type(), info.name(), UUID::random(), "json"));
+      strings::join(".", info.type(), info.name(), id::UUID::random(), "json"));
 
   LOG(INFO) << "Creating new config file '" << path << "'";
 
@@ -243,7 +243,7 @@ Future<bool> LocalResourceProviderDaemonProcess::update(
   data.info = info;
 
   // Update `version` to indicate that the config has been updated.
-  data.version = UUID::random();
+  data.version = id::UUID::random();
 
   // Launch the resource provider if the daemon is already started.
   if (slaveId.isSome()) {
@@ -425,7 +425,7 @@ Future<Nothing> LocalResourceProviderDaemonProcess::launch(
 Future<Nothing> LocalResourceProviderDaemonProcess::_launch(
     const string& type,
     const string& name,
-    const UUID& version,
+    const id::UUID& version,
     const Option<string>& authToken)
 {
   // If the resource provider config is removed, abort the launch sequence.

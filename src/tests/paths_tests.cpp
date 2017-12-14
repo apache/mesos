@@ -47,7 +47,7 @@ public:
     frameworkId.set_value("framework1");
     executorId.set_value("executor1");
     taskId.set_value("task1");
-    containerId.set_value(UUID::random().toString());
+    containerId.set_value(id::UUID::random().toString());
     role = "role1";
     persistenceId = "persistenceId1";
 

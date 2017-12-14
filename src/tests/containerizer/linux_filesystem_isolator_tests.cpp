@@ -95,7 +95,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -146,7 +146,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   // Use a long running task so we can reliably capture the moment it's alive.
   ExecutorInfo executor = createExecutorInfo(
@@ -206,7 +206,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -277,7 +277,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   // Write to an absolute path in the container's mount namespace to
   // verify mounts of the SANDBOX_PATH volume and the persistent
@@ -349,7 +349,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -415,10 +415,10 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId1;
-  containerId1.set_value(UUID::random().toString());
+  containerId1.set_value(id::UUID::random().toString());
 
   ContainerID containerId2;
-  containerId2.set_value(UUID::random().toString());
+  containerId2.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor1 = createExecutorInfo(
       "test_executor1",
@@ -593,7 +593,7 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeMountPointCleanup)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",

@@ -1066,11 +1066,11 @@ TEST_F(ProvisionerDockerTest, ROOT_RecoverNestedOnReboot)
   ASSERT_SOME(provisioner);
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ContainerID nestedContainerId;
   nestedContainerId.mutable_parent()->CopyFrom(containerId);
-  nestedContainerId.set_value(UUID::random().toString());
+  nestedContainerId.set_value(id::UUID::random().toString());
 
   Image image;
   image.set_type(Image::DOCKER);

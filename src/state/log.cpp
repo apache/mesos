@@ -90,7 +90,7 @@ public:
 
   // Storage implementation.
   Future<Option<Entry>> get(const string& name);
-  Future<bool> set(const Entry& entry, const UUID& uuid);
+  Future<bool> set(const Entry& entry, const id::UUID& uuid);
   Future<bool> expunge(const Entry& entry);
   Future<std::set<string>> names();
 
@@ -117,8 +117,8 @@ private:
   // Continuations.
   Future<Option<Entry>> _get(const string& name);
 
-  Future<bool> _set(const Entry& entry, const UUID& uuid);
-  Future<bool> __set(const Entry& entry, const UUID& uuid);
+  Future<bool> _set(const Entry& entry, const id::UUID& uuid);
+  Future<bool> __set(const Entry& entry, const id::UUID& uuid);
   Future<bool> ___set(
       const Entry& entry,
       size_t diff,
@@ -461,7 +461,7 @@ Future<Option<Entry>> LogStorageProcess::_get(const string& name)
 
 Future<bool> LogStorageProcess::set(
     const Entry& entry,
-    const UUID& uuid)
+    const id::UUID& uuid)
 {
   return mutex.lock()
     .then(defer(self(), &Self::_set, entry, uuid))
@@ -471,7 +471,7 @@ Future<bool> LogStorageProcess::set(
 
 Future<bool> LogStorageProcess::_set(
     const Entry& entry,
-    const UUID& uuid)
+    const id::UUID& uuid)
 {
   return start()
     .then(defer(self(), &Self::__set, entry, uuid));
@@ -480,13 +480,13 @@ Future<bool> LogStorageProcess::_set(
 
 Future<bool> LogStorageProcess::__set(
     const Entry& entry,
-    const UUID& uuid)
+    const id::UUID& uuid)
 {
   Option<Snapshot> snapshot = snapshots.get(entry.name());
 
   // Check the version first (if we've already got a snapshot).
   if (snapshot.isSome() &&
-      UUID::fromBytes(snapshot.get().entry.uuid()).get() != uuid) {
+      id::UUID::fromBytes(snapshot.get().entry.uuid()).get() != uuid) {
     return false;
   }
 
@@ -606,8 +606,8 @@ Future<bool> LogStorageProcess::__expunge(const Entry& entry)
   }
 
   // Check the version first.
-  if (UUID::fromBytes(snapshot.get().entry.uuid()).get() !=
-      UUID::fromBytes(entry.uuid()).get()) {
+  if (id::UUID::fromBytes(snapshot.get().entry.uuid()).get() !=
+      id::UUID::fromBytes(entry.uuid()).get()) {
     return false;
   }
 
@@ -679,7 +679,7 @@ Future<Option<Entry>> LogStorage::get(const string& name)
 }
 
 
-Future<bool> LogStorage::set(const Entry& entry, const UUID& uuid)
+Future<bool> LogStorage::set(const Entry& entry, const id::UUID& uuid)
 {
   return dispatch(process, &LogStorageProcess::set, entry, uuid);
 }

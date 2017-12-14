@@ -36,7 +36,7 @@ namespace internal {
 OfferOperationStatusUpdateManager::OfferOperationStatusUpdateManager()
   : process(
         new StatusUpdateManagerProcess<
-            UUID,
+            id::UUID,
             OfferOperationStatusUpdateRecord,
             OfferOperationStatusUpdate>(
                 "offer-operation-status-update-manager",
@@ -55,12 +55,12 @@ OfferOperationStatusUpdateManager::~OfferOperationStatusUpdateManager()
 
 void OfferOperationStatusUpdateManager::initialize(
     const function<void(const OfferOperationStatusUpdate&)>& forward,
-    const function<const std::string(const UUID&)>& getPath)
+    const function<const std::string(const id::UUID&)>& getPath)
 {
   dispatch(
       process.get(),
       &StatusUpdateManagerProcess<
-          UUID,
+          id::UUID,
           OfferOperationStatusUpdateRecord,
           OfferOperationStatusUpdate>::initialize,
       forward,
@@ -72,13 +72,13 @@ Future<Nothing> OfferOperationStatusUpdateManager::update(
     const OfferOperationStatusUpdate& update,
     bool checkpoint)
 {
-  Try<UUID> operationUuid = UUID::fromBytes(update.operation_uuid());
+  Try<id::UUID> operationUuid = id::UUID::fromBytes(update.operation_uuid());
   CHECK_SOME(operationUuid);
 
   return dispatch(
       process.get(),
       &StatusUpdateManagerProcess<
-          UUID,
+          id::UUID,
           OfferOperationStatusUpdateRecord,
           OfferOperationStatusUpdate>::update,
       update,
@@ -88,13 +88,13 @@ Future<Nothing> OfferOperationStatusUpdateManager::update(
 
 
 Future<bool> OfferOperationStatusUpdateManager::acknowledgement(
-      const UUID& operationUuid,
-      const UUID& statusUuid)
+      const id::UUID& operationUuid,
+      const id::UUID& statusUuid)
 {
   return dispatch(
       process.get(),
       &StatusUpdateManagerProcess<
-          UUID,
+          id::UUID,
           OfferOperationStatusUpdateRecord,
           OfferOperationStatusUpdate>::acknowledgement,
       operationUuid,
@@ -104,13 +104,13 @@ Future<bool> OfferOperationStatusUpdateManager::acknowledgement(
 
 process::Future<OfferOperationStatusManagerState>
 OfferOperationStatusUpdateManager::recover(
-    const std::list<UUID>& operationUuids,
+    const std::list<id::UUID>& operationUuids,
     bool strict)
 {
   return dispatch(
       process.get(),
       &StatusUpdateManagerProcess<
-          UUID,
+          id::UUID,
           OfferOperationStatusUpdateRecord,
           OfferOperationStatusUpdate>::recover,
       operationUuids,
@@ -123,7 +123,7 @@ void OfferOperationStatusUpdateManager::cleanup(const FrameworkID& frameworkId)
   dispatch(
       process.get(),
       &StatusUpdateManagerProcess<
-          UUID,
+          id::UUID,
           OfferOperationStatusUpdateRecord,
           OfferOperationStatusUpdate>::cleanup,
       frameworkId);
@@ -135,7 +135,7 @@ void OfferOperationStatusUpdateManager::pause()
   dispatch(
       process.get(),
       &StatusUpdateManagerProcess<
-          UUID,
+          id::UUID,
           OfferOperationStatusUpdateRecord,
           OfferOperationStatusUpdate>::pause);
 }
@@ -146,7 +146,7 @@ void OfferOperationStatusUpdateManager::resume()
   dispatch(
       process.get(),
       &StatusUpdateManagerProcess<
-          UUID,
+          id::UUID,
           OfferOperationStatusUpdateRecord,
           OfferOperationStatusUpdate>::resume);
 }

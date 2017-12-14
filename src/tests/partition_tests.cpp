@@ -1731,7 +1731,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveStatusUpdates)
       taskId1,
       TASK_RUNNING,
       TaskStatus::SOURCE_SLAVE,
-      UUID::random());
+      id::UUID::random());
 
   StatusUpdateMessage message1;
   message1.mutable_update()->CopyFrom(update1);
@@ -1771,7 +1771,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveStatusUpdates)
       taskId2,
       TASK_RUNNING,
       TaskStatus::SOURCE_SLAVE,
-      UUID::random());
+      id::UUID::random());
 
   StatusUpdateMessage message2;
   message2.mutable_update()->CopyFrom(update2);
@@ -2553,7 +2553,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   // the unreachable list; hence `unreachable_time` should be set on
   // the result of the reconciliation request.
   TaskStatus status1;
-  status1.mutable_task_id()->set_value(UUID::random().toString());
+  status1.mutable_task_id()->set_value(id::UUID::random().toString());
   status1.mutable_slave_id()->CopyFrom(slaveId1);
   status1.set_state(TASK_STAGING); // Dummy value.
 
@@ -2576,7 +2576,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   // Because the agent has been removed from the unreachable list in
   // the registry, `unreachable_time` should NOT be set.
   TaskStatus status2;
-  status2.mutable_task_id()->set_value(UUID::random().toString());
+  status2.mutable_task_id()->set_value(id::UUID::random().toString());
   status2.mutable_slave_id()->CopyFrom(slaveId1);
   status2.set_state(TASK_STAGING); // Dummy value.
 
@@ -2595,7 +2595,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   // partitioned slave. Because the agent is still in the unreachable
   // list in the registry, `unreachable_time` should be set.
   TaskStatus status3;
-  status3.mutable_task_id()->set_value(UUID::random().toString());
+  status3.mutable_task_id()->set_value(id::UUID::random().toString());
   status3.mutable_slave_id()->CopyFrom(slaveId2);
   status3.set_state(TASK_STAGING); // Dummy value.
 
@@ -2648,7 +2648,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCountManySlaves)
   vector<SlaveID> slaveIDs;
   for (int i = 0; i < 50; i++) {
     SlaveID slaveID;
-    slaveID.set_value(UUID::random().toString());
+    slaveID.set_value(id::UUID::random().toString());
     slaveIDs.push_back(slaveID);
 
     SlaveInfo slaveInfo;
@@ -2704,7 +2704,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCountManySlaves)
   SlaveID removedSlaveID = *(slaveIDs.crbegin() + 1);
 
   TaskStatus status1;
-  status1.mutable_task_id()->set_value(UUID::random().toString());
+  status1.mutable_task_id()->set_value(id::UUID::random().toString());
   status1.mutable_slave_id()->CopyFrom(keptSlaveID);
   status1.set_state(TASK_STAGING); // Dummy value.
 
@@ -2720,7 +2720,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCountManySlaves)
   EXPECT_EQ(unreachableTime, reconcileUpdate1->unreachable_time());
 
   TaskStatus status2;
-  status2.mutable_task_id()->set_value(UUID::random().toString());
+  status2.mutable_task_id()->set_value(id::UUID::random().toString());
   status2.mutable_slave_id()->CopyFrom(removedSlaveID);
   status2.set_state(TASK_STAGING); // Dummy value.
 
@@ -2917,7 +2917,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   // Since neither slave has exceeded the age-based GC bound, we
   // expect to find both slaves (i.e., `unreachable_time` will be set).
   TaskStatus status1;
-  status1.mutable_task_id()->set_value(UUID::random().toString());
+  status1.mutable_task_id()->set_value(id::UUID::random().toString());
   status1.mutable_slave_id()->CopyFrom(slaveId1);
   status1.set_state(TASK_STAGING); // Dummy value.
 
@@ -2933,7 +2933,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   EXPECT_EQ(partitionTime1, reconcileUpdate1->unreachable_time());
 
   TaskStatus status2;
-  status2.mutable_task_id()->set_value(UUID::random().toString());
+  status2.mutable_task_id()->set_value(id::UUID::random().toString());
   status2.mutable_slave_id()->CopyFrom(slaveId2);
   status2.set_state(TASK_STAGING); // Dummy value.
 
@@ -2956,7 +2956,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   // We expect `slave1` to have been garbage collected, but `slave2`
   // should still be present in the registry.
   TaskStatus status3;
-  status3.mutable_task_id()->set_value(UUID::random().toString());
+  status3.mutable_task_id()->set_value(id::UUID::random().toString());
   status3.mutable_slave_id()->CopyFrom(slaveId1);
   status3.set_state(TASK_STAGING); // Dummy value.
 
@@ -2972,7 +2972,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   EXPECT_FALSE(reconcileUpdate3->has_unreachable_time());
 
   TaskStatus status4;
-  status4.mutable_task_id()->set_value(UUID::random().toString());
+  status4.mutable_task_id()->set_value(id::UUID::random().toString());
   status4.mutable_slave_id()->CopyFrom(slaveId2);
   status4.set_state(TASK_STAGING); // Dummy value.
 
@@ -2995,7 +2995,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
   // expect that it has been garbage collected, which means
   // `unreachable_time` will not be set.
   TaskStatus status5;
-  status5.mutable_task_id()->set_value(UUID::random().toString());
+  status5.mutable_task_id()->set_value(id::UUID::random().toString());
   status5.mutable_slave_id()->CopyFrom(slaveId2);
   status5.set_state(TASK_STAGING); // Dummy value.
 
@@ -3249,7 +3249,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   // unreachable list. We use reconciliation to verify this.
 
   TaskStatus status1;
-  status1.mutable_task_id()->set_value(UUID::random().toString());
+  status1.mutable_task_id()->set_value(id::UUID::random().toString());
   status1.mutable_slave_id()->CopyFrom(slaveId1);
   status1.set_state(TASK_STAGING); // Dummy value.
 
@@ -3265,7 +3265,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   EXPECT_FALSE(reconcileUpdate1->has_unreachable_time());
 
   TaskStatus status2;
-  status2.mutable_task_id()->set_value(UUID::random().toString());
+  status2.mutable_task_id()->set_value(id::UUID::random().toString());
   status2.mutable_slave_id()->CopyFrom(slaveId2);
   status2.set_state(TASK_STAGING); // Dummy value.
 
@@ -3281,7 +3281,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   EXPECT_FALSE(reconcileUpdate2->has_unreachable_time());
 
   TaskStatus status3;
-  status3.mutable_task_id()->set_value(UUID::random().toString());
+  status3.mutable_task_id()->set_value(id::UUID::random().toString());
   status3.mutable_slave_id()->CopyFrom(slaveId3);
   status3.set_state(TASK_STAGING); // Dummy value.
 

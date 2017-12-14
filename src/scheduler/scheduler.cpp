@@ -336,7 +336,7 @@ protected:
       .onAny(defer(self(), &MesosProcess::detected, lambda::_1));
   }
 
-  void connect(const UUID& _connectionId)
+  void connect(const id::UUID& _connectionId)
   {
     // It is possible that a new master was detected while we were waiting
     // to establish a connection with the old master.
@@ -361,7 +361,7 @@ protected:
   }
 
   void connected(
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const Future<tuple<Connection, Connection>>& _connections)
   {
     // It is possible that a new master was detected while we had an ongoing
@@ -411,7 +411,7 @@ protected:
   }
 
   void disconnected(
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const string& failure)
   {
     // Ignore if the disconnection happened from an old stale connection.
@@ -493,7 +493,7 @@ protected:
 
       LOG(INFO) << "New master detected at " << upid;
 
-      connectionId = UUID::random();
+      connectionId = id::UUID::random();
 
       // Wait for a random duration between 0 and `flags.connectionDelayMax`
       // before (re-)connecting with the master.
@@ -577,7 +577,7 @@ protected:
   }
 
   void __send(
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const Call& call,
       const Future<process::http::Response>& response)
   {
@@ -620,8 +620,8 @@ protected:
       // Responses to SUBSCRIBE calls should always include a stream ID.
       CHECK(response->headers.contains("Mesos-Stream-Id"));
 
-      Try<UUID> uuid =
-        UUID::fromString(response->headers.at("Mesos-Stream-Id"));
+      Try<id::UUID> uuid =
+        id::UUID::fromString(response->headers.at("Mesos-Stream-Id"));
 
       CHECK_SOME(uuid);
 
@@ -832,7 +832,7 @@ private:
   // the master (e.g., the master failed over while an attempt was in progress).
   // This helps us in uniquely identifying the current connection instance and
   // ignoring the stale instance.
-  Option<UUID> connectionId; // UUID to identify the connection instance.
+  Option<id::UUID> connectionId; // UUID to identify the connection instance.
 
   Option<Connections> connections;
   Option<SubscribedResponse> subscribed;
@@ -844,7 +844,7 @@ private:
   shared_ptr<MasterDetector> detector;
   queue<Event> events;
   Option<::URL> master;
-  Option<UUID> streamId;
+  Option<id::UUID> streamId;
   const Flags flags;
 
   Owned<mesos::http::authentication::Authenticatee> authenticatee;

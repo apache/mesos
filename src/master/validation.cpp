@@ -584,7 +584,7 @@ Option<Error> validate(
         return Error("Expecting 'acknowledge' to be present");
       }
 
-      Try<UUID> uuid = UUID::fromBytes(call.acknowledge().uuid());
+      Try<id::UUID> uuid = id::UUID::fromBytes(call.acknowledge().uuid());
       if (uuid.isError()) {
         return uuid.error();
       }
@@ -597,7 +597,7 @@ Option<Error> validate(
             "Expecting 'acknowledge_offer_operation_update' to be present");
       }
 
-      Try<UUID> uuid = UUID::fromBytes(
+      Try<id::UUID> uuid = id::UUID::fromBytes(
           call.acknowledge_offer_operation_update().status_uuid());
       if (uuid.isError()) {
         return uuid.error();

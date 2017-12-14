@@ -545,7 +545,7 @@ void CheckerProcess::__nestedCommandCheck(
     http::Connection connection)
 {
   ContainerID checkContainerId;
-  checkContainerId.set_value("check-" + UUID::random().toString());
+  checkContainerId.set_value("check-" + id::UUID::random().toString());
   checkContainerId.mutable_parent()->CopyFrom(taskContainerId.get());
 
   previousCheckContainerId = checkContainerId;

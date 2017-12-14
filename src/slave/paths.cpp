@@ -556,13 +556,13 @@ Try<list<string>> getOfferOperationPaths(
 
 string getOfferOperationPath(
     const string& rootDir,
-    const UUID& operationUuid)
+    const id::UUID& operationUuid)
 {
   return path::join(rootDir, OFFER_OPERATIONS_DIR, operationUuid.toString());
 }
 
 
-Try<UUID> parseOfferOperationPath(
+Try<id::UUID> parseOfferOperationPath(
     const string& rootDir,
     const string& dir)
 {
@@ -578,7 +578,7 @@ Try<UUID> parseOfferOperationPath(
         prefix + "'");
   }
 
-  Try<UUID> operationUuid = UUID::fromString(Path(dir).basename());
+  Try<id::UUID> operationUuid = id::UUID::fromString(Path(dir).basename());
   if (operationUuid.isError()) {
     return Error(
         "Could not decode offer operation UUID from string '" +
@@ -591,7 +591,7 @@ Try<UUID> parseOfferOperationPath(
 
 string getOfferOperationUpdatesPath(
     const string& rootDir,
-    const UUID& operationUuid)
+    const id::UUID& operationUuid)
 {
   return path::join(
       getOfferOperationPath(rootDir, operationUuid),

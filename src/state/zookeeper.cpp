@@ -77,7 +77,7 @@ public:
 
   // Storage implementation.
   Future<Option<Entry>> get(const string& name);
-  Future<bool> set(const Entry& entry, const UUID& uuid);
+  Future<bool> set(const Entry& entry, const id::UUID& uuid);
   virtual Future<bool> expunge(const Entry& entry);
   Future<std::set<string>> names();
 
@@ -94,7 +94,7 @@ private:
   // Helpers for getting the names, fetching, and swapping.
   Result<std::set<string>> doNames();
   Result<Option<Entry>> doGet(const string& name);
-  Result<bool> doSet(const Entry& entry, const UUID& uuid);
+  Result<bool> doSet(const Entry& entry, const id::UUID& uuid);
   Result<bool> doExpunge(const Entry& entry);
 
   const string servers;
@@ -134,10 +134,11 @@ private:
 
   struct Set
   {
-    Set(const Entry& _entry, const UUID& _uuid) : entry(_entry), uuid(_uuid) {}
+    Set(const Entry& _entry, const id::UUID& _uuid) : entry(_entry), uuid(_uuid)
+    {}
 
     Entry entry;
-    UUID uuid;
+    id::UUID uuid;
     Promise<bool> promise;
   };
 
@@ -262,7 +263,9 @@ Future<Option<Entry>> ZooKeeperStorageProcess::get(const string& name)
 }
 
 
-Future<bool> ZooKeeperStorageProcess::set(const Entry& entry, const UUID& uuid)
+Future<bool> ZooKeeperStorageProcess::set(
+    const Entry& entry,
+    const id::UUID& uuid)
 {
   if (error.isSome()) {
     return Failure(error.get());
@@ -477,7 +480,7 @@ Result<Option<Entry>> ZooKeeperStorageProcess::doGet(const string& name)
 
 
 Result<bool> ZooKeeperStorageProcess::doSet(const Entry& entry,
-                                            const UUID& uuid)
+                                            const id::UUID& uuid)
 {
   CHECK_NONE(error) << ": " << error.get();
   CHECK(state == CONNECTED);
@@ -553,7 +556,7 @@ Result<bool> ZooKeeperStorageProcess::doSet(const Entry& entry,
     return Error("Failed to deserialize Entry");
   }
 
-  if (UUID::fromBytes(current.uuid()).get() != uuid) {
+  if (id::UUID::fromBytes(current.uuid()).get() != uuid) {
     return false;
   }
 
@@ -604,8 +607,8 @@ Result<bool> ZooKeeperStorageProcess::doExpunge(const Entry& entry)
     return Error("Failed to deserialize Entry");
   }
 
-  if (UUID::fromBytes(current.uuid()).get() !=
-      UUID::fromBytes(entry.uuid()).get()) {
+  if (id::UUID::fromBytes(current.uuid()).get() !=
+      id::UUID::fromBytes(entry.uuid()).get()) {
     return false;
   }
 
@@ -652,7 +655,7 @@ Future<Option<Entry>> ZooKeeperStorage::get(const string& name)
 }
 
 
-Future<bool> ZooKeeperStorage::set(const Entry& entry, const UUID& uuid)
+Future<bool> ZooKeeperStorage::set(const Entry& entry, const id::UUID& uuid)
 {
   return dispatch(process, &ZooKeeperStorageProcess::set, entry, uuid);
 }

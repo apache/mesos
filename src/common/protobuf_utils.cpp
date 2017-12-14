@@ -107,7 +107,7 @@ StatusUpdate createStatusUpdate(
     const TaskID& taskId,
     const TaskState& state,
     const TaskStatus::Source& source,
-    const Option<UUID>& uuid,
+    const Option<id::UUID>& uuid,
     const string& message,
     const Option<TaskStatus::Reason>& reason,
     const Option<ExecutorID>& executorId,
@@ -234,7 +234,7 @@ StatusUpdate createStatusUpdate(
 TaskStatus createTaskStatus(
     const TaskID& taskId,
     const TaskState& state,
-    const UUID& uuid,
+    const id::UUID& uuid,
     double timestamp)
 {
   TaskStatus status;
@@ -250,7 +250,7 @@ TaskStatus createTaskStatus(
 
 TaskStatus createTaskStatus(
     TaskStatus status,
-    const UUID& uuid,
+    const id::UUID& uuid,
     double timestamp,
     const Option<TaskState>& state,
     const Option<string>& message,
@@ -420,7 +420,7 @@ OfferOperationStatus createOfferOperationStatus(
     const Option<OfferOperationID>& operationId,
     const Option<string>& message,
     const Option<Resources>& convertedResources,
-    const Option<UUID>& statusUUID)
+    const Option<id::UUID>& statusUUID)
 {
   OfferOperationStatus status;
   status.set_state(state);
@@ -450,7 +450,7 @@ OfferOperation createOfferOperation(
     const OfferOperationStatus& latestStatus,
     const Option<FrameworkID>& frameworkId,
     const Option<SlaveID>& slaveId,
-    const Option<UUID>& operationUUID)
+    const Option<id::UUID>& operationUUID)
 {
   OfferOperation operation;
   if (frameworkId.isSome()) {
@@ -464,7 +464,7 @@ OfferOperation createOfferOperation(
   if (operationUUID.isSome()) {
     operation.set_operation_uuid(operationUUID->toBytes());
   } else {
-    operation.set_operation_uuid(UUID::random().toBytes());
+    operation.set_operation_uuid(id::UUID::random().toBytes());
   }
 
   return operation;
@@ -472,7 +472,7 @@ OfferOperation createOfferOperation(
 
 
 OfferOperationStatusUpdate createOfferOperationStatusUpdate(
-    const UUID& operationUUID,
+    const id::UUID& operationUUID,
     const OfferOperationStatus& status,
     const Option<OfferOperationStatus>& latestStatus,
     const Option<FrameworkID>& frameworkId,
@@ -514,7 +514,7 @@ OfferOperationStatusUpdate createOfferOperationStatusUpdate(
 MasterInfo createMasterInfo(const UPID& pid)
 {
   MasterInfo info;
-  info.set_id(stringify(pid) + "-" + UUID::random().toString());
+  info.set_id(stringify(pid) + "-" + id::UUID::random().toString());
 
   // NOTE: Currently, we store the ip in network order, which should
   // be fixed. See MESOS-1201 for more details.
@@ -856,13 +856,13 @@ bool isSpeculativeOperation(const Offer::Operation& operation)
 
 
 RepeatedPtrField<ResourceVersionUUID> createResourceVersions(
-    const hashmap<Option<ResourceProviderID>, UUID>& resourceVersions)
+    const hashmap<Option<ResourceProviderID>, id::UUID>& resourceVersions)
 {
   RepeatedPtrField<ResourceVersionUUID> result;
 
   foreachpair (
       const Option<ResourceProviderID>& resourceProviderId,
-      const UUID& uuid,
+      const id::UUID& uuid,
       resourceVersions) {
     ResourceVersionUUID* entry = result.Add();
 
@@ -876,10 +876,10 @@ RepeatedPtrField<ResourceVersionUUID> createResourceVersions(
 }
 
 
-hashmap<Option<ResourceProviderID>, UUID> parseResourceVersions(
+hashmap<Option<ResourceProviderID>, id::UUID> parseResourceVersions(
     const RepeatedPtrField<ResourceVersionUUID>& resourceVersionUUIDs)
 {
-  hashmap<Option<ResourceProviderID>, UUID> result;
+  hashmap<Option<ResourceProviderID>, id::UUID> result;
 
   foreach (
       const ResourceVersionUUID& resourceVersionUUID,
@@ -891,7 +891,7 @@ hashmap<Option<ResourceProviderID>, UUID> parseResourceVersions(
 
     CHECK(!result.contains(resourceProviderId));
 
-    const Try<UUID> uuid = UUID::fromBytes(resourceVersionUUID.uuid());
+    const Try<id::UUID> uuid = id::UUID::fromBytes(resourceVersionUUID.uuid());
     CHECK_SOME(uuid);
 
     result.insert({std::move(resourceProviderId), std::move(uuid.get())});

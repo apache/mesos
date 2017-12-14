@@ -1796,7 +1796,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     status(DRIVER_NOT_STARTED),
     implicitAcknowlegements(true),
     credential(nullptr),
-    schedulerId("scheduler-" + UUID::random().toString())
+    schedulerId("scheduler-" + id::UUID::random().toString())
 {
   initialize();
 }
@@ -1816,7 +1816,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     status(DRIVER_NOT_STARTED),
     implicitAcknowlegements(true),
     credential(new Credential(_credential)),
-    schedulerId("scheduler-" + UUID::random().toString())
+    schedulerId("scheduler-" + id::UUID::random().toString())
 {
   initialize();
 }
@@ -1836,7 +1836,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     status(DRIVER_NOT_STARTED),
     implicitAcknowlegements(_implicitAcknowlegements),
     credential(nullptr),
-    schedulerId("scheduler-" + UUID::random().toString())
+    schedulerId("scheduler-" + id::UUID::random().toString())
 {
   initialize();
 }
@@ -1857,7 +1857,7 @@ MesosSchedulerDriver::MesosSchedulerDriver(
     status(DRIVER_NOT_STARTED),
     implicitAcknowlegements(_implicitAcknowlegements),
     credential(new Credential(_credential)),
-    schedulerId("scheduler-" + UUID::random().toString())
+    schedulerId("scheduler-" + id::UUID::random().toString())
 {
   initialize();
 }

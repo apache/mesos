@@ -91,7 +91,7 @@ public:
   Future<bool> acknowledgement(
       const TaskID& taskId,
       const FrameworkID& frameworkId,
-      const UUID& uuid);
+      const id::UUID& uuid);
 
   Future<Nothing> recover(
       const string& rootDir,
@@ -396,7 +396,7 @@ Timeout TaskStatusUpdateManagerProcess::forward(
 Future<bool> TaskStatusUpdateManagerProcess::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
-    const UUID& uuid)
+    const id::UUID& uuid)
 {
   LOG(INFO) << "Received task status update acknowledgement (UUID: " << uuid
             << ") for task " << taskId
@@ -610,7 +610,7 @@ Future<Nothing> TaskStatusUpdateManager::update(
 Future<bool> TaskStatusUpdateManager::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
-    const UUID& uuid)
+    const id::UUID& uuid)
 {
   return dispatch(
       process,
@@ -733,7 +733,7 @@ Try<bool> TaskStatusUpdateStream::update(const StatusUpdate& update)
   // Check that this status update has not already been acknowledged.
   // This could happen in the rare case when the slave received the ACK
   // from the framework, died, but slave's ACK to the executor never made it!
-  if (acknowledged.contains(UUID::fromBytes(update.uuid()).get())) {
+  if (acknowledged.contains(id::UUID::fromBytes(update.uuid()).get())) {
     LOG(WARNING) << "Ignoring task status update " << update
                  << " that has already been acknowledged by the framework!";
     return false;
@@ -742,7 +742,7 @@ Try<bool> TaskStatusUpdateStream::update(const StatusUpdate& update)
   // Check that this update hasn't already been received.
   // This could happen if the slave receives a status update from an executor,
   // then crashes after it writes it to disk but before it sends an ack.
-  if (received.contains(UUID::fromBytes(update.uuid()).get())) {
+  if (received.contains(id::UUID::fromBytes(update.uuid()).get())) {
     LOG(WARNING) << "Ignoring duplicate task status update " << update;
     return false;
   }
@@ -760,7 +760,7 @@ Try<bool> TaskStatusUpdateStream::update(const StatusUpdate& update)
 Try<bool> TaskStatusUpdateStream::acknowledgement(
     const TaskID& taskId,
     const FrameworkID& frameworkId,
-    const UUID& uuid,
+    const id::UUID& uuid,
     const StatusUpdate& update)
 {
   if (error.isSome()) {
@@ -775,10 +775,10 @@ Try<bool> TaskStatusUpdateStream::acknowledgement(
 
   // This might happen if we retried a status update and got back
   // acknowledgments for both the original and the retried update.
-  if (uuid != UUID::fromBytes(update.uuid()).get()) {
+  if (uuid != id::UUID::fromBytes(update.uuid()).get()) {
     LOG(WARNING) << "Unexpected task status update acknowledgement (received "
                  << uuid << ", expecting "
-                 << UUID::fromBytes(update.uuid()).get()
+                 << id::UUID::fromBytes(update.uuid()).get()
                  << ") for update " << update;
     return false;
   }
@@ -809,7 +809,7 @@ Result<StatusUpdate> TaskStatusUpdateStream::next()
 
 Try<Nothing> TaskStatusUpdateStream::replay(
     const std::vector<StatusUpdate>& updates,
-    const hashset<UUID>& acks)
+    const hashset<id::UUID>& acks)
 {
   if (error.isSome()) {
     return Error(error.get());
@@ -822,7 +822,7 @@ Try<Nothing> TaskStatusUpdateStream::replay(
     _handle(update, StatusUpdateRecord::UPDATE);
 
     // Check if the update has an ACK too.
-    if (acks.contains(UUID::fromBytes(update.uuid()).get())) {
+    if (acks.contains(id::UUID::fromBytes(update.uuid()).get())) {
       _handle(update, StatusUpdateRecord::ACK);
     }
   }
@@ -876,13 +876,13 @@ void TaskStatusUpdateStream::_handle(
 
   if (type == StatusUpdateRecord::UPDATE) {
     // Record this update.
-    received.insert(UUID::fromBytes(update.uuid()).get());
+    received.insert(id::UUID::fromBytes(update.uuid()).get());
 
     // Add it to the pending updates queue.
     pending.push(update);
   } else {
     // Record this ACK.
-    acknowledged.insert(UUID::fromBytes(update.uuid()).get());
+    acknowledged.insert(id::UUID::fromBytes(update.uuid()).get());
 
     // Remove the corresponding update from the pending queue.
     pending.pop();

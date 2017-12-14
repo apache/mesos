@@ -83,7 +83,7 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_VolumeFromHost)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -140,7 +140,7 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_FileVolumeFromHost)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -198,7 +198,7 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_VolumeFromHostSandboxMountPoint)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -255,7 +255,7 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_FileVolumeFromHostSandboxMountPoint)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ExecutorInfo executor = createExecutorInfo(
       "test_executor",
@@ -304,7 +304,7 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_MountPropagation)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   string mountDirectory = path::join(flags.work_dir, "mount_directory");
   string mountPoint = path::join(mountDirectory, "mount_point");

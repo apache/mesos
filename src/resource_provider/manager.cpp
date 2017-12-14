@@ -89,7 +89,7 @@ struct HttpConnection
 {
   HttpConnection(const http::Pipe::Writer& _writer,
                  ContentType _contentType,
-                 UUID _streamId)
+                 id::UUID _streamId)
     : writer(_writer),
       contentType(_contentType),
       streamId(_streamId),
@@ -116,7 +116,7 @@ struct HttpConnection
 
   http::Pipe::Writer writer;
   ContentType contentType;
-  UUID streamId;
+  id::UUID streamId;
   ::recordio::Encoder<v1::resource_provider::Event> encoder;
 };
 
@@ -144,7 +144,7 @@ struct ResourceProvider
 
   ResourceProviderInfo info;
   HttpConnection http;
-  hashmap<UUID, Owned<Promise<Nothing>>> publishes;
+  hashmap<id::UUID, Owned<Promise<Nothing>>> publishes;
 };
 
 
@@ -279,7 +279,7 @@ Future<http::Response> ResourceProviderManagerProcess::api(
     ok.reader = pipe.reader();
 
     // Generate a stream ID and return it in the response.
-    UUID streamId = UUID::random();
+    id::UUID streamId = id::UUID::random();
     ok.headers["Mesos-Stream-Id"] = streamId.toString();
 
     HttpConnection http(pipe.writer(), acceptType, streamId);
@@ -350,7 +350,7 @@ void ResourceProviderManagerProcess::applyOfferOperation(
   const Offer::Operation& operation = message.operation_info();
   const FrameworkID& frameworkId = message.framework_id();
 
-  Try<UUID> uuid = UUID::fromBytes(message.operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(message.operation_uuid());
   if (uuid.isError()) {
     LOG(ERROR) << "Failed to parse offer operation UUID for operation "
                << "'" << operation.id() << "' from framework "
@@ -534,7 +534,7 @@ Future<Nothing> ResourceProviderManagerProcess::publishResources(
   foreachpair (const ResourceProviderID& resourceProviderId,
                const Resources& resources,
                providedResources) {
-    UUID uuid = UUID::random();
+    id::UUID uuid = id::UUID::random();
 
     Event event;
     event.set_type(Event::PUBLISH_RESOURCES);
@@ -656,16 +656,16 @@ void ResourceProviderManagerProcess::updateState(
 
   // TODO(chhsiao): Report pending operations.
 
-  Try<UUID> resourceVersion =
-    UUID::fromBytes(update.resource_version_uuid());
+  Try<id::UUID> resourceVersion =
+    id::UUID::fromBytes(update.resource_version_uuid());
 
   CHECK_SOME(resourceVersion)
     << "Could not deserialize version of resource provider "
     << resourceProvider->info.id() << ": " << resourceVersion.error();
 
-  hashmap<UUID, OfferOperation> offerOperations;
+  hashmap<id::UUID, OfferOperation> offerOperations;
   foreach (const OfferOperation &operation, update.operations()) {
-    Try<UUID> uuid = UUID::fromBytes(operation.operation_uuid());
+    Try<id::UUID> uuid = id::UUID::fromBytes(operation.operation_uuid());
     CHECK_SOME(uuid);
 
     offerOperations.put(uuid.get(), operation);
@@ -693,7 +693,7 @@ void ResourceProviderManagerProcess::updatePublishResourcesStatus(
     ResourceProvider* resourceProvider,
     const Call::UpdatePublishResourcesStatus& update)
 {
-  Try<UUID> uuid = UUID::fromBytes(update.uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(update.uuid());
   if (uuid.isError()) {
     LOG(ERROR) << "Invalid UUID in UpdatePublishResourcesStatus from resource"
                << " provider " << resourceProvider->info.id()
@@ -731,7 +731,7 @@ void ResourceProviderManagerProcess::updatePublishResourcesStatus(
 ResourceProviderID ResourceProviderManagerProcess::newResourceProviderId()
 {
   ResourceProviderID resourceProviderId;
-  resourceProviderId.set_value(UUID::random().toString());
+  resourceProviderId.set_value(id::UUID::random().toString());
   return resourceProviderId;
 }
 

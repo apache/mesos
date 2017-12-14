@@ -222,7 +222,7 @@ Slave::Slave(const string& id,
     qosController(_qosController),
     secretGenerator(_secretGenerator),
     authorizer(_authorizer),
-    resourceVersion(UUID::random()) {}
+    resourceVersion(id::UUID::random()) {}
 
 
 Slave::~Slave()
@@ -1459,7 +1459,7 @@ void Slave::reregistered(
             taskId,
             taskState,
             TaskStatus::SOURCE_SLAVE,
-            UUID::random(),
+            id::UUID::random(),
             "Reconciliation: task unknown to the agent",
             TaskStatus::REASON_RECONCILIATION);
 
@@ -2050,7 +2050,7 @@ void Slave::_run(
           _task.task_id(),
           taskState,
           TaskStatus::SOURCE_SLAVE,
-          UUID::random(),
+          id::UUID::random(),
           "Could not launch the task because we failed to unschedule"
           " directories scheduled for gc",
           TaskStatus::REASON_GC_ERROR);
@@ -2228,7 +2228,7 @@ void Slave::__run(
           _task.task_id(),
           TASK_ERROR,
           TaskStatus::SOURCE_SLAVE,
-          UUID::random(),
+          id::UUID::random(),
           error->message,
           reason);
 
@@ -2265,10 +2265,9 @@ void Slave::__run(
       }
     }
 
-    const hashmap<Option<ResourceProviderID>, UUID> receivedResourceVersions =
-      protobuf::parseResourceVersions({
-          resourceVersionUuids.begin(),
-          resourceVersionUuids.end()});
+    const hashmap<Option<ResourceProviderID>, id::UUID>
+      receivedResourceVersions = protobuf::parseResourceVersions(
+          {resourceVersionUuids.begin(), resourceVersionUuids.end()});
 
     foreach (const Option<ResourceProviderID>& resourceProviderId,
              usedResourceProviderIds) {
@@ -2308,7 +2307,7 @@ void Slave::__run(
           _task.task_id(),
           taskState,
           TaskStatus::SOURCE_SLAVE,
-          UUID::random(),
+          id::UUID::random(),
           "Tasks assumes outdated resource state",
           TaskStatus::REASON_INVALID_OFFERS,
           executorId);
@@ -2375,7 +2374,7 @@ void Slave::__run(
           _task.task_id(),
           taskState,
           TaskStatus::SOURCE_SLAVE,
-          UUID::random(),
+          id::UUID::random(),
           "The checkpointed resources being used by the task or task group are "
           "unknown to the agent",
           TaskStatus::REASON_RESOURCES_UNKNOWN);
@@ -2427,7 +2426,7 @@ void Slave::__run(
           _task.task_id(),
           taskState,
           TaskStatus::SOURCE_SLAVE,
-          UUID::random(),
+          id::UUID::random(),
           "The checkpointed resources being used by the executor are unknown "
           "to the agent",
           TaskStatus::REASON_RESOURCES_UNKNOWN,
@@ -2530,7 +2529,7 @@ void Slave::__run(
             _task.task_id(),
             taskState,
             TaskStatus::SOURCE_SLAVE,
-            UUID::random(),
+            id::UUID::random(),
             "Executor " + executorState,
             TaskStatus::REASON_EXECUTOR_TERMINATED);
 
@@ -3167,7 +3166,7 @@ void Slave::killTask(
             task.task_id(),
             TASK_KILLED,
             TaskStatus::SOURCE_SLAVE,
-            UUID::random(),
+            id::UUID::random(),
             "A task within the task group was killed before"
             " delivery to the executor",
             TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
@@ -3181,7 +3180,7 @@ void Slave::killTask(
           taskId,
           TASK_KILLED,
           TaskStatus::SOURCE_SLAVE,
-          UUID::random(),
+          id::UUID::random(),
           "Killed before delivery to the executor",
           TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
           CHECK_NOTNONE(
@@ -3219,7 +3218,7 @@ void Slave::killTask(
         taskId,
         taskState,
         TaskStatus::SOURCE_SLAVE,
-        UUID::random(),
+        id::UUID::random(),
         "Cannot find executor",
         TaskStatus::REASON_EXECUTOR_TERMINATED);
 
@@ -3246,7 +3245,7 @@ void Slave::killTask(
               task.task_id(),
               TASK_KILLED,
               TaskStatus::SOURCE_SLAVE,
-              UUID::random(),
+              id::UUID::random(),
               "A task within the task group was killed before"
               " delivery to the executor",
               TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
@@ -3259,7 +3258,7 @@ void Slave::killTask(
             taskId,
             TASK_KILLED,
             TaskStatus::SOURCE_SLAVE,
-            UUID::random(),
+            id::UUID::random(),
             "Killed before delivery to the executor",
             TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
             executor->id));
@@ -3304,7 +3303,7 @@ void Slave::killTask(
                 task.task_id(),
                 TASK_KILLED,
                 TaskStatus::SOURCE_SLAVE,
-                UUID::random(),
+                id::UUID::random(),
                 "Killed before delivery to the executor",
                 TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
                 executor->id));
@@ -3316,7 +3315,7 @@ void Slave::killTask(
               taskId,
               TASK_KILLED,
               TaskStatus::SOURCE_SLAVE,
-              UUID::random(),
+              id::UUID::random(),
               "Killed before delivery to the executor",
               TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
               executor->id));
@@ -3808,7 +3807,7 @@ void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
     ? message.framework_id()
     : Option<FrameworkID>::none();
 
-  Try<UUID> uuid = UUID::fromBytes(message.operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(message.operation_uuid());
   if (uuid.isError()) {
     LOG(ERROR) << "Failed to parse offer operation UUID for operation "
                << "'" << message.operation_info().id() << "' from "
@@ -3906,7 +3905,8 @@ void Slave::reconcileOfferOperations(
       continue;
     }
 
-    Try<UUID> operationUuid = UUID::fromBytes(operation.operation_uuid());
+    Try<id::UUID> operationUuid =
+      id::UUID::fromBytes(operation.operation_uuid());
     CHECK_SOME(operationUuid);
 
     // The master reconciles when it notices that an operation is missing from
@@ -3976,13 +3976,13 @@ void Slave::statusUpdateAcknowledgement(
   }
 
   taskStatusUpdateManager->acknowledgement(
-      taskId, frameworkId, UUID::fromBytes(uuid).get())
+      taskId, frameworkId, id::UUID::fromBytes(uuid).get())
     .onAny(defer(self(),
                  &Slave::_statusUpdateAcknowledgement,
                  lambda::_1,
                  taskId,
                  frameworkId,
-                 UUID::fromBytes(uuid).get()));
+                 id::UUID::fromBytes(uuid).get()));
 }
 
 
@@ -3990,7 +3990,8 @@ void Slave::offerOperationUpdateAcknowledgement(
     const UPID& from,
     const OfferOperationUpdateAcknowledgementMessage& acknowledgement)
 {
-  Try<UUID> operationUuid = UUID::fromBytes(acknowledgement.operation_uuid());
+  Try<id::UUID> operationUuid =
+    id::UUID::fromBytes(acknowledgement.operation_uuid());
   CHECK_SOME(operationUuid);
 
   OfferOperation* operation = getOfferOperation(operationUuid.get());
@@ -4019,7 +4020,7 @@ void Slave::_statusUpdateAcknowledgement(
     const Future<bool>& future,
     const TaskID& taskId,
     const FrameworkID& frameworkId,
-    const UUID& uuid)
+    const id::UUID& uuid)
 {
   // The future could fail if this is a duplicate status update acknowledgement.
   if (!future.isReady()) {
@@ -4271,7 +4272,7 @@ void Slave::subscribe(
               task->task_id(),
               newTaskState,
               TaskStatus::SOURCE_SLAVE,
-              UUID::random(),
+              id::UUID::random(),
               "Task launched during agent restart",
               TaskStatus::REASON_SLAVE_RESTARTED,
               executor->id);
@@ -4616,7 +4617,7 @@ void Slave::reregisterExecutor(
               task->task_id(),
               newTaskState,
               TaskStatus::SOURCE_SLAVE,
-              UUID::random(),
+              id::UUID::random(),
               "Task launched during agent restart",
               TaskStatus::REASON_SLAVE_RESTARTED,
               executorId);
@@ -7139,10 +7140,10 @@ void Slave::handleResourceProviderMessage(
         // both the known and just received sets. All other offer
         // operations will be updated via relayed offer operation
         // status updates.
-        const hashset<UUID> knownUuids =
+        const hashset<id::UUID> knownUuids =
           resourceProvider->offerOperations.keys();
 
-        const hashset<UUID> receivedUuids =
+        const hashset<id::UUID> receivedUuids =
           updateState.offerOperations.keys();
 
         // Handle offer operations known to the agent but not reported
@@ -7154,7 +7155,7 @@ void Slave::handleResourceProviderMessage(
         // NOTE: We do not mutate offer operations statuses here; this
         // would be the responsibility of a offer operation status
         // update handler.
-        hashset<UUID> disappearedOperations;
+        hashset<id::UUID> disappearedOperations;
         std::set_difference(
             knownUuids.begin(),
             knownUuids.end(),
@@ -7163,7 +7164,7 @@ void Slave::handleResourceProviderMessage(
             std::inserter(
                 disappearedOperations, disappearedOperations.begin()));
 
-        foreach (const UUID& uuid, disappearedOperations) {
+        foreach (const id::UUID& uuid, disappearedOperations) {
           // TODO(bbannier): Instead of simply dropping an operation
           // with `removeOfferOperation` here we should instead send a
           // `Reconcile` message with a failed state to the resource
@@ -7176,7 +7177,7 @@ void Slave::handleResourceProviderMessage(
         // Handle offer operations known to the resource provider but
         // not the agent. This can happen if the agent failed over and
         // the resource provider reregistered.
-        hashset<UUID> reappearedOperations;
+        hashset<id::UUID> reappearedOperations;
         std::set_difference(
             receivedUuids.begin(),
             receivedUuids.end(),
@@ -7184,7 +7185,7 @@ void Slave::handleResourceProviderMessage(
             knownUuids.end(),
             std::inserter(reappearedOperations, reappearedOperations.begin()));
 
-        foreach (const UUID& uuid, reappearedOperations) {
+        foreach (const id::UUID& uuid, reappearedOperations) {
           // Start tracking this offer operation.
           //
           // NOTE: We do not need to update total resources here as its
@@ -7226,7 +7227,8 @@ void Slave::handleResourceProviderMessage(
       const OfferOperationStatusUpdate& update =
         message->updateOfferOperationStatus->update;
 
-      Try<UUID> operationUUID = UUID::fromBytes(update.operation_uuid());
+      Try<id::UUID> operationUUID =
+        id::UUID::fromBytes(update.operation_uuid());
       CHECK_SOME(operationUUID);
 
       OfferOperation* operation = getOfferOperation(operationUUID.get());
@@ -7350,7 +7352,7 @@ void Slave::handleResourceProviderMessage(
 
 void Slave::addOfferOperation(OfferOperation* operation)
 {
-  Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
   CHECK_SOME(uuid);
 
   offerOperations.put(uuid.get(), operation);
@@ -7428,7 +7430,8 @@ void Slave::updateOfferOperation(
     operation->add_statuses()->CopyFrom(status);
   }
 
-  Try<UUID> operationUUID = UUID::fromBytes(operation->operation_uuid());
+  Try<id::UUID> operationUUID =
+    id::UUID::fromBytes(operation->operation_uuid());
   CHECK_SOME(operationUUID);
 
   LOG(INFO) << "Updating the state of offer operation '"
@@ -7488,7 +7491,7 @@ void Slave::updateOfferOperation(
 
 void Slave::removeOfferOperation(OfferOperation* operation)
 {
-  Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
   CHECK_SOME(uuid);
 
   Result<ResourceProviderID> resourceProviderId =
@@ -7515,7 +7518,7 @@ void Slave::removeOfferOperation(OfferOperation* operation)
 }
 
 
-OfferOperation* Slave::getOfferOperation(const UUID& uuid) const
+OfferOperation* Slave::getOfferOperation(const id::UUID& uuid) const
 {
   if (offerOperations.contains(uuid)) {
     return offerOperations.at(uuid);
@@ -7970,7 +7973,7 @@ void Slave::sendExecutorTerminatedStatusUpdate(
           taskId,
           state,
           TaskStatus::SOURCE_SLAVE,
-          UUID::random(),
+          id::UUID::random(),
           message,
           reason,
           executor->id,
@@ -8253,7 +8256,7 @@ Executor* Framework::addExecutor(const ExecutorInfo& executorInfo)
   // ContainerID to create the executor's directory and generate the secret.
   // Consider fixing this since 'launchExecutor()' is handled asynchronously.
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   Option<string> user = None();
 #ifndef __WINDOWS__
@@ -9033,7 +9036,7 @@ void Executor::recoverTask(const TaskState& state, bool recheckpointTask)
       CHECK(update.has_uuid())
         << "Expecting updates without 'uuid' to have been rejected";
 
-      if (state.acks.contains(UUID::fromBytes(update.uuid()).get())) {
+      if (state.acks.contains(id::UUID::fromBytes(update.uuid()).get())) {
         completeTask(state.id);
       }
       break;
@@ -9164,7 +9167,7 @@ Resources Executor::allocatedResources() const
 
 void ResourceProvider::addOfferOperation(OfferOperation* operation)
 {
-  Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
   CHECK_SOME(uuid);
 
   CHECK(!offerOperations.contains(uuid.get()))
@@ -9176,7 +9179,7 @@ void ResourceProvider::addOfferOperation(OfferOperation* operation)
 
 void ResourceProvider::removeOfferOperation(OfferOperation* operation)
 {
-  Try<UUID> uuid = UUID::fromBytes(operation->operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
   CHECK_SOME(uuid);
 
   CHECK(offerOperations.contains(uuid.get()))

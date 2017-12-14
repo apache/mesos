@@ -45,7 +45,7 @@ public:
       const std::string& name);
   virtual process::Future<bool> set(
       const internal::state::Entry& entry,
-      const UUID& uuid);
+      const id::UUID& uuid);
   virtual process::Future<bool> expunge(const internal::state::Entry& entry);
   virtual process::Future<std::set<std::string>> names();
 

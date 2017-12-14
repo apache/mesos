@@ -353,14 +353,14 @@ protected:
   {
     CHECK(state == DISCONNECTED || state == CONNECTING) << state;
 
-    connectionId = UUID::random();
+    connectionId = id::UUID::random();
 
     state = CONNECTING;
 
     // This automatic variable is needed for lambda capture. We need to
     // create a copy here because `connectionId` might change by the time the
     // second `http::connect()` gets called.
-    UUID connectionId_ = connectionId.get();
+    id::UUID connectionId_ = connectionId.get();
 
     // We create two persistent connections here, one for subscribe
     // call/streaming response and another for non-subscribe calls/responses.
@@ -377,7 +377,7 @@ protected:
   }
 
   void connected(
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const Future<Connection>& connection1,
       const Future<Connection>& connection2)
   {
@@ -445,7 +445,7 @@ protected:
   }
 
   void disconnected(
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const string& failure)
   {
     // Ignore if the disconnection happened from an old stale connection.
@@ -580,7 +580,7 @@ protected:
   }
 
   void _send(
-      const UUID& _connectionId,
+      const id::UUID& _connectionId,
       const Call& call,
       const Future<Response>& response)
   {
@@ -805,7 +805,7 @@ private:
   // the agent (e.g., the agent process restarted while an attempt was in
   // progress). This helps us in uniquely identifying the current connection
   // instance and ignoring the stale instance.
-  Option<UUID> connectionId; // UUID to identify the connection instance.
+  Option<id::UUID> connectionId; // UUID to identify the connection instance.
 
   ContentType contentType;
   Callbacks callbacks;

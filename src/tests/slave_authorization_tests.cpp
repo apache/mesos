@@ -850,7 +850,7 @@ TEST_F(ExecutorAuthorizationTest, FailedSubscribe)
   hashmap<string, string> claims;
   claims["fid"] = frameworkId.value();
   claims["eid"] = v1::DEFAULT_EXECUTOR_ID.value();
-  claims["cid"] = UUID::random().toString();
+  claims["cid"] = id::UUID::random().toString();
 
   Principal principal(None(), claims);
 
@@ -1059,7 +1059,7 @@ TEST_F(ExecutorAuthorizationTest, FailedApiCalls)
   hashmap<string, string> claims;
   claims["fid"] = frameworkId.value();
   claims["eid"] = v1::DEFAULT_EXECUTOR_ID.value();
-  claims["cid"] = UUID::random().toString();
+  claims["cid"] = id::UUID::random().toString();
 
   Principal incorrectPrincipal(None(), claims);
 
@@ -1074,7 +1074,7 @@ TEST_F(ExecutorAuthorizationTest, FailedApiCalls)
   AWAIT_READY(authenticationToken);
 
   v1::ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
   containerId.mutable_parent()->CopyFrom(executorSubscribed->container_id());
 
   http::Headers headers;
@@ -1194,9 +1194,9 @@ TEST_F(ExecutorAuthorizationTest, FailedApiCalls)
 
   {
     v1::TaskStatus status;
-    status.mutable_task_id()->set_value(UUID::random().toString());
+    status.mutable_task_id()->set_value(id::UUID::random().toString());
     status.set_state(v1::TASK_RUNNING);
-    status.set_uuid(UUID::random().toBytes());
+    status.set_uuid(id::UUID::random().toBytes());
     status.set_source(v1::TaskStatus::SOURCE_EXECUTOR);
 
     v1::executor::Call call;

@@ -258,8 +258,8 @@ TEST_F(ReconciliationTest, UnknownSlave)
 
   // Create a task status with a random slave id and task id.
   TaskStatus status;
-  status.mutable_task_id()->set_value(UUID::random().toString());
-  status.mutable_slave_id()->set_value(UUID::random().toString());
+  status.mutable_task_id()->set_value(id::UUID::random().toString());
+  status.mutable_slave_id()->set_value(id::UUID::random().toString());
   status.set_state(TASK_STAGING); // Dummy value.
 
   driver.reconcileTasks({status});
@@ -316,7 +316,7 @@ TEST_F(ReconciliationTest, UnknownTask)
 
   // Create a task status with a random task id.
   TaskStatus status;
-  status.mutable_task_id()->set_value(UUID::random().toString());
+  status.mutable_task_id()->set_value(id::UUID::random().toString());
   status.mutable_slave_id()->CopyFrom(slaveId);
   status.set_state(TASK_STAGING); // Dummy value.
 
@@ -378,7 +378,7 @@ TEST_F(ReconciliationTest, UnknownTaskPartitionAware)
 
   // Create a task status with a random task id.
   TaskStatus status;
-  status.mutable_task_id()->set_value(UUID::random().toString());
+  status.mutable_task_id()->set_value(id::UUID::random().toString());
   status.mutable_slave_id()->CopyFrom(slaveId);
   status.set_state(TASK_STAGING); // Dummy value.
 
@@ -422,7 +422,7 @@ TEST_F(ReconciliationTest, UnknownKillTask)
 
   // Create a task status with a random task id.
   TaskID taskId;
-  taskId.set_value(UUID::random().toString());
+  taskId.set_value(id::UUID::random().toString());
 
   driver.killTask(taskId);
 
@@ -500,7 +500,7 @@ TEST_F(ReconciliationTest, RecoveredAgent)
 
   // Reconcile for a random task ID on the slave.
   TaskStatus status;
-  status.mutable_task_id()->set_value(UUID::random().toString());
+  status.mutable_task_id()->set_value(id::UUID::random().toString());
   status.mutable_slave_id()->CopyFrom(slaveId);
   status.set_state(TASK_STAGING); // Dummy value.
 
@@ -600,7 +600,7 @@ TEST_F(ReconciliationTest, RecoveredAgentReregistrationInProgress)
 
   // Reconcile for a random task ID on the slave.
   TaskStatus status;
-  status.mutable_task_id()->set_value(UUID::random().toString());
+  status.mutable_task_id()->set_value(id::UUID::random().toString());
   status.mutable_slave_id()->CopyFrom(slaveId);
   status.set_state(TASK_STAGING); // Dummy value.
 
@@ -690,7 +690,7 @@ TEST_F(ReconciliationTest, RemovalInProgress)
 
   // Reconcile for a random task ID on the slave.
   TaskStatus status;
-  status.mutable_task_id()->set_value(UUID::random().toString());
+  status.mutable_task_id()->set_value(id::UUID::random().toString());
   status.mutable_slave_id()->CopyFrom(slaveId);
   status.set_state(TASK_STAGING); // Dummy value.
 

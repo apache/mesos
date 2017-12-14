@@ -183,7 +183,7 @@ struct TaskState
   TaskID id;
   Option<Task> info;
   std::vector<StatusUpdate> updates;
-  hashset<UUID> acks;
+  hashset<id::UUID> acks;
   unsigned int errors;
 };
 

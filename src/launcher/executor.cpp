@@ -204,7 +204,8 @@ public:
       }
 
       case Event::ACKNOWLEDGED: {
-        const UUID uuid = UUID::fromBytes(event.acknowledged().uuid()).get();
+        const id::UUID uuid =
+          id::UUID::fromBytes(event.acknowledged().uuid()).get();
 
         if (!unacknowledgedUpdates.contains(uuid)) {
           LOG(WARNING) << "Received acknowledgement " << uuid
@@ -308,7 +309,7 @@ protected:
     CHECK_SOME(lastTaskStatus);
     TaskStatus status = protobuf::createTaskStatus(
         lastTaskStatus.get(),
-        UUID::random(),
+        id::UUID::random(),
         Clock::now().secs(),
         None(),
         None(),
@@ -342,7 +343,7 @@ protected:
     CHECK_SOME(lastTaskStatus);
     TaskStatus status = protobuf::createTaskStatus(
         lastTaskStatus.get(),
-        UUID::random(),
+        id::UUID::random(),
         Clock::now().secs(),
         None(),
         None(),
@@ -1000,7 +1001,7 @@ private:
     TaskStatus status = protobuf::createTaskStatus(
         _taskId,
         state,
-        UUID::random(),
+        id::UUID::random(),
         Clock::now().secs());
 
     status.mutable_executor_id()->CopyFrom(executorId);
@@ -1059,7 +1060,8 @@ private:
     call.mutable_update()->mutable_status()->CopyFrom(status);
 
     // Capture the status update.
-    unacknowledgedUpdates[UUID::fromBytes(status.uuid()).get()] = call.update();
+    unacknowledgedUpdates[id::UUID::fromBytes(status.uuid()).get()] =
+      call.update();
 
     // Overwrite the last task status.
     lastTaskStatus = status;
@@ -1134,7 +1136,7 @@ private:
   const ExecutorID executorId;
   Owned<MesosBase> mesos;
 
-  LinkedHashMap<UUID, Call::Update> unacknowledgedUpdates;
+  LinkedHashMap<id::UUID, Call::Update> unacknowledgedUpdates;
 
   Option<TaskStatus> lastTaskStatus;
 

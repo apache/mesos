@@ -88,8 +88,8 @@ protected:
   }
 
   OfferOperationStatusUpdate createOfferOperationStatusUpdate(
-      const UUID& statusUuid,
-      const UUID& operationUuid,
+      const id::UUID& statusUuid,
+      const id::UUID& operationUuid,
       const OfferOperationState& state,
       const Option<FrameworkID>& frameworkId = None())
   {
@@ -121,7 +121,7 @@ protected:
         forward, OfferOperationStatusUpdateManagerTest::getPath);
   }
 
-  static const string getPath(const UUID& operationUuid)
+  static const string getPath(const id::UUID& operationUuid)
   {
     return path::join(os::getcwd(), "streams", operationUuid.toString());
   }
@@ -139,8 +139,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, UpdateAndAck)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid, operationUuid, OfferOperationState::OFFER_OPERATION_FINISHED);
@@ -174,8 +174,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, UpdateAndAckNonTerminalUpdate)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
     statusUuid, operationUuid, OfferOperationState::OFFER_OPERATION_PENDING);
@@ -211,8 +211,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, ResendUnacknowledged)
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate1))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate2));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid, operationUuid, OfferOperationState::OFFER_OPERATION_FINISHED);
@@ -256,8 +256,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, Cleanup)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   FrameworkID frameworkId;
   frameworkId.set_value("frameworkId");
@@ -298,8 +298,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverCheckpointedStream)
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate1))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate2));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid,
@@ -356,8 +356,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverNotCheckpointedStream)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid,
@@ -395,8 +395,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverEmptyFile)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid,
@@ -452,8 +452,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverEmptyDirectory)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid,
@@ -503,8 +503,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverTerminatedStream)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid,
@@ -561,8 +561,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, IgnoreDuplicateUpdate)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid,
@@ -601,8 +601,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, IgnoreDuplicateUpdateAfterRecover)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid,
@@ -646,8 +646,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RejectDuplicateAck)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid,
@@ -687,8 +687,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RejectDuplicateAckAfterRecover)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid,
@@ -735,8 +735,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, NonStrictRecoveryCorruptedFile)
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate1))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate2));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid,
@@ -801,8 +801,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, StrictRecoveryCorruptedFile)
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
-  const UUID operationUuid = UUID::random();
-  const UUID statusUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
+  const id::UUID statusUuid = id::UUID::random();
 
   OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
       statusUuid,
@@ -851,9 +851,9 @@ TEST_F(OfferOperationStatusUpdateManagerTest, UpdateLatestWhenResending)
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate2))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate3));
 
-  const UUID operationUuid = UUID::random();
+  const id::UUID operationUuid = id::UUID::random();
 
-  const UUID statusUuid1 = UUID::random();
+  const id::UUID statusUuid1 = id::UUID::random();
   OfferOperationStatusUpdate statusUpdate1 = createOfferOperationStatusUpdate(
       statusUuid1, operationUuid, OfferOperationState::OFFER_OPERATION_PENDING);
 
@@ -872,7 +872,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, UpdateLatestWhenResending)
   EXPECT_FALSE(forwardedStatusUpdate2.isReady());
 
   // Send another status update.
-  const UUID statusUuid2 = UUID::random();
+  const id::UUID statusUuid2 = id::UUID::random();
   OfferOperationStatusUpdate statusUpdate2 = createOfferOperationStatusUpdate(
       statusUuid2, operationUuid, OfferOperationState::OFFER_OPERATION_PENDING);
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate2, true));

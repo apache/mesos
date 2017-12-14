@@ -683,7 +683,8 @@ slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
   if (cgroups::enabled() && user.get() == "root") {
     flags.isolation = "cgroups/cpu,cgroups/mem";
     flags.cgroups_hierarchy = baseHierarchy;
-    flags.cgroups_root = TEST_CGROUPS_ROOT + "_" + UUID::random().toString();
+    flags.cgroups_root =
+      TEST_CGROUPS_ROOT + "_" + id::UUID::random().toString();
   } else {
     flags.isolation = "posix/cpu,posix/mem";
   }

@@ -94,7 +94,7 @@ TEST_P(VolumeImageIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ContainerInfo container = createContainerInfo(
       None(),
@@ -126,7 +126,7 @@ TEST_P(VolumeImageIsolatorTest, ROOT_ImageInVolumeWithoutRootFilesystem)
   if (nesting) {
     ContainerID nestedContainerId;
     nestedContainerId.mutable_parent()->CopyFrom(containerId);
-    nestedContainerId.set_value(UUID::random().toString());
+    nestedContainerId.set_value(id::UUID::random().toString());
 
     launch = containerizer->launch(
         nestedContainerId,
@@ -182,7 +182,7 @@ TEST_P(VolumeImageIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
   Owned<Containerizer> containerizer(create.get());
 
   ContainerID containerId;
-  containerId.set_value(UUID::random().toString());
+  containerId.set_value(id::UUID::random().toString());
 
   ContainerInfo container = createContainerInfo(
       "test_image_rootfs",
@@ -216,7 +216,7 @@ TEST_P(VolumeImageIsolatorTest, ROOT_ImageInVolumeWithRootFilesystem)
   if (nesting) {
     ContainerID nestedContainerId;
     nestedContainerId.mutable_parent()->CopyFrom(containerId);
-    nestedContainerId.set_value(UUID::random().toString());
+    nestedContainerId.set_value(id::UUID::random().toString());
 
     launch = containerizer->launch(
         nestedContainerId,

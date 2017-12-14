@@ -110,7 +110,7 @@ ostream& operator<<(ostream& stream, const StatusUpdate& update)
 
   if (update.has_uuid()) {
     stream << " (Status UUID: "
-           << stringify(UUID::fromBytes(update.uuid()).get()) << ")";
+           << stringify(id::UUID::fromBytes(update.uuid()).get()) << ")";
   }
 
   stream << " for task " << update.status().task_id();
@@ -130,12 +130,13 @@ ostream& operator<<(ostream& stream, const OfferOperationStatusUpdate& update)
 
   if (update.status().has_status_uuid()) {
     stream << " (Status UUID: "
-           << stringify(UUID::fromBytes(update.status().status_uuid()).get())
+           << stringify(
+                  id::UUID::fromBytes(update.status().status_uuid()).get())
            << ")";
   }
 
   stream << " for operation UUID "
-         << stringify(UUID::fromBytes(update.operation_uuid()).get());
+         << stringify(id::UUID::fromBytes(update.operation_uuid()).get());
 
   if (update.status().has_operation_id()) {
     stream << " (framework-supplied ID '" << update.status().operation_id()
