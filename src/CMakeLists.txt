@@ -96,11 +96,6 @@ target_link_libraries(mesos-protobufs PUBLIC protobuf)
 target_include_directories(
   mesos-protobufs PUBLIC ${MESOS_PROTOBUF_HEADER_INCLUDE_DIRS})
 
-if (WIN32)
-  # Disable all compiler warnings on Protocol Buffers source.
-  target_compile_options(mesos-protobufs PRIVATE "/w")
-endif ()
-
 
 # BUILD JAVA ARTIFACTS.
 #######################

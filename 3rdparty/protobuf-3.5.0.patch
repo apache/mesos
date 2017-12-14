@@ -1,0 +1,46 @@
+diff --git c/src/google/protobuf/repeated_field.h w/src/google/protobuf/repeated_field.h
+index 8eb6c795b..faa930523 100644
+--- c/src/google/protobuf/repeated_field.h
++++ w/src/google/protobuf/repeated_field.h
+@@ -86,7 +86,7 @@ void LogIndexOutOfBounds(int index, int size);
+ 
+ template <typename Iter>
+ inline int CalculateReserve(Iter begin, Iter end, std::forward_iterator_tag) {
+-  return std::distance(begin, end);
++  return static_cast<int>(std::distance(begin, end));
+ }
+ 
+ template <typename Iter>
+@@ -2123,8 +2123,8 @@ RepeatedPtrField<Element>::erase(const_iterator position) {
+ template <typename Element>
+ inline typename RepeatedPtrField<Element>::iterator
+ RepeatedPtrField<Element>::erase(const_iterator first, const_iterator last) {
+-  size_type pos_offset = std::distance(cbegin(), first);
+-  size_type last_offset = std::distance(cbegin(), last);
++  size_type pos_offset = static_cast<size_type>(std::distance(cbegin(), first));
++  size_type last_offset = static_cast<size_type>(std::distance(cbegin(), last));
+   DeleteSubrange(pos_offset, last_offset - pos_offset);
+   return begin() + pos_offset;
+ }
+diff --git c/src/google/protobuf/wire_format_lite.h w/src/google/protobuf/wire_format_lite.h
+index cf614c02a..361920b8e 100644
+--- c/src/google/protobuf/wire_format_lite.h
++++ w/src/google/protobuf/wire_format_lite.h
+@@ -860,7 +860,7 @@ inline uint32 WireFormatLite::ZigZagEncode32(int32 n) {
+ 
+ inline int32 WireFormatLite::ZigZagDecode32(uint32 n) {
+   // Note:  Using unsigned types prevent undefined behavior
+-  return static_cast<int32>((n >> 1) ^ -(n & 1));
++  return static_cast<int32>((n >> 1) ^ (~(n & 1) + 1));
+ }
+ 
+ inline uint64 WireFormatLite::ZigZagEncode64(int64 n) {
+@@ -871,7 +871,7 @@ inline uint64 WireFormatLite::ZigZagEncode64(int64 n) {
+ 
+ inline int64 WireFormatLite::ZigZagDecode64(uint64 n) {
+   // Note:  Using unsigned types prevent undefined behavior
+-  return static_cast<int64>((n >> 1) ^ -(n & 1));
++  return static_cast<int64>((n >> 1) ^ (~(n & 1) + 1));
+ }
+ 
+ // String is for UTF-8 text only, but, even so, ReadString() can simply
