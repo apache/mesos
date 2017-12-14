@@ -1102,8 +1102,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeResourceProvider)
   v1::Resource disk = v1::createDiskResource(
       "200", "*", None(), None(), v1::createDiskSourceRaw());
 
-  v1::MockResourceProvider resourceProvider(
-      resourceProviderInfo, Some(v1::Resources(disk)));
+  Owned<v1::MockResourceProvider> resourceProvider(
+      new v1::MockResourceProvider(resourceProviderInfo, v1::Resources(disk)));
 
   // Start and register a resource provider.
   string scheme = "http";
@@ -1124,29 +1124,36 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeResourceProvider)
 
   const ContentType contentType = GetParam();
 
-  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+  resourceProvider->start(
+      endpointDetector,
+      contentType,
+      v1::DEFAULT_CREDENTIAL);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources. At this point the resource provider
   // will have an ID assigned by the agent.
   AWAIT_READY(updateSlaveMessage);
 
-  mesos::v1::ResourceProviderID resourceProviderId = resourceProvider.info.id();
+  ASSERT_TRUE(resourceProvider->info.has_id());
 
-  Future<Event::Subscribed> subscribed1;
-  EXPECT_CALL(resourceProvider, subscribed(_))
-    .WillOnce(FutureArg<0>(&subscribed1));
+  resourceProviderInfo = resourceProvider->info;
 
   // Resource provider failover by opening a new connection.
   // The assigned resource provider ID will be used to resubscribe.
-  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+  resourceProvider.reset(
+      new v1::MockResourceProvider(resourceProviderInfo, v1::Resources(disk)));
+
+  Future<Event::Subscribed> subscribed1;
+  EXPECT_CALL(*resourceProvider, subscribed(_))
+    .WillOnce(FutureArg<0>(&subscribed1));
+
+  resourceProvider->start(
+      endpointDetector,
+      contentType,
+      v1::DEFAULT_CREDENTIAL);
 
   AWAIT_READY(subscribed1);
-  EXPECT_EQ(resourceProviderId, subscribed1->provider_id());
-
-  Future<Event::Subscribed> subscribed2;
-  EXPECT_CALL(resourceProvider, subscribed(_))
-    .WillOnce(FutureArg<0>(&subscribed2));
+  EXPECT_EQ(resourceProviderInfo.id(), subscribed1->provider_id());
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
@@ -1167,10 +1174,21 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeResourceProvider)
 
   endpointDetector.reset(new ConstantEndpointDetector(url));
 
-  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+  resourceProvider.reset(new v1::MockResourceProvider(
+      resourceProviderInfo,
+      Some(v1::Resources(disk))));
+
+  Future<Event::Subscribed> subscribed2;
+  EXPECT_CALL(*resourceProvider, subscribed(_))
+    .WillOnce(FutureArg<0>(&subscribed2));
+
+  resourceProvider->start(
+      endpointDetector,
+      contentType,
+      v1::DEFAULT_CREDENTIAL);
 
   AWAIT_READY(subscribed2);
-  EXPECT_EQ(resourceProviderId, subscribed2->provider_id());
+  EXPECT_EQ(resourceProviderInfo.id(), subscribed2->provider_id());
 }
 
 
