@@ -8791,7 +8791,7 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
 // This test checks that before a workload (executor or task) is
 // launched, all resources from resoruce providers nended to run the
 // current set of workloads are properly published.
-TEST_F(SlaveTest, ResourceProviderPublishAll)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ResourceProviderPublishAll)
 {
   // Start an agent and a master.
   Try<Owned<cluster::Master>> master = StartMaster();
