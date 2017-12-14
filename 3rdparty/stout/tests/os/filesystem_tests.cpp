@@ -61,7 +61,8 @@ class FsTest : public TemporaryDirectoryTest {};
 
 TEST_F(FsTest, Find)
 {
-  const string testdir = path::join(os::getcwd(), UUID::random().toString());
+  const string testdir =
+    path::join(os::getcwd(), id::UUID::random().toString());
   const string subdir = path::join(testdir, "test1");
   ASSERT_SOME(os::mkdir(subdir)); // Create the directories.
 
@@ -91,7 +92,8 @@ TEST_F(FsTest, Find)
 
 TEST_F(FsTest, ReadWriteString)
 {
-  const string testfile = path::join(os::getcwd(), UUID::random().toString());
+  const string testfile =
+    path::join(os::getcwd(), id::UUID::random().toString());
   const string teststr = "line1\nline2";
 
   ASSERT_SOME(os::write(testfile, teststr));
@@ -174,7 +176,8 @@ TEST_F(FsTest, Exists)
 
 TEST_F(FsTest, Touch)
 {
-  const string testfile = path::join(os::getcwd(), UUID::random().toString());
+  const string testfile =
+    path::join(os::getcwd(), id::UUID::random().toString());
 
   ASSERT_SOME(os::touch(testfile));
   ASSERT_TRUE(os::exists(testfile));
@@ -243,7 +246,7 @@ TEST_F(FsTest, CreateDirectoryLongerThanMaxPath)
 {
   string testdir = sandbox.get();
   while (testdir.length() <= MAX_PATH) {
-    testdir = path::join(testdir, UUID::random().toString());
+    testdir = path::join(testdir, id::UUID::random().toString());
   }
 
   EXPECT_TRUE(testdir.length() > MAX_PATH);
@@ -263,7 +266,7 @@ TEST_F(FsTest, SYMLINK_Symlink)
 {
   const string temp_path = os::getcwd();
   const string link = path::join(temp_path, "sym.link");
-  const string file = path::join(temp_path, UUID::random().toString());
+  const string file = path::join(temp_path, id::UUID::random().toString());
 
   // Create file
   ASSERT_SOME(os::touch(file))
@@ -340,7 +343,8 @@ TEST_F(FsTest, SYMLINK_Rm)
 
 TEST_F(FsTest, List)
 {
-  const string testdir = path::join(os::getcwd(), UUID::random().toString());
+  const string testdir =
+    path::join(os::getcwd(), id::UUID::random().toString());
   ASSERT_SOME(os::mkdir(testdir)); // Create the directories.
 
   // Now write some files.
@@ -376,7 +380,8 @@ TEST_F(FsTest, List)
 
 TEST_F(FsTest, Rename)
 {
-  const string testdir = path::join(os::getcwd(), UUID::random().toString());
+  const string testdir =
+    path::join(os::getcwd(), id::UUID::random().toString());
   ASSERT_SOME(os::mkdir(testdir)); // Create the directories.
 
   // Now write some files.
@@ -442,7 +447,8 @@ TEST_F(FsTest, Close)
   const int previous_report_mode = _CrtSetReportMode(_CRT_ASSERT, 0);
 #endif // __WINDOWS__
 
-  const string testfile = path::join(os::getcwd(), UUID::random().toString());
+  const string testfile =
+    path::join(os::getcwd(), id::UUID::random().toString());
 
   ASSERT_SOME(os::touch(testfile));
   ASSERT_TRUE(os::exists(testfile));
@@ -523,7 +529,7 @@ TEST_F(FsTest, Close)
 #if defined(__linux__) || defined(__APPLE__)
 TEST_F(FsTest, Xattr)
 {
-  const string file = path::join(os::getcwd(), UUID::random().toString());
+  const string file = path::join(os::getcwd(), id::UUID::random().toString());
 
   // Create file.
   ASSERT_SOME(os::touch(file));

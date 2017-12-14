@@ -216,7 +216,7 @@ TEST_F(OsTest, Nonblock)
 // non-existing file.
 TEST_F(OsTest, SYMLINK_Size)
 {
-  const string file = path::join(os::getcwd(), UUID::random().toString());
+  const string file = path::join(os::getcwd(), id::UUID::random().toString());
 
   const Bytes size = 1053;
 
@@ -231,7 +231,7 @@ TEST_F(OsTest, SYMLINK_Size)
 
   EXPECT_ERROR(os::stat::size("aFileThatDoesNotExist"));
 
-  const string link = path::join(os::getcwd(), UUID::random().toString());
+  const string link = path::join(os::getcwd(), id::UUID::random().toString());
 
   ASSERT_SOME(fs::symlink(file, link));
 
@@ -724,15 +724,15 @@ TEST_F(OsTest, User)
   // A random UUID is an invalid username on some platforms. Some
   // versions of Linux (e.g., RHEL7) treat invalid usernames
   // differently from valid-but-not-found usernames.
-  EXPECT_NONE(os::getuid(UUID::random().toString()));
-  EXPECT_NONE(os::getgid(UUID::random().toString()));
+  EXPECT_NONE(os::getuid(id::UUID::random().toString()));
+  EXPECT_NONE(os::getgid(id::UUID::random().toString()));
 
   // A username that is valid but that is unlikely to exist.
   EXPECT_NONE(os::getuid("zzzvaliduserzzz"));
   EXPECT_NONE(os::getgid("zzzvaliduserzzz"));
 
   EXPECT_SOME(os::su(user.get()));
-  EXPECT_ERROR(os::su(UUID::random().toString()));
+  EXPECT_ERROR(os::su(id::UUID::random().toString()));
 
   Try<string> gids_ = os::shell("id -G " + user.get());
   EXPECT_SOME(gids_);
@@ -1009,7 +1009,7 @@ TEST_F(OsTest, SYMLINK_Realpath)
   const string& testFile = _testFile.get();
 
   // Create a symlink pointing to a file.
-  const string testLink = UUID::random().toString();
+  const string testLink = id::UUID::random().toString();
   ASSERT_SOME(fs::symlink(testFile, testLink));
 
   // Validate the symlink.

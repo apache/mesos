@@ -148,7 +148,7 @@ TEST(ProtobufTest, JSON)
 
   // Modify the message to test (de-)serialization of random bytes generated
   // by UUID.
-  message.set_bytes(UUID::random().toBytes());
+  message.set_bytes(id::UUID::random().toBytes());
 
   object = JSON::protobuf(message);
 

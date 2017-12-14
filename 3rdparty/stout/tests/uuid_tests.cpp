@@ -20,6 +20,8 @@
 #include <stout/gtest.hpp>
 #include <stout/uuid.hpp>
 
+using id::UUID;
+
 using std::string;
 
 
