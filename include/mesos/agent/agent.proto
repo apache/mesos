@@ -310,7 +310,7 @@ message Call {
   // config file that describes a resource provider of the specified
   // type and name in the resource provider config directory. The
   // 'info.id' field should not be set. The resource provider will be
-  // relaunched asynchoronously to reflect the changes in its config.
+  // relaunched asynchronously to reflect the changes in its config.
   // Note that only config files that exist at agent startup can be
   // updated though this call.
   //
