@@ -70,7 +70,8 @@ private:
       const process::http::URL& url,
       const std::string& workDir,
       const Option<std::string>& configDir,
-      SecretGenerator* secretGenerator);
+      SecretGenerator* secretGenerator,
+      bool strict);
 
   process::Owned<LocalResourceProviderDaemonProcess> process;
 };

@@ -41,7 +41,8 @@ public:
       const std::string& workDir,
       const mesos::ResourceProviderInfo& info,
       const SlaveID& slaveId,
-      const Option<std::string>& authToken);
+      const Option<std::string>& authToken,
+      bool strict);
 
   static Try<process::http::authentication::Principal> principal(
       const mesos::ResourceProviderInfo& info);
@@ -60,7 +61,8 @@ private:
       const std::string& workDir,
       const mesos::ResourceProviderInfo& info,
       const SlaveID& slaveId,
-      const Option<std::string>& authToken);
+      const Option<std::string>& authToken,
+      bool strict);
 
   process::Owned<StorageLocalResourceProviderProcess> process;
 };

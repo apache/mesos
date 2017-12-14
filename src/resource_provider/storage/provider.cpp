@@ -283,7 +283,8 @@ public:
       const string& _workDir,
       const ResourceProviderInfo& _info,
       const SlaveID& _slaveId,
-      const Option<string>& _authToken)
+      const Option<string>& _authToken,
+      bool _strict)
     : ProcessBase(process::ID::generate("storage-local-resource-provider")),
       state(RECOVERING),
       url(_url),
@@ -293,6 +294,7 @@ public:
       info(_info),
       slaveId(_slaveId),
       authToken(_authToken),
+      strict(_strict),
       resourceVersion(UUID::random()) {}
 
   StorageLocalResourceProviderProcess(
@@ -374,7 +376,9 @@ private:
   Future<vector<ResourceConversion>> applyDestroyVolumeOrBlock(
       const Resource& resource);
 
-  // Synchronously update `totalResources` and the offer operation status.
+  // Synchronously updates `totalResources` and the offer operation
+  // status and then asks the status update manager to send status
+  // updates.
   Try<Nothing> updateOfferOperationStatus(
       const UUID& operationUuid,
       const Try<vector<ResourceConversion>>& conversions);
@@ -405,6 +409,7 @@ private:
   ResourceProviderInfo info;
   const SlaveID slaveId;
   const Option<string> authToken;
+  const bool strict;
 
   csi::Version csiVersion;
   string bootId;
@@ -614,27 +619,6 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
 
           totalResources = resourceProviderState->resources();
         }
-      }
-
-      // We replay all pending operations here, so that if a volume is
-      // actually created or deleted before the last failover, it will
-      // be reflected in the total resources before reconciliation.
-      foreachpair (const UUID& uuid,
-                   const OfferOperation& operation,
-                   offerOperations) {
-        if (protobuf::isTerminalState(operation.latest_status().state())) {
-          continue;
-        }
-
-        auto err = [](const UUID& uuid, const string& message) {
-          LOG(ERROR)
-            << "Falied to apply offer operation with UUID " << uuid << ": "
-            << message;
-        };
-
-        _applyOfferOperation(uuid)
-          .onFailed(std::bind(err, uuid, lambda::_1))
-          .onDiscarded(std::bind(err, uuid, "future discarded"));
       }
 
       state = DISCONNECTED;
@@ -869,8 +853,116 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverStatusUpdates()
 
   statusUpdateManager.pause();
 
-  // TODO(chhsiao): Recover status updates.
-  return Nothing();
+  Try<list<string>> operationPaths = slave::paths::getOfferOperationPaths(
+      slave::paths::getResourceProviderPath(
+          metaDir, slaveId, info.type(), info.name(), info.id()));
+
+  if (operationPaths.isError()) {
+    return Failure(
+        "Failed to find offer operations for resource provider " +
+        stringify(info.id()) + ": " + operationPaths.error());
+  }
+
+  list<UUID> operationUuids;
+  foreach (const string& path, operationPaths.get()) {
+    Try<UUID> uuid =
+      slave::paths::parseOfferOperationPath(resourceProviderDir, path);
+
+    if (uuid.isError()) {
+      return Failure(
+          "Failed to parse offer operation path '" + path + "': " +
+          uuid.error());
+    }
+
+    CHECK(offerOperations.contains(uuid.get()));
+    operationUuids.emplace_back(std::move(uuid.get()));
+  }
+
+  return statusUpdateManager.recover(operationUuids, strict)
+    .then(defer(self(), [=](
+        const OfferOperationStatusManagerState& statusUpdateManagerState)
+        -> Future<Nothing> {
+      using StreamState =
+        typename OfferOperationStatusManagerState::StreamState;
+
+      // Clean up the operations that are terminated.
+      foreachpair (const UUID& uuid,
+                   const Option<StreamState>& stream,
+                   statusUpdateManagerState.streams) {
+        if (stream.isSome() && stream->terminated) {
+          offerOperations.erase(uuid);
+
+          // Garbage collect the offer operation metadata.
+          const string path = slave::paths::getOfferOperationPath(
+              slave::paths::getResourceProviderPath(
+                  metaDir, slaveId, info.type(), info.name(), info.id()),
+              uuid);
+
+          Try<Nothing> rmdir = os::rmdir(path);
+          if (rmdir.isError()) {
+            return Failure(
+                "Failed to remove directory '" + path + "': " + rmdir.error());
+          }
+        }
+      }
+
+      // Send updates for all missing statuses.
+      foreachpair (const UUID& uuid,
+                   const OfferOperation& operation,
+                   offerOperations) {
+        if (operation.latest_status().state() == OFFER_OPERATION_PENDING) {
+          continue;
+        }
+
+        const int numStatuses =
+          statusUpdateManagerState.streams.contains(uuid) &&
+          statusUpdateManagerState.streams.at(uuid).isSome()
+            ? statusUpdateManagerState.streams.at(uuid)->updates.size() : 0;
+
+        for (int i = numStatuses; i < operation.statuses().size(); i++) {
+          OfferOperationStatusUpdate update =
+            protobuf::createOfferOperationStatusUpdate(
+                uuid,
+                operation.statuses(i),
+                None(),
+                operation.has_framework_id()
+                  ? operation.framework_id() : Option<FrameworkID>::none(),
+                slaveId);
+
+          const string message =
+            "Failed to update status of offer operation with UUID " +
+            stringify(uuid);
+
+          statusUpdateManager.update(std::move(update))
+            .onFailed(defer(self(), &Self::fatal, message, lambda::_1))
+            .onDiscarded(
+                defer(self(), &Self::fatal, message, "future discarded"));
+        }
+      }
+
+      // We replay all pending operations here, so that if a volume is
+      // created or deleted before the last failover, the result will be
+      // reflected in the total resources before reconciliation.
+      foreachpair (const UUID& uuid,
+                   const OfferOperation& operation,
+                   offerOperations) {
+        if (protobuf::isTerminalState(operation.latest_status().state())) {
+          continue;
+        }
+
+        auto err = [](const UUID& uuid, const string& message) {
+          LOG(ERROR)
+            << "Falied to apply offer operation with UUID " << uuid << ": "
+            << message;
+        };
+
+        _applyOfferOperation(uuid)
+          .onFailed(std::bind(err, uuid, lambda::_1))
+          .onDiscarded(std::bind(err, uuid, "future discarded"));
+      }
+
+      return Nothing();
+    }));
 }
 
 
@@ -1214,6 +1306,45 @@ void StorageLocalResourceProviderProcess::acknowledgeOfferOperation(
     const Event::AcknowledgeOfferOperation& acknowledge)
 {
   CHECK_EQ(READY, state);
+
+  Try<UUID> operationUuid = UUID::fromBytes(acknowledge.operation_uuid());
+  CHECK_SOME(operationUuid);
+
+  Try<UUID> statusUuid = UUID::fromBytes(acknowledge.status_uuid());
+  CHECK_SOME(statusUuid);
+
+  auto err = [](const UUID& uuid, const string& message) {
+    LOG(ERROR)
+      << "Failed to acknowledge status update for offer operation with UUID "
+      << uuid << ": " << message;
+  };
+
+  // NOTE: It is possible that an incoming acknowledgement races with an
+  // outgoing retry of status update, and then a duplicated
+  // acknowledgement will be received. In this case, the following call
+  // will fail, so we just leave an error log.
+  statusUpdateManager.acknowledgement(operationUuid.get(), statusUuid.get())
+    .then(defer(self(), [=](bool continuation) -> Future<Nothing> {
+      if (!continuation) {
+        offerOperations.erase(operationUuid.get());
+
+        // Garbage collect the offer operation metadata.
+        const string path = slave::paths::getOfferOperationPath(
+            slave::paths::getResourceProviderPath(
+                metaDir, slaveId, info.type(), info.name(), info.id()),
+            operationUuid.get());
+
+        Try<Nothing> rmdir = os::rmdir(path);
+        if (rmdir.isError()) {
+          return Failure(
+              "Failed to remove directory '" + path + "': " + rmdir.error());
+        }
+      }
+
+      return Nothing();
+    }))
+    .onFailed(std::bind(err, operationUuid.get(), lambda::_1))
+    .onDiscarded(std::bind(err, operationUuid.get(), "future discarded"));
 }
 
 
@@ -1221,6 +1352,36 @@ void StorageLocalResourceProviderProcess::reconcileOfferOperations(
     const Event::ReconcileOfferOperations& reconcile)
 {
   CHECK_EQ(READY, state);
+
+  foreach (const string& operationUuid, reconcile.operation_uuids()) {
+    Try<UUID> uuid = UUID::fromBytes(operationUuid);
+    CHECK_SOME(uuid);
+
+    if (offerOperations.contains(uuid.get())) {
+      // When the agent asks for reconciliation for a known operation,
+      // that means the `APPLY_OFFER_OPERATION` event races with the
+      // last `UPDATE_STATE` call and arrives after the call. Since the
+      // event is received, nothing needs to be done here.
+      continue;
+    }
+
+    OfferOperationStatusUpdate update =
+      protobuf::createOfferOperationStatusUpdate(
+          uuid.get(),
+          protobuf::createOfferOperationStatus(
+              OFFER_OPERATION_DROPPED, None(), None(), None(), UUID::random()),
+          None(),
+          None(),
+          slaveId);
+
+    const string message =
+      "Failed to update status of offer operation with UUID " +
+      stringify(uuid.get());
+
+    statusUpdateManager.update(std::move(update))
+      .onFailed(defer(self(), &Self::fatal, message, lambda::_1))
+      .onDiscarded(defer(self(), &Self::fatal, message, "future discarded"));
+  }
 }
 
 
@@ -2358,7 +2519,7 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
       convertedResources += conversion.converted;
       conversion.consumed.unallocate();
       conversion.converted.unallocate();
-      _conversions.push_back(std::move(conversion));
+      _conversions.emplace_back(std::move(conversion));
     }
 
     Try<Resources> result = totalResources.apply(_conversions);
@@ -2399,17 +2560,22 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
   checkpointResourceProviderState();
 
   // Send out the status update for the offer operation.
-  // TODO(chhsiao): Use the status update manager.
   OfferOperationStatusUpdate update =
     protobuf::createOfferOperationStatusUpdate(
         operationUuid,
         operation.latest_status(),
-        operation.latest_status(),
+        None(),
         operation.has_framework_id()
           ? operation.framework_id() : Option<FrameworkID>::none(),
         slaveId);
 
-  sendOfferOperationStatusUpdate(update);
+  const string message =
+    "Failed to update status of offer operation with UUID " +
+    stringify(operationUuid);
+
+  statusUpdateManager.update(std::move(update))
+    .onFailed(defer(self(), &Self::fatal, message, lambda::_1))
+    .onDiscarded(defer(self(), &Self::fatal, message, "future discarded"));
 
   return error.isNone() ? Nothing() : Try<Nothing>::error(error.get());
 }
@@ -2519,7 +2685,8 @@ Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
     const string& workDir,
     const ResourceProviderInfo& info,
     const SlaveID& slaveId,
-    const Option<string>& authToken)
+    const Option<string>& authToken,
+    bool strict)
 {
   // Verify that the name follows Java package naming convention.
   // TODO(chhsiao): We should move this check to a validation function
@@ -2571,8 +2738,8 @@ Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
         stringify(CSIPluginContainerInfo::NODE_SERVICE) + " not found");
   }
 
-  return Owned<LocalResourceProvider>(
-      new StorageLocalResourceProvider(url, workDir, info, slaveId, authToken));
+  return Owned<LocalResourceProvider>(new StorageLocalResourceProvider(
+      url, workDir, info, slaveId, authToken, strict));
 }
 
 
@@ -2590,9 +2757,10 @@ StorageLocalResourceProvider::StorageLocalResourceProvider(
     const string& workDir,
     const ResourceProviderInfo& info,
     const SlaveID& slaveId,
-    const Option<string>& authToken)
+    const Option<string>& authToken,
+    bool strict)
   : process(new StorageLocalResourceProviderProcess(
-        url, workDir, info, slaveId, authToken))
+        url, workDir, info, slaveId, authToken, strict))
 {
   spawn(CHECK_NOTNULL(process.get()));
 }

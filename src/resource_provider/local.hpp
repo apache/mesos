@@ -36,7 +36,8 @@ public:
       const std::string& workDir,
       const ResourceProviderInfo& info,
       const SlaveID& slaveId,
-      const Option<std::string>& authToken);
+      const Option<std::string>& authToken,
+      bool strict);
 
   static Try<process::http::authentication::Principal> principal(
       const ResourceProviderInfo& info);

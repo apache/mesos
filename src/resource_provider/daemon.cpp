@@ -77,12 +77,14 @@ public:
       const http::URL& _url,
       const string& _workDir,
       const Option<string>& _configDir,
-      SecretGenerator* _secretGenerator)
+      SecretGenerator* _secretGenerator,
+      bool _strict)
     : ProcessBase(process::ID::generate("local-resource-provider-daemon")),
       url(_url),
       workDir(_workDir),
       configDir(_configDir),
-      secretGenerator(_secretGenerator) {}
+      secretGenerator(_secretGenerator),
+      strict(_strict) {}
 
   LocalResourceProviderDaemonProcess(
       const LocalResourceProviderDaemonProcess& other) = delete;
@@ -122,6 +124,7 @@ private:
   Future<Nothing> launch(
       const string& type,
       const string& name);
+
   Future<Nothing> _launch(
       const string& type,
       const string& name,
@@ -134,6 +137,7 @@ private:
   const string workDir;
   const Option<string> configDir;
   SecretGenerator* const secretGenerator;
+  const bool strict;
 
   Option<SlaveID> slaveId;
   hashmap<string, hashmap<string, ProviderData>> providers;
@@ -439,7 +443,7 @@ Future<Nothing> LocalResourceProviderDaemonProcess::_launch(
   }
 
   Try<Owned<LocalResourceProvider>> provider = LocalResourceProvider::create(
-      url, workDir, data.info, slaveId.get(), authToken);
+      url, workDir, data.info, slaveId.get(), authToken, strict);
 
   if (provider.isError()) {
     return Failure(
@@ -506,7 +510,8 @@ Try<Owned<LocalResourceProviderDaemon>> LocalResourceProviderDaemon::create(
       url,
       flags.work_dir,
       configDir,
-      secretGenerator);
+      secretGenerator,
+      flags.strict);
 }
 
 
@@ -514,12 +519,10 @@ LocalResourceProviderDaemon::LocalResourceProviderDaemon(
     const http::URL& url,
     const string& workDir,
     const Option<string>& configDir,
-    SecretGenerator* secretGenerator)
+    SecretGenerator* secretGenerator,
+    bool strict)
   : process(new LocalResourceProviderDaemonProcess(
-        url,
-        workDir,
-        configDir,
-        secretGenerator))
+        url, workDir, configDir, secretGenerator, strict))
 {
   spawn(CHECK_NOTNULL(process.get()));
 }

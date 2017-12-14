@@ -37,7 +37,8 @@ Try<Owned<LocalResourceProvider>> LocalResourceProvider::create(
     const string& workDir,
     const ResourceProviderInfo& info,
     const SlaveID& slaveId,
-    const Option<string>& authToken)
+    const Option<string>& authToken,
+    bool strict)
 {
   // TODO(jieyu): Document the built-in local resource providers.
   const hashmap<string, lambda::function<decltype(create)>> creators = {
@@ -47,7 +48,8 @@ Try<Owned<LocalResourceProvider>> LocalResourceProvider::create(
   };
 
   if (creators.contains(info.type())) {
-    return creators.at(info.type())(url, workDir, info, slaveId, authToken);
+    return creators.at(info.type())(
+        url, workDir, info, slaveId, authToken, strict);
   }
 
   return Error("Unknown local resource provider type '" + info.type() + "'");
