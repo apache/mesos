@@ -7409,7 +7409,24 @@ void Slave::updateOfferOperation(
     }
   }
 
-  operation->add_statuses()->CopyFrom(status);
+  // Adding the update's status to the stored operation below is the one place
+  // in this function where we mutate the operation state irrespective of the
+  // value of `terminated`. We check to see if this status update is a retry;
+  // if so, we do nothing.
+  bool isRetry = false;
+  if (status.has_status_uuid()) {
+    foreach (const OfferOperationStatus& storedStatus, operation->statuses()) {
+      if (storedStatus.has_status_uuid() &&
+          storedStatus.status_uuid() == status.status_uuid()) {
+        isRetry = true;
+        break;
+      }
+    }
+  }
+
+  if (!isRetry) {
+    operation->add_statuses()->CopyFrom(status);
+  }
 
   Try<UUID> operationUUID = UUID::fromBytes(operation->operation_uuid());
   CHECK_SOME(operationUUID);
