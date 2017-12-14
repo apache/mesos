@@ -349,21 +349,14 @@ void ResourceProviderManagerProcess::applyOfferOperation(
 {
   const Offer::Operation& operation = message.operation_info();
   const FrameworkID& frameworkId = message.framework_id();
-
-  Try<id::UUID> uuid = id::UUID::fromBytes(message.operation_uuid());
-  if (uuid.isError()) {
-    LOG(ERROR) << "Failed to parse offer operation UUID for operation "
-               << "'" << operation.id() << "' from framework "
-               << frameworkId << ": " << uuid.error();
-    return;
-  }
+  const UUID& operationUUID = message.operation_uuid();
 
   Result<ResourceProviderID> resourceProviderId =
     getResourceProviderId(operation);
 
   if (!resourceProviderId.isSome()) {
     LOG(ERROR) << "Failed to get the resource provider ID of operation "
-               << "'" << operation.id() << "' (uuid: " << uuid->toString()
+               << "'" << operation.id() << "' (uuid: " << operationUUID
                << ") from framework " << frameworkId << ": "
                << (resourceProviderId.isError() ? resourceProviderId.error()
                                                 : "Not found");
@@ -372,7 +365,7 @@ void ResourceProviderManagerProcess::applyOfferOperation(
 
   if (!resourceProviders.subscribed.contains(resourceProviderId.get())) {
     LOG(WARNING) << "Dropping operation '" << operation.id() << "' (uuid: "
-                 << uuid.get() << ") from framework " << frameworkId
+                 << operationUUID << ") from framework " << frameworkId
                  << " because resource provider " << resourceProviderId.get()
                  << " is not subscribed";
     return;
@@ -396,13 +389,14 @@ void ResourceProviderManagerProcess::applyOfferOperation(
     ->mutable_framework_id()->CopyFrom(frameworkId);
   event.mutable_apply_offer_operation()->mutable_info()->CopyFrom(operation);
   event.mutable_apply_offer_operation()
-    ->set_operation_uuid(message.operation_uuid());
-  event.mutable_apply_offer_operation()->set_resource_version_uuid(
-      message.resource_version_uuid().uuid());
+    ->mutable_operation_uuid()->CopyFrom(message.operation_uuid());
+  event.mutable_apply_offer_operation()
+    ->mutable_resource_version_uuid()
+    ->CopyFrom(message.resource_version_uuid().uuid());
 
   if (!resourceProvider->http.send(event)) {
     LOG(WARNING) << "Failed to send operation '" << operation.id() << "' "
-                 << "(uuid: " << uuid.get() << ") from framework "
+                 << "(uuid: " << operationUUID << ") from framework "
                  << frameworkId << " to resource provider "
                  << resourceProviderId.get() << ": connection closed";
   }
@@ -429,9 +423,11 @@ void ResourceProviderManagerProcess::acknowledgeOfferOperationUpdate(
   Event event;
   event.set_type(Event::ACKNOWLEDGE_OFFER_OPERATION);
   event.mutable_acknowledge_offer_operation()
-    ->set_status_uuid(message.status_uuid());
+    ->mutable_status_uuid()
+    ->CopyFrom(message.status_uuid());
   event.mutable_acknowledge_offer_operation()
-    ->set_operation_uuid(message.operation_uuid());
+    ->mutable_operation_uuid()
+    ->CopyFrom(message.operation_uuid());
 
   if (!resourceProvider.http.send(event)) {
     LOG(WARNING) << "Failed to send offer operation update acknowledgement with"
@@ -455,12 +451,12 @@ void ResourceProviderManagerProcess::reconcileOfferOperations(
 
       if (events.contains(resourceProviderId)) {
         events.at(resourceProviderId).mutable_reconcile_offer_operations()
-          ->add_operation_uuids(operation.operation_uuid());
+          ->add_operation_uuids()->CopyFrom(operation.operation_uuid());
       } else {
         Event event;
         event.set_type(Event::RECONCILE_OFFER_OPERATIONS);
         event.mutable_reconcile_offer_operations()
-          ->add_operation_uuids(operation.operation_uuid());
+          ->add_operation_uuids()->CopyFrom(operation.operation_uuid());
 
         events[resourceProviderId] = event;
       }
@@ -538,7 +534,8 @@ Future<Nothing> ResourceProviderManagerProcess::publishResources(
 
     Event event;
     event.set_type(Event::PUBLISH_RESOURCES);
-    event.mutable_publish_resources()->set_uuid(uuid.toBytes());
+    event.mutable_publish_resources()
+      ->mutable_uuid()->set_value(uuid.toBytes());
     event.mutable_publish_resources()->mutable_resources()->CopyFrom(resources);
 
     ResourceProvider* resourceProvider =
@@ -633,7 +630,7 @@ void ResourceProviderManagerProcess::updateOfferOperationStatus(
   ResourceProviderMessage::UpdateOfferOperationStatus body;
   body.update.mutable_framework_id()->CopyFrom(update.framework_id());
   body.update.mutable_status()->CopyFrom(update.status());
-  body.update.set_operation_uuid(update.operation_uuid());
+  body.update.mutable_operation_uuid()->CopyFrom(update.operation_uuid());
   if (update.has_latest_status()) {
     body.update.mutable_latest_status()->CopyFrom(update.latest_status());
   }
@@ -657,7 +654,7 @@ void ResourceProviderManagerProcess::updateState(
   // TODO(chhsiao): Report pending operations.
 
   Try<id::UUID> resourceVersion =
-    id::UUID::fromBytes(update.resource_version_uuid());
+    id::UUID::fromBytes(update.resource_version_uuid().value());
 
   CHECK_SOME(resourceVersion)
     << "Could not deserialize version of resource provider "
@@ -665,7 +662,8 @@ void ResourceProviderManagerProcess::updateState(
 
   hashmap<id::UUID, OfferOperation> offerOperations;
   foreach (const OfferOperation &operation, update.operations()) {
-    Try<id::UUID> uuid = id::UUID::fromBytes(operation.operation_uuid());
+    Try<id::UUID> uuid =
+      id::UUID::fromBytes(operation.operation_uuid().value());
     CHECK_SOME(uuid);
 
     offerOperations.put(uuid.get(), operation);
@@ -693,7 +691,7 @@ void ResourceProviderManagerProcess::updatePublishResourcesStatus(
     ResourceProvider* resourceProvider,
     const Call::UpdatePublishResourcesStatus& update)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(update.uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(update.uuid().value());
   if (uuid.isError()) {
     LOG(ERROR) << "Invalid UUID in UpdatePublishResourcesStatus from resource"
                << " provider " << resourceProvider->info.id()

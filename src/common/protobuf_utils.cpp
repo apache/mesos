@@ -438,7 +438,7 @@ OfferOperationStatus createOfferOperationStatus(
   }
 
   if (statusUUID.isSome()) {
-    status.set_status_uuid(statusUUID->toBytes());
+    status.mutable_status_uuid()->set_value(statusUUID->toBytes());
   }
 
   return status;
@@ -462,9 +462,9 @@ OfferOperation createOfferOperation(
   operation.mutable_info()->CopyFrom(info);
   operation.mutable_latest_status()->CopyFrom(latestStatus);
   if (operationUUID.isSome()) {
-    operation.set_operation_uuid(operationUUID->toBytes());
+    operation.mutable_operation_uuid()->set_value(operationUUID->toBytes());
   } else {
-    operation.set_operation_uuid(id::UUID::random().toBytes());
+    operation.mutable_operation_uuid()->set_value(id::UUID::random().toBytes());
   }
 
   return operation;
@@ -489,7 +489,7 @@ OfferOperationStatusUpdate createOfferOperationStatusUpdate(
   if (latestStatus.isSome()) {
     update.mutable_latest_status()->CopyFrom(latestStatus.get());
   }
-  update.set_operation_uuid(operationUUID.toBytes());
+  update.mutable_operation_uuid()->set_value(operationUUID.toBytes());
 
   return update;
 }
@@ -869,7 +869,7 @@ RepeatedPtrField<ResourceVersionUUID> createResourceVersions(
     if (resourceProviderId.isSome()) {
       entry->mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
     }
-    entry->set_uuid(uuid.toBytes());
+    entry->mutable_uuid()->set_value(uuid.toBytes());
   }
 
   return result;
@@ -891,7 +891,8 @@ hashmap<Option<ResourceProviderID>, id::UUID> parseResourceVersions(
 
     CHECK(!result.contains(resourceProviderId));
 
-    const Try<id::UUID> uuid = id::UUID::fromBytes(resourceVersionUUID.uuid());
+    const Try<id::UUID> uuid =
+      id::UUID::fromBytes(resourceVersionUUID.uuid().value());
     CHECK_SOME(uuid);
 
     result.insert({std::move(resourceProviderId), std::move(uuid.get())});

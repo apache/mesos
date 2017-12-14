@@ -81,6 +81,7 @@ bool operator==(const TaskGroupInfo& left, const TaskGroupInfo& right);
 bool operator==(const TaskInfo& left, const TaskInfo& right);
 bool operator==(const TaskStatus& left, const TaskStatus& right);
 bool operator==(const URL& left, const URL& right);
+bool operator==(const UUID& left, const UUID& right);
 bool operator==(const Volume& left, const Volume& right);
 
 bool operator!=(const CheckStatusInfo& left, const CheckStatusInfo& right);
@@ -300,6 +301,12 @@ inline bool operator!=(const TimeInfo& left, const TimeInfo& right)
 }
 
 
+inline bool operator!=(const UUID& left, const UUID& right)
+{
+  return !(left == right);
+}
+
+
 inline bool operator!=(const DurationInfo& left, const DurationInfo& right)
 {
   return !(left == right);
@@ -439,6 +446,11 @@ std::ostream& operator<<(std::ostream& stream, const TaskInfo& task);
 
 
 std::ostream& operator<<(std::ostream& stream, const TaskState& state);
+
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const UUID& uuid);
 
 
 std::ostream& operator<<(std::ostream& stream, const CheckInfo::Type& type);

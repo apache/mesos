@@ -95,7 +95,7 @@ protected:
   {
     OfferOperationStatusUpdate statusUpdate;
 
-    statusUpdate.set_operation_uuid(operationUuid.toBytes());
+    statusUpdate.mutable_operation_uuid()->set_value(operationUuid.toBytes());
 
     if (frameworkId.isSome()) {
       statusUpdate.mutable_framework_id()->CopyFrom(frameworkId.get());
@@ -103,7 +103,7 @@ protected:
 
     OfferOperationStatus* status = statusUpdate.mutable_status();
     status->set_state(state);
-    status->set_status_uuid(statusUuid.toBytes());
+    status->mutable_status_uuid()->set_value(statusUuid.toBytes());
 
     return statusUpdate;
   }

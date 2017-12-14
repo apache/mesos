@@ -2996,7 +2996,8 @@ public:
 
       typename Call::UpdateState* update = call.mutable_update_state();
       update->mutable_resources()->CopyFrom(injected);
-      update->set_resource_version_uuid(id::UUID::random().toBytes());
+      update->mutable_resource_version_uuid()->set_value(
+          id::UUID::random().toBytes());
 
       driver->send(call);
     }
@@ -3013,7 +3014,7 @@ public:
     typename Call::UpdateOfferOperationStatus* update =
       call.mutable_update_offer_operation_status();
     update->mutable_framework_id()->CopyFrom(operation.framework_id());
-    update->set_operation_uuid(operation.operation_uuid());
+    update->mutable_operation_uuid()->CopyFrom(operation.operation_uuid());
 
     update->mutable_status()->set_state(
         OfferOperationState::OFFER_OPERATION_FINISHED);
@@ -3089,7 +3090,7 @@ public:
 
     typename Call::UpdatePublishResourcesStatus* update =
       call.mutable_update_publish_resources_status();
-    update->set_uuid(publish.uuid());
+    update->mutable_uuid()->CopyFrom(publish.uuid());
     update->set_status(Call::UpdatePublishResourcesStatus::OK);
 
     driver->send(call);

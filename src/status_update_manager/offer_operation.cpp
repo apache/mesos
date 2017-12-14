@@ -72,7 +72,8 @@ Future<Nothing> OfferOperationStatusUpdateManager::update(
     const OfferOperationStatusUpdate& update,
     bool checkpoint)
 {
-  Try<id::UUID> operationUuid = id::UUID::fromBytes(update.operation_uuid());
+  Try<id::UUID> operationUuid =
+    id::UUID::fromBytes(update.operation_uuid().value());
   CHECK_SOME(operationUuid);
 
   return dispatch(

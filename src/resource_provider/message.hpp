@@ -95,12 +95,9 @@ inline std::ostream& operator<<(
 
       CHECK_SOME(updateOfferOperationStatus);
 
-      Try<id::UUID> operationUUID = id::UUID::fromBytes(
-          updateOfferOperationStatus->update.operation_uuid());
-      CHECK_SOME(operationUUID);
-
       return stream
-          << "UPDATE_OFFER_OPERATION_STATUS: (uuid: " << operationUUID.get()
+          << "UPDATE_OFFER_OPERATION_STATUS: (uuid: "
+          << updateOfferOperationStatus->update.operation_uuid()
           << ") for framework "
           << updateOfferOperationStatus->update.framework_id()
           << " (latest state: "

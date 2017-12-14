@@ -1543,7 +1543,8 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources_);
 
-    message.set_resource_version_uuid(resourceVersion.toBytes());
+    message.mutable_resource_version_uuid()->set_value(
+        resourceVersion.toBytes());
 
     send(master.get(), message);
   } else {
@@ -1557,7 +1558,8 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources_);
 
-    message.set_resource_version_uuid(resourceVersion.toBytes());
+    message.mutable_resource_version_uuid()->set_value(
+        resourceVersion.toBytes());
 
     message.mutable_slave()->CopyFrom(slaveInfo);
 
@@ -3807,7 +3809,7 @@ void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
     ? message.framework_id()
     : Option<FrameworkID>::none();
 
-  Try<id::UUID> uuid = id::UUID::fromBytes(message.operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(message.operation_uuid().value());
   if (uuid.isError()) {
     LOG(ERROR) << "Failed to parse offer operation UUID for operation "
                << "'" << message.operation_info().id() << "' from "
@@ -3906,7 +3908,7 @@ void Slave::reconcileOfferOperations(
     }
 
     Try<id::UUID> operationUuid =
-      id::UUID::fromBytes(operation.operation_uuid());
+      id::UUID::fromBytes(operation.operation_uuid().value());
     CHECK_SOME(operationUuid);
 
     // The master reconciles when it notices that an operation is missing from
@@ -3991,7 +3993,7 @@ void Slave::offerOperationUpdateAcknowledgement(
     const OfferOperationUpdateAcknowledgementMessage& acknowledgement)
 {
   Try<id::UUID> operationUuid =
-    id::UUID::fromBytes(acknowledgement.operation_uuid());
+    id::UUID::fromBytes(acknowledgement.operation_uuid().value());
   CHECK_SOME(operationUuid);
 
   OfferOperation* operation = getOfferOperation(operationUuid.get());
@@ -7022,7 +7024,7 @@ UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
   UpdateSlaveMessage message;
   message.mutable_slave_id()->CopyFrom(info.id());
   message.set_update_oversubscribed_resources(false);
-  message.set_resource_version_uuid(resourceVersion.toBytes());
+  message.mutable_resource_version_uuid()->set_value(resourceVersion.toBytes());
   message.mutable_offer_operations();
 
   foreachvalue (const OfferOperation* operation, offerOperations) {
@@ -7043,7 +7045,7 @@ UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
         resourceProvider->info);
     provider->mutable_total_resources()->CopyFrom(
         resourceProvider->totalResources);
-    provider->set_resource_version_uuid(
+    provider->mutable_resource_version_uuid()->set_value(
         resourceProvider->resourceVersion.toBytes());
 
     provider->mutable_operations();
@@ -7228,7 +7230,7 @@ void Slave::handleResourceProviderMessage(
         message->updateOfferOperationStatus->update;
 
       Try<id::UUID> operationUUID =
-        id::UUID::fromBytes(update.operation_uuid());
+        id::UUID::fromBytes(update.operation_uuid().value());
       CHECK_SOME(operationUUID);
 
       OfferOperation* operation = getOfferOperation(operationUUID.get());
@@ -7352,7 +7354,7 @@ void Slave::handleResourceProviderMessage(
 
 void Slave::addOfferOperation(OfferOperation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid().value());
   CHECK_SOME(uuid);
 
   offerOperations.put(uuid.get(), operation);
@@ -7430,13 +7432,9 @@ void Slave::updateOfferOperation(
     operation->add_statuses()->CopyFrom(status);
   }
 
-  Try<id::UUID> operationUUID =
-    id::UUID::fromBytes(operation->operation_uuid());
-  CHECK_SOME(operationUUID);
-
   LOG(INFO) << "Updating the state of offer operation '"
             << operation->info().id()
-            << "' (uuid: " << operationUUID.get()
+            << "' (uuid: " << operation->operation_uuid()
             << ") of framework " << operation->framework_id()
             << " (latest state: " << operation->latest_status().state()
             << ", status update state: " << status.state() << ")";
@@ -7491,7 +7489,7 @@ void Slave::updateOfferOperation(
 
 void Slave::removeOfferOperation(OfferOperation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid().value());
   CHECK_SOME(uuid);
 
   Result<ResourceProviderID> resourceProviderId =
@@ -9167,7 +9165,7 @@ Resources Executor::allocatedResources() const
 
 void ResourceProvider::addOfferOperation(OfferOperation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid().value());
   CHECK_SOME(uuid);
 
   CHECK(!offerOperations.contains(uuid.get()))
@@ -9179,7 +9177,7 @@ void ResourceProvider::addOfferOperation(OfferOperation* operation)
 
 void ResourceProvider::removeOfferOperation(OfferOperation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid().value());
   CHECK_SOME(uuid);
 
   CHECK(offerOperations.contains(uuid.get()))

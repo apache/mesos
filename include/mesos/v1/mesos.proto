@@ -2230,6 +2230,14 @@ message TaskResourceLimitation {
 
 
 /**
+ * Describes a UUID.
+ */
+message UUID {
+  required bytes value = 1;
+}
+
+
+/**
  * Describes an offer operation, similar to `Offer.Operation`, with
  * some additional information.
  */
@@ -2247,7 +2255,7 @@ message OfferOperation {
   // This is the internal UUID for the operation, which is kept
   // independently from the framework-specified operation ID, which is
   // optional.
-  required bytes operation_uuid = 6;
+  required UUID operation_uuid = 6;
 }
 
 
@@ -2292,7 +2300,7 @@ message OfferOperationStatus {
   // Statuses that are delivered reliably to the scheduler will
   // include a `status_uuid`. The status is considered delivered once
   // it is acknowledged by the scheduler.
-  optional bytes status_uuid = 5;
+  optional UUID status_uuid = 5;
 }
 
 

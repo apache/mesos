@@ -74,7 +74,7 @@ TEST(ResourceProviderCallValidationTest, UpdateOfferOperationStatus)
     call.mutable_update_offer_operation_status();
 
   update->mutable_framework_id()->set_value(id::UUID::random().toString());
-  update->set_operation_uuid(id::UUID::random().toBytes());
+  update->mutable_operation_uuid()->set_value(id::UUID::random().toBytes());
 
   OfferOperationStatus* status = update->mutable_status();
   status->mutable_operation_id()->set_value(id::UUID::random().toString());
@@ -102,7 +102,8 @@ TEST(ResourceProviderCallValidationTest, UpdateState)
   EXPECT_SOME(error);
 
   Call::UpdateState* updateState = call.mutable_update_state();
-  updateState->set_resource_version_uuid(id::UUID::random().toBytes());
+  updateState->mutable_resource_version_uuid()->set_value(
+      id::UUID::random().toBytes());
 
   error = call::validate(call);
   EXPECT_NONE(error);

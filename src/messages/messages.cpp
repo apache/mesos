@@ -129,14 +129,12 @@ ostream& operator<<(ostream& stream, const OfferOperationStatusUpdate& update)
   stream << update.status().state();
 
   if (update.status().has_status_uuid()) {
-    stream << " (Status UUID: "
-           << stringify(
-                  id::UUID::fromBytes(update.status().status_uuid()).get())
+    stream << " (Status UUID: " << stringify(update.status().status_uuid())
            << ")";
   }
 
   stream << " for operation UUID "
-         << stringify(id::UUID::fromBytes(update.operation_uuid()).get());
+         << stringify(update.operation_uuid());
 
   if (update.status().has_operation_id()) {
     stream << " (framework-supplied ID '" << update.status().operation_id()

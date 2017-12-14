@@ -319,7 +319,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
     Call::UpdateState* updateState = call.mutable_update_state();
 
     updateState->mutable_resources()->CopyFrom(v1::Resources(resources));
-    updateState->set_resource_version_uuid(id::UUID::random().toBytes());
+    updateState->mutable_resource_version_uuid()->set_value(
+        id::UUID::random().toBytes());
 
     http::Request request;
     request.method = "POST";
@@ -418,7 +419,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
     mesos::v1::OfferOperationStatus status;
     status.set_state(mesos::v1::OfferOperationState::OFFER_OPERATION_FINISHED);
 
-    id::UUID operationUUID = id::UUID::random();
+    mesos::v1::UUID operationUUID;
+    operationUUID.set_value(id::UUID::random().toBytes());
 
     Call call;
     call.set_type(Call::UPDATE_OFFER_OPERATION_STATUS);
@@ -428,7 +430,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
       call.mutable_update_offer_operation_status();
     updateOfferOperationStatus->mutable_framework_id()->CopyFrom(frameworkId);
     updateOfferOperationStatus->mutable_status()->CopyFrom(status);
-    updateOfferOperationStatus->set_operation_uuid(operationUUID.toBytes());
+    updateOfferOperationStatus->mutable_operation_uuid()->CopyFrom(
+        operationUUID);
 
     http::Request request;
     request.method = "POST";
@@ -458,8 +461,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
         devolve(status).state(),
         message->updateOfferOperationStatus->update.status().state());
     EXPECT_EQ(
-        operationUUID.toBytes(),
-        message->updateOfferOperationStatus->update.operation_uuid());
+        operationUUID.value(),
+        message->updateOfferOperationStatus->update.operation_uuid().value());
   }
 }
 
@@ -550,7 +553,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesSuccess)
 
     Call::UpdatePublishResourcesStatus* update =
       call.mutable_update_publish_resources_status();
-    update->set_uuid(event->get().publish_resources().uuid());
+    update->mutable_uuid()->CopyFrom(event->get().publish_resources().uuid());
     update->set_status(Call::UpdatePublishResourcesStatus::OK);
 
     http::Request request;
@@ -657,7 +660,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesFailure)
 
     Call::UpdatePublishResourcesStatus* update =
       call.mutable_update_publish_resources_status();
-    update->set_uuid(event->get().publish_resources().uuid());
+    update->mutable_uuid()->CopyFrom(event->get().publish_resources().uuid());
     update->set_status(Call::UpdatePublishResourcesStatus::FAILED);
 
     http::Request request;

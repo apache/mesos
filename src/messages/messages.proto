@@ -410,10 +410,10 @@ message StatusUpdateAcknowledgementMessage {
  */
 message OfferOperationUpdateAcknowledgementMessage {
   // The UUID from the `OfferOperationStatus` being acknowledged.
-  required bytes status_uuid = 1;
+  required UUID status_uuid = 1;
 
   // The UUID from the relevant `OfferOperation`.
-  required bytes operation_uuid = 2;
+  required UUID operation_uuid = 2;
 
   optional ResourceProviderID resource_provider_id = 3;
 }
@@ -466,7 +466,7 @@ message ReconcileTasksMessage {
  */
 message ReconcileOfferOperationsMessage {
   message Operation {
-    required bytes operation_uuid = 1;
+    required UUID operation_uuid = 1;
     optional ResourceProviderID resource_provider_id = 2;
   }
 
@@ -526,7 +526,7 @@ message RegisterSlaveMessage {
   // different resource version UUID than that it maintains, because
   // this means the operation is operating on resources that might
   // have already been invalidated.
-  optional bytes resource_version_uuid = 5;
+  optional UUID resource_version_uuid = 5;
 }
 
 
@@ -585,7 +585,7 @@ message ReregisterSlaveMessage {
   // different resource version UUID than that it maintains, because
   // this means the operation is operating on resources that might
   // have already been invalidated.
-  optional bytes resource_version_uuid = 10;
+  optional UUID resource_version_uuid = 10;
 }
 
 
@@ -704,7 +704,7 @@ message ResourceVersionUUID {
   // If not set, it represents resources directly from the agent (not
   // having a backing resource provider).
   optional ResourceProviderID resource_provider_id = 1;
-  required bytes uuid = 2;
+  required UUID uuid = 2;
 }
 
 
@@ -752,14 +752,14 @@ message UpdateSlaveMessage {
   // should reject operations that have a different resource version
   // UUID than that it maintains, because this means the operation is
   // operating on resources that might have already been invalidated.
-  optional bytes resource_version_uuid = 7;
+  optional UUID resource_version_uuid = 7;
 
   // Describes an agent-local resource provider.
   message ResourceProvider {
     optional ResourceProviderInfo info = 1;
     repeated Resource total_resources = 2;
     required OfferOperations operations = 3;
-    required bytes resource_version_uuid = 4;
+    required UUID resource_version_uuid = 4;
   }
 
   message ResourceProviders {
@@ -788,7 +788,7 @@ message OfferOperationStatusUpdate {
   // This is the internal UUID for the operation, which is kept
   // independently from the framework-specified operation ID, which is
   // optional.
-  required bytes operation_uuid = 5;
+  required UUID operation_uuid = 5;
 }
 
 
@@ -809,7 +809,7 @@ message OfferOperationStatusUpdateRecord {
   optional OfferOperationStatusUpdate update = 2;
 
   // Required if type == ACK.
-  optional bytes uuid = 3;
+  optional UUID uuid = 3;
 }
 
 
@@ -828,7 +828,7 @@ message ApplyOfferOperationMessage {
   // This is the internal UUID for the operation, which is kept
   // independently from the framework-specified operation ID, which is
   // optional.
-  required bytes operation_uuid = 3;
+  required UUID operation_uuid = 3;
 
   // Used to establish the relationship between the operation and the
   // resources that the operation is operating on. Each resource
@@ -857,7 +857,7 @@ message ResourceProviderCallMessage {
   // resource provider ID hasn't been assigned yet. This 'uuid' will
   // be echoed back in the corresponding 'Subscribed' Event, allowing
   // the agent to tell which resource provider the Event is for.
-  optional bytes uuid = 2;
+  optional UUID uuid = 2;
 }
 
 
@@ -871,7 +871,7 @@ message ResourceProviderEventMessage {
   required resource_provider.Event event = 2;
 
   // See the comments in 'ResourceProviderCallMessage'.
-  optional bytes uuid = 3;
+  optional UUID uuid = 3;
 }
 
 

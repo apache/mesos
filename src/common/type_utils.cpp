@@ -196,6 +196,12 @@ bool operator==(const URL& left, const URL& right)
 }
 
 
+bool operator==(const UUID& left, const UUID& right)
+{
+  return left.value() == right.value();
+}
+
+
 bool operator==(
     const ContainerInfo::DockerInfo::PortMapping& left,
     const ContainerInfo::DockerInfo::PortMapping& right)
@@ -789,6 +795,17 @@ ostream& operator<<(ostream& stream, const TaskInfo& task)
 ostream& operator<<(ostream& stream, const TaskState& state)
 {
   return stream << TaskState_Name(state);
+}
+
+
+ostream& operator<<(ostream& stream, const UUID& uuid)
+{
+  Try<id::UUID> _uuid = id::UUID::fromBytes(uuid.value());
+  if (_uuid.isError()) {
+    return stream << "INVALID UUID";
+  }
+
+  return stream << _uuid->toString();
 }
 
 

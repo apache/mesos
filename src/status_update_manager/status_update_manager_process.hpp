@@ -702,7 +702,7 @@ private:
             if (update.isNone()) {
               return Error(
                   "Unexpected " + statusUpdateType + " acknowledgment"
-                  " (UUID: " + id::UUID::fromBytes(record->uuid())->toString() +
+                  " (UUID: " + stringify(record->uuid()) +
                   ") for stream " + stringify(streamId));
             }
             stream->_handle(update.get(), record->type());
@@ -785,7 +785,7 @@ private:
         return Error("Status update is missing 'status_uuid'");
       }
       Try<id::UUID> statusUuid =
-        id::UUID::fromBytes(update.status().status_uuid());
+        id::UUID::fromBytes(update.status().status_uuid().value());
       CHECK_SOME(statusUuid);
 
       // Check that this status update has not already been acknowledged.
@@ -849,7 +849,7 @@ private:
       // make the `TaskStatusUpdateManager` use this process, we should avoid
       // depending on identical field names.
       Try<id::UUID> updateStatusUuid =
-        id::UUID::fromBytes(update.status().status_uuid());
+        id::UUID::fromBytes(update.status().status_uuid().value());
       CHECK_SOME(updateStatusUuid);
 
       // This might happen if we retried a status update and got back
@@ -940,7 +940,7 @@ private:
             // field containing the status update uuid has a different name.
             // In order to make the `TaskStatusUpdateManager` use this process,
             // we should avoid depending on identical field names.
-            record.set_uuid(update.status().status_uuid());
+            record.mutable_uuid()->CopyFrom(update.status().status_uuid());
             break;
         }
 
@@ -971,7 +971,7 @@ private:
       // make the `TaskStatusUpdateManager` use this process, we should avoid
       // depending on identical field names.
       Try<id::UUID> statusUuid =
-        id::UUID::fromBytes(update.status().status_uuid());
+        id::UUID::fromBytes(update.status().status_uuid().value());
       CHECK_SOME(statusUuid);
 
       switch (type) {

@@ -8765,7 +8765,8 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
     updateState->mutable_resources()->CopyFrom(
         v1::Resources(resourceProviderResources));
 
-    updateState->set_resource_version_uuid(resourceVersionUuid);
+    updateState->mutable_resource_version_uuid()->set_value(
+        resourceVersionUuid);
 
     resourceProvider.send(call);
   }
@@ -8784,7 +8785,7 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
 
   EXPECT_EQ(
       resourceVersionUuid,
-      receivedResourceProvider.resource_version_uuid());
+      receivedResourceProvider.resource_version_uuid().value());
 }
 
 
@@ -9283,13 +9284,14 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
     v1::resource_provider::Call::UpdateState* updateState =
       call.mutable_update_state();
 
-    updateState->set_resource_version_uuid(resourceVersionUuid.toBytes());
+    updateState->mutable_resource_version_uuid()->set_value(
+        resourceVersionUuid.toBytes());
     updateState->mutable_resources()->CopyFrom(resourceProviderResources_);
 
     mesos::v1::OfferOperation* _operation = updateState->add_operations();
     _operation->mutable_framework_id()->CopyFrom(operation->framework_id());
     _operation->mutable_info()->CopyFrom(operation->info());
-    _operation->set_operation_uuid(operation->operation_uuid());
+    _operation->mutable_operation_uuid()->CopyFrom(operation->operation_uuid());
 
     mesos::v1::OfferOperationStatus* lastStatus =
       _operation->mutable_latest_status();
@@ -9451,7 +9453,8 @@ TEST_F(SlaveTest, RunTaskResourceVersions)
     v1::resource_provider::Call::UpdateState* updateState =
       call.mutable_update_state();
 
-    updateState->set_resource_version_uuid(id::UUID::random().toBytes());
+    updateState->mutable_resource_version_uuid()->set_value(
+        id::UUID::random().toBytes());
     updateState->mutable_resources()->CopyFrom(resourceProviderResources_);
 
     AWAIT_READY(resourceProvider.send(call));

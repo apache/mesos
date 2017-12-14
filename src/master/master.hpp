@@ -2462,7 +2462,8 @@ struct Framework
 
     const FrameworkID& frameworkId = operation->framework_id();
 
-    Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
+    Try<id::UUID> uuid =
+      id::UUID::fromBytes(operation->operation_uuid().value());
     CHECK_SOME(uuid);
 
     CHECK(!offerOperations.contains(uuid.get()))
@@ -2549,7 +2550,8 @@ struct Framework
 
   void removeOfferOperation(OfferOperation* operation)
   {
-    Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid());
+    Try<id::UUID> uuid =
+      id::UUID::fromBytes(operation->operation_uuid().value());
     CHECK_SOME(uuid);
 
     CHECK(offerOperations.contains(uuid.get()))

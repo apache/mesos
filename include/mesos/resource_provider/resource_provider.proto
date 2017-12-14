@@ -54,7 +54,7 @@ message Event {
     // This is the internal UUID for the operation, which is kept
     // independently from the framework-specified operation ID, which
     // is optional.
-    required bytes operation_uuid = 3;
+    required UUID operation_uuid = 3;
 
     // Used to establish the relationship between the operation and
     // the resources that the operation is operating on. Each resource
@@ -68,13 +68,13 @@ message Event {
     // that it maintains, because this means the operation is
     // operating on resources that might have already been
     // invalidated.
-    required bytes resource_version_uuid = 4;
+    required UUID resource_version_uuid = 4;
   }
 
   // Received when the master wants to launch a task using resources
   // of this resource provider.
   message PublishResources {
-    required bytes uuid = 1;
+    required UUID uuid = 1;
     repeated Resource resources = 2;
   }
 
@@ -82,10 +82,10 @@ message Event {
   // Acknowledgements may be generated either by a framework or by the master.
   message AcknowledgeOfferOperation {
     // The UUID from the `OfferOperationStatus` being acknowledged.
-    required bytes status_uuid = 1;
+    required UUID status_uuid = 1;
 
     // The UUID from the relevant `OfferOperation`.
-    required bytes operation_uuid = 2;
+    required UUID operation_uuid = 2;
   }
 
   // Received when the resource provider manager wants to reconcile its view of
@@ -93,7 +93,7 @@ message Event {
   // generate offer operation status updates for any operation UUIDs in this
   // message which are unknown to the resource provider.
   message ReconcileOfferOperations {
-    repeated bytes operation_uuids = 1;
+    repeated UUID operation_uuids = 1;
   }
 
   optional Type type = 1;
@@ -133,7 +133,7 @@ message Call {
     // This is the internal UUID for the operation, which is kept
     // independently from the framework-specified operation ID, which
     // is optional.
-    required bytes operation_uuid = 4;
+    required UUID operation_uuid = 4;
   }
 
   // Notify the master about the total resources and pending operations.
@@ -157,7 +157,7 @@ message Call {
     // that it maintains, because this means the operation is
     // operating on resources that might have already been
     // invalidated.
-    required bytes resource_version_uuid = 3;
+    required UUID resource_version_uuid = 3;
   }
 
   message UpdatePublishResourcesStatus {
@@ -167,7 +167,7 @@ message Call {
       FAILED = 2;
     }
 
-    required bytes uuid = 1;
+    required UUID uuid = 1;
     required Status status = 2;
   }
 
