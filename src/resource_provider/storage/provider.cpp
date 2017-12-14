@@ -327,7 +327,7 @@ private:
   };
 
   void initialize() override;
-  void fatal(const string& messsage, const string& failure);
+  void fatal();
 
   Future<Nothing> recover();
   Future<Nothing> recoverServices();
@@ -518,7 +518,8 @@ void StorageLocalResourceProviderProcess::initialize()
 
   Try<string> _bootId = os::bootId();
   if (_bootId.isError()) {
-    return fatal("Failed to get boot ID", _bootId.error());
+    LOG(ERROR) << "Failed to get boot ID: " << _bootId.error();
+    return fatal();
   }
 
   bootId = _bootId.get();
@@ -553,25 +554,24 @@ void StorageLocalResourceProviderProcess::initialize()
   defaultProfile.capability.mutable_access_mode()
     ->set_mode(csi::VolumeCapability::AccessMode::SINGLE_NODE_WRITER);
 
-  const string message =
-    "Failed to recover resource provider with type '" + info.type() +
-    "' and name '" + info.name() + "'";
+  auto die = [=](const string& message) {
+    LOG(ERROR)
+      << "Failed to recover resource provider with type '" << info.type()
+      << "' and name '" << info.name() << "': " << message;
+    fatal();
+  };
 
   // NOTE: Most resource provider events rely on the plugins being
   // prepared. To avoid race conditions, we connect to the agent after
   // preparing the plugins.
   recover()
-    .onFailed(defer(self(), &Self::fatal, message, lambda::_1))
-    .onDiscarded(defer(self(), &Self::fatal, message, "future discarded"));
+    .onFailed(defer(self(), std::bind(die, lambda::_1)))
+    .onDiscarded(defer(self(), std::bind(die, "future discarded")));
 }
 
 
-void StorageLocalResourceProviderProcess::fatal(
-    const string& message,
-    const string& failure)
+void StorageLocalResourceProviderProcess::fatal()
 {
-  LOG(ERROR) << message << ": " << failure;
-
   // Force the disconnection early.
   driver.reset();
 
@@ -937,14 +937,16 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverStatusUpdates()
                   ? operation.framework_id() : Option<FrameworkID>::none(),
                 slaveId);
 
-          const string message =
-            "Failed to update status of offer operation with UUID " +
-            stringify(uuid);
+          auto die = [=](const string& message) {
+            LOG(ERROR)
+              << "Failed to update status of offer operation with UUID " << uuid
+              << ": " << message;
+            fatal();
+          };
 
           statusUpdateManager.update(std::move(update))
-            .onFailed(defer(self(), &Self::fatal, message, lambda::_1))
-            .onDiscarded(
-                defer(self(), &Self::fatal, message, "future discarded"));
+            .onFailed(defer(self(), std::bind(die, lambda::_1)))
+            .onDiscarded(defer(self(), std::bind(die, "future discarded")));
         }
       }
 
@@ -1093,14 +1095,18 @@ void StorageLocalResourceProviderProcess::subscribed(
         info.id());
   }
 
-  const string message =
-    "Failed to reconcile resource provider " + stringify(info.id());
+  auto die = [=](const string& message) {
+    LOG(ERROR)
+      << "Failed to reconcile resource provider " << info.id() << ": "
+      << message;
+    fatal();
+  };
 
   // Reconcile resources after obtaining the resource provider ID.
   // TODO(chhsiao): Do the reconciliation early.
   reconcileResourceProviderState()
-    .onFailed(defer(self(), &Self::fatal, message, lambda::_1))
-    .onDiscarded(defer(self(), &Self::fatal, message, "future discarded"));
+    .onFailed(defer(self(), std::bind(die, lambda::_1)))
+    .onDiscarded(defer(self(), std::bind(die, "future discarded")));
 }
 
 
@@ -1367,13 +1373,16 @@ void StorageLocalResourceProviderProcess::reconcileOfferOperations(
           None(),
           slaveId);
 
-    const string message =
-      "Failed to update status of offer operation with UUID " +
-      stringify(uuid.get());
+    auto die = [=](const string& message) {
+      LOG(ERROR)
+        << "Failed to update status of offer operation with UUID " << uuid.get()
+        << ": " << message;
+      fatal();
+    };
 
     statusUpdateManager.update(std::move(update))
-      .onFailed(defer(self(), &Self::fatal, message, lambda::_1))
-      .onDiscarded(defer(self(), &Self::fatal, message, "future discarded"));
+      .onFailed(defer(self(), std::bind(die, lambda::_1)))
+      .onDiscarded(defer(self(), std::bind(die, "future discarded")));
   }
 }
 
@@ -1570,13 +1579,16 @@ Future<csi::Client> StorageLocalResourceProviderProcess::getService(
         "': " + checkpoint.error());
   }
 
-  const string message =
-    "Container daemon for '" + stringify(containerId) + "' failed";
+  auto die = [=](const string& message) {
+    LOG(ERROR)
+      << "Container daemon for '" << containerId << "' failed: " << message;
+    fatal();
+  };
 
   daemons[containerId] = daemon.get();
   daemon.get()->wait()
-    .onFailed(defer(self(), &Self::fatal, message, lambda::_1))
-    .onDiscarded(defer(self(), &Self::fatal, message, "future discarded"));
+    .onFailed(defer(self(), std::bind(die, lambda::_1)))
+    .onDiscarded(defer(self(), std::bind(die, "future discarded")));
 
   return services.at(containerId)->future();
 }
@@ -2652,13 +2664,16 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
           ? operation.framework_id() : Option<FrameworkID>::none(),
         slaveId);
 
-  const string message =
-    "Failed to update status of offer operation with UUID " +
-    stringify(operationUuid);
+  auto die = [=](const string& message) {
+    LOG(ERROR)
+      << "Failed to update status of offer operation with UUID "
+      << operationUuid << ": " << message;
+    fatal();
+  };
 
   statusUpdateManager.update(std::move(update))
-    .onFailed(defer(self(), &Self::fatal, message, lambda::_1))
-    .onDiscarded(defer(self(), &Self::fatal, message, "future discarded"));
+    .onFailed(defer(self(), std::bind(die, lambda::_1)))
+    .onDiscarded(defer(self(), std::bind(die, "future discarded")));
 
   return error.isNone() ? Nothing() : Try<Nothing>::error(error.get());
 }
