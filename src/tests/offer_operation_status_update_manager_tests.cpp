@@ -148,8 +148,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, UpdateAndAck)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   // Acknowledge the update, this is a terminal update, so `acknowledgement`
   // should return `false`.
@@ -180,8 +183,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, UpdateAndAckNonTerminalUpdate)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   // Acknowledge the update, this is a non-terminal update, so `acknowledgement`
   // should return `true`.
@@ -214,8 +220,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, ResendUnacknowledged)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate1);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate1);
 
   EXPECT_FALSE(forwardedStatusUpdate2.isReady());
 
@@ -224,7 +233,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, ResendUnacknowledged)
   Clock::settle();
 
   // Verify that the status update is forwarded again.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate2);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate2);
 
   // Acknowledge the update, this is a terminal update, so `acknowledgement`
   // should return `false`.
@@ -262,8 +271,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, Cleanup)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   // Cleanup the framework.
   statusUpdateManager->cleanup(frameworkId);
@@ -297,8 +309,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverCheckpointedStream)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate1);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate1);
 
   resetStatusUpdateManager();
 
@@ -329,7 +344,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverCheckpointedStream)
   EXPECT_FALSE(state->streams.at(operationUuid)->terminated);
 
   // Check that the status update is resent.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate2);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate2);
 }
 
 
@@ -352,8 +367,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverNotCheckpointedStream)
   // Send a non-checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, false));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   // Verify that the stream file is NOT created.
   EXPECT_TRUE(!os::exists(getPath(operationUuid)));
@@ -388,8 +406,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverEmptyFile)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   resetStatusUpdateManager();
 
@@ -442,8 +463,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverEmptyDirectory)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   resetStatusUpdateManager();
 
@@ -490,8 +514,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverTerminatedStream)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   // Acknowledge the update, this is a terminal update, so `acknowledgement`
   // should return `false`.
@@ -545,8 +572,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, IgnoreDuplicateUpdate)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   // Acknowledge the update, this is a non-terminal update, so `acknowledgement`
   // should return `true`.
@@ -582,8 +612,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, IgnoreDuplicateUpdateAfterRecover)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   // Acknowledge the update, this is a non-terminal update, so `acknowledgement`
   // should return `true`.
@@ -624,8 +657,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RejectDuplicateAck)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   // Acknowledge the update, this is a non-terminal update, so `acknowledgement`
   // should return `true`.
@@ -662,8 +698,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RejectDuplicateAckAfterRecover)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   // Acknowledge the update, this is a non-terminal update, so `acknowledgement`
   // should return `true`.
@@ -707,8 +746,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, NonStrictRecoveryCorruptedFile)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate1);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate1);
 
   resetStatusUpdateManager();
 
@@ -747,7 +789,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, NonStrictRecoveryCorruptedFile)
   EXPECT_EQ(statusUpdate, recoveredUpdate.get());
 
   // Check that the status update is resent.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate2);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate2);
 }
 
 
@@ -770,8 +812,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, StrictRecoveryCorruptedFile)
   // Send a checkpointed offer operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
+
   // Verify that the status update is forwarded.
-  AWAIT_EXPECT_EQ(statusUpdate, forwardedStatusUpdate);
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate);
 
   resetStatusUpdateManager();
 
@@ -791,6 +836,73 @@ TEST_F(OfferOperationStatusUpdateManagerTest, StrictRecoveryCorruptedFile)
 
   // The strict recovery of the corrupted stream should fail.
   AWAIT_ASSERT_FAILED(statusUpdateManager->recover({operationUuid}, true));
+}
+
+
+// This test verifies that the status update manager correctly fills in the
+// latest status when (re)sending status updates.
+TEST_F(OfferOperationStatusUpdateManagerTest, UpdateLatestWhenResending)
+{
+  Future<OfferOperationStatusUpdate> forwardedStatusUpdate1;
+  Future<OfferOperationStatusUpdate> forwardedStatusUpdate2;
+  Future<OfferOperationStatusUpdate> forwardedStatusUpdate3;
+  EXPECT_CALL(statusUpdateProcessor, update(_))
+    .WillOnce(FutureArg<0>(&forwardedStatusUpdate1))
+    .WillOnce(FutureArg<0>(&forwardedStatusUpdate2))
+    .WillOnce(FutureArg<0>(&forwardedStatusUpdate3));
+
+  const UUID operationUuid = UUID::random();
+
+  const UUID statusUuid1 = UUID::random();
+  OfferOperationStatusUpdate statusUpdate1 = createOfferOperationStatusUpdate(
+      statusUuid1, operationUuid, OfferOperationState::OFFER_OPERATION_PENDING);
+
+  // Send a checkpointed offer operation status update.
+  AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate1, true));
+
+  // The status update manager should fill in the `latest_status` field with the
+  // status update we just sent.
+  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate1);
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(
+      statusUpdate1.status());
+
+  // Verify that the status update is forwarded.
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate1);
+
+  EXPECT_FALSE(forwardedStatusUpdate2.isReady());
+
+  // Send another status update.
+  const UUID statusUuid2 = UUID::random();
+  OfferOperationStatusUpdate statusUpdate2 = createOfferOperationStatusUpdate(
+      statusUuid2, operationUuid, OfferOperationState::OFFER_OPERATION_PENDING);
+  AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate2, true));
+
+  // Advance the clock to trigger a retry of the first update.
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+  Clock::settle();
+
+  // Now that another status update was sent, the status update manager should
+  // fill in the `latest_status` field with this new status update.
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(
+      statusUpdate2.status());
+
+  // Verify that the status update is forwarded again.
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate2);
+
+  EXPECT_FALSE(forwardedStatusUpdate3.isReady());
+
+  // Acknowledge the first update, it is NOT a terminal update, so
+  // `acknowledgement` should return `true`. The status update manager
+  // should now send the second status update.
+  AWAIT_EXPECT_TRUE(
+      statusUpdateManager->acknowledgement(operationUuid, statusUuid1));
+
+  // The status update manager should then forward the latest status update.
+  expectedStatusUpdate = statusUpdate2;
+  expectedStatusUpdate.mutable_latest_status()->CopyFrom(
+    statusUpdate2.status());
+
+  AWAIT_EXPECT_EQ(expectedStatusUpdate, forwardedStatusUpdate3);
 }
 
 } // namespace tests {

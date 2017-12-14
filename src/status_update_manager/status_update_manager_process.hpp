@@ -165,6 +165,11 @@ public:
     CHECK(streams.contains(streamId));
     StatusUpdateStream* stream = streams[streamId].get();
 
+    if (update.has_latest_status()) {
+      return process::Failure(
+          "Expected " + statusUpdateType + " to not contain 'latest_status'");
+    }
+
     // Verify that we didn't get a non-checkpointable update for a
     // stream that is checkpointable, and vice-versa.
     if (stream->checkpointed() != checkpoint) {
@@ -223,7 +228,7 @@ public:
 
       CHECK_SOME(next);
       stream->timeout =
-        forward(streamId, next.get(), slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+        forward(stream, next.get(), slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
     }
 
     return Nothing();
@@ -286,7 +291,7 @@ public:
     } else if (!paused && next.isSome()) {
       // Forward the next queued status update.
       stream->timeout =
-        forward(streamId, next.get(), slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+        forward(stream, next.get(), slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
     }
 
     return !terminated;
@@ -378,9 +383,7 @@ public:
     LOG(INFO) << "Resuming " << statusUpdateType << " manager";
     paused = false;
 
-    foreachpair (const IDType& streamId,
-                 process::Owned<StatusUpdateStream>& stream,
-                 streams) {
+    foreachvalue (process::Owned<StatusUpdateStream>& stream, streams) {
       const Result<UpdateType>& next = stream->next();
 
       if (next.isSome()) {
@@ -388,8 +391,8 @@ public:
 
         LOG(INFO) << "Sending " << statusUpdateType << " " << update;
 
-        stream->timeout =
-          forward(streamId, update, slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+        stream->timeout = forward(
+            stream.get(), update, slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
       }
     }
   }
@@ -471,8 +474,8 @@ private:
 
     if (!paused && next.isSome()) {
       // Forward the next queued status update.
-      stream->timeout =
-        forward(streamId, next.get(), slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+      stream->timeout = forward(
+          stream.get(), next.get(), slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
     }
 
     streams[streamId] = std::move(stream);
@@ -507,11 +510,18 @@ private:
   // Forwards the status update and starts a timer based on the `duration` to
   // check for ACK.
   process::Timeout forward(
-      const IDType& streamId,
-      const UpdateType& update,
+      StatusUpdateStream* stream,
+      const UpdateType& _update,
       const Duration& duration)
   {
     CHECK(!paused);
+    CHECK(!_update.has_latest_status());
+    CHECK_NOTNULL(stream);
+
+    UpdateType update(_update);
+    update.mutable_latest_status()->CopyFrom(
+        stream->pending.empty() ? _update.status()
+                                : stream->pending.back().status());
 
     VLOG(1) << "Forwarding " << statusUpdateType << " " << update;
 
@@ -526,7 +536,7 @@ private:
             CheckpointType,
             UpdateType>>::self(),
         &StatusUpdateManagerProcess::timeout,
-        streamId,
+        stream->streamId,
         duration)
       .timeout();
   }
@@ -552,7 +562,7 @@ private:
         Duration duration_ =
           std::min(duration * 2, slave::STATUS_UPDATE_RETRY_INTERVAL_MAX);
 
-        stream->timeout = forward(streamId, update, duration_);
+        stream->timeout = forward(stream, update, duration_);
       }
     }
   }
@@ -877,6 +887,8 @@ private:
     // Returns `true` if the stream is checkpointed, `false` otherwise.
     bool checkpointed() { return path.isSome(); }
 
+    const IDType streamId;
+
     bool terminated;
     Option<FrameworkID> frameworkId;
     Option<process::Timeout> timeout; // Timeout for resending status update.
@@ -888,9 +900,9 @@ private:
         const IDType& _streamId,
         const Option<std::string>& _path,
         Option<int_fd> _fd)
-      : terminated(false),
+      : streamId(_streamId),
+        terminated(false),
         statusUpdateType(_statusUpdateType),
-        streamId(_streamId),
         path(_path),
         fd(_fd) {}
 
@@ -987,8 +999,6 @@ private:
     // Type of status updates handled by the stream, e.g., "offer operation
     // status update".
     const std::string& statusUpdateType;
-
-    const IDType streamId;
 
     const Option<std::string> path; // File path of the update stream.
     const Option<int_fd> fd; // File descriptor to the update stream.
