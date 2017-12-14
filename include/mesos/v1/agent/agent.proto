@@ -133,6 +133,12 @@ message Call {
     optional uint64 length = 3;
   }
 
+  // Lists active containers on the agent.
+  message GetContainers {
+    optional bool show_nested = 1;
+    optional bool show_standalone = 2;
+  }
+
   // Deprecated in favor of `LaunchContainer`.
   message LaunchNestedContainer {
     required ContainerID container_id = 1;
@@ -347,6 +353,8 @@ message Call {
   optional ListFiles list_files = 4;
   optional ReadFile read_file = 5;
 
+  optional GetContainers get_containers = 20;
+
   optional LaunchNestedContainer launch_nested_container = 6
     [deprecated = true];
 
@@ -452,9 +460,9 @@ message Response {
   // of the containers.
   message GetContainers {
     message Container {
-      required FrameworkID framework_id = 1;
-      required ExecutorID executor_id = 2;
-      required string executor_name = 3;
+      optional FrameworkID framework_id = 1;
+      optional ExecutorID executor_id = 2;
+      optional string executor_name = 3;
       required ContainerID container_id = 4;
       optional ContainerStatus container_status = 5;
       optional ResourceStatistics resource_statistics = 6;
