@@ -3845,15 +3845,7 @@ void Slave::applyOfferOperation(const ApplyOfferOperationMessage& message)
   addOfferOperation(offerOperation);
 
   if (protobuf::isSpeculativeOperation(message.operation_info())) {
-    Offer::Operation strippedOperation = message.operation_info();
-    protobuf::stripAllocationInfo(&strippedOperation);
-
-    Try<vector<ResourceConversion>> conversions =
-      getResourceConversions(strippedOperation);
-
-    CHECK_SOME(conversions);
-
-    apply(conversions.get());
+    apply(offerOperation);
   }
 
   if (resourceProviderId.isSome()) {
@@ -7449,24 +7441,10 @@ void Slave::updateOfferOperation(
     return;
   }
 
-  Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
-  CHECK_SOME(consumed);
-
   switch (update.latest_status().state()) {
     // Terminal state, and the conversion is successful.
     case OFFER_OPERATION_FINISHED: {
-      // 'totalResources' don't have allocations set, we need
-      // to remove them from the consumed and converted resources.
-      consumed->unallocate();
-
-      Resources converted =
-        update.latest_status().converted_resources();
-      converted.unallocate();
-
-      ResourceConversion conversion(consumed.get(), converted);
-
-      apply({conversion});
-
+      apply(operation);
       break;
     }
 
@@ -7545,12 +7523,68 @@ ResourceProvider* Slave::getResourceProvider(const ResourceProviderID& id) const
 }
 
 
-void Slave::apply(const vector<ResourceConversion>& conversions)
+void Slave::apply(OfferOperation* operation)
 {
+  vector<ResourceConversion> conversions;
+
+  // NOTE: 'totalResources' don't have allocations set, we need to
+  // remove them from the conversions.
+
+  if (protobuf::isSpeculativeOperation(operation->info())) {
+    Offer::Operation strippedOperation = operation->info();
+    protobuf::stripAllocationInfo(&strippedOperation);
+
+    Try<vector<ResourceConversion>> _conversions =
+      getResourceConversions(strippedOperation);
+
+    CHECK_SOME(_conversions);
+
+    conversions = _conversions.get();
+  } else {
+    // For non-speculative operations, we only apply the conversion
+    // once it becomes terminal. Before that, we don't know the
+    // converted resources of the conversion.
+    CHECK_EQ(OFFER_OPERATION_FINISHED, operation->latest_status().state());
+
+    Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
+    CHECK_SOME(consumed);
+
+    Resources converted = operation->latest_status().converted_resources();
+
+    consumed->unallocate();
+    converted.unallocate();
+
+    conversions.emplace_back(consumed.get(), converted);
+  }
+
+  // Now, actually apply the operation.
   Try<Resources> resources = totalResources.apply(conversions);
   CHECK_SOME(resources);
 
   totalResources = resources.get();
+
+  Result<ResourceProviderID> resourceProviderId =
+    getResourceProviderId(operation->info());
+
+  CHECK(!resourceProviderId.isError())
+    << "Failed to get resource provider ID: "
+    << resourceProviderId.error();
+
+  // Besides updating the agent's `totalResources`, we also need to
+  // update the resource provider's `totalResources`.
+  if (resourceProviderId.isSome()) {
+    ResourceProvider* resourceProvider =
+      getResourceProvider(resourceProviderId.get());
+
+    CHECK_NOTNULL(resourceProvider);
+
+    Try<Resources> resources =
+      resourceProvider->totalResources.apply(conversions);
+
+    CHECK_SOME(resources);
+
+    resourceProvider->totalResources = resources.get();
+  }
 }
 
 

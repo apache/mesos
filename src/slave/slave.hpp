@@ -581,7 +581,7 @@ private:
   void addResourceProvider(ResourceProvider* resourceProvider);
   ResourceProvider* getResourceProvider(const ResourceProviderID& id) const;
 
-  void apply(const std::vector<ResourceConversion>& conversions);
+  void apply(OfferOperation* operation);
 
   // Publish all resources that are needed to run the current set of
   // tasks and executors on the agent.
