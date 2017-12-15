@@ -2087,7 +2087,7 @@ private:
 
   double _outstanding_offers()
   {
-    return offers.size();
+    return static_cast<double>(offers.size());
   }
 
   double _event_queue_messages()

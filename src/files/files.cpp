@@ -701,7 +701,7 @@ Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::_read(
   length = std::min(length.get(), os::pagesize() * 16);
 
   // Seek to the offset we want to read from.
-  lseek = os::lseek(fd.get(), offset, SEEK_SET);
+  lseek = os::lseek(fd.get(), static_cast<off_t>(offset), SEEK_SET);
   if (lseek.isError()) {
     string error = strings::format(
         "Failed to seek file at '%s': %s",

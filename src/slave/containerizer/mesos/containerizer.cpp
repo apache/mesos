@@ -763,7 +763,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
     // Contruct the structure for containers from the 'SlaveState'
     // first, to maintain the children list in the container.
     Owned<Container> container(new Container());
-    container->status = reap(containerId, state.pid());
+    container->status = reap(containerId, static_cast<pid_t>(state.pid()));
 
     // We only checkpoint the containerizer pid after the container
     // successfully launched, therefore we can assume checkpointed

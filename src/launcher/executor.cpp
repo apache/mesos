@@ -858,7 +858,7 @@ private:
       }
 
       // Now perform signal escalation to begin killing the task.
-      CHECK_GT(pid, 0);
+      CHECK_GT(pid, static_cast<pid_t>(0));
 
       LOG(INFO) << "Sending SIGTERM to process tree at pid " << pid;
 

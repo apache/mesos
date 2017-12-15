@@ -184,7 +184,7 @@ private:
   // Gauge handlers.
   double _queued_operations()
   {
-    return operations.size();
+    return static_cast<double>(operations.size());
   }
 
   Future<double> _registry_size_bytes()

@@ -60,7 +60,7 @@ Future<hashset<ContainerID>> SubprocessLauncher::recover(
 {
   foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();
-    pid_t pid = state.pid();
+    pid_t pid = static_cast<pid_t>(state.pid());
 
     if (pids.containsValue(pid)) {
       // This should (almost) never occur. There is the possibility

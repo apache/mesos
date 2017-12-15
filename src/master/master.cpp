@@ -10815,7 +10815,7 @@ double Master::_slaves_inactive()
 
 double Master::_slaves_unreachable()
 {
-  return slaves.unreachable.size();
+  return static_cast<double>(slaves.unreachable.size());
 }
 
 

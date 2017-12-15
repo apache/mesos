@@ -211,7 +211,7 @@ public:
         connection,
         mechanism.c_str(),
         data.length() == 0 ? nullptr : data.data(),
-        data.length(),
+        static_cast<unsigned>(data.length()),
         &output,
         &length);
 
@@ -237,7 +237,7 @@ public:
     int result = sasl_server_step(
         connection,
         data.length() == 0 ? nullptr : data.data(),
-        data.length(),
+        static_cast<unsigned>(data.length()),
         &output,
         &length);
 
@@ -271,7 +271,7 @@ private:
     }
 
     if (found && length != nullptr) {
-      *length = strlen(*result);
+      *length = static_cast<unsigned>(strlen(*result));
     }
 
     return SASL_OK;

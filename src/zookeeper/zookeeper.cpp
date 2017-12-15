@@ -173,7 +173,7 @@ public:
         zh,
         scheme.c_str(),
         credentials.data(),
-        credentials.size(),
+        static_cast<int>(credentials.size()),
         voidCompletion,
         args);
 
@@ -204,7 +204,7 @@ public:
         zh,
         path.c_str(),
         data.data(),
-        data.size(),
+        static_cast<int>(data.size()),
         &acl,
         flags,
         stringCompletion,
@@ -391,7 +391,7 @@ public:
         zh,
         path.c_str(),
         data.data(),
-        data.size(),
+        static_cast<int>(data.size()),
         version,
         statCompletion,
         args);

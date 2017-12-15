@@ -52,7 +52,7 @@ public:
         return process::Failure("Container already recovered");
       }
 
-      pids.put(run.container_id(), run.pid());
+      pids.put(run.container_id(), static_cast<pid_t>(run.pid()));
 
       process::Owned<process::Promise<mesos::slave::ContainerLimitation>>
         promise(new process::Promise<mesos::slave::ContainerLimitation>());

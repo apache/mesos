@@ -71,7 +71,7 @@ Future<Nothing> WindowsMemIsolatorProcess::recover(
       return Failure("Container already recovered");
     }
 
-    infos[run.container_id()] = {run.pid(), None()};
+    infos[run.container_id()] = {static_cast<pid_t>(run.pid()), None()};
   }
 
   return Nothing();
