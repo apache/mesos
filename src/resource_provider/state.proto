@@ -18,8 +18,6 @@ syntax = "proto2";
 
 import "mesos/mesos.proto";
 
-import "mesos/resource_provider/resource_provider.proto";
-
 package mesos.resource_provider;
 
 option java_package = "org.apache.mesos.resource_provider";
