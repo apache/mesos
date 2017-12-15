@@ -86,6 +86,12 @@ Future<Nothing> Driver::send(const Call& call)
   return dispatch(process.get(), &DriverProcess::send, call);
 }
 
+
+void Driver::start() const
+{
+  return dispatch(process.get(), &DriverProcess::start);
+}
+
 } // namespace resource_provider {
 } // namespace v1 {
 } // namespace mesos {

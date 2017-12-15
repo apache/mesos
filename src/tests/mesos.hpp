@@ -2967,6 +2967,8 @@ public:
             this,
             lambda::_1),
         credential));
+
+    driver->start();
   }
 
   void connectedDefault()

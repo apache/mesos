@@ -162,17 +162,17 @@ public:
               lambda::_1));
   }
 
+  void start()
+  {
+    detection = detector->detect(None())
+      .onAny(defer(self(), &Self::detected, lambda::_1));
+  }
+
 protected:
   // Because we're deriving from a templated base class, we have
   // to explicitly bring these hidden base class names into scope.
   using process::Process<HttpConnectionProcess<Call, Event>>::self;
   typedef HttpConnectionProcess<Call, Event> Self;
-
-  void initialize() override
-  {
-    detection = detector->detect(None())
-      .onAny(defer(self(), &Self::detected, lambda::_1));
-  }
 
   void finalize() override
   {

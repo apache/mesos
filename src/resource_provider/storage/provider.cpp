@@ -647,6 +647,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
           }),
           None())); // TODO(nfnt): Add authentication as part of MESOS-7854.
 
+      driver->start();
+
       return Nothing();
     }));
 }

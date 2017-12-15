@@ -84,6 +84,8 @@ public:
 
   ~Driver();
 
+  void start() const;
+
   Driver(const Driver& other) = delete;
   Driver& operator=(const Driver& other) = delete;
 
