@@ -44,6 +44,8 @@
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
+#include <stout/os/ftruncate.hpp>
+
 #include "common/protobuf_utils.hpp"
 
 #include "slave/constants.hpp"
