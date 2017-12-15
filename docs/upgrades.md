@@ -75,6 +75,7 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
     <ul style="padding-left:10px;">
+      <li>A <a href="#1-5-x-get-containers">Allowed to view nested/standalone containers</a></li>
     </ul>
   </td>
 
@@ -387,6 +388,12 @@ We categorize the changes as follows:
 <a name="1-5-x-relative-disk-source-root-path"></a>
 
 * The fields `Resource.disk.source.path.root` and `Resource.disk.source.mount.root` can now be set to relative paths to an agent's work directory. The containerizers will interpret the paths based on the `--work_dir` flag on an agent.
+
+<a name="1-5-x-get-containers"></a>
+
+* The agent operator API call `GET_CONTAINERS` has been updated to support listing nested or standalone containers. One can specify the following fields in the request:
+  * `show_nested`: Whether to show nested containers.
+  * `show_standalone`: Whether to show standalone containers.
 
 ## Upgrading from 1.3.x to 1.4.x ##
 
