@@ -7601,7 +7601,9 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
       // If this is a not previously seen resource provider we had a master
       // failover. Add the resources and operations to our state.
       CHECK_SOME(provider.newTotal);
-      CHECK(!slave->totalResources.contains(provider.newTotal.get()));
+      CHECK(
+          provider.newTotal->empty() ||
+          !slave->totalResources.contains(provider.newTotal.get()));
 
       CHECK_SOME(provider.info);
       slave->resourceProviders.insert({providerId.get(), provider.info.get()});
