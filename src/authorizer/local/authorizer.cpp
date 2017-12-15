@@ -402,6 +402,7 @@ public:
         case authorization::KILL_STANDALONE_CONTAINER:
         case authorization::WAIT_STANDALONE_CONTAINER:
         case authorization::REMOVE_STANDALONE_CONTAINER:
+        case authorization::VIEW_STANDALONE_CONTAINER:
         case authorization::GET_MAINTENANCE_SCHEDULE:
         case authorization::GET_MAINTENANCE_STATUS:
         case authorization::MARK_AGENT_GONE:
@@ -713,6 +714,7 @@ public:
         case authorization::VIEW_EXECUTOR:
         case authorization::VIEW_FLAGS:
         case authorization::VIEW_FRAMEWORK:
+        case authorization::VIEW_STANDALONE_CONTAINER:
         case authorization::VIEW_TASK:
         case authorization::WAIT_NESTED_CONTAINER:
         case authorization::WAIT_STANDALONE_CONTAINER:
@@ -930,6 +932,7 @@ public:
       case authorization::VIEW_EXECUTOR:
       case authorization::VIEW_FLAGS:
       case authorization::VIEW_FRAMEWORK:
+      case authorization::VIEW_STANDALONE_CONTAINER:
       case authorization::VIEW_TASK:
       case authorization::WAIT_NESTED_CONTAINER:
       case authorization::WAIT_STANDALONE_CONTAINER:
@@ -1141,6 +1144,7 @@ public:
       case authorization::VIEW_EXECUTOR:
       case authorization::VIEW_FLAGS:
       case authorization::VIEW_FRAMEWORK:
+      case authorization::VIEW_STANDALONE_CONTAINER:
       case authorization::VIEW_TASK:
       case authorization::WAIT_NESTED_CONTAINER:
       case authorization::WAIT_STANDALONE_CONTAINER:
@@ -1470,6 +1474,17 @@ private:
       case authorization::REMOVE_STANDALONE_CONTAINER:
         foreach (const ACL::RemoveStandaloneContainer& acl,
             acls.remove_standalone_container()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.users();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::VIEW_STANDALONE_CONTAINER:
+        foreach (const ACL::ViewStandaloneContainer& acl,
+            acls.view_standalone_containers()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.users();
