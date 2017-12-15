@@ -117,7 +117,10 @@ private:
   // Helper function to collect containers status and resource statistics.
   process::Future<JSON::Array> __containers(
       process::Owned<AuthorizationAcceptor> authorizeContainer,
-      Option<IDAcceptor<ContainerID>> selectContainerId) const;
+      process::Owned<AuthorizationAcceptor> authorizeStandaloneContainer,
+      Option<IDAcceptor<ContainerID>> selectContainerId,
+      bool showNestedContainers,
+      bool showStandaloneContainers) const;
 
   // Helper routines for endpoint authorization.
   Try<std::string> extractEndpoint(const process::http::URL& url) const;

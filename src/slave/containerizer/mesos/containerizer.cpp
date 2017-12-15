@@ -2194,8 +2194,6 @@ Future<ResourceStatistics> _usage(
     const Option<Resources>& resources,
     const list<Future<ResourceStatistics>>& statistics)
 {
-  CHECK(!containerId.has_parent());
-
   ResourceStatistics result;
 
   // Set the timestamp now we have all statistics.
@@ -2232,8 +2230,6 @@ Future<ResourceStatistics> _usage(
 Future<ResourceStatistics> MesosContainerizerProcess::usage(
     const ContainerID& containerId)
 {
-  CHECK(!containerId.has_parent());
-
   if (!containers_.contains(containerId)) {
     return Failure("Unknown container " + stringify(containerId));
   }

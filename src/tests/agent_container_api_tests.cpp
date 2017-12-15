@@ -421,6 +421,17 @@ public:
     return post(slave, call);
   }
 
+  Future<http::Response> getContainers(
+      const process::PID<slave::Slave>& slave)
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::GET_CONTAINERS);
+    call.mutable_get_containers()->set_show_nested(true);
+    call.mutable_get_containers()->set_show_standalone(true);
+
+    return post(slave, call);
+  }
+
 protected:
   virtual void TearDown()
   {
@@ -834,6 +845,43 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   AWAIT_READY(wait);
   EXPECT_TRUE(checkWaitContainerResponse(wait, SIGKILL));
+}
+
+
+// This test verifies the GET_CONTAINERS API call.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentContainerAPITest, GetContainers)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.launcher = std::get<1>(std::get<3>(GetParam()));
+  slaveFlags.isolation = std::get<0>(std::get<3>(GetParam()));
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Try<v1::ContainerID> parentContainerId =
+    launchParentContainer(master.get()->pid, slave.get()->pid);
+
+  ASSERT_SOME(parentContainerId);
+
+  // Launch a nested container and wait for it to finish.
+  v1::ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+  containerId.mutable_parent()->CopyFrom(parentContainerId.get());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::OK().status,
+      launchNestedContainer(slave.get()->pid, containerId));
+
+  Future<v1::agent::Response> response =
+    deserialize(getContainers(slave.get()->pid));
+
+  ASSERT_EQ(v1::agent::Response::GET_CONTAINERS, response->type());
+  EXPECT_EQ(2, response->get_containers().containers_size());
 }
 
 } // namespace tests {

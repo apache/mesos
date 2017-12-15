@@ -685,19 +685,25 @@ v1::agent::Response evolve<v1::agent::Response::GET_CONTAINERS>(
     Result<JSON::String> framework_id =
       object.find<JSON::String>("framework_id");
 
-    CHECK_SOME(framework_id);
-    container->mutable_framework_id()->set_value(framework_id.get().value);
+    CHECK(!framework_id.isError());
+    if (framework_id.isSome()) {
+      container->mutable_framework_id()->set_value(framework_id.get().value);
+    }
 
     Result<JSON::String> executor_id = object.find<JSON::String>("executor_id");
 
-    CHECK_SOME(executor_id);
-    container->mutable_executor_id()->set_value(executor_id.get().value);
+    CHECK(!executor_id.isError());
+    if (executor_id.isSome()) {
+      container->mutable_executor_id()->set_value(executor_id.get().value);
+    }
 
     Result<JSON::String> executor_name =
       object.find<JSON::String>("executor_name");
 
-    CHECK_SOME(executor_name);
-    container->set_executor_name(executor_name.get().value);
+    CHECK(!executor_name.isError());
+    if (executor_name.isSome()) {
+      container->set_executor_name(executor_name.get().value);
+    }
 
     Result<JSON::Object> container_status = object.find<JSON::Object>("status");
     if (container_status.isSome()) {

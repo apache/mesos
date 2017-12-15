@@ -72,6 +72,8 @@
 #include "slave/slave.hpp"
 #include "slave/validation.hpp"
 
+#include "slave/containerizer/mesos/paths.hpp"
+
 #include "version/version.hpp"
 
 using mesos::agent::ProcessIO;
@@ -2166,10 +2168,26 @@ Future<Response> Http::getContainers(
     AuthorizationAcceptor::create(
         principal, slave->authorizer, authorization::VIEW_CONTAINER);
 
-  return authorizeContainer.then(defer(slave->self(),
-      [this](const Owned<AuthorizationAcceptor>& authorizeContainer) {
-        // Use an empty container ID filter.
-        return __containers(authorizeContainer, None());
+  Future<Owned<AuthorizationAcceptor>> authorizeStandaloneContainer =
+    AuthorizationAcceptor::create(
+        principal, slave->authorizer, authorization::VIEW_STANDALONE_CONTAINER);
+
+  return collect(authorizeContainer, authorizeStandaloneContainer)
+    .then(defer(
+        slave->self(),
+        [this, call](const tuple<Owned<AuthorizationAcceptor>,
+                                 Owned<AuthorizationAcceptor>>& acceptors) {
+          Owned<AuthorizationAcceptor> authorizeContainer;
+          Owned<AuthorizationAcceptor> authorizeStandaloneContainer;
+          tie(authorizeContainer, authorizeStandaloneContainer) = acceptors;
+
+          // Use an empty container ID filter.
+          return __containers(
+              authorizeContainer,
+              authorizeStandaloneContainer,
+              None(),
+              call.get_containers().show_nested(),
+              call.get_containers().show_standalone());
     })).then([acceptType](const Future<JSON::Array>& result)
         -> Future<Response> {
       if (!result.isReady()) {
@@ -2198,19 +2216,36 @@ Future<Response> Http::_containers(
   Future<Owned<AuthorizationAcceptor>> authorizeContainer =
     AuthorizationAcceptor::create(
         principal, slave->authorizer, authorization::VIEW_CONTAINER);
+
+  Future<Owned<AuthorizationAcceptor>> authorizeStandaloneContainer =
+    AuthorizationAcceptor::create(
+        principal, slave->authorizer, authorization::VIEW_STANDALONE_CONTAINER);
+
   Future<IDAcceptor<ContainerID>> selectContainerId =
       IDAcceptor<ContainerID>(request.url.query.get("container_id"));
 
-  return collect(authorizeContainer, selectContainerId)
+  return collect(authorizeContainer,
+                 authorizeStandaloneContainer,
+                 selectContainerId)
     .then(defer(
         slave->self(),
         [this](const tuple<Owned<AuthorizationAcceptor>,
+                           Owned<AuthorizationAcceptor>,
                            IDAcceptor<ContainerID>>& acceptors) {
           Owned<AuthorizationAcceptor> authorizeContainer;
+          Owned<AuthorizationAcceptor> authorizeStandaloneContainer;
           Option<IDAcceptor<ContainerID>> selectContainerId;
-          tie(authorizeContainer, selectContainerId) = acceptors;
 
-          return __containers(authorizeContainer, selectContainerId);
+          tie(authorizeContainer,
+              authorizeStandaloneContainer,
+              selectContainerId) = acceptors;
+
+          return __containers(
+              authorizeContainer,
+              authorizeStandaloneContainer,
+              selectContainerId,
+              false,
+              false);
     })).then([request](const Future<JSON::Array>& result) -> Future<Response> {
        if (!result.isReady()) {
          LOG(WARNING) << "Could not collect container status and statistics: "
@@ -2231,96 +2266,171 @@ Future<Response> Http::_containers(
 
 Future<JSON::Array> Http::__containers(
     Owned<AuthorizationAcceptor> authorizeContainer,
-    Option<IDAcceptor<ContainerID>> selectContainerId) const
+    Owned<AuthorizationAcceptor> authorizeStandaloneContainer,
+    Option<IDAcceptor<ContainerID>> selectContainerId,
+    bool showNestedContainers,
+    bool showStandaloneContainers) const
 {
-  Owned<list<JSON::Object>> metadata(new list<JSON::Object>());
-  list<Future<ContainerStatus>> statusFutures;
-  list<Future<ResourceStatistics>> statsFutures;
+  return slave->containerizer->containers()
+    .then(defer(slave->self(), [=](const hashset<ContainerID> containerIds) {
+      Owned<list<JSON::Object>> metadata(new list<JSON::Object>());
+      list<Future<ContainerStatus>> statusFutures;
+      list<Future<ResourceStatistics>> statsFutures;
 
-  foreachvalue (const Framework* framework, slave->frameworks) {
-    foreachvalue (const Executor* executor, framework->executors) {
-      // No need to get statistics and status if we know that the
-      // executor has already terminated.
-      if (executor->state == Executor::TERMINATED) {
-        continue;
-      }
+      hashset<ContainerID> executorContainerIds;
+      hashset<ContainerID> authorizedExecutorContainerIds;
 
-      const ExecutorInfo& info = executor->info;
-      const ContainerID& containerId = executor->containerId;
-
-      if ((selectContainerId.isSome() &&
-           !selectContainerId->accept(containerId)) ||
-          !authorizeContainer->accept(info, framework->info)) {
-        continue;
-      }
-
-      JSON::Object entry;
-      entry.values["framework_id"] = info.framework_id().value();
-      entry.values["executor_id"] = info.executor_id().value();
-      entry.values["executor_name"] = info.name();
-      entry.values["source"] = info.source();
-      entry.values["container_id"] = containerId.value();
-
-      metadata->push_back(entry);
-      statusFutures.push_back(slave->containerizer->status(containerId));
-      statsFutures.push_back(slave->containerizer->usage(containerId));
-    }
-  }
-
-  return await(await(statusFutures), await(statsFutures)).then(
-      [metadata](const tuple<
-          Future<list<Future<ContainerStatus>>>,
-          Future<list<Future<ResourceStatistics>>>>& t)
-          -> Future<JSON::Array> {
-        const list<Future<ContainerStatus>>& status = std::get<0>(t).get();
-        const list<Future<ResourceStatistics>>& stats = std::get<1>(t).get();
-        CHECK_EQ(status.size(), stats.size());
-        CHECK_EQ(status.size(), metadata->size());
-
-        JSON::Array result;
-
-        auto statusIter = status.begin();
-        auto statsIter = stats.begin();
-        auto metadataIter = metadata->begin();
-
-        while (statusIter != status.end() &&
-               statsIter != stats.end() &&
-               metadataIter != metadata->end()) {
-          JSON::Object& entry = *metadataIter;
-
-          if (statusIter->isReady()) {
-            entry.values["status"] = JSON::protobuf(statusIter->get());
-          } else {
-            LOG(WARNING) << "Failed to get container status for executor '"
-                         << entry.values["executor_id"] << "'"
-                         << " of framework "
-                         << entry.values["framework_id"] << ": "
-                         << (statusIter->isFailed()
-                              ? statusIter->failure()
-                              : "discarded");
+      foreachvalue (const Framework* framework, slave->frameworks) {
+        foreachvalue (const Executor* executor, framework->executors) {
+          // No need to get statistics and status if we know that the
+          // executor has already terminated.
+          if (executor->state == Executor::TERMINATED) {
+            continue;
           }
 
-          if (statsIter->isReady()) {
-            entry.values["statistics"] = JSON::protobuf(statsIter->get());
-          } else {
-            LOG(WARNING) << "Failed to get resource statistics for executor '"
-                         << entry.values["executor_id"] << "'"
-                         << " of framework "
-                         << entry.values["framework_id"] << ": "
-                         << (statsIter->isFailed()
-                              ? statsIter->failure()
-                              : "discarded");
+          const ExecutorInfo& info = executor->info;
+          const ContainerID& containerId = executor->containerId;
+
+          executorContainerIds.insert(containerId);
+
+          if ((selectContainerId.isSome() &&
+               !selectContainerId->accept(containerId)) ||
+              !authorizeContainer->accept(info, framework->info)) {
+            continue;
           }
 
-          result.values.push_back(entry);
+          authorizedExecutorContainerIds.insert(containerId);
 
-          statusIter++;
-          statsIter++;
-          metadataIter++;
+          JSON::Object entry;
+          entry.values["framework_id"] = info.framework_id().value();
+          entry.values["executor_id"] = info.executor_id().value();
+          entry.values["executor_name"] = info.name();
+          entry.values["source"] = info.source();
+          entry.values["container_id"] = containerId.value();
+
+          metadata->push_back(entry);
+          statusFutures.push_back(slave->containerizer->status(containerId));
+          statsFutures.push_back(slave->containerizer->usage(containerId));
+        }
+      }
+
+      foreach (const ContainerID& containerId, containerIds) {
+        if (executorContainerIds.contains(containerId)) {
+          continue;
         }
 
-        return result;
-      });
+        if (selectContainerId.isSome() &&
+            !selectContainerId->accept(containerId)) {
+          continue;
+        }
+
+        const bool isNestedContainer = containerId.has_parent();
+
+        // TODO(jieyu): Only MesosContainerizer supports standalone
+        // container currently. Thus it's ok to call
+        // MesosContainerizer-specific method here. If we want to
+        // support other Containerizers, we should make this a
+        // Containerizer interface.
+        const bool isStandaloneContainer =
+          containerizer::paths::isStandaloneContainer(
+              slave->flags.runtime_dir,
+              containerId);
+
+        // For nested containers, authorization is always based on
+        // its root container.
+        ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
+
+        const bool isRootContainerStandalone =
+          containerizer::paths::isStandaloneContainer(
+              slave->flags.runtime_dir,
+              rootContainerId);
+
+        if (isNestedContainer && !showNestedContainers) {
+          continue;
+        }
+
+        if (isStandaloneContainer && !showStandaloneContainers) {
+          continue;
+        }
+
+        if (isRootContainerStandalone &&
+            !authorizeStandaloneContainer->accept()) {
+          continue;
+        }
+
+        if (!isRootContainerStandalone &&
+            !authorizedExecutorContainerIds.contains(rootContainerId)) {
+          continue;
+        }
+
+        JSON::Object entry;
+        entry.values["container_id"] = containerId.value();
+
+        metadata->push_back(entry);
+        statusFutures.push_back(slave->containerizer->status(containerId));
+        statsFutures.push_back(slave->containerizer->usage(containerId));
+      }
+
+      return await(await(statusFutures), await(statsFutures)).then(
+          [metadata](const tuple<
+              Future<list<Future<ContainerStatus>>>,
+              Future<list<Future<ResourceStatistics>>>>& t)
+              -> Future<JSON::Array> {
+            const list<Future<ContainerStatus>>& status =
+              std::get<0>(t).get();
+
+            const list<Future<ResourceStatistics>>& stats =
+              std::get<1>(t).get();
+
+            CHECK_EQ(status.size(), stats.size());
+            CHECK_EQ(status.size(), metadata->size());
+
+            JSON::Array result;
+
+            auto statusIter = status.begin();
+            auto statsIter = stats.begin();
+            auto metadataIter = metadata->begin();
+
+            while (statusIter != status.end() &&
+                   statsIter != stats.end() &&
+                   metadataIter != metadata->end()) {
+              JSON::Object& entry = *metadataIter;
+
+              if (statusIter->isReady()) {
+                entry.values["status"] = JSON::protobuf(statusIter->get());
+              } else {
+                LOG(WARNING) << "Failed to get container status for executor '"
+                             << entry.values["executor_id"] << "'"
+                             << " of framework "
+                             << entry.values["framework_id"] << ": "
+                             << (statusIter->isFailed()
+                                  ? statusIter->failure()
+                                  : "discarded");
+              }
+
+              if (statsIter->isReady()) {
+                entry.values["statistics"] = JSON::protobuf(statsIter->get());
+              } else {
+                LOG(WARNING)
+                  << "Failed to get resource statistics for executor '"
+                  << entry.values["executor_id"] << "'"
+                  << " of framework "
+                  << entry.values["framework_id"] << ": "
+                  << (statsIter->isFailed()
+                      ? statsIter->failure()
+                      : "discarded");
+              }
+
+              result.values.push_back(entry);
+
+              statusIter++;
+              statsIter++;
+              metadataIter++;
+            }
+
+            return result;
+          });
+    }));
 }
 
 
