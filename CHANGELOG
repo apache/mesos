@@ -17,6 +17,8 @@ Additional API Changes:
   * [MESOS-7550] The fields `Resource.disk.source.path.root` and
     `Resource.disk.source.mount.root` can now be set to relative paths
     to an agent's work directory.
+  * [MESOS-8040] Return nested/standalone containers in `GET_CONTAINERS`
+    API call.
 
 Unresolved Critical Issues:
 
