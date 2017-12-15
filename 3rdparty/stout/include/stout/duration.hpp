@@ -135,13 +135,15 @@ public:
     return *this;
   }
 
-  Duration& operator*=(double multiplier)
+  template <typename T>
+  Duration& operator*=(T multiplier)
   {
     nanos = static_cast<int64_t>(nanos * multiplier);
     return *this;
   }
 
-  Duration& operator/=(double divisor)
+  template <typename T>
+  Duration& operator/=(T divisor)
   {
     nanos = static_cast<int64_t>(nanos / divisor);
     return *this;
@@ -161,14 +163,16 @@ public:
     return diff;
   }
 
-  Duration operator*(double multiplier) const
+  template <typename T>
+  Duration operator*(T multiplier) const
   {
     Duration product = *this;
     product *= multiplier;
     return product;
   }
 
-  Duration operator/(double divisor) const
+  template <typename T>
+  Duration operator/(T divisor) const
   {
     Duration quotient = *this;
     quotient /= divisor;
