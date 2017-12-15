@@ -1819,73 +1819,96 @@ void HierarchicalAllocatorProcess::__allocate()
     }
   }
 
-  // Calculate the total quantity of scalar resources (including revocable
-  // and reserved) that are available for allocation in the next round. We
-  // need this in order to ensure we do not over-allocate resources during
-  // the second stage.
-  //
-  // For performance reasons (MESOS-4833), this omits information about
-  // dynamic reservations or persistent volumes in the resources.
-  //
-  // NOTE: We use total cluster resources, and not just those based on the
-  // agents participating in the current allocation (i.e. provided as an
-  // argument to the `allocate()` call) so that frameworks in roles without
-  // quota are not unnecessarily deprived of resources.
-  Resources remainingClusterResources = roleSorter->totalScalarQuantities();
-  foreachkey (const string& role, roles) {
-    remainingClusterResources -= roleSorter->allocationScalarQuantities(role);
-  }
-
   // Frameworks in a quota'ed role may temporarily reject resources by
-  // filtering or suppressing offers. Hence quotas may not be fully allocated.
-  Resources unallocatedQuotaResources;
-  foreachpair (const string& name, const Quota& quota, quotas) {
+  // filtering or suppressing offers. Hence, quotas may not be fully
+  // allocated and if so we need to hold back some headroom to ensure
+  // the quota can later be satisfied when needed.
+  Resources requiredHeadroom;
+  foreachpair (const string& role, const Quota& quota, quotas) {
     // Compute the amount of quota that the role does not have allocated.
     //
     // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
     // NOTE: Only scalars are considered for quota.
-    Resources allocated = getQuotaRoleAllocatedResources(name);
+    Resources allocated = getQuotaRoleAllocatedResources(role);
     const Resources required = quota.info.guarantee();
-    unallocatedQuotaResources += (required - allocated);
+    requiredHeadroom += (required - allocated);
   }
 
-  // Determine how many resources we may allocate during the next stage.
+  // The amount of headroom currently available consists of
+  // unallocated resources that can be allocated to satisfy quota.
+  // What that means is that the resources need to be:
   //
-  // NOTE: Resources for quota allocations are already accounted in
-  // `remainingClusterResources`.
-  remainingClusterResources -= unallocatedQuotaResources;
-
-  // Shared resources are excluded in determination of over-allocation of
-  // available resources since shared resources are always allocatable.
-  remainingClusterResources = remainingClusterResources.nonShared();
-
-  // To ensure we do not over-allocate resources during the second stage
-  // with all frameworks, we use 2 stopping criteria:
-  //   * No available resources for the second stage left, i.e.
-  //     `remainingClusterResources` - `allocatedStage2` is empty.
-  //   * A potential offer will force the second stage to use more resources
-  //     than available, i.e. `remainingClusterResources` does not contain
-  //     (`allocatedStage2` + potential offer). In this case we skip this
-  //     agent and continue to the next one.
+  //   (1) Non-revocable
+  //   (2) Unreserved, or reserved to a quota role.
   //
-  // NOTE: Like `remainingClusterResources`, `allocatedStage2` omits
-  // information about dynamic reservations and persistent volumes for
-  // performance reasons. This invariant is preserved because we only add
-  // resources to it that have also had this metadata stripped from them
-  // (typically by using `Resources::createStrippedScalarQuantity`).
-  Resources allocatedStage2;
+  // TODO(bmahler): Note that we currently do not consider quota
+  // headroom on an per-role basis, which means we may not hold
+  // back sufficient headroom for a particular quota role if some
+  // other quota roles have more reservations than quota.
+  // See MESOS-8339.
+  //
+  // We will allocate resources while ensuring that the required
+  // headroom is still available. Otherwise we will not be able
+  // to satisfy quota later. Reservations to non-quota roles and
+  // revocable resources will always be included in the offers
+  // since these are not part of the available headroom for quota.
+  //
+  //  available headroom = unallocated resources -
+  //                       unallocated non-quota role reservations -
+  //                       unallocated revocable resources
 
-  // At this point resources for quotas are allocated or accounted for.
-  // Proceed with allocating the remaining free pool.
-  foreach (const SlaveID& slaveId, slaveIds) {
-    // If there are no resources available for the second stage, stop.
-    //
-    // TODO(mzhu): Breaking early here means that we may leave reservations
-    // unallocated. See MESOS-8293.
-    if (!allocatable(remainingClusterResources - allocatedStage2)) {
-      break;
+  // NOTE: `totalScalarQuantities` omits dynamic reservation,
+  // persistent volume info, and allocation info. We additionally
+  // remove the static reservations here via `toUnreserved()`.
+  Resources availableHeadroom =
+    roleSorter->totalScalarQuantities().toUnreserved();
+
+  // Subtract allocated resources from the total.
+  foreachkey (const string& role, roles) {
+    // NOTE: `totalScalarQuantities` omits dynamic reservation,
+    // persistent volume info, and allocation info. We additionally
+    // remove the static reservations here via `toUnreserved()`.
+    availableHeadroom -=
+      roleSorter->allocationScalarQuantities(role).toUnreserved();
+  }
+
+  // Subtract non quota role reservations.
+  foreachkey (const string& role, reservationScalarQuantities) {
+    if (quotas.contains(role)) {
+      continue; // Skip quota roles.
     }
 
+    hashmap<SlaveID, Resources> allocations;
+    if (roleSorter->contains(role)) {
+      allocations = roleSorter->allocation(role);
+    }
+
+    Resources unallocatedNonQuotaRoleReservations =
+      reservationScalarQuantities.get(role).getOrElse(Resources());
+
+    foreachvalue (const Resources& resources, allocations) {
+      // NOTE: `totalScalarQuantities` omits dynamic reservation,
+      // persistent volume info, and allocation info. We additionally
+      // remove the static reservations here via `toUnreserved()`.
+      unallocatedNonQuotaRoleReservations -=
+        resources.reserved().createStrippedScalarQuantity().toUnreserved();
+    }
+
+    // Subtract the unallocated reservations for this non quota
+    // role from the headroom.
+    availableHeadroom -= unallocatedNonQuotaRoleReservations;
+  }
+
+  // Subtract revocable resources.
+  foreachvalue (const Slave& slave, slaves) {
+    // NOTE: `totalScalarQuantities` omits dynamic reservation,
+    // persistent volume info, and allocation info. We additionally
+    // remove the static reservations here via `toUnreserved()`.
+    availableHeadroom -= slave.available().revocable()
+      .createStrippedScalarQuantity().toUnreserved();
+  }
+
+  foreach (const SlaveID& slaveId, slaveIds) {
     foreach (const string& role, roleSorter->sort()) {
       // In the second allocation stage, we only allocate
       // for non-quota roles.
@@ -1982,6 +2005,20 @@ void HierarchicalAllocatorProcess::__allocate()
           });
         }
 
+        // If allocating these resources would reduce the headroom
+        // below what is required, we will hold them back.
+        const Resources headroomToAllocate = resources
+          .scalars().unreserved().nonRevocable();
+
+        bool sufficientHeadroom =
+          (availableHeadroom -
+            headroomToAllocate.createStrippedScalarQuantity())
+            .contains(requiredHeadroom);
+
+        if (!sufficientHeadroom) {
+          resources -= headroomToAllocate;
+        }
+
         // If the resources are not allocatable, ignore. We cannot break
         // here, because another framework under the same role could accept
         // revocable resources and breaking would skip all other frameworks.
@@ -1991,21 +2028,6 @@ void HierarchicalAllocatorProcess::__allocate()
 
         // If the framework filters these resources, ignore.
         if (isFiltered(frameworkId, role, slaveId, resources)) {
-          continue;
-        }
-
-        // If the offer generated by `resources` would force the second
-        // stage to use more than `remainingClusterResources`, move along.
-        // We do not terminate early, as offers generated further in the
-        // loop may be small enough to fit within `remainingClusterResources`.
-        //
-        // We exclude shared resources from over-allocation check because
-        // shared resources are always allocatable.
-        const Resources scalarQuantity =
-          resources.nonShared().createStrippedScalarQuantity();
-
-        if (!remainingClusterResources.contains(
-                allocatedStage2 + scalarQuantity)) {
           continue;
         }
 
@@ -2021,7 +2043,11 @@ void HierarchicalAllocatorProcess::__allocate()
         // agent as part of quota.
         offerable[frameworkId][role][slaveId] += resources;
         offeredSharedResources[slaveId] += resources.shared();
-        allocatedStage2 += scalarQuantity;
+
+        if (sufficientHeadroom) {
+          availableHeadroom -=
+            headroomToAllocate.createStrippedScalarQuantity();
+        }
 
         slave.allocated += resources;
 
