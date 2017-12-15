@@ -1342,10 +1342,14 @@ void StorageLocalResourceProviderProcess::acknowledgeOfferOperation(
                 metaDir, slaveId, info.type(), info.name(), info.id()),
             operationUuid.get());
 
-        Try<Nothing> rmdir = os::rmdir(path);
-        if (rmdir.isError()) {
-          return Failure(
-              "Failed to remove directory '" + path + "': " + rmdir.error());
+        // NOTE: We check if the path exists since we do not checkpoint
+        // some status updates, such as OFFER_OPERATION_DROPPED.
+        if (os::exists(path)) {
+          Try<Nothing> rmdir = os::rmdir(path);
+          if (rmdir.isError()) {
+            return Failure(
+                "Failed to remove directory '" + path + "': " + rmdir.error());
+          }
         }
       }
 
@@ -1393,7 +1397,7 @@ void StorageLocalResourceProviderProcess::reconcileOfferOperations(
       fatal();
     };
 
-    statusUpdateManager.update(std::move(update))
+    statusUpdateManager.update(std::move(update), false)
       .onFailed(defer(self(), std::bind(die, lambda::_1)))
       .onDiscarded(defer(self(), std::bind(die, "future discarded")));
   }
