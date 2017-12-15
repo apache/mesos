@@ -241,7 +241,7 @@ static inline http::Headers getAuthHeader(const Option<string>& authToken)
 
 static inline Resource createRawDiskResource(
     const ResourceProviderInfo& info,
-    double capacity,
+    const Bytes& capacity,
     const Option<string>& profile,
     const Option<string>& id = None(),
     const Option<Labels>& metadata = None())
@@ -251,7 +251,7 @@ static inline Resource createRawDiskResource(
   Resource resource;
   resource.set_name("disk");
   resource.set_type(Value::SCALAR);
-  resource.mutable_scalar()->set_value(capacity);
+  resource.mutable_scalar()->set_value(capacity.megabytes());
   resource.mutable_provider_id()->CopyFrom(info.id()),
   resource.mutable_reservations()->CopyFrom(info.default_reservations());
   resource.mutable_disk()->mutable_source()
@@ -1032,7 +1032,7 @@ StorageLocalResourceProviderProcess::reconcileResourceProviderState()
       foreach (const Resource& resource, totalResources) {
         Resource unconverted = createRawDiskResource(
             info,
-            resource.scalar().value(),
+            Bytes(resource.scalar().value(), Bytes::MEGABYTES),
             resource.disk().source().has_profile()
               ? resource.disk().source().profile() : Option<string>::none(),
             resource.disk().source().has_id()
@@ -1808,7 +1808,7 @@ Future<Resources> StorageLocalResourceProviderProcess::discoverResources()
             foreach (const auto& entry, response.entries()) {
               resources += createRawDiskResource(
                   info,
-                  entry.volume_info().capacity_bytes(),
+                  Bytes(entry.volume_info().capacity_bytes()),
                   volumesToProfiles.contains(entry.volume_info().id())
                     ? volumesToProfiles.at(entry.volume_info().id())
                     : Option<string>::none(),
@@ -2307,7 +2307,7 @@ Future<Resources> StorageLocalResourceProviderProcess::getCapacities(
 
             return createRawDiskResource(
                 info,
-                response.available_capacity(),
+                Bytes(response.available_capacity()),
                 profile);
           })));
       }
@@ -2459,7 +2459,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
         // RAW profiled resources afterward.
         created = createVolume(
             operationUuid.toString(),
-            resource.scalar().value(),
+            Bytes(resource.scalar().value(), Bytes::MEGABYTES),
             profiles.at(resource.disk().source().profile()));
       } else {
         // No need to call `ValidateVolumeCapabilities` sequentially
@@ -2486,7 +2486,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
         // RAW profiled resources afterward.
         created = createVolume(
             operationUuid.toString(),
-            resource.scalar().value(),
+            Bytes(resource.scalar().value(), Bytes::MEGABYTES),
             profiles.at(resource.disk().source().profile()));
       } else {
         // No need to call `ValidateVolumeCapabilities` sequentially
