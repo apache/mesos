@@ -5376,6 +5376,66 @@ TYPED_TEST(AuthorizationTest, GetMaintenanceStatus)
 }
 
 
+// This tests the authorization of requests to ViewStandaloneContainer.
+TYPED_TEST(AuthorizationTest, ViewStandaloneContainer)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal can view standalone containers on agents.
+    mesos::ACL::ViewStandaloneContainer* acl =
+      acls.add_view_standalone_containers();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_users()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can view standalone containers.
+    mesos::ACL::ViewStandaloneContainer* acl =
+      acls.add_view_standalone_containers();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    // "foo" is allowed to view standalone containers. The request
+    // should succeed.
+    authorization::Request request;
+    request.set_action(authorization::VIEW_STANDALONE_CONTAINER);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    // "bar" is not allowed to view standalone containers. The
+    // request should fail.
+    authorization::Request request;
+    request.set_action(authorization::VIEW_STANDALONE_CONTAINER);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    // Test that no authorizer is created with invalid ACLs.
+    ACLs invalid;
+
+    mesos::ACL::ViewStandaloneContainer* acl =
+      invalid.add_view_standalone_containers();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_users()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
+
 // This tests the authorization of requests to ModifyResourceProviderConfig.
 TYPED_TEST(AuthorizationTest, ModifyResourceProviderConfig)
 {
