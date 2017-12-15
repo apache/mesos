@@ -7294,11 +7294,7 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
     slave->totalResources != newSlaveResources ||
     message.has_resource_providers();
 
-  // Agents which can support resource providers always update the
-  // master on their resource versions uuid via `UpdateSlaveMessage`.
-  if (slave->capabilities.resourceProvider) {
-    CHECK(message.has_resource_version_uuid());
-
+  if (message.has_resource_version_uuid()) {
     hashmap<Option<ResourceProviderID>, id::UUID> resourceVersions;
 
     const Try<id::UUID> slaveResourceVersion =
