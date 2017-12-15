@@ -1667,6 +1667,14 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
     }
   }
 
+  foreach (const ACL::ViewStandaloneContainer& acl,
+           acls.view_standalone_containers()) {
+    if (acl.users().type() == ACL::Entity::SOME) {
+      return Error(
+          "acls.view_standalone_containers type must be either NONE or ANY");
+    }
+  }
+
   foreach (const ACL::ModifyResourceProviderConfig& acl,
            acls.modify_resource_provider_configs()) {
     if (acl.resource_providers().type() == ACL::Entity::SOME) {
