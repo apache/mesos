@@ -388,6 +388,115 @@ void convertResourceFormat(
 }
 
 
+void upgradeResources(Offer::Operation* operation)
+{
+  CHECK_NOTNULL(operation);
+
+  switch (operation->type()) {
+    case Offer::Operation::RESERVE: {
+      convertResourceFormat(
+          operation->mutable_reserve()->mutable_resources(),
+          POST_RESERVATION_REFINEMENT);
+
+      return;
+    }
+    case Offer::Operation::UNRESERVE: {
+      convertResourceFormat(
+          operation->mutable_unreserve()->mutable_resources(),
+          POST_RESERVATION_REFINEMENT);
+
+      return;
+    }
+    case Offer::Operation::CREATE: {
+      convertResourceFormat(
+          operation->mutable_create()->mutable_volumes(),
+          POST_RESERVATION_REFINEMENT);
+
+      return;
+    }
+    case Offer::Operation::DESTROY: {
+      convertResourceFormat(
+          operation->mutable_destroy()->mutable_volumes(),
+          POST_RESERVATION_REFINEMENT);
+
+      return;
+    }
+    case Offer::Operation::LAUNCH: {
+      foreach (
+          TaskInfo& task, *operation->mutable_launch()->mutable_task_infos()) {
+        convertResourceFormat(
+            task.mutable_resources(),
+            POST_RESERVATION_REFINEMENT);
+
+        if (task.has_executor()) {
+          convertResourceFormat(
+              task.mutable_executor()->mutable_resources(),
+              POST_RESERVATION_REFINEMENT);
+        }
+      }
+
+      return;
+    }
+    case Offer::Operation::LAUNCH_GROUP: {
+      Offer::Operation::LaunchGroup* launchGroup =
+        operation->mutable_launch_group();
+
+      if (launchGroup->has_executor()) {
+        convertResourceFormat(
+            launchGroup->mutable_executor()->mutable_resources(),
+            POST_RESERVATION_REFINEMENT);
+      }
+
+      foreach (
+          TaskInfo& task, *launchGroup->mutable_task_group()->mutable_tasks()) {
+        convertResourceFormat(
+            task.mutable_resources(), POST_RESERVATION_REFINEMENT);
+
+        if (task.has_executor()) {
+          convertResourceFormat(
+              task.mutable_executor()->mutable_resources(),
+              POST_RESERVATION_REFINEMENT);
+        }
+      }
+
+      return;
+    }
+    case Offer::Operation::CREATE_VOLUME: {
+      convertResourceFormat(
+          operation->mutable_create_volume()->mutable_source(),
+          POST_RESERVATION_REFINEMENT);
+
+      return;
+    }
+    case Offer::Operation::DESTROY_VOLUME: {
+      convertResourceFormat(
+          operation->mutable_destroy_volume()->mutable_volume(),
+          POST_RESERVATION_REFINEMENT);
+
+      return;
+    }
+    case Offer::Operation::CREATE_BLOCK: {
+      convertResourceFormat(
+          operation->mutable_create_block()->mutable_source(),
+          POST_RESERVATION_REFINEMENT);
+
+      return;
+    }
+    case Offer::Operation::DESTROY_BLOCK: {
+      convertResourceFormat(
+          operation->mutable_destroy_block()->mutable_block(),
+          POST_RESERVATION_REFINEMENT);
+
+      return;
+    }
+    case Offer::Operation::UNKNOWN: {
+      return;
+    }
+  }
+  UNREACHABLE();
+}
+
+
 Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
 {
   CHECK_NOTNULL(operation);
@@ -410,11 +519,7 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
         return error;
       }
 
-      convertResourceFormat(
-          operation->mutable_reserve()->mutable_resources(),
-          POST_RESERVATION_REFINEMENT);
-
-      return None();
+      break;
     }
     case Offer::Operation::UNRESERVE: {
       // TODO(mpark): Once we perform a sanity check validation for
@@ -433,11 +538,7 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
         return error;
       }
 
-      convertResourceFormat(
-          operation->mutable_unreserve()->mutable_resources(),
-          POST_RESERVATION_REFINEMENT);
-
-      return None();
+      break;
     }
     case Offer::Operation::CREATE: {
       // TODO(mpark): Once we perform a sanity check validation for
@@ -456,11 +557,7 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
         return error;
       }
 
-      convertResourceFormat(
-          operation->mutable_create()->mutable_volumes(),
-          POST_RESERVATION_REFINEMENT);
-
-      return None();
+      break;
     }
     case Offer::Operation::DESTROY: {
       // TODO(mpark): Once we perform a sanity check validation for
@@ -479,11 +576,7 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
         return error;
       }
 
-      convertResourceFormat(
-          operation->mutable_destroy()->mutable_volumes(),
-          POST_RESERVATION_REFINEMENT);
-
-      return None();
+      break;
     }
     case Offer::Operation::LAUNCH: {
       // TODO(mpark): Once we perform a sanity check validation for
@@ -512,21 +605,7 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
         }
       }
 
-      // Normalize resources in LAUNCH.
-      foreach (
-          TaskInfo& task, *operation->mutable_launch()->mutable_task_infos()) {
-        convertResourceFormat(
-            task.mutable_resources(),
-            POST_RESERVATION_REFINEMENT);
-
-        if (task.has_executor()) {
-          convertResourceFormat(
-              task.mutable_executor()->mutable_resources(),
-              POST_RESERVATION_REFINEMENT);
-        }
-      }
-
-      return None();
+      break;
     }
     case Offer::Operation::LAUNCH_GROUP: {
       // TODO(mpark): Once we perform a sanity check validation for
@@ -567,27 +646,7 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
         }
       }
 
-      // Normalize resources in LAUNCH_GROUP.
-      if (launchGroup->has_executor()) {
-        convertResourceFormat(
-            launchGroup->mutable_executor()->mutable_resources(),
-            POST_RESERVATION_REFINEMENT);
-      }
-
-      foreach (
-          TaskInfo& task, *launchGroup->mutable_task_group()->mutable_tasks()) {
-        convertResourceFormat(
-            task.mutable_resources(),
-            POST_RESERVATION_REFINEMENT);
-
-        if (task.has_executor()) {
-          convertResourceFormat(
-              task.mutable_executor()->mutable_resources(),
-              POST_RESERVATION_REFINEMENT);
-        }
-      }
-
-      return None();
+      break;
     }
     case Offer::Operation::CREATE_VOLUME: {
       // TODO(mpark): Once we perform a sanity check validation for
@@ -606,11 +665,7 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
         return error;
       }
 
-      convertResourceFormat(
-          operation->mutable_create_volume()->mutable_source(),
-          POST_RESERVATION_REFINEMENT);
-
-      return None();
+      break;
     }
     case Offer::Operation::DESTROY_VOLUME: {
       // TODO(mpark): Once we perform a sanity check validation for
@@ -629,11 +684,7 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
         return error;
       }
 
-      convertResourceFormat(
-          operation->mutable_destroy_volume()->mutable_volume(),
-          POST_RESERVATION_REFINEMENT);
-
-      return None();
+      break;
     }
     case Offer::Operation::CREATE_BLOCK: {
       // TODO(mpark): Once we perform a sanity check validation for
@@ -652,11 +703,7 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
         return error;
       }
 
-      convertResourceFormat(
-          operation->mutable_create_block()->mutable_source(),
-          POST_RESERVATION_REFINEMENT);
-
-      return None();
+      break;
     }
     case Offer::Operation::DESTROY_BLOCK: {
       // TODO(mpark): Once we perform a sanity check validation for
@@ -675,11 +722,7 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
         return error;
       }
 
-      convertResourceFormat(
-          operation->mutable_destroy_block()->mutable_block(),
-          POST_RESERVATION_REFINEMENT);
-
-      return None();
+      break;
     }
     case Offer::Operation::UNKNOWN: {
       // TODO(mpark): Once we perform a sanity check validation for
@@ -688,7 +731,10 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
       return Error("Unknown offer operation");
     }
   }
-  UNREACHABLE();
+
+  upgradeResources(operation);
+
+  return None();
 }
 
 
