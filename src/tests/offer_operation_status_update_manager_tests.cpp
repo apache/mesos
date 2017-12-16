@@ -82,9 +82,12 @@ protected:
         forward, OfferOperationStatusUpdateManagerTest::getPath);
   }
 
-  ~OfferOperationStatusUpdateManagerTest()
+  void TearDown() override
   {
     Clock::resume();
+    statusUpdateManager.reset();
+
+    MesosTest::TearDown();
   }
 
   OfferOperationStatusUpdate createOfferOperationStatusUpdate(

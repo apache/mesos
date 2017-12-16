@@ -634,6 +634,9 @@ private:
         // Open the updates file.
         Try<int_fd> result = os::open(
             path.get(),
+#ifdef __WINDOWS__
+            O_BINARY |
+#endif // __WINDOWS__
             O_CREAT | O_SYNC | O_WRONLY | O_CLOEXEC,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
@@ -667,7 +670,12 @@ private:
       }
 
       // Open the status updates file for reading and writing.
-      Try<int_fd> fd = os::open(path, O_SYNC | O_RDWR | O_CLOEXEC);
+      Try<int_fd> fd = os::open(
+          path,
+#ifdef __WINDOWS__
+          O_BINARY |
+#endif // __WINDOWS__
+          O_SYNC | O_RDWR | O_CLOEXEC);
 
       if (fd.isError()) {
         return Error("Failed to open '" + path + "': " + fd.error());
@@ -754,8 +762,13 @@ private:
         // A stream is created only once there's something to write to it, so
         // this can only happen if the checkpointing of the first update was
         // interrupted.
-        Try<Nothing> removed = os::rm(path);
 
+        // On Windows you can only delete a file if it is not open. The
+        // stream's destructor will close the file, so we need to destroy it
+        // here.
+        stream.reset();
+
+        Try<Nothing> removed = os::rm(path);
         if (removed.isError()) {
           return Error(
               "Failed to remove file '" + path + "': " + removed.error());
