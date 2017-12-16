@@ -714,9 +714,13 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
               configPath + "': " + config.error());
         }
 
-        if (config.isSome() &&
-            getCSIPluginContainerInfo(info, containerId) == config.get()) {
-          continue;
+        if (config.isSome()) {
+          convertResourceFormat(
+              config->mutable_resources(), POST_RESERVATION_REFINEMENT);
+
+          if (getCSIPluginContainerInfo(info, containerId) == config.get()) {
+            continue;
+          }
         }
       }
     }
@@ -912,6 +916,16 @@ StorageLocalResourceProviderProcess::recoverResourceProviderState()
     }
 
     if (resourceProviderState.isSome()) {
+      foreach (
+          Operation& operation,
+          resourceProviderState->mutable_operations()) {
+        upgradeResources(operation.mutable_info());
+      }
+
+      convertResourceFormat(
+          resourceProviderState->mutable_resources(),
+          POST_RESERVATION_REFINEMENT);
+
       foreach (const Operation& operation,
                resourceProviderState->operations()) {
         Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());

@@ -20,6 +20,7 @@
 #include <stout/protobuf.hpp>
 
 #include "common/protobuf_utils.hpp"
+#include "common/resources_utils.hpp"
 
 #include "slave/containerizer/mesos/paths.hpp"
 
@@ -275,12 +276,17 @@ Result<ContainerTermination> getContainerTermination(
     return None();
   }
 
-  const Result<ContainerTermination>& termination =
+  Result<ContainerTermination> termination =
     ::protobuf::read<ContainerTermination>(path);
 
   if (termination.isError()) {
     return Error("Failed to read termination state of container: " +
                  termination.error());
+  }
+
+  if (termination.isSome()) {
+    convertResourceFormat(
+        termination->mutable_limited_resources(), POST_RESERVATION_REFINEMENT);
   }
 
   return termination;
@@ -323,12 +329,25 @@ Result<ContainerConfig> getContainerConfig(
     return None();
   }
 
-  const Result<ContainerConfig>& containerConfig =
+  Result<ContainerConfig> containerConfig =
     ::protobuf::read<ContainerConfig>(path);
 
   if (containerConfig.isError()) {
     return Error("Failed to read launch config of container: " +
                  containerConfig.error());
+  }
+
+  if (containerConfig.isSome()) {
+    convertResourceFormat(
+        containerConfig->mutable_executor_info()->mutable_resources(),
+        POST_RESERVATION_REFINEMENT);
+
+    convertResourceFormat(
+        containerConfig->mutable_task_info()->mutable_resources(),
+        POST_RESERVATION_REFINEMENT);
+
+    convertResourceFormat(
+        containerConfig->mutable_resources(), POST_RESERVATION_REFINEMENT);
   }
 
   return containerConfig;
