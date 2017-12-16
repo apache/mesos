@@ -1526,6 +1526,169 @@ TEST_P(HierarchicalAllocatorTestWithReservations,
 }
 
 
+// This test verifies that when enforcing quota limit, shared resources
+// that are part of a role's reserved-allocated resources are only
+// charged once even when they are offered multiple times.
+TEST_P(HierarchicalAllocatorTestWithReservations,
+  SharedAllocatedResourceQuotaAccounting)
+{
+  // We test this by creating a quota for 100 disk resources.
+  // We then create three agents:
+  //
+  //   (1) One agent is reserved for the quota role with 50 disk.
+  //       On this agent, we create a shared volume using the 50
+  //       disk, and allocate it twice to the framework.
+  //
+  //   (2) We create another agent with 50 disk. Since the role
+  //       only has 50 disk allocated to it (two instances of the
+  //       50 disk shared volume), the disk should be allocated
+  //       towards the role's quota.
+  //
+  //   (3) We create another agent with 50 disk. This time, the
+  //       agent should not be allocated to the role since now
+  //       the role has 100 disk already allocated to it.
+  Clock::pause();
+
+  const string QUOTA_ROLE{"quota-role"};
+
+  initialize();
+
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:3;mem:2048;disk:100");
+  allocator->setQuota(QUOTA_ROLE, quota);
+
+  Resource::ReservationInfo reservation;
+  reservation.set_type(GetParam());
+  reservation.set_role(QUOTA_ROLE);
+
+  Resources reserved = Resources::parse("cpus:2;mem:1024;disk:50").get();
+  reserved = reserved.pushReservation(reservation);
+
+  SlaveInfo agent1 = createSlaveInfo(reserved);
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  FrameworkInfo framework = createFrameworkInfo(
+      {QUOTA_ROLE},
+      {FrameworkInfo::Capability::SHARED_RESOURCES});
+
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  Allocation expected = Allocation(
+    framework.id(),
+    {{QUOTA_ROLE, {{agent1.id(), reserved}}}});
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_EXPECT_EQ(expected, allocation);
+
+  // Quota: "cpus:3;mem:2048;disk:100".
+  // Allocated quota: "cpus:2;mem:1024;disk:50".
+
+  Resource::AllocationInfo allocationInfo;
+  allocationInfo.set_role(QUOTA_ROLE);
+
+  // Create a shared volume.
+  Resource volume = createDiskResource(
+      "50", QUOTA_ROLE, "id1", None(), None(), true);
+
+  // Inject reservation info.
+  volume.add_reservations()->CopyFrom(reservation);
+
+  Offer::Operation create = CREATE(volume);
+  protobuf::injectAllocationInfo(&create, allocationInfo);
+
+  Try<vector<ResourceConversion>> conversions = getResourceConversions(create);
+  ASSERT_SOME(conversions);
+
+  // Ensure the CREATE operation can be applied.
+  Try<Resources> updated =
+    allocation->resources.at(QUOTA_ROLE).at(agent1.id())
+      .apply(conversions.get());
+
+  ASSERT_SOME(updated);
+
+  // Update the allocation in the allocator with a CREATE operation.
+  allocator->updateAllocation(
+      framework.id(),
+      agent1.id(),
+      allocation->resources.at(QUOTA_ROLE).at(agent1.id()),
+      conversions.get());
+
+  // Recover part of the resources for the next allocation.
+  Resources recover = allocatedResources(
+      Resources::parse("cpus:1;mem:512").get(),
+      QUOTA_ROLE);
+
+  // Inject reservation info.
+  recover = recover.pushReservation(reservation);
+
+  allocator->recoverResources(
+      framework.id(),
+      agent1.id(),
+      recover,
+      None());
+
+  // Quota: "cpus:3;mem:2048;disk:100".
+  // Allocated quota: "cpus:1;mem:512;disk:50".
+
+  // Trigger a batch allocation.
+  Clock::advance(flags.allocation_interval);
+
+  // The remaining resources (cpus:1;mem:512) of agent1 along with
+  // the shared volume are offered again.
+  expected = Allocation(
+      framework.id(),
+      {{QUOTA_ROLE, {{agent1.id(), recover + create.create().volumes()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Quota: "cpus:3;mem:2048;disk:100".
+  // Allocated quota: "cpus:2;mem:1024;disk:50".
+  // Note: 50 shared disk is allocated twice but should only count once.
+
+  // Add agent2. This will trigger a batch allocation.
+  SlaveInfo agent2 = createSlaveInfo("cpus:0.5;mem:512;disk:50");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  // `framework` will get all of agent2's resources.
+  expected = Allocation(
+       framework.id(),
+       {{QUOTA_ROLE, {{agent2.id(), agent2.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Quota: "cpus:3;mem:2048;disk:100"
+  // Allocated quota: "cpus:2.5;mem:1536;disk:100"
+  // The quota is met (disk limit has been reached).
+
+  // Add agent3.
+  // This will trigger a batch allocation.
+  SlaveInfo agent3 = createSlaveInfo("cpus:0.5;mem:512;disk:50");
+  allocator->addSlave(
+      agent3.id(),
+      agent3,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent3.resources(),
+      {});
+
+  Clock::settle();
+
+  // No more allocations because quota limit has been reached.
+  EXPECT_TRUE(allocations.get().isPending());
+}
+
+
 // Checks that resources on a slave that are statically reserved to
 // a role are only offered to frameworks in that role.
 TEST_F(HierarchicalAllocatorTest, Reservations)
