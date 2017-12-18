@@ -108,13 +108,7 @@ inline Try<Nothing> write(const std::string& path, const std::string& message)
 {
   Try<int_fd> fd = os::open(
       path,
-#ifdef __WINDOWS__
-      // NOTE: The `O_BINARY` option turns off automatic translation
-      // of newline characters to Windows-style line endings.
-      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_BINARY,
-#else
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
-#endif // __WINDOWS__
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (fd.isError()) {
