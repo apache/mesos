@@ -634,9 +634,6 @@ private:
         // Open the updates file.
         Try<int_fd> result = os::open(
             path.get(),
-#ifdef __WINDOWS__
-            O_BINARY |
-#endif // __WINDOWS__
             O_CREAT | O_SYNC | O_WRONLY | O_CLOEXEC,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
