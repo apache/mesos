@@ -1757,6 +1757,100 @@ TEST_F(HierarchicalAllocatorTest, Reservations)
 }
 
 
+// This test verifies that quota headroom is correctly maintained when some
+// roles have more reservations than their quotas.
+TEST_P(HierarchicalAllocatorTestWithReservations,
+  QuotaHeadroomWhenReservationsExceedQuota)
+{
+  Clock::pause();
+  initialize();
+
+  // We start with two roles `QUOTA_ROLE_W_RESERVATION` and
+  // `QUOTA_ROLE_NO_RESERVATION` with the same quota (cpus:1;mem:1024) set.
+  // `QUOTA_ROLE_W_RESERVATION` will also have reservations twice of its quota.
+  // Thus we have its reservation amount equals to the combined quota of both
+  // roles.
+  const string QUOTA_ROLE_W_RESERVATION{"quota-role-w-reservation"};
+  const string QUOTA_ROLE_NO_RESERVATION{"quota-role-no-reservation"};
+  const string NON_QUOTA_ROLE{"non-quota-role"};
+
+  const Quota quota1 =
+    createQuota(QUOTA_ROLE_W_RESERVATION, "cpus:1;mem:1024");
+  allocator->setQuota(QUOTA_ROLE_W_RESERVATION, quota1);
+
+  const Quota quota2 =
+    createQuota(QUOTA_ROLE_NO_RESERVATION, "cpus:1;mem:1024");
+  allocator->setQuota(QUOTA_ROLE_NO_RESERVATION, quota2);
+
+  // Add `agent1` with reserved resources for `QUOTA_ROLE_W_RESERVATION`.
+  Resource::ReservationInfo reservation;
+  reservation.set_type(GetParam());
+  reservation.set_role(QUOTA_ROLE_W_RESERVATION);
+
+  Resources reserved = Resources::parse("cpus:2;mem:2048").get();
+  reserved = reserved.pushReservation(reservation);
+
+  SlaveInfo agent1 = createSlaveInfo(reserved);
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  // No quota headroom needed for `QUOTA_ROLE_W_RESERVATION`.
+  // (cpus:1;mem:1024) quota headroom needed for `QUOTA_ROLE_NO_RESERVATION`.
+  // Combined quota headroom: (cpus:1;mem:1024)
+
+  // No allocation will happen because there are no frameworks.
+
+  // Add `agent2` with unreserved resources.
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  // Add `framework` under `NON_QUOTA_ROLE`.
+  // This will trigger a batch allocation.
+  FrameworkInfo framework = createFrameworkInfo({NON_QUOTA_ROLE});
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  Clock::settle();
+
+  // No allocation should happen because resources on agent2 are
+  // set aside for the quota headroom.
+  Future<Allocation> allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+
+  // Add `agent3` with unreserved resources.
+  // This will trigger an event-driven allocation loop for agent3.
+  SlaveInfo agent3 = createSlaveInfo("cpus:1;mem:1024");
+  allocator->addSlave(
+      agent3.id(),
+      agent3,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent3.resources(),
+      {});
+
+  Clock::settle();
+
+  // All resources on `agent3` are allocated to `framework` because
+  // it is the only framework and quota headroom has been met by `agent1`
+  // and `agent2`.
+  Allocation expected = Allocation(
+      framework.id(),
+      {{NON_QUOTA_ROLE, {{agent3.id(), agent3.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocation);
+}
+
+
 // Checks that recovered resources are re-allocated correctly.
 TEST_F(HierarchicalAllocatorTest, RecoverResources)
 {
