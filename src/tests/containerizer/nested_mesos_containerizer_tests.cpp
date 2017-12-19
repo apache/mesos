@@ -1890,15 +1890,20 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverLauncherOrphans)
       buildPath(containerId, "mesos", JOIN));
 
   ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroup, true));
+  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroup));
 
   SlaveState state;
   state.id = SlaveID();
 
   AWAIT_READY(containerizer->recover(state));
 
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
+  // We expect that containerizer recovery will detect orphan container and
+  // will destroy it, so we check here that the freezer cgroup is destroyed.
+  //
+  // NOTE: `wait()` can return `Some` or `None` due to a race condition between
+  // `recover()` and `______destroy()` for an orphan container.
+  AWAIT_READY(containerizer->wait(containerId));
+  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroup));
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
