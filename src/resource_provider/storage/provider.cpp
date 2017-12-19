@@ -445,9 +445,6 @@ private:
   LinkedHashMap<id::UUID, OfferOperation> offerOperations;
   Resources totalResources;
   id::UUID resourceVersion;
-
-  // We maintain the state of a CSI volume if and only if its
-  // corresponding resource is not RAW.
   hashmap<string, VolumeData> volumes;
 };
 
@@ -2246,6 +2243,9 @@ Future<string> StorageLocalResourceProviderProcess::validateCapability(
     const Option<Labels>& metadata,
     const csi::VolumeCapability& capability)
 {
+  // NOTE: This can only be called for newly discovered volumes.
+  CHECK(!volumes.contains(volumeId));
+
   return getService(controllerContainerId)
     .then(defer(self(), [=](csi::Client client) {
       google::protobuf::Map<string, string> volumeAttributes;
@@ -2270,21 +2270,13 @@ Future<string> StorageLocalResourceProviderProcess::validateCapability(
                 "': " + response.message());
           }
 
-          if (volumes.contains(volumeId)) {
-            // The resource provider failed over after the last
-            // `ValidateVolumeCapability` call, but before the offer
-            // operation status was checkpointed.
-            CHECK_EQ(csi::state::VolumeState::CREATED,
-                     volumes.at(volumeId).state.state());
-          } else {
-            csi::state::VolumeState volumeState;
-            volumeState.set_state(csi::state::VolumeState::CREATED);
-            volumeState.mutable_volume_capability()->CopyFrom(capability);
-            *volumeState.mutable_volume_attributes() = volumeAttributes;
+          csi::state::VolumeState volumeState;
+          volumeState.set_state(csi::state::VolumeState::CREATED);
+          volumeState.mutable_volume_capability()->CopyFrom(capability);
+          *volumeState.mutable_volume_attributes() = volumeAttributes;
 
-            volumes.put(volumeId, std::move(volumeState));
-            checkpointVolumeState(volumeId);
-          }
+          volumes.put(volumeId, std::move(volumeState));
+          checkpointVolumeState(volumeId);
 
           return volumeId;
         }));
@@ -2455,8 +2447,13 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
   // For 1, we check if its profile is mount or block capable, then
   // call `CreateVolume` with the operation UUID as the name (so that
   // the same volume will be returned when recovering from a failover).
-  // For 2, we call `ValidateVolumeCapabilities` with a default mount or
-  // block capability.
+  //
+  // For 2, there are two scenarios:
+  //   a. If the volume has a checkpointed state (becasue it was created
+  //      by a previous resource provider), we simply check if its
+  //      checkpointed capability supports the conversion.
+  //   b. If the volume is newly discovered, `ValidateVolumeCapabilities`
+  //      is called with a default mount or block capability.
   CHECK_NE(resource.disk().source().has_profile(),
            resource.disk().source().has_id());
 
@@ -2466,6 +2463,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
     case Resource::DiskInfo::Source::PATH:
     case Resource::DiskInfo::Source::MOUNT: {
       if (resource.disk().source().has_profile()) {
+        CHECK(profiles.contains(resource.disk().source().profile()));
         if (!profiles.at(resource.disk().source().profile())
                .capability.has_mount()) {
           return Failure(
@@ -2481,18 +2479,31 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
             Bytes(resource.scalar().value(), Bytes::MEGABYTES),
             profiles.at(resource.disk().source().profile()));
       } else {
-        // No need to call `ValidateVolumeCapabilities` sequentially
-        // since the volume is not used and thus not in `volumes` yet.
-        created = validateCapability(
-            resource.disk().source().id(),
-            resource.disk().source().has_metadata()
-              ? resource.disk().source().metadata() : Option<Labels>::none(),
-            defaultMountCapability);
+        const string& volumeId = resource.disk().source().id();
+
+        if (volumes.contains(volumeId)) {
+          if (!volumes.at(volumeId).state.volume_capability().has_mount()) {
+            return Failure(
+                "Volume '" + volumeId + "' cannot be converted to a " +
+                stringify(type) + " disk resource");
+          }
+
+          created = volumeId;
+        } else {
+          // No need to call `ValidateVolumeCapabilities` sequentially
+          // since the volume is not used and thus not in `volumes` yet.
+          created = validateCapability(
+              volumeId,
+              resource.disk().source().has_metadata()
+                ? resource.disk().source().metadata() : Option<Labels>::none(),
+              defaultMountCapability);
+        }
       }
       break;
     }
     case Resource::DiskInfo::Source::BLOCK: {
       if (resource.disk().source().has_profile()) {
+        CHECK(profiles.contains(resource.disk().source().profile()));
         if (!profiles.at(resource.disk().source().profile())
                .capability.has_block()) {
           return Failure(
@@ -2508,13 +2519,25 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
             Bytes(resource.scalar().value(), Bytes::MEGABYTES),
             profiles.at(resource.disk().source().profile()));
       } else {
-        // No need to call `ValidateVolumeCapabilities` sequentially
-        // since the volume is not used and thus not in `volumes` yet.
-        created = validateCapability(
-            resource.disk().source().id(),
-            resource.disk().source().has_metadata()
-              ? resource.disk().source().metadata() : Option<Labels>::none(),
-            defaultBlockCapability);
+        const string& volumeId = resource.disk().source().id();
+
+        if (volumes.contains(volumeId)) {
+          if (!volumes.at(volumeId).state.volume_capability().has_block()) {
+            return Failure(
+                "Volume '" + volumeId + "' cannot be converted to a " +
+                stringify(type) + " disk resource");
+          }
+
+          created = volumeId;
+        } else {
+          // No need to call `ValidateVolumeCapabilities` sequentially
+          // since the volume is not used and thus not in `volumes` yet.
+          created = validateCapability(
+              volumeId,
+              resource.disk().source().has_metadata()
+                ? resource.disk().source().metadata() : Option<Labels>::none(),
+              defaultBlockCapability);
+        }
       }
       break;
     }
